@@ -5,3 +5,5 @@ xgboost
 numpy
 scikit-learn
 colorama
+plotly
+gradio
