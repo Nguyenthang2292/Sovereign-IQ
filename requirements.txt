@@ -1,0 +1,7 @@
+ccxt
+pandas
+pandas_ta
+xgboost
+numpy
+scikit-learn
+colorama
