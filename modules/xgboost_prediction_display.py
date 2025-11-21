@@ -1,6 +1,7 @@
 """
 Display and reporting functions for xgboost_prediction_main.py
 """
+
 from sklearn.metrics import classification_report, confusion_matrix
 from .utils import color_text
 from colorama import Fore, Style
@@ -14,7 +15,7 @@ def print_classification_report(y_true, y_pred, title="Classification Report"):
     print("\n" + color_text("=" * 60, Fore.CYAN, Style.BRIGHT))
     print(color_text(title, Fore.CYAN, Style.BRIGHT))
     print(color_text("=" * 60, Fore.CYAN, Style.BRIGHT))
-    
+
     # Get classification report as string
     report = classification_report(
         y_true,
@@ -23,7 +24,7 @@ def print_classification_report(y_true, y_pred, title="Classification Report"):
         output_dict=False,
     )
     print(report)
-    
+
     # Print confusion matrix
     cm = confusion_matrix(y_true, y_pred)
     print(color_text("\nConfusion Matrix:", Fore.MAGENTA, Style.BRIGHT))
@@ -45,6 +46,5 @@ def print_classification_report(y_true, y_pred, title="Classification Report"):
                 color = Fore.YELLOW
             print(color_text(f"{value:>12}", color), end="")
         print()
-    
-    print(color_text("=" * 60, Fore.CYAN, Style.BRIGHT) + "\n")
 
+    print(color_text("=" * 60, Fore.CYAN, Style.BRIGHT) + "\n")

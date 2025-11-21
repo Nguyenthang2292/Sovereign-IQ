@@ -1,6 +1,7 @@
 """
 Common utility functions for all algorithms.
 """
+
 import re
 import pandas as pd
 from colorama import Fore, Style
@@ -59,11 +60,11 @@ def format_price(value: float) -> str:
 def normalize_symbol(user_input: str, quote: str = DEFAULT_QUOTE) -> str:
     """
     Converts user input like 'xmr' into 'XMR/USDT'. Keeps existing slash pairs.
-    
+
     Args:
         user_input: User input symbol (e.g., 'btc', 'BTC/USDT', 'btcusdt')
         quote: Quote currency (default: DEFAULT_QUOTE)
-    
+
     Returns:
         Normalized symbol in format 'BASE/QUOTE' (e.g., 'BTC/USDT')
     """
@@ -78,4 +79,3 @@ def normalize_symbol(user_input: str, quote: str = DEFAULT_QUOTE) -> str:
         return f"{norm[:-len(quote)]}/{quote}"
 
     return f"{norm}/{quote}"
-

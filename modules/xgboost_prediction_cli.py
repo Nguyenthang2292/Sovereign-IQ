@@ -1,6 +1,7 @@
 """
 Command-line interface for xgboost_prediction_main.py
 """
+
 import argparse
 from .utils import color_text
 from colorama import Fore
@@ -11,6 +12,7 @@ from .config import (
     DEFAULT_LIMIT,
     DEFAULT_EXCHANGE_STRING,
 )
+
 
 def prompt_with_default(message: str, default, cast=str):
     while True:
@@ -68,4 +70,3 @@ def parse_args():
         help="Disable interactive prompts; rely only on CLI arguments.",
     )
     return parser.parse_args()
-

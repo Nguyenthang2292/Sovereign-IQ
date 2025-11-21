@@ -432,65 +432,6 @@ em.public  # PublicExchangeManager instance
 
 ### Phương thức
 
-#### `get_binance_exchange_instance() -> ccxt.Exchange`
-
-**Mục đích**: Lấy authenticated Binance exchange instance (backward compatibility).
-
-**Ví dụ:**
-```python
-# Cách mới (khuyến nghị)
-exchange = em.authenticated.connect_to_binance_with_credentials()
-
-# Cách cũ (vẫn hoạt động)
-exchange = em.get_binance_exchange_instance()  # → em.authenticated.connect_to_binance_with_credentials()
-```
-
-**Lưu ý:**
-- ⚠️ DEPRECATED: Nên dùng `em.authenticated.connect_to_binance_with_credentials()` thay thế
-- ✅ Vẫn hoạt động để giữ backward compatibility
-
----
-
-#### `get_exchange_instance(exchange_id: str) -> ccxt.Exchange`
-
-**Mục đích**: Lấy public exchange instance cho OHLCV data (backward compatibility).
-
-**Ví dụ:**
-```python
-# Cách mới (khuyến nghị)
-exchange = em.public.connect_to_exchange_with_no_credentials("kraken")
-
-# Cách cũ (vẫn hoạt động)
-exchange = em.get_exchange_instance("kraken")  # → em.public.connect_to_exchange_with_no_credentials("kraken")
-```
-
-**Lưu ý:**
-- ⚠️ DEPRECATED: Nên dùng `em.public.connect_to_exchange_with_no_credentials()` thay thế
-- ✅ Vẫn hoạt động để giữ backward compatibility
-
----
-
-#### `throttled_call(func, *args, **kwargs)`
-
-**Mục đích**: Throttled call (backward compatibility).
-
-**Ví dụ:**
-```python
-# Cách mới (khuyến nghị)
-result = em.authenticated.throttled_call(exchange.fetch_ticker, "BTC/USDT")
-# hoặc
-result = em.public.throttled_call(exchange.fetch_ohlcv, "BTC/USDT", timeframe="1h")
-
-# Cách cũ (vẫn hoạt động)
-result = em.throttled_call(exchange.fetch_ticker, "BTC/USDT")  # → authenticated.throttled_call()
-```
-
-**Lưu ý:**
-- ⚠️ DEPRECATED: Nên dùng `em.authenticated.throttled_call()` hoặc `em.public.throttled_call()` thay thế
-- ✅ Mặc định dùng authenticated manager's throttled_call
-
----
-
 #### `normalize_symbol(market_symbol: str) -> str`
 
 **Mục đích**: Chuẩn hóa symbol từ Binance futures format.
@@ -666,10 +607,10 @@ em = ExchangeManager(api_key="...", api_secret="...")
 data_fetcher = DataFetcher(em)
 
 # Fetch prices (dùng authenticated)
-data_fetcher.fetch_prices(["BTC/USDT", "ETH/USDT"])
+data_fetcher.fetch_current_prices_from_binance(["BTC/USDT", "ETH/USDT"])
 
 # Fetch OHLCV (dùng public)
-ohlcv = data_fetcher.fetch_ohlcv("BTC/USDT", limit=100, timeframe="1h")
+df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange("BTC/USDT", limit=100, timeframe="1h")
 ```
 
 ### Ví dụ 5: Multi-exchange portfolio management

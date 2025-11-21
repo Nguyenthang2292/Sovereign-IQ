@@ -20,15 +20,21 @@ from modules.config import (
 from modules.utils import color_text, format_price
 from modules.xgboost_prediction_utils import get_prediction_window
 from modules.xgboost_prediction_cli import parse_args, resolve_input
-from modules.xgboost_prediction_data_fetcher import fetch_data_from_ccxt
 from modules.utils import normalize_symbol
-from modules.xgboost_prediction_indicators import calculate_indicators
+from modules.ExchangeManager import ExchangeManager
+from modules.DataFetcher import DataFetcher
+from modules.IndicatorEngine import (
+    IndicatorConfig,
+    IndicatorEngine,
+    IndicatorProfile,
+)
 from modules.xgboost_prediction_labeling import apply_directional_labels
 from modules.xgboost_prediction_model import train_and_predict, predict_next_move
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
 colorama_init(autoreset=True)
+
 
 def main():
     args = parse_args()
@@ -44,17 +50,32 @@ def main():
         ex.strip() for ex in exchanges_input.split(",") if ex.strip()
     ] or DEFAULT_EXCHANGES
 
+    # Initialize ExchangeManager, DataFetcher, IndicatorEngine
+    exchange_manager = ExchangeManager()  # No credentials needed for OHLCV
+    data_fetcher = DataFetcher(exchange_manager)
+    indicator_engine = IndicatorEngine(
+        IndicatorConfig.for_profile(IndicatorProfile.XGBOOST)
+    )
+
+    # Set exchange priority if custom exchanges provided
+    if exchanges != DEFAULT_EXCHANGES:
+        exchange_manager.public.exchange_priority_for_fallback = exchanges
+
     def run_once(raw_symbol):
         symbol = normalize_symbol(raw_symbol, quote)
-        df, exchange_id = fetch_data_from_ccxt(
-            symbol, timeframe, limit=limit, exchanges=exchanges
+        df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+            symbol,
+            limit=limit,
+            timeframe=timeframe,
+            check_freshness=True,
+            exchanges=exchanges if exchanges != DEFAULT_EXCHANGES else None,
         )
         exchange_label = exchange_id.upper() if exchange_id else "UNKNOWN"
 
         if df is not None:
             # Calculate indicators without labels first (to preserve latest_data)
-            df = calculate_indicators(df, apply_labels=False)
-            
+            df = indicator_engine.compute_features(df)
+
             # Save latest data before applying labels and dropping NaN
             latest_data = df.iloc[-1:].copy()
             # Fill any remaining NaN in latest_data with forward fill then backward fill
@@ -62,7 +83,11 @@ def main():
 
             # Apply directional labels and drop NaN for training data
             df = apply_directional_labels(df)
-            latest_threshold = df["DynamicThreshold"].iloc[-1] if len(df) > 0 else TARGET_BASE_THRESHOLD
+            latest_threshold = (
+                df["DynamicThreshold"].iloc[-1]
+                if len(df) > 0
+                else TARGET_BASE_THRESHOLD
+            )
             df.dropna(inplace=True)
             latest_data["DynamicThreshold"] = latest_threshold
 
@@ -183,6 +208,6 @@ def main():
     except KeyboardInterrupt:
         print(color_text("\nExiting program by user request.", Fore.YELLOW))
 
+
 if __name__ == "__main__":
     main()
-

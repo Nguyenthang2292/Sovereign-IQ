@@ -1,5 +1,5 @@
 """
-Configuration constants for xgboost_prediction_main.py and portfolio_manager_v2.py
+Configuration constants for xgboost_prediction_main.py and portfolio_manager_main.py
 """
 
 DEFAULT_SYMBOL = "BTC/USDT"
@@ -10,12 +10,14 @@ DEFAULT_LIMIT = 1500
 # Portfolio Manager Configuration
 BENCHMARK_SYMBOL = "BTC/USDT"  # Default benchmark for beta calculation
 DEFAULT_REQUEST_PAUSE = 0.2  # Default pause between API requests (seconds)
-DEFAULT_CONTRACT_TYPE = 'future'  # Default contract type: 'spot', 'margin', or 'future'
+DEFAULT_CONTRACT_TYPE = "future"  # Default contract type: 'spot', 'margin', or 'future'
 DEFAULT_BETA_MIN_POINTS = 50  # Minimum data points required for beta calculation
 DEFAULT_BETA_LIMIT = 1000  # Default limit for beta calculation OHLCV fetch
 DEFAULT_BETA_TIMEFRAME = "1h"  # Default timeframe for beta calculation
 DEFAULT_CORRELATION_MIN_POINTS = 10  # Minimum data points for correlation analysis
-DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS = 10  # Minimum data points for weighted correlation
+DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS = (
+    10  # Minimum data points for weighted correlation
+)
 DEFAULT_VAR_CONFIDENCE = 0.95  # Default confidence level for VaR calculation (95%)
 DEFAULT_VAR_LOOKBACK_DAYS = 60  # Default lookback period for VaR calculation (days)
 DEFAULT_VAR_MIN_HISTORY_DAYS = 20  # Minimum history required for reliable VaR

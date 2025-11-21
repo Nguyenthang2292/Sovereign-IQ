@@ -1,10 +1,21 @@
 ccxt
 pandas
+numpy
 pandas_ta
 xgboost
-numpy
 scikit-learn
 colorama
+imbalanced-learn
+
+# Deep Learning / TFT dependencies
+torch
+torchvision
+torchaudio
+pytorch-lightning
+pytorch-forecasting
+tensorboard
+
+# Optional UI / OCR tooling (legacy modules)
 plotly
 gradio
 opencv-python
@@ -12,4 +23,7 @@ pytesseract
 easyocr
 pillow
 streamlit
-imbalanced-learn
+
+# Development / tests
+pytest
+pytest-cov

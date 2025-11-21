@@ -1,6 +1,7 @@
 """
 Labeling functions for xgboost_prediction_main.py
 """
+
 import numpy as np
 import pandas as pd
 from .config import TARGET_HORIZON, TARGET_BASE_THRESHOLD, LABEL_TO_ID
@@ -37,4 +38,3 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[future_close.isna(), "TargetLabel"] = np.nan
     df["Target"] = df["TargetLabel"].map(LABEL_TO_ID)
     return df
-

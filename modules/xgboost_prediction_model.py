@@ -1,14 +1,20 @@
 """
 Model training and prediction functions for xgboost_prediction_main.py
 """
+
 import numpy as np
-import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import TimeSeriesSplit
 from .utils import color_text
 from colorama import Fore, Style
-from .config import TARGET_LABELS, TARGET_HORIZON, MODEL_FEATURES, ID_TO_LABEL, XGBOOST_PARAMS
+from .config import (
+    TARGET_LABELS,
+    TARGET_HORIZON,
+    MODEL_FEATURES,
+    ID_TO_LABEL,
+    XGBOOST_PARAMS,
+)
 from .xgboost_prediction_display import print_classification_report
 
 
@@ -31,7 +37,7 @@ def train_and_predict(df):
     split = int(len(df) * 0.8)
     train_end = split - TARGET_HORIZON
     test_start = split
-    
+
     # Ensure we have enough data after creating the gap
     if train_end < len(df) * 0.5:
         train_end = int(len(df) * 0.5)
@@ -47,10 +53,10 @@ def train_and_predict(df):
             )
             train_end = len(df)
             test_start = len(df)
-    
+
     X_train, X_test = X.iloc[:train_end], X.iloc[test_start:]
     y_train, y_test = y.iloc[:train_end], y.iloc[test_start:]
-    
+
     gap_size = test_start - train_end
     if gap_size > 0:
         print(
@@ -83,7 +89,7 @@ def train_and_predict(df):
         cv_scores = []
         all_y_true = []
         all_y_pred = []
-        
+
         for fold, (train_idx, test_idx) in enumerate(tscv.split(X), start=1):
             # Apply gap to prevent data leakage: remove last TARGET_HORIZON indices from train
             train_idx_array = np.array(train_idx)
@@ -99,7 +105,7 @@ def train_and_predict(df):
                     )
                 )
                 continue
-            
+
             # Ensure test set doesn't overlap with gap
             # Gap is sufficient when: test_start > train_end + TARGET_HORIZON
             test_idx_array = np.array(test_idx)
@@ -116,11 +122,11 @@ def train_and_predict(df):
                             )
                         )
                         continue
-            
+
             # Check if filtered training data contains all required classes
             y_train_fold = y.iloc[train_idx_filtered]
             unique_classes = sorted(y_train_fold.unique())
-            
+
             # XGBoost requires at least 2 classes, but we need all 3 for proper multi-class
             # If we don't have all classes, skip this fold
             if len(unique_classes) < 2:
@@ -131,7 +137,7 @@ def train_and_predict(df):
                     )
                 )
                 continue
-            
+
             # If we have all 3 classes, proceed normally
             # If we only have 2 classes, we can still train but need to handle it
             # For now, we'll skip folds that don't have all 3 classes to maintain consistency
@@ -143,7 +149,7 @@ def train_and_predict(df):
                     )
                 )
                 continue
-            
+
             cv_model = build_model()
             cv_model.fit(X.iloc[train_idx_filtered], y.iloc[train_idx_filtered])
             if len(test_idx_array) > 0:
@@ -151,18 +157,18 @@ def train_and_predict(df):
                 preds = cv_model.predict(X.iloc[test_idx_array])
                 acc = accuracy_score(y_test_fold, preds)
                 cv_scores.append(acc)
-                
+
                 # Collect predictions for aggregated report
                 all_y_true.extend(y_test_fold.tolist())
                 all_y_pred.extend(preds.tolist())
-                
+
                 print(
                     color_text(
                         f"CV Fold {fold} Accuracy: {acc:.4f} (train: {len(train_idx_filtered)}, gap: {TARGET_HORIZON}, test: {len(test_idx_array)})",
                         Fore.BLUE,
                     )
                 )
-        
+
         if len(cv_scores) > 0:
             mean_cv = sum(cv_scores) / len(cv_scores)
             print(
@@ -172,7 +178,7 @@ def train_and_predict(df):
                     Style.BRIGHT,
                 )
             )
-            
+
             # Print aggregated classification report across all CV folds
             if len(all_y_true) > 0 and len(all_y_pred) > 0:
                 print_classification_report(
@@ -204,9 +210,8 @@ def predict_next_move(model, last_row):
     Predicts the probability for the next candle.
     """
     X_new = last_row[MODEL_FEATURES].values.reshape(1, -1)
-    
+
     # Predict probability
     proba = model.predict_proba(X_new)[0]
-    
-    return proba
 
+    return proba
