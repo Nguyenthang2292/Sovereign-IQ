@@ -14,6 +14,7 @@ torchaudio
 pytorch-lightning
 pytorch-forecasting
 tensorboard
+optuna  # Optional: for Phase 2 hyperparameter tuning
 
 # Optional UI / OCR tooling (legacy modules)
 plotly

@@ -33,7 +33,7 @@ except ImportError:
     BENCHMARK_SYMBOL = "BTC/USDT"
 
 
-class RiskCalculator:
+class PortfolioRiskCalculator:
     """Calculates portfolio risk metrics."""
 
     def __init__(self, data_fetcher, benchmark_symbol: str = BENCHMARK_SYMBOL):

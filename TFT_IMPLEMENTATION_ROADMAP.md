@@ -6,7 +6,7 @@
 - Verify GPU availability (`torch.cuda.is_available()`); fall back to CPU if needed.
 
 ### 2. Data Preparation Pipeline
-- Build `modules/data_pipeline_deep.py`:
+- Build `modules/deeplearning_data_pipeline.py`:
   - Fetch OHLCV via existing `DataFetcher`.
   - **Target Engineering**:
     - Use **Log Returns** or **% Change** instead of absolute price for better stationarity.

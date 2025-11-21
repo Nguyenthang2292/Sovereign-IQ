@@ -15,8 +15,8 @@ try:
     from modules.ProgressBar import ProgressBar
     from modules.ExchangeManager import ExchangeManager
     from modules.DataFetcher import DataFetcher
-    from modules.CorrelationAnalyzer import CorrelationAnalyzer
-    from modules.RiskCalculator import RiskCalculator
+    from modules.PortfolioCorrelationAnalyzer import PortfolioCorrelationAnalyzer
+    from modules.PortfolioRiskCalculator import PortfolioRiskCalculator
     from modules.config import BENCHMARK_SYMBOL
 except ImportError:
     Position = None
@@ -25,8 +25,8 @@ except ImportError:
     ProgressBar = None
     ExchangeManager = None
     DataFetcher = None
-    CorrelationAnalyzer = None
-    RiskCalculator = None
+    PortfolioCorrelationAnalyzer = None
+    PortfolioRiskCalculator = None
     BENCHMARK_SYMBOL = "BTC/USDT"
 
 
@@ -36,8 +36,8 @@ class HedgeFinder:
     def __init__(
         self,
         exchange_manager: ExchangeManager,
-        correlation_analyzer: CorrelationAnalyzer,
-        risk_calculator: RiskCalculator,
+        correlation_analyzer: PortfolioCorrelationAnalyzer,
+        risk_calculator: PortfolioRiskCalculator,
         positions: List[Position],
         benchmark_symbol: str = BENCHMARK_SYMBOL,
         shutdown_event=None,
@@ -79,7 +79,7 @@ class HedgeFinder:
 
     def _score_candidate(self, symbol: str) -> Optional[Dict[str, float]]:
         """Score a hedge candidate based on correlation."""
-        weighted_corr, _ = self.correlation_analyzer.calculate_weighted_correlation(
+        weighted_corr, _ = self.correlation_analyzer.calculate_weighted_correlation_with_new_symbol(
             symbol, verbose=False
         )
         return_corr, _ = (
@@ -391,7 +391,7 @@ class HedgeFinder:
         print(color_text("=" * 70, Fore.CYAN))
 
         weighted_corr, weighted_details = (
-            self.correlation_analyzer.calculate_weighted_correlation(new_symbol)
+            self.correlation_analyzer.calculate_weighted_correlation_with_new_symbol(new_symbol)
         )
         portfolio_return_corr, portfolio_return_details = (
             self.correlation_analyzer.calculate_portfolio_return_correlation(new_symbol)

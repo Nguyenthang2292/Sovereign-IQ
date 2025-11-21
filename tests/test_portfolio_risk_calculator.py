@@ -3,7 +3,7 @@ import numpy as np
 from types import SimpleNamespace
 
 from modules.Position import Position
-from modules.RiskCalculator import RiskCalculator
+from modules.PortfolioRiskCalculator import PortfolioRiskCalculator
 
 
 def test_calculate_stats_handles_long_and_short_positions():
@@ -17,7 +17,7 @@ def test_calculate_stats_handles_long_and_short_positions():
         dataframe_to_close_series=lambda df: None,
     )
 
-    calc = RiskCalculator(dummy_fetcher)
+    calc = PortfolioRiskCalculator(dummy_fetcher)
     calc.calculate_beta = lambda *args, **kwargs: None
     df, total_pnl, total_delta, total_beta_delta = calc.calculate_stats(
         positions, prices
@@ -48,7 +48,7 @@ def test_calculate_beta_returns_none_when_not_enough_data(monkeypatch):
         dataframe_to_close_series=lambda df: df.set_index("timestamp")["close"],
     )
 
-    calc = RiskCalculator(fetcher)
+    calc = PortfolioRiskCalculator(fetcher)
     beta = calc.calculate_beta("XRP/USDT", benchmark_symbol="BTC/USDT", min_points=10)
 
     assert beta is None
@@ -68,7 +68,7 @@ def test_calculate_beta_uses_cache(monkeypatch):
         dataframe_to_close_series=lambda df: df.set_index("timestamp")["close"],
     )
 
-    calc = RiskCalculator(fetcher)
+    calc = PortfolioRiskCalculator(fetcher)
     beta1 = calc.calculate_beta("BTC/USDT", benchmark_symbol="ETH/USDT", min_points=5)
     beta2 = calc.calculate_beta("BTC/USDT", benchmark_symbol="ETH/USDT", min_points=5)
 
@@ -77,7 +77,7 @@ def test_calculate_beta_uses_cache(monkeypatch):
 
 def test_calculate_portfolio_var_returns_none_without_positions(capfd):
     fetcher = SimpleNamespace()
-    calc = RiskCalculator(fetcher)
+    calc = PortfolioRiskCalculator(fetcher)
 
     result = calc.calculate_portfolio_var([])
 
