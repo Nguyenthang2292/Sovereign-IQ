@@ -49,6 +49,22 @@ TARGET_LABELS = ["DOWN", "NEUTRAL", "UP"]
 LABEL_TO_ID = {label: idx for idx, label in enumerate(TARGET_LABELS)}
 ID_TO_LABEL = {idx: label for label, idx in LABEL_TO_ID.items()}
 
+# Dynamic Lookback Weight Configuration
+# Controls how historical reference prices are weighted based on volatility
+DYNAMIC_LOOKBACK_SHORT_MULTIPLIER = 1.5  # Short lookback: TARGET_HORIZON * 1.5
+DYNAMIC_LOOKBACK_MEDIUM_MULTIPLIER = 2.0  # Medium lookback: TARGET_HORIZON * 2.0 (original)
+DYNAMIC_LOOKBACK_LONG_MULTIPLIER = 2.5  # Long lookback: TARGET_HORIZON * 2.5
+
+# Volatility thresholds for weight adjustment
+DYNAMIC_LOOKBACK_VOL_LOW_THRESHOLD = 1.8  # Below this = low volatility
+DYNAMIC_LOOKBACK_VOL_HIGH_THRESHOLD = 2.2  # Above this = high volatility
+
+# Weight configuration for different volatility regimes
+# Format: [weight_short, weight_medium, weight_long]
+DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL = [0.4, 0.4, 0.2]  # Low volatility: favor short-medium
+DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL = [0.2, 0.5, 0.3]  # Medium volatility: balanced
+DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL = [0.2, 0.3, 0.5]  # High volatility: favor medium-long
+
 # Model features list
 MODEL_FEATURES = [
     "open",
