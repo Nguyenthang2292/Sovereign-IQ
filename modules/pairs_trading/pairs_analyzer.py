@@ -530,6 +530,11 @@ class PairsTradingAnalyzer:
             # Cointegration requirement
             if self.require_cointegration:
                 is_cointegrated = row.get('is_cointegrated')
+                # Fall back to Johansen cointegration flag if ADF-based flag is missing
+                if (is_cointegrated is None or pd.isna(is_cointegrated)) and 'is_johansen_cointegrated' in row:
+                    alt_coint = row.get('is_johansen_cointegrated')
+                    if alt_coint is not None and not pd.isna(alt_coint):
+                        is_cointegrated = bool(alt_coint)
                 if is_cointegrated is None or pd.isna(is_cointegrated) or not is_cointegrated:
                     is_valid = False
                     validation_errors.append("Not cointegrated (required)")

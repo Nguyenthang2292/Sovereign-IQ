@@ -164,7 +164,13 @@ class PairMetricsComputer:
         )
         if johansen:
             metrics.update(johansen)
-
+            # If ADF-based cointegration flag is missing, fall back to Johansen result
+            if (
+                metrics.get("is_cointegrated") is None
+                and johansen.get("is_johansen_cointegrated") is not None
+            ):
+                metrics["is_cointegrated"] = johansen["is_johansen_cointegrated"]
+        
         # Kalman hedge ratio
         kalman_beta = calculate_kalman_hedge_ratio(price1, price2)
         if kalman_beta is not None:

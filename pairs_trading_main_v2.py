@@ -74,7 +74,7 @@ def display_performers(df, title, color):
     print(color_text(f"{'=' * 80}", color, Style.BRIGHT))
 
 
-def display_pairs_opportunities(pairs_df, max_display=10, verbose=False):
+def display_pairs_opportunities(pairs_df, max_display=10, verbose=True):
     """Display pairs trading opportunities in a formatted table.
     
     Args:
@@ -161,11 +161,12 @@ def display_pairs_opportunities(pairs_df, max_display=10, verbose=False):
 
         # Cointegration status
         if is_cointegrated is not None and not pd.isna(is_cointegrated):
-            coint_status = "✅" if is_cointegrated else "❌"
+            coint_status = "OK" if is_cointegrated else "NOT"
             coint_color = Fore.GREEN if is_cointegrated else Fore.RED
         else:
-            coint_status = "?"
-            coint_color = Fore.WHITE
+            # If both ADF and Johansen failed or were unavailable, treat as NOT cointegrated
+            coint_status = "NOT"
+            coint_color = Fore.RED
         coint_display = _pad_colored(coint_status, 7, coint_color)
         coint_display_verbose = _pad_colored(coint_status, 9, coint_color)
 
