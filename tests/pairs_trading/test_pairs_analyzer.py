@@ -508,7 +508,6 @@ def test_validate_pairs_with_missing_correlation():
         max_spread=0.50,
         min_correlation=0.3,
         max_correlation=0.9,
-        min_volume=1000,  # Set low min_volume to avoid volume check rejection
     )
 
     pairs_df = pd.DataFrame(

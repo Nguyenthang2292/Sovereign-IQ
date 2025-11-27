@@ -22,7 +22,6 @@ from colorama import Fore, Style, init as colorama_init
 from modules.config import (
     PAIRS_TRADING_WEIGHTS,
     PAIRS_TRADING_TOP_N,
-    PAIRS_TRADING_MIN_VOLUME,
     PAIRS_TRADING_MIN_SPREAD,
     PAIRS_TRADING_MAX_SPREAD,
     PAIRS_TRADING_MIN_CORRELATION,
@@ -34,6 +33,13 @@ from modules.common.ExchangeManager import ExchangeManager
 from modules.common.DataFetcher import DataFetcher
 from modules.pairs_trading.performance_analyzer import PerformanceAnalyzer
 from modules.pairs_trading.pairs_analyzer import PairsTradingAnalyzer
+from modules.pairs_trading.cli import (
+    parse_args,
+    prompt_interactive_mode,
+    standardize_symbol_input,
+    parse_weights,
+    parse_symbols,
+)
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
@@ -305,172 +311,13 @@ def select_pairs_for_symbols(pairs_df, target_symbols, max_pairs=None):
         return pd.DataFrame(columns=pairs_df.columns)
 
     return pd.DataFrame(selected_rows).reset_index(drop=True)
-def standardize_symbol_input(symbol: str) -> str:
-    """Convert raw user input into f'{base}/USDT' style if needed."""
-    if not symbol:
-        return ""
-    cleaned = symbol.strip().upper()
-    if "/" in cleaned:
-        base, quote = cleaned.split("/", 1)
-        base = base.strip()
-        quote = quote.strip() or "USDT"
-        return f"{base}/{quote}"
-    if cleaned.endswith("USDT"):
-        base = cleaned[:-4]
-        base = base.strip()
-        return f"{base}/USDT"
-    return f"{cleaned}/USDT"
-
-
-def prompt_interactive_mode():
-    """Interactive launcher for selecting analysis mode and symbol source."""
-    print(color_text("\n" + "=" * 60, Fore.CYAN, Style.BRIGHT))
-    print(color_text("Pairs Trading Analysis - Interactive Launcher", Fore.CYAN, Style.BRIGHT))
-    print(color_text("=" * 60, Fore.CYAN, Style.BRIGHT))
-    print("1) Auto mode  - analyze entire market to surface opportunities")
-    print("2) Manual mode - focus on specific symbols you provide")
-    print("3) Exit")
-
-    while True:
-        choice = input(color_text("\nSelect option [1-3]: ", Fore.YELLOW)).strip() or "1"
-        if choice in {"1", "2", "3"}:
-            break
-        print(color_text("Invalid selection. Please enter 1, 2, or 3.", Fore.RED))
-
-    if choice == "3":
-        print(color_text("\nExiting...", Fore.YELLOW))
-        sys.exit(0)
-
-    manual_symbols = None
-    if choice == "2":
-        manual_symbols = input(
-            color_text(
-                "Enter symbols separated by comma/space (e.g., BTC/USDT, ETH/USDT): ",
-                Fore.YELLOW,
-            )
-        ).strip()
-
-    return {
-        "mode": "manual" if choice == "2" else "auto",
-        "symbols_raw": manual_symbols or None,
-    }
 
 
 def main():
     """Main function for pairs trading analysis."""
-    import argparse
     import pandas as pd
 
-    parser = argparse.ArgumentParser(
-        description="Pairs Trading Analysis - Identify trading opportunities from best/worst performers"
-    )
-    parser.add_argument(
-        "--pairs-count",
-        type=int,
-        default=PAIRS_TRADING_TOP_N,
-        help=f"Number of tradeable pairs to return (default: {PAIRS_TRADING_TOP_N})",
-    )
-    parser.add_argument(
-        "--candidate-depth",
-        type=int,
-        default=20,
-        help="Number of top/bottom symbols to consider per side when forming pairs",
-    )
-    parser.add_argument(
-        "--max-symbols",
-        type=int,
-        default=None,
-        help="Maximum number of symbols to analyze (default: all available)",
-    )
-    parser.add_argument(
-        "--weights",
-        type=str,
-        default=None,
-        help="Weights for timeframes in format '1d:0.3,3d:0.4,1w:0.3' (default: from config)",
-    )
-    parser.add_argument(
-        "--min-volume",
-        type=float,
-        default=PAIRS_TRADING_MIN_VOLUME,
-        help=f"Minimum volume in USDT (default: {PAIRS_TRADING_MIN_VOLUME:,.0f})",
-    )
-    parser.add_argument(
-        "--min-spread",
-        type=float,
-        default=PAIRS_TRADING_MIN_SPREAD,
-        help=f"Minimum spread percentage (default: {PAIRS_TRADING_MIN_SPREAD*100:.2f}%)",
-    )
-    parser.add_argument(
-        "--max-spread",
-        type=float,
-        default=PAIRS_TRADING_MAX_SPREAD,
-        help=f"Maximum spread percentage (default: {PAIRS_TRADING_MAX_SPREAD*100:.2f}%)",
-    )
-    parser.add_argument(
-        "--min-correlation",
-        type=float,
-        default=PAIRS_TRADING_MIN_CORRELATION,
-        help=f"Minimum correlation (default: {PAIRS_TRADING_MIN_CORRELATION:.2f})",
-    )
-    parser.add_argument(
-        "--max-correlation",
-        type=float,
-        default=PAIRS_TRADING_MAX_CORRELATION,
-        help=f"Maximum correlation (default: {PAIRS_TRADING_MAX_CORRELATION:.2f})",
-    )
-    parser.add_argument(
-        "--max-pairs",
-        type=int,
-        default=10,
-        help="Maximum number of pairs to display (default: 10)",
-    )
-    parser.add_argument(
-        "--no-validation",
-        action="store_true",
-        help="Skip pairs validation (show all opportunities)",
-    )
-    parser.add_argument(
-        "--symbols",
-        type=str,
-        default=None,
-        help="Manual mode: comma/space separated symbols to focus on (e.g., 'BTC/USDT,ETH/USDT')",
-    )
-    parser.add_argument(
-        "--no-menu",
-        action="store_true",
-        help="Skip interactive launcher (retain legacy CLI flag workflow)",
-    )
-    parser.add_argument(
-        "--sort-by",
-        type=str,
-        choices=["opportunity_score", "quantitative_score"],
-        default="opportunity_score",
-        help="Sort pairs by opportunity_score or quantitative_score (default: opportunity_score)",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Show detailed quantitative metrics (half-life, Sharpe, MaxDD, etc.) in output",
-    )
-    parser.add_argument(
-        "--require-cointegration",
-        action="store_true",
-        help="Only accept cointegrated pairs (filter out non-cointegrated pairs)",
-    )
-    parser.add_argument(
-        "--max-half-life",
-        type=float,
-        default=PAIRS_TRADING_MAX_HALF_LIFE,
-        help=f"Maximum acceptable half-life for mean reversion (default: {PAIRS_TRADING_MAX_HALF_LIFE})",
-    )
-    parser.add_argument(
-        "--min-quantitative-score",
-        type=float,
-        default=None,
-        help="Minimum quantitative score (0-100) to accept a pair (default: no threshold)",
-    )
-
-    args = parser.parse_args()
+    args = parse_args()
 
     if not args.no_menu:
         menu_result = prompt_interactive_mode()
@@ -480,67 +327,19 @@ def main():
             args.symbols = menu_result["symbols_raw"]
 
     # Parse weights if provided
-    weights = PAIRS_TRADING_WEIGHTS.copy()
-    if args.weights:
-        try:
-            weight_parts = args.weights.split(",")
-            weights = {}
-            for part in weight_parts:
-                key, value = part.split(":")
-                weights[key.strip()] = float(value.strip())
-            # Validate weights sum to 1.0
-            total = sum(weights.values())
-            if abs(total - 1.0) > 0.01:
-                print(
-                    color_text(
-                        f"Warning: Weights sum to {total:.3f}, not 1.0. Normalizing...",
-                        Fore.YELLOW,
-                    )
-                )
-                weights = {k: v / total for k, v in weights.items()}
-        except Exception as e:
-            print(
-                color_text(
-                    f"Error parsing weights: {e}. Using default weights.",
-                    Fore.RED,
-                )
-            )
-            weights = PAIRS_TRADING_WEIGHTS.copy()
+    weights = parse_weights(args.weights)
 
     # Parse target symbols if provided
-    target_symbol_inputs = []
-    parsed_target_symbols = []
+    target_symbol_inputs, parsed_target_symbols = parse_symbols(args.symbols)
     target_symbols = []
-    if args.symbols:
-        raw_parts = (
-            args.symbols.replace(",", " ")
-            .replace(";", " ")
-            .replace("|", " ")
-            .split()
-        )
-        seen_display = set()
-        seen_parsed = set()
-        for part in raw_parts:
-            cleaned = part.strip()
-            if not cleaned:
-                continue
-            display_value = cleaned.upper()
-            parsed_value = standardize_symbol_input(cleaned)
-            if display_value not in seen_display:
-                seen_display.add(display_value)
-                target_symbol_inputs.append(display_value)
-            parsed_key = parsed_value.upper()
-            if parsed_key not in seen_parsed:
-                seen_parsed.add(parsed_key)
-                parsed_target_symbols.append(parsed_value)
-        if target_symbol_inputs:
-            print(
-                color_text(
-                    f"\nManual mode enabled for symbols: {', '.join(target_symbol_inputs)}",
-                    Fore.MAGENTA,
-                    Style.BRIGHT,
-                )
+    if target_symbol_inputs:
+        print(
+            color_text(
+                f"\nManual mode enabled for symbols: {', '.join(target_symbol_inputs)}",
+                Fore.MAGENTA,
+                Style.BRIGHT,
             )
+        )
 
     print(color_text("\n" + "=" * 80, Fore.CYAN, Style.BRIGHT))
     print(color_text("PAIRS TRADING ANALYSIS", Fore.CYAN, Style.BRIGHT))
@@ -553,7 +352,6 @@ def main():
     print(f"  Target pairs: {args.pairs_count}")
     print(f"  Candidate depth per side: {args.candidate_depth}")
     print(f"  Weights: 1d={weights['1d']:.2f}, 3d={weights['3d']:.2f}, 1w={weights['1w']:.2f}")
-    print(f"  Min volume: {args.min_volume:,.0f} USDT")
     print(f"  Spread range: {args.min_spread*100:.2f}% - {args.max_spread*100:.2f}%")
     print(f"  Correlation range: {args.min_correlation:.2f} - {args.max_correlation:.2f}")
     if target_symbol_inputs:
@@ -567,7 +365,6 @@ def main():
     data_fetcher = DataFetcher(exchange_manager)
     performance_analyzer = PerformanceAnalyzer(weights=weights)
     pairs_analyzer = PairsTradingAnalyzer(
-        min_volume=args.min_volume,
         min_spread=args.min_spread,
         max_spread=args.max_spread,
         min_correlation=args.min_correlation,

@@ -8,7 +8,6 @@ from colorama import Fore, Style
 
 try:
     from modules.config import (
-        PAIRS_TRADING_MIN_VOLUME,
         PAIRS_TRADING_MIN_SPREAD,
         PAIRS_TRADING_MAX_SPREAD,
         PAIRS_TRADING_MIN_CORRELATION,
@@ -30,7 +29,6 @@ try:
     from modules.common.utils import color_text
     from modules.common.ProgressBar import ProgressBar
 except ImportError:
-    PAIRS_TRADING_MIN_VOLUME = 1000000
     PAIRS_TRADING_MIN_SPREAD = 0.01
     PAIRS_TRADING_MAX_SPREAD = 0.50
     PAIRS_TRADING_MIN_CORRELATION = 0.3
@@ -101,7 +99,6 @@ class PairsTradingAnalyzer:
 
     def __init__(
         self,
-        min_volume: float = PAIRS_TRADING_MIN_VOLUME,
         min_spread: float = PAIRS_TRADING_MIN_SPREAD,
         max_spread: float = PAIRS_TRADING_MAX_SPREAD,
         min_correlation: float = PAIRS_TRADING_MIN_CORRELATION,
@@ -118,7 +115,6 @@ class PairsTradingAnalyzer:
         Initialize PairsTradingAnalyzer.
 
         Args:
-            min_volume: Minimum volume (USDT) to consider a symbol
             min_spread: Minimum spread (%) between long and short symbols
             max_spread: Maximum spread (%) between long and short symbols
             min_correlation: Minimum correlation to consider a pair
@@ -131,7 +127,6 @@ class PairsTradingAnalyzer:
             max_drawdown_threshold: Maximum drawdown threshold (None to disable)
             min_quantitative_score: Minimum quantitative score (0-100, None to disable)
         """
-        self.min_volume = min_volume
         self.min_spread = min_spread
         self.max_spread = max_spread
         self.min_correlation = min_correlation

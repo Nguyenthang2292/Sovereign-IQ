@@ -106,7 +106,6 @@ def test_performance_and_pairs_pipeline_with_real_data_fetcher(monkeypatch):
     )
 
     analyzer = PairsTradingAnalyzer(
-        min_volume=0,
         min_spread=0.0,
         max_spread=2.0,
         min_correlation=0.0,
