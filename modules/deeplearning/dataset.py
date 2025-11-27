@@ -178,6 +178,8 @@ class TFTDataModule(pl.LightningDataModule):
 
         for symbol in df["symbol"].unique():
             symbol_df = df[df["symbol"] == symbol].copy()
+            # Drop symbol column as it interferes with resampling/interpolation
+            symbol_df = symbol_df.drop(columns=["symbol"], errors="ignore")
             symbol_df = symbol_df.set_index("timestamp")
 
             # Infer frequency from data
@@ -439,9 +441,9 @@ class TFTDataModule(pl.LightningDataModule):
             if col in df.columns and df[col].isna().any():
                 # Forward fill then backward fill (per symbol if symbol column exists)
                 if "symbol" in df.columns:
-                    df[col] = df.groupby("symbol")[col].fillna(method='ffill').fillna(method='bfill')
+                    df[col] = df.groupby("symbol")[col].ffill().bfill()
                 else:
-                    df[col] = df[col].fillna(method='ffill').fillna(method='bfill')
+                    df[col] = df[col].ffill().bfill()
                 # If still NaN (all values were NaN), fill with 0
                 df[col] = df[col].fillna(0)
 

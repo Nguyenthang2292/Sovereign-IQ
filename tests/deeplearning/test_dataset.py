@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 # Add parent directory to path to allow imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import warnings
 import tempfile
@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.deeplearning_dataset import TFTDataModule, create_tft_datamodule
+from modules.deeplearning.dataset import TFTDataModule, create_tft_datamodule
 from modules.config import (
     DEEP_TARGET_COL,
     DEEP_MAX_ENCODER_LENGTH,
@@ -27,6 +27,9 @@ from modules.config import (
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
+# Suppress specific warning about non-writable NumPy arrays from pytorch_forecasting
+warnings.filterwarnings("ignore", message=".*The given NumPy array is not writable.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_forecasting.data.encoders")
 
 
 def create_sample_dataframe(n_samples=200, symbol="BTC/USDT", has_candle_index=True):
@@ -34,7 +37,7 @@ def create_sample_dataframe(n_samples=200, symbol="BTC/USDT", has_candle_index=T
     timestamps = pd.date_range(
         start=datetime.now() - timedelta(hours=n_samples),
         periods=n_samples,
-        freq="1H",
+        freq="1h",
     )
     
     # Generate synthetic OHLCV data
@@ -70,7 +73,16 @@ def create_sample_dataframe(n_samples=200, symbol="BTC/USDT", has_candle_index=T
     df["candle_index"] = range(n_samples)
     
     # Fill NaN values
-    df = df.fillna(method="ffill").fillna(method="bfill")
+    df = df.ffill().bfill()
+    
+    # Ensure all arrays are writable to avoid warnings from pytorch_forecasting
+    # Convert DataFrame to ensure all underlying arrays are writable
+    df = df.copy(deep=True)
+    # Force all numeric columns to be writable by recreating them
+    for col in df.select_dtypes(include=[np.number]).columns:
+        arr = df[col].values
+        if not arr.flags.writeable:
+            df[col] = arr.copy()
     
     return df
 
@@ -186,6 +198,10 @@ def test_tft_datamodule_setup():
     """Test TFTDataModule setup method."""
     train_df = create_sample_dataframe(100, "BTC/USDT")
     val_df = create_sample_dataframe(50, "BTC/USDT")
+    
+    # Ensure DataFrames are fully writable to avoid warnings
+    train_df = train_df.copy(deep=True)
+    val_df = val_df.copy(deep=True)
     
     datamodule = TFTDataModule(
         train_df=train_df,

@@ -3,7 +3,7 @@ from contextlib import redirect_stdout
 
 import pytest
 
-from modules.ProgressBar import ProgressBar
+from modules.common.ProgressBar import ProgressBar
 
 
 def test_progress_bar_reaches_total_and_prints_label():

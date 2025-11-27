@@ -1,6 +1,6 @@
 import pytest
 
-from modules.xgboost_prediction_utils import get_prediction_window
+from modules.xgboost.utils import get_prediction_window
 
 
 def test_get_prediction_window_known_timeframes():

@@ -493,6 +493,11 @@ class DeepLearningDataPipeline:
         if not numeric_cols:
             return df
 
+        # Ensure numeric columns are float to avoid incompatible dtype warnings
+        for col in numeric_cols:
+            if not pd.api.types.is_float_dtype(df[col]):
+                df[col] = df[col].astype(float)
+
         # Normalize per symbol
         if "symbol" in df.columns:
             for symbol in df["symbol"].unique():

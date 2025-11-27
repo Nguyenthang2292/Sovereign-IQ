@@ -1,5 +1,11 @@
 """
-Test script for pairs_trading_main.py
+Test script for main_pairs_trading.py
+
+Tests all functionality including:
+- Display functions (performers, pairs opportunities)
+- Main function with various scenarios
+- Quantitative metrics and advanced features
+- Pair selection and validation
 """
 
 import sys
@@ -14,11 +20,20 @@ import numpy as np
 from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
 from colorama import Fore, Style
+from io import StringIO
+import contextlib
 
 from modules.common.ExchangeManager import ExchangeManager
 from modules.common.DataFetcher import DataFetcher
 from modules.pairs_trading.performance_analyzer import PerformanceAnalyzer
 from modules.pairs_trading.pairs_analyzer import PairsTradingAnalyzer
+
+# Import functions from main script
+from main_pairs_trading import (
+    display_performers,
+    display_pairs_opportunities,
+    select_top_unique_pairs,
+)
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -59,10 +74,12 @@ def _create_mock_ohlcv_data(
     return df
 
 
+# ============================================================================
+# Tests for display_performers function
+# ============================================================================
+
 def test_display_performers_with_data():
     """Test display_performers function with valid data."""
-    from pairs_trading_main import display_performers
-
     df = pd.DataFrame(
         {
             "symbol": ["BTC/USDT", "ETH/USDT"],
@@ -84,8 +101,6 @@ def test_display_performers_with_data():
 
 def test_display_performers_with_empty_dataframe():
     """Test display_performers with empty DataFrame."""
-    from pairs_trading_main import display_performers
-
     empty_df = pd.DataFrame(
         columns=["symbol", "score", "1d_return", "3d_return", "1w_return", "current_price"]
     )
@@ -98,10 +113,12 @@ def test_display_performers_with_empty_dataframe():
         assert False, f"display_performers raised exception: {e}"
 
 
+# ============================================================================
+# Tests for display_pairs_opportunities function
+# ============================================================================
+
 def test_display_pairs_opportunities_with_data():
     """Test display_pairs_opportunities function with valid data."""
-    from pairs_trading_main import display_pairs_opportunities
-
     pairs_df = pd.DataFrame(
         {
             "long_symbol": ["WORST1/USDT", "WORST2/USDT"],
@@ -124,8 +141,6 @@ def test_display_pairs_opportunities_with_data():
 
 def test_display_pairs_opportunities_with_empty_dataframe():
     """Test display_pairs_opportunities with empty DataFrame."""
-    from pairs_trading_main import display_pairs_opportunities
-
     empty_df = pd.DataFrame(
         columns=[
             "long_symbol",
@@ -146,9 +161,195 @@ def test_display_pairs_opportunities_with_empty_dataframe():
         assert False, f"display_pairs_opportunities raised exception: {e}"
 
 
+def test_display_pairs_opportunities_with_quantitative_score():
+    """Test that display_pairs_opportunities handles quantitative_score correctly."""
+    pairs_df = pd.DataFrame(
+        [
+            {
+                "long_symbol": "WORST1/USDT",
+                "short_symbol": "BEST1/USDT",
+                "spread": 0.25,
+                "correlation": 0.6,
+                "opportunity_score": 0.30,
+                "quantitative_score": 75.5,
+                "is_cointegrated": True,
+                "half_life": 20.0,
+                "spread_sharpe": 1.5,
+                "max_drawdown": -0.15,
+            }
+        ]
+    )
+
+    # Capture stdout
+    output = StringIO()
+    with contextlib.redirect_stdout(output):
+        display_pairs_opportunities(pairs_df, max_display=1)
+
+    output_str = output.getvalue()
+
+    # Should contain quantitative_score display
+    assert "QuantScore" in output_str or "quantitative" in output_str.lower()
+    # Should contain cointegration status
+    assert "Coint" in output_str or "cointegrated" in output_str.lower()
+
+
+def test_display_pairs_opportunities_shows_rich_metrics():
+    """Function always shows verbose metrics; ensure key columns present."""
+    pairs_df = pd.DataFrame(
+        [
+            {
+                "long_symbol": "WORST1/USDT",
+                "short_symbol": "BEST1/USDT",
+                "spread": 0.25,
+                "correlation": 0.6,
+                "opportunity_score": 0.30,
+                "quantitative_score": 75.5,
+                "is_cointegrated": True,
+                "half_life": 20.0,
+                "spread_sharpe": 1.5,
+                "max_drawdown": -0.15,
+            }
+        ]
+    )
+
+    # Capture stdout
+    output = StringIO()
+    with contextlib.redirect_stdout(output):
+        display_pairs_opportunities(pairs_df, max_display=1)
+
+    output_str = output.getvalue()
+
+    # Output should show advanced metrics
+    assert "HalfLife" in output_str or "half" in output_str.lower()
+    assert "Sharpe" in output_str or "sharpe" in output_str.lower()
+    assert "MaxDD" in output_str or "drawdown" in output_str.lower()
+    assert "HedgeRatio" in output_str or "hedge" in output_str.lower()
+
+
+def test_display_pairs_opportunities_handles_missing_metrics():
+    """Test that display_pairs_opportunities handles missing quantitative metrics gracefully."""
+    pairs_df = pd.DataFrame(
+        [
+            {
+                "long_symbol": "WORST1/USDT",
+                "short_symbol": "BEST1/USDT",
+                "spread": 0.25,
+                "correlation": 0.6,
+                "opportunity_score": 0.30,
+                "quantitative_score": None,  # Missing
+                "is_cointegrated": None,  # Missing
+            }
+        ]
+    )
+
+    # Should not raise error
+    output = StringIO()
+    with contextlib.redirect_stdout(output):
+        try:
+            display_pairs_opportunities(pairs_df, max_display=1)
+            success = True
+        except Exception as e:
+            success = False
+            print(f"Error: {e}")
+
+    assert success, "display_pairs_opportunities should handle missing metrics gracefully"
+
+
+def test_display_pairs_opportunities_cointegration_status():
+    """Test that cointegration status is displayed correctly."""
+    pairs_df = pd.DataFrame(
+        [
+            {
+                "long_symbol": "WORST1/USDT",
+                "short_symbol": "BEST1/USDT",
+                "spread": 0.25,
+                "correlation": 0.6,
+                "opportunity_score": 0.30,
+                "quantitative_score": 75.5,
+                "is_cointegrated": True,  # Cointegrated
+            },
+            {
+                "long_symbol": "WORST2/USDT",
+                "short_symbol": "BEST2/USDT",
+                "spread": 0.20,
+                "correlation": 0.5,
+                "opportunity_score": 0.25,
+                "quantitative_score": 50.0,
+                "is_cointegrated": False,  # Not cointegrated
+            },
+        ]
+    )
+
+    output = StringIO()
+    with contextlib.redirect_stdout(output):
+        display_pairs_opportunities(pairs_df, max_display=2)
+
+    output_str = output.getvalue()
+
+    # Should display cointegration status
+    assert len(output_str) > 0
+
+
+# ============================================================================
+# Tests for select_top_unique_pairs function
+# ============================================================================
+
+def test_select_top_unique_pairs():
+    """Test select_top_unique_pairs selects unique symbols when possible."""
+    pairs_df = pd.DataFrame(
+        [
+            {
+                "long_symbol": "WORST1/USDT",
+                "short_symbol": "BEST1/USDT",
+                "spread": 0.25,
+                "opportunity_score": 0.30,
+                "quantitative_score": 80,
+            },
+            {
+                "long_symbol": "WORST2/USDT",
+                "short_symbol": "BEST2/USDT",
+                "spread": 0.20,
+                "opportunity_score": 0.25,
+                "quantitative_score": 75,
+            },
+            {
+                "long_symbol": "WORST1/USDT",  # Duplicate long_symbol
+                "short_symbol": "BEST3/USDT",
+                "spread": 0.18,
+                "opportunity_score": 0.20,
+                "quantitative_score": 70,
+            },
+        ]
+    )
+
+    selected = select_top_unique_pairs(pairs_df, target_pairs=2)
+
+    # Should select first 2 pairs (unique symbols)
+    assert len(selected) == 2
+    assert selected.iloc[0]["long_symbol"] == "WORST1/USDT"
+    assert selected.iloc[1]["long_symbol"] == "WORST2/USDT"
+
+    # Check that symbols are unique
+    all_symbols = set(selected["long_symbol"]) | set(selected["short_symbol"])
+    assert len(all_symbols) == 4  # 2 long + 2 short = 4 unique symbols
+
+
+def test_select_top_unique_pairs_empty_dataframe():
+    """Test select_top_unique_pairs handles empty DataFrame."""
+    empty_df = pd.DataFrame(columns=["long_symbol", "short_symbol", "spread"])
+
+    selected = select_top_unique_pairs(empty_df, target_pairs=5)
+
+    assert len(selected) == 0
+
+
+# ============================================================================
+# Tests for main function
+# ============================================================================
+
 def test_main_with_mock_data():
     """Test main function with mocked components."""
-    from pairs_trading_main import main
+    from main_pairs_trading import main
 
     # Create mock symbols
     mock_symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "DOT/USDT"]
@@ -205,15 +406,15 @@ def test_main_with_mock_data():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=mock_pairs_df)
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=mock_pairs_df)
 
-    with patch("pairs_trading_main.ExchangeManager", return_value=MagicMock()), patch(
-        "pairs_trading_main.DataFetcher", return_value=mock_data_fetcher
+    with patch("main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
+        "main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
     ), patch(
-        "pairs_trading_main.PerformanceAnalyzer", return_value=mock_performance_analyzer
+        "main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
     ), patch(
-        "pairs_trading_main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
+        "main_pairs_trading.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
     ), patch(
-        "sys.argv", ["pairs_trading_main.py", "--top-n", "2", "--max-pairs", "5"]
-    ):
+        "sys.argv", ["main_pairs_trading.py", "--top-n", "2", "--max-pairs", "5"]
+    ), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
         try:
             main()
             assert True
@@ -227,15 +428,15 @@ def test_main_with_mock_data():
 
 def test_main_with_no_symbols():
     """Test main function when no symbols are found."""
-    from pairs_trading_main import main
+    from main_pairs_trading import main
 
     # Mock DataFetcher returning empty list
     mock_data_fetcher = MagicMock()
     mock_data_fetcher.list_binance_futures_symbols = MagicMock(return_value=[])
 
-    with patch("pairs_trading_main.ExchangeManager", return_value=MagicMock()), patch(
-        "pairs_trading_main.DataFetcher", return_value=mock_data_fetcher
-    ), patch("sys.argv", ["pairs_trading_main.py"]):
+    with patch("main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
+        "main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
+    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
         try:
             main()
             assert True
@@ -248,7 +449,7 @@ def test_main_with_no_symbols():
 
 def test_main_with_empty_performance():
     """Test main function when performance analysis returns empty."""
-    from pairs_trading_main import main
+    from main_pairs_trading import main
 
     mock_symbols = ["BTC/USDT", "ETH/USDT"]
 
@@ -260,11 +461,11 @@ def test_main_with_empty_performance():
         return_value=pd.DataFrame()
     )
 
-    with patch("pairs_trading_main.ExchangeManager", return_value=MagicMock()), patch(
-        "pairs_trading_main.DataFetcher", return_value=mock_data_fetcher
+    with patch("main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
+        "main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
     ), patch(
-        "pairs_trading_main.PerformanceAnalyzer", return_value=mock_performance_analyzer
-    ), patch("sys.argv", ["pairs_trading_main.py"]):
+        "main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
+    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
         try:
             main()
             assert True
@@ -277,7 +478,7 @@ def test_main_with_empty_performance():
 
 def test_main_with_custom_weights():
     """Test main function with custom weights argument."""
-    from pairs_trading_main import main
+    from main_pairs_trading import main
 
     mock_symbols = ["BTC/USDT"]
 
@@ -307,16 +508,16 @@ def test_main_with_custom_weights():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=pd.DataFrame())
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=pd.DataFrame())
 
-    with patch("pairs_trading_main.ExchangeManager", return_value=MagicMock()), patch(
-        "pairs_trading_main.DataFetcher", return_value=mock_data_fetcher
+    with patch("main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
+        "main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
     ), patch(
-        "pairs_trading_main.PerformanceAnalyzer", return_value=mock_performance_analyzer
+        "main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
     ), patch(
-        "pairs_trading_main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
+        "main_pairs_trading.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
     ), patch(
         "sys.argv",
-        ["pairs_trading_main.py", "--weights", "1d:0.5,3d:0.3,1w:0.2"],
-    ):
+        ["main_pairs_trading.py", "--weights", "1d:0.5,3d:0.3,1w:0.2"],
+    ), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
         try:
             main()
             # Check that PerformanceAnalyzer was initialized with custom weights
@@ -330,7 +531,7 @@ def test_main_with_custom_weights():
 
 def test_main_with_no_validation_flag():
     """Test main function with --no-validation flag."""
-    from pairs_trading_main import main
+    from main_pairs_trading import main
 
     mock_symbols = ["BTC/USDT"]
 
@@ -369,15 +570,15 @@ def test_main_with_no_validation_flag():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=mock_pairs_df)
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=mock_pairs_df)
 
-    with patch("pairs_trading_main.ExchangeManager", return_value=MagicMock()), patch(
-        "pairs_trading_main.DataFetcher", return_value=mock_data_fetcher
+    with patch("main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
+        "main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
     ), patch(
-        "pairs_trading_main.PerformanceAnalyzer", return_value=mock_performance_analyzer
+        "main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
     ), patch(
-        "pairs_trading_main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
+        "main_pairs_trading.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
     ), patch(
-        "sys.argv", ["pairs_trading_main.py", "--no-validation"]
-    ):
+        "sys.argv", ["main_pairs_trading.py", "--no-validation"]
+    ), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
         try:
             main()
             # Check that validate_pairs was not called
@@ -390,21 +591,6 @@ def test_main_with_no_validation_flag():
 
 
 if __name__ == "__main__":
-    # Run basic tests
-    print("Running pairs_trading_main tests...")
+    import pytest
 
-    test_display_performers_with_data()
-    print("✓ test_display_performers_with_data")
-
-    test_display_performers_with_empty_dataframe()
-    print("✓ test_display_performers_with_empty_dataframe")
-
-    test_display_pairs_opportunities_with_data()
-    print("✓ test_display_pairs_opportunities_with_data")
-
-    test_display_pairs_opportunities_with_empty_dataframe()
-    print("✓ test_display_pairs_opportunities_with_empty_dataframe")
-
-    print("\nAll display function tests passed!")
-    print("\nNote: Main function tests require mocking and may have limited coverage.")
-
+    pytest.main([__file__, "-v"])

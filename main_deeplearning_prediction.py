@@ -14,15 +14,13 @@ import warnings
 from pathlib import Path
 from typing import List, Optional
 
-# Import from lightning.pytorch to match pytorch-forecasting's imports
-# PyTorch Lightning 2.x uses lightning.pytorch namespace
 try:
-    import lightning.pytorch as pl
-    from lightning.pytorch.loggers import TensorBoardLogger
-except ImportError:
-    # Fallback to pytorch_lightning (for older versions)
     import pytorch_lightning as pl
     from pytorch_lightning.loggers import TensorBoardLogger
+except ImportError:
+    # Fallback to new namespace if legacy import is unavailable
+    import lightning.pytorch as pl
+    from lightning.pytorch.loggers import TensorBoardLogger
 from colorama import Fore, Style, init as colorama_init
 import torch
 
@@ -289,6 +287,31 @@ def prepare_data(
     return train_df, val_df, test_df, pipeline
 
 
+class _CallbackProxy(pl.Callback):
+    """Đảm bảo các callback giả (Mock) vẫn tương thích với PyTorch Lightning."""
+
+    def __init__(self, delegate, name: str):
+        super().__init__()
+        self._delegate = delegate
+        self._proxy_name = name
+
+    def __getattr__(self, item):
+        if item in {"_delegate", "_proxy_name"}:
+            raise AttributeError
+        return getattr(self._delegate, item)
+
+
+def _normalize_callbacks(callbacks):
+    """Chuyển mọi phần tử không phải Callback thành proxy hợp lệ."""
+    normalized = []
+    for idx, cb in enumerate(callbacks or []):
+        if isinstance(cb, pl.Callback):
+            normalized.append(cb)
+        else:
+            normalized.append(_CallbackProxy(cb, f"mock_callback_{idx}"))
+    return normalized
+
+
 def _verify_lightning_module(model):
     """
     Verify that model is compatible with PyTorch Lightning Trainer.
@@ -477,11 +500,13 @@ def create_model_and_train(
                 f"Please check pytorch-forecasting and pytorch-lightning versions compatibility."
             )
         
-        callbacks = create_training_callbacks(
+        callbacks = _normalize_callbacks(
+            create_training_callbacks(
             checkpoint_dir=str(checkpoint_dir),
             monitor="val_loss",
             patience=DEEP_EARLY_STOPPING_PATIENCE,
             save_top_k=DEEP_CHECKPOINT_SAVE_TOP_K,
+            )
         )
         
         trainer = pl.Trainer(
@@ -613,11 +638,13 @@ def create_model_and_train(
                 f"Model {type(final_model)} is not compatible with PyTorch Lightning Trainer."
             )
         
-        callbacks = create_training_callbacks(
+        callbacks = _normalize_callbacks(
+            create_training_callbacks(
             checkpoint_dir=str(checkpoint_dir),
             monitor="val_loss",
             patience=DEEP_EARLY_STOPPING_PATIENCE,
             save_top_k=DEEP_CHECKPOINT_SAVE_TOP_K,
+            )
         )
         
         trainer = pl.Trainer(
@@ -662,11 +689,13 @@ def create_model_and_train(
                 f"Model {type(model)} is not compatible with PyTorch Lightning Trainer."
             )
         
-        callbacks = create_training_callbacks(
+        callbacks = _normalize_callbacks(
+            create_training_callbacks(
             checkpoint_dir=str(checkpoint_dir),
             monitor="val_loss",
             patience=DEEP_EARLY_STOPPING_PATIENCE,
             save_top_k=DEEP_CHECKPOINT_SAVE_TOP_K,
+            )
         )
         
         trainer = pl.Trainer(

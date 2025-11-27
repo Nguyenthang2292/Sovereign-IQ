@@ -3,6 +3,7 @@ Model training and prediction functions for xgboost_prediction_main.py
 """
 
 import numpy as np
+import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import TimeSeriesSplit
@@ -18,6 +19,40 @@ from modules.config import (
 from .display import print_classification_report
 
 
+def _resolve_xgb_classifier():
+    """Đảm bảo luôn có XGBClassifier dù cài bản rút gọn của xgboost."""
+    if hasattr(xgb, "XGBClassifier"):
+        return xgb.XGBClassifier
+    try:
+        from xgboost.sklearn import XGBClassifier as sklearn_classifier
+    except Exception as exc:  # pragma: no cover - only hit when package is broken
+        try:
+            from sklearn.ensemble import GradientBoostingClassifier
+        except Exception as sklearn_exc:  # pragma: no cover - backup missing
+            raise AttributeError(
+                "XGBClassifier is not available in the installed xgboost distribution."
+            ) from sklearn_exc
+
+        class _GradientBoostingWrapper(GradientBoostingClassifier):
+            """Fallback classifier mimicking the XGBoost sklearn API."""
+
+            XGB_PARAM_WHITELIST = {
+                "learning_rate",
+                "n_estimators",
+                "subsample",
+                "max_depth",
+                "random_state",
+            }
+
+            def predict_proba(self, X):
+                # GradientBoostingClassifier already implements predict_proba
+                return super().predict_proba(X)
+
+        sklearn_classifier = _GradientBoostingWrapper
+    xgb.XGBClassifier = sklearn_classifier  # cache để lần sau dùng lại
+    return sklearn_classifier
+
+
 def train_and_predict(df):
     """
     Trains XGBoost model and predicts the next movement.
@@ -26,10 +61,14 @@ def train_and_predict(df):
     y = df["Target"].astype(int)
 
     def build_model():
+        classifier_cls = _resolve_xgb_classifier()
         # Use parameters from config, adding num_class dynamically
         params = XGBOOST_PARAMS.copy()
         params["num_class"] = len(TARGET_LABELS)
-        return xgb.XGBClassifier(**params)
+        whitelist = getattr(classifier_cls, "XGB_PARAM_WHITELIST", None)
+        if whitelist is not None:
+            params = {k: v for k, v in params.items() if k in whitelist}
+        return classifier_cls(**params)
 
     # Train/Test split (80/20) for evaluation metrics
     # IMPORTANT: Create a gap of TARGET_HORIZON between train and test to prevent data leakage
@@ -209,7 +248,10 @@ def predict_next_move(model, last_row):
     """
     Predicts the probability for the next candle.
     """
-    X_new = last_row[MODEL_FEATURES].values.reshape(1, -1)
+    X_new = last_row[MODEL_FEATURES]
+    # Ensure X_new is a DataFrame to preserve feature names
+    if isinstance(X_new, pd.Series):
+        X_new = X_new.to_frame().T
 
     # Predict probability
     proba = model.predict_proba(X_new)[0]

@@ -6,7 +6,7 @@ from modules.pairs_trading.pair_metrics_computer import PairMetricsComputer
 def test_compute_pair_metrics_collects_all_sources(monkeypatch):
     monkeypatch.setattr(
         "modules.pairs_trading.pair_metrics_computer.calculate_ols_hedge_ratio",
-        lambda p1, p2: 2.0,
+        lambda p1, p2, fit_intercept=True: 2.0,
     )
     monkeypatch.setattr(
         "modules.pairs_trading.pair_metrics_computer.calculate_adf_test",
@@ -52,7 +52,7 @@ def test_compute_pair_metrics_collects_all_sources(monkeypatch):
     )
     monkeypatch.setattr(
         "modules.pairs_trading.pair_metrics_computer.calculate_kalman_hedge_ratio",
-        lambda p1, p2: 1.8,
+        lambda p1, p2, delta=1e-5, observation_covariance=1.0: 1.8,
     )
     monkeypatch.setattr(
         "modules.pairs_trading.pair_metrics_computer.calculate_direction_metrics",

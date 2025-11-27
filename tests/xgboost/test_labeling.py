@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from modules import xgboost_prediction_labeling as labeling
+from modules.xgboost import labeling
 
 
 def test_apply_directional_labels_assigns_expected_classes(monkeypatch):

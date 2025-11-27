@@ -422,13 +422,8 @@ class PairsTradingAnalyzer:
                     correlation = self.calculate_correlation(
                         long_symbol, short_symbol, data_fetcher
                     )
-                    # Skip heavy metrics if correlation is outside desired range
-                    if correlation is not None:
-                        abs_corr = abs(correlation)
-                        if abs_corr < self.min_correlation or abs_corr > self.max_correlation:
-                            if progress:
-                                progress.update()
-                            continue
+                    # Không loại bỏ pair ngay cả khi tương quan ngoài vùng lý tưởng;
+                    # OpportunityScorer sẽ tự áp dụng hình phạt thông qua hệ số.
                     quant_metrics = self._compute_pair_metrics(
                         long_symbol, short_symbol, data_fetcher
                     )

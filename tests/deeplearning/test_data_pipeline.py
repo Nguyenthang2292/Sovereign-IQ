@@ -6,15 +6,15 @@ import sys
 from pathlib import Path
 
 # Add parent directory to path to allow imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import warnings
 from colorama import Fore, Style, init as colorama_init
 
-from modules.ExchangeManager import ExchangeManager
-from modules.DataFetcher import DataFetcher
-from modules.deeplearning_data_pipeline import DeepLearningDataPipeline
-from modules.utils import color_text
+from modules.common.ExchangeManager import ExchangeManager
+from modules.common.DataFetcher import DataFetcher
+from modules.deeplearning.data_pipeline import DeepLearningDataPipeline
+from modules.common.utils import color_text
 
 # Suppress warnings
 warnings.filterwarnings("ignore")

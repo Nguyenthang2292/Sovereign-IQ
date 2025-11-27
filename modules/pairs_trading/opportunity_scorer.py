@@ -192,8 +192,8 @@ class OpportunityScorer:
         - Hurst: 15%
         - Sharpe: 15%
         - F1-score: 10%
-        - Max DD: 5%
-        - Calmar ratio: 5%
+        - Max DD: 10%
+        - Calmar ratio: 5% (optional bonus, overall score capped at 100)
         
         Args:
             quant_metrics: Quantitative metrics dictionary
@@ -248,14 +248,14 @@ class OpportunityScorer:
             elif f1 > 0.6:
                 score += 5.0
         
-        # Max DD (5%)
+        # Max DD (10%)
         max_dd = quant_metrics.get("max_drawdown")
         if max_dd is not None:
             abs_max_dd = abs(max_dd)
             if abs_max_dd < 0.2:
-                score += 5.0
+                score += 10.0
             elif abs_max_dd < 0.3:
-                score += 2.5
+                score += 5.0
         
         # Calmar ratio (5%)
         calmar_ratio = quant_metrics.get("calmar_ratio")

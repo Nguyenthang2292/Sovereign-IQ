@@ -5,7 +5,7 @@ from modules.pairs_trading.pairs_analyzer import PairsTradingAnalyzer, _get_all_
 
 class DummyFetcher:
     def __init__(self, close_start=100.0):
-        timestamps = pd.date_range("2024-01-01", periods=300, freq="H")
+        timestamps = pd.date_range("2024-01-01", periods=300, freq="h")
         close = pd.Series(
             close_start + pd.Series(range(300)).astype(float).values * 0.1
         )

@@ -6,7 +6,7 @@ from modules.pairs_trading.performance_analyzer import PerformanceAnalyzer
 
 
 def build_price_series(length=200, start=100.0, step=0.5):
-    timestamps = pd.date_range("2024-01-01", periods=length, freq="H")
+    timestamps = pd.date_range("2024-01-01", periods=length, freq="h")
     close = start + np.arange(length) * step
     return pd.DataFrame({"timestamp": timestamps, "close": close})
 

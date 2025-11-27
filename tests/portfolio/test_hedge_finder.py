@@ -8,13 +8,13 @@ from unittest.mock import Mock, patch, MagicMock
 from io import StringIO
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import warnings
 import pytest
 
-from modules.HedgeFinder import HedgeFinder
-from modules.Position import Position
+from modules.portfolio.hedge_finder import HedgeFinder
+from modules.common.Position import Position
 
 # Suppress warnings
 warnings.filterwarnings("ignore")

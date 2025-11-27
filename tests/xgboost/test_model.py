@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from modules.xgboost_prediction_model import predict_next_move, train_and_predict
+from modules.xgboost.model import predict_next_move, train_and_predict
 from modules.config import TARGET_LABELS
 
 
@@ -66,7 +66,7 @@ def test_train_and_predict_handles_small_dataset(monkeypatch):
     df = _synthetic_df(rows=60)
 
     # Force TARGET_HORIZON to be larger to trigger warning branch
-    monkeypatch.setattr("modules.xgboost_prediction_model.TARGET_HORIZON", 50)
+    monkeypatch.setattr("modules.xgboost.model.TARGET_HORIZON", 50)
     model = train_and_predict(df)
 
     assert hasattr(model, "predict")

@@ -8,11 +8,11 @@ from io import StringIO
 from unittest.mock import patch, Mock
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 
-from modules.xgboost_prediction_cli import (
+from modules.xgboost.cli import (
     prompt_with_default,
     resolve_input,
     parse_args,

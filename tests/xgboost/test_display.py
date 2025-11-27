@@ -7,13 +7,13 @@ from pathlib import Path
 from io import StringIO
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from unittest.mock import patch
 import numpy as np
 import pytest
 
-from modules.xgboost_prediction_display import print_classification_report
+from modules.xgboost.display import print_classification_report
 
 
 def test_print_classification_report():

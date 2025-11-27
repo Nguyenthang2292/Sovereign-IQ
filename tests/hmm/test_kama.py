@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from modules.common.indicators import calculate_kama
-from modules.hmm.hmm_kama import HMM_KAMA, prepare_observations, hmm_kama
+from modules.hmm.kama import HMM_KAMA, prepare_observations, hmm_kama
 
 
 def _sample_close_dataframe(length: int = 150) -> pd.DataFrame:
@@ -24,13 +24,13 @@ def test_calculate_kama_returns_finite_array():
 
 def test_prepare_observations_produces_three_features():
     df = _sample_close_dataframe(140)
-    params = {
-        "window_kama": 12,
-        "fast_kama": 2,
-        "slow_kama": 35,
-    }
 
-    observations = prepare_observations(df, params)
+    observations = prepare_observations(
+        df, 
+        window_kama=12,
+        fast_kama=2,
+        slow_kama=35
+    )
 
     assert observations.shape == (len(df), 3)
     assert np.isfinite(observations).all()
@@ -38,9 +38,8 @@ def test_prepare_observations_produces_three_features():
 
 def test_hmm_kama_pipeline_returns_states():
     df = _sample_close_dataframe(160)
-    params = {"window_size": 120}
 
-    result = hmm_kama(df, params)
+    result = hmm_kama(df, window_size=120)
 
     assert isinstance(result, HMM_KAMA)
     assert 0 <= result.next_state_with_hmm_kama <= 3

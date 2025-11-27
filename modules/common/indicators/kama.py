@@ -84,9 +84,8 @@ def calculate_kama(
                 kama[idx] = kama[idx - 1]
 
     except Exception as err:  # pragma: no cover - fallback path
-        print(
-            f"[WARN] Error in KAMA calculation: {err}. Using simple moving average fallback."
-        )
+        from modules.common.utils import log_warn
+        log_warn(f"Error in KAMA calculation: {err}. Using simple moving average fallback.")
         kama = (
             pd.Series(prices)
             .rolling(window=window, min_periods=1)

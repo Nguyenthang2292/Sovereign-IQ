@@ -88,3 +88,33 @@ def normalize_symbol_key(symbol: str) -> str:
     if not symbol:
         return ""
     return "".join(ch for ch in symbol.upper() if ch.isalnum())
+
+
+def log_data(message: str) -> None:
+    """Print [DATA] message with cyan color."""
+    print(color_text(f"[DATA] {message}", Fore.CYAN))
+
+
+def log_info(message: str) -> None:
+    """Print [INFO] message with blue color."""
+    print(color_text(f"[INFO] {message}", Fore.BLUE))
+
+
+def log_error(message: str) -> None:
+    """Print [ERROR] message with red color."""
+    print(color_text(f"[ERROR] {message}", Fore.RED, Style.BRIGHT))
+
+
+def log_warn(message: str) -> None:
+    """Print [WARN] message with yellow color."""
+    print(color_text(f"[WARN] {message}", Fore.YELLOW))
+
+
+def log_model(message: str) -> None:
+    """Print [MODEL] message with magenta color."""
+    print(color_text(f"[MODEL] {message}", Fore.MAGENTA))
+
+
+def log_analysis(message: str) -> None:
+    """Print [ANALYSIS] message with cyan color."""
+    print(color_text(f"[ANALYSIS] {message}", Fore.CYAN))

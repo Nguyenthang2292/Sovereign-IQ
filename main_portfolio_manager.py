@@ -14,8 +14,8 @@ try:
     from modules.common.ExchangeManager import ExchangeManager
     from modules.common.DataFetcher import DataFetcher
     from modules.portfolio.risk_calculator import PortfolioRiskCalculator
-    from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
-    from modules.portfolio.hedge_finder import HedgeFinder
+    from modules.portfolio import correlation_analyzer as _correlation_analyzer_mod
+    from modules.portfolio import hedge_finder as _hedge_finder_mod
     from modules.config import (
         BENCHMARK_SYMBOL,
         DEFAULT_VAR_CONFIDENCE,
@@ -27,8 +27,8 @@ except ImportError:
     ExchangeManager = None
     DataFetcher = None
     PortfolioRiskCalculator = None
-    PortfolioCorrelationAnalyzer = None
-    HedgeFinder = None
+    _correlation_analyzer_mod = None
+    _hedge_finder_mod = None
     BENCHMARK_SYMBOL = "BTC/USDT"
     DEFAULT_VAR_CONFIDENCE = 0.95
     DEFAULT_VAR_LOOKBACK_DAYS = 90
@@ -37,6 +37,32 @@ colorama_init(autoreset=True)
 
 
 class PortfolioManager:
+    def _create_correlation_analyzer(self):
+        if _correlation_analyzer_mod is None:
+            raise RuntimeError("PortfolioCorrelationAnalyzer module not available")
+        analyzer_cls = getattr(
+            _correlation_analyzer_mod, "PortfolioCorrelationAnalyzer", None
+        )
+        if analyzer_cls is None:
+            raise RuntimeError("PortfolioCorrelationAnalyzer class not available")
+        return analyzer_cls(self.data_fetcher, self.positions)
+
+    def _create_hedge_finder(self, analyzer):
+        if _hedge_finder_mod is None:
+            raise RuntimeError("HedgeFinder module not available")
+        hedge_cls = getattr(_hedge_finder_mod, "HedgeFinder", None)
+        if hedge_cls is None:
+            raise RuntimeError("HedgeFinder class not available")
+        return hedge_cls(
+            self.exchange_manager,
+            analyzer,
+            self.risk_calculator,
+            self.positions,
+            self.benchmark_symbol,
+            self.shutdown_event,
+            self.data_fetcher,
+        )
+
     """Main portfolio manager orchestrating all components."""
 
     def __init__(
@@ -193,28 +219,20 @@ class PortfolioManager:
 
     def calculate_weighted_correlation(self, new_symbol: str, verbose: bool = True):
         """Calculates weighted correlation with entire portfolio."""
-        analyzer = PortfolioCorrelationAnalyzer(self.data_fetcher, self.positions)
+        analyzer = self._create_correlation_analyzer()
         return analyzer.calculate_weighted_correlation_with_new_symbol(new_symbol, verbose)
 
     def calculate_portfolio_return_correlation(self, new_symbol: str, **kwargs):
         """Calculates correlation between portfolio return and new symbol."""
-        analyzer = PortfolioCorrelationAnalyzer(self.data_fetcher, self.positions)
+        analyzer = self._create_correlation_analyzer()
         return analyzer.calculate_portfolio_return_correlation(new_symbol, **kwargs)
 
     def find_best_hedge_candidate(
         self, total_delta: float, total_beta_delta: float, **kwargs
     ):
         """Automatically scans Binance futures symbols to find the best hedge candidate."""
-        analyzer = PortfolioCorrelationAnalyzer(self.data_fetcher, self.positions)
-        hedge_finder = HedgeFinder(
-            self.exchange_manager,
-            analyzer,
-            self.risk_calculator,
-            self.positions,
-            self.benchmark_symbol,
-            self.shutdown_event,
-            self.data_fetcher,
-        )
+        analyzer = self._create_correlation_analyzer()
+        hedge_finder = self._create_hedge_finder(analyzer)
         return hedge_finder.find_best_hedge_candidate(
             total_delta, total_beta_delta, **kwargs
         )
@@ -223,16 +241,8 @@ class PortfolioManager:
         self, new_symbol: str, total_delta: float, total_beta_delta: float, **kwargs
     ):
         """Analyzes a potential new trade and automatically recommends direction for beta-weighted hedging."""
-        analyzer = PortfolioCorrelationAnalyzer(self.data_fetcher, self.positions)
-        hedge_finder = HedgeFinder(
-            self.exchange_manager,
-            analyzer,
-            self.risk_calculator,
-            self.positions,
-            self.benchmark_symbol,
-            self.shutdown_event,
-            self.data_fetcher,
-        )
+        analyzer = self._create_correlation_analyzer()
+        hedge_finder = self._create_hedge_finder(analyzer)
         return hedge_finder.analyze_new_trade(
             new_symbol,
             total_delta,
@@ -289,17 +299,29 @@ def display_portfolio_analysis(pm: PortfolioManager):
     # Calculate and display Portfolio Internal Correlation
     print("\n" + color_text("=== PORTFOLIO CORRELATION ===", Fore.CYAN, Style.BRIGHT))
     if len(pm.positions) >= 2:
-        analyzer = PortfolioCorrelationAnalyzer(pm.data_fetcher, pm.positions)
-        internal_corr, pairs = analyzer.calculate_weighted_correlation(verbose=True)
+        try:
+            analyzer = pm._create_correlation_analyzer()
+        except RuntimeError:
+            analyzer = None
 
-        if internal_corr is not None:
-            if abs(internal_corr) > 0.7:
-                status = color_text("HIGH - Consider diversification", Fore.RED)
-            elif abs(internal_corr) > 0.4:
-                status = color_text("MODERATE", Fore.YELLOW)
-            else:
-                status = color_text("LOW - Good diversification", Fore.GREEN)
-            print(f"\nPortfolio Correlation Status: {status}")
+        if analyzer is not None:
+            internal_corr, pairs = analyzer.calculate_weighted_correlation(verbose=True)
+
+            if internal_corr is not None:
+                if abs(internal_corr) > 0.7:
+                    status = color_text("HIGH - Consider diversification", Fore.RED)
+                elif abs(internal_corr) > 0.4:
+                    status = color_text("MODERATE", Fore.YELLOW)
+                else:
+                    status = color_text("LOW - Good diversification", Fore.GREEN)
+                print(f"\nPortfolio Correlation Status: {status}")
+        else:
+            print(
+                color_text(
+                    "Correlation analyzer unavailable; skipping correlation section.",
+                    Fore.YELLOW,
+                )
+            )
     else:
         print(
             color_text(

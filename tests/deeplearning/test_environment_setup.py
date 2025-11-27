@@ -7,12 +7,12 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 import tempfile
 
-from modules.deeplearning_environment_setup import (
+from modules.deeplearning.environment_setup import (
     PackageStatus,
     check_package,
     check_gpu,

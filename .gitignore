@@ -29,5 +29,21 @@ ENV/
 .vscode/
 .idea/
 
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+test_output.txt
+tmp_*.py
+
 # API Keys and Secrets (sensitive information)
 modules/config_api.py

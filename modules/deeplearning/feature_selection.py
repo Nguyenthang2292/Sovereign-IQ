@@ -401,8 +401,9 @@ class FeatureSelector:
 
         self.selection_metadata = metadata
 
-        # Save to file
-        filename = f"feature_selection_{symbol or 'default'}.json"
+        # Save to file (normalize symbol để tránh tạo thư mục khi có '/')
+        safe_symbol = (symbol or "default").replace("/", "_").replace("\\", "_")
+        filename = f"feature_selection_{safe_symbol}.json"
         filepath = self.selection_dir / filename
 
         with open(filepath, "w") as f:
@@ -410,7 +411,8 @@ class FeatureSelector:
 
     def load_selection(self, symbol: Optional[str] = None) -> Optional[Dict]:
         """Load feature selection results from disk."""
-        filename = f"feature_selection_{symbol or 'default'}.json"
+        safe_symbol = (symbol or "default").replace("/", "_").replace("\\", "_")
+        filename = f"feature_selection_{safe_symbol}.json"
         filepath = self.selection_dir / filename
 
         if not filepath.exists():

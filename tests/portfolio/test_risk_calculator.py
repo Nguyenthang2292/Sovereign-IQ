@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 from types import SimpleNamespace
 
-from modules.Position import Position
-from modules.PortfolioRiskCalculator import PortfolioRiskCalculator
+from modules.common.Position import Position
+from modules.portfolio.risk_calculator import PortfolioRiskCalculator
 
 
 def test_calculate_stats_handles_long_and_short_positions():

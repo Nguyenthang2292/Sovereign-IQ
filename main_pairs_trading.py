@@ -10,12 +10,21 @@ Analyzes futures pairs on Binance to identify pairs trading opportunities:
 import warnings
 import sys
 import io
+import os
 import pandas as pd
 
-# Fix encoding issues on Windows
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+# Fix encoding issues on Windows for interactive CLI runs only
+def _configure_windows_stdio():
+    if sys.platform != "win32":
+        return
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    if not hasattr(sys.stdout, "buffer") or isinstance(sys.stdout, io.TextIOWrapper):
+        return
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
+_configure_windows_stdio()
 
 from colorama import Fore, Style, init as colorama_init
 

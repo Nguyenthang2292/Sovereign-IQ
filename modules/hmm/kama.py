@@ -21,21 +21,13 @@ warnings.filterwarnings(
 )
 
 from modules.common.indicators import calculate_kama
+from modules.common.utils import log_data, log_info, log_error, log_warn, log_model, log_analysis
 from modules.config import (
     HMM_WINDOW_KAMA_DEFAULT,
     HMM_FAST_KAMA_DEFAULT,
     HMM_SLOW_KAMA_DEFAULT,
     HMM_WINDOW_SIZE_DEFAULT,
 )
-
-
-def _get_param(params: Optional[object], name: str, default):
-    """Safely extract parameter from dict/namespace; fall back to default."""
-    if params is None:
-        return default
-    if isinstance(params, dict):
-        return params.get(name, default)
-    return getattr(params, name, default)
 
 
 @dataclass
@@ -50,11 +42,19 @@ class HMM_KAMA:
 
 def prepare_observations(
     data: pd.DataFrame,
-    optimizing_params: Optional[object] = None,
+    window_kama: Optional[int] = None,
+    fast_kama: Optional[int] = None,
+    slow_kama: Optional[int] = None,
 ) -> Optional[np.ndarray]:
     """Generate crypto-optimized observation features.
 
     Uses price minus KAMA deviation to keep inputs closer to stationarity.
+    
+    Args:
+        data: DataFrame with OHLCV data
+        window_kama: KAMA window size (default: from config)
+        fast_kama: Fast KAMA parameter (default: from config)
+        slow_kama: Slow KAMA parameter (default: from config)
     """
     if data.empty or "close" not in data.columns or len(data) < 10:
         raise ValueError(
@@ -70,9 +70,7 @@ def prepare_observations(
     unique_prices = close_prices.nunique()
 
     if price_range == 0 or unique_prices < 3:
-        print(
-            f"[DATA] Problematic price data: range={price_range}, unique_prices={unique_prices}"
-        )
+        log_data(f"Problematic price data: range={price_range}, unique_prices={unique_prices}")
         close_prices = pd.Series(
             np.linspace(
                 close_prices.mean() * 0.95,
@@ -91,13 +89,9 @@ def prepare_observations(
 
     # 1. Calculate KAMA
     try:
-        window_param = int(
-            _get_param(optimizing_params, "window_kama", HMM_WINDOW_KAMA_DEFAULT)
-        )
-        fast = int(_get_param(optimizing_params, "fast_kama", HMM_FAST_KAMA_DEFAULT))
-        slow_raw = int(
-            _get_param(optimizing_params, "slow_kama", HMM_SLOW_KAMA_DEFAULT)
-        )
+        window_param = int(window_kama if window_kama is not None else HMM_WINDOW_KAMA_DEFAULT)
+        fast = int(fast_kama if fast_kama is not None else HMM_FAST_KAMA_DEFAULT)
+        slow_raw = int(slow_kama if slow_kama is not None else HMM_SLOW_KAMA_DEFAULT)
         slow = max(slow_raw, fast + 5)
 
         window = max(2, min(window_param, len(close_prices_array) // 2))
@@ -107,13 +101,13 @@ def prepare_observations(
         )
 
         if np.max(kama_values) - np.min(kama_values) < 1e-10:
-            print("[DATA] KAMA has zero variance. Adding gradient.")
+            log_data("KAMA has zero variance. Adding gradient.")
             kama_values = np.linspace(
                 kama_values[0] - 0.5, kama_values[0] + 0.5, len(kama_values)
             )
 
     except Exception as e:
-        print(f"[ERROR] KAMA calculation failed: {e}. Using EMA fallback.")
+        log_error(f"KAMA calculation failed: {e}. Using EMA fallback.")
         kama_values = (
             pd.Series(close_prices_array)
             .ewm(alpha=2.0 / (window_param + 1), adjust=False)
@@ -126,7 +120,7 @@ def prepare_observations(
     # Feature 1: Returns (Stationary)
     returns = np.diff(close_prices_array, prepend=close_prices_array[0])
     if np.std(returns) < 1e-10:
-        print("[DATA] Returns have zero variance. Returning None (Neutral).")
+        log_data("Returns have zero variance. Returning None (Neutral).")
         return None
 
     # Feature 2: Price Deviation from KAMA (Stationary-ish)
@@ -137,7 +131,7 @@ def prepare_observations(
     # Using change in KAMA as a proxy for trend strength/volatility
     volatility = np.abs(np.diff(np.array(kama_values), prepend=kama_values[0]))
     if np.std(volatility) < 1e-10:
-        print("[DATA] Volatility has zero variance. Returning None (Neutral).")
+        log_data("Volatility has zero variance. Returning None (Neutral).")
         return None
 
     rolling_vol = (
@@ -175,13 +169,11 @@ def prepare_observations(
     feature_matrix = np.column_stack([returns, kama_deviation, volatility])
 
     if not np.isfinite(feature_matrix).all():
-        print(
-            "[ERROR] Feature matrix contains invalid values. Returning None (Neutral)."
-        )
+        log_error("Feature matrix contains invalid values. Returning None (Neutral).")
         return None
 
-    print(
-        f"[ANALYSIS] Crypto-optimized features - Shape: {feature_matrix.shape}, "
+    log_analysis(
+        f"Crypto-optimized features - Shape: {feature_matrix.shape}, "
         f"Returns range: [{returns.min():.6f}, {returns.max():.6f}], "
         f"Deviation range: [{kama_deviation.min():.6f}, {kama_deviation.max():.6f}], "
         f"Volatility range: [{volatility.min():.6f}, {volatility.max():.6f}]"
@@ -208,7 +200,7 @@ def reorder_hmm_model(model: GaussianHMM) -> GaussianHMM:
     if np.array_equal(order, np.arange(model.n_components)):
         return model
 
-    print(f"[INFO] Reordering HMM states. New order mapping: {order}")
+    log_info(f"Reordering HMM states. New order mapping: {order}")
 
     # Reorder means
     model.means_ = model.means_[order]
@@ -242,7 +234,7 @@ def train_hmm(
 
     # Data cleaning
     if not np.isfinite(observations).all():
-        print("[WARN] Observations contain invalid values. Cleaning...")
+        log_warn("Observations contain invalid values. Cleaning...")
         for col in range(observations.shape[1]):  # type: ignore
             col_data = observations[:, col]
             finite_mask = np.isfinite(col_data)
@@ -257,9 +249,7 @@ def train_hmm(
     variances = np.var(observations, axis=0)
     low_var_mask = variances < 1e-12
     if low_var_mask.any():
-        print(
-            f"[DATA] Low variance detected in columns {np.where(low_var_mask)[0]}. Adding noise."
-        )
+        log_data(f"Low variance detected in columns {np.where(low_var_mask)[0]}. Adding noise.")
         noise = np.random.RandomState(random_state).normal(0, 1e-6, observations.shape)
         observations[:, low_var_mask] += noise[:, low_var_mask]
 
@@ -269,12 +259,10 @@ def train_hmm(
     if obs_max > 1e6:
         scale_factor = 1e6 / obs_max
         observations = observations * scale_factor
-        print(
-            f"[DATA] Scaled observations by factor {scale_factor} to prevent overflow"
-        )
+        log_data(f"Scaled observations by factor {scale_factor} to prevent overflow")
 
-    print(
-        f"[MODEL] Training HMM - Observations shape: {observations.shape}, "
+    log_model(
+        f"Training HMM - Observations shape: {observations.shape}, "
         f"Range: [{np.min(observations):.2e}, {np.max(observations):.2e}]"
     )
 
@@ -302,10 +290,10 @@ def train_hmm(
         # Reorder states to ensure semantic consistency (0=Bearish, 3=Bullish)
         model = reorder_hmm_model(model)
 
-        print("[SUCCESS] HMM training completed successfully")
+        log_info("HMM training completed successfully")
 
     except Exception as e:
-        print(f"[ERROR] HMM training failed: {str(e)}. Creating default model.")
+        log_error(f"HMM training failed: {str(e)}. Creating default model.")
 
         model = GaussianHMM(
             n_components=n_components,
@@ -433,9 +421,7 @@ def compute_state_using_hmm(durations: pd.DataFrame) -> Tuple[pd.DataFrame, int]
         return durations_copy, int(hidden_states[-1])
 
     except Exception as e:
-        print(
-            f"[MODEL] Duration HMM fitting failed: {e}. Using default state assignment."
-        )
+        log_model(f"Duration HMM fitting failed: {e}. Using default state assignment.")
         durations_copy = durations.copy()
         durations_copy["hidden_state"] = 0
         return durations_copy, 0
@@ -498,7 +484,7 @@ def calculate_composite_scores_association_rule_mining(
                     rules_normalized[metric] = 0.0
 
         except Exception as e:
-            print(f"[DATA] Manual normalization failed: {e}. Using raw values.")
+            log_data(f"Manual normalization failed: {e}. Using raw values.")
             pass
 
     rules_normalized["composite_score"] = (
@@ -533,7 +519,7 @@ def compute_state_using_association_rule_mining(
         te_ary = te.fit(durations["transaction"]).transform(durations["transaction"])
         df_transactions = pd.DataFrame(te_ary, columns=te.columns_)  # type: ignore
     except Exception as e:
-        print(f"[WARN] TransactionEncoder failed: {e}")
+        log_warn(f"TransactionEncoder failed: {e}")
         return 0, 0
 
     # Helper for mining
@@ -609,7 +595,7 @@ def compute_state_using_k_means(durations: pd.DataFrame) -> int:
         kmeans = KMeans(n_clusters=2, random_state=42, max_iter=300)
         durations["cluster"] = kmeans.fit_predict(durations[["duration"]])
     except Exception as e:
-        print(f"[MODEL] K-Means clustering failed: {e}. Using default cluster 0.")
+        log_model(f"K-Means clustering failed: {e}. Using default cluster 0.")
         durations["cluster"] = 0
 
     return int(durations.iloc[-1]["cluster"])
@@ -655,12 +641,12 @@ def prevent_infinite_loop(max_calls=3):
 
             try:
                 if _thread_local.call_counts[func_name] > 1:
-                    print(
-                        f"[WARN] Multiple calls detected for {func_name} ({_thread_local.call_counts[func_name]}). Possible infinite loop."
+                    log_warn(
+                        f"Multiple calls detected for {func_name} ({_thread_local.call_counts[func_name]}). Possible infinite loop."
                     )
                     if _thread_local.call_counts[func_name] > max_calls:
-                        print(
-                            f"[ERROR] Too many recursive calls for {func_name}. Breaking to prevent infinite loop."
+                        log_error(
+                            f"Too many recursive calls for {func_name}. Breaking to prevent infinite loop."
                         )
                         return HMM_KAMA(-1, -1, -1, -1, -1, -1)
 
@@ -689,8 +675,22 @@ def timeout_context(seconds):
 
 
 @prevent_infinite_loop(max_calls=3)
-def hmm_kama(df, optimizing_params=None):
-    """Run the full HMM-KAMA workflow on the provided dataframe."""
+def hmm_kama(
+    df: pd.DataFrame,
+    window_kama: Optional[int] = None,
+    fast_kama: Optional[int] = None,
+    slow_kama: Optional[int] = None,
+    window_size: Optional[int] = None,
+) -> HMM_KAMA:
+    """Run the full HMM-KAMA workflow on the provided dataframe.
+    
+    Args:
+        df: DataFrame with OHLCV data
+        window_kama: KAMA window size (default: from config)
+        fast_kama: Fast KAMA parameter (default: from config)
+        slow_kama: Slow KAMA parameter (default: from config)
+        window_size: Rolling window size (default: from config)
+    """
     try:
         with timeout_context(30):
             # 1. Validation
@@ -702,13 +702,9 @@ def hmm_kama(df, optimizing_params=None):
             if df["close"].std() == 0 or pd.isna(df["close"].std()):
                 raise ValueError("Price data has no variance")
 
-            window_param = int(
-                _get_param(optimizing_params, "window_kama", HMM_WINDOW_KAMA_DEFAULT)
-            )
-            window_size = int(
-                _get_param(optimizing_params, "window_size", HMM_WINDOW_SIZE_DEFAULT)
-            )
-            min_required = max(window_param, window_size, 10)
+            window_param = int(window_kama if window_kama is not None else HMM_WINDOW_KAMA_DEFAULT)
+            window_size_val = int(window_size if window_size is not None else HMM_WINDOW_SIZE_DEFAULT)
+            min_required = max(window_param, window_size_val, 10)
             if len(df) < min_required:
                 raise ValueError(
                     f"Insufficient data: got {len(df)}, need at least {min_required}"
@@ -737,11 +733,9 @@ def hmm_kama(df, optimizing_params=None):
             hmm_kama_result = HMM_KAMA(-1, -1, -1, -1, -1, -1)
 
             # 3. Model Training & Prediction
-            observations = prepare_observations(df_clean, optimizing_params)
+            observations = prepare_observations(df_clean, window_kama, fast_kama, slow_kama)
             if observations is None:
-                print(
-                    "[WARN] Insufficient data variance for HMM. Returning Neutral state."
-                )
+                log_warn("Insufficient data variance for HMM. Returning Neutral state.")
                 return HMM_KAMA(-1, -1, -1, -1, -1, -1)
 
             model = train_hmm(observations, n_components=4)
@@ -786,6 +780,6 @@ def hmm_kama(df, optimizing_params=None):
             return hmm_kama_result
 
     except Exception as e:
-        print(f"[ERROR] Error in hmm_kama: {str(e)}")
+        log_error(f"Error in hmm_kama: {str(e)}")
         # Return safe default
         return HMM_KAMA(-1, -1, -1, -1, -1, -1)
