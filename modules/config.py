@@ -223,14 +223,122 @@ DEEP_GRADIENT_CLIP_VAL = 0.5  # Gradient clipping value (None to disable)
 
 
 # ============================================================================
+# HMM CONFIGURATION
+# ============================================================================
+
+HMM_WINDOW_KAMA_DEFAULT = 10
+HMM_FAST_KAMA_DEFAULT = 2
+HMM_SLOW_KAMA_DEFAULT = 30
+HMM_WINDOW_SIZE_DEFAULT = 100
+
+# ============================================================================
 # PAIRS TRADING CONFIGURATION
 # ============================================================================
 
-# Performance analysis weights
+# Performance analysis weights (default)
 PAIRS_TRADING_WEIGHTS = {
     '1d': 0.5,   # Trọng số cho 1 ngày (24 candles)
     '3d': 0.3,   # Trọng số cho 3 ngày (72 candles)
     '1w': 0.2    # Trọng số cho 1 tuần (168 candles)
+}
+
+# Named presets for CLI selection
+PAIRS_TRADING_WEIGHT_PRESETS = {
+    "momentum": {'1d': 0.5, '3d': 0.3, '1w': 0.2},          # Ưu tiên tín hiệu ngắn hạn
+    "balanced": {'1d': 0.3, '3d': 0.4, '1w': 0.3},          # Cân bằng giữa ngắn-trung-dài hạn
+    "short_term_bounce": {'1d': 0.7, '3d': 0.2, '1w': 0.1},  # Rất nhạy với biến động 1d
+    "trend_follower": {'1d': 0.2, '3d': 0.3, '1w': 0.5},     # Bám theo xu hướng dài hơn
+    "mean_reversion": {'1d': 0.25, '3d': 0.5, '1w': 0.25},   # Nhấn mạnh trung hạn cho mean reversion
+    "volatility_buffer": {'1d': 0.2, '3d': 0.4, '1w': 0.4},  # Giảm nhiễu ngắn hạn, tăng ổn định
+}
+
+# Hedge ratio calculation defaults
+PAIRS_TRADING_OLS_FIT_INTERCEPT = True
+PAIRS_TRADING_KALMAN_DELTA = 1e-5
+PAIRS_TRADING_KALMAN_OBS_COV = 1.0
+PAIRS_TRADING_KALMAN_PRESETS = {
+    "fast_react": {
+        "description": "Nhanh nhạy – beta đổi nhanh, phù hợp thị trường biến động mạnh",
+        "delta": 5e-5,
+        "obs_cov": 0.5,
+    },
+    "balanced": {
+        "description": "Cân bằng – mặc định hiện tại, phản ứng vừa phải",
+        "delta": 1e-5,
+        "obs_cov": 1.0,
+    },
+    "stable": {
+        "description": "Ổn định – beta đổi chậm, giảm nhiễu",
+        "delta": 5e-6,
+        "obs_cov": 2.0,
+    },
+}
+
+# Opportunity scoring presets (multipliers)
+PAIRS_TRADING_OPPORTUNITY_PRESETS = {
+    "balanced": {
+        "description": "Mặc định cân bằng giữa thưởng/phạt",
+        "corr_good_bonus": 1.20,
+        "corr_low_penalty": 0.80,
+        "corr_high_penalty": 0.90,
+        "cointegration_bonus": 1.15,
+        "weak_cointegration_bonus": 1.05,
+        "half_life_bonus": 1.10,
+        "zscore_divisor": 5.0,
+        "zscore_cap": 0.20,
+        "hurst_good_bonus": 1.08,
+        "hurst_ok_bonus": 1.02,
+        "hurst_ok_threshold": 0.60,
+        "sharpe_good_bonus": 1.08,
+        "sharpe_ok_bonus": 1.03,
+        "maxdd_bonus": 1.05,
+        "calmar_bonus": 1.05,
+        "johansen_bonus": 1.08,
+        "f1_high_bonus": 1.05,
+        "f1_mid_bonus": 1.02,
+    },
+    "aggressive": {
+        "description": "Thưởng lớn cho tín hiệu mạnh, chấp nhận biến động",
+        "corr_good_bonus": 1.30,
+        "corr_low_penalty": 0.70,
+        "corr_high_penalty": 0.85,
+        "cointegration_bonus": 1.25,
+        "weak_cointegration_bonus": 1.10,
+        "half_life_bonus": 1.15,
+        "zscore_divisor": 4.0,
+        "zscore_cap": 0.30,
+        "hurst_good_bonus": 1.12,
+        "hurst_ok_bonus": 1.05,
+        "hurst_ok_threshold": 0.65,
+        "sharpe_good_bonus": 1.12,
+        "sharpe_ok_bonus": 1.05,
+        "maxdd_bonus": 1.02,
+        "calmar_bonus": 1.02,
+        "johansen_bonus": 1.12,
+        "f1_high_bonus": 1.08,
+        "f1_mid_bonus": 1.04,
+    },
+    "conservative": {
+        "description": "Thưởng nhẹ, ưu tiên cặp ổn định",
+        "corr_good_bonus": 1.10,
+        "corr_low_penalty": 0.90,
+        "corr_high_penalty": 0.95,
+        "cointegration_bonus": 1.10,
+        "weak_cointegration_bonus": 1.02,
+        "half_life_bonus": 1.05,
+        "zscore_divisor": 6.0,
+        "zscore_cap": 0.15,
+        "hurst_good_bonus": 1.04,
+        "hurst_ok_bonus": 1.01,
+        "hurst_ok_threshold": 0.55,
+        "sharpe_good_bonus": 1.05,
+        "sharpe_ok_bonus": 1.02,
+        "maxdd_bonus": 1.08,
+        "calmar_bonus": 1.08,
+        "johansen_bonus": 1.05,
+        "f1_high_bonus": 1.03,
+        "f1_mid_bonus": 1.01,
+    },
 }
 
 # Performance analysis settings

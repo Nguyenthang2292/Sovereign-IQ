@@ -7,6 +7,17 @@ import numpy as np
 from typing import Optional
 
 try:
+    from modules.config import (
+        PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        PAIRS_TRADING_KALMAN_DELTA,
+        PAIRS_TRADING_KALMAN_OBS_COV,
+    )
+except ImportError:
+    PAIRS_TRADING_OLS_FIT_INTERCEPT = True
+    PAIRS_TRADING_KALMAN_DELTA = 1e-5
+    PAIRS_TRADING_KALMAN_OBS_COV = 1.0
+
+try:
     from sklearn.linear_model import LinearRegression
 except ImportError:
     LinearRegression = None
@@ -18,7 +29,9 @@ except ImportError:
 
 
 def calculate_ols_hedge_ratio(
-    price1: pd.Series, price2: pd.Series
+    price1: pd.Series,
+    price2: pd.Series,
+    fit_intercept: bool = PAIRS_TRADING_OLS_FIT_INTERCEPT,
 ) -> Optional[float]:
     """
     Calculate OLS hedge ratio (price1 ~ beta * price2).
@@ -34,7 +47,7 @@ def calculate_ols_hedge_ratio(
         return None
 
     try:
-        model = LinearRegression()
+        model = LinearRegression(fit_intercept=fit_intercept)
         model.fit(price2.values.reshape(-1, 1), price1.values)
         return float(model.coef_[0])
     except Exception:
@@ -42,7 +55,10 @@ def calculate_ols_hedge_ratio(
 
 
 def calculate_kalman_hedge_ratio(
-    price1: pd.Series, price2: pd.Series
+    price1: pd.Series,
+    price2: pd.Series,
+    delta: float = PAIRS_TRADING_KALMAN_DELTA,
+    observation_covariance: float = PAIRS_TRADING_KALMAN_OBS_COV,
 ) -> Optional[float]:
     """
     Estimate dynamic hedge ratio using Kalman filter.
@@ -58,7 +74,6 @@ def calculate_kalman_hedge_ratio(
         return None
 
     try:
-        delta = 1e-5
         trans_cov = delta / (1 - delta) * np.eye(2)
         obs_mat = np.vstack([price2.values, np.ones(len(price2))]).T[
             :, np.newaxis, :
@@ -67,7 +82,7 @@ def calculate_kalman_hedge_ratio(
             transition_matrices=np.eye(2),
             observation_matrices=obs_mat,
             transition_covariance=trans_cov,
-            observation_covariance=1.0,
+            observation_covariance=observation_covariance,
         )
         state_means, _ = kf.filter(price1.values)
         beta_series = state_means[:, 0]

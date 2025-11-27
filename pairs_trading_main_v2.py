@@ -27,6 +27,8 @@ from modules.config import (
     PAIRS_TRADING_MIN_CORRELATION,
     PAIRS_TRADING_MAX_CORRELATION,
     PAIRS_TRADING_MAX_HALF_LIFE,
+    PAIRS_TRADING_WEIGHT_PRESETS,
+    PAIRS_TRADING_OPPORTUNITY_PRESETS,
 )
 from modules.common.utils import color_text, format_price, normalize_symbol_key
 from modules.common.ExchangeManager import ExchangeManager
@@ -39,6 +41,9 @@ from modules.pairs_trading.cli import (
     standardize_symbol_input,
     parse_weights,
     parse_symbols,
+    prompt_weight_preset_selection,
+    prompt_kalman_preset_selection,
+    prompt_opportunity_preset_selection,
 )
 
 # Suppress warnings for cleaner output
@@ -80,14 +85,8 @@ def display_performers(df, title, color):
     print(color_text(f"{'=' * 80}", color, Style.BRIGHT))
 
 
-def display_pairs_opportunities(pairs_df, max_display=10, verbose=True):
-    """Display pairs trading opportunities in a formatted table.
-    
-    Args:
-        pairs_df: DataFrame with pairs data
-        max_display: Maximum number of pairs to display
-        verbose: If True, show additional quantitative metrics
-    """
+def display_pairs_opportunities(pairs_df, max_display=10):
+    """Display pairs trading opportunities in a formatted table (always verbose)."""
 
     def _pad_colored(text: str, width: int, color, style=None) -> str:
         """Pad text to fixed width before applying ANSI colors to avoid misalignment."""
@@ -104,18 +103,11 @@ def display_pairs_opportunities(pairs_df, max_display=10, verbose=True):
     print(color_text("PAIRS TRADING OPPORTUNITIES", Fore.MAGENTA, Style.BRIGHT))
     print(color_text(f"{'=' * 120}", Fore.MAGENTA, Style.BRIGHT))
 
-    if verbose:
-        print(
-            f"{'Rank':<6} {'Long':<15} {'Short':<15} {'Spread':<10} {'Corr':<8} {'OppScore':<10} "
-            f"{'QuantScore':<12} {'Coint':<7} {'HalfLife':<10} {'Sharpe':<10} {'MaxDD':<10}"
-        )
-        print("-" * 120)
-    else:
-        print(
-            f"{'Rank':<6} {'Long (Worst)':<18} {'Short (Best)':<18} {'Spread':<12} {'Correlation':<15} "
-            f"{'OppScore':<12} {'QuantScore':<12} {'Coint':<7}"
-        )
-        print("-" * 120)
+    print(
+        f"{'Rank':<6} {'Long':<15} {'Short':<15} {'Spread':<10} {'Corr':<8} {'OppScore':<10} "
+        f"{'QuantScore':<12} {'Coint':<7} {'HedgeRatio':<12} {'HalfLife':<10} {'Sharpe':<10} {'MaxDD':<10}"
+    )
+    print("-" * 120)
 
     display_count = min(len(pairs_df), max_display)
     for idx in range(display_count):
@@ -137,9 +129,16 @@ def display_pairs_opportunities(pairs_df, max_display=10, verbose=True):
         half_life = row.get("half_life")
         spread_sharpe = row.get("spread_sharpe")
         max_drawdown = row.get("max_drawdown")
+        hedge_ratio = row.get("hedge_ratio")
 
         # Prepare spread text
         spread_text = f"{spread:+.2f}%"
+        
+        # Format hedge ratio
+        if hedge_ratio is not None and not pd.isna(hedge_ratio):
+            hedge_text = f"{hedge_ratio:.4f}"
+        else:
+            hedge_text = "N/A"
 
         # Color code based on opportunity score
         if opportunity_score > 20:
@@ -191,28 +190,20 @@ def display_pairs_opportunities(pairs_df, max_display=10, verbose=True):
             corr_text = "N/A"
         corr_display = _pad_colored(corr_text, 12, corr_color)
 
-        if verbose:
-            # Format verbose metrics
-            half_life_text = f"{half_life:.1f}" if half_life is not None and not pd.isna(half_life) else "N/A"
-            sharpe_text = f"{spread_sharpe:.2f}" if spread_sharpe is not None and not pd.isna(spread_sharpe) else "N/A"
-            maxdd_text = f"{max_drawdown*100:.1f}%" if max_drawdown is not None and not pd.isna(max_drawdown) else "N/A"
-            
-            print(
-                f"{rank:<6} {long_symbol:<15} {short_symbol:<15} "
-                f"{spread_text:<10} {corr_display} "
-                f"{opp_display} "
-                f"{quant_display} "
-                f"{coint_display_verbose}"
-                f"{half_life_text:<12} {sharpe_text:<12} {maxdd_text:<12}"
-            )
-        else:
-            print(
-                f"{rank:<6} {long_symbol:<18} {short_symbol:<18} "
-                f"{spread_text:<12} {corr_display} "
-                f"{opp_display} "
-                f"{quant_display} "
-                f"{coint_display}"
-            )
+        # Format verbose metrics
+        half_life_text = f"{half_life:.1f}" if half_life is not None and not pd.isna(half_life) else "N/A"
+        sharpe_text = f"{spread_sharpe:.2f}" if spread_sharpe is not None and not pd.isna(spread_sharpe) else "N/A"
+        maxdd_text = f"{max_drawdown*100:.1f}%" if max_drawdown is not None and not pd.isna(max_drawdown) else "N/A"
+        
+        print(
+            f"{rank:<6} {long_symbol:<15} {short_symbol:<15} "
+            f"{spread_text:<10} {corr_display} "
+            f"{opp_display} "
+            f"{quant_display} "
+            f"{coint_display_verbose}"
+            f"{hedge_text:<12} "
+            f"{half_life_text:<12} {sharpe_text:<12} {maxdd_text:<12}"
+        )
 
     print(color_text(f"{'=' * 120}", Fore.MAGENTA, Style.BRIGHT))
 
@@ -325,9 +316,29 @@ def main():
             args.symbols = None
         else:
             args.symbols = menu_result["symbols_raw"]
+        if not args.weights:
+            args.weight_preset = prompt_weight_preset_selection(args.weight_preset)
+        args.opportunity_preset = prompt_opportunity_preset_selection(args.opportunity_preset)
+        # Kalman preset selection
+        args.kalman_delta, args.kalman_obs_cov, args.kalman_preset = prompt_kalman_preset_selection(
+            args.kalman_delta,
+            args.kalman_obs_cov,
+        )
+        # OLS fit intercept selection
+        default_ols = "Y" if args.ols_fit_intercept else "N"
+        ols_input = input(
+            color_text(
+                f"Use intercept for OLS hedge ratio? [Y/n] (default {default_ols}): ",
+                Fore.YELLOW,
+            )
+        ).strip().lower()
+        if ols_input in {"y", "yes"}:
+            args.ols_fit_intercept = True
+        elif ols_input in {"n", "no"}:
+            args.ols_fit_intercept = False
 
     # Parse weights if provided
-    weights = parse_weights(args.weights)
+    weights = parse_weights(args.weights, args.weight_preset)
 
     # Parse target symbols if provided
     target_symbol_inputs, parsed_target_symbols = parse_symbols(args.symbols)
@@ -351,7 +362,13 @@ def main():
     )
     print(f"  Target pairs: {args.pairs_count}")
     print(f"  Candidate depth per side: {args.candidate_depth}")
+    print(f"  Weight preset: {args.weight_preset}")
     print(f"  Weights: 1d={weights['1d']:.2f}, 3d={weights['3d']:.2f}, 1w={weights['1w']:.2f}")
+    print(f"  Opportunity preset: {args.opportunity_preset}")
+    if getattr(args, "kalman_preset", None):
+        print(f"  Kalman preset: {args.kalman_preset}")
+    print(f"  OLS fit intercept: {args.ols_fit_intercept}")
+    print(f"  Kalman delta: {args.kalman_delta:.2e}, obs_cov: {args.kalman_obs_cov:.2f}")
     print(f"  Spread range: {args.min_spread*100:.2f}% - {args.max_spread*100:.2f}%")
     print(f"  Correlation range: {args.min_correlation:.2f} - {args.max_correlation:.2f}")
     if target_symbol_inputs:
@@ -364,6 +381,10 @@ def main():
     exchange_manager = ExchangeManager()
     data_fetcher = DataFetcher(exchange_manager)
     performance_analyzer = PerformanceAnalyzer(weights=weights)
+    opportunity_profile = PAIRS_TRADING_OPPORTUNITY_PRESETS.get(
+        args.opportunity_preset,
+        PAIRS_TRADING_OPPORTUNITY_PRESETS.get("balanced", {}),
+    )
     pairs_analyzer = PairsTradingAnalyzer(
         min_spread=args.min_spread,
         max_spread=args.max_spread,
@@ -372,11 +393,15 @@ def main():
         require_cointegration=args.require_cointegration,
         max_half_life=args.max_half_life,
         min_quantitative_score=args.min_quantitative_score,
+        ols_fit_intercept=args.ols_fit_intercept,
+        kalman_delta=args.kalman_delta,
+        kalman_obs_cov=args.kalman_obs_cov,
+        scoring_multipliers=opportunity_profile,
     )
 
     # Step 1: Get list of futures symbols
     print(color_text("\n[1/4] Fetching futures symbols from Binance...", Fore.CYAN, Style.BRIGHT))
-    
+
     try:
         symbols = data_fetcher.list_binance_futures_symbols(
             max_candidates=args.max_symbols,
@@ -581,7 +606,6 @@ def main():
                 display_pairs_opportunities(
                     manual_pairs,
                     max_display=min(args.max_pairs, len(manual_pairs)),
-                    verbose=args.verbose,
                 )
                 selected_pairs = manual_pairs
                 displayed_manual = True
@@ -598,7 +622,6 @@ def main():
             display_pairs_opportunities(
                 selected_pairs,
                 max_display=min(args.max_pairs, len(selected_pairs)),
-                verbose=args.verbose,
             )
 
         # Summary
@@ -651,6 +674,21 @@ def main():
             if not max_dds.empty:
                 avg_max_dd = max_dds.mean() * 100
                 print(f"  Average max drawdown: {avg_max_dd:.2f}%")
+            
+            # Average hedge ratios
+            print(color_text("\nHedge Ratios:", Fore.CYAN, Style.BRIGHT))
+            
+            # OLS hedge ratio
+            hedge_ratios = selected_pairs.get("hedge_ratio").dropna() if "hedge_ratio" in selected_pairs.columns else pd.Series()
+            if not hedge_ratios.empty:
+                avg_hedge_ratio = hedge_ratios.mean()
+                print(f"  Average OLS hedge ratio: {avg_hedge_ratio:.4f}")
+            
+            # Kalman hedge ratio
+            kalman_ratios = selected_pairs.get("kalman_hedge_ratio").dropna() if "kalman_hedge_ratio" in selected_pairs.columns else pd.Series()
+            if not kalman_ratios.empty:
+                avg_kalman_ratio = kalman_ratios.mean()
+                print(f"  Average Kalman hedge ratio: {avg_kalman_ratio:.4f}")
         print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
 
     except KeyboardInterrupt:

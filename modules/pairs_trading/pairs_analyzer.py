@@ -25,6 +25,9 @@ try:
         PAIRS_TRADING_JOHANSEN_CONFIDENCE,
         PAIRS_TRADING_PERIODS_PER_YEAR,
         PAIRS_TRADING_CLASSIFICATION_ZSCORE,
+        PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        PAIRS_TRADING_KALMAN_DELTA,
+        PAIRS_TRADING_KALMAN_OBS_COV,
     )
     from modules.common.utils import color_text
     from modules.common.ProgressBar import ProgressBar
@@ -46,6 +49,9 @@ except ImportError:
     PAIRS_TRADING_JOHANSEN_CONFIDENCE = 0.95
     PAIRS_TRADING_PERIODS_PER_YEAR = 365 * 24
     PAIRS_TRADING_CLASSIFICATION_ZSCORE = 0.5
+    PAIRS_TRADING_OLS_FIT_INTERCEPT = True
+    PAIRS_TRADING_KALMAN_DELTA = 1e-5
+    PAIRS_TRADING_KALMAN_OBS_COV = 1.0
     color_text = None
     ProgressBar = None
 
@@ -110,6 +116,10 @@ class PairsTradingAnalyzer:
         min_spread_sharpe: Optional[float] = None,
         max_drawdown_threshold: Optional[float] = None,
         min_quantitative_score: Optional[float] = None,
+        ols_fit_intercept: bool = PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        kalman_delta: float = PAIRS_TRADING_KALMAN_DELTA,
+        kalman_obs_cov: float = PAIRS_TRADING_KALMAN_OBS_COV,
+        scoring_multipliers: Optional[Dict[str, float]] = None,
     ):
         """
         Initialize PairsTradingAnalyzer.
@@ -138,28 +148,39 @@ class PairsTradingAnalyzer:
         self.min_spread_sharpe = min_spread_sharpe if min_spread_sharpe is not None else PAIRS_TRADING_MIN_SPREAD_SHARPE
         self.max_drawdown_threshold = max_drawdown_threshold if max_drawdown_threshold is not None else PAIRS_TRADING_MAX_DRAWDOWN
         self.min_quantitative_score = min_quantitative_score
+        self.ols_fit_intercept = ols_fit_intercept
+        self.kalman_delta = kalman_delta
+        self.kalman_obs_cov = kalman_obs_cov
+        self.scoring_multipliers = scoring_multipliers
+        self.adf_pvalue_threshold = PAIRS_TRADING_ADF_PVALUE_THRESHOLD
+        self.johansen_confidence = PAIRS_TRADING_JOHANSEN_CONFIDENCE
+        self.min_calmar = PAIRS_TRADING_MIN_CALMAR
         self._correlation_cache: Dict[Tuple[str, str], float] = {}
         self._price_cache: Dict[Tuple[str, str], Optional[pd.DataFrame]] = {}
         
         # Initialize metrics computer and opportunity scorer
         self.metrics_computer = PairMetricsComputer(
-            adf_pvalue_threshold=PAIRS_TRADING_ADF_PVALUE_THRESHOLD,
+            adf_pvalue_threshold=self.adf_pvalue_threshold,
             periods_per_year=PAIRS_TRADING_PERIODS_PER_YEAR,
             zscore_lookback=PAIRS_TRADING_ZSCORE_LOOKBACK,
             classification_zscore=PAIRS_TRADING_CLASSIFICATION_ZSCORE,
-            johansen_confidence=PAIRS_TRADING_JOHANSEN_CONFIDENCE,
+            johansen_confidence=self.johansen_confidence,
             correlation_min_points=correlation_min_points,
+            ols_fit_intercept=self.ols_fit_intercept,
+            kalman_delta=self.kalman_delta,
+            kalman_obs_cov=self.kalman_obs_cov,
         )
         
         self.opportunity_scorer = OpportunityScorer(
-            min_correlation=min_correlation,
-            max_correlation=max_correlation,
-            adf_pvalue_threshold=PAIRS_TRADING_ADF_PVALUE_THRESHOLD,
-            max_half_life=PAIRS_TRADING_MAX_HALF_LIFE,
-            hurst_threshold=PAIRS_TRADING_HURST_THRESHOLD,
-            min_spread_sharpe=PAIRS_TRADING_MIN_SPREAD_SHARPE,
-            max_drawdown_threshold=PAIRS_TRADING_MAX_DRAWDOWN,
-            min_calmar=PAIRS_TRADING_MIN_CALMAR,
+            min_correlation=self.min_correlation,
+            max_correlation=self.max_correlation,
+            adf_pvalue_threshold=self.adf_pvalue_threshold,
+            max_half_life=self.max_half_life,
+            hurst_threshold=self.hurst_threshold,
+            min_spread_sharpe=self.min_spread_sharpe,
+            max_drawdown_threshold=self.max_drawdown_threshold,
+            min_calmar=self.min_calmar,
+            scoring_multipliers=self.scoring_multipliers,
         )
 
     def _fetch_aligned_prices(
@@ -203,21 +224,24 @@ class PairsTradingAnalyzer:
             self._price_cache[cache_key] = None
             return None
 
-        if "timestamp" in df1.columns and "timestamp" in df2.columns:
-            df1 = df1.set_index("timestamp")
-            df2 = df2.set_index("timestamp")
-            df_combined = pd.concat(
-                [df1[["close"]], df2[["close"]]], axis=1, join="inner"
-            )
-            df_combined.columns = ["close1", "close2"]
-        else:
-            min_len = min(len(df1), len(df2))
-            df_combined = pd.DataFrame(
-                {
-                    "close1": df1["close"].iloc[-min_len:].values,
-                    "close2": df2["close"].iloc[-min_len:].values,
-                }
-            )
+        if "timestamp" not in df1.columns or "timestamp" not in df2.columns:
+            if color_text:
+                print(
+                    color_text(
+                        f"[WARNING] Missing timestamp column for {symbol1} or {symbol2}. "
+                        "Cannot align series reliably.",
+                        Fore.YELLOW,
+                    )
+                )
+            self._price_cache[cache_key] = None
+            return None
+
+        df1 = df1.set_index("timestamp")
+        df2 = df2.set_index("timestamp")
+        df_combined = pd.concat(
+            [df1[["close"]], df2[["close"]]], axis=1, join="inner"
+        )
+        df_combined.columns = ["close1", "close2"]
 
         if len(df_combined) < self.correlation_min_points:
             self._price_cache[cache_key] = None
@@ -398,6 +422,13 @@ class PairsTradingAnalyzer:
                     correlation = self.calculate_correlation(
                         long_symbol, short_symbol, data_fetcher
                     )
+                    # Skip heavy metrics if correlation is outside desired range
+                    if correlation is not None:
+                        abs_corr = abs(correlation)
+                        if abs_corr < self.min_correlation or abs_corr > self.max_correlation:
+                            if progress:
+                                progress.update()
+                            continue
                     quant_metrics = self._compute_pair_metrics(
                         long_symbol, short_symbol, data_fetcher
                     )

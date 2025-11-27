@@ -34,6 +34,9 @@ try:
         PAIRS_TRADING_CLASSIFICATION_ZSCORE,
         PAIRS_TRADING_JOHANSEN_CONFIDENCE,
         PAIRS_TRADING_CORRELATION_MIN_POINTS,
+        PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        PAIRS_TRADING_KALMAN_DELTA,
+        PAIRS_TRADING_KALMAN_OBS_COV,
     )
 except ImportError:
     PAIRS_TRADING_TIMEFRAME = "1h"
@@ -43,6 +46,9 @@ except ImportError:
     PAIRS_TRADING_CLASSIFICATION_ZSCORE = 0.5
     PAIRS_TRADING_JOHANSEN_CONFIDENCE = 0.95
     PAIRS_TRADING_CORRELATION_MIN_POINTS = 50
+    PAIRS_TRADING_OLS_FIT_INTERCEPT = True
+    PAIRS_TRADING_KALMAN_DELTA = 1e-5
+    PAIRS_TRADING_KALMAN_OBS_COV = 1.0
 
 
 class PairMetricsComputer:
@@ -56,6 +62,9 @@ class PairMetricsComputer:
         classification_zscore: float = PAIRS_TRADING_CLASSIFICATION_ZSCORE,
         johansen_confidence: float = PAIRS_TRADING_JOHANSEN_CONFIDENCE,
         correlation_min_points: int = PAIRS_TRADING_CORRELATION_MIN_POINTS,
+        ols_fit_intercept: bool = PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        kalman_delta: float = PAIRS_TRADING_KALMAN_DELTA,
+        kalman_obs_cov: float = PAIRS_TRADING_KALMAN_OBS_COV,
     ):
         """
         Initialize PairMetricsComputer.
@@ -74,6 +83,9 @@ class PairMetricsComputer:
         self.classification_zscore = classification_zscore
         self.johansen_confidence = johansen_confidence
         self.correlation_min_points = correlation_min_points
+        self.ols_fit_intercept = ols_fit_intercept
+        self.kalman_delta = kalman_delta
+        self.kalman_obs_cov = kalman_obs_cov
 
     def compute_pair_metrics(
         self,
@@ -115,7 +127,11 @@ class PairMetricsComputer:
         }
 
         # Calculate hedge ratio
-        hedge_ratio = calculate_ols_hedge_ratio(price1, price2)
+        hedge_ratio = calculate_ols_hedge_ratio(
+            price1,
+            price2,
+            fit_intercept=self.ols_fit_intercept,
+        )
         if hedge_ratio is None:
             return metrics
 
@@ -172,7 +188,12 @@ class PairMetricsComputer:
                 metrics["is_cointegrated"] = johansen["is_johansen_cointegrated"]
         
         # Kalman hedge ratio
-        kalman_beta = calculate_kalman_hedge_ratio(price1, price2)
+        kalman_beta = calculate_kalman_hedge_ratio(
+            price1,
+            price2,
+            delta=self.kalman_delta,
+            observation_covariance=self.kalman_obs_cov,
+        )
         if kalman_beta is not None:
             metrics["kalman_hedge_ratio"] = kalman_beta
 

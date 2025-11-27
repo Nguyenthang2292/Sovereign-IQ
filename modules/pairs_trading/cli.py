@@ -4,7 +4,7 @@ Command-line interface for pairs trading analysis.
 
 import sys
 import argparse
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from colorama import Fore, Style
 
@@ -23,6 +23,12 @@ try:
         PAIRS_TRADING_MIN_CORRELATION,
         PAIRS_TRADING_MAX_CORRELATION,
         PAIRS_TRADING_MAX_HALF_LIFE,
+        PAIRS_TRADING_WEIGHT_PRESETS,
+        PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        PAIRS_TRADING_KALMAN_DELTA,
+        PAIRS_TRADING_KALMAN_OBS_COV,
+        PAIRS_TRADING_KALMAN_PRESETS,
+        PAIRS_TRADING_OPPORTUNITY_PRESETS,
     )
 except ImportError:
     PAIRS_TRADING_WEIGHTS = {"1d": 0.5, "3d": 0.3, "1w": 0.2}
@@ -32,6 +38,21 @@ except ImportError:
     PAIRS_TRADING_MIN_CORRELATION = 0.3
     PAIRS_TRADING_MAX_CORRELATION = 0.9
     PAIRS_TRADING_MAX_HALF_LIFE = 50
+    PAIRS_TRADING_OLS_FIT_INTERCEPT = True
+    PAIRS_TRADING_KALMAN_DELTA = 1e-5
+    PAIRS_TRADING_KALMAN_OBS_COV = 1.0
+    PAIRS_TRADING_WEIGHT_PRESETS = {
+        "momentum": {"1d": 0.5, "3d": 0.3, "1w": 0.2},
+        "balanced": {"1d": 0.3, "3d": 0.4, "1w": 0.3},
+    }
+    PAIRS_TRADING_KALMAN_PRESETS = {
+        "balanced": {"delta": 1e-5, "obs_cov": 1.0, "description": "Default balanced profile"},
+    }
+    PAIRS_TRADING_OPPORTUNITY_PRESETS = {
+        "balanced": {
+            "description": "Default balanced scoring",
+        }
+    }
 
 
 def standardize_symbol_input(symbol: str) -> str:
@@ -85,15 +106,169 @@ def prompt_interactive_mode() -> Dict[str, Optional[str]]:
     }
 
 
-def parse_weights(weights_str: Optional[str]) -> Dict[str, float]:
+def prompt_weight_preset_selection(current_preset: Optional[str]) -> str:
+    """Interactive selection menu for weight presets."""
+    presets = list(PAIRS_TRADING_WEIGHT_PRESETS.items())
+    if not presets:
+        return current_preset or "momentum"
+
+    default_choice = None
+    for idx, (key, _) in enumerate(presets, start=1):
+        if key == current_preset:
+            default_choice = str(idx)
+            break
+    if default_choice is None:
+        default_choice = "1"
+
+    print(color_text("\nSelect weight preset for calculating performance score for pairs trading:", Fore.CYAN, Style.BRIGHT))
+    for idx, (key, weights) in enumerate(presets, start=1):
+        weights_desc = f"1d={weights['1d']:.2f}, 3d={weights['3d']:.2f}, 1w={weights['1w']:.2f}"
+        highlight = Style.BRIGHT if key == current_preset else Style.NORMAL
+        print(
+            color_text(
+                f"{idx}) {key.capitalize()} ({weights_desc})",
+                Fore.MAGENTA if key == current_preset else Fore.WHITE,
+                highlight,
+            )
+        )
+
+    choice_map = {str(idx + 1): key for idx, (key, _) in enumerate(presets)}
+
+    while True:
+        user_choice = input(
+            color_text(
+                f"\nEnter preset [1-{len(presets)}] (default {default_choice}): ",
+                Fore.YELLOW,
+            )
+        ).strip() or default_choice
+        if user_choice in choice_map:
+            selected = choice_map[user_choice]
+            print(
+                color_text(
+                    f"Using {selected.capitalize()} preset",
+                    Fore.GREEN,
+                    Style.BRIGHT,
+                )
+            )
+            return selected
+        print(color_text("Invalid selection. Please try again.", Fore.RED))
+
+
+def prompt_kalman_preset_selection(
+    current_delta: float,
+    current_obs_cov: float,
+) -> Tuple[float, float, Optional[str]]:
+    """Interactive selection menu for Kalman parameter presets."""
+    presets = list(PAIRS_TRADING_KALMAN_PRESETS.items())
+    if not presets:
+        return current_delta, current_obs_cov, None
+
+    default_choice = "1"
+    print(
+        color_text(
+            "\nSelect Kalman filter profile for hedge ratio:",
+            Fore.CYAN,
+            Style.BRIGHT,
+        )
+    )
+    for idx, (key, data) in enumerate(presets, start=1):
+        desc = data.get("description", "")
+        delta = data.get("delta")
+        obs_cov = data.get("obs_cov")
+        print(
+            color_text(
+                f"{idx}) {key} (delta={delta:.2e}, obs_cov={obs_cov:.2f}) - {desc}",
+                Fore.WHITE,
+                Style.NORMAL,
+            )
+        )
+    choice_map = {str(idx): (key, data) for idx, (key, data) in enumerate(presets, start=1)}
+    while True:
+        user_choice = input(
+            color_text(
+                f"\nEnter preset [1-{len(presets)}] (default {default_choice}): ",
+                Fore.YELLOW,
+            )
+        ).strip() or default_choice
+        if user_choice in choice_map:
+            key, data = choice_map[user_choice]
+            delta = float(data.get("delta", current_delta))
+            obs_cov = float(data.get("obs_cov", current_obs_cov))
+            print(
+                color_text(
+                    f"Using {key} profile (delta={delta:.2e}, obs_cov={obs_cov:.2f})",
+                    Fore.GREEN,
+                    Style.BRIGHT,
+                )
+            )
+            return delta, obs_cov, key
+        print(color_text("Invalid selection. Please try again.", Fore.RED))
+
+
+def prompt_opportunity_preset_selection(
+    current_key: Optional[str],
+) -> str:
+    """Interactive selection for opportunity scoring profiles."""
+    presets = list(PAIRS_TRADING_OPPORTUNITY_PRESETS.items())
+    if not presets:
+        return current_key or "balanced"
+
+    default_choice = None
+    for idx, (key, _) in enumerate(presets, start=1):
+        if key == current_key:
+            default_choice = str(idx)
+            break
+    if default_choice is None:
+        default_choice = "1"
+
+    print(color_text("\nSelect opportunity scoring profile:", Fore.CYAN, Style.BRIGHT))
+    for idx, (key, data) in enumerate(presets, start=1):
+        desc = data.get("description", "")
+        print(
+            color_text(
+                f"{idx}) {key} - {desc}",
+                Fore.WHITE if key != current_key else Fore.MAGENTA,
+                Style.BRIGHT if key == current_key else Style.NORMAL,
+            )
+        )
+
+    choice_map = {str(idx): key for idx, (key, _) in enumerate(presets, start=1)}
+    while True:
+        selection = input(
+            color_text(
+                f"\nEnter preset [1-{len(presets)}] (default {default_choice}): ",
+                Fore.YELLOW,
+            )
+        ).strip() or default_choice
+        if selection in choice_map:
+            chosen = choice_map[selection]
+            print(
+                color_text(
+                    f"Using {chosen} scoring profile",
+                    Fore.GREEN,
+                    Style.BRIGHT,
+                )
+            )
+            return chosen
+        print(color_text("Invalid selection. Please try again.", Fore.RED))
+
+
+def parse_weights(weights_str: Optional[str], preset_key: Optional[str] = None) -> Dict[str, float]:
     """Parse weights string into dictionary.
     
     Args:
         weights_str: Weights in format '1d:0.5,3d:0.3,1w:0.2'
+        preset_key: Named preset (momentum/balanced)
         
     Returns:
         Dictionary with weights, normalized to sum to 1.0
     """
+    # Highest precedence: manual weights string
+    if not weights_str and preset_key:
+        preset = PAIRS_TRADING_WEIGHT_PRESETS.get(preset_key)
+        if preset:
+            return preset.copy()
+
     weights = PAIRS_TRADING_WEIGHTS.copy()
     if not weights_str:
         return weights
@@ -196,6 +371,52 @@ def parse_args():
         help="Weights for timeframes in format '1d:0.5,3d:0.3,1w:0.2' (default: from config)",
     )
     parser.add_argument(
+        "--weight-preset",
+        type=str,
+        choices=list(PAIRS_TRADING_WEIGHT_PRESETS.keys()),
+        default="balanced",
+        help="Choose predefined weight preset (momentum or balanced). Ignored if --weights is provided.",
+    )
+    parser.add_argument(
+        "--ols-fit-intercept",
+        dest="ols_fit_intercept",
+        action="store_true",
+        default=PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        help="Use intercept term when fitting OLS hedge ratio (default: enabled).",
+    )
+    parser.add_argument(
+        "--no-ols-fit-intercept",
+        dest="ols_fit_intercept",
+        action="store_false",
+        help="Disable intercept (beta forced through origin) when fitting OLS hedge ratio.",
+    )
+    parser.add_argument(
+        "--kalman-delta",
+        type=float,
+        default=PAIRS_TRADING_KALMAN_DELTA,
+        help=f"State noise factor delta for Kalman hedge ratio (default: {PAIRS_TRADING_KALMAN_DELTA}).",
+    )
+    parser.add_argument(
+        "--kalman-obs-cov",
+        type=float,
+        default=PAIRS_TRADING_KALMAN_OBS_COV,
+        help=f"Observation covariance for Kalman hedge ratio (default: {PAIRS_TRADING_KALMAN_OBS_COV}).",
+    )
+    parser.add_argument(
+        "--kalman-preset",
+        type=str,
+        choices=list(PAIRS_TRADING_KALMAN_PRESETS.keys()),
+        default="balanced",
+        help="Choose predefined Kalman parameter preset (fast_react / balanced / stable).",
+    )
+    parser.add_argument(
+        "--opportunity-preset",
+        type=str,
+        choices=list(PAIRS_TRADING_OPPORTUNITY_PRESETS.keys()),
+        default="balanced",
+        help="Choose opportunity scoring profile (e.g. balanced/aggressive/conservative).",
+    )
+    parser.add_argument(
         "--min-spread",
         type=float,
         default=PAIRS_TRADING_MIN_SPREAD,
@@ -247,18 +468,6 @@ def parse_args():
         choices=["opportunity_score", "quantitative_score"],
         default="opportunity_score",
         help="Sort pairs by opportunity_score or quantitative_score (default: opportunity_score)",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        default=True,
-        help="Show detailed quantitative metrics (half-life, Sharpe, MaxDD, etc.) in output (default: True)",
-    )
-    parser.add_argument(
-        "--no-verbose",
-        dest="verbose",
-        action="store_false",
-        help="Disable detailed quantitative metrics",
     )
     parser.add_argument(
         "--require-cointegration",

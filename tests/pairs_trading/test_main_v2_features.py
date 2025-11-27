@@ -49,7 +49,7 @@ def test_display_pairs_opportunities_with_quantitative_score():
     # Capture stdout
     output = StringIO()
     with contextlib.redirect_stdout(output):
-        display_pairs_opportunities(pairs_df, max_display=1, verbose=False)
+        display_pairs_opportunities(pairs_df, max_display=1)
 
     output_str = output.getvalue()
 
@@ -59,8 +59,8 @@ def test_display_pairs_opportunities_with_quantitative_score():
     assert "Coint" in output_str or "cointegrated" in output_str.lower()
 
 
-def test_display_pairs_opportunities_verbose_mode():
-    """Test that display_pairs_opportunities shows additional metrics in verbose mode."""
+def test_display_pairs_opportunities_shows_rich_metrics():
+    """Function always shows verbose metrics; ensure key columns present."""
     pairs_df = pd.DataFrame(
         [
             {
@@ -81,14 +81,15 @@ def test_display_pairs_opportunities_verbose_mode():
     # Capture stdout
     output = StringIO()
     with contextlib.redirect_stdout(output):
-        display_pairs_opportunities(pairs_df, max_display=1, verbose=True)
+        display_pairs_opportunities(pairs_df, max_display=1)
 
     output_str = output.getvalue()
 
-    # Verbose mode should show additional metrics
+    # Output should show advanced metrics
     assert "HalfLife" in output_str or "half" in output_str.lower()
     assert "Sharpe" in output_str or "sharpe" in output_str.lower()
     assert "MaxDD" in output_str or "drawdown" in output_str.lower()
+    assert "HedgeRatio" in output_str or "hedge" in output_str.lower()
 
 
 def test_display_pairs_opportunities_handles_missing_metrics():
@@ -111,7 +112,7 @@ def test_display_pairs_opportunities_handles_missing_metrics():
     output = StringIO()
     with contextlib.redirect_stdout(output):
         try:
-            display_pairs_opportunities(pairs_df, max_display=1, verbose=False)
+            display_pairs_opportunities(pairs_df, max_display=1)
             success = True
         except Exception as e:
             success = False
@@ -175,7 +176,7 @@ def test_display_pairs_opportunities_empty_dataframe():
 
     output = StringIO()
     with contextlib.redirect_stdout(output):
-        display_pairs_opportunities(empty_df, max_display=10, verbose=False)
+        display_pairs_opportunities(empty_df, max_display=10)
 
     output_str = output.getvalue()
     assert "No pairs" in output_str or "found" in output_str.lower()
@@ -208,7 +209,7 @@ def test_display_pairs_opportunities_cointegration_status():
 
     output = StringIO()
     with contextlib.redirect_stdout(output):
-        display_pairs_opportunities(pairs_df, max_display=2, verbose=False)
+        display_pairs_opportunities(pairs_df, max_display=2)
 
     output_str = output.getvalue()
 

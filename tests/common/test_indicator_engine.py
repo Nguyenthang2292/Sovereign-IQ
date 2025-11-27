@@ -1,6 +1,6 @@
 import pandas as pd
 
-from modules.IndicatorEngine import (
+from modules.common import (
     IndicatorConfig,
     IndicatorEngine,
     IndicatorProfile,
