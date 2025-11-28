@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from modules.pairs_trading import zscore_metrics
+from modules.pairs_trading.metrics import zscore_metrics
 
 
 def test_calculate_zscore_stats_matches_manual_computation():

@@ -1,48 +1,110 @@
 """
 Hedge finder for discovering and analyzing hedge candidates.
+
+This module provides the HedgeFinder class for automatically discovering and
+analyzing hedge candidates for cryptocurrency portfolios. It uses correlation
+analysis and beta-weighted calculations to recommend optimal hedging strategies.
 """
 
 import os
 from math import ceil
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple, Any, Set, TYPE_CHECKING
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
-from colorama import Fore, Style
+
+if TYPE_CHECKING:
+    from modules.common.Position import Position
+    from modules.common.ExchangeManager import ExchangeManager
+    from modules.common.DataFetcher import DataFetcher
+    from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
+    from modules.portfolio.risk_calculator import PortfolioRiskCalculator
 
 try:
     from modules.common.Position import Position
-    from modules.common.utils import normalize_symbol, color_text
+    from modules.common.utils import (
+        normalize_symbol,
+        log_warn,
+        log_error,
+        log_info,
+        log_analysis,
+        log_model,
+        log_success,
+        log_data,
+        log_system,
+    )
     from modules.common.ProgressBar import ProgressBar
     from modules.common.ExchangeManager import ExchangeManager
     from modules.common.DataFetcher import DataFetcher
     from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
     from modules.portfolio.risk_calculator import PortfolioRiskCalculator
-    from modules.config import BENCHMARK_SYMBOL
+    from modules.config import (
+        BENCHMARK_SYMBOL,
+        HEDGE_CORRELATION_HIGH_THRESHOLD,
+        HEDGE_CORRELATION_MEDIUM_THRESHOLD,
+        HEDGE_CORRELATION_DIFF_THRESHOLD,
+    )
 except ImportError:
     Position = None
     normalize_symbol = None
-    color_text = None
+    log_warn = None
+    log_error = None
+    log_info = None
+    log_analysis = None
+    log_model = None
+    log_success = None
+    log_data = None
+    log_system = None
     ProgressBar = None
     ExchangeManager = None
     DataFetcher = None
     PortfolioCorrelationAnalyzer = None
     PortfolioRiskCalculator = None
     BENCHMARK_SYMBOL = "BTC/USDT"
+    HEDGE_CORRELATION_HIGH_THRESHOLD = 0.7
+    HEDGE_CORRELATION_MEDIUM_THRESHOLD = 0.4
+    HEDGE_CORRELATION_DIFF_THRESHOLD = 0.1
 
 
 class HedgeFinder:
-    """Finds and analyzes hedge candidates."""
+    """
+    Finds and analyzes hedge candidates for cryptocurrency portfolios.
+
+    This class provides methods to automatically discover hedge candidates from
+    Binance Futures, score them based on correlation metrics, and analyze potential
+    trades with beta-weighted hedging recommendations.
+
+    Attributes:
+        exchange_manager: Exchange manager for accessing exchange APIs
+        correlation_analyzer: Analyzer for calculating portfolio correlations
+        risk_calculator: Calculator for risk metrics (beta, VaR, etc.)
+        positions: List of current portfolio positions
+        benchmark_symbol: Benchmark symbol for beta calculations
+        shutdown_event: Event for graceful shutdown during long operations
+        data_fetcher: Data fetcher for retrieving market data
+    """
 
     def __init__(
         self,
-        exchange_manager: ExchangeManager,
-        correlation_analyzer: PortfolioCorrelationAnalyzer,
-        risk_calculator: PortfolioRiskCalculator,
-        positions: List[Position],
+        exchange_manager: "ExchangeManager",
+        correlation_analyzer: "PortfolioCorrelationAnalyzer",
+        risk_calculator: "PortfolioRiskCalculator",
+        positions: List["Position"],
         benchmark_symbol: str = BENCHMARK_SYMBOL,
-        shutdown_event=None,
+        shutdown_event: Optional[Any] = None,
         data_fetcher: Optional["DataFetcher"] = None,
-    ):
+    ) -> None:
+        """
+        Initialize the HedgeFinder.
+
+        Args:
+            exchange_manager: Exchange manager instance
+            correlation_analyzer: Portfolio correlation analyzer instance
+            risk_calculator: Portfolio risk calculator instance
+            positions: List of current portfolio positions
+            benchmark_symbol: Benchmark symbol for beta calculations (default: BENCHMARK_SYMBOL)
+            shutdown_event: Optional shutdown event for graceful interruption
+            data_fetcher: Optional data fetcher instance (creates new one if not provided)
+        """
         self.exchange_manager = exchange_manager
         self.correlation_analyzer = correlation_analyzer
         self.risk_calculator = risk_calculator
@@ -64,10 +126,22 @@ class HedgeFinder:
 
     def _list_candidate_symbols(
         self,
-        exclude_symbols: Optional[set] = None,
+        exclude_symbols: Optional[Set[str]] = None,
         max_candidates: Optional[int] = None,
     ) -> List[str]:
-        """Fetches potential hedge symbols from Binance Futures."""
+        """
+        Fetch potential hedge symbols from Binance Futures.
+
+        Args:
+            exclude_symbols: Set of symbols to exclude from candidates
+            max_candidates: Maximum number of candidates to return
+
+        Returns:
+            List of candidate symbol strings
+
+        Raises:
+            ImportError: If DataFetcher is not available
+        """
         if self.data_fetcher is None:
             raise ImportError("DataFetcher is required to list candidate symbols.")
         progress_label = "Symbol Discovery"
@@ -78,7 +152,15 @@ class HedgeFinder:
         )
 
     def _score_candidate(self, symbol: str) -> Optional[Dict[str, float]]:
-        """Score a hedge candidate based on correlation."""
+        """
+        Score a hedge candidate based on correlation metrics.
+
+        Args:
+            symbol: Symbol to score
+
+        Returns:
+            Dictionary with symbol, weighted_corr, return_corr, and score, or None if insufficient data
+        """
         weighted_corr, _ = self.correlation_analyzer.calculate_weighted_correlation_with_new_symbol(
             symbol, verbose=False
         )
@@ -110,42 +192,48 @@ class HedgeFinder:
         total_delta: float,
         total_beta_delta: float,
         max_candidates: Optional[int] = None,
-    ) -> Optional[Dict]:
-        """Automatically scans Binance futures symbols to find the best hedge candidate."""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Automatically scan Binance futures symbols to find the best hedge candidate.
+
+        This method discovers candidate symbols, scores them based on correlation
+        metrics, and returns the best candidate for hedging the portfolio.
+
+        Args:
+            total_delta: Current total portfolio delta
+            total_beta_delta: Current total portfolio beta-weighted delta
+            max_candidates: Maximum number of candidates to scan (None = all)
+
+        Returns:
+            Dictionary with best candidate info (symbol, weighted_corr, return_corr, score),
+            or None if no suitable candidate found
+        """
         if not self.positions:
-            print(
-                color_text(
-                    "No positions loaded. Cannot search for hedge candidates.",
-                    Fore.YELLOW,
-                )
-            )
+            if log_warn:
+                log_warn("No positions loaded. Cannot search for hedge candidates.")
             return None
 
-        existing_symbols = {normalize_symbol(p.symbol) for p in self.positions}
-        existing_symbols.add(normalize_symbol(self.benchmark_symbol))
+        existing_symbols = {normalize_symbol(p.symbol) for p in self.positions} if normalize_symbol else set()
+        if normalize_symbol:
+            existing_symbols.add(normalize_symbol(self.benchmark_symbol))
         candidate_symbols = self._list_candidate_symbols(
             existing_symbols, max_candidates=None
         )
 
         if not candidate_symbols:
-            print(
-                color_text(
-                    "Could not find candidate symbols from Binance.", Fore.YELLOW
-                )
-            )
+            if log_warn:
+                log_warn("Could not find candidate symbols from Binance.")
             return None
         if self.should_stop():
-            print(color_text("Hedge scan aborted before start.", Fore.YELLOW))
+            if log_warn:
+                log_warn("Hedge scan aborted before start.")
             return None
 
         if max_candidates is not None:
             candidate_symbols = candidate_symbols[:max_candidates]
         scan_count = len(candidate_symbols)
-        print(
-            color_text(
-                f"\nScanning {scan_count} candidate(s) for optimal hedge...", Fore.CYAN
-            )
-        )
+        if log_analysis:
+            log_analysis(f"Scanning {scan_count} candidate(s) for optimal hedge...")
 
         core_count = max(1, int((os.cpu_count() or 1) * 0.8))
         batch_size = ceil(scan_count / core_count) if scan_count else 0
@@ -175,12 +263,8 @@ class HedgeFinder:
             for idx, batch in enumerate(batches, start=1):
                 if not batch:
                     continue
-                print(
-                    color_text(
-                        f"Starting batch {idx}/{total_batches} (size {len(batch)})",
-                        Fore.BLUE,
-                    )
-                )
+                if log_info:
+                    log_info(f"Starting batch {idx}/{total_batches} (size {len(batch)})")
                 futures[executor.submit(process_batch, batch)] = idx
             for future in as_completed(futures):
                 if self.should_stop():
@@ -189,22 +273,16 @@ class HedgeFinder:
                 try:
                     batch_best = future.result()
                 except Exception as exc:
-                    print(color_text(f"Batch {batch_id} failed: {exc}", Fore.RED))
+                    if log_error:
+                        log_error(f"Batch {batch_id} failed: {exc}")
                     continue
                 if batch_best is None:
-                    print(
-                        color_text(
-                            f"Batch {batch_id}: no viable candidate.", Fore.YELLOW
-                        )
-                    )
+                    if log_warn:
+                        log_warn(f"Batch {batch_id}: no viable candidate.")
                     progress_bar.update()
                     continue
-                print(
-                    color_text(
-                        f"Batch {batch_id}: best {batch_best['symbol']} (score {batch_best['score']:.4f})",
-                        Fore.WHITE,
-                    )
-                )
+                if log_info:
+                    log_info(f"Batch {batch_id}: best {batch_best['symbol']} (score {batch_best['score']:.4f})")
                 if (
                     best_candidate is None
                     or batch_best["score"] > best_candidate["score"]
@@ -215,34 +293,17 @@ class HedgeFinder:
             progress_bar.finish()
 
         if best_candidate is None:
-            print(
-                color_text(
-                    "No suitable hedge candidate found (insufficient data).",
-                    Fore.YELLOW,
-                )
-            )
+            if log_warn:
+                log_warn("No suitable hedge candidate found (insufficient data).")
         else:
-            print(
-                color_text(
-                    f"\nBest candidate: {best_candidate['symbol']} (score {best_candidate['score']:.4f})",
-                    Fore.MAGENTA,
-                    Style.BRIGHT,
-                )
-            )
+            if log_model:
+                log_model(f"Best candidate: {best_candidate['symbol']} (score {best_candidate['score']:.4f})")
             if best_candidate["weighted_corr"] is not None:
-                print(
-                    color_text(
-                        f"  Weighted Correlation: {best_candidate['weighted_corr']:.4f}",
-                        Fore.WHITE,
-                    )
-                )
+                if log_data:
+                    log_data(f"  Weighted Correlation: {best_candidate['weighted_corr']:.4f}")
             if best_candidate["return_corr"] is not None:
-                print(
-                    color_text(
-                        f"  Portfolio Return Correlation: {best_candidate['return_corr']:.4f}",
-                        Fore.WHITE,
-                    )
-                )
+                if log_data:
+                    log_data(f"  Portfolio Return Correlation: {best_candidate['return_corr']:.4f}")
 
         return best_candidate
 
@@ -253,50 +314,56 @@ class HedgeFinder:
         total_beta_delta: float,
         last_var_value: Optional[float] = None,
         last_var_confidence: Optional[float] = None,
-        correlation_mode: str = "weighted",
-    ):
-        """Analyzes a potential new trade and automatically recommends direction for beta-weighted hedging."""
-        normalized_symbol = normalize_symbol(new_symbol)
+        correlation_mode: str = "weighted",  # Currently unused, reserved for future use
+    ) -> Tuple[Optional[str], Optional[float], Optional[float]]:
+        """
+        Analyze a potential new trade and automatically recommend direction for beta-weighted hedging.
+
+        This method performs comprehensive analysis including:
+        - Symbol normalization
+        - Beta calculation
+        - Delta/beta-weighted delta analysis
+        - Correlation analysis (weighted and portfolio return)
+        - VaR insights
+        - Hedge recommendations
+
+        Args:
+            new_symbol: Symbol to analyze
+            total_delta: Current total portfolio delta
+            total_beta_delta: Current total portfolio beta-weighted delta
+            last_var_value: Last computed VaR value (optional)
+            last_var_confidence: Confidence level for VaR (optional)
+            correlation_mode: Correlation analysis mode (default: "weighted")
+
+        Returns:
+            Tuple containing:
+                - Recommended direction ("LONG" or "SHORT") or None
+                - Recommended size in USDT or None
+                - Final correlation value (weighted or portfolio return) or None
+        """
+        if normalize_symbol is None:
+            normalized_symbol = new_symbol
+        else:
+            normalized_symbol = normalize_symbol(new_symbol)
         if normalized_symbol != new_symbol:
-            print(
-                color_text(
-                    f"Symbol normalized: '{new_symbol}' -> '{normalized_symbol}'",
-                    Fore.CYAN,
-                )
-            )
+            if log_info:
+                log_info(f"Symbol normalized: '{new_symbol}' -> '{normalized_symbol}'")
 
         new_symbol = normalized_symbol
-        print(
-            color_text(
-                f"\nAnalyzing potential trade on {new_symbol}...",
-                Fore.CYAN,
-                Style.BRIGHT,
-            )
-        )
-        print(color_text(f"Current Total Delta: {total_delta:+.2f} USDT", Fore.WHITE))
-        print(
-            color_text(
-                f"Current Total Beta Delta (vs {self.benchmark_symbol}): {total_beta_delta:+.2f} USDT",
-                Fore.WHITE,
-            )
-        )
+        if log_analysis:
+            log_analysis(f"Analyzing potential trade on {new_symbol}...")
+        if log_data:
+            log_data(f"Current Total Delta: {total_delta:+.2f} USDT")
+            log_data(f"Current Total Beta Delta (vs {self.benchmark_symbol}): {total_beta_delta:+.2f} USDT")
 
         new_symbol_beta = self.risk_calculator.calculate_beta(new_symbol)
         beta_available = new_symbol_beta is not None and abs(new_symbol_beta) > 1e-6
         if beta_available:
-            print(
-                color_text(
-                    f"{new_symbol} beta vs {self.benchmark_symbol}: {new_symbol_beta:.4f}",
-                    Fore.CYAN,
-                )
-            )
+            if log_analysis:
+                log_analysis(f"{new_symbol} beta vs {self.benchmark_symbol}: {new_symbol_beta:.4f}")
         else:
-            print(
-                color_text(
-                    f"Could not compute beta for {new_symbol}. Falling back to simple delta hedging.",
-                    Fore.YELLOW,
-                )
-            )
+            if log_warn:
+                log_warn(f"Could not compute beta for {new_symbol}. Falling back to simple delta hedging.")
 
         hedge_mode = "beta" if beta_available else "delta"
         metric_label = "Beta Delta" if beta_available else "Delta"
@@ -307,12 +374,8 @@ class HedgeFinder:
         recommended_size = None
 
         if abs(current_metric) < 0.01:
-            print(
-                color_text(
-                    f"Portfolio is already {metric_label} Neutral ({metric_label} ≈ 0).",
-                    Fore.GREEN,
-                )
-            )
+            if log_success:
+                log_success(f"Portfolio is already {metric_label} Neutral ({metric_label} ≈ 0).")
         else:
             if beta_available:
                 beta_sign = np.sign(new_symbol_beta)
@@ -330,65 +393,42 @@ class HedgeFinder:
                     recommended_size = abs(current_metric) / max(
                         abs(new_symbol_beta), 1e-6
                     )
-                    print(
-                        color_text(
-                            f"Targeting Beta Neutrality using {metric_label}.",
-                            Fore.CYAN,
-                        )
-                    )
+                    if log_analysis:
+                        log_analysis(f"Targeting Beta Neutrality using {metric_label}.")
             if not beta_available:
                 if current_metric > 0:
                     recommended_direction = "SHORT"
                     recommended_size = abs(target_metric)
-                    print(
-                        color_text(
-                            "Portfolio has excess LONG delta exposure.", Fore.YELLOW
-                        )
-                    )
+                    if log_warn:
+                        log_warn("Portfolio has excess LONG delta exposure.")
                 else:
                     recommended_direction = "LONG"
                     recommended_size = abs(target_metric)
-                    print(
-                        color_text(
-                            "Portfolio has excess SHORT delta exposure.", Fore.YELLOW
-                        )
-                    )
-                print(color_text("Targeting simple Delta Neutrality.", Fore.CYAN))
+                    if log_warn:
+                        log_warn("Portfolio has excess SHORT delta exposure.")
+                if log_analysis:
+                    log_analysis("Targeting simple Delta Neutrality.")
 
         if recommended_direction and recommended_size is not None:
-            print(
-                color_text(
-                    f"\nRecommended {hedge_mode.upper()} hedge:",
-                    Fore.CYAN,
-                    Style.BRIGHT,
-                )
-            )
-            print(color_text(f"  Direction: {recommended_direction}", Fore.WHITE))
-            print(
-                color_text(
-                    f"  Size: {recommended_size:.2f} USDT", Fore.GREEN, Style.BRIGHT
-                )
-            )
+            if log_model:
+                log_model(f"Recommended {hedge_mode.upper()} hedge:")
+            if log_data:
+                log_data(f"  Direction: {recommended_direction}")
+                log_data(f"  Size: {recommended_size:.2f} USDT")
 
         if not self.positions:
-            print(
-                color_text(
-                    "\nNo existing positions for correlation analysis.", Fore.WHITE
-                )
-            )
+            if log_info:
+                log_info("No existing positions for correlation analysis.")
             return (
                 recommended_direction,
                 recommended_size if recommended_direction else None,
                 None,
             )
 
-        print(color_text("\n" + "=" * 70, Fore.CYAN))
-        print(
-            color_text(
-                "CORRELATION ANALYSIS - COMPARING BOTH METHODS", Fore.CYAN, Style.BRIGHT
-            )
-        )
-        print(color_text("=" * 70, Fore.CYAN))
+        if log_analysis:
+            log_analysis("=" * 70)
+            log_analysis("CORRELATION ANALYSIS - COMPARING BOTH METHODS")
+            log_analysis("=" * 70)
 
         weighted_corr, weighted_details = (
             self.correlation_analyzer.calculate_weighted_correlation_with_new_symbol(new_symbol)
@@ -397,200 +437,112 @@ class HedgeFinder:
             self.correlation_analyzer.calculate_portfolio_return_correlation(new_symbol)
         )
 
-        print(color_text("\n" + "=" * 70, Fore.CYAN))
-        print(color_text("CORRELATION SUMMARY", Fore.MAGENTA, Style.BRIGHT))
-        print(color_text("=" * 70, Fore.CYAN))
+        if log_analysis:
+            log_analysis("=" * 70)
+            log_analysis("CORRELATION SUMMARY")
+            log_analysis("=" * 70)
 
         if weighted_corr is not None:
-            weighted_color = (
-                Fore.GREEN
-                if abs(weighted_corr) > 0.7
-                else (Fore.YELLOW if abs(weighted_corr) > 0.4 else Fore.RED)
-            )
-            print("1. Weighted Correlation (by Position Size):")
-            print(
-                f"   {new_symbol} vs Portfolio: {color_text(f'{weighted_corr:>6.4f}', weighted_color, Style.BRIGHT)}"
-            )
+            if log_data:
+                log_data(f"1. Weighted Correlation (by Position Size):")
+                log_data(f"   {new_symbol} vs Portfolio: {weighted_corr:>6.4f}")
 
-            if abs(weighted_corr) > 0.7:
-                print(
-                    color_text("   → High correlation. Good for hedging.", Fore.GREEN)
-                )
-            elif abs(weighted_corr) > 0.4:
-                print(
-                    color_text(
-                        "   → Moderate correlation. Partial hedging effect.",
-                        Fore.YELLOW,
-                    )
-                )
+            if abs(weighted_corr) > HEDGE_CORRELATION_HIGH_THRESHOLD:
+                if log_success:
+                    log_success("   → High correlation. Good for hedging.")
+            elif abs(weighted_corr) > HEDGE_CORRELATION_MEDIUM_THRESHOLD:
+                if log_warn:
+                    log_warn("   → Moderate correlation. Partial hedging effect.")
             else:
-                print(
-                    color_text(
-                        "   → Low correlation. Limited hedging effectiveness.", Fore.RED
-                    )
-                )
+                if log_error:
+                    log_error("   → Low correlation. Limited hedging effectiveness.")
         else:
-            print(
-                f"1. Weighted Correlation: {color_text('N/A (insufficient data)', Fore.YELLOW)}"
-            )
+            if log_warn:
+                log_warn("1. Weighted Correlation: N/A (insufficient data)")
 
         if portfolio_return_corr is not None:
-            portfolio_color = (
-                Fore.GREEN
-                if abs(portfolio_return_corr) > 0.7
-                else (Fore.YELLOW if abs(portfolio_return_corr) > 0.4 else Fore.RED)
-            )
             samples_info = (
                 portfolio_return_details.get("samples", "N/A")
                 if isinstance(portfolio_return_details, dict)
                 else "N/A"
             )
-            print("\n2. Portfolio Return Correlation (includes direction):")
-            print(
-                f"   {new_symbol} vs Portfolio Return: {color_text(f'{portfolio_return_corr:>6.4f}', portfolio_color, Style.BRIGHT)}"
-            )
-            print(f"   Samples used: {samples_info}")
+            if log_data:
+                log_data("2. Portfolio Return Correlation (includes direction):")
+                log_data(f"   {new_symbol} vs Portfolio Return: {portfolio_return_corr:>6.4f}")
+                log_data(f"   Samples used: {samples_info}")
 
-            if abs(portfolio_return_corr) > 0.7:
-                print(
-                    color_text(
-                        "   → High correlation. Excellent for hedging.", Fore.GREEN
-                    )
-                )
-            elif abs(portfolio_return_corr) > 0.4:
-                print(
-                    color_text(
-                        "   → Moderate correlation. Acceptable hedging effect.",
-                        Fore.YELLOW,
-                    )
-                )
+            if abs(portfolio_return_corr) > HEDGE_CORRELATION_HIGH_THRESHOLD:
+                if log_success:
+                    log_success("   → High correlation. Excellent for hedging.")
+            elif abs(portfolio_return_corr) > HEDGE_CORRELATION_MEDIUM_THRESHOLD:
+                if log_warn:
+                    log_warn("   → Moderate correlation. Acceptable hedging effect.")
             else:
-                print(
-                    color_text(
-                        "   → Low correlation. Poor hedging effectiveness.", Fore.RED
-                    )
-                )
+                if log_error:
+                    log_error("   → Low correlation. Poor hedging effectiveness.")
         else:
-            print(
-                f"\n2. Portfolio Return Correlation: {color_text('N/A (insufficient data)', Fore.YELLOW)}"
-            )
+            if log_warn:
+                log_warn("2. Portfolio Return Correlation: N/A (insufficient data)")
 
-        print(color_text("\n" + "-" * 70, Fore.WHITE))
-        print(color_text("OVERALL ASSESSMENT:", Fore.CYAN, Style.BRIGHT))
+        if log_analysis:
+            log_analysis("-" * 70)
+            log_analysis("OVERALL ASSESSMENT:")
 
         if weighted_corr is not None and portfolio_return_corr is not None:
             diff = abs(weighted_corr - portfolio_return_corr)
-            if diff < 0.1:
-                print(
-                    color_text(
-                        "   ✓ Both methods show similar correlation → Consistent result",
-                        Fore.GREEN,
-                    )
-                )
+            if diff < HEDGE_CORRELATION_DIFF_THRESHOLD:
+                if log_success:
+                    log_success("   ✓ Both methods show similar correlation → Consistent result")
             else:
-                print(
-                    color_text(
-                        f"   ⚠ Methods differ by {diff:.4f} → Check if portfolio has SHORT positions",
-                        Fore.YELLOW,
-                    )
-                )
+                if log_warn:
+                    log_warn(f"   ⚠ Methods differ by {diff:.4f} → Check if portfolio has SHORT positions")
 
             avg_corr = (abs(weighted_corr) + abs(portfolio_return_corr)) / 2
-            if avg_corr > 0.7:
-                print(
-                    color_text(
-                        "   [OK] High correlation detected. This pair is suitable for statistical hedging.",
-                        Fore.GREEN,
-                        Style.BRIGHT,
-                    )
-                )
-            elif avg_corr > 0.4:
-                print(
-                    color_text(
-                        "   [!] Moderate correlation. Hedge may be partially effective.",
-                        Fore.YELLOW,
-                    )
-                )
+            if avg_corr > HEDGE_CORRELATION_HIGH_THRESHOLD:
+                if log_success:
+                    log_success("   [OK] High correlation detected. This pair is suitable for statistical hedging.")
+            elif avg_corr > HEDGE_CORRELATION_MEDIUM_THRESHOLD:
+                if log_warn:
+                    log_warn("   [!] Moderate correlation. Hedge may be partially effective.")
             else:
-                print(
-                    color_text(
-                        "   [X] Low correlation. This hedge might be less effective systematically.",
-                        Fore.RED,
-                    )
-                )
+                if log_error:
+                    log_error("   [X] Low correlation. This hedge might be less effective systematically.")
 
         elif weighted_corr is not None:
-            if abs(weighted_corr) > 0.7:
-                print(
-                    color_text(
-                        "   [OK] High correlation detected. This pair is suitable for statistical hedging.",
-                        Fore.GREEN,
-                        Style.BRIGHT,
-                    )
-                )
-            elif abs(weighted_corr) > 0.4:
-                print(
-                    color_text(
-                        "   [!] Moderate correlation. Hedge may be partially effective.",
-                        Fore.YELLOW,
-                    )
-                )
+            if abs(weighted_corr) > HEDGE_CORRELATION_HIGH_THRESHOLD:
+                if log_success:
+                    log_success("   [OK] High correlation detected. This pair is suitable for statistical hedging.")
+            elif abs(weighted_corr) > HEDGE_CORRELATION_MEDIUM_THRESHOLD:
+                if log_warn:
+                    log_warn("   [!] Moderate correlation. Hedge may be partially effective.")
             else:
-                print(
-                    color_text(
-                        "   [X] Low correlation. This hedge might be less effective systematically.",
-                        Fore.RED,
-                    )
-                )
+                if log_error:
+                    log_error("   [X] Low correlation. This hedge might be less effective systematically.")
 
         elif portfolio_return_corr is not None:
-            if abs(portfolio_return_corr) > 0.7:
-                print(
-                    color_text(
-                        "   [OK] High correlation detected. This pair is suitable for statistical hedging.",
-                        Fore.GREEN,
-                        Style.BRIGHT,
-                    )
-                )
-            elif abs(portfolio_return_corr) > 0.4:
-                print(
-                    color_text(
-                        "   [!] Moderate correlation. Hedge may be partially effective.",
-                        Fore.YELLOW,
-                    )
-                )
+            if abs(portfolio_return_corr) > HEDGE_CORRELATION_HIGH_THRESHOLD:
+                if log_success:
+                    log_success("   [OK] High correlation detected. This pair is suitable for statistical hedging.")
+            elif abs(portfolio_return_corr) > HEDGE_CORRELATION_MEDIUM_THRESHOLD:
+                if log_warn:
+                    log_warn("   [!] Moderate correlation. Hedge may be partially effective.")
             else:
-                print(
-                    color_text(
-                        "   [X] Low correlation. This hedge might be less effective systematically.",
-                        Fore.RED,
-                    )
-                )
+                if log_error:
+                    log_error("   [X] Low correlation. This hedge might be less effective systematically.")
 
         if last_var_value is not None and last_var_confidence is not None:
             conf_pct = int(last_var_confidence * 100)
-            print(color_text("\nVaR INSIGHT:", Fore.MAGENTA, Style.BRIGHT))
-            print(
-                color_text(
-                    f"  With {conf_pct}% confidence, daily loss is unlikely to exceed {last_var_value:.2f} USDT.",
-                    Fore.WHITE,
-                )
-            )
-            print(
-                color_text(
-                    "  Use this ceiling to judge whether the proposed hedge keeps risk tolerable.",
-                    Fore.WHITE,
-                )
-            )
+            if log_model:
+                log_model("VaR INSIGHT:")
+            if log_data:
+                log_data(f"  With {conf_pct}% confidence, daily loss is unlikely to exceed {last_var_value:.2f} USDT.")
+                log_data("  Use this ceiling to judge whether the proposed hedge keeps risk tolerable.")
         else:
-            print(
-                color_text(
-                    "\nVaR INSIGHT: N/A (insufficient historical data for VaR).",
-                    Fore.YELLOW,
-                )
-            )
+            if log_warn:
+                log_warn("VaR INSIGHT: N/A (insufficient historical data for VaR).")
 
-        print(color_text("=" * 70 + "\n", Fore.CYAN))
+        if log_analysis:
+            log_analysis("=" * 70)
 
         final_corr = (
             weighted_corr if weighted_corr is not None else portfolio_return_corr

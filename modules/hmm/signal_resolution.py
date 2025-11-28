@@ -89,11 +89,11 @@ def resolve_signal_conflict(
         # KAMA is more confident, keep it, downgrade High-Order to HOLD
         return HOLD, signal_kama
     else:
-        # Confidence levels are similar, keep both but log warning
+        # Confidence levels are similar, conflict unresolved -> SAFETY FIRST: HOLD both
         log_warn(
-            f"Signal conflict detected - High Order: {signal_high_order} "
+            f"Signal conflict unresolved - High Order: {signal_high_order} "
             f"(conf: {high_order_confidence:.3f}), KAMA: {signal_kama} "
-            f"(conf: {kama_confidence:.3f}). Keeping both signals."
+            f"(conf: {kama_confidence:.3f}). Defaulting to HOLD."
         )
-        return signal_high_order, signal_kama
+        return HOLD, HOLD
 

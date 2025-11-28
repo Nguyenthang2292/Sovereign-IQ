@@ -1,6 +1,6 @@
 import math
 
-from modules.pairs_trading.opportunity_scorer import OpportunityScorer
+from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
 
 
 def test_calculate_opportunity_score_applies_all_adjustments():

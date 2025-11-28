@@ -1,6 +1,6 @@
 import pandas as pd
 
-from modules.pairs_trading.pairs_analyzer import PairsTradingAnalyzer, _get_all_pair_columns
+from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer, _get_all_pair_columns
 
 
 class DummyFetcher:
@@ -26,7 +26,7 @@ def test_analyze_pairs_opportunity_builds_records(monkeypatch):
     analyzer = PairsTradingAnalyzer(min_spread=0.01, max_spread=1.0)
 
     monkeypatch.setattr(
-        "modules.pairs_trading.pairs_analyzer.PairMetricsComputer.compute_pair_metrics",
+        "modules.pairs_trading.core.pairs_analyzer.PairMetricsComputer.compute_pair_metrics",
         lambda self, price1, price2: {
             "is_cointegrated": True,
             "half_life": 10,
@@ -35,7 +35,7 @@ def test_analyze_pairs_opportunity_builds_records(monkeypatch):
         },
     )
     monkeypatch.setattr(
-        "modules.pairs_trading.pairs_analyzer.PairsTradingAnalyzer.calculate_correlation",
+        "modules.pairs_trading.core.pairs_analyzer.PairsTradingAnalyzer.calculate_correlation",
         lambda self, s1, s2, data_fetcher, timeframe="1h", limit=200: 0.5,
     )
 

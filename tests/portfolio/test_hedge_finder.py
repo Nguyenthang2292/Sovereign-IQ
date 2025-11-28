@@ -187,9 +187,8 @@ def test_find_best_hedge_candidate_no_positions():
         data_fetcher=data_fetcher,
     )
     
-    with patch("modules.HedgeFinder.color_text", return_value="test"):
-        with patch("builtins.print"):
-            result = finder.find_best_hedge_candidate(total_delta=1000.0, total_beta_delta=500.0)
+    with patch("modules.portfolio.hedge_finder.log_warn"):
+        result = finder.find_best_hedge_candidate(total_delta=1000.0, total_beta_delta=500.0)
     
     assert result is None
 
@@ -211,10 +210,9 @@ def test_find_best_hedge_candidate_no_candidates():
         data_fetcher=data_fetcher,
     )
     
-    with patch("modules.HedgeFinder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
-        with patch("modules.HedgeFinder.color_text", return_value="test"):
-            with patch("builtins.print"):
-                result = finder.find_best_hedge_candidate(total_delta=1000.0, total_beta_delta=500.0)
+    with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
+        with patch("modules.portfolio.hedge_finder.log_warn"):
+            result = finder.find_best_hedge_candidate(total_delta=1000.0, total_beta_delta=500.0)
     
     assert result is None
 
@@ -247,15 +245,19 @@ def test_find_best_hedge_candidate_with_candidates():
     )
     finder._score_candidate = Mock(side_effect=score_candidate)
     
-    with patch("modules.HedgeFinder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
-        with patch("modules.HedgeFinder.color_text", return_value="test"):
-            with patch("builtins.print"):
-                with patch("modules.HedgeFinder.ProgressBar"):
-                    result = finder.find_best_hedge_candidate(
-                        total_delta=1000.0,
-                        total_beta_delta=500.0,
-                        max_candidates=2,
-                    )
+    with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
+        with patch("modules.portfolio.hedge_finder.log_analysis"):
+            with patch("modules.portfolio.hedge_finder.log_info"):
+                with patch("modules.portfolio.hedge_finder.log_error"):
+                    with patch("modules.portfolio.hedge_finder.log_warn"):
+                        with patch("modules.portfolio.hedge_finder.log_model"):
+                            with patch("modules.portfolio.hedge_finder.log_data"):
+                                with patch("modules.portfolio.hedge_finder.ProgressBar"):
+                                    result = finder.find_best_hedge_candidate(
+                                        total_delta=1000.0,
+                                        total_beta_delta=500.0,
+                                        max_candidates=2,
+                                    )
     
     assert result is not None
     assert result["symbol"] == "BNB/USDT"  # Should be the one with highest score
@@ -280,10 +282,9 @@ def test_find_best_hedge_candidate_shutdown():
         shutdown_event=shutdown_event,
     )
     
-    with patch("modules.HedgeFinder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
-        with patch("modules.HedgeFinder.color_text", return_value="test"):
-            with patch("builtins.print"):
-                result = finder.find_best_hedge_candidate(total_delta=1000.0, total_beta_delta=500.0)
+    with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
+        with patch("modules.portfolio.hedge_finder.log_warn"):
+            result = finder.find_best_hedge_candidate(total_delta=1000.0, total_beta_delta=500.0)
     
     assert result is None
 
@@ -307,17 +308,20 @@ def test_analyze_new_trade():
         data_fetcher=data_fetcher,
     )
     
-    with patch("modules.HedgeFinder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
-        with patch("modules.HedgeFinder.color_text", return_value="test"):
-            with patch("modules.HedgeFinder.Fore"):
-                with patch("modules.HedgeFinder.Style"):
-                    with patch("builtins.print"):
-                        # Should not raise error
-                        finder.analyze_new_trade(
-                            new_symbol="ETH/USDT",
-                            total_delta=1000.0,
-                            total_beta_delta=500.0,
-                        )
+    with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
+        with patch("modules.portfolio.hedge_finder.log_info"):
+            with patch("modules.portfolio.hedge_finder.log_analysis"):
+                with patch("modules.portfolio.hedge_finder.log_data"):
+                    with patch("modules.portfolio.hedge_finder.log_warn"):
+                        with patch("modules.portfolio.hedge_finder.log_success"):
+                            with patch("modules.portfolio.hedge_finder.log_model"):
+                                with patch("modules.portfolio.hedge_finder.log_error"):
+                                    # Should not raise error
+                                    finder.analyze_new_trade(
+                                        new_symbol="ETH/USDT",
+                                        total_delta=1000.0,
+                                        total_beta_delta=500.0,
+                                    )
 
 
 def test_analyze_new_trade_no_beta():
@@ -339,17 +343,20 @@ def test_analyze_new_trade_no_beta():
         data_fetcher=data_fetcher,
     )
     
-    with patch("modules.HedgeFinder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
-        with patch("modules.HedgeFinder.color_text", return_value="test"):
-            with patch("modules.HedgeFinder.Fore"):
-                with patch("modules.HedgeFinder.Style"):
-                    with patch("builtins.print"):
-                        # Should not raise error, falls back to simple delta hedging
-                        finder.analyze_new_trade(
-                            new_symbol="ETH/USDT",
-                            total_delta=1000.0,
-                            total_beta_delta=500.0,
-                        )
+    with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
+        with patch("modules.portfolio.hedge_finder.log_info"):
+            with patch("modules.portfolio.hedge_finder.log_analysis"):
+                with patch("modules.portfolio.hedge_finder.log_data"):
+                    with patch("modules.portfolio.hedge_finder.log_warn"):
+                        with patch("modules.portfolio.hedge_finder.log_success"):
+                            with patch("modules.portfolio.hedge_finder.log_model"):
+                                with patch("modules.portfolio.hedge_finder.log_error"):
+                                    # Should not raise error, falls back to simple delta hedging
+                                    finder.analyze_new_trade(
+                                        new_symbol="ETH/USDT",
+                                        total_delta=1000.0,
+                                        total_beta_delta=500.0,
+                                    )
 
 
 def test_list_candidate_symbols():

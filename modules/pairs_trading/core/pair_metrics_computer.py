@@ -3,23 +3,23 @@ Pair metrics computer that orchestrates all quantitative metrics calculation.
 """
 
 import pandas as pd
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
-from modules.pairs_trading.statistical_tests import (
+from modules.pairs_trading.metrics.statistical_tests import (
     calculate_adf_test,
     calculate_half_life,
     calculate_johansen_test,
 )
-from modules.pairs_trading.risk_metrics import (
+from modules.pairs_trading.metrics.risk_metrics import (
     calculate_spread_sharpe,
     calculate_max_drawdown,
     calculate_calmar_ratio,
 )
-from modules.pairs_trading.hedge_ratio import (
+from modules.pairs_trading.metrics.hedge_ratio import (
     calculate_ols_hedge_ratio,
     calculate_kalman_hedge_ratio,
 )
-from modules.pairs_trading.zscore_metrics import (
+from modules.pairs_trading.metrics.zscore_metrics import (
     calculate_zscore_stats,
     calculate_hurst_exponent,
     calculate_direction_metrics,
@@ -91,18 +91,26 @@ class PairMetricsComputer:
         self,
         price1: pd.Series,
         price2: pd.Series,
-    ) -> Dict[str, Optional[float]]:
+    ) -> Dict[str, Optional[Union[float, bool]]]:
         """
         Compute comprehensive quantitative metrics for a pair.
+        
+        Calculates metrics for both OLS and Kalman hedge ratio methods:
+        - OLS-based metrics: half_life, zscore stats, hurst, sharpe, etc. (based on static hedge ratio)
+        - Kalman-based metrics: kalman_half_life, kalman_* metrics (based on dynamic hedge ratio)
+        
+        Note: ADF test and Johansen test are calculated once as they test cointegration
+        between price1 and price2, independent of the hedge ratio method.
         
         Args:
             price1: First price series
             price2: Second price series
             
         Returns:
-            Dictionary with all computed metrics
+            Dictionary with all computed metrics (both OLS and Kalman-based)
         """
-        metrics: Dict[str, Optional[float]] = {
+        metrics: Dict[str, Optional[Union[float, bool]]] = {
+            # OLS-based metrics
             "hedge_ratio": None,
             "adf_pvalue": None,
             "is_cointegrated": None,
@@ -116,14 +124,31 @@ class PairMetricsComputer:
             "spread_sharpe": None,
             "max_drawdown": None,
             "calmar_ratio": None,
-            "johansen_trace_stat": None,
-            "johansen_critical_value": None,
-            "is_johansen_cointegrated": None,
-            "kalman_hedge_ratio": None,
             "classification_f1": None,
             "classification_precision": None,
             "classification_recall": None,
             "classification_accuracy": None,
+            # Johansen test (independent of hedge ratio method)
+            "johansen_trace_stat": None,
+            "johansen_critical_value": None,
+            "is_johansen_cointegrated": None,
+            # Kalman hedge ratio
+            "kalman_hedge_ratio": None,
+            # Kalman-based metrics
+            "kalman_half_life": None,
+            "kalman_mean_zscore": None,
+            "kalman_std_zscore": None,
+            "kalman_skewness": None,
+            "kalman_kurtosis": None,
+            "kalman_current_zscore": None,
+            "kalman_hurst_exponent": None,
+            "kalman_spread_sharpe": None,
+            "kalman_max_drawdown": None,
+            "kalman_calmar_ratio": None,
+            "kalman_classification_f1": None,
+            "kalman_classification_precision": None,
+            "kalman_classification_recall": None,
+            "kalman_classification_accuracy": None,
         }
 
         # Calculate hedge ratio
@@ -180,14 +205,22 @@ class PairMetricsComputer:
         )
         if johansen:
             metrics.update(johansen)
-            # If ADF-based cointegration flag is missing, fall back to Johansen result
-            if (
-                metrics.get("is_cointegrated") is None
-                and johansen.get("is_johansen_cointegrated") is not None
-            ):
-                metrics["is_cointegrated"] = johansen["is_johansen_cointegrated"]
+
+            # Combine ADF and Johansen cointegration decisions.
+            # Johansen is generally stronger, so we treat cointegration as True
+            # if either test signals cointegration.
+            adf_cointegrated = metrics.get("is_cointegrated")
+            johansen_cointegrated = johansen.get("is_johansen_cointegrated")
+
+            if johansen_cointegrated is not None:
+                if adf_cointegrated is None:
+                    metrics["is_cointegrated"] = bool(johansen_cointegrated)
+                else:
+                    metrics["is_cointegrated"] = bool(
+                        adf_cointegrated or johansen_cointegrated
+                    )
         
-        # Kalman hedge ratio
+        # Kalman hedge ratio and Kalman-based metrics
         kalman_beta = calculate_kalman_hedge_ratio(
             price1,
             price2,
@@ -196,8 +229,51 @@ class PairMetricsComputer:
         )
         if kalman_beta is not None:
             metrics["kalman_hedge_ratio"] = kalman_beta
+            
+            # Calculate Kalman spread
+            kalman_spread_series = price1 - kalman_beta * price2
+            
+            # Kalman half-life
+            kalman_half_life = calculate_half_life(kalman_spread_series)
+            if kalman_half_life is not None:
+                metrics["kalman_half_life"] = kalman_half_life
+            
+            # Kalman z-score stats
+            kalman_zscore_stats = calculate_zscore_stats(
+                kalman_spread_series, self.zscore_lookback
+            )
+            if kalman_zscore_stats:
+                metrics["kalman_mean_zscore"] = kalman_zscore_stats.get("mean_zscore")
+                metrics["kalman_std_zscore"] = kalman_zscore_stats.get("std_zscore")
+                metrics["kalman_skewness"] = kalman_zscore_stats.get("skewness")
+                metrics["kalman_kurtosis"] = kalman_zscore_stats.get("kurtosis")
+                metrics["kalman_current_zscore"] = kalman_zscore_stats.get("current_zscore")
+            
+            # Kalman Hurst exponent
+            metrics["kalman_hurst_exponent"] = calculate_hurst_exponent(
+                kalman_spread_series, self.zscore_lookback
+            )
+            
+            # Kalman risk metrics
+            metrics["kalman_spread_sharpe"] = calculate_spread_sharpe(
+                kalman_spread_series, self.periods_per_year
+            )
+            metrics["kalman_max_drawdown"] = calculate_max_drawdown(kalman_spread_series)
+            metrics["kalman_calmar_ratio"] = calculate_calmar_ratio(
+                kalman_spread_series, self.periods_per_year
+            )
+            
+            # Kalman direction metrics
+            kalman_direction_metrics = calculate_direction_metrics(
+                kalman_spread_series, self.zscore_lookback, self.classification_zscore
+            )
+            if kalman_direction_metrics:
+                metrics["kalman_classification_f1"] = kalman_direction_metrics.get("classification_f1")
+                metrics["kalman_classification_precision"] = kalman_direction_metrics.get("classification_precision")
+                metrics["kalman_classification_recall"] = kalman_direction_metrics.get("classification_recall")
+                metrics["kalman_classification_accuracy"] = kalman_direction_metrics.get("classification_accuracy")
 
-        # Direction metrics
+        # Direction metrics (OLS-based)
         direction_metrics = calculate_direction_metrics(
             spread_series, self.zscore_lookback, self.classification_zscore
         )

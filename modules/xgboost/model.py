@@ -1,14 +1,20 @@
 """
-Model training and prediction functions for xgboost_prediction_main.py
+XGBoost model training and prediction functions.
+
+This module provides functions for training XGBoost classification models
+for cryptocurrency price direction prediction, including:
+- Model training with proper time-series data splitting (gap prevention)
+- Cross-validation with data leakage prevention
+- Prediction probability calculation for next candle movement
 """
+
+from typing import Any, Type, Union
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import TimeSeriesSplit
-from .utils import color_text
-from colorama import Fore, Style
 from modules.config import (
     TARGET_LABELS,
     TARGET_HORIZON,
@@ -16,11 +22,29 @@ from modules.config import (
     ID_TO_LABEL,
     XGBOOST_PARAMS,
 )
+from modules.common.utils import (
+    log_data,
+    log_info,
+    log_warn,
+    log_model,
+    log_success,
+)
 from .display import print_classification_report
 
 
-def _resolve_xgb_classifier():
-    """Đảm bảo luôn có XGBClassifier dù cài bản rút gọn của xgboost."""
+def _resolve_xgb_classifier() -> Type:
+    """
+    Resolve XGBClassifier class with fallback support.
+
+    Ensures XGBClassifier is available even with minimal xgboost installation.
+    Falls back to sklearn's GradientBoostingClassifier if XGBoost is not available.
+
+    Returns:
+        XGBClassifier class (or fallback equivalent)
+
+    Raises:
+        AttributeError: If no suitable classifier can be found
+    """
     if hasattr(xgb, "XGBClassifier"):
         return xgb.XGBClassifier
     try:
@@ -34,7 +58,12 @@ def _resolve_xgb_classifier():
             ) from sklearn_exc
 
         class _GradientBoostingWrapper(GradientBoostingClassifier):
-            """Fallback classifier mimicking the XGBoost sklearn API."""
+            """
+            Fallback classifier mimicking the XGBoost sklearn API.
+
+            Wraps sklearn's GradientBoostingClassifier to provide XGBoost-like interface.
+            Only accepts parameters that are compatible with both XGBoost and sklearn.
+            """
 
             XGB_PARAM_WHITELIST = {
                 "learning_rate",
@@ -44,51 +73,76 @@ def _resolve_xgb_classifier():
                 "random_state",
             }
 
-            def predict_proba(self, X):
-                # GradientBoostingClassifier already implements predict_proba
+            def predict_proba(self, X: Any) -> np.ndarray:
+                """Return probability estimates for each class."""
                 return super().predict_proba(X)
 
         sklearn_classifier = _GradientBoostingWrapper
-    xgb.XGBClassifier = sklearn_classifier  # cache để lần sau dùng lại
+    # Cache the resolved classifier for subsequent calls
+    xgb.XGBClassifier = sklearn_classifier
     return sklearn_classifier
 
 
-def train_and_predict(df):
+def train_and_predict(df: pd.DataFrame) -> Any:
     """
-    Trains XGBoost model and predicts the next movement.
+    Train XGBoost model with proper time-series validation and return trained model.
+
+    This function performs:
+    1. Train/test split with gap to prevent data leakage
+    2. Holdout set evaluation
+    3. Time-series cross-validation with gap prevention
+    4. Final model training on all available data
+
+    Args:
+        df: DataFrame containing features (MODEL_FEATURES) and target column ("Target")
+
+    Returns:
+        Trained XGBoost classifier model ready for prediction
+
+    Note:
+        The gap between train and test sets equals TARGET_HORIZON to prevent
+        using future prices when creating labels for training data.
     """
     X = df[MODEL_FEATURES]
     y = df["Target"].astype(int)
 
     def build_model():
+        """
+        Build XGBoost classifier instance with configuration parameters.
+
+        Uses parameters from config, dynamically adds num_class based on TARGET_LABELS.
+        Filters parameters through whitelist if classifier has one (for fallback compatibility).
+
+        Returns:
+            XGBoost classifier instance (or fallback equivalent)
+        """
         classifier_cls = _resolve_xgb_classifier()
-        # Use parameters from config, adding num_class dynamically
         params = XGBOOST_PARAMS.copy()
         params["num_class"] = len(TARGET_LABELS)
+        # Filter parameters through whitelist if classifier has one (for fallback compatibility)
         whitelist = getattr(classifier_cls, "XGB_PARAM_WHITELIST", None)
         if whitelist is not None:
             params = {k: v for k, v in params.items() if k in whitelist}
         return classifier_cls(**params)
 
-    # Train/Test split (80/20) for evaluation metrics
-    # IMPORTANT: Create a gap of TARGET_HORIZON between train and test to prevent data leakage
-    # The last TARGET_HORIZON rows of train set use future prices from test set to create labels
+    # Train/Test Split with Gap Prevention
+    # Strategy: 80/20 split with TARGET_HORIZON gap between train and test sets
+    # IMPORTANT: The gap prevents data leakage because labels for the last TARGET_HORIZON
+    # rows of the training set would require future prices from the test set.
+    # Example: If TARGET_HORIZON=24, we predict 24 candles ahead, so we need a 24-candle gap.
     split = int(len(df) * 0.8)
     train_end = split - TARGET_HORIZON
     test_start = split
 
-    # Ensure we have enough data after creating the gap
+    # Adjust split if gap creation leaves insufficient training data
     if train_end < len(df) * 0.5:
         train_end = int(len(df) * 0.5)
         test_start = train_end + TARGET_HORIZON
         if test_start >= len(df):
             # Not enough data for proper train/test split with gap
-            print(
-                color_text(
-                    f"WARNING: Insufficient data for train/test split with gap. "
-                    f"Need at least {len(df) + TARGET_HORIZON} rows. Using all data for training.",
-                    Fore.YELLOW,
-                )
+            log_warn(
+                f"Insufficient data for train/test split with gap. "
+                f"Need at least {len(df) + TARGET_HORIZON} rows. Using all data for training."
             )
             train_end = len(df)
             test_start = len(df)
@@ -98,11 +152,8 @@ def train_and_predict(df):
 
     gap_size = test_start - train_end
     if gap_size > 0:
-        print(
-            color_text(
-                f"Train/Test split: {len(X_train)} train, {gap_size} gap (to prevent leakage), {len(X_test)} test",
-                Fore.CYAN,
-            )
+        log_data(
+            f"Train/Test split: {len(X_train)} train, {gap_size} gap (to prevent leakage), {len(X_test)} test"
         )
 
     model = build_model()
@@ -111,17 +162,13 @@ def train_and_predict(df):
     if len(X_test) > 0:
         y_pred = model.predict(X_test)
         score = model.score(X_test, y_test)
-        print(color_text(f"\nHoldout Accuracy: {score:.4f}", Fore.YELLOW, Style.BRIGHT))
+        log_model(f"Holdout Accuracy: {score:.4f}")
         print_classification_report(y_test, y_pred, "Holdout Test Set Evaluation")
     else:
-        print(
-            color_text(
-                "Skipping holdout evaluation (insufficient test data after gap).",
-                Fore.YELLOW,
-            )
-        )
+        log_warn("Skipping holdout evaluation (insufficient test data after gap).")
 
-    # Time-series cross validation with gap to prevent data leakage
+    # Time-Series Cross-Validation with Gap Prevention
+    # Uses TimeSeriesSplit to respect temporal order, with gap between train/test in each fold
     max_splits = min(5, len(df) - 1)
     if max_splits >= 2:
         tscv = TimeSeriesSplit(n_splits=max_splits)
@@ -131,18 +178,12 @@ def train_and_predict(df):
 
         for fold, (train_idx, test_idx) in enumerate(tscv.split(X), start=1):
             # Apply gap to prevent data leakage: remove last TARGET_HORIZON indices from train
+            # This ensures labels for training data don't require future prices from test set
             train_idx_array = np.array(train_idx)
             if len(train_idx_array) > TARGET_HORIZON:
-                # Remove the last TARGET_HORIZON indices from train to create gap
                 train_idx_filtered = train_idx_array[:-TARGET_HORIZON]
             else:
-                # Not enough data for gap, skip this fold
-                print(
-                    color_text(
-                        f"CV Fold {fold}: Skipped (insufficient train data for gap)",
-                        Fore.YELLOW,
-                    )
-                )
+                log_warn(f"CV Fold {fold}: Skipped (insufficient train data for gap)")
                 continue
 
             # Ensure test set doesn't overlap with gap
@@ -154,38 +195,25 @@ def train_and_predict(df):
                     # Adjust test start to create proper gap
                     test_idx_array = test_idx_array[test_idx_array >= min_test_start]
                     if len(test_idx_array) == 0:
-                        print(
-                            color_text(
-                                f"CV Fold {fold}: Skipped (no valid test data after gap)",
-                                Fore.YELLOW,
-                            )
-                        )
+                        log_warn(f"CV Fold {fold}: Skipped (no valid test data after gap)")
                         continue
 
-            # Check if filtered training data contains all required classes
+            # Class Diversity Validation
+            # XGBoost requires at least 2 classes, but we need all 3 for proper multi-class prediction
             y_train_fold = y.iloc[train_idx_filtered]
             unique_classes = sorted(y_train_fold.unique())
 
-            # XGBoost requires at least 2 classes, but we need all 3 for proper multi-class
-            # If we don't have all classes, skip this fold
             if len(unique_classes) < 2:
-                print(
-                    color_text(
-                        f"CV Fold {fold}: Skipped (insufficient class diversity: {unique_classes})",
-                        Fore.YELLOW,
-                    )
+                log_warn(
+                    f"CV Fold {fold}: Skipped (insufficient class diversity: {unique_classes})"
                 )
                 continue
 
-            # If we have all 3 classes, proceed normally
-            # If we only have 2 classes, we can still train but need to handle it
-            # For now, we'll skip folds that don't have all 3 classes to maintain consistency
+            # Require all target classes for consistency
+            # Skipping folds with missing classes ensures consistent evaluation across folds
             if len(unique_classes) < len(TARGET_LABELS):
-                print(
-                    color_text(
-                        f"CV Fold {fold}: Skipped (missing classes: expected {TARGET_LABELS}, got {[ID_TO_LABEL[c] for c in unique_classes]})",
-                        Fore.YELLOW,
-                    )
+                log_warn(
+                    f"CV Fold {fold}: Skipped (missing classes: expected {TARGET_LABELS}, got {[ID_TO_LABEL[c] for c in unique_classes]})"
                 )
                 continue
 
@@ -197,28 +225,19 @@ def train_and_predict(df):
                 acc = accuracy_score(y_test_fold, preds)
                 cv_scores.append(acc)
 
-                # Collect predictions for aggregated report
+                # Collect predictions for aggregated classification report across all folds
                 all_y_true.extend(y_test_fold.tolist())
                 all_y_pred.extend(preds.tolist())
 
-                print(
-                    color_text(
-                        f"CV Fold {fold} Accuracy: {acc:.4f} (train: {len(train_idx_filtered)}, gap: {TARGET_HORIZON}, test: {len(test_idx_array)})",
-                        Fore.BLUE,
-                    )
+                log_model(
+                    f"CV Fold {fold} Accuracy: {acc:.4f} (train: {len(train_idx_filtered)}, gap: {TARGET_HORIZON}, test: {len(test_idx_array)})"
                 )
 
         if len(cv_scores) > 0:
             mean_cv = sum(cv_scores) / len(cv_scores)
-            print(
-                color_text(
-                    f"\nCV Mean Accuracy ({len(cv_scores)} folds): {mean_cv:.4f}",
-                    Fore.GREEN,
-                    Style.BRIGHT,
-                )
-            )
+            log_success(f"CV Mean Accuracy ({len(cv_scores)} folds): {mean_cv:.4f}")
 
-            # Print aggregated classification report across all CV folds
+            # Generate aggregated classification report across all CV folds
             if len(all_y_true) > 0 and len(all_y_pred) > 0:
                 print_classification_report(
                     np.array(all_y_true),
@@ -226,34 +245,40 @@ def train_and_predict(df):
                     "Cross-Validation Aggregated Report (All Folds)",
                 )
         else:
-            print(
-                color_text(
-                    "CV: No valid folds after applying gap. Consider increasing data limit.",
-                    Fore.YELLOW,
-                )
-            )
+            log_warn("CV: No valid folds after applying gap. Consider increasing data limit.")
     else:
-        print(
-            color_text(
-                "Not enough data for cross-validation (requires >=3 samples).",
-                Fore.YELLOW,
-            )
-        )
+        log_warn("Not enough data for cross-validation (requires >=3 samples).")
 
+    # Final Model Training
+    # Train on all available data for production use
     model.fit(X, y)
     return model
 
 
-def predict_next_move(model, last_row):
+def predict_next_move(model: Any, last_row: Union[pd.Series, pd.DataFrame]) -> np.ndarray:
     """
-    Predicts the probability for the next candle.
+    Predict probability distribution for the next candle movement direction.
+
+    Args:
+        model: Trained XGBoost classifier model
+        last_row: DataFrame row or Series containing current features (MODEL_FEATURES)
+
+    Returns:
+        numpy.ndarray: Probability array of shape (n_classes,) where:
+            - Index 0: Probability of DOWN movement
+            - Index 1: Probability of NEUTRAL movement
+            - Index 2: Probability of UP movement
+
+    Note:
+        The probabilities sum to 1.0 and represent the model's confidence
+        for each direction class.
     """
     X_new = last_row[MODEL_FEATURES]
-    # Ensure X_new is a DataFrame to preserve feature names
+    # Convert Series to DataFrame to preserve feature names and ensure proper shape
     if isinstance(X_new, pd.Series):
         X_new = X_new.to_frame().T
 
-    # Predict probability
+    # Get probability distribution for all classes
     proba = model.predict_proba(X_new)[0]
 
     return proba

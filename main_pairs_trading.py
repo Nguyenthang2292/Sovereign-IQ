@@ -3,56 +3,54 @@ Pairs Trading Analysis Main Program
 
 Analyzes futures pairs on Binance to identify pairs trading opportunities:
 - Loads 1h candle data from all futures pairs
-- Calculates top 5 best and worst performers
+- Calculates top best and worst performers
 - Identifies pairs trading opportunities (long worst, short best)
+- Validates pairs using cointegration and quantitative metrics
 """
 
 import warnings
-import sys
-import io
-import os
 import pandas as pd
 
+from modules.common.utils import configure_windows_stdio
+
 # Fix encoding issues on Windows for interactive CLI runs only
-def _configure_windows_stdio():
-    if sys.platform != "win32":
-        return
-    if os.environ.get("PYTEST_CURRENT_TEST"):
-        return
-    if not hasattr(sys.stdout, "buffer") or isinstance(sys.stdout, io.TextIOWrapper):
-        return
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+configure_windows_stdio()
 
-_configure_windows_stdio()
-
-from colorama import Fore, Style, init as colorama_init
+from colorama import Fore, init as colorama_init
 
 from modules.config import (
-    PAIRS_TRADING_WEIGHTS,
-    PAIRS_TRADING_TOP_N,
-    PAIRS_TRADING_MIN_SPREAD,
-    PAIRS_TRADING_MAX_SPREAD,
-    PAIRS_TRADING_MIN_CORRELATION,
-    PAIRS_TRADING_MAX_CORRELATION,
-    PAIRS_TRADING_MAX_HALF_LIFE,
-    PAIRS_TRADING_WEIGHT_PRESETS,
     PAIRS_TRADING_OPPORTUNITY_PRESETS,
 )
-from modules.common.utils import color_text, format_price, normalize_symbol_key
+from modules.common.utils import (
+    color_text,
+    normalize_symbol_key,
+    log_warn,
+    log_error,
+    log_info,
+    log_analysis,
+    log_data,
+    log_success,
+    log_progress,
+)
 from modules.common.ExchangeManager import ExchangeManager
 from modules.common.DataFetcher import DataFetcher
-from modules.pairs_trading.performance_analyzer import PerformanceAnalyzer
-from modules.pairs_trading.pairs_analyzer import PairsTradingAnalyzer
-from modules.pairs_trading.cli import (
+from modules.pairs_trading import (
+    PerformanceAnalyzer,
+    PairsTradingAnalyzer,
+    display_performers,
+    display_pairs_opportunities,
+    select_top_unique_pairs,
+    ensure_symbols_in_candidate_pools,
+    select_pairs_for_symbols,
     parse_args,
     prompt_interactive_mode,
-    standardize_symbol_input,
     parse_weights,
     parse_symbols,
     prompt_weight_preset_selection,
     prompt_kalman_preset_selection,
     prompt_opportunity_preset_selection,
+    prompt_target_pairs,
+    prompt_candidate_depth,
 )
 
 # Suppress warnings for cleaner output
@@ -60,262 +58,19 @@ warnings.filterwarnings("ignore")
 colorama_init(autoreset=True)
 
 
-def display_performers(df, title, color):
-    """Display top/worst performers in a formatted table."""
-    if df is None or df.empty:
-        print(color_text(f"No {title.lower()} found.", Fore.YELLOW))
-        return
+def main() -> None:
+    """
+    Main function for pairs trading analysis.
 
-    print(color_text(f"\n{'=' * 80}", color, Style.BRIGHT))
-    print(color_text(f"{title}", color, Style.BRIGHT))
-    print(color_text(f"{'=' * 80}", color, Style.BRIGHT))
-
-    print(
-        f"{'Rank':<6} {'Symbol':<15} {'Score':<12} {'1d Return':<12} {'3d Return':<12} {'1w Return':<12} {'Price':<15}"
-    )
-    print("-" * 80)
-
-    for idx, row in df.iterrows():
-        rank = idx + 1
-        symbol = row["symbol"]
-        score = row["score"] * 100
-        return_1d = row["1d_return"] * 100
-        return_3d = row["3d_return"] * 100
-        return_1w = row["1w_return"] * 100
-        price = row["current_price"]
-
-        score_color = Fore.GREEN if score > 0 else Fore.RED
-        print(
-            f"{rank:<6} {symbol:<15} "
-            f"{color_text(f'{score:+.2f}%', score_color):<20} "
-            f"{return_1d:+.2f}%{'':<6} {return_3d:+.2f}%{'':<6} {return_1w:+.2f}%{'':<6} {format_price(price):<15}"
-        )
-
-    print(color_text(f"{'=' * 80}", color, Style.BRIGHT))
-
-
-def display_pairs_opportunities(pairs_df, max_display=10):
-    """Display pairs trading opportunities in a formatted table (always verbose)."""
-
-    def _pad_colored(text: str, width: int, color, style=None) -> str:
-        """Pad text to fixed width before applying ANSI colors to avoid misalignment."""
-        padded = text.ljust(width)
-        if style is None:
-            return color_text(padded, color)
-        return color_text(padded, color, style)
-
-    if pairs_df is None or pairs_df.empty:
-        print(color_text("\nNo pairs trading opportunities found.", Fore.YELLOW))
-        return
-
-    print(color_text(f"\n{'=' * 120}", Fore.MAGENTA, Style.BRIGHT))
-    print(color_text("PAIRS TRADING OPPORTUNITIES", Fore.MAGENTA, Style.BRIGHT))
-    print(color_text(f"{'=' * 120}", Fore.MAGENTA, Style.BRIGHT))
-
-    print(
-        f"{'Rank':<6} {'Long':<15} {'Short':<15} {'Spread':<10} {'Corr':<8} {'OppScore':<10} "
-        f"{'QuantScore':<12} {'Coint':<7} {'HedgeRatio':<12} {'HalfLife':<10} {'Sharpe':<10} {'MaxDD':<10}"
-    )
-    print("-" * 120)
-
-    display_count = min(len(pairs_df), max_display)
-    for idx in range(display_count):
-        row = pairs_df.iloc[idx]
-        rank = idx + 1
-        long_symbol = row["long_symbol"]
-        short_symbol = row["short_symbol"]
-        spread = row["spread"] * 100
-        correlation = row.get("correlation")
-        opportunity_score = row["opportunity_score"] * 100
-        quantitative_score = row.get("quantitative_score")
-        is_cointegrated = row.get("is_cointegrated")
-        if (is_cointegrated is None or pd.isna(is_cointegrated)) and "is_johansen_cointegrated" in row:
-            alt_coint = row.get("is_johansen_cointegrated")
-            if alt_coint is not None and not pd.isna(alt_coint):
-                is_cointegrated = bool(alt_coint)
-        
-        # Get verbose metrics if available
-        half_life = row.get("half_life")
-        spread_sharpe = row.get("spread_sharpe")
-        max_drawdown = row.get("max_drawdown")
-        hedge_ratio = row.get("hedge_ratio")
-
-        # Prepare spread text
-        spread_text = f"{spread:+.2f}%"
-        
-        # Format hedge ratio
-        if hedge_ratio is not None and not pd.isna(hedge_ratio):
-            hedge_text = f"{hedge_ratio:.4f}"
-        else:
-            hedge_text = "N/A"
-
-        # Color code based on opportunity score
-        if opportunity_score > 20:
-            score_color = Fore.GREEN
-        elif opportunity_score > 10:
-            score_color = Fore.YELLOW
-        else:
-            score_color = Fore.WHITE
-        opp_text = f"{opportunity_score:+.1f}%"
-        opp_display = _pad_colored(opp_text, 12, score_color)
-
-        # Color code quantitative score
-        if quantitative_score is not None and not pd.isna(quantitative_score):
-            if quantitative_score >= 70:
-                quant_color = Fore.GREEN
-            elif quantitative_score >= 50:
-                quant_color = Fore.YELLOW
-            else:
-                quant_color = Fore.RED
-            quant_text = f"{quantitative_score:.1f}"
-        else:
-            quant_color = Fore.WHITE
-            quant_text = "N/A"
-        quant_display = _pad_colored(quant_text, 12, quant_color)
-
-        # Cointegration status
-        if is_cointegrated is not None and not pd.isna(is_cointegrated):
-            coint_status = "OK" if is_cointegrated else "NOT"
-            coint_color = Fore.GREEN if is_cointegrated else Fore.RED
-        else:
-            # If both ADF and Johansen failed or were unavailable, treat as NOT cointegrated
-            coint_status = "NOT"
-            coint_color = Fore.RED
-        coint_display = _pad_colored(coint_status, 7, coint_color)
-        coint_display_verbose = _pad_colored(coint_status, 9, coint_color)
-
-        # Color code correlation
-        if correlation is not None and not pd.isna(correlation):
-            abs_corr = abs(correlation)
-            if abs_corr > 0.7:
-                corr_color = Fore.GREEN
-            elif abs_corr > 0.4:
-                corr_color = Fore.YELLOW
-            else:
-                corr_color = Fore.RED
-            corr_text = f"{correlation:+.3f}"
-        else:
-            corr_color = Fore.WHITE
-            corr_text = "N/A"
-        corr_display = _pad_colored(corr_text, 12, corr_color)
-
-        # Format verbose metrics
-        half_life_text = f"{half_life:.1f}" if half_life is not None and not pd.isna(half_life) else "N/A"
-        sharpe_text = f"{spread_sharpe:.2f}" if spread_sharpe is not None and not pd.isna(spread_sharpe) else "N/A"
-        maxdd_text = f"{max_drawdown*100:.1f}%" if max_drawdown is not None and not pd.isna(max_drawdown) else "N/A"
-        
-        print(
-            f"{rank:<6} {long_symbol:<15} {short_symbol:<15} "
-            f"{spread_text:<10} {corr_display} "
-            f"{opp_display} "
-            f"{quant_display} "
-            f"{coint_display_verbose}"
-            f"{hedge_text:<12} "
-            f"{half_life_text:<12} {sharpe_text:<12} {maxdd_text:<12}"
-        )
-
-    print(color_text(f"{'=' * 120}", Fore.MAGENTA, Style.BRIGHT))
-
-    if len(pairs_df) > max_display:
-        print(
-            color_text(
-                f"\nShowing top {max_display} of {len(pairs_df)} opportunities. "
-                f"Use --max-pairs to see more.",
-                Fore.CYAN,
-            )
-        )
-
-
-def select_top_unique_pairs(pairs_df, target_pairs):
-    """Pick up to target_pairs rows ensuring unique symbols when possible."""
-    if pairs_df is None or pairs_df.empty:
-        return pairs_df
-
-    selected_indices = []
-    used_symbols = set()
-
-    for idx, row in pairs_df.iterrows():
-        long_symbol = row["long_symbol"]
-        short_symbol = row["short_symbol"]
-        if long_symbol in used_symbols or short_symbol in used_symbols:
-            continue
-        selected_indices.append(idx)
-        used_symbols.update([long_symbol, short_symbol])
-        if len(selected_indices) == target_pairs:
-            break
-
-    if len(selected_indices) < target_pairs:
-        for idx in pairs_df.index:
-            if idx in selected_indices:
-                continue
-            selected_indices.append(idx)
-            if len(selected_indices) == target_pairs:
-                break
-
-    if not selected_indices:
-        return pairs_df.head(target_pairs).reset_index(drop=True)
-
-    return pairs_df.loc[selected_indices].reset_index(drop=True)
-
-
-def ensure_symbols_in_candidate_pools(performance_df, best_df, worst_df, target_symbols):
-    """Ensure target symbols are present in candidate pools based on their score direction."""
-    if not target_symbols:
-        return best_df, worst_df
-
-    best_symbols = set(best_df["symbol"].tolist())
-    worst_symbols = set(worst_df["symbol"].tolist())
-
-    for symbol in target_symbols:
-        row = performance_df[performance_df["symbol"] == symbol]
-        if row.empty:
-            continue
-        score = row.iloc[0]["score"]
-        if score >= 0:
-            if symbol not in best_symbols:
-                best_df = pd.concat([best_df, row], ignore_index=True)
-                best_symbols.add(symbol)
-        else:
-            if symbol not in worst_symbols:
-                worst_df = pd.concat([worst_df, row], ignore_index=True)
-                worst_symbols.add(symbol)
-
-    best_df = (
-        best_df.sort_values("score", ascending=False)
-        .reset_index(drop=True)
-    )
-    worst_df = (
-        worst_df.sort_values("score", ascending=True)
-        .reset_index(drop=True)
-    )
-    return best_df, worst_df
-
-
-def select_pairs_for_symbols(pairs_df, target_symbols, max_pairs=None):
-    """Select the best pair (highest score) for each requested symbol."""
-    if pairs_df is None or pairs_df.empty or not target_symbols:
-        return pd.DataFrame(columns=pairs_df.columns if pairs_df is not None else [])
-
-    selected_rows = []
-    for symbol in target_symbols:
-        matches = pairs_df[
-            (pairs_df["long_symbol"] == symbol) | (pairs_df["short_symbol"] == symbol)
-        ]
-        if matches.empty:
-            continue
-        selected_rows.append(matches.iloc[0])
-        if max_pairs is not None and len(selected_rows) >= max_pairs:
-            break
-
-    if not selected_rows:
-        return pd.DataFrame(columns=pairs_df.columns)
-
-    return pd.DataFrame(selected_rows).reset_index(drop=True)
-
-
-def main():
-    """Main function for pairs trading analysis."""
-    import pandas as pd
+    Orchestrates the complete pairs trading analysis workflow:
+    1. Parse command-line arguments and interactive prompts
+    2. Initialize components (ExchangeManager, DataFetcher, analyzers)
+    3. Fetch futures symbols from Binance
+    4. Analyze performance for all symbols
+    5. Build candidate pools for long/short sides
+    6. Analyze pairs trading opportunities
+    7. Validate and display results
+    """
 
     args = parse_args()
 
@@ -345,6 +100,12 @@ def main():
             args.ols_fit_intercept = True
         elif ols_input in {"n", "no"}:
             args.ols_fit_intercept = False
+        
+        # Target pairs selection
+        args.pairs_count = prompt_target_pairs(args.pairs_count)
+        
+        # Candidate depth selection
+        args.candidate_depth = prompt_candidate_depth(args.candidate_depth)
 
     # Parse weights if provided
     weights = parse_weights(args.weights, args.weight_preset)
@@ -353,40 +114,34 @@ def main():
     target_symbol_inputs, parsed_target_symbols = parse_symbols(args.symbols)
     target_symbols = []
     if target_symbol_inputs:
-        print(
-            color_text(
-                f"\nManual mode enabled for symbols: {', '.join(target_symbol_inputs)}",
-                Fore.MAGENTA,
-                Style.BRIGHT,
-            )
-        )
+        if log_info:
+            log_info(f"Manual mode enabled for symbols: {', '.join(target_symbol_inputs)}")
 
-    print(color_text("\n" + "=" * 80, Fore.CYAN, Style.BRIGHT))
-    print(color_text("PAIRS TRADING ANALYSIS", Fore.CYAN, Style.BRIGHT))
-    print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
-    print(
-        color_text(
-            f"\nConfiguration:", Fore.CYAN,
-        )
-    )
-    print(f"  Target pairs: {args.pairs_count}")
-    print(f"  Candidate depth per side: {args.candidate_depth}")
-    print(f"  Weight preset: {args.weight_preset}")
-    print(f"  Weights: 1d={weights['1d']:.2f}, 3d={weights['3d']:.2f}, 1w={weights['1w']:.2f}")
-    print(f"  Opportunity preset: {args.opportunity_preset}")
-    if getattr(args, "kalman_preset", None):
-        print(f"  Kalman preset: {args.kalman_preset}")
-    print(f"  OLS fit intercept: {args.ols_fit_intercept}")
-    print(f"  Kalman delta: {args.kalman_delta:.2e}, obs_cov: {args.kalman_obs_cov:.2f}")
-    print(f"  Spread range: {args.min_spread*100:.2f}% - {args.max_spread*100:.2f}%")
-    print(f"  Correlation range: {args.min_correlation:.2f} - {args.max_correlation:.2f}")
-    if target_symbol_inputs:
-        print(f"  Mode: MANUAL (requested {', '.join(target_symbol_inputs)})")
-    else:
-        print("  Mode: AUTO (optimize across all symbols)")
+    if log_analysis:
+        log_analysis("=" * 80)
+        log_analysis("PAIRS TRADING ANALYSIS")
+        log_analysis("=" * 80)
+        log_analysis("Configuration:")
+    if log_data:
+        log_data(f"  Target pairs: {args.pairs_count}")
+        log_data(f"  Candidate depth per side: {args.candidate_depth}")
+        log_data(f"  Weight preset: {args.weight_preset}")
+        log_data(f"  Weights: 1d={weights['1d']:.2f}, 3d={weights['3d']:.2f}, 1w={weights['1w']:.2f}")
+        log_data(f"  Opportunity preset: {args.opportunity_preset}")
+        if getattr(args, "kalman_preset", None):
+            log_data(f"  Kalman preset: {args.kalman_preset}")
+        log_data(f"  OLS fit intercept: {args.ols_fit_intercept}")
+        log_data(f"  Kalman delta: {args.kalman_delta:.2e}, obs_cov: {args.kalman_obs_cov:.2f}")
+        log_data(f"  Spread range: {args.min_spread*100:.2f}% - {args.max_spread*100:.2f}%")
+        log_data(f"  Correlation range: {args.min_correlation:.2f} - {args.max_correlation:.2f}")
+        if target_symbol_inputs:
+            log_data(f"  Mode: MANUAL (requested {', '.join(target_symbol_inputs)})")
+        else:
+            log_data("  Mode: AUTO (optimize across all symbols)")
 
     # Initialize components
-    print(color_text("\nInitializing components...", Fore.YELLOW))
+    if log_progress:
+        log_progress("Initializing components...")
     exchange_manager = ExchangeManager()
     data_fetcher = DataFetcher(exchange_manager)
     performance_analyzer = PerformanceAnalyzer(weights=weights)
@@ -409,7 +164,8 @@ def main():
     )
 
     # Step 1: Get list of futures symbols
-    print(color_text("\n[1/4] Fetching futures symbols from Binance...", Fore.CYAN, Style.BRIGHT))
+    if log_progress:
+        log_progress("[1/4] Fetching futures symbols from Binance...")
 
     try:
         symbols = data_fetcher.list_binance_futures_symbols(
@@ -417,23 +173,14 @@ def main():
             progress_label="Symbol Discovery",
         )
         if not symbols:
-            print(
-                color_text(
-                    "No symbols found. Please check your API connection.",
-                    Fore.RED,
-                    Style.BRIGHT,
-                )
-            )
+            if log_error:
+                log_error("No symbols found. Please check your API connection.")
             return
-        print(color_text(f"Found {len(symbols)} futures symbols.", Fore.GREEN))
+        if log_success:
+            log_success(f"Found {len(symbols)} futures symbols.")
     except Exception as e:
-        print(
-            color_text(
-                f"Error fetching symbols: {e}",
-                Fore.RED,
-                Style.BRIGHT,
-            )
-        )
+        if log_error:
+            log_error(f"Error fetching symbols: {e}")
         return
 
     if target_symbol_inputs:
@@ -454,77 +201,41 @@ def main():
                     available_lookup[normalized_key] = sym
         if newly_added_symbols:
             symbols = list(dict.fromkeys(symbols + newly_added_symbols))
-            print(
-                color_text(
-                    f"Added manual symbols to analysis universe: {', '.join(newly_added_symbols)}",
-                    Fore.CYAN,
-                )
-            )
+            if log_info:
+                log_info(f"Added manual symbols to analysis universe: {', '.join(newly_added_symbols)}")
         if missing_targets:
-            print(
-                color_text(
-                    f"These symbols were not discovered automatically but will be fetched manually: {', '.join(missing_targets)}",
-                    Fore.YELLOW,
-                )
-            )
+            if log_warn:
+                log_warn(f"These symbols were not discovered automatically but will be fetched manually: {', '.join(missing_targets)}")
         target_symbols = mapped_targets
         if target_symbols:
-            print(
-                color_text(
-                    f"Tracking manual symbols: {', '.join(target_symbols)}",
-                    Fore.MAGENTA,
-                    Style.BRIGHT,
-                )
-            )
+            if log_info:
+                log_info(f"Tracking manual symbols: {', '.join(target_symbols)}")
         if not target_symbols:
-            print(
-                color_text(
-                    "All requested symbols were unavailable. Reverting to AUTO mode.",
-                    Fore.YELLOW,
-                )
-            )
+            if log_warn:
+                log_warn("All requested symbols were unavailable. Reverting to AUTO mode.")
     # Step 2: Analyze performance
-    print(
-        color_text(
-            f"\n[2/4] Analyzing performance for {len(symbols)} symbols...",
-            Fore.CYAN,
-            Style.BRIGHT,
-        )
-    )
+    if log_progress:
+        log_progress(f"[2/4] Analyzing performance for {len(symbols)} symbols...")
     try:
         performance_df = performance_analyzer.analyze_all_symbols(
             symbols, data_fetcher, verbose=True
         )
         if performance_df.empty:
-            print(
-                color_text(
-                    "No valid performance data found. Please try again later.",
-                    Fore.RED,
-                    Style.BRIGHT,
-                )
-            )
+            if log_error:
+                log_error("No valid performance data found. Please try again later.")
             return
     except KeyboardInterrupt:
-        print(color_text("\nAnalysis interrupted by user.", Fore.YELLOW))
+        if log_warn:
+            log_warn("Analysis interrupted by user.")
         return
     except Exception as e:
-        print(
-            color_text(
-                f"Error during performance analysis: {e}",
-                Fore.RED,
-                Style.BRIGHT,
-            )
-        )
+        if log_error:
+            log_error(f"Error during performance analysis: {e}")
         return
 
     # Step 3: Build candidate pools for long/short sides
-    print(
-        color_text(
-            f"\n[3/4] Building candidate pools for auto pair selection...",
-            Fore.CYAN,
-            Style.BRIGHT,
-        )
-    )
+    if log_progress:
+        log_progress("[3/4] Building candidate pools for auto pair selection...")
     candidate_depth = max(args.candidate_depth, args.pairs_count * 2)
     best_performers = (
         performance_df.sort_values("score", ascending=False)
@@ -542,34 +253,26 @@ def main():
             performance_df, best_performers, worst_performers, target_symbols
         )
 
-    display_performers(best_performers, "SHORT CANDIDATES (Strong performers)", Fore.GREEN)
-    display_performers(worst_performers, "LONG CANDIDATES (Weak performers)", Fore.RED)
+    display_performers(best_performers, "SHORT CANDIDATES (Strong performers)", Fore.RED)
+    display_performers(worst_performers, "LONG CANDIDATES (Weak performers)", Fore.GREEN)
 
     # Step 4: Analyze pairs trading opportunities
-    print(
-        color_text(
-            "\n[4/4] Analyzing pairs trading opportunities...",
-            Fore.CYAN,
-            Style.BRIGHT,
-        )
-    )
+    if log_progress:
+        log_progress("[4/4] Analyzing pairs trading opportunities...")
     try:
         pairs_df = pairs_analyzer.analyze_pairs_opportunity(
             best_performers, worst_performers, data_fetcher=data_fetcher, verbose=True
         )
 
         if pairs_df.empty:
-            print(
-                color_text(
-                    "No pairs opportunities found.",
-                    Fore.YELLOW,
-                )
-            )
+            if log_warn:
+                log_warn("No pairs opportunities found.")
             return
 
         # Validate pairs if requested
         if not args.no_validation:
-            print(color_text("\nValidating pairs...", Fore.CYAN))
+            if log_progress:
+                log_progress("Validating pairs...")
             pairs_df = pairs_analyzer.validate_pairs(pairs_df, data_fetcher, verbose=True)
 
         # Sort pairs by selected criteria
@@ -577,7 +280,8 @@ def main():
         if sort_column in pairs_df.columns:
             pairs_df = pairs_df.sort_values(sort_column, ascending=False).reset_index(drop=True)
             sort_display = "quantitative score" if sort_column == "quantitative_score" else "opportunity score"
-            print(color_text(f"\nSorted pairs by {sort_display} (descending).", Fore.CYAN))
+            if log_info:
+                log_info(f"Sorted pairs by {sort_display} (descending).")
 
         selected_pairs = None
         manual_pairs = None
@@ -598,20 +302,11 @@ def main():
             }
             missing_matches = [sym for sym in target_symbols if sym not in matched_symbols]
             if missing_matches:
-                print(
-                    color_text(
-                        f"No valid pairs found for: {', '.join(missing_matches)}",
-                        Fore.YELLOW,
-                    )
-                )
+                if log_warn:
+                    log_warn(f"No valid pairs found for: {', '.join(missing_matches)}")
             if not manual_pairs.empty:
-                print(
-                    color_text(
-                        "\nBest pairs for requested symbols:",
-                        Fore.MAGENTA,
-                        Style.BRIGHT,
-                    )
-                )
+                if log_info:
+                    log_info("Best pairs for requested symbols:")
                 display_pairs_opportunities(
                     manual_pairs,
                     max_display=min(args.max_pairs, len(manual_pairs)),
@@ -624,7 +319,8 @@ def main():
             selected_pairs = select_top_unique_pairs(pairs_df, args.pairs_count)
 
         if selected_pairs is None or selected_pairs.empty:
-            print(color_text("No qualifying pairs after selection.", Fore.YELLOW))
+            if log_warn:
+                log_warn("No qualifying pairs after selection.")
             return
 
         if not displayed_manual:
@@ -634,82 +330,92 @@ def main():
             )
 
         # Summary
-        print(color_text("\n" + "=" * 80, Fore.CYAN, Style.BRIGHT))
-        print(color_text("SUMMARY", Fore.CYAN, Style.BRIGHT))
-        print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
-        print(f"Total symbols analyzed: {len(performance_df)}")
-        print(f"Short candidates considered: {len(best_performers)}")
-        print(f"Long candidates considered: {len(worst_performers)}")
-        print(f"Valid pairs available: {len(pairs_df)}")
-        print(f"Selected tradeable pairs: {len(selected_pairs)}")
+        if log_analysis:
+            log_analysis("=" * 80)
+            log_analysis("SUMMARY")
+            log_analysis("=" * 80)
+        if log_data:
+            log_data(f"Total symbols analyzed: {len(performance_df)}")
+            log_data(f"Short candidates considered: {len(best_performers)}")
+            log_data(f"Long candidates considered: {len(worst_performers)}")
+            log_data(f"Valid pairs available: {len(pairs_df)}")
+            log_data(f"Selected tradeable pairs: {len(selected_pairs)}")
         if not selected_pairs.empty:
             avg_spread = selected_pairs["spread"].mean() * 100
-            print(f"Average spread: {avg_spread:.2f}%")
+            if log_data:
+                log_data(f"Average spread: {avg_spread:.2f}%")
             correlations = selected_pairs["correlation"].dropna()
             if not correlations.empty:
                 avg_correlation = correlations.mean()
-                print(f"Average correlation: {avg_correlation:.3f}")
+                if log_data:
+                    log_data(f"Average correlation: {avg_correlation:.3f}")
             
             # Quantitative metrics statistics
-            print(color_text("\nQuantitative Metrics:", Fore.CYAN, Style.BRIGHT))
+            if log_analysis:
+                log_analysis("Quantitative Metrics:")
             
             # Quantitative score
             quant_scores = selected_pairs["quantitative_score"].dropna()
             if not quant_scores.empty:
                 avg_quant_score = quant_scores.mean()
-                print(f"  Average quantitative score: {avg_quant_score:.1f}/100")
+                if log_data:
+                    log_data(f"  Average quantitative score: {avg_quant_score:.1f}/100")
             
             # Cointegration rate
             is_cointegrated_col = selected_pairs.get("is_cointegrated")
             if is_cointegrated_col is not None:
                 cointegrated_count = is_cointegrated_col.fillna(False).sum()
                 cointegration_rate = (cointegrated_count / len(selected_pairs)) * 100
-                print(f"  Cointegration rate: {cointegration_rate:.1f}% ({cointegrated_count}/{len(selected_pairs)})")
+                if log_data:
+                    log_data(f"  Cointegration rate: {cointegration_rate:.1f}% ({cointegrated_count}/{len(selected_pairs)})")
             
             # Average half-life
             half_lives = selected_pairs.get("half_life").dropna() if "half_life" in selected_pairs.columns else pd.Series()
             if not half_lives.empty:
                 avg_half_life = half_lives.mean()
-                print(f"  Average half-life: {avg_half_life:.1f} periods")
+                if log_data:
+                    log_data(f"  Average half-life: {avg_half_life:.1f} periods")
             
             # Average Sharpe ratio
             sharpe_ratios = selected_pairs.get("spread_sharpe").dropna() if "spread_sharpe" in selected_pairs.columns else pd.Series()
             if not sharpe_ratios.empty:
                 avg_sharpe = sharpe_ratios.mean()
-                print(f"  Average Sharpe ratio: {avg_sharpe:.2f}")
+                if log_data:
+                    log_data(f"  Average Sharpe ratio: {avg_sharpe:.2f}")
             
             # Average max drawdown
             max_dds = selected_pairs.get("max_drawdown").dropna() if "max_drawdown" in selected_pairs.columns else pd.Series()
             if not max_dds.empty:
                 avg_max_dd = max_dds.mean() * 100
-                print(f"  Average max drawdown: {avg_max_dd:.2f}%")
+                if log_data:
+                    log_data(f"  Average max drawdown: {avg_max_dd:.2f}%")
             
             # Average hedge ratios
-            print(color_text("\nHedge Ratios:", Fore.CYAN, Style.BRIGHT))
+            if log_analysis:
+                log_analysis("Hedge Ratios:")
             
             # OLS hedge ratio
             hedge_ratios = selected_pairs.get("hedge_ratio").dropna() if "hedge_ratio" in selected_pairs.columns else pd.Series()
             if not hedge_ratios.empty:
                 avg_hedge_ratio = hedge_ratios.mean()
-                print(f"  Average OLS hedge ratio: {avg_hedge_ratio:.4f}")
+                if log_data:
+                    log_data(f"  Average OLS hedge ratio: {avg_hedge_ratio:.4f}")
             
             # Kalman hedge ratio
             kalman_ratios = selected_pairs.get("kalman_hedge_ratio").dropna() if "kalman_hedge_ratio" in selected_pairs.columns else pd.Series()
             if not kalman_ratios.empty:
                 avg_kalman_ratio = kalman_ratios.mean()
-                print(f"  Average Kalman hedge ratio: {avg_kalman_ratio:.4f}")
-        print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
+                if log_data:
+                    log_data(f"  Average Kalman hedge ratio: {avg_kalman_ratio:.4f}")
+        if log_analysis:
+            log_analysis("=" * 80)
 
     except KeyboardInterrupt:
-        print(color_text("\nPairs analysis interrupted by user.", Fore.YELLOW))
+        if log_warn:
+            log_warn("Pairs analysis interrupted by user.")
     except Exception as e:
-        print(
-            color_text(
-                f"Error during pairs analysis: {e}",
-                Fore.RED,
-                Style.BRIGHT,
-            )
-        )
+        if log_error:
+            log_error(f"Error during pairs analysis: {e}")
 
 
 if __name__ == "__main__":

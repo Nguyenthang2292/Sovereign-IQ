@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import pandas as pd
 
 from modules.common.DataFetcher import DataFetcher
-from modules.pairs_trading.performance_analyzer import PerformanceAnalyzer
-from modules.pairs_trading.pairs_analyzer import PairsTradingAnalyzer
+from modules.pairs_trading.analysis.performance_analyzer import PerformanceAnalyzer
+from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer
 
 
 def _generate_ohlcv_series(base_price: float, drift: float, length: int = 240):
@@ -95,7 +95,7 @@ def test_performance_and_pairs_pipeline_with_real_data_fetcher(monkeypatch):
 
     # Simplify heavy metrics while still exercising analyzer logic
     monkeypatch.setattr(
-        "modules.pairs_trading.pairs_analyzer.PairMetricsComputer.compute_pair_metrics",
+        "modules.pairs_trading.core.pairs_analyzer.PairMetricsComputer.compute_pair_metrics",
         lambda self, price1, price2: {
             "is_cointegrated": True,
             "half_life": 10.0,

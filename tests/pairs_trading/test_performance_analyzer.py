@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.pairs_trading.performance_analyzer import PerformanceAnalyzer
+from modules.pairs_trading.analysis.performance_analyzer import PerformanceAnalyzer
 
 
 def build_price_series(length=200, start=100.0, step=0.5):
@@ -62,7 +62,7 @@ import pandas as pd
 import numpy as np
 from types import SimpleNamespace
 
-from modules.pairs_trading.performance_analyzer import PerformanceAnalyzer
+from modules.pairs_trading.analysis.performance_analyzer import PerformanceAnalyzer
 
 
 def _create_mock_ohlcv_data(

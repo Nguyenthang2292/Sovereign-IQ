@@ -21,7 +21,7 @@ import numpy as np
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
-from modules.pairs_trading.pairs_analyzer import PairsTradingAnalyzer, _get_all_pair_columns
+from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer, _get_all_pair_columns
 
 
 def _create_mock_ohlcv_data(

@@ -1,39 +1,87 @@
 """
 Correlation analyzer for portfolio correlation calculations.
+
+This module provides the PortfolioCorrelationAnalyzer class for calculating
+various correlation metrics between portfolio positions and new symbols,
+including weighted correlations and portfolio return correlations.
 """
 
 import pandas as pd
 import numpy as np
-from typing import List
-from colorama import Fore, Style
+from typing import List, Optional, Dict, Tuple, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from modules.common.Position import Position
 
 try:
     from modules.common.Position import Position
-    from modules.common.utils import color_text, normalize_symbol
+    from modules.common.utils import (
+        log_warn,
+        log_error,
+        log_info,
+        log_analysis,
+        log_data,
+        log_success,
+    )
     from modules.config import (
         DEFAULT_CORRELATION_MIN_POINTS,
         DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS,
+        HEDGE_CORRELATION_HIGH_THRESHOLD,
+        HEDGE_CORRELATION_MEDIUM_THRESHOLD,
     )
 except ImportError:
     Position = None
-    color_text = None
-    normalize_symbol = None
+    log_warn = None
+    log_error = None
+    log_info = None
+    log_analysis = None
+    log_data = None
+    log_success = None
     DEFAULT_CORRELATION_MIN_POINTS = 10
     DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS = 10
+    HEDGE_CORRELATION_HIGH_THRESHOLD = 0.7
+    HEDGE_CORRELATION_MEDIUM_THRESHOLD = 0.4
 
 
 class PortfolioCorrelationAnalyzer:
-    """Analyzes correlation between portfolio and new symbols."""
+    """
+    Analyzes correlation between portfolio positions and new symbols.
 
-    def __init__(self, data_fetcher, positions: List[Position]):
+    This class provides methods to calculate various correlation metrics:
+    - Weighted internal correlation between portfolio positions
+    - Weighted correlation between a new symbol and the portfolio
+    - Portfolio return correlation with a new symbol
+
+    Attributes:
+        data_fetcher: Data fetcher instance for retrieving market data
+        positions: List of current portfolio positions
+        _series_cache: Cache for price series to avoid redundant fetches
+    """
+
+    def __init__(self, data_fetcher: Any, positions: List["Position"]) -> None:
+        """
+        Initialize the PortfolioCorrelationAnalyzer.
+
+        Args:
+            data_fetcher: Data fetcher instance for retrieving OHLCV data
+            positions: List of current portfolio positions
+        """
         self.data_fetcher = data_fetcher
         self.positions = positions
-        self._series_cache: dict[str, pd.Series] = {}
+        self._series_cache: Dict[str, pd.Series] = {}
 
-    def _fetch_symbol_series(self, symbol: str) -> pd.Series | None:
+    def _fetch_symbol_series(self, symbol: str) -> Optional[pd.Series]:
         """
-        Helper method to fetch price series for a symbol.
-        Uses cache to avoid redundant fetches.
+        Fetch price series for a symbol with caching.
+
+        Args:
+            symbol: Symbol to fetch price series for
+
+        Returns:
+            Price series (close prices) or None if fetch fails
+
+        Note:
+            Uses internal cache to avoid redundant API calls.
         """
         if symbol in self._series_cache:
             return self._series_cache[symbol]
@@ -44,8 +92,13 @@ class PortfolioCorrelationAnalyzer:
             self._series_cache[symbol] = series
         return series
 
-    def _get_portfolio_series_dict(self) -> dict[str, pd.Series]:
-        """Get all price series for portfolio positions."""
+    def _get_portfolio_series_dict(self) -> Dict[str, pd.Series]:
+        """
+        Get all price series for portfolio positions.
+
+        Returns:
+            Dictionary mapping symbol to price series
+        """
         symbol_series = {}
         for pos in self.positions:
             if pos.symbol not in symbol_series:
@@ -56,78 +109,85 @@ class PortfolioCorrelationAnalyzer:
 
     def calculate_weighted_correlation(
         self, verbose: bool = True
-    ) -> tuple[float | None, list]:
+    ) -> Tuple[Optional[float], List[Dict[str, Any]]]:
         """
         Calculate weighted internal correlation of the current portfolio (between positions).
-        
+
+        This method calculates correlation between all pairs of positions in the portfolio,
+        weighted by position sizes. Returns are adjusted for LONG/SHORT directions to
+        reflect actual PnL correlation.
+
+        Args:
+            verbose: Whether to print detailed output
+
         Returns:
-            (weighted_correlation, position_correlations_list)
-            - weighted_correlation: Average weighted correlation between all position pairs
-            - position_correlations_list: List of correlation details for each pair
+            Tuple containing:
+                - weighted_correlation: Average weighted correlation between all position pairs (None if insufficient data)
+                - position_correlations_list: List of correlation details for each pair
         """
         if len(self.positions) < 2:
-            if verbose:
-                print(
-                    color_text(
-                        "Need at least 2 positions to calculate internal correlation.",
-                        Fore.YELLOW,
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("Need at least 2 positions to calculate internal correlation.")
             return None, []
 
-        if verbose:
-            print(
-                color_text(
-                    "\nPortfolio Internal Correlation Analysis:", Fore.CYAN, Style.BRIGHT
-                )
-            )
+        if verbose and log_analysis:
+            log_analysis("Portfolio Internal Correlation Analysis:")
 
         symbol_series = self._get_portfolio_series_dict()
         if len(symbol_series) < 2:
-            if verbose:
-                print(
-                    color_text(
-                        "Insufficient data for internal correlation analysis.", Fore.YELLOW
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("Insufficient data for internal correlation analysis.")
             return None, []
 
+        # Create a DataFrame with all price series aligned
+        price_df = pd.DataFrame(symbol_series).dropna(how="all")
+        if len(price_df) < DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS:
+            if verbose and log_warn:
+                log_warn("Insufficient overlapping data for correlation analysis.")
+            return None, []
+
+        # Calculate returns
+        returns_df = price_df.pct_change().dropna(how="all")
+        if len(returns_df) < DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS:
+            if verbose and log_warn:
+                log_warn("Insufficient return data for correlation analysis.")
+            return None, []
+
+        # Adjust returns for SHORT positions
+        adjusted_returns = returns_df.copy()
+        position_map = {p.symbol: p for p in self.positions}
+        
+        for col in adjusted_returns.columns:
+            pos = position_map.get(col)
+            if pos and pos.direction == "SHORT":
+                adjusted_returns[col] = -adjusted_returns[col]
+
+        # Calculate correlation matrix (Vectorized O(1) operation relative to loop)
+        corr_matrix = adjusted_returns.corr()
+        
         correlations = []
         weights = []
         position_pairs = []
 
-        # Calculate correlation between all pairs
-        symbols = list(symbol_series.keys())
+        # Extract pairwise correlations and weights
+        symbols = list(adjusted_returns.columns)
         for i, symbol1 in enumerate(symbols):
-            for symbol2 in symbols[i + 1 :]:
-                series1 = symbol_series[symbol1]
-                series2 = symbol_series[symbol2]
-
-                df = pd.concat([series1, series2], axis=1, join="inner")
-                if len(df) < DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS:
+            for j in range(i + 1, len(symbols)):
+                symbol2 = symbols[j]
+                
+                # Check for minimum overlapping data points for this specific pair
+                # This is important because dropna(how='all') might leave pairs with few common points
+                pair_data = adjusted_returns[[symbol1, symbol2]].dropna()
+                if len(pair_data) < DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS:
                     continue
 
-                # Calculate correlation on returns (pct_change) instead of prices
-                # to avoid spurious correlation from non-stationary price series
-                returns_df = df.pct_change().dropna()
-                if len(returns_df) < DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS:
-                    continue
-
-                # Weight by average position size
-                pos1 = next((p for p in self.positions if p.symbol == symbol1), None)
-                pos2 = next((p for p in self.positions if p.symbol == symbol2), None)
-
-                # Adjust returns based on position direction (LONG/SHORT)
-                # SHORT positions have inverted returns for PnL correlation
-                adjusted_returns = returns_df.copy()
-                if pos1 and pos1.direction == "SHORT":
-                    adjusted_returns.iloc[:, 0] = -adjusted_returns.iloc[:, 0]
-                if pos2 and pos2.direction == "SHORT":
-                    adjusted_returns.iloc[:, 1] = -adjusted_returns.iloc[:, 1]
-
-                corr = adjusted_returns.iloc[:, 0].corr(adjusted_returns.iloc[:, 1])
+                corr = corr_matrix.loc[symbol1, symbol2]
                 if pd.isna(corr):
                     continue
+
+                pos1 = position_map.get(symbol1)
+                pos2 = position_map.get(symbol2)
+                
                 weight = (
                     (pos1.size_usdt if pos1 else 0) + (pos2.size_usdt if pos2 else 0)
                 ) / 2
@@ -140,19 +200,14 @@ class PortfolioCorrelationAnalyzer:
                         "symbol2": symbol2,
                         "direction1": pos1.direction if pos1 else "UNKNOWN",
                         "direction2": pos2.direction if pos2 else "UNKNOWN",
-                        "correlation": corr,  # PnL correlation (adjusted for LONG/SHORT)
+                        "correlation": corr,
                         "weight": weight,
                     }
                 )
 
         if not correlations:
-            if verbose:
-                print(
-                    color_text(
-                        "Insufficient overlapping data for correlation analysis.",
-                        Fore.YELLOW,
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("No valid correlation pairs found.")
             return None, []
 
         total_weight = sum(weights)
@@ -163,34 +218,24 @@ class PortfolioCorrelationAnalyzer:
         )
 
         if verbose:
-            print("\nPosition Pair Correlations (PnL-adjusted):")
+            if log_data:
+                log_data("Position Pair Correlations (PnL-adjusted):")
             for pair in position_pairs:
-                corr_color = (
-                    Fore.GREEN
-                    if abs(pair["correlation"]) > 0.7
-                    else (Fore.YELLOW if abs(pair["correlation"]) > 0.4 else Fore.RED)
-                )
                 weight_pct = (pair["weight"] / total_weight * 100) if total_weight > 0 else 0
                 direction1 = pair.get("direction1", "UNKNOWN")
                 direction2 = pair.get("direction2", "UNKNOWN")
-                print(
-                    f"  {pair['symbol1']:12} ({direction1:5}) <-> "
-                    f"{pair['symbol2']:12} ({direction2:5}) "
-                    f"({pair['weight']:>8.2f} USDT, {weight_pct:>5.1f}%): "
-                    + color_text(f"{pair['correlation']:>6.4f}", corr_color)
-                )
+                if log_data:
+                    log_data(
+                        f"  {pair['symbol1']:12} ({direction1:5}) <-> "
+                        f"{pair['symbol2']:12} ({direction2:5}) "
+                        f"({pair['weight']:>8.2f} USDT, {weight_pct:>5.1f}%): "
+                        f"{pair['correlation']:>6.4f}"
+                    )
 
-            print(
-                f"\n{color_text('Weighted Internal Correlation:', Fore.CYAN, Style.BRIGHT)}"
-            )
-            corr_color = (
-                Fore.GREEN
-                if abs(weighted_corr) > 0.7
-                else (Fore.YELLOW if abs(weighted_corr) > 0.4 else Fore.RED)
-            )
-            print(
-                f"  Portfolio Internal: {color_text(f'{weighted_corr:>6.4f}', corr_color, Style.BRIGHT)}"
-            )
+            if log_analysis:
+                log_analysis("Weighted Internal Correlation:")
+            if log_data:
+                log_data(f"  Portfolio Internal: {weighted_corr:>6.4f}")
 
         return weighted_corr, position_pairs
 
@@ -200,18 +245,21 @@ class PortfolioCorrelationAnalyzer:
         new_position_size: float = 0.0,
         new_direction: str = "LONG",
         verbose: bool = True,
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """
         Analyze correlation impact of adding a new symbol to the portfolio.
-        
+
+        This method calculates correlation metrics before and after adding a new
+        position, helping to assess the diversification impact.
+
         Args:
             new_symbol: Symbol to analyze
             new_position_size: Size of new position in USDT (for weighted calculation)
             new_direction: Direction of new position (LONG/SHORT)
             verbose: Whether to print detailed output
-            
+
         Returns:
-            Dictionary with before/after correlation metrics
+            Dictionary with before/after correlation metrics and impact analysis
         """
         result = {
             "before": {},
@@ -220,14 +268,8 @@ class PortfolioCorrelationAnalyzer:
         }
 
         # Calculate current portfolio internal correlation
-        if verbose:
-            print(
-                color_text(
-                    "\n=== Analyzing Correlation Impact of Adding New Symbol ===",
-                    Fore.CYAN,
-                    Style.BRIGHT,
-                )
-            )
+        if verbose and log_analysis:
+            log_analysis("=== Analyzing Correlation Impact of Adding New Symbol ===")
 
         internal_corr_before, _ = self.calculate_weighted_correlation(
             verbose=False
@@ -270,56 +312,60 @@ class PortfolioCorrelationAnalyzer:
                 )
 
         if verbose:
-            print("\n=== Summary ===")
-            if internal_corr_before is not None:
-                print(
-                    f"Current Portfolio Internal Correlation: {internal_corr_before:.4f}"
-                )
-            if weighted_corr is not None:
-                print(f"New Symbol vs Portfolio Correlation: {weighted_corr:.4f}")
-            if portfolio_return_corr is not None:
-                print(
-                    f"Portfolio Return vs New Symbol Correlation: {portfolio_return_corr:.4f}"
-                )
-            if "internal_correlation" in result["after"]:
-                print(
-                    f"Portfolio Internal Correlation After: {result['after']['internal_correlation']:.4f}"
-                )
+            if log_analysis:
+                log_analysis("=== Summary ===")
+            if internal_corr_before is not None and log_data:
+                log_data(f"Current Portfolio Internal Correlation: {internal_corr_before:.4f}")
+            if weighted_corr is not None and log_data:
+                log_data(f"New Symbol vs Portfolio Correlation: {weighted_corr:.4f}")
+            if portfolio_return_corr is not None and log_data:
+                log_data(f"Portfolio Return vs New Symbol Correlation: {portfolio_return_corr:.4f}")
+            if "internal_correlation" in result["after"] and log_data:
+                log_data(f"Portfolio Internal Correlation After: {result['after']['internal_correlation']:.4f}")
             if "correlation_change" in result["impact"]:
                 change = result["impact"]["correlation_change"]
                 improvement = result["impact"]["diversification_improvement"]
-                change_color = Fore.GREEN if improvement else Fore.YELLOW
-                print(
-                    f"Correlation Change: {color_text(f'{change:+.4f}', change_color)}"
-                )
-                print(
-                    f"Diversification Improvement: {color_text(str(improvement), Fore.GREEN if improvement else Fore.RED)}"
-                )
+                if log_data:
+                    log_data(f"Correlation Change: {change:+.4f}")
+                if improvement:
+                    if log_success:
+                        log_success(f"Diversification Improvement: {improvement}")
+                else:
+                    if log_warn:
+                        log_warn(f"Diversification Improvement: {improvement}")
 
         return result
 
-    def calculate_weighted_correlation_with_new_symbol(self, new_symbol: str, verbose: bool = True):
-        """Calculates weighted correlation between a new symbol and the entire portfolio based on position sizes."""
+    def calculate_weighted_correlation_with_new_symbol(
+        self, new_symbol: str, verbose: bool = True
+    ) -> Tuple[Optional[float], List[Dict[str, Any]]]:
+        """
+        Calculate weighted correlation between a new symbol and the entire portfolio.
+
+        This method calculates correlation between each position and the new symbol,
+        weighted by position sizes. Returns are adjusted for LONG/SHORT directions.
+
+        Args:
+            new_symbol: Symbol to calculate correlation with
+            verbose: Whether to print detailed output
+
+        Returns:
+            Tuple containing:
+                - weighted_correlation: Weighted average correlation (None if insufficient data)
+                - position_details: List of correlation details for each position
+        """
         correlations = []
         weights = []
         position_details = []
 
-        if verbose:
-            print(
-                color_text(
-                    "\nCorrelation Analysis (Weighted by Position Size):", Fore.CYAN
-                )
-            )
+        if verbose and log_analysis:
+            log_analysis("Correlation Analysis (Weighted by Position Size):")
 
         new_df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(new_symbol)
         new_series = self.data_fetcher.dataframe_to_close_series(new_df)
         if new_series is None:
-            if verbose:
-                print(
-                    color_text(
-                        f"Could not fetch price history for {new_symbol}", Fore.RED
-                    )
-                )
+            if verbose and log_error:
+                log_error(f"Could not fetch price history for {new_symbol}")
             return None, []
 
         for pos in self.positions:
@@ -362,42 +408,28 @@ class PortfolioCorrelationAnalyzer:
                 )
 
         if not correlations:
-            if verbose:
-                print(
-                    color_text(
-                        "Insufficient data for correlation analysis.", Fore.YELLOW
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("Insufficient data for correlation analysis.")
             return None, []
 
         total_weight = sum(weights)
         weighted_corr = sum(c * w for c, w in zip(correlations, weights)) / total_weight
 
         if verbose:
-            print("\nIndividual Correlations:")
+            if log_data:
+                log_data("Individual Correlations:")
             for detail in position_details:
-                corr_color = (
-                    Fore.GREEN
-                    if abs(detail["correlation"]) > 0.7
-                    else (Fore.YELLOW if abs(detail["correlation"]) > 0.4 else Fore.RED)
-                )
                 weight_pct = (detail["weight"] / total_weight) * 100
-                print(
-                    f"  {detail['symbol']:12} ({detail['direction']:5}, {detail['size']:>8.2f} USDT, {weight_pct:>5.1f}%): "
-                    + color_text(f"{detail['correlation']:>6.4f}", corr_color)
-                )
+                if log_data:
+                    log_data(
+                        f"  {detail['symbol']:12} ({detail['direction']:5}, {detail['size']:>8.2f} USDT, {weight_pct:>5.1f}%): "
+                        f"{detail['correlation']:>6.4f}"
+                    )
 
-            print(
-                f"\n{color_text('Weighted Portfolio Correlation:', Fore.CYAN, Style.BRIGHT)}"
-            )
-            weighted_corr_color = (
-                Fore.GREEN
-                if abs(weighted_corr) > 0.7
-                else (Fore.YELLOW if abs(weighted_corr) > 0.4 else Fore.RED)
-            )
-            print(
-                f"  {new_symbol} vs Portfolio: {color_text(f'{weighted_corr:>6.4f}', weighted_corr_color, Style.BRIGHT)}"
-            )
+            if log_analysis:
+                log_analysis("Weighted Portfolio Correlation:")
+            if log_data:
+                log_data(f"  {new_symbol} vs Portfolio: {weighted_corr:>6.4f}")
 
         return weighted_corr, position_details
 
@@ -406,74 +438,64 @@ class PortfolioCorrelationAnalyzer:
         new_symbol: str,
         min_points: int = DEFAULT_CORRELATION_MIN_POINTS,
         verbose: bool = True,
-    ):
-        """Calculates correlation between the portfolio's aggregated return and the new symbol."""
-        if verbose:
-            print(color_text("\nPortfolio Return Correlation Analysis:", Fore.CYAN))
+    ) -> Tuple[Optional[float], Dict[str, Any]]:
+        """
+        Calculate correlation between the portfolio's aggregated return and the new symbol.
+
+        This method calculates the correlation between the weighted portfolio return
+        (aggregated across all positions) and the new symbol's return. Returns are
+        adjusted for LONG/SHORT directions.
+
+        Args:
+            new_symbol: Symbol to calculate correlation with
+            min_points: Minimum number of data points required
+            verbose: Whether to print detailed output
+
+        Returns:
+            Tuple containing:
+                - correlation: Correlation value (None if insufficient data)
+                - metadata: Dictionary with additional info (e.g., samples used)
+        """
+        if verbose and log_analysis:
+            log_analysis("Portfolio Return Correlation Analysis:")
 
         if not self.positions:
-            if verbose:
-                print(
-                    color_text(
-                        "No positions in portfolio to compare against.", Fore.YELLOW
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("No positions in portfolio to compare against.")
             return None, {}
 
         new_df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(new_symbol)
         new_series = self.data_fetcher.dataframe_to_close_series(new_df)
         if new_series is None:
-            if verbose:
-                print(
-                    color_text(
-                        f"Could not fetch price history for {new_symbol}", Fore.RED
-                    )
-                )
+            if verbose and log_error:
+                log_error(f"Could not fetch price history for {new_symbol}")
             return None, {}
 
         symbol_series = self._get_portfolio_series_dict()
 
         if not symbol_series:
-            if verbose:
-                print(
-                    color_text(
-                        "Unable to fetch history for existing positions.", Fore.YELLOW
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("Unable to fetch history for existing positions.")
             return None, {}
 
         price_df = pd.DataFrame(symbol_series).dropna(how="all")
         if price_df.empty:
-            if verbose:
-                print(
-                    color_text(
-                        "Insufficient overlapping data among current positions.",
-                        Fore.YELLOW,
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("Insufficient overlapping data among current positions.")
             return None, {}
 
         portfolio_returns_df = price_df.pct_change().dropna(how="all")
         new_returns = new_series.pct_change().dropna()
 
         if portfolio_returns_df.empty or new_returns.empty:
-            if verbose:
-                print(
-                    color_text(
-                        "Insufficient price history to compute returns.", Fore.YELLOW
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("Insufficient price history to compute returns.")
             return None, {}
 
         common_index = portfolio_returns_df.index.intersection(new_returns.index)
         if len(common_index) < min_points:
-            if verbose:
-                print(
-                    color_text(
-                        f"Need at least {min_points} overlapping points, found {len(common_index)}.",
-                        Fore.YELLOW,
-                    )
-                )
+            if verbose and log_warn:
+                log_warn(f"Need at least {min_points} overlapping points, found {len(common_index)}.")
             return None, {}
 
         # Vectorized approach: Adjust returns for LONG/SHORT and calculate weighted portfolio returns
@@ -494,13 +516,8 @@ class PortfolioCorrelationAnalyzer:
             sym for sym in adjusted_returns_df.columns if sym in position_weights
         ]
         if not valid_symbols:
-            if verbose:
-                print(
-                    color_text(
-                        "No valid positions for portfolio return calculation.",
-                        Fore.YELLOW,
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("No valid positions for portfolio return calculation.")
             return None, {}
 
         # Calculate weighted portfolio returns using vectorization
@@ -524,36 +541,20 @@ class PortfolioCorrelationAnalyzer:
         new_return_series = new_return_series[valid_mask]
 
         if len(portfolio_return_series) < min_points:
-            if verbose:
-                print(
-                    color_text(
-                        "Not enough aligned return samples for correlation.",
-                        Fore.YELLOW,
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("Not enough aligned return samples for correlation.")
             return None, {"samples": len(portfolio_return_series)}
 
         correlation = portfolio_return_series.corr(new_return_series)
 
         if pd.isna(correlation):
-            if verbose:
-                print(
-                    color_text(
-                        "Unable to compute correlation (insufficient variance).",
-                        Fore.YELLOW,
-                    )
-                )
+            if verbose and log_warn:
+                log_warn("Unable to compute correlation (insufficient variance).")
             return None, {"samples": len(portfolio_return_series)}
 
         if verbose:
-            corr_color = (
-                Fore.GREEN
-                if abs(correlation) > 0.7
-                else (Fore.YELLOW if abs(correlation) > 0.4 else Fore.RED)
-            )
-            print(
-                f"  Portfolio Return vs {new_symbol}: {color_text(f'{correlation:>6.4f}', corr_color, Style.BRIGHT)}"
-            )
-            print(color_text(f"  Samples used: {len(portfolio_return_series)}", Fore.WHITE))
+            if log_data:
+                log_data(f"  Portfolio Return vs {new_symbol}: {correlation:>6.4f}")
+                log_data(f"  Samples used: {len(portfolio_return_series)}")
 
         return correlation, {"samples": len(portfolio_return_series)}

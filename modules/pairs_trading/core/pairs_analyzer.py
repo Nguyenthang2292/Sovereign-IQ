@@ -4,7 +4,6 @@ Pairs trading analyzer for identifying and validating pairs trading opportunitie
 
 import pandas as pd
 from typing import Dict, Optional, Tuple
-from colorama import Fore, Style
 
 try:
     from modules.config import (
@@ -28,8 +27,14 @@ try:
         PAIRS_TRADING_OLS_FIT_INTERCEPT,
         PAIRS_TRADING_KALMAN_DELTA,
         PAIRS_TRADING_KALMAN_OBS_COV,
+        PAIRS_TRADING_PAIR_COLUMNS,
     )
-    from modules.common.utils import color_text
+    from modules.common.utils import (
+        log_warn,
+        log_info,
+        log_success,
+        log_progress,
+    )
     from modules.common.ProgressBar import ProgressBar
 except ImportError:
     PAIRS_TRADING_MIN_SPREAD = 0.01
@@ -52,16 +57,8 @@ except ImportError:
     PAIRS_TRADING_OLS_FIT_INTERCEPT = True
     PAIRS_TRADING_KALMAN_DELTA = 1e-5
     PAIRS_TRADING_KALMAN_OBS_COV = 1.0
-    color_text = None
-    ProgressBar = None
-
-from modules.pairs_trading.pair_metrics_computer import PairMetricsComputer
-from modules.pairs_trading.opportunity_scorer import OpportunityScorer
-
-
-def _get_all_pair_columns() -> list:
-    """Get all column names for pair DataFrames."""
-    return [
+    PAIRS_TRADING_PAIR_COLUMNS = [
+        # Core pair information
         'long_symbol',
         'short_symbol',
         'long_score',
@@ -70,6 +67,7 @@ def _get_all_pair_columns() -> list:
         'correlation',
         'opportunity_score',
         'quantitative_score',
+        # OLS-based metrics
         'hedge_ratio',
         'adf_pvalue',
         'is_cointegrated',
@@ -83,15 +81,95 @@ def _get_all_pair_columns() -> list:
         'spread_sharpe',
         'max_drawdown',
         'calmar_ratio',
-        'johansen_trace_stat',
-        'johansen_critical_value',
-        'is_johansen_cointegrated',
-        'kalman_hedge_ratio',
         'classification_f1',
         'classification_precision',
         'classification_recall',
         'classification_accuracy',
+        # Johansen test (independent of hedge ratio method)
+        'johansen_trace_stat',
+        'johansen_critical_value',
+        'is_johansen_cointegrated',
+        # Kalman hedge ratio
+        'kalman_hedge_ratio',
+        # Kalman-based metrics
+        'kalman_half_life',
+        'kalman_mean_zscore',
+        'kalman_std_zscore',
+        'kalman_skewness',
+        'kalman_kurtosis',
+        'kalman_current_zscore',
+        'kalman_hurst_exponent',
+        'kalman_spread_sharpe',
+        'kalman_max_drawdown',
+        'kalman_calmar_ratio',
+        'kalman_classification_f1',
+        'kalman_classification_precision',
+        'kalman_classification_recall',
+        'kalman_classification_accuracy',
     ]
+    
+    # Fallback logging functions if modules.common.utils is not available
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
+    
+    def log_info(msg: str) -> None:
+        print(f"[INFO] {msg}")
+    
+    def log_success(msg: str) -> None:
+        print(f"[SUCCESS] {msg}")
+    
+    def log_progress(msg: str) -> None:
+        print(f"[PROGRESS] {msg}")
+    
+    ProgressBar = None
+
+from modules.pairs_trading.core.pair_metrics_computer import PairMetricsComputer
+from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
+
+
+def _get_all_pair_columns() -> list:
+    """
+    Get all column names for pair DataFrames.
+    
+    Returns column list from PAIRS_TRADING_PAIR_COLUMNS constant.
+    This includes core pair information (long_symbol, short_symbol, spread, etc.)
+    and all quantitative metrics from PairMetricsComputer.
+    """
+    try:
+        return PAIRS_TRADING_PAIR_COLUMNS.copy()
+    except NameError:
+        # Fallback if constant not imported
+        return [
+            'long_symbol',
+            'short_symbol',
+            'long_score',
+            'short_score',
+            'spread',
+            'correlation',
+            'opportunity_score',
+            'quantitative_score',
+            'hedge_ratio',
+            'adf_pvalue',
+            'is_cointegrated',
+            'half_life',
+            'mean_zscore',
+            'std_zscore',
+            'skewness',
+            'kurtosis',
+            'current_zscore',
+            'hurst_exponent',
+            'spread_sharpe',
+            'max_drawdown',
+            'calmar_ratio',
+            'johansen_trace_stat',
+            'johansen_critical_value',
+            'is_johansen_cointegrated',
+            'kalman_hedge_ratio',
+            'classification_f1',
+            'classification_precision',
+            'classification_recall',
+            'classification_accuracy',
+        ]
 
 
 class PairsTradingAnalyzer:
@@ -225,14 +303,10 @@ class PairsTradingAnalyzer:
             return None
 
         if "timestamp" not in df1.columns or "timestamp" not in df2.columns:
-            if color_text:
-                print(
-                    color_text(
-                        f"[WARNING] Missing timestamp column for {symbol1} or {symbol2}. "
-                        "Cannot align series reliably.",
-                        Fore.YELLOW,
-                    )
-                )
+            log_warn(
+                f"Missing timestamp column for {symbol1} or {symbol2}. "
+                "Cannot align series reliably."
+            )
             self._price_cache[cache_key] = None
             return None
 
@@ -366,32 +440,21 @@ class PairsTradingAnalyzer:
         
         if best_performers is None or best_performers.empty:
             if verbose:
-                print(
-                    color_text(
-                        "No best performers provided for pairs analysis.",
-                        Fore.YELLOW,
-                    ) if color_text else "No best performers provided for pairs analysis."
-                )
+                log_warn("No best performers provided for pairs analysis.")
             return empty_df
 
         if worst_performers is None or worst_performers.empty:
             if verbose:
-                print(
-                    color_text(
-                        "No worst performers provided for pairs analysis.",
-                        Fore.YELLOW,
-                    ) if color_text else "No worst performers provided for pairs analysis."
-                )
+                log_warn("No worst performers provided for pairs analysis.")
             return empty_df
 
         pairs = []
 
         if verbose:
-            msg = (
-                f"\nAnalyzing pairs: {len(worst_performers)} worst × {len(best_performers)} best = "
+            log_info(
+                f"Analyzing pairs: {len(worst_performers)} worst × {len(best_performers)} best = "
                 f"{len(worst_performers) * len(best_performers)} combinations..."
             )
-            print(color_text(msg, Fore.CYAN) if color_text else msg)
 
         progress = None
         total_combinations = len(worst_performers) * len(best_performers)
@@ -465,8 +528,7 @@ class PairsTradingAnalyzer:
 
         if not pairs:
             if verbose:
-                msg = "No pairs opportunities found."
-                print(color_text(msg, Fore.YELLOW) if color_text else msg)
+                log_warn("No pairs opportunities found.")
             return empty_df
 
         df_pairs = pd.DataFrame(pairs)
@@ -476,8 +538,7 @@ class PairsTradingAnalyzer:
         )
 
         if verbose:
-            msg = f"\nFound {len(df_pairs)} pairs opportunities."
-            print(color_text(msg, Fore.GREEN) if color_text else msg)
+            log_success(f"Found {len(df_pairs)} pairs opportunities.")
 
         return df_pairs
 
@@ -507,8 +568,7 @@ class PairsTradingAnalyzer:
             return pd.DataFrame(columns=_get_all_pair_columns())
 
         if verbose:
-            msg = f"\nValidating {len(pairs_df)} pairs..."
-            print(color_text(msg, Fore.CYAN) if color_text else msg)
+            log_progress(f"Validating {len(pairs_df)} pairs...")
 
         validated_pairs = []
 
@@ -609,8 +669,7 @@ class PairsTradingAnalyzer:
             if is_valid:
                 validated_pairs.append(row.to_dict())
             elif verbose:
-                msg = f"  Rejected {long_symbol} / {short_symbol}: {', '.join(validation_errors)}"
-                print(color_text(msg, Fore.YELLOW) if color_text else msg)
+                log_warn(f"Rejected {long_symbol} / {short_symbol}: {', '.join(validation_errors)}")
 
             if progress:
                 progress.update()
@@ -620,8 +679,7 @@ class PairsTradingAnalyzer:
 
         if not validated_pairs:
             if verbose:
-                msg = "No pairs passed validation."
-                print(color_text(msg, Fore.YELLOW) if color_text else msg)
+                log_warn("No pairs passed validation.")
             return pd.DataFrame(columns=_get_all_pair_columns())
 
         df_validated = pd.DataFrame(validated_pairs)
@@ -631,9 +689,6 @@ class PairsTradingAnalyzer:
         )
 
         if verbose:
-            msg = f"\n{len(df_validated)}/{len(pairs_df)} pairs passed validation."
-            print(
-                color_text(msg, Fore.GREEN, Style.BRIGHT) if color_text else msg
-            )
+            log_success(f"{len(df_validated)}/{len(pairs_df)} pairs passed validation.")
 
         return df_validated

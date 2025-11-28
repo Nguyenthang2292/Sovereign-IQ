@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from modules.pairs_trading import hedge_ratio
+from modules.pairs_trading.metrics import hedge_ratio
 
 
 def test_calculate_ols_hedge_ratio_recovers_linear_beta():

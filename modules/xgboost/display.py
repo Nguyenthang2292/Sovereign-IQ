@@ -6,15 +6,17 @@ from sklearn.metrics import classification_report, confusion_matrix
 from .utils import color_text
 from colorama import Fore, Style
 from modules.config import TARGET_LABELS
+from modules.common.utils import log_analysis, log_model, log_info
 
 
 def print_classification_report(y_true, y_pred, title="Classification Report"):
     """
     Prints a formatted classification report with color coding.
     """
-    print("\n" + color_text("=" * 60, Fore.CYAN, Style.BRIGHT))
-    print(color_text(title, Fore.CYAN, Style.BRIGHT))
-    print(color_text("=" * 60, Fore.CYAN, Style.BRIGHT))
+    print()
+    log_analysis("=" * 60)
+    log_analysis(title)
+    log_analysis("=" * 60)
 
     # Get classification report as string
     report = classification_report(
@@ -27,8 +29,8 @@ def print_classification_report(y_true, y_pred, title="Classification Report"):
 
     # Print confusion matrix
     cm = confusion_matrix(y_true, y_pred)
-    print(color_text("\nConfusion Matrix:", Fore.MAGENTA, Style.BRIGHT))
-    print(color_text("(Rows = True, Columns = Predicted)", Fore.WHITE))
+    log_model("Confusion Matrix:")
+    log_info("(Rows = True, Columns = Predicted)")
     print(" " * 12, end="")
     for label in TARGET_LABELS:
         print(f"{label:>12}", end="")
@@ -47,4 +49,5 @@ def print_classification_report(y_true, y_pred, title="Classification Report"):
             print(color_text(f"{value:>12}", color), end="")
         print()
 
-    print(color_text("=" * 60, Fore.CYAN, Style.BRIGHT) + "\n")
+    log_analysis("=" * 60)
+    print()

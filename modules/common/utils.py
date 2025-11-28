@@ -3,14 +3,53 @@ Common utility functions for all algorithms.
 """
 
 import re
+import sys
+import io
+import os
 import pandas as pd
 from colorama import Fore, Style
 from modules.config import DEFAULT_QUOTE
 
+# ============================================================================
+# SYSTEM UTILITIES
+# ============================================================================
+
+def configure_windows_stdio() -> None:
+    """
+    Configure Windows stdio encoding for UTF-8 support.
+    
+    Only applies to interactive CLI runs, not during pytest.
+    This function fixes encoding issues on Windows by wrapping
+    stdout and stderr with UTF-8 encoding.
+    
+    Note:
+        - Only runs on Windows (win32 platform)
+        - Skips configuration during pytest runs
+        - Only configures if stdout/stderr have buffer attribute
+    """
+    if sys.platform != "win32":
+        return
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    if not hasattr(sys.stdout, "buffer") or isinstance(sys.stdout, io.TextIOWrapper):
+        return
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
+
+# ============================================================================
+# TIMEFRAME UTILITIES
+# ============================================================================
 
 def timeframe_to_minutes(timeframe: str) -> int:
     """
     Converts a timeframe string like '30m', '1h', '1d' into minutes.
+
+    Args:
+        timeframe: Timeframe string (e.g., '30m', '1h', '1d', '1w')
+
+    Returns:
+        Number of minutes
     """
     match = re.match(r"^\s*(\d+)\s*([mhdw])\s*$", timeframe.lower())
     if not match:
@@ -30,32 +69,9 @@ def timeframe_to_minutes(timeframe: str) -> int:
     return 60
 
 
-def color_text(text: str, color: str = Fore.WHITE, style: str = Style.NORMAL) -> str:
-    """
-    Applies color and style to text using colorama.
-    """
-    return f"{style}{color}{text}{Style.RESET_ALL}"
-
-
-def format_price(value: float) -> str:
-    """
-    Formats prices/indicators with adaptive precision so tiny values remain readable.
-    """
-    if value is None or pd.isna(value):
-        return "N/A"
-
-    abs_val = abs(value)
-    if abs_val >= 1:
-        precision = 2
-    elif abs_val >= 0.01:
-        precision = 4
-    elif abs_val >= 0.0001:
-        precision = 6
-    else:
-        precision = 8
-
-    return f"{value:.{precision}f}"
-
+# ============================================================================
+# SYMBOL NORMALIZATION UTILITIES
+# ============================================================================
 
 def normalize_symbol(user_input: str, quote: str = DEFAULT_QUOTE) -> str:
     """
@@ -84,11 +100,66 @@ def normalize_symbol(user_input: str, quote: str = DEFAULT_QUOTE) -> str:
 def normalize_symbol_key(symbol: str) -> str:
     """
     Generates a compare-friendly key by uppercasing and stripping separators.
+
+    Args:
+        symbol: Symbol string (e.g., 'BTC/USDT', 'ETH-USDT')
+
+    Returns:
+        Normalized key string (e.g., 'BTCUSDT', 'ETHUSDT')
     """
     if not symbol:
         return ""
     return "".join(ch for ch in symbol.upper() if ch.isalnum())
 
+
+# ============================================================================
+# TEXT FORMATTING UTILITIES
+# ============================================================================
+
+def color_text(text: str, color: str = Fore.WHITE, style: str = Style.NORMAL) -> str:
+    """
+    Applies color and style to text using colorama.
+
+    Args:
+        text: Text to format
+        color: Colorama Fore color (default: Fore.WHITE)
+        style: Colorama Style (default: Style.NORMAL)
+
+    Returns:
+        Formatted text string with color and style codes
+    """
+    return f"{style}{color}{text}{Style.RESET_ALL}"
+
+
+def format_price(value: float) -> str:
+    """
+    Formats prices/indicators with adaptive precision so tiny values remain readable.
+
+    Args:
+        value: Numeric value to format
+
+    Returns:
+        Formatted price string with appropriate precision, or "N/A" if invalid
+    """
+    if value is None or pd.isna(value):
+        return "N/A"
+
+    abs_val = abs(value)
+    if abs_val >= 1:
+        precision = 2
+    elif abs_val >= 0.01:
+        precision = 4
+    elif abs_val >= 0.0001:
+        precision = 6
+    else:
+        precision = 8
+
+    return f"{value:.{precision}f}"
+
+
+# ============================================================================
+# LOGGING UTILITIES
+# ============================================================================
 
 def log_data(message: str) -> None:
     """Print [DATA] message with cyan color."""
@@ -100,8 +171,13 @@ def log_info(message: str) -> None:
     print(color_text(f"[INFO] {message}", Fore.BLUE))
 
 
+def log_success(message: str) -> None:
+    """Print [SUCCESS] message with green color."""
+    print(color_text(f"[SUCCESS] {message}", Fore.GREEN))
+
+
 def log_error(message: str) -> None:
-    """Print [ERROR] message with red color."""
+    """Print [ERROR] message with red color and bright style."""
     print(color_text(f"[ERROR] {message}", Fore.RED, Style.BRIGHT))
 
 
@@ -110,11 +186,31 @@ def log_warn(message: str) -> None:
     print(color_text(f"[WARN] {message}", Fore.YELLOW))
 
 
+def log_debug(message: str) -> None:
+    """Print [DEBUG] message with white color (dimmed)."""
+    print(color_text(f"[DEBUG] {message}", Fore.WHITE))
+
+
 def log_model(message: str) -> None:
     """Print [MODEL] message with magenta color."""
     print(color_text(f"[MODEL] {message}", Fore.MAGENTA))
 
 
 def log_analysis(message: str) -> None:
-    """Print [ANALYSIS] message with cyan color."""
-    print(color_text(f"[ANALYSIS] {message}", Fore.CYAN))
+    """Print [ANALYSIS] message with magenta color."""
+    print(color_text(f"[ANALYSIS] {message}", Fore.MAGENTA))
+
+
+def log_exchange(message: str) -> None:
+    """Print [EXCHANGE] message with cyan color (for exchange-related operations)."""
+    print(color_text(f"[EXCHANGE] {message}", Fore.CYAN))
+
+
+def log_system(message: str) -> None:
+    """Print [SYSTEM] message with white color (for system-level messages)."""
+    print(color_text(f"[SYSTEM] {message}", Fore.WHITE))
+
+
+def log_progress(message: str) -> None:
+    """Print [PROGRESS] message with yellow color (for progress updates)."""
+    print(color_text(f"[PROGRESS] {message}", Fore.YELLOW))

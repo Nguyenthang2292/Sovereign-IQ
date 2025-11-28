@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from modules.pairs_trading import risk_metrics
+from modules.pairs_trading.metrics import risk_metrics
 
 
 def test_calculate_spread_sharpe_matches_manual_computation():

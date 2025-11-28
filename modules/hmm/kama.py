@@ -65,7 +65,7 @@ def prepare_observations(
     if close_prices.isna().any():  # type: ignore
         close_prices = close_prices.fillna(close_prices.median())
 
-    # Normalize prices to 0-100 scale for consistency
+    # Normalize prices to 0-1000 scale for consistency (UPDATED)
     price_range = close_prices.max() - close_prices.min()
     unique_prices = close_prices.nunique()
 
@@ -120,18 +120,17 @@ def prepare_observations(
     # Feature 1: Returns (Stationary)
     returns = np.diff(close_prices_array, prepend=close_prices_array[0])
     if np.std(returns) < 1e-10:
-        log_data("Returns have zero variance. Returning None (Neutral).")
+        log_warn("Returns have zero variance. Returning None (Neutral).")
         return None
 
     # Feature 2: Price Deviation from KAMA (Stationary-ish)
-    # Refactor: work with deviations instead of raw KAMA values for stability.
     kama_deviation = close_prices_array - kama_values
 
     # Feature 3: Volatility (Stationary)
     # Using change in KAMA as a proxy for trend strength/volatility
     volatility = np.abs(np.diff(np.array(kama_values), prepend=kama_values[0]))
     if np.std(volatility) < 1e-10:
-        log_data("Volatility has zero variance. Returning None (Neutral).")
+        log_warn("Volatility has zero variance. Returning None (Neutral).")
         return None
 
     rolling_vol = (

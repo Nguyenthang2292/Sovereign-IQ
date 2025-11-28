@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from modules.pairs_trading import statistical_tests
+from modules.pairs_trading.metrics import statistical_tests
 
 
 def test_calculate_adf_test_uses_stub(monkeypatch):
