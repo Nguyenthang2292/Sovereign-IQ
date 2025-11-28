@@ -5,10 +5,10 @@ This package provides formatted display functions for showing performance data
 and pairs trading opportunities in user-friendly table formats.
 """
 
-from modules.pairs_trading.cli.formatters.performance_formatter import (
+from modules.pairs_trading.cli.display.display_performers import (
     display_performers,
 )
-from modules.pairs_trading.cli.formatters.pairs_formatter import (
+from modules.pairs_trading.cli.display.display_pairs_opportunities import (
     display_pairs_opportunities,
 )
 

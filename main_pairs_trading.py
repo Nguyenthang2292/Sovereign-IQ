@@ -20,6 +20,7 @@ from colorama import Fore, init as colorama_init
 
 from modules.config import (
     PAIRS_TRADING_OPPORTUNITY_PRESETS,
+    PAIRS_TRADING_HURST_THRESHOLD,
 )
 from modules.common.utils import (
     color_text,
@@ -73,6 +74,8 @@ def main() -> None:
     """
 
     args = parse_args()
+    strategy = getattr(args, "strategy", "reversion")
+    args.strategy = strategy
 
     if not args.no_menu:
         menu_result = prompt_interactive_mode()
@@ -83,6 +86,36 @@ def main() -> None:
         if not args.weights:
             args.weight_preset = prompt_weight_preset_selection(args.weight_preset)
         args.opportunity_preset = prompt_opportunity_preset_selection(args.opportunity_preset)
+        
+        # Strategy selection
+        print()
+        print(color_text("=" * 60, Fore.CYAN))
+        print(color_text("STRATEGY SELECTION", Fore.CYAN))
+        print(color_text("=" * 60, Fore.CYAN))
+        print(color_text("1. Mean Reversion", Fore.GREEN) + " - Long weak, Short strong (expect convergence)")
+        print(color_text("2. Momentum", Fore.MAGENTA) + " - Long strong, Short weak (trend continuation)")
+        print()
+        
+        current_strategy_num = "2" if strategy == "momentum" else "1"
+        strategy_input = input(
+            color_text(
+                f"Select strategy [1/2] (default {current_strategy_num}): ",
+                Fore.YELLOW,
+            )
+        ).strip()
+        
+        if strategy_input == "2":
+            args.strategy = "momentum"
+            strategy = "momentum"
+            print(color_text("✓ Momentum strategy selected", Fore.MAGENTA))
+        elif strategy_input == "1":
+            args.strategy = "reversion"
+            strategy = "reversion"
+            print(color_text("✓ Mean Reversion strategy selected", Fore.GREEN))
+        else:
+            # Keep current/default
+            print(color_text(f"✓ Using {strategy.capitalize()} strategy", Fore.CYAN))
+        
         # Kalman preset selection
         args.kalman_delta, args.kalman_obs_cov, args.kalman_preset = prompt_kalman_preset_selection(
             args.kalman_delta,
@@ -125,6 +158,7 @@ def main() -> None:
     if log_data:
         log_data(f"  Target pairs: {args.pairs_count}")
         log_data(f"  Candidate depth per side: {args.candidate_depth}")
+        log_data(f"  Strategy: {strategy.capitalize()}")
         log_data(f"  Weight preset: {args.weight_preset}")
         log_data(f"  Weights: 1d={weights['1d']:.2f}, 3d={weights['3d']:.2f}, 1w={weights['1w']:.2f}")
         log_data(f"  Opportunity preset: {args.opportunity_preset}")
@@ -149,18 +183,36 @@ def main() -> None:
         args.opportunity_preset,
         PAIRS_TRADING_OPPORTUNITY_PRESETS.get("balanced", {}),
     )
+
+    # Adjust validation thresholds for Momentum strategy
+    max_half_life = args.max_half_life
+    hurst_threshold = PAIRS_TRADING_HURST_THRESHOLD
+
+    if strategy == "momentum":
+        # Momentum pairs should be trending (Hurst > 0.5), so we disable the mean-reversion check
+        hurst_threshold = 1.0 
+        # Momentum pairs don't need to revert, so half-life is irrelevant (or should be long)
+        max_half_life = float('inf')
+        
+        if getattr(args, "require_cointegration", False):
+            if log_warn:
+                log_warn("Momentum strategy bỏ qua kiểm tra cointegration nghiêm ngặt. Tự động tắt --require-cointegration.")
+            args.require_cointegration = False
+
     pairs_analyzer = PairsTradingAnalyzer(
         min_spread=args.min_spread,
         max_spread=args.max_spread,
         min_correlation=args.min_correlation,
         max_correlation=args.max_correlation,
         require_cointegration=args.require_cointegration,
-        max_half_life=args.max_half_life,
+        max_half_life=max_half_life,
+        hurst_threshold=hurst_threshold,
         min_quantitative_score=args.min_quantitative_score,
         ols_fit_intercept=args.ols_fit_intercept,
         kalman_delta=args.kalman_delta,
         kalman_obs_cov=args.kalman_obs_cov,
         scoring_multipliers=opportunity_profile,
+        strategy=strategy,
     )
 
     # Step 1: Get list of futures symbols
@@ -253,15 +305,26 @@ def main() -> None:
             performance_df, best_performers, worst_performers, target_symbols
         )
 
-    display_performers(best_performers, "SHORT CANDIDATES (Strong performers)", Fore.RED)
-    display_performers(worst_performers, "LONG CANDIDATES (Weak performers)", Fore.GREEN)
+    long_candidates = worst_performers
+    short_candidates = best_performers
+    long_title = "LONG CANDIDATES (Weak performers)"
+    short_title = "SHORT CANDIDATES (Strong performers)"
+
+    if strategy == "momentum":
+        long_candidates = best_performers
+        short_candidates = worst_performers
+        long_title = "LONG CANDIDATES (Momentum leaders)"
+        short_title = "SHORT CANDIDATES (Lagging performers)"
+
+    display_performers(short_candidates, short_title, Fore.RED)
+    display_performers(long_candidates, long_title, Fore.GREEN)
 
     # Step 4: Analyze pairs trading opportunities
     if log_progress:
         log_progress("[4/4] Analyzing pairs trading opportunities...")
     try:
         pairs_df = pairs_analyzer.analyze_pairs_opportunity(
-            best_performers, worst_performers, data_fetcher=data_fetcher, verbose=True
+            short_candidates, long_candidates, data_fetcher=data_fetcher, verbose=True
         )
 
         if pairs_df.empty:
@@ -336,8 +399,8 @@ def main() -> None:
             log_analysis("=" * 80)
         if log_data:
             log_data(f"Total symbols analyzed: {len(performance_df)}")
-            log_data(f"Short candidates considered: {len(best_performers)}")
-            log_data(f"Long candidates considered: {len(worst_performers)}")
+            log_data(f"Short candidates considered: {len(short_candidates)}")
+            log_data(f"Long candidates considered: {len(long_candidates)}")
             log_data(f"Valid pairs available: {len(pairs_df)}")
             log_data(f"Selected tradeable pairs: {len(selected_pairs)}")
         if not selected_pairs.empty:
@@ -361,22 +424,87 @@ def main() -> None:
                 if log_data:
                     log_data(f"  Average quantitative score: {avg_quant_score:.1f}/100")
             
-            # Cointegration rate
-            is_cointegrated_col = selected_pairs.get("is_cointegrated")
-            if is_cointegrated_col is not None:
-                cointegrated_count = is_cointegrated_col.fillna(False).sum()
-                cointegration_rate = (cointegrated_count / len(selected_pairs)) * 100
-                if log_data:
-                    log_data(f"  Cointegration rate: {cointegration_rate:.1f}% ({cointegrated_count}/{len(selected_pairs)})")
+            # Strategy-specific metrics
+            if strategy == "momentum":
+                # Momentum-specific statistics
+                if log_analysis:
+                    log_analysis("Momentum Metrics:")
+                
+                # ADX statistics
+                if "long_adx" in selected_pairs.columns and "short_adx" in selected_pairs.columns:
+                    long_adx_values = selected_pairs["long_adx"].dropna()
+                    short_adx_values = selected_pairs["short_adx"].dropna()
+                    
+                    if not long_adx_values.empty and not short_adx_values.empty:
+                        avg_long_adx = long_adx_values.mean()
+                        avg_short_adx = short_adx_values.mean()
+                        avg_combined_adx = (avg_long_adx + avg_short_adx) / 2
+                        
+                        # Count strong trends (ADX >= 25)
+                        strong_long = (long_adx_values >= 25).sum()
+                        strong_short = (short_adx_values >= 25).sum()
+                        both_strong = ((selected_pairs["long_adx"] >= 25) & (selected_pairs["short_adx"] >= 25)).sum()
+                        
+                        if log_data:
+                            log_data(f"  Average Long ADX: {avg_long_adx:.2f}")
+                            log_data(f"  Average Short ADX: {avg_short_adx:.2f}")
+                            log_data(f"  Average Combined ADX: {avg_combined_adx:.2f}")
+                            log_data(f"  Strong trends (ADX≥25): {both_strong}/{len(selected_pairs)} pairs ({both_strong/len(selected_pairs)*100:.1f}%)")
+                
+                # Hurst exponent statistics (should be > 0.5 for momentum)
+                hurst_values = selected_pairs.get("hurst_exponent").dropna() if "hurst_exponent" in selected_pairs.columns else pd.Series()
+                if not hurst_values.empty:
+                    avg_hurst = hurst_values.mean()
+                    trending_count = (hurst_values > 0.5).sum()
+                    trending_pct = (trending_count / len(hurst_values)) * 100
+                    strong_trending = (hurst_values > 0.6).sum()
+                    strong_trending_pct = (strong_trending / len(hurst_values)) * 100
+                    
+                    if log_data:
+                        log_data(f"  Average Hurst exponent: {avg_hurst:.3f}")
+                        log_data(f"  Trending pairs (H>0.5): {trending_count}/{len(hurst_values)} ({trending_pct:.1f}%)")
+                        log_data(f"  Strong trending (H>0.6): {strong_trending}/{len(hurst_values)} ({strong_trending_pct:.1f}%)")
+                
+                # Z-Score divergence statistics
+                zscore_values = selected_pairs.get("current_zscore").dropna() if "current_zscore" in selected_pairs.columns else pd.Series()
+                if not zscore_values.empty:
+                    avg_abs_zscore = zscore_values.abs().mean()
+                    high_divergence = (zscore_values.abs() > 1.0).sum()
+                    very_high_divergence = (zscore_values.abs() > 2.0).sum()
+                    
+                    if log_data:
+                        log_data(f"  Average |Z-Score|: {avg_abs_zscore:.2f}")
+                        log_data(f"  High divergence (|Z|>1): {high_divergence}/{len(zscore_values)} ({high_divergence/len(zscore_values)*100:.1f}%)")
+                        log_data(f"  Very high divergence (|Z|>2): {very_high_divergence}/{len(zscore_values)} ({very_high_divergence/len(zscore_values)*100:.1f}%)")
             
-            # Average half-life
-            half_lives = selected_pairs.get("half_life").dropna() if "half_life" in selected_pairs.columns else pd.Series()
-            if not half_lives.empty:
-                avg_half_life = half_lives.mean()
-                if log_data:
-                    log_data(f"  Average half-life: {avg_half_life:.1f} periods")
+            else:
+                # Mean Reversion-specific statistics
+                # Cointegration rate
+                is_cointegrated_col = selected_pairs.get("is_cointegrated")
+                if is_cointegrated_col is not None:
+                    cointegrated_count = is_cointegrated_col.fillna(False).sum()
+                    cointegration_rate = (cointegrated_count / len(selected_pairs)) * 100
+                    if log_data:
+                        log_data(f"  Cointegration rate: {cointegration_rate:.1f}% ({cointegrated_count}/{len(selected_pairs)})")
+                
+                # Average half-life
+                half_lives = selected_pairs.get("half_life").dropna() if "half_life" in selected_pairs.columns else pd.Series()
+                if not half_lives.empty:
+                    avg_half_life = half_lives.mean()
+                    if log_data:
+                        log_data(f"  Average half-life: {avg_half_life:.1f} periods")
+                
+                # Hurst exponent (should be < 0.5 for mean reversion)
+                hurst_values = selected_pairs.get("hurst_exponent").dropna() if "hurst_exponent" in selected_pairs.columns else pd.Series()
+                if not hurst_values.empty:
+                    avg_hurst = hurst_values.mean()
+                    mean_reverting = (hurst_values < 0.5).sum()
+                    mean_reverting_pct = (mean_reverting / len(hurst_values)) * 100
+                    if log_data:
+                        log_data(f"  Average Hurst exponent: {avg_hurst:.3f}")
+                        log_data(f"  Mean-reverting pairs (H<0.5): {mean_reverting}/{len(hurst_values)} ({mean_reverting_pct:.1f}%)")
             
-            # Average Sharpe ratio
+            # Shared metrics (both strategies)
             sharpe_ratios = selected_pairs.get("spread_sharpe").dropna() if "spread_sharpe" in selected_pairs.columns else pd.Series()
             if not sharpe_ratios.empty:
                 avg_sharpe = sharpe_ratios.mean()

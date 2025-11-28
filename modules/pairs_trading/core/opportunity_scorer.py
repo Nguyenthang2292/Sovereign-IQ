@@ -15,6 +15,7 @@ try:
         PAIRS_TRADING_MIN_CALMAR,
         PAIRS_TRADING_OPPORTUNITY_PRESETS,
         PAIRS_TRADING_QUANTITATIVE_SCORE_WEIGHTS,
+        PAIRS_TRADING_MOMENTUM_FILTERS,
     )
 except ImportError:
     PAIRS_TRADING_ADF_PVALUE_THRESHOLD = 0.05
@@ -75,6 +76,17 @@ except ImportError:
         "calmar_good_threshold": 0.5,
         "max_score": 100.0,
     }
+    PAIRS_TRADING_MOMENTUM_FILTERS = {
+        "min_adx": 18.0,
+        "strong_adx": 25.0,
+        "adx_base_bonus": 1.03,
+        "adx_strong_bonus": 1.08,
+        "low_corr_threshold": 0.30,
+        "high_corr_threshold": 0.75,
+        "low_corr_bonus": 1.05,
+        "negative_corr_bonus": 1.10,
+        "high_corr_penalty": 0.90,
+    }
 
 
 class OpportunityScorer:
@@ -91,6 +103,7 @@ class OpportunityScorer:
         max_drawdown_threshold: float = PAIRS_TRADING_MAX_DRAWDOWN,
         min_calmar: float = PAIRS_TRADING_MIN_CALMAR,
         scoring_multipliers: Optional[Dict[str, float]] = None,
+        strategy: str = "reversion",
     ):
         """
         Initialize OpportunityScorer.
@@ -104,6 +117,7 @@ class OpportunityScorer:
             min_spread_sharpe: Minimum Sharpe ratio threshold
             max_drawdown_threshold: Maximum drawdown threshold
             min_calmar: Minimum Calmar ratio threshold
+            strategy: Trading strategy ('reversion' or 'momentum')
         """
         self.min_correlation = min_correlation
         self.max_correlation = max_correlation
@@ -113,11 +127,13 @@ class OpportunityScorer:
         self.min_spread_sharpe = min_spread_sharpe
         self.max_drawdown_threshold = max_drawdown_threshold
         self.min_calmar = min_calmar
+        self.strategy = strategy
         default_profile = PAIRS_TRADING_OPPORTUNITY_PRESETS.get("balanced", {})
         self.scoring = {**default_profile, **(scoring_multipliers or {})}
         self.quant_weights = PAIRS_TRADING_QUANTITATIVE_SCORE_WEIGHTS.copy()
         # Strategy: 'ols', 'kalman', 'best' (use best of both), 'avg' (average of both)
         self.hedge_ratio_strategy = self.scoring.get("hedge_ratio_strategy", "best")
+        self.momentum_filters = PAIRS_TRADING_MOMENTUM_FILTERS.copy()
 
     def _get_metric(
         self, 
@@ -203,69 +219,174 @@ class OpportunityScorer:
         sc = self.scoring
 
         if correlation is not None:
-            abs_corr = abs(correlation)
-            if self.min_correlation <= abs_corr <= self.max_correlation:
-                # Bonus for good correlation range
-                opportunity_score *= sc.get("corr_good_bonus", 1.2)
-            elif abs_corr < self.min_correlation:
-                # Penalty for low correlation (may not move together)
-                opportunity_score *= sc.get("corr_low_penalty", 0.8)
-            elif abs_corr > self.max_correlation:
-                # Penalty for over-correlation (may move together too much)
-                opportunity_score *= sc.get("corr_high_penalty", 0.9)
+            if self.strategy == "momentum":
+                opportunity_score = self._apply_momentum_correlation(
+                    opportunity_score, correlation
+                )
+            else:
+                abs_corr = abs(correlation)
+                if self.min_correlation <= abs_corr <= self.max_correlation:
+                    opportunity_score *= sc.get("corr_good_bonus", 1.2)
+                elif abs_corr < self.min_correlation:
+                    opportunity_score *= sc.get("corr_low_penalty", 0.8)
+                elif abs_corr > self.max_correlation:
+                    opportunity_score *= sc.get("corr_high_penalty", 0.9)
 
-        # Boost score if cointegrated and half-life within acceptable range
-        if quant_metrics.get("is_cointegrated"):
-            opportunity_score *= sc.get("cointegration_bonus", 1.15)
-        elif quant_metrics.get("adf_pvalue") is not None and quant_metrics["adf_pvalue"] < (
-            self.adf_pvalue_threshold * 1.5
-        ):
-            opportunity_score *= sc.get("weak_cointegration_bonus", 1.05)
+        if self.strategy == "momentum":
+            # --- MOMENTUM SCORING LOGIC ---
+            
+            # 1. Hurst Exponent: Reward trending behavior (Hurst > 0.5)
+            hurst = self._get_metric(quant_metrics, "hurst_exponent", "kalman_hurst_exponent")
+            if hurst is not None:
+                if hurst > 0.5:
+                    opportunity_score *= sc.get("hurst_good_bonus", 1.08)
+            
+            # 2. Z-Score: Reward divergence (High absolute Z-score) with capped bonus
+            current_z = self._get_metric(quant_metrics, "current_zscore", "kalman_current_zscore")
+            if current_z is not None and not np.isnan(current_z):
+                abs_z = abs(current_z)
+                if abs_z > 2.0:
+                    opportunity_score *= 1.15
+                elif abs_z > 1.0:
+                    opportunity_score *= 1.08
 
-        # Use Kalman metrics when available (integrated with OLS)
-        half_life = self._get_metric(quant_metrics, "half_life", "kalman_half_life")
-        if half_life is not None and half_life <= self.max_half_life:
-            opportunity_score *= sc.get("half_life_bonus", 1.1)
+            # 3. ADX filter: require both legs to trend strongly
+            long_adx = quant_metrics.get("long_adx")
+            short_adx = quant_metrics.get("short_adx")
+            opportunity_score = self._apply_momentum_adx_filter(
+                opportunity_score, long_adx, short_adx
+            )
+            if opportunity_score == 0:
+                return 0.0
 
-        current_z = self._get_metric(quant_metrics, "current_zscore", "kalman_current_zscore")
-        if current_z is not None and not np.isnan(current_z):
-            z_div = sc.get("zscore_divisor", 5.0)
-            z_cap = sc.get("zscore_cap", 0.2)
-            opportunity_score *= 1 + min(abs(current_z) / max(z_div, 1e-6), z_cap)
+            # 4. Cointegration penalty (momentum prefers divergence)
+            if quant_metrics.get("is_cointegrated") or quant_metrics.get("is_johansen_cointegrated"):
+                opportunity_score *= sc.get("momentum_cointegration_penalty", 0.95)
+            
+        else:
+            # --- MEAN REVERSION SCORING LOGIC (Original) ---
 
-        hurst = self._get_metric(quant_metrics, "hurst_exponent", "kalman_hurst_exponent")
-        if hurst is not None:
-            if hurst <= self.hurst_threshold:
-                opportunity_score *= sc.get("hurst_good_bonus", 1.08)
-            elif hurst < sc.get("hurst_ok_threshold", 0.6):
-                opportunity_score *= sc.get("hurst_ok_bonus", 1.02)
+            # Boost score if cointegrated and half-life within acceptable range
+            if quant_metrics.get("is_cointegrated"):
+                opportunity_score *= sc.get("cointegration_bonus", 1.15)
+            elif quant_metrics.get("adf_pvalue") is not None and quant_metrics["adf_pvalue"] < (
+                self.adf_pvalue_threshold * 1.5
+            ):
+                opportunity_score *= sc.get("weak_cointegration_bonus", 1.05)
 
-        sharpe = self._get_metric(quant_metrics, "spread_sharpe", "kalman_spread_sharpe")
-        if sharpe is not None:
-            if sharpe >= self.min_spread_sharpe:
-                opportunity_score *= sc.get("sharpe_good_bonus", 1.08)
-            elif sharpe >= self.min_spread_sharpe / 2:
-                opportunity_score *= sc.get("sharpe_ok_bonus", 1.03)
+            # Use Kalman metrics when available (integrated with OLS)
+            half_life = self._get_metric(quant_metrics, "half_life", "kalman_half_life")
+            if half_life is not None and half_life <= self.max_half_life:
+                opportunity_score *= sc.get("half_life_bonus", 1.1)
 
-        max_dd = self._get_metric(quant_metrics, "max_drawdown", "kalman_max_drawdown")
-        if max_dd is not None and abs(max_dd) <= self.max_drawdown_threshold:
-            opportunity_score *= sc.get("maxdd_bonus", 1.05)
+            current_z = self._get_metric(quant_metrics, "current_zscore", "kalman_current_zscore")
+            if current_z is not None and not np.isnan(current_z):
+                z_div = sc.get("zscore_divisor", 5.0)
+                z_cap = sc.get("zscore_cap", 0.2)
+                opportunity_score *= 1 + min(abs(current_z) / max(z_div, 1e-6), z_cap)
 
-        calmar = self._get_metric(quant_metrics, "calmar_ratio", "kalman_calmar_ratio")
-        if calmar is not None and calmar >= self.min_calmar:
-            opportunity_score *= sc.get("calmar_bonus", 1.05)
+            hurst = self._get_metric(quant_metrics, "hurst_exponent", "kalman_hurst_exponent")
+            if hurst is not None:
+                if hurst <= self.hurst_threshold:
+                    opportunity_score *= sc.get("hurst_good_bonus", 1.08)
+                elif hurst < sc.get("hurst_ok_threshold", 0.6):
+                    opportunity_score *= sc.get("hurst_ok_bonus", 1.02)
 
-        if quant_metrics.get("is_johansen_cointegrated"):
-            opportunity_score *= sc.get("johansen_bonus", 1.08)
+        if self.strategy == "momentum":
+            opportunity_score = self._apply_momentum_risk_adjustments(
+                opportunity_score, quant_metrics
+            )
+        else:
+            sharpe = self._get_metric(quant_metrics, "spread_sharpe", "kalman_spread_sharpe")
+            if sharpe is not None:
+                if sharpe >= self.min_spread_sharpe:
+                    opportunity_score *= sc.get("sharpe_good_bonus", 1.08)
+                elif sharpe >= self.min_spread_sharpe / 2:
+                    opportunity_score *= sc.get("sharpe_ok_bonus", 1.03)
 
-        f1_metric = self._get_metric(quant_metrics, "classification_f1", "kalman_classification_f1")
-        if f1_metric is not None:
-            if f1_metric >= 0.7:
-                opportunity_score *= sc.get("f1_high_bonus", 1.05)
-            elif f1_metric >= 0.6:
-                opportunity_score *= sc.get("f1_mid_bonus", 1.02)
+            max_dd = self._get_metric(quant_metrics, "max_drawdown", "kalman_max_drawdown")
+            if max_dd is not None and abs(max_dd) <= self.max_drawdown_threshold:
+                opportunity_score *= sc.get("maxdd_bonus", 1.05)
+
+            calmar = self._get_metric(quant_metrics, "calmar_ratio", "kalman_calmar_ratio")
+            if calmar is not None and calmar >= self.min_calmar:
+                opportunity_score *= sc.get("calmar_bonus", 1.05)
+
+            if quant_metrics.get("is_johansen_cointegrated"):
+                opportunity_score *= sc.get("johansen_bonus", 1.08)
+
+            f1_metric = self._get_metric(quant_metrics, "classification_f1", "kalman_classification_f1")
+            if f1_metric is not None:
+                if f1_metric >= 0.7:
+                    opportunity_score *= sc.get("f1_high_bonus", 1.05)
+                elif f1_metric >= 0.6:
+                    opportunity_score *= sc.get("f1_mid_bonus", 1.02)
 
         return float(opportunity_score)
+
+    def _apply_momentum_correlation(self, score: float, correlation: float) -> float:
+        """
+        Adjust score for momentum strategy based on correlation characteristics.
+        """
+        mf = self.momentum_filters
+        abs_corr = abs(correlation)
+
+        if correlation < 0:
+            score *= mf.get("negative_corr_bonus", 1.0)
+        elif abs_corr < mf.get("low_corr_threshold", 0.3):
+            score *= mf.get("low_corr_bonus", 1.0)
+        elif abs_corr > mf.get("high_corr_threshold", 0.75):
+            score *= mf.get("high_corr_penalty", 1.0)
+
+        return score
+
+    def _apply_momentum_adx_filter(
+        self,
+        score: float,
+        long_adx: Optional[float],
+        short_adx: Optional[float],
+    ) -> float:
+        """
+        Require both legs to have sufficient ADX strength for momentum setups.
+        """
+        if long_adx is None or short_adx is None:
+            return score
+
+        mf = self.momentum_filters
+        min_adx = mf.get("min_adx", 18.0)
+        strong_adx = mf.get("strong_adx", 25.0)
+
+        if long_adx < min_adx or short_adx < min_adx:
+            return 0.0
+
+        score *= mf.get("adx_base_bonus", 1.0)
+
+        if long_adx >= strong_adx and short_adx >= strong_adx:
+            score *= mf.get("adx_strong_bonus", 1.0)
+
+        return score
+
+    def _apply_momentum_risk_adjustments(
+        self,
+        score: float,
+        quant_metrics: Dict[str, Optional[float]],
+    ) -> float:
+        """
+        Apply lightweight risk checks for momentum strategy.
+        """
+        sharpe = self._get_metric(quant_metrics, "spread_sharpe", "kalman_spread_sharpe")
+        if sharpe is not None and sharpe < (self.min_spread_sharpe / 2):
+            score *= self.scoring.get("momentum_low_sharpe_penalty", 0.97)
+
+        max_dd = self._get_metric(quant_metrics, "max_drawdown", "kalman_max_drawdown")
+        if max_dd is not None and abs(max_dd) > self.max_drawdown_threshold * 1.5:
+            score *= self.scoring.get("momentum_maxdd_penalty", 0.97)
+
+        calmar = self._get_metric(quant_metrics, "calmar_ratio", "kalman_calmar_ratio")
+        if calmar is not None and calmar < max(self.min_calmar / 2, 0.1):
+            score *= self.scoring.get("momentum_calmar_penalty", 0.98)
+
+        return score
 
     def calculate_quantitative_score(
         self, quant_metrics: Optional[Dict[str, Optional[float]]] = None
@@ -371,6 +492,17 @@ class OpportunityScorer:
                 score += w.get("calmar_excellent_weight", 5.0)
             elif calmar_ratio >= good_threshold:
                 score += w.get("calmar_good_weight", 2.5)
+
+        # Momentum-specific ADX contribution
+        if self.strategy == "momentum":
+            long_adx = quant_metrics.get("long_adx")
+            short_adx = quant_metrics.get("short_adx")
+            if long_adx is not None and short_adx is not None:
+                avg_adx = (long_adx + short_adx) / 2.0
+                if avg_adx >= self.momentum_filters.get("strong_adx", 25.0):
+                    score += w.get("momentum_adx_strong_weight", 10.0)
+                elif avg_adx >= self.momentum_filters.get("min_adx", 18.0):
+                    score += w.get("momentum_adx_moderate_weight", 5.0)
 
         max_score = w.get("max_score", 100.0)
         return min(max_score, score)

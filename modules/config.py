@@ -483,8 +483,26 @@ PAIRS_TRADING_QUANTITATIVE_SCORE_WEIGHTS = {
     "calmar_excellent_threshold": 1.0,  # Excellent threshold
     "calmar_good_threshold": 0.5,  # Good threshold
     
+    # Momentum extensions
+    "momentum_adx_strong_weight": 10.0,
+    "momentum_adx_moderate_weight": 5.0,
+
     # Maximum score cap
     "max_score": 100.0,  # Maximum quantitative score (capped at 100)
+}
+
+# Momentum-specific filters and thresholds
+PAIRS_TRADING_ADX_PERIOD = 14
+PAIRS_TRADING_MOMENTUM_FILTERS = {
+    "min_adx": 18.0,            # Minimum ADX required to consider a leg trending
+    "strong_adx": 25.0,         # Strong trend confirmation threshold
+    "adx_base_bonus": 1.03,     # Bonus when both legs pass min_adx
+    "adx_strong_bonus": 1.08,   # Bonus when both legs exceed strong_adx
+    "low_corr_threshold": 0.30, # Prefer divergence / low correlation
+    "high_corr_threshold": 0.75,# Penalize highly correlated legs
+    "low_corr_bonus": 1.05,     # Bonus if |corr| below low_corr_threshold
+    "negative_corr_bonus": 1.10,# Bonus if correlation is negative
+    "high_corr_penalty": 0.90,  # Penalty if |corr| above high_corr_threshold
 }
 
 # Performance Analysis Settings

@@ -26,16 +26,15 @@ pairs_trading/
 │
 ├── utils/                  # Business logic utilities
 │   ├── pairs_selector.py           # Pair selection algorithms
-│   ├── reverse_pairs.py                # Reverse pairs by swapping long/short positions
 │   └── ensure_symbols_in_pools.py  # Candidate pool management
 │
 └── cli/                    # Command-line interface
     ├── argument_parser.py         # CLI argument parsing
     ├── interactive_prompts.py     # Interactive user prompts
     ├── input_parsers.py           # Input validation and parsing
-    └── formatters/                # Display formatters
-        ├── performance_formatter.py
-        └── pairs_formatter.py
+    └── display/                   # Display utilities
+        ├── display_performers.py
+        └── display_pairs_opportunities.py
 ```
 
 ## Key Components
@@ -182,16 +181,6 @@ symbol_pairs = select_pairs_for_symbols(
 )
 ```
 
-#### Pair Transformation
-```python
-from modules.pairs_trading import reverse_pairs
-
-# Reverse long/short positions
-reversed_pairs = reverse_pairs(pairs_df)
-# Swaps long_symbol ↔ short_symbol
-# Inverts hedge_ratio = 1 / original_hedge_ratio
-```
-
 #### Candidate Pool Management
 ```python
 from modules.pairs_trading import ensure_symbols_in_candidate_pools
@@ -219,7 +208,7 @@ display_performers(best_df, "Top Performers", color=Fore.GREEN)
 display_performers(worst_df, "Worst Performers", color=Fore.RED)
 
 # Display pairs opportunities
-display_pairs_opportunities(pairs_df, max_display=10, show_reverse=True)
+display_pairs_opportunities(pairs_df, max_display=10)
 ```
 
 #### Argument Parsing

@@ -64,6 +64,13 @@ def parse_args():
         help="Number of top/bottom symbols to consider per side when forming pairs",
     )
     parser.add_argument(
+        "--strategy",
+        type=str,
+        choices=["reversion", "momentum"],
+        default="reversion",
+        help="Chọn chiến lược giao dịch: reversion (long yếu, short mạnh) hoặc momentum (long mạnh, short yếu).",
+    )
+    parser.add_argument(
         "--max-symbols",
         type=int,
         default=None,

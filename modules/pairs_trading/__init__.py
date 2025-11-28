@@ -42,7 +42,6 @@ from modules.pairs_trading.metrics import (
 from modules.pairs_trading.utils import (
     select_top_unique_pairs,
     select_pairs_for_symbols,
-    reverse_pairs,
     ensure_symbols_in_candidate_pools,
 )
 
@@ -89,7 +88,6 @@ __all__ = [
     # Utility functions
     'select_top_unique_pairs',
     'select_pairs_for_symbols',
-    'reverse_pairs',
     'ensure_symbols_in_candidate_pools',
     # Display functions
     'display_performers',

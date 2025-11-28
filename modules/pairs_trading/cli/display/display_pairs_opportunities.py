@@ -17,14 +17,12 @@ try:
         log_analysis,
         log_data,
     )
-    from modules.pairs_trading.utils import reverse_pairs
 except ImportError:
     color_text = None
     log_warn = print
     log_info = print
     log_analysis = print
     log_data = print
-    reverse_pairs = None
 
 
 def _pad_colored(text: str, width: int, color: str, style: Optional[str] = None) -> str:
@@ -158,9 +156,8 @@ def _format_pair_row(row: pd.Series, rank: int, use_border: bool = True) -> str:
 
 
 def display_pairs_opportunities(
-    pairs_df: pd.DataFrame, 
-    max_display: int = 10, 
-    show_reverse: bool = True
+    pairs_df: pd.DataFrame,
+    max_display: int = 10,
 ) -> None:
     """
     Display pairs trading opportunities in a formatted table.
@@ -184,7 +181,6 @@ def display_pairs_opportunities(
             - spread_sharpe: Spread Sharpe ratio (optional)
             - max_drawdown: Maximum drawdown (optional)
         max_display: Maximum number of pairs to display (default: 10)
-        show_reverse: If True, also display reversed version of pairs (default: True)
         
     Example:
         >>> pairs = pd.DataFrame({
@@ -251,40 +247,3 @@ def display_pairs_opportunities(
                 f"Use --max-pairs to see more."
             )
     
-    # Display reversed pairs if requested
-    if show_reverse and reverse_pairs is not None:
-        reversed_df = reverse_pairs(pairs_df)
-        if not reversed_df.empty:
-            if log_analysis:
-                log_analysis("=" * 150)
-                log_analysis("PAIRS TRADING OPPORTUNITIES (Reversed: Long↔Short)")
-                log_analysis("=" * 150)
-            
-            # Table header with borders
-            if log_data:
-                header = (
-                    f"│ {'Rank':<4} │ {'Long':<14} │ {'Short':<14} │ {'Spread':<9} │ {'Corr':<8} │ "
-                    f"{'OppScore':<10} │ {'QuantScore':<10} │ {'Coint':<6} │ {'HedgeRatio':<11} │ "
-                    f"{'HalfLife':<9} │ {'Sharpe':<9} │ {'MaxDD':<9} │"
-                )
-                separator = "├" + "─" * 6 + "┼" + "─" * 16 + "┼" + "─" * 16 + "┼" + "─" * 11 + "┼" + "─" * 10 + "┼" + "─" * 12 + "┼" + "─" * 12 + "┼" + "─" * 8 + "┼" + "─" * 13 + "┼" + "─" * 11 + "┼" + "─" * 11 + "┼" + "─" * 11 + "┤"
-                top_border = "┌" + "─" * 6 + "┬" + "─" * 16 + "┬" + "─" * 16 + "┬" + "─" * 11 + "┬" + "─" * 10 + "┬" + "─" * 12 + "┬" + "─" * 12 + "┬" + "─" * 8 + "┬" + "─" * 13 + "┬" + "─" * 11 + "┬" + "─" * 11 + "┬" + "─" * 11 + "┐"
-                bottom_border = "└" + "─" * 6 + "┴" + "─" * 16 + "┴" + "─" * 16 + "┴" + "─" * 11 + "┴" + "─" * 10 + "┴" + "─" * 12 + "┴" + "─" * 12 + "┴" + "─" * 8 + "┴" + "─" * 13 + "┴" + "─" * 11 + "┴" + "─" * 11 + "┴" + "─" * 11 + "┘"
-                
-                log_data(top_border)
-                log_data(header)
-                log_data(separator)
-            
-            display_count = min(len(reversed_df), max_display)
-            for idx in range(display_count):
-                row = reversed_df.iloc[idx]
-                rank = idx + 1
-                formatted_row = _format_pair_row(row, rank, use_border=True)
-                if log_data:
-                    log_data(formatted_row)
-            
-            if log_data:
-                log_data(bottom_border)
-            
-            if log_analysis:
-                log_analysis("")

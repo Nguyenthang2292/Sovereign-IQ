@@ -1,29 +1,27 @@
-# Crypto Probability / Dự Đoán Giá Cryptocurrency bằng AI
+# Crypto Probability
 
 A comprehensive cryptocurrency trading analysis system using Machine Learning, Deep Learning, and Quantitative Strategies.
 
-Hệ thống phân tích giao dịch tiền điện tử toàn diện sử dụng Machine Learning, Deep Learning và các Chiến Lược Định Lượng.
+## 🚀 Features
 
-## 🚀 Features / Tính Năng
+### Core Capabilities
 
-### Core Capabilities / Khả Năng Cốt Lõi
+- **Multi-Exchange Support**: Automatically fetches data from Binance, Kraken, KuCoin, Gate.io, OKX, Bybit, MEXC, Huobi with smart fallback.
+- **Advanced Indicators**: SMA, RSI, ATR, MACD, Bollinger Bands, Stochastic RSI, OBV, Candlestick Patterns, KAMA, plus custom indicators.
+- **Multiple ML Models**:
+    - XGBoost for directional prediction.
+    - Temporal Fusion Transformer (TFT) for deep learning forecasts.
+    - HMM-KAMA for state-based signal analysis.
+- **Pairs Trading**: Identify and analyze mean-reversion or momentum pairs with extensive quantitative metrics.
+- **Portfolio Management**: Risk calculation, correlation analysis, hedge finding.
 
--   **Multi-Exchange Support / Hỗ Trợ Đa Sàn**: Automatically fetches data from Binance, Kraken, KuCoin, Gate.io, OKX, Bybit, MEXC, Huobi with smart fallback / Tự động lấy dữ liệu từ nhiều sàn với cơ chế chuyển đổi thông minh
--   **Advanced Indicators / Chỉ Báo Nâng Cao**: SMA, RSI, ATR, MACD, Bollinger Bands, Stochastic RSI, OBV, Candlestick Patterns, KAMA / Sử dụng đầy đủ các chỉ báo kỹ thuật
--   **Multiple ML Models / Nhiều Mô Hình ML**:
-    - XGBoost for directional prediction / XGBoost cho dự đoán hướng
-    - Temporal Fusion Transformer (TFT) for deep learning predictions / TFT cho dự đoán deep learning
-    - HMM-KAMA for state-based analysis / HMM-KAMA cho phân tích trạng thái
--   **Pairs Trading / Giao Dịch Cặp**: Identify and analyze pairs trading opportunities with quantitative metrics / Xác định và phân tích cơ hội giao dịch cặp với các metrics định lượng
--   **Portfolio Management / Quản Lý Danh Mục**: Risk calculation, correlation analysis, hedge finding / Tính toán rủi ro, phân tích tương quan, tìm hedge
-
-## 📁 Project Structure / Cấu Trúc Dự Án
+## 📁 Project Structure
 
 ```
 crypto-probability/
 ├── main_xgboost_prediction.py      # XGBoost prediction CLI
 ├── main_deeplearning_prediction.py # Deep Learning (TFT) training
-├── main_pairs_trading.py           # Pairs trading analysis
+├── main_pairs_trading.py           # Pairs trading analysis (mean reversion & momentum)
 ├── main_portfolio_manager.py       # Portfolio risk management
 ├── main_hmm.py                     # HMM Signal Combiner (High-Order HMM + HMM-KAMA)
 ├── modules/                        # Core modules
@@ -42,39 +40,39 @@ crypto-probability/
 └── artifacts/                      # Model checkpoints and outputs
 ```
 
-## 🔧 Installation / Cài Đặt
+## 🔧 Installation
 
-### Prerequisites / Yêu Cầu
+### Prerequisites
 
-- Python 3.8+ (Python 3.10+ recommended / Khuyến nghị Python 3.10+)
+- Python 3.8+ (Python 3.10+ recommended)
 - pip
 
-### Setup / Thiết Lập
+### Setup
 
-1. **Clone the repository / Clone repository:**
+1. **Clone the repository:**
    ```bash
    git clone <repository-url>
    cd crypto-probability
    ```
 
-2. **Install dependencies / Cài đặt các thư viện:**
+2. **Install dependencies:**
 
-   **Basic requirements / Yêu cầu cơ bản:**
+   **Basic requirements:**
    ```bash
    pip install -r requirements.txt
    ```
 
-   **For Deep Learning / Cho Deep Learning:**
+   **For Deep Learning:**
    ```bash
    pip install -r requirements-ml.txt
    ```
 
-   **For development / Cho phát triển:**
+   **For development:**
    ```bash
    pip install -r requirements-dev.txt
    ```
 
-3. **Configure API keys (optional) / Cấu hình API keys (tùy chọn):**
+3. **Configure API keys (optional):**
    
    Create `modules/config_api.py` with your exchange API keys:
    ```python
@@ -82,9 +80,9 @@ crypto-probability/
    BINANCE_API_SECRET = "your_secret"
    ```
 
-## 📖 Usage / Cách Sử Dụng
+## 📖 Usage
 
-### 1. XGBoost Prediction / Dự Đoán XGBoost
+### 1. XGBoost Prediction
 
 Predict next price movement using XGBoost classifier:
 
@@ -103,7 +101,7 @@ python main_xgboost_prediction.py
 python main_xgboost_prediction.py --symbol BTC/USDT --timeframe 1h --limit 500
 ```
 
-### 2. Deep Learning (TFT) / Deep Learning (TFT)
+### 2. Deep Learning (TFT)
 
 Train Temporal Fusion Transformer model for price prediction:
 
@@ -124,7 +122,7 @@ python main_deeplearning_prediction.py
 python main_deeplearning_prediction.py --symbol BTC/USDT --timeframe 1h --epochs 10 --gpu
 ```
 
-### 3. Pairs Trading / Giao Dịch Cặp
+### 3. Pairs Trading
 
 Identify pairs trading opportunities:
 
@@ -139,13 +137,14 @@ python main_pairs_trading.py
 - `--max-half-life N`: Maximum half-life threshold
 - `--min-quantitative-score N`: Minimum quantitative score (0-100)
 - `--max-pairs N`: Maximum pairs to display
+- `--strategy {reversion,momentum}`: Switch between mean-reversion (default) and momentum mode. Without `--no-menu`, the interactive prompt also lets you choose and preview each strategy.
 
 **Example:**
 ```bash
 python main_pairs_trading.py --sort-by quantitative_score --require-cointegration --min-quantitative-score 70
 ```
 
-### 4. Portfolio Manager / Quản Lý Danh Mục
+### 4. Portfolio Manager
 
 Manage portfolio risk and find hedges:
 
@@ -159,7 +158,7 @@ python main_portfolio_manager.py
 - Automatic hedge finding
 - Real-time position tracking
 
-### 5. HMM-KAMA Analysis / Phân Tích HMM-KAMA
+### 5. HMM-KAMA Analysis
 
 State-based analysis using Hidden Markov Model with KAMA:
 
@@ -177,7 +176,7 @@ python main_hmm.py
 - `--orders-argrelextrema N`: Order for swing detection
 - `--strict-mode`: Use strict mode for swing-to-state conversion
 
-## 🧪 Testing / Kiểm Thử
+## 🧪 Testing
 
 Run the comprehensive test suite:
 
@@ -196,7 +195,7 @@ pytest tests/common/
 pytest --cov=modules --cov-report=html
 ```
 
-## 📚 Documentation / Tài Liệu
+## 📚 Documentation
 
 Detailed documentation is available in the `docs/` directory:
 
@@ -208,9 +207,9 @@ Detailed documentation is available in the `docs/` directory:
 
 See `docs/README.md` for the full documentation index.
 
-## 🏗️ Architecture / Kiến Trúc
+## 🏗️ Architecture
 
-### Module Organization / Tổ Chức Module
+### Module Organization
 
 - **`modules/common/`**: Shared utilities used across all modules
   - `DataFetcher`: Multi-exchange data fetching with fallback
@@ -246,9 +245,9 @@ See `docs/README.md` for the full documentation index.
   - Signal combiner with conflict resolution
   - Mean reversion analysis
 
-## 🔍 Key Features / Tính Năng Chính
+## 🔍 Key Features
 
-### Quantitative Metrics / Metrics Định Lượng
+### Quantitative Metrics
 
 The pairs trading module includes comprehensive quantitative metrics:
 
@@ -260,14 +259,14 @@ The pairs trading module includes comprehensive quantitative metrics:
 
 See `QUANT_METRICS_USAGE_REPORT.md` for detailed usage.
 
-### Smart Data Fetching / Lấy Dữ Liệu Thông Minh
+### Smart Data Fetching
 
 - Automatic exchange fallback when data is stale
 - Multi-exchange support for redundancy
 - Caching to reduce API calls
 - Freshness checking
 
-### Advanced Indicators / Chỉ Báo Nâng Cao
+### Advanced Indicators
 
 - **Trend**: SMA, EMA, MACD
 - **Momentum**: RSI, Stochastic RSI
@@ -276,7 +275,7 @@ See `QUANT_METRICS_USAGE_REPORT.md` for detailed usage.
 - **Candlestick Patterns**: Doji, Engulfing, Three White Soldiers, etc.
 - **Custom**: KAMA (Kaufman Adaptive Moving Average)
 
-## ⚙️ Configuration / Cấu Hình
+## ⚙️ Configuration
 
 Configuration is managed in `modules/config.py`. Key settings:
 
@@ -286,18 +285,18 @@ Configuration is managed in `modules/config.py`. Key settings:
 - Risk thresholds
 - Trading parameters
 
-For API keys, create `modules/config_api.py` (not tracked in git).
+For API keys, create `modules/config_api.py` (not tracked).
 
-## 🛠️ Development / Phát Triển
+## 🛠️ Development
 
-### Code Structure / Cấu Trúc Code
+### Code Structure
 
 - Modular design with clear separation of concerns
 - Comprehensive test coverage
 - Type hints where applicable
 - Documentation strings
 
-### Running Tests / Chạy Tests
+### Running Tests
 
 ```bash
 # All tests
@@ -310,25 +309,21 @@ pytest tests/xgboost/ -v
 pytest --cov=modules --cov-report=term-missing
 ```
 
-### Code Quality / Chất Lượng Code
+### Code Quality
 
 - Linting: `pylint` or `flake8`
 - Formatting: `black` (recommended)
 - Type checking: `mypy` (optional)
 
-## 📄 License / Giấy Phép
+## 📄 License
 
 See `LICENSE` file for details.
 
-## ⚠️ Disclaimer / Tuyên Bố Miễn Trừ
+## ⚠️ Disclaimer
 
-**Not Financial Advice / Không Phải Lời Khuyên Tài Chính**: 
+**Not Financial Advice**: This tool is for educational and research purposes only. Trading cryptocurrency involves high risk and can result in significant financial losses. Always do your own research and never invest more than you can afford to lose.
 
-This tool is for educational and research purposes only. Trading cryptocurrency involves high risk and can result in significant financial losses. Always do your own research and never invest more than you can afford to lose.
-
-Công cụ này chỉ dành cho mục đích giáo dục và nghiên cứu. Giao dịch tiền điện tử có rủi ro cao và có thể dẫn đến tổn thất tài chính đáng kể. Luôn tự nghiên cứu và không bao giờ đầu tư nhiều hơn số tiền bạn có thể mất.
-
-## 🤝 Contributing / Đóng Góp
+## 🤝 Contributing
 
 Contributions are welcome! Please:
 
@@ -338,7 +333,7 @@ Contributions are welcome! Please:
 4. Ensure all tests pass
 5. Submit a pull request
 
-## 📞 Support / Hỗ Trợ
+## 📞 Support
 
 For issues, questions, or contributions, please open an issue on the repository.
 

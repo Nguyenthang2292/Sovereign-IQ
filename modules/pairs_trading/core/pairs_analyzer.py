@@ -2,6 +2,7 @@
 Pairs trading analyzer for identifying and validating pairs trading opportunities.
 """
 
+import numpy as np
 import pandas as pd
 from typing import Dict, Optional, Tuple
 
@@ -28,6 +29,7 @@ try:
         PAIRS_TRADING_KALMAN_DELTA,
         PAIRS_TRADING_KALMAN_OBS_COV,
         PAIRS_TRADING_PAIR_COLUMNS,
+        PAIRS_TRADING_ADX_PERIOD,
     )
     from modules.common.utils import (
         log_warn,
@@ -36,6 +38,7 @@ try:
         log_progress,
     )
     from modules.common.ProgressBar import ProgressBar
+    from modules.common.indicators import calculate_adx
 except ImportError:
     PAIRS_TRADING_MIN_SPREAD = 0.01
     PAIRS_TRADING_MAX_SPREAD = 0.50
@@ -106,7 +109,10 @@ except ImportError:
         'kalman_classification_precision',
         'kalman_classification_recall',
         'kalman_classification_accuracy',
+        'long_adx',
+        'short_adx',
     ]
+    PAIRS_TRADING_ADX_PERIOD = 14
     
     # Fallback logging functions if modules.common.utils is not available
     def log_warn(msg: str) -> None:
@@ -122,6 +128,64 @@ except ImportError:
         print(f"[PROGRESS] {msg}")
     
     ProgressBar = None
+
+    def calculate_adx(ohlcv: pd.DataFrame, period: int = 14) -> Optional[float]:
+        if ohlcv is None or len(ohlcv) < period * 2:
+            return None
+
+        required = {"high", "low", "close"}
+        if not required.issubset(ohlcv.columns):
+            return None
+
+        data = ohlcv[list(required)].astype(float)
+        high = data["high"]
+        low = data["low"]
+        close = data["close"]
+
+        up_move = high.diff()
+        down_move = low.shift(1) - low
+
+        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0.0)
+        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0.0)
+
+        tr_components = pd.concat(
+            [
+                (high - low),
+                (high - close.shift()).abs(),
+                (low - close.shift()).abs(),
+            ],
+            axis=1,
+        )
+        true_range = tr_components.max(axis=1)
+
+        atr = true_range.ewm(alpha=1 / period, adjust=False).mean()
+        plus_di = (
+            pd.Series(plus_dm, index=data.index)
+            .ewm(alpha=1 / period, adjust=False)
+            .mean()
+            * 100
+            / atr.replace(0, pd.NA)
+        )
+        minus_di = (
+            pd.Series(minus_dm, index=data.index)
+            .ewm(alpha=1 / period, adjust=False)
+            .mean()
+            * 100
+            / atr.replace(0, pd.NA)
+        )
+
+        denom = (plus_di + minus_di).replace(0, pd.NA)
+        dx = ((plus_di - minus_di).abs() / denom) * 100
+        adx = dx.ewm(alpha=1 / period, adjust=False).mean().dropna()
+
+        if adx.empty:
+            return None
+
+        last_value = adx.iloc[-1]
+        if pd.isna(last_value) or np.isinf(last_value):
+            return None
+
+        return float(last_value)
 
 from modules.pairs_trading.core.pair_metrics_computer import PairMetricsComputer
 from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
@@ -161,14 +225,30 @@ def _get_all_pair_columns() -> list:
             'spread_sharpe',
             'max_drawdown',
             'calmar_ratio',
-            'johansen_trace_stat',
-            'johansen_critical_value',
-            'is_johansen_cointegrated',
-            'kalman_hedge_ratio',
             'classification_f1',
             'classification_precision',
             'classification_recall',
             'classification_accuracy',
+            'johansen_trace_stat',
+            'johansen_critical_value',
+            'is_johansen_cointegrated',
+            'kalman_hedge_ratio',
+            'kalman_half_life',
+            'kalman_mean_zscore',
+            'kalman_std_zscore',
+            'kalman_skewness',
+            'kalman_kurtosis',
+            'kalman_current_zscore',
+            'kalman_hurst_exponent',
+            'kalman_spread_sharpe',
+            'kalman_max_drawdown',
+            'kalman_calmar_ratio',
+            'kalman_classification_f1',
+            'kalman_classification_precision',
+            'kalman_classification_recall',
+            'kalman_classification_accuracy',
+            'long_adx',
+            'short_adx',
         ]
 
 
@@ -198,6 +278,7 @@ class PairsTradingAnalyzer:
         kalman_delta: float = PAIRS_TRADING_KALMAN_DELTA,
         kalman_obs_cov: float = PAIRS_TRADING_KALMAN_OBS_COV,
         scoring_multipliers: Optional[Dict[str, float]] = None,
+        strategy: str = "reversion",
     ):
         """
         Initialize PairsTradingAnalyzer.
@@ -214,6 +295,7 @@ class PairsTradingAnalyzer:
             min_spread_sharpe: Minimum Sharpe ratio (None to disable)
             max_drawdown_threshold: Maximum drawdown threshold (None to disable)
             min_quantitative_score: Minimum quantitative score (0-100, None to disable)
+            strategy: Trading strategy ('reversion' or 'momentum')
         """
         self.min_spread = min_spread
         self.max_spread = max_spread
@@ -235,6 +317,8 @@ class PairsTradingAnalyzer:
         self.min_calmar = PAIRS_TRADING_MIN_CALMAR
         self._correlation_cache: Dict[Tuple[str, str], float] = {}
         self._price_cache: Dict[Tuple[str, str], Optional[pd.DataFrame]] = {}
+        self._adx_cache: Dict[str, Optional[float]] = {}
+        self.adx_period = PAIRS_TRADING_ADX_PERIOD
         
         # Initialize metrics computer and opportunity scorer
         self.metrics_computer = PairMetricsComputer(
@@ -259,6 +343,7 @@ class PairsTradingAnalyzer:
             max_drawdown_threshold=self.max_drawdown_threshold,
             min_calmar=self.min_calmar,
             scoring_multipliers=self.scoring_multipliers,
+            strategy=strategy,
         )
 
     def _fetch_aligned_prices(
@@ -323,6 +408,38 @@ class PairsTradingAnalyzer:
 
         self._price_cache[cache_key] = df_combined
         return df_combined
+
+    def _get_symbol_adx(self, symbol: str, data_fetcher) -> Optional[float]:
+        """
+        Retrieve cached ADX for symbol, computing if necessary.
+        """
+        if symbol in self._adx_cache:
+            return self._adx_cache[symbol]
+
+        if data_fetcher is None:
+            self._adx_cache[symbol] = None
+            return None
+        try:
+            ohlcv, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol,
+                limit=PAIRS_TRADING_LIMIT,
+                timeframe=PAIRS_TRADING_TIMEFRAME,
+                check_freshness=False,
+            )
+        except Exception:
+            return None
+
+        if (
+            ohlcv is None
+            or ohlcv.empty
+            or not {"high", "low", "close"}.issubset(ohlcv.columns)
+        ):
+            self._adx_cache[symbol] = None
+            return None
+
+        adx_value = calculate_adx(ohlcv, self.adx_period)
+        self._adx_cache[symbol] = adx_value
+        return adx_value
 
     def calculate_correlation(
         self,
@@ -393,7 +510,10 @@ class PairsTradingAnalyzer:
         price1 = aligned_prices["close1"]
         price2 = aligned_prices["close2"]
 
-        return self.metrics_computer.compute_pair_metrics(price1, price2)
+        metrics = self.metrics_computer.compute_pair_metrics(price1, price2)
+        metrics["long_adx"] = self._get_symbol_adx(symbol1, data_fetcher)
+        metrics["short_adx"] = self._get_symbol_adx(symbol2, data_fetcher)
+        return metrics
 
     def calculate_spread(
         self, long_symbol: str, short_symbol: str, long_score: float, short_score: float

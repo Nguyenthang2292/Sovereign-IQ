@@ -25,8 +25,8 @@ from modules.pairs_trading.cli.input_parsers import (
     standardize_symbol_input,
 )
 
-# Display formatters
-from modules.pairs_trading.cli.formatters import (
+# Display utilities
+from modules.pairs_trading.cli.display import (
     display_performers,
     display_pairs_opportunities,
 )

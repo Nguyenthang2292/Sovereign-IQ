@@ -34,7 +34,6 @@ from modules.pairs_trading import (
     display_performers,
     display_pairs_opportunities,
     select_top_unique_pairs,
-    reverse_pairs,
 )
 
 # Suppress warnings
@@ -292,61 +291,7 @@ def test_display_pairs_opportunities_cointegration_status():
     assert len(output_str) > 0
 
 
-def test_display_pairs_opportunities_with_reverse():
-    """Test that display_pairs_opportunities shows reverse pairs when show_reverse=True."""
-    pairs_df = pd.DataFrame(
-        [
-            {
-                "long_symbol": "WORST1/USDT",
-                "short_symbol": "BEST1/USDT",
-                "spread": 0.25,
-                "correlation": 0.6,
-                "opportunity_score": 0.30,
-                "quantitative_score": 75.5,
-                "is_cointegrated": True,
-                "hedge_ratio": 0.5,
-            }
-        ]
-    )
-
-    output = StringIO()
-    with contextlib.redirect_stdout(output):
-        display_pairs_opportunities(pairs_df, max_display=1, show_reverse=True)
-
-    output_str = output.getvalue()
-
-    # Should contain both "Original" and "Reversed" sections
-    assert "Original" in output_str or "ORIGINAL" in output_str.upper()
-    assert "Reversed" in output_str or "REVERSED" in output_str.upper()
-    assert "Long↔Short" in output_str or "Long" in output_str
-
-
-def test_display_pairs_opportunities_without_reverse():
-    """Test that display_pairs_opportunities does not show reverse pairs when show_reverse=False."""
-    pairs_df = pd.DataFrame(
-        [
-            {
-                "long_symbol": "WORST1/USDT",
-                "short_symbol": "BEST1/USDT",
-                "spread": 0.25,
-                "correlation": 0.6,
-                "opportunity_score": 0.30,
-            }
-        ]
-    )
-
-    output = StringIO()
-    with contextlib.redirect_stdout(output):
-        display_pairs_opportunities(pairs_df, max_display=1, show_reverse=False)
-
-    output_str = output.getvalue()
-
-    # Should contain "Original" but not "Reversed"
-    assert "Original" in output_str or "ORIGINAL" in output_str.upper()
-    # Should not contain reversed section
-    assert output_str.count("PAIRS TRADING OPPORTUNITIES") == 1
-
-
+#
 # ============================================================================
 # Tests for select_top_unique_pairs function
 # ============================================================================
@@ -398,176 +343,6 @@ def test_select_top_unique_pairs_empty_dataframe():
     selected = select_top_unique_pairs(empty_df, target_pairs=5)
 
     assert len(selected) == 0
-
-
-# ============================================================================
-# Tests for reverse_pairs function
-# ============================================================================
-
-def test_reverse_pairs_basic():
-    """Test reverse_pairs swaps long and short symbols correctly."""
-    pairs_df = pd.DataFrame(
-        [
-            {
-                "long_symbol": "WORST1/USDT",
-                "short_symbol": "BEST1/USDT",
-                "long_score": -0.1,
-                "short_score": 0.15,
-                "spread": 0.25,
-                "correlation": 0.6,
-                "opportunity_score": 0.30,
-                "hedge_ratio": 0.5,
-            }
-        ]
-    )
-
-    reversed_df = reverse_pairs(pairs_df)
-
-    # Check symbols are swapped
-    assert reversed_df.iloc[0]["long_symbol"] == "BEST1/USDT"
-    assert reversed_df.iloc[0]["short_symbol"] == "WORST1/USDT"
-    
-    # Check scores are swapped
-    assert reversed_df.iloc[0]["long_score"] == 0.15
-    assert reversed_df.iloc[0]["short_score"] == -0.1
-    
-    # Check spread remains the same (not negated in current implementation)
-    assert abs(reversed_df.iloc[0]["spread"] - 0.25) < 1e-10
-    
-    # Check opportunity_score remains the same (not negated in current implementation)
-    assert abs(reversed_df.iloc[0]["opportunity_score"] - 0.30) < 1e-10
-    
-    # Check hedge_ratio is inverted
-    assert abs(reversed_df.iloc[0]["hedge_ratio"] - 2.0) < 1e-10
-    
-    # Check correlation remains the same
-    assert reversed_df.iloc[0]["correlation"] == 0.6
-
-
-def test_reverse_pairs_with_quantitative_metrics():
-    """Test reverse_pairs preserves quantitative metrics correctly."""
-    pairs_df = pd.DataFrame(
-        [
-            {
-                "long_symbol": "WORST1/USDT",
-                "short_symbol": "BEST1/USDT",
-                "spread": 0.25,
-                "correlation": 0.6,
-                "opportunity_score": 0.30,
-                "quantitative_score": 75.5,
-                "is_cointegrated": True,
-                "half_life": 20.0,
-                "spread_sharpe": 1.5,
-                "max_drawdown": -0.15,
-                "hedge_ratio": 0.5,
-                "kalman_hedge_ratio": 0.6,
-            }
-        ]
-    )
-
-    reversed_df = reverse_pairs(pairs_df)
-
-    # Check that quantitative metrics remain the same
-    assert reversed_df.iloc[0]["quantitative_score"] == 75.5
-    assert reversed_df.iloc[0]["is_cointegrated"] == True
-    assert reversed_df.iloc[0]["half_life"] == 20.0
-    assert reversed_df.iloc[0]["spread_sharpe"] == 1.5
-    assert reversed_df.iloc[0]["max_drawdown"] == -0.15
-    assert reversed_df.iloc[0]["correlation"] == 0.6
-    
-    # Check hedge ratios are inverted
-    assert abs(reversed_df.iloc[0]["hedge_ratio"] - 2.0) < 1e-10
-    assert abs(reversed_df.iloc[0]["kalman_hedge_ratio"] - (1.0/0.6)) < 1e-10
-
-
-def test_reverse_pairs_with_zero_hedge_ratio():
-    """Test reverse_pairs handles zero hedge ratio correctly."""
-    pairs_df = pd.DataFrame(
-        [
-            {
-                "long_symbol": "WORST1/USDT",
-                "short_symbol": "BEST1/USDT",
-                "spread": 0.25,
-                "hedge_ratio": 0.0,  # Zero hedge ratio
-            }
-        ]
-    )
-
-    reversed_df = reverse_pairs(pairs_df)
-
-    # Zero hedge ratio becomes inf (1/0), then 1/inf = 0.0
-    hedge_ratio = reversed_df.iloc[0]["hedge_ratio"]
-    assert abs(hedge_ratio - 0.0) < 1e-10
-
-
-def test_reverse_pairs_with_none_hedge_ratio():
-    """Test reverse_pairs handles None hedge ratio correctly."""
-    pairs_df = pd.DataFrame(
-        [
-            {
-                "long_symbol": "WORST1/USDT",
-                "short_symbol": "BEST1/USDT",
-                "spread": 0.25,
-                "hedge_ratio": None,
-            }
-        ]
-    )
-
-    reversed_df = reverse_pairs(pairs_df)
-
-    # Should handle None hedge ratio gracefully
-    hedge_ratio = reversed_df.iloc[0]["hedge_ratio"]
-    assert pd.isna(hedge_ratio) or hedge_ratio is None
-
-
-def test_reverse_pairs_empty_dataframe():
-    """Test reverse_pairs handles empty DataFrame."""
-    empty_df = pd.DataFrame(columns=["long_symbol", "short_symbol", "spread"])
-
-    reversed_df = reverse_pairs(empty_df)
-
-    assert len(reversed_df) == 0
-    assert list(reversed_df.columns) == ["long_symbol", "short_symbol", "spread"]
-
-
-def test_reverse_pairs_multiple_pairs():
-    """Test reverse_pairs with multiple pairs."""
-    pairs_df = pd.DataFrame(
-        [
-            {
-                "long_symbol": "WORST1/USDT",
-                "short_symbol": "BEST1/USDT",
-                "spread": 0.25,
-                "opportunity_score": 0.30,
-                "hedge_ratio": 0.5,
-            },
-            {
-                "long_symbol": "WORST2/USDT",
-                "short_symbol": "BEST2/USDT",
-                "spread": 0.20,
-                "opportunity_score": 0.25,
-                "hedge_ratio": 0.8,
-            },
-        ]
-    )
-
-    reversed_df = reverse_pairs(pairs_df)
-
-    assert len(reversed_df) == 2
-    
-    # Check first pair
-    assert reversed_df.iloc[0]["long_symbol"] == "BEST1/USDT"
-    assert reversed_df.iloc[0]["short_symbol"] == "WORST1/USDT"
-    # Spread remains the same (not negated in current implementation)
-    assert abs(reversed_df.iloc[0]["spread"] - 0.25) < 1e-10
-    assert abs(reversed_df.iloc[0]["hedge_ratio"] - 2.0) < 1e-10
-    
-    # Check second pair
-    assert reversed_df.iloc[1]["long_symbol"] == "BEST2/USDT"
-    assert reversed_df.iloc[1]["short_symbol"] == "WORST2/USDT"
-    # Spread remains the same (not negated in current implementation)
-    assert abs(reversed_df.iloc[1]["spread"] - 0.20) < 1e-10
-    assert abs(reversed_df.iloc[1]["hedge_ratio"] - (1.0/0.8)) < 1e-10
 
 
 # ============================================================================
@@ -641,7 +416,9 @@ def test_main_with_mock_data():
         "main_pairs_trading.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
     ), patch(
         "sys.argv", ["main_pairs_trading.py", "--top-n", "2", "--max-pairs", "5"]
-    ), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
+    ), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+        "builtins.input", return_value=""
+    ):
         try:
             main()
             assert True
@@ -663,7 +440,9 @@ def test_main_with_no_symbols():
 
     with patch("main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
         "main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
-    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
+    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+        "builtins.input", return_value=""
+    ):
         try:
             main()
             assert True
@@ -692,7 +471,9 @@ def test_main_with_empty_performance():
         "main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
     ), patch(
         "main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
-    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
+    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+        "builtins.input", return_value=""
+    ):
         try:
             main()
             assert True
@@ -744,7 +525,9 @@ def test_main_with_custom_weights():
     ), patch(
         "sys.argv",
         ["main_pairs_trading.py", "--weights", "1d:0.5,3d:0.3,1w:0.2"],
-    ), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
+    ), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+        "builtins.input", return_value=""
+    ):
         try:
             main()
             # Check that PerformanceAnalyzer was initialized with custom weights
@@ -805,7 +588,9 @@ def test_main_with_no_validation_flag():
         "main_pairs_trading.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
     ), patch(
         "sys.argv", ["main_pairs_trading.py", "--no-validation"]
-    ), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}):
+    ), patch("main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+        "builtins.input", return_value=""
+    ):
         try:
             main()
             # Check that validate_pairs was not called
@@ -815,6 +600,78 @@ def test_main_with_no_validation_flag():
         except Exception as e:
             # Allow some exceptions for incomplete mocking
             pass
+
+
+def test_main_momentum_strategy_switches_candidates():
+    """Momentum strategy phải hoán đổi long/short và tắt cointegration cứng."""
+    from main_pairs_trading import main
+
+    mock_symbols = ["AAA/USDT", "BBB/USDT", "CCC/USDT", "DDD/USDT"]
+    mock_performance_df = pd.DataFrame(
+        {
+            "symbol": mock_symbols,
+            "score": [0.30, 0.18, -0.05, -0.20],
+            "1d_return": [0.05, 0.03, -0.01, -0.04],
+            "3d_return": [0.10, 0.08, -0.02, -0.06],
+            "1w_return": [0.15, 0.12, -0.05, -0.10],
+            "current_price": [100.0, 80.0, 60.0, 40.0],
+        }
+    )
+
+    mock_pairs_df = pd.DataFrame(
+        {
+            "long_symbol": ["AAA/USDT"],
+            "short_symbol": ["DDD/USDT"],
+            "long_score": [0.30],
+            "short_score": [-0.20],
+            "spread": [0.50],
+            "correlation": [0.4],
+            "opportunity_score": [0.5],
+            "quantitative_score": [80.0],
+        }
+    )
+
+    mock_data_fetcher = MagicMock()
+    mock_data_fetcher.list_binance_futures_symbols = MagicMock(return_value=mock_symbols)
+
+    mock_performance_analyzer = MagicMock()
+    mock_performance_analyzer.analyze_all_symbols = MagicMock(return_value=mock_performance_df)
+
+    mock_pairs_analyzer = MagicMock()
+    mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=mock_pairs_df)
+    mock_pairs_analyzer.validate_pairs = MagicMock(return_value=mock_pairs_df)
+
+    with patch("main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
+        "main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
+    ), patch(
+        "main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
+    ), patch("main_pairs_trading.PairsTradingAnalyzer") as mock_pairs_class, patch(
+        "sys.argv",
+        [
+            "main_pairs_trading.py",
+            "--no-menu",
+            "--strategy",
+            "momentum",
+            "--require-cointegration",
+        ],
+    ):
+        mock_pairs_class.return_value = mock_pairs_analyzer
+        try:
+            main()
+        except SystemExit:
+            pass
+
+    analyze_args = mock_pairs_analyzer.analyze_pairs_opportunity.call_args[0]
+    short_df, long_df = analyze_args[:2]
+
+    expected_short = mock_performance_df.sort_values("score", ascending=True).reset_index(drop=True)
+    expected_long = mock_performance_df.sort_values("score", ascending=False).reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(short_df.reset_index(drop=True), expected_short)
+    pd.testing.assert_frame_equal(long_df.reset_index(drop=True), expected_long)
+
+    analyzer_kwargs = mock_pairs_class.call_args.kwargs
+    assert analyzer_kwargs["require_cointegration"] is False
 
 
 if __name__ == "__main__":
