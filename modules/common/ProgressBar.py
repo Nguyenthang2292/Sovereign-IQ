@@ -47,3 +47,20 @@ class ProgressBar:
         """Complete the progress bar and print a newline."""
         self.update(0)
         print()
+
+
+class NullProgressBar:
+    """
+    Null object pattern for ProgressBar.
+    
+    This class provides the same interface as ProgressBar but does nothing.
+    Use this to avoid checking `if progress:` throughout the code.
+    """
+    
+    def update(self, step: int = 1) -> None:
+        """No-op update method."""
+        pass
+    
+    def finish(self) -> None:
+        """No-op finish method."""
+        pass

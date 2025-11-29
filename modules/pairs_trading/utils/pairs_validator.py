@@ -16,7 +16,7 @@ try:
         log_success,
         log_progress,
     )
-    from modules.common.ProgressBar import ProgressBar
+    from modules.common.ProgressBar import ProgressBar, NullProgressBar
 except ImportError:
     # Fallback logging functions if modules.common.utils is not available
     def log_warn(msg: str) -> None:
@@ -32,6 +32,13 @@ except ImportError:
         print(f"[PROGRESS] {msg}")
     
     ProgressBar = None
+    
+    class NullProgressBar:
+        """Null object pattern for ProgressBar when ProgressBar is not available."""
+        def update(self, step: int = 1) -> None:
+            pass
+        def finish(self) -> None:
+            pass
 
 try:
     from modules.config import PAIRS_TRADING_PAIR_COLUMNS
@@ -198,9 +205,10 @@ def validate_pairs(
 
     validated_pairs = []
 
-    progress = None
     if verbose and ProgressBar:
         progress = ProgressBar(len(pairs_df), "Validation")
+    else:
+        progress = NullProgressBar()
 
     for _, row in pairs_df.iterrows():
         long_symbol = row.get('long_symbol')
@@ -210,15 +218,13 @@ def validate_pairs(
 
         # Validate required fields
         if pd.isna(long_symbol) or pd.isna(short_symbol):
-            if progress:
-                progress.update()
+            progress.update()
             continue
         
         if pd.isna(spread) or np.isinf(spread):
             if verbose:
                 log_warn(f"Invalid spread for {long_symbol}/{short_symbol}: {spread}")
-            if progress:
-                progress.update()
+            progress.update()
             continue
 
         is_valid = True
@@ -238,8 +244,7 @@ def validate_pairs(
             if not (-1 <= correlation <= 1):
                 if verbose:
                     log_warn(f"Invalid correlation value for {long_symbol}/{short_symbol}: {correlation}")
-                if progress:
-                    progress.update()
+                progress.update()
                 continue
             
             abs_corr = abs(correlation)
@@ -322,11 +327,9 @@ def validate_pairs(
         elif verbose:
             log_warn(f"Rejected {long_symbol} / {short_symbol}: {', '.join(validation_errors)}")
 
-        if progress:
-            progress.update()
+        progress.update()
 
-    if progress:
-        progress.finish()
+    progress.finish()
 
     if not validated_pairs:
         if verbose:

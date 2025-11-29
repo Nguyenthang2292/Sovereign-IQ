@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Optional, Union
 
+from modules.common.utils import log_warn
+
 from modules.pairs_trading.metrics import (
     calculate_adf_test,
     calculate_half_life,
@@ -420,6 +422,12 @@ class PairMetricsComputer:
                             if isinstance(value, (int, float)) and not (np.isnan(value) or np.isinf(value)):
                                 if 0 <= value <= 1:
                                     metrics[f"kalman_{key}"] = float(value)
+                                else:
+                                    # Log warning for out-of-range classification metrics (potential bug in calculation)
+                                    log_warn(
+                                        f"Kalman {key} out of range: {value:.4f} (expected [0, 1]). "
+                                        "This may indicate a bug in classification calculation."
+                                    )
             except Exception:
                 pass
 
@@ -437,6 +445,12 @@ class PairMetricsComputer:
                             if key in ["classification_f1", "classification_precision", "classification_recall", "classification_accuracy"]:
                                 if 0 <= value <= 1:
                                     metrics[key] = float(value)
+                                else:
+                                    # Log warning for out-of-range classification metrics (potential bug in calculation)
+                                    log_warn(
+                                        f"OLS {key} out of range: {value:.4f} (expected [0, 1]). "
+                                        "This may indicate a bug in classification calculation."
+                                    )
                             else:
                                 metrics[key] = float(value)
         except Exception:

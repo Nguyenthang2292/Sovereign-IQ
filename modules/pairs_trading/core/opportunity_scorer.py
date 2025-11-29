@@ -5,6 +5,8 @@ Opportunity scoring logic for pairs trading.
 import numpy as np
 from typing import Dict, Optional
 
+from modules.common.utils import log_warn
+
 try:
     from modules.config import (
         PAIRS_TRADING_ADF_PVALUE_THRESHOLD,
@@ -314,14 +316,16 @@ class OpportunityScorer:
                 if hurst > 0.5:
                     opportunity_score *= sc.get("hurst_good_bonus", 1.08)
             
-            # 2. Z-Score: Reward divergence (High absolute Z-score) with capped bonus
+            # 2. Z-Score: Reward divergence (High absolute Z-score) with configurable bonuses
             current_z = self._get_metric(quant_metrics, "current_zscore", "kalman_current_zscore")
             if current_z is not None and not np.isnan(current_z):
                 abs_z = abs(current_z)
-                if abs_z > 2.0:
-                    opportunity_score *= 1.15
-                elif abs_z > 1.0:
-                    opportunity_score *= 1.08
+                high_threshold = sc.get("momentum_zscore_high_threshold", 2.0)
+                moderate_threshold = sc.get("momentum_zscore_moderate_threshold", 1.0)
+                if abs_z > high_threshold:
+                    opportunity_score *= sc.get("momentum_zscore_high_bonus", 1.15)
+                elif abs_z > moderate_threshold:
+                    opportunity_score *= sc.get("momentum_zscore_moderate_bonus", 1.08)
 
             # 3. ADX filter: require both legs to trend strongly
             long_adx = quant_metrics.get("long_adx")
@@ -393,7 +397,7 @@ class OpportunityScorer:
                 # Validate F1 is in valid range [0, 1]
                 if not (0 <= f1_metric <= 1):
                     # Skip invalid F1 values
-                    pass
+                    log_warn(f"Skipping invalid F1 metric: {f1_metric:.4f} (expected range [0, 1])")
                 elif f1_metric >= 0.7:
                     opportunity_score *= sc.get("f1_high_bonus", 1.05)
                 elif f1_metric >= 0.6:
@@ -445,7 +449,12 @@ class OpportunityScorer:
         short_adx: Optional[float],
     ) -> float:
         """
-        Require both legs to have sufficient ADX strength for momentum setups.
+        Apply ADX-based penalty scaling for momentum setups.
+        
+        Instead of hard rejection, applies scaling penalties based on ADX strength:
+        - ADX >= min_adx: No penalty, may receive bonuses
+        - ADX < very_weak_threshold: Severe penalty (default 0.3x)
+        - ADX between very_weak_threshold and min_adx: Scaling penalty based on ratio
         
         Args:
             score: Current opportunity score
@@ -453,7 +462,7 @@ class OpportunityScorer:
             short_adx: ADX value for short symbol (optional)
             
         Returns:
-            Adjusted score (0.0 if ADX requirements not met)
+            Adjusted score with penalty scaling applied (never returns 0.0 unless input is invalid)
         """
         # Validate score
         if np.isnan(score) or np.isinf(score):
@@ -469,14 +478,42 @@ class OpportunityScorer:
         mf = self.momentum_filters
         min_adx = mf.get("min_adx", 18.0)
         strong_adx = mf.get("strong_adx", 25.0)
+        weak_penalty_factor = mf.get("adx_weak_penalty_factor", 0.5)
+        very_weak_threshold = mf.get("adx_very_weak_threshold", 10.0)
+        very_weak_penalty = mf.get("adx_very_weak_penalty", 0.3)
 
-        if long_adx < min_adx or short_adx < min_adx:
-            return 0.0
+        # Apply penalty scaling for weak ADX instead of hard reject
+        long_penalty = 1.0
+        short_penalty = 1.0
 
-        score *= mf.get("adx_base_bonus", 1.0)
+        if long_adx < min_adx:
+            if long_adx < very_weak_threshold:
+                # Very weak ADX gets severe penalty
+                long_penalty = very_weak_penalty
+            else:
+                # Scaling penalty: the closer to min_adx, the less penalty
+                # penalty = (adx / min_adx) ^ penalty_factor
+                ratio = long_adx / min_adx
+                long_penalty = ratio ** (1.0 / weak_penalty_factor)
 
-        if long_adx >= strong_adx and short_adx >= strong_adx:
-            score *= mf.get("adx_strong_bonus", 1.0)
+        if short_adx < min_adx:
+            if short_adx < very_weak_threshold:
+                # Very weak ADX gets severe penalty
+                short_penalty = very_weak_penalty
+            else:
+                # Scaling penalty: the closer to min_adx, the less penalty
+                ratio = short_adx / min_adx
+                short_penalty = ratio ** (1.0 / weak_penalty_factor)
+
+        # Apply combined penalty (both legs contribute)
+        score *= long_penalty * short_penalty
+
+        # Apply bonuses only if both legs meet minimum requirements
+        if long_adx >= min_adx and short_adx >= min_adx:
+            score *= mf.get("adx_base_bonus", 1.0)
+
+            if long_adx >= strong_adx and short_adx >= strong_adx:
+                score *= mf.get("adx_strong_bonus", 1.0)
 
         # Validate result
         if np.isnan(score) or np.isinf(score):
@@ -604,6 +641,9 @@ class OpportunityScorer:
                     score += w.get("f1_excellent_weight", 10.0)
                 elif f1 > good_threshold:
                     score += w.get("f1_good_weight", 5.0)
+            else:
+                # Skip invalid F1 values
+                log_warn(f"Skipping invalid F1 metric: {f1:.4f} (expected range [0, 1])")
         
         # Max DD (uses Kalman if available per strategy)
         max_dd = self._get_metric(quant_metrics, "max_drawdown", "kalman_max_drawdown")

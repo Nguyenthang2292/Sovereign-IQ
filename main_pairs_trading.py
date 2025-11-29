@@ -184,16 +184,30 @@ def main() -> None:
         PAIRS_TRADING_OPPORTUNITY_PRESETS.get("balanced", {}),
     )
 
-    # Adjust validation thresholds for Momentum strategy
+    # Adjust validation thresholds based on strategy
+    # 
+    # Mean Reversion Strategy:
+    #   - Requires mean-reverting behavior (Hurst < 0.5)
+    #   - Needs cointegration for pairs to converge
+    #   - Half-life should be short (< max_half_life) for quick reversion
+    #
+    # Momentum Strategy:
+    #   - Requires trending behavior (Hurst > 0.5), so we disable mean-reversion checks
+    #   - Cointegration is not required (pairs can diverge in trends)
+    #   - Half-life is irrelevant (trends continue, not revert)
     max_half_life = args.max_half_life
     hurst_threshold = PAIRS_TRADING_HURST_THRESHOLD
 
     if strategy == "momentum":
-        # Momentum pairs should be trending (Hurst > 0.5), so we disable the mean-reversion check
+        # Disable mean-reversion validation: Momentum pairs should trend (Hurst > 0.5),
+        # not revert. Setting threshold to 1.0 effectively disables the check.
         hurst_threshold = 1.0 
-        # Momentum pairs don't need to revert, so half-life is irrelevant (or should be long)
+        # Half-life is irrelevant for momentum: pairs don't need to revert quickly.
+        # Setting to infinity disables the half-life constraint.
         max_half_life = float('inf')
         
+        # Momentum strategy benefits from divergence, not convergence.
+        # Cointegration requirement conflicts with momentum trading logic.
         if getattr(args, "require_cointegration", False):
             if log_warn:
                 log_warn("Momentum strategy bỏ qua kiểm tra cointegration nghiêm ngặt. Tự động tắt --require-cointegration.")
@@ -230,9 +244,17 @@ def main() -> None:
             return
         if log_success:
             log_success(f"Found {len(symbols)} futures symbols.")
+    except ConnectionError as e:
+        if log_error:
+            log_error(f"Connection error fetching symbols (check network/API): {e}")
+        return
+    except ValueError as e:
+        if log_error:
+            log_error(f"Invalid configuration error fetching symbols: {e}")
+        return
     except Exception as e:
         if log_error:
-            log_error(f"Error fetching symbols: {e}")
+            log_error(f"Unexpected error fetching symbols: {type(e).__name__}: {e}")
         return
 
     if target_symbol_inputs:
@@ -280,9 +302,19 @@ def main() -> None:
         if log_warn:
             log_warn("Analysis interrupted by user.")
         return
+    except (pd.errors.EmptyDataError, ValueError) as e:
+        if log_error:
+            log_error(f"Data validation error during performance analysis: {e}")
+        return
+    except ConnectionError as e:
+        if log_error:
+            log_error(f"Connection error during performance analysis (check API/exchange): {e}")
+        return
     except Exception as e:
         if log_error:
-            log_error(f"Error during performance analysis: {e}")
+            log_error(f"Unexpected error during performance analysis: {type(e).__name__}: {e}")
+            import traceback
+            log_error(f"Traceback: {traceback.format_exc()}")
         return
 
     # Step 3: Build candidate pools for long/short sides
@@ -320,6 +352,18 @@ def main() -> None:
     display_performers(long_candidates, long_title, Fore.GREEN)
 
     # Step 4: Analyze pairs trading opportunities
+    # 
+    # Spread Calculation:
+    #   The spread is calculated as: spread = short_score - long_score
+    #   - For Mean Reversion: long_score (worst performer) is negative, short_score (best) is positive
+    #   - For Momentum: long_score (best performer) is positive, short_score (worst) is negative
+    #   - Spread represents the performance gap between the two symbols
+    #   - Larger spread indicates greater divergence, which is favorable for pairs trading
+    #   See pairs_analyzer.calculate_spread() for implementation details.
+    #
+    # Performance Note:
+    #   With large datasets, fetching OHLCV data for each pair can be slow.
+    #   Consider adding estimated time remaining to ProgressBar for better user experience.
     if log_progress:
         log_progress("[4/4] Analyzing pairs trading opportunities...")
     try:
@@ -541,9 +585,20 @@ def main() -> None:
     except KeyboardInterrupt:
         if log_warn:
             log_warn("Pairs analysis interrupted by user.")
+    except pd.errors.EmptyDataError as e:
+        if log_error:
+            log_error(f"Empty data error during pairs analysis: {e}")
+    except (ValueError, KeyError) as e:
+        if log_error:
+            log_error(f"Data validation error during pairs analysis: {e}")
+    except ConnectionError as e:
+        if log_error:
+            log_error(f"Connection error during pairs analysis (check API/exchange): {e}")
     except Exception as e:
         if log_error:
-            log_error(f"Error during pairs analysis: {e}")
+            log_error(f"Unexpected error during pairs analysis: {type(e).__name__}: {e}")
+            import traceback
+            log_error(f"Traceback: {traceback.format_exc()}")
 
 
 if __name__ == "__main__":

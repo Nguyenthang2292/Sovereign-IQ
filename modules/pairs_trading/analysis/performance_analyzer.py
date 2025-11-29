@@ -30,7 +30,7 @@ try:
         log_warn,
         log_progress,
     )
-    from modules.common.ProgressBar import ProgressBar
+    from modules.common.ProgressBar import ProgressBar, NullProgressBar
 except ImportError:
     PAIRS_TRADING_WEIGHTS = {'1d': 0.5, '3d': 0.3, '1w': 0.2}
     PAIRS_TRADING_TOP_N = 5
@@ -72,6 +72,13 @@ except ImportError:
         return 60
 
     ProgressBar = None
+    
+    class NullProgressBar:
+        """Null object pattern for ProgressBar when ProgressBar is not available."""
+        def update(self, step: int = 1) -> None:
+            pass
+        def finish(self) -> None:
+            pass
 
 
 class PerformanceAnalyzer:
@@ -144,6 +151,135 @@ class PerformanceAnalyzer:
         self.timeframe = timeframe
         self.limit = limit
 
+    def _check_consecutive_nan_chunks(
+        self, 
+        values: np.ndarray, 
+        symbol: str,
+        max_gap_ratio: float = 0.1,
+        max_gap_candles: int = 24
+    ) -> bool:
+        """
+        Check for consecutive NaN/Inf chunks that may cause timestamp alignment issues.
+        
+        Args:
+            values: Array of values to check
+            symbol: Symbol name for logging
+            max_gap_ratio: Maximum allowed gap as ratio of total data (default: 10%)
+            max_gap_candles: Maximum allowed consecutive NaN candles (default: 24)
+            
+        Returns:
+            True if data is acceptable, False if gaps are too large
+        """
+        invalid_mask = np.isnan(values) | np.isinf(values)
+        
+        if not invalid_mask.any():
+            return True
+        
+        # Find consecutive chunks of invalid values
+        # Detect transitions: False->True (start of chunk) and True->False (end of chunk)
+        padded_mask = np.concatenate(([False], invalid_mask, [False]))
+        diff_mask = np.diff(padded_mask.astype(int))
+        
+        # Find start indices (where diff is +1) and end indices (where diff is -1)
+        start_indices = np.where(diff_mask == 1)[0]
+        end_indices = np.where(diff_mask == -1)[0]
+        
+        # Pair up starts and ends
+        if len(start_indices) != len(end_indices):
+            # Edge case: chunks at boundaries
+            if len(start_indices) > len(end_indices):
+                end_indices = np.concatenate((end_indices, [len(invalid_mask)]))
+            elif len(end_indices) > len(start_indices):
+                start_indices = np.concatenate(([0], start_indices))
+        
+        # Check each chunk
+        total_size = len(values)
+        for start_idx, end_idx in zip(start_indices, end_indices):
+            chunk_size = end_idx - start_idx
+            gap_ratio = chunk_size / total_size if total_size > 0 else 0.0
+            
+            # Log warning for large gaps
+            if chunk_size > max_gap_candles or gap_ratio > max_gap_ratio:
+                log_warn(
+                    f"{symbol}: Large data gap detected - {chunk_size} consecutive NaN/Inf values "
+                    f"(positions {start_idx}-{end_idx}, {gap_ratio*100:.1f}% of data). "
+                    "This may affect timestamp alignment and return calculations."
+                )
+                
+                # Reject if gap is extremely large
+                if chunk_size > max_gap_candles * 2 or gap_ratio > max_gap_ratio * 2:
+                    log_warn(
+                        f"{symbol}: Gap too large ({chunk_size} candles, {gap_ratio*100:.1f}%). "
+                        "Rejecting symbol to preserve data quality."
+                    )
+                    return False
+        
+        return True
+
+    def _calculate_timeframe_returns(
+        self,
+        df: pd.DataFrame,
+        current_price: float,
+        current_timestamp: pd.Timestamp,
+    ) -> Dict[str, float]:
+        """
+        Calculate returns for 1d, 3d, and 1w timeframes based on actual timestamps.
+        
+        This method ensures timestamp alignment by using actual time periods rather than
+        array indices, which is critical when there are gaps in the data.
+        
+        Args:
+            df: DataFrame with 'close' and 'timestamp' columns, sorted by timestamp
+            current_price: Current closing price
+            current_timestamp: Current timestamp
+            
+        Returns:
+            Dictionary with '1d', '3d', '1w' return percentages
+        """
+        returns = {'1d': 0.0, '3d': 0.0, '1w': 0.0}
+        
+        # Calculate target timestamps for each timeframe
+        target_timestamps = {
+            '1d': current_timestamp - pd.Timedelta(days=1),
+            '3d': current_timestamp - pd.Timedelta(days=3),
+            '1w': current_timestamp - pd.Timedelta(days=7),
+        }
+        
+        # For each timeframe, find the closest price before the target timestamp
+        for timeframe, target_ts in target_timestamps.items():
+            # Find rows before or at the target timestamp
+            mask = df['timestamp'] <= target_ts
+            
+            if not mask.any():
+                # No data before target timestamp, return 0.0
+                returns[timeframe] = 0.0
+                continue
+            
+            # Get the closest price before target timestamp
+            df_before = df[mask]
+            if df_before.empty:
+                returns[timeframe] = 0.0
+                continue
+            
+            # Get the most recent price before target timestamp
+            past_price = float(df_before['close'].iloc[-1])
+            
+            # Validate past_price
+            if past_price <= 0 or np.isnan(past_price) or np.isinf(past_price):
+                returns[timeframe] = 0.0
+                continue
+            
+            # Calculate return
+            ret = (current_price - past_price) / past_price
+            
+            # Validate return
+            if not (np.isnan(ret) or np.isinf(ret)):
+                returns[timeframe] = ret
+            else:
+                returns[timeframe] = 0.0
+        
+        return returns
+
     def calculate_performance_score(
         self, symbol: str, df: pd.DataFrame
     ) -> Optional[Dict[str, float]]:
@@ -198,76 +334,54 @@ class PerformanceAnalyzer:
             return None
 
         try:
+            # Check for consecutive NaN chunks that may cause timestamp alignment issues
             close_prices = df['close'].values
-            
-            # Drop NaN values and validate
-            valid_mask = ~(np.isnan(close_prices) | np.isinf(close_prices))
-            close_prices_clean = close_prices[valid_mask]
-            
-            if len(close_prices_clean) < self.min_candles:
+            if not self._check_consecutive_nan_chunks(close_prices, symbol):
                 return None
             
-            current_price = float(close_prices_clean[-1])
+            # Use DataFrame with timestamp index for accurate time-based calculations
+            # This ensures returns are calculated based on actual time periods, not array indices
+            df_clean = df.copy()
+            
+            # Filter out NaN/Inf values but keep timestamp alignment
+            invalid_mask = np.isnan(df_clean['close']) | np.isinf(df_clean['close'])
+            invalid_count = invalid_mask.sum()
+            
+            # Log warning if significant data loss
+            if invalid_count > 0:
+                invalid_ratio = invalid_count / len(df_clean) if len(df_clean) > 0 else 0.0
+                if invalid_ratio > 0.05:  # More than 5% invalid
+                    log_warn(
+                        f"{symbol}: Filtered {invalid_count}/{len(df_clean)} invalid values "
+                        f"({invalid_ratio*100:.1f}%). Timestamp alignment preserved."
+                    )
+            
+            # Remove invalid rows but preserve timestamp column
+            df_clean = df_clean[~invalid_mask].copy()
+            
+            if len(df_clean) < self.min_candles:
+                return None
+            
+            # Ensure we have a timestamp column for time-based calculations
+            if 'timestamp' not in df_clean.columns:
+                # If no timestamp, create one from index (assume sequential)
+                df_clean['timestamp'] = pd.to_datetime(df_clean.index, errors='coerce')
+            
+            # Sort by timestamp to ensure chronological order
+            df_clean = df_clean.sort_values('timestamp').reset_index(drop=True)
+            
+            # Get current price (most recent valid price)
+            current_price = float(df_clean['close'].iloc[-1])
             
             # Validate current_price
             if current_price <= 0 or np.isnan(current_price) or np.isinf(current_price):
                 return None
 
-            # Calculate returns for different timeframes
-            minutes_per_candle = max(1, timeframe_to_minutes(self.timeframe))
-
-            def _candles_for_days(days: int) -> int:
-                period_minutes = days * 24 * 60
-                return max(1, math.ceil(period_minutes / minutes_per_candle))
-
-            candles_1d = _candles_for_days(1)
-            candles_3d = _candles_for_days(3)
-            candles_1w = _candles_for_days(7)
-
-            # Calculate returns using clean prices array
-            returns = {}
+            # Get current timestamp
+            current_timestamp = df_clean['timestamp'].iloc[-1]
             
-            # 1-day return
-            if len(close_prices_clean) >= candles_1d + 1:
-                price_1d_ago = float(close_prices_clean[-(candles_1d + 1)])
-                if price_1d_ago > 0 and not (np.isnan(price_1d_ago) or np.isinf(price_1d_ago)):
-                    ret_1d = (current_price - price_1d_ago) / price_1d_ago
-                    if not (np.isnan(ret_1d) or np.isinf(ret_1d)):
-                        returns['1d'] = ret_1d
-                    else:
-                        returns['1d'] = 0.0
-                else:
-                    returns['1d'] = 0.0
-            else:
-                returns['1d'] = 0.0
-
-            # 3-day return
-            if len(close_prices_clean) >= candles_3d + 1:
-                price_3d_ago = float(close_prices_clean[-(candles_3d + 1)])
-                if price_3d_ago > 0 and not (np.isnan(price_3d_ago) or np.isinf(price_3d_ago)):
-                    ret_3d = (current_price - price_3d_ago) / price_3d_ago
-                    if not (np.isnan(ret_3d) or np.isinf(ret_3d)):
-                        returns['3d'] = ret_3d
-                    else:
-                        returns['3d'] = 0.0
-                else:
-                    returns['3d'] = 0.0
-            else:
-                returns['3d'] = 0.0
-
-            # 1-week return
-            if len(close_prices_clean) >= candles_1w + 1:
-                price_1w_ago = float(close_prices_clean[-(candles_1w + 1)])
-                if price_1w_ago > 0 and not (np.isnan(price_1w_ago) or np.isinf(price_1w_ago)):
-                    ret_1w = (current_price - price_1w_ago) / price_1w_ago
-                    if not (np.isnan(ret_1w) or np.isinf(ret_1w)):
-                        returns['1w'] = ret_1w
-                    else:
-                        returns['1w'] = 0.0
-                else:
-                    returns['1w'] = 0.0
-            else:
-                returns['1w'] = 0.0
+            # Calculate returns for different timeframes using actual timestamps
+            returns = self._calculate_timeframe_returns(df_clean, current_price, current_timestamp)
 
             # Calculate weighted score
             score = (
@@ -290,18 +404,20 @@ class PerformanceAnalyzer:
             }
 
         except (ValueError, IndexError, KeyError, TypeError, AttributeError) as e:
-            # Return None on any calculation error
+            # Log calculation errors for debugging
+            log_warn(f"{symbol}: Calculation error in performance score: {e}")
             return None
         except Exception as e:
-            # Catch-all for unexpected errors
+            # Log unexpected errors
+            log_error(f"{symbol}: Unexpected error in performance score calculation: {e}")
             return None
 
     def analyze_all_symbols(
         self,
         symbols: List[str],
-        data_fetcher: Optional[Any],
+        data_fetcher: Optional["DataFetcher"],
         verbose: bool = True,
-        shutdown_event: Optional[Any] = None,
+        shutdown_event: Optional["threading.Event"] = None,
     ) -> pd.DataFrame:
         """
         Analyze performance for all symbols.
@@ -330,16 +446,16 @@ class PerformanceAnalyzer:
             raise ValueError("data_fetcher must not be None")
 
         results = []
-        progress = None
 
         if verbose and ProgressBar:
             progress = ProgressBar(len(symbols), "Performance Analysis")
+        else:
+            progress = NullProgressBar()
 
         for symbol in symbols:
             # Validate symbol
             if not symbol or not isinstance(symbol, str):
-                if progress:
-                    progress.update()
+                progress.update()
                 continue
             
             # Check for shutdown signal
@@ -360,8 +476,7 @@ class PerformanceAnalyzer:
                 if df is None or df.empty:
                     if verbose:
                         log_warn(f"Skipping {symbol}: No data available")
-                    if progress:
-                        progress.update()
+                    progress.update()
                     continue
 
                 # Calculate performance score
@@ -370,8 +485,7 @@ class PerformanceAnalyzer:
                 if result is None:
                     if verbose:
                         log_warn(f"Skipping {symbol}: Insufficient data or calculation failed")
-                    if progress:
-                        progress.update()
+                    progress.update()
                     continue
 
                 results.append(result)
@@ -397,16 +511,14 @@ class PerformanceAnalyzer:
 
             except (AttributeError, TypeError, ValueError) as e:
                 if verbose:
-                    log_error(f"Error analyzing {symbol}: {e}")
+                    log_error(f"Error analyzing {symbol}: {type(e).__name__}: {e}")
             except Exception as e:
                 if verbose:
-                    log_error(f"Unexpected error analyzing {symbol}: {e}")
+                    log_error(f"Unexpected error analyzing {symbol}: {type(e).__name__}: {e}")
             finally:
-                if progress:
-                    progress.update()
+                progress.update()
 
-        if progress:
-            progress.finish()
+        progress.finish()
 
         if not results:
             if verbose:

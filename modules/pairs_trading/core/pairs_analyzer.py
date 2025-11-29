@@ -40,7 +40,7 @@ try:
         log_success,
         log_progress,
     )
-    from modules.common.ProgressBar import ProgressBar
+    from modules.common.ProgressBar import ProgressBar, NullProgressBar
     from modules.common.indicators import calculate_adx
 except ImportError:
     PAIRS_TRADING_MIN_SPREAD = 0.01
@@ -131,8 +131,21 @@ except ImportError:
         print(f"[PROGRESS] {msg}")
     
     ProgressBar = None
+    
+    class NullProgressBar:
+        """Null object pattern for ProgressBar when ProgressBar is not available."""
+        def update(self, step: int = 1) -> None:
+            pass
+        def finish(self) -> None:
+            pass
 
     def calculate_adx(ohlcv: pd.DataFrame, period: int = 14) -> Optional[float]:
+        """
+        Fallback ADX calculation implementation.
+        
+        This function is used when modules.common.indicators.calculate_adx cannot be imported.
+        It provides a basic ADX calculation but may have different behavior than the main implementation.
+        """
         if ohlcv is None or len(ohlcv) < period * 2:
             return None
 
@@ -189,6 +202,13 @@ except ImportError:
             return None
 
         return float(last_value)
+    
+    # Log warning when using fallback implementation
+    log_warn(
+        "Using fallback calculate_adx implementation. "
+        "The main module (modules.common.indicators.calculate_adx) could not be imported. "
+        "Please ensure all dependencies are properly installed."
+    )
 
 from modules.pairs_trading.core.pair_metrics_computer import PairMetricsComputer
 from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
@@ -408,7 +428,7 @@ class PairsTradingAnalyzer:
         self,
         symbol1: str,
         symbol2: str,
-        data_fetcher: Optional[Any],
+        data_fetcher: Optional["DataFetcher"],
         timeframe: str = PAIRS_TRADING_TIMEFRAME,
         limit: int = PAIRS_TRADING_LIMIT,
     ) -> Optional[pd.DataFrame]:
@@ -499,7 +519,7 @@ class PairsTradingAnalyzer:
         self._price_cache[cache_key] = df_combined
         return df_combined
 
-    def _get_symbol_adx(self, symbol: str, data_fetcher: Optional[Any]) -> Optional[float]:
+    def _get_symbol_adx(self, symbol: str, data_fetcher: Optional["DataFetcher"]) -> Optional[float]:
         """
         Retrieve cached ADX for symbol, computing if necessary.
         """
@@ -541,7 +561,7 @@ class PairsTradingAnalyzer:
         self,
         symbol1: str,
         symbol2: str,
-        data_fetcher: Optional[Any],
+        data_fetcher: Optional["DataFetcher"],
         timeframe: str = PAIRS_TRADING_TIMEFRAME,
         limit: int = PAIRS_TRADING_LIMIT,
     ) -> Optional[float]:
@@ -594,7 +614,7 @@ class PairsTradingAnalyzer:
         self,
         symbol1: str,
         symbol2: str,
-        data_fetcher: Optional[Any],
+        data_fetcher: Optional["DataFetcher"],
     ) -> Dict[str, Optional[float]]:
         """Compute Phase 1 quantitative metrics for a pair."""
         aligned_prices = self._fetch_aligned_prices(
@@ -654,7 +674,7 @@ class PairsTradingAnalyzer:
         self,
         best_performers: pd.DataFrame,
         worst_performers: pd.DataFrame,
-        data_fetcher: Optional[Any] = None,
+        data_fetcher: Optional["DataFetcher"] = None,
         verbose: bool = True,
     ) -> pd.DataFrame:
         """
@@ -705,10 +725,11 @@ class PairsTradingAnalyzer:
                 f"{len(worst_performers) * len(best_performers)} combinations..."
             )
 
-        progress = None
         total_combinations = len(worst_performers) * len(best_performers)
         if verbose and ProgressBar:
             progress = ProgressBar(total_combinations, "Pairs Analysis")
+        else:
+            progress = NullProgressBar()
 
         for _, worst_row in worst_performers.iterrows():
             long_symbol = worst_row.get('symbol')
@@ -716,14 +737,12 @@ class PairsTradingAnalyzer:
 
             # Validate row data
             if pd.isna(long_symbol) or long_symbol is None:
-                if progress:
-                    progress.update()
+                progress.update()
                 continue
             if pd.isna(long_score) or np.isinf(long_score):
                 if verbose:
                     log_warn(f"Invalid long_score for {long_symbol}: {long_score}")
-                if progress:
-                    progress.update()
+                progress.update()
                 continue
 
             for _, best_row in best_performers.iterrows():
@@ -732,20 +751,17 @@ class PairsTradingAnalyzer:
 
                 # Validate row data
                 if pd.isna(short_symbol) or short_symbol is None:
-                    if progress:
-                        progress.update()
+                    progress.update()
                     continue
                 if pd.isna(short_score) or np.isinf(short_score):
                     if verbose:
                         log_warn(f"Invalid short_score for {short_symbol}: {short_score}")
-                    if progress:
-                        progress.update()
+                    progress.update()
                     continue
 
                 # Skip if same symbol
                 if long_symbol == short_symbol:
-                    if progress:
-                        progress.update()
+                    progress.update()
                     continue
 
                 # Calculate spread
@@ -754,8 +770,7 @@ class PairsTradingAnalyzer:
                 except ValueError as e:
                     if verbose:
                         log_warn(f"Failed to calculate spread for {long_symbol}/{short_symbol}: {e}")
-                    if progress:
-                        progress.update()
+                    progress.update()
                     continue
 
                 # Calculate correlation if data_fetcher provided
@@ -814,11 +829,9 @@ class PairsTradingAnalyzer:
 
                 pairs.append(pair_record)
 
-                if progress:
-                    progress.update()
+                progress.update()
 
-        if progress:
-            progress.finish()
+        progress.finish()
 
         if not pairs:
             if verbose:
@@ -839,7 +852,7 @@ class PairsTradingAnalyzer:
     def validate_pairs(
         self,
         pairs_df: pd.DataFrame,
-        data_fetcher: Optional[Any],
+        data_fetcher: Optional["DataFetcher"],
         verbose: bool = True,
     ) -> pd.DataFrame:
         """

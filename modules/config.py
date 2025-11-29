@@ -392,6 +392,12 @@ PAIRS_TRADING_OPPORTUNITY_PRESETS = {
         "johansen_bonus": 1.08,
         "f1_high_bonus": 1.05,
         "f1_mid_bonus": 1.02,
+        # Momentum-specific bonuses
+        "momentum_cointegration_penalty": 0.95,
+        "momentum_zscore_high_bonus": 1.15,  # Bonus for |z-score| > 2.0
+        "momentum_zscore_moderate_bonus": 1.08,  # Bonus for |z-score| > 1.0
+        "momentum_zscore_high_threshold": 2.0,  # Threshold for high z-score bonus
+        "momentum_zscore_moderate_threshold": 1.0,  # Threshold for moderate z-score bonus
     },
     "aggressive": {
         "description": "Large rewards for strong signals, accept volatility",
@@ -414,6 +420,12 @@ PAIRS_TRADING_OPPORTUNITY_PRESETS = {
         "johansen_bonus": 1.12,
         "f1_high_bonus": 1.08,
         "f1_mid_bonus": 1.04,
+        # Momentum-specific bonuses
+        "momentum_cointegration_penalty": 0.90,
+        "momentum_zscore_high_bonus": 1.20,  # Bonus for |z-score| > 2.0
+        "momentum_zscore_moderate_bonus": 1.12,  # Bonus for |z-score| > 1.0
+        "momentum_zscore_high_threshold": 2.0,
+        "momentum_zscore_moderate_threshold": 1.0,
     },
     "conservative": {
         "description": "Light rewards, prioritize stable pairs",
@@ -436,6 +448,12 @@ PAIRS_TRADING_OPPORTUNITY_PRESETS = {
         "johansen_bonus": 1.05,
         "f1_high_bonus": 1.03,
         "f1_mid_bonus": 1.01,
+        # Momentum-specific bonuses
+        "momentum_cointegration_penalty": 0.98,
+        "momentum_zscore_high_bonus": 1.10,  # Bonus for |z-score| > 2.0
+        "momentum_zscore_moderate_bonus": 1.05,  # Bonus for |z-score| > 1.0
+        "momentum_zscore_high_threshold": 2.0,
+        "momentum_zscore_moderate_threshold": 1.0,
     },
 }
 
@@ -498,6 +516,9 @@ PAIRS_TRADING_MOMENTUM_FILTERS = {
     "strong_adx": 25.0,         # Strong trend confirmation threshold
     "adx_base_bonus": 1.03,     # Bonus when both legs pass min_adx
     "adx_strong_bonus": 1.08,   # Bonus when both legs exceed strong_adx
+    "adx_weak_penalty_factor": 0.5,  # Penalty scaling factor when ADX < min_adx (0.0-1.0, lower = more penalty)
+    "adx_very_weak_threshold": 10.0,  # ADX below this gets severe penalty
+    "adx_very_weak_penalty": 0.3,  # Severe penalty multiplier for very weak ADX
     "low_corr_threshold": 0.30, # Prefer divergence / low correlation
     "high_corr_threshold": 0.75,# Penalize highly correlated legs
     "low_corr_bonus": 1.05,     # Bonus if |corr| below low_corr_threshold
