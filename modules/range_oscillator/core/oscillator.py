@@ -359,3 +359,4 @@ __all__ = [
     "calculate_trend_direction",
     "calculate_range_oscillator",
 ]
+

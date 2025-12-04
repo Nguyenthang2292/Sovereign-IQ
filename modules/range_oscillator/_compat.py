@@ -1,16 +1,26 @@
 """
-Range Oscillator module.
+Range Oscillator Compatibility Layer.
 
-This module provides Range Oscillator indicator calculations and signal strategies.
+This module provides backward compatibility by re-exporting all strategy functions
+from their individual modules. Individual strategies have been moved to separate files:
+- strategy1.py: Basic oscillator signals
+- strategy2.py: Sustained pressure
+- strategy3.py: Zero line crossover
+- strategy4.py: Momentum
+- strategy5.py: Combined
+- strategy6.py: Range breakouts
+- strategy7.py: Divergence detection
+- strategy8.py: Trend following
+- strategy9.py: Mean reversion
+- summary.py: Signal summary utilities
+
+This file exists to maintain backward compatibility with existing code that imports
+from `modules.range_oscillator._compat`. New code should import directly from
+the individual strategy modules in `modules.range_oscillator.strategies` or from 
+`modules.range_oscillator`.
 """
 
-from modules.range_oscillator.core.oscillator import (
-    calculate_weighted_ma,
-    calculate_atr_range,
-    calculate_trend_direction,
-    calculate_range_oscillator,
-)
-
+# Re-export all strategies for backward compatibility
 from modules.range_oscillator.strategies.basic import generate_signals_strategy1
 from modules.range_oscillator.strategies.sustained import generate_signals_strategy2_sustained
 from modules.range_oscillator.strategies.crossover import generate_signals_strategy3_crossover
@@ -23,12 +33,6 @@ from modules.range_oscillator.strategies.mean_reversion import generate_signals_
 from modules.range_oscillator.analysis.summary import get_signal_summary
 
 __all__ = [
-    # Core calculations
-    "calculate_weighted_ma",
-    "calculate_atr_range",
-    "calculate_trend_direction",
-    "calculate_range_oscillator",
-    # Signal strategies
     "generate_signals_strategy1",
     "generate_signals_strategy2_sustained",
     "generate_signals_strategy3_crossover",
@@ -40,3 +44,4 @@ __all__ = [
     "generate_signals_strategy9_mean_reversion",
     "get_signal_summary",
 ]
+

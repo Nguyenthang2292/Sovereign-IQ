@@ -37,14 +37,12 @@ from modules.common.DataFetcher import DataFetcher
 from modules.adaptive_trend.scanner import scan_all_symbols
 from modules.adaptive_trend.cli import prompt_timeframe
 from modules.common.utils import prompt_user_input
-from modules.range_oscillator.range_oscillator import calculate_range_oscillator
-from modules.range_oscillator.strategy import (
-    generate_signals_strategy5_combined,
-    generate_signals_strategy6_breakout,
-    generate_signals_strategy7_divergence,
-    generate_signals_strategy8_trend_following,
-    generate_signals_strategy9_mean_reversion,
-)
+from modules.range_oscillator.core.oscillator import calculate_range_oscillator
+from modules.range_oscillator.strategies.combined import generate_signals_strategy5_combined
+from modules.range_oscillator.strategies.breakout import generate_signals_strategy6_breakout
+from modules.range_oscillator.strategies.divergence import generate_signals_strategy7_divergence
+from modules.range_oscillator.strategies.trend_following import generate_signals_strategy8_trend_following
+from modules.range_oscillator.strategies.mean_reversion import generate_signals_strategy9_mean_reversion
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
