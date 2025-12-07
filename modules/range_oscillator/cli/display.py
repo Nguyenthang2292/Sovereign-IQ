@@ -44,9 +44,9 @@ def display_configuration(
     print(color_text(f"  Limit: {limit} candles", Fore.WHITE))
     print(color_text(f"  Min Signal: {min_signal}", Fore.WHITE))
     print(color_text(f"  Parallel Workers: {max_workers}", Fore.WHITE))
-    strategies_str = ", ".join(map(str, strategies)) if strategies else "5, 6, 7, 8, 9 (all)"
-    print(color_text(f"  Oscillator Strategies: {strategies_str}", Fore.WHITE))
-    print(color_text(f"  Oscillator Mode: Any Strategy Mode", Fore.WHITE))
+    strategies_str = "Strategy 5 Combined (Dynamic Selection + Adaptive Weights)"
+    print(color_text(f"  Oscillator Strategy: {strategies_str}", Fore.WHITE))
+    print(color_text(f"  Mode: Dynamic Selection with Adaptive Weights", Fore.WHITE))
     if max_symbols:
         print(color_text(f"  Max Symbols: {max_symbols}", Fore.WHITE))
     print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
@@ -80,10 +80,10 @@ def display_final_results(
     else:
         print(color_text(f"  Found {len(long_signals)} confirmed LONG signals (from {original_long_count} ATC signals)", Fore.WHITE))
         print()
-        # Check if osc_strategies column exists
-        has_strategies = 'osc_strategies' in long_signals.columns
-        if has_strategies:
-            print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10} {'Strategy':<12}", Fore.MAGENTA))
+        # Check if osc_confidence column exists
+        has_confidence = 'osc_confidence' in long_signals.columns
+        if has_confidence:
+            print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10} {'Confidence':>12}", Fore.MAGENTA))
         else:
             print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10}", Fore.MAGENTA))
         print(color_text("-" * 80, Fore.CYAN))
@@ -91,15 +91,12 @@ def display_final_results(
         for _, row in long_signals.iterrows():
             signal_str = f"{row['signal']:+.6f}"
             price_str = format_price(row['price'])
-            if has_strategies:
-                strategies = row.get('osc_strategies', [])
-                if isinstance(strategies, list) and strategies:
-                    strategy_str = ",".join(map(str, strategies))
-                else:
-                    strategy_str = "N/A"
+            if has_confidence:
+                confidence = row.get('osc_confidence', 0.0)
+                confidence_str = f"{confidence:.3f}"
                 print(
                     color_text(
-                        f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {strategy_str:<12}",
+                        f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
                         Fore.GREEN,
                     )
                 )
@@ -120,10 +117,10 @@ def display_final_results(
     else:
         print(color_text(f"  Found {len(short_signals)} confirmed SHORT signals (from {original_short_count} ATC signals)", Fore.WHITE))
         print()
-        # Check if osc_strategies column exists
-        has_strategies = 'osc_strategies' in short_signals.columns
-        if has_strategies:
-            print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10} {'Strategy':<12}", Fore.MAGENTA))
+        # Check if osc_confidence column exists
+        has_confidence = 'osc_confidence' in short_signals.columns
+        if has_confidence:
+            print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10} {'Confidence':>12}", Fore.MAGENTA))
         else:
             print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10}", Fore.MAGENTA))
         print(color_text("-" * 80, Fore.CYAN))
@@ -131,15 +128,12 @@ def display_final_results(
         for _, row in short_signals.iterrows():
             signal_str = f"{row['signal']:+.6f}"
             price_str = format_price(row['price'])
-            if has_strategies:
-                strategies = row.get('osc_strategies', [])
-                if isinstance(strategies, list) and strategies:
-                    strategy_str = ",".join(map(str, strategies))
-                else:
-                    strategy_str = "N/A"
+            if has_confidence:
+                confidence = row.get('osc_confidence', 0.0)
+                confidence_str = f"{confidence:.3f}"
                 print(
                     color_text(
-                        f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {strategy_str:<12}",
+                        f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
                         Fore.RED,
                     )
                 )
@@ -151,9 +145,29 @@ def display_final_results(
                     )
                 )
 
+    # Calculate average confidence scores
+    avg_long_confidence = 0.0
+    avg_short_confidence = 0.0
+    if not long_signals.empty and 'osc_confidence' in long_signals.columns:
+        avg_long_confidence = float(long_signals['osc_confidence'].mean())
+    if not short_signals.empty and 'osc_confidence' in short_signals.columns:
+        avg_short_confidence = float(short_signals['osc_confidence'].mean())
+    
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
     print(color_text(f"Summary:", Fore.WHITE, Style.BRIGHT))
     print(color_text(f"  ATC Signals: {original_long_count} LONG + {original_short_count} SHORT = {original_long_count + original_short_count}", Fore.WHITE))
     print(color_text(f"  Confirmed Signals: {len(long_signals)} LONG + {len(short_signals)} SHORT = {len(long_signals) + len(short_signals)}", Fore.WHITE, Style.BRIGHT))
     print(color_text(f"  Confirmation Rate: {(len(long_signals) + len(short_signals)) / (original_long_count + original_short_count) * 100:.1f}%" if (original_long_count + original_short_count) > 0 else "N/A", Fore.YELLOW))
+    
+    # Display confidence scores
+    if avg_long_confidence > 0 or avg_short_confidence > 0:
+        print(color_text(f"  Average Confidence Score:", Fore.WHITE, Style.BRIGHT))
+        if avg_long_confidence > 0:
+            print(color_text(f"    LONG: {avg_long_confidence:.3f}", Fore.GREEN))
+        if avg_short_confidence > 0:
+            print(color_text(f"    SHORT: {avg_short_confidence:.3f}", Fore.RED))
+        if avg_long_confidence > 0 and avg_short_confidence > 0:
+            overall_avg = (avg_long_confidence + avg_short_confidence) / 2.0
+            print(color_text(f"    Overall: {overall_avg:.3f}", Fore.YELLOW))
+    
     print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))

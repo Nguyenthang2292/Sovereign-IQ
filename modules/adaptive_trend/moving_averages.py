@@ -8,10 +8,12 @@ This module provides functions to calculate various types of Moving Averages:
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Tuple
 
 import pandas as pd
 import pandas_ta as ta
+
+from modules.common.utils import log_warn, log_error
 
 from modules.common.indicators.momentum import calculate_kama_series
 from .utils import diflen
@@ -35,16 +37,45 @@ def calculate_kama_atc(
 
     Returns:
         KAMA Series with same index as prices, or None if calculation fails.
-    """
-    if prices is None or len(prices) == 0:
-        return None
 
-    return calculate_kama_series(
-        prices=prices,
-        period=length,
-        fast=2,
-        slow=30,
-    )
+    Raises:
+        ValueError: If length is invalid or prices is empty.
+        TypeError: If prices is not a pandas Series.
+    """
+    if not isinstance(prices, pd.Series):
+        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")
+    
+    if prices is None or len(prices) == 0:
+        log_warn("Empty prices series provided for KAMA calculation")
+        return None
+    
+    if length <= 0:
+        raise ValueError(f"length must be > 0, got {length}")
+    
+    if length > len(prices):
+        log_warn(
+            f"KAMA length ({length}) is greater than prices length ({len(prices)}). "
+            f"This may result in insufficient data for calculation."
+        )
+
+    try:
+        result = calculate_kama_series(
+            prices=prices,
+            period=length,
+            fast=2,
+            slow=30,
+        )
+        
+        if result is None:
+            log_warn(f"KAMA calculation returned None for length={length}")
+        elif len(result) == 0:
+            log_warn(f"KAMA calculation returned empty series for length={length}")
+        
+        return result
+    
+    except Exception as e:
+        log_error(f"Error calculating KAMA: {e}")
+        raise
 
 
 def ma_calculation(
@@ -84,28 +115,75 @@ def ma_calculation(
 
     Returns:
         Moving Average Series, or None if calculation fails or invalid ma_type.
+
+    Raises:
+        ValueError: If length is invalid, source is empty, or ma_type is invalid.
+        TypeError: If source is not a pandas Series.
     """
+    if not isinstance(source, pd.Series):
+        raise TypeError(f"source must be a pandas Series, got {type(source)}")
+    
     if source is None or len(source) == 0:
+        log_warn("Empty source series provided for MA calculation")
+        return None
+    
+    if length <= 0:
+        raise ValueError(f"length must be > 0, got {length}")
+    
+    if length > len(source):
+        log_warn(
+            f"MA length ({length}) is greater than source length ({len(source)}). "
+            f"This may result in insufficient data for calculation."
+        )
+    
+    if not isinstance(ma_type, str) or not ma_type.strip():
+        raise ValueError(f"ma_type must be a non-empty string, got {ma_type}")
+
+    ma = ma_type.upper().strip()
+    VALID_MA_TYPES = {"EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"}
+    
+    if ma not in VALID_MA_TYPES:
+        log_warn(
+            f"Invalid ma_type '{ma_type}'. Valid types: {', '.join(VALID_MA_TYPES)}. "
+            f"Returning None."
+        )
         return None
 
-    ma = ma_type.upper()
-
-    if ma == "EMA":
-        return ta.ema(source, length=length)
-    if ma == "HMA":
-        # Pine: HMA branch đang dùng ta.sma, không phải Hull MA chuẩn.
-        return ta.sma(source, length=length)
-    if ma == "WMA":
-        return ta.wma(source, length=length)
-    if ma == "DEMA":
-        return ta.dema(source, length=length)
-    if ma == "LSMA":
-        # LSMA ~ Linear Regression (Least Squares Moving Average)
-        return ta.linreg(source, length=length)
-    if ma == "KAMA":
-        return calculate_kama_atc(source, length=length)
-
-    return None
+    try:
+        if ma == "EMA":
+            result = ta.ema(source, length=length)
+        elif ma == "HMA":
+            # Pine: HMA branch uses ta.sma, not classic Hull MA.
+            result = ta.sma(source, length=length)
+        elif ma == "WMA":
+            result = ta.wma(source, length=length)
+        elif ma == "DEMA":
+            result = ta.dema(source, length=length)
+        elif ma == "LSMA":
+            # LSMA ~ Linear Regression (Least Squares Moving Average)
+            result = ta.linreg(source, length=length)
+        elif ma == "KAMA":
+            result = calculate_kama_atc(source, length=length)
+        else:
+            # This should never happen due to validation above, but kept for safety
+            return None
+        
+        if result is None:
+            log_warn(f"MA calculation ({ma}) returned None for length={length}")
+        elif len(result) == 0:
+            log_warn(f"MA calculation ({ma}) returned empty series for length={length}")
+        elif not isinstance(result, pd.Series):
+            log_warn(
+                f"MA calculation ({ma}) returned unexpected type {type(result)}, "
+                f"expected pandas Series"
+            )
+            return None
+        
+        return result
+    
+    except Exception as e:
+        log_error(f"Error calculating {ma} MA with length={length}: {e}")
+        raise
 
 
 def set_of_moving_averages(
@@ -137,23 +215,89 @@ def set_of_moving_averages(
     Returns:
         Tuple of 9 MA Series: (MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4),
         or None if source is empty or invalid.
+
+    Raises:
+        ValueError: If length is invalid, source is empty, or robustness is invalid.
+        TypeError: If source is not a pandas Series.
     """
+    # Input validation
+    if not isinstance(source, pd.Series):
+        raise TypeError(f"source must be a pandas Series, got {type(source)}")
+    
     if source is None or len(source) == 0:
+        log_warn("Empty source series provided for set_of_moving_averages")
         return None
+    
+    if length <= 0:
+        raise ValueError(f"length must be > 0, got {length}")
+    
+    if not isinstance(ma_type, str) or not ma_type.strip():
+        raise ValueError(f"ma_type must be a non-empty string, got {ma_type}")
+    
+    VALID_ROBUSTNESS = {"Narrow", "Medium", "Wide"}
+    if robustness not in VALID_ROBUSTNESS:
+        log_warn(
+            f"Invalid robustness '{robustness}'. Valid values: {', '.join(VALID_ROBUSTNESS)}. "
+            f"Using default 'Medium'."
+        )
+        robustness = "Medium"
 
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    try:
+        # Calculate length offsets
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+        
+        # Validate offsets are positive (negative offsets from diflen should still be > 0)
+        lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
+        if any(l <= 0 for l in lengths):
+            invalid_lengths = [l for l in lengths if l <= 0]
+            raise ValueError(
+                f"Invalid length offsets calculated: {invalid_lengths}. "
+                f"All lengths must be > 0."
+            )
 
-    MA = ma_calculation(source, length, ma_type)
-    MA1 = ma_calculation(source, L1, ma_type)
-    MA2 = ma_calculation(source, L2, ma_type)
-    MA3 = ma_calculation(source, L3, ma_type)
-    MA4 = ma_calculation(source, L4, ma_type)
-    MA_1 = ma_calculation(source, L_1, ma_type)
-    MA_2 = ma_calculation(source, L_2, ma_type)
-    MA_3 = ma_calculation(source, L_3, ma_type)
-    MA_4 = ma_calculation(source, L_4, ma_type)
+        # Calculate all MAs (optimized with list comprehension)
+        ma_lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
+        ma_names = ["MA", "MA1", "MA2", "MA3", "MA4", "MA_1", "MA_2", "MA_3", "MA_4"]
+        
+        mas = []
+        failed_calculations = []
+        
+        for ma_len, ma_name in zip(ma_lengths, ma_names):
+            ma_result = ma_calculation(source, ma_len, ma_type)
+            if ma_result is None:
+                failed_calculations.append(f"{ma_name} (length={ma_len})")
+                log_warn(
+                    f"Failed to calculate {ma_name} ({ma_type}, length={ma_len})."
+                )
+            mas.append(ma_result)
 
-    return MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4
+        # Check if any MA calculation failed
+        if all(ma is None for ma in mas):
+            log_error(
+                f"All MA calculations failed for ma_type={ma_type}, length={length}."
+            )
+            return None
+        
+        # Raise error if any MA calculation failed (don't return partial tuple)
+        if failed_calculations:
+            failed_list = ", ".join(failed_calculations)
+            error_msg = (
+                f"Failed to calculate {len(failed_calculations)} out of 9 MAs "
+                f"for ma_type={ma_type}, length={length}. "
+                f"Failed: {failed_list}. "
+                f"Cannot proceed with partial MA set as it will cause TypeErrors downstream."
+            )
+            log_error(error_msg)
+            raise ValueError(error_msg)
+
+        # Unpack for return tuple (maintaining original variable names)
+        MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4 = mas
+
+        return MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4
+    
+    except Exception as e:
+        log_error(f"Error calculating set of moving averages: {e}")
+        raise
 
 
 __all__ = [

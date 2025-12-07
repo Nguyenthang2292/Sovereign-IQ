@@ -38,11 +38,12 @@ from modules.range_oscillator.cli import (
     display_configuration,
     display_final_results,
 )
-from modules.range_oscillator.strategies.combined import generate_signals_strategy5_combined
-from modules.range_oscillator.strategies.breakout import generate_signals_strategy6_breakout
-from modules.range_oscillator.strategies.divergence import generate_signals_strategy7_divergence
-from modules.range_oscillator.strategies.trend_following import generate_signals_strategy8_trend_following
-from modules.range_oscillator.strategies.mean_reversion import generate_signals_strategy9_mean_reversion
+from modules.range_oscillator.strategies.combined import (
+    generate_signals_strategy5_combined,
+    Strategy5Config,
+    ConsensusConfig,
+    DynamicSelectionConfig,
+)
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
@@ -59,8 +60,7 @@ def get_range_oscillator_signal(
     strategies: Optional[list] = None,
 ) -> Optional[tuple]:
     """
-    Calculate Range Oscillator signal for a symbol using multiple strategies.
-    Uses "Any Strategy Mode" - returns signal if ANY strategy gives LONG/SHORT.
+    Calculate Range Oscillator signal for a symbol using Strategy 5 Combined with Dynamic Selection and Adaptive Weights.
     
     Args:
         data_fetcher: DataFetcher instance
@@ -69,13 +69,13 @@ def get_range_oscillator_signal(
         limit: Number of candles
         osc_length: Range Oscillator length parameter
         osc_mult: Range Oscillator multiplier
-        strategies: List of strategy numbers to use (e.g., [5, 6, 7, 8, 9]). 
-                    If None, uses all strategies [5, 6, 7, 8, 9]
+        strategies: List of strategy numbers to enable (e.g., [2, 3, 4, 6, 7, 8, 9]). 
+                    If None, uses all available strategies [2, 3, 4, 6, 7, 8, 9]
         
     Returns:
-        Tuple of (signal, strategy_numbers):
+        Tuple of (signal, confidence_score):
         - signal: 1 (LONG), -1 (SHORT), 0 (NEUTRAL), or None if error
-        - strategy_numbers: List of strategy numbers that generated the signal
+        - confidence_score: Confidence score (0.0 to 1.0) or None if error
     """
     try:
         # Fetch OHLCV data
@@ -96,86 +96,61 @@ def get_range_oscillator_signal(
         low = df["low"]
         close = df["close"]
 
-        # Default to all strategies if not specified
+        # Default to all available strategies if not specified
         if strategies is None:
-            strategies = [5, 6, 7, 8, 9]
+            enabled_strategies = [2, 3, 4, 6, 7, 8, 9]  # All available strategies
+        else:
+            # Convert strategy numbers if needed (e.g., [5] -> [2, 3, 4, 6, 7, 8, 9])
+            # Strategy 5 is the combined strategy, so we enable all sub-strategies
+            if 5 in strategies:
+                enabled_strategies = [2, 3, 4, 6, 7, 8, 9]
+            else:
+                enabled_strategies = strategies
 
-        # Calculate signals from each strategy with strategy number tracking
-        strategy_signals = []  # List of (strategy_num, signal)
+        # Use Strategy 5 Combined with Dynamic Selection and Adaptive Weights
+        # Create config object for cleaner code
+        config = Strategy5Config()
+        config.enabled_strategies = enabled_strategies
+        config.return_confidence_score = True
         
-        for strategy_num in strategies:
-            try:
-                if strategy_num == 5:
-                    signals, _ = generate_signals_strategy5_combined(
-                        high=high,
-                        low=low,
-                        close=close,
-                        length=osc_length,
-                        mult=osc_mult,
-                        use_sustained=True,
-                        use_crossover=True,
-                        use_momentum=True,
-                    )
-                elif strategy_num == 6:
-                    signals, _ = generate_signals_strategy6_breakout(
-                        high=high,
-                        low=low,
-                        close=close,
-                        length=osc_length,
-                        mult=osc_mult,
-                    )
-                elif strategy_num == 7:
-                    signals, _ = generate_signals_strategy7_divergence(
-                        high=high,
-                        low=low,
-                        close=close,
-                        length=osc_length,
-                        mult=osc_mult,
-                    )
-                elif strategy_num == 8:
-                    signals, _ = generate_signals_strategy8_trend_following(
-                        high=high,
-                        low=low,
-                        close=close,
-                        length=osc_length,
-                        mult=osc_mult,
-                    )
-                elif strategy_num == 9:
-                    signals, _ = generate_signals_strategy9_mean_reversion(
-                        high=high,
-                        low=low,
-                        close=close,
-                        length=osc_length,
-                        mult=osc_mult,
-                    )
-                else:
-                    continue  # Skip unknown strategy numbers
-                
-                if signals is not None and not signals.empty:
-                    # Get latest signal (last non-NaN value)
-                    non_nan_signals = signals.dropna()
-                    if len(non_nan_signals) > 0:
-                        latest_signal = int(non_nan_signals.iloc[-1])
-                        strategy_signals.append((strategy_num, latest_signal))
-            except Exception:
-                # Skip strategies that fail for this symbol
-                continue
+        # Configure dynamic selection
+        config.dynamic.enabled = True
+        config.dynamic.lookback = 20
+        config.dynamic.volatility_threshold = 0.6
+        config.dynamic.trend_threshold = 0.5
+        
+        # Configure consensus with adaptive weights
+        config.consensus.mode = "weighted"
+        config.consensus.adaptive_weights = True
+        config.consensus.performance_window = 10
+        
+        result = generate_signals_strategy5_combined(
+            high=high,
+            low=low,
+            close=close,
+            length=osc_length,
+            mult=osc_mult,
+            config=config,
+        )
 
-        if not strategy_signals:
+        # Unpack tuple: (signal_series, strength_series, confidence_series)
+        # when return_confidence_score=True
+        signals = result[0]  # signal_series
+        confidence = result[2]  # confidence_series (index 2 when return_confidence_score=True)
+
+        if signals is None or signals.empty:
             return None
 
-        # Any Strategy Mode - return signal if ANY strategy gives LONG/SHORT
-        # Find all strategies that give LONG signal
-        long_strategies = [s[0] for s in strategy_signals if s[1] == 1]
-        # Find all strategies that give SHORT signal
-        short_strategies = [s[0] for s in strategy_signals if s[1] == -1]
-        
-        if long_strategies:
-            return (1, long_strategies)  # LONG (at least one strategy says LONG)
-        elif short_strategies:
-            return (-1, short_strategies)  # SHORT (at least one strategy says SHORT)
-        else:
-            return (0, [])  # NEUTRAL (all strategies are neutral or no signals)
+        # Get latest signal and confidence (last non-NaN value)
+        non_nan_mask = ~signals.isna()
+        if not non_nan_mask.any():
+            return None
+
+        latest_idx = signals[non_nan_mask].index[-1]
+        latest_signal = int(signals.loc[latest_idx])
+        latest_confidence = float(confidence.loc[latest_idx]) if confidence is not None and not confidence.empty else 0.0
+
+        return (latest_signal, latest_confidence)
 
     except Exception as e:
         # Skip symbols with errors
@@ -323,7 +298,7 @@ class ATCOscillatorAnalyzer:
             
             symbol = symbol_data["symbol"]
             
-            # Calculate Range Oscillator signal (returns tuple of (signal, strategy_numbers))
+            # Calculate Range Oscillator signal (returns tuple of (signal, confidence_score))
             osc_result = get_range_oscillator_signal(
                 data_fetcher=data_fetcher,
                 symbol=symbol,
@@ -337,7 +312,7 @@ class ATCOscillatorAnalyzer:
             if osc_result is None:
                 return None
             
-            osc_signal, osc_strategies = osc_result
+            osc_signal, osc_confidence = osc_result
 
             # Check if signals match
             if osc_signal == expected_osc_signal:
@@ -349,7 +324,7 @@ class ATCOscillatorAnalyzer:
                     "price": symbol_data["price"],
                     "exchange": symbol_data["exchange"],
                     "osc_signal": osc_signal,
-                    "osc_strategies": osc_strategies,  # List of strategy numbers
+                    "osc_confidence": osc_confidence,  # Confidence score (0.0 to 1.0)
                 }
             
             return None
@@ -381,10 +356,10 @@ class ATCOscillatorAnalyzer:
         expected_osc_signal = 1 if signal_type == "LONG" else -1
         total = len(atc_signals_df)
         
-        strategies_str = ", ".join(map(str, osc_params["strategies"])) if osc_params["strategies"] else "5, 6, 7, 8, 9 (all)"
+        strategies_str = "Strategy 5 Combined (Dynamic Selection + Adaptive Weights)"
         log_progress(
             f"Checking Range Oscillator signals for {total} {signal_type} symbols "
-            f"(strategies: {strategies_str}, any strategy mode, workers: {osc_params['max_workers']})..."
+            f"({strategies_str}, workers: {osc_params['max_workers']})..."
         )
 
         # Get ExchangeManager from DataFetcher (shared, thread-safe)
@@ -458,11 +433,24 @@ class ATCOscillatorAnalyzer:
 
         filtered_df = pd.DataFrame(filtered_results)
         
-        # Sort by signal strength (absolute value)
-        if signal_type == "LONG":
-            filtered_df = filtered_df.sort_values("signal", ascending=False).reset_index(drop=True)
+        # Sort by confidence score (descending) first, then by signal strength
+        if "osc_confidence" in filtered_df.columns:
+            if signal_type == "LONG":
+                filtered_df = filtered_df.sort_values(
+                    ["osc_confidence", "signal"], 
+                    ascending=[False, False]
+                ).reset_index(drop=True)
+            else:
+                filtered_df = filtered_df.sort_values(
+                    ["osc_confidence", "signal"], 
+                    ascending=[False, True]
+                ).reset_index(drop=True)
         else:
-            filtered_df = filtered_df.sort_values("signal", ascending=True).reset_index(drop=True)
+            # Fallback: sort by signal strength (absolute value)
+            if signal_type == "LONG":
+                filtered_df = filtered_df.sort_values("signal", ascending=False).reset_index(drop=True)
+            else:
+                filtered_df = filtered_df.sort_values("signal", ascending=True).reset_index(drop=True)
 
         return filtered_df
     
