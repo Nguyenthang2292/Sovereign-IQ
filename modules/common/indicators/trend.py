@@ -1,4 +1,11 @@
-"""Trend indicator block."""
+"""Trend indicator block.
+
+This module provides trend-following indicators including:
+- Moving Averages (SMA, EMA)
+- Average Directional Index (ADX)
+- Commodity Channel Index (CCI)
+- Directional Movement Index difference (DMI difference)
+"""
 
 from __future__ import annotations
 
@@ -12,12 +19,30 @@ from .base import IndicatorMetadata, IndicatorResult, collect_metadata
 
 
 class TrendIndicators:
-    """Trend indicators: SMA, EMA, ADX, etc."""
+    """
+    Trend indicators: SMA, EMA, ADX, etc.
+    
+    This class provides a block-based approach for calculating multiple
+    trend indicators at once, suitable for use with IndicatorEngine.
+    """
 
     CATEGORY = "trend"
 
     @staticmethod
     def apply(df: pd.DataFrame) -> IndicatorResult:
+        """
+        Apply trend indicators to a DataFrame.
+        
+        Calculates:
+        - SMA_20, SMA_50, SMA_200: Simple Moving Averages
+        - ADX_14: Average Directional Index
+        
+        Args:
+            df: DataFrame with OHLCV data
+            
+        Returns:
+            Tuple of (result DataFrame, metadata dict)
+        """
         result = df.copy()
         before = result.columns.tolist()
 
@@ -35,9 +60,24 @@ class TrendIndicators:
         return result, metadata
 
 
+# ============================================================================
+# ADX (Average Directional Index) Functions
+# ============================================================================
+
+
 def calculate_adx_series(ohlcv: pd.DataFrame, period: int = 14) -> Optional[pd.Series]:
     """
     Calculate ADX time-series for all periods.
+    
+    ADX (Average Directional Index) measures trend strength regardless of direction.
+    Higher values indicate stronger trends.
+    
+    Args:
+        ohlcv: DataFrame with high, low, close columns
+        period: Period for ADX calculation (default: 14)
+        
+    Returns:
+        Series with ADX values, or None if insufficient data
     """
     if ohlcv is None or len(ohlcv) < period * 2:
         return None
@@ -99,6 +139,15 @@ def calculate_adx_series(ohlcv: pd.DataFrame, period: int = 14) -> Optional[pd.S
 def calculate_adx(ohlcv: pd.DataFrame, period: int = 14) -> Optional[float]:
     """
     Calculate single ADX value (latest).
+    
+    Convenience function to get the most recent ADX value.
+    
+    Args:
+        ohlcv: DataFrame with high, low, close columns
+        period: Period for ADX calculation (default: 14)
+        
+    Returns:
+        Latest ADX value as float, or None if unavailable
     """
     adx_series = calculate_adx_series(ohlcv, period=period)
     if adx_series is None or adx_series.empty:
@@ -109,4 +158,100 @@ def calculate_adx(ohlcv: pd.DataFrame, period: int = 14) -> Optional[float]:
     return float(last_value)
 
 
-__all__ = ["TrendIndicators", "calculate_adx", "calculate_adx_series"]
+# ============================================================================
+# CCI (Commodity Channel Index) Function
+# ============================================================================
+
+
+def calculate_cci(
+    high: pd.Series, low: pd.Series, close: pd.Series, length: int = 20
+) -> pd.Series:
+    """
+    Calculate Commodity Channel Index (CCI).
+    
+    CCI is a trend indicator that measures the deviation of price from its
+    statistical mean. High values indicate prices are well above their average,
+    while low values indicate prices are well below their average.
+    
+    Args:
+        high: High price series
+        low: Low price series
+        close: Close price series
+        length: Period for CCI calculation (default: 20)
+        
+    Returns:
+        Series with CCI values
+    """
+    cci = ta.cci(high=high, low=low, close=close, length=length)
+    if cci is None:
+        cci = pd.Series(0.0, index=close.index)
+    return cci.fillna(0.0)
+
+
+# ============================================================================
+# DMI (Directional Movement Index) Functions
+# ============================================================================
+
+
+def calculate_dmi_difference(
+    high: pd.Series, low: pd.Series, close: pd.Series, length: int = 9
+) -> pd.Series:
+    """
+    Calculate simplified DMI difference (plus - minus).
+    
+    This calculates the difference between +DI and -DI from the Directional
+    Movement Index system. Positive values indicate bullish momentum,
+    negative values indicate bearish momentum.
+    
+    Args:
+        high: High price series
+        low: Low price series
+        close: Close price series
+        length: Period for DMI calculation (default: 9)
+        
+    Returns:
+        Series with DMI difference values (plus - minus)
+    """
+    up = high.diff()
+    down = -low.diff()
+
+    plus_dm = pd.Series(
+        np.where((up > down) & (up > 0), up, 0.0),
+        index=high.index,
+    )
+    minus_dm = pd.Series(
+        np.where((down > up) & (down > 0), down, 0.0),
+        index=low.index,
+    )
+
+    # True Range
+    tr_components = pd.concat(
+        [
+            (high - low),
+            (high - close.shift()).abs(),
+            (low - close.shift()).abs(),
+        ],
+        axis=1,
+    )
+    tr = tr_components.max(axis=1)
+
+    # RMA (Running Moving Average) - using EWM with alpha = 1/length
+    trur = tr.ewm(alpha=1.0 / length, adjust=False).mean()
+    plus = 100 * plus_dm.ewm(alpha=1.0 / length, adjust=False).mean() / trur.replace(0, np.nan)
+    minus = (
+        100
+        * minus_dm.ewm(alpha=1.0 / length, adjust=False).mean()
+        / trur.replace(0, np.nan)
+    )
+
+    diff = plus - minus
+    return diff.fillna(0.0)
+
+
+__all__ = [
+    "TrendIndicators",
+    "calculate_adx",
+    "calculate_adx_series",
+    "calculate_cci",
+    "calculate_dmi_difference",
+]

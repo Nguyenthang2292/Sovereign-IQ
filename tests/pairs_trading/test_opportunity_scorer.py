@@ -77,7 +77,9 @@ def test_momentum_correlation_and_adx_filters():
     )
 
     assert strong_score > 0.2  # negative correlation + ADX bonuses
-    assert weak_score == 0.0  # fails ADX filter
+    # Weak ADX applies penalty scaling (not hard rejection), so score is small but > 0
+    assert weak_score > 0.0  # ADX penalty applied
+    assert weak_score < 0.1  # Score should be significantly reduced due to weak ADX
 
 
 def test_momentum_high_correlation_penalty():

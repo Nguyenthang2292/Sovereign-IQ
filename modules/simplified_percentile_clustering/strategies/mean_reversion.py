@@ -35,40 +35,14 @@ import pandas as pd
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringResult,
     compute_clustering,
-    ClusteringConfig,
 )
-
-
-@dataclass
-class MeanReversionConfig:
-    """Configuration for mean reversion strategy."""
-
-    # Clustering configuration
-    clustering_config: Optional[ClusteringConfig] = None
-
-    # Signal generation parameters
-    extreme_threshold: float = 0.2  # Real_clust threshold for extreme (0.0-1.0)
-    min_extreme_duration: int = 3  # Minimum bars in extreme before signal
-    require_reversal_signal: bool = True  # Require price reversal confirmation
-    reversal_lookback: int = 3  # Bars to look back for reversal
-
-    # Reversion targets
-    bullish_reversion_target: float = 0.5  # Target real_clust for bullish reversion
-    bearish_reversion_target: float = 0.5  # Target real_clust for bearish reversion
-
-    # Signal strength parameters
-    min_signal_strength: float = 0.4  # Minimum signal strength
-
-    def __post_init__(self):
-        """Set default reversion targets based on k."""
-        if self.clustering_config:
-            k = self.clustering_config.k
-            if k == 3:
-                self.bullish_reversion_target = 1.0  # Target middle cluster
-                self.bearish_reversion_target = 1.0
-            else:
-                self.bullish_reversion_target = 0.5  # Target middle
-                self.bearish_reversion_target = 0.5
+from modules.simplified_percentile_clustering.config.mean_reversion_config import (
+    MeanReversionConfig,
+)
+from modules.simplified_percentile_clustering.utils.helpers import (
+    safe_isna,
+    vectorized_extreme_duration,
+)
 
 
 def _detect_reversal(
@@ -146,30 +120,12 @@ def generate_signals_mean_reversion(
         k = config.clustering_config.k
     max_real_clust = 2.0 if k == 3 else 1.0
 
-    # Track extreme duration
-    extreme_duration = pd.Series(0, index=close.index, dtype=int)
-    in_extreme = pd.Series(False, index=close.index, dtype=bool)
-
-    for i in range(len(close)):
-        real_clust = clustering_result.real_clust.iloc[i]
-        cluster_val = clustering_result.cluster_val.iloc[i]
-
-        if pd.isna(real_clust) or pd.isna(cluster_val):
-            continue
-
-        # Check if in extreme
-        is_lower_extreme = real_clust <= config.extreme_threshold
-        is_upper_extreme = real_clust >= (max_real_clust - config.extreme_threshold)
-
-        if is_lower_extreme or is_upper_extreme:
-            if i > 0 and in_extreme.iloc[i - 1]:
-                extreme_duration.iloc[i] = extreme_duration.iloc[i - 1] + 1
-            else:
-                extreme_duration.iloc[i] = 1
-            in_extreme.iloc[i] = True
-        else:
-            extreme_duration.iloc[i] = 0
-            in_extreme.iloc[i] = False
+    # Track extreme duration using vectorized operations
+    extreme_duration, in_extreme = vectorized_extreme_duration(
+        clustering_result.real_clust,
+        config.extreme_threshold,
+        max_real_clust,
+    )
 
     # Metadata columns
     metadata = {
@@ -186,7 +142,7 @@ def generate_signals_mean_reversion(
         duration = metadata["extreme_duration"].iloc[i]
         is_extreme = metadata["in_extreme"].iloc[i]
 
-        if pd.isna(real_clust) or pd.isna(cluster_val):
+        if safe_isna(real_clust) or safe_isna(cluster_val):
             continue
 
         # Check if in extreme long enough

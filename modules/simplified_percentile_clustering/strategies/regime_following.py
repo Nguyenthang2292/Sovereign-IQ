@@ -35,37 +35,14 @@ import pandas as pd
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringResult,
     compute_clustering,
-    ClusteringConfig,
 )
-
-
-@dataclass
-class RegimeFollowingConfig:
-    """Configuration for regime following strategy."""
-
-    # Clustering configuration
-    clustering_config: Optional[ClusteringConfig] = None
-
-    # Signal generation parameters
-    min_regime_strength: float = 0.7  # Minimum regime strength (1 - rel_pos)
-    min_cluster_duration: int = 2  # Minimum bars in same cluster before signal
-    require_momentum: bool = True  # Require price momentum confirmation
-    momentum_period: int = 5  # Period for momentum calculation
-
-    # Cluster preferences
-    bullish_clusters: list[int] = None  # Clusters considered bullish (e.g., [1, 2])
-    bearish_clusters: list[int] = None  # Clusters considered bearish (e.g., [0])
-
-    # Real_clust thresholds
-    bullish_real_clust_threshold: float = 0.5  # Minimum real_clust for bullish
-    bearish_real_clust_threshold: float = 0.5  # Maximum real_clust for bearish
-
-    def __post_init__(self):
-        """Set default cluster preferences if not provided."""
-        if self.bullish_clusters is None:
-            self.bullish_clusters = [1, 2]
-        if self.bearish_clusters is None:
-            self.bearish_clusters = [0]
+from modules.simplified_percentile_clustering.config.regime_following_config import (
+    RegimeFollowingConfig,
+)
+from modules.simplified_percentile_clustering.utils.helpers import (
+    safe_isna,
+    vectorized_cluster_duration,
+)
 
 
 def generate_signals_regime_following(
@@ -107,19 +84,8 @@ def generate_signals_regime_following(
     # Calculate momentum
     momentum = close.pct_change(periods=config.momentum_period)
 
-    # Track cluster duration
-    cluster_duration = pd.Series(0, index=close.index, dtype=int)
-    prev_cluster = None
-    for i in range(len(close)):
-        curr_cluster = clustering_result.cluster_val.iloc[i]
-        if pd.isna(curr_cluster):
-            cluster_duration.iloc[i] = 0
-            prev_cluster = None
-        elif prev_cluster is not None and curr_cluster == prev_cluster:
-            cluster_duration.iloc[i] = cluster_duration.iloc[i - 1] + 1
-        else:
-            cluster_duration.iloc[i] = 1
-            prev_cluster = curr_cluster
+    # Track cluster duration using vectorized operations
+    cluster_duration = vectorized_cluster_duration(clustering_result.cluster_val)
 
     # Calculate regime strength (1 - rel_pos, higher = stronger)
     regime_strength = 1.0 - clustering_result.rel_pos.fillna(0.5)
@@ -142,7 +108,7 @@ def generate_signals_regime_following(
         mom = metadata["momentum"].iloc[i]
 
         # Skip if missing data
-        if pd.isna(cluster_val) or pd.isna(real_clust) or pd.isna(strength):
+        if safe_isna(cluster_val) or safe_isna(real_clust) or safe_isna(strength):
             continue
 
         cluster_int = int(cluster_val)
@@ -158,7 +124,7 @@ def generate_signals_regime_following(
         # Check momentum if required
         momentum_confirmed = True
         if config.require_momentum:
-            if pd.isna(mom):
+            if safe_isna(mom):
                 momentum_confirmed = False
             else:
                 momentum_confirmed = True  # Will check direction below

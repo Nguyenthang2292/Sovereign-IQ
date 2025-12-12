@@ -57,6 +57,8 @@ def display_final_results(
     short_signals: pd.DataFrame,
     original_long_count: int,
     original_short_count: int,
+    long_uses_fallback: bool = False,
+    short_uses_fallback: bool = False,
 ):
     """
     Display final filtered results.
@@ -66,23 +68,32 @@ def display_final_results(
         short_signals: Filtered SHORT signals DataFrame
         original_long_count: Original number of LONG signals from ATC
         original_short_count: Original number of SHORT signals from ATC
+        long_uses_fallback: True if LONG signals fallback to ATC only
+        short_uses_fallback: True if SHORT signals fallback to ATC only
     """
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
     print(color_text("FINAL CONFIRMED SIGNALS (ATC + Range Oscillator)", Fore.CYAN, Style.BRIGHT))
     print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
 
     # LONG Signals
-    print("\n" + color_text("CONFIRMED LONG SIGNALS (BULLISH)", Fore.GREEN, Style.BRIGHT))
+    if long_uses_fallback:
+        print("\n" + color_text("LONG SIGNALS (ATC ONLY - Fallback)", Fore.YELLOW, Style.BRIGHT))
+        print(color_text("  ⚠️  No signals confirmed by Range Oscillator, using ATC signals only", Fore.YELLOW))
+    else:
+        print("\n" + color_text("CONFIRMED LONG SIGNALS (ATC + Range Oscillator)", Fore.GREEN, Style.BRIGHT))
     print(color_text("-" * 80, Fore.CYAN))
     
     if long_signals.empty:
-        print(color_text("  No confirmed LONG signals found", Fore.YELLOW))
+        print(color_text("  No LONG signals found", Fore.YELLOW))
     else:
-        print(color_text(f"  Found {len(long_signals)} confirmed LONG signals (from {original_long_count} ATC signals)", Fore.WHITE))
+        if long_uses_fallback:
+            print(color_text(f"  Found {len(long_signals)} LONG signals from ATC (fallback - no oscillator confirmation)", Fore.YELLOW))
+        else:
+            print(color_text(f"  Found {len(long_signals)} confirmed LONG signals (from {original_long_count} ATC signals)", Fore.WHITE))
         print()
         # Check if osc_confidence column exists
         has_confidence = 'osc_confidence' in long_signals.columns
-        if has_confidence:
+        if has_confidence and not long_uses_fallback:
             print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10} {'Confidence':>12}", Fore.MAGENTA))
         else:
             print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10}", Fore.MAGENTA))
@@ -91,35 +102,44 @@ def display_final_results(
         for _, row in long_signals.iterrows():
             signal_str = f"{row['signal']:+.6f}"
             price_str = format_price(row['price'])
-            if has_confidence:
+            # Use yellow color for fallback signals, green for confirmed
+            signal_color = Fore.YELLOW if long_uses_fallback else Fore.GREEN
+            if has_confidence and not long_uses_fallback:
                 confidence = row.get('osc_confidence', 0.0)
                 confidence_str = f"{confidence:.3f}"
                 print(
                     color_text(
                         f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
-                        Fore.GREEN,
+                        signal_color,
                     )
                 )
             else:
                 print(
                     color_text(
                         f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}",
-                        Fore.GREEN,
+                        signal_color,
                     )
                 )
 
     # SHORT Signals
-    print("\n" + color_text("CONFIRMED SHORT SIGNALS (BEARISH)", Fore.RED, Style.BRIGHT))
+    if short_uses_fallback:
+        print("\n" + color_text("SHORT SIGNALS (ATC ONLY - Fallback)", Fore.YELLOW, Style.BRIGHT))
+        print(color_text("  ⚠️  No signals confirmed by Range Oscillator, using ATC signals only", Fore.YELLOW))
+    else:
+        print("\n" + color_text("CONFIRMED SHORT SIGNALS (ATC + Range Oscillator)", Fore.RED, Style.BRIGHT))
     print(color_text("-" * 80, Fore.CYAN))
     
     if short_signals.empty:
-        print(color_text("  No confirmed SHORT signals found", Fore.YELLOW))
+        print(color_text("  No SHORT signals found", Fore.YELLOW))
     else:
-        print(color_text(f"  Found {len(short_signals)} confirmed SHORT signals (from {original_short_count} ATC signals)", Fore.WHITE))
+        if short_uses_fallback:
+            print(color_text(f"  Found {len(short_signals)} SHORT signals from ATC (fallback - no oscillator confirmation)", Fore.YELLOW))
+        else:
+            print(color_text(f"  Found {len(short_signals)} confirmed SHORT signals (from {original_short_count} ATC signals)", Fore.WHITE))
         print()
         # Check if osc_confidence column exists
         has_confidence = 'osc_confidence' in short_signals.columns
-        if has_confidence:
+        if has_confidence and not short_uses_fallback:
             print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10} {'Confidence':>12}", Fore.MAGENTA))
         else:
             print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10}", Fore.MAGENTA))
@@ -128,20 +148,22 @@ def display_final_results(
         for _, row in short_signals.iterrows():
             signal_str = f"{row['signal']:+.6f}"
             price_str = format_price(row['price'])
-            if has_confidence:
+            # Use yellow color for fallback signals, red for confirmed
+            signal_color = Fore.YELLOW if short_uses_fallback else Fore.RED
+            if has_confidence and not short_uses_fallback:
                 confidence = row.get('osc_confidence', 0.0)
                 confidence_str = f"{confidence:.3f}"
                 print(
                     color_text(
                         f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
-                        Fore.RED,
+                        signal_color,
                     )
                 )
             else:
                 print(
                     color_text(
                         f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}",
-                        Fore.RED,
+                        signal_color,
                     )
                 )
 
@@ -156,8 +178,26 @@ def display_final_results(
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
     print(color_text(f"Summary:", Fore.WHITE, Style.BRIGHT))
     print(color_text(f"  ATC Signals: {original_long_count} LONG + {original_short_count} SHORT = {original_long_count + original_short_count}", Fore.WHITE))
-    print(color_text(f"  Confirmed Signals: {len(long_signals)} LONG + {len(short_signals)} SHORT = {len(long_signals) + len(short_signals)}", Fore.WHITE, Style.BRIGHT))
-    print(color_text(f"  Confirmation Rate: {(len(long_signals) + len(short_signals)) / (original_long_count + original_short_count) * 100:.1f}%" if (original_long_count + original_short_count) > 0 else "N/A", Fore.YELLOW))
+    
+    # Build signal summary with source information
+    long_source = "ATC Only (Fallback)" if long_uses_fallback else "ATC + Oscillator"
+    short_source = "ATC Only (Fallback)" if short_uses_fallback else "ATC + Oscillator"
+    
+    print(color_text(f"  Final Signals: {len(long_signals)} LONG ({long_source}) + {len(short_signals)} SHORT ({short_source}) = {len(long_signals) + len(short_signals)}", Fore.WHITE, Style.BRIGHT))
+    
+    # Calculate confirmation rate only for confirmed signals (not fallback)
+    confirmed_long = len(long_signals) if not long_uses_fallback else 0
+    confirmed_short = len(short_signals) if not short_uses_fallback else 0
+    total_confirmed = confirmed_long + confirmed_short
+    
+    if (original_long_count + original_short_count) > 0:
+        confirmation_rate = total_confirmed / (original_long_count + original_short_count) * 100
+        print(color_text(f"  Confirmation Rate: {confirmation_rate:.1f}% ({total_confirmed} confirmed by both ATC + Oscillator)", Fore.YELLOW))
+        if long_uses_fallback or short_uses_fallback:
+            fallback_count = (len(long_signals) if long_uses_fallback else 0) + (len(short_signals) if short_uses_fallback else 0)
+            print(color_text(f"  Fallback Signals: {fallback_count} signals using ATC only (no oscillator confirmation)", Fore.YELLOW))
+    else:
+        print(color_text(f"  Confirmation Rate: N/A", Fore.YELLOW))
     
     # Display confidence scores
     if avg_long_confidence > 0 or avg_short_confidence > 0:

@@ -45,6 +45,8 @@ from modules.simplified_percentile_clustering.strategies import (
     generate_signals_cluster_transition,
     generate_signals_regime_following,
     generate_signals_mean_reversion,
+)
+from modules.simplified_percentile_clustering.config import (
     ClusterTransitionConfig,
     RegimeFollowingConfig,
     MeanReversionConfig,

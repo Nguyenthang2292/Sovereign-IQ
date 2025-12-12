@@ -55,8 +55,13 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
             break
     
     for idx, (tf, desc) in enumerate(timeframes, 1):
-        marker = " <-- default" if tf == default_timeframe else ""
-        print(f"{idx:2d}) {tf:4s} - {desc}{marker}")
+        if tf == default_timeframe:
+            # Highlight default option in magenta (pink)
+            marker = color_text(" <-- default", Fore.MAGENTA, Style.BRIGHT)
+            option_text = color_text(f"{idx:2d}) {tf:4s} - {desc}", Fore.MAGENTA, Style.BRIGHT)
+            print(f"{option_text}{marker}")
+        else:
+            print(f"{idx:2d}) {tf:4s} - {desc}")
     
     print(f"{len(timeframes) + 1:2d}) Custom timeframe")
     print(f"{len(timeframes) + 2:2d}) Use default ({default_timeframe})")

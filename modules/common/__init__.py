@@ -11,6 +11,7 @@ from .ExchangeManager import ExchangeManager
 from .ProgressBar import ProgressBar
 from .Position import Position
 from . import indicators
+from . import quantitative_metrics
 
 __all__ = [
     "IndicatorEngine",
@@ -22,4 +23,5 @@ __all__ = [
     "ProgressBar",
     "Position",
     "indicators",
+    "quantitative_metrics",
 ]

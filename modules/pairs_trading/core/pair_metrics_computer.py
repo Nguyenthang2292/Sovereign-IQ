@@ -8,7 +8,7 @@ from typing import Dict, Optional, Union
 
 from modules.common.utils import log_warn
 
-from modules.pairs_trading.metrics import (
+from modules.common.quantitative_metrics import (
     calculate_adf_test,
     calculate_half_life,
     calculate_johansen_test,

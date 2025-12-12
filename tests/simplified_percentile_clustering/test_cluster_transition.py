@@ -6,8 +6,10 @@ import pandas as pd
 import pytest
 
 from modules.simplified_percentile_clustering.strategies.cluster_transition import (
-    ClusterTransitionConfig,
     generate_signals_cluster_transition,
+)
+from modules.simplified_percentile_clustering.config import (
+    ClusterTransitionConfig,
 )
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringConfig,

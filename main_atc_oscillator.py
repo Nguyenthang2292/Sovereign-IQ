@@ -210,6 +210,9 @@ class ATCOscillatorAnalyzer:
         self.short_signals_atc = pd.DataFrame()
         self.long_signals_confirmed = pd.DataFrame()
         self.short_signals_confirmed = pd.DataFrame()
+        # Flags to track which side uses fallback (ATC only)
+        self.long_uses_fallback = False
+        self.short_uses_fallback = False
     
     def determine_timeframe(self) -> str:
         """
@@ -468,7 +471,7 @@ class ATCOscillatorAnalyzer:
         return filtered_df
     
     def filter_by_oscillator(self) -> None:
-        """Filter ATC signals by Range Oscillator confirmation."""
+        """Filter ATC signals by Range Oscillator confirmation with fallback to ATC."""
         log_progress("\nStep 2: Filtering by Range Oscillator confirmation...")
         log_progress("=" * 80)
 
@@ -478,8 +481,21 @@ class ATCOscillatorAnalyzer:
                 atc_signals_df=self.long_signals_atc,
                 signal_type="LONG",
             )
+            
+            # Fallback to ATC if no confirmed signals
+            if self.long_signals_confirmed.empty:
+                log_warn("No LONG signals confirmed by Range Oscillator. Falling back to ATC signals only.")
+                self.long_signals_confirmed = self.long_signals_atc.copy()
+                # Add source marker column
+                self.long_signals_confirmed['source'] = 'ATC_ONLY'
+                self.long_uses_fallback = True
+            else:
+                # Mark as confirmed by both ATC and Oscillator
+                self.long_signals_confirmed['source'] = 'ATC_OSCILLATOR'
+                self.long_uses_fallback = False
         else:
             self.long_signals_confirmed = pd.DataFrame()
+            self.long_uses_fallback = False
 
         # Filter SHORT signals (parallel processing)
         if not self.short_signals_atc.empty:
@@ -487,8 +503,21 @@ class ATCOscillatorAnalyzer:
                 atc_signals_df=self.short_signals_atc,
                 signal_type="SHORT",
             )
+            
+            # Fallback to ATC if no confirmed signals
+            if self.short_signals_confirmed.empty:
+                log_warn("No SHORT signals confirmed by Range Oscillator. Falling back to ATC signals only.")
+                self.short_signals_confirmed = self.short_signals_atc.copy()
+                # Add source marker column
+                self.short_signals_confirmed['source'] = 'ATC_ONLY'
+                self.short_uses_fallback = True
+            else:
+                # Mark as confirmed by both ATC and Oscillator
+                self.short_signals_confirmed['source'] = 'ATC_OSCILLATOR'
+                self.short_uses_fallback = False
         else:
             self.short_signals_confirmed = pd.DataFrame()
+            self.short_uses_fallback = False
     
     def display_results(self) -> None:
         """Display final filtered results."""
@@ -498,6 +527,8 @@ class ATCOscillatorAnalyzer:
             short_signals=self.short_signals_confirmed,
             original_long_count=len(self.long_signals_atc),
             original_short_count=len(self.short_signals_atc),
+            long_uses_fallback=self.long_uses_fallback,
+            short_uses_fallback=self.short_uses_fallback,
         )
     
     def run(self) -> None:

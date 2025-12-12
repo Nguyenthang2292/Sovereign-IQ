@@ -6,8 +6,10 @@ import pandas as pd
 import pytest
 
 from modules.simplified_percentile_clustering.strategies.regime_following import (
-    RegimeFollowingConfig,
     generate_signals_regime_following,
+)
+from modules.simplified_percentile_clustering.config import (
+    RegimeFollowingConfig,
 )
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringConfig,

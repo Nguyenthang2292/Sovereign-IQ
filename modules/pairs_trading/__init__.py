@@ -23,12 +23,12 @@ from modules.pairs_trading.analysis import (
     PerformanceAnalyzer,
 )
 
-# Metrics
-from modules.pairs_trading.metrics import (
+# Metrics (imported from common.quantitative_metrics)
+from modules.common.quantitative_metrics import (
     calculate_adf_test,
     calculate_half_life,
     calculate_johansen_test,
-    calculate_spread_sharpe,
+    calculate_spread_sharpe,  # Backward compatibility alias for calculate_sharpe_ratio
     calculate_max_drawdown,
     calculate_calmar_ratio,
     calculate_ols_hedge_ratio,

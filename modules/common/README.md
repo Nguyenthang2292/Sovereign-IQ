@@ -35,6 +35,8 @@ Quản lý kết nối với các exchanges:
 
 Các modules khác trong `modules/common/`:
 - `IndicatorEngine` - Tính toán technical indicators
+- `indicators/` - Basic technical indicators (RSI, MACD, ADX, etc.)
+- `quantitative_metrics/` - Advanced quantitative metrics (CCI, Fisher Transform, DMI difference, Z-Score, MAR)
 - `utils` - Utility functions (normalize_symbol, format_price, etc.)
 - `ProgressBar` - Hiển thị progress bar
 - `Position` - Position data structure

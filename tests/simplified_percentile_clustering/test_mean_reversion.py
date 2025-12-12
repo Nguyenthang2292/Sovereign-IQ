@@ -6,8 +6,10 @@ import pandas as pd
 import pytest
 
 from modules.simplified_percentile_clustering.strategies.mean_reversion import (
-    MeanReversionConfig,
     generate_signals_mean_reversion,
+)
+from modules.simplified_percentile_clustering.config import (
+    MeanReversionConfig,
 )
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringConfig,

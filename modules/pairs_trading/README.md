@@ -138,34 +138,19 @@ Tính toán performance score từ 3 khung thời gian (1 ngày, 3 ngày, 1 tu�
 
 ### Metrics Modules
 
-Metrics được tổ chức thành các sub-packages logic để dễ quản lý và mở rộng.
+Metrics được tổ chức trong `modules/common/quantitative_metrics/` để có thể tái sử dụng bởi nhiều modules khác.
 
-#### Cấu trúc Sub-packages
-
-```text
-metrics/
-├── statistical_tests/    # Statistical tests for cointegration
-├── mean_reversion/       # Mean reversion metrics
-├── hedge_ratios/         # Hedge ratio calculations
-├── risk/                 # Risk metrics
-└── classification/       # Classification/prediction metrics
-```
+**Note:** All metrics have been moved to `modules/common/quantitative_metrics/` for reuse across the codebase. All imports should use `modules/common/quantitative_metrics` directly.
 
 #### Statistical Tests
-**Location:** `modules/pairs_trading/metrics/statistical_tests/`
+**Location:** `modules/common/quantitative_metrics/statistical_tests/` (moved from `pairs_trading/metrics`)
 
 - **ADF Test**: Augmented Dickey-Fuller test để kiểm tra cointegration
 - **Johansen Test**: Johansen cointegration test
 
 ```python
-# Backward compatible import
-from modules.pairs_trading.metrics import (
-    calculate_adf_test,
-    calculate_johansen_test,
-)
-
-# Hoặc import từ sub-package
-from modules.pairs_trading.metrics.statistical_tests import (
+# Import from common.quantitative_metrics
+from modules.common.quantitative_metrics.statistical_tests import (
     calculate_adf_test,
     calculate_johansen_test,
 )
@@ -175,22 +160,15 @@ johansen_result = calculate_johansen_test(price1, price2)
 ```
 
 #### Mean Reversion Metrics
-**Location:** `modules/pairs_trading/metrics/mean_reversion/`
+**Location:** `modules/common/quantitative_metrics/mean_reversion/` (moved from `pairs_trading/metrics`)
 
 - **Half-life**: Mean reversion half-life
 - **Hurst Exponent**: Mean reversion indicator (H < 0.5 = mean-reverting)
 - **Z-score Statistics**: Mean, std, skewness, kurtosis, current z-score
 
 ```python
-# Backward compatible import
-from modules.pairs_trading.metrics import (
-    calculate_half_life,
-    calculate_hurst_exponent,
-    calculate_zscore_stats,
-)
-
-# Hoặc import từ sub-package
-from modules.pairs_trading.metrics.mean_reversion import (
+# Import from common.quantitative_metrics
+from modules.common.quantitative_metrics.mean_reversion import (
     calculate_half_life,
     calculate_hurst_exponent,
     calculate_zscore_stats,
@@ -202,20 +180,14 @@ zscore_stats = calculate_zscore_stats(spread_series)
 ```
 
 #### Hedge Ratios
-**Location:** `modules/pairs_trading/metrics/hedge_ratios/`
+**Location:** `modules/common/quantitative_metrics/hedge_ratios/` (moved from `pairs_trading/metrics`)
 
 - **OLS Hedge Ratio**: Ordinary Least Squares regression (static)
 - **Kalman Hedge Ratio**: Kalman filter cho time-varying hedge ratio (dynamic)
 
 ```python
-# Backward compatible import
-from modules.pairs_trading.metrics import (
-    calculate_ols_hedge_ratio,
-    calculate_kalman_hedge_ratio,
-)
-
-# Hoặc import từ sub-package
-from modules.pairs_trading.metrics.hedge_ratios import (
+# Import from common.quantitative_metrics
+from modules.common.quantitative_metrics.hedge_ratios import (
     calculate_ols_hedge_ratio,
     calculate_kalman_hedge_ratio,
 )
@@ -225,23 +197,17 @@ kalman_ratio = calculate_kalman_hedge_ratio(price1, price2, delta=1e-5)
 ```
 
 #### Risk Metrics
-**Location:** `modules/pairs_trading/metrics/risk/`
+**Location:** `modules/common/quantitative_metrics/risk/` (moved from `pairs_trading/metrics`)
 
 - **Spread Sharpe Ratio**: Risk-adjusted return của spread
 - **Maximum Drawdown**: Largest peak-to-trough decline
 - **Calmar Ratio**: Return / max drawdown
 
 ```python
-# Backward compatible import
-from modules.pairs_trading.metrics import (
-    calculate_spread_sharpe,
-    calculate_max_drawdown,
-    calculate_calmar_ratio,
-)
-
-# Hoặc import từ sub-package
-from modules.pairs_trading.metrics.risk import (
-    calculate_spread_sharpe,
+# Import from common.quantitative_metrics
+from modules.common.quantitative_metrics.risk import (
+    calculate_sharpe_ratio,  # General name
+    calculate_spread_sharpe,  # Backward compatibility alias
     calculate_max_drawdown,
     calculate_calmar_ratio,
 )
@@ -252,16 +218,15 @@ calmar = calculate_calmar_ratio(equity_curve, periods_per_year=365*24)
 ```
 
 #### Classification Metrics
-**Location:** `modules/pairs_trading/metrics/classification/`
+**Location:** `modules/common/quantitative_metrics/classification/` (moved from `pairs_trading/metrics`)
 
 - **Direction Metrics**: Classification metrics cho spread direction prediction (accuracy, precision, recall, F1)
 
 ```python
-# Backward compatible import
-from modules.pairs_trading.metrics import calculate_direction_metrics
-
-# Hoặc import từ sub-package
-from modules.pairs_trading.metrics.classification import calculate_direction_metrics
+# Import from common.quantitative_metrics
+from modules.common.quantitative_metrics.classification import (
+    calculate_direction_metrics,
+)
 
 direction_metrics = calculate_direction_metrics(spread_series)
 ```
@@ -428,8 +393,8 @@ validated_pairs = analyzer.validate_pairs(pairs_df, data_fetcher)
 Bạn có thể import từ main package (backward compatible) hoặc từ sub-packages:
 
 ```python
-# Backward compatible - import từ main package
-from modules.pairs_trading.metrics import (
+# Import từ pairs_trading package (re-exports từ common.quantitative_metrics)
+from modules.pairs_trading import (
     calculate_adf_test,
     calculate_spread_sharpe,
     calculate_ols_hedge_ratio,
@@ -437,12 +402,12 @@ from modules.pairs_trading.metrics import (
     calculate_direction_metrics,
 )
 
-# Hoặc import từ sub-packages (rõ ràng hơn)
-from modules.pairs_trading.metrics.statistical_tests import calculate_adf_test
-from modules.pairs_trading.metrics.risk import calculate_spread_sharpe
-from modules.pairs_trading.metrics.hedge_ratios import calculate_ols_hedge_ratio
-from modules.pairs_trading.metrics.mean_reversion import calculate_zscore_stats
-from modules.pairs_trading.metrics.classification import calculate_direction_metrics
+# Hoặc import trực tiếp từ common.quantitative_metrics (recommended)
+from modules.common.quantitative_metrics.statistical_tests import calculate_adf_test
+from modules.common.quantitative_metrics.risk import calculate_sharpe_ratio, calculate_spread_sharpe
+from modules.common.quantitative_metrics.hedge_ratios import calculate_ols_hedge_ratio
+from modules.common.quantitative_metrics.mean_reversion import calculate_zscore_stats
+from modules.common.quantitative_metrics.classification import calculate_direction_metrics
 ```
 
 ## Workflow

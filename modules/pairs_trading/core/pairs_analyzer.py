@@ -213,7 +213,7 @@ except ImportError:
 from modules.pairs_trading.core.pair_metrics_computer import PairMetricsComputer
 from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
 from modules.pairs_trading.utils.pairs_validator import validate_pairs as validate_pairs_util
-from modules.pairs_trading.metrics import calculate_correlation as calculate_correlation_metric
+from modules.common.quantitative_metrics import calculate_correlation as calculate_correlation_metric
 
 
 def _get_all_pair_columns() -> list:

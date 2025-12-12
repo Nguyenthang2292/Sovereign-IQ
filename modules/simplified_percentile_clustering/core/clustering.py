@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -20,6 +21,16 @@ from modules.simplified_percentile_clustering.core.centers import (
 from modules.simplified_percentile_clustering.core.features import (
     FeatureCalculator,
     FeatureConfig,
+)
+from modules.simplified_percentile_clustering.utils.validation import (
+    validate_clustering_config,
+    validate_input_data,
+)
+from modules.simplified_percentile_clustering.utils.helpers import (
+    safe_isna,
+    vectorized_min_distance,
+    vectorized_min_and_second_min,
+    normalize_cluster_name,
 )
 
 
@@ -38,6 +49,10 @@ class ClusteringConfig:
 
     # Main plot mode
     main_plot: str = "Clusters"  # "Clusters", "RSI", "CCI", "Fisher", "DMI", "Z-Score", "MAR"
+
+    def __post_init__(self):
+        """Validate configuration after initialization."""
+        validate_clustering_config(self)
 
 
 @dataclass
@@ -113,25 +128,12 @@ class SimplifiedPercentileClustering:
     def _compute_distance_single(
         self, feature_val: pd.Series, centers: pd.DataFrame
     ) -> pd.Series:
-        """Compute distance for single-feature mode."""
-        distances = []
-        for i in range(len(feature_val)):
-            if pd.isna(feature_val.iloc[i]):
-                distances.append(np.nan)
-                continue
-
-            min_dist = np.inf
-            for col in centers.columns:
-                center_val = centers[col].iloc[i]
-                if pd.isna(center_val):
-                    continue
-                dist = abs(feature_val.iloc[i] - center_val)
-                if dist < min_dist:
-                    min_dist = dist
-
-            distances.append(min_dist if min_dist != np.inf else np.nan)
-
-        return pd.Series(distances, index=feature_val.index)
+        """
+        Compute distance for single-feature mode using vectorized operations.
+        
+        This method uses vectorized operations for better performance.
+        """
+        return vectorized_min_distance(feature_val, centers)
 
     def _compute_distance_combined(
         self,
@@ -217,7 +219,13 @@ class SimplifiedPercentileClustering:
 
         Returns:
             ClusteringResult with all computed values.
+            
+        Raises:
+            ValueError: If input data is invalid
         """
+        # Validate input data
+        validate_input_data(high=high, low=low, close=close, require_all=True)
+        
         # Step 1: Compute all features
         features = self.feature_calc.compute_all(
             high, low, close, self.config.lookback
@@ -260,9 +268,9 @@ class SimplifiedPercentileClustering:
                         dist = (feature_vals - centers[center_col]).abs()
                         distances_df[center_col] = dist
                     else:
-                        distances_df[center_col] = np.nan
+                        distances_df[center_col] = pd.Series(np.nan, index=index)
                 else:
-                    distances_df[center_col] = np.nan
+                    distances_df[center_col] = pd.Series(np.nan, index=index)
             else:
                 # Combined mode - use vectorized combined distance
                 dist_series = self._compute_distance_combined(
@@ -277,62 +285,24 @@ class SimplifiedPercentileClustering:
         # Convert to numpy array for efficient operations
         dist_array = distances_df.values
         
-        # Find indices of min and second min for each row
-        # Use np.partition for efficient partial sort
-        valid_mask = ~np.isnan(dist_array)
-        
-        # Initialize result arrays
-        min_dist = np.full(n, np.nan)
-        second_min_dist = np.full(n, np.nan)
-        cluster_val = np.full(n, np.nan, dtype=float)
-        curr_cluster = np.full(n, None, dtype=object)
-        second_cluster = np.full(n, None, dtype=object)
-        
-        for i in range(n):
-            row = dist_array[i, :]
-            valid = valid_mask[i, :]
-            
-            if not np.any(valid):
-                continue
-            
-            valid_distances = row[valid]
-            valid_indices = np.where(valid)[0]
-            
-            if len(valid_distances) == 0:
-                continue
-            
-            # Find min and second min
-            if len(valid_distances) == 1:
-                min_idx = valid_indices[0]
-                min_dist[i] = valid_distances[0]
-                cluster_val[i] = min_idx
-                curr_cluster[i] = f"k{min_idx}"
-                second_min_dist[i] = np.nan
-            else:
-                # Use argpartition for efficient partial sort
-                sorted_indices = np.argsort(valid_distances)
-                min_idx = valid_indices[sorted_indices[0]]
-                second_min_idx = valid_indices[sorted_indices[1]]
-                
-                min_dist[i] = valid_distances[sorted_indices[0]]
-                second_min_dist[i] = valid_distances[sorted_indices[1]]
-                cluster_val[i] = min_idx
-                curr_cluster[i] = f"k{min_idx}"
-                second_cluster[i] = f"k{second_min_idx}"
+        # Use helper function for vectorized min and second min calculation
+        min_dist_arr, second_min_dist_arr, cluster_val_arr, second_cluster_val_arr = (
+            vectorized_min_and_second_min(dist_array)
+        )
         
         # Convert to Series
-        min_dist = pd.Series(min_dist, index=index)
-        second_min_dist = pd.Series(second_min_dist, index=index)
-        cluster_val = pd.Series(cluster_val, index=index)
+        min_dist = pd.Series(min_dist_arr, index=index)
+        second_min_dist = pd.Series(second_min_dist_arr, index=index)
+        cluster_val = pd.Series(cluster_val_arr, index=index)
         
-        # Convert curr_cluster to string Series, handling None values
+        # Convert cluster values to cluster names using helper function
         curr_cluster = pd.Series(
-            [str(c) if c is not None else None for c in curr_cluster],
+            [normalize_cluster_name(cv) for cv in cluster_val_arr],
             index=index,
             dtype=object
         )
         second_cluster = pd.Series(
-            [str(c) if c is not None else None for c in second_cluster],
+            [normalize_cluster_name(cv) for cv in second_cluster_val_arr],
             index=index,
             dtype=object
         )
@@ -340,8 +310,14 @@ class SimplifiedPercentileClustering:
         # Step 6: Compute relative position and real_clust using vectorized operations
         # Relative position: min_dist / (min_dist + second_min_dist)
         rel_pos = pd.Series(0.0, index=index)
-        valid_rel = (second_min_dist > 0) & (second_min_dist != np.inf) & (~second_min_dist.isna())
-        rel_pos[valid_rel] = min_dist[valid_rel] / (min_dist[valid_rel] + second_min_dist[valid_rel])
+        valid_rel = (
+            (second_min_dist > 0) 
+            & (second_min_dist != np.inf) 
+            & (~safe_isna(second_min_dist))
+        )
+        rel_pos[valid_rel] = min_dist[valid_rel] / (
+            min_dist[valid_rel] + second_min_dist[valid_rel]
+        )
         
         # Second cluster value - convert cluster names to numeric values
         second_val = pd.Series(cluster_val.values, index=index)
@@ -424,7 +400,21 @@ def compute_clustering(
     close: pd.Series,
     config: Optional[ClusteringConfig] = None,
 ) -> ClusteringResult:
-    """Convenience function to compute clustering."""
+    """
+    Convenience function to compute clustering.
+    
+    Args:
+        high: High price series.
+        low: Low price series.
+        close: Close price series.
+        config: ClusteringConfig instance (optional).
+        
+    Returns:
+        ClusteringResult with all computed values.
+        
+    Raises:
+        ValueError: If input data or config is invalid
+    """
     clustering = SimplifiedPercentileClustering(config)
     return clustering.compute(high, low, close)
 

@@ -17,9 +17,10 @@ Module này port từ Pine Script indicator "Simplified Percentile Clustering" s
 simplified_percentile_clustering/
 ├── __init__.py              # Module exports
 ├── README.md                 # Tài liệu này
+├── IMPROVEMENTS.md          # Tài liệu về các cải tiến
 ├── core/
 │   ├── __init__.py          # Core exports
-│   ├── features.py          # Tính toán features (RSI, CCI, Fisher, DMI, Z-Score, MAR)
+│   ├── features.py          # FeatureCalculator wrapper (sử dụng common/indicators)
 │   ├── centers.py           # Tính toán cluster centers từ percentiles
 │   └── clustering.py        # Logic clustering chính
 ├── strategies/
@@ -27,6 +28,13 @@ simplified_percentile_clustering/
 │   ├── cluster_transition.py    # Cluster transition strategy
 │   ├── regime_following.py      # Regime following strategy
 │   └── mean_reversion.py        # Mean reversion strategy
+├── config/
+│   ├── __init__.py          # Config exports
+│   └── strategy_configs.py  # Strategy configuration classes
+├── utils/
+│   ├── __init__.py          # Utils exports
+│   ├── validation.py        # Validation functions
+│   └── helpers.py           # Helper utility functions
 └── pinescript               # File Pine Script gốc
 ```
 
@@ -159,8 +167,10 @@ Strategy này tạo signals dựa trên sự chuyển đổi giữa các cluster
 
 ```python
 from modules.simplified_percentile_clustering.strategies import (
-    ClusterTransitionConfig,
     generate_signals_cluster_transition,
+)
+from modules.simplified_percentile_clustering.config import (
+    ClusterTransitionConfig,
 )
 
 config = ClusterTransitionConfig(
@@ -194,8 +204,10 @@ Strategy này follow regime hiện tại và tạo signals khi thị trường �
 
 ```python
 from modules.simplified_percentile_clustering.strategies import (
-    RegimeFollowingConfig,
     generate_signals_regime_following,
+)
+from modules.simplified_percentile_clustering.config import (
+    RegimeFollowingConfig,
 )
 
 config = RegimeFollowingConfig(
@@ -229,8 +241,10 @@ Strategy này tạo signals khi market ở cluster extremes và kỳ vọng mean
 
 ```python
 from modules.simplified_percentile_clustering.strategies import (
-    MeanReversionConfig,
     generate_signals_mean_reversion,
+)
+from modules.simplified_percentile_clustering.config import (
+    MeanReversionConfig,
 )
 
 config = MeanReversionConfig(
@@ -255,16 +269,20 @@ signals, strength, metadata = generate_signals_mean_reversion(
 import pandas as pd
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringConfig,
-    FeatureConfig,
     compute_clustering,
 )
+from modules.simplified_percentile_clustering.core.features import (
+    FeatureConfig,
+)
 from modules.simplified_percentile_clustering.strategies import (
-    ClusterTransitionConfig,
-    RegimeFollowingConfig,
-    MeanReversionConfig,
     generate_signals_cluster_transition,
     generate_signals_regime_following,
     generate_signals_mean_reversion,
+)
+from modules.simplified_percentile_clustering.config import (
+    ClusterTransitionConfig,
+    RegimeFollowingConfig,
+    MeanReversionConfig,
 )
 
 # Chuẩn bị dữ liệu

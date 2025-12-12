@@ -34,36 +34,15 @@ import pandas as pd
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringResult,
     compute_clustering,
-    ClusteringConfig,
-    FeatureConfig,
 )
-
-
-@dataclass
-class ClusterTransitionConfig:
-    """Configuration for cluster transition strategy."""
-
-    # Clustering configuration
-    clustering_config: Optional[ClusteringConfig] = None
-
-    # Signal generation parameters
-    require_price_confirmation: bool = True  # Require price to move in same direction
-    min_rel_pos_change: float = 0.1  # Minimum relative position change for signal
-    use_real_clust_cross: bool = True  # Use real_clust crossing cluster boundaries
-    min_signal_strength: float = 0.3  # Minimum signal strength (0.0 to 1.0)
-
-    # Cluster transition rules
-    bullish_transitions: list[tuple[int, int]] = None  # e.g., [(0, 1), (0, 2), (1, 2)]
-    bearish_transitions: list[tuple[int, int]] = None  # e.g., [(2, 1), (2, 0), (1, 0)]
-
-    def __post_init__(self):
-        """Set default transition rules if not provided."""
-        if self.bullish_transitions is None:
-            # Default: transitions to higher clusters are bullish
-            self.bullish_transitions = [(0, 1), (0, 2), (1, 2)]
-        if self.bearish_transitions is None:
-            # Default: transitions to lower clusters are bearish
-            self.bearish_transitions = [(2, 1), (2, 0), (1, 0)]
+from modules.simplified_percentile_clustering.config.cluster_transition_config import (
+    ClusterTransitionConfig,
+)
+from modules.simplified_percentile_clustering.utils.helpers import (
+    safe_isna,
+    vectorized_transition_detection,
+    vectorized_crossing_detection,
+)
 
 
 def generate_signals_cluster_transition(
@@ -102,106 +81,97 @@ def generate_signals_cluster_transition(
     signals = pd.Series(0, index=close.index, dtype=int)
     signal_strength = pd.Series(0.0, index=close.index, dtype=float)
 
-    # Metadata columns
-    metadata = {
-        "cluster_val": clustering_result.cluster_val,
-        "prev_cluster_val": clustering_result.cluster_val.shift(1),
-        "real_clust": clustering_result.real_clust,
-        "prev_real_clust": clustering_result.real_clust.shift(1),
-        "rel_pos": clustering_result.rel_pos,
-        "price_change": close.pct_change(),
-    }
+    # Pre-compute metadata using vectorized operations
+    prev_cluster_val = clustering_result.cluster_val.shift(1)
+    prev_real_clust = clustering_result.real_clust.shift(1)
+    price_change = close.pct_change()
+    
+    # Vectorized transition detection
+    bullish_mask, bearish_mask = vectorized_transition_detection(
+        prev_cluster_val,
+        clustering_result.cluster_val,
+        config.bullish_transitions,
+        config.bearish_transitions,
+    )
+    
+    # Calculate signal strength components using vectorized operations
+    real_clust_change = (clustering_result.real_clust - prev_real_clust).abs()
+    max_possible_change = (
+        2.0 if config.clustering_config and config.clustering_config.k == 3 else 1.0
+    )
+    strength_from_movement = (real_clust_change / max_possible_change).clip(upper=1.0)
+    rel_pos_strength = (1.0 - clustering_result.rel_pos.clip(upper=1.0))
+    combined_strength = (strength_from_movement + rel_pos_strength) / 2.0
+    
+    # Apply price confirmation if required
+    if config.require_price_confirmation:
+        bullish_mask &= (price_change > 0) | price_change.isna()
+        bearish_mask &= (price_change < 0) | price_change.isna()
+    
+    # Apply minimum signal strength filter
+    strength_mask = combined_strength >= config.min_signal_strength
+    bullish_mask &= strength_mask
+    bearish_mask &= strength_mask
+    
+    # Set signals
+    signals.loc[bullish_mask] = 1
+    signals.loc[bearish_mask] = -1
+    signal_strength.loc[bullish_mask] = combined_strength.loc[bullish_mask]
+    signal_strength.loc[bearish_mask] = combined_strength.loc[bearish_mask]
 
-    for i in range(1, len(close)):
-        prev_cluster = metadata["prev_cluster_val"].iloc[i]
-        curr_cluster = metadata["cluster_val"].iloc[i]
-        prev_real = metadata["prev_real_clust"].iloc[i]
-        curr_real = metadata["real_clust"].iloc[i]
-        rel_pos = metadata["rel_pos"].iloc[i]
-        price_change = metadata["price_change"].iloc[i]
-
-        # Skip if missing data
-        if (
-            pd.isna(prev_cluster)
-            or pd.isna(curr_cluster)
-            or pd.isna(prev_real)
-            or pd.isna(curr_real)
-        ):
-            continue
-
-        prev_cluster_int = int(prev_cluster)
-        curr_cluster_int = int(curr_cluster)
-
-        # Check for cluster transition
-        transition = (prev_cluster_int, curr_cluster_int)
-
-        # Calculate signal strength based on real_clust movement
-        real_clust_change = abs(curr_real - prev_real)
-        max_possible_change = (
-            2.0 if config.clustering_config and config.clustering_config.k == 3 else 1.0
-        )
-        strength_from_movement = min(real_clust_change / max_possible_change, 1.0)
-
-        # Combine with rel_pos (lower rel_pos = stronger signal)
-        rel_pos_strength = 1.0 - min(rel_pos, 1.0)
-        combined_strength = (strength_from_movement + rel_pos_strength) / 2.0
-
-        # Check for bullish transition
-        if transition in config.bullish_transitions:
-            # Price confirmation
-            price_confirmed = True
-            if config.require_price_confirmation:
-                price_confirmed = price_change > 0 or pd.isna(price_change)
-
-            if price_confirmed and combined_strength >= config.min_signal_strength:
-                signals.iloc[i] = 1  # LONG
-                signal_strength.iloc[i] = combined_strength
-
-        # Check for bearish transition
-        elif transition in config.bearish_transitions:
-            # Price confirmation
-            price_confirmed = True
-            if config.require_price_confirmation:
-                price_confirmed = price_change < 0 or pd.isna(price_change)
-
-            if price_confirmed and combined_strength >= config.min_signal_strength:
-                signals.iloc[i] = -1  # SHORT
-                signal_strength.iloc[i] = combined_strength
-
-        # Check for real_clust crossing cluster boundaries (if enabled)
-        if config.use_real_clust_cross:
+    # Handle real_clust crossing if enabled (still need loop for complex logic)
+    if config.use_real_clust_cross:
+        for i in range(1, len(close)):
+            prev_real = prev_real_clust.iloc[i]
+            curr_real = clustering_result.real_clust.iloc[i]
+            
+            # Skip if missing data
+            if safe_isna(prev_real) or safe_isna(curr_real):
+                continue
+            
+            # Only process if no transition signal already set
+            if signals.iloc[i] != 0:
+                continue
+            
+            curr_strength = combined_strength.iloc[i] if not safe_isna(combined_strength.iloc[i]) else 0.0
+            
             # Crossing from below k0.5 to above (bullish)
             if prev_real < 0.5 and curr_real >= 0.5:
                 if config.clustering_config and config.clustering_config.k == 3:
                     if prev_real < 1.5 and curr_real >= 1.5:
                         # Crossing to k2
-                        if combined_strength >= config.min_signal_strength:
-                            if signals.iloc[i] == 0:  # Only if no transition signal
-                                signals.iloc[i] = 1
-                                signal_strength.iloc[i] = combined_strength * 0.8
+                        if curr_strength >= config.min_signal_strength:
+                            signals.iloc[i] = 1
+                            signal_strength.iloc[i] = curr_strength * 0.8
                 else:
                     # Crossing to k1
-                    if combined_strength >= config.min_signal_strength:
-                        if signals.iloc[i] == 0:  # Only if no transition signal
-                            signals.iloc[i] = 1
-                            signal_strength.iloc[i] = combined_strength * 0.8
+                    if curr_strength >= config.min_signal_strength:
+                        signals.iloc[i] = 1
+                        signal_strength.iloc[i] = curr_strength * 0.8
 
             # Crossing from above k0.5 to below (bearish)
             elif prev_real > 0.5 and curr_real <= 0.5:
                 if config.clustering_config and config.clustering_config.k == 3:
                     if prev_real > 1.5 and curr_real <= 1.5:
                         # Crossing from k2
-                        if combined_strength >= config.min_signal_strength:
-                            if signals.iloc[i] == 0:  # Only if no transition signal
-                                signals.iloc[i] = -1
-                                signal_strength.iloc[i] = combined_strength * 0.8
+                        if curr_strength >= config.min_signal_strength:
+                            signals.iloc[i] = -1
+                            signal_strength.iloc[i] = curr_strength * 0.8
                 else:
                     # Crossing to k0
-                    if combined_strength >= config.min_signal_strength:
-                        if signals.iloc[i] == 0:  # Only if no transition signal
+                    if curr_strength >= config.min_signal_strength:
                             signals.iloc[i] = -1
-                            signal_strength.iloc[i] = combined_strength * 0.8
+                            signal_strength.iloc[i] = curr_strength * 0.8
 
+    # Build metadata DataFrame
+    metadata = {
+        "cluster_val": clustering_result.cluster_val,
+        "prev_cluster_val": prev_cluster_val,
+        "real_clust": clustering_result.real_clust,
+        "prev_real_clust": prev_real_clust,
+        "rel_pos": clustering_result.rel_pos,
+        "price_change": price_change,
+    }
     metadata_df = pd.DataFrame(metadata, index=close.index)
     metadata_df["signal"] = signals
     metadata_df["signal_strength"] = signal_strength
