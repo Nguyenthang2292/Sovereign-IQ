@@ -26,9 +26,17 @@ from modules.simplified_percentile_clustering.core.clustering import (
     SimplifiedPercentileClustering,
     compute_clustering,
 )
+from modules.simplified_percentile_clustering.aggregation import (
+    SPCVoteAggregator,
+)
+from modules.simplified_percentile_clustering.config import (
+    SPCAggregationConfig,
+)
 
 __all__ = [
     "SimplifiedPercentileClustering",
     "compute_clustering",
+    "SPCVoteAggregator",
+    "SPCAggregationConfig",
 ]
 

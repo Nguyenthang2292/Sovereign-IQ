@@ -12,6 +12,10 @@ A comprehensive cryptocurrency trading analysis system using Machine Learning, D
     - XGBoost for directional prediction.
     - Temporal Fusion Transformer (TFT) for deep learning forecasts.
     - HMM-KAMA for state-based signal analysis.
+- **Adaptive Trend Classification (ATC)**: Multi-layer trend analysis with robustness filtering.
+- **Range Oscillator**: Advanced oscillator-based signal generation with multiple strategies.
+- **Simplified Percentile Clustering (SPC)**: Cluster-based market regime detection with multiple strategies.
+- **Decision Matrix**: Pseudo Random Forest-like voting system for combining multiple indicators.
 - **Pairs Trading**: Identify and analyze mean-reversion or momentum pairs with extensive quantitative metrics.
 - **Portfolio Management**: Risk calculation, correlation analysis, hedge finding.
 
@@ -19,25 +23,34 @@ A comprehensive cryptocurrency trading analysis system using Machine Learning, D
 
 ```
 crypto-probability/
-├── main_xgboost_prediction.py      # XGBoost prediction CLI
-├── main_deeplearning_prediction.py # Deep Learning (TFT) training
-├── main_pairs_trading.py           # Pairs trading analysis (mean reversion & momentum)
-├── main_portfolio_manager.py       # Portfolio risk management
-├── main_hmm.py                     # HMM Signal Combiner (High-Order HMM + HMM-KAMA)
-├── modules/                        # Core modules
-│   ├── common/                     # Shared utilities
-│   │   ├── DataFetcher.py         # Multi-exchange data fetching
-│   │   ├── ExchangeManager.py     # Exchange connection management
-│   │   ├── IndicatorEngine.py     # Technical indicators
-│   │   └── indicators/            # Indicator implementations
-│   ├── xgboost/                    # XGBoost prediction module
-│   ├── deeplearning/              # Deep learning module (TFT)
-│   ├── pairs_trading/             # Pairs trading strategies
-│   ├── portfolio/                 # Portfolio management
-│   └── hmm/                       # HMM-KAMA analysis
-├── tests/                          # Comprehensive test suite
-├── docs/                           # Documentation
-└── artifacts/                      # Model checkpoints and outputs
+├── main_atc.py                              # Adaptive Trend Classification (ATC)
+├── main_atc_oscillator.py                   # ATC + Range Oscillator combined
+├── main_atc_oscillator_spc_hybrid.py         # ATC + Range Oscillator + SPC (Hybrid)
+├── main_atc_oscillator_spc_voting.py        # ATC + Range Oscillator + SPC (Pure Voting)
+├── main_simplified_percentile_clustering.py # Simplified Percentile Clustering (SPC)
+├── main_xgboost.py                          # XGBoost prediction CLI
+├── main_deeplearning_prediction.py          # Deep Learning (TFT) training
+├── main_pairs_trading.py                    # Pairs trading analysis (mean reversion & momentum)
+├── main_portfolio_manager.py               # Portfolio risk management
+├── main_hmm.py                              # HMM Signal Combiner (High-Order HMM + HMM-KAMA)
+├── modules/                                 # Core modules
+│   ├── common/                              # Shared utilities
+│   │   ├── DataFetcher.py                  # Multi-exchange data fetching
+│   │   ├── ExchangeManager.py              # Exchange connection management
+│   │   ├── IndicatorEngine.py              # Technical indicators
+│   │   └── indicators/                     # Indicator implementations
+│   ├── adaptive_trend/                      # Adaptive Trend Classification
+│   ├── range_oscillator/                    # Range Oscillator strategies
+│   ├── simplified_percentile_clustering/   # SPC clustering and strategies
+│   ├── decision_matrix/                     # Decision Matrix voting system
+│   ├── xgboost/                             # XGBoost prediction module
+│   ├── deeplearning/                        # Deep learning module (TFT)
+│   ├── pairs_trading/                       # Pairs trading strategies
+│   ├── portfolio/                          # Portfolio management
+│   └── hmm/                                 # HMM-KAMA analysis
+├── tests/                                   # Comprehensive test suite
+├── artifacts/                               # Model checkpoints and outputs
+└── README*.md                               # Documentation files
 ```
 
 ## 🔧 Installation
@@ -82,7 +95,84 @@ crypto-probability/
 
 ## 📖 Usage
 
-### 1. XGBoost Prediction
+### 1. Adaptive Trend Classification (ATC)
+
+Analyze market trends using multi-layer adaptive classification:
+
+```bash
+python main_atc.py
+```
+
+**Features:**
+- Multi-layer trend analysis with robustness filtering
+- Auto scan across multiple symbols
+- Interactive timeframe selection
+- Configurable moving averages and parameters
+
+### 2. ATC + Range Oscillator
+
+Combine ATC signals with Range Oscillator confirmation:
+
+```bash
+python main_atc_oscillator.py
+```
+
+**Features:**
+- Sequential filtering: ATC → Range Oscillator
+- Parallel processing for performance
+- Fallback to ATC-only if no oscillator confirmation
+
+### 3. ATC + Range Oscillator + SPC (Hybrid)
+
+Hybrid approach combining sequential filtering and voting:
+
+```bash
+python main_atc_oscillator_spc_hybrid.py
+```
+
+**Workflow:**
+1. ATC auto scan
+2. Range Oscillator filtering
+3. SPC signal calculation (all 3 strategies)
+4. Decision Matrix voting system
+
+**Features:**
+- All 3 SPC strategies (Cluster Transition, Regime Following, Mean Reversion)
+- SPC votes aggregated into single vote
+- Decision Matrix for final confirmation
+
+### 4. ATC + Range Oscillator + SPC (Pure Voting)
+
+Pure voting system without sequential filtering:
+
+```bash
+python main_atc_oscillator_spc_voting.py
+```
+
+**Workflow:**
+1. ATC auto scan
+2. Calculate all indicator signals in parallel
+3. Decision Matrix voting system
+
+**Features:**
+- Parallel signal calculation
+- All indicators vote simultaneously
+- Weighted voting based on accuracy
+
+### 5. Simplified Percentile Clustering (SPC)
+
+Standalone SPC analysis:
+
+```bash
+python main_simplified_percentile_clustering.py
+```
+
+**Features:**
+- Cluster-based market regime detection
+- Multiple strategies: Cluster Transition, Regime Following, Mean Reversion
+- Configurable clustering parameters
+
+### 6. XGBoost Prediction
 
 Predict next price movement using XGBoost classifier:
 
@@ -101,7 +191,7 @@ python main_xgboost_prediction.py
 python main_xgboost_prediction.py --symbol BTC/USDT --timeframe 1h --limit 500
 ```
 
-### 2. Deep Learning (TFT)
+### 7. Deep Learning (TFT)
 
 Train Temporal Fusion Transformer model for price prediction:
 
@@ -122,7 +212,7 @@ python main_deeplearning_prediction.py
 python main_deeplearning_prediction.py --symbol BTC/USDT --timeframe 1h --epochs 10 --gpu
 ```
 
-### 3. Pairs Trading
+### 8. Pairs Trading
 
 Identify pairs trading opportunities:
 
@@ -144,7 +234,7 @@ python main_pairs_trading.py
 python main_pairs_trading.py --sort-by quantitative_score --require-cointegration --min-quantitative-score 70
 ```
 
-### 4. Portfolio Manager
+### 9. Portfolio Manager
 
 Manage portfolio risk and find hedges:
 
@@ -158,7 +248,7 @@ python main_portfolio_manager.py
 - Automatic hedge finding
 - Real-time position tracking
 
-### 5. HMM-KAMA Analysis
+### 10. HMM-KAMA Analysis
 
 State-based analysis using Hidden Markov Model with KAMA:
 
@@ -185,6 +275,9 @@ Run the comprehensive test suite:
 pytest
 
 # Run specific test module
+pytest tests/adaptive_trend/
+pytest tests/range_oscillator/
+pytest tests/simplified_percentile_clustering/
 pytest tests/xgboost/
 pytest tests/deeplearning/
 pytest tests/pairs_trading/
@@ -197,15 +290,24 @@ pytest --cov=modules --cov-report=html
 
 ## 📚 Documentation
 
-Detailed documentation is available in the `docs/` directory:
+Detailed documentation is available in various markdown files:
 
-- **Common**: Exchange management, data fetching, indicators
-- **XGBoost**: Prediction model documentation
-- **Deep Learning**: TFT model architecture and training
-- **Pairs Trading**: Strategy documentation and quantitative metrics
-- **Portfolio**: Risk management and hedge finding
+- **README.md**: Main project documentation (this file)
+- **README_DECISION_MATRIX.md**: Decision Matrix voting system documentation
+- **OSCILLATOR_SIGNAL_EXPLANATION.md**: Range Oscillator signal explanation
+- **COMBINED_STRATEGY_IMPROVEMENTS.md**: Range Oscillator combined strategy improvements
+- **CODE_REVIEW.md**: Code review and best practices
+- **TFT_IMPLEMENTATION_ROADMAP.md**: Deep learning TFT implementation roadmap
+- **ENHANCE_FUTURES.md**: Futures trading enhancements
 
-See `docs/README.md` for the full documentation index.
+Module-specific documentation:
+- **modules/adaptive_trend/README.md**: Adaptive Trend Classification
+- **modules/range_oscillator/**: Range Oscillator strategies
+- **modules/simplified_percentile_clustering/README.md**: SPC clustering
+- **modules/xgboost/README.md**: XGBoost prediction
+- **modules/deeplearning/README.md**: Deep learning TFT
+- **modules/pairs_trading/README.md**: Pairs trading strategies
+- **modules/portfolio/README.md**: Portfolio management
 
 ## 🏗️ Architecture
 
@@ -216,6 +318,30 @@ See `docs/README.md` for the full documentation index.
   - `ExchangeManager`: Exchange connection and API management
   - `IndicatorEngine`: Technical indicator computation
   - `Position`: Position data structure
+
+- **`modules/adaptive_trend/`**: Adaptive Trend Classification (ATC)
+  - Multi-layer trend analysis
+  - Robustness filtering
+  - Signal detection and scanning
+  - Interactive CLI
+
+- **`modules/range_oscillator/`**: Range Oscillator strategies
+  - Multiple signal generation strategies (2-9)
+  - Combined strategy with weighted voting
+  - Dynamic strategy selection
+  - Adaptive weights based on performance
+
+- **`modules/simplified_percentile_clustering/`**: SPC clustering
+  - Percentile-based clustering
+  - Multiple strategies: Cluster Transition, Regime Following, Mean Reversion
+  - Vote aggregation with weighted voting
+  - Configurable clustering parameters
+
+- **`modules/decision_matrix/`**: Decision Matrix voting system
+  - Pseudo Random Forest-like classifier
+  - Weighted voting based on accuracy
+  - Feature importance calculation
+  - Cumulative vote with threshold
 
 - **`modules/xgboost/`**: XGBoost prediction pipeline
   - Feature engineering and labeling
@@ -268,12 +394,19 @@ See `QUANT_METRICS_USAGE_REPORT.md` for detailed usage.
 
 ### Advanced Indicators
 
-- **Trend**: SMA, EMA, MACD
+- **Trend**: SMA, EMA, MACD, ATC (Adaptive Trend Classification)
 - **Momentum**: RSI, Stochastic RSI
-- **Volatility**: ATR, Bollinger Bands
+- **Volatility**: ATR, Bollinger Bands, Range Oscillator
 - **Volume**: OBV, Volume indicators
 - **Candlestick Patterns**: Doji, Engulfing, Three White Soldiers, etc.
-- **Custom**: KAMA (Kaufman Adaptive Moving Average)
+- **Custom**: KAMA (Kaufman Adaptive Moving Average), SPC (Simplified Percentile Clustering)
+
+### Signal Combination Strategies
+
+- **Hybrid Approach**: Sequential filtering (ATC → Range Oscillator → SPC) with optional Decision Matrix
+- **Pure Voting**: All indicators calculate signals in parallel, then vote through Decision Matrix
+- **SPC Aggregation**: Three SPC strategies (Cluster Transition, Regime Following, Mean Reversion) aggregated into single vote
+- **Decision Matrix**: Weighted voting system based on historical accuracy and signal strength
 
 ## ⚙️ Configuration
 
@@ -339,5 +472,5 @@ For issues, questions, or contributions, please open an issue on the repository.
 
 ---
 
-**Last Updated**: 2024
-**Version**: 2.0
+**Last Updated**: 2025
+**Version**: 3.0

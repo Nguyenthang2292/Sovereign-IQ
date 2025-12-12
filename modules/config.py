@@ -1,12 +1,16 @@
 """
 Configuration constants for all components.
 
-Organized by component:
+Organized by component in logical order:
 1. Common/Shared Configuration
-2. XGBoost Prediction Configuration
-3. Portfolio Manager Configuration
-4. Deep Learning Configuration
-5. Pairs Trading Configuration
+2. Range Oscillator Configuration
+3. Decision Matrix Configuration
+4. Simplified Percentile Clustering (SPC) Configuration
+5. XGBoost Prediction Configuration
+6. Deep Learning Configuration
+7. HMM Configuration
+8. Portfolio Manager Configuration
+9. Pairs Trading Configuration
 """
 
 # ============================================================================
@@ -33,6 +37,132 @@ DEFAULT_SYMBOL = "BTC/USDT"  # Default trading pair
 DEFAULT_QUOTE = "USDT"  # Default quote currency
 DEFAULT_TIMEFRAME = "15m"  # Default timeframe
 DEFAULT_LIMIT = 1500  # Default number of candles to fetch
+
+
+# ============================================================================
+# RANGE OSCILLATOR CONFIGURATION
+# ============================================================================
+
+# Strategy categories for dynamic selection
+TRENDING_STRATEGIES = [3, 4, 6, 8]
+RANGE_BOUND_STRATEGIES = [2, 7, 9]
+VOLATILE_STRATEGIES = [6, 7]
+STABLE_STRATEGIES = [2, 3, 9]
+
+# Constants for performance scoring weights
+AGREEMENT_WEIGHT = 0.6
+STRENGTH_WEIGHT = 0.4
+
+# Normalization constant for oscillator extreme calculation
+OSCILLATOR_NORMALIZATION = 100.0
+
+# Valid strategy IDs
+VALID_STRATEGY_IDS = {2, 3, 4, 6, 7, 8, 9}
+
+# Range Oscillator Default Parameters
+# These parameters control Range Oscillator signal generation
+# Adjust based on backtesting results or market conditions
+RANGE_OSCILLATOR_LENGTH = 50  # Oscillator length parameter
+RANGE_OSCILLATOR_MULTIPLIER = 2.0  # Oscillator multiplier
+
+
+# ============================================================================
+# DECISION MATRIX CONFIGURATION
+# ============================================================================
+
+# Indicator Accuracy Values (for Decision Matrix voting system)
+# These values represent historical accuracy/performance of each indicator
+# Adjust based on backtesting results or actual performance data
+
+# Main Indicators Accuracy
+DECISION_MATRIX_ATC_ACCURACY = 0.65  # Adaptive Trend Classification accuracy
+DECISION_MATRIX_OSCILLATOR_ACCURACY = 0.70  # Range Oscillator accuracy (highest)
+
+# SPC Strategy Accuracies (for weighted aggregation)
+DECISION_MATRIX_SPC_CLUSTER_TRANSITION_ACCURACY = 0.68  # Cluster Transition strategy accuracy
+DECISION_MATRIX_SPC_REGIME_FOLLOWING_ACCURACY = 0.66  # Regime Following strategy accuracy
+DECISION_MATRIX_SPC_MEAN_REVERSION_ACCURACY = 0.64  # Mean Reversion strategy accuracy
+
+# SPC Aggregated Accuracy (weighted average of 3 strategies)
+# Formula: (0.68 + 0.66 + 0.64) / 3 ≈ 0.66
+DECISION_MATRIX_SPC_AGGREGATED_ACCURACY = 0.66
+
+# Dictionary for easy access to SPC strategy accuracies
+DECISION_MATRIX_SPC_STRATEGY_ACCURACIES = {
+    'cluster_transition': DECISION_MATRIX_SPC_CLUSTER_TRANSITION_ACCURACY,
+    'regime_following': DECISION_MATRIX_SPC_REGIME_FOLLOWING_ACCURACY,
+    'mean_reversion': DECISION_MATRIX_SPC_MEAN_REVERSION_ACCURACY,
+}
+
+# Dictionary for all indicator accuracies
+DECISION_MATRIX_INDICATOR_ACCURACIES = {
+    'atc': DECISION_MATRIX_ATC_ACCURACY,
+    'oscillator': DECISION_MATRIX_OSCILLATOR_ACCURACY,
+    'spc': DECISION_MATRIX_SPC_AGGREGATED_ACCURACY,
+}
+
+
+# ============================================================================
+# SIMPLIFIED PERCENTILE CLUSTERING (SPC) CONFIGURATION
+# ============================================================================
+
+# SPC Strategy-Specific Parameters
+# These parameters control signal generation for each SPC strategy
+# Adjust based on backtesting results or market conditions
+
+# Cluster Transition Strategy Parameters
+SPC_CLUSTER_TRANSITION_MIN_SIGNAL_STRENGTH = 0.3  # Minimum signal strength threshold
+SPC_CLUSTER_TRANSITION_MIN_REL_POS_CHANGE = 0.1  # Minimum relative position change
+
+# Regime Following Strategy Parameters
+SPC_REGIME_FOLLOWING_MIN_REGIME_STRENGTH = 0.7  # Minimum regime strength threshold
+SPC_REGIME_FOLLOWING_MIN_CLUSTER_DURATION = 2  # Minimum bars in same cluster
+
+# Mean Reversion Strategy Parameters
+SPC_MEAN_REVERSION_EXTREME_THRESHOLD = 0.2  # Real_clust threshold for extreme detection
+SPC_MEAN_REVERSION_MIN_EXTREME_DURATION = 3  # Minimum bars in extreme state
+
+# Dictionary for easy access to SPC strategy parameters
+SPC_STRATEGY_PARAMETERS = {
+    'cluster_transition': {
+        'min_signal_strength': SPC_CLUSTER_TRANSITION_MIN_SIGNAL_STRENGTH,
+        'min_rel_pos_change': SPC_CLUSTER_TRANSITION_MIN_REL_POS_CHANGE,
+    },
+    'regime_following': {
+        'min_regime_strength': SPC_REGIME_FOLLOWING_MIN_REGIME_STRENGTH,
+        'min_cluster_duration': SPC_REGIME_FOLLOWING_MIN_CLUSTER_DURATION,
+    },
+    'mean_reversion': {
+        'extreme_threshold': SPC_MEAN_REVERSION_EXTREME_THRESHOLD,
+        'min_extreme_duration': SPC_MEAN_REVERSION_MIN_EXTREME_DURATION,
+    },
+}
+
+# SPC Vote Aggregation Configuration
+# Controls how votes from 3 SPC strategies are aggregated into a single vote
+
+# SPC Aggregation Consensus Mode
+# "threshold": Requires minimum fraction of strategies to agree
+# "weighted": Uses weighted voting with minimum total and difference thresholds
+SPC_AGGREGATION_MODE = "weighted"  # "threshold" or "weighted"
+
+# Threshold Mode Parameters
+SPC_AGGREGATION_THRESHOLD = 0.5  # Minimum fraction of strategies that must agree (0.0-1.0)
+
+# Weighted Mode Parameters
+SPC_AGGREGATION_WEIGHTED_MIN_TOTAL = 0.5  # Minimum total weight required for signal
+SPC_AGGREGATION_WEIGHTED_MIN_DIFF = 0.1  # Minimum difference between LONG and SHORT weights
+
+# Adaptive Weights Configuration
+SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS = False  # Enable performance-based weight adjustment
+SPC_AGGREGATION_ADAPTIVE_PERFORMANCE_WINDOW = 10  # Lookback window for performance calculation
+
+# Signal Strength Filtering
+SPC_AGGREGATION_MIN_SIGNAL_STRENGTH = 0.0  # Minimum strength required (0.0 = disabled)
+
+# Custom Strategy Weights (optional, overrides accuracy-based weights if provided)
+# If None, uses DECISION_MATRIX_SPC_STRATEGY_ACCURACIES
+SPC_AGGREGATION_STRATEGY_WEIGHTS = None  # Dict[str, float] or None
 
 
 # ============================================================================
@@ -151,36 +281,6 @@ XGBOOST_PARAMS = {
     "eval_metric": "mlogloss",  # Thước đo đánh giá lỗi: Multi-class Log Loss.
     "n_jobs": -1,  # Sử dụng tất cả lõi CPU.
 }
-
-
-# ============================================================================
-# PORTFOLIO MANAGER CONFIGURATION
-# ============================================================================
-
-# Benchmark Configuration
-BENCHMARK_SYMBOL = "BTC/USDT"  # Default benchmark for beta calculation
-
-# Beta Calculation Configuration
-DEFAULT_BETA_MIN_POINTS = 50  # Minimum data points required for beta calculation
-DEFAULT_BETA_LIMIT = 1000  # Default limit for beta calculation OHLCV fetch
-DEFAULT_BETA_TIMEFRAME = "1h"  # Default timeframe for beta calculation
-
-# Correlation Analysis Configuration
-DEFAULT_CORRELATION_MIN_POINTS = 10  # Minimum data points for correlation analysis
-DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS = (
-    10  # Minimum data points for weighted correlation
-)
-
-# Hedge Correlation Thresholds
-HEDGE_CORRELATION_HIGH_THRESHOLD = 0.7  # High correlation threshold (>= 0.7 = excellent for hedging)
-HEDGE_CORRELATION_MEDIUM_THRESHOLD = 0.4  # Medium correlation threshold (0.4-0.7 = moderate hedging effect)
-HEDGE_CORRELATION_DIFF_THRESHOLD = 0.1  # Maximum difference between methods for consistency check
-
-# VaR (Value at Risk) Configuration
-DEFAULT_VAR_CONFIDENCE = 0.95  # Default confidence level for VaR calculation (95%)
-DEFAULT_VAR_LOOKBACK_DAYS = 60  # Default lookback period for VaR calculation (days)
-DEFAULT_VAR_MIN_HISTORY_DAYS = 20  # Minimum history required for reliable VaR
-DEFAULT_VAR_MIN_PNL_SAMPLES = 10  # Minimum PnL samples required for VaR
 
 
 # ============================================================================
@@ -320,6 +420,36 @@ HMM_STATE_STRENGTH = {
     "strong": 1.0,  # Multiplier for strong states (0, 3)
     "weak": 0.7,   # Multiplier for weak states (1, 2)
 }
+
+
+# ============================================================================
+# PORTFOLIO MANAGER CONFIGURATION
+# ============================================================================
+
+# Benchmark Configuration
+BENCHMARK_SYMBOL = "BTC/USDT"  # Default benchmark for beta calculation
+
+# Beta Calculation Configuration
+DEFAULT_BETA_MIN_POINTS = 50  # Minimum data points required for beta calculation
+DEFAULT_BETA_LIMIT = 1000  # Default limit for beta calculation OHLCV fetch
+DEFAULT_BETA_TIMEFRAME = "1h"  # Default timeframe for beta calculation
+
+# Correlation Analysis Configuration
+DEFAULT_CORRELATION_MIN_POINTS = 10  # Minimum data points for correlation analysis
+DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS = (
+    10  # Minimum data points for weighted correlation
+)
+
+# Hedge Correlation Thresholds
+HEDGE_CORRELATION_HIGH_THRESHOLD = 0.7  # High correlation threshold (>= 0.7 = excellent for hedging)
+HEDGE_CORRELATION_MEDIUM_THRESHOLD = 0.4  # Medium correlation threshold (0.4-0.7 = moderate hedging effect)
+HEDGE_CORRELATION_DIFF_THRESHOLD = 0.1  # Maximum difference between methods for consistency check
+
+# VaR (Value at Risk) Configuration
+DEFAULT_VAR_CONFIDENCE = 0.95  # Default confidence level for VaR calculation (95%)
+DEFAULT_VAR_LOOKBACK_DAYS = 60  # Default lookback period for VaR calculation (days)
+DEFAULT_VAR_MIN_HISTORY_DAYS = 20  # Minimum history required for reliable VaR
+DEFAULT_VAR_MIN_PNL_SAMPLES = 10  # Minimum PnL samples required for VaR
 
 
 # ============================================================================
@@ -616,98 +746,3 @@ PAIRS_TRADING_PAIR_COLUMNS = [
     'kalman_classification_recall',
     'kalman_classification_accuracy',
 ]
-
-
-# ============================================================================
-# RANGE OSCILLATOR CONFIGURATION
-# ============================================================================
-
-# Strategy categories for dynamic selection
-TRENDING_STRATEGIES = [3, 4, 6, 8]
-RANGE_BOUND_STRATEGIES = [2, 7, 9]
-VOLATILE_STRATEGIES = [6, 7]
-STABLE_STRATEGIES = [2, 3, 9]
-
-# Constants for performance scoring weights
-AGREEMENT_WEIGHT = 0.6
-STRENGTH_WEIGHT = 0.4
-
-# Normalization constant for oscillator extreme calculation
-OSCILLATOR_NORMALIZATION = 100.0
-
-# Valid strategy IDs
-VALID_STRATEGY_IDS = {2, 3, 4, 6, 7, 8, 9}
-
-# Range Oscillator Default Parameters
-# These parameters control Range Oscillator signal generation
-# Adjust based on backtesting results or market conditions
-RANGE_OSCILLATOR_LENGTH = 50  # Oscillator length parameter
-RANGE_OSCILLATOR_MULTIPLIER = 2.0  # Oscillator multiplier
-
-
-# ============================================================================
-# DECISION MATRIX CONFIGURATION
-# ============================================================================
-
-# Indicator Accuracy Values (for Decision Matrix voting system)
-# These values represent historical accuracy/performance of each indicator
-# Adjust based on backtesting results or actual performance data
-
-# Main Indicators Accuracy
-DECISION_MATRIX_ATC_ACCURACY = 0.65  # Adaptive Trend Classification accuracy
-DECISION_MATRIX_OSCILLATOR_ACCURACY = 0.70  # Range Oscillator accuracy (highest)
-
-# SPC Strategy Accuracies (for weighted aggregation)
-DECISION_MATRIX_SPC_CLUSTER_TRANSITION_ACCURACY = 0.68  # Cluster Transition strategy accuracy
-DECISION_MATRIX_SPC_REGIME_FOLLOWING_ACCURACY = 0.66  # Regime Following strategy accuracy
-DECISION_MATRIX_SPC_MEAN_REVERSION_ACCURACY = 0.64  # Mean Reversion strategy accuracy
-
-# SPC Aggregated Accuracy (weighted average of 3 strategies)
-# Formula: (0.68 + 0.66 + 0.64) / 3 ≈ 0.66
-DECISION_MATRIX_SPC_AGGREGATED_ACCURACY = 0.66
-
-# Dictionary for easy access to SPC strategy accuracies
-DECISION_MATRIX_SPC_STRATEGY_ACCURACIES = {
-    'cluster_transition': DECISION_MATRIX_SPC_CLUSTER_TRANSITION_ACCURACY,
-    'regime_following': DECISION_MATRIX_SPC_REGIME_FOLLOWING_ACCURACY,
-    'mean_reversion': DECISION_MATRIX_SPC_MEAN_REVERSION_ACCURACY,
-}
-
-# Dictionary for all indicator accuracies
-DECISION_MATRIX_INDICATOR_ACCURACIES = {
-    'atc': DECISION_MATRIX_ATC_ACCURACY,
-    'oscillator': DECISION_MATRIX_OSCILLATOR_ACCURACY,
-    'spc': DECISION_MATRIX_SPC_AGGREGATED_ACCURACY,
-}
-
-# SPC Strategy-Specific Parameters
-# These parameters control signal generation for each SPC strategy
-# Adjust based on backtesting results or market conditions
-
-# Cluster Transition Strategy Parameters
-SPC_CLUSTER_TRANSITION_MIN_SIGNAL_STRENGTH = 0.3  # Minimum signal strength threshold
-SPC_CLUSTER_TRANSITION_MIN_REL_POS_CHANGE = 0.1  # Minimum relative position change
-
-# Regime Following Strategy Parameters
-SPC_REGIME_FOLLOWING_MIN_REGIME_STRENGTH = 0.7  # Minimum regime strength threshold
-SPC_REGIME_FOLLOWING_MIN_CLUSTER_DURATION = 2  # Minimum bars in same cluster
-
-# Mean Reversion Strategy Parameters
-SPC_MEAN_REVERSION_EXTREME_THRESHOLD = 0.2  # Real_clust threshold for extreme detection
-SPC_MEAN_REVERSION_MIN_EXTREME_DURATION = 3  # Minimum bars in extreme state
-
-# Dictionary for easy access to SPC strategy parameters
-SPC_STRATEGY_PARAMETERS = {
-    'cluster_transition': {
-        'min_signal_strength': SPC_CLUSTER_TRANSITION_MIN_SIGNAL_STRENGTH,
-        'min_rel_pos_change': SPC_CLUSTER_TRANSITION_MIN_REL_POS_CHANGE,
-    },
-    'regime_following': {
-        'min_regime_strength': SPC_REGIME_FOLLOWING_MIN_REGIME_STRENGTH,
-        'min_cluster_duration': SPC_REGIME_FOLLOWING_MIN_CLUSTER_DURATION,
-    },
-    'mean_reversion': {
-        'extreme_threshold': SPC_MEAN_REVERSION_EXTREME_THRESHOLD,
-        'min_extreme_duration': SPC_MEAN_REVERSION_MIN_EXTREME_DURATION,
-    },
-}

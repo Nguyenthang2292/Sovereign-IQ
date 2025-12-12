@@ -49,14 +49,14 @@ class DecisionMatrixClassifier:
         self.node_votes[indicator] = vote
         self.signal_strengths[indicator] = signal_strength
         
-        # Feature importance based on signal strength
-        self.feature_importance[indicator] = signal_strength
-        
-        # Independent accuracy
+        # Feature importance based on historical accuracy (not signal strength)
+        # This ensures balanced importance regardless of signal magnitude
         if accuracy is not None:
+            self.feature_importance[indicator] = accuracy
             self.independent_accuracy[indicator] = accuracy
         else:
-            # Use signal strength as proxy for accuracy
+            # Fallback: use signal strength if accuracy not provided
+            self.feature_importance[indicator] = signal_strength
             self.independent_accuracy[indicator] = signal_strength
     
     def calculate_weighted_impact(self) -> None:

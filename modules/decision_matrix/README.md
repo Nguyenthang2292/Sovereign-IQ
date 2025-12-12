@@ -206,8 +206,6 @@ Symbol: BTC/USDT
 
 ## Tham khảo
 
-- `DECISION_MATRIX_ANALYSIS.md`: Phân tích chi tiết
-- `DECISION_MATRIX_IMPLEMENTATION.py`: Code example
-- `TOM_TAT_DECISION_MATRIX.md`: Tóm tắt bằng tiếng Việt
-- `Document1.pdf`: Tài liệu gốc về Decision Matrix
+- `Decision Matrix.pdf`: Tài liệu gốc về Decision Matrix (trong cùng thư mục)
+- `modules/decision_matrix/classifier.py`: Implementation của DecisionMatrixClassifier
 

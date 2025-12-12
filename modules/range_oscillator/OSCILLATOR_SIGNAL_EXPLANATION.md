@@ -250,3 +250,4 @@ def get_range_oscillator_signal(...):
 - ✅ Robust (nếu 1 strategy fail, các strategies khác vẫn hoạt động)
 - ✅ Linh hoạt (có thể chọn strategies và threshold)
 
+

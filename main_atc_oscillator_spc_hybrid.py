@@ -37,6 +37,14 @@ from modules.config import (
     SPC_STRATEGY_PARAMETERS,
     RANGE_OSCILLATOR_LENGTH,
     RANGE_OSCILLATOR_MULTIPLIER,
+    SPC_AGGREGATION_MODE,
+    SPC_AGGREGATION_THRESHOLD,
+    SPC_AGGREGATION_WEIGHTED_MIN_TOTAL,
+    SPC_AGGREGATION_WEIGHTED_MIN_DIFF,
+    SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS,
+    SPC_AGGREGATION_ADAPTIVE_PERFORMANCE_WINDOW,
+    SPC_AGGREGATION_MIN_SIGNAL_STRENGTH,
+    SPC_AGGREGATION_STRATEGY_WEIGHTS,
 )
 from modules.common.utils import (
     color_text,
@@ -76,6 +84,12 @@ from modules.simplified_percentile_clustering.config import (
     ClusterTransitionConfig,
     RegimeFollowingConfig,
     MeanReversionConfig,
+)
+from modules.simplified_percentile_clustering.aggregation import (
+    SPCVoteAggregator,
+)
+from modules.simplified_percentile_clustering.config import (
+    SPCAggregationConfig,
 )
 from modules.decision_matrix.classifier import DecisionMatrixClassifier
 
@@ -412,8 +426,7 @@ def parse_args():
     parser.add_argument(
         "--enable-spc",
         action="store_true",
-        default=True,
-        help="Enable SPC (always enabled, all 3 strategies used) (default: True)",
+        help="Enable SPC (always enabled, all 3 strategies used). Note: This flag is always enabled internally.",
     )
     parser.add_argument(
         "--spc-k",
@@ -481,8 +494,7 @@ def parse_args():
     parser.add_argument(
         "--use-decision-matrix",
         action="store_true",
-        default=True,
-        help="Use decision matrix voting system (always enabled with SPC) (default: True)",
+        help="Use decision matrix voting system (always enabled with SPC). Note: This flag is always enabled internally.",
     )
     parser.add_argument(
         "--voting-threshold",
@@ -499,7 +511,9 @@ def parse_args():
     
     args = parser.parse_args()
     
-    # Ensure SPC and Decision Matrix are always enabled
+    # Force enable SPC and Decision Matrix (required for this workflow)
+    # Note: We parse the flags correctly (without default=True conflict),
+    # then enforce the requirement that these features are always enabled
     args.enable_spc = True
     args.use_decision_matrix = True
     
@@ -528,6 +542,19 @@ class ATCOscillatorSPCHybridAnalyzer:
         self.atc_analyzer = ATCAnalyzer(args, data_fetcher)
         self.selected_timeframe = args.timeframe
         self.atc_analyzer.selected_timeframe = args.timeframe
+        
+        # Initialize SPC Vote Aggregator
+        aggregation_config = SPCAggregationConfig(
+            mode=SPC_AGGREGATION_MODE,
+            threshold=SPC_AGGREGATION_THRESHOLD,
+            weighted_min_total=SPC_AGGREGATION_WEIGHTED_MIN_TOTAL,
+            weighted_min_diff=SPC_AGGREGATION_WEIGHTED_MIN_DIFF,
+            enable_adaptive_weights=SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS,
+            adaptive_performance_window=SPC_AGGREGATION_ADAPTIVE_PERFORMANCE_WINDOW,
+            min_signal_strength=SPC_AGGREGATION_MIN_SIGNAL_STRENGTH,
+            strategy_weights=SPC_AGGREGATION_STRATEGY_WEIGHTS,
+        )
+        self.spc_aggregator = SPCVoteAggregator(aggregation_config)
         
         # Results storage
         self.long_signals_atc = pd.DataFrame()
@@ -952,50 +979,22 @@ class ATCOscillatorSPCHybridAnalyzer:
         """
         Aggregate 3 SPC strategy votes into a single vote.
         
-        Uses weighted average based on strategy accuracies:
-        - Cluster Transition: 0.68
-        - Regime Following: 0.66
-        - Mean Reversion: 0.64
+        Uses SPCVoteAggregator with improved voting logic similar to Range Oscillator:
+        - Separate LONG/SHORT weight calculation
+        - Configurable consensus modes (threshold/weighted)
+        - Optional adaptive weights based on performance
+        - Signal strength filtering
         
         Returns:
-            (vote, strength) where vote is 1 if weighted average > 0.5, else 0
+            (vote, strength) where vote is 1 if matches expected signal_type, 0 otherwise
         """
         expected_signal = 1 if signal_type == "LONG" else -1
+        vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
         
-        # Strategy accuracies (used as weights) - from config
-        accuracies = DECISION_MATRIX_SPC_STRATEGY_ACCURACIES
-        
-        # Get votes and strengths from all 3 strategies
-        ct_signal = symbol_data.get('spc_cluster_transition_signal', 0)
-        ct_vote = 1 if ct_signal == expected_signal else 0
-        ct_strength = symbol_data.get('spc_cluster_transition_strength', 0.0)
-        
-        rf_signal = symbol_data.get('spc_regime_following_signal', 0)
-        rf_vote = 1 if rf_signal == expected_signal else 0
-        rf_strength = symbol_data.get('spc_regime_following_strength', 0.0)
-        
-        mr_signal = symbol_data.get('spc_mean_reversion_signal', 0)
-        mr_vote = 1 if mr_signal == expected_signal else 0
-        mr_strength = symbol_data.get('spc_mean_reversion_strength', 0.0)
-        
-        # Calculate weighted average
-        total_weight = sum(accuracies.values())
-        weighted_vote = (
-            ct_vote * accuracies['cluster_transition'] +
-            rf_vote * accuracies['regime_following'] +
-            mr_vote * accuracies['mean_reversion']
-        ) / total_weight
-        
-        weighted_strength = (
-            ct_strength * accuracies['cluster_transition'] +
-            rf_strength * accuracies['regime_following'] +
-            mr_strength * accuracies['mean_reversion']
-        ) / total_weight
-        
-        # Final vote: 1 if weighted average > 0.5, else 0
-        final_vote = 1 if weighted_vote > 0.5 else 0
-        
-        return (final_vote, min(weighted_strength, 1.0))
+        # Convert vote to 1/0 format for Decision Matrix compatibility
+        # Only accept vote if it matches the expected signal direction
+        final_vote = 1 if vote == expected_signal else 0
+        return (final_vote, strength)
     
     def calculate_indicator_votes(
         self,

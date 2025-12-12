@@ -426,3 +426,4 @@ consensus_threshold=1.0     # = 100% strategies phải đồng ý
 - **Python Version**: Tương thích với Python 3.8+ (loại bỏ strict=True)
 - **Breaking Changes**: `consensus_mode="majority"` và `"unanimous"` không còn được hỗ trợ
 - **Migration**: Sử dụng `consensus_mode="threshold"` với `consensus_threshold` phù hợp
+
