@@ -17,7 +17,6 @@ from modules.simplified_percentile_clustering.config import (
 from modules.simplified_percentile_clustering.utils.validation import (
     validate_clustering_config,
     validate_feature_config,
-    validate_strategy_config,
     validate_input_data,
 )
 
@@ -120,12 +119,11 @@ def test_validate_feature_config_no_features_enabled():
 
 def test_validate_strategy_config_cluster_transition():
     """Test validation for ClusterTransitionConfig."""
-    # Valid config
-    config = ClusterTransitionConfig(
+    # Valid config shouldn't raise
+    ClusterTransitionConfig(
         min_signal_strength=0.3,
         min_rel_pos_change=0.1,
     )
-    validate_strategy_config(config)
     
     # Invalid min_signal_strength
     with pytest.raises(ValueError, match="min_signal_strength must be in"):
@@ -138,13 +136,12 @@ def test_validate_strategy_config_cluster_transition():
 
 def test_validate_strategy_config_regime_following():
     """Test validation for RegimeFollowingConfig."""
-    # Valid config
-    config = RegimeFollowingConfig(
+    # Valid config shouldn't raise
+    RegimeFollowingConfig(
         min_regime_strength=0.7,
         min_cluster_duration=2,
         momentum_period=5,
     )
-    validate_strategy_config(config)
     
     # Invalid min_regime_strength
     with pytest.raises(ValueError, match="min_regime_strength must be in"):
@@ -161,13 +158,12 @@ def test_validate_strategy_config_regime_following():
 
 def test_validate_strategy_config_mean_reversion():
     """Test validation for MeanReversionConfig."""
-    # Valid config
-    config = MeanReversionConfig(
+    # Valid config shouldn't raise
+    MeanReversionConfig(
         extreme_threshold=0.2,
         min_extreme_duration=3,
         reversal_lookback=3,
     )
-    validate_strategy_config(config)
     
     # Invalid extreme_threshold
     with pytest.raises(ValueError, match="extreme_threshold must be in"):

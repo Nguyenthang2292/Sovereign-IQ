@@ -12,7 +12,7 @@ from modules.common.quantitative_metrics import (
     calculate_adf_test,
     calculate_half_life,
     calculate_johansen_test,
-    calculate_spread_sharpe,
+    calculate_sharpe_ratio,
     calculate_max_drawdown,
     calculate_calmar_ratio,
     calculate_ols_hedge_ratio,
@@ -280,7 +280,7 @@ class PairMetricsComputer:
             
             # Validate series
             if not pnl_series.empty and not equity_curve.empty:
-                sharpe = calculate_spread_sharpe(pnl_series, self.periods_per_year)
+                sharpe = calculate_sharpe_ratio(pnl_series, self.periods_per_year)
                 if sharpe is not None and not (np.isnan(sharpe) or np.isinf(sharpe)):
                     metrics["spread_sharpe"] = float(sharpe)
                 
@@ -390,7 +390,7 @@ class PairMetricsComputer:
                 
                 # Validate series
                 if not kalman_pnl_series.empty and not kalman_equity_curve.empty:
-                    kalman_sharpe = calculate_spread_sharpe(
+                    kalman_sharpe = calculate_sharpe_ratio(
                         kalman_pnl_series, self.periods_per_year
                     )
                     if kalman_sharpe is not None and not (np.isnan(kalman_sharpe) or np.isinf(kalman_sharpe)):

@@ -70,31 +70,23 @@ class TestSPCVoteAggregator:
     
     def test_validate_config_invalid_mode(self):
         """Test validation fails for invalid mode."""
-        config = SPCAggregationConfig(mode="invalid")
-        
         with pytest.raises(ValueError, match="Invalid mode"):
-            SPCVoteAggregator(config)
+            SPCAggregationConfig(mode="invalid")
     
     def test_validate_config_invalid_threshold(self):
         """Test validation fails for invalid threshold."""
-        config = SPCAggregationConfig(threshold=1.5)  # > 1.0
-        
         with pytest.raises(ValueError, match="threshold must be in"):
-            SPCVoteAggregator(config)
+            SPCAggregationConfig(threshold=1.5)  # > 1.0
     
     def test_validate_config_negative_weighted_min_total(self):
         """Test validation fails for negative weighted_min_total."""
-        config = SPCAggregationConfig(weighted_min_total=-0.1)
-        
         with pytest.raises(ValueError, match="weighted_min_total must be"):
-            SPCVoteAggregator(config)
+            SPCAggregationConfig(weighted_min_total=-0.1)
     
     def test_validate_config_invalid_adaptive_window(self):
         """Test validation fails for invalid adaptive_performance_window."""
-        config = SPCAggregationConfig(enable_adaptive_weights=True, adaptive_performance_window=0)
-        
         with pytest.raises(ValueError, match="adaptive_performance_window must be"):
-            SPCVoteAggregator(config)
+            SPCAggregationConfig(enable_adaptive_weights=True, adaptive_performance_window=0)
     
     def test_aggregate_all_strategies_agree_long(self):
         """Test aggregation when all strategies agree on LONG."""

@@ -31,7 +31,7 @@ def test_compute_pair_metrics_collects_all_sources(monkeypatch):
         lambda spread, lookback: 0.4,
     )
     monkeypatch.setattr(
-        "modules.pairs_trading.core.pair_metrics_computer.calculate_spread_sharpe",
+        "modules.pairs_trading.core.pair_metrics_computer.calculate_sharpe_ratio",
         lambda spread, periods: 1.2,
     )
     monkeypatch.setattr(

@@ -46,6 +46,16 @@ class DecisionMatrixClassifier:
             signal_strength: Signal strength (0.0 to 1.0) - used for feature importance
             accuracy: Independent accuracy (0.0 to 1.0) - optional, will use signal_strength if not provided
         """
+        # Input validation
+        if vote not in (0, 1):
+            raise ValueError(f"Vote must be 0 or 1, got {vote}")
+            
+        if not (0.0 <= signal_strength <= 1.0):
+            raise ValueError(f"Signal strength must be between 0.0 and 1.0, got {signal_strength}")
+            
+        if accuracy is not None and not (0.0 <= accuracy <= 1.0):
+            raise ValueError(f"Accuracy must be between 0.0 and 1.0, got {accuracy}")
+
         self.node_votes[indicator] = vote
         self.signal_strengths[indicator] = signal_strength
         
@@ -81,6 +91,9 @@ class DecisionMatrixClassifier:
                 self.weighted_impact[indicator] = importance / total_importance
             
             # Check for over-representation (>40%)
+            # Note: This cap strictly works for N >= 3 indicators.
+            # For N=2, the minimum even weight is 50%, so 40% cap is mathematically impossible
+            # without discarding weight. In that case, it will converge to 50/50.
             max_weight = max(self.weighted_impact.values()) if self.weighted_impact else 0.0
             if max_weight > 0.4:
                 # Normalize to prevent over-representation

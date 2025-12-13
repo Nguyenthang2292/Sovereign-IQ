@@ -7,7 +7,6 @@ Provides helper functions for common operations, validation, and optimized calcu
 from modules.simplified_percentile_clustering.utils.validation import (
     validate_clustering_config,
     validate_feature_config,
-    validate_strategy_config,
     validate_input_data,
 )
 from modules.simplified_percentile_clustering.utils.helpers import (
@@ -25,7 +24,6 @@ from modules.simplified_percentile_clustering.utils.helpers import (
 __all__ = [
     "validate_clustering_config",
     "validate_feature_config",
-    "validate_strategy_config",
     "validate_input_data",
     "safe_isna",
     "safe_isfinite",

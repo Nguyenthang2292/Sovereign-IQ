@@ -975,6 +975,7 @@ class ATCOscillatorSPCHybridAnalyzer:
         self,
         symbol_data: Dict[str, Any],
         signal_type: str,
+        use_threshold_fallback: bool = False,
     ) -> Tuple[int, float]:
         """
         Aggregate 3 SPC strategy votes into a single vote.
@@ -984,12 +985,35 @@ class ATCOscillatorSPCHybridAnalyzer:
         - Configurable consensus modes (threshold/weighted)
         - Optional adaptive weights based on performance
         - Signal strength filtering
+        - Fallback to threshold mode if weighted mode gives no vote
+        
+        Args:
+            symbol_data: Symbol data with SPC signals
+            signal_type: "LONG" or "SHORT"
+            use_threshold_fallback: If True, force use threshold mode
         
         Returns:
             (vote, strength) where vote is 1 if matches expected signal_type, 0 otherwise
         """
         expected_signal = 1 if signal_type == "LONG" else -1
-        vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
+        
+        # Use threshold mode if fallback requested
+        if use_threshold_fallback or self.spc_aggregator.config.mode == "threshold":
+            # Temporarily switch to threshold mode
+            original_mode = self.spc_aggregator.config.mode
+            self.spc_aggregator.config.mode = "threshold"
+            vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
+            self.spc_aggregator.config.mode = original_mode
+        else:
+            # Try weighted mode first
+            vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
+            
+            # If weighted mode gives no vote (vote = 0), fallback to threshold mode
+            if vote == 0:
+                original_mode = self.spc_aggregator.config.mode
+                self.spc_aggregator.config.mode = "threshold"
+                vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
+                self.spc_aggregator.config.mode = original_mode
         
         # Convert vote to 1/0 format for Decision Matrix compatibility
         # Only accept vote if it matches the expected signal direction
@@ -1059,6 +1083,28 @@ class ATCOscillatorSPCHybridAnalyzer:
                 threshold=self.args.voting_threshold,
                 min_votes=self.args.min_votes,
             )
+            
+            # Fallback logic: If SPC contribution = 0.00%, retry with threshold mode
+            if self.args.enable_spc and 'spc' in voting_breakdown:
+                spc_contribution = voting_breakdown['spc'].get('contribution', 0.0)
+                if abs(spc_contribution) < 0.0001:  # Contribution ≈ 0.00%
+                    # Re-aggregate SPC votes with threshold mode
+                    spc_vote_fallback, spc_strength_fallback = self._aggregate_spc_votes(
+                        row.to_dict(), 
+                        signal_type, 
+                        use_threshold_fallback=True
+                    )
+                    
+                    # Update classifier with new SPC vote using add_node_vote
+                    spc_accuracy = self._get_indicator_accuracy('spc', signal_type)
+                    classifier.add_node_vote('spc', spc_vote_fallback, spc_strength_fallback, spc_accuracy)
+                    
+                    # Recalculate
+                    classifier.calculate_weighted_impact()
+                    cumulative_vote, weighted_score, voting_breakdown = classifier.calculate_cumulative_vote(
+                        threshold=self.args.voting_threshold,
+                        min_votes=self.args.min_votes,
+                    )
             
             if cumulative_vote == 1:
                 result = row.to_dict()

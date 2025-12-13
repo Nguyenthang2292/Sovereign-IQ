@@ -23,7 +23,7 @@ pairs_trading/
 │   └── opportunity_scorer.py      # Opportunity scoring logic
 │
 ├── metrics/                # Statistical and quantitative metrics (organized into sub-packages)
-│   ├── __init__.py                # Re-exports all functions (backward compatible)
+│   ├── __init__.py                # Re-exports all functions
 │   ├── statistical_tests/        # Statistical tests for cointegration
 │   │   ├── adf_test.py           # Augmented Dickey-Fuller test
 │   │   └── johansen_test.py      # Johansen cointegration test
@@ -206,13 +206,12 @@ kalman_ratio = calculate_kalman_hedge_ratio(price1, price2, delta=1e-5)
 ```python
 # Import from common.quantitative_metrics
 from modules.common.quantitative_metrics.risk import (
-    calculate_sharpe_ratio,  # General name
-    calculate_spread_sharpe,  # Backward compatibility alias
+    calculate_sharpe_ratio,
     calculate_max_drawdown,
     calculate_calmar_ratio,
 )
 
-sharpe = calculate_spread_sharpe(pnl_series, periods_per_year=365*24)
+sharpe = calculate_sharpe_ratio(pnl_series, periods_per_year=365*24)
 max_dd = calculate_max_drawdown(equity_curve)
 calmar = calculate_calmar_ratio(equity_curve, periods_per_year=365*24)
 ```
@@ -236,8 +235,7 @@ direction_metrics = calculate_direction_metrics(spread_series)
 1. **Tổ chức tốt hơn**: Metrics liên quan được nhóm lại với nhau
 2. **Dễ tìm kiếm**: Cấu trúc rõ ràng giúp dễ tìm metrics cụ thể
 3. **Dễ mở rộng**: Dễ dàng thêm metrics mới vào sub-package phù hợp
-4. **Backward Compatible**: Code hiện tại vẫn hoạt động không cần thay đổi
-5. **Dependencies rõ ràng**: Dependencies nội bộ (ví dụ: calmar_ratio → max_drawdown) nằm trong cùng package
+4. **Dependencies rõ ràng**: Dependencies nội bộ (ví dụ: calmar_ratio → max_drawdown) nằm trong cùng package
 
 ### Utilities
 
@@ -390,13 +388,13 @@ validated_pairs = analyzer.validate_pairs(pairs_df, data_fetcher)
 
 ### Import các module riêng lẻ
 
-Bạn có thể import từ main package (backward compatible) hoặc từ sub-packages:
+Bạn có thể import từ main package hoặc từ sub-packages:
 
 ```python
 # Import từ pairs_trading package (re-exports từ common.quantitative_metrics)
 from modules.pairs_trading import (
     calculate_adf_test,
-    calculate_spread_sharpe,
+    calculate_sharpe_ratio,
     calculate_ols_hedge_ratio,
     calculate_zscore_stats,
     calculate_direction_metrics,
@@ -404,7 +402,7 @@ from modules.pairs_trading import (
 
 # Hoặc import trực tiếp từ common.quantitative_metrics (recommended)
 from modules.common.quantitative_metrics.statistical_tests import calculate_adf_test
-from modules.common.quantitative_metrics.risk import calculate_sharpe_ratio, calculate_spread_sharpe
+from modules.common.quantitative_metrics.risk import calculate_sharpe_ratio
 from modules.common.quantitative_metrics.hedge_ratios import calculate_ols_hedge_ratio
 from modules.common.quantitative_metrics.mean_reversion import calculate_zscore_stats
 from modules.common.quantitative_metrics.classification import calculate_direction_metrics

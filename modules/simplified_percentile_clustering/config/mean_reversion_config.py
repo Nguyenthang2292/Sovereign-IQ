@@ -12,7 +12,7 @@ from typing import Optional
 
 from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
 from modules.simplified_percentile_clustering.utils.validation import (
-    validate_strategy_config,
+    validate_clustering_config,
 )
 
 
@@ -46,8 +46,26 @@ class MeanReversionConfig:
             else:
                 self.bullish_reversion_target = 0.5  # Target middle
                 self.bearish_reversion_target = 0.5
+                self.bearish_reversion_target = 0.5
         # Validate configuration
-        validate_strategy_config(self)
+        if not (0.0 <= self.extreme_threshold <= 1.0):
+            raise ValueError(
+                f"extreme_threshold must be in [0.0, 1.0], got {self.extreme_threshold}"
+            )
+        if self.min_extreme_duration < 1:
+            raise ValueError(
+                f"min_extreme_duration must be at least 1, got {self.min_extreme_duration}"
+            )
+        if self.reversal_lookback < 1:
+            raise ValueError(
+                f"reversal_lookback must be at least 1, got {self.reversal_lookback}"
+            )
+        if not (0.0 <= self.min_signal_strength <= 1.0):
+            raise ValueError(
+                f"min_signal_strength must be in [0.0, 1.0], got {self.min_signal_strength}"
+            )
+        if self.clustering_config is not None:
+            validate_clustering_config(self.clustering_config)
 
 
 __all__ = ["MeanReversionConfig"]

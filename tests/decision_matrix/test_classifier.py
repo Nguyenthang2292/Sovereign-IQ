@@ -251,3 +251,25 @@ class TestDecisionMatrixClassifier:
         metadata = classifier.get_metadata()
         assert len(metadata['node_votes']) == 3
 
+    def test_input_validation(self):
+        """Test input validation for add_node_vote."""
+        classifier = DecisionMatrixClassifier()
+        
+        # Test invalid vote values
+        with pytest.raises(ValueError, match="Vote must be 0 or 1"):
+            classifier.add_node_vote('atc', vote=2)
+            
+        with pytest.raises(ValueError, match="Vote must be 0 or 1"):
+            classifier.add_node_vote('atc', vote=-1)
+            
+        # Test invalid signal strength
+        with pytest.raises(ValueError, match="Signal strength must be between"):
+            classifier.add_node_vote('atc', vote=1, signal_strength=1.5)
+            
+        with pytest.raises(ValueError, match="Signal strength must be between"):
+            classifier.add_node_vote('atc', vote=1, signal_strength=-0.1)
+            
+        # Test invalid accuracy
+        with pytest.raises(ValueError, match="Accuracy must be between"):
+            classifier.add_node_vote('atc', vote=1, accuracy=1.1)
+

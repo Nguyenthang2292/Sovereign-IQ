@@ -42,30 +42,13 @@ class SPCVoteAggregator:
             config: Configuration object. If None, uses defaults.
         """
         self.config = config or SPCAggregationConfig()
-        self._validate_config()
         
         # Strategy names
         self.strategy_names = ['cluster_transition', 'regime_following', 'mean_reversion']
         
         # Base weights from accuracy (can be overridden by adaptive or custom weights)
         self.base_weights = DECISION_MATRIX_SPC_STRATEGY_ACCURACIES.copy()
-    
-    def _validate_config(self) -> None:
-        """Validate configuration parameters."""
-        if self.config.mode not in ("threshold", "weighted"):
-            raise ValueError(f"Invalid mode: {self.config.mode}")
-        if not (0.0 <= self.config.threshold <= 1.0):
-            raise ValueError(f"threshold must be in [0, 1], got {self.config.threshold}")
-        if self.config.mode == "weighted":
-            if self.config.weighted_min_total < 0:
-                raise ValueError(f"weighted_min_total must be >= 0")
-            if self.config.weighted_min_diff < 0:
-                raise ValueError(f"weighted_min_diff must be >= 0")
-        if self.config.min_signal_strength < 0:
-            raise ValueError(f"min_signal_strength must be >= 0")
-        if self.config.enable_adaptive_weights:
-            if self.config.adaptive_performance_window < 1:
-                raise ValueError(f"adaptive_performance_window must be >= 1")
+
     
     def _calculate_adaptive_weights(
         self,
