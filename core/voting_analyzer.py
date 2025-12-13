@@ -61,6 +61,7 @@ from core.signal_calculators import (
     get_range_oscillator_signal,
     get_spc_signal,
     get_xgboost_signal,
+    get_hmm_signal,
 )
 
 
@@ -164,8 +165,13 @@ class VotingAnalyzer:
             mode="voting",
         )
     
-    def run_atc_scan(self) -> None:
-        """Run ATC auto scan to get LONG/SHORT signals."""
+    def run_atc_scan(self) -> bool:
+        """
+        Run ATC auto scan to get LONG/SHORT signals.
+        
+        Returns:
+            True if signals found, False otherwise
+        """
         log_progress("\nStep 1: Running ATC auto scan...")
         log_progress("=" * 80)
         
@@ -177,8 +183,14 @@ class VotingAnalyzer:
         log_success(f"\nATC Scan Complete: Found {original_long_count} LONG + {original_short_count} SHORT signals")
         
         if self.long_signals_atc.empty and self.short_signals_atc.empty:
-            log_warn("No ATC signals found. Exiting.")
-            raise ValueError("No ATC signals found")
+            log_warn("No ATC signals found. Cannot proceed with analysis.")
+            log_warn("Please try:")
+            log_warn("  - Different timeframe")
+            log_warn("  - Different market conditions")
+            log_warn("  - Check ATC configuration parameters")
+            return False
+        
+        return True
     
     def _process_symbol_for_all_indicators(
         self,
@@ -322,6 +334,31 @@ class VotingAnalyzer:
                     results['xgboost_signal'] = 0
                     results['xgboost_vote'] = 0
                     results['xgboost_confidence'] = 0.0
+            
+            # HMM signal (if enabled)
+            if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+                hmm_result = get_hmm_signal(
+                    data_fetcher=data_fetcher,
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    limit=limit,
+                    window_size=getattr(self.args, 'hmm_window_size', None),
+                    window_kama=getattr(self.args, 'hmm_window_kama', None),
+                    fast_kama=getattr(self.args, 'hmm_fast_kama', None),
+                    slow_kama=getattr(self.args, 'hmm_slow_kama', None),
+                    orders_argrelextrema=getattr(self.args, 'hmm_orders_argrelextrema', None),
+                    strict_mode=getattr(self.args, 'hmm_strict_mode', None),
+                )
+                if hmm_result is not None:
+                    hmm_signal, hmm_confidence = hmm_result
+                    hmm_vote = 1 if hmm_signal == expected_signal else 0
+                    results['hmm_signal'] = hmm_signal
+                    results['hmm_vote'] = hmm_vote
+                    results['hmm_confidence'] = hmm_confidence
+                else:
+                    results['hmm_signal'] = 0
+                    results['hmm_vote'] = 0
+                    results['hmm_confidence'] = 0.0
             
             return results
             
@@ -506,6 +543,8 @@ class VotingAnalyzer:
             indicators.append('spc')
         if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
             indicators.append('xgboost')
+        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+            indicators.append('hmm')
         
         results = []
         
@@ -535,6 +574,13 @@ class VotingAnalyzer:
                 xgb_strength = row.get('xgboost_confidence', 0.0)
                 classifier.add_node_vote('xgboost', xgb_vote, xgb_strength,
                     self._get_indicator_accuracy('xgboost', signal_type))
+            
+            if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+                # HMM vote
+                hmm_vote = row.get('hmm_vote', 0)
+                hmm_strength = row.get('hmm_confidence', 0.0)
+                classifier.add_node_vote('hmm', hmm_vote, hmm_strength,
+                    self._get_indicator_accuracy('hmm', signal_type))
             
             classifier.calculate_weighted_impact()
             
@@ -652,7 +698,11 @@ class VotingAnalyzer:
         self.display_config()
         log_progress("Initializing components...")
         
-        self.run_atc_scan()
+        # Run ATC scan - exit early if no signals found
+        if not self.run_atc_scan():
+            log_warn("\nAnalysis terminated: No ATC signals found.")
+            return
+        
         self.calculate_and_vote()
         self.display_results()
         

@@ -61,6 +61,7 @@ from core.signal_calculators import (
     get_range_oscillator_signal,
     get_spc_signal,
     get_xgboost_signal,
+    get_hmm_signal,
 )
 
 
@@ -166,8 +167,13 @@ class HybridAnalyzer:
             mode="hybrid",
         )
     
-    def run_atc_scan(self) -> None:
-        """Run ATC auto scan to get LONG/SHORT signals."""
+    def run_atc_scan(self) -> bool:
+        """
+        Run ATC auto scan to get LONG/SHORT signals.
+        
+        Returns:
+            True if signals found, False otherwise
+        """
         log_progress("\nStep 1: Running ATC auto scan...")
         log_progress("=" * 80)
         
@@ -179,8 +185,14 @@ class HybridAnalyzer:
         log_success(f"\nATC Scan Complete: Found {original_long_count} LONG + {original_short_count} SHORT signals")
         
         if self.long_signals_atc.empty and self.short_signals_atc.empty:
-            log_warn("No ATC signals found. Exiting.")
-            raise ValueError("No ATC signals found")
+            log_warn("No ATC signals found. Cannot proceed with analysis.")
+            log_warn("Please try:")
+            log_warn("  - Different timeframe")
+            log_warn("  - Different market conditions")
+            log_warn("  - Check ATC configuration parameters")
+            return False
+        
+        return True
     
     def _process_symbol_for_oscillator(
         self,
@@ -515,6 +527,41 @@ class HybridAnalyzer:
                     xgb_results.append(row_dict)
             result_df = pd.DataFrame(xgb_results)
         
+        # Calculate HMM signals if enabled
+        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm and not result_df.empty:
+            log_progress(f"Calculating HMM signals for {len(result_df)} {signal_type} symbols...")
+            hmm_results = []
+            for _, row in result_df.iterrows():
+                try:
+                    hmm_result = get_hmm_signal(
+                        data_fetcher=self.data_fetcher,
+                        symbol=row['symbol'],
+                        timeframe=self.selected_timeframe,
+                        limit=self.args.limit,
+                        window_size=getattr(self.args, 'hmm_window_size', None),
+                        window_kama=getattr(self.args, 'hmm_window_kama', None),
+                        fast_kama=getattr(self.args, 'hmm_fast_kama', None),
+                        slow_kama=getattr(self.args, 'hmm_slow_kama', None),
+                        orders_argrelextrema=getattr(self.args, 'hmm_orders_argrelextrema', None),
+                        strict_mode=getattr(self.args, 'hmm_strict_mode', None),
+                    )
+                    if hmm_result is not None:
+                        row_dict = row.to_dict()
+                        row_dict["hmm_signal"] = hmm_result[0]
+                        row_dict["hmm_confidence"] = hmm_result[1]
+                        hmm_results.append(row_dict)
+                    else:
+                        row_dict = row.to_dict()
+                        row_dict["hmm_signal"] = 0
+                        row_dict["hmm_confidence"] = 0.0
+                        hmm_results.append(row_dict)
+                except Exception as e:
+                    row_dict = row.to_dict()
+                    row_dict["hmm_signal"] = 0
+                    row_dict["hmm_confidence"] = 0.0
+                    hmm_results.append(row_dict)
+            result_df = pd.DataFrame(hmm_results)
+        
         # Sort by signal strength (use average of all 3 strategies)
         if signal_type == "LONG":
             result_df = result_df.sort_values("signal", ascending=False).reset_index(drop=True)
@@ -631,6 +678,13 @@ class HybridAnalyzer:
             xgb_strength = symbol_data.get('xgboost_confidence', 0.0)
             votes['xgboost'] = (xgb_vote, xgb_strength)
         
+        # HMM vote (if enabled)
+        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+            hmm_signal = symbol_data.get('hmm_signal', 0)
+            hmm_vote = 1 if hmm_signal == expected_signal else 0
+            hmm_strength = symbol_data.get('hmm_confidence', 0.0)
+            votes['hmm'] = (hmm_vote, hmm_strength)
+        
         return votes
     
     def _get_indicator_accuracy(self, indicator: str, signal_type: str) -> float:
@@ -646,12 +700,14 @@ class HybridAnalyzer:
         if signals_df.empty:
             return pd.DataFrame()
         
-        # Build indicators list: ATC, Oscillator, aggregated SPC, and XGBoost
+        # Build indicators list: ATC, Oscillator, aggregated SPC, XGBoost, and HMM
         indicators = ['atc', 'oscillator']
         if self.args.enable_spc:
             indicators.append('spc')
         if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
             indicators.append('xgboost')
+        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+            indicators.append('hmm')
         
         results = []
         
@@ -831,7 +887,11 @@ class HybridAnalyzer:
         self.display_config()
         log_progress("Initializing components...")
         
-        self.run_atc_scan()
+        # Run ATC scan - exit early if no signals found
+        if not self.run_atc_scan():
+            log_warn("\nAnalysis terminated: No ATC signals found.")
+            return
+        
         self.filter_by_oscillator()
         
         if self.args.enable_spc:

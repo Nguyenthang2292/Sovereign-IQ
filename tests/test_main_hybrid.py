@@ -17,6 +17,8 @@ from core.hybrid_analyzer import HybridAnalyzer
 from core.signal_calculators import (
     get_range_oscillator_signal,
     get_spc_signal,
+    get_hmm_signal,
+    get_xgboost_signal,
 )
 from modules.common.DataFetcher import DataFetcher
 from config import (
@@ -55,6 +57,14 @@ class TestHybridAnalyzer:
         args.min_votes = 2
         args.min_signal = 0.01
         args.max_symbols = None
+        args.enable_xgboost = False
+        args.enable_hmm = False
+        args.hmm_window_size = None
+        args.hmm_window_kama = None
+        args.hmm_fast_kama = None
+        args.hmm_slow_kama = None
+        args.hmm_orders_argrelextrema = None
+        args.hmm_strict_mode = None
         return args
     
     @pytest.fixture
@@ -296,6 +306,220 @@ class TestHybridAnalyzer:
         assert 0.0 <= atc_accuracy <= 1.0
         assert 0.0 <= osc_accuracy <= 1.0
         assert 0.0 <= spc_accuracy <= 1.0
+    
+    def test_get_indicator_accuracy_hmm(self, analyzer):
+        """Test _get_indicator_accuracy for HMM."""
+        hmm_accuracy = analyzer._get_indicator_accuracy('hmm', 'LONG')
+        xgb_accuracy = analyzer._get_indicator_accuracy('xgboost', 'LONG')
+        
+        assert 0.0 <= hmm_accuracy <= 1.0
+        assert 0.0 <= xgb_accuracy <= 1.0
+    
+    def test_run_atc_scan_no_signals(self, analyzer):
+        """Test run_atc_scan when no ATC signals found."""
+        analyzer.atc_analyzer = Mock()
+        analyzer.atc_analyzer.run_auto_scan.return_value = (pd.DataFrame(), pd.DataFrame())
+        
+        result = analyzer.run_atc_scan()
+        
+        assert result is False
+        assert analyzer.long_signals_atc.empty
+        assert analyzer.short_signals_atc.empty
+    
+    def test_run_atc_scan_with_signals(self, analyzer):
+        """Test run_atc_scan when ATC signals found."""
+        analyzer.atc_analyzer = Mock()
+        long_df = pd.DataFrame([{'symbol': 'BTC/USDT', 'signal': 1}])
+        short_df = pd.DataFrame([{'symbol': 'ETH/USDT', 'signal': -1}])
+        analyzer.atc_analyzer.run_auto_scan.return_value = (long_df, short_df)
+        
+        result = analyzer.run_atc_scan()
+        
+        assert result is True
+        assert not analyzer.long_signals_atc.empty
+        assert not analyzer.short_signals_atc.empty
+    
+    def test_calculate_indicator_votes_with_hmm(self, analyzer):
+        """Test calculate_indicator_votes with HMM enabled."""
+        analyzer.args.enable_hmm = True
+        symbol_data = {
+            'signal': 1,
+            'osc_signal': 1,
+            'osc_confidence': 0.8,
+            'hmm_signal': 1,
+            'hmm_confidence': 0.7,
+            'spc_cluster_transition_signal': 1,
+            'spc_cluster_transition_strength': 0.8,
+            'spc_regime_following_signal': 1,
+            'spc_regime_following_strength': 0.7,
+            'spc_mean_reversion_signal': 1,
+            'spc_mean_reversion_strength': 0.6,
+        }
+        
+        votes = analyzer.calculate_indicator_votes(symbol_data, "LONG")
+        
+        assert 'atc' in votes
+        assert 'oscillator' in votes
+        assert 'spc' in votes
+        assert 'hmm' in votes
+        assert all(isinstance(v, tuple) and len(v) == 2 for v in votes.values())
+    
+    def test_calculate_indicator_votes_with_xgboost(self, analyzer):
+        """Test calculate_indicator_votes with XGBoost enabled."""
+        analyzer.args.enable_xgboost = True
+        symbol_data = {
+            'signal': 1,
+            'osc_signal': 1,
+            'osc_confidence': 0.8,
+            'xgboost_signal': 1,
+            'xgboost_confidence': 0.75,
+            'spc_cluster_transition_signal': 1,
+            'spc_cluster_transition_strength': 0.8,
+            'spc_regime_following_signal': 1,
+            'spc_regime_following_strength': 0.7,
+            'spc_mean_reversion_signal': 1,
+            'spc_mean_reversion_strength': 0.6,
+        }
+        
+        votes = analyzer.calculate_indicator_votes(symbol_data, "LONG")
+        
+        assert 'atc' in votes
+        assert 'oscillator' in votes
+        assert 'spc' in votes
+        assert 'xgboost' in votes
+        assert all(isinstance(v, tuple) and len(v) == 2 for v in votes.values())
+    
+    def test_calculate_indicator_votes_with_all_indicators(self, analyzer):
+        """Test calculate_indicator_votes with all indicators enabled."""
+        analyzer.args.enable_xgboost = True
+        analyzer.args.enable_hmm = True
+        symbol_data = {
+            'signal': 1,
+            'osc_signal': 1,
+            'osc_confidence': 0.8,
+            'xgboost_signal': 1,
+            'xgboost_confidence': 0.75,
+            'hmm_signal': 1,
+            'hmm_confidence': 0.7,
+            'spc_cluster_transition_signal': 1,
+            'spc_cluster_transition_strength': 0.8,
+            'spc_regime_following_signal': 1,
+            'spc_regime_following_strength': 0.7,
+            'spc_mean_reversion_signal': 1,
+            'spc_mean_reversion_strength': 0.6,
+        }
+        
+        votes = analyzer.calculate_indicator_votes(symbol_data, "LONG")
+        
+        assert 'atc' in votes
+        assert 'oscillator' in votes
+        assert 'spc' in votes
+        assert 'xgboost' in votes
+        assert 'hmm' in votes
+        assert len(votes) == 5
+    
+    def test_apply_decision_matrix_with_hmm(self, analyzer):
+        """Test apply_decision_matrix with HMM enabled."""
+        analyzer.args.enable_hmm = True
+        signals_df = pd.DataFrame([
+            {
+                'symbol': 'BTC/USDT',
+                'signal': 1,
+                'trend': 'UPTREND',
+                'price': 50000.0,
+                'exchange': 'binance',
+                'osc_signal': 1,
+                'osc_confidence': 0.8,
+                'hmm_signal': 1,
+                'hmm_confidence': 0.7,
+                'spc_cluster_transition_signal': 1,
+                'spc_cluster_transition_strength': 0.8,
+                'spc_regime_following_signal': 1,
+                'spc_regime_following_strength': 0.7,
+                'spc_mean_reversion_signal': 1,
+                'spc_mean_reversion_strength': 0.6,
+            }
+        ])
+        
+        result = analyzer.apply_decision_matrix(signals_df, "LONG")
+        
+        assert isinstance(result, pd.DataFrame)
+        if not result.empty:
+            assert 'cumulative_vote' in result.columns
+            assert 'weighted_score' in result.columns
+            assert 'voting_breakdown' in result.columns
+            # Check that HMM is in voting breakdown
+            voting_breakdown = result.iloc[0]['voting_breakdown']
+            assert 'hmm' in voting_breakdown
+    
+    @patch('core.hybrid_analyzer.log_warn')
+    def test_run_early_exit_no_atc_signals(self, mock_log_warn, analyzer):
+        """Test run() method exits early when no ATC signals found."""
+        analyzer.atc_analyzer = Mock()
+        analyzer.atc_analyzer.run_auto_scan.return_value = (pd.DataFrame(), pd.DataFrame())
+        analyzer.determine_timeframe = Mock()
+        analyzer.display_config = Mock()
+        
+        analyzer.run()
+        
+        # Should call log_warn and return early
+        assert mock_log_warn.called
+        # Should not proceed to filter_by_oscillator
+        assert not hasattr(analyzer, 'long_signals_confirmed') or analyzer.long_signals_confirmed.empty
+    
+    @patch('core.hybrid_analyzer.log_progress')
+    def test_run_complete_workflow(self, mock_log_progress, analyzer):
+        """Test run() method completes full workflow when ATC signals found."""
+        analyzer.atc_analyzer = Mock()
+        long_df = pd.DataFrame([{'symbol': 'BTC/USDT', 'signal': 1}])
+        short_df = pd.DataFrame([{'symbol': 'ETH/USDT', 'signal': -1}])
+        analyzer.atc_analyzer.run_auto_scan.return_value = (long_df, short_df)
+        analyzer.determine_timeframe = Mock()
+        analyzer.display_config = Mock()
+        analyzer.filter_by_oscillator = Mock()
+        analyzer.calculate_spc_signals_for_all = Mock()
+        analyzer.filter_by_decision_matrix = Mock()
+        analyzer.display_results = Mock()
+        
+        analyzer.run()
+        
+        # Should proceed through all steps
+        analyzer.filter_by_oscillator.assert_called_once()
+        if analyzer.args.enable_spc:
+            analyzer.calculate_spc_signals_for_all.assert_called_once()
+        if analyzer.args.use_decision_matrix:
+            analyzer.filter_by_decision_matrix.assert_called_once()
+        analyzer.display_results.assert_called_once()
+    
+    def test_apply_decision_matrix_with_xgboost(self, analyzer):
+        """Test apply_decision_matrix with XGBoost enabled."""
+        analyzer.args.enable_xgboost = True
+        signals_df = pd.DataFrame([
+            {
+                'symbol': 'BTC/USDT',
+                'signal': 1,
+                'trend': 'UPTREND',
+                'price': 50000.0,
+                'exchange': 'binance',
+                'osc_signal': 1,
+                'osc_confidence': 0.8,
+                'xgboost_signal': 1,
+                'xgboost_confidence': 0.75,
+                'spc_cluster_transition_signal': 1,
+                'spc_cluster_transition_strength': 0.8,
+                'spc_regime_following_signal': 1,
+                'spc_regime_following_strength': 0.7,
+                'spc_mean_reversion_signal': 1,
+                'spc_mean_reversion_strength': 0.6,
+            }
+        ])
+        
+        result = analyzer.apply_decision_matrix(signals_df, "LONG")
+        
+        assert isinstance(result, pd.DataFrame)
+        if not result.empty:
+            assert 'cumulative_vote' in result.columns
+            assert 'xgboost' in result.iloc[0]['voting_breakdown']
 
 
 class TestHelperFunctionsHybrid:
@@ -362,6 +586,98 @@ class TestHelperFunctionsHybrid:
             assert result is not None
             assert isinstance(result, tuple)
             assert len(result) == 2
-
-== 2
+    
+    def test_get_hmm_signal_success(self, mock_data_fetcher):
+        """Test get_hmm_signal with successful result."""
+        mock_df = pd.DataFrame({
+            'high': [100, 101, 102, 103, 104],
+            'low': [99, 100, 101, 102, 103],
+            'close': [100, 101, 102, 103, 104],
+            'open': [99, 100, 101, 102, 103],
+        })
+        
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, 'binance')
+        
+        with patch('core.signal_calculators.hmm_signals') as mock_hmm:
+            from modules.hmm.signal_resolution import LONG, HOLD
+            mock_hmm.return_value = (LONG, LONG)
+            
+            result = get_hmm_signal(
+                mock_data_fetcher, 'BTC/USDT', '1h', 500
+            )
+            
+            assert result is not None
+            assert isinstance(result, tuple)
+            assert len(result) == 2
+            assert result[0] in [-1, 0, 1]  # Signal value
+            assert 0.0 <= result[1] <= 1.0  # Confidence
+    
+    def test_get_hmm_signal_no_data(self, mock_data_fetcher):
+        """Test get_hmm_signal when no data."""
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (None, None)
+        
+        result = get_hmm_signal(
+            mock_data_fetcher, 'BTC/USDT', '1h', 500
+        )
+        
+        assert result is None
+    
+    def test_get_hmm_signal_conflict(self, mock_data_fetcher):
+        """Test get_hmm_signal when signals conflict."""
+        mock_df = pd.DataFrame({
+            'high': [100, 101, 102, 103, 104] * 20,
+            'low': [99, 100, 101, 102, 103] * 20,
+            'close': [100, 101, 102, 103, 104] * 20,
+            'open': [99, 100, 101, 102, 103] * 20,
+        })
+        
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, 'binance')
+        
+        with patch('core.signal_calculators.hmm_signals') as mock_hmm:
+            from modules.hmm.signal_resolution import LONG, SHORT
+            mock_hmm.return_value = (LONG, SHORT)  # Conflict
+            
+            result = get_hmm_signal(
+                mock_data_fetcher, 'BTC/USDT', '1h', 500
+            )
+            
+            assert result is not None
+            assert result[0] == 0  # HOLD when conflict
+            assert result[1] == 0.0  # Zero confidence when conflict
+    
+    def test_get_hmm_signal_with_custom_params(self, mock_data_fetcher):
+        """Test get_hmm_signal with custom parameters."""
+        mock_df = pd.DataFrame({
+            'high': [100, 101, 102, 103, 104] * 20,
+            'low': [99, 100, 101, 102, 103] * 20,
+            'close': [100, 101, 102, 103, 104] * 20,
+            'open': [99, 100, 101, 102, 103] * 20,
+        })
+        
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, 'binance')
+        
+        with patch('core.signal_calculators.hmm_signals') as mock_hmm:
+            from modules.hmm.signal_resolution import LONG
+            mock_hmm.return_value = (LONG, LONG)
+            
+            result = get_hmm_signal(
+                mock_data_fetcher, 'BTC/USDT', '1h', 500,
+                window_size=150,
+                window_kama=15,
+                fast_kama=3,
+                slow_kama=40,
+                orders_argrelextrema=6,
+                strict_mode=True,
+            )
+            
+            assert result is not None
+            # Verify that custom parameters were passed
+            mock_hmm.assert_called_once()
+            call_kwargs = mock_hmm.call_args[1]
+            assert call_kwargs['window_size'] == 150
+            assert call_kwargs['window_kama'] == 15
+            assert call_kwargs['fast_kama'] == 3
+            assert call_kwargs['slow_kama'] == 40
+            assert call_kwargs['orders_argrelextrema'] == 6
+            assert call_kwargs['strict_mode'] is True
 

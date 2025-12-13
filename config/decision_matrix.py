@@ -13,6 +13,7 @@ Indicator accuracy values and voting thresholds.
 DECISION_MATRIX_ATC_ACCURACY = 0.65  # Adaptive Trend Classification accuracy
 DECISION_MATRIX_OSCILLATOR_ACCURACY = 0.70  # Range Oscillator accuracy (highest)
 DECISION_MATRIX_XGBOOST_ACCURACY = 0.68  # XGBoost prediction accuracy
+DECISION_MATRIX_HMM_ACCURACY = 0.67  # HMM (Hidden Markov Model) accuracy
 
 # SPC Strategy Accuracies (for weighted aggregation)
 DECISION_MATRIX_SPC_STRATEGY_ACCURACIES = {
@@ -30,6 +31,7 @@ DECISION_MATRIX_INDICATOR_ACCURACIES = {
     'oscillator': DECISION_MATRIX_OSCILLATOR_ACCURACY,
     'spc': DECISION_MATRIX_SPC_AGGREGATED_ACCURACY,
     'xgboost': DECISION_MATRIX_XGBOOST_ACCURACY,
+    'hmm': DECISION_MATRIX_HMM_ACCURACY,
 }
 
 # Decision Matrix Voting Configuration

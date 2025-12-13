@@ -19,6 +19,12 @@ from config import (
     SPC_P_HIGH,
     RANGE_OSCILLATOR_LENGTH,
     RANGE_OSCILLATOR_MULTIPLIER,
+    HMM_WINDOW_SIZE_DEFAULT,
+    HMM_WINDOW_KAMA_DEFAULT,
+    HMM_FAST_KAMA_DEFAULT,
+    HMM_SLOW_KAMA_DEFAULT,
+    HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
+    HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
 )
 from modules.common.utils import (
     color_text,
@@ -104,6 +110,19 @@ def interactive_config_menu(mode="hybrid"):
     enable_xgb_input = prompt_user_input("Enable XGBoost prediction? (y/n) [n]: ", default="n")
     config.enable_xgboost = enable_xgb_input.lower() in ['y', 'yes']
     
+    # 5b. HMM configuration (optional)
+    print("\n" + color_text("5b. HMM (Hidden Markov Model) CONFIGURATION (Optional)", Fore.YELLOW, Style.BRIGHT))
+    enable_hmm_input = prompt_user_input("Enable HMM signal? (y/n) [n]: ", default="n")
+    config.enable_hmm = enable_hmm_input.lower() in ['y', 'yes']
+    
+    # HMM parameters: use defaults from config (not shown in menu)
+    config.hmm_window_size = HMM_WINDOW_SIZE_DEFAULT
+    config.hmm_window_kama = HMM_WINDOW_KAMA_DEFAULT
+    config.hmm_fast_kama = HMM_FAST_KAMA_DEFAULT
+    config.hmm_slow_kama = HMM_SLOW_KAMA_DEFAULT
+    config.hmm_orders_argrelextrema = HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT
+    config.hmm_strict_mode = HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
+    
     # 6. Decision Matrix configuration
     print("\n" + color_text(decision_matrix_title, Fore.YELLOW, Style.BRIGHT))
     if decision_matrix_note:
@@ -130,6 +149,22 @@ def interactive_config_menu(mode="hybrid"):
     config.max_symbols = None
     config.osc_strategies = None
     config.spc_strategy = "all"  # Indicates all 3 strategies will be used
+    
+    # Set default HMM values if not enabled
+    if not hasattr(config, 'enable_hmm'):
+        config.enable_hmm = False
+    if not hasattr(config, 'hmm_window_size'):
+        config.hmm_window_size = HMM_WINDOW_SIZE_DEFAULT
+    if not hasattr(config, 'hmm_window_kama'):
+        config.hmm_window_kama = HMM_WINDOW_KAMA_DEFAULT
+    if not hasattr(config, 'hmm_fast_kama'):
+        config.hmm_fast_kama = HMM_FAST_KAMA_DEFAULT
+    if not hasattr(config, 'hmm_slow_kama'):
+        config.hmm_slow_kama = HMM_SLOW_KAMA_DEFAULT
+    if not hasattr(config, 'hmm_orders_argrelextrema'):
+        config.hmm_orders_argrelextrema = HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT
+    if not hasattr(config, 'hmm_strict_mode'):
+        config.hmm_strict_mode = HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
     
     return config
 
@@ -274,6 +309,50 @@ def parse_args(mode="hybrid", force_enable_spc=True, force_enable_decision_matri
         "--enable-xgboost",
         action="store_true",
         help="Enable XGBoost prediction in Decision Matrix (default: False)",
+    )
+    
+    # HMM configuration (optional)
+    parser.add_argument(
+        "--enable-hmm",
+        action="store_true",
+        help="Enable HMM (Hidden Markov Model) signal in Decision Matrix (default: False)",
+    )
+    parser.add_argument(
+        "--hmm-window-size",
+        type=int,
+        default=HMM_WINDOW_SIZE_DEFAULT,
+        help=f"HMM rolling window size (default: {HMM_WINDOW_SIZE_DEFAULT})",
+    )
+    parser.add_argument(
+        "--hmm-window-kama",
+        type=int,
+        default=HMM_WINDOW_KAMA_DEFAULT,
+        help=f"HMM KAMA window size (default: {HMM_WINDOW_KAMA_DEFAULT})",
+    )
+    parser.add_argument(
+        "--hmm-fast-kama",
+        type=int,
+        default=HMM_FAST_KAMA_DEFAULT,
+        help=f"HMM fast KAMA parameter (default: {HMM_FAST_KAMA_DEFAULT})",
+    )
+    parser.add_argument(
+        "--hmm-slow-kama",
+        type=int,
+        default=HMM_SLOW_KAMA_DEFAULT,
+        help=f"HMM slow KAMA parameter (default: {HMM_SLOW_KAMA_DEFAULT})",
+    )
+    parser.add_argument(
+        "--hmm-orders-argrelextrema",
+        type=int,
+        default=HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
+        help=f"HMM order for swing detection (default: {HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT})",
+    )
+    parser.add_argument(
+        "--hmm-strict-mode",
+        action="store_const",
+        const=True,
+        default=None,
+        help=f"Use strict mode for HMM swing-to-state conversion (default: {HMM_HIGH_ORDER_STRICT_MODE_DEFAULT})",
     )
     
     # Decision Matrix options

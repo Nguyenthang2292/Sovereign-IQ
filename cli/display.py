@@ -54,6 +54,19 @@ def display_config(
         log_progress("\nXGBoost Configuration:")
         log_data(f"  XGBoost Prediction: Enabled")
     
+    if hasattr(args, 'enable_hmm') and args.enable_hmm:
+        from config import HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
+        log_progress("\nHMM Configuration:")
+        log_data(f"  HMM Signal: Enabled")
+        log_data(f"  Window Size: {getattr(args, 'hmm_window_size', 'N/A')}")
+        log_data(f"  Window KAMA: {getattr(args, 'hmm_window_kama', 'N/A')}")
+        log_data(f"  Fast KAMA: {getattr(args, 'hmm_fast_kama', 'N/A')}")
+        log_data(f"  Slow KAMA: {getattr(args, 'hmm_slow_kama', 'N/A')}")
+        log_data(f"  Orders Argrelextrema: {getattr(args, 'hmm_orders_argrelextrema', 'N/A')}")
+        strict_mode = getattr(args, 'hmm_strict_mode', None)
+        strict_mode_display = strict_mode if strict_mode is not None else HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
+        log_data(f"  Strict Mode: {strict_mode_display} (default: {HMM_HIGH_ORDER_STRICT_MODE_DEFAULT})")
+    
     if mode == "hybrid":
         if hasattr(args, 'use_decision_matrix') and args.use_decision_matrix:
             log_progress("\nDecision Matrix Configuration:")
