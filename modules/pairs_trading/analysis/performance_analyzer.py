@@ -589,4 +589,4 @@ class PerformanceAnalyzer:
 
         # Sort by score ascending and take top N
         df_sorted = df.sort_values('score', ascending=True).reset_index(drop=True)
-        return df_sorted.head(top_n).copy()).copy()
+        return df_sorted.head(top_n).copy()

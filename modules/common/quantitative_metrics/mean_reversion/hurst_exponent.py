@@ -175,5 +175,3 @@ def calculate_hurst_exponent(
         # Note: Exceptions are silently handled and return None for graceful failure
         return None
 
-None
-

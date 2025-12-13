@@ -401,6 +401,3 @@ __all__ = [
     "SPCVoteAggregator",
 ]
 
-,
-]
-

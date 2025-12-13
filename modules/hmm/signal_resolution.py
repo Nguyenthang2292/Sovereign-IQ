@@ -97,5 +97,3 @@ def resolve_signal_conflict(
         )
         return HOLD, HOLD
 
-HOLD
-

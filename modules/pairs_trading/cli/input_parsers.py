@@ -132,5 +132,3 @@ def parse_symbols(symbols_str: Optional[str]) -> Tuple[list, list]:
     
     return target_symbol_inputs, parsed_target_symbols
 
-bols
-

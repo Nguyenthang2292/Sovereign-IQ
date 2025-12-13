@@ -458,5 +458,3 @@ class PairMetricsComputer:
 
         return metrics
 
-rics
-

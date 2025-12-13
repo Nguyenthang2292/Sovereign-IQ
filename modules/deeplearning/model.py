@@ -957,4 +957,4 @@ def _patch_pytest_raises_bool():
 
 
 _patch_pytest_raises_bool()
-sys.modules.setdefault("modules.deeplearning_model", sys.modules[__name__])name__])
+sys.modules.setdefault("modules.deeplearning_model", sys.modules[__name__])

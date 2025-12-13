@@ -70,4 +70,3 @@ def parse_args():
         help="Disable interactive prompts; rely only on CLI arguments.",
     )
     return parser.parse_args()
-args()

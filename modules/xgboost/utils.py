@@ -20,4 +20,3 @@ def get_prediction_window(timeframe: str) -> str:
     """
     timeframe = timeframe.lower()
     return PREDICTION_WINDOWS.get(timeframe, "next sessions")
-ions")

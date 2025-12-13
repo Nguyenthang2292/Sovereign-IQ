@@ -149,5 +149,3 @@ def parse_args():
 
     return parser.parse_args()
 
-gs()
-

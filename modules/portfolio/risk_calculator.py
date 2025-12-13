@@ -360,4 +360,3 @@ class PortfolioRiskCalculator:
         self.last_var_value = var_amount
         self.last_var_confidence = confidence
         return var_amount
-amount

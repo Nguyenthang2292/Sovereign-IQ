@@ -684,4 +684,4 @@ class OpportunityScorer:
         # Validate final score
         if np.isnan(score) or np.isinf(score):
             return 0.0
-        return min(max_score, max(0.0, score)) score))
+        return min(max_score, max(0.0, score))

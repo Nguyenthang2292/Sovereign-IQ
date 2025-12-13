@@ -143,5 +143,3 @@ def prompt_interactive_mode(default_timeframe: str = DEFAULT_TIMEFRAME) -> Dict[
         "timeframe": selected_timeframe
     }
 
-   }
-

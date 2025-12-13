@@ -280,5 +280,3 @@ def prompt_candidate_depth(default_depth: int) -> int:
         except ValueError:
             log_error("Invalid input. Please enter a number.")
 
-r.")
-

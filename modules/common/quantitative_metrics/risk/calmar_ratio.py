@@ -119,5 +119,3 @@ def calculate_calmar_ratio(
         # Catch any other unexpected exceptions
         return None
 
-None
-

@@ -558,4 +558,3 @@ class PortfolioCorrelationAnalyzer:
                 log_data(f"  Samples used: {len(portfolio_return_series)}")
 
         return correlation, {"samples": len(portfolio_return_series)}
-ries)}

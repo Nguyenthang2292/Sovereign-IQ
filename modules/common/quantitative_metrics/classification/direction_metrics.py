@@ -270,5 +270,3 @@ def calculate_direction_metrics(
             "classification_accuracy": None,
         }
 
-   }
-

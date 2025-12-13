@@ -271,4 +271,3 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     # Convert string labels to integer IDs
     df["Target"] = df["TargetLabel"].map(LABEL_TO_ID)
     return df
-urn df

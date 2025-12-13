@@ -129,5 +129,3 @@ def calculate_adf_test(
         # Catch any other unexpected exceptions
         return None
 
-None
-

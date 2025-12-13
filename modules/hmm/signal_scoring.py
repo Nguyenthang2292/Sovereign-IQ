@@ -48,5 +48,3 @@ def normalize_scores(
     
     return normalized_long, normalized_short
 
-hort
-

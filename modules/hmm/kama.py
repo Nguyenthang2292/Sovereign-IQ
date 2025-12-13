@@ -782,4 +782,3 @@ def hmm_kama(
         log_error(f"Error in hmm_kama: {str(e)}")
         # Return safe default
         return HMM_KAMA(-1, -1, -1, -1, -1, -1)
-1, -1)

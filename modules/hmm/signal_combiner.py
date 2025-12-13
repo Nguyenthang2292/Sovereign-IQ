@@ -274,4 +274,3 @@ def hmm_signals(
         )
 
     return signal_high_order_hmm, signal_hmm_kama
-m_kama

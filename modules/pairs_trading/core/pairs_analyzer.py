@@ -886,4 +886,3 @@ class PairsTradingAnalyzer:
             data_fetcher=data_fetcher,
             verbose=verbose,
         )
-     )

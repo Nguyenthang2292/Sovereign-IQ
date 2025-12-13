@@ -736,5 +736,3 @@ class DeepLearningDataPipeline:
 
         return train_df, val_df, test_df
 
-t_df
-

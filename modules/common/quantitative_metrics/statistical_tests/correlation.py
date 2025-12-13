@@ -135,5 +135,3 @@ def calculate_correlation(
         log_warn(f"Unexpected error calculating correlation: {e}")
         return None
 
-None
-

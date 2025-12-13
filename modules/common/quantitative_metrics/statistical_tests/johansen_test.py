@@ -175,5 +175,3 @@ def calculate_johansen_test(
         # Catch any other unexpected exceptions
         return None
 
-None
-

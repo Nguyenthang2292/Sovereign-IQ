@@ -524,5 +524,3 @@ def hmm_high_order(
                                 next_state_duration=int(converted_distance), 
                                 next_state_probability=max_value)
 
-lue)
-

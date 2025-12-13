@@ -132,5 +132,3 @@ def calculate_sharpe_ratio(
 # Backward compatibility alias
 calculate_spread_sharpe = calculate_sharpe_ratio
 
-atio
-

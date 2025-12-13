@@ -142,5 +142,3 @@ def calculate_half_life(spread: pd.Series) -> Optional[float]:
         # Catch any other unexpected exceptions
         return None
 
-None
-

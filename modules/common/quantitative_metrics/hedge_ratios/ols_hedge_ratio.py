@@ -122,5 +122,3 @@ def calculate_ols_hedge_ratio(
         # Catch any other unexpected exceptions
         return None
 
-None
-

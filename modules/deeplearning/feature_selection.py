@@ -474,5 +474,3 @@ class FeatureSelector:
         df = df.sort_values("score", ascending=False)
         return df
 
-n df
-

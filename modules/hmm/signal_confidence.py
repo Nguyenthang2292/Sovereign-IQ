@@ -73,5 +73,3 @@ def calculate_combined_confidence(
     
     return min(base_confidence, 1.0)  # Cap at 1.0
 
- 1.0
-

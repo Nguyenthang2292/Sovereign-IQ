@@ -596,6 +596,3 @@ __all__ = [
     "STRATEGY_NAMES",
 ]
 
-,
-]
-

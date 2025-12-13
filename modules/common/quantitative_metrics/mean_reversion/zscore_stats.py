@@ -180,5 +180,3 @@ def calculate_zscore_stats(
     
     return result
 
-sult
-

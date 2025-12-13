@@ -358,5 +358,3 @@ if __name__ == "__main__":
         log_error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
 
-t(1)
-

@@ -553,4 +553,3 @@ class HedgeFinder:
             recommended_size if recommended_direction else None,
             final_corr,
         )
-     )

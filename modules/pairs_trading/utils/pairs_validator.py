@@ -347,5 +347,3 @@ def validate_pairs(
 
     return df_validated
 
-ated
-

@@ -167,5 +167,3 @@ def calculate_kalman_hedge_ratio(
         # Catch any other unexpected exceptions
         return None
 
-None
-
