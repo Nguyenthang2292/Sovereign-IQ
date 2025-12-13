@@ -10,7 +10,7 @@ import numpy as np
 from typing import Optional
 
 try:
-    from modules.config import PAIRS_TRADING_PERIODS_PER_YEAR
+    from config import PAIRS_TRADING_PERIODS_PER_YEAR
 except ImportError:
     PAIRS_TRADING_PERIODS_PER_YEAR = 365 * 24
 
@@ -118,4 +118,6 @@ def calculate_calmar_ratio(
     except Exception:
         # Catch any other unexpected exceptions
         return None
+
+None
 

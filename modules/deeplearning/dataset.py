@@ -24,7 +24,7 @@ from pytorch_forecasting import TimeSeriesDataSet, TemporalFusionTransformer
 from pytorch_forecasting.data import GroupNormalizer
 from colorama import Fore, Style
 
-from modules.config import (
+from config import (
     TARGET_HORIZON,
     DEEP_MAX_ENCODER_LENGTH,
     DEEP_MAX_PREDICTION_LENGTH,
@@ -628,4 +628,6 @@ def create_tft_datamodule(
     )
 
     return datamodule
+
+dule
 

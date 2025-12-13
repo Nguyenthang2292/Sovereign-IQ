@@ -15,8 +15,9 @@ from typing import Dict, Optional, Literal
 class SPCAggregationConfig:
     """Configuration for SPC vote aggregation."""
     
-    # Consensus mode: "threshold" or "weighted"
-    mode: Literal["threshold", "weighted"] = "weighted"
+    # Consensus mode: "threshold", "weighted", or "simple"
+    # "simple" mode is used as fallback when weighted/threshold produce no signal
+    mode: Literal["threshold", "weighted", "simple"] = "weighted"
     
     # Threshold mode: minimum fraction of strategies that must agree
     threshold: float = 0.5  # 0.0-1.0
@@ -38,11 +39,17 @@ class SPCAggregationConfig:
     
     # Strategy weights: custom weights (overrides accuracy-based weights if provided)
     strategy_weights: Optional[Dict[str, float]] = None
+    
+    # Simple mode: enable fallback to simple accuracy-based voting
+    enable_simple_fallback: bool = True  # Use simple mode when weighted/threshold fail
+    
+    # Simple mode: minimum total accuracy required for signal
+    simple_min_accuracy_total: float = 0.65  # Sum of accuracies from active strategies (reduced from 1.5 to accept single strategy)
 
     def __post_init__(self):
         """Validate configuration parameters."""
-        if self.mode not in ["threshold", "weighted"]:
-            raise ValueError(f"Invalid mode: {self.mode}. Must be 'threshold' or 'weighted'.")
+        if self.mode not in ["threshold", "weighted", "simple"]:
+            raise ValueError(f"Invalid mode: {self.mode}. Must be 'threshold', 'weighted', or 'simple'.")
             
         if not (0.0 <= self.threshold <= 1.0):
             raise ValueError(f"threshold must be in [0.0, 1.0], got {self.threshold}")
@@ -55,6 +62,9 @@ class SPCAggregationConfig:
             
         if not (0.0 <= self.min_signal_strength <= 1.0):
             raise ValueError(f"min_signal_strength must be in [0.0, 1.0], got {self.min_signal_strength}")
+            
+        if self.simple_min_accuracy_total < 0:
+            raise ValueError(f"simple_min_accuracy_total must be non-negative, got {self.simple_min_accuracy_total}")
 
 
 __all__ = ["SPCAggregationConfig"]

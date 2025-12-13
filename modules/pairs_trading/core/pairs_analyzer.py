@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from modules.common.DataFetcher import DataFetcher
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_MIN_SPREAD,
         PAIRS_TRADING_MAX_SPREAD,
         PAIRS_TRADING_MIN_CORRELATION,
@@ -886,3 +886,4 @@ class PairsTradingAnalyzer:
             data_fetcher=data_fetcher,
             verbose=verbose,
         )
+     )

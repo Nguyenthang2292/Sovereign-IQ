@@ -15,7 +15,7 @@ except ImportError:
     LinearRegression = None
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_MIN_HALF_LIFE_POINTS,
         PAIRS_TRADING_MAX_HALF_LIFE,
     )
@@ -141,4 +141,6 @@ def calculate_half_life(spread: pd.Series) -> Optional[float]:
     except Exception:
         # Catch any other unexpected exceptions
         return None
+
+None
 

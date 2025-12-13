@@ -37,7 +37,7 @@ try:
     from modules.common.DataFetcher import DataFetcher
     from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
     from modules.portfolio.risk_calculator import PortfolioRiskCalculator
-    from modules.config import (
+    from config import (
         BENCHMARK_SYMBOL,
         HEDGE_CORRELATION_HIGH_THRESHOLD,
         HEDGE_CORRELATION_MEDIUM_THRESHOLD,
@@ -553,3 +553,4 @@ class HedgeFinder:
             recommended_size if recommended_direction else None,
             final_corr,
         )
+     )

@@ -10,7 +10,7 @@ import numpy as np
 from typing import Optional
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_OLS_FIT_INTERCEPT,
     )
 except ImportError:
@@ -121,4 +121,6 @@ def calculate_ols_hedge_ratio(
     except Exception:
         # Catch any other unexpected exceptions
         return None
+
+None
 

@@ -10,7 +10,7 @@ import numpy as np
 from typing import Dict, Optional
 
 try:
-    from modules.config import PAIRS_TRADING_ZSCORE_LOOKBACK
+    from config import PAIRS_TRADING_ZSCORE_LOOKBACK
 except ImportError:
     PAIRS_TRADING_ZSCORE_LOOKBACK = 60
 
@@ -179,4 +179,6 @@ def calculate_zscore_stats(
         pass
     
     return result
+
+sult
 

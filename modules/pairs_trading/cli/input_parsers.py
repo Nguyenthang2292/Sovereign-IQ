@@ -8,7 +8,7 @@ weights, symbols, and other configuration parameters.
 from typing import Dict, Optional, Tuple
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_WEIGHTS,
         PAIRS_TRADING_WEIGHT_PRESETS,
     )
@@ -131,4 +131,6 @@ def parse_symbols(symbols_str: Optional[str]) -> Tuple[list, list]:
             parsed_target_symbols.append(parsed_value)
     
     return target_symbol_inputs, parsed_target_symbols
+
+bols
 

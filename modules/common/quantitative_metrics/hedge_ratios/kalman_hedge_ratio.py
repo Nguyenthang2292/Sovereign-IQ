@@ -10,7 +10,7 @@ import numpy as np
 from typing import Optional
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_KALMAN_DELTA,
         PAIRS_TRADING_KALMAN_OBS_COV,
     )
@@ -166,4 +166,6 @@ def calculate_kalman_hedge_ratio(
     except Exception:
         # Catch any other unexpected exceptions
         return None
+
+None
 

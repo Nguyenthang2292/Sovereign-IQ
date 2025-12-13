@@ -351,7 +351,7 @@ def test_select_top_unique_pairs_empty_dataframe():
 
 def test_main_with_mock_data():
     """Test main function with mocked components."""
-    from main_pairs_trading import main
+    from main.main_pairs_trading import main
 
     # Create mock symbols
     mock_symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "DOT/USDT"]
@@ -432,7 +432,7 @@ def test_main_with_mock_data():
 
 def test_main_with_no_symbols():
     """Test main function when no symbols are found."""
-    from main_pairs_trading import main
+    from main.main_pairs_trading import main
 
     # Mock DataFetcher returning empty list
     mock_data_fetcher = MagicMock()
@@ -455,7 +455,7 @@ def test_main_with_no_symbols():
 
 def test_main_with_empty_performance():
     """Test main function when performance analysis returns empty."""
-    from main_pairs_trading import main
+    from main.main_pairs_trading import main
 
     mock_symbols = ["BTC/USDT", "ETH/USDT"]
 
@@ -486,7 +486,7 @@ def test_main_with_empty_performance():
 
 def test_main_with_custom_weights():
     """Test main function with custom weights argument."""
-    from main_pairs_trading import main
+    from main.main_pairs_trading import main
 
     mock_symbols = ["BTC/USDT"]
 
@@ -541,7 +541,7 @@ def test_main_with_custom_weights():
 
 def test_main_with_no_validation_flag():
     """Test main function with --no-validation flag."""
-    from main_pairs_trading import main
+    from main.main_pairs_trading import main
 
     mock_symbols = ["BTC/USDT"]
 
@@ -604,7 +604,7 @@ def test_main_with_no_validation_flag():
 
 def test_main_momentum_strategy_switches_candidates():
     """Momentum strategy phải hoán đổi long/short và tắt cointegration cứng."""
-    from main_pairs_trading import main
+    from main.main_pairs_trading import main
 
     mock_symbols = ["AAA/USDT", "BBB/USDT", "CCC/USDT", "DDD/USDT"]
     mock_performance_df = pd.DataFrame(

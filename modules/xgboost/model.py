@@ -15,7 +15,7 @@ import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import TimeSeriesSplit
-from modules.config import (
+from config import (
     TARGET_LABELS,
     TARGET_HORIZON,
     MODEL_FEATURES,

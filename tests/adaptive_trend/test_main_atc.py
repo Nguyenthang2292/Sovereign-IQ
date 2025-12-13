@@ -64,7 +64,7 @@ def _create_mock_ohlcv_data(
 
 def test_atc_analyzer_init():
     """Test ATCAnalyzer initialization."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         timeframe="1h",
@@ -83,7 +83,7 @@ def test_atc_analyzer_init():
 
 def test_get_atc_params():
     """Test get_atc_params extracts and caches parameters correctly."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         timeframe="1h",
@@ -117,7 +117,7 @@ def test_get_atc_params():
 
 def test_determine_mode_and_timeframe_auto():
     """Test determine_mode_and_timeframe with auto flag."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         auto=True,
@@ -137,7 +137,7 @@ def test_determine_mode_and_timeframe_auto():
 
 def test_determine_mode_and_timeframe_manual():
     """Test determine_mode_and_timeframe with manual mode."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         auto=False,
@@ -156,7 +156,7 @@ def test_determine_mode_and_timeframe_manual():
 @patch('main_atc.prompt_interactive_mode')
 def test_determine_mode_and_timeframe_interactive(mock_prompt):
     """Test determine_mode_and_timeframe with interactive menu."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         auto=False,
@@ -180,7 +180,7 @@ def test_determine_mode_and_timeframe_interactive(mock_prompt):
 
 def test_get_symbol_input_from_args():
     """Test get_symbol_input with symbol in args."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         timeframe="1h",
@@ -199,7 +199,7 @@ def test_get_symbol_input_from_args():
 @patch('builtins.input', return_value='BTC/USDT')
 def test_get_symbol_input_from_prompt(mock_input):
     """Test get_symbol_input with user prompt."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         timeframe="1h",
@@ -218,7 +218,7 @@ def test_get_symbol_input_from_prompt(mock_input):
 
 def test_display_auto_mode_config():
     """Test display_auto_mode_config displays configuration."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         limit=1500,
@@ -251,7 +251,7 @@ def test_display_auto_mode_config():
 
 def test_display_manual_mode_config():
     """Test display_manual_mode_config displays configuration."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         limit=1500,
@@ -290,7 +290,7 @@ def test_display_manual_mode_config():
 @patch('main_atc.parse_args')
 def test_main_list_symbols(mock_parse, mock_data_fetcher, mock_exchange, mock_list):
     """Test main function with --list-symbols flag."""
-    from main_atc import main
+    from main.main_atc import main
     
     args = SimpleNamespace(list_symbols=True)
     mock_parse.return_value = args
@@ -314,7 +314,7 @@ def test_main_list_symbols(mock_parse, mock_data_fetcher, mock_exchange, mock_li
 @patch('main_atc.parse_args')
 def test_main_auto_mode(mock_parse, mock_data_fetcher, mock_exchange, mock_analyzer_class, mock_determine, mock_run_auto):
     """Test main function with auto mode."""
-    from main_atc import main
+    from main.main_atc import main
     
     args = SimpleNamespace(
         list_symbols=False,
@@ -347,7 +347,7 @@ def test_main_auto_mode(mock_parse, mock_data_fetcher, mock_exchange, mock_analy
 @patch('main_atc.parse_args')
 def test_main_manual_mode(mock_parse, mock_data_fetcher, mock_exchange, mock_analyzer_class, mock_determine, mock_run_manual):
     """Test main function with manual mode."""
-    from main_atc import main
+    from main.main_atc import main
     
     args = SimpleNamespace(
         list_symbols=False,
@@ -381,7 +381,7 @@ def test_main_manual_mode(mock_parse, mock_data_fetcher, mock_exchange, mock_ana
 @patch('main_atc.ATCAnalyzer.display_auto_mode_config')
 def test_run_auto_mode(mock_display_config, mock_scan, mock_display_results):
     """Test run_auto_mode executes correctly."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         limit=1500,
@@ -421,7 +421,7 @@ def test_run_auto_mode(mock_display_config, mock_scan, mock_display_results):
 @patch('main_atc.ATCAnalyzer.get_symbol_input')
 def test_run_manual_mode_success(mock_get_symbol, mock_display_config, mock_analyze, mock_interactive):
     """Test run_manual_mode with successful analysis."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         no_prompt=False,
@@ -467,7 +467,7 @@ def test_run_manual_mode_success(mock_get_symbol, mock_display_config, mock_anal
 @patch('main_atc.ATCAnalyzer.get_symbol_input')
 def test_run_manual_mode_failure(mock_get_symbol, mock_display_config, mock_analyze, mock_log_error):
     """Test run_manual_mode with failed analysis."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(
         no_prompt=False,
@@ -502,7 +502,7 @@ def test_run_manual_mode_failure(mock_get_symbol, mock_display_config, mock_anal
 @patch('builtins.input', side_effect=['ETH/USDT', 'BTC/USDT', KeyboardInterrupt])
 def test_run_interactive_loop(mock_input, mock_analyze):
     """Test run_interactive_loop handles multiple symbols."""
-    from main_atc import ATCAnalyzer
+    from main.main_atc import ATCAnalyzer
     
     args = SimpleNamespace(timeframe="1h")
     mock_data_fetcher = MagicMock()

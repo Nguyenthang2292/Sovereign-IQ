@@ -10,7 +10,7 @@ import numpy as np
 from typing import Optional
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_ZSCORE_LOOKBACK,
         PAIRS_TRADING_MIN_LAG,
         PAIRS_TRADING_MAX_LAG_DIVISOR,
@@ -174,4 +174,6 @@ def calculate_hurst_exponent(
         # OverflowError: Numerical overflow in calculations
         # Note: Exceptions are silently handled and return None for graceful failure
         return None
+
+None
 

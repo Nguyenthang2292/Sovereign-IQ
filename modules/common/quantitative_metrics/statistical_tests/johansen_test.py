@@ -15,7 +15,7 @@ except ImportError:
     coint_johansen = None
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_CORRELATION_MIN_POINTS,
         PAIRS_TRADING_JOHANSEN_CONFIDENCE,
         PAIRS_TRADING_JOHANSEN_DET_ORDER,
@@ -174,4 +174,6 @@ def calculate_johansen_test(
     except Exception:
         # Catch any other unexpected exceptions
         return None
+
+None
 

@@ -22,7 +22,7 @@ warnings.filterwarnings(
 
 from modules.common.indicators import calculate_kama
 from modules.common.utils import log_data, log_info, log_error, log_warn, log_model, log_analysis
-from modules.config import (
+from config import (
     HMM_WINDOW_KAMA_DEFAULT,
     HMM_FAST_KAMA_DEFAULT,
     HMM_SLOW_KAMA_DEFAULT,
@@ -782,3 +782,4 @@ def hmm_kama(
         log_error(f"Error in hmm_kama: {str(e)}")
         # Return safe default
         return HMM_KAMA(-1, -1, -1, -1, -1, -1)
+1, -1)

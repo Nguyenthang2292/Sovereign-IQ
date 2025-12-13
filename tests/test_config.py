@@ -1,9 +1,9 @@
 """
-Test script for modules.config - Configuration constants and values.
+Test script for config - Configuration constants and values.
 """
 
 import pytest
-from modules import config
+import config
 
 
 def test_default_symbol():

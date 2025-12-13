@@ -10,7 +10,7 @@ import numpy as np
 from typing import Dict, Optional
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_ZSCORE_LOOKBACK,
         PAIRS_TRADING_CLASSIFICATION_ZSCORE,
         PAIRS_TRADING_MIN_CLASSIFICATION_SAMPLES,
@@ -269,4 +269,6 @@ def calculate_direction_metrics(
             "classification_recall": None,
             "classification_accuracy": None,
         }
+
+   }
 

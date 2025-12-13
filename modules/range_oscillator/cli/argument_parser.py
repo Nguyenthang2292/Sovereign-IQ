@@ -8,7 +8,7 @@ defining all command-line options and their default values.
 import argparse
 
 try:
-    from modules.config import DEFAULT_TIMEFRAME
+    from config import DEFAULT_TIMEFRAME
 except ImportError:
     DEFAULT_TIMEFRAME = "15m"
 
@@ -137,3 +137,4 @@ def parse_args():
     )
     
     return parser.parse_args()
+args()

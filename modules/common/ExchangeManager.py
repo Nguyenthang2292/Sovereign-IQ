@@ -13,13 +13,13 @@ from typing import Dict, Optional
 from modules.common.utils import normalize_symbol
 
 try:
-    from modules.config import (
+    from config import (
         DEFAULT_EXCHANGE_STRING,
         DEFAULT_REQUEST_PAUSE,
         DEFAULT_CONTRACT_TYPE,
         DEFAULT_EXCHANGES,
     )
-    from modules.config_api import BINANCE_API_KEY, BINANCE_API_SECRET
+    from config.config_api import BINANCE_API_KEY, BINANCE_API_SECRET
 except ImportError:
     DEFAULT_EXCHANGE_STRING = "binance,kraken,kucoin,gate,okx,bybit,mexc,huobi"
     DEFAULT_REQUEST_PAUSE = 0.2

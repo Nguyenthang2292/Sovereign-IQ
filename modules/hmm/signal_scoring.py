@@ -5,7 +5,7 @@ Functions for score normalization and calculation.
 """
 
 from typing import Tuple
-from modules.config import (
+from config import (
     HMM_FEATURES,
     HMM_SIGNAL_PRIMARY_WEIGHT,
     HMM_SIGNAL_TRANSITION_WEIGHT,
@@ -47,4 +47,6 @@ def normalize_scores(
     normalized_short = (score_short / max_possible_score) * 100
     
     return normalized_long, normalized_short
+
+hort
 

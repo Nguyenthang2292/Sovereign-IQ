@@ -23,7 +23,7 @@ from modules.common.quantitative_metrics import (
 )
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_TIMEFRAME,
         PAIRS_TRADING_ADF_PVALUE_THRESHOLD,
         PAIRS_TRADING_PERIODS_PER_YEAR,
@@ -457,4 +457,6 @@ class PairMetricsComputer:
             pass
 
         return metrics
+
+rics
 

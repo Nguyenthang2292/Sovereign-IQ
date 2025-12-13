@@ -10,7 +10,7 @@ import numpy as np
 from typing import Optional
 
 try:
-    from modules.config import PAIRS_TRADING_CORRELATION_MIN_POINTS
+    from config import PAIRS_TRADING_CORRELATION_MIN_POINTS
 except ImportError:
     PAIRS_TRADING_CORRELATION_MIN_POINTS = 50
 
@@ -134,4 +134,6 @@ def calculate_correlation(
     except Exception as e:
         log_warn(f"Unexpected error calculating correlation: {e}")
         return None
+
+None
 

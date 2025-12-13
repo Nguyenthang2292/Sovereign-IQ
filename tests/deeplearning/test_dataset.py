@@ -18,7 +18,7 @@ import pandas as pd
 import pytest
 
 from modules.deeplearning.dataset import TFTDataModule, create_tft_datamodule
-from modules.config import (
+from config import (
     DEEP_TARGET_COL,
     DEEP_MAX_ENCODER_LENGTH,
     DEEP_MAX_PREDICTION_LENGTH,
@@ -375,4 +375,6 @@ def test_tft_datamodule_nan_handling():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+v"])
 

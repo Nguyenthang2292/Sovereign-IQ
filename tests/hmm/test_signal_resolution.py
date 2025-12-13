@@ -19,7 +19,7 @@ from modules.hmm.signal_resolution import (
     HOLD,
     SHORT,
 )
-from modules.config import (
+from config import (
     HMM_FEATURES,
     HMM_CONFLICT_RESOLUTION_THRESHOLD,
     HMM_VOLATILITY_CONFIG,
@@ -201,4 +201,6 @@ def test_resolve_signal_conflict_similar_confidence():
         # Both should be kept (warning logged)
         assert resolved_high == LONG
         assert resolved_kama == SHORT
+
+HORT
 

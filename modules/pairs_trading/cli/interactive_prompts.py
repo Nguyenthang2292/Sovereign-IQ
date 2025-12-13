@@ -39,7 +39,7 @@ except ImportError:
         print(f"[DATA] {message}")
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_WEIGHT_PRESETS,
         PAIRS_TRADING_KALMAN_PRESETS,
         PAIRS_TRADING_OPPORTUNITY_PRESETS,
@@ -279,4 +279,6 @@ def prompt_candidate_depth(default_depth: int) -> int:
             log_error("Please enter a positive number.")
         except ValueError:
             log_error("Invalid input. Please enter a number.")
+
+r.")
 

@@ -12,7 +12,7 @@ import pytest
 from unittest.mock import patch
 
 from modules.hmm.signal_scoring import normalize_scores
-from modules.config import (
+from config import (
     HMM_FEATURES,
     HMM_SIGNAL_PRIMARY_WEIGHT,
     HMM_SIGNAL_TRANSITION_WEIGHT,
@@ -128,4 +128,6 @@ def test_normalize_scores_with_high_order_score():
     
     assert 0 <= normalized_long <= 100
     assert 0 <= normalized_short <= 100
+
+ 100
 

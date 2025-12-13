@@ -4,7 +4,7 @@ import numpy as np
 from colorama import Fore, Style, init as colorama_init
 
 # Import from xgboost_prediction_ modules (modules specific to xgboost_prediction_main.py)
-from modules.config import (
+from config import (
     DEFAULT_SYMBOL,
     DEFAULT_QUOTE,
     DEFAULT_TIMEFRAME,
@@ -239,3 +239,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+main()

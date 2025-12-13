@@ -21,7 +21,7 @@ configure_windows_stdio()
 
 from colorama import Fore, Style, init as colorama_init
 
-from modules.config import DEFAULT_TIMEFRAME
+from config import DEFAULT_TIMEFRAME
 from modules.common.utils import (
     color_text,
     log_error,
@@ -32,7 +32,7 @@ from modules.common.utils import (
 from modules.common.ExchangeManager import ExchangeManager
 from modules.common.DataFetcher import DataFetcher
 from modules.adaptive_trend.cli import prompt_timeframe
-from main_atc import ATCAnalyzer
+from main.main_atc import ATCAnalyzer
 from modules.range_oscillator.cli import (
     parse_args,
     display_configuration,
@@ -597,3 +597,4 @@ if __name__ == "__main__":
         import traceback
         log_error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
+xit(1)

@@ -18,7 +18,7 @@ try:
         log_model,
         normalize_symbol,
     )
-    from modules.config import (
+    from config import (
         DEFAULT_BETA_MIN_POINTS,
         DEFAULT_BETA_LIMIT,
         DEFAULT_BETA_TIMEFRAME,
@@ -360,3 +360,4 @@ class PortfolioRiskCalculator:
         self.last_var_value = var_amount
         self.last_var_confidence = confidence
         return var_amount
+amount

@@ -2,7 +2,7 @@
 Utility functions specific to xgboost_prediction_main.py
 """
 
-from modules.config import PREDICTION_WINDOWS
+from config import PREDICTION_WINDOWS
 from modules.common.utils import color_text, format_price, timeframe_to_minutes
 
 # Re-export common utilities for backward compatibility
@@ -20,3 +20,4 @@ def get_prediction_window(timeframe: str) -> str:
     """
     timeframe = timeframe.lower()
     return PREDICTION_WINDOWS.get(timeframe, "next sessions")
+ions")

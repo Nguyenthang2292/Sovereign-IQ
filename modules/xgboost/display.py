@@ -5,7 +5,7 @@ Display and reporting functions for xgboost_prediction_main.py
 from sklearn.metrics import classification_report, confusion_matrix
 from .utils import color_text
 from colorama import Fore, Style
-from modules.config import TARGET_LABELS
+from config import TARGET_LABELS
 from modules.common.utils import log_analysis, log_model, log_info
 
 

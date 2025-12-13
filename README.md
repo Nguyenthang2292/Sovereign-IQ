@@ -25,13 +25,17 @@ A comprehensive cryptocurrency trading analysis system using Machine Learning, D
 crypto-probability/
 ├── main_atc.py                              # Adaptive Trend Classification (ATC)
 ├── main_atc_oscillator.py                   # ATC + Range Oscillator combined
-├── main_atc_oscillator_spc_hybrid.py         # ATC + Range Oscillator + SPC (Hybrid)
-├── main_atc_oscillator_spc_voting.py        # ATC + Range Oscillator + SPC (Pure Voting)
-├── main_simplified_percentile_clustering.py # Simplified Percentile Clustering (SPC)
-├── main_xgboost.py                          # XGBoost prediction CLI
-├── main_deeplearning_prediction.py          # Deep Learning (TFT) training
-├── main_pairs_trading.py                    # Pairs trading analysis (mean reversion & momentum)
-├── main_portfolio_manager.py               # Portfolio risk management
+├── main_hybrid.py                           # ATC + Range Oscillator + SPC (Hybrid)
+├── main_voting.py                            # ATC + Range Oscillator + SPC (Pure Voting)
+├── main/
+│   ├── main_atc.py                          # Adaptive Trend Classification
+│   ├── main_atc_oscillator.py               # ATC + Range Oscillator
+│   ├── main_xgboost.py                      # XGBoost Prediction
+│   ├── main_simplified_percentile_clustering.py  # SPC Analysis
+│   ├── main_deeplearning_prediction.py      # Deep Learning TFT
+│   ├── main_hmm.py                          # HMM Signal Combiner
+│   ├── main_pairs_trading.py                # Pairs Trading
+│   └── main_portfolio_manager.py            # Portfolio Manager
 ├── main_hmm.py                              # HMM Signal Combiner (High-Order HMM + HMM-KAMA)
 ├── modules/                                 # Core modules
 │   ├── common/                              # Shared utilities
@@ -127,7 +131,7 @@ python main_atc_oscillator.py
 Hybrid approach combining sequential filtering and voting:
 
 ```bash
-python main_atc_oscillator_spc_hybrid.py
+python main_hybrid.py
 ```
 
 **Workflow:**
@@ -146,7 +150,7 @@ python main_atc_oscillator_spc_hybrid.py
 Pure voting system without sequential filtering:
 
 ```bash
-python main_atc_oscillator_spc_voting.py
+python main_voting.py
 ```
 
 **Workflow:**

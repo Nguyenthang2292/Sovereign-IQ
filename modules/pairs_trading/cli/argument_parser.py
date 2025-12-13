@@ -8,7 +8,7 @@ defining all command-line options and their default values.
 import argparse
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_TOP_N,
         PAIRS_TRADING_MIN_SPREAD,
         PAIRS_TRADING_MAX_SPREAD,
@@ -200,3 +200,4 @@ def parse_args():
     )
     
     return parser.parse_args()
+args()

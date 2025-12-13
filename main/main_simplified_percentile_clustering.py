@@ -20,7 +20,7 @@ configure_windows_stdio()
 
 from colorama import Fore, Style, init as colorama_init
 
-from modules.config import (
+from config import (
     DEFAULT_SYMBOL,
     DEFAULT_QUOTE,
     DEFAULT_TIMEFRAME,
@@ -716,5 +716,8 @@ if __name__ == "__main__":
         import traceback
         log_error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
+
+
+1)
 
 

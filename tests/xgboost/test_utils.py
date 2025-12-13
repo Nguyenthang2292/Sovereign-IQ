@@ -26,7 +26,7 @@ def test_get_prediction_window_case_insensitive():
 
 def test_get_prediction_window_all_known_timeframes():
     """Test get_prediction_window for all known timeframes."""
-    from modules.config import PREDICTION_WINDOWS
+    from config import PREDICTION_WINDOWS
     
     for timeframe, expected in PREDICTION_WINDOWS.items():
         assert get_prediction_window(timeframe) == expected
@@ -43,3 +43,4 @@ def test_get_prediction_window_none_input():
     except (TypeError, AttributeError):
         # Acceptable to raise error for None
         pass
+  pass

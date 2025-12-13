@@ -8,7 +8,7 @@ from typing import Dict, Optional
 from modules.common.utils import log_warn
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_ADF_PVALUE_THRESHOLD,
         PAIRS_TRADING_MAX_HALF_LIFE,
         PAIRS_TRADING_HURST_THRESHOLD,
@@ -684,4 +684,4 @@ class OpportunityScorer:
         # Validate final score
         if np.isnan(score) or np.isinf(score):
             return 0.0
-        return min(max_score, max(0.0, score))
+        return min(max_score, max(0.0, score)) score))

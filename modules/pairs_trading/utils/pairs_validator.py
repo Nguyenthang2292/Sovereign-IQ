@@ -41,7 +41,7 @@ except ImportError:
             pass
 
 try:
-    from modules.config import PAIRS_TRADING_PAIR_COLUMNS
+    from config import PAIRS_TRADING_PAIR_COLUMNS
 except ImportError:
     PAIRS_TRADING_PAIR_COLUMNS = [
         'long_symbol',
@@ -346,4 +346,6 @@ def validate_pairs(
         log_success(f"{len(df_validated)}/{len(pairs_df)} pairs passed validation.")
 
     return df_validated
+
+ated
 

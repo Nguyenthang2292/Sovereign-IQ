@@ -41,7 +41,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from colorama import Fore, Style
 
-from modules.config import (
+from config import (
     DEEP_MAX_ENCODER_LENGTH,
     DEEP_MAX_PREDICTION_LENGTH,
     DEEP_BATCH_SIZE,
@@ -957,4 +957,4 @@ def _patch_pytest_raises_bool():
 
 
 _patch_pytest_raises_bool()
-sys.modules.setdefault("modules.deeplearning_model", sys.modules[__name__])
+sys.modules.setdefault("modules.deeplearning_model", sys.modules[__name__])name__])

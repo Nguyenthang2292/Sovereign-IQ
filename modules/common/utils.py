@@ -15,7 +15,7 @@ import os
 import pandas as pd
 from typing import Optional
 from colorama import Fore, Style
-from modules.config import DEFAULT_QUOTE
+from config import DEFAULT_QUOTE
 
 # ============================================================================
 # SYSTEM UTILITIES
@@ -283,3 +283,34 @@ def log_system(message: str) -> None:
 def log_progress(message: str) -> None:
     """Print progress update message with yellow color."""
     print(color_text(message, Fore.YELLOW))
+
+
+# ============================================================================
+# COMPONENT INITIALIZATION
+# ============================================================================
+
+from typing import Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from modules.common.ExchangeManager import ExchangeManager
+    from modules.common.DataFetcher import DataFetcher
+
+
+def initialize_components() -> Tuple['ExchangeManager', 'DataFetcher']:
+    """
+    Initialize ExchangeManager and DataFetcher components.
+    
+    This function creates and returns the core components needed for data fetching
+    across different main entry points.
+    
+    Returns:
+        Tuple containing (ExchangeManager, DataFetcher) instances
+    """
+    # Import here to avoid circular import
+    from modules.common.ExchangeManager import ExchangeManager
+    from modules.common.DataFetcher import DataFetcher
+    
+    log_progress("Initializing components...")
+    exchange_manager = ExchangeManager()
+    data_fetcher = DataFetcher(exchange_manager)
+    return exchange_manager, data_fetcher

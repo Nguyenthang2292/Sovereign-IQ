@@ -13,7 +13,7 @@ from colorama import init
 init(autoreset=True)
 
 from modules.common.utils import log_data, log_info, log_error, log_warn, log_model, log_analysis
-from modules.config import (
+from config import (
     HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
     HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
 )
@@ -523,4 +523,6 @@ def hmm_high_order(
         return HIGH_ORDER_HMM(next_state_with_high_order_hmm=BULLISH, 
                                 next_state_duration=int(converted_distance), 
                                 next_state_probability=max_value)
+
+lue)
 

@@ -3,9 +3,7 @@ Modules package for crypto prediction system.
 Provides compatibility aliases for legacy import paths used in tests.
 """
 
-from . import config
-
-__all__ = ["config"]
+__all__ = []
 
 # Backwards-compatible import aliases
 import importlib

@@ -14,7 +14,7 @@ from typing import Dict, Optional
 
 from colorama import Fore, Style, init as colorama_init
 
-from modules.config import (
+from config import (
     DEFAULT_EXCHANGE_STRING,
     DEFAULT_EXCHANGES,
     DEFAULT_LIMIT,
@@ -329,4 +329,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+in()
 

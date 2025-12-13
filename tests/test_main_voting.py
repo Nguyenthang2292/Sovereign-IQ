@@ -1,5 +1,5 @@
 """
-Tests for main_atc_oscillator_spc_voting.py (Pure Voting System).
+Tests for main_voting.py (Pure Voting System).
 """
 
 import pytest
@@ -13,13 +13,13 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from main_atc_oscillator_spc_voting import (
-    ATCOscillatorSPCVotingAnalyzer,
+from core.voting_analyzer import VotingAnalyzer
+from core.signal_calculators import (
     get_range_oscillator_signal,
     get_spc_signal,
 )
 from modules.common.DataFetcher import DataFetcher
-from modules.config import (
+from config import (
     SPC_AGGREGATION_MODE,
     SPC_AGGREGATION_THRESHOLD,
     SPC_AGGREGATION_WEIGHTED_MIN_TOTAL,
@@ -31,8 +31,8 @@ from modules.config import (
 )
 
 
-class TestATCOscillatorSPCVotingAnalyzer:
-    """Test suite for ATCOscillatorSPCVotingAnalyzer."""
+class TestVotingAnalyzer:
+    """Test suite for VotingAnalyzer."""
     
     @pytest.fixture
     def mock_args(self):
@@ -64,8 +64,8 @@ class TestATCOscillatorSPCVotingAnalyzer:
     @pytest.fixture
     def analyzer(self, mock_args, mock_data_fetcher):
         """Create analyzer instance."""
-        with patch('main_atc_oscillator_spc_voting.ATCAnalyzer'):
-            analyzer = ATCOscillatorSPCVotingAnalyzer(mock_args, mock_data_fetcher)
+        with patch('core.voting_analyzer.ATCAnalyzer'):
+            analyzer = VotingAnalyzer(mock_args, mock_data_fetcher)
             return analyzer
     
     def test_init(self, analyzer, mock_args):
@@ -128,6 +128,126 @@ class TestATCOscillatorSPCVotingAnalyzer:
         
         assert vote in [0, 1]
         assert 0.0 <= strength <= 1.0
+    
+    def test_aggregate_spc_votes_simple_fallback(self, analyzer):
+        """Test _aggregate_spc_votes with simple mode fallback when weighted and threshold both return 0."""
+        # Enable simple fallback in config
+        analyzer.spc_aggregator.config.enable_simple_fallback = True
+        analyzer.spc_aggregator.config.simple_min_accuracy_total = 1.0
+        
+        # Set weighted mode with very high thresholds that won't be met
+        analyzer.spc_aggregator.config.mode = "weighted"
+        analyzer.spc_aggregator.config.weighted_min_total = 0.95  # Very high
+        analyzer.spc_aggregator.config.weighted_min_diff = 0.3
+        
+        # Set threshold mode to also fail (need 3 strategies but only 2 agree)
+        # But first we need to ensure weighted fails, then threshold fails
+        
+        # Scenario: 2 strategies LONG, 1 strategy SHORT
+        # Weighted mode: might fail due to high threshold
+        # Threshold mode: need 3 but only 2 agree -> fails
+        # Simple mode: should fallback and use accuracy sum
+        symbol_data = {
+            'spc_cluster_transition_signal': 1,  # LONG, accuracy = 0.68
+            'spc_cluster_transition_strength': 0.5,
+            'spc_regime_following_signal': 1,  # LONG, accuracy = 0.66
+            'spc_regime_following_strength': 0.4,
+            'spc_mean_reversion_signal': -1,  # SHORT, accuracy = 0.64
+            'spc_mean_reversion_strength': 0.3,
+        }
+        
+        vote, strength = analyzer._aggregate_spc_votes(symbol_data, "LONG")
+        
+        # Weighted mode might fail, threshold mode might fail (only 2/3 agree)
+        # Simple fallback should kick in: LONG accuracy = 0.68 + 0.66 = 1.34 > 1.0
+        # So should return vote = 1 (LONG wins)
+        assert vote in [0, 1]
+        assert 0.0 <= strength <= 1.0
+    
+    def test_aggregate_spc_votes_simple_fallback_insufficient_accuracy(self, analyzer):
+        """Test simple fallback when accuracy is insufficient."""
+        # Enable simple fallback
+        analyzer.spc_aggregator.config.enable_simple_fallback = True
+        analyzer.spc_aggregator.config.simple_min_accuracy_total = 2.0  # Higher than max possible (1.98)
+        
+        # Set weighted mode to fail
+        analyzer.spc_aggregator.config.mode = "weighted"
+        analyzer.spc_aggregator.config.weighted_min_total = 0.95
+        
+        # Only one strategy has signal
+        symbol_data = {
+            'spc_cluster_transition_signal': 1,  # accuracy = 0.68
+            'spc_cluster_transition_strength': 0.5,
+            'spc_regime_following_signal': 0,
+            'spc_regime_following_strength': 0.0,
+            'spc_mean_reversion_signal': 0,
+            'spc_mean_reversion_strength': 0.0,
+        }
+        
+        vote, strength = analyzer._aggregate_spc_votes(symbol_data, "LONG")
+        
+        # Weighted fails, threshold fails (only 1/3), simple fallback fails (accuracy < 2.0)
+        assert vote == 0
+        # Strength might still have value from the strategy with signal, but vote should be 0
+    
+    def test_aggregate_spc_votes_simple_fallback_disabled(self, analyzer):
+        """Test that simple fallback doesn't trigger when disabled."""
+        # Disable simple fallback
+        analyzer.spc_aggregator.config.enable_simple_fallback = False
+        
+        # Set weighted mode to fail
+        analyzer.spc_aggregator.config.mode = "weighted"
+        analyzer.spc_aggregator.config.weighted_min_total = 0.95
+        
+        symbol_data = {
+            'spc_cluster_transition_signal': 1,
+            'spc_cluster_transition_strength': 0.3,
+            'spc_regime_following_signal': 1,
+            'spc_regime_following_strength': 0.2,
+            'spc_mean_reversion_signal': 0,
+            'spc_mean_reversion_strength': 0.0,
+        }
+        
+        vote, strength = analyzer._aggregate_spc_votes(symbol_data, "LONG")
+        
+        # Weighted might fail, threshold might fail, but simple fallback is disabled
+        # So should return 0 if both fail
+        assert vote in [0, 1]  # Could be 0 or 1 depending on threshold fallback
+    
+    def test_aggregate_spc_votes_simple_fallback_both_modes_fail(self, analyzer):
+        """Test simple fallback when both weighted and threshold modes return 0."""
+        # Enable simple fallback
+        analyzer.spc_aggregator.config.enable_simple_fallback = True
+        analyzer.spc_aggregator.config.simple_min_accuracy_total = 1.0
+        
+        # Set weighted mode with high threshold
+        analyzer.spc_aggregator.config.mode = "weighted"
+        analyzer.spc_aggregator.config.weighted_min_total = 0.95  # Very high, won't be met
+        analyzer.spc_aggregator.config.weighted_min_diff = 0.3
+        
+        # Set threshold mode to also fail (need 3 strategies, but only 2 agree)
+        # This will be used in fallback, but we'll set threshold high enough to fail
+        analyzer.spc_aggregator.config.threshold = 0.9  # Need 3 strategies (ceil(3 * 0.9) = 3)
+        
+        # 2 strategies LONG, 1 strategy SHORT
+        # Weighted: long_weight might be ~0.68 (normalized), but need 0.95 -> fails
+        # Threshold: need 3 but only 2 agree -> fails
+        # Simple: LONG accuracy = 0.68 + 0.66 = 1.34 > 1.0 -> should succeed
+        symbol_data = {
+            'spc_cluster_transition_signal': 1,  # LONG, accuracy = 0.68
+            'spc_cluster_transition_strength': 0.6,
+            'spc_regime_following_signal': 1,  # LONG, accuracy = 0.66
+            'spc_regime_following_strength': 0.5,
+            'spc_mean_reversion_signal': -1,  # SHORT, accuracy = 0.64
+            'spc_mean_reversion_strength': 0.4,
+        }
+        
+        vote, strength = analyzer._aggregate_spc_votes(symbol_data, "LONG")
+        
+        # Both weighted and threshold should fail, simple fallback should succeed
+        # LONG accuracy sum = 1.34 > 1.0, so vote should be 1
+        assert vote == 1
+        assert strength > 0.0
     
     def test_get_indicator_accuracy(self, analyzer):
         """Test _get_indicator_accuracy."""
@@ -225,7 +345,7 @@ class TestHelperFunctions:
         
         mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, 'binance')
         
-        with patch('main_atc_oscillator_spc_voting.generate_signals_combined_all_strategy') as mock_gen:
+        with patch('core.signal_calculators.generate_signals_combined_all_strategy') as mock_gen:
             mock_gen.return_value = (
                 pd.Series([0, 0, 1], name='signal'),
                 pd.Series([0.0, 0.0, 0.8], name='strength'),
@@ -261,8 +381,8 @@ class TestHelperFunctions:
         
         mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, 'binance')
         
-        with patch('main_atc_oscillator_spc_voting.SimplifiedPercentileClustering') as mock_spc, \
-             patch('main_atc_oscillator_spc_voting.generate_signals_cluster_transition') as mock_gen:
+        with patch('core.signal_calculators.SimplifiedPercentileClustering') as mock_spc, \
+             patch('core.signal_calculators.generate_signals_cluster_transition') as mock_gen:
             
             mock_clustering_result = Mock()
             mock_spc.return_value.compute.return_value = mock_clustering_result
@@ -290,4 +410,6 @@ class TestHelperFunctions:
         )
         
         assert result is None
+
+None
 

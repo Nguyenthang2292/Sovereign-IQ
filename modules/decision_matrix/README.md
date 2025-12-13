@@ -4,19 +4,19 @@
 
 Đã triển khai 2 phương án tích hợp Decision Matrix vào ATC + Range Oscillator + SPC workflow:
 
-1. **Phương án 1 (Hybrid)**: `main_atc_oscillator_spc_hybrid.py`
+1. **Phương án 1 (Hybrid)**: `main_hybrid.py`
    - Kết hợp sequential filtering và voting system
    - Workflow: ATC → Range Oscillator → SPC → Decision Matrix Voting
 
-2. **Phương án 2 (Pure Voting)**: `main_atc_oscillator_spc_voting.py`
+2. **Phương án 2 (Pure Voting)**: `main_voting.py`
    - Thay thế hoàn toàn bằng voting system
    - Workflow: Calculate all signals → Voting System → Final Results
 
 ## Files đã tạo
 
 ### Main Files
-- `main_atc_oscillator_spc_hybrid.py` - Phương án 1: Hybrid Approach
-- `main_atc_oscillator_spc_voting.py` - Phương án 2: Pure Voting System
+- `main_hybrid.py` - Phương án 1: Hybrid Approach
+- `main_voting.py` - Phương án 2: Pure Voting System
 
 ### Module Files
 - `modules/decision_matrix/__init__.py` - Module init
@@ -41,7 +41,7 @@ Không cần cài đặt thêm, chỉ cần đảm bảo các dependencies hiệ
 
 ```bash
 # Chạy với SPC và Decision Matrix
-python main_atc_oscillator_spc_hybrid.py \
+python main_hybrid.py \
     --timeframe 1h \
     --enable-spc \
     --spc-strategy cluster_transition \
@@ -50,13 +50,13 @@ python main_atc_oscillator_spc_hybrid.py \
     --min-votes 2
 
 # Chạy chỉ với SPC (không dùng Decision Matrix)
-python main_atc_oscillator_spc_hybrid.py \
+python main_hybrid.py \
     --timeframe 1h \
     --enable-spc \
     --spc-strategy regime_following
 
 # Chạy không có SPC (giống main_atc_oscillator.py cũ)
-python main_atc_oscillator_spc_hybrid.py --timeframe 1h
+python main_hybrid.py --timeframe 1h
 ```
 
 **Command-line Arguments:**
@@ -88,7 +88,7 @@ python main_atc_oscillator_spc_hybrid.py --timeframe 1h
 
 ```bash
 # Chạy với SPC
-python main_atc_oscillator_spc_voting.py \
+python main_voting.py \
     --timeframe 1h \
     --enable-spc \
     --spc-strategy cluster_transition \
@@ -96,7 +96,7 @@ python main_atc_oscillator_spc_voting.py \
     --min-votes 2
 
 # Chạy không có SPC (chỉ ATC + Range Oscillator)
-python main_atc_oscillator_spc_voting.py \
+python main_voting.py \
     --timeframe 1h \
     --voting-threshold 0.5 \
     --min-votes 2

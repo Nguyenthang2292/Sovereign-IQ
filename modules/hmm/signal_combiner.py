@@ -25,7 +25,7 @@ from modules.common.utils import log_error, log_info
 # Export Signal type for backward compatibility
 __all__ = ['hmm_signals', 'Signal']
 
-from modules.config import (
+from config import (
     HMM_PROBABILITY_THRESHOLD,
     HMM_SIGNAL_PRIMARY_WEIGHT,
     HMM_SIGNAL_TRANSITION_WEIGHT,
@@ -274,3 +274,4 @@ def hmm_signals(
         )
 
     return signal_high_order_hmm, signal_hmm_kama
+m_kama

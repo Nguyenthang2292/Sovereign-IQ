@@ -5,7 +5,7 @@ Command-line interface for xgboost_prediction_main.py
 import argparse
 from .utils import color_text
 from colorama import Fore
-from modules.config import (
+from config import (
     DEFAULT_SYMBOL,
     DEFAULT_QUOTE,
     DEFAULT_TIMEFRAME,
@@ -70,3 +70,4 @@ def parse_args():
         help="Disable interactive prompts; rely only on CLI arguments.",
     )
     return parser.parse_args()
+args()

@@ -4,7 +4,7 @@ HMM Signal Confidence Module
 Functions for calculating confidence scores from HMM models.
 """
 
-from modules.config import (
+from config import (
     HMM_SIGNAL_MIN_THRESHOLD,
     HMM_FEATURES,
     HMM_HIGH_ORDER_WEIGHT,
@@ -72,4 +72,6 @@ def calculate_combined_confidence(
         base_confidence *= HMM_AGREEMENT_BONUS
     
     return min(base_confidence, 1.0)  # Cap at 1.0
+
+ 1.0
 

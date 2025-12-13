@@ -6,7 +6,7 @@ Functions for conflict resolution and dynamic threshold adjustment.
 
 from typing import Tuple, Literal
 from modules.common.utils import log_warn
-from modules.config import (
+from config import (
     HMM_FEATURES,
     HMM_CONFLICT_RESOLUTION_THRESHOLD,
     HMM_VOLATILITY_CONFIG,
@@ -96,4 +96,6 @@ def resolve_signal_conflict(
             f"(conf: {kama_confidence:.3f}). Defaulting to HOLD."
         )
         return HOLD, HOLD
+
+HOLD
 

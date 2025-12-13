@@ -26,7 +26,7 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from colorama import Fore, Style
 
-from modules.config import (
+from config import (
     DEEP_FEATURE_SELECTION_METHOD,
     DEEP_FEATURE_SELECTION_TOP_K,
     DEEP_FEATURE_COLLINEARITY_THRESHOLD,
@@ -473,4 +473,6 @@ class FeatureSelector:
 
         df = df.sort_values("score", ascending=False)
         return df
+
+n df
 

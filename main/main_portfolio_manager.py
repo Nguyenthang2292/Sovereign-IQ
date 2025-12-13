@@ -16,7 +16,7 @@ try:
     from modules.portfolio.risk_calculator import PortfolioRiskCalculator
     from modules.portfolio import correlation_analyzer as _correlation_analyzer_mod
     from modules.portfolio import hedge_finder as _hedge_finder_mod
-    from modules.config import (
+    from config import (
         BENCHMARK_SYMBOL,
         DEFAULT_VAR_CONFIDENCE,
         DEFAULT_VAR_LOOKBACK_DAYS,
@@ -438,3 +438,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+main()

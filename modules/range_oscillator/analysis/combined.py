@@ -33,7 +33,7 @@ from modules.range_oscillator.strategies.divergence import generate_signals_dive
 from modules.range_oscillator.strategies.trend_following import generate_signals_trend_following_strategy
 from modules.range_oscillator.strategies.mean_reversion import generate_signals_mean_reversion_strategy
 from modules.common.utils import log_debug, log_analysis, log_warn
-from modules.config import (
+from config import (
     TRENDING_STRATEGIES,
     RANGE_BOUND_STRATEGIES,
     VOLATILE_STRATEGIES,
@@ -594,5 +594,8 @@ __all__ = [
     "StrategySpecificConfig",
     "STRATEGY_FUNCTIONS",
     "STRATEGY_NAMES",
+]
+
+,
 ]
 

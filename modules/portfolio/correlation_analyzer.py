@@ -23,7 +23,7 @@ try:
         log_data,
         log_success,
     )
-    from modules.config import (
+    from config import (
         DEFAULT_CORRELATION_MIN_POINTS,
         DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS,
         HEDGE_CORRELATION_HIGH_THRESHOLD,
@@ -558,3 +558,4 @@ class PortfolioCorrelationAnalyzer:
                 log_data(f"  Samples used: {len(portfolio_return_series)}")
 
         return correlation, {"samples": len(portfolio_return_series)}
+ries)}

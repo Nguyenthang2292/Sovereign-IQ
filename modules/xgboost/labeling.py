@@ -8,7 +8,7 @@ volatility and historical price patterns.
 
 import numpy as np
 import pandas as pd
-from modules.config import (
+from config import (
     TARGET_HORIZON,
     TARGET_BASE_THRESHOLD,
     LABEL_TO_ID,
@@ -271,3 +271,4 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     # Convert string labels to integer IDs
     df["Target"] = df["TargetLabel"].map(LABEL_TO_ID)
     return df
+urn df

@@ -8,7 +8,7 @@ defining all command-line options and their default values.
 import argparse
 
 try:
-    from modules.config import (
+    from config import (
         DEFAULT_SYMBOL,
         DEFAULT_QUOTE,
         DEFAULT_TIMEFRAME,
@@ -148,4 +148,6 @@ def parse_args():
     )
 
     return parser.parse_args()
+
+gs()
 

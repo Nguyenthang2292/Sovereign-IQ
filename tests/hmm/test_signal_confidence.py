@@ -15,7 +15,7 @@ from modules.hmm.signal_confidence import (
     calculate_kama_confidence,
     calculate_combined_confidence,
 )
-from modules.config import (
+from config import (
     HMM_SIGNAL_MIN_THRESHOLD,
     HMM_FEATURES,
     HMM_HIGH_ORDER_WEIGHT,
@@ -158,4 +158,6 @@ def test_calculate_combined_confidence_edge_cases():
     # Test with maximum probabilities
     combined = calculate_combined_confidence(1.0, 1.0, True)
     assert combined <= 1.0
+
+ 1.0
 

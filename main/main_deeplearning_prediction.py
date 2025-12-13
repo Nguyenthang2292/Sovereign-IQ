@@ -24,7 +24,7 @@ except ImportError:
 from colorama import Fore, Style, init as colorama_init
 import torch
 
-from modules.config import (
+from config import (
     DEFAULT_SYMBOL,
     DEFAULT_QUOTE,
     DEFAULT_TIMEFRAME,
@@ -931,4 +931,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+in()
 

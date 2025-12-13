@@ -15,7 +15,7 @@ except ImportError:
     adfuller = None
 
 try:
-    from modules.config import (
+    from config import (
         PAIRS_TRADING_CORRELATION_MIN_POINTS,
         PAIRS_TRADING_ADF_MAXLAG,
     )
@@ -128,4 +128,6 @@ def calculate_adf_test(
     except Exception:
         # Catch any other unexpected exceptions
         return None
+
+None
 

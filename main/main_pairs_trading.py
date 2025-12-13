@@ -18,7 +18,7 @@ configure_windows_stdio()
 
 from colorama import Fore, init as colorama_init
 
-from modules.config import (
+from config import (
     PAIRS_TRADING_OPPORTUNITY_PRESETS,
     PAIRS_TRADING_HURST_THRESHOLD,
 )

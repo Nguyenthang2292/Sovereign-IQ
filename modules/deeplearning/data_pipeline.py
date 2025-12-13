@@ -23,7 +23,7 @@ from colorama import Fore, Style
 
 from modules.common.DataFetcher import DataFetcher
 from modules.common.IndicatorEngine import IndicatorEngine, IndicatorConfig, IndicatorProfile
-from modules.config import (
+from config import (
     TARGET_HORIZON,
     DEEP_TRIPLE_BARRIER_TP_THRESHOLD,
     DEEP_TRIPLE_BARRIER_SL_THRESHOLD,
@@ -735,4 +735,6 @@ class DeepLearningDataPipeline:
         )
 
         return train_df, val_df, test_df
+
+t_df
 

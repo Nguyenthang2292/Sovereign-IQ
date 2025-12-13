@@ -20,7 +20,7 @@ from modules.common.utils import (
 )
 
 try:
-    from modules.config import DEFAULT_TIMEFRAME
+    from config import DEFAULT_TIMEFRAME
 except ImportError:
     DEFAULT_TIMEFRAME = "1h"
 
@@ -57,9 +57,8 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
     for idx, (tf, desc) in enumerate(timeframes, 1):
         if tf == default_timeframe:
             # Highlight default option in magenta (pink)
-            marker = color_text(" <-- default", Fore.MAGENTA, Style.BRIGHT)
             option_text = color_text(f"{idx:2d}) {tf:4s} - {desc}", Fore.MAGENTA, Style.BRIGHT)
-            print(f"{option_text}{marker}")
+            print(option_text)
         else:
             print(f"{idx:2d}) {tf:4s} - {desc}")
     
@@ -143,4 +142,6 @@ def prompt_interactive_mode(default_timeframe: str = DEFAULT_TIMEFRAME) -> Dict[
         "mode": "auto" if choice == "1" else "manual",
         "timeframe": selected_timeframe
     }
+
+   }
 

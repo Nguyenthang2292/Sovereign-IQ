@@ -1,42 +1,26 @@
 """
-ATC + Range Oscillator + SPC Hybrid Approach (Phương án 1).
+Hybrid Analyzer for ATC + Range Oscillator + SPC approach.
 
-This program combines signals from:
+This module contains the HybridAnalyzer class that combines signals from:
 1. Adaptive Trend Classification (ATC)
 2. Range Oscillator
 3. Simplified Percentile Clustering (SPC)
 
-Workflow (Hybrid Approach):
-1. Runs ATC auto scan to find LONG/SHORT signals
-2. Filters symbols by checking if Range Oscillator signals match ATC signals
-3. Filters symbols by checking if SPC signals match (optional)
-4. Applies Decision Matrix voting system (optional)
-5. Returns final list of symbols with confirmed signals
-
-Phương án 1: Kết hợp sequential filtering và voting system
+Phương án 1: Kết hợp sequential filtering và voting system.
 """
 
-import warnings
-import sys
 import threading
 from typing import Optional, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 
-from modules.common.utils import configure_windows_stdio
+from colorama import Fore, Style
 
-# Fix encoding issues on Windows for interactive CLI runs only
-configure_windows_stdio()
-
-from colorama import Fore, Style, init as colorama_init
-
-from modules.config import (
-    DEFAULT_TIMEFRAME,
-    DECISION_MATRIX_SPC_STRATEGY_ACCURACIES,
+from config import (
     DECISION_MATRIX_INDICATOR_ACCURACIES,
     SPC_STRATEGY_PARAMETERS,
-    RANGE_OSCILLATOR_LENGTH,
-    RANGE_OSCILLATOR_MULTIPLIER,
+    SPC_P_LOW,
+    SPC_P_HIGH,
     SPC_AGGREGATION_MODE,
     SPC_AGGREGATION_THRESHOLD,
     SPC_AGGREGATION_WEIGHTED_MIN_TOTAL,
@@ -44,47 +28,28 @@ from modules.config import (
     SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS,
     SPC_AGGREGATION_ADAPTIVE_PERFORMANCE_WINDOW,
     SPC_AGGREGATION_MIN_SIGNAL_STRENGTH,
+    SPC_AGGREGATION_ENABLE_SIMPLE_FALLBACK,
+    SPC_AGGREGATION_SIMPLE_MIN_ACCURACY_TOTAL,
     SPC_AGGREGATION_STRATEGY_WEIGHTS,
 )
 from modules.common.utils import (
     color_text,
-    log_error,
     log_progress,
     log_success,
     log_warn,
-    log_data,
-    prompt_user_input,
 )
 from modules.common.ExchangeManager import ExchangeManager
 from modules.common.DataFetcher import DataFetcher
 from modules.adaptive_trend.cli import prompt_timeframe
-from main_atc import ATCAnalyzer
+from main.main_atc import ATCAnalyzer
 from modules.range_oscillator.cli import (
-    display_configuration,
     display_final_results,
 )
-import argparse
-from modules.range_oscillator.analysis.combined import (
-    generate_signals_combined_all_strategy,
-)
-from modules.range_oscillator.config import (
-    CombinedStrategyConfig,
-)
+from cli.display import display_config, display_voting_metadata
 from modules.simplified_percentile_clustering.core.clustering import (
-    SimplifiedPercentileClustering,
     ClusteringConfig,
 )
 from modules.simplified_percentile_clustering.core.features import FeatureConfig
-from modules.simplified_percentile_clustering.strategies import (
-    generate_signals_cluster_transition,
-    generate_signals_regime_following,
-    generate_signals_mean_reversion,
-)
-from modules.simplified_percentile_clustering.config import (
-    ClusterTransitionConfig,
-    RegimeFollowingConfig,
-    MeanReversionConfig,
-)
 from modules.simplified_percentile_clustering.aggregation import (
     SPCVoteAggregator,
 )
@@ -92,443 +57,14 @@ from modules.simplified_percentile_clustering.config import (
     SPCAggregationConfig,
 )
 from modules.decision_matrix.classifier import DecisionMatrixClassifier
-
-# Suppress warnings for cleaner output
-warnings.filterwarnings("ignore")
-colorama_init(autoreset=True)
-
-
-def get_range_oscillator_signal(
-    data_fetcher: DataFetcher,
-    symbol: str,
-    timeframe: str,
-    limit: int,
-    osc_length: int = 50,
-    osc_mult: float = 2.0,
-    strategies: Optional[list] = None,
-) -> Optional[tuple]:
-    """Calculate Range Oscillator signal for a symbol."""
-    try:
-        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol,
-            limit=limit,
-            timeframe=timeframe,
-            check_freshness=True,
-        )
-
-        if df is None or df.empty:
-            return None
-
-        if "high" not in df.columns or "low" not in df.columns or "close" not in df.columns:
-            return None
-
-        high = df["high"]
-        low = df["low"]
-        close = df["close"]
-
-        if strategies is None:
-            enabled_strategies = [2, 3, 4, 6, 7, 8, 9]
-        else:
-            if 5 in strategies:
-                enabled_strategies = [2, 3, 4, 6, 7, 8, 9]
-            else:
-                enabled_strategies = strategies
-
-        config = CombinedStrategyConfig()
-        config.enabled_strategies = enabled_strategies
-        config.return_confidence_score = True
-        config.dynamic.enabled = True
-        config.dynamic.lookback = 20
-        config.dynamic.volatility_threshold = 0.6
-        config.dynamic.trend_threshold = 0.5
-        config.consensus.mode = "weighted"
-        config.consensus.adaptive_weights = True
-        config.consensus.performance_window = 10
-        
-        result = generate_signals_combined_all_strategy(
-            high=high,
-            low=low,
-            close=close,
-            length=osc_length,
-            mult=osc_mult,
-            config=config,
-        )
-
-        signals = result[0]
-        confidence = result[3]
-
-        if signals is None or signals.empty:
-            return None
-
-        non_nan_mask = ~signals.isna()
-        if not non_nan_mask.any():
-            return None
-
-        latest_idx = signals[non_nan_mask].index[-1]
-        latest_signal = int(signals.loc[latest_idx])
-        latest_confidence = float(confidence.loc[latest_idx]) if confidence is not None and not confidence.empty else 0.0
-
-        return (latest_signal, latest_confidence)
-
-    except Exception as e:
-        return None
+from core.signal_calculators import (
+    get_range_oscillator_signal,
+    get_spc_signal,
+    get_xgboost_signal,
+)
 
 
-def get_spc_signal(
-    data_fetcher: DataFetcher,
-    symbol: str,
-    timeframe: str,
-    limit: int,
-    strategy: str = "cluster_transition",
-    strategy_params: Optional[dict] = None,
-    clustering_config: Optional[ClusteringConfig] = None,
-) -> Optional[tuple]:
-    """Calculate SPC signal for a symbol."""
-    try:
-        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol,
-            limit=limit,
-            timeframe=timeframe,
-            check_freshness=True,
-        )
-
-        if df is None or df.empty:
-            return None
-
-        if "high" not in df.columns or "low" not in df.columns or "close" not in df.columns:
-            return None
-
-        high = df["high"]
-        low = df["low"]
-        close = df["close"]
-
-        if clustering_config is None:
-            feature_config = FeatureConfig()
-            clustering_config = ClusteringConfig(
-                k=2,
-                lookback=limit,
-                p_low=5.0,
-                p_high=95.0,
-                main_plot="Clusters",
-                feature_config=feature_config,
-            )
-
-        clustering = SimplifiedPercentileClustering(clustering_config)
-        clustering_result = clustering.compute(high, low, close)
-
-        strategy_params = strategy_params or {}
-        
-        if strategy == "cluster_transition":
-            strategy_config = ClusterTransitionConfig(
-                min_signal_strength=strategy_params.get("min_signal_strength", 0.3),
-                min_rel_pos_change=strategy_params.get("min_rel_pos_change", 0.1),
-                clustering_config=clustering_config,
-            )
-            signals, signal_strength, metadata = generate_signals_cluster_transition(
-                high=high,
-                low=low,
-                close=close,
-                clustering_result=clustering_result,
-                config=strategy_config,
-            )
-        elif strategy == "regime_following":
-            strategy_config = RegimeFollowingConfig(
-                min_regime_strength=strategy_params.get("min_regime_strength", 0.7),
-                min_cluster_duration=strategy_params.get("min_cluster_duration", 2),
-                clustering_config=clustering_config,
-            )
-            signals, signal_strength, metadata = generate_signals_regime_following(
-                high=high,
-                low=low,
-                close=close,
-                clustering_result=clustering_result,
-                config=strategy_config,
-            )
-        elif strategy == "mean_reversion":
-            strategy_config = MeanReversionConfig(
-                extreme_threshold=strategy_params.get("extreme_threshold", 0.2),
-                min_extreme_duration=strategy_params.get("min_extreme_duration", 3),
-                clustering_config=clustering_config,
-            )
-            signals, signal_strength, metadata = generate_signals_mean_reversion(
-                high=high,
-                low=low,
-                close=close,
-                clustering_result=clustering_result,
-                config=strategy_config,
-            )
-        else:
-            return None
-
-        if signals is None or signals.empty:
-            return None
-
-        non_nan_mask = ~signals.isna()
-        if not non_nan_mask.any():
-            return None
-
-        latest_idx = signals[non_nan_mask].index[-1]
-        latest_signal = int(signals.loc[latest_idx])
-        latest_strength = float(signal_strength.loc[latest_idx]) if not signal_strength.empty else 0.0
-
-        return (latest_signal, latest_strength)
-
-    except Exception as e:
-        return None
-
-
-def interactive_config_menu():
-    """
-    Interactive menu for configuring ATC + Range Oscillator + SPC Hybrid.
-    
-    Returns:
-        argparse.Namespace object with all configuration values
-    """
-    from modules.config import DEFAULT_TIMEFRAME
-    
-    print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
-    print(color_text("ATC + Range Oscillator + SPC Hybrid - Configuration Menu", Fore.CYAN, Style.BRIGHT))
-    print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
-    
-    # Create namespace object
-    class Config:
-        pass
-    
-    config = Config()
-    
-    # 1. Timeframe selection
-    print("\n" + color_text("1. TIMEFRAME SELECTION", Fore.YELLOW, Style.BRIGHT))
-    config.timeframe = prompt_timeframe(default_timeframe=DEFAULT_TIMEFRAME)
-    config.no_menu = True  # Already selected, skip menu
-    
-    # 2. Set default values (not shown in menu, can be changed in modules/config.py)
-    config.limit = 500  # Default: 500 candles
-    config.max_workers = 10  # Default: 10 parallel workers
-    
-    # 3. Range Oscillator parameters (loaded from config, not shown in menu)
-    # Adjust these values in modules/config.py if needed
-    from modules.config import RANGE_OSCILLATOR_LENGTH, RANGE_OSCILLATOR_MULTIPLIER
-    config.osc_length = RANGE_OSCILLATOR_LENGTH
-    config.osc_mult = RANGE_OSCILLATOR_MULTIPLIER
-    
-    # 4. SPC configuration (always enabled, all 3 strategies will be used)
-    print("\n" + color_text("4. SPC (Simplified Percentile Clustering) CONFIGURATION", Fore.YELLOW, Style.BRIGHT))
-    print("Note: All 3 SPC strategies will be calculated and used in Decision Matrix")
-    
-    config.enable_spc = True  # Always enabled
-    
-    k_input = prompt_user_input("Number of clusters (2 or 3) [2]: ", default="2")
-    config.spc_k = int(k_input) if k_input in ['2', '3'] else 2
-    
-    lookback_input = prompt_user_input("SPC lookback (historical bars) [1000]: ", default="1000")
-    config.spc_lookback = int(lookback_input) if lookback_input.isdigit() else 1000
-    
-    p_low_input = prompt_user_input("Lower percentile [5.0]: ", default="5.0")
-    config.spc_p_low = float(p_low_input) if p_low_input.replace('.', '').isdigit() else 5.0
-    
-    p_high_input = prompt_user_input("Upper percentile [95.0]: ", default="95.0")
-    config.spc_p_high = float(p_high_input) if p_high_input.replace('.', '').isdigit() else 95.0
-    
-    # Strategy-specific parameters (loaded from config, not shown in menu)
-    # Adjust these values in modules/config.py if needed
-    from modules.config import SPC_STRATEGY_PARAMETERS
-    config.spc_min_signal_strength = SPC_STRATEGY_PARAMETERS['cluster_transition']['min_signal_strength']
-    config.spc_min_rel_pos_change = SPC_STRATEGY_PARAMETERS['cluster_transition']['min_rel_pos_change']
-    config.spc_min_regime_strength = SPC_STRATEGY_PARAMETERS['regime_following']['min_regime_strength']
-    config.spc_min_cluster_duration = SPC_STRATEGY_PARAMETERS['regime_following']['min_cluster_duration']
-    config.spc_extreme_threshold = SPC_STRATEGY_PARAMETERS['mean_reversion']['extreme_threshold']
-    config.spc_min_extreme_duration = SPC_STRATEGY_PARAMETERS['mean_reversion']['min_extreme_duration']
-    
-    # 5. Decision Matrix configuration (always enabled when SPC is enabled)
-    print("\n" + color_text("5. DECISION MATRIX CONFIGURATION", Fore.YELLOW, Style.BRIGHT))
-    print("Note: Decision Matrix is required when using all 3 SPC strategies")
-    config.use_decision_matrix = True  # Always enabled
-    
-    threshold_input = prompt_user_input("Voting threshold (0.0-1.0) [0.5]: ", default="0.5")
-    config.voting_threshold = float(threshold_input) if threshold_input.replace('.', '').isdigit() else 0.5
-    
-    min_votes_input = prompt_user_input("Minimum votes required [2]: ", default="2")
-    config.min_votes = int(min_votes_input) if min_votes_input.isdigit() else 2
-    
-    # Set default values for other parameters
-    config.ema_len = 28
-    config.hma_len = 28
-    config.wma_len = 28
-    config.dema_len = 28
-    config.lsma_len = 28
-    config.kama_len = 28
-    config.robustness = "Medium"
-    config.lambda_param = 0.5
-    config.decay = 0.1
-    config.cutout = 5
-    config.min_signal = 0.01
-    config.max_symbols = None
-    config.osc_strategies = None
-    config.spc_strategy = "all"  # Indicates all 3 strategies will be used
-    
-    return config
-
-
-def parse_args():
-    """
-    Parse command-line arguments or use interactive menu.
-    
-    If no arguments provided, shows interactive menu.
-    Otherwise, parses command-line arguments.
-    """
-    from modules.config import DEFAULT_TIMEFRAME
-    
-    # Check if any arguments were provided
-    if len(sys.argv) == 1:
-        # No arguments, use interactive menu
-        return interactive_config_menu()
-    
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(
-        description="ATC + Range Oscillator + SPC Hybrid Signal Filter",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    
-    # Copy all arguments from range_oscillator/cli/argument_parser.py
-    parser.add_argument("--timeframe", type=str, default=DEFAULT_TIMEFRAME,
-        help=f"Timeframe for analysis (default: {DEFAULT_TIMEFRAME})")
-    parser.add_argument("--no-menu", action="store_true",
-        help="Disable interactive timeframe menu")
-    parser.add_argument("--limit", type=int, default=500,
-        help="Number of candles to fetch (default: 500)")
-    parser.add_argument("--ema-len", type=int, default=28, help="EMA length (default: 28)")
-    parser.add_argument("--hma-len", type=int, default=28, help="HMA length (default: 28)")
-    parser.add_argument("--wma-len", type=int, default=28, help="WMA length (default: 28)")
-    parser.add_argument("--dema-len", type=int, default=28, help="DEMA length (default: 28)")
-    parser.add_argument("--lsma-len", type=int, default=28, help="LSMA length (default: 28)")
-    parser.add_argument("--kama-len", type=int, default=28, help="KAMA length (default: 28)")
-    parser.add_argument("--robustness", type=str, choices=["Narrow", "Medium", "Wide"],
-        default="Medium", help="Robustness setting (default: Medium)")
-    parser.add_argument("--lambda", type=float, default=0.5, dest="lambda_param",
-        help="Lambda parameter (default: 0.5)")
-    parser.add_argument("--decay", type=float, default=0.1, help="Decay rate (default: 0.1)")
-    parser.add_argument("--cutout", type=int, default=5,
-        help="Number of bars to skip at start (default: 5)")
-    parser.add_argument("--min-signal", type=float, default=0.01,
-        help="Minimum signal strength to display (default: 0.01)")
-    parser.add_argument("--max-symbols", type=int, default=None,
-        help="Maximum number of symbols to scan (default: None = all)")
-    parser.add_argument("--osc-length", type=int, default=50,
-        help="Range Oscillator length parameter (default: 50)")
-    parser.add_argument("--osc-mult", type=float, default=2.0,
-        help="Range Oscillator multiplier (default: 2.0)")
-    parser.add_argument("--max-workers", type=int, default=10,
-        help="Maximum number of parallel workers for Range Oscillator filtering (default: 10)")
-    parser.add_argument("--osc-strategies", type=int, nargs="+", default=None,
-        help="Range Oscillator strategies to use (e.g., --osc-strategies 5 6 7 8 9). Default: all [5, 6, 7, 8, 9]")
-    
-    # SPC configuration (always enabled, all 3 strategies used)
-    parser.add_argument(
-        "--enable-spc",
-        action="store_true",
-        help="Enable SPC (always enabled, all 3 strategies used). Note: This flag is always enabled internally.",
-    )
-    parser.add_argument(
-        "--spc-k",
-        type=int,
-        default=2,
-        choices=[2, 3],
-        help="Number of clusters for SPC (default: 2)",
-    )
-    parser.add_argument(
-        "--spc-lookback",
-        type=int,
-        default=1000,
-        help="Historical bars for SPC (default: 1000)",
-    )
-    parser.add_argument(
-        "--spc-p-low",
-        type=float,
-        default=5.0,
-        help="Lower percentile for SPC (default: 5.0)",
-    )
-    parser.add_argument(
-        "--spc-p-high",
-        type=float,
-        default=95.0,
-        help="Upper percentile for SPC (default: 95.0)",
-    )
-    parser.add_argument(
-        "--spc-min-signal-strength",
-        type=float,
-        default=0.3,
-        help="Minimum signal strength for SPC cluster transition (default: 0.3)",
-    )
-    parser.add_argument(
-        "--spc-min-rel-pos-change",
-        type=float,
-        default=0.1,
-        help="Minimum relative position change for SPC cluster transition (default: 0.1)",
-    )
-    parser.add_argument(
-        "--spc-min-regime-strength",
-        type=float,
-        default=0.7,
-        help="Minimum regime strength for SPC regime following (default: 0.7)",
-    )
-    parser.add_argument(
-        "--spc-min-cluster-duration",
-        type=int,
-        default=2,
-        help="Minimum bars in same cluster for SPC regime following (default: 2)",
-    )
-    parser.add_argument(
-        "--spc-extreme-threshold",
-        type=float,
-        default=0.2,
-        help="Real_clust threshold for extreme in SPC mean reversion (default: 0.2)",
-    )
-    parser.add_argument(
-        "--spc-min-extreme-duration",
-        type=int,
-        default=3,
-        help="Minimum bars in extreme for SPC mean reversion (default: 3)",
-    )
-    
-    # Decision Matrix options (always enabled when SPC is enabled)
-    parser.add_argument(
-        "--use-decision-matrix",
-        action="store_true",
-        help="Use decision matrix voting system (always enabled with SPC). Note: This flag is always enabled internally.",
-    )
-    parser.add_argument(
-        "--voting-threshold",
-        type=float,
-        default=0.5,
-        help="Minimum weighted score for positive vote (default: 0.5)",
-    )
-    parser.add_argument(
-        "--min-votes",
-        type=int,
-        default=2,
-        help="Minimum number of indicators that must agree (default: 2)",
-    )
-    
-    args = parser.parse_args()
-    
-    # Force enable SPC and Decision Matrix (required for this workflow)
-    # Note: We parse the flags correctly (without default=True conflict),
-    # then enforce the requirement that these features are always enabled
-    args.enable_spc = True
-    args.use_decision_matrix = True
-    
-    return args
-
-
-def initialize_components() -> Tuple[ExchangeManager, DataFetcher]:
-    """Initialize ExchangeManager and DataFetcher components."""
-    log_progress("Initializing components...")
-    exchange_manager = ExchangeManager()
-    data_fetcher = DataFetcher(exchange_manager)
-    return exchange_manager, data_fetcher
-
-
-class ATCOscillatorSPCHybridAnalyzer:
+class HybridAnalyzer:
     """
     ATC + Range Oscillator + SPC Hybrid Analyzer.
     
@@ -552,6 +88,8 @@ class ATCOscillatorSPCHybridAnalyzer:
             enable_adaptive_weights=SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS,
             adaptive_performance_window=SPC_AGGREGATION_ADAPTIVE_PERFORMANCE_WINDOW,
             min_signal_strength=SPC_AGGREGATION_MIN_SIGNAL_STRENGTH,
+            enable_simple_fallback=SPC_AGGREGATION_ENABLE_SIMPLE_FALLBACK,
+            simple_min_accuracy_total=SPC_AGGREGATION_SIMPLE_MIN_ACCURACY_TOTAL,
             strategy_weights=SPC_AGGREGATION_STRATEGY_WEIGHTS,
         )
         self.spc_aggregator = SPCVoteAggregator(aggregation_config)
@@ -620,28 +158,13 @@ class ATCOscillatorSPCHybridAnalyzer:
     
     def display_config(self) -> None:
         """Display configuration information."""
-        osc_params = self.get_oscillator_params()
-        display_configuration(
-            timeframe=self.selected_timeframe,
-            limit=self.args.limit,
-            min_signal=self.args.min_signal,
-            max_workers=osc_params["max_workers"],
-            strategies=osc_params["strategies"],
-            max_symbols=self.args.max_symbols,
+        display_config(
+            selected_timeframe=self.selected_timeframe,
+            args=self.args,
+            get_oscillator_params=self.get_oscillator_params,
+            get_spc_params=self.get_spc_params,
+            mode="hybrid",
         )
-        
-        if self.args.enable_spc:
-            spc_params = self.get_spc_params()
-            log_progress("\nSPC Configuration (All 3 strategies enabled):")
-            log_data(f"  K: {spc_params['k']}")
-            log_data(f"  Lookback: {spc_params['lookback']}")
-            log_data(f"  Percentiles: {spc_params['p_low']}% - {spc_params['p_high']}%")
-            log_data(f"  Strategies: Cluster Transition, Regime Following, Mean Reversion")
-        
-        if self.args.use_decision_matrix:
-            log_progress("\nDecision Matrix Configuration:")
-            log_data(f"  Voting Threshold: {self.args.voting_threshold}")
-            log_data(f"  Min Votes: {self.args.min_votes}")
     
     def run_atc_scan(self) -> None:
         """Run ATC auto scan to get LONG/SHORT signals."""
@@ -963,6 +486,35 @@ class ATCOscillatorSPCHybridAnalyzer:
 
         result_df = pd.DataFrame(results)
         
+        # Calculate XGBoost signals if enabled
+        if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost and not result_df.empty:
+            log_progress(f"Calculating XGBoost predictions for {len(result_df)} {signal_type} symbols...")
+            xgb_results = []
+            for _, row in result_df.iterrows():
+                try:
+                    xgb_result = get_xgboost_signal(
+                        data_fetcher=self.data_fetcher,
+                        symbol=row['symbol'],
+                        timeframe=self.selected_timeframe,
+                        limit=self.args.limit,
+                    )
+                    if xgb_result is not None:
+                        row_dict = row.to_dict()
+                        row_dict["xgboost_signal"] = xgb_result[0]
+                        row_dict["xgboost_confidence"] = xgb_result[1]
+                        xgb_results.append(row_dict)
+                    else:
+                        row_dict = row.to_dict()
+                        row_dict["xgboost_signal"] = 0
+                        row_dict["xgboost_confidence"] = 0.0
+                        xgb_results.append(row_dict)
+                except Exception as e:
+                    row_dict = row.to_dict()
+                    row_dict["xgboost_signal"] = 0
+                    row_dict["xgboost_confidence"] = 0.0
+                    xgb_results.append(row_dict)
+            result_df = pd.DataFrame(xgb_results)
+        
         # Sort by signal strength (use average of all 3 strategies)
         if signal_type == "LONG":
             result_df = result_df.sort_values("signal", ascending=False).reset_index(drop=True)
@@ -986,6 +538,7 @@ class ATCOscillatorSPCHybridAnalyzer:
         - Optional adaptive weights based on performance
         - Signal strength filtering
         - Fallback to threshold mode if weighted mode gives no vote
+        - Fallback to simple mode if both weighted and threshold give no vote
         
         Args:
             symbol_data: Symbol data with SPC signals
@@ -1006,6 +559,15 @@ class ATCOscillatorSPCHybridAnalyzer:
                 vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
             finally:
                 self.spc_aggregator.config.mode = original_mode
+            
+            # If threshold mode also gives no vote, try simple mode fallback
+            if vote == 0 and self.spc_aggregator.config.enable_simple_fallback:
+                original_mode = self.spc_aggregator.config.mode
+                self.spc_aggregator.config.mode = "simple"
+                try:
+                    vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
+                finally:
+                    self.spc_aggregator.config.mode = original_mode
         else:
             # Try weighted mode first
             vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
@@ -1018,10 +580,22 @@ class ATCOscillatorSPCHybridAnalyzer:
                     vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
                 finally:
                     self.spc_aggregator.config.mode = original_mode
+                
+                # If threshold mode also gives no vote, try simple mode fallback
+                if vote == 0 and self.spc_aggregator.config.enable_simple_fallback:
+                    original_mode = self.spc_aggregator.config.mode
+                    self.spc_aggregator.config.mode = "simple"
+                    try:
+                        vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
+                    finally:
+                        self.spc_aggregator.config.mode = original_mode
         
         # Convert vote to 1/0 format for Decision Matrix compatibility
         # Only accept vote if it matches the expected signal direction
+        # Note: If vote is opposite direction (e.g., -1 when expected is 1),
+        # we return 0 to indicate no vote for this direction
         final_vote = 1 if vote == expected_signal else 0
+        
         return (final_vote, strength)
     
     def calculate_indicator_votes(
@@ -1050,6 +624,13 @@ class ATCOscillatorSPCHybridAnalyzer:
             spc_vote, spc_strength = self._aggregate_spc_votes(symbol_data, signal_type)
             votes['spc'] = (spc_vote, spc_strength)
         
+        # XGBoost vote (if enabled)
+        if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
+            xgb_signal = symbol_data.get('xgboost_signal', 0)
+            xgb_vote = 1 if xgb_signal == expected_signal else 0
+            xgb_strength = symbol_data.get('xgboost_confidence', 0.0)
+            votes['xgboost'] = (xgb_vote, xgb_strength)
+        
         return votes
     
     def _get_indicator_accuracy(self, indicator: str, signal_type: str) -> float:
@@ -1065,10 +646,12 @@ class ATCOscillatorSPCHybridAnalyzer:
         if signals_df.empty:
             return pd.DataFrame()
         
-        # Build indicators list: ATC, Oscillator, and aggregated SPC
+        # Build indicators list: ATC, Oscillator, aggregated SPC, and XGBoost
         indicators = ['atc', 'oscillator']
         if self.args.enable_spc:
             indicators.append('spc')
+        if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
+            indicators.append('xgboost')
         
         results = []
         
@@ -1087,28 +670,6 @@ class ATCOscillatorSPCHybridAnalyzer:
                 threshold=self.args.voting_threshold,
                 min_votes=self.args.min_votes,
             )
-            
-            # Fallback logic: If SPC contribution = 0.00%, retry with threshold mode
-            if self.args.enable_spc and 'spc' in voting_breakdown:
-                spc_contribution = voting_breakdown['spc'].get('contribution', 0.0)
-                if abs(spc_contribution) < 0.0001:  # Contribution ≈ 0.00%
-                    # Re-aggregate SPC votes with threshold mode
-                    spc_vote_fallback, spc_strength_fallback = self._aggregate_spc_votes(
-                        row.to_dict(), 
-                        signal_type, 
-                        use_threshold_fallback=True
-                    )
-                    
-                    # Update classifier with new SPC vote using add_node_vote
-                    spc_accuracy = self._get_indicator_accuracy('spc', signal_type)
-                    classifier.add_node_vote('spc', spc_vote_fallback, spc_strength_fallback, spc_accuracy)
-                    
-                    # Recalculate
-                    classifier.calculate_weighted_impact()
-                    cumulative_vote, weighted_score, voting_breakdown = classifier.calculate_cumulative_vote(
-                        threshold=self.args.voting_threshold,
-                        min_votes=self.args.min_votes,
-                    )
             
             if cumulative_vote == 1:
                 result = row.to_dict()
@@ -1247,36 +808,11 @@ class ATCOscillatorSPCHybridAnalyzer:
     
     def _display_voting_metadata(self, signals_df: pd.DataFrame, signal_type: str) -> None:
         """Display voting metadata for signals."""
-        if signals_df.empty:
-            return
-        
-        log_progress(f"\n{signal_type} Signals - Voting Breakdown:")
-        log_progress("-" * 80)
-        
-        for idx, row in signals_df.head(10).iterrows():
-            symbol = row['symbol']
-            weighted_score = row.get('weighted_score', 0.0)
-            voting_breakdown = row.get('voting_breakdown', {})
-            feature_importance = row.get('feature_importance', {})
-            weighted_impact = row.get('weighted_impact', {})
-            
-            log_data(f"\nSymbol: {symbol}")
-            log_data(f"  Weighted Score: {weighted_score:.2%}")
-            log_data(f"  Voting Breakdown:")
-            
-            for indicator, vote_info in voting_breakdown.items():
-                vote = vote_info['vote']
-                weight = vote_info['weight']
-                contribution = vote_info['contribution']
-                importance = feature_importance.get(indicator, 0.0)
-                impact = weighted_impact.get(indicator, 0.0)
-                
-                vote_str = "✓" if vote == 1 else "✗"
-                log_data(
-                    f"    {indicator.upper()}: {vote_str} "
-                    f"(Weight: {weight:.1%}, Impact: {impact:.1%}, "
-                    f"Importance: {importance:.1%}, Contribution: {contribution:.2%})"
-                )
+        display_voting_metadata(
+            signals_df=signals_df,
+            signal_type=signal_type,
+            show_spc_debug=True,  # Show debug info for hybrid mode
+        )
     
     def run(self) -> None:
         """
@@ -1306,25 +842,4 @@ class ATCOscillatorSPCHybridAnalyzer:
         
         self.display_results()
         log_success("\nAnalysis complete!")
-
-
-def main() -> None:
-    """Main function for ATC + Range Oscillator + SPC Hybrid workflow."""
-    args = parse_args()
-    exchange_manager, data_fetcher = initialize_components()
-    analyzer = ATCOscillatorSPCHybridAnalyzer(args, data_fetcher)
-    analyzer.run()
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print(color_text("\nExiting program by user request.", Fore.YELLOW))
-        sys.exit(0)
-    except Exception as e:
-        log_error(f"Error: {type(e).__name__}: {e}")
-        import traceback
-        log_error(f"Traceback: {traceback.format_exc()}")
-        sys.exit(1)
 

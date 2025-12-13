@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from main_deeplearning_prediction import (
+from main.main_deeplearning_prediction import (
     parse_args,
     check_gpu_availability,
     prepare_data,
