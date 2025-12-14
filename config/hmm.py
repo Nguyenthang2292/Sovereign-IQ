@@ -13,7 +13,7 @@ HMM_WINDOW_SIZE_DEFAULT = 100  # Default window size for HMM analysis
 
 # High-Order HMM Configuration
 HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT = 5  # Order parameter for argrelextrema swing detection
-HMM_HIGH_ORDER_STRICT_MODE_DEFAULT = False  # Whether to use strict mode for swing-to-state conversion
+HMM_HIGH_ORDER_STRICT_MODE_DEFAULT = True  # Whether to use strict mode for swing-to-state conversion
 
 # Signal Configuration
 # Note: Signal values (LONG=1, HOLD=0, SHORT=-1) are now constants in modules.hmm.signal_resolution
