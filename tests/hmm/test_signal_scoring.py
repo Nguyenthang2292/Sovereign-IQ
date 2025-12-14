@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pytest
 from unittest.mock import patch
 
-from modules.hmm.signal_scoring import normalize_scores
+from modules.hmm.signals.scoring import normalize_scores
 from config import (
     HMM_FEATURES,
     HMM_SIGNAL_PRIMARY_WEIGHT,
@@ -39,7 +39,7 @@ def test_normalize_scores_enabled():
 
 def test_normalize_scores_disabled():
     """Test normalize_scores when normalization is disabled."""
-    with patch('modules.hmm.signal_scoring.HMM_FEATURES', {"normalization_enabled": False}):
+    with patch('modules.hmm.signals.scoring.HMM_FEATURES', {"normalization_enabled": False}):
         score_long = 5.0
         score_short = 3.0
         
@@ -128,6 +128,4 @@ def test_normalize_scores_with_high_order_score():
     
     assert 0 <= normalized_long <= 100
     assert 0 <= normalized_short <= 100
-
- 100
 

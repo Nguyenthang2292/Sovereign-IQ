@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pytest
 from unittest.mock import patch
 
-from modules.hmm.signal_resolution import (
+from modules.hmm.signals.resolution import (
     calculate_dynamic_threshold,
     resolve_signal_conflict,
     Signal,
@@ -28,7 +28,7 @@ from config import (
 
 def test_calculate_dynamic_threshold_disabled():
     """Test calculate_dynamic_threshold when disabled."""
-    with patch('modules.hmm.signal_resolution.HMM_FEATURES', {"dynamic_threshold_enabled": False}):
+    with patch('modules.hmm.signals.resolution.HMM_FEATURES', {"dynamic_threshold_enabled": False}):
         base_threshold = 10.0
         volatility = 0.05  # High volatility
         
@@ -88,7 +88,7 @@ def test_calculate_dynamic_threshold_normal_volatility():
 
 def test_resolve_signal_conflict_disabled():
     """Test resolve_signal_conflict when disabled."""
-    with patch('modules.hmm.signal_resolution.HMM_FEATURES', {"conflict_resolution_enabled": False}):
+    with patch('modules.hmm.signals.resolution.HMM_FEATURES', {"conflict_resolution_enabled": False}):
         signal_high_order = LONG
         signal_kama = SHORT
         high_order_prob = 0.8
@@ -198,9 +198,7 @@ def test_resolve_signal_conflict_similar_confidence():
             signal_high_order, signal_kama, high_order_prob, kama_confidence
         )
         
-        # Both should be kept (warning logged)
-        assert resolved_high == LONG
-        assert resolved_kama == SHORT
-
-HORT
+        # When confidence is similar and conflict unresolved, both should default to HOLD (safety first)
+        assert resolved_high == HOLD
+        assert resolved_kama == HOLD
 

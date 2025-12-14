@@ -206,12 +206,16 @@ class TestSPCVoteAggregator:
     
     def test_aggregate_threshold_mode_insufficient(self):
         """Test threshold mode when insufficient strategies agree."""
-        config = SPCAggregationConfig(mode="threshold", threshold=0.67)  # Need 2/3 strategies
+        config = SPCAggregationConfig(
+            mode="threshold", 
+            threshold=0.67,  # Need ceil(3*0.67)=3 strategies
+            enable_simple_fallback=False  # Disable fallback to test threshold mode only
+        )
         aggregator = SPCVoteAggregator(config)
         
         symbol_data = {
             'spc_cluster_transition_signal': 1,
-            'spc_cluster_transition_strength': 0.8,
+            'spc_cluster_transition_strength': 0.6,  # Lower than 0.7 to avoid special logic
             'spc_regime_following_signal': 0,  # No signal
             'spc_regime_following_strength': 0.0,
             'spc_mean_reversion_signal': 0,  # No signal
@@ -220,7 +224,9 @@ class TestSPCVoteAggregator:
         
         vote, strength, confidence = aggregator.aggregate(symbol_data, "LONG")
         
-        # Only 1 out of 3 strategies agree, need 2
+        # Only 1 out of 3 strategies agree, need 3 (ceil(3*0.67)=3)
+        # Strength is 0.6 < 0.7, so special logic doesn't apply
+        # Fallback is disabled, so should return 0
         assert vote == 0
     
     def test_aggregate_weighted_mode(self):

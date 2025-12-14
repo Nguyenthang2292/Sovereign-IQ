@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from modules.common.indicators import calculate_kama
-from modules.hmm.kama import HMM_KAMA, prepare_observations, hmm_kama
+from modules.hmm.core.kama import HMM_KAMA, prepare_observations, hmm_kama
 
 
 def _sample_close_dataframe(length: int = 150) -> pd.DataFrame:

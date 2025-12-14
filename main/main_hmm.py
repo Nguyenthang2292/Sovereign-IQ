@@ -31,8 +31,8 @@ from config import (
 from modules.common.ExchangeManager import ExchangeManager
 from modules.common.DataFetcher import DataFetcher
 from modules.common.utils import color_text, normalize_symbol
-from modules.hmm.signal_combiner import hmm_signals, Signal
-from modules.hmm.signal_resolution import LONG, HOLD, SHORT
+from modules.hmm.signals.combiner import combine_signals, Signal
+from modules.hmm.signals.resolution import LONG, HOLD, SHORT
 
 warnings.filterwarnings("ignore")
 colorama_init(autoreset=True)
@@ -165,10 +165,18 @@ def _compute_std_targets(df, window: int = 50) -> Optional[Dict[str, float]]:
 def _print_summary(
     symbol: str,
     exchange_id: Optional[str],
-    signal_high_order: Signal,
-    signal_kama: Signal,
+    result: Dict[str, Any],
     std_targets: Optional[Dict[str, float]] = None,
 ) -> None:
+    """
+    Print summary of HMM signal analysis.
+    
+    Args:
+        symbol: Trading symbol
+        exchange_id: Exchange identifier
+        result: Result dictionary from combine_signals()
+        std_targets: Optional standard deviation targets
+    """
     header = f"HMM SIGNAL ANALYSIS | {symbol}"
     if exchange_id:
         header += f" @ {exchange_id.upper()}"
@@ -176,22 +184,43 @@ def _print_summary(
     print(color_text(header, Fore.CYAN, Style.BRIGHT))
     print(color_text("=" * 60, Fore.CYAN, Style.BRIGHT))
 
-    print(f"High-Order HMM Signal: {_signal_to_text(signal_high_order)}")
-    print(f"HMM-KAMA Signal: {_signal_to_text(signal_kama)}")
+    # Display individual strategy signals
+    signals = result.get("signals", {})
+    results = result.get("results", {})
     
-    # Determine combined signal recommendation
-    if signal_high_order == signal_kama and signal_high_order != HOLD:
-        combined_signal = signal_high_order
-        agreement_status = color_text("✓ AGREEMENT", Fore.GREEN, Style.BRIGHT)
-    elif signal_high_order != HOLD and signal_kama != HOLD:
-        combined_signal = HOLD  # Conflict - wait
+    for strategy_name, signal in signals.items():
+        strategy_result = results.get(strategy_name)
+        if strategy_result:
+            prob = strategy_result.probability
+            state = strategy_result.state
+            print(f"{strategy_name.capitalize()} HMM Signal: {_signal_to_text(signal)} "
+                  f"(state: {state}, prob: {prob:.3f})")
+        else:
+            print(f"{strategy_name.capitalize()} HMM Signal: {_signal_to_text(signal)}")
+    
+    # Display combined signal
+    combined_signal = result.get("combined_signal", HOLD)
+    confidence = result.get("confidence", 0.0)
+    votes = result.get("votes", {LONG: 0, SHORT: 0, HOLD: 0})
+    
+    # Determine agreement status
+    long_votes = votes.get(LONG, 0)
+    short_votes = votes.get(SHORT, 0)
+    total_votes = sum(votes.values())
+    
+    if long_votes >= total_votes / 2:
+        agreement_status = color_text("✓ MAJORITY LONG", Fore.GREEN, Style.BRIGHT)
+    elif short_votes >= total_votes / 2:
+        agreement_status = color_text("✓ MAJORITY SHORT", Fore.RED, Style.BRIGHT)
+    elif long_votes > 0 and short_votes > 0:
         agreement_status = color_text("⚠ CONFLICT", Fore.YELLOW, Style.BRIGHT)
-    else:
-        # One is HOLD, use the non-HOLD signal
-        combined_signal = signal_high_order if signal_high_order != HOLD else signal_kama
+    elif long_votes > 0 or short_votes > 0:
         agreement_status = color_text("○ PARTIAL", Fore.CYAN, Style.NORMAL)
+    else:
+        agreement_status = color_text("○ HOLD", Fore.YELLOW, Style.NORMAL)
     
-    print(f"Combined Recommendation: {_signal_to_text(combined_signal)} {agreement_status}")
+    print(f"Combined Recommendation: {_signal_to_text(combined_signal)} {agreement_status} "
+          f"(confidence: {confidence:.3f}, votes: L:{long_votes}/S:{short_votes}/H:{votes.get(HOLD, 0)})")
     
     if std_targets:
         print(color_text("-" * 60, Fore.MAGENTA, Style.DIM))
@@ -289,7 +318,7 @@ def main() -> None:
         std_targets = _compute_std_targets(df)
 
         try:
-            signal_high_order, signal_kama = hmm_signals(
+            result = combine_signals(
                 df,
                 window_kama=params_override.get("window_kama"),
                 fast_kama=params_override.get("fast_kama"),
@@ -308,7 +337,7 @@ def main() -> None:
             )
             return
 
-        _print_summary(symbol, exchange_id, signal_high_order, signal_kama, std_targets)
+        _print_summary(symbol, exchange_id, result, std_targets)
 
     try:
         while True:

@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pytest
 from unittest.mock import patch
 
-from modules.hmm.signal_confidence import (
+from modules.hmm.signals.confidence import (
     calculate_kama_confidence,
     calculate_combined_confidence,
 )
@@ -73,7 +73,7 @@ def test_calculate_kama_confidence_boost_applied():
 
 def test_calculate_combined_confidence_disabled():
     """Test calculate_combined_confidence when disabled."""
-    with patch('modules.hmm.signal_confidence.HMM_FEATURES', {"combined_confidence_enabled": False}):
+    with patch('modules.hmm.signals.confidence.HMM_FEATURES', {"combined_confidence_enabled": False}):
         high_order_prob = 0.8
         kama_confidence = 0.6
         signal_agreement = True
@@ -158,6 +158,4 @@ def test_calculate_combined_confidence_edge_cases():
     # Test with maximum probabilities
     combined = calculate_combined_confidence(1.0, 1.0, True)
     assert combined <= 1.0
-
- 1.0
 

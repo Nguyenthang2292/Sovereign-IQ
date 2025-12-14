@@ -1,7 +1,7 @@
 """
 HMM Signal Utilities Module
 
-Utility functions for data validation and market analysis.
+Utility functions for data validation.
 """
 
 import pandas as pd
@@ -33,24 +33,4 @@ def validate_dataframe(df: pd.DataFrame) -> bool:
         return False
 
     return True
-
-
-def calculate_market_volatility(df: pd.DataFrame) -> float:
-    """
-    Calculate market volatility from price data.
-    
-    Args:
-        df: DataFrame with OHLCV data
-        
-    Returns:
-        Volatility value (standard deviation of returns)
-    """
-    if "close" not in df.columns or len(df) < 2:
-        return 0.0
-    
-    returns = df["close"].pct_change().dropna()
-    if len(returns) == 0:
-        return 0.0
-    
-    return float(returns.std())
 

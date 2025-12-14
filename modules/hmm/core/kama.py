@@ -4,7 +4,10 @@ import functools
 import os
 import threading
 import warnings
-from typing import Literal, Optional, Tuple, cast
+from typing import Literal, Optional, Tuple, cast, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from modules.hmm.signals.strategy import HMMStrategyResult
 
 import numpy as np
 import pandas as pd
@@ -29,7 +32,6 @@ from config import (
     HMM_WINDOW_SIZE_DEFAULT,
 )
 
-
 @dataclass
 class HMM_KAMA:
     next_state_with_hmm_kama: Literal[-1, 0, 1, 2, 3]
@@ -38,7 +40,6 @@ class HMM_KAMA:
     state_high_probabilities_using_arm_apriori: Literal[-1, 0, 1, 2, 3]
     state_high_probabilities_using_arm_fpgrowth: Literal[-1, 0, 1, 2, 3]
     current_state_of_state_using_kmeans: Literal[-1, 0, 1]
-
 
 def prepare_observations(
     data: pd.DataFrame,
@@ -180,7 +181,6 @@ def prepare_observations(
 
     return feature_matrix
 
-
 def reorder_hmm_model(model: GaussianHMM) -> GaussianHMM:
     """
     Reorder HMM states based on the mean of the first feature (Returns).
@@ -206,7 +206,20 @@ def reorder_hmm_model(model: GaussianHMM) -> GaussianHMM:
 
     # Reorder covariances
     if hasattr(model, "covars_"):
-        model.covars_ = model.covars_[order]
+        # For diag covariance type, covars_ shape should be (n_components, n_features)
+        # But sometimes hmmlearn returns (n_components, n_features, n_features) for full cov
+        if model.covars_.ndim == 2:
+            # Normal case: (n_components, n_features)
+            model.covars_ = model.covars_[order, :]
+        elif model.covars_.ndim == 3:
+            # Full covariance case: extract diagonal first, then reorder
+            diag_covars = np.array([
+                np.diag(model.covars_[i]) for i in range(model.covars_.shape[0])
+            ])
+            model.covars_ = diag_covars[order, :]
+        else:
+            # Fallback for unexpected shape
+            log_warn(f"Unexpected covars_ shape: {model.covars_.shape}, skipping reorder")
 
     # Reorder start probabilities
     model.startprob_ = model.startprob_[order]
@@ -217,7 +230,6 @@ def reorder_hmm_model(model: GaussianHMM) -> GaussianHMM:
     model.transmat_ = model.transmat_[order][:, order]
 
     return model
-
 
 def train_hmm(
     observations: np.ndarray,
@@ -285,10 +297,109 @@ def train_hmm(
             and not np.isfinite(model.means_).all()
         ):
             raise ValueError("Invalid transition matrix or means after fitting")
-
+        
+        # Validate covars_ shape before reordering
+        if hasattr(model, "covars_"):
+            expected_shape = (n_components, n_features)
+            if model.covars_.shape != expected_shape:
+                log_warn(
+                    f"Invalid covars_ shape after fit: {model.covars_.shape}, "
+                    f"expected {expected_shape}. Attempting to fix."
+                )
+                # Try to fix covars_ shape
+                try:
+                    if model.covars_.ndim == 3:
+                        # If 3D (full covariance matrix), extract diagonal
+                        # Shape: (n_components, n_features, n_features) -> (n_components, n_features)
+                        model.covars_ = np.array([
+                            np.diag(model.covars_[i]) for i in range(min(n_components, model.covars_.shape[0]))
+                        ])
+                        # Ensure we have the right number of components
+                        if model.covars_.shape[0] < n_components:
+                            model.covars_ = np.tile(
+                                model.covars_[:1, :], (n_components, 1)
+                            )
+                        elif model.covars_.shape[0] > n_components:
+                            model.covars_ = model.covars_[:n_components, :]
+                        # Ensure positive values
+                        model.covars_ = np.maximum(model.covars_, 1e-6)
+                    elif model.covars_.ndim == 1:
+                        # If 1D, reshape to (n_components, n_features)
+                        model.covars_ = np.tile(
+                            model.covars_.reshape(-1, 1), (1, n_features)
+                        )[:n_components, :]
+                        model.covars_ = np.maximum(model.covars_, 1e-6)
+                    elif model.covars_.ndim == 2:
+                        # If 2D but wrong shape, adjust
+                        if model.covars_.shape[0] != n_components:
+                            if model.covars_.shape[0] < n_components:
+                                # Tile if too few components
+                                model.covars_ = np.tile(
+                                    model.covars_[:1, :], (n_components, 1)
+                                )
+                            else:
+                                # Slice if too many components
+                                model.covars_ = model.covars_[:n_components, :]
+                        if model.covars_.shape[1] != n_features:
+                            if model.covars_.shape[1] < n_features:
+                                # Tile if too few features
+                                model.covars_ = np.tile(
+                                    model.covars_[:, :1], (1, n_features)
+                                )
+                            else:
+                                # Slice if too many features
+                                model.covars_ = model.covars_[:, :n_features]
+                        # Ensure positive values
+                        model.covars_ = np.maximum(model.covars_, 1e-6)
+                except Exception as fix_error:
+                    log_warn(f"Failed to fix covars_ shape: {fix_error}. Using default.")
+                    model.covars_ = np.ones((n_components, n_features), dtype=np.float64) * 0.01
+        
         # Reorder states to ensure semantic consistency (0=Bearish, 3=Bullish)
         model = reorder_hmm_model(model)
-
+        
+        # Final validation after reordering
+        if hasattr(model, "covars_"):
+            if model.covars_.ndim == 3:
+                # Extract diagonal from full covariance matrices
+                log_warn(
+                    f"covars_ is 3D (full covariance): {model.covars_.shape}. "
+                    f"Extracting diagonal to get shape ({n_components}, {n_features})."
+                )
+                diag_covars = np.array([
+                    np.diag(model.covars_[i]) for i in range(min(n_components, model.covars_.shape[0]))
+                ])
+                # Ensure we have the right number of components
+                if diag_covars.shape[0] < n_components:
+                    diag_covars = np.tile(diag_covars[:1, :], (n_components, 1))
+                elif diag_covars.shape[0] > n_components:
+                    diag_covars = diag_covars[:n_components, :]
+                # Ensure positive values
+                diag_covars = np.maximum(diag_covars, 1e-6)
+                # Set using object.__setattr__ to bypass property setter
+                object.__setattr__(model, 'covars_', diag_covars)
+            elif model.covars_.shape != (n_components, n_features):
+                log_warn(
+                    f"covars_ shape incorrect after reordering: {model.covars_.shape}, "
+                    f"expected ({n_components}, {n_features}). Fixing."
+                )
+                try:
+                    if model.covars_.ndim == 2 and model.covars_.size > 0:
+                        # Use first component's covars and tile
+                        first_covar = model.covars_[0, :] if model.covars_.shape[0] > 0 else model.covars_.flatten()[:n_features]
+                        fixed_covars = np.tile(
+                            first_covar.reshape(1, -1), (n_components, 1)
+                        )
+                        fixed_covars = np.maximum(fixed_covars, 1e-6)
+                        object.__setattr__(model, 'covars_', fixed_covars)
+                    else:
+                        fixed_covars = np.ones((n_components, n_features), dtype=np.float64) * 0.01
+                        object.__setattr__(model, 'covars_', fixed_covars)
+                except Exception as e:
+                    log_warn(f"Failed to fix covars_ shape: {e}. Using default.")
+                    fixed_covars = np.ones((n_components, n_features), dtype=np.float64) * 0.01
+                    object.__setattr__(model, 'covars_', fixed_covars)
+        
         log_info("HMM training completed successfully")
 
     except Exception as e:
@@ -319,14 +430,26 @@ def train_hmm(
             )
 
         try:
-            model.covars_ = np.ones(
-                (n_components, n_features), dtype=np.float64
-            ) * np.var(observations, axis=0)
-        except Exception:
-            model.covars_ = np.ones((n_components, n_features), dtype=np.float64)
+            # Calculate variance for each feature
+            variances = np.var(observations, axis=0)
+            # Ensure variances is 1D array
+            if variances.ndim == 0:
+                variances = np.array([variances])
+            
+            # For diag covariance type, shape must be (n_components, n_features)
+            # Broadcast variances to (n_components, n_features)
+            model.covars_ = np.tile(
+                variances.reshape(1, -1), (n_components, 1)
+            ).astype(np.float64)
+            
+            # Ensure minimum variance to avoid numerical issues
+            model.covars_ = np.maximum(model.covars_, 1e-6)
+        except Exception as e:
+            log_warn(f"Failed to set covars from data: {e}. Using default variance.")
+            # Fallback: use uniform variance
+            model.covars_ = np.ones((n_components, n_features), dtype=np.float64) * 0.01
 
     return model
-
 
 def apply_hmm_model(
     model: GaussianHMM, data: pd.DataFrame, observations: np.ndarray
@@ -372,11 +495,9 @@ def apply_hmm_model(
 
     return data, next_state
 
-
 # -----------------------------------------------------------------------------
 # Secondary Analysis Functions (Duration, ARM, Clustering)
 # -----------------------------------------------------------------------------
-
 
 def compute_state_using_standard_deviation(durations: pd.DataFrame) -> int:
     """Return 0 if last duration stays within mean ± std, else 1; empty -> 0."""
@@ -397,7 +518,6 @@ def compute_state_using_standard_deviation(durations: pd.DataFrame) -> int:
         )
         else 1
     )
-
 
 def compute_state_using_hmm(durations: pd.DataFrame) -> Tuple[pd.DataFrame, int]:
     """Computes hidden states from duration data using a Gaussian HMM."""
@@ -424,7 +544,6 @@ def compute_state_using_hmm(durations: pd.DataFrame) -> Tuple[pd.DataFrame, int]
         durations_copy = durations.copy()
         durations_copy["hidden_state"] = 0
         return durations_copy, 0
-
 
 def calculate_composite_scores_association_rule_mining(
     rules: pd.DataFrame,
@@ -491,7 +610,6 @@ def calculate_composite_scores_association_rule_mining(
     )
 
     return rules_normalized.sort_values(by="composite_score", ascending=False)
-
 
 def compute_state_using_association_rule_mining(
     durations: pd.DataFrame,
@@ -584,7 +702,6 @@ def compute_state_using_association_rule_mining(
 
     return top_apriori, top_fpgrowth
 
-
 def compute_state_using_k_means(durations: pd.DataFrame) -> int:
     """Cluster durations via K-Means; return latest cluster label, fallback 0."""
     if len(durations) < 3:
@@ -598,7 +715,6 @@ def compute_state_using_k_means(durations: pd.DataFrame) -> int:
         durations["cluster"] = 0
 
     return int(durations.iloc[-1]["cluster"])
-
 
 def calculate_all_state_durations(data: pd.DataFrame) -> pd.DataFrame:
     """Calculate the duration of all consecutive state segments."""
@@ -615,13 +731,11 @@ def calculate_all_state_durations(data: pd.DataFrame) -> pd.DataFrame:
         .reset_index(drop=True)
     )
 
-
 # -----------------------------------------------------------------------------
 # Main Entry Point
 # -----------------------------------------------------------------------------
 
 _thread_local = threading.local()
-
 
 def prevent_infinite_loop(max_calls=3):
     """Decorator to prevent infinite loops in function calls"""
@@ -657,7 +771,6 @@ def prevent_infinite_loop(max_calls=3):
 
     return decorator
 
-
 @contextmanager
 def timeout_context(seconds):
     """Cross-platform timeout context manager"""
@@ -671,7 +784,6 @@ def timeout_context(seconds):
             raise TimeoutError(f"Operation timed out after {seconds} seconds")
     finally:
         timer.cancel()
-
 
 @prevent_infinite_loop(max_calls=3)
 def hmm_kama(
@@ -782,3 +894,159 @@ def hmm_kama(
         log_error(f"Error in hmm_kama: {str(e)}")
         # Return safe default
         return HMM_KAMA(-1, -1, -1, -1, -1, -1)
+
+# ============================================================================
+# Strategy Interface Implementation
+# ============================================================================
+
+class KamaHMMStrategy:
+    """
+    HMM Strategy wrapper for HMM-KAMA.
+    
+    Implements HMMStrategy interface to enable registry-based management.
+    """
+    
+    def __init__(
+        self,
+        name: str = "kama",
+        weight: float = 1.5,
+        enabled: bool = True,
+        window_kama: Optional[int] = None,
+        fast_kama: Optional[int] = None,
+        slow_kama: Optional[int] = None,
+        window_size: Optional[int] = None,
+        **kwargs
+    ):
+        """
+        Initialize KAMA HMM Strategy.
+        
+        Args:
+            name: Strategy name (default: "kama")
+            weight: Strategy weight for voting (default: 1.5)
+            enabled: Whether strategy is enabled (default: True)
+            window_kama: KAMA window size
+            fast_kama: Fast KAMA parameter
+            slow_kama: Slow KAMA parameter
+            window_size: Rolling window size
+            **kwargs: Additional parameters
+        """
+        from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
+        from modules.hmm.signals.resolution import LONG, HOLD, SHORT
+        
+        self.name = name
+        self.weight = weight
+        self.enabled = enabled
+        self.window_kama = (
+            window_kama if window_kama is not None else HMM_WINDOW_KAMA_DEFAULT
+        )
+        self.fast_kama = (
+            fast_kama if fast_kama is not None else HMM_FAST_KAMA_DEFAULT
+        )
+        self.slow_kama = (
+            slow_kama if slow_kama is not None else HMM_SLOW_KAMA_DEFAULT
+        )
+        self.window_size = (
+            window_size if window_size is not None else HMM_WINDOW_SIZE_DEFAULT
+        )
+        self.params = kwargs
+    
+    def analyze(self, df: pd.DataFrame, **kwargs) -> 'HMMStrategyResult':
+        """
+        Analyze market data using HMM-KAMA.
+        
+        Args:
+            df: DataFrame containing OHLCV data
+            **kwargs: Additional parameters (may override self.params)
+            
+        Returns:
+            HMMStrategyResult with signal, probability, state, and metadata
+        """
+        from modules.hmm.signals.strategy import HMMStrategyResult
+        from modules.hmm.signals.resolution import LONG, HOLD, SHORT
+        
+        # Merge params with kwargs (kwargs take precedence)
+        params = {**self.params, **kwargs}
+        
+        # Run HMM-KAMA analysis
+        result = hmm_kama(
+            df,
+            window_kama=self.window_kama,
+            fast_kama=self.fast_kama,
+            slow_kama=self.slow_kama,
+            window_size=self.window_size,
+        )
+        
+        # Map HMM_KAMA state to Signal
+        # States: 0,1,2,3 -> 0,2 are bearish, 1,3 are bullish
+        primary_state = result.next_state_with_hmm_kama
+        
+        # Convert state to signal
+        # States 1,3 = bullish (LONG), States 0,2 = bearish (SHORT)
+        if primary_state in {1, 3}:
+            signal = LONG
+        elif primary_state in {0, 2}:
+            signal = SHORT
+        else:
+            signal = HOLD
+        
+        # Calculate confidence from transition states and ARM states
+        # Use a simple heuristic: count bullish/bearish indicators
+        bullish_indicators = 0
+        bearish_indicators = 0
+        
+        # Transition states
+        if result.current_state_of_state_using_std == 1:
+            bullish_indicators += 1
+        elif result.current_state_of_state_using_std == -1:
+            bearish_indicators += 1
+        
+        if result.current_state_of_state_using_hmm == 1:
+            bullish_indicators += 1
+        elif result.current_state_of_state_using_hmm == -1:
+            bearish_indicators += 1
+        
+        if result.current_state_of_state_using_kmeans == 1:
+            bullish_indicators += 1
+        elif result.current_state_of_state_using_kmeans == -1:
+            bearish_indicators += 1
+        
+        # ARM states
+        if result.state_high_probabilities_using_arm_apriori in {1, 3}:
+            bullish_indicators += 1
+        elif result.state_high_probabilities_using_arm_apriori in {0, 2}:
+            bearish_indicators += 1
+        
+        if result.state_high_probabilities_using_arm_fpgrowth in {1, 3}:
+            bullish_indicators += 1
+        elif result.state_high_probabilities_using_arm_fpgrowth in {0, 2}:
+            bearish_indicators += 1
+        
+        # Calculate probability based on indicator agreement
+        total_indicators = bullish_indicators + bearish_indicators
+        if total_indicators > 0:
+            if signal == LONG:
+                probability = max(0.5, bullish_indicators / total_indicators)
+            elif signal == SHORT:
+                probability = max(0.5, bearish_indicators / total_indicators)
+            else:
+                probability = 0.5
+        else:
+            probability = 0.5
+        
+        metadata = {
+            "primary_state": primary_state,
+            "transition_std": result.current_state_of_state_using_std,
+            "transition_hmm": result.current_state_of_state_using_hmm,
+            "transition_kmeans": result.current_state_of_state_using_kmeans,
+            "arm_apriori": result.state_high_probabilities_using_arm_apriori,
+            "arm_fpgrowth": result.state_high_probabilities_using_arm_fpgrowth,
+            "bullish_indicators": bullish_indicators,
+            "bearish_indicators": bearish_indicators,
+        }
+        
+        return HMMStrategyResult(
+            signal=signal,
+            probability=probability,
+            state=primary_state,
+            metadata=metadata
+        )

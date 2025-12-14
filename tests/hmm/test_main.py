@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from main.main_hmm import _compute_std_targets, _print_summary
-from modules.hmm.signal_resolution import LONG, HOLD, SHORT
+from modules.hmm.signals.resolution import LONG, HOLD, SHORT
 
 
 def _sample_close_dataframe(length: int = 60) -> pd.DataFrame:
@@ -41,8 +41,6 @@ def test_compute_std_targets_returns_expected_levels():
 
 
 def test_print_summary_includes_std_targets(capsys):
-    signal_high_order = LONG
-    signal_kama = SHORT
     std_targets = {
         "window": 50,
         "basis": 105.0,
@@ -54,13 +52,27 @@ def test_print_summary_includes_std_targets(capsys):
         "bullish_2σ": 109.0,
         "bullish_3σ": 111.0,
     }
+    
+    # Create result dict matching new signature
+    result = {
+        "signals": {
+            "swings": LONG,
+            "kama": SHORT,
+            "true_high_order": LONG,
+        },
+        "combined_signal": HOLD,  # Conflict
+        "confidence": 0.5,
+        "votes": {LONG: 2, SHORT: 1, HOLD: 0},
+        "metadata": {},
+        "results": {},
+    }
 
-    _print_summary("BTC/USDT", "binance", signal_high_order, signal_kama, std_targets)
+    _print_summary("BTC/USDT", "binance", result, std_targets)
     captured = capsys.readouterr().out
 
     assert "HMM SIGNAL ANALYSIS" in captured
-    assert "High-Order HMM Signal" in captured
-    assert "HMM-KAMA Signal" in captured
+    assert "Swings" in captured
+    assert "Kama" in captured
     assert "Combined Recommendation" in captured
     # Should show both bullish and bearish targets due to conflict (LONG vs SHORT)
     assert "Price Targets" in captured
@@ -71,8 +83,6 @@ def test_print_summary_includes_std_targets(capsys):
 
 def test_print_summary_shows_bullish_targets_for_long(capsys):
     """Test that LONG signal shows bullish targets."""
-    signal_high_order = LONG
-    signal_kama = LONG
     std_targets = {
         "window": 50,
         "basis": 105.0,
@@ -84,8 +94,22 @@ def test_print_summary_shows_bullish_targets_for_long(capsys):
         "bullish_2σ": 109.0,
         "bullish_3σ": 111.0,
     }
+    
+    # Create result dict with LONG combined signal
+    result = {
+        "signals": {
+            "swings": LONG,
+            "kama": LONG,
+            "true_high_order": LONG,
+        },
+        "combined_signal": LONG,
+        "confidence": 0.8,
+        "votes": {LONG: 3, SHORT: 0, HOLD: 0},
+        "metadata": {},
+        "results": {},
+    }
 
-    _print_summary("BTC/USDT", "binance", signal_high_order, signal_kama, std_targets)
+    _print_summary("BTC/USDT", "binance", result, std_targets)
     captured = capsys.readouterr().out
 
     assert "Bullish Targets" in captured
@@ -96,8 +120,6 @@ def test_print_summary_shows_bullish_targets_for_long(capsys):
 
 def test_print_summary_shows_bearish_targets_for_short(capsys):
     """Test that SHORT signal shows bearish targets."""
-    signal_high_order = SHORT
-    signal_kama = SHORT
     std_targets = {
         "window": 50,
         "basis": 105.0,
@@ -109,8 +131,22 @@ def test_print_summary_shows_bearish_targets_for_short(capsys):
         "bullish_2σ": 109.0,
         "bullish_3σ": 111.0,
     }
+    
+    # Create result dict with SHORT combined signal
+    result = {
+        "signals": {
+            "swings": SHORT,
+            "kama": SHORT,
+            "true_high_order": SHORT,
+        },
+        "combined_signal": SHORT,
+        "confidence": 0.8,
+        "votes": {LONG: 0, SHORT: 3, HOLD: 0},
+        "metadata": {},
+        "results": {},
+    }
 
-    _print_summary("BTC/USDT", "binance", signal_high_order, signal_kama, std_targets)
+    _print_summary("BTC/USDT", "binance", result, std_targets)
     captured = capsys.readouterr().out
 
     assert "Bearish Targets" in captured

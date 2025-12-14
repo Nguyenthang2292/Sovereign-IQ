@@ -598,9 +598,16 @@ class TestHelperFunctionsHybrid:
         
         mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, 'binance')
         
-        with patch('core.signal_calculators.hmm_signals') as mock_hmm:
-            from modules.hmm.signal_resolution import LONG, HOLD
-            mock_hmm.return_value = (LONG, LONG)
+        with patch('modules.hmm.signals.combiner.combine_signals') as mock_hmm:
+            from modules.hmm.signals.resolution import LONG, HOLD
+            mock_hmm.return_value = {
+                "signals": {"swings": LONG, "kama": LONG, "true_high_order": LONG},
+                "combined_signal": LONG,
+                "confidence": 0.8,
+                "votes": {LONG: 3, -1: 0, HOLD: 0},
+                "metadata": {},
+                "results": {},
+            }
             
             result = get_hmm_signal(
                 mock_data_fetcher, 'BTC/USDT', '1h', 500
@@ -633,9 +640,16 @@ class TestHelperFunctionsHybrid:
         
         mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, 'binance')
         
-        with patch('core.signal_calculators.hmm_signals') as mock_hmm:
-            from modules.hmm.signal_resolution import LONG, SHORT
-            mock_hmm.return_value = (LONG, SHORT)  # Conflict
+        with patch('modules.hmm.signals.combiner.combine_signals') as mock_hmm:
+            from modules.hmm.signals.resolution import LONG, SHORT, HOLD
+            mock_hmm.return_value = {
+                "signals": {"swings": LONG, "kama": SHORT, "true_high_order": LONG},
+                "combined_signal": HOLD,  # Conflict -> HOLD
+                "confidence": 0.0,  # Zero confidence when conflict
+                "votes": {LONG: 2, SHORT: 1, HOLD: 0},
+                "metadata": {},
+                "results": {},
+            }
             
             result = get_hmm_signal(
                 mock_data_fetcher, 'BTC/USDT', '1h', 500
@@ -656,9 +670,16 @@ class TestHelperFunctionsHybrid:
         
         mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, 'binance')
         
-        with patch('core.signal_calculators.hmm_signals') as mock_hmm:
-            from modules.hmm.signal_resolution import LONG
-            mock_hmm.return_value = (LONG, LONG)
+        with patch('modules.hmm.signals.combiner.combine_signals') as mock_hmm:
+            from modules.hmm.signals.resolution import LONG
+            mock_hmm.return_value = {
+                "signals": {"swings": LONG, "kama": LONG, "true_high_order": LONG},
+                "combined_signal": LONG,
+                "confidence": 0.8,
+                "votes": {LONG: 3, -1: 0, 0: 0},
+                "metadata": {},
+                "results": {},
+            }
             
             result = get_hmm_signal(
                 mock_data_fetcher, 'BTC/USDT', '1h', 500,

@@ -39,8 +39,8 @@ from modules.common.IndicatorEngine import (
 )
 from modules.xgboost.labeling import apply_directional_labels
 from modules.xgboost.model import train_and_predict, predict_next_move
-from modules.hmm.signal_combiner import hmm_signals
-from modules.hmm.signal_resolution import LONG, HOLD, SHORT
+from modules.hmm.signals.combiner import combine_signals
+from modules.hmm.signals.resolution import LONG, HOLD, SHORT
 from config import (
     SPC_P_LOW,
     SPC_P_HIGH,
@@ -357,8 +357,10 @@ def get_hmm_signal(
         if "high" not in df.columns or "low" not in df.columns or "close" not in df.columns:
             return None
 
-        # Get HMM signals (returns tuple of (signal_high_order, signal_kama))
-        signal_high_order, signal_kama = hmm_signals(
+        # Get HMM signals using new combiner
+        from modules.hmm.signals.combiner import combine_signals
+        
+        result = combine_signals(
             df,
             window_kama=window_kama if window_kama is not None else HMM_WINDOW_KAMA_DEFAULT,
             fast_kama=fast_kama if fast_kama is not None else HMM_FAST_KAMA_DEFAULT,
@@ -368,19 +370,9 @@ def get_hmm_signal(
             strict_mode=strict_mode if strict_mode is not None else HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
         )
         
-        # Combine signals using the same logic as main_hmm.py
-        # Determine combined signal recommendation
-        if signal_high_order == signal_kama and signal_high_order != HOLD:
-            combined_signal = signal_high_order
-            confidence = 0.8  # High confidence when both agree
-        elif signal_high_order != HOLD and signal_kama != HOLD:
-            # Conflict - wait
-            combined_signal = HOLD
-            confidence = 0.0
-        else:
-            # One is HOLD, use the non-HOLD signal
-            combined_signal = signal_high_order if signal_high_order != HOLD else signal_kama
-            confidence = 0.6  # Medium confidence when only one signal
+        # Extract combined signal and confidence
+        combined_signal = result["combined_signal"]
+        confidence = result["confidence"]
         
         # Convert Signal type (Literal[-1, 0, 1]) to int
         signal_value = int(combined_signal)

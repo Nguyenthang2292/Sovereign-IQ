@@ -447,10 +447,20 @@ class HybridAnalyzer:
         spc_params = self.get_spc_params()
         total = len(signals_df)
         
+        # Build indicator list for logging
+        indicators_list = ["ATC", "Range Oscillator"]
+        if self.args.enable_spc:
+            indicators_list.append("SPC")
+        if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
+            indicators_list.append("XGBoost")
+        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+            indicators_list.append("HMM")
+        
         log_progress(
             f"Calculating SPC signals (all 3 strategies) for {total} {signal_type} symbols "
             f"(workers: {self.args.max_workers})..."
         )
+        log_progress(f"Active Indicators: {', '.join(indicators_list)}")
 
         exchange_manager = self.data_fetcher.exchange_manager
         
@@ -556,11 +566,25 @@ class HybridAnalyzer:
                         row_dict["hmm_confidence"] = 0.0
                         hmm_results.append(row_dict)
                 except Exception as e:
+                    # Log HMM errors but don't fail the entire process
+                    log_warn(f"HMM signal calculation failed for {row['symbol']}: {type(e).__name__}: {e}")
                     row_dict = row.to_dict()
                     row_dict["hmm_signal"] = 0
                     row_dict["hmm_confidence"] = 0.0
                     hmm_results.append(row_dict)
+            
             result_df = pd.DataFrame(hmm_results)
+            
+            # Log HMM summary
+            if hmm_results:
+                hmm_success_count = sum(1 for r in hmm_results if r.get('hmm_signal', 0) != 0)
+                hmm_total = len(hmm_results)
+                if hmm_total > 0:
+                    hmm_success_rate = (hmm_success_count / hmm_total) * 100
+                    log_progress(
+                        f"HMM Status: {hmm_success_count}/{hmm_total} symbols with HMM signals "
+                        f"({hmm_success_rate:.1f}% success rate)"
+                    )
         
         # Sort by signal strength (use average of all 3 strategies)
         if signal_type == "LONG":
@@ -702,12 +726,18 @@ class HybridAnalyzer:
         
         # Build indicators list: ATC, Oscillator, aggregated SPC, XGBoost, and HMM
         indicators = ['atc', 'oscillator']
+        indicators_display = ['ATC', 'Range Oscillator']
         if self.args.enable_spc:
             indicators.append('spc')
+            indicators_display.append('SPC')
         if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
             indicators.append('xgboost')
+            indicators_display.append('XGBoost')
         if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
             indicators.append('hmm')
+            indicators_display.append('HMM')
+        
+        log_progress(f"Decision Matrix Indicators: {', '.join(indicators_display)}")
         
         results = []
         

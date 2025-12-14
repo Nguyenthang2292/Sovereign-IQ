@@ -14,6 +14,9 @@ HMM_WINDOW_SIZE_DEFAULT = 100  # Default window size for HMM analysis
 # High-Order HMM Configuration
 HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT = 5  # Order parameter for argrelextrema swing detection
 HMM_HIGH_ORDER_STRICT_MODE_DEFAULT = True  # Whether to use strict mode for swing-to-state conversion
+HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT = True  # Use data-driven transition matrix and emissions instead of hardcoded values
+HMM_HIGH_ORDER_MIN_ORDER_DEFAULT = 2  # Minimum order k for High-Order HMM optimization
+HMM_HIGH_ORDER_MAX_ORDER_DEFAULT = 4  # Maximum order k for High-Order HMM optimization
 
 # Signal Configuration
 # Note: Signal values (LONG=1, HOLD=0, SHORT=-1) are now constants in modules.hmm.signal_resolution
@@ -65,4 +68,51 @@ HMM_STATE_STRENGTH = {
     "strong": 1.0,  # Multiplier for strong states (0, 3)
     "weak": 0.7,   # Multiplier for weak states (1, 2)
 }
+
+# Strategy Registry Configuration
+# Defines all available HMM strategies with their configuration
+HMM_STRATEGIES = {
+    "swings": {
+        "enabled": True,
+        "weight": 1.0,
+        "class": "modules.hmm.core.swings.SwingsHMMStrategy",
+        "params": {
+            "orders_argrelextrema": HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
+            "strict_mode": HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
+        }
+    },
+    "kama": {
+        "enabled": True,
+        "weight": 1.5,  # Higher weight for KAMA
+        "class": "modules.hmm.core.kama.KamaHMMStrategy",
+        "params": {
+            "window_kama": HMM_WINDOW_KAMA_DEFAULT,
+            "fast_kama": HMM_FAST_KAMA_DEFAULT,
+            "slow_kama": HMM_SLOW_KAMA_DEFAULT,
+            "window_size": HMM_WINDOW_SIZE_DEFAULT,
+        }
+    },
+    "true_high_order": {
+        "enabled": True,
+        "weight": 1.0,
+        "class": "modules.hmm.core.high_order.TrueHighOrderHMMStrategy",
+        "params": {
+            "min_order": HMM_HIGH_ORDER_MIN_ORDER_DEFAULT,
+            "max_order": HMM_HIGH_ORDER_MAX_ORDER_DEFAULT,
+            "orders_argrelextrema": HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
+            "strict_mode": HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
+        }
+    },
+    # Future strategies can be added here:
+    # "new_strategy": {
+    #     "enabled": True,
+    #     "weight": 1.0,
+    #     "class": "modules.hmm.core.new_strategy.NewStrategy",
+    #     "params": {...}
+    # },
+}
+
+# Voting Mechanism Configuration
+HMM_VOTING_MECHANISM = "confidence_weighted"  # Options: "simple_majority", "weighted_voting", "confidence_weighted", "threshold_based"
+HMM_VOTING_THRESHOLD = 0.5  # Threshold for threshold_based voting mechanism
 

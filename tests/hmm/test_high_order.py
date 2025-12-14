@@ -1,5 +1,5 @@
 """
-Test script for modules.hmm.hmm_high_order - High Order HMM analysis.
+Test script for modules.hmm.high_order - True High-Order HMM implementation.
 """
 
 import sys
@@ -21,36 +21,50 @@ except ImportError:
 
 # Try to import modules
 if POMEGRANATE_AVAILABLE:
-    from modules.hmm.high_order import (
-        HIGH_ORDER_HMM,
+    from modules.hmm.core.high_order import (
+        get_expanded_state_count,
+        expand_state_sequence,
+        decode_expanded_state,
+        map_expanded_to_base_state,
+        compute_transition_matrix_from_data_high_order,
+        compute_emission_probabilities_from_data_high_order,
+        compute_start_probabilities_from_data_high_order,
+        create_high_order_hmm_model,
+        optimize_n_states_high_order,
+        optimize_order_k,
+        predict_next_observation_high_order,
+        TrueHighOrderHMM,
+        true_high_order_hmm,
+        N_BASE_STATES,
+        N_SYMBOLS,
+    )
+    from modules.hmm.core.swings import (
+        HMM_SWINGS,
         BULLISH,
         NEUTRAL,
         BEARISH,
-        convert_swing_to_state,
-        optimize_n_states,
-        create_hmm_model,
-        train_model,
-        predict_next_hidden_state_forward_backward,
-        predict_next_observation,
-        average_swing_distance,
-        evaluate_model_accuracy,
-        hmm_high_order,
     )
 else:
     # Define dummy values for tests that don't need pomegranate
-    HIGH_ORDER_HMM = None
+    HMM_SWINGS = None
     BULLISH = 1
     NEUTRAL = 0
     BEARISH = -1
-    convert_swing_to_state = None
-    optimize_n_states = None
-    create_hmm_model = None
-    train_model = None
-    predict_next_hidden_state_forward_backward = None
-    predict_next_observation = None
-    average_swing_distance = None
-    evaluate_model_accuracy = None
-    hmm_high_order = None
+    get_expanded_state_count = None
+    expand_state_sequence = None
+    decode_expanded_state = None
+    map_expanded_to_base_state = None
+    compute_transition_matrix_from_data_high_order = None
+    compute_emission_probabilities_from_data_high_order = None
+    compute_start_probabilities_from_data_high_order = None
+    create_high_order_hmm_model = None
+    optimize_n_states_high_order = None
+    optimize_order_k = None
+    predict_next_observation_high_order = None
+    TrueHighOrderHMM = None
+    true_high_order_hmm = None
+    N_BASE_STATES = 3
+    N_SYMBOLS = 3
 
 
 def _sample_ohlcv_dataframe(length: int = 200) -> pd.DataFrame:
@@ -80,266 +94,224 @@ def _sample_ohlcv_dataframe(length: int = 200) -> pd.DataFrame:
     }, index=idx)
 
 
-# Note: _get_param function was removed during refactoring
-# These tests are no longer applicable as we now use explicit parameters
+@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
+def test_get_expanded_state_count():
+    """Test get_expanded_state_count function."""
+    assert get_expanded_state_count(3, 1) == 3
+    assert get_expanded_state_count(3, 2) == 9
+    assert get_expanded_state_count(3, 3) == 27
+    assert get_expanded_state_count(3, 4) == 81
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_convert_swing_to_state_strict_mode():
-    """Test convert_swing_to_state with strict_mode=True."""
-    swing_highs = pd.DataFrame({
-        "high": [110, 105, 100, 95, 90],
-    }, index=pd.date_range("2024-01-01", periods=5, freq="1h"))
+def test_expand_state_sequence():
+    """Test expand_state_sequence function."""
+    states = [0, 1, 2]
     
-    swing_lows = pd.DataFrame({
-        "low": [100, 95, 90, 85, 80],
-    }, index=pd.date_range("2024-01-01", periods=5, freq="1h"))
+    # Order 1: should return states as-is (but as integers)
+    expanded_1 = expand_state_sequence(states, order=1)
+    assert expanded_1 == [0, 1, 2]
     
-    states = convert_swing_to_state(swing_highs, swing_lows, strict_mode=True)
+    # Order 2: should create expanded states
+    expanded_2 = expand_state_sequence(states, order=2)
+    assert len(expanded_2) == 2  # len(states) - order + 1
+    # First expanded state: (0, 1) = 0*3^1 + 1*3^0 = 1
+    # Second expanded state: (1, 2) = 1*3^1 + 2*3^0 = 5
+    assert expanded_2[0] == 1
+    assert expanded_2[1] == 5
     
-    assert isinstance(states, list)
-    assert len(states) > 0
-    assert all(s in [0, 1, 2] for s in states)
+    # Order 3: should create single expanded state
+    expanded_3 = expand_state_sequence(states, order=3)
+    assert len(expanded_3) == 1
+    # (0, 1, 2) = 0*3^2 + 1*3^1 + 2*3^0 = 0 + 3 + 2 = 5
+    assert expanded_3[0] == 5
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_convert_swing_to_state_non_strict_mode():
-    """Test convert_swing_to_state with strict_mode=False."""
-    swing_highs = pd.DataFrame({
-        "high": [110, 105, 100],
-    }, index=pd.date_range("2024-01-01", periods=3, freq="1h"))
+def test_decode_expanded_state():
+    """Test decode_expanded_state function."""
+    # Order 2
+    assert decode_expanded_state(0, order=2) == (0, 0)
+    assert decode_expanded_state(1, order=2) == (0, 1)
+    assert decode_expanded_state(5, order=2) == (1, 2)
+    assert decode_expanded_state(8, order=2) == (2, 2)
     
-    swing_lows = pd.DataFrame({
-        "low": [100, 95, 90],
-    }, index=pd.date_range("2024-01-02", periods=3, freq="1h"))
-    
-    states = convert_swing_to_state(swing_highs, swing_lows, strict_mode=False)
-    
-    assert isinstance(states, list)
-    assert all(s in [0, 1, 2] for s in states)
+    # Order 3
+    assert decode_expanded_state(5, order=3) == (0, 1, 2)
+    assert decode_expanded_state(0, order=3) == (0, 0, 0)
+    assert decode_expanded_state(26, order=3) == (2, 2, 2)
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_convert_swing_to_state_empty_dataframes():
-    """Test convert_swing_to_state with empty DataFrames."""
-    empty_highs = pd.DataFrame({"high": []})
-    empty_lows = pd.DataFrame({"low": []})
+def test_map_expanded_to_base_state():
+    """Test map_expanded_to_base_state function."""
+    # Order 2: should return last state in sequence
+    assert map_expanded_to_base_state(0, order=2) == 0  # (0, 0) -> 0
+    assert map_expanded_to_base_state(1, order=2) == 1  # (0, 1) -> 1
+    assert map_expanded_to_base_state(5, order=2) == 2  # (1, 2) -> 2
     
-    states = convert_swing_to_state(empty_highs, empty_lows)
-    
-    assert states == []
+    # Order 3: should return last state
+    assert map_expanded_to_base_state(5, order=3) == 2  # (0, 1, 2) -> 2
+    assert map_expanded_to_base_state(0, order=3) == 0  # (0, 0, 0) -> 0
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_create_hmm_model_default():
-    """Test create_hmm_model with default parameters."""
-    model = create_hmm_model()
+def test_compute_transition_matrix_from_data_high_order():
+    """Test compute_transition_matrix_from_data_high_order function."""
+    states = [0, 1, 2, 0, 1, 2]
     
-    assert model is not None
-    assert hasattr(model, "distributions")
-    assert hasattr(model, "edges")
+    # Order 1: should work like original
+    matrix_1 = compute_transition_matrix_from_data_high_order(states, n_states=3, order=1)
+    assert matrix_1.shape == (3, 3)
+    assert np.allclose(matrix_1.sum(axis=1), 1.0)
+    
+    # Order 2: should create expanded transition matrix
+    matrix_2 = compute_transition_matrix_from_data_high_order(states, n_states=9, order=2)
+    assert matrix_2.shape == (9, 9)
+    assert np.allclose(matrix_2.sum(axis=1), 1.0)
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_create_hmm_model_custom_states():
-    """Test create_hmm_model with custom number of states."""
-    model = create_hmm_model(n_symbols=3, n_states=4)
+def test_compute_emission_probabilities_from_data_high_order():
+    """Test compute_emission_probabilities_from_data_high_order function."""
+    states = [0, 1, 2, 0, 1, 2]
     
-    assert model is not None
-    assert len(model.distributions) == 4
+    # Order 1
+    emissions_1 = compute_emission_probabilities_from_data_high_order(
+        states, n_states=3, n_symbols=3, order=1
+    )
+    assert len(emissions_1) == 3
+    
+    # Order 2
+    emissions_2 = compute_emission_probabilities_from_data_high_order(
+        states, n_states=9, n_symbols=3, order=2
+    )
+    assert len(emissions_2) == 9
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_train_model():
-    """Test train_model function."""
-    model = create_hmm_model(n_symbols=3, n_states=2)
-    observations = [np.array([0, 1, 2, 0, 1, 2]).reshape(-1, 1)]
+def test_create_high_order_hmm_model():
+    """Test create_high_order_hmm_model function."""
+    states = [0, 1, 2, 0, 1, 2, 0, 1]
     
-    trained_model = train_model(model, observations)
+    # Order 1
+    model_1 = create_high_order_hmm_model(
+        n_symbols=3, n_states=3, order=1, states_data=states, use_data_driven=True
+    )
+    assert model_1 is not None
     
-    assert trained_model is not None
-    assert trained_model is model  # Should return the same model
+    # Order 2
+    model_2 = create_high_order_hmm_model(
+        n_symbols=3, n_states=9, order=2, states_data=states, use_data_driven=True
+    )
+    assert model_2 is not None
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_average_swing_distance():
-    """Test average_swing_distance calculation."""
-    swing_highs = pd.DataFrame({
-        "high": [110, 105, 100],
-    }, index=pd.date_range("2024-01-01", periods=3, freq="2h"))
-    
-    swing_lows = pd.DataFrame({
-        "low": [100, 95, 90],
-    }, index=pd.date_range("2024-01-02", periods=3, freq="2h"))
-    
-    avg_distance = average_swing_distance(swing_highs, swing_lows)
-    
-    assert avg_distance > 0
-    assert isinstance(avg_distance, (int, float))
-
-
-@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_evaluate_model_accuracy():
-    """Test evaluate_model_accuracy function."""
-    model = create_hmm_model(n_symbols=3, n_states=2)
-    train_states = [0, 1, 2, 0, 1]
-    test_states = [2, 0, 1]
-    
-    # Train model first
-    train_observations = [np.array(train_states).reshape(-1, 1)]
-    model = train_model(model, train_observations)
-    
-    accuracy = evaluate_model_accuracy(model, train_states, test_states)
-    
-    assert 0.0 <= accuracy <= 1.0
-    assert isinstance(accuracy, float)
-
-
-@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_hmm_high_order_basic():
-    """Test hmm_high_order with basic valid data."""
+def test_true_high_order_hmm_basic():
+    """Test true_high_order_hmm with basic valid data."""
     df = _sample_ohlcv_dataframe(200)
     
-    result = hmm_high_order(df, train_ratio=0.8, eval_mode=False)
+    result = true_high_order_hmm(df, train_ratio=0.8, eval_mode=False, min_order=2, max_order=3)
     
-    assert isinstance(result, HIGH_ORDER_HMM)
+    assert isinstance(result, HMM_SWINGS)
     assert result.next_state_with_high_order_hmm in [BULLISH, NEUTRAL, BEARISH]
     assert result.next_state_duration > 0
     assert 0.0 <= result.next_state_probability <= 1.0
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_hmm_high_order_with_params():
-    """Test hmm_high_order with explicit parameters."""
+def test_true_high_order_hmm_with_params():
+    """Test true_high_order_hmm with explicit parameters."""
     df = _sample_ohlcv_dataframe(200)
     
-    result = hmm_high_order(
+    result = true_high_order_hmm(
         df, 
         train_ratio=0.8, 
         eval_mode=False, 
         orders_argrelextrema=3,
-        strict_mode=True
+        strict_mode=True,
+        min_order=2,
+        max_order=3
     )
     
-    assert isinstance(result, HIGH_ORDER_HMM)
+    assert isinstance(result, HMM_SWINGS)
     assert result.next_state_with_high_order_hmm in [BULLISH, NEUTRAL, BEARISH]
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_hmm_high_order_empty_dataframe():
-    """Test hmm_high_order with empty DataFrame."""
+def test_true_high_order_hmm_empty_dataframe():
+    """Test true_high_order_hmm with empty DataFrame."""
     empty_df = pd.DataFrame()
     
-    result = hmm_high_order(empty_df)
+    result = true_high_order_hmm(empty_df)
     
-    assert isinstance(result, HIGH_ORDER_HMM)
+    assert isinstance(result, HMM_SWINGS)
     assert result.next_state_with_high_order_hmm == NEUTRAL
 
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_hmm_high_order_missing_columns():
-    """Test hmm_high_order with missing required columns."""
-    df = pd.DataFrame({"close": [100, 101, 102]})
-    
-    result = hmm_high_order(df)
-    
-    assert isinstance(result, HIGH_ORDER_HMM)
-    assert result.next_state_with_high_order_hmm == NEUTRAL
-
-
-@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_hmm_high_order_insufficient_data():
-    """Test hmm_high_order with insufficient data."""
-    df = _sample_ohlcv_dataframe(10)  # Too few data points
-    
-    result = hmm_high_order(df)
-    
-    assert isinstance(result, HIGH_ORDER_HMM)
-    # Should return NEUTRAL or handle gracefully
-    assert result.next_state_with_high_order_hmm in [BULLISH, NEUTRAL, BEARISH]
-
-
-@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_hmm_high_order_eval_mode():
-    """Test hmm_high_order with eval_mode=True."""
+def test_true_high_order_hmm_class():
+    """Test TrueHighOrderHMM class directly."""
     df = _sample_ohlcv_dataframe(200)
     
-    result = hmm_high_order(df, train_ratio=0.8, eval_mode=True)
-    
-    assert isinstance(result, HIGH_ORDER_HMM)
-    assert result.next_state_with_high_order_hmm in [BULLISH, NEUTRAL, BEARISH]
-
-
-@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_hmm_high_order_different_train_ratios():
-    """Test hmm_high_order with different train_ratio values."""
-    df = _sample_ohlcv_dataframe(200)
-    
-    result1 = hmm_high_order(df, train_ratio=0.7, eval_mode=False)
-    result2 = hmm_high_order(df, train_ratio=0.9, eval_mode=False)
-    
-    assert isinstance(result1, HIGH_ORDER_HMM)
-    assert isinstance(result2, HIGH_ORDER_HMM)
-    assert result1.next_state_with_high_order_hmm in [BULLISH, NEUTRAL, BEARISH]
-    assert result2.next_state_with_high_order_hmm in [BULLISH, NEUTRAL, BEARISH]
-
-
-@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_optimize_n_states():
-    """Test optimize_n_states function."""
-    observations = [np.array([0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2]).reshape(-1, 1)]
-    
-    optimal_states = optimize_n_states(observations, min_states=2, max_states=5, n_folds=3)
-    
-    assert 2 <= optimal_states <= 5
-    assert isinstance(optimal_states, int)
-
-
-@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_optimize_n_states_insufficient_data():
-    """Test optimize_n_states with insufficient data."""
-    observations = [np.array([0, 1]).reshape(-1, 1)]
-    
-    with pytest.raises(ValueError):
-        optimize_n_states(observations, min_states=2, max_states=5, n_folds=3)
-
-
-@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_predict_next_observation():
-    """Test predict_next_observation function."""
-    model = create_hmm_model(n_symbols=3, n_states=2)
-    observations = [np.array([0, 1, 2, 0, 1]).reshape(-1, 1)]
-    model = train_model(model, observations)
-    
-    next_obs_proba = predict_next_observation(model, observations)
-    
-    assert len(next_obs_proba) == 3
-    assert np.isclose(np.sum(next_obs_proba), 1.0, atol=1e-6)
-    assert all(0.0 <= p <= 1.0 for p in next_obs_proba)
-
-
-@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
-def test_high_order_hmm_dataclass():
-    """Test HIGH_ORDER_HMM dataclass."""
-    result = HIGH_ORDER_HMM(
-        next_state_with_high_order_hmm=BULLISH,
-        next_state_duration=10,
-        next_state_probability=0.75
+    analyzer = TrueHighOrderHMM(
+        min_order=2,
+        max_order=3,
+        train_ratio=0.8,
     )
     
-    assert result.next_state_with_high_order_hmm == BULLISH
-    assert result.next_state_duration == 10
-    assert result.next_state_probability == 0.75
+    result = analyzer.analyze(df, eval_mode=False)
+    
+    assert isinstance(result, HMM_SWINGS)
+    assert result.next_state_with_high_order_hmm in [BULLISH, NEUTRAL, BEARISH]
+    assert analyzer.optimal_order is not None
+    assert analyzer.optimal_n_states is not None
 
 
-def test_constants():
-    """Test that constants are defined correctly."""
-    # These constants are defined even if pomegranate is not available
-    assert BULLISH == 1
-    assert NEUTRAL == 0
-    assert BEARISH == -1
+@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
+def test_state_space_expansion_consistency():
+    """Test that state space expansion and decoding are consistent."""
+    states = [0, 1, 2, 0, 1, 2]
+    
+    for order in [2, 3]:
+        expanded = expand_state_sequence(states, order)
+        
+        for expanded_state in expanded:
+            decoded = decode_expanded_state(expanded_state, order)
+            # Verify we can reconstruct the expanded state
+            reconstructed = 0
+            for j, state in enumerate(decoded):
+                reconstructed += state * (N_BASE_STATES ** (order - 1 - j))
+            assert reconstructed == expanded_state
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+@pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
+def test_predict_next_observation_high_order():
+    """Test predict_next_observation_high_order function."""
+    # Use longer sequence for testing
+    states = [0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2]
+    
+    # Test with order=1 (simpler case)
+    model = create_high_order_hmm_model(
+        n_symbols=3, n_states=3, order=1, states_data=states, use_data_driven=True
+    )
+    
+    observations = [np.array(states).reshape(-1, 1)]
+    
+    # Train model
+    from modules.hmm.core.high_order import train_model
+    model = train_model(model, observations)
+    
+    # Predict
+    next_obs_proba = predict_next_observation_high_order(
+        model, observations, order=1, n_base_states=3
+    )
+    
+    assert len(next_obs_proba) == 3
+    # Check that probabilities are valid (non-negative and sum to 1)
+    assert all(p >= 0 for p in next_obs_proba), f"Probabilities should be non-negative: {next_obs_proba}"
+    prob_sum = np.sum(next_obs_proba)
+    assert np.allclose(prob_sum, 1.0, atol=1e-6), f"Probabilities should sum to 1, got {prob_sum}"
+    assert all(0 <= p <= 1 for p in next_obs_proba)
 

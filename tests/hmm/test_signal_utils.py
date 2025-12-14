@@ -12,7 +12,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.hmm.signal_utils import validate_dataframe, calculate_market_volatility
+from modules.hmm.signals.utils import validate_dataframe
+from modules.common.indicators import calculate_returns_volatility
 
 
 def _sample_ohlcv_dataframe(length: int = 100) -> pd.DataFrame:
@@ -70,50 +71,50 @@ def test_validate_dataframe_minimum_rows():
     assert validate_dataframe(df) is True
 
 
-def test_calculate_market_volatility_valid():
-    """Test calculate_market_volatility with valid data."""
+def test_calculate_returns_volatility_valid():
+    """Test calculate_returns_volatility with valid data."""
     df = _sample_ohlcv_dataframe(100)
-    volatility = calculate_market_volatility(df)
+    volatility = calculate_returns_volatility(df)
     assert isinstance(volatility, float)
     assert volatility >= 0.0
 
 
-def test_calculate_market_volatility_no_close():
-    """Test calculate_market_volatility without close column."""
+def test_calculate_returns_volatility_no_close():
+    """Test calculate_returns_volatility without close column."""
     df = pd.DataFrame({"open": [100, 101, 102]})
-    volatility = calculate_market_volatility(df)
+    volatility = calculate_returns_volatility(df)
     assert volatility == 0.0
 
 
-def test_calculate_market_volatility_insufficient_data():
-    """Test calculate_market_volatility with insufficient data."""
+def test_calculate_returns_volatility_insufficient_data():
+    """Test calculate_returns_volatility with insufficient data."""
     df = pd.DataFrame({"close": [100]})
-    volatility = calculate_market_volatility(df)
+    volatility = calculate_returns_volatility(df)
     assert volatility == 0.0
 
 
-def test_calculate_market_volatility_empty_dataframe():
-    """Test calculate_market_volatility with empty DataFrame."""
+def test_calculate_returns_volatility_empty_dataframe():
+    """Test calculate_returns_volatility with empty DataFrame."""
     df = pd.DataFrame({"close": []})
-    volatility = calculate_market_volatility(df)
+    volatility = calculate_returns_volatility(df)
     assert volatility == 0.0
 
 
-def test_calculate_market_volatility_constant_price():
-    """Test calculate_market_volatility with constant price (zero volatility)."""
+def test_calculate_returns_volatility_constant_price():
+    """Test calculate_returns_volatility with constant price (zero volatility)."""
     df = pd.DataFrame({
         "close": [100.0] * 50
     })
-    volatility = calculate_market_volatility(df)
+    volatility = calculate_returns_volatility(df)
     assert volatility == 0.0
 
 
-def test_calculate_market_volatility_high_volatility():
-    """Test calculate_market_volatility with high volatility data."""
+def test_calculate_returns_volatility_high_volatility():
+    """Test calculate_returns_volatility with high volatility data."""
     np.random.seed(42)
     prices = 100.0 + np.random.normal(0, 5.0, 100)  # High volatility
     df = pd.DataFrame({"close": prices})
-    volatility = calculate_market_volatility(df)
+    volatility = calculate_returns_volatility(df)
     assert volatility > 0.0
     assert volatility < 10.0  # Reasonable upper bound
 

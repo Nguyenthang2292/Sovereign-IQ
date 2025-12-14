@@ -16,7 +16,7 @@ from .trend import (
     calculate_cci,
     calculate_dmi_difference,
 )
-from .volatility import VolatilityIndicators
+from .volatility import VolatilityIndicators, calculate_returns_volatility
 from .volume import VolumeIndicators
 
 __all__ = [
@@ -33,6 +33,7 @@ __all__ = [
     "TrendIndicators",
     "MomentumIndicators",
     "VolatilityIndicators",
+    "calculate_returns_volatility",
     "VolumeIndicators",
     "CandlestickPatterns",
     "BlockSpec",

@@ -337,25 +337,32 @@ class VotingAnalyzer:
             
             # HMM signal (if enabled)
             if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
-                hmm_result = get_hmm_signal(
-                    data_fetcher=data_fetcher,
-                    symbol=symbol,
-                    timeframe=timeframe,
-                    limit=limit,
-                    window_size=getattr(self.args, 'hmm_window_size', None),
-                    window_kama=getattr(self.args, 'hmm_window_kama', None),
-                    fast_kama=getattr(self.args, 'hmm_fast_kama', None),
-                    slow_kama=getattr(self.args, 'hmm_slow_kama', None),
-                    orders_argrelextrema=getattr(self.args, 'hmm_orders_argrelextrema', None),
-                    strict_mode=getattr(self.args, 'hmm_strict_mode', None),
-                )
-                if hmm_result is not None:
-                    hmm_signal, hmm_confidence = hmm_result
-                    hmm_vote = 1 if hmm_signal == expected_signal else 0
-                    results['hmm_signal'] = hmm_signal
-                    results['hmm_vote'] = hmm_vote
-                    results['hmm_confidence'] = hmm_confidence
-                else:
+                try:
+                    hmm_result = get_hmm_signal(
+                        data_fetcher=data_fetcher,
+                        symbol=symbol,
+                        timeframe=timeframe,
+                        limit=limit,
+                        window_size=getattr(self.args, 'hmm_window_size', None),
+                        window_kama=getattr(self.args, 'hmm_window_kama', None),
+                        fast_kama=getattr(self.args, 'hmm_fast_kama', None),
+                        slow_kama=getattr(self.args, 'hmm_slow_kama', None),
+                        orders_argrelextrema=getattr(self.args, 'hmm_orders_argrelextrema', None),
+                        strict_mode=getattr(self.args, 'hmm_strict_mode', None),
+                    )
+                    if hmm_result is not None:
+                        hmm_signal, hmm_confidence = hmm_result
+                        hmm_vote = 1 if hmm_signal == expected_signal else 0
+                        results['hmm_signal'] = hmm_signal
+                        results['hmm_vote'] = hmm_vote
+                        results['hmm_confidence'] = hmm_confidence
+                    else:
+                        results['hmm_signal'] = 0
+                        results['hmm_vote'] = 0
+                        results['hmm_confidence'] = 0.0
+                except Exception as e:
+                    # Log HMM errors but don't fail the entire process
+                    log_warn(f"HMM signal calculation failed for {symbol}: {type(e).__name__}: {e}")
                     results['hmm_signal'] = 0
                     results['hmm_vote'] = 0
                     results['hmm_confidence'] = 0.0
@@ -382,10 +389,20 @@ class VotingAnalyzer:
         spc_params = self.get_spc_params() if self.args.enable_spc else None
         total = len(atc_signals_df)
         
+        # Build indicator list for logging
+        indicators_list = ["ATC", "Range Oscillator"]
+        if self.args.enable_spc:
+            indicators_list.append("SPC")
+        if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
+            indicators_list.append("XGBoost")
+        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+            indicators_list.append("HMM")
+        
         log_progress(
             f"Calculating signals from all indicators for {total} {signal_type} symbols "
             f"(workers: {osc_params['max_workers']})..."
         )
+        log_progress(f"Indicators: {', '.join(indicators_list)}")
 
         exchange_manager = self.data_fetcher.exchange_manager
         
@@ -446,7 +463,20 @@ class VotingAnalyzer:
         if not results:
             return pd.DataFrame()
 
-        return pd.DataFrame(results)
+        result_df = pd.DataFrame(results)
+        
+        # Log HMM summary if enabled
+        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+            hmm_success_count = sum(1 for r in results if r.get('hmm_signal', 0) != 0)
+            hmm_total = len(results)
+            if hmm_total > 0:
+                hmm_success_rate = (hmm_success_count / hmm_total) * 100
+                log_progress(
+                    f"HMM Status: {hmm_success_count}/{hmm_total} symbols with HMM signals "
+                    f"({hmm_success_rate:.1f}% success rate)"
+                )
+
+        return result_df
     
     def _aggregate_spc_votes(
         self,
