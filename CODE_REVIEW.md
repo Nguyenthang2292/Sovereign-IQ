@@ -161,31 +161,24 @@ pytest-cov>=4.0.0
 **Đề xuất:**
 - Sử dụng `concurrent.futures` hoặc `asyncio` cho parallel API calls
 - Implement caching với `functools.lru_cache` hoặc Redis
-- Profile code để identify bottlenecks
-
-### 12. **Đăng Ký Tín Hiệu Trong Constructor**
+### 9. **Minor Code Duplication in DataFetcher**
 
 **Vấn đề:**
-- `PortfolioManager` gọi `signal.signal(SIGINT, ...)` ngay trong `__init__`.
-- Khi khởi tạo từ thread phụ (ví dụ worker FastAPI), Python ném `ValueError: signal only works in main thread`.
+- Method `_normalize_position_symbol` trong `DataFetcher.py` tái lập logic xử lý chuỗi (split ":") mà đã tồn tại trong `ExchangeManager.normalize_symbol` hoặc `modules.common.utils.normalize_symbol`.
 
 **Đề xuất:**
-- Chỉ đăng ký handler trong entry-point CLI (`if __name__ == "__main__":`), hoặc cung cấp flag để controller bên ngoài quyết định.
-- Giữ `shutdown_event` trong class nhưng việc wiring tín hiệu nên xử lý bên ngoài để tái sử dụng component trong dịch vụ khác.
+- Refactor để sử dụng chung `modules.common.utils.normalize_symbol` một cách nhất quán.
 
-**Trạng thái:** ĐÃ KHẮC PHỤC (11/2025) – `PortfolioManager` nhận tham số `install_signal_handlers` (mặc định `False`) và cung cấp method `install_signal_handlers()` để CLI chủ động đăng ký khi chạy ở main thread (`main()` đã gọi rõ ràng), vì vậy embedders không còn gặp lỗi tín hiệu.
+### 10. **Refactoring Indicator Engine**
+- ✅ **Positive**: `IndicatorEngine` đã sử dụng `BlockSpec` pattern, giúp code sạch và dễ mở rộng hơn so với cấu trúc monolithic trước đây.
 
-### 13. **requirements.txt Quá “Nặng” & Không Pin Version**
 
-**Vấn đề:**
-- Toàn bộ stack Torch/TFT/OCR được cài mặc định dù nhiều người chỉ cần core pipeline ⇒ thời gian cài đặt rất dài và dễ fail trên máy không có CUDA.
-- Thiếu version pinning khiến CI khó tái lập.
 
-**Đề xuất:**
-- Tách `requirements.txt` (core) và `requirements-ml.txt`, `requirements-ocr.txt`, `requirements-dev.txt`, sau đó dùng extras trong `pyproject`.
-- Pin version tối thiểu cho các gói lớn (torch, pytorch-lightning, ccxt, pandas, v.v.) để tránh regression ngoài ý muốn.
+### 12. **Signal Handling Refactoring**
+- ✅ **Resolved**: `PortfolioManager` no longer registers signal handlers in `__init__`, preventing `ValueError` in non-main threads. Handlers are now explicitly called via `install_signal_handlers()` in CLI entry points.
 
-**Trạng thái:** ĐÃ KHẮC PHỤC (11/2025) – Core deps trong `requirements.txt` đã pin version, còn các stack ML/OCR/dev được tách sang `requirements-ml.txt`, `requirements-ocr.txt`, `requirements-dev.txt` nên người dùng/CI chỉ cài thứ cần thiết.
+### 13. **Dependency Management Optimization**
+- ✅ **Resolved**: `requirements.txt` has been split into core, ml, ocr, and dev files. Core dependencies are now pinned to specific versions to ensure stability.
 
 ---
 
@@ -274,6 +267,6 @@ Dự án này có tiềm năng trở thành một **production-ready trading sys
 
 ---
 
-*Review được tạo vào: 2024*
+*Review được tạo vào: 2025*
 *Reviewer: AI Code Assistant*
 
