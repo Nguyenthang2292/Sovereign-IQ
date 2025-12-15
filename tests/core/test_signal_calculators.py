@@ -16,7 +16,7 @@ import pandas as pd
 import numpy as np
 
 # Add project root to path (same as test_main_voting.py)
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

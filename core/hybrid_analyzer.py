@@ -12,6 +12,7 @@ Phương án 1: Kết hợp sequential filtering và voting system.
 import threading
 from typing import Optional, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 import pandas as pd
 
 from colorama import Fore, Style
@@ -94,6 +95,9 @@ class HybridAnalyzer:
             strategy_weights=SPC_AGGREGATION_STRATEGY_WEIGHTS,
         )
         self.spc_aggregator = SPCVoteAggregator(aggregation_config)
+        
+        # Thread-safe lock for mode changes
+        self._mode_lock = threading.Lock()
         
         # Results storage
         self.long_signals_atc = pd.DataFrame()
@@ -594,6 +598,17 @@ class HybridAnalyzer:
 
         return result_df
     
+    @contextmanager
+    def _temporary_mode(self, new_mode: str):
+        """Context manager to temporarily change spc_aggregator.config.mode (thread-safe)."""
+        with self._mode_lock:
+            original_mode = self.spc_aggregator.config.mode
+            self.spc_aggregator.config.mode = new_mode
+            try:
+                yield
+            finally:
+                self.spc_aggregator.config.mode = original_mode
+    
     def _aggregate_spc_votes(
         self,
         symbol_data: Dict[str, Any],
@@ -624,42 +639,26 @@ class HybridAnalyzer:
         # Use threshold mode if fallback requested
         if use_threshold_fallback or self.spc_aggregator.config.mode == "threshold":
             # Temporarily switch to threshold mode
-            original_mode = self.spc_aggregator.config.mode
-            self.spc_aggregator.config.mode = "threshold"
-            try:
+            with self._temporary_mode("threshold"):
                 vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
-            finally:
-                self.spc_aggregator.config.mode = original_mode
             
             # If threshold mode also gives no vote, try simple mode fallback
             if vote == 0 and self.spc_aggregator.config.enable_simple_fallback:
-                original_mode = self.spc_aggregator.config.mode
-                self.spc_aggregator.config.mode = "simple"
-                try:
+                with self._temporary_mode("simple"):
                     vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
-                finally:
-                    self.spc_aggregator.config.mode = original_mode
         else:
             # Try weighted mode first
             vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
             
             # If weighted mode gives no vote (vote = 0), fallback to threshold mode
             if vote == 0:
-                original_mode = self.spc_aggregator.config.mode
-                self.spc_aggregator.config.mode = "threshold"
-                try:
+                with self._temporary_mode("threshold"):
                     vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
-                finally:
-                    self.spc_aggregator.config.mode = original_mode
                 
                 # If threshold mode also gives no vote, try simple mode fallback
                 if vote == 0 and self.spc_aggregator.config.enable_simple_fallback:
-                    original_mode = self.spc_aggregator.config.mode
-                    self.spc_aggregator.config.mode = "simple"
-                    try:
+                    with self._temporary_mode("simple"):
                         vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
-                    finally:
-                        self.spc_aggregator.config.mode = original_mode
         
         # Convert vote to 1/0 format for Decision Matrix compatibility
         # Only accept vote if it matches the expected signal direction
@@ -679,8 +678,15 @@ class HybridAnalyzer:
         votes = {}
         
         # ATC vote (always 1 if symbol passed ATC scan)
+        # ATC signal is a percentage value (e.g., 94, -50), not just 1 or -1
+        # If symbol is in long_signals_atc/short_signals_atc, it means it passed ATC scan
+        # So we check the sign of the signal, not exact equality
         atc_signal = symbol_data.get('signal', 0)
-        atc_vote = 1 if atc_signal == expected_signal else 0
+        # Check sign: positive for LONG, negative for SHORT
+        if signal_type == "LONG":
+            atc_vote = 1 if atc_signal > 0 else 0
+        else:  # SHORT
+            atc_vote = 1 if atc_signal < 0 else 0
         atc_strength = abs(atc_signal) / 100.0 if atc_signal != 0 else 0.0
         votes['atc'] = (atc_vote, min(atc_strength, 1.0))
         

@@ -69,58 +69,30 @@ def get_range_oscillator_signal(
     """Calculate Range Oscillator signal for a symbol."""
     # Wrap entire function in try-except to catch all exceptions
     try:
-        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+        # Use check_freshness=False to avoid multiple fetch attempts and inconsistent results
+        # For signal calculation, we don't need the absolute latest data
+        df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
             symbol,
             limit=limit,
             timeframe=timeframe,
-            check_freshness=True,
+            check_freshness=False,
         )
 
         if df is None or df.empty:
-            # #region agent log
-            try:
-                log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    json.dump({
-                        "id": f"log_get_range_oscillator_empty_df_{id(symbol)}",
-                        "timestamp": int(__import__('time').time() * 1000),
-                        "location": "signal_calculators.py:78",
-                        "message": "Empty or None DataFrame in get_range_oscillator_signal",
-                        "data": {"symbol": symbol, "df_is_none": df is None, "df_empty": df.empty if df is not None else None},
-                        "sessionId": "debug-session",
-                        "runId": "run1",
-                        "hypothesisId": "C"
-                    }, f, ensure_ascii=False)
-                    f.write('\n')
-            except:
-                pass
-            # #endregion
             return None
 
-        if "high" not in df.columns or "low" not in df.columns or "close" not in df.columns:
-            # #region agent log
-            try:
-                log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    json.dump({
-                        "id": f"log_get_range_oscillator_missing_cols_{id(symbol)}",
-                        "timestamp": int(__import__('time').time() * 1000),
-                        "location": "signal_calculators.py:81",
-                        "message": "Missing required columns in get_range_oscillator_signal",
-                        "data": {"symbol": symbol, "columns": list(df.columns) if df is not None else []},
-                        "sessionId": "debug-session",
-                        "runId": "run1",
-                        "hypothesisId": "C"
-                    }, f, ensure_ascii=False)
-                    f.write('\n')
-            except:
-                pass
-            # #endregion
+        # Validate required columns
+        required_columns = ["high", "low", "close"]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
             return None
 
-        high = df["high"]
-        low = df["low"]
-        close = df["close"]
+        # Make a deep copy of only required columns to avoid modifying the original DataFrame
+        # This prevents issues with shared DataFrame references in multi-threaded environments
+        high = df["high"].copy()
+        low = df["low"].copy()
+        close = df["close"].copy()
 
         if strategies is None:
             enabled_strategies = [2, 3, 4, 6, 7, 8, 9]
@@ -144,45 +116,7 @@ def get_range_oscillator_signal(
         config.consensus.adaptive_weights = False
         config.consensus.performance_window = 10
         
-        # #region agent log
         try:
-            log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-            with open(log_path, 'a', encoding='utf-8') as f:
-                json.dump({
-                    "id": f"log_get_range_oscillator_before_try_{id(symbol)}",
-                    "timestamp": int(__import__('time').time() * 1000),
-                    "location": "signal_calculators.py:143",
-                    "message": "Before calling generate_signals_combined_all_strategy",
-                    "data": {"symbol": symbol, "adaptive_weights": config.consensus.adaptive_weights},
-                    "sessionId": "debug-session",
-                    "runId": "run1",
-                    "hypothesisId": "A"
-                }, f, ensure_ascii=False)
-                f.write('\n')
-        except:
-            pass
-        # #endregion
-        
-        try:
-            # #region agent log
-            try:
-                log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    json.dump({
-                        "id": f"log_get_range_oscillator_about_to_call_{id(symbol)}",
-                        "timestamp": int(__import__('time').time() * 1000),
-                        "location": "signal_calculators.py:163",
-                        "message": "About to call generate_signals_combined_all_strategy",
-                        "data": {"symbol": symbol},
-                        "sessionId": "debug-session",
-                        "runId": "run1",
-                        "hypothesisId": "A"
-                    }, f, ensure_ascii=False)
-                    f.write('\n')
-            except:
-                pass
-            # #endregion
-            
             result = generate_signals_combined_all_strategy(
                 high=high,
                 low=low,
@@ -191,25 +125,6 @@ def get_range_oscillator_signal(
                 mult=osc_mult,
                 config=config,
             )
-            
-            # #region agent log
-            try:
-                log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    json.dump({
-                        "id": f"log_get_range_oscillator_call_success_{id(symbol)}",
-                        "timestamp": int(__import__('time').time() * 1000),
-                        "location": "signal_calculators.py:171",
-                        "message": "generate_signals_combined_all_strategy returned successfully",
-                        "data": {"symbol": symbol, "result_type": type(result).__name__},
-                        "sessionId": "debug-session",
-                        "runId": "run1",
-                        "hypothesisId": "A"
-                    }, f, ensure_ascii=False)
-                    f.write('\n')
-            except:
-                pass
-            # #endregion
         except Exception as e:
             # Handle classification metrics errors by retrying without adaptive weights
             # These errors occur when data doesn't have enough classes for metrics calculation
@@ -220,54 +135,8 @@ def get_range_oscillator_signal(
                                     "Number of classes" in error_str or 
                                     "Invalid classes" in error_str)
             
-            # #region agent log
-            try:
-                log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    json.dump({
-                        "id": f"log_get_range_oscillator_caught_{id(symbol)}",
-                        "timestamp": int(__import__('time').time() * 1000),
-                        "location": "signal_calculators.py:172",
-                        "message": "Caught exception in get_range_oscillator_signal (inner handler)",
-                        "data": {
-                            "symbol": symbol, 
-                            "error": error_str, 
-                            "error_type": error_type,
-                            "is_value_error": isinstance(e, ValueError),
-                            "is_type_error": isinstance(e, TypeError),
-                            "is_value_or_type_error": is_value_or_type_error,
-                            "matches_classification": matches_classification,
-                            "will_retry": is_value_or_type_error and matches_classification
-                        },
-                        "sessionId": "debug-session",
-                        "runId": "run1",
-                        "hypothesisId": "A"
-                    }, f, ensure_ascii=False)
-                    f.write('\n')
-            except:
-                pass
-            # #endregion
-            
             # Only retry for ValueError/TypeError with classification metrics errors
             if is_value_or_type_error and matches_classification:
-                # #region agent log
-                try:
-                    log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        json.dump({
-                            "id": f"log_get_range_oscillator_retry_{id(symbol)}",
-                            "timestamp": int(__import__('time').time() * 1000),
-                            "location": "signal_calculators.py:175",
-                            "message": "Retrying without adaptive weights due to classification metrics error",
-                            "data": {"symbol": symbol, "error": error_str, "error_type": type(e).__name__},
-                            "sessionId": "debug-session",
-                            "runId": "run1",
-                            "hypothesisId": "A"
-                        }, f, ensure_ascii=False)
-                        f.write('\n')
-                except:
-                    pass
-                # #endregion
                 # Retry without adaptive weights
                 config.consensus.adaptive_weights = False
                 try:
@@ -280,24 +149,6 @@ def get_range_oscillator_signal(
                         config=config,
                     )
                 except Exception as retry_e:
-                    # #region agent log
-                    try:
-                        log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-                        with open(log_path, 'a', encoding='utf-8') as f:
-                            json.dump({
-                                "id": f"log_get_range_oscillator_retry_failed_{id(symbol)}",
-                                "timestamp": int(__import__('time').time() * 1000),
-                                "location": "signal_calculators.py:195",
-                                "message": "Retry failed, raising exception",
-                                "data": {"symbol": symbol, "retry_error": str(retry_e), "retry_error_type": type(retry_e).__name__},
-                                "sessionId": "debug-session",
-                                "runId": "run1",
-                                "hypothesisId": "A"
-                            }, f, ensure_ascii=False)
-                            f.write('\n')
-                    except:
-                        pass
-                    # #endregion
                     raise
             else:
                 # Not a classification metrics error, re-raise to let outer handler catch it
@@ -307,46 +158,10 @@ def get_range_oscillator_signal(
         confidence = result[3]
 
         if signals is None or signals.empty:
-            # #region agent log
-            try:
-                log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    json.dump({
-                        "id": f"log_get_range_oscillator_empty_signals_{id(symbol)}",
-                        "timestamp": int(__import__('time').time() * 1000),
-                        "location": "signal_calculators.py:119",
-                        "message": "Empty signals in get_range_oscillator_signal",
-                        "data": {"symbol": symbol, "signals_is_none": signals is None, "signals_empty": signals.empty if signals is not None else None},
-                        "sessionId": "debug-session",
-                        "runId": "run1",
-                        "hypothesisId": "D"
-                    }, f, ensure_ascii=False)
-                    f.write('\n')
-            except:
-                pass
-            # #endregion
             return None
 
         non_nan_mask = ~signals.isna()
         if not non_nan_mask.any():
-            # #region agent log
-            try:
-                log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    json.dump({
-                        "id": f"log_get_range_oscillator_all_nan_{id(symbol)}",
-                        "timestamp": int(__import__('time').time() * 1000),
-                        "location": "signal_calculators.py:123",
-                        "message": "All signals are NaN in get_range_oscillator_signal",
-                        "data": {"symbol": symbol},
-                        "sessionId": "debug-session",
-                        "runId": "run1",
-                        "hypothesisId": "D"
-                    }, f, ensure_ascii=False)
-                    f.write('\n')
-            except:
-                pass
-            # #endregion
             return None
 
         latest_idx = signals[non_nan_mask].index[-1]
@@ -356,34 +171,6 @@ def get_range_oscillator_signal(
         return (latest_signal, latest_confidence)
 
     except Exception as e:
-        # #region agent log
-        try:
-            log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-            error_type = type(e).__name__
-            error_str = str(e)
-            is_value_error = isinstance(e, (ValueError, TypeError))
-            with open(log_path, 'a', encoding='utf-8') as f:
-                json.dump({
-                    "id": f"log_get_range_oscillator_exception_{id(e)}",
-                    "timestamp": int(__import__('time').time() * 1000),
-                    "location": "signal_calculators.py:239",
-                    "message": "Exception in get_range_oscillator_signal (outer handler)",
-                    "data": {
-                        "symbol": symbol if 'symbol' in locals() else "unknown", 
-                        "error": error_str, 
-                        "error_type": error_type,
-                        "is_value_error": is_value_error,
-                        "is_type_error": isinstance(e, TypeError),
-                        "matches_classification": "Classification metrics" in error_str or "Number of classes" in error_str
-                    },
-                    "sessionId": "debug-session",
-                    "runId": "run1",
-                    "hypothesisId": "A"
-                }, f, ensure_ascii=False)
-                f.write('\n')
-        except:
-            pass
-        # #endregion
         return None
 
 
@@ -402,7 +189,7 @@ def get_spc_signal(
             symbol,
             limit=limit,
             timeframe=timeframe,
-            check_freshness=True,
+            check_freshness=False,
         )
 
         if df is None or df.empty:
@@ -487,24 +274,6 @@ def get_spc_signal(
         return (latest_signal, latest_strength)
 
     except Exception as e:
-        # #region agent log
-        try:
-            log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-            with open(log_path, 'a', encoding='utf-8') as f:
-                json.dump({
-                    "id": f"log_get_range_oscillator_exception_{id(e)}",
-                    "timestamp": int(__import__('time').time() * 1000),
-                    "location": "signal_calculators.py:130",
-                    "message": "Exception in get_range_oscillator_signal",
-                    "data": {"symbol": symbol if 'symbol' in locals() else "unknown", "error": str(e), "error_type": type(e).__name__},
-                    "sessionId": "debug-session",
-                    "runId": "run1",
-                    "hypothesisId": "A"
-                }, f, ensure_ascii=False)
-                f.write('\n')
-        except:
-            pass
-        # #endregion
         return None
 
 
@@ -520,7 +289,7 @@ def get_xgboost_signal(
             symbol,
             limit=limit,
             timeframe=timeframe,
-            check_freshness=True,
+            check_freshness=False,
         )
 
         if df is None or df.empty:
@@ -577,24 +346,6 @@ def get_xgboost_signal(
         return (signal, confidence)
 
     except Exception as e:
-        # #region agent log
-        try:
-            log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-            with open(log_path, 'a', encoding='utf-8') as f:
-                json.dump({
-                    "id": f"log_get_range_oscillator_exception_{id(e)}",
-                    "timestamp": int(__import__('time').time() * 1000),
-                    "location": "signal_calculators.py:130",
-                    "message": "Exception in get_range_oscillator_signal",
-                    "data": {"symbol": symbol if 'symbol' in locals() else "unknown", "error": str(e), "error_type": type(e).__name__},
-                    "sessionId": "debug-session",
-                    "runId": "run1",
-                    "hypothesisId": "A"
-                }, f, ensure_ascii=False)
-                f.write('\n')
-        except:
-            pass
-        # #endregion
         return None
 
 
@@ -640,7 +391,7 @@ def get_hmm_signal(
             symbol,
             limit=limit,
             timeframe=timeframe,
-            check_freshness=True,
+            check_freshness=False,
         )
 
         if df is None or df.empty:
@@ -670,23 +421,5 @@ def get_hmm_signal(
         return (signal_value, confidence)
 
     except Exception as e:
-        # #region agent log
-        try:
-            log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-            with open(log_path, 'a', encoding='utf-8') as f:
-                json.dump({
-                    "id": f"log_get_range_oscillator_exception_{id(e)}",
-                    "timestamp": int(__import__('time').time() * 1000),
-                    "location": "signal_calculators.py:130",
-                    "message": "Exception in get_range_oscillator_signal",
-                    "data": {"symbol": symbol if 'symbol' in locals() else "unknown", "error": str(e), "error_type": type(e).__name__},
-                    "sessionId": "debug-session",
-                    "runId": "run1",
-                    "hypothesisId": "A"
-                }, f, ensure_ascii=False)
-                f.write('\n')
-        except:
-            pass
-        # #endregion
         return None
 

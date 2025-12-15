@@ -442,7 +442,17 @@ class DataFetcher:
         if not check_freshness:
             if cache_key in self._ohlcv_dataframe_cache:
                 cached_df, cached_exchange = self._ohlcv_dataframe_cache[cache_key]
-                return cached_df.copy(), cached_exchange
+                # Validate cached DataFrame has required columns
+                required_cols = ["high", "low", "close"]
+                if cached_df is not None and not cached_df.empty:
+                    missing_cols = [col for col in required_cols if col not in cached_df.columns]
+                    if not missing_cols:
+                        return cached_df.copy(), cached_exchange
+                    # Cache has invalid data, remove it and fetch fresh
+                    del self._ohlcv_dataframe_cache[cache_key]
+                elif cached_df is None or cached_df.empty:
+                    # Cache has invalid data, remove it and fetch fresh
+                    del self._ohlcv_dataframe_cache[cache_key]
 
         # Determine which exchanges to try
         exchange_list = (
