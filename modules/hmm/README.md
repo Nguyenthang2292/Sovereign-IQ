@@ -31,7 +31,7 @@ modules/hmm/
 │   ├── __init__.py         # Core module exports
 │   ├── swings/             # HMM-Swings strategy (modular)
 │   │   ├── __init__.py
-│   │   ├── models.py       # HMM_SWINGS, HighOrderHMM class
+│   │   ├── models.py       # HMM_SWINGS, SwingsHMM class
 │   │   ├── state_conversion.py  # convert_swing_to_state
 │   │   ├── optimization.py      # optimize_n_states
 │   │   ├── model_creation.py    # create_hmm_model, train_model

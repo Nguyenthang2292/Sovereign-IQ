@@ -2,7 +2,7 @@ import pytest
 import ccxt
 import time
 
-from modules.common.ExchangeManager import ExchangeManager, PublicExchangeManager
+from modules.common.core.exchange_manager import ExchangeManager, PublicExchangeManager
 
 
 class DummyExchange:

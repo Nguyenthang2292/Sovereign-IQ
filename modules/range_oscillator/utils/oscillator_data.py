@@ -40,9 +40,41 @@ def get_oscillator_data(
     """
     if oscillator is not None and ma is not None and range_atr is not None:
         # Use pre-calculated values
+        # Validate empty data
+        if oscillator.empty or ma.empty or range_atr.empty:
+            raise ValueError("oscillator, ma, and range_atr cannot be empty")
+        
+        # Validate that series contain at least some valid (non-NaN) data
+        if not oscillator.notna().any():
+            raise ValueError("oscillator contains only NaN values")
+        if not ma.notna().any():
+            raise ValueError("ma contains only NaN values")
+        if not range_atr.notna().any():
+            raise ValueError("range_atr contains only NaN values")
+        
+        # Validate index alignment
+        if not oscillator.index.equals(ma.index) or not ma.index.equals(range_atr.index):
+            raise ValueError("oscillator, ma, and range_atr must have the same index")
+        
         return oscillator, ma, range_atr
     elif high is not None and low is not None and close is not None:
         # Calculate oscillator
+        # Validate input data
+        if high.empty or low.empty or close.empty:
+            raise ValueError("high, low, and close cannot be empty")
+        
+        # Validate that series contain at least some valid (non-NaN) data
+        if not high.notna().any():
+            raise ValueError("high contains only NaN values")
+        if not low.notna().any():
+            raise ValueError("low contains only NaN values")
+        if not close.notna().any():
+            raise ValueError("close contains only NaN values")
+        
+        # Validate index alignment
+        if not high.index.equals(low.index) or not low.index.equals(close.index):
+            raise ValueError("high, low, and close must have the same index")
+        
         oscillator, _, ma, range_atr = calculate_range_oscillator(
             high=high,
             low=low,
@@ -50,6 +82,23 @@ def get_oscillator_data(
             length=length,
             mult=mult,
         )
+        
+        # Validate empty data
+        if oscillator.empty or ma.empty or range_atr.empty:
+            raise ValueError("Calculated oscillator, ma, or range_atr is empty")
+        
+        # Validate that calculated series contain at least some valid (non-NaN) data
+        # Note: It's normal for oscillator to have some NaN values (at the beginning),
+        # but ma and range_atr should have valid values after the initial period
+        if not ma.notna().any():
+            raise ValueError("Calculated ma contains only NaN values")
+        if not range_atr.notna().any():
+            raise ValueError("Calculated range_atr contains only NaN values")
+        
+        # Validate index alignment
+        if not oscillator.index.equals(ma.index) or not ma.index.equals(range_atr.index):
+            raise ValueError("Calculated oscillator, ma, and range_atr must have the same index")
+        
         return oscillator, ma, range_atr
     else:
         raise ValueError("Either provide (oscillator, ma, range_atr) or (high, low, close) with length and mult")

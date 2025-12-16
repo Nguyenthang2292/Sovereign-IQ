@@ -99,7 +99,6 @@ def calculate_half_life(spread: pd.Series) -> Optional[float]:
             return None
         
         theta = model.coef_[0]
-        
         # Validate theta is finite
         if np.isnan(theta) or np.isinf(theta):
             return None

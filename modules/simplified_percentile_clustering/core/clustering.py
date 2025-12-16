@@ -310,10 +310,20 @@ class SimplifiedPercentileClustering:
         # Step 6: Compute relative position and real_clust using vectorized operations
         # Relative position: min_dist / (min_dist + second_min_dist)
         rel_pos = pd.Series(0.0, index=index)
+        
+        # IMPROVEMENT (2025-01-16): Handle edge case when both distances are zero.
+        # When feature value equals both centers exactly, set rel_pos = 0.5 to indicate
+        # the value is exactly between the two centers. This provides more accurate
+        # interpolation in real_clust calculation.
+        both_zero = (min_dist == 0) & (second_min_dist == 0) & (~safe_isna(min_dist)) & (~safe_isna(second_min_dist))
+        rel_pos[both_zero] = 0.5  # Exactly between two centers
+        
+        # Handle normal case: second_min_dist > 0
         valid_rel = (
             (second_min_dist > 0) 
             & (second_min_dist != np.inf) 
             & (~safe_isna(second_min_dist))
+            & (~both_zero)  # Exclude cases already handled above
         )
         rel_pos[valid_rel] = min_dist[valid_rel] / (
             min_dist[valid_rel] + second_min_dist[valid_rel]

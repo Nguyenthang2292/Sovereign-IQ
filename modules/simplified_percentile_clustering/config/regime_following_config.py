@@ -30,8 +30,8 @@ class RegimeFollowingConfig:
     momentum_period: int = 5  # Period for momentum calculation
 
     # Cluster preferences
-    bullish_clusters: list[int] = None  # Clusters considered bullish (e.g., [1, 2])
-    bearish_clusters: list[int] = None  # Clusters considered bearish (e.g., [0])
+    bullish_clusters: Optional[list[int]] = None  # Clusters considered bullish (e.g., [1, 2])
+    bearish_clusters: Optional[list[int]] = None  # Clusters considered bearish (e.g., [0])
 
     # Real_clust thresholds
     bullish_real_clust_threshold: float = 0.5  # Minimum real_clust for bullish
@@ -40,10 +40,40 @@ class RegimeFollowingConfig:
     def __post_init__(self):
         """Set default cluster preferences if not provided and validate config."""
         if self.bullish_clusters is None:
-            self.bullish_clusters = [1, 2]
+            # Set defaults based on k if clustering_config is provided
+            if self.clustering_config is not None:
+                k = self.clustering_config.k
+                if k == 2:
+                    self.bullish_clusters = [1]
+                else:  # k == 3
+                    self.bullish_clusters = [1, 2]
+            else:
+                # Default to k=3 clusters (most common case)
+                self.bullish_clusters = [1, 2]
         if self.bearish_clusters is None:
-            self.bearish_clusters = [0]
+            # Set defaults based on k if clustering_config is provided
+            if self.clustering_config is not None:
+                k = self.clustering_config.k
+                # For both k=2 and k=3, cluster 0 is bearish
+                self.bearish_clusters = [0]
+            else:
+                # Default to k=3 clusters (most common case)
+                self.bearish_clusters = [0]
         # Validate configuration
+        if self.clustering_config is not None:
+            validate_clustering_config(self.clustering_config)
+            # Validate cluster preferences are within valid range
+            k = self.clustering_config.k
+            max_cluster = k - 1
+            for cluster_list, name in [
+                (self.bullish_clusters, "bullish_clusters"),
+                (self.bearish_clusters, "bearish_clusters"),
+            ]:
+                for cluster in cluster_list:
+                    if cluster < 0 or cluster > max_cluster:
+                        raise ValueError(
+                            f"{name}: invalid cluster index {cluster} for k={k} (valid range: 0-{max_cluster})"
+                        )
         if not (0.0 <= self.min_regime_strength <= 1.0):
             raise ValueError(
                 f"min_regime_strength must be in [0.0, 1.0], got {self.min_regime_strength}"
@@ -64,8 +94,6 @@ class RegimeFollowingConfig:
             raise ValueError(
                 f"bearish_real_clust_threshold must be in [0.0, 1.0], got {self.bearish_real_clust_threshold}"
             )
-        if self.clustering_config is not None:
-            validate_clustering_config(self.clustering_config)
 
 
 __all__ = ["RegimeFollowingConfig"]

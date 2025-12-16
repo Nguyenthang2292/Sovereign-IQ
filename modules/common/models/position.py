@@ -13,3 +13,4 @@ class Position:
     direction: str
     entry_price: float
     size_usdt: float
+

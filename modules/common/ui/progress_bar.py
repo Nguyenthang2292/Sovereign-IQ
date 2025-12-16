@@ -4,7 +4,7 @@ Progress bar utility for displaying task progress.
 
 import threading
 from colorama import Fore
-from .utils import color_text
+from modules.common.ui.formatting import color_text
 
 
 class ProgressBar:
@@ -64,3 +64,4 @@ class NullProgressBar:
     def finish(self) -> None:
         """No-op finish method."""
         pass
+

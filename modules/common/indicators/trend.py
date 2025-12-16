@@ -16,6 +16,7 @@ import pandas as pd
 import pandas_ta as ta
 
 from .base import IndicatorMetadata, IndicatorResult, collect_metadata
+from modules.common.utils import validate_ohlcv_input
 
 
 class TrendIndicators:
@@ -43,6 +44,10 @@ class TrendIndicators:
         Returns:
             Tuple of (result DataFrame, metadata dict)
         """
+        # Validate input - SMA only needs close, but ADX needs high/low/close
+        # So we validate for close (required for SMA)
+        validate_ohlcv_input(df, required_columns=["close"])
+        
         result = df.copy()
         before = result.columns.tolist()
 
@@ -51,10 +56,11 @@ class TrendIndicators:
         result["SMA_50"] = ta.sma(result["close"], length=50)
         result["SMA_200"] = ta.sma(result["close"], length=200)
 
-        # Average Directional Index (ADX)
-        adx_series = calculate_adx_series(result, period=14)
-        if adx_series is not None:
-            result["ADX_14"] = adx_series
+        # Average Directional Index (ADX) - only calculate if high/low are available
+        if "high" in result.columns and "low" in result.columns:
+            adx_series = calculate_adx_series(result, period=14)
+            if adx_series is not None:
+                result["ADX_14"] = adx_series
 
         metadata = collect_metadata(before, result.columns, TrendIndicators.CATEGORY)
         return result, metadata
@@ -128,7 +134,9 @@ def calculate_adx_series(ohlcv: pd.DataFrame, period: int = 14) -> Optional[pd.S
     denom = (plus_di + minus_di).replace(0, np.nan)
     dx = ((plus_di - minus_di).abs() / denom) * 100
     adx = dx.ewm(alpha=1 / period, adjust=False).mean()
-    adx = adx.dropna()
+    # Thay vì dropna(), sử dụng bfill() và fillna() để giữ index alignment với DataFrame gốc
+    # Fill NaN bằng giá trị đầu tiên hợp lệ hoặc 0
+    adx = adx.bfill().fillna(0.0)
 
     if adx.empty:
         return None
@@ -186,6 +194,166 @@ def calculate_cci(
     if cci is None:
         cci = pd.Series(0.0, index=close.index)
     return cci.fillna(0.0)
+
+
+# ============================================================================
+# Weighted Moving Average Function
+# ============================================================================
+
+
+def calculate_weighted_ma(
+    close: pd.Series,
+    length: int = 50,
+) -> pd.Series:
+    """Calculate weighted moving average based on price deltas.
+
+    This function calculates a weighted moving average where larger price
+    movements receive higher weights. This emphasizes recent volatility and
+    creates a more responsive equilibrium line compared to simple MA.
+
+    Port of Pine Script logic:
+        sumWeightedClose = 0.0
+        sumWeights = 0.0
+        for i = 0 to length - 1 by 1
+            delta = math.abs(close[i] - close[i + 1])
+            w = delta / close[i + 1]
+            sumWeightedClose := sumWeightedClose + close[i] * w
+            sumWeights := sumWeights + w
+        ma = sumWeights != 0 ? sumWeightedClose / sumWeights : na
+
+    Args:
+        close: Close price series.
+        length: Number of bars to use for calculation (default: 50).
+
+    Returns:
+        Series containing weighted moving average values.
+        First `length` values are NaN.
+    """
+    # Input validation
+    if not isinstance(close, pd.Series):
+        raise TypeError(f"close must be a pandas Series, got {type(close)}")
+    if len(close) == 0:
+        raise ValueError("close series cannot be empty")
+    if length <= 0:
+        raise ValueError(f"length must be > 0, got {length}")
+    
+    # IMPROVEMENT (2025-01-16): Handle short data series gracefully.
+    # If data is shorter than required length, use available data with adjusted length.
+    # This ensures we get valid MA values even with limited data, though with reduced accuracy.
+    if len(close) < length + 1:
+        # Use a smaller length that fits the data (at least 2 points needed)
+        adjusted_length = max(1, len(close) - 1)
+        if adjusted_length < 1:
+            return pd.Series(np.nan, index=close.index, dtype="float64")
+        length = adjusted_length
+
+    ma_values = []
+    for i in range(len(close)):
+        if i < length:
+            ma_values.append(np.nan)
+            continue
+
+        sum_weighted_close = 0.0
+        sum_weights = 0.0
+
+        for j in range(length):
+            idx = i - j
+            prev_idx = idx - 1
+            if prev_idx < 0:
+                break
+            
+            # Check for NaN values
+            if pd.isna(close.iloc[idx]) or pd.isna(close.iloc[prev_idx]):
+                continue
+
+            delta = abs(close.iloc[idx] - close.iloc[prev_idx])
+            prev_close = close.iloc[prev_idx]
+            if prev_close == 0 or pd.isna(prev_close):
+                w = 0.0
+            else:
+                w = delta / prev_close
+
+            sum_weighted_close += close.iloc[idx] * w
+            sum_weights += w
+
+        # IMPROVEMENT (2025-01-16): Handle case when sum_weights = 0 (constant prices).
+        # Fallback to simple average when all prices are the same to avoid NaN.
+        if sum_weights != 0 and not pd.isna(sum_weights):
+            ma_value = sum_weighted_close / sum_weights
+        else:
+            # If all prices are constant (sum_weights = 0), use simple average
+            ma_value = close.iloc[i - length + 1:i + 1].mean()
+        ma_values.append(ma_value)
+
+    return pd.Series(ma_values, index=close.index, dtype="float64")
+
+
+# ============================================================================
+# Trend Direction Function
+# ============================================================================
+
+
+def calculate_trend_direction(
+    close: pd.Series,
+    ma: pd.Series,
+) -> pd.Series:
+    """Calculate trend direction based on close vs weighted MA.
+
+    Determines whether the current price is above or below the weighted MA,
+    indicating bullish or bearish bias. This is used to select appropriate
+    heatmap colors (bullish colors vs bearish colors).
+
+    Port of Pine Script logic:
+        var int trendDir = 0
+        trendDir := close > ma ? 1 : close < ma ? -1 : nz(trendDir[1])
+
+    Args:
+        close: Close price series.
+        ma: Moving average series (typically from calculate_weighted_ma).
+
+    Returns:
+        Series with trend direction:
+        - 1: Bullish (close > MA)
+        - -1: Bearish (close < MA)
+        - 0: Neutral (uses previous value if close == MA)
+    """
+    # Input validation
+    if not isinstance(close, pd.Series) or not isinstance(ma, pd.Series):
+        raise TypeError("close and ma must be pandas Series")
+    if len(close) == 0 or len(ma) == 0:
+        raise ValueError("close and ma series cannot be empty")
+    if not close.index.equals(ma.index):
+        raise ValueError("close and ma must have the same index")
+    
+    trend_dir = pd.Series(0, index=close.index, dtype="int8")
+
+    for i in range(len(close)):
+        # Bounds checking
+        if i >= len(ma):
+            # Use previous value if available
+            if i > 0:
+                trend_dir.iloc[i] = trend_dir.iloc[i - 1]
+            continue
+            
+        if pd.isna(close.iloc[i]) or pd.isna(ma.iloc[i]):
+            # Use previous value if available
+            if i > 0:
+                trend_dir.iloc[i] = trend_dir.iloc[i - 1]
+            continue
+
+        close_value = close.iloc[i]
+        ma_value = ma.iloc[i]
+        
+        if close_value > ma_value:
+            trend_dir.iloc[i] = 1
+        elif close_value < ma_value:
+            trend_dir.iloc[i] = -1
+        else:
+            # Use previous value
+            if i > 0:
+                trend_dir.iloc[i] = trend_dir.iloc[i - 1]
+
+    return trend_dir
 
 
 # ============================================================================
@@ -254,4 +422,6 @@ __all__ = [
     "calculate_adx_series",
     "calculate_cci",
     "calculate_dmi_difference",
+    "calculate_weighted_ma",
+    "calculate_trend_direction",
 ]

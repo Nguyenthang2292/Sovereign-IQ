@@ -10,7 +10,7 @@ This module contains the core Hidden Markov Model implementations:
 # Basic HMM with swings
 from modules.hmm.core.swings import (
     hmm_swings,
-    HighOrderHMM,
+    SwingsHMM,
     HMM_SWINGS,
     BULLISH,
     NEUTRAL,
@@ -40,7 +40,7 @@ from modules.hmm.core.kama import (
 __all__ = [
     # Basic HMM
     "hmm_swings",
-    "HighOrderHMM",
+    "SwingsHMM",
     "HMM_SWINGS",
     "BULLISH",
     "NEUTRAL",

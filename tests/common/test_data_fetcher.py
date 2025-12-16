@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.data_fetcher import DataFetcher
 
 
 def _build_ohlcv(last_timestamp_ms: int):

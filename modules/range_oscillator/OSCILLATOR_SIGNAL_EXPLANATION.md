@@ -14,6 +14,7 @@ Range Oscillator signal được tạo ra qua 3 bước chính:
 ### 1.1. Tính Weighted Moving Average (MA)
 ```python
 # Từ close prices, tính weighted MA dựa trên price deltas
+from modules.common.indicators.trend import calculate_weighted_ma
 ma = calculate_weighted_ma(close, length=50)
 ```
 
@@ -27,6 +28,7 @@ ma = calculate_weighted_ma(close, length=50)
 ### 1.2. Tính ATR Range
 ```python
 # Tính ATR (Average True Range) và nhân với multiplier
+from modules.common.indicators.volatility import calculate_atr_range
 range_atr = calculate_atr_range(high, low, close, mult=2.0)
 ```
 

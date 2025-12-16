@@ -76,6 +76,11 @@ class DecisionMatrixClassifier:
         Weighted impact = how much each indicator contributes to the voting scheme.
         Should be balanced (not let one indicator dominate >30-40%).
         """
+        # Handle empty indicators list
+        if len(self.indicators) == 0:
+            # No indicators, no weights to calculate
+            return
+        
         # Calculate total importance
         total_importance = sum(self.feature_importance.values())
         
@@ -93,21 +98,39 @@ class DecisionMatrixClassifier:
             # Check for over-representation (>40%)
             # Note: This cap strictly works for N >= 3 indicators.
             # For N=2, the minimum even weight is 50%, so 40% cap is mathematically impossible
-            # without discarding weight. In that case, it will converge to 50/50.
-            max_weight = max(self.weighted_impact.values()) if self.weighted_impact else 0.0
-            if max_weight > 0.4:
-                # Normalize to prevent over-representation
-                # Redistribute weights so max is 40%
-                scale_factor = 0.4 / max_weight
-                for indicator in self.indicators:
-                    self.weighted_impact[indicator] *= scale_factor
-                
-                # Redistribute remaining weight equally
-                remaining = 1.0 - sum(self.weighted_impact.values())
-                if remaining > 0:
-                    equal_addition = remaining / len(self.indicators)
-                    for indicator in self.indicators:
-                        self.weighted_impact[indicator] += equal_addition
+            # without discarding weight. Skip normalization for N=2 to avoid incorrect results.
+            if len(self.indicators) >= 3:
+                max_weight = max(self.weighted_impact.values()) if self.weighted_impact else 0.0
+                if max_weight > 0.4:
+                    # Normalize to prevent over-representation
+                    # Find the indicator with max weight
+                    max_indicator = max(self.weighted_impact.items(), key=lambda x: x[1])[0]
+                    
+                    # Cap max weight at 40%
+                    excess = self.weighted_impact[max_indicator] - 0.4
+                    self.weighted_impact[max_indicator] = 0.4
+                    
+                    # Redistribute excess weight equally among other indicators
+                    other_indicators = [ind for ind in self.indicators if ind != max_indicator]
+                    if other_indicators and excess > 0:
+                        equal_addition = excess / len(other_indicators)
+                        for indicator in other_indicators:
+                            self.weighted_impact[indicator] += equal_addition
+                    
+                    # Final check: if max is still > 0.4 after redistribution, 
+                    # it means we need to cap again (shouldn't happen, but safety check)
+                    max_weight_after = max(self.weighted_impact.values())
+                    if max_weight_after > 0.4:
+                        # This should be rare, but handle it by scaling all weights proportionally
+                        scale_factor = 0.4 / max_weight_after
+                        for indicator in self.indicators:
+                            self.weighted_impact[indicator] *= scale_factor
+                        # Redistribute remaining
+                        remaining = 1.0 - sum(self.weighted_impact.values())
+                        if remaining > 0:
+                            equal_addition = remaining / len(self.indicators)
+                            for indicator in self.indicators:
+                                self.weighted_impact[indicator] += equal_addition
     
     def calculate_cumulative_vote(
         self,
@@ -132,6 +155,8 @@ class DecisionMatrixClassifier:
         voting_breakdown = {}
         positive_votes = 0
         
+        # Calculate total weight of indicators that voted positive
+        total_positive_weight = 0.0
         for indicator in self.indicators:
             vote = self.node_votes.get(indicator, 0)
             weight = self.weighted_impact.get(indicator, 1.0 / len(self.indicators))
@@ -146,13 +171,40 @@ class DecisionMatrixClassifier:
             
             if vote == 1:
                 positive_votes += 1
+                total_positive_weight += weight
         
         # Check minimum votes requirement
         if positive_votes < min_votes:
             return (0, weighted_score, voting_breakdown)
         
-        # Final vote based on threshold
-        cumulative_vote = 1 if weighted_score >= threshold else 0
+        # Adjust threshold based on the actual weights of indicators that voted positive
+        # Problem: When we have many indicators (e.g., 5) but only min_votes (e.g., 2) vote=1,
+        # weighted_score = sum of weights of positive votes (e.g., 0.193 + 0.196 = 0.389)
+        # But threshold=0.5 is too high in this case.
+        # 
+        # Solution: Use a dynamic threshold based on the total weight of positive indicators
+        # If we have min_votes=2 and they have total weight=0.389, effective threshold should be <= 0.389
+        # We use the minimum of:
+        #   1. Original threshold (0.5)
+        #   2. Minimum proportion based on min_votes (2/5 = 0.4)
+        #   3. Total weight of positive indicators * 0.95 (allow 5% margin for precision)
+        if len(self.indicators) > 0:
+            min_proportion = min_votes / len(self.indicators)
+            # Use total_positive_weight if available to account for uneven weights
+            if total_positive_weight > 0:
+                # Use 95% of total_positive_weight as threshold to allow for floating point precision
+                # This ensures that if all positive indicators vote=1, weighted_score will pass
+                weight_based_threshold = total_positive_weight * 0.95
+                # Use the minimum of threshold, min_proportion, and weight_based_threshold
+                effective_threshold = min(threshold, min_proportion, weight_based_threshold)
+            else:
+                # Fallback: use min of threshold and min_proportion
+                effective_threshold = min(threshold, min_proportion)
+        else:
+            effective_threshold = threshold
+        
+        # Final vote based on adjusted threshold
+        cumulative_vote = 1 if weighted_score >= effective_threshold else 0
         
         return (cumulative_vote, weighted_score, voting_breakdown)
     

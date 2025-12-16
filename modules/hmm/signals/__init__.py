@@ -14,6 +14,7 @@ from modules.hmm.signals.scoring import normalize_scores
 from modules.hmm.signals.resolution import (
     calculate_dynamic_threshold,
     resolve_signal_conflict,
+    resolve_multi_strategy_conflicts,
     Signal,
     LONG,
     HOLD,
@@ -31,6 +32,7 @@ __all__ = [
     "normalize_scores",
     "calculate_dynamic_threshold",
     "resolve_signal_conflict",
+    "resolve_multi_strategy_conflicts",
     "Signal",
     "LONG",
     "HOLD",

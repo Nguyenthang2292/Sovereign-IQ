@@ -33,8 +33,8 @@ from modules.common.utils import (
     log_success,
     log_progress,
 )
-from modules.common.ExchangeManager import ExchangeManager
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
 from modules.pairs_trading import (
     PerformanceAnalyzer,
     PairsTradingAnalyzer,

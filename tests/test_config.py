@@ -18,7 +18,7 @@ def test_default_quote():
 
 def test_default_timeframe():
     """Test DEFAULT_TIMEFRAME constant."""
-    assert config.DEFAULT_TIMEFRAME == "1h"
+    assert config.DEFAULT_TIMEFRAME == "15m"
 
 
 def test_default_limit():

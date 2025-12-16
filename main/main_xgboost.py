@@ -20,9 +20,9 @@ from config import (
 from modules.common.utils import color_text, format_price, normalize_symbol
 from modules.xgboost.utils import get_prediction_window
 from modules.xgboost.cli import parse_args, resolve_input
-from modules.common.ExchangeManager import ExchangeManager
-from modules.common.DataFetcher import DataFetcher
-from modules.common.IndicatorEngine import (
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.indicator_engine import (
     IndicatorConfig,
     IndicatorEngine,
     IndicatorProfile,

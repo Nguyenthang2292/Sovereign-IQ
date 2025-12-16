@@ -40,4 +40,20 @@ class CombinedStrategyConfig:
     return_confidence_score: bool = False
     return_strategy_stats: bool = False
     enable_debug: bool = False
+    
+    def __post_init__(self):
+        """Validate configuration values."""
+        from config import VALID_STRATEGY_IDS
+        if self.enabled_strategies:
+            invalid = set(self.enabled_strategies) - VALID_STRATEGY_IDS
+            if invalid:
+                raise ValueError(f"Invalid strategy IDs: {invalid}. Valid IDs: {sorted(VALID_STRATEGY_IDS)}")
+        if self.min_signal_strength < 0:
+            raise ValueError(f"min_signal_strength must be >= 0, got {self.min_signal_strength}")
+        if self.strategy_weights:
+            for sid, weight in self.strategy_weights.items():
+                if sid not in VALID_STRATEGY_IDS:
+                    raise ValueError(f"Invalid strategy ID in weights: {sid}")
+                if weight < 0:
+                    raise ValueError(f"Weight for strategy {sid} must be >= 0, got {weight}")
 

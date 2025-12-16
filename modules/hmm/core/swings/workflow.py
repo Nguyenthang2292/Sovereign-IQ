@@ -7,7 +7,7 @@ This module contains the main hmm_swings function that orchestrates the entire w
 from typing import Optional
 import pandas as pd
 
-from modules.hmm.core.swings.models import HMM_SWINGS, HighOrderHMM, NEUTRAL
+from modules.hmm.core.swings.models import HMM_SWINGS, SwingsHMM, NEUTRAL
 from config import HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT
 
 
@@ -21,7 +21,7 @@ def hmm_swings(
     """
     Generates and trains a Hidden Markov Model (HMM) using swing points extracted from market price data.
     
-    This is a backward-compatible wrapper function that uses the HighOrderHMM class internally.
+    This is a wrapper function that uses the SwingsHMM class internally.
     
     Parameters:
         df: DataFrame containing price data with at least the columns 'open', 'high', 'low', 'close'.
@@ -33,7 +33,7 @@ def hmm_swings(
         Returns:
             HMM_SWINGS: Instance containing the predicted market state.
     """
-    analyzer = HighOrderHMM(
+    analyzer = SwingsHMM(
         orders_argrelextrema=orders_argrelextrema,
         strict_mode=strict_mode,
         use_data_driven=HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT,

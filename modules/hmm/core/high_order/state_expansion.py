@@ -7,9 +7,7 @@ to expanded states that represent sequences of k previous states.
 
 from typing import List, Tuple
 from modules.common.utils import log_warn
-
-# Base number of states (0=Down, 1=Side, 2=Up)
-N_BASE_STATES = 3
+from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
 
 
 def get_expanded_state_count(n_base_states: int, order: int) -> int:
@@ -59,9 +57,12 @@ def expand_state_sequence(states: List[float], order: int, n_base_states: int = 
         expanded_state = 0
         for j, state in enumerate(sequence):
             state_int = int(state)
-            # Ensure state is in valid range
+            # Ensure state is in valid range [0, n_base_states-1]
+            # NOTE: This clamping prevents invalid expanded states that could cause index errors
             state_int = max(0, min(state_int, n_base_states - 1))
+            
             expanded_state += state_int * (n_base_states ** (order - 1 - j))
+        
         expanded.append(expanded_state)
     
     return expanded

@@ -7,7 +7,7 @@ This module provides Basic HMM with swing detection implementation for market st
 # Models
 from modules.hmm.core.swings.models import (
     HMM_SWINGS,
-    HighOrderHMM,
+    SwingsHMM,
     BULLISH,
     NEUTRAL,
     BEARISH,
@@ -61,7 +61,7 @@ from modules.hmm.core.swings.strategy import (
 __all__ = [
     # Models
     "HMM_SWINGS",
-    "HighOrderHMM",
+    "SwingsHMM",
     "BULLISH",
     "NEUTRAL",
     "BEARISH",

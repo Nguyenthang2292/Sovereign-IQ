@@ -7,6 +7,7 @@ import pandas as pd
 import pandas_ta as ta
 
 from .base import IndicatorMetadata, IndicatorResult, collect_metadata
+from modules.common.utils import validate_ohlcv_input
 
 
 def calculate_returns_volatility(df: pd.DataFrame) -> float:
@@ -59,6 +60,9 @@ class VolatilityIndicators:
 
     @staticmethod
     def apply(df: pd.DataFrame) -> IndicatorResult:
+        # Validate input
+        validate_ohlcv_input(df, required_columns=["high", "low", "close"])
+        
         result = df.copy()
         before = result.columns.tolist()
 
@@ -66,10 +70,16 @@ class VolatilityIndicators:
         result["ATR_14"] = _calculate_atr_with_fallback(result, length=14)
         result["ATR_50"] = _calculate_atr_with_fallback(result, length=50)
 
-        result["ATR_RATIO_14_50"] = result["ATR_14"] / result["ATR_50"]
-        result["ATR_RATIO_14_50"] = (
-            result["ATR_RATIO_14_50"].replace([np.inf, -np.inf], np.nan).fillna(1.0)
+        # Improved division by zero handling: avoid warning by using where() instead of direct division
+        atr_50_safe = result["ATR_50"].replace(0, np.nan)
+        result["ATR_RATIO_14_50"] = np.where(
+            pd.notna(atr_50_safe),
+            result["ATR_14"] / atr_50_safe,
+            1.0  # Default value when ATR_50 is 0 or NaN
         )
+        result["ATR_RATIO_14_50"] = pd.Series(
+            result["ATR_RATIO_14_50"], index=result.index
+        ).replace([np.inf, -np.inf], np.nan).fillna(1.0)
 
         metadata = collect_metadata(
             before,
@@ -79,4 +89,79 @@ class VolatilityIndicators:
         return result, metadata
 
 
-__all__ = ["VolatilityIndicators", "calculate_returns_volatility"]
+def calculate_atr_range(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    mult: float = 2.0,
+    atr_length_primary: int = 2000,
+    atr_length_fallback: int = 200,
+) -> pd.Series:
+    """Calculate ATR-based range bands.
+
+    Calculates the Average True Range (ATR) and multiplies it by a factor
+    to create dynamic range bands. These bands adapt to market volatility,
+    expanding during volatile periods and contracting during quiet periods.
+
+    Port of Pine Script logic:
+        atrRaw = nz(ta.atr(2000), ta.atr(200))
+        rangeATR = atrRaw * mult
+
+    Args:
+        high: High price series.
+        low: Low price series.
+        close: Close price series.
+        mult: Multiplier for ATR (default: 2.0).
+        atr_length_primary: Primary ATR length (default: 2000).
+        atr_length_fallback: Fallback ATR length if primary fails (default: 200).
+
+    Returns:
+        Series containing ATR-based range values.
+    """
+    # Input validation
+    if not isinstance(high, pd.Series) or not isinstance(low, pd.Series) or not isinstance(close, pd.Series):
+        raise TypeError("high, low, and close must be pandas Series")
+    if len(high) == 0 or len(low) == 0 or len(close) == 0:
+        raise ValueError("high, low, and close series cannot be empty")
+    if not high.index.equals(low.index) or not low.index.equals(close.index):
+        raise ValueError("high, low, and close must have the same index")
+    if mult <= 0:
+        raise ValueError(f"mult must be > 0, got {mult}")
+    if atr_length_primary < 1 or atr_length_fallback < 1:
+        raise ValueError(f"ATR lengths must be >= 1")
+    
+    # Try primary ATR length first
+    atr_raw = ta.atr(high, low, close, length=atr_length_primary)
+    if atr_raw is None or (isinstance(atr_raw, pd.Series) and atr_raw.isna().all()):
+        # Fallback to shorter ATR
+        atr_raw = ta.atr(high, low, close, length=atr_length_fallback)
+    
+    # IMPROVEMENT (2025-01-16): Additional fallback for short data series.
+    # If both primary and fallback ATR lengths are too large for the data,
+    # try progressively smaller lengths (14, then 10, then 5) to ensure
+    # we get valid ATR values even with limited data.
+    if atr_raw is None or (isinstance(atr_raw, pd.Series) and atr_raw.isna().all()):
+        data_length = len(close)
+        # Try progressively smaller ATR lengths
+        for fallback_len in [14, 10, 5]:
+            if fallback_len <= data_length:
+                atr_raw = ta.atr(high, low, close, length=fallback_len)
+                if atr_raw is not None and isinstance(atr_raw, pd.Series) and atr_raw.notna().any():
+                    break
+
+    if atr_raw is None:
+        # If all attempts fail, return NaN series
+        return pd.Series(np.nan, index=close.index, dtype="float64")
+
+    # Fill NaN values forward, then backward
+    atr_raw = atr_raw.ffill().bfill()
+    if atr_raw.isna().all():
+        # If still all NaN, use a default value based on close price
+        default_atr = close.abs() * 0.01
+        atr_raw = pd.Series(default_atr, index=close.index)
+
+    range_atr = atr_raw * mult
+    return range_atr
+
+
+__all__ = ["VolatilityIndicators", "calculate_returns_volatility", "calculate_atr_range"]

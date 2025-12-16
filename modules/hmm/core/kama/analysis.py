@@ -61,13 +61,32 @@ def compute_state_using_hmm(durations: pd.DataFrame) -> Tuple[pd.DataFrame, int]
         return durations_copy, 0
 
     try:
+        n_components = min(2, len(durations))
         model = GaussianHMM(
-            n_components=min(2, len(durations)),
+            n_components=n_components,
             covariance_type="diag",
             n_iter=10,
             random_state=36,
         )
         model.fit(durations[["duration"]].values)
+        
+        # FIX (2025-01-16): Normalize transition matrix to ensure rows sum to 1
+        # Problem: With sparse data or outliers, some states may have no observed transitions,
+        #          resulting in transition matrix rows with zero sum, causing ValueError
+        # Solution: Detect zero-sum rows, set them to uniform distribution, then normalize all rows
+        if hasattr(model, "transmat_"):
+            row_sums = model.transmat_.sum(axis=1)
+            # Replace zero sums with uniform distribution
+            zero_sum_mask = row_sums == 0
+            if zero_sum_mask.any():
+                log_warn(f"Found {zero_sum_mask.sum()} transition matrix rows with zero sum. Normalizing.")
+                # Set zero-sum rows to uniform distribution
+                model.transmat_[zero_sum_mask] = 1.0 / n_components
+                # Re-normalize all rows
+                row_sums = model.transmat_.sum(axis=1)
+            # Normalize all rows to sum to 1
+            model.transmat_ = model.transmat_ / row_sums[:, np.newaxis]
+
         hidden_states = model.predict(durations[["duration"]].values)
         durations_copy = durations.copy()
         durations_copy["hidden_state"] = hidden_states

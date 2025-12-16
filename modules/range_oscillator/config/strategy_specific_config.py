@@ -28,6 +28,10 @@ class StrategySpecificConfig:
     breakout_upper_threshold: float = 100.0
     breakout_lower_threshold: float = -100.0
     breakout_confirmation_bars: int = 2
+    breakout_use_dynamic_exhaustion: bool = False
+    breakout_exhaustion_atr_multiplier: float = 1.0
+    breakout_base_exhaustion_threshold: float = 150.0
+    breakout_exhaustion_atr_period: int = 50
     
     # Strategy 7: Divergence
     use_divergence: bool = False
@@ -43,4 +47,18 @@ class StrategySpecificConfig:
     use_mean_reversion: bool = False
     mean_reversion_extreme_threshold: float = 80.0
     mean_reversion_zero_cross_threshold: float = 10.0
+    
+    def __post_init__(self):
+        """Validate configuration values."""
+        if self.use_sustained and self.min_bars_sustained <= 0:
+            raise ValueError(f"min_bars_sustained must be > 0, got {self.min_bars_sustained}")
+        if self.use_crossover and self.confirmation_bars <= 0:
+            raise ValueError(f"confirmation_bars must be > 0, got {self.confirmation_bars}")
+        if self.use_momentum:
+            if self.momentum_period <= 0:
+                raise ValueError(f"momentum_period must be > 0, got {self.momentum_period}")
+            if self.momentum_threshold < 0:
+                raise ValueError(f"momentum_threshold must be >= 0, got {self.momentum_threshold}")
+        if self.use_trend_following and self.trend_filter_period <= 0:
+            raise ValueError(f"trend_filter_period must be > 0, got {self.trend_filter_period}")
 

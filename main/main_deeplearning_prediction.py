@@ -62,8 +62,8 @@ from config import (
     DEEP_HYBRID_LEARNING_RATE,
 )
 from modules.common.utils import color_text, normalize_symbol
-from modules.common.ExchangeManager import ExchangeManager
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
 from modules.deeplearning.data_pipeline import DeepLearningDataPipeline
 from modules.deeplearning.dataset import create_tft_datamodule
 from modules.deeplearning.model import (

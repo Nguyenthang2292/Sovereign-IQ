@@ -11,6 +11,67 @@ import os
 
 from modules.range_oscillator.utils.oscillator_data import get_oscillator_data
 from modules.common.utils import log_debug, log_analysis
+from modules.common.indicators.volatility import calculate_atr_range
+
+
+def _calculate_dynamic_exhaustion_threshold(
+    range_atr: pd.Series,
+    base_exhaustion_threshold: float,
+    exhaustion_atr_multiplier: float,
+    exhaustion_atr_period: int,
+) -> pd.Series:
+    """
+    Calculate dynamic exhaustion threshold based on ATR.
+    
+    Formula: exhaustion_threshold = exhaustion_atr_multiplier * (range_atr / base_range_atr) * base_exhaustion_threshold
+    
+    Args:
+        range_atr: Range ATR series (ATR * mult)
+        base_exhaustion_threshold: Base threshold value
+        exhaustion_atr_multiplier: Multiplier for ATR ratio
+        exhaustion_atr_period: Period to calculate base_range_atr (mean of first N periods)
+    
+    Returns:
+        Series with dynamic exhaustion threshold values
+    """
+    if len(range_atr) == 0:
+        return pd.Series([base_exhaustion_threshold], index=range_atr.index, dtype="float64")
+    
+    # Calculate base_range_atr as mean of first exhaustion_atr_period periods
+    # Use minimum of available data and requested period
+    period_to_use = min(exhaustion_atr_period, len(range_atr))
+    
+    if period_to_use == 0:
+        # Fallback to static threshold if no data
+        return pd.Series([base_exhaustion_threshold] * len(range_atr), index=range_atr.index, dtype="float64")
+    
+    # Calculate base_range_atr from first N periods (use mean)
+    base_range_atr = range_atr.iloc[:period_to_use].mean()
+    
+    # Handle edge cases: zero or NaN base_range_atr
+    if pd.isna(base_range_atr) or base_range_atr <= 0:
+        # Fallback: use current range_atr value or a small positive value
+        base_range_atr = range_atr.dropna()
+        if len(base_range_atr) > 0:
+            base_range_atr = max(base_range_atr.min(), 1.0)  # At least 1.0 to avoid division issues
+        else:
+            base_range_atr = 1.0
+    
+    # Calculate dynamic threshold: multiplier * (current_range_atr / base_range_atr) * base_threshold
+    # Handle NaN and zero values in range_atr
+    range_atr_safe = range_atr.fillna(base_range_atr)  # Fill NaN with base value
+    range_atr_safe = range_atr_safe.replace(0, base_range_atr)  # Replace 0 with base value
+    
+    # Calculate ratio
+    atr_ratio = range_atr_safe / base_range_atr
+    
+    # Calculate dynamic threshold
+    dynamic_threshold = exhaustion_atr_multiplier * atr_ratio * base_exhaustion_threshold
+    
+    # Ensure threshold is non-negative
+    dynamic_threshold = dynamic_threshold.clip(lower=0.0)
+    
+    return dynamic_threshold
 
 
 def generate_signals_breakout_strategy(
@@ -29,6 +90,10 @@ def generate_signals_breakout_strategy(
     confirmation_bars: int = 2,
     detect_exhaustion: bool = True,
     exhaustion_threshold: float = 150.0,
+    use_dynamic_exhaustion: bool = False,
+    exhaustion_atr_multiplier: float = 1.0,
+    base_exhaustion_threshold: float = 150.0,
+    exhaustion_atr_period: int = 50,
     enable_debug: bool = False,
 ) -> Tuple[pd.Series, pd.Series]:
     """
@@ -60,7 +125,11 @@ def generate_signals_breakout_strategy(
         require_confirmation: If True, require confirmation bars (default: True)
         confirmation_bars: Number of bars to confirm breakout (default: 2)
         detect_exhaustion: If True, detect exhaustion extremes (default: True)
-        exhaustion_threshold: Threshold for exhaustion detection (default: 150.0)
+        exhaustion_threshold: Threshold for exhaustion detection (default: 150.0, used when use_dynamic_exhaustion=False)
+        use_dynamic_exhaustion: If True, use ATR-based dynamic exhaustion threshold (default: False)
+        exhaustion_atr_multiplier: Multiplier for ATR ratio in dynamic threshold calculation (default: 1.0)
+        base_exhaustion_threshold: Base threshold value for dynamic calculation (default: 150.0)
+        exhaustion_atr_period: Period to calculate base_range_atr for dynamic threshold (default: 50)
         enable_debug: If True, enable debug logging (default: False)
     
     Returns:
@@ -74,8 +143,16 @@ def generate_signals_breakout_strategy(
             raise ValueError(f"confirmation_bars must be > 0, got {confirmation_bars}")
     
     if detect_exhaustion:
-        if exhaustion_threshold < 0:
-            raise ValueError(f"exhaustion_threshold must be >= 0, got {exhaustion_threshold}")
+        if not use_dynamic_exhaustion:
+            if exhaustion_threshold < 0:
+                raise ValueError(f"exhaustion_threshold must be >= 0, got {exhaustion_threshold}")
+        else:
+            if exhaustion_atr_multiplier <= 0:
+                raise ValueError(f"exhaustion_atr_multiplier must be > 0, got {exhaustion_atr_multiplier}")
+            if base_exhaustion_threshold < 0:
+                raise ValueError(f"base_exhaustion_threshold must be >= 0, got {base_exhaustion_threshold}")
+            if exhaustion_atr_period <= 0:
+                raise ValueError(f"exhaustion_atr_period must be > 0, got {exhaustion_atr_period}")
     
     if upper_threshold <= lower_threshold:
         raise ValueError(f"upper_threshold ({upper_threshold}) must be > lower_threshold ({lower_threshold})")
@@ -97,13 +174,58 @@ def generate_signals_breakout_strategy(
         length=length, mult=mult
     )
     
+    # If dynamic exhaustion is enabled, ensure range_atr has valid data
+    # Note: After get_oscillator_data() succeeds, range_atr cannot be None or empty,
+    # but we check for all-NaN case as a safety measure
+    if detect_exhaustion and use_dynamic_exhaustion and not range_atr.notna().any():
+        if high is not None and low is not None and close is not None:
+            # Calculate ATR range using common indicators
+            range_atr = calculate_atr_range(
+                high=high,
+                low=low,
+                close=close,
+                mult=mult,
+            )
+        else:
+            # Fallback to static threshold if cannot calculate ATR
+            if debug_enabled:
+                log_debug(f"[Strategy6] Cannot calculate ATR for dynamic exhaustion, falling back to static threshold")
+            use_dynamic_exhaustion = False
+    
     if debug_enabled:
         log_debug(f"[Strategy6] Data shape: oscillator={len(oscillator)}")
+        if detect_exhaustion and use_dynamic_exhaustion:
+            log_debug(f"[Strategy6] Dynamic exhaustion enabled: multiplier={exhaustion_atr_multiplier}, "
+                     f"base_threshold={base_exhaustion_threshold}, period={exhaustion_atr_period}")
     
     # Vectorized exhaustion detection
     in_exhaustion_zone = pd.Series(False, index=oscillator.index)
     if detect_exhaustion:
-        in_exhaustion_zone = oscillator.abs() >= exhaustion_threshold
+        if use_dynamic_exhaustion:
+            # Calculate dynamic threshold
+            dynamic_threshold = _calculate_dynamic_exhaustion_threshold(
+                range_atr=range_atr,
+                base_exhaustion_threshold=base_exhaustion_threshold,
+                exhaustion_atr_multiplier=exhaustion_atr_multiplier,
+                exhaustion_atr_period=exhaustion_atr_period,
+            )
+            
+            # Ensure index alignment
+            if not dynamic_threshold.index.equals(oscillator.index):
+                dynamic_threshold = dynamic_threshold.reindex(oscillator.index, method='ffill').fillna(base_exhaustion_threshold)
+            
+            in_exhaustion_zone = oscillator.abs() >= dynamic_threshold
+            
+            if debug_enabled:
+                threshold_min = float(dynamic_threshold.min())
+                threshold_max = float(dynamic_threshold.max())
+                threshold_mean = float(dynamic_threshold.mean())
+                log_debug(f"[Strategy6] Dynamic threshold stats: min={threshold_min:.2f}, "
+                         f"max={threshold_max:.2f}, mean={threshold_mean:.2f}, "
+                         f"static={exhaustion_threshold}")
+        else:
+            # Use static threshold (backward compatibility)
+            in_exhaustion_zone = oscillator.abs() >= exhaustion_threshold
     
     # Detect breakouts using shift
     prev_osc = oscillator.shift(1)

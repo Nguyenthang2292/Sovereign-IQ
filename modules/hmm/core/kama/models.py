@@ -57,17 +57,21 @@ def reorder_hmm_model(model: GaussianHMM) -> GaussianHMM:
 
     # Reorder covariances
     if hasattr(model, "covars_"):
-        # For diag covariance type, covars_ shape should be (n_components, n_features)
-        # But sometimes hmmlearn returns (n_components, n_features, n_features) for full cov
-        if model.covars_.ndim == 2:
-            # Normal case: (n_components, n_features)
-            model.covars_ = model.covars_[order, :]
-        elif model.covars_.ndim == 3:
-            # Full covariance case: extract diagonal first, then reorder
+        # FIX (2025-01-16): Handle 3D covars_ shape issue
+        # Problem: hmmlearn sometimes returns (n_components, n_features, n_features) for diag covariance_type
+        # Solution: Always extract diagonal if 3D, then reorder
+        # Note: object.__setattr__ is used to bypass hmmlearn property setter that might reject 2D assignment
+        if model.covars_.ndim == 3:
+            # Extract diagonal from full covariance matrices first
             diag_covars = np.array([
                 np.diag(model.covars_[i]) for i in range(model.covars_.shape[0])
             ])
-            model.covars_ = diag_covars[order, :]
+            # Then reorder
+            # Use object.__setattr__ to bypass property setter that might reject 2D assignment
+            object.__setattr__(model, 'covars_', diag_covars[order, :])
+        elif model.covars_.ndim == 2:
+            # Normal case: (n_components, n_features)
+            model.covars_ = model.covars_[order, :]
         else:
             # Fallback for unexpected shape
             log_warn(f"Unexpected covars_ shape: {model.covars_.shape}, skipping reorder")
@@ -211,6 +215,8 @@ def train_hmm(
         model = reorder_hmm_model(model)
         
         # Final validation after reordering
+        # FIX (2025-01-16): Additional validation to handle 3D covars_ that may persist after reorder
+        # This is a fallback in case reorder_hmm_model() didn't fully fix the shape
         if hasattr(model, "covars_"):
             if model.covars_.ndim == 3:
                 # Extract diagonal from full covariance matrices

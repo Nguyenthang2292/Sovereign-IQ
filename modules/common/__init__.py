@@ -1,15 +1,15 @@
 """Common utilities shared across all components."""
 
-from .IndicatorEngine import (
+from .core.indicator_engine import (
     IndicatorConfig,
     IndicatorEngine,
     IndicatorProfile,
     CustomIndicator,
 )
-from .DataFetcher import DataFetcher
-from .ExchangeManager import ExchangeManager
-from .ProgressBar import ProgressBar
-from .Position import Position
+from .core.data_fetcher import DataFetcher
+from .core.exchange_manager import ExchangeManager
+from .ui.progress_bar import ProgressBar
+from .models.position import Position
 from . import indicators
 from . import quantitative_metrics
 

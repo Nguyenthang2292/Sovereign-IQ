@@ -12,13 +12,14 @@ if TYPE_CHECKING:
 
 from modules.hmm.core.swings.workflow import hmm_swings
 from modules.hmm.core.swings.models import HMM_SWINGS, BULLISH, NEUTRAL, BEARISH
+from modules.hmm.signals.strategy import HMMStrategy
 from config import (
     HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
     HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
 )
 
 
-class SwingsHMMStrategy:
+class SwingsHMMStrategy(HMMStrategy):
     """
     HMM Strategy wrapper for Basic HMM with swings.
     
@@ -45,12 +46,9 @@ class SwingsHMMStrategy:
             strict_mode: Use strict mode for swing-to-state conversion
             **kwargs: Additional parameters (train_ratio, eval_mode, etc.)
         """
-        from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
         from modules.hmm.signals.resolution import LONG, HOLD, SHORT
         
-        self.name = name
-        self.weight = weight
-        self.enabled = enabled
+        super().__init__(name=name, weight=weight, enabled=enabled, **kwargs)
         self.orders_argrelextrema = (
             orders_argrelextrema
             if orders_argrelextrema is not None
@@ -61,7 +59,11 @@ class SwingsHMMStrategy:
             if strict_mode is not None
             else HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
         )
-        self.params = kwargs
+        # Update params with strategy-specific parameters
+        self.params.update({
+            'orders_argrelextrema': self.orders_argrelextrema,
+            'strict_mode': self.strict_mode
+        })
     
     def analyze(self, df: pd.DataFrame, **kwargs) -> 'HMMStrategyResult':
         """

@@ -46,16 +46,25 @@ def prepare_observations(
     price_range = close_prices.max() - close_prices.min()
     unique_prices = close_prices.nunique()
 
+    # FIX (2025-01-16): Handle case where all prices are the same (price_range = 0)
+    # Problem: Pre-normalized data or constant values result in price_range = 0,
+    #          causing zero variance in features and HMM training failures
+    # Solution: Create small variation (0.1%) around mean to ensure variance for feature calculation
     if price_range == 0 or unique_prices < 3:
         log_data(f"Problematic price data: range={price_range}, unique_prices={unique_prices}")
+        # If all prices are the same, create a small variation around the mean
+        # This ensures we have some variance for feature calculation
+        mean_price = close_prices.mean()
+        # Create a small range (0.1% variation) to ensure variance
         close_prices = pd.Series(
             np.linspace(
-                close_prices.mean() * 0.95,
-                close_prices.mean() * 1.05,
+                mean_price * 0.9995,
+                mean_price * 1.0005,
                 len(close_prices),
             )
         )
         price_range = close_prices.max() - close_prices.min()
+        log_data(f"Fixed price data: new range={price_range}, new unique_prices={close_prices.nunique()}")
 
     close_prices_norm = (
         ((close_prices - close_prices.min()) / price_range * 1000)

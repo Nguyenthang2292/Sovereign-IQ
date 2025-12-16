@@ -11,7 +11,7 @@ This module provides Hidden Markov Model implementations for cryptocurrency trad
 # Core HMM models
 from modules.hmm.core.swings import (
     hmm_swings,
-    HighOrderHMM,
+    SwingsHMM,
     HMM_SWINGS,
     BULLISH,
     NEUTRAL,
@@ -58,7 +58,7 @@ from modules.hmm.signals.utils import (
 __all__ = [
     # Core HMM models - Basic
     "hmm_swings",
-    "HighOrderHMM",
+    "SwingsHMM",
     "HMM_SWINGS",
     "BULLISH",
     "NEUTRAL",

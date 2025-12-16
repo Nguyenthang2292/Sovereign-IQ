@@ -20,8 +20,8 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 import pandas as pd
-from modules.common.ExchangeManager import ExchangeManager
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
 from modules.hmm.core.high_order import true_high_order_hmm, TrueHighOrderHMM
 from modules.common.utils import log_info, log_success, log_error, log_warn
 

@@ -16,7 +16,7 @@ try:
         log_success,
         log_progress,
     )
-    from modules.common.ProgressBar import ProgressBar, NullProgressBar
+    from modules.common.ui.progress_bar import ProgressBar, NullProgressBar
 except ImportError:
     # Fallback logging functions if modules.common.utils is not available
     def log_warn(msg: str) -> None:

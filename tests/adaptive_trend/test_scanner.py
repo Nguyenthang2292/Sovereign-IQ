@@ -170,8 +170,8 @@ def test_scan_all_symbols_no_symbols():
 # Tests for scan_all_symbols - Sequential mode
 # ============================================================================
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
-@patch('modules.adaptive_trend.scanner.trend_sign')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.trend_sign')
 def test_scan_all_symbols_sequential_mode(mock_trend_sign, mock_compute_atc):
     """Test scan_all_symbols in sequential mode."""
     config = ATCConfig(limit=200, timeframe="1h")
@@ -204,8 +204,8 @@ def test_scan_all_symbols_sequential_mode(mock_trend_sign, mock_compute_atc):
 # Tests for scan_all_symbols - ThreadPool mode
 # ============================================================================
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
-@patch('modules.adaptive_trend.scanner.trend_sign')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.trend_sign')
 def test_scan_all_symbols_threadpool_mode(mock_trend_sign, mock_compute_atc):
     """Test scan_all_symbols in threadpool mode."""
     config = ATCConfig(limit=200, timeframe="1h")
@@ -234,8 +234,8 @@ def test_scan_all_symbols_threadpool_mode(mock_trend_sign, mock_compute_atc):
 # Tests for scan_all_symbols - Asyncio mode
 # ============================================================================
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
-@patch('modules.adaptive_trend.scanner.trend_sign')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.trend_sign')
 def test_scan_all_symbols_asyncio_mode(mock_trend_sign, mock_compute_atc):
     """Test scan_all_symbols in asyncio mode."""
     config = ATCConfig(limit=200, timeframe="1h")
@@ -264,8 +264,8 @@ def test_scan_all_symbols_asyncio_mode(mock_trend_sign, mock_compute_atc):
 # Tests for scan_all_symbols - Edge cases
 # ============================================================================
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
-@patch('modules.adaptive_trend.scanner.trend_sign')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.trend_sign')
 def test_scan_all_symbols_empty_dataframe(mock_trend_sign, mock_compute_atc):
     """Test scan_all_symbols handles empty DataFrame."""
     config = ATCConfig(limit=200, timeframe="1h")
@@ -285,8 +285,8 @@ def test_scan_all_symbols_empty_dataframe(mock_trend_sign, mock_compute_atc):
     assert short_signals.empty
 
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
-@patch('modules.adaptive_trend.scanner.trend_sign')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.trend_sign')
 def test_scan_all_symbols_missing_close_column(mock_trend_sign, mock_compute_atc):
     """Test scan_all_symbols handles missing close column."""
     config = ATCConfig(limit=200, timeframe="1h")
@@ -309,8 +309,8 @@ def test_scan_all_symbols_missing_close_column(mock_trend_sign, mock_compute_atc
     assert short_signals.empty
 
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
-@patch('modules.adaptive_trend.scanner.trend_sign')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.trend_sign')
 def test_scan_all_symbols_insufficient_data(mock_trend_sign, mock_compute_atc):
     """Test scan_all_symbols handles insufficient data."""
     config = ATCConfig(limit=200, timeframe="1h")
@@ -333,8 +333,8 @@ def test_scan_all_symbols_insufficient_data(mock_trend_sign, mock_compute_atc):
     assert short_signals.empty
 
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
-@patch('modules.adaptive_trend.scanner.trend_sign')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.trend_sign')
 def test_scan_all_symbols_signal_below_threshold(mock_trend_sign, mock_compute_atc):
     """Test scan_all_symbols filters signals below threshold."""
     config = ATCConfig(limit=200, timeframe="1h")
@@ -360,8 +360,8 @@ def test_scan_all_symbols_signal_below_threshold(mock_trend_sign, mock_compute_a
     assert short_signals.empty
 
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
-@patch('modules.adaptive_trend.scanner.trend_sign')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.trend_sign')
 def test_scan_all_symbols_long_and_short_signals(mock_trend_sign, mock_compute_atc):
     """Test scan_all_symbols separates LONG and SHORT signals."""
     config = ATCConfig(limit=200, timeframe="1h")
@@ -412,8 +412,8 @@ def test_scan_all_symbols_long_and_short_signals(mock_trend_sign, mock_compute_a
     assert all(short_signals["trend"] < 0)
 
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
-@patch('modules.adaptive_trend.scanner.trend_sign')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.trend_sign')
 def test_scan_all_symbols_max_symbols_limit(mock_trend_sign, mock_compute_atc):
     """Test scan_all_symbols respects max_symbols limit."""
     config = ATCConfig(limit=200, timeframe="1h")
@@ -442,7 +442,7 @@ def test_scan_all_symbols_max_symbols_limit(mock_trend_sign, mock_compute_atc):
 # Tests for error handling
 # ============================================================================
 
-@patch('modules.adaptive_trend.scanner.compute_atc_signals')
+@patch('modules.adaptive_trend.core.scanner.compute_atc_signals')
 def test_scan_all_symbols_handles_exceptions(mock_compute_atc):
     """Test scan_all_symbols handles exceptions gracefully."""
     config = ATCConfig(limit=200, timeframe="1h")

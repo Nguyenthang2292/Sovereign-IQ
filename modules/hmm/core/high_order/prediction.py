@@ -11,9 +11,7 @@ from pomegranate.hmm import DenseHMM
 
 from modules.hmm.core.swings.swing_utils import safe_forward_backward
 from modules.hmm.core.high_order.state_expansion import map_expanded_to_base_state
-
-# Base number of states (0=Down, 1=Side, 2=Up)
-N_BASE_STATES = 3
+from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
 
 
 def predict_next_hidden_state_forward_backward_high_order(
@@ -37,14 +35,93 @@ def predict_next_hidden_state_forward_backward_high_order(
         The probability distribution of the hidden state at step T+1
     """
     _, log_alpha, _, _, _ = safe_forward_backward(model, observations)
-    log_alpha_last = log_alpha[-1]
+    
+    # FIX: Handle PyTorch Tensor conversion
+    # Issue: log_alpha from pomegranate can be a PyTorch Tensor, not numpy array
+    # Solution: Convert to numpy before processing to avoid shape/indexing errors
+    # Debug evidence: log_alpha_shape was "(1, 93, 9)" (3D Tensor) causing next_hidden_proba to have wrong shape
+    # Convert log_alpha to numpy array if it's a tensor
+    if hasattr(log_alpha, 'cpu'):
+        log_alpha = log_alpha.cpu().detach().numpy()
+    elif hasattr(log_alpha, 'numpy'):
+        log_alpha = log_alpha.numpy()
+    else:
+        log_alpha = np.asarray(log_alpha)
+    
+    # FIX: Handle 3D log_alpha shape correctly
+    # Issue: log_alpha can have shape (batch_size, sequence_length, n_states) = (1, 93, 9)
+    #        Using log_alpha[-1] incorrectly took the last batch instead of last time step
+    # Solution: Use log_alpha[-1, -1, :] to get last batch AND last time step
+    # Debug evidence: log_alpha[-1] returned shape (93, 9) instead of (9,), causing next_hidden_proba to have 837 elements
+    # Get the last row (last time step) of log_alpha
+    # log_alpha shape can be:
+    # - 1D: (n_states,) - already the last state
+    # - 2D: (sequence_length, n_states) - take last row
+    # - 3D: (batch_size, sequence_length, n_states) - take last batch, last row
+    transition_matrix = np.array(model.edges)
+    n_states = transition_matrix.shape[0]
+    
+    # FIX: Convert transition matrix from log probabilities to probabilities if needed
+    # Issue: pomegranate stores transition matrix as log probabilities (negative values)
+    #        When multiplying alpha_last @ transition_matrix, we need probabilities, not log probabilities
+    # Solution: Check if transition matrix is in log space (has negative values) and convert
+    # Debug evidence: transition_matrix_min=-66.44, transition_matrix_max=-0.0018, all negative
+    if np.any(transition_matrix < 0):
+        # Transition matrix is in log space, convert to probability space
+        with np.errstate(over='ignore', under='ignore'):
+            transition_matrix = np.exp(transition_matrix)
+        # Normalize rows to ensure valid probability distribution
+        row_sums = transition_matrix.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1  # Avoid division by zero
+        transition_matrix = transition_matrix / row_sums
+    
+    if log_alpha.ndim == 3:
+        # 3D array: (batch_size, sequence_length, n_states)
+        # Take the last batch (usually batch_size=1, so [-1]) and last time step
+        log_alpha_last = log_alpha[-1, -1, :]  # Last batch, last row: shape (n_states,)
+    elif log_alpha.ndim == 2:
+        # 2D array: (sequence_length, n_states) - take last row
+        log_alpha_last = log_alpha[-1, :]  # Last row: shape (n_states,)
+    elif log_alpha.ndim == 1:
+        # 1D array: take last n_states elements
+        if len(log_alpha) >= n_states:
+            log_alpha_last = log_alpha[-n_states:]
+        else:
+            log_alpha_last = log_alpha
+    else:
+        # Flatten and take last n_states elements
+        log_alpha_flat = log_alpha.flatten()
+        if len(log_alpha_flat) >= n_states:
+            log_alpha_last = log_alpha_flat[-n_states:]
+        else:
+            log_alpha_last = log_alpha_flat
     
     with np.errstate(over='ignore', under='ignore'):
         warnings.filterwarnings('ignore', category=DeprecationWarning)
         alpha_last = np.exp(log_alpha_last)
     
-    alpha_last /= alpha_last.sum()
-    transition_matrix = np.array(model.edges)
+    # FIX: Ensure alpha_last has correct shape and length
+    # Issue: After exp(), alpha_last might have wrong shape or length mismatch with transition_matrix
+    # Solution: Flatten and ensure length matches n_states before matrix multiplication
+    # Ensure alpha_last is 1D vector with correct length
+    alpha_last = np.asarray(alpha_last).flatten()
+    
+    # Ensure alpha_last matches transition_matrix dimensions
+    if len(alpha_last) != n_states:
+        # If mismatch, take only the last n_states elements or pad
+        if len(alpha_last) > n_states:
+            alpha_last = alpha_last[-n_states:]
+        elif len(alpha_last) < n_states:
+            # Pad with zeros
+            padded = np.zeros(n_states)
+            padded[:len(alpha_last)] = alpha_last
+            alpha_last = padded
+    
+    # Normalize
+    if alpha_last.sum() > 0:
+        alpha_last /= alpha_last.sum()
+    else:
+        alpha_last = np.ones(n_states) / n_states
     
     next_hidden_proba = alpha_last @ transition_matrix
     
@@ -57,8 +134,17 @@ def predict_next_hidden_state_forward_backward_high_order(
     
     # Ensure probabilities are non-negative and normalized
     next_hidden_proba = np.maximum(next_hidden_proba, 0)
+    
+    # FIX: Handle zero-sum probability distribution
+    # Issue: When log probabilities are very negative, exp() can result in all zeros
+    #        causing next_hidden_proba.sum() = 0, leading to base_proba_sum = 0.0
+    # Solution: Use uniform distribution as fallback when sum is zero
+    # Debug evidence: next_hidden_proba_sum was 0.0, causing base_proba_sum = 0.0 before fix
     if next_hidden_proba.sum() > 0:
         next_hidden_proba /= next_hidden_proba.sum()
+    else:
+        # If sum is 0, use uniform distribution
+        next_hidden_proba = np.ones(len(next_hidden_proba)) / len(next_hidden_proba)
     
     if order > 1:
         # Map expanded states to base states
@@ -68,8 +154,14 @@ def predict_next_hidden_state_forward_backward_high_order(
         # Ensure next_hidden_proba is a numpy array
         next_hidden_proba = np.asarray(next_hidden_proba).flatten()
         
+        # FIX: Properly map expanded states to base states
+        # Issue: When next_hidden_proba has wrong shape (e.g., 837 elements instead of 9),
+        #        mapping fails and base_proba_sum becomes 0.0
+        # Solution: After fixing log_alpha extraction, n_expanded should match expected_expanded
+        #           and mapping should work correctly
         for expanded_idx in range(min(n_expanded, len(next_hidden_proba))):
             base_state = map_expanded_to_base_state(expanded_idx, order, n_base_states)
+            
             # Get probability value and ensure it's a scalar
             prob_value = next_hidden_proba[expanded_idx]
             if isinstance(prob_value, np.ndarray):

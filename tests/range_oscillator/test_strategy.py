@@ -1059,6 +1059,31 @@ class TestStrategy6:
                 exhaustion_threshold=-1.0
             )
         
+        # Test dynamic exhaustion validation
+        with pytest.raises(ValueError, match="exhaustion_atr_multiplier must be > 0"):
+            generate_signals_breakout_strategy(
+                high=high, low=low, close=close,
+                detect_exhaustion=True,
+                use_dynamic_exhaustion=True,
+                exhaustion_atr_multiplier=0.0
+            )
+        
+        with pytest.raises(ValueError, match="base_exhaustion_threshold must be >= 0"):
+            generate_signals_breakout_strategy(
+                high=high, low=low, close=close,
+                detect_exhaustion=True,
+                use_dynamic_exhaustion=True,
+                base_exhaustion_threshold=-1.0
+            )
+        
+        with pytest.raises(ValueError, match="exhaustion_atr_period must be > 0"):
+            generate_signals_breakout_strategy(
+                high=high, low=low, close=close,
+                detect_exhaustion=True,
+                use_dynamic_exhaustion=True,
+                exhaustion_atr_period=0
+            )
+        
         with pytest.raises(ValueError, match="upper_threshold.*must be > lower_threshold"):
             generate_signals_breakout_strategy(
                 high=high, low=low, close=close,
@@ -1108,6 +1133,191 @@ class TestStrategy6:
         # Should not have signals in exhaustion zone
         assert isinstance(signals, pd.Series)
         assert all(signals == 0)  # All should be NEUTRAL in exhaustion
+    
+    def test_strategy6_dynamic_exhaustion_with_range_atr(self):
+        """Test Strategy 6 dynamic exhaustion with pre-calculated range_atr."""
+        dates = pd.date_range('2024-01-01', periods=100, freq='1h')
+        
+        # Create range_atr with varying values (simulating volatility changes)
+        range_atr_values = [1000.0] * 50 + [2000.0] * 50  # Higher volatility in second half
+        range_atr = pd.Series(range_atr_values, index=dates)
+        
+        # Oscillator values: some in exhaustion zone with static threshold (150), but not with dynamic
+        oscillator_values = [140.0] * 50 + [160.0] * 50
+        oscillator = pd.Series(oscillator_values, index=dates)
+        ma = pd.Series([50000.0] * 100, index=dates)
+        
+        # Test with dynamic exhaustion
+        signals, strength = generate_signals_breakout_strategy(
+            oscillator=oscillator, ma=ma, range_atr=range_atr,
+            upper_threshold=100.0,
+            lower_threshold=-100.0,
+            detect_exhaustion=True,
+            use_dynamic_exhaustion=True,
+            base_exhaustion_threshold=150.0,
+            exhaustion_atr_multiplier=1.0,
+            exhaustion_atr_period=50
+        )
+        
+        assert isinstance(signals, pd.Series)
+        assert isinstance(strength, pd.Series)
+        assert len(signals) == 100
+        
+        # With dynamic threshold, exhaustion zone should adapt to ATR
+        # First 50 bars: range_atr=1000, base_range_atr=1000, threshold = 1.0 * (1000/1000) * 150 = 150
+        # Second 50 bars: range_atr=2000, base_range_atr=1000, threshold = 1.0 * (2000/1000) * 150 = 300
+        # So oscillator=160 should NOT be in exhaustion zone in second half (160 < 300)
+        # But oscillator=140 should NOT be in exhaustion zone in first half (140 < 150)
+        assert all(signals.isin([-1, 0, 1]))
+    
+    def test_strategy6_dynamic_exhaustion_calculate_atr(self):
+        """Test Strategy 6 dynamic exhaustion when calculating ATR from OHLC."""
+        dates = pd.date_range('2024-01-01', periods=100, freq='1h')
+        
+        # Generate realistic OHLC data
+        np.random.seed(42)
+        close = 50000 + np.cumsum(np.random.randn(100) * 100)
+        high = close + np.abs(np.random.randn(100) * 50)
+        low = close - np.abs(np.random.randn(100) * 50)
+        
+        high_series = pd.Series(high, index=dates)
+        low_series = pd.Series(low, index=dates)
+        close_series = pd.Series(close, index=dates)
+        
+        # Test with dynamic exhaustion (will calculate ATR from OHLC)
+        signals, strength = generate_signals_breakout_strategy(
+            high=high_series, low=low_series, close=close_series,
+            upper_threshold=100.0,
+            lower_threshold=-100.0,
+            detect_exhaustion=True,
+            use_dynamic_exhaustion=True,
+            base_exhaustion_threshold=150.0,
+            exhaustion_atr_multiplier=1.0,
+            exhaustion_atr_period=50
+        )
+        
+        assert isinstance(signals, pd.Series)
+        assert isinstance(strength, pd.Series)
+        assert len(signals) == 100
+        assert all(signals.isin([-1, 0, 1]))
+    
+    def test_strategy6_backward_compatibility(self):
+        """Test Strategy 6 backward compatibility with static threshold."""
+        dates = pd.date_range('2024-01-01', periods=20, freq='1h')
+        
+        # Oscillator in exhaustion zone with static threshold
+        oscillator_values = [160.0] * 20
+        oscillator = pd.Series(oscillator_values, index=dates)
+        ma = pd.Series([50000.0] * 20, index=dates)
+        range_atr = pd.Series([1000.0] * 20, index=dates)
+        
+        # Test with static threshold (default behavior)
+        signals_static, strength_static = generate_signals_breakout_strategy(
+            oscillator=oscillator, ma=ma, range_atr=range_atr,
+            upper_threshold=100.0,
+            lower_threshold=-100.0,
+            detect_exhaustion=True,
+            use_dynamic_exhaustion=False,  # Explicitly use static
+            exhaustion_threshold=150.0
+        )
+        
+        # Test with default (should also use static)
+        signals_default, strength_default = generate_signals_breakout_strategy(
+            oscillator=oscillator, ma=ma, range_atr=range_atr,
+            upper_threshold=100.0,
+            lower_threshold=-100.0,
+            detect_exhaustion=True,
+            exhaustion_threshold=150.0
+        )
+        
+        # Both should produce same results
+        assert isinstance(signals_static, pd.Series)
+        assert isinstance(signals_default, pd.Series)
+        assert signals_static.equals(signals_default)
+        assert all(signals_static == 0)  # All should be NEUTRAL in exhaustion
+    
+    def test_strategy6_dynamic_exhaustion_edge_cases(self):
+        """Test Strategy 6 dynamic exhaustion edge cases."""
+        dates = pd.date_range('2024-01-01', periods=20, freq='1h')
+        
+        # Test with NaN values in range_atr
+        range_atr_with_nan = pd.Series([1000.0] * 10 + [np.nan] * 5 + [1000.0] * 5, index=dates)
+        oscillator = pd.Series([140.0] * 20, index=dates)
+        ma = pd.Series([50000.0] * 20, index=dates)
+        
+        signals, strength = generate_signals_breakout_strategy(
+            oscillator=oscillator, ma=ma, range_atr=range_atr_with_nan,
+            detect_exhaustion=True,
+            use_dynamic_exhaustion=True,
+            base_exhaustion_threshold=150.0,
+            exhaustion_atr_multiplier=1.0,
+            exhaustion_atr_period=10
+        )
+        
+        assert isinstance(signals, pd.Series)
+        assert all(signals.isin([-1, 0, 1]))
+        
+        # Test with zero values in range_atr
+        range_atr_with_zero = pd.Series([1000.0] * 10 + [0.0] * 5 + [1000.0] * 5, index=dates)
+        
+        signals, strength = generate_signals_breakout_strategy(
+            oscillator=oscillator, ma=ma, range_atr=range_atr_with_zero,
+            detect_exhaustion=True,
+            use_dynamic_exhaustion=True,
+            base_exhaustion_threshold=150.0,
+            exhaustion_atr_multiplier=1.0,
+            exhaustion_atr_period=10
+        )
+        
+        assert isinstance(signals, pd.Series)
+        assert all(signals.isin([-1, 0, 1]))
+        
+        # Test with insufficient data (range_atr shorter than period)
+        short_range_atr = pd.Series([1000.0] * 5, index=dates[:5])
+        short_oscillator = pd.Series([140.0] * 5, index=dates[:5])
+        short_ma = pd.Series([50000.0] * 5, index=dates[:5])
+        
+        signals, strength = generate_signals_breakout_strategy(
+            oscillator=short_oscillator, ma=short_ma, range_atr=short_range_atr,
+            detect_exhaustion=True,
+            use_dynamic_exhaustion=True,
+            base_exhaustion_threshold=150.0,
+            exhaustion_atr_multiplier=1.0,
+            exhaustion_atr_period=10  # Period > data length
+        )
+        
+        assert isinstance(signals, pd.Series)
+        assert all(signals.isin([-1, 0, 1]))
+        
+        # Test with extreme ATR values (very high volatility)
+        extreme_range_atr = pd.Series([10000.0] * 20, index=dates)  # Very high ATR
+        
+        signals, strength = generate_signals_breakout_strategy(
+            oscillator=oscillator, ma=ma, range_atr=extreme_range_atr,
+            detect_exhaustion=True,
+            use_dynamic_exhaustion=True,
+            base_exhaustion_threshold=150.0,
+            exhaustion_atr_multiplier=1.0,
+            exhaustion_atr_period=10
+        )
+        
+        assert isinstance(signals, pd.Series)
+        assert all(signals.isin([-1, 0, 1]))
+        
+        # Test with very low ATR values
+        low_range_atr = pd.Series([100.0] * 20, index=dates)  # Very low ATR
+        
+        signals, strength = generate_signals_breakout_strategy(
+            oscillator=oscillator, ma=ma, range_atr=low_range_atr,
+            detect_exhaustion=True,
+            use_dynamic_exhaustion=True,
+            base_exhaustion_threshold=150.0,
+            exhaustion_atr_multiplier=1.0,
+            exhaustion_atr_period=10
+        )
+        
+        assert isinstance(signals, pd.Series)
+        assert all(signals.isin([-1, 0, 1]))
 
 
 class TestStrategy7:

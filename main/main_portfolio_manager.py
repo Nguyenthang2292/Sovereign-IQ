@@ -9,10 +9,10 @@ from typing import List, Optional
 from colorama import Fore, Style, init as colorama_init
 
 try:
-    from modules.common.Position import Position
+    from modules.common.models.position import Position
     from modules.common.utils import color_text
-    from modules.common.ExchangeManager import ExchangeManager
-    from modules.common.DataFetcher import DataFetcher
+    from modules.common.core.exchange_manager import ExchangeManager
+    from modules.common.core.data_fetcher import DataFetcher
     from modules.portfolio.risk_calculator import PortfolioRiskCalculator
     from modules.portfolio import correlation_analyzer as _correlation_analyzer_mod
     from modules.portfolio import hedge_finder as _hedge_finder_mod

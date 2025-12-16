@@ -15,13 +15,38 @@ except ImportError:
 
 def parse_args():
     """Parse command-line arguments for ATC + Range Oscillator combined signal filter."""
+    # #region agent log
+    import json
+    import os
+    log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "sessionId": "debug-session",
+                "runId": "check-cli",
+                "hypothesisId": "H5",
+                "location": "argument_parser.py:16",
+                "message": "parse_args entry",
+                "data": {"default_timeframe": DEFAULT_TIMEFRAME},
+                "timestamp": int(__import__("time").time() * 1000)
+            }) + "\n")
+    except: pass
+    # #endregion
+    
     parser = argparse.ArgumentParser(
         description="ATC + Range Oscillator Combined Signal Filter",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    
+    def validate_timeframe(value):
+        """Validate timeframe format."""
+        if not isinstance(value, str) or len(value) < 2:
+            raise argparse.ArgumentTypeError(f"Invalid timeframe format: {value}")
+        return value
+    
     parser.add_argument(
         "--timeframe",
-        type=str,
+        type=validate_timeframe,
         default=DEFAULT_TIMEFRAME,
         help=f"Timeframe for analysis (default: {DEFAULT_TIMEFRAME})",
     )
@@ -30,11 +55,18 @@ def parse_args():
         action="store_true",
         help="Disable interactive timeframe menu",
     )
+    def validate_positive_int(value):
+        """Validate positive integer."""
+        ivalue = int(value)
+        if ivalue <= 0:
+            raise argparse.ArgumentTypeError(f"Value must be positive, got {ivalue}")
+        return ivalue
+    
     parser.add_argument(
         "--limit",
-        type=int,
+        type=validate_positive_int,
         default=500,
-        help="Number of candles to fetch (default: 500)",
+        help="Number of candles to fetch (default: 500, must be > 0)",
     )
     parser.add_argument(
         "--ema-len",
@@ -124,16 +156,71 @@ def parse_args():
     )
     parser.add_argument(
         "--max-workers",
-        type=int,
+        type=validate_positive_int,
         default=10,
-        help="Maximum number of parallel workers for Range Oscillator filtering (default: 10)",
+        help="Maximum number of parallel workers for Range Oscillator filtering (default: 10, must be > 0)",
     )
+    def validate_strategy_id(value):
+        """Validate strategy ID."""
+        ivalue = int(value)
+        valid_ids = {2, 3, 4, 6, 7, 8, 9}
+        if ivalue not in valid_ids:
+            raise argparse.ArgumentTypeError(f"Invalid strategy ID: {ivalue}. Valid IDs: {sorted(valid_ids)}")
+        return ivalue
+    
     parser.add_argument(
         "--osc-strategies",
-        type=int,
+        type=validate_strategy_id,
         nargs="+",
         default=None,
-        help="Range Oscillator strategies to use (e.g., --osc-strategies 5 6 7 8 9). Default: all [5, 6, 7, 8, 9]",
+        help="Range Oscillator strategies to use (e.g., --osc-strategies 5 6 7 8 9). Valid IDs: 2, 3, 4, 6, 7, 8, 9",
     )
     
-    return parser.parse_args()
+    # #region agent log
+    try:
+        args = parser.parse_args()
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "sessionId": "debug-session",
+                "runId": "check-cli",
+                "hypothesisId": "H5",
+                "location": "argument_parser.py:139",
+                "message": "parse_args success",
+                "data": {
+                    "timeframe": args.timeframe,
+                    "limit": args.limit,
+                    "osc_strategies": args.osc_strategies,
+                    "max_workers": args.max_workers
+                },
+                "timestamp": int(__import__("time").time() * 1000)
+            }) + "\n")
+    except Exception as e:
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "check-cli",
+                    "hypothesisId": "H6",
+                    "location": "argument_parser.py:179",
+                    "message": "parse_args exception",
+                    "data": {
+                        "exception_type": type(e).__name__,
+                        "exception_msg": str(e)
+                    },
+                    "timestamp": int(__import__("time").time() * 1000)
+                }) + "\n")
+        except: pass
+        raise
+    # #endregion
+    
+    # Additional validation after parsing
+    if args.max_workers is not None and args.max_workers <= 0:
+        parser.error("--max-workers must be positive")
+    if args.min_signal < 0 or args.min_signal > 1:
+        parser.error("--min-signal must be between 0 and 1")
+    if args.lambda_param < 0 or args.lambda_param > 1:
+        parser.error("--lambda must be between 0 and 1")
+    if args.decay < 0 or args.decay > 1:
+        parser.error("--decay must be between 0 and 1")
+    
+    return args

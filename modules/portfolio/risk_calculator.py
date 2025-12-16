@@ -11,7 +11,7 @@ import numpy as np
 from typing import List, Optional, Dict, Tuple, Any
 
 try:
-    from modules.common.Position import Position
+    from modules.common.models.position import Position
     from modules.common.utils import (
         log_warn,
         log_analysis,

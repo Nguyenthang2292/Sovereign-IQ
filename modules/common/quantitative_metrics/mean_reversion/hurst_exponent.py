@@ -107,7 +107,6 @@ def calculate_hurst_exponent(
             
             # Calculate standard deviation
             std_val = np.std(diff)
-            
             # Validate std is finite and positive
             if np.isnan(std_val) or np.isinf(std_val) or std_val <= 0:
                 continue
@@ -140,19 +139,23 @@ def calculate_hurst_exponent(
         # Using polyfit with degree 1 (linear)
         log_lags = np.log(filtered_lags)
         log_tau = np.log(tau)
-        
         # Validate log values are finite
         if not np.all(np.isfinite(log_lags)) or not np.all(np.isfinite(log_tau)):
             return None
         
         poly = np.polyfit(log_lags, log_tau, 1)
-        
         # Validate polyfit result
         if len(poly) < 1:
             return None
         
         # Validate slope (poly[0]) is finite
         if np.isnan(poly[0]) or np.isinf(poly[0]):
+            return None
+        
+        # Validate slope is non-negative
+        # Negative slope indicates invalid calculation (log(tau) decreasing with log(lag))
+        # This is theoretically invalid for Hurst exponent calculation
+        if poly[0] < 0:
             return None
         
         # Convert slope to Hurst exponent (multiply by 2 based on R/S theory)

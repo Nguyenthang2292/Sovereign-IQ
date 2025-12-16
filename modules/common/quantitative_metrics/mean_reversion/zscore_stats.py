@@ -114,7 +114,6 @@ def calculate_zscore_stats(
     # Handle NaN values: drop NaN to ensure clean calculations
     # This ensures rolling window calculations are based on valid data only
     spread_clean = spread.dropna()
-    
     # Check if we have enough valid data points after removing NaN
     if len(spread_clean) < zscore_lookback:
         return result
@@ -126,14 +125,12 @@ def calculate_zscore_stats(
     # Use calculate_zscore to compute z-score values with min_periods=zscore_lookback
     # This ensures we reuse the same z-score calculation logic and maintain consistency
     zscore = calculate_zscore(spread_clean, length=zscore_lookback, min_periods=zscore_lookback)
-    
     # Validate zscore doesn't contain Inf (shouldn't happen, but safety check)
     if np.isinf(zscore.values).any():
         return result
     
     # Drop NaN values from z-score (from division by NaN std or missing rolling stats)
     zscore = zscore.dropna()
-    
     # Validate we have enough z-score values for meaningful statistics
     if zscore.empty or len(zscore) < 2:
         return result

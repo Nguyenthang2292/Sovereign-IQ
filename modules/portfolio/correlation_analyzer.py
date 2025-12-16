@@ -11,10 +11,10 @@ import numpy as np
 from typing import List, Optional, Dict, Tuple, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from modules.common.Position import Position
+    from modules.common.models.position import Position
 
 try:
-    from modules.common.Position import Position
+    from modules.common.models.position import Position
     from modules.common.utils import (
         log_warn,
         log_error,
@@ -290,7 +290,7 @@ class PortfolioCorrelationAnalyzer:
 
         # Simulate adding new position and recalculate internal correlation
         if new_position_size > 0:
-            from modules.common.Position import Position
+            from modules.common.models.position import Position
 
             temp_positions = self.positions + [
                 Position(new_symbol, new_direction, 0.0, new_position_size)

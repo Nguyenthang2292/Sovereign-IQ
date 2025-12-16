@@ -23,8 +23,8 @@ if str(ROOT) not in sys.path:
 warnings.filterwarnings("ignore")
 
 # Import after path setup
-from modules.common.DataFetcher import DataFetcher
-from modules.common.ExchangeManager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
 from core.signal_calculators import (
     get_range_oscillator_signal,
     get_spc_signal,

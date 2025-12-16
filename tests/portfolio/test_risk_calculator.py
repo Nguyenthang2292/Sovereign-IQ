@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from types import SimpleNamespace
 
-from modules.common.Position import Position
+from modules.common.models.position import Position
 from modules.portfolio.risk_calculator import PortfolioRiskCalculator
 
 

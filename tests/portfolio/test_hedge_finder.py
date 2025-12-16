@@ -14,7 +14,7 @@ import warnings
 import pytest
 
 from modules.portfolio.hedge_finder import HedgeFinder
-from modules.common.Position import Position
+from modules.common.models.position import Position
 
 # Suppress warnings
 warnings.filterwarnings("ignore")

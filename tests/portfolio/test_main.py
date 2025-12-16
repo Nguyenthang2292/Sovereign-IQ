@@ -19,7 +19,7 @@ from main.main_portfolio_manager import (
     display_portfolio_analysis,
     display_portfolio_with_hedge_analysis,
 )
-from modules.common.Position import Position
+from modules.common.models.position import Position
 from config import DEFAULT_VAR_CONFIDENCE, DEFAULT_VAR_LOOKBACK_DAYS, BENCHMARK_SYMBOL
 
 # Suppress warnings

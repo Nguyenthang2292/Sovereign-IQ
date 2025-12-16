@@ -15,7 +15,7 @@ def test_package_exports_expected_symbols():
         "calculate_adf_test",
         "calculate_half_life",
         "calculate_johansen_test",
-        "calculate_spread_sharpe",
+        "calculate_sharpe_ratio",
         "calculate_max_drawdown",
         "calculate_calmar_ratio",
         "calculate_ols_hedge_ratio",

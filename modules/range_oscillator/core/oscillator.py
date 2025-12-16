@@ -4,10 +4,10 @@ This module provides the main Range Oscillator calculation function that
 orchestrates the entire indicator computation process. It combines weighted MA,
 ATR range, and trend direction to produce oscillator values with color coding.
 
-The module uses helper functions from other core modules:
-- weighted_ma: Weighted moving average calculation
-- atr_range: ATR-based range bands calculation
-- trend_direction: Trend direction determination
+The module uses helper functions from common indicators:
+- weighted_ma: Weighted moving average calculation (from modules.common.indicators.trend)
+- atr_range: ATR-based range bands calculation (from modules.common.indicators.volatility)
+- trend_direction: Trend direction determination (from modules.common.indicators.trend)
 
 Port of Pine Script Range Oscillator (Zeiierman).
 Original: https://creativecommons.org/licenses/by-nc-sa/4.0/
@@ -21,9 +21,8 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 
-from modules.range_oscillator.core.weighted_ma import calculate_weighted_ma
-from modules.range_oscillator.core.atr_range import calculate_atr_range
-from modules.range_oscillator.core.trend_direction import calculate_trend_direction
+from modules.common.indicators.trend import calculate_weighted_ma, calculate_trend_direction
+from modules.common.indicators.volatility import calculate_atr_range
 
 
 def calculate_range_oscillator(
@@ -52,11 +51,11 @@ def calculate_range_oscillator(
     1. Tính Weighted MA từ close prices
     2. Tính ATR Range từ high/low/close
     3. Xác định Trend Direction (bullish/bearish)
-    4. Với mỗi bar:
-       a. Tính Oscillator = 100 * (close - MA) / RangeATR
-       b. Kiểm tra breakouts (upper/lower bounds)
-       c. Tính heatmap color dựa trên historical touches
-       d. Xác định final color (breakout > heatmap > transition)
+    4. Vectorized calculations cho tất cả bars:
+       a. Tính Oscillator = 100 * (close - MA) / RangeATR (vectorized)
+       b. Kiểm tra breakouts (upper/lower bounds) (vectorized)
+       c. Xác định trend flips (vectorized)
+       d. Xác định final color với priority: breakout > transition > trend-based (vectorized)
 
     Port of Pine Script Range Oscillator (Zeiierman).
 
@@ -81,6 +80,18 @@ def calculate_range_oscillator(
         - ma: Weighted moving average
         - range_atr: ATR-based range
     """
+    # Input validation
+    if not isinstance(high, pd.Series) or not isinstance(low, pd.Series) or not isinstance(close, pd.Series):
+        raise TypeError("high, low, and close must be pandas Series")
+    if len(high) == 0 or len(low) == 0 or len(close) == 0:
+        raise ValueError("high, low, and close series cannot be empty")
+    if not high.index.equals(low.index) or not low.index.equals(close.index):
+        raise ValueError("high, low, and close must have the same index")
+    if length <= 0:
+        raise ValueError(f"length must be > 0, got {length}")
+    if mult <= 0:
+        raise ValueError(f"mult must be > 0, got {mult}")
+    
     # Step 1: Calculate weighted MA
     ma = calculate_weighted_ma(close, length=length)
 
@@ -90,51 +101,49 @@ def calculate_range_oscillator(
     # Step 3: Calculate trend direction
     trend_dir = calculate_trend_direction(close, ma)
 
-    # Step 4: Calculate oscillator and colors
+    # Step 4: Calculate oscillator and colors (vectorized)
+    # Align all series to close.index to ensure consistent indexing
+    ma_aligned = ma.reindex(close.index)
+    range_atr_aligned = range_atr.reindex(close.index)
+    trend_dir_aligned = trend_dir.reindex(close.index)
+    
+    # Create valid mask for all calculations
+    valid_mask = (
+        range_atr_aligned.notna() & 
+        (range_atr_aligned != 0) & 
+        ma_aligned.notna() & 
+        close.notna()
+    )
+    
+    # Step 4a: Calculate oscillator value (vectorized)
     oscillator = pd.Series(np.nan, index=close.index, dtype="float64")
+    oscillator[valid_mask] = 100 * (close[valid_mask] - ma_aligned[valid_mask]) / range_atr_aligned[valid_mask]
+    
+    # Step 4b: Calculate trend flip detection (vectorized)
+    prev_trend_dir = trend_dir_aligned.shift(1).fillna(0)
+    trend_flip = (trend_dir_aligned != prev_trend_dir) & valid_mask
+    
+    # Step 4c: Check for breakouts (vectorized)
+    break_up = (close > ma_aligned + range_atr_aligned) & valid_mask
+    break_dn = (close < ma_aligned - range_atr_aligned) & valid_mask
+    
+    # Step 4d: Assign colors with priority: breakout > transition > trend-based (vectorized)
     oscillator_color = pd.Series(None, index=close.index, dtype="object")
-
-    prev_trend_dir = 0
-
-    for i in range(len(close)):
-        if pd.isna(range_atr.iloc[i]) or range_atr.iloc[i] == 0:
-            continue
-
-        if pd.isna(ma.iloc[i]):
-            continue
-
-        # Step 4a: Calculate oscillator value
-        osc_value = 100 * (close.iloc[i] - ma.iloc[i]) / range_atr.iloc[i]
-        oscillator.iloc[i] = osc_value
-
-        # Step 4b: Determine color
-        current_trend_dir = trend_dir.iloc[i]
-        no_color_on_flip = current_trend_dir != prev_trend_dir
-
-        # Step 4c: Check for breakouts
-        break_up = close.iloc[i] > ma.iloc[i] + range_atr.iloc[i]
-        break_dn = close.iloc[i] < ma.iloc[i] - range_atr.iloc[i]
-
-        if break_up:
-            # Price broke above upper bound → strong bullish
-            osc_color = strong_bullish_color
-        elif break_dn:
-            # Price broke below lower bound → strong bearish
-            osc_color = strong_bearish_color
-        else:
-            # Step 4d: Use transition color when price is within range
-            if no_color_on_flip:
-                # Trend flip → transition color
-                osc_color = transition_color
-            else:
-                # Use trend-based color
-                if current_trend_dir == 1:
-                    osc_color = weak_bullish_color
-                else:
-                    osc_color = weak_bearish_color
-
-        oscillator_color.iloc[i] = osc_color
-        prev_trend_dir = current_trend_dir
+    
+    # Priority 1: Breakouts
+    oscillator_color[break_up] = strong_bullish_color
+    oscillator_color[break_dn] = strong_bearish_color
+    
+    # Priority 2: Trend flips (only where not already set by breakouts)
+    trend_flip_mask = trend_flip & ~break_up & ~break_dn
+    oscillator_color[trend_flip_mask] = transition_color
+    
+    # Priority 3: Trend-based colors (only where not set by above)
+    remaining_mask = valid_mask & ~break_up & ~break_dn & ~trend_flip
+    bullish_trend_mask = remaining_mask & (trend_dir_aligned == 1)
+    bearish_trend_mask = remaining_mask & (trend_dir_aligned != 1)
+    oscillator_color[bullish_trend_mask] = weak_bullish_color
+    oscillator_color[bearish_trend_mask] = weak_bearish_color
 
     return oscillator, oscillator_color, ma, range_atr
 

@@ -13,14 +13,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 
 if TYPE_CHECKING:
-    from modules.common.Position import Position
-    from modules.common.ExchangeManager import ExchangeManager
-    from modules.common.DataFetcher import DataFetcher
+    from modules.common.models.position import Position
+    from modules.common.core.exchange_manager import ExchangeManager
+    from modules.common.core.data_fetcher import DataFetcher
     from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
     from modules.portfolio.risk_calculator import PortfolioRiskCalculator
 
 try:
-    from modules.common.Position import Position
+    from modules.common.models.position import Position
     from modules.common.utils import (
         normalize_symbol,
         log_warn,
@@ -32,9 +32,9 @@ try:
         log_data,
         log_system,
     )
-    from modules.common.ProgressBar import ProgressBar
-    from modules.common.ExchangeManager import ExchangeManager
-    from modules.common.DataFetcher import DataFetcher
+    from modules.common.ui.progress_bar import ProgressBar
+    from modules.common.core.exchange_manager import ExchangeManager
+    from modules.common.core.data_fetcher import DataFetcher
     from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
     from modules.portfolio.risk_calculator import PortfolioRiskCalculator
     from config import (

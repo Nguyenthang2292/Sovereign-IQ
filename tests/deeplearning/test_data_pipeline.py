@@ -11,8 +11,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import warnings
 from colorama import Fore, Style, init as colorama_init
 
-from modules.common.ExchangeManager import ExchangeManager
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
 from modules.deeplearning.data_pipeline import DeepLearningDataPipeline
 from modules.common.utils import color_text
 

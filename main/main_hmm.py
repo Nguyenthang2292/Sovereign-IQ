@@ -28,8 +28,8 @@ from config import (
     HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
     HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
 )
-from modules.common.ExchangeManager import ExchangeManager
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
 from modules.common.utils import color_text, normalize_symbol
 from modules.hmm.signals.combiner import combine_signals, Signal
 from modules.hmm.signals.resolution import LONG, HOLD, SHORT

@@ -42,9 +42,8 @@ from config import (
     HMM_HIGH_ORDER_MAX_ORDER_DEFAULT,
 )
 
-# Base number of states (0=Down, 1=Side, 2=Up)
-N_BASE_STATES = 3
-N_SYMBOLS = 3
+# Import constants from config.hmm
+from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES, HMM_HIGH_ORDER_N_SYMBOLS as N_SYMBOLS
 
 
 class TrueHighOrderHMM:

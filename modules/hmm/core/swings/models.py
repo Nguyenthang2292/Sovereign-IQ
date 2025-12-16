@@ -1,7 +1,7 @@
 """
 HMM-Swings Model Definitions.
 
-This module contains the HMM_SWINGS dataclass, constants, and the HighOrderHMM class.
+This module contains the HMM_SWINGS dataclass, constants, and the SwingsHMM class.
 """
 
 from dataclasses import dataclass
@@ -28,9 +28,9 @@ class HMM_SWINGS:
     next_state_probability: float
 
 
-class HighOrderHMM:
+class SwingsHMM:
     """
-    High-Order Hidden Markov Model for market state prediction.
+    Swings Hidden Markov Model for market state prediction.
     
     Encapsulates HMM model creation, training, and prediction logic with
     data-driven initialization and optimized state selection.
@@ -48,7 +48,7 @@ class HighOrderHMM:
         use_bic: bool = True,
     ):
         """
-        Initialize High-Order HMM analyzer.
+        Initialize Swings HMM analyzer.
         
         Args:
             orders_argrelextrema: Order parameter for swing detection (default: from config)

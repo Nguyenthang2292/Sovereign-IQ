@@ -29,8 +29,8 @@ from modules.common.utils import (
     log_success,
     log_warn,
 )
-from modules.common.ExchangeManager import ExchangeManager
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
 from modules.adaptive_trend.cli import prompt_timeframe
 from main.main_atc import ATCAnalyzer
 from modules.range_oscillator.cli import (

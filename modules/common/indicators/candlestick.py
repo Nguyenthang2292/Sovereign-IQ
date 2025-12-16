@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .base import IndicatorMetadata, IndicatorResult, collect_metadata
+from modules.common.utils import validate_ohlcv_input
 
 
 class CandlestickPatterns:
@@ -15,6 +16,9 @@ class CandlestickPatterns:
 
     @staticmethod
     def apply(df: pd.DataFrame) -> IndicatorResult:
+        # Validate input
+        validate_ohlcv_input(df, required_columns=["open", "high", "low", "close"])
+        
         result = df.copy()
         before = result.columns.tolist()
 
@@ -124,19 +128,34 @@ class CandlestickPatterns:
             & (c < (o.shift(2) + c.shift(2)) / 2)
         ).astype(int)
 
+        prev_bearish = o.shift(1) > c.shift(1)
+        curr_bullish = c > o
+        gap_down = o < c.shift(1)
+        midpoint = (o.shift(1) + c.shift(1)) / 2
+        above_midpoint = c > midpoint
+        below_prev_open = c < o.shift(1)
+        
         result["PIERCING"] = (
-            (o.shift(1) > c.shift(1))
-            & (c > o)
-            & (o < c.shift(1))
-            & (c > (o.shift(1) + c.shift(1)) / 2)
-            & (c < o.shift(1))
+            prev_bearish
+            & curr_bullish
+            & gap_down
+            & above_midpoint
+            & below_prev_open
         ).astype(int)
+        
+        prev_bullish_dc = c.shift(1) > o.shift(1)
+        curr_bearish_dc = o > c
+        gap_up_dc = o > c.shift(1)
+        midpoint_dc = (o.shift(1) + c.shift(1)) / 2
+        below_midpoint_dc = c < midpoint_dc
+        above_prev_open_dc = c > o.shift(1)
+        
         result["DARK_CLOUD"] = (
-            (c.shift(1) > o.shift(1))
-            & (o > c)
-            & (o > c.shift(1))
-            & (c < (o.shift(1) + c.shift(1)) / 2)
-            & (c > o.shift(1))
+            prev_bullish_dc
+            & curr_bearish_dc
+            & gap_up_dc
+            & below_midpoint_dc
+            & above_prev_open_dc
         ).astype(int)
         result["THREE_WHITE_SOLDIERS"] = (
             bullish

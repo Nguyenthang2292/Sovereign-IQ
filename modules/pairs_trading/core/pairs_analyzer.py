@@ -7,7 +7,7 @@ import pandas as pd
 from typing import Dict, Optional, Tuple, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from modules.common.DataFetcher import DataFetcher
+    from modules.common.core.data_fetcher import DataFetcher
 
 try:
     from config import (
@@ -40,7 +40,7 @@ try:
         log_success,
         log_progress,
     )
-    from modules.common.ProgressBar import ProgressBar, NullProgressBar
+    from modules.common.ui.progress_bar import ProgressBar, NullProgressBar
     from modules.common.indicators import calculate_adx
 except ImportError:
     PAIRS_TRADING_MIN_SPREAD = 0.01

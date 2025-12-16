@@ -15,10 +15,7 @@ if TYPE_CHECKING:
 
 from modules.common.utils import log_info, log_warn
 from modules.hmm.core.high_order.state_expansion import get_expanded_state_count
-
-# Base number of states (0=Down, 1=Side, 2=Up)
-N_BASE_STATES = 3
-
+from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
 
 def _calculate_hmm_parameters(n_states: int, n_symbols: int = 3) -> int:
     """
@@ -37,9 +34,6 @@ def _calculate_hmm_parameters(n_states: int, n_symbols: int = 3) -> int:
     end_params = n_states - 1
     
     return transition_params + emission_params + start_params + end_params
-
-
-
 
 def optimize_n_states_high_order(
     observations, 
@@ -146,7 +140,6 @@ def optimize_n_states_high_order(
         log_info(f"Selected n_states={best_n_states} with best log-likelihood={best_score:.2f}")
     
     return best_n_states
-
 
 def optimize_order_k(
     observations,

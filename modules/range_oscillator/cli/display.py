@@ -71,6 +71,49 @@ def display_final_results(
         long_uses_fallback: True if LONG signals fallback to ATC only
         short_uses_fallback: True if SHORT signals fallback to ATC only
     """
+    # #region agent log
+    import json
+    import os
+    log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "sessionId": "debug-session",
+                "runId": "check-display",
+                "hypothesisId": "H7",
+                "location": "display.py:55",
+                "message": "display_final_results entry",
+                "data": {
+                    "long_signals_empty": long_signals.empty if isinstance(long_signals, pd.DataFrame) else None,
+                    "short_signals_empty": short_signals.empty if isinstance(short_signals, pd.DataFrame) else None,
+                    "long_signals_shape": long_signals.shape if isinstance(long_signals, pd.DataFrame) else None,
+                    "short_signals_shape": short_signals.shape if isinstance(short_signals, pd.DataFrame) else None,
+                    "long_columns": list(long_signals.columns) if isinstance(long_signals, pd.DataFrame) else None,
+                    "short_columns": list(short_signals.columns) if isinstance(short_signals, pd.DataFrame) else None
+                },
+                "timestamp": int(__import__("time").time() * 1000)
+            }) + "\n")
+    except: pass
+    # #endregion
+    
+    # Input validation
+    if not isinstance(long_signals, pd.DataFrame):
+        raise TypeError(f"long_signals must be a pandas DataFrame, got {type(long_signals)}")
+    if not isinstance(short_signals, pd.DataFrame):
+        raise TypeError(f"short_signals must be a pandas DataFrame, got {type(short_signals)}")
+    if not isinstance(original_long_count, int) or original_long_count < 0:
+        raise ValueError(f"original_long_count must be a non-negative integer, got {original_long_count}")
+    if not isinstance(original_short_count, int) or original_short_count < 0:
+        raise ValueError(f"original_short_count must be a non-negative integer, got {original_short_count}")
+    
+    # Required columns check
+    required_columns = ['symbol', 'signal', 'price', 'exchange']
+    missing_long = [col for col in required_columns if col not in long_signals.columns]
+    missing_short = [col for col in required_columns if col not in short_signals.columns]
+    if missing_long and not long_signals.empty:
+        raise ValueError(f"long_signals missing required columns: {missing_long}")
+    if missing_short and not short_signals.empty:
+        raise ValueError(f"short_signals missing required columns: {missing_short}")
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
     print(color_text("FINAL CONFIRMED SIGNALS (ATC + Range Oscillator)", Fore.CYAN, Style.BRIGHT))
     print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
@@ -99,27 +142,71 @@ def display_final_results(
             print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10}", Fore.MAGENTA))
         print(color_text("-" * 80, Fore.CYAN))
         
-        for _, row in long_signals.iterrows():
-            signal_str = f"{row['signal']:+.6f}"
-            price_str = format_price(row['price'])
-            # Use yellow color for fallback signals, green for confirmed
-            signal_color = Fore.YELLOW if long_uses_fallback else Fore.GREEN
-            if has_confidence and not long_uses_fallback:
-                confidence = row.get('osc_confidence', 0.0)
-                confidence_str = f"{confidence:.3f}"
-                print(
-                    color_text(
-                        f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
-                        signal_color,
+        for idx, row in long_signals.iterrows():
+            # #region agent log
+            try:
+                with open(log_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "sessionId": "debug-session",
+                        "runId": "check-display",
+                        "hypothesisId": "H8",
+                        "location": "display.py:102",
+                        "message": "Processing long signal row",
+                        "data": {
+                            "index": str(idx),
+                            "has_symbol": 'symbol' in row.index,
+                            "has_signal": 'signal' in row.index,
+                            "has_price": 'price' in row.index,
+                            "has_exchange": 'exchange' in row.index,
+                            "has_confidence": 'osc_confidence' in row.index
+                        },
+                        "timestamp": int(__import__("time").time() * 1000)
+                    }) + "\n")
+            except: pass
+            # #endregion
+            
+            try:
+                signal_str = f"{row['signal']:+.6f}"
+                price_str = format_price(row['price'])
+                # Use yellow color for fallback signals, green for confirmed
+                signal_color = Fore.YELLOW if long_uses_fallback else Fore.GREEN
+                if has_confidence and not long_uses_fallback:
+                    confidence = row.get('osc_confidence', 0.0)
+                    confidence_str = f"{confidence:.3f}"
+                    print(
+                        color_text(
+                            f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
+                            signal_color,
+                        )
                     )
-                )
-            else:
-                print(
-                    color_text(
-                        f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}",
-                        signal_color,
+                else:
+                    print(
+                        color_text(
+                            f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}",
+                            signal_color,
+                        )
                     )
-                )
+            except KeyError as e:
+                # #region agent log
+                try:
+                    with open(log_path, "a", encoding="utf-8") as f:
+                        f.write(json.dumps({
+                            "sessionId": "debug-session",
+                            "runId": "check-display",
+                            "hypothesisId": "H9",
+                            "location": "display.py:102",
+                            "message": "KeyError in long signal row",
+                            "data": {
+                                "index": str(idx),
+                                "missing_key": str(e),
+                                "available_keys": list(row.index)
+                            },
+                            "timestamp": int(__import__("time").time() * 1000)
+                        }) + "\n")
+                except: pass
+                # #endregion
+                print(color_text(f"  Warning: Skipping row {idx} due to missing key: {e}", Fore.YELLOW))
+                continue
 
     # SHORT Signals
     if short_uses_fallback:
@@ -145,35 +232,84 @@ def display_final_results(
             print(color_text(f"{'Symbol':<15} {'ATC Signal':>12} {'Price':>15} {'Exchange':<10}", Fore.MAGENTA))
         print(color_text("-" * 80, Fore.CYAN))
         
-        for _, row in short_signals.iterrows():
-            signal_str = f"{row['signal']:+.6f}"
-            price_str = format_price(row['price'])
-            # Use yellow color for fallback signals, red for confirmed
-            signal_color = Fore.YELLOW if short_uses_fallback else Fore.RED
-            if has_confidence and not short_uses_fallback:
-                confidence = row.get('osc_confidence', 0.0)
-                confidence_str = f"{confidence:.3f}"
-                print(
-                    color_text(
-                        f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
-                        signal_color,
+        for idx, row in short_signals.iterrows():
+            try:
+                signal_str = f"{row['signal']:+.6f}"
+                price_str = format_price(row['price'])
+                # Use yellow color for fallback signals, red for confirmed
+                signal_color = Fore.YELLOW if short_uses_fallback else Fore.RED
+                if has_confidence and not short_uses_fallback:
+                    confidence = row.get('osc_confidence', 0.0)
+                    confidence_str = f"{confidence:.3f}"
+                    print(
+                        color_text(
+                            f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
+                            signal_color,
+                        )
                     )
-                )
-            else:
-                print(
-                    color_text(
-                        f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}",
-                        signal_color,
+                else:
+                    print(
+                        color_text(
+                            f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}",
+                            signal_color,
+                        )
                     )
-                )
+            except KeyError as e:
+                print(color_text(f"  Warning: Skipping row {idx} due to missing key: {e}", Fore.YELLOW))
+                continue
 
     # Calculate average confidence scores
     avg_long_confidence = 0.0
     avg_short_confidence = 0.0
-    if not long_signals.empty and 'osc_confidence' in long_signals.columns:
-        avg_long_confidence = float(long_signals['osc_confidence'].mean())
-    if not short_signals.empty and 'osc_confidence' in short_signals.columns:
-        avg_short_confidence = float(short_signals['osc_confidence'].mean())
+    try:
+        if not long_signals.empty and 'osc_confidence' in long_signals.columns:
+            confidence_series = long_signals['osc_confidence']
+            if len(confidence_series) > 0:
+                avg_long_confidence = float(confidence_series.mean())
+    except (ValueError, TypeError) as e:
+        # #region agent log
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "check-display",
+                    "hypothesisId": "H10",
+                    "location": "display.py:173",
+                    "message": "Error calculating avg_long_confidence",
+                    "data": {
+                        "exception_type": type(e).__name__,
+                        "exception_msg": str(e)
+                    },
+                    "timestamp": int(__import__("time").time() * 1000)
+                }) + "\n")
+        except: pass
+        # #endregion
+        pass  # Use default 0.0
+    
+    try:
+        if not short_signals.empty and 'osc_confidence' in short_signals.columns:
+            confidence_series = short_signals['osc_confidence']
+            if len(confidence_series) > 0:
+                avg_short_confidence = float(confidence_series.mean())
+    except (ValueError, TypeError) as e:
+        # #region agent log
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "check-display",
+                    "hypothesisId": "H10",
+                    "location": "display.py:176",
+                    "message": "Error calculating avg_short_confidence",
+                    "data": {
+                        "exception_type": type(e).__name__,
+                        "exception_msg": str(e)
+                    },
+                    "timestamp": int(__import__("time").time() * 1000)
+                }) + "\n")
+        except: pass
+        # #endregion
+        pass  # Use default 0.0
     
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
     print(color_text(f"Summary:", Fore.WHITE, Style.BRIGHT))

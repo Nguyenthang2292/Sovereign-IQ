@@ -46,7 +46,6 @@ class MeanReversionConfig:
             else:
                 self.bullish_reversion_target = 0.5  # Target middle
                 self.bearish_reversion_target = 0.5
-                self.bearish_reversion_target = 0.5
         # Validate configuration
         if not (0.0 <= self.extreme_threshold <= 1.0):
             raise ValueError(

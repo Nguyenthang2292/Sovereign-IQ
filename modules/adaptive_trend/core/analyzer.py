@@ -9,7 +9,7 @@ import traceback
 from typing import TYPE_CHECKING, Optional, Dict, Any
 
 if TYPE_CHECKING:
-    from modules.common.DataFetcher import DataFetcher
+    from modules.common.core.data_fetcher import DataFetcher
     import pandas as pd
 
 try:

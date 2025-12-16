@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 from modules.hmm.core.kama.workflow import hmm_kama
 from modules.hmm.core.kama.models import HMM_KAMA
+from modules.hmm.signals.strategy import HMMStrategy
 from modules.common.utils import log_info, log_error, log_warn, log_model, log_analysis
 from config import (
     HMM_WINDOW_KAMA_DEFAULT,
@@ -21,7 +22,7 @@ from config import (
 )
 
 
-class KamaHMMStrategy:
+class KamaHMMStrategy(HMMStrategy):
     """
     HMM Strategy wrapper for HMM-KAMA.
     
@@ -52,12 +53,9 @@ class KamaHMMStrategy:
             window_size: Rolling window size
             **kwargs: Additional parameters
         """
-        from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
         from modules.hmm.signals.resolution import LONG, HOLD, SHORT
         
-        self.name = name
-        self.weight = weight
-        self.enabled = enabled
+        super().__init__(name=name, weight=weight, enabled=enabled, **kwargs)
         self.window_kama = (
             window_kama if window_kama is not None else HMM_WINDOW_KAMA_DEFAULT
         )
@@ -70,7 +68,13 @@ class KamaHMMStrategy:
         self.window_size = (
             window_size if window_size is not None else HMM_WINDOW_SIZE_DEFAULT
         )
-        self.params = kwargs
+        # Update params with strategy-specific parameters
+        self.params.update({
+            'window_kama': self.window_kama,
+            'fast_kama': self.fast_kama,
+            'slow_kama': self.slow_kama,
+            'window_size': self.window_size
+        })
     
     def analyze(self, df: pd.DataFrame, **kwargs) -> 'HMMStrategyResult':
         """

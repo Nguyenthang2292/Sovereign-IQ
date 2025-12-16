@@ -146,3 +146,4 @@ class IndicatorEngine:
         if return_metadata:
             return working_df, metadata
         return working_df
+

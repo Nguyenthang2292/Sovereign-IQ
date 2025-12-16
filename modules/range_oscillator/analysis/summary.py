@@ -23,6 +23,36 @@ def get_signal_summary(
     Returns:
         Dictionary with summary statistics
     """
+    # #region agent log
+    import json
+    import os
+    log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "sessionId": "debug-session",
+                "runId": "check-summary",
+                "hypothesisId": "H1",
+                "location": "summary.py:26",
+                "message": "get_signal_summary entry",
+                "data": {
+                    "signals_len": len(signals) if signals is not None else None,
+                    "strength_len": len(signal_strength) if signal_strength is not None else None,
+                    "close_len": len(close) if close is not None else None,
+                    "signals_index_match": bool(signals.index.equals(signal_strength.index)) if (signals is not None and signal_strength is not None) else None
+                },
+                "timestamp": int(__import__("time").time() * 1000)
+            }) + "\n")
+    except: pass
+    # #endregion
+    
+    # Input validation
+    if signals is None or signal_strength is None or close is None:
+        raise ValueError("All input parameters (signals, signal_strength, close) must be provided")
+    
+    if not isinstance(signals, pd.Series) or not isinstance(signal_strength, pd.Series) or not isinstance(close, pd.Series):
+        raise TypeError("All input parameters must be pandas Series")
+    
     if len(signals) == 0:
         return {
             "total_signals": 0,
@@ -57,7 +87,9 @@ def get_signal_summary(
     non_zero_signals = signals[signals != 0]
     avg_strength = 0.0
     if len(non_zero_signals) > 0:
-        non_zero_strength = signal_strength[signals != 0]
+        # Ensure index alignment before filtering
+        aligned_strength = signal_strength.reindex(signals.index, fill_value=0.0)
+        non_zero_strength = aligned_strength[signals != 0]
         avg_strength = non_zero_strength.mean() if len(non_zero_strength) > 0 else 0.0
     
     return {

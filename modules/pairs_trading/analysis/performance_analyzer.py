@@ -9,7 +9,7 @@ import numpy as np
 from typing import List, Dict, Optional, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from modules.common.DataFetcher import DataFetcher
+    from modules.common.core.data_fetcher import DataFetcher
     import threading
 
 try:
@@ -30,7 +30,7 @@ try:
         log_warn,
         log_progress,
     )
-    from modules.common.ProgressBar import ProgressBar, NullProgressBar
+    from modules.common.ui.progress_bar import ProgressBar, NullProgressBar
 except ImportError:
     PAIRS_TRADING_WEIGHTS = {'1d': 0.5, '3d': 0.3, '1w': 0.2}
     PAIRS_TRADING_TOP_N = 5

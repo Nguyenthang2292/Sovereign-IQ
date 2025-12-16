@@ -14,7 +14,7 @@ from modules.hmm.core.high_order.state_expansion import (
     get_expanded_state_count,
     expand_state_sequence,
 )
-
+from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
 
 def _map_observed_to_hidden_state(observed_state: int, n_states: int, n_observed_states: int = 3) -> int:
     """
@@ -41,9 +41,7 @@ def _map_observed_to_hidden_state(observed_state: int, n_states: int, n_observed
         hidden_idx = (observed_state * n_states) // n_observed_states
         return max(0, min(hidden_idx, n_states - 1))
 
-# Base number of states (0=Down, 1=Side, 2=Up)
-N_BASE_STATES = 3
-
+# N_BASE_STATES imported from config.hmm
 
 def compute_transition_matrix_from_data_high_order(
     states: List[float], 
@@ -72,6 +70,7 @@ def compute_transition_matrix_from_data_high_order(
     if order > 1:
         # Use state space expansion
         expanded_states = expand_state_sequence(states, order, n_base_states)
+        
         if len(expanded_states) < 2:
             return np.ones((n_states, n_states), dtype=np.float32) / n_states
         
@@ -79,6 +78,8 @@ def compute_transition_matrix_from_data_high_order(
         transition_counts = np.zeros((n_states, n_states), dtype=np.float32)
         
         # Count transitions between consecutive expanded states
+        # NOTE: Expanded states are clamped to [0, n_states-1] to handle edge cases
+        #       where expanded state index might exceed n_states (shouldn't happen in normal cases)
         for i in range(len(expanded_states) - 1):
             from_expanded = expanded_states[i]
             to_expanded = expanded_states[i + 1]
@@ -116,7 +117,6 @@ def compute_transition_matrix_from_data_high_order(
     
     return transition_matrix.astype(np.float32)
 
-
 def compute_emission_probabilities_from_data_high_order(
     states: List[float], 
     n_states: int, 
@@ -151,6 +151,7 @@ def compute_emission_probabilities_from_data_high_order(
         expanded_states = expand_state_sequence(states, order, n_base_states)
         
         # For each expanded state, emit symbol based on the last state in sequence
+        # NOTE: Expanded states are clamped to [0, n_states-1] to prevent index out of bounds
         for i, expanded_state in enumerate(expanded_states):
             # The observation is the state at position i + order - 1 (last in sequence)
             if i + order - 1 < len(states):
@@ -265,10 +266,15 @@ def create_high_order_hmm_model(
     Returns:
         DenseHMM: The configured HMM model
     """
+    # FIX: Validate n_states matches expected expanded state count
+    # Issue: When order > 1, n_states must equal n_base_states^order for correct model creation
+    #        Mismatch can cause shape errors in transition/emission matrices
+    # Solution: Check and correct n_states to match expected_expanded_states
     # When order > 1, n_states should already be the expanded state count
     # But we need to ensure it matches
     if order > 1:
         expected_expanded_states = get_expanded_state_count(n_base_states, order)
+        
         if n_states != expected_expanded_states:
             log_warn(
                 f"n_states ({n_states}) doesn't match expected expanded states "

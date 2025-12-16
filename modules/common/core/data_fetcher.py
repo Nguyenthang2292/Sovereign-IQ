@@ -5,10 +5,9 @@ Data fetcher for retrieving market data from exchanges.
 import pandas as pd
 from typing import Dict, Tuple, Optional, List
 
-from modules.common.utils import (
-    normalize_symbol,
-    timeframe_to_minutes,
-    dataframe_to_close_series,
+from modules.common.utils.domain import normalize_symbol, timeframe_to_minutes
+from modules.common.utils.data import dataframe_to_close_series
+from modules.common.ui.logging import (
     log_exchange,
     log_error,
     log_warn,
@@ -17,8 +16,8 @@ from modules.common.utils import (
     log_info,
     log_data,
 )
-from modules.common.ProgressBar import ProgressBar
-from modules.common.ExchangeManager import ExchangeManager
+from modules.common.ui.progress_bar import ProgressBar
+from modules.common.core.exchange_manager import ExchangeManager
 
 
 class DataFetcher:
@@ -408,7 +407,7 @@ class DataFetcher:
         Converts a fetched OHLCV DataFrame into a pandas Series of closing prices indexed by timestamp.
         
         This is a wrapper method for backward compatibility. The actual implementation
-        is in modules.common.utils.dataframe_to_close_series().
+        is in modules.common.utils.data.dataframe_to_close_series().
         """
         return dataframe_to_close_series(df)
 
@@ -552,3 +551,4 @@ class DataFetcher:
         # Failed to fetch
         log_error(f"Failed to fetch OHLCV for {normalized_symbol}: {last_error}")
         return None, None
+

@@ -11,8 +11,9 @@ This module contains functions to calculate signals from:
 from typing import Optional, Tuple
 import json
 import os
+import time
 
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.data_fetcher import DataFetcher
 from modules.range_oscillator.analysis.combined import (
     generate_signals_combined_all_strategy,
 )
@@ -34,7 +35,7 @@ from modules.simplified_percentile_clustering.config import (
     RegimeFollowingConfig,
     MeanReversionConfig,
 )
-from modules.common.IndicatorEngine import (
+from modules.common.core.indicator_engine import (
     IndicatorConfig,
     IndicatorEngine,
     IndicatorProfile,
@@ -167,7 +168,6 @@ def get_range_oscillator_signal(
         latest_idx = signals[non_nan_mask].index[-1]
         latest_signal = int(signals.loc[latest_idx])
         latest_confidence = float(confidence.loc[latest_idx]) if confidence is not None and not confidence.empty else 0.0
-
         return (latest_signal, latest_confidence)
 
     except Exception as e:
@@ -270,7 +270,6 @@ def get_spc_signal(
         latest_idx = signals[non_nan_mask].index[-1]
         latest_signal = int(signals.loc[latest_idx])
         latest_strength = float(signal_strength.loc[latest_idx]) if not signal_strength.empty else 0.0
-
         return (latest_signal, latest_strength)
 
     except Exception as e:
@@ -342,7 +341,6 @@ def get_xgboost_signal(
         
         # Use probability as confidence/strength
         confidence = float(proba[best_idx])
-
         return (signal, confidence)
 
     except Exception as e:
@@ -417,7 +415,6 @@ def get_hmm_signal(
         
         # Convert Signal type (Literal[-1, 0, 1]) to int
         signal_value = int(combined_signal)
-        
         return (signal_value, confidence)
 
     except Exception as e:

@@ -6,6 +6,7 @@ import pandas as pd
 import pandas_ta as ta
 
 from .base import IndicatorMetadata, IndicatorResult, collect_metadata
+from modules.common.utils import validate_ohlcv_input
 
 
 class VolumeIndicators:
@@ -15,6 +16,9 @@ class VolumeIndicators:
 
     @staticmethod
     def apply(df: pd.DataFrame) -> IndicatorResult:
+        # Validate input
+        validate_ohlcv_input(df, required_columns=["close", "volume"])
+        
         result = df.copy()
         before = result.columns.tolist()
         obv = ta.obv(result["close"], result["volume"])

@@ -34,8 +34,8 @@ from modules.common.utils import (
     prompt_user_input,
     extract_dict_from_namespace,
 )
-from modules.common.ExchangeManager import ExchangeManager
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
 from modules.adaptive_trend.core.analyzer import analyze_symbol
 from modules.adaptive_trend.utils.config import create_atc_config_from_dict
 from modules.adaptive_trend.core.scanner import scan_all_symbols

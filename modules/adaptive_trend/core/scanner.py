@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
 
 if TYPE_CHECKING:
-    from modules.common.DataFetcher import DataFetcher
+    from modules.common.core.data_fetcher import DataFetcher
 
 try:
     from modules.common.utils import (

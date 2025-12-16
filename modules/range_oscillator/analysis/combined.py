@@ -129,6 +129,10 @@ class CombinedStrategy:
             p.breakout_upper_threshold = get_arg("breakout_upper_threshold", p.breakout_upper_threshold)
             p.breakout_lower_threshold = get_arg("breakout_lower_threshold", p.breakout_lower_threshold)
             p.breakout_confirmation_bars = get_arg("breakout_confirmation_bars", p.breakout_confirmation_bars)
+            p.breakout_use_dynamic_exhaustion = get_arg("breakout_use_dynamic_exhaustion", p.breakout_use_dynamic_exhaustion)
+            p.breakout_exhaustion_atr_multiplier = get_arg("breakout_exhaustion_atr_multiplier", p.breakout_exhaustion_atr_multiplier)
+            p.breakout_base_exhaustion_threshold = get_arg("breakout_base_exhaustion_threshold", p.breakout_base_exhaustion_threshold)
+            p.breakout_exhaustion_atr_period = get_arg("breakout_exhaustion_atr_period", p.breakout_exhaustion_atr_period)
             p.use_divergence = get_arg("use_divergence", p.use_divergence)
             p.divergence_lookback_period = get_arg("divergence_lookback_period", p.divergence_lookback_period)
             p.divergence_min_swing_bars = get_arg("divergence_min_swing_bars", p.divergence_min_swing_bars)
@@ -309,6 +313,10 @@ class CombinedStrategy:
         self, signals_array: np.ndarray, strengths_array: np.ndarray, n_strategies: int
     ) -> np.ndarray:
         """Calculate confidence scores."""
+        if n_strategies == 0:
+            # Return zero confidence if no strategies
+            return np.zeros(signals_array.shape[1] if signals_array.size > 0 else 0, dtype=np.float64)
+        
         n_bars = signals_array.shape[1]
         confidence = np.zeros(n_bars, dtype=np.float64)
         c_conf = self.config.consensus
@@ -358,6 +366,10 @@ class CombinedStrategy:
         """
         Generate trading signals using the combined strategy logic.
         """
+        # Input validation
+        if oscillator is None and (high is None or low is None or close is None):
+            raise ValueError("Either provide (oscillator, ma, range_atr) or (high, low, close)")
+        
         if self.debug_enabled:
             log_analysis(f"[Strategy5] Starting combined strategy with Config: {self.config.enabled_strategies}")
 
@@ -394,8 +406,10 @@ class CombinedStrategy:
         # Helper to run individual strategy
         def run_st(sid, name, func, **k):
             if sid not in current_enabled_strategies: return
+
             try:
                 s, str_ = func(**k)
+
                 signals_dict[str(sid)] = s
                 strengths_dict[str(sid)] = str_
                 if self.config.return_strategy_stats:
@@ -405,9 +419,11 @@ class CombinedStrategy:
                         "short_count": int((s == -1).sum())
                     }
             except Exception as e:
+
                 if self.debug_enabled:
                     log_warn(f"[Strategy5] Strategy {sid} ({name}) failed: {str(e)}")
-                if isinstance(e, (TypeError, NameError, AttributeError)):
+                # Re-raise critical errors that indicate code bugs
+                if isinstance(e, (TypeError, NameError, AttributeError, ValueError, KeyError)):
                     raise e
 
         p = self.config.params
@@ -428,7 +444,12 @@ class CombinedStrategy:
         run_st(6, STRATEGY_NAMES[6], generate_signals_breakout_strategy,
                high=high, low=low, close=close, oscillator=oscillator, ma=ma, range_atr=range_atr,
                length=length, mult=mult, upper_threshold=p.breakout_upper_threshold,
-               lower_threshold=p.breakout_lower_threshold, confirmation_bars=p.breakout_confirmation_bars, enable_debug=False)
+               lower_threshold=p.breakout_lower_threshold, confirmation_bars=p.breakout_confirmation_bars,
+               use_dynamic_exhaustion=p.breakout_use_dynamic_exhaustion,
+               exhaustion_atr_multiplier=p.breakout_exhaustion_atr_multiplier,
+               base_exhaustion_threshold=p.breakout_base_exhaustion_threshold,
+               exhaustion_atr_period=p.breakout_exhaustion_atr_period,
+               enable_debug=False)
 
         if high is not None:
             run_st(7, STRATEGY_NAMES[7], generate_signals_divergence_strategy,
@@ -449,11 +470,20 @@ class CombinedStrategy:
              return self._fallback_strategy1(high, low, close, oscillator, ma, range_atr, length, mult, index)
 
         # 4. Aggregation
+
+        
         signals_df = pd.concat(signals_dict, axis=1).fillna(0).astype(int)
         strengths_df = pd.concat(strengths_dict, axis=1).fillna(0.0)
         
         signals_df = signals_df.reindex(index, fill_value=0)
         strengths_df = strengths_df.reindex(index, fill_value=0.0)
+        
+
+        
+        if signals_df.empty or strengths_df.empty:
+            if self.debug_enabled:
+                log_warn("[Strategy5] Aggregated DataFrames are empty, using fallback")
+            return self._fallback_strategy1(high, low, close, oscillator, ma, range_atr, length, mult, index)
         
         signals_array = signals_df.values.T
         strengths_array = strengths_df.values.T

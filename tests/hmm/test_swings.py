@@ -35,7 +35,7 @@ if POMEGRANATE_AVAILABLE:
         average_swing_distance,
         evaluate_model_accuracy,
         hmm_swings,
-        HighOrderHMM,
+        SwingsHMM,
         _map_observed_to_hidden_state,
         compute_transition_matrix_from_data,
         compute_emission_probabilities_from_data,
@@ -347,13 +347,13 @@ def test_constants():
 
 
 # ============================================================================
-# HighOrderHMM Class Tests
+# SwingsHMM Class Tests
 # ============================================================================
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_class_initialization():
-    """Test HighOrderHMM class initialization."""
-    analyzer = HighOrderHMM()
+    """Test SwingsHMM class initialization."""
+    analyzer = SwingsHMM()
     
     assert analyzer.model is None
     assert analyzer.optimal_n_states is None
@@ -371,8 +371,8 @@ def test_high_order_hmm_class_initialization():
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_class_custom_params():
-    """Test HighOrderHMM class with custom parameters."""
-    analyzer = HighOrderHMM(
+    """Test SwingsHMM class with custom parameters."""
+    analyzer = SwingsHMM(
         orders_argrelextrema=3,
         strict_mode=False,
         use_data_driven=False,
@@ -396,7 +396,7 @@ def test_high_order_hmm_class_custom_params():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_validate_dataframe():
     """Test _validate_dataframe method."""
-    analyzer = HighOrderHMM()
+    analyzer = SwingsHMM()
     
     # Valid DataFrame
     valid_df = _sample_ohlcv_dataframe(50)
@@ -423,7 +423,7 @@ def test_high_order_hmm_validate_dataframe():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_determine_interval():
     """Test _determine_interval method."""
-    analyzer = HighOrderHMM()
+    analyzer = SwingsHMM()
     
     # DatetimeIndex with hourly data
     hourly_df = pd.DataFrame({
@@ -456,7 +456,7 @@ def test_high_order_hmm_determine_interval():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_detect_swings():
     """Test detect_swings method."""
-    analyzer = HighOrderHMM(orders_argrelextrema=3)
+    analyzer = SwingsHMM(orders_argrelextrema=3)
     df = _sample_ohlcv_dataframe(100)
     
     swing_highs, swing_lows = analyzer.detect_swings(df)
@@ -472,7 +472,7 @@ def test_high_order_hmm_detect_swings():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_detect_swings_insufficient_data():
     """Test detect_swings with insufficient data."""
-    analyzer = HighOrderHMM()
+    analyzer = SwingsHMM()
     df = _sample_ohlcv_dataframe(5)  # Too few points
     
     swing_highs, swing_lows = analyzer.detect_swings(df)
@@ -484,7 +484,7 @@ def test_high_order_hmm_detect_swings_insufficient_data():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_convert_to_states():
     """Test convert_to_states method."""
-    analyzer = HighOrderHMM(strict_mode=True)
+    analyzer = SwingsHMM(strict_mode=True)
     
     swing_highs = pd.DataFrame({
         "high": [110, 105, 100, 95, 90],
@@ -504,7 +504,7 @@ def test_high_order_hmm_convert_to_states():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_optimize_and_create_model():
     """Test optimize_and_create_model method."""
-    analyzer = HighOrderHMM(min_states=2, max_states=4, n_folds=2)
+    analyzer = SwingsHMM(min_states=2, max_states=4, n_folds=2)
     train_states = [0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2]
     
     model = analyzer.optimize_and_create_model(train_states)
@@ -519,7 +519,7 @@ def test_high_order_hmm_optimize_and_create_model():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_predict_next_state():
     """Test predict_next_state method."""
-    analyzer = HighOrderHMM()
+    analyzer = SwingsHMM()
     model = create_hmm_model(n_symbols=3, n_states=2)
     states = [0, 1, 2, 0, 1, 2]
     train_observations = [np.array(states).reshape(-1, 1)]
@@ -536,7 +536,7 @@ def test_high_order_hmm_predict_next_state():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_calculate_duration():
     """Test _calculate_duration method."""
-    analyzer = HighOrderHMM()
+    analyzer = SwingsHMM()
     
     swing_highs = pd.DataFrame({
         "high": [110, 105, 100],
@@ -555,7 +555,7 @@ def test_high_order_hmm_calculate_duration():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_analyze_basic():
     """Test analyze method with basic valid data."""
-    analyzer = HighOrderHMM(train_ratio=0.8)
+    analyzer = SwingsHMM(train_ratio=0.8)
     df = _sample_ohlcv_dataframe(200)
     
     result = analyzer.analyze(df, eval_mode=False)
@@ -573,7 +573,7 @@ def test_high_order_hmm_analyze_basic():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_analyze_with_eval_mode():
     """Test analyze method with eval_mode=True."""
-    analyzer = HighOrderHMM(train_ratio=0.8)
+    analyzer = SwingsHMM(train_ratio=0.8)
     df = _sample_ohlcv_dataframe(200)
     
     result = analyzer.analyze(df, eval_mode=True)
@@ -585,7 +585,7 @@ def test_high_order_hmm_analyze_with_eval_mode():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_analyze_invalid_data():
     """Test analyze method with invalid data."""
-    analyzer = HighOrderHMM()
+    analyzer = SwingsHMM()
     
     # Empty DataFrame
     empty_df = pd.DataFrame()
@@ -601,7 +601,7 @@ def test_high_order_hmm_analyze_invalid_data():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_analyze_insufficient_swings():
     """Test analyze method with insufficient swing points."""
-    analyzer = HighOrderHMM()
+    analyzer = SwingsHMM()
     df = _sample_ohlcv_dataframe(10)  # Too few points
     
     result = analyzer.analyze(df)
@@ -613,7 +613,7 @@ def test_high_order_hmm_analyze_insufficient_swings():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_analyze_strict_mode():
     """Test analyze method with strict_mode=True."""
-    analyzer = HighOrderHMM(strict_mode=True, train_ratio=0.8)
+    analyzer = SwingsHMM(strict_mode=True, train_ratio=0.8)
     df = _sample_ohlcv_dataframe(200)
     
     result = analyzer.analyze(df, eval_mode=False)
@@ -625,7 +625,7 @@ def test_high_order_hmm_analyze_strict_mode():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_analyze_data_driven():
     """Test analyze method with data-driven initialization."""
-    analyzer = HighOrderHMM(use_data_driven=True, train_ratio=0.8)
+    analyzer = SwingsHMM(use_data_driven=True, train_ratio=0.8)
     df = _sample_ohlcv_dataframe(200)
     
     result = analyzer.analyze(df, eval_mode=False)
@@ -637,7 +637,7 @@ def test_high_order_hmm_analyze_data_driven():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_high_order_hmm_analyze_low_accuracy():
     """Test analyze method when accuracy is too low."""
-    analyzer = HighOrderHMM(train_ratio=0.8)
+    analyzer = SwingsHMM(train_ratio=0.8)
     df = _sample_ohlcv_dataframe(200)
     
     # This test verifies that low accuracy returns NEUTRAL
@@ -835,14 +835,14 @@ def test_optimize_n_states_without_bic():
 
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_integration_hmm_swings_vs_class():
-    """Test that hmm_swings function and HighOrderHMM class produce similar results."""
+    """Test that hmm_swings function and SwingsHMM class produce similar results."""
     df = _sample_ohlcv_dataframe(200)
     
     # Function-based
     result_func = hmm_swings(df, train_ratio=0.8, eval_mode=False)
     
     # Class-based
-    analyzer = HighOrderHMM(train_ratio=0.8)
+    analyzer = SwingsHMM(train_ratio=0.8)
     result_class = analyzer.analyze(df, eval_mode=False)
     
     # Both should return valid results
@@ -857,7 +857,7 @@ def test_integration_hmm_swings_vs_class():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_integration_full_pipeline_strict_mode():
     """Test full pipeline with strict_mode=True."""
-    analyzer = HighOrderHMM(strict_mode=True, use_data_driven=True, train_ratio=0.8)
+    analyzer = SwingsHMM(strict_mode=True, use_data_driven=True, train_ratio=0.8)
     df = _sample_ohlcv_dataframe(200)
     
     result = analyzer.analyze(df, eval_mode=True)
@@ -873,7 +873,7 @@ def test_integration_full_pipeline_strict_mode():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_integration_full_pipeline_non_strict_mode():
     """Test full pipeline with strict_mode=False."""
-    analyzer = HighOrderHMM(strict_mode=False, use_data_driven=True, train_ratio=0.8)
+    analyzer = SwingsHMM(strict_mode=False, use_data_driven=True, train_ratio=0.8)
     df = _sample_ohlcv_dataframe(200)
     
     result = analyzer.analyze(df, eval_mode=True)
@@ -889,11 +889,11 @@ def test_integration_data_driven_vs_hardcoded():
     df = _sample_ohlcv_dataframe(200)
     
     # Data-driven
-    analyzer_dd = HighOrderHMM(use_data_driven=True, train_ratio=0.8)
+    analyzer_dd = SwingsHMM(use_data_driven=True, train_ratio=0.8)
     result_dd = analyzer_dd.analyze(df, eval_mode=False)
     
     # Hardcoded
-    analyzer_hc = HighOrderHMM(use_data_driven=False, train_ratio=0.8)
+    analyzer_hc = SwingsHMM(use_data_driven=False, train_ratio=0.8)
     result_hc = analyzer_hc.analyze(df, eval_mode=False)
     
     # Both should work
@@ -906,7 +906,7 @@ def test_integration_data_driven_vs_hardcoded():
 @pytest.mark.skipif(not POMEGRANATE_AVAILABLE, reason="pomegranate not available")
 def test_integration_reuse_analyzer_instance():
     """Test reusing the same analyzer instance for multiple analyses."""
-    analyzer = HighOrderHMM(train_ratio=0.8)
+    analyzer = SwingsHMM(train_ratio=0.8)
     df1 = _sample_ohlcv_dataframe(200)
     df2 = _sample_ohlcv_dataframe(200)
     
@@ -926,7 +926,7 @@ def test_integration_different_train_ratios():
     df = _sample_ohlcv_dataframe(200)
     
     for train_ratio in [0.6, 0.7, 0.8, 0.9]:
-        analyzer = HighOrderHMM(train_ratio=train_ratio)
+        analyzer = SwingsHMM(train_ratio=train_ratio)
         result = analyzer.analyze(df, eval_mode=False)
         
         assert isinstance(result, HMM_SWINGS)
@@ -939,7 +939,7 @@ def test_integration_different_orders_argrelextrema():
     df = _sample_ohlcv_dataframe(200)
     
     for order in [3, 5, 7]:
-        analyzer = HighOrderHMM(orders_argrelextrema=order)
+        analyzer = SwingsHMM(orders_argrelextrema=order)
         result = analyzer.analyze(df, eval_mode=False)
         
         assert isinstance(result, HMM_SWINGS)
@@ -951,8 +951,8 @@ def test_integration_state_sequence_consistency():
     """Test that state sequences are consistent across different modes."""
     df = _sample_ohlcv_dataframe(200)
     
-    analyzer_strict = HighOrderHMM(strict_mode=True)
-    analyzer_non_strict = HighOrderHMM(strict_mode=False)
+    analyzer_strict = SwingsHMM(strict_mode=True)
+    analyzer_non_strict = SwingsHMM(strict_mode=False)
     
     result_strict = analyzer_strict.analyze(df, eval_mode=False)
     result_non_strict = analyzer_non_strict.analyze(df, eval_mode=False)

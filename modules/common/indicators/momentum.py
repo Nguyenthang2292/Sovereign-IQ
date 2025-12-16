@@ -10,6 +10,7 @@ import pandas as pd
 import pandas_ta as ta
 
 from .base import IndicatorMetadata, IndicatorResult, collect_metadata
+from modules.common.utils import validate_ohlcv_input
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,9 @@ class MomentumIndicators:
 
     @staticmethod
     def apply(df: pd.DataFrame) -> IndicatorResult:
+        # Validate input
+        validate_ohlcv_input(df, required_columns=["close"])
+        
         result = df.copy()
         before = result.columns.tolist()
 
@@ -53,6 +57,7 @@ class MomentumIndicators:
         if bbands is not None and not bbands.empty:
             bbp_cols = [col for col in bbands.columns if col.startswith("BBP")]
             if bbp_cols:
+                # Sử dụng giá trị từ cột thực tế của pandas_ta nhưng giữ tên BBP_5_2.0 để tương thích ngược
                 result["BBP_5_2.0"] = bbands[bbp_cols[0]].fillna(0.5)
             else:
                 logger.warning(
@@ -172,7 +177,7 @@ def calculate_kama(prices, window: int = 10, fast: int = 2, slow: int = 30) -> n
 
 
 def calculate_kama_series(
-    prices, period: int = 10, fast: int = 2, slow: int = 30
+    prices: pd.Series, period: int = 10, fast: int = 2, slow: int = 30
 ) -> Optional[pd.Series]:
     kama_values = calculate_kama(prices, window=period, fast=fast, slow=slow)
     if kama_values is None or len(kama_values) == 0:

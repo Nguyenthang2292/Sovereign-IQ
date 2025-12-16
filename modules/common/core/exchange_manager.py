@@ -10,7 +10,7 @@ import threading
 from typing import Dict, Optional
 
 # Import normalize_symbol from utils (core module, should always be available)
-from modules.common.utils import normalize_symbol
+from modules.common.utils.domain import normalize_symbol
 
 try:
     from config import (
@@ -602,3 +602,4 @@ class ExchangeManager:
     def exchange_priority_for_fallback(self, value):
         """Set list of exchange IDs in priority order for OHLCV fallback."""
         self.public.exchange_priority_for_fallback = value
+

@@ -21,8 +21,8 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from colorama import Fore, Style
 
-from modules.common.DataFetcher import DataFetcher
-from modules.common.IndicatorEngine import IndicatorEngine, IndicatorConfig, IndicatorProfile
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.indicator_engine import IndicatorEngine, IndicatorConfig, IndicatorProfile
 from config import (
     TARGET_HORIZON,
     DEEP_TRIPLE_BARRIER_TP_THRESHOLD,

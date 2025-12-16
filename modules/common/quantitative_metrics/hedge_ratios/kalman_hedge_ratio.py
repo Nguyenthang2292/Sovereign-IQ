@@ -1,8 +1,23 @@
 """
 Kalman filter hedge ratio calculation for quantitative analysis.
 
-This is a general-purpose Kalman filter calculation that can be used
-for any dynamic relationship estimation, not just pairs trading.
+This module provides dynamic (time-varying) hedge ratio estimation using Kalman filtering.
+It can be used for any dynamic relationship estimation, not just pairs trading.
+
+Key Features:
+- Time-varying hedge ratio that adapts to changing market conditions
+- Handles edge cases: constant prices, zero variance, NaN/Inf values
+- Robust error handling and validation
+- Returns None for invalid inputs or calculation failures
+
+Edge Cases Handled:
+- None or invalid input types
+- Insufficient data points (< 10)
+- Constant prices (zero variance)
+- Zero variance in price2 (cannot estimate relationship)
+- NaN and Inf values
+- Invalid parameters (delta, observation_covariance)
+- Missing pykalman dependency
 """
 
 import pandas as pd
@@ -95,6 +110,20 @@ def calculate_kalman_hedge_ratio(
     if np.isinf(price1_clean.values).any() or np.isinf(price2_clean.values).any():
         return None
     
+    # Validate that prices are not constant (zero variance)
+    # Constant prices cannot be used to estimate a relationship
+    # 
+    # Critical check: price2 must have variance (it's the independent variable)
+    # If price2 is constant, the regression model cannot estimate the hedge ratio
+    # price1 variance check is also important to avoid degenerate cases
+    price1_std = price1_clean.std()
+    price2_std = price2_clean.std()
+    
+    # Check for zero or near-zero variance (threshold: 1e-10 to handle floating point precision)
+    # This prevents division by zero and singular matrix errors in Kalman filter
+    if price1_std < 1e-10 or price2_std < 1e-10:
+        return None
+    
     # Validate delta
     if delta <= 0 or delta >= 1:
         return None
@@ -108,6 +137,11 @@ def calculate_kalman_hedge_ratio(
         #   Q = (delta / (1 - delta)) * I
         # Derived from assuming random walk with drift where delta controls
         # process noise scaling. Larger delta -> more noise -> faster adaptation.
+        # 
+        # Note: This formulation ensures that:
+        # - delta close to 0: small Q (stable, slow adaptation)
+        # - delta close to 1: large Q (volatile, fast adaptation)
+        # - delta = 0.5: moderate Q (balanced)
         trans_cov = delta / (1 - delta) * np.eye(2)
         
         # Validate trans_cov is finite
@@ -116,6 +150,11 @@ def calculate_kalman_hedge_ratio(
 
         # Observation matrix builds relationship: price1_t = beta_t * price2_t + alpha_t
         # Each row is [price2_t, 1], reshaped for KalmanFilter API expectations.
+        # 
+        # Structure: For each time step t, we have:
+        #   [price2_t, 1] which allows the model to estimate:
+        #   price1_t = beta_t * price2_t + alpha_t
+        # where beta_t is the time-varying hedge ratio and alpha_t is the intercept
         obs_mat = np.vstack([price2_clean.values, np.ones(len(price2_clean))]).T[:, np.newaxis, :]
         
         # Validate obs_mat doesn't contain NaN/Inf
@@ -149,7 +188,10 @@ def calculate_kalman_hedge_ratio(
         
         beta = float(beta_value)
 
-        # Validate beta
+        # Validate beta (final sanity checks)
+        # - NaN/Inf: Invalid calculation result
+        # - |beta| > 1e6: Unrealistic magnitude (likely numerical error or degenerate case)
+        #   This threshold prevents returning extreme values that would cause issues downstream
         if np.isnan(beta) or np.isinf(beta):
             return None
         if abs(beta) > 1e6:

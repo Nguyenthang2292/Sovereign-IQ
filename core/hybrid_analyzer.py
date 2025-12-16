@@ -14,6 +14,8 @@ from typing import Optional, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 import pandas as pd
+import json
+import time
 
 from colorama import Fore, Style
 
@@ -39,8 +41,8 @@ from modules.common.utils import (
     log_success,
     log_warn,
 )
-from modules.common.ExchangeManager import ExchangeManager
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
 from modules.adaptive_trend.cli import prompt_timeframe
 from main.main_atc import ATCAnalyzer
 from modules.range_oscillator.cli import (
@@ -762,7 +764,6 @@ class HybridAnalyzer:
                 threshold=self.args.voting_threshold,
                 min_votes=self.args.min_votes,
             )
-            
             if cumulative_vote == 1:
                 result = row.to_dict()
                 result['cumulative_vote'] = cumulative_vote

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from modules.common.DataFetcher import DataFetcher
+from modules.common.core.data_fetcher import DataFetcher
 from modules.pairs_trading.analysis.performance_analyzer import PerformanceAnalyzer
 from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer
 

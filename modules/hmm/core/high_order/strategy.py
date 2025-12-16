@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 from modules.hmm.core.high_order.workflow import true_high_order_hmm
 from modules.hmm.core.swings.models import HMM_SWINGS, BULLISH, NEUTRAL, BEARISH
+from modules.hmm.signals.strategy import HMMStrategy
 from config import (
     HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
     HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
@@ -20,7 +21,7 @@ from config import (
 )
 
 
-class TrueHighOrderHMMStrategy:
+class TrueHighOrderHMMStrategy(HMMStrategy):
     """
     HMM Strategy wrapper for True High-Order HMM.
     
@@ -51,12 +52,9 @@ class TrueHighOrderHMMStrategy:
             max_order: Maximum order k for optimization
             **kwargs: Additional parameters (train_ratio, eval_mode, etc.)
         """
-        from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
         from modules.hmm.signals.resolution import LONG, HOLD, SHORT
         
-        self.name = name
-        self.weight = weight
-        self.enabled = enabled
+        super().__init__(name=name, weight=weight, enabled=enabled, **kwargs)
         self.orders_argrelextrema = (
             orders_argrelextrema
             if orders_argrelextrema is not None
@@ -69,7 +67,13 @@ class TrueHighOrderHMMStrategy:
         )
         self.min_order = min_order
         self.max_order = max_order
-        self.params = kwargs
+        # Update params with strategy-specific parameters
+        self.params.update({
+            'orders_argrelextrema': self.orders_argrelextrema,
+            'strict_mode': self.strict_mode,
+            'min_order': self.min_order,
+            'max_order': self.max_order
+        })
     
     def analyze(self, df: pd.DataFrame, **kwargs) -> 'HMMStrategyResult':
         """

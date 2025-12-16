@@ -18,6 +18,12 @@ HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT = True  # Use data-driven transition matrix 
 HMM_HIGH_ORDER_MIN_ORDER_DEFAULT = 2  # Minimum order k for High-Order HMM optimization
 HMM_HIGH_ORDER_MAX_ORDER_DEFAULT = 4  # Maximum order k for High-Order HMM optimization
 
+# High-Order HMM State Constants
+# Base number of states (0=Down, 1=Side, 2=Up)
+HMM_HIGH_ORDER_N_BASE_STATES = 3
+# Number of observable symbols (0=Down, 1=Side, 2=Up)
+HMM_HIGH_ORDER_N_SYMBOLS = 3
+
 # Signal Configuration
 # Note: Signal values (LONG=1, HOLD=0, SHORT=-1) are now constants in modules.hmm.signal_resolution
 HMM_PROBABILITY_THRESHOLD = 0.5  # Minimum probability threshold for signal generation

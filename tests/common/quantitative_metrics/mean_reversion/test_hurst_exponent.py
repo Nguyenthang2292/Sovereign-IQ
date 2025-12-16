@@ -120,3 +120,17 @@ def test_calculate_hurst_exponent_short_series():
     
     if hurst is not None:
         assert 0 <= hurst <= 2
+
+
+def test_calculate_hurst_exponent_constant_series():
+    """Test that calculate_hurst_exponent handles constant series (zero variance)."""
+    # Constant series has zero variance, so std_val = 0 for all lags
+    # This should result in all lags being skipped, leading to empty tau list
+    constant_series = pd.Series([5.0] * 200)  # All values are the same
+    
+    hurst = calculate_hurst_exponent(constant_series, zscore_lookback=50, max_lag=50)
+    
+    # Constant series cannot have meaningful Hurst exponent calculation
+    # because variance is zero, so all std_val will be 0 and skipped
+    # This should return None
+    assert hurst is None

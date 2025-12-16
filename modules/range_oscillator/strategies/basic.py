@@ -190,6 +190,11 @@ def generate_signals_basic_strategy(
     signals = signals.where(valid_mask, 0)
     signal_strength = pd.Series(signal_strength, index=oscillator.index).where(valid_mask, 0.0)
     
+    # IMPROVEMENT (2025-01-16): Ensure strength is 0 when signal is 0.
+    # This fixes edge cases where forward fill or other operations might leave
+    # non-zero strength values for zero signals.
+    signal_strength = signal_strength.where(signals != 0, 0.0)
+    
     if debug_enabled:
         final_long = int((signals == 1).sum())
         final_short = int((signals == -1).sum())

@@ -92,18 +92,44 @@ def calculate_fisher_transform(
     """
     Calculate Fisher Transform applied to hl2 over length bars.
     
+    The Fisher Transform is a mathematical transformation that converts prices into
+    a Gaussian normal distribution, making it easier to identify turning points.
+    
     Uses Numba JIT compilation for the core recursive calculation if available,
     falling back to pure Python if Numba is not installed.
     
     Args:
-        high: High price series
-        low: Low price series
-        close: Close price series
-        length: Period for Fisher Transform calculation
+        high: High price series (pd.Series). Must not be None or empty.
+        low: Low price series (pd.Series). Must not be None or empty.
+        close: Close price series (pd.Series). Must not be None or empty.
+        length: Period for Fisher Transform calculation (must be > 0). Default: 9
         
     Returns:
-        Series with Fisher Transform values
+        Series with Fisher Transform values. Returns empty Series if input is invalid.
+        
+    Example:
+        >>> high = pd.Series([100, 102, 101, 105, 106], dtype=float)
+        >>> low = pd.Series([98, 99, 100, 101, 102], dtype=float)
+        >>> close = pd.Series([99, 101, 100.5, 103, 104], dtype=float)
+        >>> fisher = calculate_fisher_transform(high, low, close, length=3)
+        >>> # Returns Fisher Transform values
     """
+    # Validate inputs: None check
+    if high is None or low is None or close is None:
+        return pd.Series(dtype=float)
+    
+    # Validate inputs: type check
+    if not isinstance(high, pd.Series) or not isinstance(low, pd.Series) or not isinstance(close, pd.Series):
+        return pd.Series(dtype=float)
+    
+    # Validate inputs: empty series check
+    if len(high) == 0 or len(low) == 0 or len(close) == 0:
+        return pd.Series(dtype=float)
+    
+    # Validate length: must be positive
+    if length <= 0:
+        return pd.Series(dtype=float)
+    
     hl2 = (high + low) / 2
     high_ = hl2.rolling(window=length, min_periods=1).max()
     low_ = hl2.rolling(window=length, min_periods=1).min()
