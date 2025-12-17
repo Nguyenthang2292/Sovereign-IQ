@@ -120,19 +120,19 @@ def display_voting_metadata(
             importance = feature_importance.get(indicator, 0.0)
             impact = weighted_impact.get(indicator, 0.0)
             
-            # Color code vote indicator: keep ✓ as default, make ✗ pink/magenta for visibility
-            if vote == 1:
-                vote_str = "✓"
-                vote_display = vote_str
-            else:
-                vote_str = "✗"
-                vote_display = color_text(vote_str, Fore.MAGENTA)
-            
-            log_data(
-                f"    {indicator.upper()}: {vote_display} "
+            # Color code vote indicator: keep ✓ as default, make entire line pink/magenta for ✗
+            vote_str = "✓" if vote == 1 else "✗"
+            line_content = (
+                f"    {indicator.upper()}: {vote_str} "
                 f"(Weight: {weight:.1%}, Impact: {impact:.1%}, "
                 f"Importance: {importance:.1%}, Contribution: {contribution:.2%})"
             )
+            
+            # Make entire line pink/magenta if vote is not 1 (✗)
+            if vote != 1:
+                line_content = color_text(line_content, Fore.MAGENTA)
+            
+            log_data(line_content)
             
             # Debug: Show SPC strategy signals if SPC contribution is 0%
             if show_spc_debug and indicator == 'spc' and abs(contribution) < 0.0001:
