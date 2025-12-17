@@ -13,4 +13,4 @@ decision_matrix - OK
 hmm / high_order - OK
 hmm / swings - OK
 hmm / signals - OK
-range_oscillator 
+range_oscillator - OK

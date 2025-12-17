@@ -6,10 +6,12 @@ This module contains functions for displaying configuration and voting metadata.
 
 import pandas as pd
 from typing import Any
+from colorama import Fore
 
 from modules.common.utils import (
     log_progress,
     log_data,
+    color_text,
 )
 from modules.range_oscillator.cli import display_configuration
 
@@ -94,7 +96,10 @@ def display_voting_metadata(
     if signals_df.empty:
         return
     
-    log_progress(f"\n{signal_type} Signals - Voting Breakdown:")
+    # Color code based on signal type: GREEN for LONG, RED for SHORT
+    title_color = Fore.GREEN if signal_type == "LONG" else Fore.RED
+    title = color_text(f"\n{signal_type} Signals - Voting Breakdown:", title_color)
+    log_progress(title)
     log_progress("-" * 80)
     
     for idx, row in signals_df.head(10).iterrows():
@@ -115,9 +120,16 @@ def display_voting_metadata(
             importance = feature_importance.get(indicator, 0.0)
             impact = weighted_impact.get(indicator, 0.0)
             
-            vote_str = "✓" if vote == 1 else "✗"
+            # Color code vote indicator: keep ✓ as default, make ✗ pink/magenta for visibility
+            if vote == 1:
+                vote_str = "✓"
+                vote_display = vote_str
+            else:
+                vote_str = "✗"
+                vote_display = color_text(vote_str, Fore.MAGENTA)
+            
             log_data(
-                f"    {indicator.upper()}: {vote_str} "
+                f"    {indicator.upper()}: {vote_display} "
                 f"(Weight: {weight:.1%}, Impact: {impact:.1%}, "
                 f"Importance: {importance:.1%}, Contribution: {contribution:.2%})"
             )

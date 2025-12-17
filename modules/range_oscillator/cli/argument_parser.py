@@ -15,23 +15,7 @@ except ImportError:
 
 def parse_args():
     """Parse command-line arguments for ATC + Range Oscillator combined signal filter."""
-    # #region agent log
-    import json
-    import os
-    log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-    try:
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "check-cli",
-                "hypothesisId": "H5",
-                "location": "argument_parser.py:16",
-                "message": "parse_args entry",
-                "data": {"default_timeframe": DEFAULT_TIMEFRAME},
-                "timestamp": int(__import__("time").time() * 1000)
-            }) + "\n")
-    except: pass
-    # #endregion
+    # DEBUG POINT: Argument parser entry - Check default_timeframe
     
     parser = argparse.ArgumentParser(
         description="ATC + Range Oscillator Combined Signal Filter",
@@ -176,42 +160,13 @@ def parse_args():
         help="Range Oscillator strategies to use (e.g., --osc-strategies 5 6 7 8 9). Valid IDs: 2, 3, 4, 6, 7, 8, 9",
     )
     
-    # #region agent log
+    # DEBUG POINT: Parse arguments - Check parsed values and handle exceptions
+    # Check: timeframe, limit, osc_strategies, max_workers
+    # On exception: Check exception_type, exception_msg
     try:
         args = parser.parse_args()
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "check-cli",
-                "hypothesisId": "H5",
-                "location": "argument_parser.py:139",
-                "message": "parse_args success",
-                "data": {
-                    "timeframe": args.timeframe,
-                    "limit": args.limit,
-                    "osc_strategies": args.osc_strategies,
-                    "max_workers": args.max_workers
-                },
-                "timestamp": int(__import__("time").time() * 1000)
-            }) + "\n")
     except Exception as e:
-        try:
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "check-cli",
-                    "hypothesisId": "H6",
-                    "location": "argument_parser.py:179",
-                    "message": "parse_args exception",
-                    "data": {
-                        "exception_type": type(e).__name__,
-                        "exception_msg": str(e)
-                    },
-                    "timestamp": int(__import__("time").time() * 1000)
-                }) + "\n")
-        except: pass
         raise
-    # #endregion
     
     # Additional validation after parsing
     if args.max_workers is not None and args.max_workers <= 0:

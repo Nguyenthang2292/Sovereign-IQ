@@ -104,6 +104,10 @@ def generate_signals_mean_reversion(
     """
     if config is None:
         config = MeanReversionConfig()
+    
+    # Ensure targets are updated if clustering_config is set
+    if config.clustering_config is not None:
+        config.update_targets()
 
     # Compute clustering if not provided
     if clustering_result is None:

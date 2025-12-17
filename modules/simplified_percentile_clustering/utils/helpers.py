@@ -213,7 +213,7 @@ def vectorized_extreme_duration(
         real_clust: Series of real_clust values
         extreme_threshold: Threshold for extreme (0.0-1.0)
         max_real_clust: Maximum real_clust value (1.0 for k=2, 2.0 for k=3)
-        
+    
     Returns:
         Tuple of (extreme_duration, in_extreme) Series
     """
@@ -223,9 +223,24 @@ def vectorized_extreme_duration(
             pd.Series(dtype=bool, index=real_clust.index),
         )
     
+    # Clamp extreme_threshold to valid range to avoid invalid calculations
+    # If extreme_threshold > max_real_clust, no values can be extreme
+    if extreme_threshold > max_real_clust:
+        return (
+            pd.Series(0, index=real_clust.index, dtype=int),
+            pd.Series(False, index=real_clust.index, dtype=bool),
+        )
+    
     # Vectorized extreme detection
     is_lower_extreme = (real_clust <= extreme_threshold) & real_clust.notna()
-    is_upper_extreme = (real_clust >= (max_real_clust - extreme_threshold)) & real_clust.notna()
+    upper_threshold = max_real_clust - extreme_threshold
+    # Only check upper extreme if threshold is valid (upper_threshold >= 0)
+    if upper_threshold >= 0:
+        is_upper_extreme = (real_clust >= upper_threshold) & real_clust.notna()
+    else:
+        # If extreme_threshold > max_real_clust/2, upper threshold would be negative
+        # In this case, only lower extreme is valid
+        is_upper_extreme = pd.Series(False, index=real_clust.index, dtype=bool)
     in_extreme = is_lower_extreme | is_upper_extreme
     
     # Calculate duration: increment when in extreme, reset when not

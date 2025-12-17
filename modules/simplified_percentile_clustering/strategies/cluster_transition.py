@@ -105,8 +105,9 @@ def generate_signals_cluster_transition(
     
     # Apply price confirmation if required
     if config.require_price_confirmation:
-        bullish_mask &= (price_change > 0) | price_change.isna()
-        bearish_mask &= (price_change < 0) | price_change.isna()
+        # Only allow signals when price_change is not NaN and matches direction
+        bullish_mask &= (price_change > 0) & price_change.notna()
+        bearish_mask &= (price_change < 0) & price_change.notna()
     
     # Apply minimum signal strength filter
     strength_mask = combined_strength >= config.min_signal_strength

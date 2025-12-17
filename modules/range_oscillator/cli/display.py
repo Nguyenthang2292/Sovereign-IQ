@@ -71,30 +71,9 @@ def display_final_results(
         long_uses_fallback: True if LONG signals fallback to ATC only
         short_uses_fallback: True if SHORT signals fallback to ATC only
     """
-    # #region agent log
-    import json
-    import os
-    log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-    try:
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "check-display",
-                "hypothesisId": "H7",
-                "location": "display.py:55",
-                "message": "display_final_results entry",
-                "data": {
-                    "long_signals_empty": long_signals.empty if isinstance(long_signals, pd.DataFrame) else None,
-                    "short_signals_empty": short_signals.empty if isinstance(short_signals, pd.DataFrame) else None,
-                    "long_signals_shape": long_signals.shape if isinstance(long_signals, pd.DataFrame) else None,
-                    "short_signals_shape": short_signals.shape if isinstance(short_signals, pd.DataFrame) else None,
-                    "long_columns": list(long_signals.columns) if isinstance(long_signals, pd.DataFrame) else None,
-                    "short_columns": list(short_signals.columns) if isinstance(short_signals, pd.DataFrame) else None
-                },
-                "timestamp": int(__import__("time").time() * 1000)
-            }) + "\n")
-    except: pass
-    # #endregion
+    # DEBUG POINT: Display results entry - Check input DataFrames
+    # Check: long_signals_empty, short_signals_empty, long_signals_shape, short_signals_shape
+    # Check: long_columns, short_columns
     
     # Input validation
     if not isinstance(long_signals, pd.DataFrame):
@@ -143,27 +122,8 @@ def display_final_results(
         print(color_text("-" * 80, Fore.CYAN))
         
         for idx, row in long_signals.iterrows():
-            # #region agent log
-            try:
-                with open(log_path, "a", encoding="utf-8") as f:
-                    f.write(json.dumps({
-                        "sessionId": "debug-session",
-                        "runId": "check-display",
-                        "hypothesisId": "H8",
-                        "location": "display.py:102",
-                        "message": "Processing long signal row",
-                        "data": {
-                            "index": str(idx),
-                            "has_symbol": 'symbol' in row.index,
-                            "has_signal": 'signal' in row.index,
-                            "has_price": 'price' in row.index,
-                            "has_exchange": 'exchange' in row.index,
-                            "has_confidence": 'osc_confidence' in row.index
-                        },
-                        "timestamp": int(__import__("time").time() * 1000)
-                    }) + "\n")
-            except: pass
-            # #endregion
+            # DEBUG POINT: Processing long signal row - Check row data availability
+            # Check: index, has_symbol, has_signal, has_price, has_exchange, has_confidence
             
             try:
                 signal_str = f"{row['signal']:+.6f}"
@@ -187,24 +147,8 @@ def display_final_results(
                         )
                     )
             except KeyError as e:
-                # #region agent log
-                try:
-                    with open(log_path, "a", encoding="utf-8") as f:
-                        f.write(json.dumps({
-                            "sessionId": "debug-session",
-                            "runId": "check-display",
-                            "hypothesisId": "H9",
-                            "location": "display.py:102",
-                            "message": "KeyError in long signal row",
-                            "data": {
-                                "index": str(idx),
-                                "missing_key": str(e),
-                                "available_keys": list(row.index)
-                            },
-                            "timestamp": int(__import__("time").time() * 1000)
-                        }) + "\n")
-                except: pass
-                # #endregion
+                # DEBUG POINT: KeyError in long signal row - Check missing keys
+                # Check: index, missing_key, available_keys
                 print(color_text(f"  Warning: Skipping row {idx} due to missing key: {e}", Fore.YELLOW))
                 continue
 
@@ -267,23 +211,8 @@ def display_final_results(
             if len(confidence_series) > 0:
                 avg_long_confidence = float(confidence_series.mean())
     except (ValueError, TypeError) as e:
-        # #region agent log
-        try:
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "check-display",
-                    "hypothesisId": "H10",
-                    "location": "display.py:173",
-                    "message": "Error calculating avg_long_confidence",
-                    "data": {
-                        "exception_type": type(e).__name__,
-                        "exception_msg": str(e)
-                    },
-                    "timestamp": int(__import__("time").time() * 1000)
-                }) + "\n")
-        except: pass
-        # #endregion
+        # DEBUG POINT: Error calculating avg_long_confidence - Check exception details
+        # Check: exception_type, exception_msg
         pass  # Use default 0.0
     
     try:
@@ -292,23 +221,8 @@ def display_final_results(
             if len(confidence_series) > 0:
                 avg_short_confidence = float(confidence_series.mean())
     except (ValueError, TypeError) as e:
-        # #region agent log
-        try:
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "check-display",
-                    "hypothesisId": "H10",
-                    "location": "display.py:176",
-                    "message": "Error calculating avg_short_confidence",
-                    "data": {
-                        "exception_type": type(e).__name__,
-                        "exception_msg": str(e)
-                    },
-                    "timestamp": int(__import__("time").time() * 1000)
-                }) + "\n")
-        except: pass
-        # #endregion
+        # DEBUG POINT: Error calculating avg_short_confidence - Check exception details
+        # Check: exception_type, exception_msg
         pass  # Use default 0.0
     
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))

@@ -14,7 +14,7 @@ import os
 import time
 
 from modules.common.core.data_fetcher import DataFetcher
-from modules.range_oscillator.analysis.combined import (
+from modules.range_oscillator.strategies.combined import (
     generate_signals_combined_all_strategy,
 )
 from modules.range_oscillator.config import (

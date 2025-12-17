@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.range_oscillator.analysis.combined import CombinedStrategy, generate_signals_combined_all_strategy
+from modules.range_oscillator.strategies.combined import CombinedStrategy, generate_signals_combined_all_strategy
 from modules.range_oscillator.analysis.summary import get_signal_summary
 from modules.range_oscillator.config import CombinedStrategyConfig, StrategySpecificConfig, StrategySpecificConfig
 

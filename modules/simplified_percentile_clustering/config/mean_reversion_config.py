@@ -18,7 +18,13 @@ from modules.simplified_percentile_clustering.utils.validation import (
 
 @dataclass
 class MeanReversionConfig:
-    """Configuration for mean reversion strategy."""
+    """
+    Configuration for mean reversion strategy.
+    
+    Note: If you set `clustering_config` after initialization, you should call
+    `update_targets()` to ensure reversion targets are updated based on the
+    clustering configuration's k value.
+    """
 
     # Clustering configuration
     clustering_config: Optional[ClusteringConfig] = None
@@ -36,8 +42,8 @@ class MeanReversionConfig:
     # Signal strength parameters
     min_signal_strength: float = 0.4  # Minimum signal strength
 
-    def __post_init__(self):
-        """Set default reversion targets based on k and validate config."""
+    def _update_targets(self):
+        """Update reversion targets based on current clustering_config."""
         if self.clustering_config:
             k = self.clustering_config.k
             if k == 3:
@@ -46,6 +52,19 @@ class MeanReversionConfig:
             else:
                 self.bullish_reversion_target = 0.5  # Target middle
                 self.bearish_reversion_target = 0.5
+    
+    def update_targets(self):
+        """
+        Update reversion targets based on current clustering_config.
+        
+        Call this method if you set clustering_config after initialization
+        to ensure targets are correctly set based on the k value.
+        """
+        self._update_targets()
+
+    def __post_init__(self):
+        """Set default reversion targets based on k and validate config."""
+        self._update_targets()
         # Validate configuration
         if not (0.0 <= self.extreme_threshold <= 1.0):
             raise ValueError(

@@ -237,15 +237,10 @@ def calculate_weighted_ma(
     if length <= 0:
         raise ValueError(f"length must be > 0, got {length}")
     
-    # IMPROVEMENT (2025-01-16): Handle short data series gracefully.
-    # If data is shorter than required length, use available data with adjusted length.
-    # This ensures we get valid MA values even with limited data, though with reduced accuracy.
+    # If data is shorter than required length, return all NaN.
+    # This matches the expected behavior: insufficient data means no valid MA values.
     if len(close) < length + 1:
-        # Use a smaller length that fits the data (at least 2 points needed)
-        adjusted_length = max(1, len(close) - 1)
-        if adjusted_length < 1:
-            return pd.Series(np.nan, index=close.index, dtype="float64")
-        length = adjusted_length
+        return pd.Series(np.nan, index=close.index, dtype="float64")
 
     ma_values = []
     for i in range(len(close)):

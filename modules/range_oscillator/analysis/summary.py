@@ -23,28 +23,8 @@ def get_signal_summary(
     Returns:
         Dictionary with summary statistics
     """
-    # #region agent log
-    import json
-    import os
-    log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-    try:
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "check-summary",
-                "hypothesisId": "H1",
-                "location": "summary.py:26",
-                "message": "get_signal_summary entry",
-                "data": {
-                    "signals_len": len(signals) if signals is not None else None,
-                    "strength_len": len(signal_strength) if signal_strength is not None else None,
-                    "close_len": len(close) if close is not None else None,
-                    "signals_index_match": bool(signals.index.equals(signal_strength.index)) if (signals is not None and signal_strength is not None) else None
-                },
-                "timestamp": int(__import__("time").time() * 1000)
-            }) + "\n")
-    except: pass
-    # #endregion
+    # DEBUG POINT: Signal summary entry - Check input data lengths and index alignment
+    # Check: signals_len, strength_len, close_len, signals_index_match
     
     # Input validation
     if signals is None or signal_strength is None or close is None:
