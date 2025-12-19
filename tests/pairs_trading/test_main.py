@@ -351,7 +351,7 @@ def test_select_top_unique_pairs_empty_dataframe():
 
 def test_main_with_mock_data():
     """Test main function with mocked components."""
-    from main.main_pairs_trading import main
+    from modules.pairs_trading.cli.main import main
 
     # Create mock symbols
     mock_symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "DOT/USDT"]
@@ -408,15 +408,15 @@ def test_main_with_mock_data():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=mock_pairs_df)
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=mock_pairs_df)
 
-    with patch("main.main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
-        "main.main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
+    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
+        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
     ), patch(
-        "main.main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
+        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
     ), patch(
-        "main.main_pairs_trading.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
+        "modules.pairs_trading.cli.main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
     ), patch(
         "sys.argv", ["main_pairs_trading.py", "--top-n", "2", "--max-pairs", "5"]
-    ), patch("main.main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+    ), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
         "builtins.input", return_value=""
     ):
         try:
@@ -432,15 +432,15 @@ def test_main_with_mock_data():
 
 def test_main_with_no_symbols():
     """Test main function when no symbols are found."""
-    from main.main_pairs_trading import main
+    from modules.pairs_trading.cli.main import main
 
     # Mock DataFetcher returning empty list
     mock_data_fetcher = MagicMock()
     mock_data_fetcher.list_binance_futures_symbols = MagicMock(return_value=[])
 
-    with patch("main.main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
-        "main.main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
-    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("main.main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
+        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
+    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
         "builtins.input", return_value=""
     ):
         try:
@@ -455,7 +455,7 @@ def test_main_with_no_symbols():
 
 def test_main_with_empty_performance():
     """Test main function when performance analysis returns empty."""
-    from main.main_pairs_trading import main
+    from modules.pairs_trading.cli.main import main
 
     mock_symbols = ["BTC/USDT", "ETH/USDT"]
 
@@ -467,11 +467,11 @@ def test_main_with_empty_performance():
         return_value=pd.DataFrame()
     )
 
-    with patch("main.main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
-        "main.main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
+    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
+        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
     ), patch(
-        "main.main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
-    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("main.main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
+    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
         "builtins.input", return_value=""
     ):
         try:
@@ -486,7 +486,7 @@ def test_main_with_empty_performance():
 
 def test_main_with_custom_weights():
     """Test main function with custom weights argument."""
-    from main.main_pairs_trading import main
+    from modules.pairs_trading.cli.main import main
 
     mock_symbols = ["BTC/USDT"]
 
@@ -516,16 +516,16 @@ def test_main_with_custom_weights():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=pd.DataFrame())
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=pd.DataFrame())
 
-    with patch("main.main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
-        "main.main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
+    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
+        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
     ), patch(
-        "main.main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
+        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
     ), patch(
-        "main.main_pairs_trading.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
+        "modules.pairs_trading.cli.main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
     ), patch(
         "sys.argv",
         ["main_pairs_trading.py", "--weights", "1d:0.5,3d:0.3,1w:0.2"],
-    ), patch("main.main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+    ), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
         "builtins.input", return_value=""
     ):
         try:
@@ -541,7 +541,7 @@ def test_main_with_custom_weights():
 
 def test_main_with_no_validation_flag():
     """Test main function with --no-validation flag."""
-    from main.main_pairs_trading import main
+    from modules.pairs_trading.cli.main import main
 
     mock_symbols = ["BTC/USDT"]
 
@@ -580,15 +580,15 @@ def test_main_with_no_validation_flag():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=mock_pairs_df)
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=mock_pairs_df)
 
-    with patch("main.main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
-        "main.main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
+    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
+        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
     ), patch(
-        "main.main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
+        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
     ), patch(
-        "main.main_pairs_trading.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
+        "modules.pairs_trading.cli.main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
     ), patch(
         "sys.argv", ["main_pairs_trading.py", "--no-validation"]
-    ), patch("main.main_pairs_trading.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
+    ), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
         "builtins.input", return_value=""
     ):
         try:
@@ -604,7 +604,7 @@ def test_main_with_no_validation_flag():
 
 def test_main_momentum_strategy_switches_candidates():
     """Momentum strategy phải hoán đổi long/short và tắt cointegration cứng."""
-    from main.main_pairs_trading import main
+    from modules.pairs_trading.cli.main import main
 
     mock_symbols = ["AAA/USDT", "BBB/USDT", "CCC/USDT", "DDD/USDT"]
     mock_performance_df = pd.DataFrame(
@@ -641,11 +641,11 @@ def test_main_momentum_strategy_switches_candidates():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=mock_pairs_df)
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=mock_pairs_df)
 
-    with patch("main.main_pairs_trading.ExchangeManager", return_value=MagicMock()), patch(
-        "main.main_pairs_trading.DataFetcher", return_value=mock_data_fetcher
+    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
+        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
     ), patch(
-        "main.main_pairs_trading.PerformanceAnalyzer", return_value=mock_performance_analyzer
-    ), patch("main.main_pairs_trading.PairsTradingAnalyzer") as mock_pairs_class, patch(
+        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
+    ), patch("modules.pairs_trading.cli.main.PairsTradingAnalyzer") as mock_pairs_class, patch(
         "sys.argv",
         [
             "main_pairs_trading.py",

@@ -64,7 +64,8 @@ def test_fetch_ohlcv_with_fallback_prefers_fresh_data(monkeypatch):
 
     assert exchange_id == "kraken"
     assert len(df) == 3
-    assert df["timestamp"].iloc[-1] == pd.to_datetime(fresh_last, unit="ms", utc=True)
+    # Timestamp is set as index, not a column (see data_fetcher.py line 612)
+    assert df.index[-1] == pd.to_datetime(fresh_last, unit="ms", utc=True)
 
 
 def test_fetch_ohlcv_uses_cache_when_not_checking_freshness():

@@ -1,5 +1,5 @@
 """
-Test script for main.main_xgboost.py - XGBoost prediction main functionality.
+Test script for modules.xgboost.cli.main.py - XGBoost prediction main functionality.
 """
 
 import sys
@@ -81,13 +81,13 @@ def mock_model():
     return model
 
 
-@patch('main.main_xgboost.parse_args')
-@patch('main.main_xgboost.ExchangeManager')
-@patch('main.main_xgboost.DataFetcher')
-@patch('main.main_xgboost.IndicatorEngine')
-@patch('main.main_xgboost.train_and_predict')
-@patch('main.main_xgboost.predict_next_move')
-@patch('main.main_xgboost.apply_directional_labels')
+@patch('modules.xgboost.cli.main.parse_args')
+@patch('modules.xgboost.cli.main.ExchangeManager')
+@patch('modules.xgboost.cli.main.DataFetcher')
+@patch('modules.xgboost.cli.main.IndicatorEngine')
+@patch('modules.xgboost.cli.main.train_and_predict')
+@patch('modules.xgboost.cli.main.predict_next_move')
+@patch('modules.xgboost.cli.main.apply_directional_labels')
 def test_main_function_basic_flow(
     mock_apply_labels,
     mock_predict_next,
@@ -130,7 +130,7 @@ def test_main_function_basic_flow(
     mock_predict_next.return_value = np.array([0.2, 0.3, 0.5])
     
     # Import and run main
-    from main.main_xgboost import main
+    from modules.xgboost.cli.main import main
     
     with patch('builtins.input', side_effect=KeyboardInterrupt):
         try:
@@ -143,10 +143,10 @@ def test_main_function_basic_flow(
     mock_indicator_engine.compute_features.assert_called()
 
 
-@patch('main.main_xgboost.parse_args')
-@patch('main.main_xgboost.ExchangeManager')
-@patch('main.main_xgboost.DataFetcher')
-@patch('main.main_xgboost.IndicatorEngine')
+@patch('modules.xgboost.cli.main.parse_args')
+@patch('modules.xgboost.cli.main.ExchangeManager')
+@patch('modules.xgboost.cli.main.DataFetcher')
+@patch('modules.xgboost.cli.main.IndicatorEngine')
 def test_main_with_custom_exchanges(
     mock_indicator_engine_class,
     mock_data_fetcher_class,
@@ -178,11 +178,11 @@ def test_main_with_custom_exchanges(
     mock_indicator_engine.compute_features = Mock(return_value=sample_df_with_indicators)
     mock_indicator_engine_class.return_value = mock_indicator_engine
     
-    from main.main_xgboost import main
+    from modules.xgboost.cli.main import main
     
-    with patch('main.main_xgboost.train_and_predict', return_value=Mock()), \
-         patch('main.main_xgboost.predict_next_move', return_value=np.array([0.2, 0.3, 0.5])), \
-         patch('main.main_xgboost.apply_directional_labels', return_value=sample_df_with_indicators), \
+    with patch('modules.xgboost.cli.main.train_and_predict', return_value=Mock()), \
+         patch('modules.xgboost.cli.main.predict_next_move', return_value=np.array([0.2, 0.3, 0.5])), \
+         patch('modules.xgboost.cli.main.apply_directional_labels', return_value=sample_df_with_indicators), \
          patch('builtins.input', side_effect=KeyboardInterrupt):
         try:
             main()
@@ -193,9 +193,9 @@ def test_main_with_custom_exchanges(
     assert mock_exchange_manager.public.exchange_priority_for_fallback == ["binance", "kraken"]
 
 
-@patch('main.main_xgboost.parse_args')
-@patch('main.main_xgboost.ExchangeManager')
-@patch('main.main_xgboost.DataFetcher')
+@patch('modules.xgboost.cli.main.parse_args')
+@patch('modules.xgboost.cli.main.ExchangeManager')
+@patch('modules.xgboost.cli.main.DataFetcher')
 def test_main_with_no_data(
     mock_data_fetcher_class,
     mock_exchange_manager_class,
@@ -219,7 +219,7 @@ def test_main_with_no_data(
     mock_data_fetcher.fetch_ohlcv_with_fallback_exchange = Mock(return_value=(None, None))
     mock_data_fetcher_class.return_value = mock_data_fetcher
     
-    from main.main_xgboost import main
+    from modules.xgboost.cli.main import main
     
     with patch('builtins.input', side_effect=KeyboardInterrupt), \
          patch('builtins.print'):
@@ -232,8 +232,8 @@ def test_main_with_no_data(
     mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.assert_called()
 
 
-@patch('main.main_xgboost.parse_args')
-@patch('main.main_xgboost.resolve_input')
+@patch('modules.xgboost.cli.main.parse_args')
+@patch('modules.xgboost.cli.main.resolve_input')
 def test_main_resolve_input_calls(
     mock_resolve_input,
     mock_parse_args,
@@ -252,19 +252,19 @@ def test_main_resolve_input_calls(
     # resolve_input is called for timeframe and symbol, so provide enough values
     mock_resolve_input.side_effect = ["1h", "BTC/USDT", KeyboardInterrupt()]
     
-    from main.main_xgboost import main
+    from modules.xgboost.cli.main import main
     
     mock_data_fetcher = Mock()
     mock_data_fetcher.fetch_ohlcv_with_fallback_exchange = Mock(
         return_value=(sample_df_with_indicators, "binance")
     )
     
-    with patch('main.main_xgboost.ExchangeManager'), \
-         patch('main.main_xgboost.DataFetcher', return_value=mock_data_fetcher), \
-         patch('main.main_xgboost.IndicatorEngine') as MockIndicatorEngine, \
-         patch('main.main_xgboost.train_and_predict', return_value=Mock()), \
-         patch('main.main_xgboost.predict_next_move', return_value=np.array([0.2, 0.3, 0.5])), \
-         patch('main.main_xgboost.apply_directional_labels', return_value=sample_df_with_indicators), \
+    with patch('modules.xgboost.cli.main.ExchangeManager'), \
+         patch('modules.xgboost.cli.main.DataFetcher', return_value=mock_data_fetcher), \
+         patch('modules.xgboost.cli.main.IndicatorEngine') as MockIndicatorEngine, \
+         patch('modules.xgboost.cli.main.train_and_predict', return_value=Mock()), \
+         patch('modules.xgboost.cli.main.predict_next_move', return_value=np.array([0.2, 0.3, 0.5])), \
+         patch('modules.xgboost.cli.main.apply_directional_labels', return_value=sample_df_with_indicators), \
          patch('builtins.input', side_effect=KeyboardInterrupt):
         mock_indicator_engine = Mock()
         mock_indicator_engine.compute_features = Mock(return_value=sample_df_with_indicators)
@@ -282,12 +282,12 @@ def test_main_resolve_input_calls(
 def test_run_once_logic(sample_df_with_indicators, mock_model):
     """Test the run_once inner function logic."""
     # This tests the core prediction logic
-    with patch('main.main_xgboost.DataFetcher') as MockDataFetcher, \
-         patch('main.main_xgboost.IndicatorEngine') as MockIndicatorEngine, \
-         patch('main.main_xgboost.train_and_predict') as mock_train, \
-         patch('main.main_xgboost.predict_next_move') as mock_predict, \
-         patch('main.main_xgboost.apply_directional_labels') as mock_apply_labels, \
-         patch('main.main_xgboost.normalize_symbol', return_value="BTC/USDT"):
+    with patch('modules.xgboost.cli.main.DataFetcher') as MockDataFetcher, \
+         patch('modules.xgboost.cli.main.IndicatorEngine') as MockIndicatorEngine, \
+         patch('modules.xgboost.cli.main.train_and_predict') as mock_train, \
+         patch('modules.xgboost.cli.main.predict_next_move') as mock_predict, \
+         patch('modules.xgboost.cli.main.apply_directional_labels') as mock_apply_labels, \
+         patch('modules.xgboost.cli.main.normalize_symbol', return_value="BTC/USDT"):
         
         mock_data_fetcher = Mock()
         mock_data_fetcher.fetch_ohlcv_with_fallback_exchange = Mock(
@@ -454,6 +454,4 @@ def test_neutral_price_bounds_calculation():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-
-v"])
 

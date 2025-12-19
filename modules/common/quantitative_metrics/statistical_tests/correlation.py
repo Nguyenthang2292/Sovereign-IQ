@@ -113,6 +113,11 @@ def calculate_correlation(
         if np.isinf(returns1_aligned).any() or np.isinf(returns2_aligned).any():
             log_warn("Infinite values in returns")
             return None
+        
+        # Check for constant series (zero variance) to avoid divide by zero warnings
+        if returns1_aligned.std() == 0 or returns2_aligned.std() == 0:
+            # Constant series have no variance, correlation is undefined
+            return None
 
         # Calculate correlation
         correlation = returns1_aligned.corr(returns2_aligned)

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from main.main_hmm import _compute_std_targets, _print_summary
+from modules.hmm.cli.main import _compute_std_targets, _print_summary
 from modules.hmm.signals.resolution import LONG, HOLD, SHORT
 
 

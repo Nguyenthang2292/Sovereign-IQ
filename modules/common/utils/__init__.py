@@ -15,7 +15,7 @@ from .system import configure_windows_stdio
 from .data import dataframe_to_close_series, validate_ohlcv_input
 
 # Domain utilities
-from .domain import normalize_symbol, normalize_symbol_key, timeframe_to_minutes
+from .domain import normalize_symbol, normalize_symbol_key, timeframe_to_minutes, days_to_candles
 
 # Component initialization
 from .initialization import initialize_components
@@ -46,6 +46,7 @@ __all__ = [
     "normalize_symbol",
     "normalize_symbol_key",
     "timeframe_to_minutes",
+    "days_to_candles",
     # UI/Formatting
     "color_text",
     "format_price",

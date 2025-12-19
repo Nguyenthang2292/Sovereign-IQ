@@ -97,4 +97,3 @@ def test_train_and_predict_handles_small_dataset(monkeypatch):
     model = train_and_predict(df)
 
     assert hasattr(model, "predict")
-dict")

@@ -31,6 +31,8 @@ from modules.pairs_trading.cli.display import (
     display_pairs_opportunities,
 )
 
+from modules.pairs_trading.cli.main import main
+
 __all__ = [
     # Argument parsing
     'parse_args',
@@ -48,4 +50,6 @@ __all__ = [
     # Display formatters
     'display_performers',
     'display_pairs_opportunities',
+    # Main CLI
+    'main',
 ]

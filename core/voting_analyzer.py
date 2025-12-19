@@ -44,7 +44,7 @@ from modules.common.utils import (
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
 from modules.adaptive_trend.cli import prompt_timeframe
-from main.main_atc import ATCAnalyzer
+from modules.adaptive_trend.cli.main import ATCAnalyzer
 from modules.range_oscillator.cli import (
     display_final_results,
 )
@@ -65,6 +65,7 @@ from core.signal_calculators import (
     get_spc_signal,
     get_xgboost_signal,
     get_hmm_signal,
+    get_random_forest_signal,
 )
 
 
@@ -380,6 +381,33 @@ class VotingAnalyzer:
                     results['hmm_vote'] = 0
                     results['hmm_confidence'] = 0.0
             
+            # Random Forest prediction (if enabled)
+            if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
+                try:
+                    rf_result = get_random_forest_signal(
+                        data_fetcher=data_fetcher,
+                        symbol=symbol,
+                        timeframe=timeframe,
+                        limit=limit,
+                        model_path=getattr(self.args, 'random_forest_model_path', None),
+                    )
+                    if rf_result is not None:
+                        rf_signal, rf_confidence = rf_result
+                        rf_vote = 1 if rf_signal == expected_signal else 0
+                        results['random_forest_signal'] = rf_signal
+                        results['random_forest_vote'] = rf_vote
+                        results['random_forest_confidence'] = rf_confidence
+                    else:
+                        results['random_forest_signal'] = 0
+                        results['random_forest_vote'] = 0
+                        results['random_forest_confidence'] = 0.0
+                except Exception as e:
+                    # Log Random Forest errors but don't fail the entire process
+                    log_warn(f"Random Forest signal calculation failed for {symbol}: {type(e).__name__}: {e}")
+                    results['random_forest_signal'] = 0
+                    results['random_forest_vote'] = 0
+                    results['random_forest_confidence'] = 0.0
+            
             return results
             
         except Exception as e:
@@ -488,6 +516,17 @@ class VotingAnalyzer:
                     f"HMM Status: {hmm_success_count}/{hmm_total} symbols with HMM signals "
                     f"({hmm_success_rate:.1f}% success rate)"
                 )
+        
+        # Log Random Forest summary if enabled
+        if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
+            rf_success_count = sum(1 for r in results if r.get('random_forest_signal', 0) != 0)
+            rf_total = len(results)
+            if rf_total > 0:
+                rf_success_rate = (rf_success_count / rf_total) * 100
+                log_progress(
+                    f"Random Forest Status: {rf_success_count}/{rf_total} symbols with Random Forest signals "
+                    f"({rf_success_rate:.1f}% success rate)"
+                )
 
         return result_df
     
@@ -583,6 +622,8 @@ class VotingAnalyzer:
             indicators.append('xgboost')
         if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
             indicators.append('hmm')
+        if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
+            indicators.append('random_forest')
         
         results = []
         
@@ -619,6 +660,13 @@ class VotingAnalyzer:
                 hmm_strength = row.get('hmm_confidence', 0.0)
                 classifier.add_node_vote('hmm', hmm_vote, hmm_strength,
                     self._get_indicator_accuracy('hmm', signal_type))
+            
+            if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
+                # Random Forest vote
+                rf_vote = row.get('random_forest_vote', 0)
+                rf_strength = row.get('random_forest_confidence', 0.0)
+                classifier.add_node_vote('random_forest', rf_vote, rf_strength,
+                    self._get_indicator_accuracy('random_forest', signal_type))
             
             classifier.calculate_weighted_impact()
             

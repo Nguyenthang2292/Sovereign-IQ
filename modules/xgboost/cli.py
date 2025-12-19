@@ -3,7 +3,7 @@ Command-line interface for xgboost_prediction_main.py
 """
 
 import argparse
-from .utils import color_text
+from modules.common.utils import color_text
 from colorama import Fore
 from config import (
     DEFAULT_SYMBOL,

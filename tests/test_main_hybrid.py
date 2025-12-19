@@ -416,7 +416,8 @@ class TestHybridAnalyzer:
         assert 'spc' in votes
         assert 'xgboost' in votes
         assert 'hmm' in votes
-        assert len(votes) == 5
+        assert 'random_forest' in votes
+        assert len(votes) == 6
     
     def test_apply_decision_matrix_with_hmm(self, analyzer):
         """Test apply_decision_matrix with HMM enabled."""

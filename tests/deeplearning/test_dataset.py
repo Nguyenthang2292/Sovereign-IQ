@@ -376,5 +376,3 @@ def test_tft_datamodule_nan_handling():
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
-v"])
-

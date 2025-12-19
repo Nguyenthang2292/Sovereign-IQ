@@ -215,6 +215,96 @@ class DataFetcher:
             )
         except ValueError as exc:
             raise ValueError(f"Error connecting to Binance: {exc}")
+    
+    def fetch_binance_account_balance(
+        self,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        testnet: bool = False,
+        currency: str = "USDT",
+    ) -> Optional[float]:
+        """
+        Fetch account balance from Binance Futures USDT-M.
+        
+        Args:
+            api_key: API Key from Binance (optional, uses default if not provided)
+            api_secret: API Secret from Binance (optional, uses default if not provided)
+            testnet: Use testnet if True (default: False)
+            currency: Currency to fetch balance for (default: "USDT")
+            
+        Returns:
+            Account balance in USDT as float, or None if error or no credentials
+        """
+        try:
+            api_key, api_secret = self._resolve_binance_credentials(api_key, api_secret)
+            exchange = self._connect_binance_futures(api_key, api_secret, testnet)
+            
+            # Fetch balance using throttled_call
+            balance = self.exchange_manager.authenticated.throttled_call(
+                exchange.fetch_balance
+            )
+            
+            # Extract USDT balance from futures account
+            # Binance futures balance structure can vary, try multiple formats
+            usdt_balance = None
+            
+            # Format 1: Direct currency key with total
+            if currency in balance:
+                currency_info = balance[currency]
+                if isinstance(currency_info, dict):
+                    total = currency_info.get('total', 0) or 0
+                    if total > 0:
+                        usdt_balance = float(total)
+                elif isinstance(currency_info, (int, float)):
+                    if currency_info > 0:
+                        usdt_balance = float(currency_info)
+            
+            # Format 2: Check in 'info' -> 'assets' (Binance futures API format)
+            if usdt_balance is None and 'info' in balance:
+                info = balance['info']
+                if 'assets' in info:
+                    for asset in info['assets']:
+                        if asset.get('asset') == currency:
+                            wallet_balance = asset.get('walletBalance', 0) or 0
+                            if wallet_balance > 0:
+                                usdt_balance = float(wallet_balance)
+                                break
+                # Also check direct currency in info
+                if usdt_balance is None and currency in info:
+                    wallet_balance = info[currency].get('walletBalance', 0) or info[currency].get('total', 0) or 0
+                    if wallet_balance > 0:
+                        usdt_balance = float(wallet_balance)
+            
+            # Format 3: Check in 'total' dict
+            if usdt_balance is None and 'total' in balance:
+                if currency in balance['total']:
+                    total = balance['total'][currency]
+                    if total > 0:
+                        usdt_balance = float(total)
+            
+            # Format 4: Calculate from free + used
+            if usdt_balance is None and currency in balance:
+                currency_info = balance[currency]
+                if isinstance(currency_info, dict):
+                    free = float(currency_info.get('free', 0) or 0)
+                    used = float(currency_info.get('used', 0) or 0)
+                    total = free + used
+                    if total > 0:
+                        usdt_balance = total
+            
+            if usdt_balance is not None and usdt_balance > 0:
+                return usdt_balance
+            
+            log_warn(f"No {currency} balance found in Binance account")
+            return None
+            
+        except ValueError as e:
+            # No credentials or connection error
+            log_warn(f"Cannot fetch balance from Binance: {e}")
+            return None
+        except Exception as e:
+            log_error(f"Error fetching balance from Binance: {e}")
+            return None
 
     @staticmethod
     def _extract_position_contracts(position: Dict) -> Optional[float]:
@@ -517,10 +607,14 @@ class DataFetcher:
 
             # Convert timestamp and ensure ordering
             df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+            
+            # Set timestamp as index (DatetimeIndex) to avoid warnings in downstream modules
+            df.set_index("timestamp", inplace=True)
+            df.sort_index(inplace=True)
 
             # Check freshness if requested
             if check_freshness:
-                last_ts = df["timestamp"].iloc[-1]
+                last_ts = df.index[-1]  # Use index instead of timestamp column
                 now = pd.Timestamp.now(tz="UTC")
                 age_minutes = (now - last_ts).total_seconds() / 60.0
 

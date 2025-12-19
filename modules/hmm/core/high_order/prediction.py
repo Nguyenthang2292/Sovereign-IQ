@@ -58,7 +58,11 @@ def predict_next_hidden_state_forward_backward_high_order(
     # - 1D: (n_states,) - already the last state
     # - 2D: (sequence_length, n_states) - take last row
     # - 3D: (batch_size, sequence_length, n_states) - take last batch, last row
-    transition_matrix = np.array(model.edges)
+    # Convert edges to numpy array, handling deprecated copy keyword
+    if isinstance(model.edges, np.ndarray):
+        transition_matrix = model.edges.copy()
+    else:
+        transition_matrix = np.asarray(model.edges)
     n_states = transition_matrix.shape[0]
     
     # FIX: Convert transition matrix from log probabilities to probabilities if needed

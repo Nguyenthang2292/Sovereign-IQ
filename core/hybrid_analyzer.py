@@ -44,7 +44,7 @@ from modules.common.utils import (
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
 from modules.adaptive_trend.cli import prompt_timeframe
-from main.main_atc import ATCAnalyzer
+from modules.adaptive_trend.cli.main import ATCAnalyzer
 from modules.range_oscillator.cli import (
     display_final_results,
 )
@@ -65,6 +65,7 @@ from core.signal_calculators import (
     get_spc_signal,
     get_xgboost_signal,
     get_hmm_signal,
+    get_random_forest_signal,
 )
 
 
@@ -592,6 +593,38 @@ class HybridAnalyzer:
                         f"({hmm_success_rate:.1f}% success rate)"
                     )
         
+        # Calculate Random Forest signals if enabled
+        if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest and not result_df.empty:
+            log_progress(f"Calculating Random Forest predictions for {len(result_df)} {signal_type} symbols...")
+            rf_results = []
+            for _, row in result_df.iterrows():
+                try:
+                    rf_result = get_random_forest_signal(
+                        data_fetcher=self.data_fetcher,
+                        symbol=row['symbol'],
+                        timeframe=self.selected_timeframe,
+                        limit=self.args.limit,
+                        model_path=getattr(self.args, 'random_forest_model_path', None),
+                    )
+                    if rf_result is not None:
+                        row_dict = row.to_dict()
+                        row_dict["random_forest_signal"] = rf_result[0]
+                        row_dict["random_forest_confidence"] = rf_result[1]
+                        rf_results.append(row_dict)
+                    else:
+                        row_dict = row.to_dict()
+                        row_dict["random_forest_signal"] = 0
+                        row_dict["random_forest_confidence"] = 0.0
+                        rf_results.append(row_dict)
+                except Exception as e:
+                    # Log Random Forest errors but don't fail the entire process
+                    log_warn(f"Random Forest signal calculation failed for {row['symbol']}: {type(e).__name__}: {e}")
+                    row_dict = row.to_dict()
+                    row_dict["random_forest_signal"] = 0
+                    row_dict["random_forest_confidence"] = 0.0
+                    rf_results.append(row_dict)
+            result_df = pd.DataFrame(rf_results)
+        
         # Sort by signal strength (use average of all 3 strategies)
         if signal_type == "LONG":
             result_df = result_df.sort_values("signal", ascending=False).reset_index(drop=True)
@@ -717,6 +750,13 @@ class HybridAnalyzer:
             hmm_strength = symbol_data.get('hmm_confidence', 0.0)
             votes['hmm'] = (hmm_vote, hmm_strength)
         
+        # Random Forest vote (if enabled)
+        if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
+            rf_signal = symbol_data.get('random_forest_signal', 0)
+            rf_vote = 1 if rf_signal == expected_signal else 0
+            rf_strength = symbol_data.get('random_forest_confidence', 0.0)
+            votes['random_forest'] = (rf_vote, rf_strength)
+        
         return votes
     
     def _get_indicator_accuracy(self, indicator: str, signal_type: str) -> float:
@@ -732,7 +772,7 @@ class HybridAnalyzer:
         if signals_df.empty:
             return pd.DataFrame()
         
-        # Build indicators list: ATC, Oscillator, aggregated SPC, XGBoost, and HMM
+        # Build indicators list: ATC, Oscillator, aggregated SPC, XGBoost, HMM, and Random Forest
         indicators = ['atc', 'oscillator']
         indicators_display = ['ATC', 'Range Oscillator']
         if self.args.enable_spc:
@@ -744,6 +784,9 @@ class HybridAnalyzer:
         if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
             indicators.append('hmm')
             indicators_display.append('HMM')
+        if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
+            indicators.append('random_forest')
+            indicators_display.append('Random Forest')
         
         log_progress(f"Decision Matrix Indicators: {', '.join(indicators_display)}")
         

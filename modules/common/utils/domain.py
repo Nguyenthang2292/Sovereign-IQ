@@ -76,3 +76,24 @@ def normalize_symbol_key(symbol: str) -> str:
         return ""
     return "".join(ch for ch in symbol.upper() if ch.isalnum())
 
+
+def days_to_candles(days: int, timeframe: str) -> int:
+    """
+    Convert number of days to number of candles based on timeframe.
+    
+    Args:
+        days: Number of days
+        timeframe: Timeframe string (e.g., '1h', '4h', '1d')
+        
+    Returns:
+        Number of candles needed to cover the specified days
+        
+    Examples:
+        days_to_candles(90, '1h') -> 2160  (90 days * 24 hours/day)
+        days_to_candles(90, '4h') -> 540   (90 days * 6 candles/day)
+        days_to_candles(90, '1d') -> 90    (90 days * 1 candle/day)
+    """
+    minutes_per_candle = timeframe_to_minutes(timeframe)
+    minutes_per_day = 24 * 60  # 1440 minutes per day
+    candles_per_day = minutes_per_day / minutes_per_candle
+    return int(days * candles_per_day)

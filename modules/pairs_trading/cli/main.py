@@ -35,23 +35,30 @@ from modules.common.utils import (
 )
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
-from modules.pairs_trading import (
-    PerformanceAnalyzer,
-    PairsTradingAnalyzer,
+# Import directly from submodules to avoid circular import
+from modules.pairs_trading.analysis import PerformanceAnalyzer
+from modules.pairs_trading.core import PairsTradingAnalyzer
+from modules.pairs_trading.cli.display import (
     display_performers,
     display_pairs_opportunities,
+)
+from modules.pairs_trading.utils import (
     select_top_unique_pairs,
     ensure_symbols_in_candidate_pools,
     select_pairs_for_symbols,
-    parse_args,
+)
+from modules.pairs_trading.cli.argument_parser import parse_args
+from modules.pairs_trading.cli.interactive_prompts import (
     prompt_interactive_mode,
-    parse_weights,
-    parse_symbols,
     prompt_weight_preset_selection,
     prompt_kalman_preset_selection,
     prompt_opportunity_preset_selection,
     prompt_target_pairs,
     prompt_candidate_depth,
+)
+from modules.pairs_trading.cli.input_parsers import (
+    parse_weights,
+    parse_symbols,
 )
 
 # Suppress warnings for cleaner output

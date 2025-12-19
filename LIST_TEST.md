@@ -14,3 +14,5 @@ hmm / high_order - OK
 hmm / swings - OK
 hmm / signals - OK
 range_oscillator - OK
+simplified_percentile_clustering - OK
+xgboost - OK

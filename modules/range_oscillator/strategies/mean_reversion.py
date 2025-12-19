@@ -112,11 +112,12 @@ def generate_signals_mean_reversion_strategy(
     
     # Detect transitions: was in extreme, now crossing back toward zero
     # Use explicit boolean conversion to avoid FutureWarning
-    prev_extreme_positive_shifted = in_extreme_positive.shift(1)
-    prev_extreme_positive = prev_extreme_positive_shifted.fillna(False).astype(bool)
+    # Convert to boolean first, then fillna to avoid downcasting warning
+    prev_extreme_positive_shifted = in_extreme_positive.shift(1).astype(bool)
+    prev_extreme_positive = prev_extreme_positive_shifted.fillna(False)
     
-    prev_extreme_negative_shifted = in_extreme_negative.shift(1)
-    prev_extreme_negative = prev_extreme_negative_shifted.fillna(False).astype(bool)
+    prev_extreme_negative_shifted = in_extreme_negative.shift(1).astype(bool)
+    prev_extreme_negative = prev_extreme_negative_shifted.fillna(False)
     
     # Transition from extreme positive to near zero
     transition_from_positive = prev_extreme_positive & ~in_extreme_positive & (oscillator.abs() <= zero_cross_threshold)

@@ -1,4 +1,14 @@
 import warnings
+from pathlib import Path
+import sys
+
+# Add project root to sys.path to ensure config module can be imported
+# This is needed when running the file directly from subdirectories
+if '__file__' in globals():
+    project_root = Path(__file__).parent.parent.parent.parent
+    project_root_str = str(project_root)
+    if project_root_str not in sys.path:
+        sys.path.insert(0, project_root_str)
 
 import numpy as np
 from colorama import Fore, Style, init as colorama_init
@@ -19,7 +29,15 @@ from config import (
 )
 from modules.common.utils import color_text, format_price, normalize_symbol
 from modules.xgboost.utils import get_prediction_window
-from modules.xgboost.cli import parse_args, resolve_input
+# Import from cli.py file (not cli package) to avoid circular import
+import sys
+import importlib.util
+cli_file_path = Path(__file__).parent.parent / "cli.py"
+spec = importlib.util.spec_from_file_location("xgboost_cli_module", cli_file_path)
+cli_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(cli_module)
+parse_args = cli_module.parse_args
+resolve_input = cli_module.resolve_input
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.indicator_engine import (
@@ -239,4 +257,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-main()

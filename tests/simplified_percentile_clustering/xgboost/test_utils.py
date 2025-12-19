@@ -43,4 +43,3 @@ def test_get_prediction_window_none_input():
     except (TypeError, AttributeError):
         # Acceptable to raise error for None
         pass
-  pass

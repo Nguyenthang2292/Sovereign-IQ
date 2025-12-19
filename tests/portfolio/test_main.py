@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import warnings
 import pytest
 
-from main.main_portfolio_manager import (
+from modules.portfolio.cli.main import (
     PortfolioManager,
     display_portfolio_analysis,
     display_portfolio_with_hedge_analysis,
@@ -390,6 +390,4 @@ def test_portfolio_manager_empty_positions(portfolio_manager):
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-
-v"])
 

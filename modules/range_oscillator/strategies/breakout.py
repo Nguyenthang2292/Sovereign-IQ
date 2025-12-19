@@ -271,17 +271,20 @@ def generate_signals_breakout_strategy(
         # for at least confirmation_bars consecutive bars, which confirms the breakout
         
         # For LONG: breakout happened confirmation_bars ago AND oscillator has stayed above threshold
+        # Convert to boolean first, then fillna to avoid downcasting warning
+        breakout_above_bool = breakout_above_shifted.astype(bool).fillna(False)
         above_confirmation_mask = (
             (above_counts >= confirmation_bars) & 
             (above_threshold.astype(bool)) &
-            breakout_above_shifted.fillna(False)  # Breakout occurred confirmation_bars ago (fill NaN for beginning)
+            breakout_above_bool  # Breakout occurred confirmation_bars ago (fill NaN for beginning)
         )
         
         # For SHORT: breakout happened confirmation_bars ago AND oscillator has stayed below threshold
+        breakout_below_bool = breakout_below_shifted.astype(bool).fillna(False)
         below_confirmation_mask = (
             (below_counts >= confirmation_bars) & 
             (below_threshold.astype(bool)) &
-            breakout_below_shifted.fillna(False)  # Breakout occurred confirmation_bars ago (fill NaN for beginning)
+            breakout_below_bool  # Breakout occurred confirmation_bars ago (fill NaN for beginning)
         )
         
         # Confirmed breakouts: signal emitted AFTER confirmation period

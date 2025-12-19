@@ -29,7 +29,7 @@ def rate_of_change(prices: pd.Series) -> pd.Series:
         return pd.Series(dtype="float64", index=prices.index if hasattr(prices, 'index') else pd.RangeIndex(0, 0))
     
     try:
-        result = prices.pct_change()
+        result = prices.pct_change(fill_method=None)
         
         # Check for excessive NaN values (should only be first value)
         nan_count = result.isna().sum()

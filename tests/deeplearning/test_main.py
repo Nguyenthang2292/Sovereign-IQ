@@ -1,5 +1,5 @@
 """
-Test script for main_deeplearning_prediction.py - Training script functions.
+Test script for modules.deeplearning.cli.main.py - Training script functions.
 """
 
 import sys
@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from main.main_deeplearning_prediction import (
+from modules.deeplearning.cli.main import (
     parse_args,
     check_gpu_availability,
     prepare_data,
@@ -66,21 +66,21 @@ def create_sample_dataframe(n_samples=200, symbol="BTC/USDT"):
 
 def test_parse_args_defaults():
     """Test parse_args with default values."""
-    with patch("sys.argv", ["main_deeplearning_prediction.py"]):
+    with patch("sys.argv", ["modules.deeplearning.cli.main.py"]):
         args = parse_args()
         
         assert args.phase == 1
         assert args.task_type == "regression"
         assert args.epochs == 100  # DEEP_MAX_EPOCHS
         assert args.batch_size == 64  # DEEP_BATCH_SIZE
-        assert args.timeframe == "1h"
+        assert args.timeframe == "15m"  # DEFAULT_TIMEFRAME
         assert args.limit == 1500
 
 
 def test_parse_args_custom_values():
     """Test parse_args with custom values."""
     with patch("sys.argv", [
-        "main_deeplearning_prediction.py",
+        "modules.deeplearning.cli.main.py",
         "--symbols", "BTC/USDT", "ETH/USDT",
         "--timeframe", "4h",
         "--phase", "2",
@@ -101,7 +101,7 @@ def test_parse_args_custom_values():
 def test_parse_args_phase_options():
     """Test parse_args phase options."""
     for phase in [1, 2, 3]:
-        with patch("sys.argv", ["main_deeplearning_prediction.py", "--phase", str(phase)]):
+        with patch("sys.argv", ["modules.deeplearning.cli.main.py", "--phase", str(phase)]):
             args = parse_args()
             assert args.phase == phase
 
@@ -109,7 +109,7 @@ def test_parse_args_phase_options():
 def test_parse_args_task_type():
     """Test parse_args task type options."""
     for task_type in ["regression", "classification"]:
-        with patch("sys.argv", ["main_deeplearning_prediction.py", "--task-type", task_type]):
+        with patch("sys.argv", ["modules.deeplearning.cli.main.py", "--task-type", task_type]):
             args = parse_args()
             assert args.task_type == task_type
 
@@ -128,9 +128,9 @@ def test_check_gpu_availability():
         assert result is False
 
 
-@patch("modules.ExchangeManager.ExchangeManager")
-@patch("modules.DataFetcher.DataFetcher")
-@patch("modules.deeplearning_data_pipeline.DeepLearningDataPipeline")
+@patch("modules.common.core.exchange_manager.ExchangeManager")
+@patch("modules.common.core.data_fetcher.DataFetcher")
+@patch("modules.deeplearning.data_pipeline.DeepLearningDataPipeline")
 def test_prepare_data(mock_pipeline_class, mock_fetcher_class, mock_exchange_manager):
     """Test prepare_data function."""
     # Create mock pipeline
@@ -165,12 +165,12 @@ def test_prepare_data(mock_pipeline_class, mock_fetcher_class, mock_exchange_man
     assert pipeline is not None
 
 
-@patch("main_deeplearning_prediction.create_tft_datamodule")
+@patch("modules.deeplearning.cli.main.create_tft_datamodule")
 @patch("pytorch_lightning.Trainer")
 @patch("pytorch_lightning.loggers.TensorBoardLogger")
-@patch("main_deeplearning_prediction.create_vanilla_tft")
-@patch("main_deeplearning_prediction.create_training_callbacks")
-@patch("main_deeplearning_prediction.save_model_config")
+@patch("modules.deeplearning.cli.main.create_vanilla_tft")
+@patch("modules.deeplearning.cli.main.create_training_callbacks")
+@patch("modules.deeplearning.cli.main.save_model_config")
 def test_create_model_and_train_phase1(
     mock_save_config,
     mock_create_callbacks,
@@ -256,9 +256,9 @@ def test_prepare_data_empty_symbols():
         )
 
 
-@patch("main_deeplearning_prediction.ExchangeManager")
-@patch("main_deeplearning_prediction.DataFetcher")
-@patch("main_deeplearning_prediction.DeepLearningDataPipeline")
+@patch("modules.deeplearning.cli.main.ExchangeManager")
+@patch("modules.deeplearning.cli.main.DataFetcher")
+@patch("modules.deeplearning.cli.main.DeepLearningDataPipeline")
 def test_prepare_data_feature_selection(mock_pipeline_class, mock_fetcher_class, mock_exchange_manager):
     """Test prepare_data with feature selection enabled."""
     mock_pipeline = Mock()
@@ -297,12 +297,12 @@ def test_create_model_and_train_cpu_mode(mock_cuda):
     train_df = create_sample_dataframe(100, "BTC/USDT")
     val_df = create_sample_dataframe(50, "BTC/USDT")
     
-    with patch("main_deeplearning_prediction.create_tft_datamodule") as mock_dm:
+    with patch("modules.deeplearning.cli.main.create_tft_datamodule") as mock_dm:
         with patch("pytorch_lightning.Trainer") as mock_trainer:
             with patch("pytorch_lightning.loggers.TensorBoardLogger"):
-                with patch("main_deeplearning_prediction.create_vanilla_tft"):
-                    with patch("main_deeplearning_prediction.create_training_callbacks"):
-                        with patch("main_deeplearning_prediction.save_model_config"):
+                with patch("modules.deeplearning.cli.main.create_vanilla_tft"):
+                    with patch("modules.deeplearning.cli.main.create_training_callbacks"):
+                        with patch("modules.deeplearning.cli.main.save_model_config"):
                             mock_dm_instance = Mock()
                             mock_dm_instance.training = Mock()
                             mock_dm_instance.validation = Mock()
@@ -341,21 +341,21 @@ def test_create_model_and_train_cpu_mode(mock_cuda):
 
 def test_parse_args_output_dir():
     """Test parse_args with custom output directory."""
-    with patch("sys.argv", ["main_deeplearning_prediction.py", "--output-dir", "/custom/path"]):
+    with patch("sys.argv", ["modules.deeplearning.cli.main.py", "--output-dir", "/custom/path"]):
         args = parse_args()
         assert args.output_dir == "/custom/path"
 
 
 def test_parse_args_experiment_name():
     """Test parse_args with custom experiment name."""
-    with patch("sys.argv", ["main_deeplearning_prediction.py", "--experiment-name", "my_experiment"]):
+    with patch("sys.argv", ["modules.deeplearning.cli.main.py", "--experiment-name", "my_experiment"]):
         args = parse_args()
         assert args.experiment_name == "my_experiment"
 
 
 def test_parse_args_no_feature_selection():
     """Test parse_args with --no-feature-selection flag."""
-    with patch("sys.argv", ["main_deeplearning_prediction.py", "--no-feature-selection"]):
+    with patch("sys.argv", ["modules.deeplearning.cli.main.py", "--no-feature-selection"]):
         args = parse_args()
         assert args.no_feature_selection is True
 
@@ -363,7 +363,7 @@ def test_parse_args_no_feature_selection():
 def test_parse_args_optuna_params():
     """Test parse_args with Optuna parameters."""
     with patch("sys.argv", [
-        "main_deeplearning_prediction.py",
+        "modules.deeplearning.cli.main.py",
         "--optuna-trials", "30",
         "--optuna-max-epochs", "20",
     ]):

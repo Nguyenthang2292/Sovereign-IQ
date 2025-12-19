@@ -2,7 +2,9 @@
 Command-line interface and test scripts for HMM module.
 """
 
-# Test functions can be exported here if needed
+from modules.hmm.cli.main import main
 
-__all__ = []
+__all__ = [
+    "main",
+]
 

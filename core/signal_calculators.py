@@ -6,6 +6,7 @@ This module contains functions to calculate signals from:
 2. Simplified Percentile Clustering (SPC)
 3. XGBoost
 4. HMM (Hidden Markov Model)
+5. Random Forest
 """
 
 from typing import Optional, Tuple
@@ -44,6 +45,8 @@ from modules.xgboost.labeling import apply_directional_labels
 from modules.xgboost.model import train_and_predict, predict_next_move
 from modules.hmm.signals.combiner import combine_signals
 from modules.hmm.signals.resolution import LONG, HOLD, SHORT
+from modules.random_forest.core.model import load_random_forest_model
+from modules.random_forest.core.signals import get_latest_random_forest_signal
 from config import (
     SPC_P_LOW,
     SPC_P_HIGH,
@@ -417,6 +420,70 @@ def get_hmm_signal(
         signal_value = int(combined_signal)
         return (signal_value, confidence)
 
+    except Exception as e:
+        return None
+
+
+def get_random_forest_signal(
+    data_fetcher: DataFetcher,
+    symbol: str,
+    timeframe: str,
+    limit: int,
+    model_path: Optional[str] = None,
+) -> Optional[Tuple[int, float]]:
+    """
+    Calculate Random Forest signal for a symbol.
+    
+    Args:
+        data_fetcher: DataFetcher instance
+        symbol: Trading pair symbol
+        timeframe: Timeframe for data
+        limit: Number of candles to fetch
+        model_path: Optional path to model file (default: uses default path)
+    
+    Returns:
+        Tuple of (signal, confidence) where:
+        - signal: 1 (LONG), -1 (SHORT), or 0 (NEUTRAL)
+        - confidence: Signal confidence (0.0 to 1.0)
+    """
+    try:
+        # Load model
+        from pathlib import Path
+        model = load_random_forest_model(Path(model_path) if model_path else None)
+        if model is None:
+            return None
+        
+        # Fetch OHLCV data
+        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+            symbol,
+            limit=limit,
+            timeframe=timeframe,
+            check_freshness=False,
+        )
+        
+        if df is None or df.empty:
+            return None
+        
+        # Validate required columns
+        required_columns = ["open", "high", "low", "close", "volume"]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            return None
+        
+        # Get signal from Random Forest model
+        signal_str, confidence = get_latest_random_forest_signal(df, model)
+        
+        # Convert signal string to int: "LONG" -> 1, "SHORT" -> -1, "NEUTRAL" -> 0
+        if signal_str == "LONG":
+            signal = 1
+        elif signal_str == "SHORT":
+            signal = -1
+        else:
+            signal = 0
+        
+        return (signal, confidence)
+    
     except Exception as e:
         return None
 

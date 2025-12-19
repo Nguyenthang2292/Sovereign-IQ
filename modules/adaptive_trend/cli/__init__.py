@@ -21,6 +21,8 @@ from modules.adaptive_trend.cli.display import (
     list_futures_symbols,
 )
 
+from modules.adaptive_trend.cli.main import main, ATCAnalyzer
+
 __all__ = [
     # Argument parsing
     'parse_args',
@@ -31,5 +33,8 @@ __all__ = [
     'display_atc_signals',
     'display_scan_results',
     'list_futures_symbols',
+    # Main CLI
+    'main',
+    'ATCAnalyzer',
 ]
 

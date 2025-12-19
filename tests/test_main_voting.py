@@ -406,7 +406,8 @@ class TestVotingAnalyzer:
             assert 'spc' in voting_breakdown
             assert 'xgboost' in voting_breakdown
             assert 'hmm' in voting_breakdown
-            assert len(voting_breakdown) == 5
+            assert 'random_forest' in voting_breakdown
+            assert len(voting_breakdown) == 6
     
     def test_apply_voting_system_all_agree(self, analyzer):
         """Test apply_voting_system when all indicators agree."""

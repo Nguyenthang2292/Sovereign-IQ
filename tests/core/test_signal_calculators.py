@@ -35,7 +35,7 @@ from core.signal_calculators import (
 
 def create_mock_ohlcv_data(limit: int = 100) -> pd.DataFrame:
     """Create mock OHLCV data for testing."""
-    dates = pd.date_range(end=pd.Timestamp.now(), periods=limit, freq='1H')
+    dates = pd.date_range(end=pd.Timestamp.now(), periods=limit, freq='1h')
     
     # Generate realistic price data
     np.random.seed(42)

@@ -143,7 +143,7 @@ python main/main_atc.py
 Combine ATC signals with Range Oscillator confirmation:
 
 ```bash
-python main/main_atc_oscillator.py
+python main_atc_oscillator.py
 ```
 
 **Features:**

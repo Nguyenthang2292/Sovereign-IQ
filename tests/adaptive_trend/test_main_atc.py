@@ -64,7 +64,7 @@ def _create_mock_ohlcv_data(
 
 def test_atc_analyzer_init():
     """Test ATCAnalyzer initialization."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         timeframe="1h",
@@ -83,7 +83,7 @@ def test_atc_analyzer_init():
 
 def test_get_atc_params():
     """Test get_atc_params extracts and caches parameters correctly."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         timeframe="1h",
@@ -117,7 +117,7 @@ def test_get_atc_params():
 
 def test_determine_mode_and_timeframe_auto():
     """Test determine_mode_and_timeframe with auto flag."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         auto=True,
@@ -137,7 +137,7 @@ def test_determine_mode_and_timeframe_auto():
 
 def test_determine_mode_and_timeframe_manual():
     """Test determine_mode_and_timeframe with manual mode."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         auto=False,
@@ -153,10 +153,10 @@ def test_determine_mode_and_timeframe_manual():
     assert timeframe == "4h"
 
 
-@patch('main.main_atc.prompt_interactive_mode')
+@patch('modules.adaptive_trend.cli.main.prompt_interactive_mode')
 def test_determine_mode_and_timeframe_interactive(mock_prompt):
     """Test determine_mode_and_timeframe with interactive menu."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         auto=False,
@@ -180,7 +180,7 @@ def test_determine_mode_and_timeframe_interactive(mock_prompt):
 
 def test_get_symbol_input_from_args():
     """Test get_symbol_input with symbol in args."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         timeframe="1h",
@@ -199,7 +199,7 @@ def test_get_symbol_input_from_args():
 @patch('builtins.input', return_value='BTC/USDT')
 def test_get_symbol_input_from_prompt(mock_input):
     """Test get_symbol_input with user prompt."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         timeframe="1h",
@@ -218,7 +218,7 @@ def test_get_symbol_input_from_prompt(mock_input):
 
 def test_display_auto_mode_config():
     """Test display_auto_mode_config displays configuration."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         limit=1500,
@@ -251,7 +251,7 @@ def test_display_auto_mode_config():
 
 def test_display_manual_mode_config():
     """Test display_manual_mode_config displays configuration."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         limit=1500,
@@ -284,13 +284,13 @@ def test_display_manual_mode_config():
 # Tests for main function
 # ============================================================================
 
-@patch('main.main_atc.list_futures_symbols')
-@patch('main.main_atc.ExchangeManager')
-@patch('main.main_atc.DataFetcher')
-@patch('main.main_atc.parse_args')
+@patch('modules.adaptive_trend.cli.main.list_futures_symbols')
+@patch('modules.adaptive_trend.cli.main.ExchangeManager')
+@patch('modules.adaptive_trend.cli.main.DataFetcher')
+@patch('modules.adaptive_trend.cli.main.parse_args')
 def test_main_list_symbols(mock_parse, mock_data_fetcher, mock_exchange, mock_list):
     """Test main function with --list-symbols flag."""
-    from main.main_atc import main
+    from modules.adaptive_trend.cli.main import main
     
     args = SimpleNamespace(list_symbols=True)
     mock_parse.return_value = args
@@ -306,15 +306,15 @@ def test_main_list_symbols(mock_parse, mock_data_fetcher, mock_exchange, mock_li
     mock_list.assert_called_once_with(mock_fetcher_instance)
 
 
-@patch('main.main_atc.ATCAnalyzer.run_auto_mode')
-@patch('main.main_atc.ATCAnalyzer.determine_mode_and_timeframe')
-@patch('main.main_atc.ATCAnalyzer')
-@patch('main.main_atc.ExchangeManager')
-@patch('main.main_atc.DataFetcher')
-@patch('main.main_atc.parse_args')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.run_auto_mode')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.determine_mode_and_timeframe')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer')
+@patch('modules.adaptive_trend.cli.main.ExchangeManager')
+@patch('modules.adaptive_trend.cli.main.DataFetcher')
+@patch('modules.adaptive_trend.cli.main.parse_args')
 def test_main_auto_mode(mock_parse, mock_data_fetcher, mock_exchange, mock_analyzer_class, mock_determine, mock_run_auto):
     """Test main function with auto mode."""
-    from main.main_atc import main
+    from modules.adaptive_trend.cli.main import main
     
     args = SimpleNamespace(
         list_symbols=False,
@@ -339,15 +339,15 @@ def test_main_auto_mode(mock_parse, mock_data_fetcher, mock_exchange, mock_analy
     mock_analyzer.run_auto_mode.assert_called_once()
 
 
-@patch('main.main_atc.ATCAnalyzer.run_manual_mode')
-@patch('main.main_atc.ATCAnalyzer.determine_mode_and_timeframe')
-@patch('main.main_atc.ATCAnalyzer')
-@patch('main.main_atc.ExchangeManager')
-@patch('main.main_atc.DataFetcher')
-@patch('main.main_atc.parse_args')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.run_manual_mode')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.determine_mode_and_timeframe')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer')
+@patch('modules.adaptive_trend.cli.main.ExchangeManager')
+@patch('modules.adaptive_trend.cli.main.DataFetcher')
+@patch('modules.adaptive_trend.cli.main.parse_args')
 def test_main_manual_mode(mock_parse, mock_data_fetcher, mock_exchange, mock_analyzer_class, mock_determine, mock_run_manual):
     """Test main function with manual mode."""
-    from main.main_atc import main
+    from modules.adaptive_trend.cli.main import main
     
     args = SimpleNamespace(
         list_symbols=False,
@@ -376,12 +376,12 @@ def test_main_manual_mode(mock_parse, mock_data_fetcher, mock_exchange, mock_ana
 # Tests for run methods
 # ============================================================================
 
-@patch('main.main_atc.display_scan_results')
-@patch('main.main_atc.scan_all_symbols')
-@patch('main.main_atc.ATCAnalyzer.display_auto_mode_config')
+@patch('modules.adaptive_trend.cli.main.display_scan_results')
+@patch('modules.adaptive_trend.cli.main.scan_all_symbols')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.display_auto_mode_config')
 def test_run_auto_mode(mock_display_config, mock_scan, mock_display_results):
     """Test run_auto_mode executes correctly."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         limit=1500,
@@ -415,13 +415,13 @@ def test_run_auto_mode(mock_display_config, mock_scan, mock_display_results):
     mock_display_results.assert_called_once_with(long_signals, short_signals, 0.01)
 
 
-@patch('main.main_atc.ATCAnalyzer.run_interactive_loop')
-@patch('main.main_atc.analyze_symbol')
-@patch('main.main_atc.ATCAnalyzer.display_manual_mode_config')
-@patch('main.main_atc.ATCAnalyzer.get_symbol_input')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.run_interactive_loop')
+@patch('modules.adaptive_trend.cli.main.analyze_symbol')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.display_manual_mode_config')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.get_symbol_input')
 def test_run_manual_mode_success(mock_get_symbol, mock_display_config, mock_analyze, mock_interactive):
     """Test run_manual_mode with successful analysis."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         no_prompt=False,
@@ -461,13 +461,13 @@ def test_run_manual_mode_success(mock_get_symbol, mock_display_config, mock_anal
     mock_interactive.assert_called_once()
 
 
-@patch('main.main_atc.log_error')
-@patch('main.main_atc.analyze_symbol')
-@patch('main.main_atc.ATCAnalyzer.display_manual_mode_config')
-@patch('main.main_atc.ATCAnalyzer.get_symbol_input')
+@patch('modules.adaptive_trend.cli.main.log_error')
+@patch('modules.adaptive_trend.cli.main.analyze_symbol')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.display_manual_mode_config')
+@patch('modules.adaptive_trend.cli.main.ATCAnalyzer.get_symbol_input')
 def test_run_manual_mode_failure(mock_get_symbol, mock_display_config, mock_analyze, mock_log_error):
     """Test run_manual_mode with failed analysis."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(
         no_prompt=False,
@@ -498,11 +498,11 @@ def test_run_manual_mode_failure(mock_get_symbol, mock_display_config, mock_anal
     mock_log_error.assert_called_once_with("Analysis failed")
 
 
-@patch('main.main_atc.analyze_symbol')
+@patch('modules.adaptive_trend.cli.main.analyze_symbol')
 @patch('builtins.input', side_effect=['ETH/USDT', 'BTC/USDT', KeyboardInterrupt])
 def test_run_interactive_loop(mock_input, mock_analyze):
     """Test run_interactive_loop handles multiple symbols."""
-    from main.main_atc import ATCAnalyzer
+    from modules.adaptive_trend.cli.main import ATCAnalyzer
     
     args = SimpleNamespace(timeframe="1h")
     mock_data_fetcher = MagicMock()

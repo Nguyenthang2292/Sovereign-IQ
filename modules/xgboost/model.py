@@ -22,6 +22,9 @@ from config import (
     ID_TO_LABEL,
     XGBOOST_PARAMS,
 )
+from config.position_sizing import (
+    USE_GPU,
+)
 from modules.common.utils import (
     log_data,
     log_info,
@@ -112,6 +115,7 @@ def train_and_predict(df: pd.DataFrame) -> Any:
 
         Uses parameters from config, dynamically adds num_class based on TARGET_LABELS.
         Filters parameters through whitelist if classifier has one (for fallback compatibility).
+        Adds GPU support if available.
 
         Returns:
             XGBoost classifier instance (or fallback equivalent)
@@ -119,11 +123,44 @@ def train_and_predict(df: pd.DataFrame) -> Any:
         classifier_cls = _resolve_xgb_classifier()
         params = XGBOOST_PARAMS.copy()
         params["num_class"] = len(TARGET_LABELS)
+        
+        # Add GPU support if available
+        if USE_GPU:
+            try:
+                # Check if GPU is actually available
+                # Try to detect CUDA availability
+                import subprocess
+                result = subprocess.run(['nvidia-smi'], capture_output=True, timeout=2)
+                if result.returncode == 0:
+                    # GPU is available, use GPU parameters
+                    # In XGBoost 2.0+, use 'hist' with device='cuda' instead of 'gpu_hist'
+                    params["tree_method"] = "hist"  # Changed from "gpu_hist" to "hist" for XGBoost 2.0+
+                    params["device"] = "cuda"
+                    # Remove n_jobs when using GPU (GPU handles parallelism)
+                    if "n_jobs" in params:
+                        del params["n_jobs"]
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+                # GPU not available or nvidia-smi not found, fall back to CPU
+                pass
+        
         # Filter parameters through whitelist if classifier has one (for fallback compatibility)
         whitelist = getattr(classifier_cls, "XGB_PARAM_WHITELIST", None)
         if whitelist is not None:
             params = {k: v for k, v in params.items() if k in whitelist}
-        return classifier_cls(**params)
+        
+        try:
+            return classifier_cls(**params)
+        except Exception as e:
+            # Try without device parameter if it fails (XGBoost 3.x might not support device="cuda" with tree_method="hist")
+            if "device" in params:
+                params_without_device = params.copy()
+                del params_without_device["device"]
+                try:
+                    return classifier_cls(**params_without_device)
+                except Exception as e2:
+                    raise e2
+            else:
+                raise
 
     # Train/Test Split with Gap Prevention
     # Strategy: 80/20 split with TARGET_HORIZON gap between train and test sets
