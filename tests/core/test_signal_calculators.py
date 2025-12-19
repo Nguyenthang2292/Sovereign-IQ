@@ -231,6 +231,78 @@ def test_get_range_oscillator_signal_insufficient_data():
     print("[OK] Test passed: Insufficient data handled correctly")
 
 
+def test_get_range_oscillator_signal_with_dataframe_parameter():
+    """Test range oscillator signal with DataFrame parameter (optimization)."""
+    print("\n=== Test: get_range_oscillator_signal - With DataFrame Parameter ===")
+    
+    df = create_mock_ohlcv_data(limit=100)
+    data_fetcher = create_mock_data_fetcher(df)
+    
+    # Track if fetch was called
+    fetch_called = {'called': False}
+    original_fetch = data_fetcher.fetch_ohlcv_with_fallback_exchange
+    
+    def track_fetch(*args, **kwargs):
+        fetch_called['called'] = True
+        return original_fetch(*args, **kwargs)
+    
+    data_fetcher.fetch_ohlcv_with_fallback_exchange = track_fetch
+    
+    # Call with DataFrame parameter
+    result = get_range_oscillator_signal(
+        data_fetcher=data_fetcher,
+        symbol="BTC/USDT",
+        timeframe="1h",
+        limit=100,
+        df=df,  # Pass DataFrame directly
+    )
+    
+    print(f"Result: {result}")
+    print(f"Fetch called: {fetch_called['called']}")
+    
+    # Verify fetch was NOT called when DataFrame is provided
+    assert not fetch_called['called'], "Fetch should not be called when DataFrame is provided"
+    assert result is not None, "Signal should not be None"
+    assert isinstance(result, tuple), "Result should be a tuple"
+    print("[OK] Test passed: DataFrame parameter works correctly")
+
+
+def test_get_range_oscillator_signal_backward_compatibility():
+    """Test backward compatibility - without DataFrame parameter still works."""
+    print("\n=== Test: get_range_oscillator_signal - Backward Compatibility ===")
+    
+    df = create_mock_ohlcv_data(limit=100)
+    data_fetcher = create_mock_data_fetcher(df)
+    
+    # Track if fetch was called
+    fetch_called = {'called': False}
+    original_fetch = data_fetcher.fetch_ohlcv_with_fallback_exchange
+    
+    def track_fetch(*args, **kwargs):
+        fetch_called['called'] = True
+        return original_fetch(*args, **kwargs)
+    
+    data_fetcher.fetch_ohlcv_with_fallback_exchange = track_fetch
+    
+    # Call without DataFrame parameter (backward compatibility)
+    result = get_range_oscillator_signal(
+        data_fetcher=data_fetcher,
+        symbol="BTC/USDT",
+        timeframe="1h",
+        limit=100,
+        # df parameter not provided
+    )
+    
+    print(f"Result: {result}")
+    print(f"Fetch called: {fetch_called['called']}")
+    
+    # Verify fetch WAS called when DataFrame is not provided
+    assert fetch_called['called'], "Fetch should be called when DataFrame is not provided"
+    assert result is not None, "Signal should not be None"
+    assert isinstance(result, tuple), "Result should be a tuple"
+    print("[OK] Test passed: Backward compatibility maintained")
+
+
 def run_all_tests():
     """Run all tests."""
     print("=" * 80)
@@ -245,6 +317,8 @@ def run_all_tests():
         test_get_range_oscillator_signal_exception_handling,
         test_get_range_oscillator_signal_with_strategies,
         test_get_range_oscillator_signal_insufficient_data,
+        test_get_range_oscillator_signal_with_dataframe_parameter,
+        test_get_range_oscillator_signal_backward_compatibility,
     ]
     
     passed = 0

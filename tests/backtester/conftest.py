@@ -2,11 +2,28 @@
 Shared fixtures for backtester tests.
 """
 
+import sys
+import warnings
+from pathlib import Path
+from unittest.mock import MagicMock
+
+# Mock optuna BEFORE any other imports
+# This must happen before core.signal_calculators is imported
+if 'optuna' not in sys.modules:
+    sys.modules['optuna'] = MagicMock()
+
+# Add project root to path (same as tests/conftest.py)
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+warnings.filterwarnings("ignore")
+
 import pytest
 import pandas as pd
 import numpy as np
 from types import SimpleNamespace
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
 
 @pytest.fixture
@@ -59,11 +76,12 @@ def mock_signal_calculators():
     
     Use this fixture in tests to prevent API calls to exchanges.
     """
-    with patch('core.signal_calculators.get_range_oscillator_signal') as mock_osc, \
-         patch('core.signal_calculators.get_spc_signal') as mock_spc, \
-         patch('core.signal_calculators.get_xgboost_signal') as mock_xgb, \
-         patch('core.signal_calculators.get_hmm_signal') as mock_hmm, \
-         patch('core.signal_calculators.get_random_forest_signal') as mock_rf:
+    # Patch at the usage site in HybridSignalCalculator
+    with patch('modules.position_sizing.core.hybrid_signal_calculator.get_range_oscillator_signal') as mock_osc, \
+         patch('modules.position_sizing.core.hybrid_signal_calculator.get_spc_signal') as mock_spc, \
+         patch('modules.position_sizing.core.hybrid_signal_calculator.get_xgboost_signal') as mock_xgb, \
+         patch('modules.position_sizing.core.hybrid_signal_calculator.get_hmm_signal') as mock_hmm, \
+         patch('modules.position_sizing.core.hybrid_signal_calculator.get_random_forest_signal') as mock_rf:
         
         # Set default return values
         mock_osc.return_value = (1, 0.7)  # LONG signal with 70% confidence
@@ -81,18 +99,26 @@ def mock_signal_calculators():
         }
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope="function")
 def auto_mock_signal_calculators():
     """Automatically mock signal calculators for all tests to prevent API calls.
     
     This is set to autouse=True to ensure no API calls are made by default.
     Individual tests can override this if needed.
     """
-    with patch('core.signal_calculators.get_range_oscillator_signal', return_value=(1, 0.7)), \
-         patch('core.signal_calculators.get_spc_signal', return_value=(1, 0.6)), \
-         patch('core.signal_calculators.get_xgboost_signal', return_value=(1, 0.8)), \
-         patch('core.signal_calculators.get_hmm_signal', return_value=(1, 0.65)), \
-         patch('core.signal_calculators.get_random_forest_signal', return_value=(1, 0.75)):
+    # Import core.signal_calculators first (optuna is already mocked)
+    # Then patch the functions
+    try:
+        import core.signal_calculators  # noqa: F401
+        # Patch at definition site
+        with patch('core.signal_calculators.get_range_oscillator_signal', return_value=(1, 0.7)), \
+             patch('core.signal_calculators.get_spc_signal', return_value=(1, 0.6)), \
+             patch('core.signal_calculators.get_xgboost_signal', return_value=(1, 0.8)), \
+             patch('core.signal_calculators.get_hmm_signal', return_value=(1, 0.65)), \
+             patch('core.signal_calculators.get_random_forest_signal', return_value=(1, 0.75)):
+            yield
+    except (ImportError, AttributeError):
+        # If import fails, skip patching (tests will need to handle this)
         yield
 
 

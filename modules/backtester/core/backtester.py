@@ -100,6 +100,7 @@ class FullBacktester:
         lookback: int,
         signal_type: str,
         initial_capital: float = 10000.0,
+        df: Optional[pd.DataFrame] = None,
     ) -> Dict:
         """
         Run full backtest simulation for a symbol.
@@ -110,6 +111,7 @@ class FullBacktester:
             lookback: Number of candles to look back (should be converted from days using days_to_candles)
             signal_type: "LONG" or "SHORT"
             initial_capital: Initial capital for backtesting (default: 10000)
+            df: Optional DataFrame to use instead of fetching from API
             
         Returns:
             Dictionary with backtest results:
@@ -129,13 +131,14 @@ class FullBacktester:
             }
         """
         try:
-            # Fetch historical data
-            df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                symbol,
-                limit=lookback,
-                timeframe=timeframe,
-                check_freshness=False,
-            )
+            # Use provided DataFrame if available, otherwise fetch from API
+            if df is None:
+                df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                    symbol,
+                    limit=lookback,
+                    timeframe=timeframe,
+                    check_freshness=False,
+                )
             
             if df is None or df.empty:
                 log_warn(f"No data available for {symbol}")

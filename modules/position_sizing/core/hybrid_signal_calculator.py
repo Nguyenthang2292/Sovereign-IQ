@@ -141,11 +141,11 @@ class HybridSignalCalculator:
             # Calculate signals from all enabled indicators
             if ENABLE_MULTITHREADING:
                 indicator_signals = self._calculate_indicators_parallel(
-                    symbol, timeframe, limit, osc_length, osc_mult, osc_strategies, spc_params, len(historical_df), period_index
+                    symbol, timeframe, limit, osc_length, osc_mult, osc_strategies, spc_params, len(historical_df), period_index, historical_df
                 )
             else:
                 indicator_signals = self._calculate_indicators_sequential(
-                    symbol, timeframe, limit, osc_length, osc_mult, osc_strategies, spc_params, len(historical_df), period_index
+                    symbol, timeframe, limit, osc_length, osc_mult, osc_strategies, spc_params, len(historical_df), period_index, historical_df
                 )
             
             # Combine signals using majority vote
@@ -269,6 +269,7 @@ class HybridSignalCalculator:
         spc_params: Optional[Dict],
         historical_df_len: int,
         period_index: int,
+        df: pd.DataFrame,
     ) -> List[Dict]:
         """Calculate indicators in parallel using ThreadPoolExecutor."""
         indicator_signals = []
@@ -280,7 +281,7 @@ class HybridSignalCalculator:
             if 'range_oscillator' in self.enabled_indicators:
                 futures['range_oscillator'] = executor.submit(
                     self._calc_range_oscillator,
-                    symbol, timeframe, limit, osc_length, osc_mult, osc_strategies, period_index
+                    symbol, timeframe, limit, osc_length, osc_mult, osc_strategies, period_index, df
                 )
             
             # 2. SPC (3 strategies)
@@ -289,28 +290,28 @@ class HybridSignalCalculator:
                 for strategy in spc_strategies:
                     futures[f'spc_{strategy}'] = executor.submit(
                         self._calc_spc,
-                        symbol, timeframe, limit, strategy, spc_params, period_index
+                        symbol, timeframe, limit, strategy, spc_params, period_index, df
                     )
             
             # 3. XGBoost
             if 'xgboost' in self.enabled_indicators and historical_df_len >= 50:
                 futures['xgboost'] = executor.submit(
                     self._calc_xgboost,
-                    symbol, timeframe, limit, period_index
+                    symbol, timeframe, limit, period_index, df
                 )
             
             # 4. HMM
             if 'hmm' in self.enabled_indicators:
                 futures['hmm'] = executor.submit(
                     self._calc_hmm,
-                    symbol, timeframe, limit, period_index
+                    symbol, timeframe, limit, period_index, df
                 )
             
             # 5. Random Forest
             if 'random_forest' in self.enabled_indicators:
                 futures['random_forest'] = executor.submit(
                     self._calc_random_forest,
-                    symbol, timeframe, limit, period_index
+                    symbol, timeframe, limit, period_index, df
                 )
             
             # Collect results
@@ -335,6 +336,7 @@ class HybridSignalCalculator:
         spc_params: Optional[Dict],
         historical_df_len: int,
         period_index: int,
+        df: pd.DataFrame,
     ) -> List[Dict]:
         """Calculate indicators sequentially (original implementation)."""
         indicator_signals = []
@@ -342,7 +344,7 @@ class HybridSignalCalculator:
         # 1. Range Oscillator
         if 'range_oscillator' in self.enabled_indicators:
             result = self._calc_range_oscillator(
-                symbol, timeframe, limit, osc_length, osc_mult, osc_strategies, period_index
+                symbol, timeframe, limit, osc_length, osc_mult, osc_strategies, period_index, df
             )
             if result:
                 indicator_signals.append(result)
@@ -352,7 +354,7 @@ class HybridSignalCalculator:
             spc_strategies = ['cluster_transition', 'regime_following', 'mean_reversion']
             for strategy in spc_strategies:
                 result = self._calc_spc(
-                    symbol, timeframe, limit, strategy, spc_params, period_index
+                    symbol, timeframe, limit, strategy, spc_params, period_index, df
                 )
                 if result:
                     indicator_signals.append(result)
@@ -360,7 +362,7 @@ class HybridSignalCalculator:
         # 3. XGBoost
         if 'xgboost' in self.enabled_indicators and historical_df_len >= 50:
             result = self._calc_xgboost(
-                symbol, timeframe, limit, period_index
+                symbol, timeframe, limit, period_index, df
             )
             if result:
                 indicator_signals.append(result)
@@ -368,7 +370,7 @@ class HybridSignalCalculator:
         # 4. HMM
         if 'hmm' in self.enabled_indicators:
             result = self._calc_hmm(
-                symbol, timeframe, limit, period_index
+                symbol, timeframe, limit, period_index, df
             )
             if result:
                 indicator_signals.append(result)
@@ -376,7 +378,7 @@ class HybridSignalCalculator:
         # 5. Random Forest
         if 'random_forest' in self.enabled_indicators:
             result = self._calc_random_forest(
-                symbol, timeframe, limit, period_index
+                symbol, timeframe, limit, period_index, df
             )
             if result:
                 indicator_signals.append(result)
@@ -386,7 +388,8 @@ class HybridSignalCalculator:
     def _calc_range_oscillator(
         self, symbol: str, timeframe: str, limit: int,
         osc_length: int, osc_mult: float, osc_strategies: Optional[List[int]],
-        period_index: Optional[int] = None
+        period_index: Optional[int] = None,
+        df: Optional[pd.DataFrame] = None
     ) -> Optional[Dict]:
         """Calculate Range Oscillator signal with caching."""
         # Check cache first
@@ -404,6 +407,7 @@ class HybridSignalCalculator:
                 osc_length=osc_length,
                 osc_mult=osc_mult,
                 strategies=osc_strategies,
+                df=df,
             )
             if osc_result is not None:
                 osc_signal, osc_confidence = osc_result
@@ -423,7 +427,8 @@ class HybridSignalCalculator:
     def _calc_spc(
         self, symbol: str, timeframe: str, limit: int,
         strategy: str, spc_params: Optional[Dict],
-        period_index: Optional[int] = None
+        period_index: Optional[int] = None,
+        df: Optional[pd.DataFrame] = None
     ) -> Optional[Dict]:
         """Calculate SPC signal for a specific strategy with caching."""
         # Check cache first
@@ -440,6 +445,7 @@ class HybridSignalCalculator:
                 limit=limit,
                 strategy=strategy,
                 strategy_params=spc_params.get(strategy, {}) if spc_params else None,
+                df=df,
             )
             if spc_result is not None:
                 spc_signal, spc_confidence = spc_result
@@ -458,7 +464,8 @@ class HybridSignalCalculator:
     
     def _calc_xgboost(
         self, symbol: str, timeframe: str, limit: int,
-        period_index: Optional[int] = None
+        period_index: Optional[int] = None,
+        df: Optional[pd.DataFrame] = None
     ) -> Optional[Dict]:
         """Calculate XGBoost signal with caching."""
         # Check cache first
@@ -473,6 +480,7 @@ class HybridSignalCalculator:
                 symbol=symbol,
                 timeframe=timeframe,
                 limit=limit,
+                df=df,
             )
             if xgb_result is not None:
                 xgb_signal, xgb_confidence = xgb_result
@@ -491,7 +499,8 @@ class HybridSignalCalculator:
     
     def _calc_hmm(
         self, symbol: str, timeframe: str, limit: int,
-        period_index: Optional[int] = None
+        period_index: Optional[int] = None,
+        df: Optional[pd.DataFrame] = None
     ) -> Optional[Dict]:
         """Calculate HMM signal with caching."""
         # Check cache first
@@ -506,6 +515,7 @@ class HybridSignalCalculator:
                 symbol=symbol,
                 timeframe=timeframe,
                 limit=limit,
+                df=df,
             )
             if hmm_result is not None:
                 hmm_signal, hmm_confidence = hmm_result
@@ -524,7 +534,8 @@ class HybridSignalCalculator:
     
     def _calc_random_forest(
         self, symbol: str, timeframe: str, limit: int,
-        period_index: Optional[int] = None
+        period_index: Optional[int] = None,
+        df: Optional[pd.DataFrame] = None
     ) -> Optional[Dict]:
         """Calculate Random Forest signal with caching."""
         # Check cache first
@@ -539,6 +550,7 @@ class HybridSignalCalculator:
                 symbol=symbol,
                 timeframe=timeframe,
                 limit=limit,
+                df=df,
             )
             if rf_result is not None:
                 rf_signal, rf_confidence = rf_result

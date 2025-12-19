@@ -61,6 +61,7 @@ class RegimeDetector:
         symbol: str,
         timeframe: str,
         limit: int = 1500,
+        df: Optional[pd.DataFrame] = None,
     ) -> str:
         """
         Detect current market regime for a symbol.
@@ -69,18 +70,20 @@ class RegimeDetector:
             symbol: Trading pair symbol (e.g., "BTC/USDT")
             timeframe: Timeframe for data (e.g., "1h", "4h")
             limit: Number of candles to fetch (default: 1500)
+            df: Optional DataFrame to use instead of fetching from API
             
         Returns:
             Regime string: "BULLISH", "NEUTRAL", or "BEARISH"
         """
         try:
-            # Fetch OHLCV data
-            df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                symbol,
-                limit=limit,
-                timeframe=timeframe,
-                check_freshness=False,
-            )
+            # Use provided DataFrame if available, otherwise fetch from API
+            if df is None:
+                df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                    symbol,
+                    limit=limit,
+                    timeframe=timeframe,
+                    check_freshness=False,
+                )
             
             if df is None or df.empty:
                 log_warn(f"No data available for {symbol}. Returning NEUTRAL regime.")

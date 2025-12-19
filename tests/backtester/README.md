@@ -2,64 +2,164 @@
 
 ## Vấn đề
 
-Các test cases trong `tests/backtester` trước đây đang gọi API thật từ Binance, gây ra rate limit errors.
+Các test cases trong `tests/backtester` trước đây đang gọi API thật từ Binance thông qua:
 
-## Giải pháp
+1. `DataFetcher.fetch_ohlcv_with_fallback_exchange()` - Fetch OHLCV data
+2. Signal calculators (`get_range_oscillator_signal`, `get_spc_signal`, etc.) - Fetch data để tính signals
 
-### 1. Shared Fixtures (conftest.py)
+Điều này gây ra:
 
-File `tests/backtester/conftest.py` cung cấp các fixtures được tự động sử dụng:
+- ❌ Rate limit errors: "Your operation is too frequent, please try again later"
+- ❌ Tests chạy chậm do network latency
+- ❌ Tests không reliable, phụ thuộc vào network
+- ❌ Cần API credentials hoặc có thể bị block IP
 
-- **`mock_data_fetcher`**: Mock DataFetcher hoàn chỉnh, không gọi API
-- **`mock_signal_calculators`** (autouse=True): Tự động mock tất cả signal calculators
-- **`mock_ohlcv_data`**: Helper để generate mock OHLCV data
+## Giải pháp đã implement
 
-### 2. Test Helpers (test_helpers.py)
+### 1. Mock Data Fetcher (Recommended)
 
-File `tests/backtester/test_helpers.py` cung cấp context managers:
+**File**: `tests/backtester/conftest.py`
+
+Tạo `mock_data_fetcher` fixture để mock toàn bộ data fetching:
+
+```python
+@pytest.fixture
+def mock_data_fetcher(mock_ohlcv_data):
+    """Create a fully mocked DataFetcher that doesn't call real APIs."""
+    def fake_fetch(symbol, **kwargs):
+        limit = kwargs.get('limit', 200)
+        df = mock_ohlcv_data(periods=limit)
+        return df, "binance"
+    
+    return SimpleNamespace(
+        fetch_ohlcv_with_fallback_exchange=fake_fetch,
+    )
+```
+
+Sử dụng fixtures để mock toàn bộ data fetching:
+
+```python
+def test_my_backtest(mock_data_fetcher):
+    # mock_data_fetcher đã được mock, không gọi API
+    backtester = FullBacktester(mock_data_fetcher)
+    result = backtester.backtest(...)
+```
+
+### 2. Auto-mock Signal Calculators (Automatic)
+
+**File**: `tests/backtester/conftest.py`
+
+Fixture `auto_mock_signal_calculators` với `autouse=True` tự động mock tất cả signal calculators:
+
+- `get_range_oscillator_signal` → returns (1, 0.7)
+- `get_spc_signal` → returns (1, 0.6)
+- `get_xgboost_signal` → returns (1, 0.8)
+- `get_hmm_signal` → returns (1, 0.65)
+- `get_random_forest_signal` → returns (1, 0.75)
+
+**Không cần làm gì thêm** - fixture tự động được apply!
+
+**Lợi ích**:
+
+- ✅ Tự động apply cho tất cả tests
+- ✅ Không cần thêm code trong mỗi test
+- ✅ Có thể override khi cần
+
+### 3. Test Helpers
+
+**File**: `tests/backtester/test_helpers.py`
+
+Context managers để customize signals:
 
 ```python
 from tests.backtester.test_helpers import mock_all_signal_calculators, mock_no_signals
 
-# Mock với signals mặc định
-with mock_all_signal_calculators():
+# Custom signals
+with mock_all_signal_calculators(
+    osc_signal=1, osc_confidence=0.8,
+    spc_signal=-1, spc_confidence=0.6,  # SHORT
+):
     result = backtester.backtest(...)
 
-# Mock với no signals
+# No signals
 with mock_no_signals():
     result = backtester.backtest(...)
 ```
 
 ## Cách sử dụng
 
-### Option 1: Sử dụng fixtures tự động (Recommended)
-
-Fixtures trong `conftest.py` sẽ tự động được áp dụng cho tất cả tests:
+### Basic Test (Recommended)
 
 ```python
-def test_my_backtest(mock_data_fetcher):
-    # mock_signal_calculators đã được tự động apply
+def test_backtest_basic(mock_data_fetcher):
+    """Test với mock data và mock signals (automatic)."""
     backtester = FullBacktester(mock_data_fetcher)
-    result = backtester.backtest(...)
+    
+    result = backtester.backtest(
+        symbol="BTC/USDT",
+        timeframe="1h",
+        lookback=200,
+        signal_type="LONG",
+    )
+    
+    assert 'trades' in result
+    assert 'metrics' in result
 ```
 
-### Option 2: Sử dụng context managers
+**Không cần làm gì thêm** - `auto_mock_signal_calculators` đã tự động mock!
 
-Nếu cần customize signals:
+### Custom Signals
 
 ```python
-from tests.backtester.test_helpers import mock_all_signal_calculators
-
-def test_custom_signals(mock_data_fetcher):
+def test_backtest_custom_signals(mock_data_fetcher):
+    """Test với custom signals."""
+    from tests.backtester.test_helpers import mock_all_signal_calculators
+    
     with mock_all_signal_calculators(
-        osc_signal=1, osc_confidence=0.8,
-        spc_signal=-1, spc_confidence=0.6,  # SHORT signal
+        osc_signal=-1,  # SHORT signal
+        osc_confidence=0.9,
     ):
         backtester = FullBacktester(mock_data_fetcher)
         result = backtester.backtest(...)
 ```
 
-### Option 3: Manual patching
+### Override Signals khi cần
+
+```python
+def test_backtest_no_signals(mock_data_fetcher):
+    """Test với no signals."""
+    from tests.backtester.test_helpers import mock_no_signals
+    
+    with mock_no_signals():
+        backtester = FullBacktester(mock_data_fetcher)
+        result = backtester.backtest(...)
+        assert result['metrics']['num_trades'] == 0
+```
+
+### Custom Data
+
+```python
+def test_backtest_custom_data(mock_ohlcv_data):
+    """Test với custom OHLCV data."""
+    # Generate custom data
+    df = mock_ohlcv_data(
+        periods=500,
+        base_price=50000.0,
+        volatility=2.0  # High volatility
+    )
+    
+    def custom_fetch(symbol, **kwargs):
+        return df, "binance"
+    
+    fetcher = SimpleNamespace(
+        fetch_ohlcv_with_fallback_exchange=custom_fetch,
+    )
+    
+    backtester = FullBacktester(fetcher)
+    result = backtester.backtest(...)
+```
+
+### Manual Patching (Full Control)
 
 Nếu cần full control:
 
@@ -73,29 +173,16 @@ def test_manual_mock(mock_data_fetcher):
         result = backtester.backtest(...)
 ```
 
-## Mock Data Generation
+## Best Practices
 
-`mock_ohlcv_data` fixture tạo realistic OHLCV data:
-
-```python
-def test_with_custom_data(mock_ohlcv_data):
-    # Generate custom data
-    df = mock_ohlcv_data(periods=500, base_price=50000.0, volatility=1.0)
-    
-    def custom_fetch(symbol, **kwargs):
-        return df, "binance"
-    
-    fetcher = SimpleNamespace(
-        fetch_ohlcv_with_fallback_exchange=custom_fetch,
-    )
-    
-    backtester = FullBacktester(fetcher)
-    result = backtester.backtest(...)
-```
+1. **Luôn sử dụng mock_data_fetcher fixture** - không tạo DataFetcher thật trong tests
+2. **Không cần patch signal calculators** - đã được auto-mock
+3. **Override khi cần** - patch lại trong test nếu cần signals khác
+4. **Test với various scenarios** - sử dụng mock_ohlcv_data để tạo different data patterns
 
 ## Lưu ý
 
-1. **Autouse fixture**: `mock_signal_calculators` được set `autouse=True`, nghĩa là nó sẽ tự động được áp dụng cho tất cả tests trong thư mục này.
+1. **Autouse fixture**: `auto_mock_signal_calculators` được set `autouse=True`, nghĩa là nó sẽ tự động được áp dụng cho tất cả tests trong thư mục này.
 
 2. **Override khi cần**: Nếu test cần signals khác, có thể override bằng cách patch lại trong test function.
 
@@ -103,43 +190,92 @@ def test_with_custom_data(mock_ohlcv_data):
 
 4. **Fast execution**: Tests chạy nhanh vì không có network calls.
 
-## Alternative: Sử dụng CCXT với cached data
+## Alternative: CCXT với Cached Data
 
-Nếu muốn test với real data nhưng tránh rate limit, có thể:
+Nếu muốn test với real data (không recommended cho CI/CD):
 
-1. Cache data từ ccxt vào file
-2. Load cached data trong tests
-3. Chỉ fetch mới khi cache expired
+Xem file `CCXT_CACHED_DATA_EXAMPLE.py` để biết cách implement.
 
-Ví dụ implementation:
+**Lưu ý**:
 
-```python
-import ccxt
-import pickle
-from pathlib import Path
+- Vẫn có thể gặp rate limit lần đầu fetch
+- Cần network connection
+- Tests chạy chậm hơn
+- Không reliable cho CI/CD
 
-CACHE_DIR = Path("tests/cache")
+**Recommended**: Sử dụng mock data hoàn toàn như đã implement.
 
-def get_cached_ohlcv(symbol, timeframe, limit):
-    cache_file = CACHE_DIR / f"{symbol}_{timeframe}_{limit}.pkl"
-    
-    if cache_file.exists():
-        # Load from cache
-        with open(cache_file, 'rb') as f:
-            return pickle.load(f)
-    else:
-        # Fetch from exchange (no credentials needed for public data)
-        exchange = ccxt.binance()
-        ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
-        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        
-        # Cache it
-        cache_file.parent.mkdir(exist_ok=True)
-        with open(cache_file, 'wb') as f:
-            pickle.dump(df, f)
-        
-        return df
+## Kết quả
+
+### Trước khi fix
+
+- ❌ Tests gọi API thật → Rate limit errors
+- ❌ Tests chạy chậm (network latency)
+- ❌ Tests không reliable
+
+### Sau khi fix
+
+- ✅ Không còn API calls → Không còn rate limit
+- ✅ Tests chạy nhanh (no network)
+- ✅ Tests reliable và deterministic
+- ✅ Không cần API credentials
+- ✅ Có thể chạy offline
+
+## Verification
+
+Để verify rằng tests không còn gọi API:
+
+1. **Disconnect network** và chạy tests - should pass
+2. **Check logs** - không có network requests
+3. **Run tests multiple times** - không có rate limit errors
+
+## Troubleshooting
+
+### Test vẫn gọi API?
+
+1. Kiểm tra xem có import đúng fixtures không
+2. Đảm bảo `auto_mock_signal_calculators` fixture được load
+3. Kiểm tra xem có patch nào override không
+
+### Test fails với "rate limit"?
+
+1. Đảm bảo đang sử dụng `mock_data_fetcher` fixture
+2. Kiểm tra xem signal calculators có được mock không
+3. Thêm explicit patches nếu cần
+
+### Muốn test với real data?
+
+1. Sử dụng `CCXT_CACHED_DATA_EXAMPLE.py` approach
+2. Hoặc tạo fixture riêng với real DataFetcher (không recommended)
+
+## Files Structure
+
+```text
+tests/backtester/
+├── conftest.py              # Shared fixtures (auto-mock)
+├── test_helpers.py          # Helper utilities
+├── test_parallel_processing.py
+├── test_performance.py
+├── test_edge_cases.py
+├── test_dataframe_parameter.py  # DataFrame optimization tests
+├── README.md                # This file
+└── CCXT_CACHED_DATA_EXAMPLE.py  # Alternative approach
 ```
 
-Tuy nhiên, cách này vẫn có thể gặp rate limit nếu cache chưa có. **Recommended approach**: Sử dụng mock data hoàn toàn như đã implement.
+## Files đã được cập nhật
 
+### Tests đã fix
+
+- ✅ `tests/backtester/test_parallel_processing.py` - Thêm mock_signal_calculators
+- ✅ `tests/backtester/test_performance.py` - Thêm mock_signal_calculators
+- ✅ `tests/backtester/test_edge_cases.py` - Thêm explicit patches
+- ✅ `tests/backtester/test_dataframe_parameter.py` - DataFrame optimization tests
+- ✅ `tests/position_sizing/test_backtester.py` - Thêm explicit patches
+
+### Files mới
+
+- ✅ `tests/backtester/conftest.py` - Shared fixtures với auto-mock
+- ✅ `tests/backtester/test_helpers.py` - Helper utilities
+- ✅ `tests/backtester/README.md` - Documentation (this file)
+- ✅ `tests/backtester/CCXT_CACHED_DATA_EXAMPLE.py` - Alternative approach
+- ✅ `tests/position_sizing/conftest.py` - Shared fixtures cho position_sizing tests

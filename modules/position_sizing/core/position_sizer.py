@@ -122,12 +122,26 @@ class PositionSizer:
             log_progress(f"Calculating position size for {symbol} ({signal_type})...")
             log_progress(f"  Lookback: {lookback_days} days = {lookback_candles} candles ({timeframe})")
             
+            # Fetch data once to share between regime detection and backtest
+            log_progress(f"  Fetching data for {symbol}...")
+            df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol,
+                limit=lookback_candles,
+                timeframe=timeframe,
+                check_freshness=False,
+            )
+            
+            if df is None or df.empty:
+                log_warn(f"No data available for {symbol}")
+                return self._empty_result(symbol, signal_type)
+            
             # Step 1: Detect current regime
             log_progress(f"  Step 1: Detecting regime for {symbol}...")
             regime = self.regime_detector.detect_regime(
                 symbol=symbol,
                 timeframe=timeframe,
                 limit=lookback_candles,
+                df=df,
             )
             
             # #region agent log
@@ -156,6 +170,7 @@ class PositionSizer:
                 timeframe=timeframe,
                 lookback=lookback_candles,
                 signal_type=signal_type,
+                df=df,
             )
             
             # #region agent log

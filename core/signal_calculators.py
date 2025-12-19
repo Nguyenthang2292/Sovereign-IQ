@@ -13,6 +13,7 @@ from typing import Optional, Tuple
 import json
 import os
 import time
+import pandas as pd
 
 from modules.common.core.data_fetcher import DataFetcher
 from modules.range_oscillator.strategies.combined import (
@@ -69,18 +70,23 @@ def get_range_oscillator_signal(
     osc_length: int = 50,
     osc_mult: float = 2.0,
     strategies: Optional[list] = None,
+    df: Optional[pd.DataFrame] = None,
 ) -> Optional[Tuple[int, float]]:
     """Calculate Range Oscillator signal for a symbol."""
     # Wrap entire function in try-except to catch all exceptions
     try:
-        # Use check_freshness=False to avoid multiple fetch attempts and inconsistent results
-        # For signal calculation, we don't need the absolute latest data
-        df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol,
-            limit=limit,
-            timeframe=timeframe,
-            check_freshness=False,
-        )
+        # Use provided DataFrame if available, otherwise fetch from API
+        if df is None:
+            # Use check_freshness=False to avoid multiple fetch attempts and inconsistent results
+            # For signal calculation, we don't need the absolute latest data
+            df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol,
+                limit=limit,
+                timeframe=timeframe,
+                check_freshness=False,
+            )
+        else:
+            exchange_id = None
 
         if df is None or df.empty:
             return None
@@ -185,15 +191,18 @@ def get_spc_signal(
     strategy: str = "cluster_transition",
     strategy_params: Optional[dict] = None,
     clustering_config: Optional[ClusteringConfig] = None,
+    df: Optional[pd.DataFrame] = None,
 ) -> Optional[Tuple[int, float]]:
     """Calculate SPC signal for a symbol."""
     try:
-        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol,
-            limit=limit,
-            timeframe=timeframe,
-            check_freshness=False,
-        )
+        # Use provided DataFrame if available, otherwise fetch from API
+        if df is None:
+            df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol,
+                limit=limit,
+                timeframe=timeframe,
+                check_freshness=False,
+            )
 
         if df is None or df.empty:
             return None
@@ -284,15 +293,18 @@ def get_xgboost_signal(
     symbol: str,
     timeframe: str,
     limit: int,
+    df: Optional[pd.DataFrame] = None,
 ) -> Optional[Tuple[int, float]]:
     """Calculate XGBoost prediction signal for a symbol."""
     try:
-        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol,
-            limit=limit,
-            timeframe=timeframe,
-            check_freshness=False,
-        )
+        # Use provided DataFrame if available, otherwise fetch from API
+        if df is None:
+            df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol,
+                limit=limit,
+                timeframe=timeframe,
+                check_freshness=False,
+            )
 
         if df is None or df.empty:
             return None
@@ -361,6 +373,7 @@ def get_hmm_signal(
     slow_kama: Optional[int] = None,
     orders_argrelextrema: Optional[int] = None,
     strict_mode: Optional[bool] = None,
+    df: Optional[pd.DataFrame] = None,
 ) -> Optional[Tuple[int, float]]:
     """
     Calculate HMM signal for a symbol.
@@ -381,6 +394,7 @@ def get_hmm_signal(
         slow_kama: Slow KAMA parameter (default: from config)
         orders_argrelextrema: Order for swing detection (default: from config)
         strict_mode: Use strict mode for swing-to-state conversion (default: from config)
+        df: Optional DataFrame to use instead of fetching from API
     
     Returns:
         Tuple of (signal, confidence) where:
@@ -388,12 +402,14 @@ def get_hmm_signal(
         - confidence: Signal confidence (0.0 to 1.0)
     """
     try:
-        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol,
-            limit=limit,
-            timeframe=timeframe,
-            check_freshness=False,
-        )
+        # Use provided DataFrame if available, otherwise fetch from API
+        if df is None:
+            df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol,
+                limit=limit,
+                timeframe=timeframe,
+                check_freshness=False,
+            )
 
         if df is None or df.empty:
             return None
@@ -430,6 +446,7 @@ def get_random_forest_signal(
     timeframe: str,
     limit: int,
     model_path: Optional[str] = None,
+    df: Optional[pd.DataFrame] = None,
 ) -> Optional[Tuple[int, float]]:
     """
     Calculate Random Forest signal for a symbol.
@@ -440,6 +457,7 @@ def get_random_forest_signal(
         timeframe: Timeframe for data
         limit: Number of candles to fetch
         model_path: Optional path to model file (default: uses default path)
+        df: Optional DataFrame to use instead of fetching from API
     
     Returns:
         Tuple of (signal, confidence) where:
@@ -453,13 +471,14 @@ def get_random_forest_signal(
         if model is None:
             return None
         
-        # Fetch OHLCV data
-        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol,
-            limit=limit,
-            timeframe=timeframe,
-            check_freshness=False,
-        )
+        # Use provided DataFrame if available, otherwise fetch from API
+        if df is None:
+            df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol,
+                limit=limit,
+                timeframe=timeframe,
+                check_freshness=False,
+            )
         
         if df is None or df.empty:
             return None

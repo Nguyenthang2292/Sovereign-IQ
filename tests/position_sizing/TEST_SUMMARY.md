@@ -8,6 +8,7 @@ Các test cases này bao phủ các tính năng mới đã được implement:
 - GPU support cho XGBoost
 - Caching improvements
 - Performance monitoring
+- **DataFrame parameter optimization** (giảm số lần gọi API)
 
 ## Test Files
 
@@ -105,6 +106,45 @@ Các test cases này bao phủ các tính năng mới đã được implement:
 - `test_metrics_calculation_with_only_winning_trades`: Test với only wins
 - `test_metrics_calculation_with_only_losing_trades`: Test với only losses
 
+## DataFrame Optimization Tests
+
+### 9. `test_dataframe_optimization.py`
+**Mục đích**: Test DataFrame parameter optimization trong PositionSizing module
+
+**Test Cases**:
+- `test_position_sizer_fetches_data_once`: Verify PositionSizer fetch data một lần và chia sẻ
+- `test_regime_detector_with_dataframe_parameter`: Verify RegimeDetector nhận DataFrame parameter
+- `test_regime_detector_without_dataframe_parameter`: Verify backward compatibility cho RegimeDetector
+- `test_hybrid_signal_calculator_with_dataframe`: Verify HybridSignalCalculator sử dụng DataFrame
+- `test_position_sizer_dataframe_sharing`: Verify DataFrame được chia sẻ giữa RegimeDetector và Backtester
+- `test_backward_compatibility_position_sizer`: Verify backward compatibility cho PositionSizer
+
+### 10. `test_dataframe_integration.py`
+**Mục đích**: Integration tests cho DataFrame optimization flow
+
+**Test Cases**:
+- `test_end_to_end_dataframe_sharing`: Test end-to-end data sharing
+- `test_regime_detector_and_backtester_independent_dataframe`: Test các components hoạt động độc lập với DataFrame
+- `test_dataframe_consistency_across_components`: Verify consistency khi dùng cùng DataFrame
+- `test_performance_improvement_with_dataframe`: Verify performance improvement (ít API calls hơn)
+
+### 11. `tests/backtester/test_dataframe_parameter.py`
+**Mục đích**: Test DataFrame parameter trong FullBacktester
+
+**Test Cases**:
+- `test_backtest_with_dataframe_parameter`: Verify rằng khi truyền DataFrame, không fetch từ API
+- `test_backtest_without_dataframe_parameter`: Verify backward compatibility (không truyền df vẫn hoạt động)
+- `test_backtest_dataframe_vs_fetch_same_result`: Verify kết quả giống nhau khi dùng DataFrame vs fetch
+- `test_backtest_with_empty_dataframe`: Test với empty DataFrame
+- `test_backtest_dataframe_preserves_index`: Verify DataFrame index được preserve
+
+### 12. `tests/core/test_signal_calculators.py` (updated)
+**Mục đích**: Test indicator functions với DataFrame parameter
+
+**Test Cases** (thêm mới):
+- `test_get_range_oscillator_signal_with_dataframe_parameter`: Verify DataFrame parameter hoạt động
+- `test_get_range_oscillator_signal_backward_compatibility`: Verify backward compatibility
+
 ## Cách chạy tests
 
 ```bash
@@ -116,6 +156,17 @@ pytest tests/backtester/ -v
 
 # Chạy một test file cụ thể
 pytest tests/position_sizing/test_position_sizer.py -v
+
+# Chạy tests cho DataFrame optimization
+pytest tests/backtester/test_dataframe_parameter.py -v
+pytest tests/position_sizing/test_dataframe_optimization.py -v
+pytest tests/position_sizing/test_dataframe_integration.py -v
+
+# Chạy tests cho signal calculators (bao gồm DataFrame tests)
+pytest tests/core/test_signal_calculators.py -v
+
+# Chạy tất cả tests liên quan đến DataFrame optimization
+pytest tests/backtester/test_dataframe_parameter.py tests/position_sizing/test_dataframe_optimization.py tests/position_sizing/test_dataframe_integration.py -v
 
 # Chạy với coverage
 pytest tests/position_sizing/ --cov=modules.position_sizing --cov-report=html
@@ -132,6 +183,14 @@ Các test cases này bao phủ:
 - ✅ Error handling và edge cases
 - ✅ Performance monitoring
 - ✅ Integration workflows
+- ✅ **DataFrame parameter optimization**:
+  - ✅ Optional DataFrame parameter hoạt động đúng
+  - ✅ Backward compatibility (code cũ vẫn hoạt động)
+  - ✅ DataFrame được sử dụng thay vì fetch API khi được truyền vào
+  - ✅ PositionSizer fetch data một lần và chia sẻ
+  - ✅ RegimeDetector và Backtester nhận optional DataFrame
+  - ✅ Performance improvement (giảm số lần gọi API)
+  - ✅ Integration giữa các components với DataFrame
 
 ## Notes
 
@@ -139,4 +198,8 @@ Các test cases này bao phủ:
 - GPU tests có thể không chạy được nếu không có GPU, nhưng vẫn test logic
 - Parallel processing tests có thể chạy chậm hơn do overhead của multiprocessing
 - Một số tests yêu cầu HMM module được setup đúng cách
+- **DataFrame optimization tests**:
+  - Tất cả tests sử dụng mocks để tránh gọi API thực sự
+  - Tests verify cả behavior mới (với DataFrame) và backward compatibility (không có DataFrame)
+  - Performance tests verify rằng số lần gọi API giảm khi sử dụng DataFrame
 
