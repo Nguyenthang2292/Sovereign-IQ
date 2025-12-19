@@ -47,6 +47,7 @@ from modules.common.core.indicator_engine import (
 )
 from modules.xgboost.labeling import apply_directional_labels
 from modules.xgboost.model import train_and_predict, predict_next_move
+from modules.atr_targets import calculate_atr_targets, format_atr_target_display
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
@@ -143,13 +144,10 @@ def main():
 
             if direction == "UP":
                 direction_color = Fore.GREEN
-                atr_sign = 1
             elif direction == "DOWN":
                 direction_color = Fore.RED
-                atr_sign = -1
             else:
                 direction_color = Fore.YELLOW
-                atr_sign = 0
 
             print(
                 color_text(
@@ -211,18 +209,22 @@ def main():
                         Style.BRIGHT,
                     )
                 )
-                for multiple in (1, 2, 3):
-                    target_price = current_price + atr_sign * multiple * atr
-                    move_abs = abs(target_price - current_price)
-                    move_pct = (
-                        (move_abs / current_price) * 100 if current_price else None
-                    )
-                    move_pct_text = (
-                        f"{move_pct:.2f}%" if move_pct is not None else "N/A"
+                # Tính toán ATR targets sử dụng module mới
+                atr_targets = calculate_atr_targets(
+                    current_price=current_price,
+                    atr=atr,
+                    direction=direction,
+                    multiples=[1, 2, 3],
+                )
+                # Hiển thị kết quả
+                for target_result in atr_targets:
+                    display_text = format_atr_target_display(
+                        target_result,
+                        format_price_func=format_price,
                     )
                     print(
                         color_text(
-                            f"  ATR x{multiple}: {format_price(target_price)} | Delta {format_price(move_abs)} ({move_pct_text})",
+                            display_text,
                             Fore.MAGENTA,
                         )
                     )
