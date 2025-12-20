@@ -9,6 +9,8 @@ Indicators:
     2. Range Oscillator: Overbought/oversold zone detection
     3. SPC (Simplified Percentile Clustering): Percentile-based clustering (3 strategies)
     4. XGBoost (optional): Machine learning prediction
+    5. HMM (optional): Hidden Markov Model signal prediction
+    6. Random Forest (optional): Random Forest model prediction
 
 Workflow:
     1. Run ATC auto scan to find initial LONG/SHORT signals

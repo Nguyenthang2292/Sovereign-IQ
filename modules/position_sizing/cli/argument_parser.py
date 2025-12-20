@@ -17,6 +17,7 @@ from config.position_sizing import (
     DEFAULT_LOOKBACK_DAYS,
     DEFAULT_TIMEFRAME,
     DEFAULT_MAX_POSITION_SIZE,
+    SIGNAL_CALCULATION_MODE,
 )
 
 
@@ -136,6 +137,22 @@ def parse_args():
         type=float,
         default=DEFAULT_MAX_POSITION_SIZE,
         help=f'Maximum position size as fraction of account (default: {DEFAULT_MAX_POSITION_SIZE} = {DEFAULT_MAX_POSITION_SIZE*100:.0f}% of account balance)',
+    )
+    
+    # Signal calculation settings
+    parser.add_argument(
+        '--signal-mode',
+        type=str,
+        choices=['majority_vote', 'single_signal'],
+        default='single_signal',
+        help='Signal calculation mode: single_signal (default, highest confidence) or majority_vote',
+    )
+    parser.add_argument(
+        '--signal-calculation-mode',
+        type=str,
+        choices=['precomputed', 'incremental'],
+        default=SIGNAL_CALCULATION_MODE,
+        help='Signal calculation approach: precomputed (default, calculate all signals first) or incremental (skip when position open)',
     )
     
     # Output options

@@ -6,7 +6,7 @@ Bayesian Kelly Criterion and Regime Switching.
 """
 
 # Backtest Configuration
-DEFAULT_LOOKBACK_DAYS = 90  # Number of days to look back for backtesting
+DEFAULT_LOOKBACK_DAYS = 15  # Number of days to look back for backtesting
 DEFAULT_TIMEFRAME = "1h"  # Default timeframe for backtesting
 DEFAULT_LIMIT = 1500  # Default number of candles to fetch for backtesting
 
@@ -45,6 +45,7 @@ BACKTEST_STOP_LOSS_PCT = 0.02  # 2% stop loss
 BACKTEST_TAKE_PROFIT_PCT = 0.04  # 4% take profit
 BACKTEST_TRAILING_STOP_PCT = 0.015  # 1.5% trailing stop
 BACKTEST_MAX_HOLD_PERIODS = 100  # Maximum periods to hold a position
+BACKTEST_RISK_PER_TRADE = 0.01  # 1% risk per trade for equity curve calculation
 
 # Performance Metrics Thresholds
 MIN_SHARPE_RATIO = 0.5  # Minimum Sharpe ratio to consider position
@@ -58,15 +59,16 @@ SUPPORTED_EXPORT_FORMATS = ["csv", "json"]  # Supported export formats
 # Hybrid Signal Configuration
 # Enabled indicators for hybrid signal calculation
 ENABLED_INDICATORS = [
+    'adaptive_trend',
+    'hmm',
     'range_oscillator',
+    'random_forest',
     'spc',
     'xgboost',
-    'hmm',
-    'random_forest',
 ]
 
 # Signal calculation mode
-SIGNAL_CALCULATION_MODE = "rolling"  # "rolling" or "batch" (default: "rolling" for walk-forward testing)
+SIGNAL_CALCULATION_MODE = "precomputed"  # "precomputed" (default) or "incremental" (skip when position open)
 
 # Signal combination mode
 SIGNAL_COMBINATION_MODE = "majority_vote"  # "majority_vote", "weighted_voting", "consensus"
@@ -92,23 +94,16 @@ BATCH_SIZE = None  # Batch size for periods (None = auto-calculate)
 USE_GPU = True  # Enable GPU acceleration if available (auto-detect)
 ENABLE_MULTITHREADING = True  # Enable multithreading for I/O operations
 
-# GPU Detection Helper
+# Debug and Performance Configuration
+ENABLE_DEBUG_LOGGING = False  # Enable debug logging (set to False for production to improve performance)
+OPTIMIZE_BATCH_SIZE = True  # Automatically optimize batch size based on DataFrame size and CPU count
+
+# GPU Detection Helper (imported from common utils)
+from modules.common.utils import detect_gpu_availability
+
 def _detect_gpu_availability() -> bool:
-    """Detect if GPU is available for XGBoost."""
-    if not USE_GPU:
-        return False
-    try:
-        import xgboost as xgb
-        # Check if GPU is available by trying to get device info
-        # This is a lightweight check that doesn't create a model
-        try:
-            # XGBoost 2.0+ has device parameter support
-            # We'll try to detect GPU availability at runtime instead
-            return True  # Will be checked more thoroughly at runtime
-        except Exception:
-            return False
-    except ImportError:
-        return False
+    """Detect if GPU is available for XGBoost (wrapper for common utility)."""
+    return detect_gpu_availability(use_gpu=USE_GPU)
 
 # Lazy evaluation - only check when actually needed
 GPU_AVAILABLE = None  # Will be set on first use
@@ -116,4 +111,18 @@ GPU_AVAILABLE = None  # Will be set on first use
 # Performance Monitoring
 ENABLE_PERFORMANCE_PROFILING = False  # Enable detailed performance profiling
 LOG_PERFORMANCE_METRICS = True  # Log performance metrics to console
+
+# Cache Configuration
+SIGNAL_CACHE_MAX_SIZE = 200  # Maximum number of cached signals (LRU cache)
+INDICATOR_CACHE_MAX_SIZE = 500  # Maximum number of cached indicator results (LRU cache)
+DATA_CACHE_MAX_SIZE = 10  # Maximum number of cached DataFrames
+
+# Memory Optimization
+USE_EFFICIENT_DTYPES = True  # Use float32 instead of float64 where precision allows
+CLEAR_CACHE_ON_COMPLETE = False  # Clear caches after backtest completes (saves memory)
+
+# Performance Tuning
+MIN_BATCH_SIZE = 50  # Minimum batch size for parallel processing
+MAX_BATCH_SIZE = 5000  # Maximum batch size for parallel processing
+BATCH_SIZE_OVERHEAD_FACTOR = 4  # Factor for calculating optimal batch size (higher = smaller batches)
 

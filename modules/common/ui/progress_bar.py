@@ -19,10 +19,16 @@ class ProgressBar:
 
     def __init__(self, total: int, label: str = "Progress", width: int = 30):
         self.total = max(total, 1)
+        self.base_label = label
         self.label = label
         self.width = width
         self.current = 0
         self._lock = threading.Lock()
+    
+    def set_label(self, label: str):
+        """Update the label dynamically."""
+        with self._lock:
+            self.label = label
 
     def update(self, step: int = 1):
         """

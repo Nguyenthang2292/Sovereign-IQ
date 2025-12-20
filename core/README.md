@@ -11,6 +11,8 @@ Cả hai analyzer đều sử dụng các indicators sau:
 2. **Range Oscillator**: Xác định vùng quá mua/quá bán
 3. **SPC (Simplified Percentile Clustering)**: Phân cụm dựa trên percentile (3 strategies)
 4. **XGBoost** (optional): Machine learning prediction
+5. **HMM** (optional): Hidden Markov Model signal prediction
+6. **Random Forest** (optional): Random Forest model prediction
 
 ## HybridAnalyzer (Phương án 1)
 
@@ -46,7 +48,9 @@ Kết hợp **sequential filtering** và **voting system**. Lọc từng bước
       ├─ Tính Regime Following signal
       └─ Tính Mean Reversion signal
    └─ Tính XGBoost signal (if enabled)
-   └─ Kết quả: Thêm SPC và XGBoost signals vào DataFrame
+   └─ Tính HMM signal (if enabled)
+   └─ Tính Random Forest signal (if enabled)
+   └─ Kết quả: Thêm SPC, XGBoost, HMM và Random Forest signals vào DataFrame
 
 6. Apply Decision Matrix voting (if enabled) ⭐
    └─ Với mỗi symbol:
@@ -54,7 +58,9 @@ Kết hợp **sequential filtering** và **voting system**. Lọc từng bước
       │  ├─ ATC vote (luôn = 1 vì đã pass ATC scan)
       │  ├─ Oscillator vote (1 nếu khớp, 0 nếu không)
       │  ├─ SPC vote (aggregated từ 3 strategies)
-      │  └─ XGBoost vote (nếu enabled)
+      │  ├─ XGBoost vote (nếu enabled)
+      │  ├─ HMM vote (nếu enabled)
+      │  └─ Random Forest vote (nếu enabled)
       ├─ Áp dụng Decision Matrix với weighted voting
       └─ Chỉ giữ lại symbols có cumulative_vote = 1
    └─ Kết quả: long_signals_confirmed, short_signals_confirmed (đã được filter)
@@ -125,7 +131,9 @@ analyzer.run()
       │  ├─ Cluster Transition signal
       │  ├─ Regime Following signal
       │  └─ Mean Reversion signal
-      └─ Tính XGBoost signal, vote, confidence (nếu enabled)
+      ├─ Tính XGBoost signal, vote, confidence (nếu enabled)
+      ├─ Tính HMM signal, vote, confidence (nếu enabled)
+      └─ Tính Random Forest signal, vote, confidence (nếu enabled)
    └─ Kết quả: DataFrame với tất cả signals và votes
 
 5. Apply voting system ⭐
@@ -135,7 +143,9 @@ analyzer.run()
       │  ├─ ATC vote + strength
       │  ├─ Oscillator vote + confidence
       │  ├─ SPC vote (aggregated từ 3 strategies) + strength
-      │  └─ XGBoost vote + confidence (nếu enabled)
+      │  ├─ XGBoost vote + confidence (nếu enabled)
+      │  ├─ HMM vote + confidence (nếu enabled)
+      │  └─ Random Forest vote + confidence (nếu enabled)
       ├─ Tính weighted impact và cumulative vote
       └─ Chỉ giữ lại symbols có cumulative_vote = 1
    └─ Kết quả: long_signals_final, short_signals_final
@@ -210,6 +220,8 @@ Cả hai analyzer đều sử dụng:
   - `get_range_oscillator_signal()`: Tính Range Oscillator signal
   - `get_spc_signal()`: Tính SPC signal cho một strategy
   - `get_xgboost_signal()`: Tính XGBoost prediction
+  - `get_hmm_signal()`: Tính HMM signal prediction
+  - `get_random_forest_signal()`: Tính Random Forest prediction
 
 - **`modules.decision_matrix.classifier.DecisionMatrixClassifier`**:
   - Voting system với weighted impact và cumulative vote

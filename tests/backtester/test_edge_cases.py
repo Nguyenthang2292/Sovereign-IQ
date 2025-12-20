@@ -181,7 +181,9 @@ def test_equity_curve_calculation(mock_data_fetcher):
         },
     ]
     
-    equity_curve = backtester._calculate_equity_curve(
+    from modules.backtester.core.equity_curve import calculate_equity_curve
+    
+    equity_curve = calculate_equity_curve(
         trades=trades,
         initial_capital=10000.0,
         num_periods=100,
@@ -194,9 +196,9 @@ def test_equity_curve_calculation(mock_data_fetcher):
 
 def test_metrics_calculation_with_no_trades(mock_data_fetcher):
     """Test metrics calculation when there are no trades."""
-    backtester = FullBacktester(mock_data_fetcher)
+    from modules.backtester.core.metrics import calculate_metrics
     
-    metrics = backtester._calculate_metrics(
+    metrics = calculate_metrics(
         trades=[],
         equity_curve=pd.Series([10000.0] * 100),
     )
@@ -209,7 +211,7 @@ def test_metrics_calculation_with_no_trades(mock_data_fetcher):
 
 def test_metrics_calculation_with_only_winning_trades(mock_data_fetcher):
     """Test metrics calculation with only winning trades."""
-    backtester = FullBacktester(mock_data_fetcher)
+    from modules.backtester.core.metrics import calculate_metrics
     
     trades = [
         {'pnl': 0.05, 'entry_index': 0, 'exit_index': 10},
@@ -219,7 +221,7 @@ def test_metrics_calculation_with_only_winning_trades(mock_data_fetcher):
     
     equity_curve = pd.Series([10000.0 + i * 10 for i in range(100)])
     
-    metrics = backtester._calculate_metrics(trades, equity_curve)
+    metrics = calculate_metrics(trades, equity_curve)
     
     assert metrics['win_rate'] == 1.0
     assert metrics['num_trades'] == 3
@@ -228,7 +230,7 @@ def test_metrics_calculation_with_only_winning_trades(mock_data_fetcher):
 
 def test_metrics_calculation_with_only_losing_trades(mock_data_fetcher):
     """Test metrics calculation with only losing trades."""
-    backtester = FullBacktester(mock_data_fetcher)
+    from modules.backtester.core.metrics import calculate_metrics
     
     trades = [
         {'pnl': -0.05, 'entry_index': 0, 'exit_index': 10},
@@ -237,7 +239,7 @@ def test_metrics_calculation_with_only_losing_trades(mock_data_fetcher):
     
     equity_curve = pd.Series([10000.0 - i * 10 for i in range(100)])
     
-    metrics = backtester._calculate_metrics(trades, equity_curve)
+    metrics = calculate_metrics(trades, equity_curve)
     
     assert metrics['win_rate'] == 0.0
     assert metrics['num_trades'] == 2

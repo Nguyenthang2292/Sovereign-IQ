@@ -17,6 +17,10 @@ from modules.random_forest.core.evaluation import (
     apply_confidence_threshold,
     calculate_and_display_metrics,
 )
+from modules.random_forest.core.decision_matrix_integration import (
+    calculate_random_forest_vote,
+    get_random_forest_signal_for_decision_matrix,
+)
 
 __all__ = [
     "load_random_forest_model",
@@ -26,5 +30,7 @@ __all__ = [
     "evaluate_model_with_confidence",
     "apply_confidence_threshold",
     "calculate_and_display_metrics",
+    "calculate_random_forest_vote",
+    "get_random_forest_signal_for_decision_matrix",
 ]
 

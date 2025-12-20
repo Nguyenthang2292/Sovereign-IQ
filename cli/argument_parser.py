@@ -123,6 +123,14 @@ def interactive_config_menu(mode="hybrid"):
     config.hmm_orders_argrelextrema = HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT
     config.hmm_strict_mode = HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
     
+    # 5c. Random Forest configuration (optional)
+    print("\n" + color_text("5c. RANDOM FOREST CONFIGURATION (Optional)", Fore.YELLOW, Style.BRIGHT))
+    enable_rf_input = prompt_user_input("Enable Random Forest prediction? (y/n) [n]: ", default="n")
+    config.enable_random_forest = enable_rf_input.lower() in ['y', 'yes']
+    
+    # Random Forest model path: use default (not shown in menu)
+    config.random_forest_model_path = None  # Uses default path from config
+    
     # 6. Decision Matrix configuration
     print("\n" + color_text(decision_matrix_title, Fore.YELLOW, Style.BRIGHT))
     if decision_matrix_note:
@@ -165,6 +173,12 @@ def interactive_config_menu(mode="hybrid"):
         config.hmm_orders_argrelextrema = HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT
     if not hasattr(config, 'hmm_strict_mode'):
         config.hmm_strict_mode = HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
+    
+    # Set default Random Forest values if not enabled
+    if not hasattr(config, 'enable_random_forest'):
+        config.enable_random_forest = False
+    if not hasattr(config, 'random_forest_model_path'):
+        config.random_forest_model_path = None
     
     return config
 
@@ -353,6 +367,19 @@ def parse_args(mode="hybrid", force_enable_spc=True, force_enable_decision_matri
         const=True,
         default=None,
         help=f"Use strict mode for HMM swing-to-state conversion (default: {HMM_HIGH_ORDER_STRICT_MODE_DEFAULT})",
+    )
+    
+    # Random Forest configuration (optional)
+    parser.add_argument(
+        "--enable-random-forest",
+        action="store_true",
+        help="Enable Random Forest prediction in Decision Matrix (default: False)",
+    )
+    parser.add_argument(
+        "--random-forest-model-path",
+        type=str,
+        default=None,
+        help="Path to Random Forest model file (default: uses default path from config)",
     )
     
     # Decision Matrix options

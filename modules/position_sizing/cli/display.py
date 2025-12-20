@@ -62,6 +62,26 @@ def display_position_sizing_results(df: pd.DataFrame) -> None:
     print(display_df.to_string(index=False))
     print(color_text("=" * 120, Fore.CYAN, Style.BRIGHT))
     
+    # Display trades table for each symbol
+    if 'backtest_result' in df.columns:
+        for _, row in df.iterrows():
+            symbol = row.get('symbol', 'N/A')
+            backtest_result = row.get('backtest_result', {})
+            if isinstance(backtest_result, dict):
+                trades = backtest_result.get('trades', [])
+                if trades and len(trades) > 0:
+                    try:
+                        display_trades_table(symbol, trades)
+                    except Exception as e:
+                        print(color_text(f"\nError displaying trades for {symbol}: {e}", Fore.RED))
+            elif hasattr(backtest_result, 'get'):  # Handle other dict-like objects
+                trades = backtest_result.get('trades', []) if hasattr(backtest_result, 'get') else []
+                if trades and len(trades) > 0:
+                    try:
+                        display_trades_table(symbol, trades)
+                    except Exception as e:
+                        print(color_text(f"\nError displaying trades for {symbol}: {e}", Fore.RED))
+    
     # Display metrics summary
     if 'metrics' in df.columns:
         print("\n" + color_text("PERFORMANCE METRICS", Fore.CYAN, Style.BRIGHT))
@@ -98,6 +118,155 @@ def display_position_sizing_results(df: pd.DataFrame) -> None:
         print(f"Total Exposure: {color_text(f'{total_exposure_pct:.2f}%', Fore.YELLOW)}")
         print(f"Number of Positions: {color_text(str(len(df)), Fore.WHITE)}")
         print(color_text("-" * 120, Fore.CYAN))
+
+
+def get_exit_reason_color(exit_reason: str, pnl: float = 0.0) -> Fore:
+    """
+    Get color for exit reason.
+    
+    Args:
+        exit_reason: Exit reason string
+        pnl: Profit and loss value (used for TRAILING_STOP coloring)
+        
+    Returns:
+        Colorama Fore color constant
+    """
+    # Check if LIGHTBLACK_EX exists, otherwise use WHITE for gray effect
+    end_of_data_color = Fore.LIGHTBLACK_EX if hasattr(Fore, 'LIGHTBLACK_EX') else Fore.WHITE
+    
+    exit_reason_upper = exit_reason.upper()
+    
+    # TRAILING_STOP: green if profit, red if loss
+    if exit_reason_upper == "TRAILING_STOP":
+        return Fore.GREEN if pnl > 0 else Fore.RED if pnl < 0 else Fore.YELLOW
+    
+    color_map = {
+        "STOP_LOSS": Fore.RED,
+        "TAKE_PROFIT": Fore.GREEN,
+        "MAX_HOLD": Fore.WHITE,
+        "END_OF_DATA": end_of_data_color,
+    }
+    return color_map.get(exit_reason_upper, Fore.WHITE)
+
+
+def display_trades_table(symbol: str, trades: list) -> None:
+    """
+    Display trades table with PnL for a symbol.
+    
+    Args:
+        symbol: Trading pair symbol
+        trades: List of trade dictionaries from backtest
+    """
+    if not trades:
+        return
+    
+    try:
+        import sys
+        print("\n" + color_text(f"TRADES DETAIL - {symbol}", Fore.CYAN, Style.BRIGHT))
+        print(color_text("-" * 120, Fore.CYAN))
+        
+        # Prepare trades data for display
+        trades_rows = []
+        trades_pnl_map = {}  # Map to store PnL by row index for coloring
+        for i, trade in enumerate(trades, 1):
+            try:
+                entry_time = trade.get('entry_time', 'N/A')
+                exit_time = trade.get('exit_time', 'N/A')
+                entry_price = trade.get('entry_price', 0.0)
+                exit_price = trade.get('exit_price', 0.0)
+                pnl_pct = trade.get('pnl_pct', 0.0)
+                pnl = trade.get('pnl', 0.0)
+                exit_reason = trade.get('exit_reason', 'N/A')
+                hold_periods = trade.get('hold_periods', 0)
+                signal_type = trade.get('signal_type', 'N/A')
+                
+                # Format times (if they're timestamps)
+                if hasattr(entry_time, 'strftime'):
+                    entry_time = entry_time.strftime('%Y-%m-%d %H:%M')
+                elif entry_time != 'N/A':
+                    entry_time = str(entry_time)
+                if hasattr(exit_time, 'strftime'):
+                    exit_time = exit_time.strftime('%Y-%m-%d %H:%M')
+                elif exit_time != 'N/A':
+                    exit_time = str(exit_time)
+                
+                # Determine PnL color
+                pnl_color = Fore.GREEN if pnl > 0 else Fore.RED if pnl < 0 else Fore.WHITE
+                pnl_sign = "+" if pnl > 0 else ""
+                
+                row_idx = len(trades_rows)  # Index in trades_rows (before append)
+                trades_rows.append({
+                    '#': i,
+                    'Entry Time': str(entry_time),
+                    'Exit Time': str(exit_time),
+                    'Entry Price': f"{float(entry_price):.2f}",
+                    'Exit Price': f"{float(exit_price):.2f}",
+                    'PnL %': f"{pnl_sign}{pnl_pct:.2f}%",
+                    'Hold': f"{int(hold_periods)}",
+                    'Exit Reason': str(exit_reason),
+                })
+                # Store PnL for this row index
+                trades_pnl_map[row_idx] = pnl
+            except Exception as e:
+                continue  # Skip this trade if there's an error
+        
+        if trades_rows:
+            trades_df = pd.DataFrame(trades_rows)
+            # Display trades table with row coloring based on exit_reason
+            # First, get the formatted table string to preserve column widths
+            table_str = trades_df.to_string(index=False)
+            table_lines = table_str.split('\n')
+            
+            # Print header (first line)
+            if table_lines:
+                print(table_lines[0])
+            
+            # Print data rows with color based on exit_reason
+            # Get PnL from trades_pnl_map for TRAILING_STOP coloring
+            for idx, row in trades_df.iterrows():
+                exit_reason = row.get('Exit Reason', 'N/A')
+                # Get PnL from trades_pnl_map using DataFrame index
+                trade_pnl = trades_pnl_map.get(idx, 0.0)
+                
+                row_color = get_exit_reason_color(exit_reason, trade_pnl)
+                
+                # Format the row to match the table format
+                # Get the row as a formatted string (skip header, idx+1 because header is at index 0)
+                if idx + 1 < len(table_lines):
+                    row_str = table_lines[idx + 1]
+                    print(color_text(row_str, row_color))
+            
+            # Calculate summary
+            total_pnl = sum(t.get('pnl', 0.0) for t in trades)
+            total_pnl_pct = sum(t.get('pnl_pct', 0.0) for t in trades)
+            winning_trades = [t for t in trades if t.get('pnl', 0.0) > 0]
+            losing_trades = [t for t in trades if t.get('pnl', 0.0) < 0]
+            
+            print(color_text("-" * 120, Fore.CYAN), flush=True)
+            # Color summary based on win/loss ratio
+            total_trades_str = f"Total Trades: {len(trades)}"
+            winning_count = len(winning_trades)
+            losing_count = len(losing_trades)
+            
+            # Determine overall color: green if more wins, red if more losses, yellow if equal
+            if winning_count > losing_count:
+                summary_color = Fore.GREEN
+            elif losing_count > winning_count:
+                summary_color = Fore.RED
+            else:
+                summary_color = Fore.YELLOW
+            
+            print(color_text(total_trades_str, summary_color), end=" | ", flush=True)
+            print(f"Winning: {color_text(str(winning_count), Fore.GREEN)} | ", end="", flush=True)
+            print(f"Losing: {color_text(str(losing_count), Fore.RED)}", flush=True)
+            
+            total_pnl_sign = "+" if total_pnl > 0 else ""
+            total_pnl_color = Fore.GREEN if total_pnl > 0 else Fore.RED if total_pnl < 0 else Fore.WHITE
+            print(f"Total PnL: {color_text(f'{total_pnl_sign}{total_pnl_pct:.2f}%', total_pnl_color)}", flush=True)
+            print(color_text("-" * 120, Fore.CYAN), flush=True)
+            sys.stdout.flush()
+    except Exception as e:
+        print(color_text(f"\nError displaying trades table for {symbol}: {e}", Fore.RED))
 
 
 def display_configuration(config: dict) -> None:

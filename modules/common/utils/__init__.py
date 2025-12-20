@@ -9,7 +9,7 @@ to continue working.
 """
 
 # System utilities
-from .system import configure_windows_stdio
+from .system import configure_windows_stdio, detect_gpu_availability
 
 # Data utilities
 from .data import dataframe_to_close_series, validate_ohlcv_input
@@ -39,6 +39,7 @@ from ..ui.logging import (
 __all__ = [
     # System
     "configure_windows_stdio",
+    "detect_gpu_availability",
     # Data
     "dataframe_to_close_series",
     "validate_ohlcv_input",

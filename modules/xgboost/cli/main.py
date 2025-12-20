@@ -47,7 +47,7 @@ from modules.common.core.indicator_engine import (
 )
 from modules.xgboost.labeling import apply_directional_labels
 from modules.xgboost.model import train_and_predict, predict_next_move
-from modules.atr_targets import calculate_atr_targets, format_atr_target_display
+from modules.targets import calculate_atr_targets, format_atr_target_display
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")

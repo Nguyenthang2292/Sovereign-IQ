@@ -147,8 +147,21 @@ Simulate trading với:
 - Stop loss (2%), Take profit (4%), Trailing stop (1.5%)
 - Track trades và PnL
 - Calculate performance metrics (win rate, Sharpe ratio, max drawdown)
+- **Position-Aware Skipping**: Skip signal calculation khi position đang mở để tiết kiệm thời gian (incremental mode)
 
 **Note**: FullBacktester is now a separate module at `modules/backtester` and can be used independently.
+
+**Signal Calculation Modes**:
+- **Precomputed Mode** (default): Tính tất cả signals trước, sau đó simulate trades
+- **Incremental Mode**: Tính signals từng period và skip khi position đang mở (tiết kiệm thời gian)
+
+```python
+# Use incremental mode for faster backtesting when positions are held for long periods
+backtester = FullBacktester(
+    data_fetcher=data_fetcher,
+    signal_calculation_mode='incremental',  # Skip signal calculation when position open
+)
+```
 
 ### 3. BayesianKellyCalculator
 

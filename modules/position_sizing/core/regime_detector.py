@@ -104,19 +104,14 @@ class RegimeDetector:
                 orders_argrelextrema=self.orders_argrelextrema,
                 strict_mode=self.strict_mode,
             )
+            # #region agent log
+            import json
+            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json.dumps({"id": f"log_hmm_result_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "regime_detector.py:106", "message": "HMM result received", "data": {"symbol": symbol, "next_state": getattr(result, 'next_state_with_high_order_hmm', None), "next_state_type": str(type(getattr(result, 'next_state_with_high_order_hmm', None))), "result_type": str(type(result)), "result_has_next_state": bool(hasattr(result, 'next_state_with_high_order_hmm'))}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C"}) + '\n')
+            # #endregion
             
             # Convert HMM state to regime string
             next_state = result.next_state_with_high_order_hmm
-            
-            # #region agent log
-            import json
-            import os
-            log_path = r"d:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log"
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"id": f"log_hmm_result_{os.getpid()}", "timestamp": pd.Timestamp.now().timestamp() * 1000, "location": "regime_detector.py:106", "message": "HMM result received", "data": {"symbol": symbol, "next_state": next_state, "next_state_type": str(type(next_state)), "result_type": str(type(result)), "result_has_next_state": hasattr(result, 'next_state_with_high_order_hmm')}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C"}) + "\n")
-            except: pass
-            # #endregion
             
             if next_state == BULLISH:
                 return "BULLISH"

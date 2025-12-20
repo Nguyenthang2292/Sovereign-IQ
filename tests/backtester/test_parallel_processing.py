@@ -33,7 +33,7 @@ def test_parallel_processing_enabled(mock_data_fetcher):
 def test_parallel_processing_fallback(mock_data_fetcher):
     """Test that parallel processing falls back to sequential on error."""
     with patch('config.position_sizing.ENABLE_PARALLEL_PROCESSING', True):
-        with patch('modules.backtester.core.backtester.Pool') as mock_pool:
+        with patch('modules.backtester.core.signal_calculator.Pool') as mock_pool:
             # Simulate multiprocessing error
             mock_pool.side_effect = Exception("Multiprocessing error")
             
@@ -71,7 +71,7 @@ def test_sequential_processing_for_small_datasets(mock_data_fetcher):
 
 def test_batch_processing_worker_function():
     """Test the batch processing worker function."""
-    from modules.backtester.core.backtester import _calculate_signal_batch_worker
+    from modules.backtester.core.parallel_workers import calculate_signal_batch_worker as _calculate_signal_batch_worker
     import pickle
     
     # Create sample DataFrame
