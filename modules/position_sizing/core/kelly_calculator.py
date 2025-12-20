@@ -94,11 +94,11 @@ class BayesianKellyCalculator:
             return 0.0
         
         if win_rate < self.min_win_rate:
-            log_warn(f"Win rate too low ({win_rate:.2f} < {self.min_win_rate}). Returning 0.0")
+            log_warn(f"Win rate too low ({win_rate:.2%} < {self.min_win_rate:.2%}). Returning 0.0")
             return 0.0
         
         if avg_win <= 0 or avg_loss <= 0:
-            log_warn(f"Invalid avg_win ({avg_win}) or avg_loss ({avg_loss}). Returning 0.0")
+            log_warn(f"Invalid avg_win ({avg_win:.6f}) or avg_loss ({avg_loss:.6f}). Returning 0.0")
             return 0.0
         
         try:
@@ -127,57 +127,27 @@ class BayesianKellyCalculator:
             if lower_bound < 0.1 or (num_trades < 20 and lower_bound < posterior_mean * 0.7):
                 # For small samples or very low lower bounds, use posterior mean with a small discount
                 conservative_win_rate = posterior_mean * 0.9  # 10% discount from mean for safety
-                # #region agent log
-                import json
-                with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"id": f"log_kelly_lower_bound_adjusted_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:125", "message": "lower bound too conservative, using adjusted mean", "data": {"lower_bound": lower_bound, "posterior_mean": posterior_mean, "num_trades": num_trades, "adjusted_win_rate": conservative_win_rate}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-                # #endregion
             else:
                 conservative_win_rate = lower_bound
-            # #region agent log
-            import json
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_kelly_bayesian_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:125", "message": "bayesian kelly calculation", "data": {"num_wins": num_wins, "num_losses": num_losses, "posterior_alpha": posterior_alpha, "posterior_beta": posterior_beta, "posterior_mean": posterior_mean, "lower_bound": lower_bound, "upper_bound": upper_bound, "conservative_win_rate": conservative_win_rate}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-            # #endregion
             
             # Calculate Kelly fraction: f* = (p * b - q) / b
             # where p = win_rate, q = 1 - p, b = avg_win / avg_loss
             b = avg_win / avg_loss  # Win/loss ratio
             p = conservative_win_rate
             q = 1 - p
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_kelly_formula_input_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:132", "message": "kelly formula inputs", "data": {"b": b, "p": p, "q": q, "p_times_b": p * b, "p_times_b_minus_q": p * b - q}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-            # #endregion
             
             # Full Kelly formula
             full_kelly = (p * b - q) / b if b > 0 else 0.0
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_kelly_full_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:134", "message": "full kelly calculated", "data": {"full_kelly": float(full_kelly) if isinstance(full_kelly, (int, float)) else full_kelly, "full_kelly_is_negative": bool(full_kelly < 0)}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-            # #endregion
             
             # Apply fractional Kelly to reduce risk
             kelly_fraction = full_kelly * self.fractional_kelly
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_kelly_fractional_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:137", "message": "fractional kelly", "data": {"kelly_fraction": float(kelly_fraction) if isinstance(kelly_fraction, (int, float)) else kelly_fraction, "fractional_kelly": float(self.fractional_kelly) if isinstance(self.fractional_kelly, (int, float)) else self.fractional_kelly, "kelly_fraction_is_negative": bool(kelly_fraction < 0)}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-            # #endregion
             
             # Apply bounds
             kelly_fraction_before_bounds = kelly_fraction
             kelly_fraction = max(KELLY_MIN_FRACTION, min(KELLY_MAX_FRACTION, kelly_fraction))
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_kelly_bounds_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:140", "message": "kelly after bounds", "data": {"kelly_before_bounds": kelly_fraction_before_bounds, "kelly_after_bounds": kelly_fraction, "min_fraction": KELLY_MIN_FRACTION, "max_fraction": KELLY_MAX_FRACTION}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-            # #endregion
             
             # Additional safety check: if Kelly is negative, return 0
             if kelly_fraction < 0:
-                # #region agent log
-                with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"id": f"log_kelly_negative_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:176", "message": "negative kelly detected", "data": {"kelly_fraction": kelly_fraction, "full_kelly": full_kelly, "reason": "negative_kelly_safety_check", "p": p, "b": b, "q": q, "p_times_b_minus_q": p * b - q}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-                # #endregion
                 log_warn(f"Negative Kelly fraction calculated ({kelly_fraction:.4f}). Strategy is not profitable (p*b-q={p*b-q:.4f} < 0). Returning 0.0")
                 return 0.0
             
@@ -240,19 +210,10 @@ class BayesianKellyCalculator:
         Returns:
             Kelly fraction
         """
-        # #region agent log
-        import json
-        with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"id": f"log_kelly_input_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:206", "message": "calculate_kelly_from_metrics input", "data": {"metrics_keys": list(metrics.keys()) if isinstance(metrics, dict) else [], "metrics_type": str(type(metrics)), "metrics_is_none": metrics is None}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-        # #endregion
         win_rate = metrics.get('win_rate', 0.0)
         avg_win = metrics.get('avg_win', 0.0)
         avg_loss = metrics.get('avg_loss', 0.0)
         num_trades = metrics.get('num_trades', 0)
-        # #region agent log
-        with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"id": f"log_kelly_values_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:212", "message": "extracted metrics values", "data": {"win_rate": win_rate, "avg_win": avg_win, "avg_loss": avg_loss, "num_trades": num_trades}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-        # #endregion
         
         # Convert avg_win and avg_loss to absolute values if needed
         if avg_win < 0:
@@ -267,10 +228,6 @@ class BayesianKellyCalculator:
             num_trades=num_trades,
             confidence=confidence,
         )
-        # #region agent log
-        with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"id": f"log_kelly_result_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "kelly_calculator.py:224", "message": "kelly fraction result", "data": {"kelly_fraction": float(result) if isinstance(result, (int, float)) else result, "result_type": str(type(result)), "result_is_nan": bool(__import__('math').isnan(result)) if isinstance(result, float) else False}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-        # #endregion
         
         return result
     

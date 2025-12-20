@@ -8,7 +8,7 @@ and generating trading signals from the command line.
 import pandas as pd
 import time
 
-from config import MODEL_FEATURES
+from config.random_forest import RANDOM_FOREST_FEATURES
 from modules.random_forest import (
     get_latest_random_forest_signal,
     train_and_save_global_rf_model,
@@ -109,8 +109,14 @@ def main():
         # Feature importance analysis
         if hasattr(model, 'feature_importances_'):
             log_model(f"\nFEATURE IMPORTANCE:")
+            # Use model.feature_names_in_ if available, otherwise use RANDOM_FOREST_FEATURES
+            if hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
+                feature_names = list(model.feature_names_in_)
+            else:
+                feature_names = RANDOM_FOREST_FEATURES[:len(model.feature_importances_)]
+            
             feature_importance = pd.DataFrame({
-                'Feature': MODEL_FEATURES,
+                'Feature': feature_names,
                 'Importance': model.feature_importances_
             }).sort_values('Importance', ascending=False)
             

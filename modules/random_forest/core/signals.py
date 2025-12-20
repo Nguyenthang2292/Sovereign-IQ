@@ -11,8 +11,8 @@ from sklearn.ensemble import RandomForestClassifier
 
 from config import (
     CONFIDENCE_THRESHOLD,
-    MODEL_FEATURES,
 )
+from config.random_forest import RANDOM_FOREST_FEATURES
 from modules.common.core.indicator_engine import IndicatorEngine, IndicatorConfig, IndicatorProfile
 from modules.common.ui.logging import (
     log_info,
@@ -62,15 +62,69 @@ def get_latest_random_forest_signal(
             f"Error computing features: {e}. Returning NEUTRAL."
         )
         return "NEUTRAL", 0.0
-    # Filter MODEL_FEATURES to only include features that actually exist in the DataFrame
-    available_features = [f for f in MODEL_FEATURES if f in df_with_features.columns]
+    # Get features that model was trained with
+    # Sklearn models store feature names in feature_names_in_ if trained with pandas DataFrame
+    if hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
+        # Model was trained with specific feature names - use only those
+        model_features = list(model.feature_names_in_)
+        log_progress(f"Model expects {len(model_features)} features: {model_features[:5]}{'...' if len(model_features) > 5 else ''}")
+        
+        # Filter to only features that exist in DataFrame and match model's expected features
+        available_features = [f for f in model_features if f in df_with_features.columns]
+        
+        # Check for missing features
+        missing_features = [f for f in model_features if f not in df_with_features.columns]
+        if missing_features:
+            log_warn(
+                f"Missing features expected by model: {missing_features[:5]}{'...' if len(missing_features) > 5 else ''}. "
+                "These features will be set to 0 or NaN."
+            )
+        
+        # Check for extra features (not expected by model)
+        extra_features = [f for f in df_with_features.columns if f in RANDOM_FOREST_FEATURES and f not in model_features]
+        if extra_features:
+            log_warn(
+                f"Extra features in DataFrame not expected by model: {extra_features[:5]}{'...' if len(extra_features) > 5 else ''}. "
+                "These will be ignored."
+            )
+    else:
+        # Fallback: use RANDOM_FOREST_FEATURES if model doesn't have feature_names_in_
+        # This happens if model was trained with numpy array instead of pandas DataFrame
+        log_warn("Model does not have feature_names_in_ attribute. Using RANDOM_FOREST_FEATURES as fallback.")
+        available_features = [f for f in RANDOM_FOREST_FEATURES if f in df_with_features.columns]
+        
+        # Check if number of features matches model's expected number
+        if hasattr(model, 'n_features_in_') and model.n_features_in_ is not None:
+            if len(available_features) != model.n_features_in_:
+                log_warn(
+                    f"Feature count mismatch: DataFrame has {len(available_features)} features, "
+                    f"but model expects {model.n_features_in_} features. "
+                    "This may cause prediction errors."
+                )
+    
     if df_with_features.empty or not available_features:
         log_warn(
-            "Could not generate features for the latest data. "
+            "Could not generate required features for the latest data. "
             "Returning NEUTRAL."
         )
         return "NEUTRAL", 0.0
-    latest_features = df_with_features[available_features].iloc[-1:]
+    
+    # Select features in the exact order expected by model
+    if hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
+        # Reorder and fill missing features with 0
+        latest_features = pd.DataFrame(index=df_with_features.index[-1:])
+        for feature in model.feature_names_in_:
+            if feature in df_with_features.columns:
+                latest_features[feature] = df_with_features[feature].iloc[-1:]
+            else:
+                # Fill missing feature with 0
+                log_warn(f"Filling missing feature '{feature}' with 0")
+                latest_features[feature] = 0.0
+        # Ensure column order matches model's expected order
+        latest_features = latest_features[list(model.feature_names_in_)]
+    else:
+        # Fallback: use available features in RANDOM_FOREST_FEATURES order
+        latest_features = df_with_features[available_features].iloc[-1:]
     
     # Check for NaN values in features before prediction
     if latest_features.isna().any().any():

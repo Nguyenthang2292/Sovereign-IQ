@@ -9,7 +9,7 @@ import sys
 import os
 from pathlib import Path
 import pandas as pd
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 
 # Add project root to Python path if running directly
 if __name__ == "__main__":
@@ -58,6 +58,79 @@ from modules.common.utils import days_to_candles
 colorama_init(autoreset=True)
 
 
+def try_timeframes_auto(
+    symbols: List[Dict],
+    account_balance: float,
+    lookback_days: int,
+    data_fetcher: DataFetcher,
+    max_position_size: float,
+    signal_mode: str,
+    signal_calculation_mode: str,
+) -> Tuple[Optional[str], Optional[pd.DataFrame]]:
+    """
+    Tự động thử các timeframe để tìm timeframe có kết quả position sizing.
+    
+    Thử các timeframe theo thứ tự: 15m -> 30m -> 1h
+    Dừng lại khi tìm thấy timeframe có Total Position Size > 0 hoặc Total Exposure > 0
+    
+    Args:
+        symbols: List of symbol dictionaries
+        account_balance: Account balance in USDT
+        lookback_days: Number of days to look back
+        data_fetcher: DataFetcher instance
+        max_position_size: Maximum position size as fraction
+        signal_mode: Signal calculation mode ('majority_vote' or 'single_signal')
+        signal_calculation_mode: Signal calculation approach ('precomputed' or 'incremental')
+        
+    Returns:
+        (timeframe, results_df) nếu tìm thấy, (None, None) nếu không tìm thấy
+    """
+    timeframes = ['15m', '30m', '1h']
+    
+    for timeframe in timeframes:
+        log_progress(f"\nTrying timeframe: {timeframe}...")
+        
+        try:
+            # Tạo PositionSizer với timeframe này
+            position_sizer = PositionSizer(
+                data_fetcher=data_fetcher,
+                timeframe=timeframe,
+                lookback_days=lookback_days,
+                max_position_size=max_position_size,
+                signal_mode=signal_mode,
+                signal_calculation_mode=signal_calculation_mode,
+            )
+            
+            # Tính position sizing
+            results_df = position_sizer.calculate_portfolio_allocation(
+                symbols=symbols,
+                account_balance=account_balance,
+                timeframe=timeframe,
+                lookback=lookback_days,
+            )
+            
+            # Kiểm tra kết quả
+            if not results_df.empty and 'position_size_usdt' in results_df.columns:
+                total_position_size = results_df['position_size_usdt'].sum()
+                total_exposure_pct = results_df['position_size_pct'].sum() if 'position_size_pct' in results_df.columns else 0.0
+                
+                if total_position_size > 0 or total_exposure_pct > 0:
+                    log_success(f"✓ Found valid position sizing at timeframe: {timeframe}")
+                    log_progress(f"  Total Position Size: {total_position_size:.2f} USDT")
+                    log_progress(f"  Total Exposure: {total_exposure_pct:.2f}%")
+                    return (timeframe, results_df)
+            
+            log_warn(f"No position sizing result at {timeframe}, trying next timeframe...")
+            
+        except Exception as e:
+            log_warn(f"Error trying timeframe {timeframe}: {e}")
+            log_warn(f"Continuing to next timeframe...")
+            continue
+    
+    log_warn("✗ No timeframe found with valid position sizing results")
+    return (None, None)
+
+
 def main() -> None:
     """
     Main entry point for position sizing CLI.
@@ -74,6 +147,7 @@ def main() -> None:
         args = parse_args()
         
         # Interactive menu if not skipped
+        config = {}
         if not args.no_menu:
             config = interactive_config_menu()
             # Merge config with args
@@ -178,15 +252,21 @@ def main() -> None:
         signal_mode = getattr(args, 'signal_mode', 'single_signal')
         signal_calculation_mode = getattr(args, 'signal_calculation_mode', 'precomputed')
         
-        # Initialize Position Sizer
-        position_sizer = PositionSizer(
-            data_fetcher=data_fetcher,
-            timeframe=args.timeframe,
-            lookback_days=args.lookback_days,
-            max_position_size=args.max_position_size,
-            signal_mode=signal_mode,
-            signal_calculation_mode=signal_calculation_mode,
-        )
+        # Check auto timeframe mode (from config menu or command line)
+        auto_timeframe = config.get('auto_timeframe', False) if config else False
+        if not auto_timeframe:
+            auto_timeframe = getattr(args, 'auto_timeframe', False)
+        
+        # Initialize Position Sizer (only if not using auto timeframe)
+        if not auto_timeframe:
+            position_sizer = PositionSizer(
+                data_fetcher=data_fetcher,
+                timeframe=args.timeframe,
+                lookback_days=args.lookback_days,
+                max_position_size=args.max_position_size,
+                signal_mode=signal_mode,
+                signal_calculation_mode=signal_calculation_mode,
+            )
         
         # Display configuration
         print(color_text("\n" + "=" * 100, Fore.CYAN, Style.BRIGHT))
@@ -195,7 +275,10 @@ def main() -> None:
         
         print(f"\n{color_text('Configuration:', Fore.WHITE)}")
         print(f"  Account Balance: {color_text(f'{account_balance:.2f} USDT', Fore.YELLOW)}")
-        print(f"  Timeframe: {color_text(args.timeframe, Fore.YELLOW)}")
+        if auto_timeframe:
+            print(f"  Timeframe: {color_text('Auto (15m -> 30m -> 1h)', Fore.YELLOW)}")
+        else:
+            print(f"  Timeframe: {color_text(args.timeframe, Fore.YELLOW)}")
         print(f"  Lookback: {color_text(f'{args.lookback_days} days', Fore.YELLOW)}")
         print(f"  Max Position Size: {color_text(f'{args.max_position_size*100:.1f}%', Fore.YELLOW)}")
         print(f"  Signal Mode: {color_text(signal_mode, Fore.YELLOW)}")
@@ -289,12 +372,50 @@ def main() -> None:
         log_progress(f"\nCalculating position sizes for {len(symbols)} symbols...")
         log_progress("This may take a few minutes...\n")
         
-        results_df = position_sizer.calculate_portfolio_allocation(
-            symbols=symbols,
-            account_balance=account_balance,
-            timeframe=args.timeframe,
-            lookback=args.lookback_days,  # This will be converted to candles internally
-        )
+        # Check if auto timeframe mode is enabled
+        found_timeframe = None
+        if auto_timeframe:
+            log_progress("\nAuto timeframe testing enabled. Trying timeframes: 15m -> 30m -> 1h")
+            log_progress("Will stop at first timeframe with valid position sizing results.\n")
+            
+            found_timeframe, results_df = try_timeframes_auto(
+                symbols=symbols,
+                account_balance=account_balance,
+                lookback_days=args.lookback_days,
+                data_fetcher=data_fetcher,
+                max_position_size=args.max_position_size,
+                signal_mode=signal_mode,
+                signal_calculation_mode=signal_calculation_mode,
+            )
+            
+            if found_timeframe:
+                log_success(f"\n✓ Found valid position sizing at timeframe: {found_timeframe}")
+                # Cập nhật args.timeframe để hiển thị đúng
+                args.timeframe = found_timeframe
+            else:
+                log_warn("\n✗ No timeframe found with valid position sizing results")
+                log_warn("All timeframes (15m, 30m, 1h) were tried but none produced valid results")
+                log_warn("This may indicate:")
+                log_warn("  - Insufficient trades for Kelly calculation")
+                log_warn("  - Win rate too low (< 40%)")
+                log_warn("  - Invalid avg_win or avg_loss values")
+                sys.exit(1)
+        else:
+            # Logic cũ: dùng timeframe từ args
+            results_df = position_sizer.calculate_portfolio_allocation(
+                symbols=symbols,
+                account_balance=account_balance,
+                timeframe=args.timeframe,
+                lookback=args.lookback_days,  # This will be converted to candles internally
+            )
+        
+        # Display final configuration summary (after finding timeframe if auto mode)
+        if auto_timeframe and found_timeframe:
+            print(color_text("\n" + "=" * 100, Fore.CYAN, Style.BRIGHT))
+            print(color_text("FINAL CONFIGURATION", Fore.CYAN, Style.BRIGHT))
+            print(color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
+            print(f"  Selected Timeframe: {color_text(found_timeframe, Fore.GREEN, Style.BRIGHT)}")
+            print(color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
         
         # Display results
         display_position_sizing_results(results_df)

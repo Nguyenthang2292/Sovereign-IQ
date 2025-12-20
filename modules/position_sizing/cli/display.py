@@ -97,7 +97,7 @@ def display_position_sizing_results(df: pd.DataFrame) -> None:
                     'Avg Win': f"{metrics.get('avg_win', 0.0)*100:.2f}%",
                     'Avg Loss': f"{metrics.get('avg_loss', 0.0)*100:.2f}%",
                     'Sharpe': f"{metrics.get('sharpe_ratio', 0.0):.2f}",
-                    'Max DD': f"{metrics.get('max_drawdown', 0.0)*100:.2f}%",
+                    'Max DD': f"{metrics.get('max_drawdown', 0.0):.2f}%",
                     'Trades': metrics.get('num_trades', 0),
                 }
                 metrics_rows.append(metrics_row)
@@ -136,9 +136,9 @@ def get_exit_reason_color(exit_reason: str, pnl: float = 0.0) -> Fore:
     
     exit_reason_upper = exit_reason.upper()
     
-    # TRAILING_STOP: green if profit, red if loss
+    # TRAILING_STOP: always yellow
     if exit_reason_upper == "TRAILING_STOP":
-        return Fore.GREEN if pnl > 0 else Fore.RED if pnl < 0 else Fore.YELLOW
+        return Fore.YELLOW
     
     color_map = {
         "STOP_LOSS": Fore.RED,
@@ -199,8 +199,9 @@ def display_trades_table(symbol: str, trades: list) -> None:
                     '#': i,
                     'Entry Time': str(entry_time),
                     'Exit Time': str(exit_time),
-                    'Entry Price': f"{float(entry_price):.2f}",
-                    'Exit Price': f"{float(exit_price):.2f}",
+                    'Direction': signal_type.upper() if signal_type != 'N/A' else 'N/A',
+                    'Entry Price': format_price(float(entry_price)),
+                    'Exit Price': format_price(float(exit_price)),
                     'PnL %': f"{pnl_sign}{pnl_pct:.2f}%",
                     'Hold': f"{int(hold_periods)}",
                     'Exit Reason': str(exit_reason),
@@ -212,7 +213,7 @@ def display_trades_table(symbol: str, trades: list) -> None:
         
         if trades_rows:
             trades_df = pd.DataFrame(trades_rows)
-            # Display trades table with row coloring based on exit_reason
+            # Display trades table with column-specific coloring
             # First, get the formatted table string to preserve column widths
             table_str = trades_df.to_string(index=False)
             table_lines = table_str.split('\n')
@@ -221,20 +222,44 @@ def display_trades_table(symbol: str, trades: list) -> None:
             if table_lines:
                 print(table_lines[0])
             
-            # Print data rows with color based on exit_reason
-            # Get PnL from trades_pnl_map for TRAILING_STOP coloring
+            # Print data rows with column-specific coloring
+            # For TRAILING_STOP: only Exit Reason column is yellow, other columns follow PnL color
             for idx, row in trades_df.iterrows():
                 exit_reason = row.get('Exit Reason', 'N/A')
                 # Get PnL from trades_pnl_map using DataFrame index
                 trade_pnl = trades_pnl_map.get(idx, 0.0)
                 
-                row_color = get_exit_reason_color(exit_reason, trade_pnl)
+                # Determine base color for row (based on PnL)
+                base_color = Fore.GREEN if trade_pnl > 0 else Fore.RED if trade_pnl < 0 else Fore.WHITE
                 
-                # Format the row to match the table format
                 # Get the row as a formatted string (skip header, idx+1 because header is at index 0)
                 if idx + 1 < len(table_lines):
                     row_str = table_lines[idx + 1]
-                    print(color_text(row_str, row_color))
+                    
+                    # If TRAILING_STOP, color only the "TRAILING_STOP" text yellow, rest by PnL
+                    if exit_reason.upper() == "TRAILING_STOP":
+                        # Find the position of "TRAILING_STOP" in the row string
+                        trailing_stop_pos = row_str.find('TRAILING_STOP')
+                        
+                        if trailing_stop_pos >= 0:
+                            # Split the row: before TRAILING_STOP, TRAILING_STOP itself, and after
+                            before_part = row_str[:trailing_stop_pos]
+                            trailing_text = 'TRAILING_STOP'
+                            after_part = row_str[trailing_stop_pos + len(trailing_text):]
+                            
+                            # Color: before and after with base color (based on PnL), TRAILING_STOP with yellow
+                            print(
+                                color_text(before_part, base_color) +
+                                color_text(trailing_text, Fore.YELLOW) +
+                                color_text(after_part, base_color)
+                            )
+                        else:
+                            # Fallback: color entire row with base color
+                            print(color_text(row_str, base_color))
+                    else:
+                        # For non-TRAILING_STOP, use exit_reason color for entire row
+                        row_color = get_exit_reason_color(exit_reason, trade_pnl)
+                        print(color_text(row_str, row_color))
             
             # Calculate summary
             total_pnl = sum(t.get('pnl', 0.0) for t in trades)

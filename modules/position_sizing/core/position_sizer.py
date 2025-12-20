@@ -136,21 +136,12 @@ class PositionSizer:
             
             # Fetch data once to share between regime detection and backtest
             log_progress(f"  Fetching data for {symbol}...")
-            # #region agent log
-            import json
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_data_fetch_start_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:128", "message": "data fetch start", "data": {"symbol": symbol, "lookback_candles": lookback_candles, "timeframe": timeframe}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "G"}) + '\n')
-            # #endregion
             df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
                 symbol,
                 limit=lookback_candles,
                 timeframe=timeframe,
                 check_freshness=False,
             )
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_data_fetch_result_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:135", "message": "data fetch result", "data": {"symbol": symbol, "df_is_none": bool(df is None), "df_empty": bool(df.empty) if df is not None else True, "df_len": int(len(df)) if df is not None else 0, "df_columns": list(df.columns) if df is not None else []}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "G"}) + '\n')
-            # #endregion
             
             if df is None or df.empty:
                 log_warn(f"No data available for {symbol}")
@@ -158,33 +149,17 @@ class PositionSizer:
             
             # Step 1: Detect current regime
             log_progress(f"  Step 1: Detecting regime for {symbol}...")
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_regime_detect_start_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:141", "message": "regime detection start", "data": {"symbol": symbol, "timeframe": timeframe, "limit": lookback_candles}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C"}) + '\n')
-            # #endregion
             regime = self.regime_detector.detect_regime(
                 symbol=symbol,
                 timeframe=timeframe,
                 limit=lookback_candles,
                 df=df,
             )
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_regime_detected_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:147", "message": "regime detected", "data": {"symbol": symbol, "regime": regime, "regime_type": str(type(regime)), "regime_is_none": bool(regime is None), "regime_in_multipliers": bool(regime in REGIME_MULTIPLIERS) if regime else False}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C"}) + '\n')
-            # #endregion
             
             regime_multiplier = REGIME_MULTIPLIERS.get(regime, 1.0) if regime else 1.0
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_regime_multiplier_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:149", "message": "regime multiplier", "data": {"symbol": symbol, "regime": regime, "regime_multiplier": regime_multiplier}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C"}) + '\n')
-            # #endregion
             
             # Step 2: Run backtest
             log_progress(f"  Step 2: Running backtest for {symbol}...")
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_backtest_start_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:152", "message": "backtest start", "data": {"symbol": symbol, "signal_type": signal_type, "lookback_candles": lookback_candles}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "B"}) + '\n')
-            # #endregion
             backtest_result = self.backtester.backtest(
                 symbol=symbol,
                 timeframe=timeframe,
@@ -192,55 +167,29 @@ class PositionSizer:
                 signal_type=signal_type,
                 df=df,
             )
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_backtest_result_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:159", "message": "backtest result received", "data": {"symbol": symbol, "backtest_result_type": str(type(backtest_result)), "backtest_result_keys": list(backtest_result.keys()) if isinstance(backtest_result, dict) else [], "backtest_result_is_none": backtest_result is None}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "B"}) + '\n')
-            # #endregion
             
             metrics = backtest_result.get('metrics', {})
             equity_curve = backtest_result.get('equity_curve')
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_metrics_extracted_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:162", "message": "metrics extracted from backtest", "data": {"symbol": symbol, "metrics_type": str(type(metrics)), "metrics_keys": list(metrics.keys()) if isinstance(metrics, dict) else [], "metrics_is_empty": bool(len(metrics) == 0) if isinstance(metrics, dict) else True, "has_equity_curve": bool(equity_curve is not None), "equity_curve_len": int(len(equity_curve)) if equity_curve is not None else 0}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "B"}) + '\n')
-            # #endregion
             
             # Step 3: Calculate Kelly fraction
             log_progress(f"  Step 3: Calculating Kelly fraction for {symbol}...")
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_kelly_input_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:165", "message": "kelly calculation input", "data": {"symbol": symbol, "metrics": metrics, "metrics_keys": list(metrics.keys()) if isinstance(metrics, dict) else []}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-            # #endregion
+            # Log metrics for debugging
+            log_progress(f"    Metrics: win_rate={metrics.get('win_rate', 0.0):.2%}, "
+                        f"num_trades={metrics.get('num_trades', 0)}, "
+                        f"avg_win={metrics.get('avg_win', 0.0):.4f}, "
+                        f"avg_loss={metrics.get('avg_loss', 0.0):.4f}")
             kelly_fraction = self.kelly_calculator.calculate_kelly_from_metrics(metrics)
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_kelly_result_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:165", "message": "kelly fraction result", "data": {"symbol": symbol, "kelly_fraction": float(kelly_fraction) if isinstance(kelly_fraction, (int, float)) else kelly_fraction, "kelly_is_nan": bool(__import__('math').isnan(kelly_fraction)) if isinstance(kelly_fraction, float) else False, "kelly_type": str(type(kelly_fraction))}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + '\n')
-            # #endregion
+            log_progress(f"    Kelly fraction calculated: {kelly_fraction:.4f}")
             
             # Step 3.5: Adjust Kelly fraction based on cumulative performance (if equity curve available)
             cumulative_performance_multiplier = 1.0
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_equity_curve_check_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:168", "message": "equity curve check", "data": {"symbol": symbol, "equity_curve_is_none": bool(equity_curve is None), "equity_curve_len": int(len(equity_curve)) if equity_curve is not None else 0, "equity_curve_type": str(type(equity_curve)) if equity_curve is not None else None, "has_iloc": bool(hasattr(equity_curve, 'iloc')) if equity_curve is not None else False}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "J"}) + '\n')
-            # #endregion
             if equity_curve is not None and len(equity_curve) > 0:
                 try:
-                    # #region agent log
-                    with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({"id": f"log_equity_access_start_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:171", "message": "equity curve access start", "data": {"symbol": symbol, "has_iloc": bool(hasattr(equity_curve, 'iloc'))}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "J"}) + '\n')
-                    # #endregion
                     initial_capital = equity_curve.iloc[0] if hasattr(equity_curve, 'iloc') else equity_curve[0]
                     final_equity = equity_curve.iloc[-1] if hasattr(equity_curve, 'iloc') else equity_curve[-1]
-                    # #region agent log
-                    with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({"id": f"log_equity_values_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:173", "message": "equity values extracted", "data": {"symbol": symbol, "initial_capital": float(initial_capital) if initial_capital is not None else None, "final_equity": float(final_equity) if final_equity is not None else None, "initial_capital_type": str(type(initial_capital))}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "H1"}) + '\n')
-                    # #endregion
                     
                     if initial_capital > 0:
                         cumulative_performance = (final_equity - initial_capital) / initial_capital
-                        # #region agent log
-                        with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                            f.write(json.dumps({"id": f"log_cumulative_perf_before_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:176", "message": "cumulative performance before multiplier calc", "data": {"symbol": symbol, "cumulative_performance": float(cumulative_performance), "cumulative_perf_type": str(type(cumulative_performance))}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "H1"}) + '\n')
-                        # #endregion
                         
                         # Adjust multiplier based on cumulative performance
                         # Positive performance: increase position size (up to 1.5x)
@@ -251,30 +200,14 @@ class PositionSizer:
                         elif cumulative_performance < 0:
                             # Scale from 0 to -0.5 -> multiplier from 1.0 to 0.5
                             cumulative_performance_multiplier = 1.0 + max(-0.5, cumulative_performance) * 1.0
-                        # #region agent log
-                        with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                            f.write(json.dumps({"id": f"log_cumulative_perf_after_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:186", "message": "cumulative performance multiplier calculated", "data": {"symbol": symbol, "cumulative_performance": float(cumulative_performance), "cumulative_performance_multiplier": float(cumulative_performance_multiplier)}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "H1"}) + '\n')
-                        # #endregion
                         
                         log_progress(f"  Cumulative performance: {cumulative_performance*100:.2f}%, multiplier: {cumulative_performance_multiplier:.3f}")
                 except Exception as e:
-                    # #region agent log
-                    with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({"id": f"log_equity_error_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:189", "message": "equity curve calculation error", "data": {"symbol": symbol, "error": str(e), "error_type": str(type(e))}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "J"}) + '\n')
-                    # #endregion
                     log_warn(f"Error calculating cumulative performance: {e}")
                     cumulative_performance_multiplier = 1.0
             
             # Step 4: Adjust for regime and cumulative performance
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_adjust_before_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:193", "message": "before kelly adjustment", "data": {"symbol": symbol, "kelly_fraction": float(kelly_fraction) if isinstance(kelly_fraction, (int, float)) else kelly_fraction, "regime_multiplier": float(regime_multiplier) if isinstance(regime_multiplier, (int, float)) else regime_multiplier, "cumulative_performance_multiplier": float(cumulative_performance_multiplier) if isinstance(cumulative_performance_multiplier, (int, float)) else cumulative_performance_multiplier, "kelly_is_nan": bool(__import__('math').isnan(kelly_fraction)) if isinstance(kelly_fraction, float) else False}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "H4"}) + '\n')
-            # #endregion
             adjusted_kelly_fraction = kelly_fraction * regime_multiplier * cumulative_performance_multiplier
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_adjust_after_multiply_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:194", "message": "after kelly multiply", "data": {"symbol": symbol, "adjusted_kelly_fraction": float(adjusted_kelly_fraction) if isinstance(adjusted_kelly_fraction, (int, float)) else adjusted_kelly_fraction, "adjusted_is_nan": bool(__import__('math').isnan(adjusted_kelly_fraction)) if isinstance(adjusted_kelly_fraction, float) else False}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "H4"}) + '\n')
-            # #endregion
             
             # Apply bounds
             # FIX: Don't clamp to min_position_size if kelly_fraction is 0.0 (no trades or invalid)
@@ -289,10 +222,6 @@ class PositionSizer:
                     self.min_position_size,
                     min(self.max_position_size, adjusted_kelly_fraction)
                 )
-            # #region agent log
-            with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"id": f"log_adjust_after_bounds_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:206", "message": "after kelly bounds", "data": {"symbol": symbol, "adjusted_before": float(adjusted_before), "adjusted_after": float(adjusted_kelly_fraction), "min_position_size": float(self.min_position_size), "max_position_size": float(self.max_position_size), "was_clamped": bool(adjusted_before != adjusted_kelly_fraction)}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "I"}) + '\n')
-            # #endregion
             
             # Step 5: Calculate position size in USDT
             position_size_usdt = account_balance * adjusted_kelly_fraction
@@ -364,21 +293,12 @@ class PositionSizer:
                 progress.set_label(f"Processing {symbol} ({idx}/{len(symbols)})")
                 
                 # Determine signal type
-                # #region agent log
-                import json
-                with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"id": f"log_signal_conversion_{id(symbol_dict)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:278", "message": "signal type conversion", "data": {"symbol": symbol, "signal": signal, "signal_type": str(type(signal))}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "F"}) + '\n')
-                # #endregion
                 if isinstance(signal, str):
                     signal_type = "LONG" if signal.upper() in ["LONG", "BUY", "1"] else "SHORT"
                 elif isinstance(signal, (int, float)):
                     signal_type = "LONG" if signal > 0 else "SHORT"
                 else:
                     signal_type = "LONG"  # Default
-                # #region agent log
-                with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"id": f"log_signal_result_{id(symbol_dict)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:283", "message": "signal type result", "data": {"symbol": symbol, "original_signal": signal, "converted_signal_type": signal_type}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "F"}) + '\n')
-                # #endregion
                 
                 # Calculate position size
                 result = self.calculate_position_size(
@@ -398,28 +318,15 @@ class PositionSizer:
             progress.finish()
         
         # Normalize if total exposure exceeds maximum
-        # #region agent log
-        import json
-        with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"id": f"log_portfolio_exposure_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:303", "message": "portfolio exposure check", "data": {"total_exposure": total_exposure, "max_portfolio_exposure": self.max_portfolio_exposure, "num_results": len(results), "exceeds_max": total_exposure > self.max_portfolio_exposure}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "D"}) + '\n')
-        # #endregion
         if total_exposure > self.max_portfolio_exposure:
             log_warn(f"Total exposure ({total_exposure*100:.1f}%) exceeds maximum ({self.max_portfolio_exposure*100:.1f}%). Normalizing...")
             
             # Check for division by zero
             if total_exposure > 0:
                 normalization_factor = self.max_portfolio_exposure / total_exposure
-                # #region agent log
-                with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"id": f"log_normalization_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:308", "message": "normalization factor calculated", "data": {"normalization_factor": normalization_factor, "total_exposure": total_exposure, "max_exposure": self.max_portfolio_exposure}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "D"}) + '\n')
-                # #endregion
             else:
                 log_warn("Total exposure is 0, cannot normalize. Skipping normalization.")
                 normalization_factor = 1.0
-                # #region agent log
-                with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"id": f"log_normalization_zero_{id(self)}", "timestamp": __import__('time').time() * 1000, "location": "position_sizer.py:311", "message": "normalization skipped - zero exposure", "data": {"total_exposure": total_exposure}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "D"}) + '\n')
-                # #endregion
             
             for result in results:
                 result['adjusted_kelly_fraction'] *= normalization_factor

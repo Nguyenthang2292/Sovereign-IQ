@@ -130,6 +130,11 @@ def parse_args():
         default=DEFAULT_LOOKBACK_DAYS,
         help=f'Number of days to look back for backtesting (default: {DEFAULT_LOOKBACK_DAYS})',
     )
+    parser.add_argument(
+        '--auto-timeframe',
+        action='store_true',
+        help='Enable auto timeframe testing (tries 15m, 30m, 1h until finding valid results)',
+    )
     
     # Position size constraints
     parser.add_argument(
@@ -249,8 +254,26 @@ def interactive_config_menu() -> dict:
     
     # Backtest settings
     print("\n" + color_text("3. BACKTEST SETTINGS", Fore.WHITE))
-    timeframe = prompt_user_input(f"Timeframe ({color_text(f'default: {DEFAULT_TIMEFRAME}', Fore.MAGENTA)}): ").strip()
-    config['timeframe'] = timeframe if timeframe else DEFAULT_TIMEFRAME
+    
+    # Auto timeframe testing option
+    print(color_text("   Auto timeframe testing: Try multiple timeframes automatically", Fore.CYAN))
+    print("   a) Enable auto timeframe testing (tries 15m -> 30m -> 1h)")
+    print(color_text("   b) Use specified timeframe only [default]", Fore.MAGENTA, Style.BRIGHT))
+    auto_tf_choice = prompt_user_input(f"Select option (a/b, default=b): ", default="b").strip().lower()
+    
+    # Default to 'b' if empty input
+    if not auto_tf_choice:
+        auto_tf_choice = 'b'
+    
+    config['auto_timeframe'] = (auto_tf_choice == 'a')
+    
+    # Only ask for timeframe if auto timeframe is disabled
+    if not config['auto_timeframe']:
+        timeframe = prompt_user_input(f"Timeframe ({color_text(f'default: {DEFAULT_TIMEFRAME}', Fore.MAGENTA)}): ").strip()
+        config['timeframe'] = timeframe if timeframe else DEFAULT_TIMEFRAME
+    else:
+        # Set a default timeframe (will be overridden by auto testing)
+        config['timeframe'] = DEFAULT_TIMEFRAME
     
     lookback_str = prompt_user_input(f"Lookback days ({color_text(f'default: {DEFAULT_LOOKBACK_DAYS}', Fore.MAGENTA)}): ").strip()
     try:

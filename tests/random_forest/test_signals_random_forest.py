@@ -35,11 +35,12 @@ from modules.random_forest import (
 )
 
 from config import (
-    MAX_TRAINING_ROWS, MODEL_FEATURES, CONFIDENCE_THRESHOLD,
+    MAX_TRAINING_ROWS, CONFIDENCE_THRESHOLD,
     CONFIDENCE_THRESHOLDS, MIN_MEMORY_GB, MIN_TRAINING_SAMPLES,
     BUY_THRESHOLD, SELL_THRESHOLD, MODEL_RANDOM_STATE, MODEL_TEST_SIZE,
     MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
 )
+from config.random_forest import RANDOM_FOREST_FEATURES
 
 
 # ============================================================================
@@ -190,8 +191,8 @@ def temp_models_dir():
 
 @pytest.fixture
 def mock_model_features():
-    """Mock MODEL_FEATURES for testing"""
-    return ['rsi', 'macd', 'macd_signal', 'bb_upper', 'bb_lower', 'ma_20']
+    """Mock RANDOM_FOREST_FEATURES for testing"""
+    return RANDOM_FOREST_FEATURES[:10]  # Use first 10 features for testing
 
 
 @pytest.fixture
@@ -514,8 +515,8 @@ class TestEvaluateModelWithConfidence:
         mock_model.classes_ = test_evaluation_data['classes']
         
         X_test = pd.DataFrame(
-            np.random.randn(10, len(MODEL_FEATURES)), 
-            columns=pd.Index(MODEL_FEATURES)
+            np.random.randn(10, len(RANDOM_FOREST_FEATURES)), 
+            columns=pd.Index(RANDOM_FOREST_FEATURES)
         )
         y_test = pd.Series(test_evaluation_data['y_true'])
         
@@ -532,8 +533,8 @@ class TestEvaluateModelWithConfidence:
         mock_model.classes_ = test_evaluation_data['classes']
         
         X_test = pd.DataFrame(
-            np.random.randn(10, len(MODEL_FEATURES)), 
-            columns=pd.Index(MODEL_FEATURES)
+            np.random.randn(10, len(RANDOM_FOREST_FEATURES)), 
+            columns=pd.Index(RANDOM_FOREST_FEATURES)
         )
         y_test = pd.Series(test_evaluation_data['y_true'])
         
@@ -595,12 +596,14 @@ class TestGetLatestRandomForestSignal:
         mock_model = MagicMock()
         mock_model.predict_proba.return_value = confidence
         mock_model.classes_ = np.array([-1, 0, 1])
+        # Set feature_names_in_ to match RANDOM_FOREST_FEATURES
+        mock_model.feature_names_in_ = np.array(RANDOM_FOREST_FEATURES)
         
         with patch('modules.random_forest.core.signals.IndicatorEngine') as mock_engine:
             mock_instance = MagicMock()
             mock_features_df = sample_data.copy()
-            # Add all required MODEL_FEATURES columns
-            for feature in MODEL_FEATURES:
+            # Add all required RANDOM_FOREST_FEATURES columns
+            for feature in RANDOM_FOREST_FEATURES:
                 if feature not in mock_features_df.columns:
                     mock_features_df[feature] = np.random.randn(len(mock_features_df))
             mock_instance.compute_features.return_value = mock_features_df
@@ -616,7 +619,7 @@ class TestGetLatestRandomForestSignal:
         with patch('modules.random_forest.core.signals.IndicatorEngine') as mock_engine:
             mock_instance = MagicMock()
             mock_features_df = sample_data.copy()
-            for feature in MODEL_FEATURES:
+            for feature in RANDOM_FOREST_FEATURES:
                 if feature not in mock_features_df.columns:
                     mock_features_df[feature] = np.nan
             mock_instance.compute_features.return_value = mock_features_df
@@ -634,7 +637,7 @@ class TestGetLatestRandomForestSignal:
         with patch('modules.random_forest.core.signals.IndicatorEngine') as mock_engine:
             mock_instance = MagicMock()
             mock_features_df = sample_data.copy()
-            for feature in MODEL_FEATURES:
+            for feature in RANDOM_FOREST_FEATURES:
                 if feature not in mock_features_df.columns:
                     mock_features_df[feature] = np.random.randn(len(mock_features_df))
             mock_instance.compute_features.return_value = mock_features_df
@@ -651,7 +654,7 @@ class TestGetLatestRandomForestSignal:
         with patch('modules.random_forest.core.signals.IndicatorEngine') as mock_engine:
             mock_instance = MagicMock()
             mock_features_df = sample_data.copy()
-            for feature in MODEL_FEATURES:
+            for feature in RANDOM_FOREST_FEATURES:
                 if feature not in mock_features_df.columns:
                     mock_features_df[feature] = np.random.randn(len(mock_features_df))
             mock_instance.compute_features.return_value = mock_features_df

@@ -22,7 +22,6 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import TimeSeriesSplit
 
 from config import (
-    MODEL_FEATURES,
     MODEL_RANDOM_STATE,
     MIN_TRAINING_SAMPLES,
     BUY_THRESHOLD,

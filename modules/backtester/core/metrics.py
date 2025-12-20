@@ -68,7 +68,21 @@ def calculate_metrics(
     sharpe_ratio = calculate_sharpe_ratio(returns, periods_per_year=365*24) or 0.0
     
     # Calculate max drawdown
-    max_drawdown = calculate_max_drawdown(equity_curve) or 0.0
+    # Get absolute drawdown value first
+    max_drawdown_absolute = calculate_max_drawdown(equity_curve) or 0.0
+    
+    # Convert to percentage: drawdown_pct = (drawdown_absolute / peak_equity) * 100
+    # Peak equity is the maximum value in the equity curve
+    if max_drawdown_absolute < 0 and len(equity_curve) > 0:
+        peak_equity = equity_curve.max()
+        if peak_equity > 0:
+            # Calculate drawdown as percentage of peak equity
+            max_drawdown = (max_drawdown_absolute / peak_equity) * 100.0
+        else:
+            # If peak equity is 0 or negative, use absolute value
+            max_drawdown = max_drawdown_absolute
+    else:
+        max_drawdown = max_drawdown_absolute
     
     # Calculate profit factor using vectorized operations
     total_profit = np.sum(winning_pnls) if len(winning_pnls) > 0 else 0.0

@@ -180,11 +180,6 @@ def validate_symbols(symbols: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     Returns:
         Validated and cleaned list of symbols
     """
-    # #region agent log
-    import json
-    with open(r'd:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.cursor\debug.log', 'a', encoding='utf-8') as f:
-        f.write(json.dumps({"id": f"log_validate_start_{id(symbols)}", "timestamp": __import__('time').time() * 1000, "location": "data_loader.py:173", "message": "validate_symbols start", "data": {"num_symbols": len(symbols) if symbols else 0, "symbols_type": str(type(symbols))}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "E"}) + '\n')
-    # #endregion
     validated = []
     
     for symbol in symbols:

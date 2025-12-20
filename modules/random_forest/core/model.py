@@ -15,12 +15,12 @@ from sklearn.model_selection import train_test_split
 
 from config import (
     MAX_TRAINING_ROWS,
-    MODEL_FEATURES,
     MODEL_RANDOM_STATE,
     MODEL_TEST_SIZE,
     MODELS_DIR,
     RANDOM_FOREST_MODEL_FILENAME
 )
+from config.random_forest import RANDOM_FOREST_FEATURES
 from modules.common.ui.logging import (
     log_info,
     log_model,
@@ -104,7 +104,7 @@ def train_random_forest_model(df_input: pd.DataFrame, save_model: bool = True) -
         features_resampled, target_resampled, test_size=MODEL_TEST_SIZE, random_state=MODEL_RANDOM_STATE
     )
     if not isinstance(features_test, pd.DataFrame):
-        features_test = pd.DataFrame(features_test, columns=pd.Index(MODEL_FEATURES))
+        features_test = pd.DataFrame(features_test, columns=pd.Index(RANDOM_FOREST_FEATURES))
     if not isinstance(target_test, pd.Series):
         target_test = pd.Series(target_test, name='target')
     log_progress(
