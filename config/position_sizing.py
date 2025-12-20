@@ -6,7 +6,7 @@ Bayesian Kelly Criterion and Regime Switching.
 """
 
 # Backtest Configuration
-DEFAULT_LOOKBACK_DAYS = 15  # Number of days to look back for backtesting
+DEFAULT_LOOKBACK_DAYS = 25  # Number of days to look back for backtesting
 DEFAULT_TIMEFRAME = "1h"  # Default timeframe for backtesting
 DEFAULT_LIMIT = 1500  # Default number of candles to fetch for backtesting
 
@@ -17,8 +17,8 @@ DEFAULT_MIN_WIN_RATE = 0.4  # Minimum win rate to consider (below this, position
 DEFAULT_MIN_TRADES = 10  # Minimum number of trades required for reliable Kelly calculation
 
 # Position Size Constraints
-DEFAULT_MAX_POSITION_SIZE = 0.1  # Max 10% of account per symbol
-DEFAULT_MIN_POSITION_SIZE = 0.01  # Min 1% of account per symbol (if signal is valid)
+DEFAULT_MAX_POSITION_SIZE = 1.0  # Max 100% of account per symbol
+DEFAULT_MIN_POSITION_SIZE = 0.3  # Min 30% of account per symbol (if signal is valid)
 DEFAULT_MAX_PORTFOLIO_EXPOSURE = 0.5  # Max 50% of account across all positions
 
 # Regime Adjustment Multipliers
@@ -38,7 +38,7 @@ KELLY_PRIOR_BETA = 2.0  # Prior failure count
 
 # Kelly Fraction Bounds
 KELLY_MIN_FRACTION = 0.0  # Minimum Kelly fraction (0%)
-KELLY_MAX_FRACTION = 0.25  # Maximum Kelly fraction (25% of account)
+KELLY_MAX_FRACTION = 0.30  # Maximum Kelly fraction (30% of account)
 
 # Backtest Entry/Exit Rules
 BACKTEST_STOP_LOSS_PCT = 0.02  # 2% stop loss
