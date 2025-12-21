@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crypto-probability"
+version = "3.0.0"
+description = "A comprehensive cryptocurrency trading analysis system using Machine Learning, Deep Learning, and Quantitative Strategies"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+    {name = "Crypto Probability Team"}
+]
+dependencies = [
+    # Core dependencies
+    "ccxt>=4.2.0,<5.0.0",
+    "pandas>=2.1.4,<2.2.0",
+    "numpy>=1.25.0,<1.27.0",
+    "pandas_ta>=0.3.14b,<0.4.0",
+    "scikit-learn>=1.3.0,<1.5.0",
+    "statsmodels>=0.14.0,<0.15.0",
+    "pykalman>=0.9.5,<0.10.0",
+    "colorama>=0.4.6,<0.5.0",
+    "imbalanced-learn>=0.11.0,<0.12.0",
+    "hmmlearn>=0.3.0,<0.4.0",
+    "mlxtend>=0.23.0,<0.24.0",
+    "numba>=0.58.0,<0.60.0",
+    # Machine Learning dependencies
+    "xgboost>=2.0.0,<2.1.0",
+    # Deep Learning dependencies (required for deeplearning module)
+    "torch>=2.2.0,<2.3.0",
+    "torchvision>=0.17.0,<0.18.0",
+    "torchaudio>=2.2.0,<2.3.0",
+    "pytorch-lightning>=2.2.0,<2.3.0",
+    "pytorch-forecasting>=1.0.0,<1.1.0",
+    "tensorboard>=2.15.0,<2.16.0",
+    "optuna>=3.5.0,<3.6.0",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+[tool.setuptools]
+packages = {find = {}}
+
+[tool.setuptools.packages.find]
+exclude = [
+    "tests*",
+    "venv*",
+    "artifacts*",
+    "*.egg-info*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--capture=sys --tb=short"
+filterwarnings = [
+    # pytorch_forecasting: Known issue with encoder warnings from third-party library
+    # These are harmless warnings about internal data handling
+    "ignore::UserWarning:pytorch_forecasting.data.encoders",
+    # NumPy: Warnings about non-writable arrays are common with data pipelines
+    # and don't indicate actual problems in our code
+    "ignore:The given NumPy array is not writable:UserWarning",
+    # mlxtend: RuntimeWarnings from association_rules are known third-party issues
+    "ignore::RuntimeWarning:mlxtend.frequent_patterns.association_rules",
+    # NumPy: Internal function base warnings that don't affect functionality
+    "ignore::RuntimeWarning:numpy.lib._function_base_impl",
+    # scikit-learn: Precision warnings occur with edge cases (e.g., all predictions same class)
+    # This is expected behavior in some test scenarios
+    "ignore:.*Precision is ill-defined.*:UserWarning:sklearn.metrics._classification",
+]
+

@@ -2,7 +2,11 @@
 
 ## Tổng Quan
 
-File `modules/range_oscillator/strategies/combined.py` đã được cải thiện và mở rộng với nhiều tính năng mới, giữ nguyên backward compatibility.
+File `modules/range_oscillator/strategies/combined.py` đã được cải thiện và mở rộng với nhiều tính năng mới.
+
+**Lưu ý về Backward Compatibility:**
+- ✅ Hầu hết các tính năng vẫn tương thích ngược (function signature, flags `use_*`, parameters, etc.)
+- ⚠️ **Breaking Change**: `consensus_mode="majority"` và `"unanimous"` đã bị loại bỏ (xem [Migration Guide](#migration-guide))
 
 ## Các Tính Năng Mới
 
@@ -231,10 +235,58 @@ signals, strength, stats, confidence = generate_signals_combined_all_strategy(
 
 ## Backward Compatibility
 
-✅ **Hoàn toàn tương thích ngược**:
-- Tất cả code cũ vẫn hoạt động bình thường
-- Các tham số mặc định giữ nguyên behavior cũ
-- Function signature không thay đổi (trừ khi sử dụng `return_strategy_stats=True`)
+### ✅ Features Vẫn Tương Thích Ngược
+
+Các tính năng sau vẫn **hoàn toàn tương thích ngược** và không có breaking changes:
+
+- ✅ **Function signature**: Không thay đổi (trừ khi sử dụng `return_strategy_stats=True`)
+- ✅ **Các flags `use_*`**: `use_sustained`, `use_crossover`, `use_momentum` vẫn hoạt động như cũ
+- ✅ **Các tham số mặc định**: Giữ nguyên behavior cũ khi không chỉ định
+- ✅ **Strategy parameters**: Tất cả parameters của strategies (như `min_bars_sustained`, `confirmation_bars`, etc.) vẫn tương thích
+- ✅ **Output format**: Signals và strength series vẫn có cùng format
+
+### ⚠️ Breaking Changes
+
+**⚠️ BREAKING CHANGE: `consensus_mode='majority'` và `'unanimous'` không còn được hỗ trợ**
+
+Các consensus modes sau đã bị **loại bỏ hoàn toàn** và sẽ raise `ValueError` nếu sử dụng:
+- ❌ `consensus_mode="majority"` (không còn hỗ trợ)
+- ❌ `consensus_mode="unanimous"` (không còn hỗ trợ)
+
+**Các consensus modes vẫn được hỗ trợ:**
+- ✅ `consensus_mode="threshold"` (mặc định, với `consensus_threshold=0.5`)
+- ✅ `consensus_mode="weighted"`
+
+## Migration Guide
+
+### Cập Nhật Code Sử Dụng Deprecated Consensus Modes
+
+Nếu code của bạn sử dụng `consensus_mode="majority"` hoặc `"unanimous"`, bạn **cần cập nhật** để tránh `ValueError`:
+
+**Migration cho `consensus_mode="majority"`:**
+```python
+# Code cũ (sẽ raise ValueError)
+consensus_mode="majority"  # ❌ Không còn hoạt động
+
+# Code mới (khuyến nghị)
+consensus_mode="threshold"  # mặc định
+consensus_threshold=0.5     # = 50% strategies phải đồng ý (tương đương majority)
+```
+
+**Migration cho `consensus_mode="unanimous"`:**
+```python
+# Code cũ (sẽ raise ValueError)
+consensus_mode="unanimous"  # ❌ Không còn hoạt động
+
+# Code mới (khuyến nghị)
+consensus_mode="threshold"
+consensus_threshold=1.0     # = 100% strategies phải đồng ý (tương đương unanimous)
+```
+
+**Lưu ý:**
+- Code sử dụng `consensus_mode="majority"` hoặc `"unanimous"` sẽ raise `ValueError` ngay lập tức
+- Cần cập nhật code để sử dụng `consensus_mode="threshold"` với `consensus_threshold` phù hợp
+- Nếu không chỉ định `consensus_mode`, mặc định là `"threshold"` với `consensus_threshold=0.5`
 
 ## Cải Thiện Performance
 
@@ -254,34 +306,6 @@ signals, strength, stats, confidence = generate_signals_combined_all_strategy(
 - Comments giải thích logic
 - Type hints đầy đủ
 
-## Migration Guide
-
-### Thay Đổi Gần Đây (Simplification)
-
-**Đã loại bỏ hoàn toàn các Consensus Modes cũ:**
-- ❌ **Đã xóa**: `consensus_mode="majority"` (không còn hỗ trợ)
-- ❌ **Đã xóa**: `consensus_mode="unanimous"` (không còn hỗ trợ)
-- ✅ **Giữ lại**: `consensus_mode="threshold"` (mặc định, với `consensus_threshold=0.5`)
-- ✅ **Giữ lại**: `consensus_mode="weighted"`
-
-**Migration cho code cũ:**
-```python
-# Code cũ (sẽ raise ValueError)
-consensus_mode="majority"  # ❌ Không còn hoạt động
-
-# Code mới (khuyến nghị)
-consensus_mode="threshold"  # mặc định
-consensus_threshold=0.5     # = 50% strategies phải đồng ý
-
-# Hoặc cho unanimous behavior:
-consensus_mode="threshold"
-consensus_threshold=1.0     # = 100% strategies phải đồng ý
-```
-
-**Breaking Changes:**
-- Code sử dụng `consensus_mode="majority"` hoặc `"unanimous"` sẽ raise `ValueError`
-- Cần cập nhật code để sử dụng `consensus_mode="threshold"` với `consensus_threshold` phù hợp
-
 ## Các Cải Thiện Gần Đây (Latest Updates)
 
 ### 1. **Loại Bỏ Deprecated Consensus Modes**
@@ -297,7 +321,7 @@ consensus_threshold=1.0     # = 100% strategies phải đồng ý
 
 ### 3. **Cải Thiện Python Compatibility**
    - ✅ Loại bỏ `strict=True` trong `zip()` để tương thích với Python < 3.10
-   - ✅ Code giờ chạy được trên Python 3.8+
+   - ✅ Code giờ chạy được trên Python 3.9+
 
 ### 4. **Cải Thiện Error Handling và Validation**
    - ✅ **adaptive_trend/equity.py**: Thêm validation đầy đủ, logging, xử lý NaN
@@ -347,14 +371,20 @@ consensus_threshold=1.0     # = 100% strategies phải đồng ý
    - ✅ Đã loại bỏ hoàn toàn `"majority"` và `"unanimous"`
    - ✅ Code sử dụng các giá trị này sẽ raise `ValueError` ngay lập tức
 
-## Future Enhancements (Gợi Ý)
+## Planned Enhancements (Chưa Triển Khai)
 
-1. **Dynamic Strategy Selection**: Tự động chọn strategies dựa trên market conditions
-2. **Strategy Performance Tracking**: Theo dõi performance của từng strategy qua thời gian
-3. **Adaptive Weights**: Tự động điều chỉnh weights dựa trên performance
-4. **Strategy Ensembles**: Kết hợp nhiều consensus modes
-5. **Signal Confidence Score**: Tính toán confidence score dựa trên agreement level
+Các tính năng sau đây đang được lên kế hoạch nhưng chưa được triển khai:
 
+1. **Strategy Performance Tracking**: Theo dõi performance của từng strategy qua thời gian để đánh giá hiệu quả lâu dài
+2. **Strategy Ensembles**: Kết hợp nhiều consensus modes cùng lúc để tạo ra các phương pháp voting phức tạp hơn
+
+## Implemented Enhancements (Đã Triển Khai)
+
+Các tính năng sau đã được triển khai và có thể sử dụng ngay:
+
+- ✅ **Dynamic Strategy Selection** (xem mục 8, dòng 53-59)
+- ✅ **Adaptive Weights** (xem mục 9, dòng 61-69)
+- ✅ **Signal Confidence Score** (xem mục 10, dòng 71-75)
 ## Modules Đã Được Cải Thiện
 
 ### Adaptive Trend Classification (ATC) Modules
@@ -423,7 +453,7 @@ consensus_threshold=1.0     # = 100% strategies phải đồng ý
 
 ### Compatibility
 
-- **Python Version**: Tương thích với Python 3.8+ (loại bỏ strict=True)
+- **Python Version**: Tương thích với Python 3.9+ (loại bỏ strict=True)
 - **Breaking Changes**: `consensus_mode="majority"` và `"unanimous"` không còn được hỗ trợ
 - **Migration**: Sử dụng `consensus_mode="threshold"` với `consensus_threshold` phù hợp
 

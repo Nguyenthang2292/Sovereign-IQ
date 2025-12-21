@@ -167,7 +167,7 @@ class TestSharedMemoryUtils:
     
     @pytest.mark.skipif(
         not hasattr(__import__('multiprocessing'), 'shared_memory'),
-        reason="Shared memory not available (requires Python 3.8+)"
+        reason="Shared memory not available (requires Python 3.9+)"
     )
     def test_setup_shared_memory_for_dataframe(self, sample_dataframe):
         """Test shared memory setup for DataFrame."""
@@ -202,7 +202,7 @@ class TestSharedMemoryUtils:
     
     @pytest.mark.skipif(
         not hasattr(__import__('multiprocessing'), 'shared_memory'),
-        reason="Shared memory not available (requires Python 3.8+)"
+        reason="Shared memory not available (requires Python 3.9+)"
     )
     def test_shared_memory_cleanup(self, sample_dataframe):
         """Test that shared memory cleanup works correctly."""

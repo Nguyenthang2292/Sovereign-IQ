@@ -256,7 +256,7 @@ Module sử dụng Architecture 5 - Hybrid Approach để tối ưu hóa perform
 
 - **Tính năng**: Sử dụng shared memory để truyền DataFrame giữa các processes
 - **Lợi ích**: Giảm memory overhead 50-70% so với pickle serialization
-- **Requirements**: Python 3.8+ với `multiprocessing.shared_memory`
+- **Requirements**: Python 3.9+ với `multiprocessing.shared_memory`
 - **Fallback**: Tự động fallback về pickle nếu shared memory không available
 
 ```python
@@ -419,7 +419,7 @@ trades = simulate_trades(
 ### Optional Dependencies
 
 - `numba`: JIT compilation cho exit conditions (optional, có fallback)
-- `multiprocessing.shared_memory`: Shared memory cho parallel processing (Python 3.8+)
+- `multiprocessing.shared_memory`: Shared memory cho parallel processing (Python 3.9+)
 
 ### Module Dependencies
 
@@ -513,7 +513,7 @@ pytest tests/backtester/ --cov=modules.backtester --cov-report=html
 ## Performance Tips
 
 1. **Use parallel processing** cho datasets lớn (>100 periods)
-2. **Enable shared memory** nếu có Python 3.8+ để giảm memory usage
+2. **Enable shared memory** nếu có Python 3.9+ để giảm memory usage
 3. **Disable caching** nếu memory bị hạn chế (`CLEAR_CACHE_ON_COMPLETE = True`)
 4. **Adjust batch size** nếu parallel processing chậm (tăng `BATCH_SIZE`)
 5. **Use single_signal mode** nếu muốn nhiều signals hơn (ít strict hơn majority vote)
@@ -530,7 +530,7 @@ pytest tests/backtester/ --cov=modules.backtester --cov-report=html
 ### Issue: Memory errors
 
 **Solutions**:
-- Enable shared memory (Python 3.8+)
+- Enable shared memory (Python 3.9+)
 - Clear cache after completion: `CLEAR_CACHE_ON_COMPLETE = True`
 - Giảm batch size: `BATCH_SIZE = 10`
 

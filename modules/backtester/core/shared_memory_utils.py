@@ -52,9 +52,6 @@ def setup_shared_memory_for_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
         if col not in ['open', 'high', 'low', 'close', 'volume']:
             continue  # Skip non-OHLCV columns
         
-        if col not in df.columns:
-            continue
-        
         # Convert to numpy array
         arr = df[col].values
         

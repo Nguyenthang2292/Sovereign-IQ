@@ -2,7 +2,9 @@
 Text formatting and user input utilities.
 """
 
+import logging
 import pandas as pd
+import sys
 from typing import Optional
 from colorama import Fore, Style
 
@@ -66,6 +68,119 @@ def prompt_user_input(
     """
     user_input = input(color_text(prompt, color)).strip()
     return user_input if user_input else (default or "")
+
+
+def _prompt_with_sentinel(
+    prompt: str,
+    default: Optional[str],
+    color: str,
+    back_sentinel: str = "-"
+) -> tuple:
+    """
+    Helper function for sentinel-based input logic.
+    
+    Builds enhanced prompt with sentinel instruction, reads input, and returns
+    appropriate tuple based on input value.
+    
+    Args:
+        prompt: Prompt message to display
+        default: Default value if user enters empty string
+        color: Colorama Fore color for prompt
+        back_sentinel: Sentinel value to indicate back navigation (default: "-")
+        
+    Returns:
+        Tuple of (user_input, is_back) where:
+        - (None, True) if sentinel was entered
+        - (default or "", False) if input was empty
+        - (user_input, False) otherwise
+    """
+    enhanced_prompt = f"{prompt} (enter '{back_sentinel}' to go back): "
+    user_input = input(color_text(enhanced_prompt, color)).strip()
+    
+    if user_input == back_sentinel:
+        return (None, True)
+    elif user_input == "":
+        return (default or "", False)
+    else:
+        return (user_input, False)
+
+
+def prompt_user_input_with_backspace(
+    prompt: str,
+    default: Optional[str] = None,
+    color: str = Fore.YELLOW,
+) -> tuple:
+    """
+    Prompt user for input with backspace key detection for back navigation.
+    
+    On Windows, detects backspace key (ASCII 8) to return special back signal.
+    On other platforms, uses "-" as explicit sentinel to indicate back navigation.
+    Empty input uses the default value (matching Windows behavior).
+    
+    Args:
+        prompt: Prompt message to display
+        default: Default value if user enters empty string
+        color: Colorama Fore color for prompt (default: Fore.YELLOW)
+        
+    Returns:
+        Tuple of (user_input, is_back) where is_back is True if back was signaled
+    """
+    if sys.platform == 'win32':
+        # Windows: Use msvcrt.getch() to detect backspace
+        try:
+            import msvcrt
+        except ImportError:
+            # Fallback to standard input if msvcrt is not available
+            return _prompt_with_sentinel(prompt, default, color)
+        
+        print(color_text(prompt, color), end='', flush=True)
+        
+        result = []
+        while True:
+            char = msvcrt.getch()
+            
+            # Handle backspace (ASCII 8) or Ctrl+H
+            if char == b'\x08' or char == b'\x7f':
+                if result:
+                    result.pop()
+                    # Move cursor back, print space, move cursor back again
+                    sys.stdout.write('\b \b')
+                    sys.stdout.flush()
+                else:
+                    # Backspace when input is empty = back signal
+                    print()  # New line
+                    return (None, True)
+                continue
+            
+            # Handle Enter (carriage return or newline)
+            if char == b'\r' or char == b'\n':
+                print()  # New line
+                user_input = ''.join(result).strip()
+                
+                # Empty input means use default, not back
+                return (user_input if user_input else (default or ""), False)
+            
+            # Handle regular characters
+            if isinstance(char, bytes):
+                try:
+                    decoded = char.decode('utf-8')
+                    result.append(decoded)
+                    sys.stdout.write(decoded)
+                    sys.stdout.flush()
+                # Silently drop undecodable bytes with empty placeholder to preserve
+                # output flow and length. Intentional design choice; modify here to use
+                # replacement character (e.g., '\ufffd'), enhanced logging, or raise.
+                except UnicodeDecodeError as e:
+                    logging.warning(f"UnicodeDecodeError when decoding byte input: {e}", exc_info=True)
+                    placeholder = ''
+                    result.append(placeholder)
+                    sys.stdout.write(placeholder)
+                    sys.stdout.flush()
+    else:
+        # Non-Windows or msvcrt not available: Use standard input with sentinel
+        # Use "-" as explicit sentinel for back navigation
+        # Empty input uses default value (matching Windows behavior)
+        return _prompt_with_sentinel(prompt, default, color)
 
 
 def extract_dict_from_namespace(namespace, keys: list) -> dict:
