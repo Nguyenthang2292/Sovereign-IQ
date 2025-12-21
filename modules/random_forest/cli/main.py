@@ -6,9 +6,10 @@ and generating trading signals from the command line.
 """
 
 import pandas as pd
+import sys
 import time
 
-from config.random_forest import RANDOM_FOREST_FEATURES
+from config.model_features import MODEL_FEATURES
 from modules.random_forest import (
     get_latest_random_forest_signal,
     train_and_save_global_rf_model,
@@ -36,7 +37,6 @@ def main():
     3. Trains Random Forest model on combined data
     4. Tests signal generation on a sample pair
     """
-    DATAFRAME_COLUMNS = ['Pair', 'FinalSignal', 'SignalTimeframe']
     start_time = time.time()
     
     log_model("Starting Random Forest model training for crypto signals")
@@ -72,9 +72,7 @@ def main():
         "Please use DataFetcher from modules.common.core.data_fetcher to load data, "
         "then call train_and_save_global_rf_model(combined_df) directly."
     )
-    
-    # Placeholder for combined_df - in real usage, this would come from DataFetcher
-    combined_df = pd.DataFrame()
+    sys.exit(1)
     
     # Train Random Forest model
     model, model_path = None, ""
@@ -109,11 +107,42 @@ def main():
         # Feature importance analysis
         if hasattr(model, 'feature_importances_'):
             log_model(f"\nFEATURE IMPORTANCE:")
-            # Use model.feature_names_in_ if available, otherwise use RANDOM_FOREST_FEATURES
+            # Use model.feature_names_in_ if available, otherwise use MODEL_FEATURES
             if hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
                 feature_names = list(model.feature_names_in_)
             else:
-                feature_names = RANDOM_FOREST_FEATURES[:len(model.feature_importances_)]
+                # Fallback to MODEL_FEATURES with validation
+                num_importances = len(model.feature_importances_)
+                num_model_features = len(MODEL_FEATURES)
+                
+                if num_model_features >= num_importances:
+                    # Enough features in MODEL_FEATURES, use slice
+                    feature_names = MODEL_FEATURES[:num_importances]
+                else:
+                    # MODEL_FEATURES is shorter than importances array
+                    # Fill missing names with deterministic placeholders
+                    feature_names = MODEL_FEATURES.copy()
+                    missing_count = num_importances - num_model_features
+                    for i in range(missing_count):
+                        feature_names.append(f"feature_{num_model_features + i}")
+                    
+                    log_warn(
+                        f"MODEL_FEATURES has {num_model_features} features but model has {num_importances} importances. "
+                        f"Filled {missing_count} missing feature name(s) with placeholders (feature_{num_model_features} to feature_{num_importances - 1}). "
+                        "This may indicate a mismatch between model training features and MODEL_FEATURES configuration."
+                    )
+            
+            # Ensure lengths match before creating DataFrame
+            if len(feature_names) != len(model.feature_importances_):
+                log_error(
+                    f"Feature names length ({len(feature_names)}) does not match "
+                    f"importances length ({len(model.feature_importances_)}). "
+                    "Cannot create feature importance DataFrame."
+                )
+                raise ValueError(
+                    f"Feature names length ({len(feature_names)}) does not match "
+                    f"importances length ({len(model.feature_importances_)})"
+                )
             
             feature_importance = pd.DataFrame({
                 'Feature': feature_names,

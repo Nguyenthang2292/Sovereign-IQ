@@ -9,40 +9,6 @@ from pathlib import Path
 # Model Features - imported from shared configuration
 from .model_features import MODEL_FEATURES  # noqa: F401
 
-# Random Forest specific features
-# Only includes features computed by IndicatorProfile.CORE (no candlestick patterns)
-# This ensures consistency between training and prediction
-RANDOM_FOREST_FEATURES = [
-    # Basic OHLCV data
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume",
-    # Trend Indicators (from TrendIndicators.apply)
-    "SMA_20",
-    "SMA_50",
-    "SMA_200",
-    "ADX_14",
-    # Momentum Indicators (from MomentumIndicators.apply)
-    "RSI_9",
-    "RSI_14",
-    "RSI_25",
-    "MACD_12_26_9",
-    "MACDh_12_26_9",
-    "MACDs_12_26_9",
-    "BBP_5_2.0",
-    "STOCHRSIk_14_14_3_3",
-    "STOCHRSId_14_14_3_3",
-    "KAMA_10",
-    # Volatility Indicators (from VolatilityIndicators.apply)
-    "ATR_14",
-    "ATR_50",
-    "ATR_RATIO_14_50",
-    # Volume Indicators (from VolumeIndicators.apply)
-    "OBV",
-]
-
 # Confidence Thresholds
 CONFIDENCE_THRESHOLD = 0.6  # Default confidence threshold for signal generation
 CONFIDENCE_THRESHOLDS = [0.5, 0.6, 0.7, 0.8, 0.9]  # Thresholds for model evaluation

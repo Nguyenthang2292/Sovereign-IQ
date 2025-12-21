@@ -12,7 +12,7 @@ from sklearn.ensemble import RandomForestClassifier
 from config import (
     CONFIDENCE_THRESHOLD,
 )
-from config.random_forest import RANDOM_FOREST_FEATURES
+from config.model_features import MODEL_FEATURES
 from modules.common.core.indicator_engine import IndicatorEngine, IndicatorConfig, IndicatorProfile
 from modules.common.ui.logging import (
     log_info,
@@ -81,17 +81,17 @@ def get_latest_random_forest_signal(
             )
         
         # Check for extra features (not expected by model)
-        extra_features = [f for f in df_with_features.columns if f in RANDOM_FOREST_FEATURES and f not in model_features]
+        extra_features = [f for f in df_with_features.columns if f in MODEL_FEATURES and f not in model_features]
         if extra_features:
             log_warn(
                 f"Extra features in DataFrame not expected by model: {extra_features[:5]}{'...' if len(extra_features) > 5 else ''}. "
                 "These will be ignored."
             )
     else:
-        # Fallback: use RANDOM_FOREST_FEATURES if model doesn't have feature_names_in_
+        # Fallback: use MODEL_FEATURES if model doesn't have feature_names_in_
         # This happens if model was trained with numpy array instead of pandas DataFrame
-        log_warn("Model does not have feature_names_in_ attribute. Using RANDOM_FOREST_FEATURES as fallback.")
-        available_features = [f for f in RANDOM_FOREST_FEATURES if f in df_with_features.columns]
+        log_warn("Model does not have feature_names_in_ attribute. Using MODEL_FEATURES as fallback.")
+        available_features = [f for f in MODEL_FEATURES if f in df_with_features.columns]
         
         # Check if number of features matches model's expected number
         if hasattr(model, 'n_features_in_') and model.n_features_in_ is not None:
@@ -123,7 +123,7 @@ def get_latest_random_forest_signal(
         # Ensure column order matches model's expected order
         latest_features = latest_features[list(model.feature_names_in_)]
     else:
-        # Fallback: use available features in RANDOM_FOREST_FEATURES order
+        # Fallback: use available features in MODEL_FEATURES order
         latest_features = df_with_features[available_features].iloc[-1:]
     
     # Check for NaN values in features before prediction

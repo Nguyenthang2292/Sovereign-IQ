@@ -13,7 +13,7 @@ from config import (
     MIN_TRAINING_SAMPLES,
     SELL_THRESHOLD,
 )
-from config.random_forest import RANDOM_FOREST_FEATURES
+from config.model_features import MODEL_FEATURES
 from modules.common.core.indicator_engine import IndicatorEngine, IndicatorConfig, IndicatorProfile
 from modules.common.ui.logging import (
     log_info,
@@ -53,11 +53,11 @@ def prepare_training_data(df: pd.DataFrame) -> Optional[Tuple[pd.DataFrame, pd.S
     # Ensure target is numeric and convert to int
     df_with_features['target'] = pd.to_numeric(df_with_features['target'], errors='coerce').astype(int)
     
-    # Filter RANDOM_FOREST_FEATURES to only include features that actually exist in the DataFrame
-    # RANDOM_FOREST_FEATURES only includes features computed by IndicatorProfile.CORE
-    available_features = [f for f in RANDOM_FOREST_FEATURES if f in df_with_features.columns]
+    # Filter MODEL_FEATURES to only include features that actually exist in the DataFrame
+    # MODEL_FEATURES includes all features computed by IndicatorProfile.CORE and candlestick patterns
+    available_features = [f for f in MODEL_FEATURES if f in df_with_features.columns]
     if not available_features:
-        log_error("None of the required RANDOM_FOREST_FEATURES are present in the DataFrame.")
+        log_error("None of the required MODEL_FEATURES are present in the DataFrame.")
         return None
     
     df_with_features.dropna(subset=['target'] + available_features, inplace=True)

@@ -2,10 +2,10 @@
 Tests for Random Forest feature consistency.
 
 Tests verify that:
-- Model is trained with RANDOM_FOREST_FEATURES (not MODEL_FEATURES)
+- Model is trained with MODEL_FEATURES
 - Prediction uses the same features that model was trained with
 - No feature mismatch errors occur
-- Model.feature_names_in_ matches RANDOM_FOREST_FEATURES
+- Model.feature_names_in_ matches MODEL_FEATURES
 """
 
 import sys
@@ -29,7 +29,6 @@ from modules.random_forest import (
     get_latest_random_forest_signal,
     load_random_forest_model,
 )
-from config.random_forest import RANDOM_FOREST_FEATURES
 from config.model_features import MODEL_FEATURES
 
 
@@ -95,8 +94,16 @@ def mock_sufficient_memory():
 class TestFeatureConsistency:
     """Test suite for feature consistency between training and prediction"""
     
-    def test_model_trained_with_random_forest_features(self, mock_sufficient_memory, training_data):
-        """Test that model is trained with RANDOM_FOREST_FEATURES, not MODEL_FEATURES"""
+    def test_model_features_configuration(self):
+        """Test that MODEL_FEATURES is properly configured and non-empty"""
+        assert MODEL_FEATURES is not None, "MODEL_FEATURES should not be None"
+        assert isinstance(MODEL_FEATURES, (list, tuple)), \
+            f"MODEL_FEATURES should be a list or tuple, got {type(MODEL_FEATURES)}"
+        assert len(MODEL_FEATURES) > 0, \
+            f"MODEL_FEATURES should have at least one feature, got {len(MODEL_FEATURES)} features"
+    
+    def test_model_trained_with_model_features(self, mock_sufficient_memory, training_data):
+        """Test that model is trained with MODEL_FEATURES"""
         with patch('modules.random_forest.core.model.joblib.dump'):
             model = train_random_forest_model(training_data, save_model=False)
         
@@ -106,20 +113,14 @@ class TestFeatureConsistency:
         if hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
             model_features = list(model.feature_names_in_)
             
-            # Model should only have features from RANDOM_FOREST_FEATURES
-            # (not all MODEL_FEATURES which includes candlestick patterns)
+            # Model should only have features from MODEL_FEATURES
+            # (includes all features that are available in the data)
             for feature in model_features:
-                assert feature in RANDOM_FOREST_FEATURES, \
-                    f"Model feature '{feature}' not in RANDOM_FOREST_FEATURES"
-            
-            # Model should not have candlestick pattern features
-            candlestick_features = [f for f in MODEL_FEATURES if f not in RANDOM_FOREST_FEATURES]
-            for feature in candlestick_features:
-                assert feature not in model_features, \
-                    f"Model should not have candlestick feature '{feature}'"
+                assert feature in MODEL_FEATURES, \
+                    f"Model feature '{feature}' not in MODEL_FEATURES"
     
-    def test_model_feature_count_matches_random_forest_features(self, mock_sufficient_memory, training_data):
-        """Test that model has correct number of features matching RANDOM_FOREST_FEATURES"""
+    def test_model_feature_count_matches_model_features(self, mock_sufficient_memory, training_data):
+        """Test that model has correct number of features matching MODEL_FEATURES"""
         with patch('modules.random_forest.core.model.joblib.dump'):
             model = train_random_forest_model(training_data, save_model=False)
         
@@ -127,10 +128,10 @@ class TestFeatureConsistency:
         
         if hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
             model_features = list(model.feature_names_in_)
-            # Model should have at most the number of features in RANDOM_FOREST_FEATURES
+            # Model should have at most the number of features in MODEL_FEATURES
             # (may be less if some features are not available in the data)
-            assert len(model_features) <= len(RANDOM_FOREST_FEATURES), \
-                f"Model has {len(model_features)} features, but RANDOM_FOREST_FEATURES has {len(RANDOM_FOREST_FEATURES)}"
+            assert len(model_features) <= len(MODEL_FEATURES), \
+                f"Model has {len(model_features)} features, but MODEL_FEATURES has {len(MODEL_FEATURES)}"
             
             # Model should have at least some features
             assert len(model_features) > 0, "Model should have at least one feature"
@@ -169,7 +170,7 @@ class TestFeatureConsistency:
             raise
     
     def test_model_feature_names_in_consistency(self, mock_sufficient_memory, training_data):
-        """Test that model.feature_names_in_ is consistent with RANDOM_FOREST_FEATURES"""
+        """Test that model.feature_names_in_ is consistent with MODEL_FEATURES"""
         with patch('modules.random_forest.core.model.joblib.dump'):
             model = train_random_forest_model(training_data, save_model=False)
         
@@ -178,13 +179,13 @@ class TestFeatureConsistency:
         if hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
             model_features = list(model.feature_names_in_)
             
-            # All model features should be in RANDOM_FOREST_FEATURES
-            missing_features = [f for f in model_features if f not in RANDOM_FOREST_FEATURES]
+            # All model features should be in MODEL_FEATURES
+            missing_features = [f for f in model_features if f not in MODEL_FEATURES]
             assert len(missing_features) == 0, \
-                f"Model has features not in RANDOM_FOREST_FEATURES: {missing_features}"
+                f"Model has features not in MODEL_FEATURES: {missing_features}"
     
-    def test_data_preparation_uses_random_forest_features(self, mock_sufficient_memory, training_data):
-        """Test that data preparation filters to RANDOM_FOREST_FEATURES"""
+    def test_data_preparation_uses_model_features(self, mock_sufficient_memory, training_data):
+        """Test that data preparation filters to MODEL_FEATURES"""
         from modules.random_forest.utils.data_preparation import prepare_training_data
         
         prepared_data = prepare_training_data(training_data)
@@ -192,14 +193,14 @@ class TestFeatureConsistency:
         assert prepared_data is not None
         features, target = prepared_data
         
-        # Features DataFrame should only contain columns from RANDOM_FOREST_FEATURES
+        # Features DataFrame should only contain columns from MODEL_FEATURES
         feature_columns = set(features.columns)
-        random_forest_features_set = set(RANDOM_FOREST_FEATURES)
+        model_features_set = set(MODEL_FEATURES)
         
-        # All feature columns should be in RANDOM_FOREST_FEATURES
-        extra_features = feature_columns - random_forest_features_set
+        # All feature columns should be in MODEL_FEATURES
+        extra_features = feature_columns - model_features_set
         assert len(extra_features) == 0, \
-            f"Features DataFrame contains columns not in RANDOM_FOREST_FEATURES: {extra_features}"
+            f"Features DataFrame contains columns not in MODEL_FEATURES: {extra_features}"
     
     def test_signal_generation_handles_missing_features(self, mock_sufficient_memory, training_data, sample_data):
         """Test that signal generation handles missing features gracefully"""
@@ -211,7 +212,7 @@ class TestFeatureConsistency:
         
         # Create data with missing some features
         incomplete_data = sample_data.copy()
-        # Remove some columns (but keep OHLCV)
+        # Remove volume column (keeping OHLC)
         if 'volume' in incomplete_data.columns:
             incomplete_data = incomplete_data.drop(columns=['volume'])
         
@@ -227,10 +228,11 @@ class TestFeatureConsistency:
         if model is None:
             pytest.skip("Model training failed")
         
-        # Add extra features (candlestick patterns that shouldn't be in model)
+        # Add extra features (features not in MODEL_FEATURES)
         data_with_extra = sample_data.copy()
-        candlestick_features = [f for f in MODEL_FEATURES if f not in RANDOM_FOREST_FEATURES]
-        for feature in candlestick_features[:5]:  # Add first 5 candlestick features
+        # Add some random features not in MODEL_FEATURES
+        extra_features = ['extra_feature_1', 'extra_feature_2', 'extra_feature_3']
+        for feature in extra_features:
             data_with_extra[feature] = np.random.randn(len(data_with_extra))
         
         # Should work without error (extra features are ignored)
@@ -271,7 +273,7 @@ class TestFeatureConsistencyIntegration:
             if hasattr(loaded_model, 'feature_names_in_') and loaded_model.feature_names_in_ is not None:
                 model_features = list(loaded_model.feature_names_in_)
                 for feature in model_features:
-                    assert feature in RANDOM_FOREST_FEATURES
+                    assert feature in MODEL_FEATURES
         
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)

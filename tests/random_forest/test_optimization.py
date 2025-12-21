@@ -35,7 +35,7 @@ from config import (
     BUY_THRESHOLD,
     SELL_THRESHOLD,
 )
-from config.random_forest import RANDOM_FOREST_FEATURES
+from config.model_features import MODEL_FEATURES
 
 
 # ============================================================================
@@ -253,7 +253,13 @@ class TestHyperparameterTuner:
         
         with patch('modules.random_forest.optimization.prepare_training_data') as mock_prepare:
             # Mock to return small features
-            small_features = pd.DataFrame(np.random.randn(50, 5), columns=RANDOM_FOREST_FEATURES[:5])
+            # Defensive check: ensure MODEL_FEATURES has at least 5 elements
+            if len(MODEL_FEATURES) >= 5:
+                feature_columns = MODEL_FEATURES[:5]
+            else:
+                # Fallback to dynamically generated column names
+                feature_columns = [f"feature_{i}" for i in range(5)]
+            small_features = pd.DataFrame(np.random.randn(50, 5), columns=feature_columns)
             small_target = pd.Series([0, 1, -1] * 16 + [0, 1])[:50]
             mock_prepare.return_value = (small_features, small_target)
             
@@ -345,7 +351,14 @@ class TestHyperparameterTuner:
         """Test optimize with only one class in target"""
         tuner = HyperparameterTuner("BTCUSDT", "1h", storage_dir=temp_storage_dir)
         
-        features = pd.DataFrame(np.random.randn(100, 5), columns=RANDOM_FOREST_FEATURES[:5])
+        # Defensive check: ensure MODEL_FEATURES has at least 5 elements
+        if len(MODEL_FEATURES) >= 5:
+            feature_columns = MODEL_FEATURES[:5]
+        else:
+            # Fallback to dynamically generated column names
+            feature_columns = [f"feature_{i}" for i in range(5)]
+        
+        features = pd.DataFrame(np.random.randn(100, 5), columns=feature_columns)
         target = pd.Series([0] * 100)  # Only one class
         
         df = pd.DataFrame()

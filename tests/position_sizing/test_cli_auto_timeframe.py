@@ -2,8 +2,7 @@
 Tests for position_sizing CLI auto timeframe feature.
 
 Tests cover:
-- try_timeframes_auto function
-- Auto timeframe testing logic
+- _try_timeframes_auto function- Auto timeframe testing logic
 - Finding valid timeframe at different positions
 - Error handling during timeframe testing
 - Edge cases (empty results, no valid results)
@@ -24,8 +23,7 @@ import numpy as np
 from unittest.mock import patch, MagicMock, call
 from types import SimpleNamespace
 
-from modules.position_sizing.cli.main import try_timeframes_auto
-from modules.position_sizing.core.position_sizer import PositionSizer
+from main_position_sizing import _try_timeframes_auto
 
 
 # ============================================================================
@@ -92,16 +90,16 @@ def results_df_no_position_size_column():
 # ============================================================================
 
 class TestTryTimeframesAuto:
-    """Test suite for try_timeframes_auto function"""
+    """Test suite for _try_timeframes_auto function"""
     
     def test_finds_valid_timeframe_at_first_attempt(self, mock_data_fetcher, sample_symbols, valid_results_df):
         """Test that function finds valid timeframe at first attempt (15m)"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             mock_position_sizer.calculate_portfolio_allocation.return_value = valid_results_df
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -129,7 +127,7 @@ class TestTryTimeframesAuto:
     
     def test_finds_valid_timeframe_at_second_attempt(self, mock_data_fetcher, sample_symbols, valid_results_df, zero_results_df):
         """Test that function finds valid timeframe at second attempt (30m)"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             # First timeframe returns zero results, second returns valid results
             mock_position_sizer.calculate_portfolio_allocation.side_effect = [
@@ -138,7 +136,7 @@ class TestTryTimeframesAuto:
             ]
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -159,7 +157,7 @@ class TestTryTimeframesAuto:
     
     def test_finds_valid_timeframe_at_third_attempt(self, mock_data_fetcher, sample_symbols, valid_results_df, zero_results_df):
         """Test that function finds valid timeframe at third attempt (1h)"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             # First two timeframes return zero results, third returns valid results
             mock_position_sizer.calculate_portfolio_allocation.side_effect = [
@@ -169,7 +167,7 @@ class TestTryTimeframesAuto:
             ]
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -190,13 +188,13 @@ class TestTryTimeframesAuto:
     
     def test_no_valid_timeframe_found(self, mock_data_fetcher, sample_symbols, zero_results_df):
         """Test that function returns (None, None) when no valid timeframe is found"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             # All timeframes return zero results
             mock_position_sizer.calculate_portfolio_allocation.return_value = zero_results_df
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -215,12 +213,12 @@ class TestTryTimeframesAuto:
     
     def test_empty_dataframe_returns_none(self, mock_data_fetcher, sample_symbols, empty_results_df):
         """Test that function handles empty DataFrame correctly"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             mock_position_sizer.calculate_portfolio_allocation.return_value = empty_results_df
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -238,12 +236,12 @@ class TestTryTimeframesAuto:
     
     def test_missing_position_size_column(self, mock_data_fetcher, sample_symbols, results_df_no_position_size_column):
         """Test that function handles missing position_size_usdt column"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             mock_position_sizer.calculate_portfolio_allocation.return_value = results_df_no_position_size_column
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -258,7 +256,7 @@ class TestTryTimeframesAuto:
     
     def test_exception_at_first_timeframe_continues(self, mock_data_fetcher, sample_symbols, valid_results_df):
         """Test that function continues to next timeframe when exception occurs"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             # First timeframe raises exception, second returns valid results
             mock_position_sizer.calculate_portfolio_allocation.side_effect = [
@@ -267,7 +265,7 @@ class TestTryTimeframesAuto:
             ]
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -286,13 +284,13 @@ class TestTryTimeframesAuto:
     
     def test_exception_at_all_timeframes_returns_none(self, mock_data_fetcher, sample_symbols):
         """Test that function returns (None, None) when all timeframes raise exceptions"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             # All timeframes raise exceptions
             mock_position_sizer.calculate_portfolio_allocation.side_effect = ValueError("Test error")
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -316,12 +314,12 @@ class TestTryTimeframesAuto:
             # No position_size_pct column
         })
         
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             mock_position_sizer.calculate_portfolio_allocation.return_value = results_df
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -342,12 +340,12 @@ class TestTryTimeframesAuto:
             'position_size_pct': [10.0],  # > 0
         })
         
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             mock_position_sizer.calculate_portfolio_allocation.return_value = results_df
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -362,7 +360,7 @@ class TestTryTimeframesAuto:
     
     def test_timeframe_order(self, mock_data_fetcher, sample_symbols, valid_results_df):
         """Test that timeframes are tried in correct order: 15m -> 30m -> 1h"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             # Return valid results only at 30m
             mock_position_sizer.calculate_portfolio_allocation.side_effect = [
@@ -371,7 +369,7 @@ class TestTryTimeframesAuto:
             ]
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -391,12 +389,12 @@ class TestTryTimeframesAuto:
     
     def test_calculate_portfolio_allocation_called_with_correct_params(self, mock_data_fetcher, sample_symbols, valid_results_df):
         """Test that calculate_portfolio_allocation is called with correct parameters"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class:
             mock_position_sizer = MagicMock()
             mock_position_sizer.calculate_portfolio_allocation.return_value = valid_results_df
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -424,10 +422,10 @@ class TestTryTimeframesAutoLogging:
     
     def test_logs_progress_for_each_timeframe(self, mock_data_fetcher, sample_symbols, zero_results_df, valid_results_df):
         """Test that function logs progress for each timeframe attempt"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class, \
-             patch('modules.position_sizing.cli.main.log_progress') as mock_log_progress, \
-             patch('modules.position_sizing.cli.main.log_warn') as mock_log_warn, \
-             patch('modules.position_sizing.cli.main.log_success') as mock_log_success:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class, \
+             patch('main_position_sizing.log_progress') as mock_log_progress, \
+             patch('main_position_sizing.log_warn') as mock_log_warn, \
+             patch('main_position_sizing.log_success') as mock_log_success:
             
             mock_position_sizer = MagicMock()
             mock_position_sizer.calculate_portfolio_allocation.side_effect = [
@@ -436,7 +434,7 @@ class TestTryTimeframesAutoLogging:
             ]
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
@@ -453,8 +451,8 @@ class TestTryTimeframesAutoLogging:
     
     def test_logs_error_when_exception_occurs(self, mock_data_fetcher, sample_symbols, valid_results_df):
         """Test that function logs error when exception occurs"""
-        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_position_sizer_class, \
-             patch('modules.position_sizing.cli.main.log_warn') as mock_log_warn:
+        with patch('main_position_sizing.PositionSizer') as mock_position_sizer_class, \
+             patch('main_position_sizing.log_warn') as mock_log_warn:
             
             mock_position_sizer = MagicMock()
             mock_position_sizer.calculate_portfolio_allocation.side_effect = [
@@ -463,7 +461,7 @@ class TestTryTimeframesAutoLogging:
             ]
             mock_position_sizer_class.return_value = mock_position_sizer
             
-            timeframe, results = try_timeframes_auto(
+            timeframe, results = _try_timeframes_auto(
                 symbols=sample_symbols,
                 account_balance=10000.0,
                 lookback_days=30,
