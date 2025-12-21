@@ -35,6 +35,21 @@ from modules.common.utils import (
 from .display import print_classification_report
 
 
+class ClassDiversityError(ValueError):
+    """
+    Exception raised when training data lacks sufficient class diversity.
+    
+    This exception is raised when:
+    - Training set has fewer than 2 classes (XGBoost requires at least 2)
+    - Training set is missing required class 0 (XGBoost expects classes to start from 0)
+    - XGBoost reports class mismatch errors during model fitting
+    
+    This allows callers to distinguish class diversity issues from other ValueError
+    cases, enabling more precise error handling.
+    """
+    pass
+
+
 def _resolve_xgb_classifier() -> Type:
     """
     Resolve XGBClassifier class with fallback support.
@@ -101,6 +116,12 @@ def train_and_predict(df: pd.DataFrame) -> Any:
 
     Returns:
         Trained XGBoost classifier model ready for prediction
+
+    Raises:
+        ClassDiversityError: If training data lacks sufficient class diversity:
+            - Training set has fewer than 2 classes (XGBoost requires at least 2)
+            - Training set is missing required class 0 (XGBoost expects classes to start from 0)
+            - XGBoost reports class mismatch errors during model fitting
 
     Note:
         The gap between train and test sets equals TARGET_HORIZON to prevent
@@ -193,8 +214,50 @@ def train_and_predict(df: pd.DataFrame) -> Any:
             f"Train/Test split: {len(X_train)} train, {gap_size} gap (to prevent leakage), {len(X_test)} test"
         )
 
+    # Validate class diversity in training set before building model
+    # XGBoost requires at least 2 classes, but model is configured for 3 classes
+    unique_train_classes = sorted(y_train.unique())
+    if len(unique_train_classes) < 2:
+        raise ClassDiversityError(
+            f"Insufficient class diversity in training set: found {len(unique_train_classes)} class(es) {unique_train_classes}, "
+            f"but XGBoost requires at least 2 classes. Total training samples: {len(y_train)}"
+        )
+    
+    # Check if we have all expected classes (0, 1, 2 for DOWN, NEUTRAL, UP)
+    # If not, XGBoost may fail with "Invalid classes" error
+    expected_classes = set(range(len(TARGET_LABELS)))  # {0, 1, 2}
+    actual_classes = set(unique_train_classes)
+    
+    # If training set doesn't have class 0, XGBoost will fail because it expects classes to start from 0
+    if 0 not in actual_classes:
+        raise ClassDiversityError(
+            f"Training set missing class 0 (DOWN). Found classes: {unique_train_classes}. "
+            f"XGBoost expects classes to start from 0. Total training samples: {len(y_train)}"
+        )
+    
+    if len(unique_train_classes) < len(TARGET_LABELS):
+        # Model expects 3 classes but training set only has fewer - this may cause issues
+        # XGBoost can sometimes handle this, but it's safer to warn or fail
+        missing_classes = expected_classes - actual_classes
+        log_warn(
+            f"Training set has {len(unique_train_classes)} class(es) {[ID_TO_LABEL[c] for c in unique_train_classes]}, "
+            f"but model expects {len(TARGET_LABELS)} classes. Missing: {[ID_TO_LABEL[c] for c in missing_classes]}. "
+            f"This may cause issues during training."
+        )
+
     model = build_model()
-    model.fit(X_train, y_train)
+    try:
+        model.fit(X_train, y_train)
+    except ValueError as e:
+        error_msg = str(e)
+        # Catch XGBoost class mismatch errors
+        if "invalid classes" in error_msg.lower() or ("expected" in error_msg.lower() and "got" in error_msg.lower()):
+            raise ClassDiversityError(
+                f"XGBoost class mismatch: {error_msg}. "
+                f"Training set has classes: {unique_train_classes}, expected classes: {list(expected_classes)}. "
+                f"Total training samples: {len(y_train)}"
+            ) from e
+        raise
 
     if len(X_test) > 0:
         y_pred = model.predict(X_test)

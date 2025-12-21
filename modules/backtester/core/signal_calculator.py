@@ -11,6 +11,7 @@ import numpy as np
 import pickle
 import signal
 import functools
+import threading
 from multiprocessing import Pool, cpu_count
 
 from modules.common.utils import (
@@ -415,6 +416,20 @@ def calculate_single_signals_parallel(
                 progress.finish()
                 return signals
     
+    # Check if we're in the main thread - multiprocessing and signal handling only work from main thread
+    # If we're in a worker thread (e.g., from ThreadPoolExecutor), skip multiprocessing and use sequential
+    if threading.current_thread() is not threading.main_thread():
+        log_warn("Not in main thread, skipping multiprocessing and using sequential calculation")
+        # Clean up shared memory if it was set up
+        if shm_info is not None:
+            try:
+                cleanup_shared_memory(shm_info)
+            except Exception as e:
+                log_warn(f"Error cleaning up shared memory: {e}")
+        signals = fallback_calculate_single_signals(df, symbol, timeframe, limit, hybrid_signal_calculator)
+        progress.finish()
+        return signals
+    
     # Use multiprocessing Pool with signal handling for graceful shutdown
     pool = None
     original_handler = None
@@ -431,8 +446,8 @@ def calculate_single_signals_parallel(
                 pool_ref[0].join(timeout=2)
             except Exception:
                 pass
-        # Restore original handler and raise KeyboardInterrupt
-        if original_handler is not None:
+        # Restore original handler and raise KeyboardInterrupt (signal handlers always run in main thread)
+        if threading.current_thread() is threading.main_thread() and original_handler is not None:
             signal.signal(signal.SIGINT, original_handler)
         raise KeyboardInterrupt("Interrupted by user")
     
@@ -455,8 +470,8 @@ def calculate_single_signals_parallel(
         # Process batches in parallel
         results = pool.starmap(worker_func, batches)
         
-        # Restore original signal handler on success
-        if original_handler is not None:
+        # Restore original signal handler on success (only if in main thread)
+        if threading.current_thread() is threading.main_thread() and original_handler is not None:
             signal.signal(signal.SIGINT, original_handler)
         
         # Merge results and update progress
@@ -640,9 +655,22 @@ def calculate_signals_parallel(
                 progress.finish()
                 return signals
     
+    # Check if we're in the main thread - multiprocessing and signal handling only work from main thread
+    # If we're in a worker thread (e.g., from ThreadPoolExecutor), skip multiprocessing and use sequential
+    if threading.current_thread() is not threading.main_thread():
+        log_warn("Not in main thread, skipping multiprocessing and using sequential calculation")
+        # Clean up shared memory if it was set up
+        if shm_info is not None:
+            try:
+                cleanup_shared_memory(shm_info)
+            except Exception as e:
+                log_warn(f"Error cleaning up shared memory: {e}")
+        signals = fallback_calculate_signals(df, symbol, timeframe, limit, signal_type)
+        progress.finish()
+        return signals
+    
     # Use multiprocessing Pool with signal handling for graceful shutdown
     pool = None
-    original_handler = None
     
     # Use a list to store pool reference for signal handler
     pool_ref = [None]
@@ -656,8 +684,8 @@ def calculate_signals_parallel(
                 pool_ref[0].join(timeout=2)
             except Exception:
                 pass
-        # Restore original handler and raise KeyboardInterrupt
-        if original_handler is not None:
+        # Restore original handler and raise KeyboardInterrupt (only if in main thread)
+        if threading.current_thread() is threading.main_thread() and original_handler is not None:
             signal.signal(signal.SIGINT, original_handler)
         raise KeyboardInterrupt("Interrupted by user")
     
@@ -680,8 +708,8 @@ def calculate_signals_parallel(
         # Process batches in parallel
         results = pool.starmap(worker_func, batches)
         
-        # Restore original signal handler on success
-        if original_handler is not None:
+        # Restore original signal handler on success (only if in main thread)
+        if threading.current_thread() is threading.main_thread() and original_handler is not None:
             signal.signal(signal.SIGINT, original_handler)
         
         # Merge results and update progress

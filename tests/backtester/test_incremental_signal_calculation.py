@@ -140,21 +140,26 @@ class TestIncrementalSignalCalculation:
 class TestFullBacktesterIncrementalMode:
     """Test FullBacktester with incremental calculation mode."""
     
+    @staticmethod
+    def _create_sample_dataframe(periods=100, seed=42):
+        """Helper method to create sample DataFrame for testing."""
+        dates = pd.date_range('2024-01-01', periods=periods, freq='1h')
+        np.random.seed(seed)
+        prices = 100 + np.cumsum(np.random.randn(periods) * 0.5)
+        return pd.DataFrame({
+            'open': prices + np.random.randn(periods) * 0.1,
+            'high': prices + np.abs(np.random.randn(periods) * 0.2),
+            'low': prices - np.abs(np.random.randn(periods) * 0.2),
+            'close': prices,
+            'volume': np.random.rand(periods) * 1000,
+        }, index=dates)
+    
     @pytest.fixture
     def mock_data_fetcher(self):
         """Create a mock DataFetcher."""
         fetcher = Mock(spec=DataFetcher)
-        dates = pd.date_range('2024-01-01', periods=100, freq='1h')
-        np.random.seed(42)
-        prices = 100 + np.cumsum(np.random.randn(100) * 0.5)
-        df = pd.DataFrame({
-            'open': prices + np.random.randn(100) * 0.1,
-            'high': prices + np.abs(np.random.randn(100) * 0.2),
-            'low': prices - np.abs(np.random.randn(100) * 0.2),
-            'close': prices,
-            'volume': np.random.rand(100) * 1000,
-        }, index=dates)
-        fetcher.fetch_ohlcv.return_value = df
+        df = TestFullBacktesterIncrementalMode._create_sample_dataframe()
+        fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (df, None)
         return fetcher
     
     def test_backtester_incremental_mode(self, mock_data_fetcher):
@@ -177,6 +182,11 @@ class TestFullBacktesterIncrementalMode:
         assert 'trades' in result
         assert 'metrics' in result
         assert isinstance(result['trades'], list)
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.assert_called_once()
+        call_args = mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.call_args
+        assert call_args[0][0] == 'BTC/USDT'
+        assert call_args[1]['limit'] == 50
+        assert call_args[1]['timeframe'] == '1h'
     
     def test_backtester_precomputed_mode(self, mock_data_fetcher):
         """Test FullBacktester with precomputed calculation mode (default)."""
@@ -197,6 +207,11 @@ class TestFullBacktesterIncrementalMode:
         assert result is not None
         assert 'trades' in result
         assert 'metrics' in result
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.assert_called_once()
+        call_args = mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.call_args
+        assert call_args[0][0] == 'BTC/USDT'
+        assert call_args[1]['limit'] == 50
+        assert call_args[1]['timeframe'] == '1h'
     
     def test_backtester_incremental_mode_single_signal(self, mock_data_fetcher):
         """Test FullBacktester with incremental mode and single signal mode."""
@@ -217,6 +232,11 @@ class TestFullBacktesterIncrementalMode:
         assert result is not None
         assert 'trades' in result
         assert 'metrics' in result
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.assert_called_once()
+        call_args = mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.call_args
+        assert call_args[0][0] == 'BTC/USDT'
+        assert call_args[1]['limit'] == 50
+        assert call_args[1]['timeframe'] == '1h'
     
     def test_backtester_invalid_calculation_mode(self, mock_data_fetcher):
         """Test that invalid calculation mode raises ValueError."""
@@ -225,6 +245,46 @@ class TestFullBacktesterIncrementalMode:
                 data_fetcher=mock_data_fetcher,
                 signal_calculation_mode='invalid_mode',
             )
+    
+    def test_backtester_fallback_exchange_path(self, mock_data_fetcher):
+        """Test FullBacktester when fallback exchange is used."""
+        # Configure mock to return a fallback exchange
+        df = TestFullBacktesterIncrementalMode._create_sample_dataframe()
+        fallback_exchange = 'binance'  # Simulate fallback exchange
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (df, fallback_exchange)
+        
+        backtester = FullBacktester(
+            data_fetcher=mock_data_fetcher,
+            signal_mode='majority_vote',
+            signal_calculation_mode='incremental',
+        )
+        
+        result = backtester.backtest(
+            symbol='BTC/USDT',
+            timeframe='1h',
+            lookback=50,
+            signal_type='LONG',
+            initial_capital=10000.0,
+        )
+        
+        # Assert backtest result - verify behavior when fallback exchange is used
+        assert result is not None
+        assert 'trades' in result
+        assert 'metrics' in result
+        assert isinstance(result['trades'], list)
+        
+        # Verify that backtest completed successfully with fallback exchange
+        # The backtester should handle fallback exchange transparently
+        assert isinstance(result['metrics'], dict)
+        assert 'total_trades' in result['metrics']
+        assert 'win_rate' in result['metrics']
+        
+        # Assert fetch_ohlcv_with_fallback_exchange was called correctly
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.assert_called_once()
+        call_args = mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.call_args
+        assert call_args[0][0] == 'BTC/USDT'
+        assert call_args[1]['limit'] == 50
+        assert call_args[1]['timeframe'] == '1h'
 
 
 class TestIncrementalWalkForwardSemantics:

@@ -17,6 +17,8 @@ import pandas as pd
 from typing import Optional, List, Dict, Tuple
 import logging
 import traceback
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from modules.common.utils import configure_windows_stdio
 
@@ -86,16 +88,17 @@ def _try_timeframes_auto(
     signal_calculation_mode: str,
 ) -> Tuple[Optional[str], Optional[pd.DataFrame]]:
     """
-    Tự động thử các timeframe để tìm timeframe có kết quả position sizing.
+    Tự động thử các timeframe song song để tìm timeframe có kết quả position sizing.
     
-    Thử các timeframe theo thứ tự: 15m -> 30m -> 1h
-    Dừng lại khi tìm thấy timeframe có Total Position Size > 0 hoặc Total Exposure > 0
+    Chạy song song các timeframe: 15m, 30m, 1h
+    Dừng ngay khi tìm thấy timeframe có kết quả hợp lệ đầu tiên (early stopping).
+    Tăng tốc độ đáng kể so với chạy tuần tự.
     
     Args:
         symbols: List of symbol dictionaries
         account_balance: Account balance in USDT
         lookback_days: Number of days to look back
-        data_fetcher: DataFetcher instance
+        data_fetcher: DataFetcher instance (assumed thread-safe or each thread uses separate calls)
         max_position_size: Maximum position size as fraction
         signal_mode: Signal calculation mode ('majority_vote' or 'single_signal')
         signal_calculation_mode: Signal calculation approach ('precomputed' or 'incremental')
@@ -105,10 +108,24 @@ def _try_timeframes_auto(
     """
     timeframes = ['15m', '30m', '1h']
     
-    for timeframe in timeframes:
-        log_progress(f"\nTrying timeframe: {timeframe}...")
-        
+    # Tạo cancellation event để các tasks có thể kiểm tra và dừng sớm
+    cancel_event = threading.Event()
+    
+    def try_timeframe(timeframe: str) -> Tuple[Optional[str], Optional[pd.DataFrame]]:
+        """Try a single timeframe and return result."""
         try:
+            # Kiểm tra cancellation trước khi bắt đầu
+            if cancel_event.is_set():
+                log_progress(f"Skipping timeframe {timeframe} (cancelled)")
+                return (None, None)
+            
+            log_progress(f"Trying timeframe: {timeframe}...")
+            
+            # Kiểm tra cancellation trước khi tạo PositionSizer
+            if cancel_event.is_set():
+                log_progress(f"Cancelling timeframe {timeframe} before PositionSizer creation")
+                return (None, None)
+            
             # Tạo PositionSizer với timeframe này
             position_sizer = PositionSizer(
                 data_fetcher=data_fetcher,
@@ -119,6 +136,11 @@ def _try_timeframes_auto(
                 signal_calculation_mode=signal_calculation_mode,
             )
             
+            # Kiểm tra cancellation trước khi tính toán
+            if cancel_event.is_set():
+                log_progress(f"Cancelling timeframe {timeframe} before calculation")
+                return (None, None)
+            
             # Tính position sizing
             results_df = position_sizer.calculate_portfolio_allocation(
                 symbols=symbols,
@@ -126,6 +148,11 @@ def _try_timeframes_auto(
                 timeframe=timeframe,
                 lookback=lookback_days,
             )
+            
+            # Kiểm tra cancellation sau khi tính toán
+            if cancel_event.is_set():
+                log_progress(f"Cancelling timeframe {timeframe} after calculation")
+                return (None, None)
             
             # Kiểm tra kết quả
             if not results_df.empty and 'position_size_usdt' in results_df.columns:
@@ -138,26 +165,90 @@ def _try_timeframes_auto(
                     log_progress(f"  Total Exposure: {total_exposure_pct:.2f}%")
                     return (timeframe, results_df)
             
-            log_warn(f"No position sizing result at {timeframe}, trying next timeframe...")
+            log_warn(f"No position sizing result at {timeframe}")
+            return (None, None)
             
         except (ValueError, KeyError, IndexError, pd.errors.EmptyDataError, InsufficientDataError, DataError) as e:
-            # Recoverable data errors - log with context and continue to next timeframe
+            # Recoverable data errors - log with context
             log_warn(f"Data error trying timeframe {timeframe}: {type(e).__name__}: {e}")
             logging.exception(f"Full traceback for data error at timeframe {timeframe}")
-            log_warn(f"Continuing to next timeframe...")
+            return (None, None)
         except (ConnectionError, TimeoutError, OSError) as e:
-            # Unrecoverable network/system errors - log and re-raise to abort process
+            # Unrecoverable network/system errors - log and return None (let other threads continue)
             log_error(f"Network/system error trying timeframe {timeframe}: {type(e).__name__}: {e}")
             logging.exception(f"Full traceback for network/system error at timeframe {timeframe}")
-            raise
+            # Don't re-raise in parallel execution - let other threads continue
+            return (None, None)
         except Exception as e:
-            # Other unexpected errors - log with full traceback and re-raise
+            # Other unexpected errors - log with full traceback
             log_error(f"Unexpected error trying timeframe {timeframe}: {type(e).__name__}: {e}")
             logging.exception(f"Full traceback for unexpected error at timeframe {timeframe}")
-            raise
+            return (None, None)
     
-    log_warn("✗ No timeframe found with valid position sizing results")
-    return (None, None)
+    # Chạy song song với ThreadPoolExecutor
+    log_progress("\nRunning timeframes in parallel for faster execution...")
+    executor = ThreadPoolExecutor(max_workers=len(timeframes))
+    early_exit = False  # Flag để đánh dấu early stopping
+    try:
+        # Submit tất cả tasks
+        future_to_timeframe = {
+            executor.submit(try_timeframe, tf): tf 
+            for tf in timeframes
+        }
+        
+        # Chờ kết quả, return ngay khi tìm thấy kết quả hợp lệ đầu tiên
+        for future in as_completed(future_to_timeframe):
+            timeframe = future_to_timeframe[future]
+            try:
+                result_timeframe, result_df = future.result()
+                
+                # Nếu tìm thấy kết quả hợp lệ, cancel các futures còn lại và return
+                if result_timeframe is not None and result_df is not None:
+                    log_progress(f"Early stopping: Found result at {result_timeframe}, cancelling other timeframes...")
+                    
+                    # Set cancellation event để các tasks đang chạy có thể dừng sớm
+                    cancel_event.set()
+                    
+                    # Cancel các futures còn lại
+                    remaining_futures = [f for f in future_to_timeframe.keys() if not f.done()]
+                    cancelled_count = 0
+                    for remaining_future in remaining_futures:
+                        if remaining_future.cancel():
+                            cancelled_count += 1
+                    
+                    if cancelled_count > 0:
+                        log_progress(f"Cancelled {cancelled_count} pending timeframe(s)")
+                    
+                    # Đánh dấu early exit để finally block biết không cần chờ
+                    early_exit = True
+                    
+                    return (result_timeframe, result_df)
+            except Exception as e:
+                log_warn(f"Exception getting result from timeframe {timeframe}: {e}")
+                continue
+        
+        log_warn("✗ No timeframe found with valid position sizing results")
+        return (None, None)
+    finally:
+        # Đảm bảo executor được shutdown ngay cả khi có exception để cleanup executor
+        # Sử dụng early_exit flag để quyết định có chờ các tasks hoàn thành hay không
+        # Nếu exception xảy ra trước khi tìm thấy kết quả, early_exit vẫn là False nên
+        # shutdown(wait=True) sẽ block cho đến khi các tasks hoàn thành (làm chậm việc
+        # propagate exception) nhưng đảm bảo shutdown sạch sẽ
+        try:
+            if sys.version_info >= (3, 9):
+                executor.shutdown(wait=not early_exit, cancel_futures=True)
+            else:
+                # Với Python < 3.9, cancel các futures còn lại thủ công
+                # future_to_timeframe có thể chưa được định nghĩa nếu exception xảy ra sớm
+                if 'future_to_timeframe' in locals():
+                    for future in future_to_timeframe.keys():
+                        if not future.done():
+                            future.cancel()
+                executor.shutdown(wait=not early_exit)
+        except Exception:
+            # Ignore exceptions trong finally block để không che giấu exception gốc
+            pass
 
 
 def _prompt_for_balance() -> float:
@@ -197,10 +288,10 @@ def main() -> None:
         config = {}
         if not args.no_menu:
             config = interactive_config_menu()
-            # Merge config with args
+            # Merge config with args - always override with menu values if menu was shown
             for key, value in config.items():
-                if not hasattr(args, key) or getattr(args, key) is None:
-                    setattr(args, key, value)
+                # Always override with menu values when menu is shown (user explicitly chose these values)
+                setattr(args, key, value)
         
         # Initialize components first (needed for fetching balance)
         log_progress("\nInitializing components...")
@@ -283,9 +374,7 @@ def main() -> None:
         signal_calculation_mode = getattr(args, 'signal_calculation_mode', 'precomputed')
         
         # Check auto timeframe mode (from config menu or command line)
-        auto_timeframe = config.get('auto_timeframe', False) if config else False
-        if not auto_timeframe:
-            auto_timeframe = getattr(args, 'auto_timeframe', False)
+        auto_timeframe = getattr(args, 'auto_timeframe', False)
         
         # Initialize Position Sizer (only if not using auto timeframe)
         if not auto_timeframe:

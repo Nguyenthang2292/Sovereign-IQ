@@ -55,7 +55,8 @@ class TestCalculateSingleSignalHighestConfidence:
     
     def test_no_signals_returns_zero(self, hybrid_calculator, sample_df):
         """Test that no signals returns (0, 0.0)."""
-        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=[]):
+        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=[]) as mock_seq, \
+             patch.object(hybrid_calculator, '_calculate_indicators_parallel', return_value=[]) as mock_par:
             result = hybrid_calculator.calculate_single_signal_highest_confidence(
                 df=sample_df,
                 symbol='BTC/USDT',
@@ -63,6 +64,9 @@ class TestCalculateSingleSignalHighestConfidence:
                 period_index=50,
             )
             assert result == (0, 0.0)
+            # Verify which implementation was invoked (parallel is default when ENABLE_MULTITHREADING=True)
+            assert mock_par.called is True
+            assert mock_seq.called is False
     
     def test_only_neutral_signals_returns_zero(self, hybrid_calculator, sample_df):
         """Test that only neutral signals (0) returns (0, 0.0)."""
@@ -70,7 +74,8 @@ class TestCalculateSingleSignalHighestConfidence:
             {'indicator': 'range_oscillator', 'signal': 0, 'confidence': 0.5},
             {'indicator': 'spc', 'signal': 0, 'confidence': 0.6},
         ]
-        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals):
+        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals) as mock_seq, \
+             patch.object(hybrid_calculator, '_calculate_indicators_parallel', return_value=indicator_signals) as mock_par:
             result = hybrid_calculator.calculate_single_signal_highest_confidence(
                 df=sample_df,
                 symbol='BTC/USDT',
@@ -78,6 +83,9 @@ class TestCalculateSingleSignalHighestConfidence:
                 period_index=50,
             )
             assert result == (0, 0.0)
+            # Verify which implementation was invoked (parallel is default when ENABLE_MULTITHREADING=True)
+            assert mock_par.called is True
+            assert mock_seq.called is False
     
     def test_selects_highest_confidence_long(self, hybrid_calculator, sample_df):
         """Test that method selects signal with highest confidence (LONG)."""
@@ -86,7 +94,8 @@ class TestCalculateSingleSignalHighestConfidence:
             {'indicator': 'spc', 'signal': 1, 'confidence': 0.8},  # Highest
             {'indicator': 'xgboost', 'signal': 1, 'confidence': 0.6},
         ]
-        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals):
+        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals) as mock_seq, \
+             patch.object(hybrid_calculator, '_calculate_indicators_parallel', return_value=indicator_signals) as mock_par:
             result = hybrid_calculator.calculate_single_signal_highest_confidence(
                 df=sample_df,
                 symbol='BTC/USDT',
@@ -94,6 +103,9 @@ class TestCalculateSingleSignalHighestConfidence:
                 period_index=50,
             )
             assert result == (1, 0.8)
+            # Verify which implementation was invoked (parallel is default when ENABLE_MULTITHREADING=True)
+            assert mock_par.called is True
+            assert mock_seq.called is False
     
     def test_selects_highest_confidence_short(self, hybrid_calculator, sample_df):
         """Test that method selects signal with highest confidence (SHORT)."""
@@ -102,7 +114,8 @@ class TestCalculateSingleSignalHighestConfidence:
             {'indicator': 'spc', 'signal': -1, 'confidence': 0.9},  # Highest
             {'indicator': 'xgboost', 'signal': -1, 'confidence': 0.6},
         ]
-        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals):
+        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals) as mock_seq, \
+             patch.object(hybrid_calculator, '_calculate_indicators_parallel', return_value=indicator_signals) as mock_par:
             result = hybrid_calculator.calculate_single_signal_highest_confidence(
                 df=sample_df,
                 symbol='BTC/USDT',
@@ -110,6 +123,9 @@ class TestCalculateSingleSignalHighestConfidence:
                 period_index=50,
             )
             assert result == (-1, 0.9)
+            # Verify which implementation was invoked (parallel is default when ENABLE_MULTITHREADING=True)
+            assert mock_par.called is True
+            assert mock_seq.called is False
     
     def test_tie_confidence_prefers_long(self, hybrid_calculator, sample_df):
         """Test that when confidence is tied, LONG is preferred over SHORT."""
@@ -117,7 +133,8 @@ class TestCalculateSingleSignalHighestConfidence:
             {'indicator': 'range_oscillator', 'signal': -1, 'confidence': 0.7},
             {'indicator': 'spc', 'signal': 1, 'confidence': 0.7},  # Same confidence, but LONG
         ]
-        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals):
+        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals) as mock_seq, \
+             patch.object(hybrid_calculator, '_calculate_indicators_parallel', return_value=indicator_signals) as mock_par:
             result = hybrid_calculator.calculate_single_signal_highest_confidence(
                 df=sample_df,
                 symbol='BTC/USDT',
@@ -125,6 +142,9 @@ class TestCalculateSingleSignalHighestConfidence:
                 period_index=50,
             )
             assert result == (1, 0.7)  # LONG preferred
+            # Verify which implementation was invoked (parallel is default when ENABLE_MULTITHREADING=True)
+            assert mock_par.called is True
+            assert mock_seq.called is False
     
     def test_mixed_signals_selects_highest(self, hybrid_calculator, sample_df):
         """Test that method selects highest confidence from mixed signals."""
@@ -133,7 +153,8 @@ class TestCalculateSingleSignalHighestConfidence:
             {'indicator': 'spc', 'signal': -1, 'confidence': 0.9},  # Highest
             {'indicator': 'xgboost', 'signal': 1, 'confidence': 0.6},
         ]
-        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals):
+        with patch.object(hybrid_calculator, '_calculate_indicators_sequential', return_value=indicator_signals) as mock_seq, \
+             patch.object(hybrid_calculator, '_calculate_indicators_parallel', return_value=indicator_signals) as mock_par:
             result = hybrid_calculator.calculate_single_signal_highest_confidence(
                 df=sample_df,
                 symbol='BTC/USDT',
@@ -141,6 +162,9 @@ class TestCalculateSingleSignalHighestConfidence:
                 period_index=50,
             )
             assert result == (-1, 0.9)  # SHORT has highest confidence
+            # Verify which implementation was invoked (parallel is default when ENABLE_MULTITHREADING=True)
+            assert mock_par.called is True
+            assert mock_seq.called is False
 
 
 class TestCalculateSingleSignalFromPrecomputed:

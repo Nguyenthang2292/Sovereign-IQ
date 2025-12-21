@@ -8,6 +8,7 @@ XGBoost, HMM, Random Forest) using majority vote or weighted voting approach.
 from typing import Dict, List, Optional, Tuple
 from collections import OrderedDict
 import pandas as pd
+import numpy as np
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
@@ -1060,8 +1061,8 @@ class HybridSignalCalculator:
             IndicatorProfile,
         )
         from modules.xgboost.labeling import apply_directional_labels
-        from modules.xgboost.model import train_and_predict, predict_next_move
-        from config import TARGET_BASE_THRESHOLD, ID_TO_LABEL
+        from modules.xgboost.model import train_and_predict, predict_next_move, ClassDiversityError
+        from config import ID_TO_LABEL
         
         # Validate required columns
         required_columns = ["high", "low", "close"]
@@ -1103,33 +1104,53 @@ class HybridSignalCalculator:
                 
                 # Apply labels and drop NaN
                 historical_df = apply_directional_labels(historical_df)
-                latest_threshold = (
-                    historical_df["DynamicThreshold"].iloc[-1]
-                    if len(historical_df) > 0 and "DynamicThreshold" in historical_df.columns
-                    else TARGET_BASE_THRESHOLD
-                )
                 historical_df.dropna(inplace=True)
                 
                 if len(historical_df) < min_periods:
                     continue
                 
-                # Predict next move
-                prediction_result = predict_next_move(
-                    historical_df, latest_data, latest_threshold
-                )
+                # Check class diversity - XGBoost requires at least 2 classes for training
+                if "Target" not in historical_df.columns:
+                    continue
+                unique_classes = historical_df["Target"].dropna().unique()
+                # XGBoost requires at least 2 classes, but ideally 3 (UP, DOWN, NEUTRAL)
+                # Since train_and_predict does train/test split, we need to be conservative
+                # and require at least 2 classes to reduce risk of post-split having only 1 class
+                if len(unique_classes) < 2:
+                    # Skip if insufficient class diversity (XGBoost needs at least 2 classes)
+                    continue
+                # Additional check: if we only have 2 classes but model expects 3, it might fail
+                # But we'll let train_and_predict handle this and catch the exception
                 
-                if prediction_result:
-                    predicted_label_id, predicted_label, confidence = prediction_result
-                    # Convert label to signal
-                    if predicted_label == "UP":
-                        signal = 1
-                    elif predicted_label == "DOWN":
-                        signal = -1
-                    else:
-                        signal = 0
-                    
-                    result_df.loc[df.index[i], 'signal'] = signal
-                    result_df.loc[df.index[i], 'confidence'] = confidence
+                # Train model and predict next move
+                try:
+                    model = train_and_predict(historical_df)
+                except ClassDiversityError:
+                    # Skip this period if training fails due to class diversity issues
+                    continue
+                except Exception:
+                    # Re-raise all other exceptions unchanged
+                    raise
+                
+                proba = predict_next_move(model, latest_data)
+                
+                # Get prediction: UP=1, DOWN=-1, NEUTRAL=0
+                best_idx = int(np.argmax(proba))
+                direction = ID_TO_LABEL[best_idx]
+                
+                # Convert to signal format: UP -> 1, DOWN -> -1, NEUTRAL -> 0
+                if direction == "UP":
+                    signal = 1
+                elif direction == "DOWN":
+                    signal = -1
+                else:
+                    signal = 0
+                
+                # Use probability as confidence/strength
+                confidence = float(proba[best_idx])
+                
+                result_df.loc[df.index[i], 'signal'] = signal
+                result_df.loc[df.index[i], 'confidence'] = confidence
             except Exception as e:
                 log_warn(f"XGBoost batch calculation failed for period {i}: {e}")
                 continue
