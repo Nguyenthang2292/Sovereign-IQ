@@ -411,6 +411,28 @@ def calculate_dmi_difference(
     return diff.fillna(0.0)
 
 
+def calculate_ma_series(
+    close: pd.Series,
+    period: int,
+    ma_type: str = "SMA"
+) -> pd.Series:
+    """
+    Tính toán Moving Average với period tùy chỉnh.
+    
+    Args:
+        close: Close price series
+        period: Period cho MA
+        ma_type: Loại MA ('SMA' hoặc 'EMA', default: 'SMA')
+        
+    Returns:
+        Series với MA values
+    """
+    if ma_type.upper() == "EMA":
+        return ta.ema(close, length=period)
+    else:  # SMA
+        return ta.sma(close, length=period)
+
+
 __all__ = [
     "TrendIndicators",
     "calculate_adx",
@@ -419,4 +441,5 @@ __all__ = [
     "calculate_dmi_difference",
     "calculate_weighted_ma",
     "calculate_trend_direction",
+    "calculate_ma_series",
 ]

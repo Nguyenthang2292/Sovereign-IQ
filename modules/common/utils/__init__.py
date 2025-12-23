@@ -15,7 +15,7 @@ from .system import configure_windows_stdio, detect_gpu_availability
 from .data import dataframe_to_close_series, validate_ohlcv_input
 
 # Domain utilities
-from .domain import normalize_symbol, normalize_symbol_key, timeframe_to_minutes, days_to_candles
+from .domain import normalize_symbol, normalize_symbol_key, normalize_timeframe, timeframe_to_minutes, days_to_candles
 
 # Component initialization
 from .initialization import initialize_components
@@ -46,6 +46,7 @@ __all__ = [
     # Domain
     "normalize_symbol",
     "normalize_symbol_key",
+    "normalize_timeframe",
     "timeframe_to_minutes",
     "days_to_candles",
     # UI/Formatting

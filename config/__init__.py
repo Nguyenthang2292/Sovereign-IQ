@@ -14,6 +14,7 @@ The configuration is organized into separate modules:
 - portfolio: Portfolio manager configuration
 - pairs_trading: Pairs trading configuration
 - random_forest: Random Forest model configuration
+- iching: I Ching configuration
 - config_api: API keys and secrets
 """
 
@@ -34,6 +35,7 @@ from .hmm import *  # noqa: F403, F401
 from .portfolio import *  # noqa: F403, F401
 from .pairs_trading import *  # noqa: F403, F401
 from .random_forest import *  # noqa: F403, F401
+from .iching import *  # noqa: F403, F401
 
 # Import API configuration last
 from .config_api import *  # noqa: F403, F401

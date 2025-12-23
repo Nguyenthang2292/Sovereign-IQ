@@ -14,7 +14,14 @@ from .base import (
 from modules.common.utils import validate_ohlcv_input
 from .blocks import BLOCK_SPECS, BlockSpec
 from .candlestick import CandlestickPatterns
-from .momentum import MomentumIndicators, calculate_kama, calculate_kama_series
+from .momentum import (
+    MomentumIndicators,
+    calculate_kama,
+    calculate_kama_series,
+    calculate_rsi_series,
+    calculate_macd_series,
+    calculate_bollinger_bands_series,
+)
 from .trend import (
     TrendIndicators,
     calculate_adx,
@@ -23,6 +30,7 @@ from .trend import (
     calculate_dmi_difference,
     calculate_weighted_ma,
     calculate_trend_direction,
+    calculate_ma_series,
 )
 from .volatility import VolatilityIndicators, calculate_returns_volatility, calculate_atr_range
 from .volume import VolumeIndicators
@@ -36,6 +44,10 @@ __all__ = [
     "calculate_dmi_difference",
     "calculate_weighted_ma",
     "calculate_trend_direction",
+    "calculate_ma_series",
+    "calculate_rsi_series",
+    "calculate_macd_series",
+    "calculate_bollinger_bands_series",
     "IndicatorMetadata",
     "IndicatorResult",
     "IndicatorFunc",

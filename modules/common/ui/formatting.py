@@ -162,20 +162,17 @@ def prompt_user_input_with_backspace(
             
             # Handle regular characters
             if isinstance(char, bytes):
-                try:
-                    decoded = char.decode('utf-8')
+                # Use errors='replace' to handle invalid UTF-8 bytes gracefully
+                # This replaces invalid bytes with replacement character (U+FFFD) instead of raising exception
+                decoded = char.decode('utf-8', errors='replace')
+                # Filter out replacement characters to avoid displaying them
+                if decoded and decoded != '\ufffd':
                     result.append(decoded)
                     sys.stdout.write(decoded)
                     sys.stdout.flush()
-                # Silently drop undecodable bytes with empty placeholder to preserve
-                # output flow and length. Intentional design choice; modify here to use
-                # replacement character (e.g., '\ufffd'), enhanced logging, or raise.
-                except UnicodeDecodeError as e:
-                    logging.warning(f"UnicodeDecodeError when decoding byte input: {e}", exc_info=True)
-                    placeholder = ''
-                    result.append(placeholder)
-                    sys.stdout.write(placeholder)
-                    sys.stdout.flush()
+                else:
+                    # Log ignored replacement characters
+                    logging.debug(f"Ignored invalid UTF-8 byte (replacement character): {char}")
     else:
         # Non-Windows or msvcrt not available: Use standard input with sentinel
         # Use "-" as explicit sentinel for back navigation

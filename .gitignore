@@ -47,3 +47,4 @@ tmp_*.py
 
 # API Keys and Secrets (sensitive information)
 modules/config_api.py
+config/config_api.py

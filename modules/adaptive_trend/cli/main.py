@@ -9,8 +9,18 @@ Analyzes futures pairs on Binance using Adaptive Trend Classification:
 
 import warnings
 import sys
-from typing import Optional, Tuple
+from pathlib import Path
+from typing import Tuple
 import pandas as pd
+from argparse import Namespace
+
+# Add project root to sys.path to ensure modules can be imported
+# This is needed when running the file directly from subdirectories
+if '__file__' in globals():
+    project_root = Path(__file__).parent.parent.parent.parent
+    project_root_str = str(project_root)
+    if project_root_str not in sys.path:
+        sys.path.insert(0, project_root_str)
 
 from modules.common.utils import configure_windows_stdio
 
@@ -45,6 +55,7 @@ from modules.adaptive_trend.cli import (
     display_scan_results,
     list_futures_symbols,
 )
+from modules.adaptive_trend.cli.display import display_atc_signals
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
@@ -59,7 +70,7 @@ class ATCAnalyzer:
     configuration, and execution of auto/manual analysis modes.
     """
     
-    def __init__(self, args, data_fetcher: DataFetcher):
+    def __init__(self, args: Namespace, data_fetcher: DataFetcher):
         """
         Initialize ATC Analyzer.
         
@@ -231,7 +242,7 @@ class ATCAnalyzer:
             return
 
         # Display results
-        from modules.adaptive_trend.cli.display import display_atc_signals
+        
         display_atc_signals(
             symbol=result["symbol"],
             df=result["df"],
@@ -286,7 +297,6 @@ class ATCAnalyzer:
                     continue
 
                 # Display results
-                from modules.adaptive_trend.cli.display import display_atc_signals
                 display_atc_signals(
                     symbol=result["symbol"],
                     df=result["df"],

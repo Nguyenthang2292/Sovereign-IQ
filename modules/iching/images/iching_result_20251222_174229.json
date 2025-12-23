@@ -1,0 +1,97 @@
+{
+  "nhat_than": "Sửu-Thổ",
+  "nguyet_lenh": "Tý-Thủy",
+  "que_trai": [
+    {
+      "hao": 1,
+      "luc_than": "Thê Tài",
+      "can_chi": "Tị-Hỏa",
+      "is_dong": false,
+      "phuc_than": null
+    },
+    {
+      "hao": 2,
+      "luc_than": "Tử Tôn",
+      "can_chi": "Mão-Mộc",
+      "is_dong": false,
+      "phuc_than": null
+    },
+    {
+      "hao": 3,
+      "luc_than": "Quan Quỷ",
+      "can_chi": "Sửu-Thổ",
+      "is_dong": false,
+      "phuc_than": null
+    },
+    {
+      "hao": 4,
+      "luc_than": "Phụ Mẫu",
+      "can_chi": "Thân-Kim",
+      "is_dong": false,
+      "phuc_than": null
+    },
+    {
+      "hao": 5,
+      "luc_than": "Quan Quỷ",
+      "can_chi": "Tuất-Thổ",
+      "is_dong": false,
+      "phuc_than": null
+    },
+    {
+      "hao": 6,
+      "luc_than": "Huynh Đệ",
+      "can_chi": "Tý-Thủy",
+      "is_dong": false,
+      "phuc_than": null
+    }
+  ],
+  "que_phai": [
+    {
+      "hao": 1,
+      "luc_than": "Thê Tài",
+      "can_chi": "Tị-Hỏa",
+      "luc_thu": "Thanh Long",
+      "is_dong": false
+    },
+    {
+      "hao": 2,
+      "luc_than": "Tử Tôn",
+      "can_chi": "Mão-Mộc",
+      "luc_thu": "Chu Tước",
+      "is_dong": false
+    },
+    {
+      "hao": 3,
+      "luc_than": "Quan Quỷ",
+      "can_chi": "Sửu-Thổ",
+      "luc_thu": "Câu Trần",
+      "is_dong": false
+    },
+    {
+      "hao": 4,
+      "luc_than": "Phụ Mẫu",
+      "can_chi": "Thân-Kim",
+      "luc_thu": "Đằng Xà",
+      "is_dong": false
+    },
+    {
+      "hao": 5,
+      "luc_than": "Quan Quỷ",
+      "can_chi": "Tuất-Thổ",
+      "luc_thu": "Bạch Hổ",
+      "is_dong": false
+    },
+    {
+      "hao": 6,
+      "luc_than": "Huynh Đệ",
+      "can_chi": "Tý-Thủy",
+      "luc_thu": "Huyền Vũ",
+      "is_dong": false
+    }
+  ],
+  "the_vi_tri": 1,
+  "ung_vi_tri": 4,
+  "tk_vi_tri": [
+    5
+  ]
+}

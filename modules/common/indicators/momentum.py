@@ -185,4 +185,149 @@ def calculate_kama_series(
     return pd.Series(kama_values, index=prices.index)
 
 
-__all__ = ["MomentumIndicators", "calculate_kama", "calculate_kama_series"]
+def calculate_rsi_series(
+    close: pd.Series,
+    period: int = 14
+) -> pd.Series:
+    """
+    Tính toán RSI với period tùy chỉnh.
+    
+    Args:
+        close: Close price series
+        period: Period cho RSI (default: 14)
+        
+    Returns:
+        Series với RSI values (0-100)
+    """
+    rsi = ta.rsi(close, length=period)
+    if rsi is None:
+        return pd.Series(50.0, index=close.index)
+    # Normalize undefined RSI values to 50.0 (neutral)
+    rsi = rsi.fillna(50.0)
+    return rsi
+
+
+def calculate_macd_series(
+    close: pd.Series,
+    fast: int = 12,
+    slow: int = 26,
+    signal: int = 9
+) -> pd.DataFrame:
+    """
+    Tính toán MACD với parameters tùy chỉnh.
+    
+    Args:
+        close: Close price series
+        fast: Fast EMA period (default: 12)
+        slow: Slow EMA period (default: 26)
+        signal: Signal line period (default: 9)
+        
+    Returns:
+        DataFrame với columns: MACD, MACD_signal, MACD_hist
+    """
+    macd_df = ta.macd(close, fast=fast, slow=slow, signal=signal)
+    if macd_df is None or macd_df.empty:
+        # Return default values
+        return pd.DataFrame({
+            'MACD': 0.0,
+            'MACD_signal': 0.0,
+            'MACD_hist': 0.0
+        }, index=close.index)
+    
+    # Map pandas_ta column names to our expected names
+    # pandas_ta returns: MACD_12_26_9, MACDh_12_26_9, MACDs_12_26_9
+    result = pd.DataFrame(index=close.index)
+    
+    # Find the MACD line column (format: MACD_fast_slow_signal)
+    macd_col = [col for col in macd_df.columns if col.startswith('MACD_') and not col.startswith('MACDh') and not col.startswith('MACDs')]
+    # Signal column (format: MACDs_fast_slow_signal)
+    signal_col = [col for col in macd_df.columns if col.startswith('MACDs_')]
+    # Histogram column (format: MACDh_fast_slow_signal)
+    hist_col = [col for col in macd_df.columns if col.startswith('MACDh_')]
+    
+    if macd_col:
+        result['MACD'] = macd_df[macd_col[0]].fillna(0.0)
+    else:
+        result['MACD'] = 0.0
+    
+    if signal_col:
+        result['MACD_signal'] = macd_df[signal_col[0]].fillna(0.0)
+    else:
+        result['MACD_signal'] = 0.0
+    
+    if hist_col:
+        result['MACD_hist'] = macd_df[hist_col[0]].fillna(0.0)
+    else:
+        # Calculate histogram as difference if not available
+        result['MACD_hist'] = result['MACD'] - result['MACD_signal']
+    
+    return result
+
+
+def calculate_bollinger_bands_series(
+    close: pd.Series,
+    period: int = 20,
+    std: float = 2.0
+) -> pd.DataFrame:
+    """
+    Tính toán Bollinger Bands với parameters tùy chỉnh.
+    
+    Args:
+        close: Close price series
+        period: Period cho BB (default: 20)
+        std: Standard deviation multiplier (default: 2.0)
+        
+    Returns:
+        DataFrame với columns: BB_upper, BB_middle, BB_lower
+    """
+    bbands = ta.bbands(close, length=period, std=std)
+    if bbands is None or bbands.empty:
+        # Return default values based on SMA
+        sma = ta.sma(close, length=period)
+        if sma is None:
+            sma = close.rolling(window=period).mean()
+        return pd.DataFrame({
+            'BB_upper': sma,
+            'BB_middle': sma,
+            'BB_lower': sma
+        }, index=close.index)
+    
+    # Map pandas_ta column names to our expected names
+    # pandas_ta returns: BBU_length_std, BBM_length_std, BBL_length_std, BBP_length_std
+    result = pd.DataFrame(index=close.index)
+    
+    # Find columns (format: BBU_period_std, BBM_period_std, BBL_period_std)
+    upper_col = [col for col in bbands.columns if col.startswith('BBU_')]
+    middle_col = [col for col in bbands.columns if col.startswith('BBM_')]
+    lower_col = [col for col in bbands.columns if col.startswith('BBL_')]
+    
+    # Fallback: calculate manually if columns not found
+    sma = close.rolling(window=period).mean()
+    std_val = close.rolling(window=period).std()
+    
+    if upper_col:
+        result['BB_upper'] = bbands[upper_col[0]].fillna(sma + (std_val * std))
+    else:
+        result['BB_upper'] = sma + (std_val * std)
+    
+    if middle_col:
+        result['BB_middle'] = bbands[middle_col[0]].fillna(sma)
+    else:
+        result['BB_middle'] = sma
+    
+    if lower_col:
+        result['BB_lower'] = bbands[lower_col[0]].fillna(sma - (std_val * std))
+    else:
+        result['BB_lower'] = sma - (std_val * std)
+    
+    return result
+
+
+__all__ = [
+    "MomentumIndicators",
+    "calculate_kama",
+    "calculate_kama_series",
+    "calculate_rsi_series",
+    "calculate_macd_series",
+    "calculate_bollinger_bands_series",
+]

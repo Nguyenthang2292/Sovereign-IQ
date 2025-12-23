@@ -8,17 +8,90 @@ from config import DEFAULT_QUOTE
 
 # --- Timeframe Utilities ---
 
+# Regex patterns for timeframe parsing (input is already stripped)
+# Pattern 1: number + optional space + unit (e.g., '15m', '15 m')
+TIMEFRAME_RE = re.compile(r"^(\d+)\s*([mhdw])$")
+# Pattern 2: unit + optional space + number (e.g., 'm15', 'm 15', 'h1')
+TIMEFRAME_REVERSE_RE = re.compile(r"^([mhdw])\s*(\d+)$")
+# Pattern for normalized format (no spaces): number + unit
+TIMEFRAME_NORMALIZED_RE = re.compile(r"^(\d+)([mhdw])$")
+
+
+def _validate_timeframe_value(value: int, timeframe: str) -> None:
+    """
+    Validates that timeframe value is positive.
+    
+    Args:
+        value: The numeric value from the timeframe string
+        timeframe: The original timeframe string for error messages
+        
+    Raises:
+        ValueError: If value <= 0
+    """
+    if value <= 0:
+        raise ValueError(f"Invalid timeframe: value must be > 0, got '{timeframe}'")
+
+
+def normalize_timeframe(timeframe: str) -> str:
+    """
+    Normalizes timeframe string to standard format (number + unit).
+    Accepts both formats: '15m' or 'm15', '1h' or 'h1', etc.
+    
+    Args:
+        timeframe: Timeframe string in any format (e.g., '15m', 'm15', '1h', 'h1', '1d', 'd1')
+        
+    Returns:
+        Normalized timeframe string in format 'number+unit' (e.g., '15m', '1h', '1d')
+        
+    Examples:
+        normalize_timeframe('15m') -> '15m'
+        normalize_timeframe('m15') -> '15m'
+        normalize_timeframe('1h') -> '1h'
+        normalize_timeframe('h1') -> '1h'
+        normalize_timeframe('4h') -> '4h'
+        normalize_timeframe('h4') -> '4h'
+    """
+    if not timeframe:
+        return '1h'  # default
+    
+    timeframe = timeframe.strip().lower()
+    
+    # Pattern 1: number + optional space + unit (e.g., '15m', '15 m', '1h')
+    match1 = TIMEFRAME_RE.match(timeframe)
+    if match1:
+        value, unit = match1.groups()
+        value = int(value)
+        _validate_timeframe_value(value, timeframe)
+        return f"{value}{unit}"
+    
+    # Pattern 2: unit + optional space + number (e.g., 'm15', 'm 15', 'h1')
+    match2 = TIMEFRAME_REVERSE_RE.match(timeframe)
+    if match2:
+        unit, value = match2.groups()
+        value = int(value)
+        _validate_timeframe_value(value, timeframe)
+        return f"{value}{unit}"
+    
+    # If no match, return as-is (might be invalid, but let other functions handle it)
+    return timeframe
+
+
 def timeframe_to_minutes(timeframe: str) -> int:
     """
     Converts a timeframe string like '30m', '1h', '1d' into minutes.
+    Accepts both formats: '15m' or 'm15', '1h' or 'h1', etc.
 
     Args:
-        timeframe: Timeframe string (e.g., '30m', '1h', '1d', '1w')
+        timeframe: Timeframe string (e.g., '30m', 'm30', '1h', 'h1', '1d', '1w')
 
     Returns:
         Number of minutes
     """
-    match = re.match(r"^\s*(\d+)\s*([mhdw])\s*$", timeframe.lower())
+    # Normalize input to handle both '15m' and 'm15' formats
+    normalized = normalize_timeframe(timeframe)
+    
+    # Input is already normalized, so use simpler pattern without whitespace matching
+    match = TIMEFRAME_NORMALIZED_RE.match(normalized.lower())
     if not match:
         return 60  # default 1h
 

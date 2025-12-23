@@ -26,6 +26,8 @@ dependencies = [
     "hmmlearn>=0.3.0,<0.4.0",
     "mlxtend>=0.23.0,<0.24.0",
     "numba>=0.58.0,<0.60.0",
+    "matplotlib>=3.9.0,<3.10.0",
+    "mplfinance>=0.12.10,<0.13.0",
     # Machine Learning dependencies
     "xgboost>=2.0.0,<2.1.0",
     # Deep Learning dependencies (required for deeplearning module)
@@ -47,35 +49,5 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 [tool.setuptools]
-packages = {find = {}}
-
-[tool.setuptools.packages.find]
-exclude = [
-    "tests*",
-    "venv*",
-    "artifacts*",
-    "*.egg-info*",
-]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "--capture=sys --tb=short"
-filterwarnings = [
-    # pytorch_forecasting: Known issue with encoder warnings from third-party library
-    # These are harmless warnings about internal data handling
-    "ignore::UserWarning:pytorch_forecasting.data.encoders",
-    # NumPy: Warnings about non-writable arrays are common with data pipelines
-    # and don't indicate actual problems in our code
-    "ignore:The given NumPy array is not writable:UserWarning",
-    # mlxtend: RuntimeWarnings from association_rules are known third-party issues
-    "ignore::RuntimeWarning:mlxtend.frequent_patterns.association_rules",
-    # NumPy: Internal function base warnings that don't affect functionality
-    "ignore::RuntimeWarning:numpy.lib._function_base_impl",
-    # scikit-learn: Precision warnings occur with edge cases (e.g., all predictions same class)
-    # This is expected behavior in some test scenarios
-    "ignore:.*Precision is ill-defined.*:UserWarning:sklearn.metrics._classification",
-]
+packages = {find = {exclude = ["tests*", "venv*", "artifacts*", "*.egg-info*"]}}
 

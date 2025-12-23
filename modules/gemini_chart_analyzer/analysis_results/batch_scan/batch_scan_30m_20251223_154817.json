@@ -1,0 +1,2553 @@
+{
+  "timestamp": "2025-12-23T15:48:17.596845",
+  "timeframe": "30m",
+  "summary": {
+    "total_symbols": 437,
+    "scanned_symbols": 437,
+    "long_count": 52,
+    "short_count": 104,
+    "none_count": 281,
+    "long_percentage": 11.899313501144166,
+    "short_percentage": 23.79862700228833,
+    "avg_long_confidence": 0.7067307692307693,
+    "avg_short_confidence": 0.729326923076923
+  },
+  "long_symbols": [
+    "COW/USDT",
+    "ENSO/USDT",
+    "EPIC/USDT",
+    "JST/USDT",
+    "PAXG/USDT",
+    "ALPINE/USDT",
+    "BANK/USDT",
+    "JUV/USDT",
+    "TRX/USDT",
+    "ANIME/USDT",
+    "BROCCOLI714/USDT",
+    "CHESS/USDT",
+    "KSM/USDT",
+    "OP/USDT",
+    "ORDI/USDT",
+    "XLM/USDT",
+    "YGG/USDT",
+    "0G/USDT",
+    "ADX/USDT",
+    "BARD/USDT",
+    "CITY/USDT",
+    "LAZIO/USDT",
+    "LRC/USDT",
+    "OM/USDT",
+    "ORCA/USDT",
+    "PORTO/USDT",
+    "WOO/USDT",
+    "XAI/USDT",
+    "XPL/USDT",
+    "XTZ/USDT",
+    "A2Z/USDT",
+    "ACE/USDT",
+    "AGLD/USDT",
+    "AR/USDT",
+    "BCH/USDT",
+    "BEAMX/USDT",
+    "BOME/USDT",
+    "MBOX/USDT",
+    "PUNDIX/USDT",
+    "W/USDT",
+    "XRP/USDT",
+    "XVS/USDT",
+    "ZK/USDT",
+    "ZRO/USDT",
+    "API3/USDT",
+    "AUDIO/USDT",
+    "BAND/USDT",
+    "BERA/USDT",
+    "CHZ/USDT",
+    "JASMY/USDT",
+    "JTO/USDT",
+    "VTHO/USDT"
+  ],
+  "short_symbols": [
+    "CYBER/USDT",
+    "DCR/USDT",
+    "DENT/USDT",
+    "DEXE/USDT",
+    "G/USDT",
+    "GAS/USDT",
+    "KAITO/USDT",
+    "LPT/USDT",
+    "MOVR/USDT",
+    "PROM/USDT",
+    "KMNO/USDT",
+    "LINEA/USDT",
+    "LUNA/USDT",
+    "MANTA/USDT",
+    "ME/USDT",
+    "MOVE/USDT",
+    "NEIRO/USDT",
+    "OSMO/USDT",
+    "PSG/USDT",
+    "PUMP/USDT",
+    "QI/USDT",
+    "REQ/USDT",
+    "RONIN/USDT",
+    "QKC/USDT",
+    "RARE/USDT",
+    "RIF/USDT",
+    "RLC/USDT",
+    "RSR/USDT",
+    "RUNE/USDT",
+    "RVN/USDT",
+    "SCR/USDT",
+    "SCRT/USDT",
+    "SLP/USDT",
+    "SNX/USDT",
+    "STEEM/USDT",
+    "STG/USDT",
+    "STO/USDT",
+    "STORJ/USDT",
+    "STRK/USDT",
+    "TAO/USDT",
+    "UNI/USDT",
+    "CRV/USDT",
+    "KNC/USDT",
+    "LQTY/USDT",
+    "PYTH/USDT",
+    "QNT/USDT",
+    "QTUM/USDT",
+    "RED/USDT",
+    "RENDER/USDT",
+    "REZ/USDT",
+    "ROSE/USDT",
+    "RPL/USDT",
+    "SAHARA/USDT",
+    "SAND/USDT",
+    "SANTOS/USDT",
+    "SAPIEN/USDT",
+    "SFP/USDT",
+    "SHELL/USDT",
+    "SIGN/USDT",
+    "SKL/USDT",
+    "SOPH/USDT",
+    "SPELL/USDT",
+    "SPK/USDT",
+    "SUN/USDT",
+    "SUPER/USDT",
+    "SXT/USDT",
+    "SYN/USDT",
+    "SYS/USDT",
+    "T/USDT",
+    "TFUEL/USDT",
+    "THETA/USDT",
+    "TIA/USDT",
+    "TKO/USDT",
+    "TLM/USDT",
+    "TNSR/USDT",
+    "TON/USDT",
+    "TOWNS/USDT",
+    "TREE/USDT",
+    "TRU/USDT",
+    "TRUMP/USDT",
+    "TST/USDT",
+    "TURBO/USDT",
+    "TURTLE/USDT",
+    "TUT/USDT",
+    "USUAL/USDT",
+    "UTK/USDT",
+    "VANRY/USDT",
+    "VELODROME/USDT",
+    "VIC/USDT",
+    "WAL/USDT",
+    "WAXP/USDT",
+    "WIF/USDT",
+    "VIRTUAL/USDT",
+    "WCT/USDT",
+    "WLD/USDT",
+    "YB/USDT",
+    "ZBT/USDT",
+    "AAVE/USDT",
+    "AXL/USDT",
+    "RDNT/USDT",
+    "XVG/USDT",
+    "ZIL/USDT",
+    "ZKC/USDT",
+    "ZRX/USDT"
+  ],
+  "long_symbols_with_confidence": [
+    [
+      "COW/USDT",
+      0.9
+    ],
+    [
+      "ENSO/USDT",
+      0.9
+    ],
+    [
+      "EPIC/USDT",
+      0.9
+    ],
+    [
+      "JST/USDT",
+      0.9
+    ],
+    [
+      "PAXG/USDT",
+      0.9
+    ],
+    [
+      "ALPINE/USDT",
+      0.85
+    ],
+    [
+      "BANK/USDT",
+      0.8
+    ],
+    [
+      "JUV/USDT",
+      0.8
+    ],
+    [
+      "TRX/USDT",
+      0.8
+    ],
+    [
+      "ANIME/USDT",
+      0.75
+    ],
+    [
+      "BROCCOLI714/USDT",
+      0.75
+    ],
+    [
+      "CHESS/USDT",
+      0.75
+    ],
+    [
+      "KSM/USDT",
+      0.75
+    ],
+    [
+      "OP/USDT",
+      0.75
+    ],
+    [
+      "ORDI/USDT",
+      0.75
+    ],
+    [
+      "XLM/USDT",
+      0.75
+    ],
+    [
+      "YGG/USDT",
+      0.75
+    ],
+    [
+      "0G/USDT",
+      0.7
+    ],
+    [
+      "ADX/USDT",
+      0.7
+    ],
+    [
+      "BARD/USDT",
+      0.7
+    ],
+    [
+      "CITY/USDT",
+      0.7
+    ],
+    [
+      "LAZIO/USDT",
+      0.7
+    ],
+    [
+      "LRC/USDT",
+      0.7
+    ],
+    [
+      "OM/USDT",
+      0.7
+    ],
+    [
+      "ORCA/USDT",
+      0.7
+    ],
+    [
+      "PORTO/USDT",
+      0.7
+    ],
+    [
+      "WOO/USDT",
+      0.7
+    ],
+    [
+      "XAI/USDT",
+      0.7
+    ],
+    [
+      "XPL/USDT",
+      0.7
+    ],
+    [
+      "XTZ/USDT",
+      0.7
+    ],
+    [
+      "A2Z/USDT",
+      0.65
+    ],
+    [
+      "ACE/USDT",
+      0.65
+    ],
+    [
+      "AGLD/USDT",
+      0.65
+    ],
+    [
+      "AR/USDT",
+      0.65
+    ],
+    [
+      "BCH/USDT",
+      0.65
+    ],
+    [
+      "BEAMX/USDT",
+      0.65
+    ],
+    [
+      "BOME/USDT",
+      0.65
+    ],
+    [
+      "MBOX/USDT",
+      0.65
+    ],
+    [
+      "PUNDIX/USDT",
+      0.65
+    ],
+    [
+      "W/USDT",
+      0.65
+    ],
+    [
+      "XRP/USDT",
+      0.65
+    ],
+    [
+      "XVS/USDT",
+      0.65
+    ],
+    [
+      "ZK/USDT",
+      0.65
+    ],
+    [
+      "ZRO/USDT",
+      0.65
+    ],
+    [
+      "API3/USDT",
+      0.6
+    ],
+    [
+      "AUDIO/USDT",
+      0.6
+    ],
+    [
+      "BAND/USDT",
+      0.6
+    ],
+    [
+      "BERA/USDT",
+      0.6
+    ],
+    [
+      "CHZ/USDT",
+      0.6
+    ],
+    [
+      "JASMY/USDT",
+      0.6
+    ],
+    [
+      "JTO/USDT",
+      0.6
+    ],
+    [
+      "VTHO/USDT",
+      0.6
+    ]
+  ],
+  "short_symbols_with_confidence": [
+    [
+      "CYBER/USDT",
+      0.9
+    ],
+    [
+      "DCR/USDT",
+      0.9
+    ],
+    [
+      "DENT/USDT",
+      0.9
+    ],
+    [
+      "DEXE/USDT",
+      0.9
+    ],
+    [
+      "G/USDT",
+      0.9
+    ],
+    [
+      "GAS/USDT",
+      0.9
+    ],
+    [
+      "KAITO/USDT",
+      0.85
+    ],
+    [
+      "LPT/USDT",
+      0.85
+    ],
+    [
+      "MOVR/USDT",
+      0.85
+    ],
+    [
+      "PROM/USDT",
+      0.85
+    ],
+    [
+      "KMNO/USDT",
+      0.8
+    ],
+    [
+      "LINEA/USDT",
+      0.8
+    ],
+    [
+      "LUNA/USDT",
+      0.8
+    ],
+    [
+      "MANTA/USDT",
+      0.8
+    ],
+    [
+      "ME/USDT",
+      0.8
+    ],
+    [
+      "MOVE/USDT",
+      0.8
+    ],
+    [
+      "NEIRO/USDT",
+      0.8
+    ],
+    [
+      "OSMO/USDT",
+      0.8
+    ],
+    [
+      "PSG/USDT",
+      0.8
+    ],
+    [
+      "PUMP/USDT",
+      0.8
+    ],
+    [
+      "QI/USDT",
+      0.8
+    ],
+    [
+      "REQ/USDT",
+      0.8
+    ],
+    [
+      "RONIN/USDT",
+      0.8
+    ],
+    [
+      "QKC/USDT",
+      0.75
+    ],
+    [
+      "RARE/USDT",
+      0.75
+    ],
+    [
+      "RIF/USDT",
+      0.75
+    ],
+    [
+      "RLC/USDT",
+      0.75
+    ],
+    [
+      "RSR/USDT",
+      0.75
+    ],
+    [
+      "RUNE/USDT",
+      0.75
+    ],
+    [
+      "RVN/USDT",
+      0.75
+    ],
+    [
+      "SCR/USDT",
+      0.75
+    ],
+    [
+      "SCRT/USDT",
+      0.75
+    ],
+    [
+      "SLP/USDT",
+      0.75
+    ],
+    [
+      "SNX/USDT",
+      0.75
+    ],
+    [
+      "STEEM/USDT",
+      0.75
+    ],
+    [
+      "STG/USDT",
+      0.75
+    ],
+    [
+      "STO/USDT",
+      0.75
+    ],
+    [
+      "STORJ/USDT",
+      0.75
+    ],
+    [
+      "STRK/USDT",
+      0.75
+    ],
+    [
+      "TAO/USDT",
+      0.75
+    ],
+    [
+      "UNI/USDT",
+      0.75
+    ],
+    [
+      "CRV/USDT",
+      0.7
+    ],
+    [
+      "KNC/USDT",
+      0.7
+    ],
+    [
+      "LQTY/USDT",
+      0.7
+    ],
+    [
+      "PYTH/USDT",
+      0.7
+    ],
+    [
+      "QNT/USDT",
+      0.7
+    ],
+    [
+      "QTUM/USDT",
+      0.7
+    ],
+    [
+      "RED/USDT",
+      0.7
+    ],
+    [
+      "RENDER/USDT",
+      0.7
+    ],
+    [
+      "REZ/USDT",
+      0.7
+    ],
+    [
+      "ROSE/USDT",
+      0.7
+    ],
+    [
+      "RPL/USDT",
+      0.7
+    ],
+    [
+      "SAHARA/USDT",
+      0.7
+    ],
+    [
+      "SAND/USDT",
+      0.7
+    ],
+    [
+      "SANTOS/USDT",
+      0.7
+    ],
+    [
+      "SAPIEN/USDT",
+      0.7
+    ],
+    [
+      "SFP/USDT",
+      0.7
+    ],
+    [
+      "SHELL/USDT",
+      0.7
+    ],
+    [
+      "SIGN/USDT",
+      0.7
+    ],
+    [
+      "SKL/USDT",
+      0.7
+    ],
+    [
+      "SOPH/USDT",
+      0.7
+    ],
+    [
+      "SPELL/USDT",
+      0.7
+    ],
+    [
+      "SPK/USDT",
+      0.7
+    ],
+    [
+      "SUN/USDT",
+      0.7
+    ],
+    [
+      "SUPER/USDT",
+      0.7
+    ],
+    [
+      "SXT/USDT",
+      0.7
+    ],
+    [
+      "SYN/USDT",
+      0.7
+    ],
+    [
+      "SYS/USDT",
+      0.7
+    ],
+    [
+      "T/USDT",
+      0.7
+    ],
+    [
+      "TFUEL/USDT",
+      0.7
+    ],
+    [
+      "THETA/USDT",
+      0.7
+    ],
+    [
+      "TIA/USDT",
+      0.7
+    ],
+    [
+      "TKO/USDT",
+      0.7
+    ],
+    [
+      "TLM/USDT",
+      0.7
+    ],
+    [
+      "TNSR/USDT",
+      0.7
+    ],
+    [
+      "TON/USDT",
+      0.7
+    ],
+    [
+      "TOWNS/USDT",
+      0.7
+    ],
+    [
+      "TREE/USDT",
+      0.7
+    ],
+    [
+      "TRU/USDT",
+      0.7
+    ],
+    [
+      "TRUMP/USDT",
+      0.7
+    ],
+    [
+      "TST/USDT",
+      0.7
+    ],
+    [
+      "TURBO/USDT",
+      0.7
+    ],
+    [
+      "TURTLE/USDT",
+      0.7
+    ],
+    [
+      "TUT/USDT",
+      0.7
+    ],
+    [
+      "USUAL/USDT",
+      0.7
+    ],
+    [
+      "UTK/USDT",
+      0.7
+    ],
+    [
+      "VANRY/USDT",
+      0.7
+    ],
+    [
+      "VELODROME/USDT",
+      0.7
+    ],
+    [
+      "VIC/USDT",
+      0.7
+    ],
+    [
+      "WAL/USDT",
+      0.7
+    ],
+    [
+      "WAXP/USDT",
+      0.7
+    ],
+    [
+      "WIF/USDT",
+      0.7
+    ],
+    [
+      "VIRTUAL/USDT",
+      0.65
+    ],
+    [
+      "WCT/USDT",
+      0.65
+    ],
+    [
+      "WLD/USDT",
+      0.65
+    ],
+    [
+      "YB/USDT",
+      0.65
+    ],
+    [
+      "ZBT/USDT",
+      0.65
+    ],
+    [
+      "AAVE/USDT",
+      0.6
+    ],
+    [
+      "AXL/USDT",
+      0.6
+    ],
+    [
+      "RDNT/USDT",
+      0.6
+    ],
+    [
+      "XVG/USDT",
+      0.6
+    ],
+    [
+      "ZIL/USDT",
+      0.6
+    ],
+    [
+      "ZKC/USDT",
+      0.6
+    ],
+    [
+      "ZRX/USDT",
+      0.6
+    ]
+  ],
+  "all_results": {
+    "0G/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "1000CAT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "1000CHEEMS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "1000SATS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "1INCH/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "1MBABYDOGE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "2Z/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "A/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "A2Z/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "AAVE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.6
+    },
+    "ACA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "ACE/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "ACH/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "ACM/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ACT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "ACX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "ADA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ADX/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "AEVO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AGLD/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "AI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AIXBT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ALCX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ALGO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ALICE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ALLO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "ALPINE/USDT": {
+      "signal": "LONG",
+      "confidence": 0.85
+    },
+    "ALT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AMP/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "ANIME/USDT": {
+      "signal": "LONG",
+      "confidence": 0.75
+    },
+    "ANKR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "APE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "API3/USDT": {
+      "signal": "LONG",
+      "confidence": 0.6
+    },
+    "APT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AR/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "ARB/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ARK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ARKM/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ARPA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ASR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ASTER/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "ASTR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "AT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "ATA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "ATM/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "ATOM/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AUCTION/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AUDIO/USDT": {
+      "signal": "LONG",
+      "confidence": 0.6
+    },
+    "AVA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "AVAX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AVNT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AWE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AXL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.6
+    },
+    "AXS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BABY/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "BANANA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BANANAS31/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "BAND/USDT": {
+      "signal": "LONG",
+      "confidence": 0.6
+    },
+    "BANK/USDT": {
+      "signal": "LONG",
+      "confidence": 0.8
+    },
+    "BAR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "BARD/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "BAT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BB/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BCH/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "BEAMX/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "BEL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BERA/USDT": {
+      "signal": "LONG",
+      "confidence": 0.6
+    },
+    "BICO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BIGTIME/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BIO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "BLUR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BMT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BNB/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "BNT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BOME/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "BONK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "BROCCOLI714/USDT": {
+      "signal": "LONG",
+      "confidence": 0.75
+    },
+    "BTC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.55
+    },
+    "C/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "C98/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "CAKE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "CATI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "CELO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "CELR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "CETUS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "CFX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "CGPT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "CHESS/USDT": {
+      "signal": "LONG",
+      "confidence": 0.75
+    },
+    "CHR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "CHZ/USDT": {
+      "signal": "LONG",
+      "confidence": 0.6
+    },
+    "CITY/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "CKB/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "COMP/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "COOKIE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "AEUR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "ARDR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "BFUSD/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "BIFI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "BNSOL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "BTTC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "COS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "COTI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "COW/USDT": {
+      "signal": "LONG",
+      "confidence": 0.9
+    },
+    "CRV/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "CTK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "CTSI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "CVC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "CVX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "CYBER/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.9
+    },
+    "D/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DASH/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DATA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DCR/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.9
+    },
+    "DEGO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DENT/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.9
+    },
+    "DEXE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.9
+    },
+    "DF/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DGB/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "DIA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DODO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DOGE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DOGS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "DOLO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DOT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DUSK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DYDX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "DYM/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "EDEN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "EDU/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "EGLD/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "EIGEN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ENA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ENJ/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ENS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ENSO/USDT": {
+      "signal": "LONG",
+      "confidence": 0.9
+    },
+    "EPIC/USDT": {
+      "signal": "LONG",
+      "confidence": 0.9
+    },
+    "ERA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ETC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ETH/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ETHFI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "EUL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "EUR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "EURI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "F/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FARM/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FDUSD/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "FET/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FF/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FIDA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FIL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FIO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FLOKI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FLOW/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FLUX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FORM/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "FORTH/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FTT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "FUN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "FXS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "G/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.9
+    },
+    "GALA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GAS/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.9
+    },
+    "GHST/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "GIGGLE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GLM/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GLMR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "GMT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GMX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GNO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GNS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GPS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GRT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GTC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "GUN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "HAEDAL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HBAR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HEI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HEMI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HFT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HIGH/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HIVE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HMSTR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HOLO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HOME/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HOOK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HOT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HUMA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "HYPER/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ICP/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ICX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ID/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "IDEX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "ILV/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "IMX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "INIT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "INJ/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "IO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "IOST/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "IOTA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "IOTX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "IQ/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "JASMY/USDT": {
+      "signal": "LONG",
+      "confidence": 0.6
+    },
+    "JOE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "JST/USDT": {
+      "signal": "LONG",
+      "confidence": 0.9
+    },
+    "JTO/USDT": {
+      "signal": "LONG",
+      "confidence": 0.6
+    },
+    "JUP/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "JUV/USDT": {
+      "signal": "LONG",
+      "confidence": 0.8
+    },
+    "KAIA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "KAITO/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.85
+    },
+    "KAVA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "KERNEL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "KITE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "KMNO/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "KNC/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "KSM/USDT": {
+      "signal": "LONG",
+      "confidence": 0.75
+    },
+    "LA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "LAYER/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "LAZIO/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "LDO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "LINEA/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "LINK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "LISTA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "LPT/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.85
+    },
+    "LQTY/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "LRC/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "LSK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "LTC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "LUMIA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "LUNA/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "LUNC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "MAGIC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "MANA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "MANTA/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "MASK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "MAV/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "MBL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "MBOX/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "MDT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "ME/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "MEME/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "MET/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "METIS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "MINA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "MIRA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "MITO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "MLN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "MMT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "MORPHO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "MOVE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "MOVR/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.85
+    },
+    "MTL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "MUBARAK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "NEAR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "NEIRO/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "NEO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "NEWT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "NEXO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "NFP/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "NIL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "NKN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "NMR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "NOM/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "NOT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "NTRN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "NXPC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "OG/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "OGN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "OM/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "ONDO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ONE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "ONG/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ONT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "OP/USDT": {
+      "signal": "LONG",
+      "confidence": 0.75
+    },
+    "OPEN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ORCA/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "ORDI/USDT": {
+      "signal": "LONG",
+      "confidence": 0.75
+    },
+    "OSMO/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "OXT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "PARTI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "PAXG/USDT": {
+      "signal": "LONG",
+      "confidence": 0.9
+    },
+    "PENDLE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "PENGU/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "PEOPLE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "PEPE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "PHA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "PHB/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "PIVX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "PIXEL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "PLUME/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "PNUT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "POL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "POLYX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "POND/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "PORTAL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "PORTO/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "POWR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "PROM/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.85
+    },
+    "PROVE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "PSG/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "PUMP/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "PUNDIX/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "PYR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "PYTH/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "QI/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "QKC/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "QNT/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "QTUM/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "QUICK/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "RAD/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "RARE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "RAY/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "RDNT/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.6
+    },
+    "RED/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "RENDER/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "REQ/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "RESOLV/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "REZ/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "RIF/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "RLC/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "RONIN/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "ROSE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "RPL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "RSR/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "RUNE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "RVN/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "S/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "SAGA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "SAHARA/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SAND/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SANTOS/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SAPIEN/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "SCR/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "SCRT/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "SEI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "SFP/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SHELL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SHIB/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "SIGN/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SKL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SKY/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "SLP/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "SNX/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "SOL/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "SOLV/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "SOMI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "SOPH/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SPELL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SPK/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SSV/USDT": {
+      "signal": "NONE",
+      "confidence": 0.6
+    },
+    "STEEM/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "STG/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "STO/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "STORJ/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "STRAX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "STRK/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "STX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "SUI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "SUN/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SUPER/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SUSHI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "SXP/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "SXT/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SYN/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "SYRUP/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "SYS/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "T/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TAO/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "TFUEL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "THE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "THETA/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TIA/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TKO/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TLM/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TNSR/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TON/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TOWNS/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TRB/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "TREE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TRU/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TRUMP/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TRX/USDT": {
+      "signal": "LONG",
+      "confidence": 0.8
+    },
+    "TST/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TURBO/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TURTLE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TUSD/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "TUT/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "TWT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "UMA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "UNI/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "USD1/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    },
+    "USDC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "USDE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "USDP/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "USTC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.2
+    },
+    "USUAL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "UTK/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "VANA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.6
+    },
+    "VANRY/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "VELODROME/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "VET/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "VIC/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "VIRTUAL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.65
+    },
+    "VTHO/USDT": {
+      "signal": "LONG",
+      "confidence": 0.6
+    },
+    "W/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "WAL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "WAN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "WAXP/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "WBTC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "WCT/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.65
+    },
+    "WIF/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.7
+    },
+    "WIN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "WLD/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.65
+    },
+    "WLFI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "WOO/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "XAI/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "XEC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "XLM/USDT": {
+      "signal": "LONG",
+      "confidence": 0.75
+    },
+    "XNO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "XPL/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "XRP/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "XTZ/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "XUSD/USDT": {
+      "signal": "NONE",
+      "confidence": 0.3
+    },
+    "XVG/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.6
+    },
+    "XVS/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "YB/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.65
+    },
+    "YFI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "YGG/USDT": {
+      "signal": "LONG",
+      "confidence": 0.75
+    },
+    "ZBT/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.65
+    },
+    "ZEC/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ZEN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ZIL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.6
+    },
+    "ZK/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "ZKC/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.6
+    },
+    "ZRO/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "ZRX/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.6
+    },
+    "WBETH/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    }
+  }
+}
