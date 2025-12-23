@@ -1,9 +1,24 @@
 import warnings
 import pytest
+import sys
 
 # Suppress warnings from pytorch_forecasting about non-writable NumPy arrays
 warnings.filterwarnings("ignore", message=".*The given NumPy array is not writable.*")
 warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_forecasting")
+
+# Workaround for pytest capture bug on Windows with Python 3.12+
+# This prevents the "I/O operation on closed file" error
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config):
+    """Configure pytest to avoid capture issues on Windows."""
+    # Ensure capture is disabled if not already set
+    if hasattr(config.option, 'capture') and config.option.capture == 'no':
+        # Set up safe stderr handling
+        if hasattr(sys, 'stderr') and sys.stderr is not None:
+            try:
+                sys.stderr.flush()
+            except (ValueError, OSError):
+                pass
 
 
 @pytest.fixture

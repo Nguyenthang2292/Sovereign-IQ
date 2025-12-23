@@ -120,7 +120,6 @@ class TestBatchChartGeneratorCreateBatchChart:
         assert not truncated
         assert os.path.exists(result_path)
         assert os.path.getsize(result_path) > 0
-        plt.close('all')
     
     def test_create_batch_chart_auto_path(self, batch_generator, multiple_symbols_data, tmp_path):
         """Test batch chart creation with automatic path generation."""
@@ -138,7 +137,6 @@ class TestBatchChartGeneratorCreateBatchChart:
             assert os.path.exists(result_path)
             assert "batch_chart" in result_path
             assert "1h" in result_path
-            plt.close('all')
         finally:
             os.chdir(original_cwd)
     
@@ -155,22 +153,18 @@ class TestBatchChartGeneratorCreateBatchChart:
             output_path=str(output_path)
         )
         
-        assert not truncated
+        assert truncated  # Should be truncated when > 100 symbols
         assert os.path.exists(result_path)
-        plt.close('all')
     
     def test_create_batch_chart_empty_data(self, batch_generator, tmp_path):
-        """Test batch chart creation with empty symbols data."""
+        """Test batch chart creation with empty symbols data (should raise error)."""
         output_path = tmp_path / "batch_chart_empty.png"
-        result_path, truncated = batch_generator.create_batch_chart(
-            symbols_data=[],
-            timeframe="1h",
-            output_path=str(output_path)
-        )
-        
-        assert not truncated
-        assert os.path.exists(result_path)
-        plt.close('all')
+        with pytest.raises(ValueError, match="symbols_data cannot be empty"):
+            batch_generator.create_batch_chart(
+                symbols_data=[],
+                timeframe="1h",
+                output_path=str(output_path)
+            )
     
     def test_create_batch_chart_with_error_symbol(self, batch_generator, sample_ohlcv_data, tmp_path):
         """Test batch chart creation handles errors gracefully."""
@@ -190,7 +184,6 @@ class TestBatchChartGeneratorCreateBatchChart:
         
         assert not truncated
         assert os.path.exists(result_path)
-        plt.close('all')
     
     def test_create_batch_chart_missing_columns(self, batch_generator, tmp_path):
         """Test batch chart creation with missing columns (should show error message)."""
@@ -211,7 +204,6 @@ class TestBatchChartGeneratorCreateBatchChart:
         
         assert not truncated
         assert os.path.exists(result_path)
-        plt.close('all')
 
 
 class TestBatchChartGeneratorPlotSimpleChart:

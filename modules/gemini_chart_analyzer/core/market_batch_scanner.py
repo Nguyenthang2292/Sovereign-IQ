@@ -390,8 +390,15 @@ class MarketBatchScanner:
             'all_results': all_results
         }
         
-        with open(results_file, 'w', encoding='utf-8') as f:
-            json.dump(results_data, f, indent=2, ensure_ascii=False)
+        try:
+            with open(results_file, 'w', encoding='utf-8') as f:
+                json.dump(results_data, f, indent=2, ensure_ascii=False)
+        except OSError as e:
+            log_error(f"Failed to save results file {results_file}: {e}")
+            raise IOError(f"Failed to save results file: {e}") from e
+        except Exception as e:
+            log_error(f"Unexpected error saving results file: {e}")
+            raise RuntimeError(f"Unexpected error saving results file: {e}") from e
         
         return results_file
     

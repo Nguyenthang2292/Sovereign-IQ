@@ -361,10 +361,8 @@ class TestInteractiveConfigMenu:
         """Test menu exit option."""
         mock_prompt.return_value = "6"  # Exit
         
-        with patch('sys.exit') as mock_exit:
-            interactive_config_menu()
-        
-        mock_exit.assert_called_once_with(0)
+        config = interactive_config_menu()
+        assert config is None  # Should return None when Exit is selected
     
     @patch('modules.position_sizing.cli.argument_parser._display_main_menu_ps')
     @patch('modules.position_sizing.cli.argument_parser.prompt_user_input')
@@ -372,16 +370,12 @@ class TestInteractiveConfigMenu:
         """Test menu with invalid choice."""
         mock_prompt.side_effect = ["99", "6"]  # Invalid choice, then exit
         
-        with patch('sys.exit'):
-            with patch('builtins.print') as mock_print:
-                try:
-                    interactive_config_menu()
-                except SystemExit:
-                    pass
-                
-                # Should print error message for invalid choice
-                print_calls = [str(call) for call in mock_print.call_args_list]
-                assert any('Invalid' in call for call in print_calls)
+        with patch('builtins.print') as mock_print:
+            interactive_config_menu()
+            
+            # Should print error message for invalid choice
+            output = _aggregate_print_output(mock_print)
+            assert 'Invalid' in output
     
     @patch('modules.position_sizing.cli.argument_parser._display_main_menu_ps')
     @patch('modules.position_sizing.cli.argument_parser.prompt_user_input')

@@ -43,6 +43,7 @@ Example:
 
 import warnings
 import sys
+import os
 
 from modules.common.utils import configure_windows_stdio
 
@@ -54,12 +55,78 @@ from modules.common.utils import (
     color_text,
     log_error,
     log_progress,
+    initialize_components,
 )
 from cli.argument_parser import parse_args
 from core.voting_analyzer import VotingAnalyzer
-from modules.common.utils import initialize_components
 
-warnings.filterwarnings("ignore")
+# Configure warning filters with targeted approach
+# Environment variable ENABLE_DEPRECATION_WARNINGS can be set to "1" or "true" to show all warnings
+# Useful for CI/CD pipelines or periodic audits to detect breaking changes early
+ENABLE_ALL_WARNINGS = os.getenv("ENABLE_DEPRECATION_WARNINGS", "").lower() in ("1", "true", "yes")
+
+if not ENABLE_ALL_WARNINGS:
+    # Targeted suppression: Only filter specific noisy warnings from data science libraries
+    # This approach allows important warnings to surface while reducing noise
+    
+    # Pandas-specific deprecation warnings (common in data processing)
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        module="pandas"
+    )
+    # Pandas FutureWarning about upcoming behavior changes
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        module="pandas"
+    )
+    
+    # NumPy deprecation warnings (common in numerical operations)
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        module="numpy"
+    )
+    
+    # scikit-learn deprecation warnings (common in ML workflows)
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        module="sklearn"
+    )
+    
+    # XGBoost deprecation warnings
+    warnings.filterwarnings(
+        "ignore",
+        category=DeprecationWarning,
+        module="xgboost"
+    )
+    
+    # Common pandas FutureWarning patterns that don't affect current functionality
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        message=".*DataFrame.*append.*"  # DataFrame.append is deprecated
+    )
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        message=".*Series.*append.*"  # Series.append is deprecated
+    )
+else:
+    # All warnings enabled - useful for periodic audits
+    # Run with: ENABLE_DEPRECATION_WARNINGS=1 python main_complex_voting.py
+    warnings.filterwarnings("default")  # Reset to default behavior
+
+# NOTE: Periodic Audit Schedule
+# It's recommended to periodically run with ENABLE_DEPRECATION_WARNINGS=1 to:
+# 1. Detect upcoming breaking changes in dependencies
+# 2. Plan migration paths before dependencies are updated
+# 3. Identify code that needs refactoring
+# Suggested schedule: Monthly or before major dependency updates
+# Example: ENABLE_DEPRECATION_WARNINGS=1 python main_complex_voting.py --timeframe 1h
+
 colorama_init(autoreset=True)
 
 
@@ -87,8 +154,8 @@ def main() -> None:
     Raises:
         SystemExit: On KeyboardInterrupt or unhandled exceptions
     """
-    args = parse_args(mode="voting", force_enable_spc=False, force_enable_decision_matrix=False)
-    exchange_manager, data_fetcher = initialize_components()
+    args = parse_args(mode="voting", force_enable_spc=False, force_enable_decision_matrix=True)
+    _, data_fetcher = initialize_components()
     analyzer = VotingAnalyzer(args, data_fetcher)
     analyzer.run()
 

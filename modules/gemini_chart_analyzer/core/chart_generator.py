@@ -6,12 +6,17 @@ Tạo biểu đồ nến với các indicators như MA, RSI, Volume, etc.
 
 import os
 import pandas as pd
+import numpy as np
+import matplotlib
+# Use non-interactive backend to avoid GUI overhead and memory leaks
+matplotlib.use('Agg')  # Must be set before importing pyplot
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, Dict, Tuple
 from datetime import datetime
 from pathlib import Path
+import gc
 
 from modules.common.ui.logging import log_success
 
@@ -116,44 +121,49 @@ class ChartGenerator:
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
         
-        # Vẽ biểu đồ
-        plt.style.use(self.style)
-        fig, axes, total_rows = self._create_subplots(indicators, show_volume)
+        # Vẽ biểu đồ with style context to avoid mutating global state
+        with plt.style.context([self.style]):
+            fig, axes, total_rows = self._create_subplots(indicators, show_volume)
+            
+            # Vẽ nến
+            self._plot_candlesticks(axes[0], df, symbol, timeframe, ax_index=0, total_rows=total_rows)
+            
+            # Vẽ indicators trên price chart
+            self._plot_price_indicators(axes[0], df, indicators)
+            
+            # Vẽ volume nếu có
+            volume_ax_idx = 1
+            if show_volume and 'volume' in df.columns:
+                self._plot_volume(axes[volume_ax_idx], df, ax_index=volume_ax_idx, total_rows=total_rows)
+                indicator_start_idx = 2
+            else:
+                indicator_start_idx = 1
+            
+            # Vẽ indicators riêng (RSI, MACD, etc.)
+            indicator_axes = axes[indicator_start_idx:]
+            self._plot_separate_indicators(indicator_axes, df, indicators, indicator_start_idx=indicator_start_idx, total_rows=total_rows)
+            
+            # Điều chỉnh layout cho toàn bộ figure sau khi tất cả subplots đã được vẽ
+            plt.tight_layout()
+            
+            # Lưu file
+            fig.savefig(output_path, dpi=self.dpi, bbox_inches='tight', facecolor='black')
         
-        # Vẽ nến
-        self._plot_candlesticks(axes[0], df, symbol, timeframe, ax_index=0, total_rows=total_rows)
-        
-        # Vẽ indicators trên price chart
-        self._plot_price_indicators(axes[0], df, indicators)
-        
-        # Vẽ volume nếu có
-        volume_ax_idx = 1
-        if show_volume and 'volume' in df.columns:
-            self._plot_volume(axes[volume_ax_idx], df, ax_index=volume_ax_idx, total_rows=total_rows)
-            indicator_start_idx = 2
-        else:
-            indicator_start_idx = 1
-        
-        # Vẽ indicators riêng (RSI, MACD, etc.)
-        indicator_axes = axes[indicator_start_idx:]
-        self._plot_separate_indicators(indicator_axes, df, indicators, indicator_start_idx=indicator_start_idx, total_rows=total_rows)
-        
-        # Điều chỉnh layout cho toàn bộ figure sau khi tất cả subplots đã được vẽ
-        plt.tight_layout()
-        
-        # Lưu file
-        fig.savefig(output_path, dpi=self.dpi, bbox_inches='tight', facecolor='black')
+        # Close figure outside style context to ensure cleanup
         plt.close(fig)
+        
+        # Force garbage collection to free memory immediately
+        gc.collect()
         
         log_success(f"Đã lưu biểu đồ: {output_path}")
         return output_path
     
-    def _create_subplots(self, indicators: Dict, show_volume: bool) -> Tuple:
+    def _create_subplots(self, indicators: Optional[Dict], show_volume: bool) -> Tuple:
         """
         Tạo subplots cho biểu đồ với số lượng hàng động dựa trên indicators.
         
         Args:
-            indicators: Dict các indicators cần vẽ
+            indicators: Dict các indicators cần vẽ (có thể là None)
             show_volume: Có hiển thị volume chart hay không
             
         Returns:
@@ -162,6 +172,8 @@ class ChartGenerator:
         
         # Đếm số lượng indicators được vẽ riêng (RSI và MACD)
         separate_indicators = ['RSI', 'MACD']
+        if indicators is None:
+            indicators = {}
         indicator_count = sum(1 for ind in separate_indicators if ind in indicators)
         
         # Tính số lượng rows:
@@ -226,11 +238,12 @@ class ChartGenerator:
         down_color = '#ff0000'  # Đỏ cho nến giảm
         
         # Vẽ từng nến
-        for timestamp, row in df_candle.iterrows():
-            open_price = row['open']
-            high_price = row['high']
-            low_price = row['low']
-            close_price = row['close']
+        for row in df_candle.itertuples(index=True):
+            timestamp = row.Index
+            open_price = row.open
+            high_price = row.high
+            low_price = row.low
+            close_price = row.close
             
             # Xác định màu: xanh nếu close >= open, đỏ nếu ngược lại
             is_up = close_price >= open_price
@@ -316,8 +329,7 @@ class ChartGenerator:
     
     def _plot_volume(self, ax, df: pd.DataFrame, ax_index: int, total_rows: int):
         """Vẽ biểu đồ volume."""
-        colors = ['#00ff00' if df['close'].iloc[i] >= df['open'].iloc[i] else '#ff0000' 
-                 for i in range(len(df))]
+        colors = np.where(df['close'] >= df['open'], '#00ff00', '#ff0000')
         ax.bar(df.index, df['volume'], color=colors, alpha=0.6)
         ax.set_ylabel('Volume', color='white')
         ax.tick_params(colors='white')

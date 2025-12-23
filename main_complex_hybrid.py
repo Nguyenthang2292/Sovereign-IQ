@@ -37,31 +37,38 @@ See Also:
 
 Example:
     Run from command line:
-        $ python main_hybrid.py --timeframe 1h --enable-spc --use-decision-matrix
+        $ python main_complex_hybrid.py --timeframe 1h --enable-spc --use-decision-matrix
 """
-
 import warnings
 import sys
 
-from modules.common.utils import configure_windows_stdio
+from modules.common.utils import (
+    configure_windows_stdio,
+    color_text,
+    log_error,
+    initialize_components,
+)
 
 # Fix encoding issues on Windows for interactive CLI runs only
 configure_windows_stdio()
 
 from colorama import Fore, init as colorama_init
+colorama_init(autoreset=True)
 
-from modules.common.utils import (
-    color_text,
-    log_error,
-    log_progress,
-)
 from cli.argument_parser import parse_args
 from core.hybrid_analyzer import HybridAnalyzer
-from modules.common.utils import initialize_components
 
-# Suppress warnings for cleaner output
-warnings.filterwarnings("ignore")
-colorama_init(autoreset=True)
+# Suppress only benign deprecation and future warnings from third-party libraries
+# Keep warnings from our own code visible by filtering only specific module namespaces
+_EXTERNAL_MODULES = [
+    "pandas", "numpy", "sklearn", "xgboost", "statsmodels",
+    "pandas_ta", "hmmlearn", "pykalman", "numba", "matplotlib", "mplfinance"
+]
+for _module in _EXTERNAL_MODULES:
+    # Use strict regex to match only module and its submodules (e.g., "^pandas(\\.|$)")
+    # This prevents false matches like "pandas" matching "pandas_ta"
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module=f"^{_module}(\\.|$)")
+    warnings.filterwarnings("ignore", category=FutureWarning, module=f"^{_module}(\\.|$)")
 
 
 def main() -> None:
@@ -81,12 +88,9 @@ def main() -> None:
            - SPC signal calculation (if enabled)
            - Decision Matrix voting (if enabled)
            - Results display
-    
-    Raises:
-        SystemExit: On KeyboardInterrupt or unhandled exceptions
     """
     args = parse_args()
-    exchange_manager, data_fetcher = initialize_components()
+    _, data_fetcher = initialize_components()
     analyzer = HybridAnalyzer(args, data_fetcher)
     analyzer.run()
 

@@ -388,122 +388,136 @@ class TestChartGeneratorSubplots:
     def test_create_subplots_with_volume(self, chart_generator):
         """Test subplot creation with volume."""
         indicators = {'RSI': {'period': 14}, 'MACD': {'fast': 12, 'slow': 26, 'signal': 9}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=True)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=True)
         
         assert len(axes) == 4  # Price + Volume + RSI + MACD
+        assert total_rows == 4
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_without_volume(self, chart_generator):
         """Test subplot creation without volume."""
         indicators = {'RSI': {'period': 14}, 'MACD': {'fast': 12, 'slow': 26, 'signal': 9}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=False)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=False)
         
         assert len(axes) == 3  # Price + RSI + MACD
+        assert total_rows == 3
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_no_indicators_none_with_volume(self, chart_generator):
         """Test subplot creation with None indicators and volume."""
-        fig, axes = chart_generator._create_subplots(indicators=None, show_volume=True)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=None, show_volume=True)
         
         assert len(axes) == 2  # Price + Volume
+        assert total_rows == 2
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_no_indicators_none_without_volume(self, chart_generator):
         """Test subplot creation with None indicators without volume."""
-        fig, axes = chart_generator._create_subplots(indicators=None, show_volume=False)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=None, show_volume=False)
         
         assert len(axes) == 1  # Price only
+        assert total_rows == 1
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_no_indicators_empty_dict_with_volume(self, chart_generator):
         """Test subplot creation with empty indicators dict and volume."""
-        fig, axes = chart_generator._create_subplots(indicators={}, show_volume=True)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators={}, show_volume=True)
         
         assert len(axes) == 2  # Price + Volume
+        assert total_rows == 2
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_no_indicators_empty_dict_without_volume(self, chart_generator):
         """Test subplot creation with empty indicators dict without volume."""
-        fig, axes = chart_generator._create_subplots(indicators={}, show_volume=False)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators={}, show_volume=False)
         
         assert len(axes) == 1  # Price only
+        assert total_rows == 1
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_rsi_only_with_volume(self, chart_generator):
         """Test subplot creation with RSI only and volume."""
         indicators = {'RSI': {'period': 14}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=True)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=True)
         
         assert len(axes) == 3  # Price + Volume + RSI
+        assert total_rows == 3
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_rsi_only_without_volume(self, chart_generator):
         """Test subplot creation with RSI only without volume."""
         indicators = {'RSI': {'period': 14}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=False)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=False)
         
         assert len(axes) == 2  # Price + RSI
+        assert total_rows == 2
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_ma_only_with_volume(self, chart_generator):
         """Test subplot creation with MA only and volume (MA doesn't add subplot)."""
         indicators = {'MA': {'periods': [20, 50]}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=True)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=True)
         
         assert len(axes) == 2  # Price + Volume (MA plotted on price chart)
+        assert total_rows == 2
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_ma_only_without_volume(self, chart_generator):
         """Test subplot creation with MA only without volume (MA doesn't add subplot)."""
         indicators = {'MA': {'periods': [20, 50]}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=False)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=False)
         
         assert len(axes) == 1  # Price only (MA plotted on price chart)
+        assert total_rows == 1
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_bb_only_with_volume(self, chart_generator):
         """Test subplot creation with BB only and volume (BB doesn't add subplot)."""
         indicators = {'BB': {'period': 20, 'std': 2}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=True)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=True)
         
         assert len(axes) == 2  # Price + Volume (BB plotted on price chart)
+        assert total_rows == 2
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_bb_only_without_volume(self, chart_generator):
         """Test subplot creation with BB only without volume (BB doesn't add subplot)."""
         indicators = {'BB': {'period': 20, 'std': 2}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=False)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=False)
         
         assert len(axes) == 1  # Price only (BB plotted on price chart)
+        assert total_rows == 1
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_non_plotting_indicators_only_with_volume(self, chart_generator):
         """Test subplot creation with only non-plotting indicators (MA+BB) and volume."""
         indicators = {'MA': {'periods': [20]}, 'BB': {'period': 20, 'std': 2}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=True)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=True)
         
         assert len(axes) == 2  # Price + Volume (MA and BB plotted on price chart)
+        assert total_rows == 2
         assert fig is not None
         plt.close(fig)
     
     def test_create_subplots_non_plotting_indicators_only_without_volume(self, chart_generator):
         """Test subplot creation with only non-plotting indicators (MA+BB) without volume."""
         indicators = {'MA': {'periods': [20]}, 'BB': {'period': 20, 'std': 2}}
-        fig, axes = chart_generator._create_subplots(indicators=indicators, show_volume=False)
+        fig, axes, total_rows = chart_generator._create_subplots(indicators=indicators, show_volume=False)
         
         assert len(axes) == 1  # Price only (MA and BB plotted on price chart)
+        assert total_rows == 1
         assert fig is not None
         plt.close(fig)
 

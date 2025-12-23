@@ -593,7 +593,7 @@ def main():
         
         # 8. Cleanup results cũ trước khi lưu kết quả mới (nếu không bị disable)
         # Get analysis results directory from module
-        from modules.gemini_chart_analyzer.core.chart_generator import _get_analysis_results_dir
+        from modules.gemini_chart_analyzer.core.market_batch_scanner import _get_analysis_results_dir
         output_dir = _get_analysis_results_dir()
         os.makedirs(output_dir, exist_ok=True)
         if not no_cleanup:

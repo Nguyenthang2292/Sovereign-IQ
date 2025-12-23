@@ -1,0 +1,215 @@
+{
+  "timestamp": "2025-12-23T23:10:20.161167",
+  "timeframe": "1h",
+  "summary": {
+    "total_symbols": 30,
+    "scanned_symbols": 30,
+    "long_count": 9,
+    "short_count": 5,
+    "none_count": 16,
+    "long_percentage": 30.0,
+    "short_percentage": 16.666666666666664,
+    "avg_long_confidence": 0.7222222222222222,
+    "avg_short_confidence": 0.76
+  },
+  "long_symbols": [
+    "ALPINE/USDT",
+    "ACT/USDT",
+    "ADX/USDT",
+    "A/USDT",
+    "1INCH/USDT",
+    "ALT/USDT",
+    "ACM/USDT",
+    "ACX/USDT",
+    "2Z/USDT"
+  ],
+  "short_symbols": [
+    "AAVE/USDT",
+    "AGLD/USDT",
+    "ACH/USDT",
+    "AMP/USDT",
+    "1MBABYDOGE/USDT"
+  ],
+  "long_symbols_with_confidence": [
+    [
+      "ALPINE/USDT",
+      0.85
+    ],
+    [
+      "ACT/USDT",
+      0.8
+    ],
+    [
+      "ADX/USDT",
+      0.8
+    ],
+    [
+      "A/USDT",
+      0.75
+    ],
+    [
+      "1INCH/USDT",
+      0.7
+    ],
+    [
+      "ALT/USDT",
+      0.7
+    ],
+    [
+      "ACM/USDT",
+      0.65
+    ],
+    [
+      "ACX/USDT",
+      0.65
+    ],
+    [
+      "2Z/USDT",
+      0.6
+    ]
+  ],
+  "short_symbols_with_confidence": [
+    [
+      "AAVE/USDT",
+      0.85
+    ],
+    [
+      "AGLD/USDT",
+      0.8
+    ],
+    [
+      "ACH/USDT",
+      0.75
+    ],
+    [
+      "AMP/USDT",
+      0.75
+    ],
+    [
+      "1MBABYDOGE/USDT",
+      0.65
+    ]
+  ],
+  "all_results": {
+    "0G/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "1000CAT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "1000CHEEMS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "1000SATS/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "1INCH/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "1MBABYDOGE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.65
+    },
+    "2Z/USDT": {
+      "signal": "LONG",
+      "confidence": 0.6
+    },
+    "A/USDT": {
+      "signal": "LONG",
+      "confidence": 0.75
+    },
+    "A2Z/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "AAVE/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.85
+    },
+    "ACA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ACE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ACH/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "ACM/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "ACT/USDT": {
+      "signal": "LONG",
+      "confidence": 0.8
+    },
+    "ACX/USDT": {
+      "signal": "LONG",
+      "confidence": 0.65
+    },
+    "ADA/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "ADX/USDT": {
+      "signal": "LONG",
+      "confidence": 0.8
+    },
+    "AEVO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "AGLD/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.8
+    },
+    "AI/USDT": {
+      "signal": "NONE",
+      "confidence": 0.5
+    },
+    "AIXBT/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "ALCX/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ALGO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "ALICE/USDT": {
+      "signal": "NONE",
+      "confidence": 0.45
+    },
+    "ALLO/USDT": {
+      "signal": "NONE",
+      "confidence": 0.4
+    },
+    "ALPINE/USDT": {
+      "signal": "LONG",
+      "confidence": 0.85
+    },
+    "ALT/USDT": {
+      "signal": "LONG",
+      "confidence": 0.7
+    },
+    "AMP/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.75
+    },
+    "AEUR/USDT": {
+      "signal": "NONE",
+      "confidence": 0.0
+    }
+  }
+}

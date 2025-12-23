@@ -14,7 +14,7 @@ import logging
 import PIL.Image
 
 from modules.gemini_chart_analyzer.core.gemini_analyzer import GeminiAnalyzer
-from modules.common.ui.logging import log_info, log_error, log_success
+from modules.common.ui.logging import log_info, log_error, log_success, log_warn
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +202,12 @@ Lưu ý:
             json_str = json_match.group(1)
         else:
             # Try to find JSON object directly
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            # Use non-greedy matching to avoid matching multiple JSON objects
+            # Also try to find the largest valid JSON object by counting braces
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text, re.DOTALL)
+            if not json_match:
+                # Fallback: try greedy but validate it's valid JSON
+                json_match = re.search(r'\{.*?\}', response_text, re.DOTALL)
             if json_match:
                 json_str = json_match.group(0)
             else:
@@ -213,8 +218,14 @@ Lưu ý:
             # Parse JSON
             result = json.loads(json_str)
             
+            # Validate result is a dict
+            if not isinstance(result, dict):
+                log_error(f"JSON response is not a dictionary, got {type(result).__name__}")
+                return {symbol: {"signal": "NONE", "confidence": 0.0} for symbol in expected_symbols}
+            
             # Validate and normalize
             normalized_result = {}
+            missing_symbols = []
             for symbol in expected_symbols:
                 # Try exact match first
                 if symbol in result:
@@ -251,7 +262,12 @@ Lưu ý:
                         normalized_result[symbol] = {"signal": "NONE", "confidence": 0.0}
                 else:
                     # Symbol not found in response
+                    missing_symbols.append(symbol)
                     normalized_result[symbol] = {"signal": "NONE", "confidence": 0.0}
+            
+            # Log missing symbols if any
+            if missing_symbols:
+                log_warn(f"{len(missing_symbols)} symbols not found in JSON response: {missing_symbols[:5]}{'...' if len(missing_symbols) > 5 else ''}")
             
             return normalized_result
             

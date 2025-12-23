@@ -717,7 +717,7 @@ def parse_args(mode="hybrid", force_enable_spc=True, force_enable_decision_matri
     # Force enable SPC and Decision Matrix if requested
     if force_enable_spc:
         args.enable_spc = True
-    if force_enable_decision_matrix and mode == "hybrid":
+    if force_enable_decision_matrix:
         args.use_decision_matrix = True
     
     return args

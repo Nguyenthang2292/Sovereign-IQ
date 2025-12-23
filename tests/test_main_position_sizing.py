@@ -1,5 +1,5 @@
 """
-Tests for main_position_sizing.py.
+Tests for modules.position_sizing.cli.main.
 
 Tests cover:
 - Config merge logic (interactive menu values override default args)
@@ -21,13 +21,12 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from main_position_sizing import (
+from modules.position_sizing.cli.main import (
     _try_timeframes_auto,
     _prompt_for_balance,
     InsufficientDataError,
     DataError,
 )
-from modules.position_sizing.core.position_sizer import PositionSizer
 
 
 @pytest.fixture
@@ -150,7 +149,7 @@ class TestTryTimeframesAuto:
             'position_size_pct': [50.0],
         })
         
-        with patch('main_position_sizing.PositionSizer') as mock_sizer_class:
+        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_sizer_class:
             mock_sizer_instance = Mock()
             mock_sizer_instance.calculate_portfolio_allocation = Mock(return_value=mock_results)
             mock_sizer_class.return_value = mock_sizer_instance
@@ -183,7 +182,7 @@ class TestTryTimeframesAuto:
         # Create empty results
         mock_results = pd.DataFrame()
         
-        with patch('main_position_sizing.PositionSizer') as mock_sizer_class:
+        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_sizer_class:
             mock_sizer_instance = Mock()
             mock_sizer_instance.calculate_portfolio_allocation = Mock(return_value=mock_results)
             mock_sizer_class.return_value = mock_sizer_instance
@@ -211,7 +210,7 @@ class TestTryTimeframesAuto:
         signal_mode = 'single_signal'
         signal_calculation_mode = 'precomputed'
         
-        with patch('main_position_sizing.PositionSizer') as mock_sizer_class:
+        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_sizer_class:
             # First timeframe raises ValueError (data error)
             mock_sizer_instance = Mock()
             mock_sizer_instance.calculate_portfolio_allocation = Mock(side_effect=ValueError("Insufficient data"))
@@ -240,7 +239,7 @@ class TestTryTimeframesAuto:
         signal_mode = 'single_signal'
         signal_calculation_mode = 'precomputed'
         
-        with patch('main_position_sizing.PositionSizer') as mock_sizer_class:
+        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_sizer_class:
             mock_sizer_instance = Mock()
             mock_sizer_instance.calculate_portfolio_allocation = Mock(side_effect=InsufficientDataError("Not enough data"))
             mock_sizer_class.return_value = mock_sizer_instance
@@ -267,7 +266,7 @@ class TestTryTimeframesAuto:
         signal_mode = 'single_signal'
         signal_calculation_mode = 'precomputed'
         
-        with patch('main_position_sizing.PositionSizer') as mock_sizer_class:
+        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_sizer_class:
             mock_sizer_instance = Mock()
             mock_sizer_instance.calculate_portfolio_allocation = Mock(side_effect=ConnectionError("Network error"))
             mock_sizer_class.return_value = mock_sizer_instance
@@ -282,8 +281,10 @@ class TestTryTimeframesAuto:
                 signal_calculation_mode=signal_calculation_mode,
             )
             
-            # Should handle error gracefully
-            assert timeframe is None or isinstance(timeframe, str)
+            # Should handle error gracefully - strict expectation that both are None
+            # when all timeframes fail due to ConnectionError
+            assert timeframe is None, "timeframe should be None when all timeframes fail due to ConnectionError"
+            assert results_df is None, "results_df should be None when all timeframes fail due to ConnectionError"
     
     def test_validates_position_size_before_returning(self, mock_data_fetcher):
         """Test that only timeframes with valid position sizes are returned."""
@@ -308,7 +309,7 @@ class TestTryTimeframesAuto:
             'position_size_pct': [50.0],
         })
         
-        with patch('main_position_sizing.PositionSizer') as mock_sizer_class:
+        with patch('modules.position_sizing.cli.main.PositionSizer') as mock_sizer_class:
             mock_sizer_instance = Mock()
             # First two timeframes return zero, third returns valid
             mock_sizer_instance.calculate_portfolio_allocation = Mock(side_effect=[
@@ -345,7 +346,7 @@ class TestPromptForBalance:
         assert isinstance(balance, float)
     
     @patch('builtins.input', return_value='invalid')
-    @patch('main_position_sizing.sys.exit')
+    @patch('modules.position_sizing.cli.main.sys.exit')
     def test_prompt_for_balance_invalid_input(self, mock_exit, mock_input):
         """Test that invalid balance input exits."""
         _prompt_for_balance()

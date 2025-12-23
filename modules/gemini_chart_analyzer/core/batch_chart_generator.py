@@ -5,12 +5,16 @@ Groups 100 simple charts into a single batch image (10x10 grid).
 """
 
 import pandas as pd
+import matplotlib
+# Use non-interactive backend to avoid GUI overhead and memory leaks
+matplotlib.use('Agg')  # Must be set before importing pyplot
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 from datetime import datetime
+import gc
 
 # Note: SimpleChartGenerator is not currently used, but kept for potential future use
 # from modules.gemini_chart_analyzer.core.simple_chart_generator import SimpleChartGenerator
@@ -99,45 +103,13 @@ class BatchChartGenerator:
             symbols_data = symbols_data[:self.charts_per_batch]
             truncated = True
         
+        # Validate: ensure we have at least one symbol to plot
+        if not symbols_data:
+            raise ValueError("symbols_data cannot be empty")
+        
         # Calculate total figure size
         total_width = self.chart_size[0] * self.grid_cols
         total_height = self.chart_size[1] * self.grid_rows
-        
-        # Create main figure
-        plt.style.use('dark_background')
-        fig = plt.figure(figsize=(total_width, total_height), dpi=self.dpi)
-        fig.patch.set_facecolor('black')
-        
-        # Create subplots in grid
-        for idx, symbol_data in enumerate(symbols_data):
-            if idx >= self.charts_per_batch:
-                break
-            
-            symbol = symbol_data['symbol']
-            df = symbol_data['df']
-            
-            # Create subplot
-            ax = fig.add_subplot(self.grid_rows, self.grid_cols, idx + 1)
-            
-            try:
-                # Plot simple chart on this subplot
-                self._plot_simple_chart_on_axes(ax, df, symbol, timeframe)
-            except Exception as e:
-                log_error(f"Error plotting {symbol}: {e}")
-                # Draw empty chart with error message
-                ax.set_facecolor('black')
-                ax.text(0.5, 0.5, f"Error\n{symbol}", 
-                       transform=ax.transAxes, ha='center', va='center',
-                       color='red', fontsize=8)
-        
-        # Fill remaining empty slots if needed
-        for idx in range(len(symbols_data), self.charts_per_batch):
-            ax = fig.add_subplot(self.grid_rows, self.grid_cols, idx + 1)
-            ax.set_facecolor('black')
-            ax.axis('off')
-        
-        # Tight layout
-        plt.tight_layout(pad=0.5)
         
         # Generate output path if not provided
         if output_path is None:
@@ -149,9 +121,56 @@ class BatchChartGenerator:
             output_path = output_dir / f"batch_chart_{timeframe}_{timestamp}{batch_suffix}.png"
             output_path = str(output_path)
         
-        # Save figure
-        fig.savefig(output_path, dpi=self.dpi, bbox_inches='tight', facecolor='black', pad_inches=0.1)
+        # Create main figure with style context to avoid mutating global state
+        # Use context manager to ensure style is only applied to this figure
+        with plt.style.context(['dark_background']):
+            fig = plt.figure(figsize=(total_width, total_height), dpi=self.dpi)
+            fig.patch.set_facecolor('black')
+            
+            # Create subplots in grid
+            for idx, symbol_data in enumerate(symbols_data):
+                symbol = symbol_data['symbol']
+                df = symbol_data['df']
+                
+                # Create subplot
+                ax = fig.add_subplot(self.grid_rows, self.grid_cols, idx + 1)
+                
+                try:
+                    # Plot simple chart on this subplot
+                    self._plot_simple_chart_on_axes(ax, df, symbol, timeframe)
+                except Exception as e:
+                    log_error(f"Error plotting {symbol}: {e}")
+                    # Draw empty chart with error message
+                    ax.set_facecolor('black')
+                    ax.text(0.5, 0.5, f"Error\n{symbol}", 
+                           transform=ax.transAxes, ha='center', va='center',
+                           color='red', fontsize=8)
+            
+            # Fill remaining empty slots if needed
+            for idx in range(len(symbols_data), self.charts_per_batch):
+                ax = fig.add_subplot(self.grid_rows, self.grid_cols, idx + 1)
+                ax.set_facecolor('black')
+                ax.axis('off')
+            
+            # Tight layout
+            plt.tight_layout(pad=0.5)
+            
+            # Save figure with error handling
+            try:
+                fig.savefig(output_path, dpi=self.dpi, bbox_inches='tight', facecolor='black', pad_inches=0.1)
+            except OSError as e:
+                plt.close(fig)  # Ensure figure is closed even on error
+                raise IOError(f"Failed to save batch chart to {output_path}: {e}") from e
+            except Exception as e:
+                plt.close(fig)  # Ensure figure is closed even on error
+                raise RuntimeError(f"Unexpected error saving batch chart: {e}") from e
+        
+        # Close figure outside style context to ensure cleanup
         plt.close(fig)
+        
+        # Force garbage collection to free memory immediately
+        # This helps prevent memory leaks in batch processing
+        gc.collect()
         
         log_success(f"Created batch chart: {output_path}")
         return output_path, truncated

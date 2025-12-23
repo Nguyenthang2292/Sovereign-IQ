@@ -28,6 +28,7 @@ ENV/
 # IDEs
 .vscode/
 .idea/
+.cursor/debug.log
 
 # Testing
 .pytest_cache/
@@ -48,3 +49,5 @@ tmp_*.py
 # API Keys and Secrets (sensitive information)
 modules/config_api.py
 config/config_api.py
+# Snyk Security Extension - AI Rules (auto-generated)
+.cursor/rules/snyk_rules.mdc

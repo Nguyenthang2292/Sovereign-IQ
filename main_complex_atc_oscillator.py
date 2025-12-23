@@ -10,6 +10,8 @@ This program combines signals from Adaptive Trend Classification (ATC) and Range
 import warnings
 import sys
 import threading
+import logging
+import traceback
 from typing import Optional, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
@@ -47,9 +49,16 @@ from modules.range_oscillator.config import (
     DynamicSelectionConfig,
 )
 
-# Suppress warnings for cleaner output
-warnings.filterwarnings("ignore")
+# Suppress noisy but non-critical warnings from data science libraries
+# - DeprecationWarning: From pandas/numpy/scikit-learn about future API changes (still functional)
+# - FutureWarning: From pandas about upcoming behavior changes (doesn't affect current functionality)
+# Other warnings (UserWarning, RuntimeWarning, etc.) remain visible for debugging
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 colorama_init(autoreset=True)
+
+# Initialize module logger
+logger = logging.getLogger(__name__)
 
 
 def get_range_oscillator_signal(
@@ -157,7 +166,7 @@ def get_range_oscillator_signal(
 
     except Exception as e:
         # Skip symbols with errors
-            return None
+        return None
 
 
 def initialize_components() -> Tuple[ExchangeManager, DataFetcher]:
@@ -346,7 +355,11 @@ class ATCOscillatorAnalyzer:
             return None
             
         except Exception as e:
-            # Skip symbols with errors
+            # Log exception with full context for debugging
+            logger.warning(
+                f"Error processing symbol {symbol} for Range Oscillator confirmation: {type(e).__name__}: {e}\n"
+                f"Traceback:\n{traceback.format_exc()}"
+            )
             return None
     
     def filter_signals_by_range_oscillator(
@@ -428,7 +441,11 @@ class ATCOscillatorAnalyzer:
                             confirmed_count[0] += 1
                             filtered_results.append(result)
                 except Exception as e:
-                    # Skip symbols with errors
+                    # Log exception with full context for debugging
+                    logger.warning(
+                        f"Error processing future result for symbol {symbol} in Range Oscillator filter: {type(e).__name__}: {e}\n"
+                        f"Traceback:\n{traceback.format_exc()}"
+                    )
                     pass
                 finally:
                     # Update progress (thread-safe)
@@ -548,8 +565,8 @@ class ATCOscillatorAnalyzer:
         # Step 2: Display configuration
         self.display_config()
         
-        # Step 3: Initialize components (already done in __init__)
-        log_progress("Initializing components...")
+        # Step 3: Components already initialized in __init__
+        log_progress("Verifying components are ready...")
         
         # Step 4: Run ATC auto scan
         self.run_atc_scan()
@@ -577,7 +594,7 @@ def main() -> None:
     args = parse_args()
     
     # Initialize components
-    exchange_manager, data_fetcher = initialize_components()
+    _, data_fetcher = initialize_components()
     
     # Create analyzer instance
     analyzer = ATCOscillatorAnalyzer(args, data_fetcher)
