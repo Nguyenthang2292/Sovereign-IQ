@@ -275,18 +275,16 @@ class TestRangeOscillator:
         """Test basic range oscillator calculation."""
         high, low, close = sample_price_data
         
-        oscillator, oscillator_color, ma, range_atr = calculate_range_oscillator(
+        oscillator, ma, range_atr = calculate_range_oscillator(
             high=high, low=low, close=close,
             length=50, mult=2.0
         )
         
         assert isinstance(oscillator, pd.Series)
-        assert isinstance(oscillator_color, pd.Series)
         assert isinstance(ma, pd.Series)
         assert isinstance(range_atr, pd.Series)
         
         assert len(oscillator) == len(close)
-        assert len(oscillator_color) == len(close)
         assert len(ma) == len(close)
         assert len(range_atr) == len(close)
         
@@ -301,34 +299,13 @@ class TestRangeOscillator:
         
         for length in [20, 50, 100]:
             for mult in [1.5, 2.0, 3.0]:
-                oscillator, _, _, _ = calculate_range_oscillator(
+                oscillator, _, _ = calculate_range_oscillator(
                     high=high, low=low, close=close,
                     length=length, mult=mult
                 )
                 assert isinstance(oscillator, pd.Series)
                 assert len(oscillator) == len(close)
     
-    def test_range_oscillator_colors(self, sample_price_data):
-        """Test range oscillator color assignment."""
-        high, low, close = sample_price_data
-        
-        oscillator, oscillator_color, _, _ = calculate_range_oscillator(
-            high=high, low=low, close=close,
-            length=50, mult=2.0
-        )
-        
-        # Colors should be strings (hex codes) or None/NaN
-        # Check non-NaN colors
-        non_nan_colors = oscillator_color.dropna()
-        if len(non_nan_colors) > 0:
-            assert all(isinstance(c, str) for c in non_nan_colors)
-        # Non-NaN oscillator values should have colors (if any non-NaN oscillator values exist)
-        non_nan_mask = ~oscillator.isna()
-        if non_nan_mask.any():
-            colors_for_non_nan = oscillator_color[non_nan_mask].dropna()
-            # At least some should have colors if oscillator has values
-            if len(colors_for_non_nan) > 0:
-                assert all(isinstance(c, str) for c in colors_for_non_nan)
     
     def test_range_oscillator_input_validation(self, sample_price_data):
         """Test range oscillator input validation."""
@@ -364,13 +341,12 @@ class TestRangeOscillator:
         low = pd.Series([99.0] * 10, index=dates)
         close = pd.Series([99.5] * 10, index=dates)
         
-        oscillator, oscillator_color, ma, range_atr = calculate_range_oscillator(
+        oscillator, ma, range_atr = calculate_range_oscillator(
             high=high, low=low, close=close,
             length=50, mult=2.0
         )
         
         assert isinstance(oscillator, pd.Series)
-        assert isinstance(oscillator_color, pd.Series)
         assert isinstance(ma, pd.Series)
         assert isinstance(range_atr, pd.Series)
         # With insufficient data, oscillator should be mostly NaN

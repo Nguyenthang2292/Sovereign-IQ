@@ -6,23 +6,44 @@ configuration, and summary information.
 """
 
 import pandas as pd
-from typing import Optional
+from typing import Optional, List
 
 from colorama import Fore, Style
 
 from modules.common.utils import (
     color_text,
     format_price,
-    log_progress,
 )
+from modules.range_oscillator.strategies.combined import STRATEGY_NAMES
 
+
+def _calculate_avg_confidence(signals: pd.DataFrame) -> float:
+    """
+    Calculate average confidence score from signals DataFrame.
+    
+    Args:
+        signals: DataFrame containing signals with optional 'osc_confidence' column
+        
+    Returns:
+        Average confidence as float, or 0.0 if calculation fails or data unavailable
+    """
+    try:
+        if not signals.empty and 'osc_confidence' in signals.columns:
+            confidence_series = signals['osc_confidence']
+            if len(confidence_series) > 0:
+                mean_val = confidence_series.mean()
+                # Return 0.0 if mean is NaN (all values were NaN)
+                return 0.0 if pd.isna(mean_val) else float(mean_val)
+    except (ValueError, TypeError):
+        # Use default 0.0 on error
+        pass
+    return 0.0
 
 def display_configuration(
     timeframe: str,
     limit: int,
     min_signal: float,
-    max_workers: int,
-    strategies: Optional[list],
+    strategies: Optional[List[int]],
     max_symbols: Optional[int] = None,
 ):
     """
@@ -33,7 +54,7 @@ def display_configuration(
         limit: Number of candles
         min_signal: Minimum signal strength
         max_workers: Number of parallel workers
-        strategies: List of strategy numbers
+        strategies: List of strategy numbers (e.g., [2, 3, 4])
         max_symbols: Maximum number of symbols to scan (optional)
     """
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
@@ -43,10 +64,31 @@ def display_configuration(
     print(color_text(f"  Timeframe: {timeframe}", Fore.WHITE))
     print(color_text(f"  Limit: {limit} candles", Fore.WHITE))
     print(color_text(f"  Min Signal: {min_signal}", Fore.WHITE))
-    print(color_text(f"  Parallel Workers: {max_workers}", Fore.WHITE))
-    strategies_str = "Strategy 5 Combined (Dynamic Selection + Adaptive Weights)"
+    
+    # Build strategy display string from strategies parameter
+    if strategies and len(strategies) > 0:
+        # Map strategy numbers to names
+        sorted_strategies = sorted(strategies)
+        strategy_names = []
+        for strategy_id in sorted_strategies:
+            if strategy_id in STRATEGY_NAMES:
+                strategy_names.append(f"Strategy {strategy_id} ({STRATEGY_NAMES[strategy_id]})")
+            else:
+                strategy_names.append(f"Strategy {strategy_id}")
+        
+        if len(strategy_names) == 1:
+            strategies_str = strategy_names[0]
+            mode_str = f"Single Strategy: {STRATEGY_NAMES.get(sorted_strategies[0], 'Unknown')}"
+        else:
+            strategies_str = f"Combined ({', '.join(strategy_names)})"
+            mode_str = f"Combined Mode: {len(strategies)} Strategies"
+    else:
+        # Default when no strategies specified
+        strategies_str = "Strategy 5 Combined (Dynamic Selection + Adaptive Weights)"
+        mode_str = "Dynamic Selection with Adaptive Weights"
+    
     print(color_text(f"  Oscillator Strategy: {strategies_str}", Fore.WHITE))
-    print(color_text(f"  Mode: Dynamic Selection with Adaptive Weights", Fore.WHITE))
+    print(color_text(f"  Mode: {mode_str}", Fore.WHITE))
     if max_symbols:
         print(color_text(f"  Max Symbols: {max_symbols}", Fore.WHITE))
     print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
@@ -71,9 +113,6 @@ def display_final_results(
         long_uses_fallback: True if LONG signals fallback to ATC only
         short_uses_fallback: True if SHORT signals fallback to ATC only
     """
-    # DEBUG POINT: Display results entry - Check input DataFrames
-    # Check: long_signals_empty, short_signals_empty, long_signals_shape, short_signals_shape
-    # Check: long_columns, short_columns
     
     # Input validation
     if not isinstance(long_signals, pd.DataFrame):
@@ -203,27 +242,8 @@ def display_final_results(
                 continue
 
     # Calculate average confidence scores
-    avg_long_confidence = 0.0
-    avg_short_confidence = 0.0
-    try:
-        if not long_signals.empty and 'osc_confidence' in long_signals.columns:
-            confidence_series = long_signals['osc_confidence']
-            if len(confidence_series) > 0:
-                avg_long_confidence = float(confidence_series.mean())
-    except (ValueError, TypeError) as e:
-        # DEBUG POINT: Error calculating avg_long_confidence - Check exception details
-        # Check: exception_type, exception_msg
-        pass  # Use default 0.0
-    
-    try:
-        if not short_signals.empty and 'osc_confidence' in short_signals.columns:
-            confidence_series = short_signals['osc_confidence']
-            if len(confidence_series) > 0:
-                avg_short_confidence = float(confidence_series.mean())
-    except (ValueError, TypeError) as e:
-        # DEBUG POINT: Error calculating avg_short_confidence - Check exception details
-        # Check: exception_type, exception_msg
-        pass  # Use default 0.0
+    avg_long_confidence = _calculate_avg_confidence(long_signals)
+    avg_short_confidence = _calculate_avg_confidence(short_signals)
     
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
     print(color_text(f"Summary:", Fore.WHITE, Style.BRIGHT))

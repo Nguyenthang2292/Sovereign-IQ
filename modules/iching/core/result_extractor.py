@@ -7,7 +7,7 @@ import re
 from typing import Optional
 
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
-from modules.gemini_chart_analyzer.core.gemini_analyzer import GeminiAnalyzer
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
 from modules.iching.core.data_models import HaoInfo, IChingResult
 
 
@@ -21,7 +21,7 @@ class IChingResultExtractor:
         Args:
             api_key: Google Gemini API key (nếu None, sẽ lấy từ config)
         """
-        self.analyzer = GeminiAnalyzer(api_key=api_key)
+        self.analyzer = GeminiChartAnalyzer(api_key=api_key)
         log_info("Đã khởi tạo IChingResultExtractor")
     
     def extract_from_image(self, image_path: str) -> Optional[IChingResult]:

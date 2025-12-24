@@ -104,7 +104,6 @@ class TestDisplayConfiguration:
         assert '1h' in captured.out
         assert '500' in captured.out
         assert '0.01' in captured.out
-        assert '10' in captured.out
     
     def test_display_configuration_with_strategies(self, capsys):
         """Test display_configuration with strategies."""

@@ -1,5 +1,5 @@
 """
-Tests for BatchGeminiAnalyzer class.
+Tests for GeminiBatchChartAnalyzer class.
 Tests cover:
 - Initialization with cooldown
 - Batch chart analysis with JSON parsing
@@ -12,7 +12,7 @@ import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock
 
-from modules.gemini_chart_analyzer.core.batch_gemini_analyzer import BatchGeminiAnalyzer
+from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
 
 
 @pytest.fixture
@@ -56,38 +56,38 @@ def _setup_genai_mocks(mock_genai):
 @pytest.fixture
 def mock_batch_analyzer(mock_api_key):
     """Fixture that sets up mocked genai and returns analyzer."""
-    with patch('modules.gemini_chart_analyzer.core.gemini_analyzer.genai') as mock_genai:
+    with patch('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai') as mock_genai:
         mock_client, mock_model = _setup_genai_mocks(mock_genai)
         
-        analyzer = BatchGeminiAnalyzer(api_key=mock_api_key, cooldown_seconds=0.1)
+        analyzer = GeminiBatchChartAnalyzer(api_key=mock_api_key, cooldown_seconds=0.1)
         
         yield (analyzer, mock_client, mock_genai)
 
 
-class TestBatchGeminiAnalyzerInit:
-    """Test BatchGeminiAnalyzer initialization."""
+class TestGeminiBatchChartAnalyzerInit:
+    """Test GeminiBatchChartAnalyzer initialization."""
     
-    @patch('modules.gemini_chart_analyzer.core.gemini_analyzer.genai')
+    @patch('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai')
     def test_init_with_cooldown(self, mock_genai, mock_api_key):
         """Test initialization with custom cooldown."""
         _setup_genai_mocks(mock_genai)
         
-        analyzer = BatchGeminiAnalyzer(api_key=mock_api_key, cooldown_seconds=5.0)
+        analyzer = GeminiBatchChartAnalyzer(api_key=mock_api_key, cooldown_seconds=5.0)
         
         assert analyzer.cooldown_seconds == 5.0
         assert analyzer.last_request_time == 0.0
     
-    @patch('modules.gemini_chart_analyzer.core.gemini_analyzer.genai')
+    @patch('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai')
     def test_init_default_cooldown(self, mock_genai, mock_api_key):
         """Test initialization with default cooldown."""
         _setup_genai_mocks(mock_genai)
         
-        analyzer = BatchGeminiAnalyzer(api_key=mock_api_key)
+        analyzer = GeminiBatchChartAnalyzer(api_key=mock_api_key)
         
         assert analyzer.cooldown_seconds == 2.5
 
 
-class TestBatchGeminiAnalyzerCooldown:
+class TestGeminiBatchChartAnalyzerCooldown:
     """Test cooldown mechanism."""
     
     def test_apply_cooldown_first_request(self, mock_batch_analyzer):
@@ -105,8 +105,46 @@ class TestBatchGeminiAnalyzerCooldown:
         # The timestamp is updated in analyze_batch_chart() after successful API call
         assert analyzer.last_request_time == 0.0
     
-    @patch('modules.gemini_chart_analyzer.core.batch_gemini_analyzer.time.sleep')
-    @patch('modules.gemini_chart_analyzer.core.batch_gemini_analyzer.time.time')
+    def test_apply_cooldown_thread_safety(self, mock_batch_analyzer):
+        """Test that cooldown is thread-safe (no race conditions)."""
+        import threading
+        import time
+        
+        analyzer, _, _ = mock_batch_analyzer
+        analyzer.cooldown_seconds = 0.1
+        
+        # Set last_request_time to simulate a recent request
+        analyzer.last_request_time = time.time() - 0.05  # 0.05s ago, should wait 0.05s
+        
+        results = []
+        errors = []
+        
+        def apply_cooldown():
+            try:
+                analyzer._apply_cooldown()
+                results.append(True)
+            except Exception as e:
+                errors.append(e)
+        
+        # Create multiple threads trying to apply cooldown simultaneously
+        threads = [threading.Thread(target=apply_cooldown) for _ in range(5)]
+        
+        # Start all threads at roughly the same time
+        for t in threads:
+            t.start()
+        
+        # Wait for all threads to complete
+        for t in threads:
+            t.join()
+        
+        # All should complete without errors
+        assert len(errors) == 0
+        assert len(results) == 5
+        # All should have waited (thread-safe calculation)
+        # Last request time should be updated (though this happens in analyze_batch_chart, not _apply_cooldown)
+    
+    @patch('modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer.time.sleep')
+    @patch('modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer.time.time')
     def test_apply_cooldown_second_request(self, mock_time, mock_sleep, mock_batch_analyzer):
         """Test cooldown on second request (should wait)."""
         analyzer, _, _ = mock_batch_analyzer
@@ -131,7 +169,7 @@ class TestBatchGeminiAnalyzerCooldown:
         assert abs(call_args - 0.05) < 0.001, f"Expected sleep time ~0.05, got {call_args}"
 
 
-class TestBatchGeminiAnalyzerCreatePrompt:
+class TestGeminiBatchChartAnalyzerCreatePrompt:
     """Test batch prompt creation."""
     
     def test_create_batch_prompt(self, mock_batch_analyzer, sample_symbols):
@@ -162,7 +200,7 @@ class TestBatchGeminiAnalyzerCreatePrompt:
         assert "..." in prompt or "total" in prompt.lower()
 
 
-class TestBatchGeminiAnalyzerParseJSON:
+class TestGeminiBatchChartAnalyzerParseJSON:
     """Test JSON response parsing."""
     
     def test_parse_json_response_valid(self, mock_batch_analyzer, sample_symbols):
@@ -252,7 +290,253 @@ class TestBatchGeminiAnalyzerParseJSON:
         assert result["BTC/USDT"]["confidence"] > 0
 
 
-class TestBatchGeminiAnalyzerAnalyzeBatchChart:
+class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
+    """Test multi-timeframe JSON response parsing."""
+    
+    def test_parse_multi_tf_json_response_valid(self, mock_batch_analyzer, sample_symbols):
+        """Test parsing valid multi-TF JSON response."""
+        analyzer, _, _ = mock_batch_analyzer
+        
+        timeframes = ['15m', '1h', '4h']
+        json_response = {
+            "BTC/USDT": {
+                "15m": {"signal": "LONG", "confidence": 0.70},
+                "1h": {"signal": "LONG", "confidence": 0.80},
+                "4h": {"signal": "SHORT", "confidence": 0.60},
+                "aggregated": {"signal": "LONG", "confidence": 0.71}
+            },
+            "ETH/USDT": {
+                "15m": {"signal": "SHORT", "confidence": 0.65},
+                "1h": {"signal": "NONE", "confidence": 0.50},
+                "4h": {"signal": "SHORT", "confidence": 0.70},
+                "aggregated": {"signal": "SHORT", "confidence": 0.65}
+            }
+        }
+        response_text = json.dumps(json_response)
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text, 
+            sample_symbols[:2], 
+            timeframes
+        )
+        
+        assert len(result) == 2
+        assert "BTC/USDT" in result
+        assert "ETH/USDT" in result
+        
+        # Check BTC/USDT
+        btc_result = result["BTC/USDT"]
+        assert "timeframes" in btc_result
+        assert "aggregated" in btc_result
+        assert btc_result["timeframes"]["15m"]["signal"] == "LONG"
+        assert btc_result["timeframes"]["15m"]["confidence"] == 0.70
+        assert btc_result["timeframes"]["1h"]["signal"] == "LONG"
+        assert btc_result["timeframes"]["4h"]["signal"] == "SHORT"
+        assert btc_result["aggregated"]["signal"] == "LONG"
+        assert btc_result["aggregated"]["confidence"] == 0.71
+    
+    def test_parse_multi_tf_json_response_markdown_wrapped(self, mock_batch_analyzer, sample_symbols):
+        """Test parsing multi-TF JSON wrapped in markdown code blocks."""
+        analyzer, _, _ = mock_batch_analyzer
+        
+        timeframes = ['15m', '1h']
+        json_data = {
+            "BTC/USDT": {
+                "15m": {"signal": "LONG", "confidence": 0.70},
+                "1h": {"signal": "LONG", "confidence": 0.80},
+                "aggregated": {"signal": "LONG", "confidence": 0.75}
+            }
+        }
+        response_text = f"```json\n{json.dumps(json_data)}\n```"
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text,
+            sample_symbols[:1],
+            timeframes
+        )
+        
+        assert len(result) == 1
+        assert "BTC/USDT" in result
+        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "LONG"
+        assert result["BTC/USDT"]["aggregated"]["signal"] == "LONG"
+    
+    def test_parse_multi_tf_json_response_missing_symbols(self, mock_batch_analyzer, sample_symbols):
+        """Test parsing multi-TF JSON with missing symbols."""
+        analyzer, _, _ = mock_batch_analyzer
+        
+        timeframes = ['15m', '1h']
+        json_response = {
+            "BTC/USDT": {
+                "15m": {"signal": "LONG", "confidence": 0.70},
+                "1h": {"signal": "LONG", "confidence": 0.80}
+            }
+            # Missing ETH/USDT
+        }
+        response_text = json.dumps(json_response)
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text,
+            sample_symbols[:2],
+            timeframes
+        )
+        
+        assert len(result) == 2
+        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "LONG"
+        # Missing symbol should have empty timeframes with NONE
+        assert "ETH/USDT" in result
+        assert result["ETH/USDT"]["timeframes"]["15m"]["signal"] == "NONE"
+        assert result["ETH/USDT"]["timeframes"]["15m"]["confidence"] == 0.0
+    
+    def test_parse_multi_tf_json_response_missing_timeframes(self, mock_batch_analyzer, sample_symbols):
+        """Test parsing multi-TF JSON with missing timeframes."""
+        analyzer, _, _ = mock_batch_analyzer
+        
+        timeframes = ['15m', '1h', '4h']
+        json_response = {
+            "BTC/USDT": {
+                "15m": {"signal": "LONG", "confidence": 0.70},
+                "1h": {"signal": "LONG", "confidence": 0.80}
+                # Missing 4h
+            }
+        }
+        response_text = json.dumps(json_response)
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text,
+            sample_symbols[:1],
+            timeframes
+        )
+        
+        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "LONG"
+        assert result["BTC/USDT"]["timeframes"]["1h"]["signal"] == "LONG"
+        # Missing timeframe should default to NONE
+        assert result["BTC/USDT"]["timeframes"]["4h"]["signal"] == "NONE"
+        assert result["BTC/USDT"]["timeframes"]["4h"]["confidence"] == 0.0
+    
+    def test_parse_multi_tf_json_response_no_aggregated(self, mock_batch_analyzer, sample_symbols):
+        """Test parsing multi-TF JSON without aggregated field."""
+        analyzer, _, _ = mock_batch_analyzer
+        
+        timeframes = ['15m', '1h']
+        json_response = {
+            "BTC/USDT": {
+                "15m": {"signal": "LONG", "confidence": 0.70},
+                "1h": {"signal": "LONG", "confidence": 0.80}
+                # No aggregated field
+            }
+        }
+        response_text = json.dumps(json_response)
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text,
+            sample_symbols[:1],
+            timeframes
+        )
+        
+        assert result["BTC/USDT"]["aggregated"] is None
+    
+    def test_parse_multi_tf_json_response_invalid_format(self, mock_batch_analyzer, sample_symbols):
+        """Test parsing multi-TF JSON with invalid format."""
+        analyzer, _, _ = mock_batch_analyzer
+        
+        timeframes = ['15m', '1h']
+        # Invalid: symbol_data is not a dict
+        json_response = {
+            "BTC/USDT": "invalid_string"
+        }
+        response_text = json.dumps(json_response)
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text,
+            sample_symbols[:1],
+            timeframes
+        )
+        
+        # Should return empty result structure
+        assert "BTC/USDT" in result
+        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "NONE"
+    
+    def test_parse_multi_tf_json_response_invalid_timeframe_format(self, mock_batch_analyzer, sample_symbols):
+        """Test parsing multi-TF JSON with invalid timeframe format."""
+        analyzer, _, _ = mock_batch_analyzer
+        
+        timeframes = ['15m', '1h']
+        json_response = {
+            "BTC/USDT": {
+                "15m": "invalid_string",  # Should be dict
+                "1h": {"signal": "LONG", "confidence": 0.80}
+            }
+        }
+        response_text = json.dumps(json_response)
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text,
+            sample_symbols[:1],
+            timeframes
+        )
+        
+        # Invalid timeframe should default to NONE
+        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "NONE"
+        assert result["BTC/USDT"]["timeframes"]["15m"]["confidence"] == 0.0
+        # Valid timeframe should still work
+        assert result["BTC/USDT"]["timeframes"]["1h"]["signal"] == "LONG"
+    
+    def test_parse_multi_tf_json_response_invalid_json(self, mock_batch_analyzer, sample_symbols):
+        """Test parsing invalid multi-TF JSON."""
+        analyzer, _, _ = mock_batch_analyzer
+        
+        timeframes = ['15m', '1h']
+        response_text = "This is not valid JSON {invalid}"
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text,
+            sample_symbols[:2],
+            timeframes
+        )
+        
+        # All should have NONE signals
+        for symbol in sample_symbols[:2]:
+            assert result[symbol]["timeframes"]["15m"]["signal"] == "NONE"
+            assert result[symbol]["timeframes"]["15m"]["confidence"] == 0.0
+    
+    def test_parse_multi_tf_json_response_confidence_clamping(self, mock_batch_analyzer, sample_symbols):
+        """Test that confidence values are clamped to [0.0, 1.0]."""
+        analyzer, _, _ = mock_batch_analyzer
+        
+        timeframes = ['15m']
+        json_response = {
+            "BTC/USDT": {
+                "15m": {"signal": "LONG", "confidence": 1.5},  # > 1.0
+            }
+        }
+        response_text = json.dumps(json_response)
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text,
+            sample_symbols[:1],
+            timeframes
+        )
+        
+        assert result["BTC/USDT"]["timeframes"]["15m"]["confidence"] == 1.0
+        
+        # Test negative confidence
+        json_response = {
+            "BTC/USDT": {
+                "15m": {"signal": "LONG", "confidence": -0.5},  # < 0.0
+            }
+        }
+        response_text = json.dumps(json_response)
+        
+        result = analyzer._parse_multi_tf_json_response(
+            response_text,
+            sample_symbols[:1],
+            timeframes
+        )
+        
+        assert result["BTC/USDT"]["timeframes"]["15m"]["confidence"] == 0.0
+
+
+class TestGeminiBatchChartAnalyzerAnalyzeBatchChart:
     """Test batch chart analysis."""
     
     @patch('PIL.Image.open')
@@ -331,4 +615,5 @@ class TestBatchGeminiAnalyzerAnalyzeBatchChart:
         for symbol in sample_symbols[:3]:
             assert result[symbol]["signal"] == "NONE"
             assert result[symbol]["confidence"] == 0.0
+
 

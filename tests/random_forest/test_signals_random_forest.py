@@ -494,14 +494,14 @@ class TestCalculateAndDisplayMetrics:
         calculate_and_display_metrics(y_true, y_pred, 0.5)
         assert mock_log_model.call_count > 0
     
-    @patch('modules.random_forest.core.evaluation.log_model')
-    def test_empty_arrays(self, mock_log_model):
+    @patch('modules.random_forest.core.evaluation.log_warn')
+    def test_empty_arrays(self, mock_log_warn):
         """Test metrics calculation with empty arrays"""
         y_true = np.array([])
         y_pred = np.array([])
         
         calculate_and_display_metrics(y_true, y_pred, 0.5)
-        assert mock_log_model.call_count > 0
+        assert mock_log_warn.call_count > 0
 
 
 class TestEvaluateModelWithConfidence:

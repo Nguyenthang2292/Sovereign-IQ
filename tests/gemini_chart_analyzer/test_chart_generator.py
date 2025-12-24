@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from modules.gemini_chart_analyzer.core.chart_generator import ChartGenerator
+from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
 
 
 @pytest.fixture
@@ -233,7 +233,7 @@ class TestChartGeneratorCreateChart:
         empty_df = pd.DataFrame()
         output_path = temp_output_dir / "test_chart_empty.png"
         
-        with pytest.raises(ValueError, match="DataFrame rỗng"):
+        with pytest.raises(ValueError, match="Empty DataFrame, cannot create chart"):
             chart_generator.create_chart(
                 df=empty_df,
                 symbol="BTC/USDT",
@@ -246,7 +246,7 @@ class TestChartGeneratorCreateChart:
         df = pd.DataFrame({'open': [1, 2, 3]})  # Missing high, low, close
         output_path = temp_output_dir / "test_chart_missing.png"
         
-        with pytest.raises(ValueError, match="Thiếu các cột"):
+        with pytest.raises(ValueError, match="Missing columns"):
             chart_generator.create_chart(
                 df=df,
                 symbol="BTC/USDT",
@@ -520,4 +520,5 @@ class TestChartGeneratorSubplots:
         assert total_rows == 1
         assert fig is not None
         plt.close(fig)
+
 

@@ -108,8 +108,8 @@ if __name__ == "__main__":
 ```python
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
-from modules.gemini_chart_analyzer.core.chart_generator import ChartGenerator
-from modules.gemini_chart_analyzer.core.gemini_analyzer import GeminiAnalyzer
+from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
 
 # 1. Fetch dữ liệu
 exchange_manager = ExchangeManager()
@@ -135,7 +135,7 @@ chart_path = chart_generator.create_chart(
 )
 
 # 3. Phân tích bằng Gemini
-gemini_analyzer = GeminiAnalyzer()
+gemini_analyzer = GeminiChartAnalyzer()
 result = gemini_analyzer.analyze_chart(
     image_path=chart_path,
     symbol="BTC/USDT",
@@ -190,7 +190,7 @@ Phân tích riêng từng timeframe, gửi riêng lẻ lên Gemini, sau đó t�
    │
    ├─> User chọn symbol và multiple timeframes (ví dụ: 15m,1h,4h,1d)
    │
-   └─> MultiTimeframeAnalyzer được khởi tạo
+   └─> MultiTimeframeCoordinator được khởi tạo
 
 2. PHÂN TÍCH TỪNG TIMEFRAME (Loop)
    │
@@ -269,7 +269,7 @@ Gộp nhiều timeframes vào 1 batch chart (mỗi symbol có sub-charts cho cá
    │
    ├─> User chọn multiple timeframes (ví dụ: 15m,1h,4h,1d)
    │
-   └─> MarketBatchScanner với MultiTFBatchChartGenerator
+   └─> MarketBatchScanner với ChartMultiTimeframeBatchGenerator
 
 2. LẤY DANH SÁCH SYMBOLS
    │
@@ -298,7 +298,7 @@ Gộp nhiều timeframes vào 1 batch chart (mỗi symbol có sub-charts cho cá
    │   │
    │   ├─> 4.2. TẠO MULTI-TF BATCH CHART IMAGE
    │   │   │
-   │   │   ├─> MultiTFBatchChartGenerator.create_multi_tf_batch_chart()
+   │   │   ├─> ChartMultiTimeframeBatchGenerator.create_multi_tf_batch_chart()
    │   │   │   │
    │   │   │   ├─> Layout: Mỗi symbol có sub-charts cho các timeframes
    │   │   │   │   │
@@ -315,7 +315,7 @@ Gộp nhiều timeframes vào 1 batch chart (mỗi symbol có sub-charts cho cá
    │   │
    │   ├─> 4.3. PHÂN TÍCH BẰNG GEMINI
    │   │   │
-   │   │   ├─> BatchGeminiAnalyzer với multi-TF prompt
+   │   │   ├─> GeminiBatchChartAnalyzer với multi-TF prompt
    │   │   │   │
    │   │   │   ├─> Prompt yêu cầu:
    │   │   │   │   ├─> Phân tích tất cả symbols × timeframes
@@ -374,20 +374,20 @@ python -m modules.gemini_chart_analyzer.cli.batch_scan_main
 **Deep Analysis Mode:**
 
 ```python
-from modules.gemini_chart_analyzer.core.multi_timeframe_analyzer import MultiTimeframeAnalyzer
+from modules.gemini_chart_analyzer.core.analyzers.multi_timeframe_coordinator import MultiTimeframeCoordinator
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
-from modules.gemini_chart_analyzer.core.chart_generator import ChartGenerator
-from modules.gemini_chart_analyzer.core.gemini_analyzer import GeminiAnalyzer
+from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
 
 # Khởi tạo components
 exchange_manager = ExchangeManager()
 data_fetcher = DataFetcher(exchange_manager)
 chart_generator = ChartGenerator()
-gemini_analyzer = GeminiAnalyzer()
+gemini_analyzer = GeminiChartAnalyzer()
 
 # Khởi tạo multi-timeframe analyzer
-mtf_analyzer = MultiTimeframeAnalyzer()
+mtf_analyzer = MultiTimeframeCoordinator()
 
 # Define helper functions
 def fetch_data(symbol, timeframe):
@@ -428,7 +428,7 @@ for tf, tf_result in results['timeframes'].items():
 **Batch Analysis Mode:**
 
 ```python
-from modules.gemini_chart_analyzer.core.market_batch_scanner import MarketBatchScanner
+from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
 
 # Khởi tạo scanner
 scanner = MarketBatchScanner(
@@ -605,8 +605,8 @@ Batch Analyzer là tính năng mạnh mẽ cho phép quét toàn bộ thị trư
    └─> Khởi tạo các components:
        ├─> ExchangeManager: Quản lý kết nối exchange
        ├─> DataFetcher: Fetch dữ liệu OHLCV
-       ├─> BatchChartGenerator: Tạo batch chart images
-       └─> BatchGeminiAnalyzer: Phân tích batch charts
+       ├─> ChartBatchGenerator: Tạo batch chart images
+       └─> GeminiBatchChartAnalyzer: Phân tích batch charts
 
 2. LẤY DANH SÁCH SYMBOLS
    │
@@ -640,7 +640,7 @@ Batch Analyzer là tính năng mạnh mẽ cho phép quét toàn bộ thị trư
    │   │
    │   ├─> 4.2. TẠO BATCH CHART IMAGE
    │   │   │
-   │   │   ├─> BatchChartGenerator.create_batch_chart()
+   │   │   ├─> ChartBatchGenerator.create_batch_chart()
    │   │   │   │
    │   │   │   ├─> Tạo figure lớn: 10 rows × 10 cols = 100 subplots
    │   │   │   │
@@ -659,7 +659,7 @@ Batch Analyzer là tính năng mạnh mẽ cho phép quét toàn bộ thị trư
    │   │
    │   ├─> 4.3. PHÂN TÍCH BẰNG GEMINI
    │   │   │
-   │   │   ├─> BatchGeminiAnalyzer.analyze_batch_chart()
+   │   │   ├─> GeminiBatchChartAnalyzer.analyze_batch_chart()
    │   │   │   │
    │   │   │   ├─> Apply cooldown (2.5s) để tránh rate limit
    │   │   │   │
@@ -748,19 +748,19 @@ Class chính điều phối toàn bộ quy trình batch scanning:
 - Chia symbols thành batches
 - Điều phối fetch data, generate charts, và analyze
 
-#### 2. BatchChartGenerator
+#### 2. ChartBatchGenerator
 Tạo batch chart images chứa nhiều biểu đồ:
 - Nhóm 100 biểu đồ vào một ảnh (10x10 grid)
 - Mỗi biểu đồ là candlestick chart đơn giản với label symbol
 - Tối ưu hóa kích thước và DPI cho Gemini API
 
-#### 3. MultiTFBatchChartGenerator
+#### 3. ChartMultiTimeframeBatchGenerator
 Tạo batch chart images với multi-timeframe per symbol:
 - Nhóm 25 symbols vào một ảnh (mỗi symbol có 4 timeframes)
 - Layout: Mỗi symbol có sub-charts cho các timeframes (2x2 grid)
 - Tối ưu hóa cho multi-TF analysis
 
-#### 4. BatchGeminiAnalyzer
+#### 4. GeminiBatchChartAnalyzer
 Phân tích batch charts bằng Gemini API:
 - Gửi batch chart image lên Gemini
 - Yêu cầu JSON response với signal và confidence
@@ -774,7 +774,7 @@ Tổng hợp signals từ nhiều timeframes:
 - Tính weighted confidence cho mỗi signal type
 - Xác định final signal dựa trên weighted confidences
 
-#### 6. MultiTimeframeAnalyzer
+#### 6. MultiTimeframeCoordinator
 Điều phối multi-timeframe analysis:
 - Deep Analysis Mode: Phân tích riêng từng timeframe
 - Batch Analysis Mode: Gộp nhiều timeframes vào batch chart
@@ -812,7 +812,7 @@ python -m modules.gemini_chart_analyzer.cli.batch_scan_main
 #### Sử dụng trong code
 
 ```python
-from modules.gemini_chart_analyzer.core.market_batch_scanner import MarketBatchScanner
+from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
 
 # Khởi tạo scanner
 scanner = MarketBatchScanner(
@@ -921,7 +921,7 @@ Kết quả được lưu trong `analysis_results/batch_scan/batch_scan_{timefra
 1. **Rate Limits**: 
    - Cooldown mặc định 2.5s giữa các batch requests
    - Có thể tăng nếu gặp rate limit errors
-   - BatchGeminiAnalyzer tự động retry với exponential backoff
+   - GeminiBatchChartAnalyzer tự động retry với exponential backoff
 
 2. **API Quota**:
    - **Single Timeframe**: Mỗi batch = 1 API call
@@ -1142,4 +1142,5 @@ Xu hướng dài hạn vẫn tăng, giá nằm trên MA200...
 ## License
 
 Module này là một phần của dự án crypto-probability và tuân theo license của dự án chính.
+
 

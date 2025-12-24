@@ -14,7 +14,6 @@ from modules.common.utils import (
     color_text,
     format_price,
     log_error,
-    log_warn,
     log_success,
     log_progress,
 )
@@ -40,12 +39,12 @@ def display_atc_signals(
         exchange_label: Exchange name label
     """
     average_signal = atc_results.get("Average_Signal")
-    if average_signal is None or len(average_signal) == 0:
+    if average_signal is None or average_signal.empty:
         log_error("No ATC signals available")
         return
 
     # Get latest signal values
-    latest_signal = average_signal.iloc[-1] if not average_signal.empty else 0.0
+    latest_signal = average_signal.iloc[-1]
     latest_trend = trend_sign(average_signal)
     latest_trend_value = latest_trend.iloc[-1] if not latest_trend.empty else 0
 

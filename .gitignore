@@ -51,3 +51,7 @@ modules/config_api.py
 config/config_api.py
 # Snyk Security Extension - AI Rules (auto-generated)
 .cursor/rules/snyk_rules.mdc
+
+# Gemini Chart Analyzer outputs
+modules/gemini_chart_analyzer/charts/
+modules/gemini_chart_analyzer/analysis_results/

@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime
 
-from modules.gemini_chart_analyzer.core.simple_chart_generator import SimpleChartGenerator
+from modules.gemini_chart_analyzer.core.generators.simple_chart_generator import SimpleChartGenerator
 
 
 @pytest.fixture
@@ -219,4 +219,5 @@ class TestSimpleChartGeneratorCreateSimpleChart:
             )
             assert fig is not None
             plt.close(fig)
+
 

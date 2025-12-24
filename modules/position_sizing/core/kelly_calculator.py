@@ -5,11 +5,8 @@ This module implements Bayesian Kelly Criterion for position sizing,
 combining historical performance with confidence intervals.
 """
 
-from typing import Optional
-import numpy as np
+from typing import Any, Dict, Optional
 from scipy import stats
-import logging
-import pandas as pd
 
 from config.position_sizing import (
     DEFAULT_FRACTIONAL_KELLY,
@@ -20,14 +17,15 @@ from config.position_sizing import (
     KELLY_PRIOR_BETA,
     KELLY_MIN_FRACTION,
     KELLY_MAX_FRACTION,
+    KELLY_MIN_LOWER_BOUND_THRESHOLD,
+    KELLY_SMALL_SAMPLE_SIZE,
+    KELLY_LOWER_BOUND_MEAN_RATIO,
+    KELLY_POSTERIOR_MEAN_DISCOUNT,
 )
 from modules.common.utils import (
     log_error,
     log_warn,
 )
-
-logger = logging.getLogger(__name__)
-
 
 class BayesianKellyCalculator:
     """
@@ -124,9 +122,14 @@ class BayesianKellyCalculator:
             # Use conservative estimate (lower bound) for Kelly calculation
             # However, if lower bound is too low (negative or very close to 0), use posterior mean instead
             # This prevents overly conservative estimates when sample size is small
-            if lower_bound < 0.1 or (num_trades < 20 and lower_bound < posterior_mean * 0.7):
+            use_posterior_mean = (
+                lower_bound < KELLY_MIN_LOWER_BOUND_THRESHOLD 
+                or (num_trades < KELLY_SMALL_SAMPLE_SIZE 
+                    and lower_bound < posterior_mean * KELLY_LOWER_BOUND_MEAN_RATIO)
+            )
+            if use_posterior_mean:
                 # For small samples or very low lower bounds, use posterior mean with a small discount
-                conservative_win_rate = posterior_mean * 0.9  # 10% discount from mean for safety
+                conservative_win_rate = posterior_mean * KELLY_POSTERIOR_MEAN_DISCOUNT  # Discount from mean for safety
             else:
                 conservative_win_rate = lower_bound
             
@@ -143,7 +146,6 @@ class BayesianKellyCalculator:
             kelly_fraction = full_kelly * self.fractional_kelly
             
             # Apply bounds
-            kelly_fraction_before_bounds = kelly_fraction
             kelly_fraction = max(KELLY_MIN_FRACTION, min(KELLY_MAX_FRACTION, kelly_fraction))
             
             # Additional safety check: if Kelly is negative, return 0
@@ -154,9 +156,8 @@ class BayesianKellyCalculator:
             return kelly_fraction
             
         except Exception as e:
-            log_error(f"Error calculating Kelly fraction: {e}")
-            logger.exception("Kelly calculation error")
-            return 0.0
+            log_error(f"Kelly calculation error: {e}")
+            return 0.0            
     
     def adjust_for_confidence(
         self,
@@ -197,7 +198,7 @@ class BayesianKellyCalculator:
     
     def calculate_kelly_from_metrics(
         self,
-        metrics: dict,
+        metrics: Dict[str, Any],
         confidence: Optional[float] = None,
     ) -> float:
         """
@@ -215,11 +216,9 @@ class BayesianKellyCalculator:
         avg_loss = metrics.get('avg_loss', 0.0)
         num_trades = metrics.get('num_trades', 0)
         
-        # Convert avg_win and avg_loss to absolute values if needed
-        if avg_win < 0:
-            avg_win = abs(avg_win)
-        if avg_loss < 0:
-            avg_loss = abs(avg_loss)
+        # Convert avg_win and avg_loss to absolute values
+        avg_win = abs(avg_win)
+        avg_loss = abs(avg_loss)
         
         result = self.calculate_kelly_fraction(
             win_rate=win_rate,
@@ -235,7 +234,7 @@ class BayesianKellyCalculator:
         self,
         num_wins: int,
         num_losses: int,
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """
         Get posterior Beta distribution parameters.
         
@@ -250,7 +249,18 @@ class BayesianKellyCalculator:
         posterior_beta = self.prior_beta + num_losses
         
         posterior_mean = posterior_alpha / (posterior_alpha + posterior_beta)
-        posterior_mode = (posterior_alpha - 1) / (posterior_alpha + posterior_beta - 2) if (posterior_alpha + posterior_beta) > 2 else posterior_mean
+        
+        # Calculate posterior mode with edge-case fallback
+        # Mode formula is valid only when both alpha > 1 and beta > 1
+        # Otherwise, the formula can produce invalid results (negative or > 1)
+        if posterior_alpha > 1 and posterior_beta > 1:
+            numerator = posterior_alpha - 1
+            denominator = posterior_alpha + posterior_beta - 2
+            posterior_mode = numerator / denominator
+        else:
+            # Edge-case fallback: use mean when mode formula is invalid
+            # (when alpha <= 1 or beta <= 1)
+            posterior_mode = posterior_mean
         
         lower_bound, upper_bound = stats.beta.interval(
             self.confidence_level,

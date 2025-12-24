@@ -10,11 +10,10 @@ Tests cover:
 - Final signal determination logic
 """
 
+import math
 import pytest
-from modules.gemini_chart_analyzer.core.signal_aggregator import (
-    SignalAggregator,
-    DEFAULT_TIMEFRAME_WEIGHTS
-)
+from modules.gemini_chart_analyzer.core.aggregators.signal_aggregator import SignalAggregator
+from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS as DEFAULT_TIMEFRAME_WEIGHTS
 
 
 @pytest.fixture
@@ -221,7 +220,88 @@ class TestCalculateWeightedConfidence:
         ]
         result = default_aggregator._calculate_weighted_confidence(signals)
         assert result == 0.0
-
+    
+    def test_nan_confidence_values(self, default_aggregator):
+        """Test handling NaN confidence values."""
+        # moved import to module level
+        signals = [
+            ('15m', 0.7, 0.5),
+            ('1h', float('nan'), 0.5),  # NaN confidence
+            ('4h', 0.8, 0.5)
+        ]
+        result = default_aggregator._calculate_weighted_confidence(signals)
+        # Should skip NaN and calculate with valid values
+        assert not math.isnan(result)
+        assert not math.isinf(result)
+        assert 0.0 <= result <= 1.0
+    
+    def test_infinity_confidence_values(self, default_aggregator):
+        """Test handling Infinity confidence values."""
+        # moved import to module level
+        signals = [
+            ('15m', 0.7, 0.5),
+            ('1h', float('inf'), 0.5),  # Infinity confidence
+            ('4h', 0.8, 0.5)
+        ]
+        result = default_aggregator._calculate_weighted_confidence(signals)
+        # Should skip Infinity and calculate with valid values
+        assert not math.isnan(result)
+        assert not math.isinf(result)
+        assert 0.0 <= result <= 1.0
+    
+    def test_nan_weight_values(self, default_aggregator):
+        """Test handling NaN weight values."""
+        # moved import to module level
+        signals = [
+            ('15m', 0.7, 0.5),
+            ('1h', 0.8, float('nan')),  # NaN weight
+            ('4h', 0.9, 0.5)
+        ]
+        result = default_aggregator._calculate_weighted_confidence(signals)
+        # Should skip NaN weight and calculate with valid values
+        assert not math.isnan(result)
+        assert not math.isinf(result)
+        assert 0.0 <= result <= 1.0
+    
+    def test_negative_infinity_values(self, default_aggregator):
+        """Test handling negative Infinity values."""
+        # moved import to module level
+        signals = [
+            ('15m', 0.7, 0.5),
+            ('1h', float('-inf'), 0.5),  # Negative Infinity
+            ('4h', 0.8, 0.5)
+        ]
+        result = default_aggregator._calculate_weighted_confidence(signals)
+        # Should skip -Infinity and calculate with valid values
+        assert not math.isnan(result)
+        assert not math.isinf(result)
+        assert 0.0 <= result <= 1.0
+    
+    def test_all_nan_values(self, default_aggregator):
+        """Test handling when all values are NaN."""
+        # moved import to module level
+        signals = [
+            ('15m', float('nan'), float('nan')),
+            ('1h', float('nan'), float('nan'))
+        ]
+        result = default_aggregator._calculate_weighted_confidence(signals)
+        # Should return 0.0 when all values are invalid
+        assert result == 0.0
+        assert not math.isnan(result)
+        assert not math.isinf(result)
+    
+    def test_result_always_in_valid_range(self, default_aggregator):
+        """Test that result remains in [0.0, 1.0] range for any valid inputs."""
+        # moved import to module level
+        # Test with boundary values
+        signals = [
+            ('15m', 1.0, 1.0),
+            ('1h', 0.0, 1.0)
+        ]
+        result = default_aggregator._calculate_weighted_confidence(signals)
+        assert 0.0 <= result <= 1.0
+        assert not math.isnan(result)
+        assert not math.isinf(result)
 
 class TestDetermineFinalSignal:
     """Test _determine_final_signal method."""
@@ -341,4 +421,5 @@ class TestIntegrationScenarios:
         assert '1d' in result['timeframe_breakdown']
         assert result['timeframe_breakdown']['1d']['weight'] > \
                result['timeframe_breakdown']['15m']['weight']
+
 

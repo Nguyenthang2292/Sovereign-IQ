@@ -7,7 +7,8 @@ with Google Gemini AI, following the pattern from other modules.
 
 import sys
 import argparse
-from typing import Optional, Dict, Tuple
+import copy
+from typing import Optional, Tuple
 from colorama import Fore, Style
 
 from modules.common.utils import (
@@ -16,6 +17,22 @@ from modules.common.utils import (
     normalize_timeframe,
 )
 from modules.common.ui.formatting import prompt_user_input_with_backspace
+
+
+# Indicator default values - centralized to avoid duplication
+INDICATOR_DEFAULTS = {
+    'MA': {'periods': [20, 50, 200]},
+    'RSI': {'period': 14},
+    'MACD': {'fast': 12, 'slow': 26, 'signal': 9},
+    'BB': {'period': 20, 'std': 2},
+}
+
+# Default string values for prompts
+INDICATOR_DEFAULT_STRINGS = {
+    'MA': '20,50,200',
+    'RSI': '14',
+    'BB': '20',
+}
 
 
 def _format_current_value(value) -> str:
@@ -55,20 +72,20 @@ def _display_main_menu(config):
     if hasattr(config, 'indicators') and 'MA' in config.indicators:
         ma_val = f"periods={config.indicators['MA']['periods']}"
     elif not getattr(config, 'no_ma', False):
-        ma_val = "periods=[20, 50, 200]"
+        ma_val = f"periods={INDICATOR_DEFAULTS['MA']['periods']}"
     
     rsi_val = "disabled"
     if hasattr(config, 'indicators') and 'RSI' in config.indicators:
         rsi_val = f"period={config.indicators['RSI']['period']}"
     elif not getattr(config, 'no_rsi', False):
-        rsi_val = "period=14"
+        rsi_val = f"period={INDICATOR_DEFAULTS['RSI']['period']}"
     
     macd_val = "disabled" if getattr(config, 'no_macd', False) else "enabled"
     bb_val = "disabled"
     if hasattr(config, 'indicators') and 'BB' in config.indicators:
         bb_val = f"period={config.indicators['BB']['period']}"
     elif getattr(config, 'enable_bb', False):
-        bb_val = "period=20"
+        bb_val = f"period={INDICATOR_DEFAULTS['BB']['period']}"
     
     prompt_type_val = _format_current_value(getattr(config, 'prompt_type', 'detailed'))
     custom_prompt_val = _format_current_value(getattr(config, 'custom_prompt', None))
@@ -206,6 +223,151 @@ def _configure_symbol_timeframe(config):
     return ('main', changed)
 
 
+def _configure_indicator(config, name, prompt_text, default_str, parse_fn, 
+                         disable_flag_name=None, enable_flag_name=None, 
+                         value_prompt_text=None, current_value_getter=None):
+    """
+    Helper function to configure an indicator with prompt-validate-update pattern.
+    
+    Args:
+        config: Configuration object
+        name: Indicator name (e.g., 'MA', 'RSI')
+        prompt_text: Text for enable/disable prompt (e.g., "Use Moving Averages? (y/n)")
+        default_str: Default string value for display
+        parse_fn: Function to parse user input, returns parsed value or raises/returns fallback
+        disable_flag_name: Name of disable flag (e.g., 'no_ma'), uses 'no_<lowername>' if None
+        enable_flag_name: Name of enable flag (e.g., 'enable_bb'), overrides disable_flag_name if set
+        value_prompt_text: Text for value prompt (e.g., "MA periods (comma-separated, e.g., 20,50,200)")
+                          If None, indicator doesn't require additional value input
+        current_value_getter: Function to get current value dict from config, returns dict or None
+    
+    Returns:
+        (action, changed, parsed_value) where:
+        - action: 'main' or 'continue'
+        - changed: bool indicating if value changed
+        - parsed_value: parsed indicator config dict or None if disabled
+    """
+    # Determine flag names
+    lower_name = name.lower()
+    if enable_flag_name:
+        disable_flag = None
+        enable_flag = enable_flag_name
+        is_enabled = getattr(config, enable_flag, False)
+    else:
+        if disable_flag_name is None:
+            disable_flag_name = f'no_{lower_name}'
+        disable_flag = disable_flag_name
+        enable_flag = None
+        is_enabled = not getattr(config, disable_flag, False)
+    
+    # Get current value
+    if current_value_getter:
+        current_value = current_value_getter()
+    else:
+        if enable_flag:
+            current_value = config.indicators.get(name) if is_enabled else None
+        else:
+            if is_enabled:
+                current_value = config.indicators.get(name)
+                if current_value is None:
+                    # Use default based on indicator type (copy to avoid mutation)
+                    if name in INDICATOR_DEFAULTS:
+                        default = INDICATOR_DEFAULTS[name]
+                        if 'periods' in default:
+                            # Copy list to avoid shared state mutation
+                            current_value = {'periods': list(default['periods'])}
+                        else:
+                            # Copy dict to avoid shared state mutation
+                            current_value = default.copy()
+                    else:
+                        current_value = {}
+            else:
+                current_value = None
+    
+    # Build enable/disable prompt
+    enable_default = 'y' if current_value else 'n'
+    use_input, action = _prompt_with_back(
+        f"{prompt_text} [{enable_default}]: ",
+        default=enable_default
+    )
+    if action == 'main':
+        return ('main', False, None)
+    
+    use_indicator = (use_input or '').lower() in ['y', 'yes', '']
+    
+    # Handle disabled case
+    if not use_indicator:
+        if enable_flag:
+            setattr(config, enable_flag, False)
+        else:
+            setattr(config, disable_flag, True)
+        config.indicators.pop(name, None)
+        changed = current_value is not None
+        return ('continue', changed, None)
+    
+    # Handle enabled case
+    if enable_flag:
+        setattr(config, enable_flag, True)
+    else:
+        setattr(config, disable_flag, False)
+    
+    # If no value prompt needed (e.g., MACD), use fixed default
+    if value_prompt_text is None:
+        if name == 'MACD':
+            # Copy to avoid shared state mutation
+            parsed_value = INDICATOR_DEFAULTS['MACD'].copy()
+        else:
+            parsed_value = current_value or {}
+    else:
+        # Build value prompt with current/default value
+        if current_value:
+            if 'periods' in current_value:
+                current_str = ",".join(map(str, current_value['periods']))
+            elif 'period' in current_value:
+                current_str = str(current_value['period'])
+            else:
+                current_str = default_str
+        else:
+            current_str = default_str
+        
+        value_input, action = _prompt_with_back(
+            f"{value_prompt_text} [{current_str}]: ",
+            default=current_str
+        )
+        if action == 'main':
+            return ('main', False, None)
+        
+        # Parse value (empty input uses default_str)
+        if not value_input:
+            value_input = default_str
+        
+        try:
+            parsed_value = parse_fn(value_input)
+        except (KeyboardInterrupt, SystemExit):
+            # Re-raise intentional interrupts to preserve normal interrupt handling
+            raise
+        except Exception as e:
+            # Parse function raised error, use fallback with warning
+            print(color_text(f"Error parsing input ({type(e).__name__}: {e}), using default: {default_str}", Fore.YELLOW))
+            parsed_value = parse_fn(default_str)
+    
+    # Update config and check if changed
+    config.indicators[name] = parsed_value
+    if current_value is None:
+        changed = True
+    elif name == 'MA':
+        changed = list(parsed_value.get('periods', [])) != list(current_value.get('periods', []))
+    elif name in ['RSI', 'BB']:
+        changed = parsed_value.get('period') != current_value.get('period')
+    elif name == 'MACD':
+        # MACD has fixed values, so if already enabled, configuration hasn't changed
+        changed = False
+    else:
+        changed = parsed_value != current_value
+    
+    return ('continue', changed, parsed_value)
+
+
 def _configure_indicators(config):
     """Configure indicators with back option."""
     print("\n" + color_text("2. INDICATORS CONFIGURATION", Fore.YELLOW, Style.BRIGHT))
@@ -218,135 +380,98 @@ def _configure_indicators(config):
     changed = False
     
     # Moving Averages
-    current_ma = config.indicators.get('MA', {'periods': [20, 50, 200]}) if not getattr(config, 'no_ma', False) else None
-    ma_periods_str = ",".join(map(str, current_ma['periods'])) if current_ma else ""
+    def get_current_ma():
+        if not getattr(config, 'no_ma', False):
+            default_ma = INDICATOR_DEFAULTS['MA']
+            # Copy to avoid shared state mutation
+            return config.indicators.get('MA', {'periods': list(default_ma['periods'])})
+        return None
     
-    use_ma_input, action = _prompt_with_back(
-        f"Use Moving Averages? (y/n) [{('y' if current_ma else 'n')}]: ",
-        default='y' if current_ma else 'n'
+    def parse_ma_periods(input_str):
+        periods = [int(p.strip()) for p in input_str.split(',') if p.strip()]
+        if not periods:
+            raise ValueError("At least one period required")
+        return {'periods': periods}
+    
+    action, ma_changed, _ = _configure_indicator(
+        config, 'MA', 'Use Moving Averages? (y/n)',
+        INDICATOR_DEFAULT_STRINGS['MA'], parse_ma_periods,
+        value_prompt_text=f'MA periods (comma-separated, e.g., {INDICATOR_DEFAULT_STRINGS["MA"]})',
+        current_value_getter=get_current_ma
     )
     if action == 'main':
         return ('main', False)
-    
-    use_ma = use_ma_input.lower() in ['y', 'yes', '']
-    if not use_ma:
-        config.no_ma = True
-        config.indicators.pop('MA', None)
-        if current_ma:
-            changed = True
-    else:
-        config.no_ma = False
-        ma_periods_input, action = _prompt_with_back(
-            f"MA periods (comma-separated, e.g., 20,50,200) [{ma_periods_str}]: ",
-            default=ma_periods_str
-        )
-        if action == 'main':
-            return ('main', False)
-        
-        if ma_periods_input:
-            try:
-                ma_periods = [int(p.strip()) for p in ma_periods_input.split(',')]
-                config.indicators['MA'] = {'periods': ma_periods}
-                if not current_ma or list(ma_periods) != list(current_ma.get('periods', [])):
-                    changed = True
-            except ValueError:
-                print(color_text("Invalid input, using default: [20, 50, 200]", Fore.YELLOW))
-                config.indicators['MA'] = {'periods': [20, 50, 200]}
-        else:
-            config.indicators['MA'] = {'periods': [20, 50, 200]}
+    changed = changed or ma_changed
     
     # RSI
-    current_rsi = config.indicators.get('RSI', {'period': 14}) if not getattr(config, 'no_rsi', False) else None
+    def get_current_rsi():
+        if not getattr(config, 'no_rsi', False):
+            default_rsi = INDICATOR_DEFAULTS['RSI']
+            # Copy to avoid shared state mutation
+            return config.indicators.get('RSI', default_rsi.copy())
+        return None
     
-    use_rsi_input, action = _prompt_with_back(
-        f"Use RSI? (y/n) [{('y' if current_rsi else 'n')}]: ",
-        default='y' if current_rsi else 'n'
+    def parse_rsi_period(input_str):
+        period = int(input_str.strip())
+        if period <= 0:
+            raise ValueError("Period must be positive")
+        return {'period': period}
+    
+    action, rsi_changed, _ = _configure_indicator(
+        config, 'RSI', 'Use RSI? (y/n)',
+        INDICATOR_DEFAULT_STRINGS['RSI'], parse_rsi_period,
+        value_prompt_text='RSI period',
+        current_value_getter=get_current_rsi
     )
     if action == 'main':
         return ('main', False)
-    
-    use_rsi = use_rsi_input.lower() in ['y', 'yes', '']
-    if not use_rsi:
-        config.no_rsi = True
-        config.indicators.pop('RSI', None)
-        if current_rsi:
-            changed = True
-    else:
-        config.no_rsi = False
-        rsi_period_input, action = _prompt_with_back(
-            f"RSI period [{current_rsi['period'] if current_rsi else 14}]: ",
-            default=str(current_rsi['period']) if current_rsi else "14"
-        )
-        if action == 'main':
-            return ('main', False)
-        
-        if rsi_period_input:
-            try:
-                rsi_period = int(rsi_period_input)
-                config.indicators['RSI'] = {'period': rsi_period}
-                if not current_rsi or rsi_period != current_rsi.get('period', 14):
-                    changed = True
-            except ValueError:
-                print(color_text("Invalid input, using default: 14", Fore.YELLOW))
-                config.indicators['RSI'] = {'period': 14}
-        else:
-            config.indicators['RSI'] = {'period': 14}
+    changed = changed or rsi_changed
     
     # MACD
-    current_macd = not getattr(config, 'no_macd', False)
+    def get_current_macd():
+        if not getattr(config, 'no_macd', False):
+            # Copy to avoid shared state mutation
+            return INDICATOR_DEFAULTS['MACD'].copy()
+        return None
     
-    use_macd_input, action = _prompt_with_back(
-        f"Use MACD? (y/n) [{('y' if current_macd else 'n')}]: ",
-        default='y' if current_macd else 'n'
+    def parse_macd(_input_str):
+        # Copy to avoid shared state mutation
+        return INDICATOR_DEFAULTS['MACD'].copy()
+    
+    action, macd_changed, _ = _configure_indicator(
+        config, 'MACD', 'Use MACD? (y/n)',
+        '', parse_macd,
+        current_value_getter=get_current_macd
     )
     if action == 'main':
         return ('main', False)
-    
-    use_macd = use_macd_input.lower() in ['y', 'yes', '']
-    config.no_macd = not use_macd
-    if use_macd:
-        config.indicators['MACD'] = {'fast': 12, 'slow': 26, 'signal': 9}
-        if not current_macd:
-            changed = True
-    else:
-        config.indicators.pop('MACD', None)
-        if current_macd:
-            changed = True
+    changed = changed or macd_changed
     
     # Bollinger Bands
-    current_bb = config.indicators.get('BB') if getattr(config, 'enable_bb', False) else None
+    def get_current_bb():
+        if getattr(config, 'enable_bb', False):
+            bb_dict = config.indicators.get('BB')
+            # Return defensive copy to avoid shared state mutation
+            return copy.deepcopy(bb_dict) if bb_dict is not None else None
+        return None
     
-    use_bb_input, action = _prompt_with_back(
-        f"Use Bollinger Bands? (y/n) [{('y' if current_bb else 'n')}]: ",
-        default='y' if current_bb else 'n'
+    def parse_bb_period(input_str):
+        period = int(input_str.strip())
+        if period <= 0:
+            raise ValueError("Period must be positive")
+        # Use std from defaults
+        return {'period': period, 'std': INDICATOR_DEFAULTS['BB']['std']}
+    
+    action, bb_changed, _ = _configure_indicator(
+        config, 'BB', 'Use Bollinger Bands? (y/n)',
+        INDICATOR_DEFAULT_STRINGS['BB'], parse_bb_period,
+        enable_flag_name='enable_bb',
+        value_prompt_text='BB period',
+        current_value_getter=get_current_bb
     )
     if action == 'main':
         return ('main', False)
-    
-    use_bb = use_bb_input.lower() in ['y', 'yes', '']
-    if use_bb:
-        bb_period_input, action = _prompt_with_back(
-            f"BB period [{current_bb['period'] if current_bb else 20}]: ",
-            default=str(current_bb['period']) if current_bb else "20"
-        )
-        if action == 'main':
-            return ('main', False)
-        
-        if bb_period_input:
-            try:
-                bb_period = int(bb_period_input)
-                config.indicators['BB'] = {'period': bb_period, 'std': 2}
-                if not current_bb or bb_period != current_bb.get('period', 20):
-                    changed = True
-            except ValueError:
-                print(color_text("Invalid input, using default: 20", Fore.YELLOW))
-                config.indicators['BB'] = {'period': 20, 'std': 2}
-        else:
-            config.indicators['BB'] = {'period': 20, 'std': 2}
-    else:
-        config.indicators.pop('BB', None)
-        if current_bb:
-            changed = True
+    changed = changed or bb_changed
     
     return ('main', changed)
 
@@ -530,4 +655,3 @@ def interactive_config_menu():
             print(color_text("Invalid choice. Please select 1-5.", Fore.RED))
     
     return config
-

@@ -15,9 +15,14 @@ import sys
 import webbrowser
 import base64
 import fnmatch
+import glob
+import html
+import urllib.parse
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, List
+import markdown
+import re
 
 # Add project root to sys.path to ensure modules can be imported
 # This is needed when running the file directly from subdirectories
@@ -35,14 +40,23 @@ from colorama import Fore, Style, init as colorama_init
 from modules.common.utils import color_text, log_info, log_error, log_success, log_warn, normalize_timeframe
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
-from modules.gemini_chart_analyzer.core.chart_generator import ChartGenerator
-from modules.gemini_chart_analyzer.core.gemini_analyzer import GeminiAnalyzer
+from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
 from modules.gemini_chart_analyzer.cli.argument_parser import parse_args
 from modules.gemini_chart_analyzer.cli.interactive_menu import interactive_config_menu
 
-warnings.filterwarnings("ignore")
+# Suppress specific warnings from third-party libraries while preserving important warnings
+# Suppress DeprecationWarning from pandas, numpy, matplotlib (common in data science libraries)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pandas")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="numpy")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="matplotlib")
+# Suppress FutureWarning from pandas (version compatibility warnings)
+warnings.filterwarnings("ignore", category=FutureWarning, module="pandas")
+# Suppress specific benign UserWarning from matplotlib (font/backend issues that don't affect functionality)
+# Only suppress known harmless warnings: font-related and backend-related messages
+warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib", 
+                       message=r"(?i).*(findfont|font family|glyph|backend).*")
 colorama_init(autoreset=True)
-
 
 def _convert_args_to_config(args):
     """Convert parsed arguments to configuration format."""
@@ -160,6 +174,43 @@ def cleanup_old_files(directory: str, exclude_patterns: Optional[list] = None) -
     return deleted_count
 
 
+def _sanitize_chart_path(chart_path: str, output_dir: str) -> str:
+    """
+    Sanitize chart path để sử dụng an toàn trong HTML.
+    
+    Args:
+        chart_path: Đường dẫn tuyệt đối đến file chart
+        output_dir: Thư mục output để tính relative path
+        
+    Returns:
+        Đường dẫn đã được sanitize và URL-encode
+    """
+    try:
+        # Convert to relative path
+        chart_rel_path = os.path.relpath(chart_path, output_dir)
+        # Replace backslashes with slashes
+        chart_rel_path = chart_rel_path.replace('\\', '/')
+        # URL-encode the path components
+        # Split path and encode each component separately
+        path_parts = chart_rel_path.split('/')
+        encoded_parts = [urllib.parse.quote(part, safe='') for part in path_parts]
+        return '/'.join(encoded_parts)
+    except Exception:
+        # Fallback: normalize and URL-encode the path for use in HTML src attributes
+        normalized_path = chart_path.replace('\\', '/')
+        path_parts = normalized_path.split('/')
+        
+        # Preserve drive letters (e.g., 'C:') and empty parts from leading slashes
+        encoded_parts = []
+        for i, part in enumerate(path_parts):
+            if i == 0 and re.fullmatch(r'^[A-Za-z]:$', part):  # Drive letter on Windows
+                encoded_parts.append(part)
+            elif part == '':  # Leading slash or empty part
+                encoded_parts.append(part)
+            else:
+                encoded_parts.append(urllib.parse.quote(part, safe=''))
+        return '/'.join(encoded_parts)
+
 def format_text_to_html(text: str) -> str:
     """
     Convert text từ Gemini thành HTML format sử dụng markdown library.
@@ -179,8 +230,6 @@ def format_text_to_html(text: str) -> str:
     Returns:
         HTML string với formatting đã được convert
     """
-    import markdown
-    import re
     
     # Sử dụng markdown library để convert markdown thành HTML
     # Extensions được sử dụng:
@@ -210,6 +259,43 @@ def format_text_to_html(text: str) -> str:
     return html_output
 
 
+def _find_chart_paths_for_timeframes(
+    symbol: str,
+    timeframes_list: List[str],
+    charts_dir: str
+) -> Dict[str, str]:
+    """
+    Tìm chart paths cho mỗi timeframe từ charts directory.
+    
+    Tìm các file chart mới nhất match pattern {symbol}_{timeframe}_*.png
+    cho mỗi timeframe trong danh sách.
+    
+    Args:
+        symbol: Trading symbol (e.g., 'BTC/USDT')
+        timeframes_list: List of timeframes (e.g., ['1h', '30m', '15m'])
+        charts_dir: Directory chứa chart files
+        
+    Returns:
+        Dict mapping timeframe -> chart_path (empty string nếu không tìm thấy)
+    """
+    safe_symbol = symbol.replace('/', '_').replace(':', '_')
+    chart_paths = {}
+    
+    for tf in timeframes_list:
+        # Pattern để tìm chart files: {symbol}_{timeframe}_*.png
+        pattern = os.path.join(charts_dir, f"{safe_symbol}_{tf}_*.png")
+        matching_files = glob.glob(pattern)
+        
+        if matching_files:
+            # Sort theo modification time, lấy file mới nhất
+            latest_file = max(matching_files, key=os.path.getmtime)
+            chart_paths[tf] = latest_file
+        else:
+            chart_paths[tf] = ""
+    
+    return chart_paths
+
+
 def generate_html_report(
     symbol: str,
     timeframe: str,
@@ -235,6 +321,11 @@ def generate_html_report(
     # Format datetime
     datetime_str = report_datetime.strftime("%d/%m/%Y %H:%M:%S")
     
+    # Escape user-derived text for HTML
+    symbol_escaped = html.escape(symbol)
+    timeframe_escaped = html.escape(timeframe)
+    datetime_str_escaped = html.escape(datetime_str)
+    
     # Convert analysis text to HTML
     analysis_html = format_text_to_html(analysis_result)
     
@@ -253,9 +344,8 @@ def generate_html_report(
             image_src = f"data:{image_mime};base64,{image_base64}"
     except Exception as e:
         log_warn(f"Không thể embed ảnh: {e}, sử dụng relative path")
-        # Fallback to relative path
-        chart_rel_path = os.path.relpath(chart_path, output_dir)
-        image_src = chart_rel_path.replace('\\', '/')
+        # Fallback to relative path - sanitize it
+        image_src = _sanitize_chart_path(chart_path, output_dir)
     
     # HTML template
     html_content = f"""<!DOCTYPE html>
@@ -263,7 +353,7 @@ def generate_html_report(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo Cáo Phân Tích - {symbol} {timeframe}</title>
+    <title>Báo Cáo Phân Tích - {symbol_escaped} {timeframe_escaped}</title>
     <style>
         * {{
             margin: 0;
@@ -439,9 +529,9 @@ def generate_html_report(
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 Báo Cáo Phân Tích Kỹ Thuật</h1>
+            <h1>📊 Báo Cáo Phân Tích Kỹ Thuật - {symbol_escaped} {timeframe_escaped}</h1>
             <div class="subtitle">Gemini AI Chart Analysis Report</div>
-            <div class="datetime">📅 Ngày xuất báo cáo: {datetime_str}</div>
+            <div class="datetime">📅 Ngày xuất báo cáo: {datetime_str_escaped}</div>
         </div>
         
         <div class="content">
@@ -450,15 +540,15 @@ def generate_html_report(
                 <div class="info-grid">
                     <div class="info-item">
                         <label>Symbol</label>
-                        <span>{symbol}</span>
+                        <span>{symbol_escaped}</span>
                     </div>
                     <div class="info-item">
                         <label>Timeframe</label>
-                        <span>{timeframe}</span>
+                        <span>{timeframe_escaped}</span>
                     </div>
                     <div class="info-item">
                         <label>Ngày Phân Tích</label>
-                        <span>{datetime_str}</span>
+                        <span>{datetime_str_escaped}</span>
                     </div>
                 </div>
             </div>
@@ -466,7 +556,7 @@ def generate_html_report(
             <div class="chart-section">
                 <h2>📉 Biểu Đồ Kỹ Thuật</h2>
                 <div class="chart-container">
-                    <img src="{image_src}" alt="Chart {symbol} {timeframe}">
+                    <img src="{image_src}" alt="Chart {symbol_escaped} {timeframe_escaped}">
                 </div>
             </div>
             
@@ -493,6 +583,923 @@ def generate_html_report(
     return html_path
 
 
+def generate_multi_tf_html_report(
+    symbol: str,
+    timeframes_list: List[str],
+    results: Dict,
+    report_datetime: datetime,
+    output_dir: str
+) -> str:
+    """
+    Tạo HTML report cho multi-timeframe analysis với accordion layout.
+    
+    Args:
+        symbol: Tên symbol (e.g., 'BTC/USDT')
+        timeframes_list: List of timeframes (e.g., ['1h', '30m', '15m'])
+        results: Dict từ multi-timeframe analysis với structure:
+            {
+                'symbol': str,
+                'timeframes': {
+                    '1h': {'signal': 'LONG', 'confidence': 0.7, 'analysis': '...'},
+                    ...
+                },
+                'aggregated': {...}
+            }
+        report_datetime: Ngày giờ tạo báo cáo
+        output_dir: Thư mục lưu HTML file
+        
+    Returns:
+        Đường dẫn đến file HTML đã tạo
+    """
+    from modules.gemini_chart_analyzer.core.utils.chart_paths import get_charts_dir
+    
+    # Format datetime
+    datetime_str = report_datetime.strftime("%d/%m/%Y %H:%M:%S")
+    
+    # Escape user-derived text for HTML
+    symbol_escaped = html.escape(symbol)
+    datetime_str_escaped = html.escape(datetime_str)
+    
+    # Find chart paths for each timeframe
+    charts_dir = get_charts_dir()
+    chart_paths = _find_chart_paths_for_timeframes(symbol, timeframes_list, str(charts_dir))
+    
+    # Get aggregated results
+    aggregated = results.get('aggregated', {})
+    agg_signal = aggregated.get('signal', 'NONE')
+    agg_confidence = aggregated.get('confidence', 0.0)
+    timeframe_breakdown = aggregated.get('timeframe_breakdown', {})
+    
+    # Escape aggregated signal
+    agg_signal_escaped = html.escape(str(agg_signal))
+    
+    # Signal color mapping
+    def get_signal_color(signal: str) -> str:
+        signal_upper = signal.upper()
+        if signal_upper == 'LONG':
+            return '#48bb78'  # green
+        elif signal_upper == 'SHORT':
+            return '#f56565'  # red
+        else:
+            return '#a0a0a0'  # gray
+    
+    # Generate timeframe accordion sections
+    timeframe_sections = []
+    for idx, tf in enumerate(timeframes_list):
+        tf_result = results.get('timeframes', {}).get(tf, {})
+        signal = tf_result.get('signal', 'NONE')
+        confidence = tf_result.get('confidence', 0.0)
+        analysis_text = tf_result.get('analysis', '')
+        chart_path = chart_paths.get(tf, '')
+        
+        # Escape user-derived text for HTML
+        tf_escaped = html.escape(tf)
+        signal_escaped = html.escape(str(signal))
+        confidence_str = f"{confidence:.2f}"
+        
+        # Format analysis text to HTML
+        analysis_html = format_text_to_html(analysis_text) if analysis_text else '<p>Không có phân tích</p>'
+        
+        # Chart image section
+        if chart_path:
+            # Sanitize chart path
+            chart_src = _sanitize_chart_path(chart_path, output_dir)
+            chart_html = f'<div class="chart-container"><img src="{chart_src}" alt="Chart {symbol_escaped} {tf_escaped}"></div>'
+        else:
+            chart_html = '<div class="chart-placeholder"><p>⚠️ Không tìm thấy biểu đồ cho timeframe này</p></div>'
+        
+        signal_color = get_signal_color(signal)
+        accordion_id = f"accordion-{idx}"
+        
+        timeframe_sections.append(f"""
+            <div class="accordion-item">
+                <input type="checkbox" id="{accordion_id}" class="accordion-checkbox">
+                <label for="{accordion_id}" class="accordion-header">
+                    <span class="timeframe-label">{tf_escaped}</span>
+                    <span class="signal-badge" style="background-color: {signal_color}">
+                        {signal_escaped} ({confidence_str})
+                    </span>
+                    <span class="accordion-toggle">▼</span>
+                </label>
+                <div class="accordion-content">
+                    <div class="timeframe-info">
+                        <div class="timeframe-summary">
+                            <strong>Signal:</strong> <span style="color: {signal_color}">{signal_escaped}</span> | 
+                            <strong>Confidence:</strong> {confidence_str}
+                        </div>
+                    </div>
+                    <div class="timeframe-chart">
+                        {chart_html}
+                    </div>
+                    <div class="timeframe-analysis">
+                        <h3>Phân Tích Chi Tiết</h3>
+                        <div class="analysis-content">
+                            {analysis_html}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        """)
+    
+    timeframe_sections_html = '\n'.join(timeframe_sections)
+    
+    # Generate aggregated breakdown HTML
+    breakdown_items = []
+    for tf in timeframes_list:
+        if tf in timeframe_breakdown:
+            tf_breakdown = timeframe_breakdown[tf]
+            tf_signal = tf_breakdown.get('signal', 'NONE')
+            tf_conf = tf_breakdown.get('confidence', 0.0)
+            tf_weight = tf_breakdown.get('weight', 0.0)
+            tf_color = get_signal_color(tf_signal)
+            # Escape user-derived text
+            tf_escaped = html.escape(tf)
+            tf_signal_escaped = html.escape(str(tf_signal))
+            tf_conf_str = f"{tf_conf:.2f}"
+            tf_weight_str = f"{tf_weight:.2%}"
+            breakdown_items.append(f"""
+                <div class="breakdown-item">
+                    <span class="breakdown-tf">{tf_escaped}</span>
+                    <span class="breakdown-signal" style="color: {tf_color}">{tf_signal_escaped}</span>
+                    <span class="breakdown-conf">Conf: {tf_conf_str}</span>
+                    <span class="breakdown-weight">Weight: {tf_weight_str}</span>
+                </div>
+            """)
+    
+    breakdown_html = '\n'.join(breakdown_items) if breakdown_items else '<p>Không có dữ liệu breakdown</p>'
+    
+    agg_signal_color = get_signal_color(agg_signal)
+    
+    # HTML template
+    html_content = f"""<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo Cáo Phân Tích Multi-Timeframe - {symbol_escaped}</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            color: #e0e0e0;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }}
+        
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #2a2a2a;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }}
+        
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }}
+        
+        .header h1 {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }}
+        
+        .header .subtitle {{
+            font-size: 1.1em;
+            opacity: 0.9;
+        }}
+        
+        .header .datetime {{
+            margin-top: 15px;
+            font-size: 0.95em;
+            opacity: 0.85;
+            font-style: italic;
+        }}
+        
+        .header .timeframes-list {{
+            margin-top: 10px;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }}
+        
+        .content {{
+            padding: 30px;
+        }}
+        
+        .aggregated-section {{
+            background: #333;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }}
+        
+        .aggregated-section h2 {{
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }}
+        
+        .aggregated-summary {{
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }}
+        
+        .aggregated-signal {{
+            font-size: 2em;
+            font-weight: bold;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 200px;
+        }}
+        
+        .aggregated-confidence {{
+            font-size: 1.5em;
+            color: #f6ad55;
+        }}
+        
+        .breakdown-container {{
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #444;
+        }}
+        
+        .breakdown-title {{
+            color: #aaa;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }}
+        
+        .breakdown-items {{
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }}
+        
+        .breakdown-item {{
+            background: #3a3a3a;
+            padding: 12px 15px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }}
+        
+        .breakdown-tf {{
+            font-weight: bold;
+            min-width: 50px;
+            color: #667eea;
+        }}
+        
+        .breakdown-signal {{
+            font-weight: bold;
+            min-width: 80px;
+        }}
+        
+        .breakdown-conf {{
+            color: #aaa;
+            min-width: 100px;
+        }}
+        
+        .breakdown-weight {{
+            color: #888;
+            margin-left: auto;
+        }}
+        
+        .accordion-container {{
+            margin-top: 30px;
+        }}
+        
+        .accordion-item {{
+            background: #333;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }}
+        
+        .accordion-checkbox {{
+            display: none;
+        }}
+        
+        .accordion-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 25px;
+            background: #3a3a3a;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.3s ease;
+        }}
+        
+        .accordion-header:hover {{
+            background: #444;
+        }}
+        
+        .timeframe-label {{
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #667eea;
+            min-width: 80px;
+        }}
+        
+        .signal-badge {{
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            color: white;
+            font-size: 1em;
+        }}
+        
+        .accordion-toggle {{
+            font-size: 0.8em;
+            color: #aaa;
+            transition: transform 0.3s ease;
+        }}
+        
+        .accordion-checkbox:checked ~ .accordion-header .accordion-toggle {{
+            transform: rotate(180deg);
+        }}
+        
+        .accordion-content {{
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }}
+        
+        .accordion-checkbox:checked ~ .accordion-content {{
+            max-height: 10000px;
+        }}
+        
+        .timeframe-info {{
+            padding: 20px 25px;
+            background: #2a2a2a;
+            border-bottom: 1px solid #444;
+        }}
+        
+        .timeframe-summary {{
+            color: #ccc;
+        }}
+        
+        .timeframe-chart {{
+            padding: 20px 25px;
+            background: #2a2a2a;
+            border-bottom: 1px solid #444;
+        }}
+        
+        .chart-container {{
+            text-align: center;
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+        }}
+        
+        .chart-container img {{
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }}
+        
+        .chart-placeholder {{
+            text-align: center;
+            padding: 40px;
+            color: #888;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }}
+        
+        .timeframe-analysis {{
+            padding: 20px 25px;
+            background: #2a2a2a;
+        }}
+        
+        .timeframe-analysis h3 {{
+            color: #f6ad55;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }}
+        
+        .analysis-content {{
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 6px;
+            line-height: 1.8;
+        }}
+        
+        .analysis-content p {{
+            margin-bottom: 15px;
+        }}
+        
+        .analysis-content strong {{
+            color: #f6ad55;
+        }}
+        
+        .analysis-content em {{
+            color: #a0a0a0;
+            font-style: italic;
+        }}
+        
+        @media (max-width: 768px) {{
+            .header h1 {{
+                font-size: 1.8em;
+            }}
+            
+            .content {{
+                padding: 20px;
+            }}
+            
+            .aggregated-summary {{
+                flex-direction: column;
+                align-items: flex-start;
+            }}
+            
+            .aggregated-signal {{
+                font-size: 1.5em;
+                min-width: auto;
+                width: 100%;
+            }}
+            
+            .breakdown-item {{
+                flex-wrap: wrap;
+            }}
+            
+            .breakdown-weight {{
+                margin-left: 0;
+            }}
+            
+            .accordion-header {{
+                flex-wrap: wrap;
+                gap: 10px;
+            }}
+            
+            .timeframe-label {{
+                min-width: auto;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Báo Cáo Phân Tích Multi-Timeframe - {symbol_escaped}</h1>
+            <div class="subtitle">Gemini AI Chart Analysis Report</div>
+            <div class="datetime">📅 Ngày xuất báo cáo: {datetime_str_escaped}</div>
+            <div class="timeframes-list">Timeframes: {', '.join(html.escape(tf) for tf in timeframes_list)}</div>
+        </div>
+        
+        <div class="content">
+            <div class="aggregated-section">
+                <h2>📈 Kết Quả Tổng Hợp</h2>
+                <div class="aggregated-summary">
+                    <div class="aggregated-signal" style="background-color: {agg_signal_color}">
+                        {agg_signal_escaped}
+                    </div>
+                    <div class="aggregated-confidence">
+                        Confidence: {agg_confidence:.2f}
+                    </div>
+                </div>
+                <div class="breakdown-container">
+                    <div class="breakdown-title">📊 Chi Tiết Theo Timeframe:</div>
+                    <div class="breakdown-items">
+                        {breakdown_html}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="accordion-container">
+                <h2 style="color: #667eea; margin-bottom: 20px; font-size: 1.8em;">📋 Phân Tích Chi Tiết Theo Timeframe</h2>
+                {timeframe_sections_html}
+            </div>
+        </div>
+    </div>
+</body>
+</html>"""
+    
+    # Save HTML file
+    timestamp = report_datetime.strftime("%Y%m%d_%H%M%S")
+    safe_symbol = symbol.replace('/', '_').replace(':', '_')
+    html_filename = f"{safe_symbol}_multi_tf_{timestamp}.html"
+    html_path = os.path.join(output_dir, html_filename)
+    
+    with open(html_path, 'w', encoding='utf-8') as f:
+        f.write(html_content)
+    
+    return html_path
+
+
+# generate_batch_html_report has been moved to modules.gemini_chart_analyzer.core.html_report
+# to avoid circular dependencies. Import it from there if needed.
+
+
+def parse_and_build_config(args):
+    """
+    Parse arguments hoặc hiển thị interactive menu và build configuration.
+    
+    Args:
+        args: Parsed arguments từ parse_args(), hoặc None nếu không có args
+        
+    Returns:
+        dict: Configuration dictionary với các keys: symbol, timeframe, timeframes_list,
+              indicators, prompt_type, custom_prompt, limit, chart_figsize, chart_dpi, no_cleanup
+    """
+    if args is None:
+        # No arguments provided, use interactive menu
+        config = interactive_config_menu()
+        cfg = _convert_menu_to_config(config)
+    else:
+        # Arguments provided, use CLI mode
+        cfg = _convert_args_to_config(args)
+    
+    return cfg
+
+
+def init_components():
+    """
+    Khởi tạo ExchangeManager và DataFetcher.
+    
+    Returns:
+        tuple: (exchange_manager, data_fetcher)
+    """
+    log_info("Đang khởi tạo ExchangeManager và DataFetcher...")
+    exchange_manager = ExchangeManager()
+    data_fetcher = DataFetcher(exchange_manager)
+    return exchange_manager, data_fetcher
+
+
+def run_multi_tf_analysis(
+    symbol: str,
+    timeframes_list: List[str],
+    data_fetcher: DataFetcher,
+    indicators: Dict,
+    prompt_type: str,
+    custom_prompt: Optional[str],
+    limit: int,
+    chart_figsize: tuple,
+    chart_dpi: int,
+    no_cleanup: bool
+):
+    """
+    Chạy multi-timeframe analysis.
+    
+    Args:
+        symbol: Trading symbol
+        timeframes_list: List các timeframes để phân tích
+        data_fetcher: DataFetcher instance
+        indicators: Dictionary chứa indicators config
+        prompt_type: Loại prompt cho Gemini
+        custom_prompt: Custom prompt (optional)
+        limit: Số lượng nến cần lấy
+        chart_figsize: Kích thước biểu đồ (width, height)
+        chart_dpi: DPI cho biểu đồ
+        no_cleanup: Có cleanup charts cũ hay không
+        
+    Returns:
+        tuple: (results, primary_timeframe)
+            - results: Dictionary chứa kết quả phân tích multi-timeframe
+            - primary_timeframe: Timeframe chính (timeframe đầu tiên trong list)
+    """
+    from modules.gemini_chart_analyzer.core.analyzers.multi_timeframe_coordinator import MultiTimeframeCoordinator
+    
+    log_info(f"Multi-timeframe analysis mode: {', '.join(timeframes_list)}")
+    
+    # Cleanup charts cũ
+    if not no_cleanup:
+        from modules.gemini_chart_analyzer.core.utils.chart_paths import get_charts_dir
+        charts_dir = get_charts_dir()
+        if os.path.exists(str(charts_dir)):
+            cleanup_old_files(str(charts_dir))
+    
+    # Initialize multi-timeframe analyzer
+    mtf_analyzer = MultiTimeframeCoordinator()
+    
+    # Define helper functions for multi-timeframe analysis
+    def fetch_data_func(sym, tf):
+        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+            symbol=sym,
+            timeframe=tf,
+            limit=limit,
+            check_freshness=False
+        )
+        return df
+    
+    def generate_chart_func(df, sym, tf):
+        chart_gen = ChartGenerator(figsize=chart_figsize, style='dark_background', dpi=chart_dpi)
+        return chart_gen.create_chart(
+            df=df,
+            symbol=sym,
+            timeframe=tf,
+            indicators=indicators or None,
+            show_volume=True,
+            show_grid=True
+        )
+    
+    def analyze_chart_func(chart_path, sym, tf):
+        gemini_analyzer = GeminiChartAnalyzer()
+        return gemini_analyzer.analyze_chart(
+            image_path=chart_path,
+            symbol=sym,
+            timeframe=tf,
+            prompt_type=prompt_type,
+            custom_prompt=custom_prompt
+        )
+    
+    # Run multi-timeframe analysis
+    results = mtf_analyzer.analyze_deep(
+        symbol=symbol,
+        timeframes=timeframes_list,
+        fetch_data_func=fetch_data_func,
+        generate_chart_func=generate_chart_func,
+        analyze_chart_func=analyze_chart_func
+    )
+    
+    # Display results
+    print()
+    print(color_text("=" * 60, Fore.GREEN))
+    print(color_text("MULTI-TIMEFRAME ANALYSIS RESULTS", Fore.GREEN))
+    print(color_text("=" * 60, Fore.GREEN))
+    print()
+    print(f"Symbol: {symbol}")
+    print()
+    
+    # Display timeframe breakdown
+    for tf in timeframes_list:
+        if tf in results['timeframes']:
+            tf_result = results['timeframes'][tf]
+            signal = tf_result.get('signal', 'NONE')
+            confidence = tf_result.get('confidence', 0.0)
+            conf_bars = '█' * int(confidence * 10)
+            print(f"{tf:>4}: {signal:>6} (confidence: {confidence:.2f}) {conf_bars}")
+    
+    print()
+    # Display aggregated result
+    aggregated = results['aggregated']
+    agg_signal = aggregated.get('signal', 'NONE')
+    agg_conf = aggregated.get('confidence', 0.0)
+    agg_bars = '█' * int(agg_conf * 10)
+    print(color_text(f"AGGREGATED: {agg_signal} (confidence: {agg_conf:.2f}) {agg_bars}", Fore.CYAN, Style.BRIGHT))
+    print()
+    print(color_text("=" * 60, Fore.GREEN))
+    
+    primary_timeframe = timeframes_list[0] if timeframes_list else '1h'
+    return results, primary_timeframe
+
+
+def run_single_tf_analysis(
+    symbol: str,
+    timeframe: str,
+    data_fetcher: DataFetcher,
+    indicators: Dict,
+    prompt_type: str,
+    custom_prompt: Optional[str],
+    limit: int,
+    chart_figsize: tuple,
+    chart_dpi: int,
+    no_cleanup: bool
+):
+    """
+    Chạy single timeframe analysis.
+    
+    Args:
+        symbol: Trading symbol
+        timeframe: Timeframe để phân tích
+        data_fetcher: DataFetcher instance
+        indicators: Dictionary chứa indicators config
+        prompt_type: Loại prompt cho Gemini
+        custom_prompt: Custom prompt (optional)
+        limit: Số lượng nến cần lấy
+        chart_figsize: Kích thước biểu đồ (width, height)
+        chart_dpi: DPI cho biểu đồ
+        no_cleanup: Có cleanup charts cũ hay không
+        
+    Returns:
+        tuple: (analysis_result, chart_path, primary_timeframe)
+            - analysis_result: Kết quả phân tích từ Gemini
+            - chart_path: Đường dẫn đến file biểu đồ đã tạo
+            - primary_timeframe: Timeframe đã sử dụng
+    """
+    # Fetch dữ liệu OHLCV
+    log_info(f"Đang lấy dữ liệu OHLCV cho {symbol} ({timeframe})...")
+    df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+        check_freshness=False
+    )
+    
+    if df is None or df.empty:
+        log_error("Không thể lấy dữ liệu OHLCV. Vui lòng kiểm tra lại symbol và timeframe.")
+        return None, None, None
+    
+    log_success(f"Đã lấy {len(df)} nến từ {exchange_id}")
+    
+    # Cleanup charts cũ trước khi tạo biểu đồ mới (nếu không bị disable)
+    if not no_cleanup:
+        # Get charts directory from module
+        from modules.gemini_chart_analyzer.core.utils.chart_paths import get_charts_dir
+        charts_dir = get_charts_dir()
+        if os.path.exists(str(charts_dir)):
+            cleanup_old_files(str(charts_dir))
+    
+    # Tạo biểu đồ
+    log_info("Đang tạo biểu đồ...")
+    chart_generator = ChartGenerator(figsize=chart_figsize, style='dark_background', dpi=chart_dpi)
+    
+    chart_path = chart_generator.create_chart(
+        df=df,
+        symbol=symbol,
+        timeframe=timeframe,
+        indicators=indicators or None,
+        show_volume=True,
+        show_grid=True
+    )
+    
+    log_success(f"Đã tạo biểu đồ: {chart_path}")
+    
+    # Phân tích bằng Gemini
+    log_info("Đang khởi tạo Gemini Analyzer...")
+    gemini_analyzer = GeminiChartAnalyzer()
+    
+    log_info("Đang gửi ảnh lên Google Gemini để phân tích...")
+    analysis_result = gemini_analyzer.analyze_chart(
+        image_path=chart_path,
+        symbol=symbol,
+        timeframe=timeframe,
+        prompt_type=prompt_type,
+        custom_prompt=custom_prompt
+    )
+    
+    # Hiển thị kết quả
+    print()
+    print(color_text("=" * 60, Fore.GREEN))
+    print(color_text("KẾT QUẢ PHÂN TÍCH TỪ GEMINI", Fore.GREEN))
+    print(color_text("=" * 60, Fore.GREEN))
+    print()
+    print(analysis_result)
+    print()
+    print(color_text("=" * 60, Fore.GREEN))
+    
+    return analysis_result, chart_path, timeframe
+
+
+def save_and_open_reports(
+    symbol: str,
+    primary_timeframe: str,
+    results_or_analysis,
+    chart_path: Optional[str],
+    output_dir: str,
+    report_datetime: datetime,
+    is_multi_tf: bool,
+    timeframes_list: Optional[List[str]],
+    prompt_type: str,
+    no_cleanup: bool
+):
+    """
+    Lưu kết quả phân tích vào file và mở HTML report trên browser.
+    
+    Args:
+        symbol: Trading symbol
+        primary_timeframe: Timeframe chính
+        results_or_analysis: Kết quả phân tích (dict cho multi-tf, str cho single-tf)
+        chart_path: Đường dẫn đến chart (None cho multi-tf)
+        output_dir: Thư mục output
+        report_datetime: Thời gian tạo report
+        is_multi_tf: True nếu là multi-timeframe analysis
+        timeframes_list: List timeframes (chỉ dùng cho multi-tf)
+        prompt_type: Loại prompt đã sử dụng
+        no_cleanup: Có cleanup results cũ hay không
+    """
+    # Cleanup results cũ trước khi lưu kết quả mới (nếu không bị disable)
+    os.makedirs(output_dir, exist_ok=True)
+    if not no_cleanup:
+        cleanup_old_files(output_dir)
+    
+    timestamp = report_datetime.strftime("%Y%m%d_%H%M%S")
+    safe_symbol = symbol.replace('/', '_').replace(':', '_')
+    
+    if is_multi_tf:
+        # Multi-timeframe: Save JSON and summary text
+        import json
+        
+        results = results_or_analysis
+        
+        # Save JSON with full results
+        json_file = os.path.join(output_dir, f"{safe_symbol}_multi_tf_{timestamp}.json")
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                'symbol': symbol,
+                'timestamp': report_datetime.isoformat(),
+                'timeframes_list': timeframes_list,
+                'timeframes': results['timeframes'],
+                'aggregated': results['aggregated'],
+                'prompt_type': prompt_type
+            }, f, indent=2, ensure_ascii=False)
+        
+        log_success(f"Đã lưu JSON kết quả: {json_file}")
+        
+        # Save summary text file
+        result_file = os.path.join(output_dir, f"{safe_symbol}_multi_tf_{timestamp}.txt")
+        with open(result_file, 'w', encoding='utf-8') as f:
+            f.write(f"Symbol: {symbol}\n")
+            f.write(f"Timeframes: {', '.join(timeframes_list)}\n")
+            f.write(f"Prompt Type: {prompt_type}\n")
+            f.write(f"\n{'='*60}\n")
+            f.write("MULTI-TIMEFRAME ANALYSIS RESULTS\n")
+            f.write(f"{'='*60}\n\n")
+            
+            # Timeframe breakdown
+            for tf in timeframes_list:
+                if tf in results['timeframes']:
+                    tf_result = results['timeframes'][tf]
+                    signal = tf_result.get('signal', 'NONE')
+                    confidence = tf_result.get('confidence', 0.0)
+                    f.write(f"{tf}: {signal} (confidence: {confidence:.2f})\n")
+                    if 'analysis' in tf_result:
+                        f.write(f"  Analysis: {tf_result['analysis'][:200]}...\n")
+                    f.write("\n")
+            
+            # Aggregated result
+            aggregated = results['aggregated']
+            f.write(f"\nAGGREGATED: {aggregated.get('signal', 'NONE')} (confidence: {aggregated.get('confidence', 0.0):.2f})\n")
+        
+        log_success(f"Đã lưu summary: {result_file}")
+        
+        # Generate HTML report for multi-timeframe
+        log_info("Đang tạo HTML report cho multi-timeframe...")
+        html_path = generate_multi_tf_html_report(
+            symbol=symbol,
+            timeframes_list=timeframes_list,
+            results=results,
+            report_datetime=report_datetime,
+            output_dir=output_dir
+        )
+        log_success(f"Đã tạo HTML report: {html_path}")
+        
+        # Open browser
+        try:
+            html_uri = Path(html_path).resolve().as_uri()
+            webbrowser.open(html_uri)
+            log_success("Đã mở HTML report trên browser")
+        except Exception as e:
+            log_warn(f"Không thể mở browser tự động: {e}")
+    
+    else:
+        # Single timeframe: Original logic
+        analysis_result = results_or_analysis
+        
+        # Lưu file .txt (backward compatibility)
+        result_file = os.path.join(output_dir, f"{safe_symbol}_{primary_timeframe}_{timestamp}.txt")
+        with open(result_file, 'w', encoding='utf-8') as f:
+            f.write(f"Symbol: {symbol}\n")
+            f.write(f"Timeframe: {primary_timeframe}\n")
+            f.write(f"Chart Path: {chart_path}\n")
+            f.write(f"Prompt Type: {prompt_type}\n")
+            f.write(f"\n{'='*60}\n")
+            f.write("KẾT QUẢ PHÂN TÍCH\n")
+            f.write(f"{'='*60}\n\n")
+            f.write(analysis_result if isinstance(analysis_result, str) else str(analysis_result))
+        
+        log_success(f"Đã lưu kết quả phân tích: {result_file}")
+        
+        # Tạo HTML report và mở browser
+        log_info("Đang tạo HTML report...")
+        html_path = generate_html_report(
+            symbol=symbol,
+            timeframe=primary_timeframe,
+            chart_path=chart_path,
+            analysis_result=analysis_result if isinstance(analysis_result, str) else str(analysis_result),
+            report_datetime=report_datetime,
+            output_dir=output_dir
+        )
+        
+        log_success(f"Đã tạo HTML report: {html_path}")
+        
+        # Mở HTML trên browser
+        try:
+            html_uri = Path(html_path).resolve().as_uri()
+            webbrowser.open(html_uri)
+            log_success("Đã mở HTML report trên browser")
+        except Exception as e:
+            log_warn(f"Không thể mở browser tự động: {e}")
+            log_info(f"Vui lòng mở file thủ công: {html_path}")
+
+
 def main():
     """Main function cho Gemini Chart Analyzer."""
     print()
@@ -501,16 +1508,9 @@ def main():
     print(color_text("=" * 60, Fore.CYAN))
     
     try:
-        # 1. Parse arguments or show interactive menu
+        # 1. Parse arguments or show interactive menu and build config
         args = parse_args()
-        
-        if args is None:
-            # No arguments provided, use interactive menu
-            config = interactive_config_menu()
-            cfg = _convert_menu_to_config(config)
-        else:
-            # Arguments provided, use CLI mode
-            cfg = _convert_args_to_config(args)
+        cfg = parse_and_build_config(args)
         
         # Extract configuration
         symbol = cfg['symbol']
@@ -539,265 +1539,59 @@ def main():
                 timeframe = '1h'  # Default
         
         # 2. Khởi tạo components
-        log_info("Đang khởi tạo ExchangeManager và DataFetcher...")
-        exchange_manager = ExchangeManager()
-        data_fetcher = DataFetcher(exchange_manager)
+        exchange_manager, data_fetcher = init_components()
         
         # 3. Multi-timeframe or single timeframe analysis
         if is_multi_tf:
-            # Multi-timeframe analysis
-            from modules.gemini_chart_analyzer.core.multi_timeframe_analyzer import MultiTimeframeAnalyzer
-            
-            log_info(f"Multi-timeframe analysis mode: {', '.join(timeframes_list)}")
-            
-            # Cleanup charts cũ
-            if not no_cleanup:
-                from modules.gemini_chart_analyzer.core.chart_generator import _get_charts_dir
-                charts_dir = _get_charts_dir()
-                if os.path.exists(charts_dir):
-                    cleanup_old_files(charts_dir)
-            
-            # Initialize multi-timeframe analyzer
-            mtf_analyzer = MultiTimeframeAnalyzer()
-            
-            # Define helper functions for multi-timeframe analysis
-            def fetch_data_func(sym, tf):
-                df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                    symbol=sym,
-                    timeframe=tf,
-                    limit=limit,
-                    check_freshness=False
-                )
-                return df
-            
-            def generate_chart_func(df, sym, tf):
-                chart_gen = ChartGenerator(figsize=chart_figsize, style='dark_background', dpi=chart_dpi)
-                return chart_gen.create_chart(
-                    df=df,
-                    symbol=sym,
-                    timeframe=tf,
-                    indicators=indicators or None,
-                    show_volume=True,
-                    show_grid=True
-                )
-            
-            def analyze_chart_func(chart_path, sym, tf):
-                gemini_analyzer = GeminiAnalyzer()
-                return gemini_analyzer.analyze_chart(
-                    image_path=chart_path,
-                    symbol=sym,
-                    timeframe=tf,
-                    prompt_type=prompt_type,
-                    custom_prompt=custom_prompt
-                )
-            
-            # Run multi-timeframe analysis
-            results = mtf_analyzer.analyze_deep(
+            results, primary_timeframe = run_multi_tf_analysis(
                 symbol=symbol,
-                timeframes=timeframes_list,
-                fetch_data_func=fetch_data_func,
-                generate_chart_func=generate_chart_func,
-                analyze_chart_func=analyze_chart_func
-            )
-            
-            # Display results
-            print()
-            print(color_text("=" * 60, Fore.GREEN))
-            print(color_text("MULTI-TIMEFRAME ANALYSIS RESULTS", Fore.GREEN))
-            print(color_text("=" * 60, Fore.GREEN))
-            print()
-            print(f"Symbol: {symbol}")
-            print()
-            
-            # Display timeframe breakdown
-            for tf in timeframes_list:
-                if tf in results['timeframes']:
-                    tf_result = results['timeframes'][tf]
-                    signal = tf_result.get('signal', 'NONE')
-                    confidence = tf_result.get('confidence', 0.0)
-                    conf_bars = '█' * int(confidence * 10)
-                    print(f"{tf:>4}: {signal:>6} (confidence: {confidence:.2f}) {conf_bars}")
-            
-            print()
-            # Display aggregated result
-            aggregated = results['aggregated']
-            agg_signal = aggregated.get('signal', 'NONE')
-            agg_conf = aggregated.get('confidence', 0.0)
-            agg_bars = '█' * int(agg_conf * 10)
-            print(color_text(f"AGGREGATED: {agg_signal} (confidence: {agg_conf:.2f}) {agg_bars}", Fore.CYAN, Style.BRIGHT))
-            print()
-            print(color_text("=" * 60, Fore.GREEN))
-            
-            # Store results for saving
-            analysis_result = results
-            chart_paths = {}  # Will be populated from results if needed
-            primary_timeframe = timeframes_list[0] if timeframes_list else '1h'
-            
-        else:
-            # Single timeframe analysis (original logic)
-            # 3. Fetch dữ liệu OHLCV
-            log_info(f"Đang lấy dữ liệu OHLCV cho {symbol} ({timeframe})...")
-            df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                symbol=symbol,
-                timeframe=timeframe,
-                limit=limit,
-                check_freshness=False
-            )
-            
-            if df is None or df.empty:
-                log_error("Không thể lấy dữ liệu OHLCV. Vui lòng kiểm tra lại symbol và timeframe.")
-                return
-            
-            log_success(f"Đã lấy {len(df)} nến từ {exchange_id}")
-            
-            # 4. Cleanup charts cũ trước khi tạo biểu đồ mới (nếu không bị disable)
-            if not no_cleanup:
-                # Get charts directory from module
-                from modules.gemini_chart_analyzer.core.chart_generator import _get_charts_dir
-                charts_dir = _get_charts_dir()
-                if os.path.exists(charts_dir):
-                    cleanup_old_files(charts_dir)
-            
-            # 5. Tạo biểu đồ
-            log_info("Đang tạo biểu đồ...")
-            chart_generator = ChartGenerator(figsize=chart_figsize, style='dark_background', dpi=chart_dpi)
-            
-            chart_path = chart_generator.create_chart(
-                df=df,
-                symbol=symbol,
-                timeframe=timeframe,
-                indicators=indicators or None,  # or just: indicators
-                show_volume=True,
-                show_grid=True
-            )
-            
-            log_success(f"Đã tạo biểu đồ: {chart_path}")
-            
-            # 6. Phân tích bằng Gemini
-            log_info("Đang khởi tạo Gemini Analyzer...")
-            gemini_analyzer = GeminiAnalyzer()
-            
-            log_info("Đang gửi ảnh lên Google Gemini để phân tích...")
-            analysis_result = gemini_analyzer.analyze_chart(
-                image_path=chart_path,
-                symbol=symbol,
-                timeframe=timeframe,
+                timeframes_list=timeframes_list,
+                data_fetcher=data_fetcher,
+                indicators=indicators,
                 prompt_type=prompt_type,
-                custom_prompt=custom_prompt
+                custom_prompt=custom_prompt,
+                limit=limit,
+                chart_figsize=chart_figsize,
+                chart_dpi=chart_dpi,
+                no_cleanup=no_cleanup
             )
-            
-            # 7. Hiển thị kết quả
-            print()
-            print(color_text("=" * 60, Fore.GREEN))
-            print(color_text("KẾT QUẢ PHÂN TÍCH TỪ GEMINI", Fore.GREEN))
-            print(color_text("=" * 60, Fore.GREEN))
-            print()
-            print(analysis_result)
-            print()
-            print(color_text("=" * 60, Fore.GREEN))
-            
-            primary_timeframe = timeframe
-        
-        # 8. Cleanup results cũ trước khi lưu kết quả mới (nếu không bị disable)
-        # Get analysis results directory from module
-        from modules.gemini_chart_analyzer.core.market_batch_scanner import _get_analysis_results_dir
-        output_dir = _get_analysis_results_dir()
-        os.makedirs(output_dir, exist_ok=True)
-        if not no_cleanup:
-            cleanup_old_files(output_dir)
-        
-        # 9. Lưu kết quả vào file
-        
-        report_datetime = datetime.now()
-        timestamp = report_datetime.strftime("%Y%m%d_%H%M%S")
-        safe_symbol = symbol.replace('/', '_').replace(':', '_')
-        
-        if is_multi_tf:
-            # Multi-timeframe: Save JSON and summary text
-            import json
-            
-            # Save JSON with full results
-            json_file = os.path.join(output_dir, f"{safe_symbol}_multi_tf_{timestamp}.json")
-            with open(json_file, 'w', encoding='utf-8') as f:
-                json.dump({
-                    'symbol': symbol,
-                    'timestamp': report_datetime.isoformat(),
-                    'timeframes_list': timeframes_list,
-                    'timeframes': results['timeframes'],
-                    'aggregated': results['aggregated'],
-                    'prompt_type': prompt_type
-                }, f, indent=2, ensure_ascii=False)
-            
-            log_success(f"Đã lưu JSON kết quả: {json_file}")
-            
-            # Save summary text file
-            result_file = os.path.join(output_dir, f"{safe_symbol}_multi_tf_{timestamp}.txt")
-            with open(result_file, 'w', encoding='utf-8') as f:
-                f.write(f"Symbol: {symbol}\n")
-                f.write(f"Timeframes: {', '.join(timeframes_list)}\n")
-                f.write(f"Prompt Type: {prompt_type}\n")
-                f.write(f"\n{'='*60}\n")
-                f.write("MULTI-TIMEFRAME ANALYSIS RESULTS\n")
-                f.write(f"{'='*60}\n\n")
-                
-                # Timeframe breakdown
-                for tf in timeframes_list:
-                    if tf in results['timeframes']:
-                        tf_result = results['timeframes'][tf]
-                        signal = tf_result.get('signal', 'NONE')
-                        confidence = tf_result.get('confidence', 0.0)
-                        f.write(f"{tf}: {signal} (confidence: {confidence:.2f})\n")
-                        if 'analysis' in tf_result:
-                            f.write(f"  Analysis: {tf_result['analysis'][:200]}...\n")
-                        f.write("\n")
-                
-                # Aggregated result
-                aggregated = results['aggregated']
-                f.write(f"\nAGGREGATED: {aggregated.get('signal', 'NONE')} (confidence: {aggregated.get('confidence', 0.0):.2f})\n")
-            
-            log_success(f"Đã lưu summary: {result_file}")
-            
-            # For HTML, use primary timeframe chart if available
-            # Note: HTML generation for multi-TF would need to be enhanced
-            log_info("HTML report generation for multi-timeframe is not yet implemented")
-            
+            analysis_result = results
+            chart_path = None
         else:
-            # Single timeframe: Original logic
-            # Lưu file .txt (backward compatibility)
-            result_file = os.path.join(output_dir, f"{safe_symbol}_{primary_timeframe}_{timestamp}.txt")
-            with open(result_file, 'w', encoding='utf-8') as f:
-                f.write(f"Symbol: {symbol}\n")
-                f.write(f"Timeframe: {primary_timeframe}\n")
-                f.write(f"Chart Path: {chart_path}\n")
-                f.write(f"Prompt Type: {prompt_type}\n")
-                f.write(f"\n{'='*60}\n")
-                f.write("KẾT QUẢ PHÂN TÍCH\n")
-                f.write(f"{'='*60}\n\n")
-                f.write(analysis_result if isinstance(analysis_result, str) else str(analysis_result))
-            
-            log_success(f"Đã lưu kết quả phân tích: {result_file}")
-            
-            # 10. Tạo HTML report và mở browser
-            log_info("Đang tạo HTML report...")
-            html_path = generate_html_report(
+            analysis_result, chart_path, primary_timeframe = run_single_tf_analysis(
                 symbol=symbol,
-                timeframe=primary_timeframe,
-                chart_path=chart_path,
-                analysis_result=analysis_result if isinstance(analysis_result, str) else str(analysis_result),
-                report_datetime=report_datetime,
-                output_dir=output_dir
+                timeframe=timeframe,
+                data_fetcher=data_fetcher,
+                indicators=indicators,
+                prompt_type=prompt_type,
+                custom_prompt=custom_prompt,
+                limit=limit,
+                chart_figsize=chart_figsize,
+                chart_dpi=chart_dpi,
+                no_cleanup=no_cleanup
             )
             
-            log_success(f"Đã tạo HTML report: {html_path}")
-            
-            # Mở HTML trên browser
-            try:
-                html_uri = Path(html_path).resolve().as_uri()
-                webbrowser.open(html_uri)
-                log_success("Đã mở HTML report trên browser")
-            except Exception as e:
-                log_warn(f"Không thể mở browser tự động: {e}")
-                log_info(f"Vui lòng mở file thủ công: {html_path}")
+            if analysis_result is None:
+                # Error occurred during analysis
+                return
+        
+        # 4. Lưu kết quả và mở reports
+        from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import _get_analysis_results_dir
+        output_dir = _get_analysis_results_dir()
+        report_datetime = datetime.now()
+        
+        save_and_open_reports(
+            symbol=symbol,
+            primary_timeframe=primary_timeframe,
+            results_or_analysis=analysis_result,
+            chart_path=chart_path,
+            output_dir=output_dir,
+            report_datetime=report_datetime,
+            is_multi_tf=is_multi_tf,
+            timeframes_list=timeframes_list,
+            prompt_type=prompt_type,
+            no_cleanup=no_cleanup
+        )
         
     except KeyboardInterrupt:
         log_warn("\nĐã hủy bởi người dùng")
@@ -811,4 +1605,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

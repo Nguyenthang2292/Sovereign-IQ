@@ -1,17 +1,17 @@
 """
 Position Sizer - Main orchestrator for position sizing calculation.
 
-This module combines regime detection, backtesting, and Kelly calculation
+This module combines backtesting and Kelly calculation
 to determine optimal position sizes for trading symbols.
 """
-
-from typing import Dict, List, Optional
+from typing import Any, Dict, List
+from pandas.core.frame import DataFrame
 import pandas as pd
 import traceback
-from datetime import datetime
+import math
+
 
 from modules.common.core.data_fetcher import DataFetcher
-from modules.position_sizing.core.regime_detector import RegimeDetector
 from modules.backtester import FullBacktester
 from modules.position_sizing.core.kelly_calculator import BayesianKellyCalculator
 from config.position_sizing import (
@@ -20,7 +20,6 @@ from config.position_sizing import (
     DEFAULT_MAX_POSITION_SIZE,
     DEFAULT_MIN_POSITION_SIZE,
     DEFAULT_MAX_PORTFOLIO_EXPOSURE,
-    REGIME_MULTIPLIERS,
     SIGNAL_CALCULATION_MODE,
 )
 from modules.common.utils import (
@@ -37,10 +36,8 @@ class PositionSizer:
     Main orchestrator for position sizing calculation.
     
     Combines:
-    - Regime detection (via HMM)
     - Backtesting (performance metrics)
     - Kelly Criterion (optimal position size)
-    - Regime adjustments (adjust size based on market regime)
     """
     
     def __init__(
@@ -77,7 +74,6 @@ class PositionSizer:
         self.signal_calculation_mode = signal_calculation_mode
         
         # Initialize components
-        self.regime_detector = RegimeDetector(data_fetcher)
         self.backtester = FullBacktester(
             data_fetcher=data_fetcher,
             signal_mode=signal_mode,
@@ -91,16 +87,14 @@ class PositionSizer:
         account_balance: float,
         signal_type: str,
         **kwargs,
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Calculate optimal position size for a symbol.
         
         Workflow:
-        1. Detect current regime via HMM
-        2. Run backtest to get performance metrics
-        3. Calculate Kelly fraction from metrics
-        4. Adjust Kelly fraction based on regime
-        5. Calculate position size in USDT
+        1. Run backtest to get performance metrics
+        2. Calculate Kelly fraction from metrics
+        3. Calculate position size in USDT
         
         Args:
             symbol: Trading pair symbol (e.g., "BTC/USDT")
@@ -111,16 +105,15 @@ class PositionSizer:
         Returns:
             Dictionary with position sizing results:
             {
-                'symbol': str,
-                'signal_type': str,
-                'regime': str,
-                'position_size_usdt': float,
-                'position_size_pct': float,
-                'kelly_fraction': float,
-                'adjusted_kelly_fraction': float,
-                'regime_multiplier': float,
-                'metrics': dict,
-                'backtest_result': dict,
+                'symbol': str,  # Trading pair symbol (e.g., "BTC/USDT")
+                'signal_type': str,  # "LONG" or "SHORT"
+                'position_size_usdt': float,  # Position size in USDT
+                'position_size_pct': float,  # Position size as percentage of account
+                'kelly_fraction': float,  # Raw Kelly fraction calculated from backtest metrics
+                'adjusted_kelly_fraction': float,  # Kelly fraction adjusted by cumulative performance multiplier and bounds
+                'cumulative_performance_multiplier': float,  # Multiplier based on cumulative equity curve performance (0.5-1.5x)
+                'metrics': dict,  # Backtest performance metrics (win_rate, avg_win, avg_loss, etc.)
+                'backtest_result': dict,  # Full backtest result including trades and equity curve
             }
         """
         try:
@@ -147,19 +140,8 @@ class PositionSizer:
                 log_warn(f"No data available for {symbol}")
                 return self._empty_result(symbol, signal_type)
             
-            # Step 1: Detect current regime
-            log_progress(f"  Step 1: Detecting regime for {symbol}...")
-            regime = self.regime_detector.detect_regime(
-                symbol=symbol,
-                timeframe=timeframe,
-                limit=lookback_candles,
-                df=df,
-            )
-            
-            regime_multiplier = REGIME_MULTIPLIERS.get(regime, 1.0) if regime else 1.0
-            
-            # Step 2: Run backtest
-            log_progress(f"  Step 2: Running backtest for {symbol}...")
+            # Step 1: Run backtest
+            log_progress(f"  Step 1: Running backtest for {symbol}...")
             backtest_result = self.backtester.backtest(
                 symbol=symbol,
                 timeframe=timeframe,
@@ -171,8 +153,8 @@ class PositionSizer:
             metrics = backtest_result.get('metrics', {})
             equity_curve = backtest_result.get('equity_curve')
             
-            # Step 3: Calculate Kelly fraction
-            log_progress(f"  Step 3: Calculating Kelly fraction for {symbol}...")
+            # Step 2: Calculate Kelly fraction
+            log_progress(f"  Step 2: Calculating Kelly fraction for {symbol}...")
             # Log metrics for debugging
             log_progress(f"    Metrics: win_rate={metrics.get('win_rate', 0.0):.2%}, "
                         f"num_trades={metrics.get('num_trades', 0)}, "
@@ -181,7 +163,14 @@ class PositionSizer:
             kelly_fraction = self.kelly_calculator.calculate_kelly_from_metrics(metrics)
             log_progress(f"    Kelly fraction calculated: {kelly_fraction:.4f}")
             
-            # Step 3.5: Adjust Kelly fraction based on cumulative performance (if equity curve available)
+            # Step 2.5: Adjust Kelly fraction based on cumulative performance (if equity curve available)
+            # NOTE: Overfitting Risk Mitigation
+            # The cumulative performance multiplier can induce overfitting by basing position-size adjustments
+            # solely on past equity changes, especially when the sample size (number of trades) is small.
+            # To mitigate this, we apply a confidence factor based on trade count:
+            # - Low trade count (< threshold) = low confidence = smaller multiplier adjustments
+            # - High trade count (>= threshold) = high confidence = full multiplier adjustments
+            # This prevents overfitting to small-sample performance fluctuations.
             cumulative_performance_multiplier = 1.0
             if equity_curve is not None and len(equity_curve) > 0:
                 try:
@@ -191,23 +180,58 @@ class PositionSizer:
                     if initial_capital > 0:
                         cumulative_performance = (final_equity - initial_capital) / initial_capital
                         
+                        # Get trade count for confidence calculation
+                        # Derive from metrics if available, otherwise try to get from backtest_result
+                        trades_count = metrics.get('num_trades', 0)
+                        if trades_count == 0 and backtest_result:
+                            trades = backtest_result.get('trades', [])
+                            if trades is not None:
+                                trades_count = len(trades) if isinstance(trades, (list, pd.Series)) else 0
+                        
+                        # Calculate confidence factor based on trade count [0, 1]
+                        # Maps number_of_trades to confidence weight: more trades = higher confidence
+                        confidence = self._calculate_trade_count_confidence(trades_count)
+                        
                         # Adjust multiplier based on cumulative performance
                         # Positive performance: increase position size (up to 1.5x)
                         # Negative performance: decrease position size (down to 0.5x)
                         if cumulative_performance > 0:
                             # Scale from 0 to 0.5 -> multiplier from 1.0 to 1.5
-                            cumulative_performance_multiplier = 1.0 + min(0.5, cumulative_performance) * 1.0
+                            raw_multiplier = 1.0 + min(0.5, cumulative_performance)
                         elif cumulative_performance < 0:
                             # Scale from 0 to -0.5 -> multiplier from 1.0 to 0.5
-                            cumulative_performance_multiplier = 1.0 + max(-0.5, cumulative_performance) * 1.0
+                            raw_multiplier = 1.0 + max(-0.5, cumulative_performance)
+                        else:
+                            raw_multiplier = 1.0
                         
-                        log_progress(f"  Cumulative performance: {cumulative_performance*100:.2f}%, multiplier: {cumulative_performance_multiplier:.3f}")
+                        # Compute capped_multiplier (conservative multiplier with ±0.25 cap) before branching
+                        # This ensures it exists for all confidence values and enables smooth blending
+                        max_adjustment = 0.25
+                        raw_range = 0.5  # Raw adjustment range for cumulative performance scaling
+                        raw_scale = min(raw_range, abs(cumulative_performance))
+                        scaled_adjustment = raw_scale * (max_adjustment / raw_range)
+                        if cumulative_performance > 0:
+                            capped_multiplier = 1.0 + scaled_adjustment
+                        elif cumulative_performance < 0:
+                            capped_multiplier = 1.0 - scaled_adjustment
+                        else:
+                            capped_multiplier = 1.0
+                        
+                        # Apply confidence factor: blend between raw (aggressive) and capped (conservative) multipliers
+                        # Single continuous formula ensures smooth transition at confidence=0.5
+                        # Higher confidence = more weight on raw_multiplier (aggressive)
+                        # Lower confidence = more weight on capped_multiplier (conservative)
+                        cumulative_performance_multiplier = confidence * raw_multiplier + (1.0 - confidence) * capped_multiplier
+                        
+                        log_progress(f"  Cumulative performance: {cumulative_performance*100:.2f}%, "
+                                   f"trades: {trades_count}, confidence: {confidence:.3f}, "
+                                   f"multiplier: {cumulative_performance_multiplier:.3f}")
                 except Exception as e:
                     log_warn(f"Error calculating cumulative performance: {e}")
                     cumulative_performance_multiplier = 1.0
             
-            # Step 4: Adjust for regime and cumulative performance
-            adjusted_kelly_fraction = kelly_fraction * regime_multiplier * cumulative_performance_multiplier
+            # Step 3: Adjust for cumulative performance
+            adjusted_kelly_fraction = kelly_fraction * cumulative_performance_multiplier
             
             # Apply bounds
             # FIX: Don't clamp to min_position_size if kelly_fraction is 0.0 (no trades or invalid)
@@ -223,19 +247,17 @@ class PositionSizer:
                     min(self.max_position_size, adjusted_kelly_fraction)
                 )
             
-            # Step 5: Calculate position size in USDT
+            # Step 4: Calculate position size in USDT
             position_size_usdt = account_balance * adjusted_kelly_fraction
             position_size_pct = adjusted_kelly_fraction * 100
             
             result = {
                 'symbol': symbol,
                 'signal_type': signal_type.upper(),
-                'regime': regime,
                 'position_size_usdt': position_size_usdt,
                 'position_size_pct': position_size_pct,
                 'kelly_fraction': kelly_fraction,
                 'adjusted_kelly_fraction': adjusted_kelly_fraction,
-                'regime_multiplier': regime_multiplier,
                 'cumulative_performance_multiplier': cumulative_performance_multiplier,
                 'metrics': metrics,
                 'backtest_result': backtest_result,
@@ -252,10 +274,10 @@ class PositionSizer:
     
     def calculate_portfolio_allocation(
         self,
-        symbols: List[Dict],
+        symbols: List[Dict[str, Any]],
         account_balance: float,
         **kwargs,
-    ) -> pd.DataFrame:
+    ) -> DataFrame:
         """
         Calculate position sizing for multiple symbols (portfolio allocation).
         
@@ -352,17 +374,51 @@ class PositionSizer:
         
         return df
     
-    def _empty_result(self, symbol: str, signal_type: str) -> Dict:
+    def _calculate_trade_count_confidence(self, trades_count: int, min_trades_threshold: int = 30) -> float:
+        """
+        Calculate confidence factor based on trade count to mitigate overfitting.
+        
+        Maps number_of_trades to a [0, 1] confidence weight:
+        - Few trades (< threshold) = low confidence (closer to 0)
+        - Many trades (>= threshold) = high confidence (closer to 1)
+        
+        This prevents overfitting by reducing position-size adjustments when
+        the sample size is too small to reliably estimate performance.
+        
+        Args:
+            trades_count: Number of trades executed in the backtest
+            min_trades_threshold: Minimum number of trades for high confidence (default: 30)
+            
+        Returns:
+            Confidence factor in range [0, 1] where:
+            - 0.0 = very low confidence (few trades)
+            - 1.0 = high confidence (many trades)
+        """
+        if trades_count <= 0:
+            return 0.0
+        
+        # Use a sigmoid-like function to map trade count to confidence
+        # At threshold trades, confidence should be around 0.5
+        # As trades increase beyond threshold, confidence approaches 1.0
+        # Below threshold, confidence approaches 0.0
+        normalized = trades_count / min_trades_threshold
+        # Smooth sigmoid-like curve: confidence = 1 / (1 + exp(-k*(x - 1)))
+        # Using k=2 for a reasonable transition
+        confidence = 1.0 / (1.0 + math.exp(-2.0 * (normalized - 1.0)))
+        
+        # Clamp to [0, 1] range
+        return max(0.0, min(1.0, confidence))
+    
+    def _empty_result(self, symbol: str, signal_type: str) -> Dict[str, Any]:
         """Return empty result structure."""
         return {
             'symbol': symbol,
             'signal_type': signal_type.upper(),
-            'regime': 'NEUTRAL',
             'position_size_usdt': 0.0,
             'position_size_pct': 0.0,
             'kelly_fraction': 0.0,
             'adjusted_kelly_fraction': 0.0,
-            'regime_multiplier': 1.0,
+            'cumulative_performance_multiplier': 1.0,
             'metrics': {
                 'win_rate': 0.0,
                 'avg_win': 0.0,
@@ -379,4 +435,3 @@ class PositionSizer:
                 'metrics': {},
             },
         }
-

@@ -40,6 +40,13 @@ KELLY_PRIOR_BETA = 2.0  # Prior failure count
 KELLY_MIN_FRACTION = 0.0  # Minimum Kelly fraction (0%)
 KELLY_MAX_FRACTION = 0.30  # Maximum Kelly fraction (30% of account)
 
+# Kelly Conservative Estimation Thresholds
+# Used when determining whether to use lower bound or posterior mean
+KELLY_MIN_LOWER_BOUND_THRESHOLD = 0.1  # Minimum acceptable lower bound (below this, use posterior mean)
+KELLY_SMALL_SAMPLE_SIZE = 20  # Sample size threshold for small sample adjustment
+KELLY_LOWER_BOUND_MEAN_RATIO = 0.7  # Ratio threshold: if lower_bound < posterior_mean * this, use posterior mean
+KELLY_POSTERIOR_MEAN_DISCOUNT = 0.9  # Discount factor applied to posterior mean when used instead of lower bound
+
 # Backtest Entry/Exit Rules
 BACKTEST_STOP_LOSS_PCT = 0.02  # 2% stop loss
 BACKTEST_TAKE_PROFIT_PCT = 0.04  # 4% take profit

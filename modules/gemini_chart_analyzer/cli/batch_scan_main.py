@@ -22,7 +22,7 @@ configure_windows_stdio()
 from colorama import Fore, init as colorama_init
 from modules.common.utils import color_text, log_error, log_warn
 from modules.common.utils import normalize_timeframe
-from modules.gemini_chart_analyzer.core.market_batch_scanner import MarketBatchScanner
+from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
 
 import warnings
 # Suppress specific noisy warnings if needed
@@ -105,8 +105,8 @@ def interactive_batch_scan():
             log_warn("Invalid input, using default 2.5s")
     
     # Get candles limit
-    limit_input = input(color_text("Number of candles per symbol [200]: ", Fore.YELLOW)).strip()
-    limit = 200
+    limit_input = input(color_text("Number of candles per symbol [500]: ", Fore.YELLOW)).strip()
+    limit = 500
     if limit_input:
         try:
             limit = int(limit_input)
@@ -115,7 +115,7 @@ def interactive_batch_scan():
                 log_warn(f"limit ({limit}) must be >= 1, clamping to 1")
                 limit = 1
         except ValueError:
-            log_warn("Invalid input, using default 200")
+            log_warn("Invalid input, using default 500")
     else:
         # Validate default value
         if limit < 1:
@@ -165,7 +165,9 @@ def interactive_batch_scan():
         if results.get('long_symbols_with_confidence'):
             print("  (Sorted by confidence: High → Low)")
             for symbol, confidence in results['long_symbols_with_confidence']:
-                confidence_bar = "█" * int(confidence * 10)  # Visual bar
+                clamped_confidence = min(max(confidence, 0.0), 1.0)
+                length = int(clamped_confidence * 10)
+                confidence_bar = "█" * length  # Visual bar
                 print(f"  {symbol:15s} | Confidence: {confidence:.2f} {confidence_bar}")
         elif results['long_symbols']:
             # Fallback if confidence data not available
@@ -181,7 +183,9 @@ def interactive_batch_scan():
         if results.get('short_symbols_with_confidence'):
             print("  (Sorted by confidence: High → Low)")
             for symbol, confidence in results['short_symbols_with_confidence']:
-                confidence_bar = "█" * int(confidence * 10)  # Visual bar
+                clamped_confidence = min(max(confidence, 0.0), 1.0)
+                length = int(clamped_confidence * 10)
+                confidence_bar = "█" * length  # Visual bar
                 print(f"  {symbol:15s} | Confidence: {confidence:.2f} {confidence_bar}")
         elif results['short_symbols']:
             # Fallback if confidence data not available
@@ -230,4 +234,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

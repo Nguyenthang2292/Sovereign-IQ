@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from config import (
     CONFIDENCE_THRESHOLDS,
 )
-from modules.common.ui.logging import log_model, log_warn
+from modules.common.ui.logging import log_error, log_model, log_warn
 
 
 def evaluate_model_with_confidence(
@@ -21,23 +21,23 @@ def evaluate_model_with_confidence(
     """Evaluate the model's performance at various confidence thresholds."""
     # Input validation
     if model is None:
-        log_model("Model is None, cannot evaluate.")
+        log_warn("Model is None, cannot evaluate.")
         return
     if features_test is None or features_test.empty:
-        log_model("Test features are None or empty, cannot evaluate.")
+        log_warn("Test features are None or empty, cannot evaluate.")
         return
     if target_test is None or target_test.empty:
-        log_model("Test target is None or empty, cannot evaluate.")
+        log_warn("Test target is None or empty, cannot evaluate.")
         return
     if len(features_test) != len(target_test):
-        log_model(f"Length mismatch: features ({len(features_test)}) != target ({len(target_test)})")
+        log_warn(f"Length mismatch: features ({len(features_test)}) != target ({len(target_test)})")
         return
     
     log_model("Evaluating model performance with different confidence thresholds...")
     try:
         y_proba = model.predict_proba(features_test)
     except (ValueError, AttributeError) as e:
-        log_model(f"Error during prediction: {e}")
+        log_error(f"Error during prediction: {e}")
         return
     # Ensure y_proba is numpy.ndarray and model.classes_ is numpy.ndarray
     y_proba = np.asarray(y_proba)
@@ -85,7 +85,7 @@ def calculate_and_display_metrics(
     """
     # Handle empty arrays early to avoid RuntimeWarnings
     if len(y_true) == 0 or len(y_pred) == 0:
-        log_model(f"Empty arrays provided. y_true length: {len(y_true)}, y_pred length: {len(y_pred)}")
+        log_warn(f"Empty arrays provided. y_true length: {len(y_true)}, y_pred length: {len(y_pred)}")
         return
     
     # Ensure both y_true and y_pred are numeric for consistent label types

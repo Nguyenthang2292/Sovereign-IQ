@@ -214,3 +214,4 @@ class TestParseArgs:
         assert result.no_ma is True
         assert result.enable_bb is True
 
+

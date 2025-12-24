@@ -1,5 +1,5 @@
 """
-Tests for MultiTFBatchChartGenerator class.
+Tests for ChartMultiTimeframeBatchGenerator class.
 
 Tests cover:
 - Initialization with default and custom parameters
@@ -17,10 +17,10 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 
-from modules.gemini_chart_analyzer.core.multi_tf_batch_chart_generator import (
-    MultiTFBatchChartGenerator,
-    _get_charts_dir
+from modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_generator import (
+    ChartMultiTimeframeBatchGenerator
 )
+from modules.gemini_chart_analyzer.core.utils.chart_paths import get_charts_dir
 
 
 @pytest.fixture
@@ -68,14 +68,14 @@ def symbols_data(sample_ohlcv_data):
 
 @pytest.fixture
 def default_generator():
-    """Create MultiTFBatchChartGenerator with default parameters."""
-    return MultiTFBatchChartGenerator()
+    """Create ChartMultiTimeframeBatchGenerator with default parameters."""
+    return ChartMultiTimeframeBatchGenerator()
 
 
 @pytest.fixture
 def custom_generator():
-    """Create MultiTFBatchChartGenerator with custom parameters."""
-    return MultiTFBatchChartGenerator(
+    """Create ChartMultiTimeframeBatchGenerator with custom parameters."""
+    return ChartMultiTimeframeBatchGenerator(
         charts_per_batch=10,
         timeframes_per_symbol=3,
         chart_size=(2.0, 1.5),
@@ -91,8 +91,8 @@ def temp_output_dir(tmp_path):
     return output_dir
 
 
-class TestMultiTFBatchChartGeneratorInit:
-    """Test MultiTFBatchChartGenerator initialization."""
+class TestChartMultiTimeframeBatchGeneratorInit:
+    """Test ChartMultiTimeframeBatchGenerator initialization."""
     
     def test_init_default_params(self, default_generator):
         """Test initialization with default parameters."""
@@ -134,9 +134,9 @@ class TestMultiTFBatchChartGeneratorInit:
                default_generator.symbols_per_batch * default_generator.timeframes_per_symbol
     
     def test_inherits_from_batch_chart_generator(self, default_generator):
-        """Test that MultiTFBatchChartGenerator inherits from BatchChartGenerator."""
-        from modules.gemini_chart_analyzer.core.batch_chart_generator import BatchChartGenerator
-        assert isinstance(default_generator, BatchChartGenerator)
+        """Test that ChartMultiTimeframeBatchGenerator inherits from ChartBatchGenerator."""
+        from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
+        assert isinstance(default_generator, ChartBatchGenerator)
 
 
 class TestCreateMultiTFBatchChart:
@@ -162,7 +162,7 @@ class TestCreateMultiTFBatchChart:
         """Test chart creation with auto-generated path."""
         timeframes = ['15m', '1h', '4h', '1d']
         
-        with patch('modules.gemini_chart_analyzer.core.multi_tf_batch_chart_generator._get_charts_dir') as mock_dir:
+        with patch('modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_generator.get_charts_dir') as mock_dir:
             mock_dir.return_value = temp_output_dir.parent
             
             result_path, truncated = default_generator.create_multi_tf_batch_chart(
@@ -302,18 +302,18 @@ class TestCreateMultiTFBatchChart:
 
 
 class TestGetChartsDir:
-    """Test _get_charts_dir function."""
+    """Test get_charts_dir function."""
     
     def test_get_charts_dir_returns_path(self):
-        """Test that _get_charts_dir returns a Path object."""
-        charts_dir = _get_charts_dir()
+        """Test that get_charts_dir returns a Path object."""
+        charts_dir = get_charts_dir()
         assert isinstance(charts_dir, Path)
     
     def test_get_charts_dir_relative_to_module(self):
         """Test that charts directory is relative to module root."""
-        charts_dir = _get_charts_dir()
+        charts_dir = get_charts_dir()
         # Should be in modules/gemini_chart_analyzer/charts
-        assert 'gemini_chart_analyzer' in str(charts_dir) or 'charts' in str(charts_dir)
+        assert charts_dir.parts[-3:] == ("modules", "gemini_chart_analyzer", "charts")
 
 
 class TestErrorHandling:
@@ -396,7 +396,7 @@ class TestIntegration:
         """Test that batch_id appears in auto-generated filename."""
         timeframes = ['15m', '1h']
         
-        with patch('modules.gemini_chart_analyzer.core.multi_tf_batch_chart_generator._get_charts_dir') as mock_dir:
+        with patch('modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_generator.get_charts_dir') as mock_dir:
             mock_dir.return_value = temp_output_dir.parent
             
             result_path, _ = default_generator.create_multi_tf_batch_chart(
@@ -406,4 +406,5 @@ class TestIntegration:
             )
             
             assert 'batch42' in result_path or 'batch_42' in result_path
+
 

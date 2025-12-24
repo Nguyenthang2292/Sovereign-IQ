@@ -43,9 +43,9 @@ def calculate_kama_atc(
         TypeError: If prices is not a pandas Series.
     """
     if not isinstance(prices, pd.Series):
-        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")
+        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")  # pyright: ignore[reportUnreachable]
     
-    if prices is None or len(prices) == 0:
+    if len(prices) == 0:
         log_warn("Empty prices series provided for KAMA calculation")
         return None
     
@@ -121,9 +121,9 @@ def ma_calculation(
         TypeError: If source is not a pandas Series.
     """
     if not isinstance(source, pd.Series):
-        raise TypeError(f"source must be a pandas Series, got {type(source)}")
+        raise TypeError(f"source must be a pandas Series, got {type(source)}")  # pyright: ignore[reportUnreachable]
     
-    if source is None or len(source) == 0:
+    if len(source) == 0:
         log_warn("Empty source series provided for MA calculation")
         return None
     
@@ -222,9 +222,9 @@ def set_of_moving_averages(
     """
     # Input validation
     if not isinstance(source, pd.Series):
-        raise TypeError(f"source must be a pandas Series, got {type(source)}")
+        raise TypeError(f"source must be a pandas Series, got {type(source)}")  # pyright: ignore[reportUnreachable]
     
-    if source is None or len(source) == 0:
+    if len(source) == 0:
         log_warn("Empty source series provided for set_of_moving_averages")
         return None
     

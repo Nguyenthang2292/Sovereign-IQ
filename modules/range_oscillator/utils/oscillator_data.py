@@ -55,8 +55,6 @@ def get_oscillator_data(
             raise ValueError("range_atr contains only NaN values")
         
         # Validate index alignment
-        # DEBUG POINT: Pre-calculated data index alignment check
-        # Check: osc_index_len, ma_index_len, range_atr_index_len, index.equals()
         if not oscillator.index.equals(ma.index) or not ma.index.equals(range_atr.index):
             raise ValueError("oscillator, ma, and range_atr must have the same index")
         
@@ -130,7 +128,7 @@ def get_oscillator_data(
         if not high.index.equals(low.index) or not low.index.equals(close.index):
             raise ValueError("high, low, and close must have the same index")
         
-        oscillator, _, ma, range_atr = calculate_range_oscillator(
+        oscillator, ma, range_atr = calculate_range_oscillator(
             high=high,
             low=low,
             close=close,

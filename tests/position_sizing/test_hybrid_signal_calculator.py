@@ -162,6 +162,74 @@ def test_combine_signals_insufficient_agreement(mock_data_fetcher):
     assert confidence == 0.0
 
 
+def test_combine_signals_majority_vote_valid_signal_types(mock_data_fetcher):
+    """Test that valid signal types (case-insensitive) work correctly."""
+    calculator = HybridSignalCalculator(mock_data_fetcher)
+    
+    indicator_signals = [
+        {'indicator': 'osc', 'signal': 1, 'confidence': 0.8},
+        {'indicator': 'spc', 'signal': 1, 'confidence': 0.7},
+    ]
+    
+    # Test valid uppercase
+    signal, confidence = calculator.combine_signals_majority_vote(
+        indicator_signals,
+        expected_signal_type="LONG",
+    )
+    assert signal in [0, 1]
+    
+    signal, confidence = calculator.combine_signals_majority_vote(
+        indicator_signals,
+        expected_signal_type="SHORT",
+    )
+    assert signal in [-1, 0]
+    
+    # Test valid lowercase
+    signal, confidence = calculator.combine_signals_majority_vote(
+        indicator_signals,
+        expected_signal_type="long",
+    )
+    assert signal in [0, 1]
+    
+    signal, confidence = calculator.combine_signals_majority_vote(
+        indicator_signals,
+        expected_signal_type="short",
+    )
+    assert signal in [-1, 0]
+    
+    # Test valid mixed case
+    signal, confidence = calculator.combine_signals_majority_vote(
+        indicator_signals,
+        expected_signal_type="Long",
+    )
+    assert signal in [0, 1]
+    
+    signal, confidence = calculator.combine_signals_majority_vote(
+        indicator_signals,
+        expected_signal_type="ShOrT",
+    )
+    assert signal in [-1, 0]
+
+
+def test_combine_signals_majority_vote_invalid_signal_type(mock_data_fetcher):
+    """Test that invalid signal types raise ValueError."""
+    calculator = HybridSignalCalculator(mock_data_fetcher)
+    
+    indicator_signals = [
+        {'indicator': 'osc', 'signal': 1, 'confidence': 0.8},
+    ]
+    
+    # Test various invalid values
+    invalid_values = ["NEUTRAL", "HOLD", "BUY", "SELL", "", "invalid", "123", None]
+    
+    for invalid_value in invalid_values:
+        with pytest.raises(ValueError, match="Invalid expected_signal_type"):
+            calculator.combine_signals_majority_vote(
+                indicator_signals,
+                expected_signal_type=invalid_value,
+            )
+
+
 def test_clear_cache(mock_data_fetcher):
     """Test cache clearing."""
     calculator = HybridSignalCalculator(mock_data_fetcher)

@@ -1,5 +1,5 @@
 """
-Tests for GeminiAnalyzer class.
+Tests for GeminiChartAnalyzer class.
 
 Tests cover:
 - Initialization with API key
@@ -11,7 +11,7 @@ Tests cover:
 import pytest
 from unittest.mock import Mock, patch
 
-from modules.gemini_chart_analyzer.core.gemini_analyzer import GeminiAnalyzer
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
 
 
 @pytest.fixture
@@ -50,22 +50,22 @@ def mock_genai_old_api():
 @pytest.fixture
 def mock_analyzer_new_api(mock_api_key):
     """Fixture that sets up mocked genai with new API and returns analyzer, mock_client, mock_genai."""
-    with patch('modules.gemini_chart_analyzer.core.gemini_analyzer.genai') as mock_genai:
+    with patch('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai') as mock_genai:
         mock_client = Mock()
         mock_genai.Client = Mock(return_value=mock_client)
         mock_model = Mock()
         mock_model.name = 'models/gemini-2.5-flash'
         mock_client.models.list = Mock(return_value=[mock_model])
         
-        analyzer = GeminiAnalyzer(api_key=mock_api_key)
+        analyzer = GeminiChartAnalyzer(api_key=mock_api_key)
         
         yield (analyzer, mock_client, mock_genai)
 
 
-class TestGeminiAnalyzerInit:
-    """Test GeminiAnalyzer initialization."""
+class TestGeminiChartAnalyzerInit:
+    """Test GeminiChartAnalyzer initialization."""
     
-    @patch('modules.gemini_chart_analyzer.core.gemini_analyzer.genai')
+    @patch('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai')
     def test_init_with_api_key_new_api(self, mock_genai, mock_api_key):
         """Test initialization with API key using new API (Client)."""
         # Mock new API with Client
@@ -77,7 +77,7 @@ class TestGeminiAnalyzerInit:
         mock_model.name = 'models/gemini-2.5-flash'
         mock_client.models.list = Mock(return_value=[mock_model])
         
-        analyzer = GeminiAnalyzer(api_key=mock_api_key)
+        analyzer = GeminiChartAnalyzer(api_key=mock_api_key)
         
         assert analyzer.use_new_api is True
         assert analyzer.client == mock_client
@@ -86,15 +86,15 @@ class TestGeminiAnalyzerInit:
         """Test initialization with API key using old API (configure)."""
         mock_genai, mock_model = mock_genai_old_api
         # Patch the genai module with our fixture mock
-        monkeypatch.setattr('modules.gemini_chart_analyzer.core.gemini_analyzer.genai', mock_genai)
+        monkeypatch.setattr('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai', mock_genai)
         
-        analyzer = GeminiAnalyzer(api_key=mock_api_key)
+        analyzer = GeminiChartAnalyzer(api_key=mock_api_key)
         
         assert analyzer.use_new_api is False
         assert analyzer.model == mock_model
         mock_genai.configure.assert_called_once_with(api_key=mock_api_key)
     
-    @patch('modules.gemini_chart_analyzer.core.gemini_analyzer.genai')
+    @patch('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai')
     def test_init_from_config(self, mock_genai):
         """Test initialization with API key from config."""
         # Mock new API
@@ -106,25 +106,25 @@ class TestGeminiAnalyzerInit:
         mock_client.models.list = Mock(return_value=[mock_model])
         
         with patch('config.config_api.GEMINI_API_KEY', 'config-key-123'):
-            analyzer = GeminiAnalyzer()
+            analyzer = GeminiChartAnalyzer()
             
             assert analyzer.use_new_api is True
     
-    @patch('modules.gemini_chart_analyzer.core.gemini_analyzer.genai')
+    @patch('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai')
     def test_init_no_api_key_raises_error(self, mock_genai):
         """Test initialization without API key raises error."""
         with patch('config.config_api.GEMINI_API_KEY', None):
-            with pytest.raises(ValueError, match="GEMINI_API_KEY không được cung cấp"):
-                GeminiAnalyzer()
+            with pytest.raises(ValueError, match="GEMINI_API_KEY not provided"):
+                GeminiChartAnalyzer()
     
-    @patch('modules.gemini_chart_analyzer.core.gemini_analyzer.genai')
+    @patch('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai')
     def test_init_empty_api_key_raises_error(self, mock_genai):
         """Test initialization with empty API key raises error."""
-        with pytest.raises(ValueError, match="GEMINI_API_KEY không được cung cấp"):
-            GeminiAnalyzer(api_key="")
+        with pytest.raises(ValueError, match="GEMINI_API_KEY not provided"):
+            GeminiChartAnalyzer(api_key="")
 
 
-class TestGeminiAnalyzerPrompts:
+class TestGeminiChartAnalyzerPrompts:
     """Test prompt generation."""
     
     def test_get_prompt_detailed(self, mock_analyzer_new_api):
@@ -170,7 +170,7 @@ class TestGeminiAnalyzerPrompts:
         assert "1h" in prompt
 
 
-class TestGeminiAnalyzerAnalyzeChart:
+class TestGeminiChartAnalyzerAnalyzeChart:
     """Test chart analysis functionality."""
     
     @patch('PIL.Image.open')
@@ -203,7 +203,7 @@ class TestGeminiAnalyzerAnalyzeChart:
         """Test chart analysis using old API."""
         mock_genai, mock_model = mock_genai_old_api
         # Patch the genai module with our fixture mock
-        monkeypatch.setattr('modules.gemini_chart_analyzer.core.gemini_analyzer.genai', mock_genai)
+        monkeypatch.setattr('modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai', mock_genai)
         
         # Mock image
         mock_img = Mock()
@@ -216,7 +216,7 @@ class TestGeminiAnalyzerAnalyzeChart:
         mock_response.text = "Bearish signal detected."
         mock_model.generate_content = Mock(return_value=mock_response)
         
-        analyzer = GeminiAnalyzer(api_key=mock_api_key)
+        analyzer = GeminiChartAnalyzer(api_key=mock_api_key)
         result = analyzer.analyze_chart(
             image_path=sample_image_path,
             symbol="ETH/USDT",
@@ -262,7 +262,7 @@ class TestGeminiAnalyzerAnalyzeChart:
         """Test chart analysis with non-existent file raises error."""
         analyzer, mock_client, mock_genai = mock_analyzer_new_api
         
-        with pytest.raises(FileNotFoundError, match="Không tìm thấy file ảnh"):
+        with pytest.raises(FileNotFoundError, match="Chart image file not found"):
             analyzer.analyze_chart(
                 image_path="/nonexistent/path/chart.png",
                 symbol="BTC/USDT",
@@ -289,3 +289,4 @@ class TestGeminiAnalyzerAnalyzeChart:
                 symbol="BTC/USDT",
                 timeframe="1h"
             )
+

@@ -7,34 +7,12 @@ and interactive configuration menu for chart analysis with Gemini AI.
 
 import sys
 import argparse
-from typing import Optional
-from colorama import Fore, Style
+from colorama import Fore
 
 from modules.common.utils import (
     color_text,
-    prompt_user_input,
     normalize_timeframe,
 )
-from modules.common.ui.formatting import prompt_user_input_with_backspace
-
-
-def _format_current_value(value) -> str:
-    """Format current value for display in menu."""
-    if value is None:
-        return "not set"
-    if isinstance(value, bool):
-        return "enabled" if value else "disabled"
-    if isinstance(value, str):
-        return value
-    if isinstance(value, list):
-        return ", ".join(str(v) for v in value)
-    if isinstance(value, dict):
-        if 'periods' in value:
-            return f"periods={value['periods']}"
-        if 'period' in value:
-            return f"period={value['period']}"
-        return str(value)
-    return str(value)
 
 
 def parse_args():
@@ -209,4 +187,5 @@ Examples:
         args.timeframes_list = None
     
     return args
+
 

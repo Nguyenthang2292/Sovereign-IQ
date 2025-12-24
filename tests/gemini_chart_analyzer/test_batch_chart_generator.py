@@ -1,5 +1,5 @@
 """
-Tests for BatchChartGenerator class.
+Tests for ChartBatchGenerator class.
 
 Tests cover:
 - Initialization with custom parameters
@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from modules.gemini_chart_analyzer.core.batch_chart_generator import BatchChartGenerator
+from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
 
 
 @pytest.fixture
@@ -56,8 +56,8 @@ def multiple_symbols_data(sample_ohlcv_data):
 
 @pytest.fixture
 def batch_generator():
-    """Create BatchChartGenerator instance for testing."""
-    return BatchChartGenerator(
+    """Create ChartBatchGenerator instance for testing."""
+    return ChartBatchGenerator(
         charts_per_batch=100,
         grid_rows=10,
         grid_cols=10,
@@ -66,12 +66,12 @@ def batch_generator():
     )
 
 
-class TestBatchChartGeneratorInit:
-    """Test BatchChartGenerator initialization."""
+class TestChartBatchGeneratorInit:
+    """Test ChartBatchGenerator initialization."""
     
     def test_init_default_params(self):
         """Test initialization with default parameters."""
-        generator = BatchChartGenerator()
+        generator = ChartBatchGenerator()
         assert generator.charts_per_batch == 100
         assert generator.grid_rows == 10
         assert generator.grid_cols == 10
@@ -80,7 +80,7 @@ class TestBatchChartGeneratorInit:
     
     def test_init_custom_params(self):
         """Test initialization with custom parameters."""
-        generator = BatchChartGenerator(
+        generator = ChartBatchGenerator(
             charts_per_batch=25,
             grid_rows=5,
             grid_cols=5,
@@ -96,14 +96,72 @@ class TestBatchChartGeneratorInit:
     def test_init_invalid_grid_raises_error(self):
         """Test initialization with invalid grid dimensions raises error."""
         with pytest.raises(ValueError, match="grid_rows.*grid_cols.*must equal"):
-            BatchChartGenerator(
+            ChartBatchGenerator(
                 charts_per_batch=100,
                 grid_rows=10,
                 grid_cols=5  # 10 * 5 != 100
             )
+    
+    def test_init_invalid_chart_size_raises_error(self):
+        """Test initialization with invalid chart_size values raises error."""
+        # Test with zero width
+        with pytest.raises(ValueError, match="chart_size.*width and height must be positive"):
+            ChartBatchGenerator(
+                charts_per_batch=100,
+                grid_rows=10,
+                grid_cols=10,
+                chart_size=(0.0, 1.5)
+            )
+        
+        # Test with negative height
+        with pytest.raises(ValueError, match="chart_size.*width and height must be positive"):
+            ChartBatchGenerator(
+                charts_per_batch=100,
+                grid_rows=10,
+                grid_cols=10,
+                chart_size=(2.0, -1.5)
+            )
+        
+        # Test with non-tuple type (string)
+        with pytest.raises(ValueError, match="chart_size must be a tuple or list of 2 elements"):
+            ChartBatchGenerator(
+                charts_per_batch=100,
+                grid_rows=10,
+                grid_cols=10,
+                chart_size="invalid"
+            )
+        
+        # Test with non-tuple type (int)
+        with pytest.raises(ValueError, match="chart_size must be a tuple or list of 2 elements"):
+            ChartBatchGenerator(
+                charts_per_batch=100,
+                grid_rows=10,
+                grid_cols=10,
+                chart_size=5
+            )
+    
+    def test_init_invalid_dpi_raises_error(self):
+        """Test initialization with invalid dpi values raises error."""
+        # Test with zero dpi
+        with pytest.raises(ValueError, match="dpi must be positive"):
+            ChartBatchGenerator(
+                charts_per_batch=100,
+                grid_rows=10,
+                grid_cols=10,
+                dpi=0
+            )
+        
+        # Test with negative dpi
+        with pytest.raises(ValueError, match="dpi must be positive"):
+            ChartBatchGenerator(
+                charts_per_batch=100,
+                grid_rows=10,
+                grid_cols=10,
+                dpi=-100
+            )
 
 
-class TestBatchChartGeneratorCreateBatchChart:
+class TestChartBatchGeneratorCreateBatchChart:
     """Test batch chart creation functionality."""
     
     def test_create_batch_chart_basic(self, batch_generator, multiple_symbols_data, tmp_path):
@@ -121,24 +179,19 @@ class TestBatchChartGeneratorCreateBatchChart:
         assert os.path.exists(result_path)
         assert os.path.getsize(result_path) > 0
     
-    def test_create_batch_chart_auto_path(self, batch_generator, multiple_symbols_data, tmp_path):
+    def test_create_batch_chart_auto_path(self, batch_generator, multiple_symbols_data, tmp_path, monkeypatch):
         """Test batch chart creation with automatic path generation."""
-        # Temporarily change to temp directory
-        original_cwd = os.getcwd()
-        try:
-            os.chdir(str(tmp_path))
-            result_path, truncated = batch_generator.create_batch_chart(
-                symbols_data=multiple_symbols_data[:5],
-                timeframe="1h",
-                batch_id=1
-            )
-            
-            assert not truncated
-            assert os.path.exists(result_path)
-            assert "batch_chart" in result_path
-            assert "1h" in result_path
-        finally:
-            os.chdir(original_cwd)
+        monkeypatch.chdir(str(tmp_path))
+        result_path, truncated = batch_generator.create_batch_chart(
+            symbols_data=multiple_symbols_data[:5],
+            timeframe="1h",
+            batch_id=1
+        )
+        
+        assert not truncated
+        assert os.path.exists(result_path)
+        assert "batch_chart" in result_path
+        assert "1h" in result_path
     
     def test_create_batch_chart_too_many_symbols(self, batch_generator, multiple_symbols_data, tmp_path):
         """Test batch chart creation with too many symbols (should truncate)."""
@@ -206,7 +259,7 @@ class TestBatchChartGeneratorCreateBatchChart:
         assert os.path.exists(result_path)
 
 
-class TestBatchChartGeneratorPlotSimpleChart:
+class TestChartBatchGeneratorPlotSimpleChart:
     """Test _plot_simple_chart_on_axes method."""
     
     def test_plot_simple_chart_valid_data(self, batch_generator, sample_ohlcv_data):
@@ -274,4 +327,5 @@ class TestBatchChartGeneratorPlotSimpleChart:
         )
         
         plt.close(fig)
+
 

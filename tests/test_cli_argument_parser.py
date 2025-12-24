@@ -23,6 +23,7 @@ from cli.argument_parser import (
     _configure_random_forest,
     _configure_decision_matrix,
     _review_and_confirm,
+    parse_args,
 )
 from config import (
     DECISION_MATRIX_VOTING_THRESHOLD,
@@ -447,3 +448,122 @@ class TestInteractiveConfigMenu:
             assert config.use_decision_matrix is False
             assert config.spc_strategy == "all"
 
+
+class TestParseArgs:
+    """Test parse_args function."""
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py'])
+    @patch('cli.argument_parser.interactive_config_menu')
+    def test_parse_args_no_arguments_calls_interactive_menu(self, mock_interactive_menu):
+        """Test that parse_args calls interactive menu when no arguments provided."""
+        mock_interactive_menu.return_value = MagicMock()
+        
+        result = parse_args(mode="hybrid")
+        
+        mock_interactive_menu.assert_called_once_with(mode="hybrid")
+        assert result is not None
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--timeframe', '1h'])
+    def test_parse_args_with_timeframe(self):
+        """Test parse_args with timeframe argument."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.timeframe == "1h"
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--timeframe', '30m', '--limit', '1000'])
+    def test_parse_args_multiple_args(self):
+        """Test parse_args with multiple arguments."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.timeframe == "30m"
+        assert args.limit == 1000
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--enable-spc', '--spc-k', '3'])
+    def test_parse_args_spc_config(self):
+        """Test parse_args with SPC configuration."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.enable_spc is True  # Should be forced enabled
+        assert args.spc_k == 3
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--enable-xgboost'])
+    def test_parse_args_xgboost(self):
+        """Test parse_args with XGBoost enabled."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.enable_xgboost is True
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--enable-hmm'])
+    def test_parse_args_hmm(self):
+        """Test parse_args with HMM enabled."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.enable_hmm is True
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--enable-random-forest'])
+    def test_parse_args_random_forest(self):
+        """Test parse_args with Random Forest enabled."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.enable_random_forest is True
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--voting-threshold', '0.7', '--min-votes', '3'])
+    def test_parse_args_decision_matrix(self):
+        """Test parse_args with Decision Matrix parameters."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.voting_threshold == 0.7
+        assert args.min_votes == 3
+        assert args.use_decision_matrix is True  # Should be forced enabled
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--timeframe', '1h'])
+    def test_parse_args_force_enable_decision_matrix(self):
+        """Test that force_enable_decision_matrix parameter works."""
+        args = parse_args(mode="hybrid", force_enable_decision_matrix=True)
+        
+        assert args.use_decision_matrix is True
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--timeframe', '1h'])
+    def test_parse_args_hybrid_mode_defaults(self):
+        """Test parse_args defaults in hybrid mode."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.enable_spc is True  # Forced enabled
+        assert args.use_decision_matrix is True  # Forced enabled
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--timeframe', '1h'])
+    def test_parse_args_voting_mode(self):
+        """Test parse_args in voting mode."""
+        args = parse_args(mode="voting")
+        
+        assert args.enable_spc is True  # Forced enabled
+        # In voting mode, verify decision matrix default behavior
+        assert args.use_decision_matrix is False  # Default for voting mode    
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--timeframe', '1h', '--osc-strategies', '5', '6', '7'])
+    def test_parse_args_osc_strategies(self):
+        """Test parse_args with oscillator strategies."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.osc_strategies == [5, 6, 7]
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--timeframe', '1h', '--hmm-strict-mode'])
+    def test_parse_args_hmm_strict_mode(self):
+        """Test parse_args with HMM strict mode."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.hmm_strict_mode is True
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--timeframe', '1h', '--robustness', 'Wide'])
+    def test_parse_args_robustness(self):
+        """Test parse_args with robustness setting."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.robustness == "Wide"
+    
+    @patch('cli.argument_parser.sys.argv', ['script.py', '--timeframe', '1h', '--lambda', '0.8'])
+    def test_parse_args_lambda_param(self):
+        """Test parse_args with lambda parameter."""
+        args = parse_args(mode="hybrid")
+        
+        assert args.lambda_param == 0.8

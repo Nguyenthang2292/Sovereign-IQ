@@ -5,13 +5,13 @@ This module provides utilities for generating signal summary statistics.
 """
 
 import pandas as pd
-
+from typing import Any, Dict
 
 def get_signal_summary(
     signals: pd.Series,
     signal_strength: pd.Series,
     close: pd.Series,
-) -> dict:
+) -> Dict[str, Any]:
     """
     Generate summary statistics for signal strategy.
     
@@ -23,15 +23,12 @@ def get_signal_summary(
     Returns:
         Dictionary with summary statistics
     """
-    # DEBUG POINT: Signal summary entry - Check input data lengths and index alignment
-    # Check: signals_len, strength_len, close_len, signals_index_match
-    
     # Input validation
     if signals is None or signal_strength is None or close is None:
-        raise ValueError("All input parameters (signals, signal_strength, close) must be provided")
+        raise ValueError("All input parameters (signals, signal_strength, close) must be provided")  # pyright: ignore[reportGeneralTypeIssues]
     
     if not isinstance(signals, pd.Series) or not isinstance(signal_strength, pd.Series) or not isinstance(close, pd.Series):
-        raise TypeError("All input parameters must be pandas Series")
+        raise TypeError("All input parameters must be pandas Series")  # pyright: ignore[reportGeneralTypeIssues]
     
     if len(signals) == 0:
         return {

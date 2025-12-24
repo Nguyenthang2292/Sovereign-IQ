@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
 import joblib
-import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -22,11 +21,10 @@ from config import (
 )
 from config.model_features import MODEL_FEATURES
 from modules.common.ui.logging import (
-    log_info,
     log_model,
     log_error,
     log_warn,
-    log_progress,
+    log_progress,      
 )
 from modules.random_forest.utils.data_preparation import prepare_training_data
 from modules.random_forest.utils.training import apply_smote, create_model_and_weights
@@ -45,22 +43,22 @@ def load_random_forest_model(model_path: Optional[Path] = None) -> Optional[Rand
     if model_path is None:
         model_path = MODELS_DIR / RANDOM_FOREST_MODEL_FILENAME
     if not model_path.exists():
-        log_error(f"Model file not found at: {model_path}")
+        log_error(f"Model file not found at: {model_path}")  
         return None
     try:
         model = joblib.load(model_path)
         log_model(f"Successfully loaded model from: {model_path}")
         return model
     except (OSError, IOError, ValueError) as e:
-        log_error(f"Error loading model from {model_path}: {e}")
+        log_error(f"Error loading model from {model_path}: {e}")  
         return None
 
 
-def train_random_forest_model(df_input: pd.DataFrame, save_model: bool = True) -> Optional[RandomForestClassifier]:
+def train_random_forest_model(df_input: Optional[pd.DataFrame], save_model: bool = True) -> Optional[RandomForestClassifier]:
     """Train and save Random Forest model for trading signal prediction.
 
     Args:
-        df_input (pd.DataFrame): Input OHLCV data.
+        df_input (Optional[pd.DataFrame]): Input OHLCV data.
         save_model (bool): If True, save model after training.
 
     Returns:
@@ -74,13 +72,13 @@ def train_random_forest_model(df_input: pd.DataFrame, save_model: bool = True) -
         log_error(f"Input must be a pandas DataFrame, got {type(df_input)}")
         return None
     if df_input.empty:
-        log_error("Input DataFrame for training is empty.")
+        log_error("Input DataFrame for training is empty.")  
         return None
     # Check required columns
     required_cols = ['open', 'high', 'low', 'close', 'volume']
     missing_cols = [col for col in required_cols if col not in df_input.columns]
     if missing_cols:
-        log_error(f"Missing required columns: {missing_cols}")
+        log_error(f"Missing required columns: {missing_cols}")  
         return None
     df_processed = df_input.copy()
     if len(df_processed) > MAX_TRAINING_ROWS:
@@ -97,7 +95,7 @@ def train_random_forest_model(df_input: pd.DataFrame, save_model: bool = True) -
         return None
     features, target = prepared_data
     if len(target.value_counts()) < 2:
-        log_error("Cannot train model with only one class present in the target variable.")
+        log_error("Cannot train model with only one class present in the target variable.")  
         return None
     features_resampled, target_resampled = apply_smote(features, target)
     features_train, features_test, target_train, target_test = train_test_split(
@@ -118,7 +116,7 @@ def train_random_forest_model(df_input: pd.DataFrame, save_model: bool = True) -
         model.fit(features_train, target_train)
         log_model("Model training completed successfully.")
     except (ValueError, RuntimeError) as e:
-        log_error(f"An error occurred during model.fit: {e}")
+        log_error(f"An error occurred during model.fit: {e}")  
         return None
     evaluate_model_with_confidence(model, features_test, target_test)
     if save_model:
@@ -129,7 +127,7 @@ def train_random_forest_model(df_input: pd.DataFrame, save_model: bool = True) -
             joblib.dump(model, model_path)
             log_model(f"Model successfully saved to: {model_path}")
         except (OSError, IOError) as e:
-            log_error(f"Error saving model to {model_path}: {e}")
+            log_error(f"Error saving model to {model_path}: {e}")  
     return model
 
 
@@ -148,14 +146,14 @@ def train_and_save_global_rf_model(
     """
     if combined_df.empty:
         log_error(
-            "The combined DataFrame for global model training is empty."
+            "The combined DataFrame for global model training is empty."  
         )
         return None, ""
     log_model("Starting training for the global Random Forest model...")
     model = train_random_forest_model(combined_df, save_model=False)
     if model is None:
         log_error(
-            "Global model training failed."
+            "Global model training failed." 
         )
         return None, ""
     filename = (
@@ -172,7 +170,7 @@ def train_and_save_global_rf_model(
         return model, str(model_path)
     except (OSError, IOError) as e:
         log_error(
-            f"Error saving global model to {model_path}: {e}"
+            f"Error saving global model to {model_path}: {e}"  
         )
         return None, ""
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Layer 1 Processing functions for Adaptive Trend Classification (ATC).
 
 This module provides functions for processing signals from multiple Moving
@@ -8,7 +10,7 @@ Averages in Layer 1 of the ATC system:
 - _layer1_signal_for_ma: Calculate Layer 1 signal for a specific MA type
 """
 
-from __future__ import annotations
+from pandas.core.series import Series
 
 from typing import Iterable, Tuple
 
@@ -39,10 +41,12 @@ def weighted_signal(
 
     Args:
         signals: Iterable of signal series (typically 9 series).
-        weights: Iterable of weight series (typically equity curves).
+    Args:
+        signals: Iterable of signal series (typically 9 series).
+        weights: Iterable of weight series (typically 9 equity curves).
 
     Returns:
-        Weighted signal series rounded to 2 decimal places.
+        pd.Series: Weighted average signal rounded to 2 decimal places.
 
     Raises:
         ValueError: If signals and weights have different lengths or are empty.
@@ -62,7 +66,7 @@ def weighted_signal(
         return pd.Series(dtype="float64")
 
     # Validate all inputs are Series
-    for i, (sig, wgt) in enumerate(zip(signals, weights)):
+    for i, (sig, wgt) in enumerate(zip(signals, weights)):        
         if not isinstance(sig, pd.Series):
             raise TypeError(f"signals[{i}] must be a pandas Series, got {type(sig)}")
         if not isinstance(wgt, pd.Series):
@@ -170,7 +174,7 @@ def cut_signal(x: pd.Series, threshold: float = 0.49, cutout: int = 0) -> pd.Ser
         TypeError: If x is not a pandas Series.
     """
     if not isinstance(x, pd.Series):
-        raise TypeError(f"x must be a pandas Series, got {type(x)}")
+        raise TypeError(f"x must be a pandas Series, got {type(x)}")  # pyright: ignore[reportUnreachable]
     
     if threshold < 0:
         raise ValueError(f"threshold must be >= 0, got {threshold}")
@@ -237,7 +241,7 @@ def trend_sign(signal: pd.Series, *, strategy: bool = False) -> pd.Series:
         TypeError: If signal is not a pandas Series.
     """
     if not isinstance(signal, pd.Series):
-        raise TypeError(f"signal must be a pandas Series, got {type(signal)}")
+        raise TypeError(f"signal must be a pandas Series, got {type(signal)}")  # pyright: ignore[reportUnreachable]
     
     if len(signal) == 0:
         log_warn("Empty signal series provided, returning empty series")
@@ -301,13 +305,13 @@ def _layer1_signal_for_ma(
     """
     # Input validation
     if not isinstance(prices, pd.Series):
-        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")
+        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")  # pyright: ignore[reportUnreachable]    
     
     if len(prices) == 0:
         raise ValueError("prices cannot be empty")
     
     if not isinstance(ma_tuple, tuple):
-        raise TypeError(f"ma_tuple must be a tuple, got {type(ma_tuple)}")
+        raise TypeError(f"ma_tuple must be a tuple, got {type(ma_tuple)}")  # pyright: ignore[reportUnreachable]
     
     EXPECTED_MA_COUNT = 9
     if len(ma_tuple) != EXPECTED_MA_COUNT:

@@ -5,16 +5,15 @@ Combines multiple HMM strategies to generate trading signals using
 a registry-based approach for scalability.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 import pandas as pd
 
-from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
+from modules.hmm.signals.strategy import HMMStrategyResult
 from modules.hmm.signals.registry import HMMStrategyRegistry, get_default_registry
 from modules.hmm.signals.voting import VotingMechanism
 from modules.hmm.signals.utils import validate_dataframe
 from modules.common.indicators import calculate_returns_volatility
 from modules.hmm.signals.scoring import (
-    normalize_scores,
     calculate_strategy_scores,
     normalize_strategy_scores,
 )
@@ -33,7 +32,6 @@ from modules.common.utils import log_error, log_info
 __all__ = ['HMMSignalCombiner', 'combine_signals', 'Signal']
 
 from config import (
-    HMM_PROBABILITY_THRESHOLD,
     HMM_SIGNAL_MIN_THRESHOLD,
     HMM_HIGH_ORDER_MAX_SCORE,
     HMM_FEATURES,

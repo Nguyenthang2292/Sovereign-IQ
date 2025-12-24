@@ -18,7 +18,19 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-from modules.gemini_chart_analyzer.core.market_batch_scanner import MarketBatchScanner
+try:
+    import ccxt
+    AuthenticationError = ccxt.AuthenticationError
+except ImportError:
+    # Fallback if ccxt is not available for testing
+    class AuthenticationError(Exception):
+        """Local AuthenticationError for tests if ccxt is not available."""
+        pass
+
+from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import (
+    MarketBatchScanner,
+    SymbolFetchError
+)
 
 @pytest.fixture
 def sample_symbols():
@@ -26,16 +38,27 @@ def sample_symbols():
     return ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT", "ADA/USDT"]
 
 
+@pytest.fixture
+def mock_scanner_dependencies():
+    """Fixture to patch all MarketBatchScanner dependencies."""
+    with patch('modules.gemini_chart_analyzer.core.scanners.market_batch_scanner.ExchangeManager') as mock_exchange, \
+         patch('modules.gemini_chart_analyzer.core.scanners.market_batch_scanner.PublicExchangeManager') as mock_public_exchange, \
+         patch('modules.gemini_chart_analyzer.core.scanners.market_batch_scanner.DataFetcher') as mock_data_fetcher, \
+         patch('modules.gemini_chart_analyzer.core.scanners.market_batch_scanner.ChartBatchGenerator') as mock_batch_chart, \
+         patch('modules.gemini_chart_analyzer.core.scanners.market_batch_scanner.GeminiBatchChartAnalyzer') as mock_batch_analyzer:
+        yield {
+            'exchange': mock_exchange,
+            'public_exchange': mock_public_exchange,
+            'data_fetcher': mock_data_fetcher,
+            'batch_chart': mock_batch_chart,
+            'batch_analyzer': mock_batch_analyzer
+        }
+
+
 class TestMarketBatchScannerInit:
     """Test MarketBatchScanner initialization."""
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_init_default_params(self, mock_batch_analyzer, mock_batch_chart, 
-                                 mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_init_default_params(self, mock_scanner_dependencies):
         """Test initialization with default parameters."""
         scanner = MarketBatchScanner()
         
@@ -45,13 +68,7 @@ class TestMarketBatchScannerInit:
         assert scanner.min_candles == MarketBatchScanner.MIN_CANDLES
         assert scanner.exchange_name == 'binance'  # Default value
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_init_custom_params(self, mock_batch_analyzer, mock_batch_chart,
-                                mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_init_custom_params(self, mock_scanner_dependencies):
         """Test initialization with custom parameters."""
         scanner = MarketBatchScanner(
             charts_per_batch=50,
@@ -66,13 +83,7 @@ class TestMarketBatchScannerInit:
         assert scanner.min_candles == 30
         assert scanner.exchange_name == 'binance'  # Default value
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_init_min_candles_validation(self, mock_batch_analyzer, mock_batch_chart,
-                                         mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_init_min_candles_validation(self, mock_scanner_dependencies):
         """Test min_candles validation."""
         # Test invalid min_candles (<= 0)
         with pytest.raises(ValueError, match="min_candles must be greater than 0"):
@@ -81,13 +92,7 @@ class TestMarketBatchScannerInit:
         with pytest.raises(ValueError, match="min_candles must be greater than 0"):
             MarketBatchScanner(min_candles=-1)
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_init_with_exchange_name(self, mock_batch_analyzer, mock_batch_chart,
-                                     mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_init_with_exchange_name(self, mock_scanner_dependencies):
         """Test initialization with custom exchange name."""
         scanner = MarketBatchScanner(exchange_name='okx')
         
@@ -97,14 +102,7 @@ class TestMarketBatchScannerInit:
 class TestMarketBatchScannerGetSymbols:
     """Test symbol fetching."""
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_get_all_symbols_success(self, mock_batch_analyzer, mock_batch_chart,
-                                     mock_data_fetcher, mock_public_exchange, mock_exchange,
-                                     sample_symbols):
+    def test_get_all_symbols_success(self, mock_scanner_dependencies, sample_symbols):
         """Test successful symbol fetching."""
         scanner = MarketBatchScanner()
         
@@ -117,6 +115,7 @@ class TestMarketBatchScannerGetSymbols:
                 'type': 'spot'
             }
         
+        mock_exchange = mock_scanner_dependencies['exchange']
         mock_exchange.load_markets.return_value = mock_markets
         mock_connect = Mock(return_value=mock_exchange)
         scanner.public_exchange_manager.connect_to_exchange_with_no_credentials = mock_connect
@@ -130,14 +129,7 @@ class TestMarketBatchScannerGetSymbols:
         assert "BTC/USDT" in symbols
         assert all(s.endswith('/USDT') for s in symbols)
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_get_all_symbols_with_custom_exchange(self, mock_batch_analyzer, mock_batch_chart,
-                                                   mock_data_fetcher, mock_public_exchange, mock_exchange,
-                                                   sample_symbols):
+    def test_get_all_symbols_with_custom_exchange(self, mock_scanner_dependencies, sample_symbols):
         """Test symbol fetching with custom exchange name."""
         scanner = MarketBatchScanner(exchange_name='okx')
         
@@ -150,6 +142,7 @@ class TestMarketBatchScannerGetSymbols:
                 'type': 'spot'
             }
         
+        mock_exchange = mock_scanner_dependencies['exchange']
         mock_exchange.load_markets.return_value = mock_markets
         mock_connect = Mock(return_value=mock_exchange)
         scanner.public_exchange_manager.connect_to_exchange_with_no_credentials = mock_connect
@@ -162,13 +155,7 @@ class TestMarketBatchScannerGetSymbols:
         assert len(symbols) == 5
         assert "BTC/USDT" in symbols
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_get_all_symbols_filters_inactive(self, mock_batch_analyzer, mock_batch_chart,
-                                              mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_get_all_symbols_filters_inactive(self, mock_scanner_dependencies):
         """Test symbol fetching filters inactive markets."""
         scanner = MarketBatchScanner()
         
@@ -178,6 +165,7 @@ class TestMarketBatchScannerGetSymbols:
             'BNB/USDT': {'quote': 'USDT', 'active': True, 'type': 'spot'}
         }
         
+        mock_exchange = mock_scanner_dependencies['exchange']
         mock_exchange.load_markets.return_value = mock_markets
         scanner.public_exchange_manager.connect_to_exchange_with_no_credentials = Mock(
             return_value=mock_exchange
@@ -190,36 +178,76 @@ class TestMarketBatchScannerGetSymbols:
         assert "BNB/USDT" in symbols
         assert "ETH/USDT" not in symbols
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_get_all_symbols_error_handling(self, mock_batch_analyzer, mock_batch_chart,
-                                           mock_data_fetcher, mock_public_exchange, mock_exchange):
-        """Test symbol fetching error handling."""
+    def test_get_all_symbols_error_handling(self, mock_scanner_dependencies):
+        """Test symbol fetching error handling raises SymbolFetchError."""
         scanner = MarketBatchScanner()
         
         scanner.public_exchange_manager.connect_to_exchange_with_no_credentials = Mock(
             side_effect=Exception("Connection error")
         )
         
-        symbols = scanner.get_all_symbols()
+        # Should raise SymbolFetchError instead of returning empty list
+        with pytest.raises(SymbolFetchError) as exc_info:
+            scanner.get_all_symbols()
         
-        # Should return empty list on error
-        assert symbols == []
+        # Verify exception properties
+        assert exc_info.value.is_retryable is True  # Connection errors are retryable
+        assert exc_info.value.original_exception is not None
+    
+    def test_get_all_symbols_non_retryable_error(self, mock_scanner_dependencies):
+        """Test symbol fetching with non-retryable error."""
+        scanner = MarketBatchScanner()
+        
+        # Create a non-retryable error (e.g., authentication error)
+        auth_error = AuthenticationError("Invalid API key")
+        scanner.public_exchange_manager.connect_to_exchange_with_no_credentials = Mock(
+            side_effect=auth_error
+        )
+        
+        # Should raise SymbolFetchError with is_retryable=False
+        with pytest.raises(SymbolFetchError) as exc_info:
+            scanner.get_all_symbols()
+        
+        # Non-retryable errors should have is_retryable=False
+        assert exc_info.value.is_retryable is False
+        assert exc_info.value.original_exception is auth_error
+    
+    def test_get_all_symbols_retry_success(self, mock_scanner_dependencies, sample_symbols):
+        """Test symbol fetching with retry logic - succeeds after retry."""
+        scanner = MarketBatchScanner()
+        
+        # Mock markets
+        mock_markets = {}
+        for symbol in sample_symbols:
+            mock_markets[symbol] = {
+                'quote': 'USDT',
+                'active': True,
+                'type': 'spot'
+            }
+        
+        # Mock exchange that fails once then succeeds
+        mock_exchange = Mock()
+        mock_exchange.load_markets = Mock(
+            side_effect=[
+                Exception("503 Service Unavailable"),  # First attempt fails
+                mock_markets  # Second succeeds
+            ]
+        )
+        
+        mock_connect = Mock(return_value=mock_exchange)
+        scanner.public_exchange_manager.connect_to_exchange_with_no_credentials = mock_connect
+        
+        # Should succeed after retry
+        symbols = scanner.get_all_symbols(max_retries=3)
+        assert symbols == sorted(sample_symbols)
+        # Verify retry happened (connect called twice)
+        assert mock_connect.call_count == 2
 
 
 class TestMarketBatchScannerSplitBatches:
     """Test batch splitting."""
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_split_into_batches_exact(self, mock_batch_analyzer, mock_batch_chart,
-                                      mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_split_into_batches_exact(self, mock_scanner_dependencies):
         """Test splitting into exact batch size."""
         scanner = MarketBatchScanner(charts_per_batch=10)
         
@@ -229,13 +257,7 @@ class TestMarketBatchScannerSplitBatches:
         assert len(batches) == 1
         assert len(batches[0]) == 10
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_split_into_batches_multiple(self, mock_batch_analyzer, mock_batch_chart,
-                                        mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_split_into_batches_multiple(self, mock_scanner_dependencies):
         """Test splitting into multiple batches."""
         scanner = MarketBatchScanner(charts_per_batch=10)
         
@@ -247,13 +269,7 @@ class TestMarketBatchScannerSplitBatches:
         assert len(batches[1]) == 10
         assert len(batches[2]) == 5
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_split_into_batches_empty(self, mock_batch_analyzer, mock_batch_chart,
-                                     mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_split_into_batches_empty(self, mock_scanner_dependencies):
         """Test splitting empty symbol list."""
         scanner = MarketBatchScanner()
         
@@ -265,13 +281,7 @@ class TestMarketBatchScannerSplitBatches:
 class TestMarketBatchScannerFetchData:
     """Test data fetching."""
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_fetch_batch_data_success(self, mock_batch_analyzer, mock_batch_chart,
-                                     mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_fetch_batch_data_success(self, mock_scanner_dependencies):
         """Test successful batch data fetching."""
         
         scanner = MarketBatchScanner()
@@ -297,13 +307,7 @@ class TestMarketBatchScannerFetchData:
         assert result[0]['symbol'] == "BTC/USDT"
         assert result[1]['symbol'] == "ETH/USDT"
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_fetch_batch_data_insufficient_data(self, mock_batch_analyzer, mock_batch_chart,
-                                                mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_fetch_batch_data_insufficient_data(self, mock_scanner_dependencies):
         """Test fetching with insufficient data (less than minimum candles)."""
         
         
@@ -329,13 +333,7 @@ class TestMarketBatchScannerFetchData:
         # Should skip symbols with insufficient data
         assert len(result) == 0
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_fetch_batch_data_custom_min_candles(self, mock_batch_analyzer, mock_batch_chart,
-                                                 mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_fetch_batch_data_custom_min_candles(self, mock_scanner_dependencies):
         """Test fetching with custom min_candles threshold."""
         
         # Create scanner with custom min_candles
@@ -381,13 +379,7 @@ class TestMarketBatchScannerFetchData:
         assert len(result) == 1
         assert result[0]['symbol'] == "BTC/USDT"
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_fetch_batch_data_error_handling(self, mock_batch_analyzer, mock_batch_chart,
-                                            mock_data_fetcher, mock_public_exchange, mock_exchange):
+    def test_fetch_batch_data_error_handling(self, mock_scanner_dependencies):
         """Test error handling during data fetching."""
         scanner = MarketBatchScanner()
         
@@ -405,13 +397,7 @@ class TestMarketBatchScannerFetchData:
 class TestMarketBatchScannerSaveResults:
     """Test results saving."""
     
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.ExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.PublicExchangeManager')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.DataFetcher')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchChartGenerator')
-    @patch('modules.gemini_chart_analyzer.core.market_batch_scanner.BatchGeminiAnalyzer')
-    def test_save_results(self, mock_batch_analyzer, mock_batch_chart,
-                         mock_data_fetcher, mock_public_exchange, mock_exchange, tmp_path):
+    def test_save_results(self, mock_scanner_dependencies, tmp_path):
         """Test saving results to JSON file."""
         scanner = MarketBatchScanner()
         
@@ -432,7 +418,7 @@ class TestMarketBatchScannerSaveResults:
         }
         
         # Mock the _get_analysis_results_dir function
-        with patch('modules.gemini_chart_analyzer.core.market_batch_scanner._get_analysis_results_dir',
+        with patch('modules.gemini_chart_analyzer.core.scanners.market_batch_scanner._get_analysis_results_dir',
                    return_value=str(tmp_path / "analysis_results")):
             results_file = scanner._save_results(
                 all_results=all_results,
@@ -453,4 +439,5 @@ class TestMarketBatchScannerSaveResults:
             assert len(data['long_symbols']) == 1
             assert len(data['short_symbols']) == 1
             assert data['summary']['long_count'] == 1
+
 
