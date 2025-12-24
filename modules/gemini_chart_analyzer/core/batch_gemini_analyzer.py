@@ -155,6 +155,71 @@ Lưu ý:
 """
         return prompt
     
+    def _create_multi_tf_batch_prompt(self, symbols: List[str], timeframes: List[str]) -> str:
+        """
+        Create prompt for multi-timeframe batch analysis.
+        
+        Args:
+            symbols: List of symbols in the batch
+            timeframes: List of timeframes to analyze
+        
+        Returns:
+            Prompt string
+        """
+        all_symbols_list = ", ".join(symbols)
+        all_timeframes_list = ", ".join(timeframes)
+        
+        max_display_symbols = 30  # Reduced because prompt is longer
+        if len(symbols) > max_display_symbols:
+            symbols_list = ", ".join(symbols[:max_display_symbols])
+            symbols_list += f", ... (và {len(symbols) - max_display_symbols} symbols khác)"
+            all_symbols_instruction = f"\n\n⚠️ QUAN TRỌNG: Danh sách trên chỉ hiển thị {max_display_symbols} symbols đầu tiên. Bạn PHẢI phân tích TẤT CẢ {len(symbols)} symbols có trong ảnh."
+        else:
+            symbols_list = all_symbols_list
+            all_symbols_instruction = ""
+        
+        prompt = f"""Bạn là một chuyên gia phân tích kỹ thuật tài chính. 
+
+Trong ảnh này có {len(symbols)} symbols, mỗi symbol có {len(timeframes)} biểu đồ nến cho các timeframes khác nhau: {all_timeframes_list}.
+
+Mỗi symbol được hiển thị với các biểu đồ timeframes được sắp xếp trong một grid. Mỗi biểu đồ có nhãn symbol và timeframe ở góc trên trái.
+
+Danh sách tất cả symbols trong batch này: {symbols_list}{all_symbols_instruction}
+
+Nhiệm vụ của bạn:
+1. Phân tích TẤT CẢ biểu đồ trong ảnh (tất cả {len(symbols)} symbols × {len(timeframes)} timeframes)
+2. Đánh giá xu hướng và tín hiệu kỹ thuật cho mỗi symbol trên mỗi timeframe
+3. Đánh dấu mỗi symbol+timeframe theo một trong các tín hiệu sau:
+   - "LONG": Nếu có tín hiệu mua rõ ràng
+   - "SHORT": Nếu có tín hiệu bán rõ ràng
+   - "NONE": Nếu không có tín hiệu rõ ràng
+
+QUAN TRỌNG: Bạn PHẢI trả về kết quả dưới dạng JSON hợp lệ với format sau:
+{{
+  "BTC/USDT": {{
+    "15m": {{"signal": "LONG", "confidence": 0.70}},
+    "1h": {{"signal": "LONG", "confidence": 0.80}},
+    "4h": {{"signal": "SHORT", "confidence": 0.60}},
+    "1d": {{"signal": "LONG", "confidence": 0.75}},
+    "aggregated": {{"signal": "LONG", "confidence": 0.71}}
+  }},
+  "ETH/USDT": {{
+    "15m": {{"signal": "SHORT", "confidence": 0.65}},
+    ...
+  }},
+  ...
+}}
+
+Lưu ý:
+- Chỉ trả về JSON, không có text thêm trước hoặc sau
+- Đảm bảo TẤT CẢ {len(symbols)} symbols đều có trong JSON response
+- Mỗi symbol PHẢI có tất cả {len(timeframes)} timeframes: {all_timeframes_list}
+- Mỗi symbol PHẢI có field "aggregated" với signal và confidence tổng hợp từ các timeframes
+- confidence là số từ 0.0 đến 1.0
+- aggregated confidence nên là weighted average của các timeframes (timeframe lớn hơn = weight cao hơn)
+"""
+        return prompt
+    
     def _analyze_with_custom_prompt(self, image_path: str, prompt: str) -> str:
         """
         Analyze image with custom prompt using parent's infrastructure.

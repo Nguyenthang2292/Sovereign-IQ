@@ -38,14 +38,45 @@ def interactive_batch_scan():
     print(color_text("=" * 60, Fore.CYAN))
     print()
     
-    # Get timeframe
-    print("Timeframes: 15m, 30m, 1h, 4h, 1d, 1w")
-    timeframe = input(color_text("Enter timeframe [1h]: ", Fore.YELLOW)).strip()
-    if not timeframe:
-        timeframe = '1h'
+    # Get timeframe(s) - single or multi
+    print("\nAnalysis mode:")
+    print("  1. Single timeframe")
+    print("  2. Multi-timeframe (recommended)")
+    mode = input(color_text("Select mode (1/2) [2]: ", Fore.YELLOW)).strip()
+    if not mode:
+        mode = '2'
     
-    # Normalize timeframe
-    timeframe = normalize_timeframe(timeframe)
+    timeframe = None
+    timeframes = None
+    
+    if mode == '2':
+        # Multi-timeframe mode
+        from modules.gemini_chart_analyzer.core.utils import DEFAULT_TIMEFRAMES, normalize_timeframes
+        
+        print(f"\nDefault timeframes: {', '.join(DEFAULT_TIMEFRAMES)}")
+        print("Timeframes: 15m, 30m, 1h, 4h, 1d, 1w (comma-separated)")
+        timeframes_input = input(color_text(f"Enter timeframes (comma-separated) [{', '.join(DEFAULT_TIMEFRAMES)}]: ", Fore.YELLOW)).strip()
+        if not timeframes_input:
+            timeframes = DEFAULT_TIMEFRAMES
+        else:
+            try:
+                timeframes_list = [tf.strip() for tf in timeframes_input.split(',') if tf.strip()]
+                timeframes = normalize_timeframes(timeframes_list)
+                if not timeframes:
+                    log_warn("No valid timeframes, using default")
+                    timeframes = DEFAULT_TIMEFRAMES
+            except Exception as e:
+                log_warn(f"Error parsing timeframes: {e}, using default")
+                timeframes = DEFAULT_TIMEFRAMES
+    else:
+        # Single timeframe mode
+        print("\nTimeframes: 15m, 30m, 1h, 4h, 1d, 1w")
+        timeframe = input(color_text("Enter timeframe [1h]: ", Fore.YELLOW)).strip()
+        if not timeframe:
+            timeframe = '1h'
+        
+        # Normalize timeframe
+        timeframe = normalize_timeframe(timeframe)
     
     # Get max symbols (optional)
     max_symbols_input = input(color_text("Max symbols to scan (press Enter for all): ", Fore.YELLOW)).strip()
@@ -96,7 +127,10 @@ def interactive_batch_scan():
     print(color_text("=" * 60, Fore.CYAN))
     print(color_text("CONFIGURATION", Fore.CYAN))
     print(color_text("=" * 60, Fore.CYAN))
-    print(f"Timeframe: {timeframe}")
+    if timeframes:
+        print(f"Timeframes: {', '.join(timeframes)} (Multi-timeframe mode)")
+    else:
+        print(f"Timeframe: {timeframe} (Single timeframe mode)")
     print(f"Max symbols: {max_symbols or 'All'}")
     print(f"Cooldown: {cooldown}s")
     print(f"Candles per symbol: {limit}")
@@ -114,6 +148,7 @@ def interactive_batch_scan():
         # Run scan
         results = scanner.scan_market(
             timeframe=timeframe,
+            timeframes=timeframes,
             max_symbols=max_symbols,
             limit=limit
         )

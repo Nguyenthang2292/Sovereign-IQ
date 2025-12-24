@@ -75,7 +75,8 @@ class MarketBatchScanner:
     
     def scan_market(
         self,
-        timeframe: str = '1h',
+        timeframe: Optional[str] = '1h',
+        timeframes: Optional[List[str]] = None,
         max_symbols: Optional[int] = None,
         limit: int = 200
     ) -> Dict:
@@ -83,7 +84,8 @@ class MarketBatchScanner:
         Scan entire market and return LONG/SHORT signals.
         
         Args:
-            timeframe: Timeframe for charts (default: '1h')
+            timeframe: Single timeframe for charts (default: '1h', ignored if timeframes provided)
+            timeframes: List of timeframes for multi-timeframe analysis (enables multi-TF mode)
             max_symbols: Maximum number of symbols to scan (None = all)
             limit: Number of candles to fetch per symbol (default: 200)
             
@@ -99,6 +101,26 @@ class MarketBatchScanner:
         log_info("MARKET BATCH SCANNER")
         log_info("=" * 60)
         
+        # Determine if multi-timeframe mode
+        is_multi_tf = timeframes is not None and len(timeframes) > 0
+        if is_multi_tf:
+            from modules.gemini_chart_analyzer.core.utils import normalize_timeframes
+            from modules.gemini_chart_analyzer.core.multi_tf_batch_chart_generator import MultiTFBatchChartGenerator
+            from modules.gemini_chart_analyzer.core.signal_aggregator import SignalAggregator
+            
+            normalized_tfs = normalize_timeframes(timeframes)
+            log_info(f"Multi-timeframe mode: {', '.join(normalized_tfs)}")
+            
+            # Use multi-TF batch chart generator
+            multi_tf_generator = MultiTFBatchChartGenerator(
+                charts_per_batch=25,  # Reduced because each symbol has multiple TFs
+                timeframes_per_symbol=len(normalized_tfs)
+            )
+            signal_aggregator = SignalAggregator()
+        else:
+            normalized_tfs = [timeframe] if timeframe else ['1h']
+            log_info(f"Single timeframe mode: {normalized_tfs[0]}")
+        
         # Step 0: Cleanup old batch scan results
         self._cleanup_old_results()
         
@@ -113,8 +135,16 @@ class MarketBatchScanner:
         log_success(f"Found {len(all_symbols)} symbols to scan")
         
         # Step 2: Split into batches
-        batches = self._split_into_batches(all_symbols)
-        log_info(f"Split into {len(batches)} batches ({self.charts_per_batch} symbols per batch)")
+        if is_multi_tf:
+            # For multi-TF, reduce batch size because each symbol takes more space
+            original_batch_size = self.charts_per_batch
+            self.charts_per_batch = 25  # Temporary adjustment
+            batches = self._split_into_batches(all_symbols)
+            self.charts_per_batch = original_batch_size
+        else:
+            batches = self._split_into_batches(all_symbols)
+        
+        log_info(f"Split into {len(batches)} batches ({self.charts_per_batch if not is_multi_tf else 25} symbols per batch)")
         
         # Step 3: Process each batch
         all_results = {}
@@ -126,51 +156,155 @@ class MarketBatchScanner:
             log_info(f"{'='*60}")
             
             try:
-                # Fetch OHLCV data for batch
-                log_info(f"Fetching OHLCV data for {len(batch_symbols)} symbols...")
-                symbols_data = self._fetch_batch_data(batch_symbols, timeframe, limit)
-                
-                if not symbols_data:
-                    log_warn(f"No data fetched for batch {batch_idx}, skipping...")
-                    # Mark all as NONE
+                if is_multi_tf:
+                    # Multi-timeframe: Fetch data for all timeframes
+                    log_info(f"Fetching OHLCV data for {len(batch_symbols)} symbols across {len(normalized_tfs)} timeframes...")
+                    symbols_tf_data = {}  # {symbol: {timeframe: df}}
+                    
                     for symbol in batch_symbols:
-                        all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
-                    continue
-                
-                log_success(f"Fetched data for {len(symbols_data)} symbols")
-                
-                # Generate batch chart
-                log_info("Generating batch chart image...")
-                batch_chart_path, truncated = self.batch_chart_generator.create_batch_chart(
-                    symbols_data=symbols_data,
-                    timeframe=timeframe,
-                    batch_id=batch_idx
-                )
-                if truncated:
-                    log_warn(f"Batch {batch_idx}: Input symbols list was truncated to {self.charts_per_batch} items")
-                
-                # Analyze with Gemini
-                log_info("Sending to Gemini for analysis...")
-                batch_result = self.batch_gemini_analyzer.analyze_batch_chart(
-                    image_path=batch_chart_path,
-                    batch_id=batch_idx,
-                    total_batches=len(batches),
-                    symbols=[sd['symbol'] for sd in symbols_data]
-                )
+                        symbols_tf_data[symbol] = {}
+                        for tf in normalized_tfs:
+                            try:
+                                df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                                    symbol=symbol,
+                                    timeframe=tf,
+                                    limit=limit,
+                                    check_freshness=False
+                                )
+                                if df is not None and not df.empty and len(df) >= self.min_candles:
+                                    symbols_tf_data[symbol][tf] = df
+                            except Exception as e:
+                                log_error(f"Error fetching {symbol} {tf}: {e}")
+                    
+                    # Filter symbols that have data for at least one timeframe
+                    valid_symbols = {sym for sym, tf_data in symbols_tf_data.items() if tf_data}
+                    
+                    if not valid_symbols:
+                        log_warn(f"No valid data for batch {batch_idx}, skipping...")
+                        for symbol in batch_symbols:
+                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                        continue
+                    
+                    log_success(f"Fetched data for {len(valid_symbols)} symbols")
+                    
+                    # Generate multi-TF batch chart
+                    log_info("Generating multi-timeframe batch chart image...")
+                    batch_chart_path, truncated = multi_tf_generator.create_multi_tf_batch_chart(
+                        symbols_data=symbols_tf_data,
+                        timeframes=normalized_tfs,
+                        batch_id=batch_idx
+                    )
+                    
+                    # Analyze with Gemini (multi-TF prompt)
+                    log_info("Sending to Gemini for multi-timeframe analysis...")
+                    prompt = self.batch_gemini_analyzer._create_multi_tf_batch_prompt(list(valid_symbols), normalized_tfs)
+                    response_text = self.batch_gemini_analyzer._analyze_with_custom_prompt(batch_chart_path, prompt)
+                    
+                    # Parse multi-TF JSON response
+                    import json
+                    import re
+                    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(1)
+                    else:
+                        json_match = re.search(r'\{.*?\}', response_text, re.DOTALL)
+                        json_str = json_match.group(0) if json_match else '{}'
+                    
+                    try:
+                        batch_result_raw = json.loads(json_str)
+                    except:
+                        batch_result_raw = {}
+                    
+                    # Aggregate signals for each symbol
+                    batch_result = {}
+                    for symbol in valid_symbols:
+                        if symbol in batch_result_raw:
+                            symbol_data = batch_result_raw[symbol]
+                            # Extract timeframe signals
+                            tf_signals = {}
+                            for tf in normalized_tfs:
+                                if tf in symbol_data:
+                                    tf_signals[tf] = symbol_data[tf]
+                            
+                            # Aggregate
+                            aggregated = signal_aggregator.aggregate_signals(tf_signals)
+                            batch_result[symbol] = {
+                                'timeframes': tf_signals,
+                                'aggregated': aggregated
+                            }
+                        else:
+                            batch_result[symbol] = {
+                                'timeframes': {},
+                                'aggregated': {'signal': 'NONE', 'confidence': 0.0}
+                            }
+                    
+                else:
+                    # Single timeframe: Original logic
+                    # Fetch OHLCV data for batch
+                    log_info(f"Fetching OHLCV data for {len(batch_symbols)} symbols...")
+                    symbols_data = self._fetch_batch_data(batch_symbols, normalized_tfs[0], limit)
+                    
+                    if not symbols_data:
+                        log_warn(f"No data fetched for batch {batch_idx}, skipping...")
+                        # Mark all as NONE
+                        for symbol in batch_symbols:
+                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                        continue
+                    
+                    log_success(f"Fetched data for {len(symbols_data)} symbols")
+                    
+                    # Generate batch chart
+                    log_info("Generating batch chart image...")
+                    batch_chart_path, truncated = self.batch_chart_generator.create_batch_chart(
+                        symbols_data=symbols_data,
+                        timeframe=normalized_tfs[0],
+                        batch_id=batch_idx
+                    )
+                    if truncated:
+                        log_warn(f"Batch {batch_idx}: Input symbols list was truncated to {self.charts_per_batch} items")
+                    
+                    # Analyze with Gemini
+                    log_info("Sending to Gemini for analysis...")
+                    batch_result = self.batch_gemini_analyzer.analyze_batch_chart(
+                        image_path=batch_chart_path,
+                        batch_id=batch_idx,
+                        total_batches=len(batches),
+                        symbols=[sd['symbol'] for sd in symbols_data]
+                    )
                 
                 # Merge results
-                all_results.update(batch_result)
-                batch_results.append({
-                    'batch_id': batch_idx,
-                    'symbols': [sd['symbol'] for sd in symbols_data],
-                    'results': batch_result
-                })
-                
-                # Handle symbols that failed to fetch data
-                fetched_symbols = {sd['symbol'] for sd in symbols_data}
-                for symbol in batch_symbols:
-                    if symbol not in fetched_symbols:
-                        all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                if is_multi_tf:
+                    # For multi-TF, extract aggregated signals
+                    for symbol, result in batch_result.items():
+                        if isinstance(result, dict) and 'aggregated' in result:
+                            all_results[symbol] = result['aggregated']
+                        else:
+                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                    
+                    batch_results.append({
+                        'batch_id': batch_idx,
+                        'symbols': list(valid_symbols),
+                        'results': batch_result
+                    })
+                    
+                    # Handle symbols that failed
+                    for symbol in batch_symbols:
+                        if symbol not in valid_symbols:
+                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                else:
+                    # Single timeframe: Original logic
+                    all_results.update(batch_result)
+                    batch_results.append({
+                        'batch_id': batch_idx,
+                        'symbols': [sd['symbol'] for sd in symbols_data],
+                        'results': batch_result
+                    })
+                    
+                    # Handle symbols that failed to fetch data
+                    fetched_symbols = {sd['symbol'] for sd in symbols_data}
+                    for symbol in batch_symbols:
+                        if symbol not in fetched_symbols:
+                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
                 
             except Exception as e:
                 log_error(f"Error processing batch {batch_idx}: {e}")
@@ -231,9 +365,11 @@ class MarketBatchScanner:
         }
         
         # Save results
+        tf_for_save = normalized_tfs if is_multi_tf else normalized_tfs[0]
         results_file = self._save_results(
-            all_results, long_symbols, short_symbols, summary, timeframe,
-            long_symbols_with_confidence, short_symbols_with_confidence
+            all_results, long_symbols, short_symbols, summary, tf_for_save,
+            long_symbols_with_confidence, short_symbols_with_confidence,
+            timeframes=normalized_tfs if is_multi_tf else None
         )
         
         log_success(f"\n{'='*60}")
@@ -357,7 +493,8 @@ class MarketBatchScanner:
         summary: Dict,
         timeframe: str,
         long_with_confidence: Optional[List[Tuple[str, float]]] = None,
-        short_with_confidence: Optional[List[Tuple[str, float]]] = None
+        short_with_confidence: Optional[List[Tuple[str, float]]] = None,
+        timeframes: Optional[List[str]] = None
     ) -> str:
         """
         Save scan results to JSON file.
@@ -367,7 +504,10 @@ class MarketBatchScanner:
             long_symbols: List of LONG symbols
             short_symbols: List of SHORT symbols
             summary: Summary statistics
-            timeframe: Timeframe string
+            timeframe: Timeframe string (or primary timeframe for multi-TF)
+            long_with_confidence: List of (symbol, confidence) tuples for LONG
+            short_with_confidence: List of (symbol, confidence) tuples for SHORT
+            timeframes: Optional list of timeframes (for multi-TF mode)
             
         Returns:
             Path to saved results file
@@ -377,11 +517,16 @@ class MarketBatchScanner:
         os.makedirs(output_dir, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        results_file = os.path.join(output_dir, f"batch_scan_{timeframe}_{timestamp}.json")
+        if timeframes:
+            tf_str = "_".join(timeframes)
+            results_file = os.path.join(output_dir, f"batch_scan_multi_tf_{tf_str}_{timestamp}.json")
+        else:
+            results_file = os.path.join(output_dir, f"batch_scan_{timeframe}_{timestamp}.json")
         
         results_data = {
             'timestamp': datetime.now().isoformat(),
             'timeframe': timeframe,
+            'timeframes': timeframes if timeframes else [timeframe],
             'summary': summary,
             'long_symbols': long_symbols,  # Sorted by confidence
             'short_symbols': short_symbols,  # Sorted by confidence

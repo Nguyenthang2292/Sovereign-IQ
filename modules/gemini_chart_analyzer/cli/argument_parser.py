@@ -73,7 +73,12 @@ Examples:
         '--timeframe',
         type=str,
         default='1h',
-        help='Timeframe for analysis (default: 1h). Options: 15m/m15, 30m/m30, 1h/h1, 4h/h4, 1d/d1, 1w/w1',
+        help='Timeframe for analysis (default: 1h). Options: 15m/m15, 30m/m30, 1h/h1, 4h/h4, 1d/d1, 1w/w1. Ignored if --timeframes is provided.',
+    )
+    parser.add_argument(
+        '--timeframes',
+        type=str,
+        help='Multiple timeframes for multi-timeframe analysis (comma-separated, e.g., "15m,1h,4h,1d"). If provided, enables multi-timeframe mode.',
     )
     
     # Indicators configuration
@@ -187,6 +192,21 @@ Examples:
     
     # Normalize timeframe (accept both '15m' and 'm15', '1h' and 'h1', etc.)
     args.timeframe = normalize_timeframe(args.timeframe)
+    
+    # Parse timeframes if provided (multi-timeframe mode)
+    if args.timeframes:
+        try:
+            from modules.gemini_chart_analyzer.core.utils import normalize_timeframes
+            timeframes_list = [tf.strip() for tf in args.timeframes.split(',') if tf.strip()]
+            args.timeframes_list = normalize_timeframes(timeframes_list)
+            if not args.timeframes_list:
+                print(color_text("Warning: No valid timeframes found. Using single timeframe mode.", Fore.YELLOW))
+                args.timeframes_list = None
+        except Exception as e:
+            print(color_text(f"Warning: Error parsing timeframes: {e}. Using single timeframe mode.", Fore.YELLOW))
+            args.timeframes_list = None
+    else:
+        args.timeframes_list = None
     
     return args
 

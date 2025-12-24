@@ -48,6 +48,7 @@ def _display_main_menu(config):
     # Format current values
     symbol_val = _format_current_value(getattr(config, 'symbol', None))
     timeframe_val = _format_current_value(getattr(config, 'timeframe', '1h'))
+    timeframes_val = _format_current_value(getattr(config, 'timeframes_list', None))
     
     # Indicators
     ma_val = "disabled"
@@ -72,7 +73,11 @@ def _display_main_menu(config):
     prompt_type_val = _format_current_value(getattr(config, 'prompt_type', 'detailed'))
     custom_prompt_val = _format_current_value(getattr(config, 'custom_prompt', None))
     
-    print(f"  1. Symbol & Timeframe [{color_text(f'{symbol_val} / {timeframe_val}', Fore.GREEN)}]")
+    if timeframes_val and timeframes_val != "not set":
+        tf_display = f'{symbol_val} / Multi-TF: {timeframes_val}'
+    else:
+        tf_display = f'{symbol_val} / {timeframe_val}'
+    print(f"  1. Symbol & Timeframe [{color_text(tf_display, Fore.GREEN)}]")
     print(f"  2. Indicators Configuration [{color_text(f'MA={ma_val}, RSI={rsi_val}, MACD={macd_val}, BB={bb_val}', Fore.GREEN)}]")
     print(f"  3. Gemini Prompt Configuration [{color_text(f'{prompt_type_val}', Fore.GREEN)}]")
     print(f"  4. Review and Confirm")
@@ -122,25 +127,81 @@ def _configure_symbol_timeframe(config):
     if not symbol_input:
         symbol_input = "BTC/USDT"
     
-    # Timeframe
-    current_timeframe = getattr(config, 'timeframe', '1h')
-    print("\nTimeframes: 15m (or m15), 30m (or m30), 1h (or h1), 4h (or h4), 1d (or d1), 1w (or w1)")
-    timeframe_input, action = _prompt_with_back(
-        f"Enter timeframe [{current_timeframe}]: ",
-        default=current_timeframe
+    # Choose single or multi-timeframe mode
+    current_timeframes_list = getattr(config, 'timeframes_list', None)
+    use_multi_tf = current_timeframes_list is not None and len(current_timeframes_list) > 0
+    
+    print("\nAnalysis mode:")
+    print("  1. Single timeframe")
+    print("  2. Multi-timeframe (recommended)")
+    mode_input, action = _prompt_with_back(
+        f"Select mode (1/2) [{('2' if use_multi_tf else '1')}]: ",
+        default='2' if use_multi_tf else '1'
     )
     if action == 'main':
         return ('main', False)
     
-    if not timeframe_input:
-        timeframe_input = '1h'
+    if not mode_input:
+        mode_input = '2' if use_multi_tf else '1'
     
-    # Normalize timeframe (accept both '15m' and 'm15', '1h' and 'h1', etc.)
-    timeframe_input = normalize_timeframe(timeframe_input)
+    changed = (symbol_input != current_symbol)
     
-    changed = (symbol_input != current_symbol) or (timeframe_input != current_timeframe)
+    if mode_input == '2':
+        # Multi-timeframe mode
+        from modules.gemini_chart_analyzer.core.utils import DEFAULT_TIMEFRAMES, normalize_timeframes
+        
+        current_tfs_str = ", ".join(current_timeframes_list) if current_timeframes_list else ", ".join(DEFAULT_TIMEFRAMES)
+        print(f"\nDefault timeframes: {', '.join(DEFAULT_TIMEFRAMES)}")
+        print("Timeframes: 15m, 30m, 1h, 4h, 1d, 1w (comma-separated)")
+        timeframes_input, action = _prompt_with_back(
+            f"Enter timeframes (comma-separated) [{current_tfs_str}]: ",
+            default=current_tfs_str
+        )
+        if action == 'main':
+            return ('main', False)
+        
+        if not timeframes_input:
+            timeframes_input = ", ".join(DEFAULT_TIMEFRAMES)
+        
+        try:
+            timeframes_list = [tf.strip() for tf in timeframes_input.split(',') if tf.strip()]
+            normalized_tfs = normalize_timeframes(timeframes_list)
+            if normalized_tfs:
+                config.timeframes_list = normalized_tfs
+                config.timeframe = None  # Clear single timeframe
+                if normalized_tfs != (current_timeframes_list or []):
+                    changed = True
+            else:
+                print(color_text("Warning: No valid timeframes. Using single timeframe mode.", Fore.YELLOW))
+                config.timeframes_list = None
+                config.timeframe = '1h'
+        except Exception as e:
+            print(color_text(f"Warning: Error parsing timeframes: {e}. Using single timeframe mode.", Fore.YELLOW))
+            config.timeframes_list = None
+            config.timeframe = '1h'
+    else:
+        # Single timeframe mode
+        current_timeframe = getattr(config, 'timeframe', '1h')
+        print("\nTimeframes: 15m (or m15), 30m (or m30), 1h (or h1), 4h (or h4), 1d (or d1), 1w (or w1)")
+        timeframe_input, action = _prompt_with_back(
+            f"Enter timeframe [{current_timeframe}]: ",
+            default=current_timeframe
+        )
+        if action == 'main':
+            return ('main', False)
+        
+        if not timeframe_input:
+            timeframe_input = '1h'
+        
+        # Normalize timeframe (accept both '15m' and 'm15', '1h' and 'h1', etc.)
+        timeframe_input = normalize_timeframe(timeframe_input)
+        
+        config.timeframe = timeframe_input
+        config.timeframes_list = None  # Clear multi-timeframe
+        if timeframe_input != current_timeframe:
+            changed = True
+    
     config.symbol = symbol_input
-    config.timeframe = timeframe_input
     
     return ('main', changed)
 
@@ -351,7 +412,11 @@ def _review_and_confirm(config):
     print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
     
     print(f"\nSymbol: {getattr(config, 'symbol', 'not set')}")
-    print(f"Timeframe: {getattr(config, 'timeframe', '1h')}")
+    timeframes_list = getattr(config, 'timeframes_list', None)
+    if timeframes_list:
+        print(f"Timeframes: {', '.join(timeframes_list)} (Multi-timeframe mode)")
+    else:
+        print(f"Timeframe: {getattr(config, 'timeframe', '1h')} (Single timeframe mode)")
     
     print(f"\nIndicators:")
     indicators = getattr(config, 'indicators', {})

@@ -31,7 +31,7 @@ if '__file__' in globals():
 from modules.common.utils import configure_windows_stdio
 configure_windows_stdio()
 
-from colorama import Fore, init as colorama_init
+from colorama import Fore, Style, init as colorama_init
 from modules.common.utils import color_text, log_info, log_error, log_success, log_warn, normalize_timeframe
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
@@ -48,7 +48,8 @@ def _convert_args_to_config(args):
     """Convert parsed arguments to configuration format."""
     # Extract symbol and timeframe
     symbol = args.symbol
-    timeframe = args.timeframe
+    timeframe = getattr(args, 'timeframe', None)
+    timeframes_list = getattr(args, 'timeframes_list', None)
     
     # Build indicators dict
     indicators = {}
@@ -75,6 +76,7 @@ def _convert_args_to_config(args):
     return {
         'symbol': symbol,
         'timeframe': timeframe,
+        'timeframes_list': timeframes_list,
         'indicators': indicators,
         'prompt_type': prompt_type,
         'custom_prompt': custom_prompt,
@@ -89,7 +91,8 @@ def _convert_menu_to_config(config):
     """Convert interactive menu config to format used by main()."""
     return {
         'symbol': config.symbol,
-        'timeframe': config.timeframe,
+        'timeframe': getattr(config, 'timeframe', None),
+        'timeframes_list': getattr(config, 'timeframes_list', None),
         'indicators': getattr(config, 'indicators', {}),
         'prompt_type': config.prompt_type,
         'custom_prompt': getattr(config, 'custom_prompt', None),
@@ -511,7 +514,8 @@ def main():
         
         # Extract configuration
         symbol = cfg['symbol']
-        timeframe = normalize_timeframe(cfg['timeframe'])  # Normalize timeframe (accept both '15m' and 'm15', etc.)
+        timeframe = cfg.get('timeframe')
+        timeframes_list = cfg.get('timeframes_list')
         indicators = cfg['indicators']
         prompt_type = cfg['prompt_type']
         custom_prompt = cfg.get('custom_prompt')
@@ -525,71 +529,174 @@ def main():
             log_error("Symbol is required. Please provide --symbol or use interactive menu.")
             return
         
+        # Determine if multi-timeframe mode
+        is_multi_tf = timeframes_list is not None and len(timeframes_list) > 0
+        if not is_multi_tf:
+            # Single timeframe mode (backward compatible)
+            if timeframe:
+                timeframe = normalize_timeframe(timeframe)
+            else:
+                timeframe = '1h'  # Default
+        
         # 2. Khởi tạo components
         log_info("Đang khởi tạo ExchangeManager và DataFetcher...")
         exchange_manager = ExchangeManager()
         data_fetcher = DataFetcher(exchange_manager)
         
-        # 3. Fetch dữ liệu OHLCV
-        log_info(f"Đang lấy dữ liệu OHLCV cho {symbol} ({timeframe})...")
-        df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol=symbol,
-            timeframe=timeframe,
-            limit=limit,
-            check_freshness=False
-        )
-        
-        if df is None or df.empty:
-            log_error("Không thể lấy dữ liệu OHLCV. Vui lòng kiểm tra lại symbol và timeframe.")
-            return
-        
-        log_success(f"Đã lấy {len(df)} nến từ {exchange_id}")
-        
-        # 4. Cleanup charts cũ trước khi tạo biểu đồ mới (nếu không bị disable)
-        if not no_cleanup:
-            # Get charts directory from module
-            from modules.gemini_chart_analyzer.core.chart_generator import _get_charts_dir
-            charts_dir = _get_charts_dir()
-            if os.path.exists(charts_dir):
-                cleanup_old_files(charts_dir)
-        
-        # 5. Tạo biểu đồ
-        log_info("Đang tạo biểu đồ...")
-        chart_generator = ChartGenerator(figsize=chart_figsize, style='dark_background', dpi=chart_dpi)
-        
-        chart_path = chart_generator.create_chart(
-            df=df,
-            symbol=symbol,
-            timeframe=timeframe,
-            indicators=indicators or None,  # or just: indicators
-            show_volume=True,
-            show_grid=True
-        )
-        
-        log_success(f"Đã tạo biểu đồ: {chart_path}")
-        
-        # 6. Phân tích bằng Gemini
-        log_info("Đang khởi tạo Gemini Analyzer...")
-        gemini_analyzer = GeminiAnalyzer()
-        
-        log_info("Đang gửi ảnh lên Google Gemini để phân tích...")
-        analysis_result = gemini_analyzer.analyze_chart(
-            image_path=chart_path,
-            symbol=symbol,
-            timeframe=timeframe,
-            prompt_type=prompt_type,
-            custom_prompt=custom_prompt
-        )
-        
-        # 7. Hiển thị kết quả
-        print()
-        print(color_text("=" * 60, Fore.GREEN))
-        print(color_text("KẾT QUẢ PHÂN TÍCH TỪ GEMINI", Fore.GREEN))
-        print(color_text("=" * 60, Fore.GREEN))
-        print()
-        print(analysis_result)
-        print()
-        print(color_text("=" * 60, Fore.GREEN))
+        # 3. Multi-timeframe or single timeframe analysis
+        if is_multi_tf:
+            # Multi-timeframe analysis
+            from modules.gemini_chart_analyzer.core.multi_timeframe_analyzer import MultiTimeframeAnalyzer
+            
+            log_info(f"Multi-timeframe analysis mode: {', '.join(timeframes_list)}")
+            
+            # Cleanup charts cũ
+            if not no_cleanup:
+                from modules.gemini_chart_analyzer.core.chart_generator import _get_charts_dir
+                charts_dir = _get_charts_dir()
+                if os.path.exists(charts_dir):
+                    cleanup_old_files(charts_dir)
+            
+            # Initialize multi-timeframe analyzer
+            mtf_analyzer = MultiTimeframeAnalyzer()
+            
+            # Define helper functions for multi-timeframe analysis
+            def fetch_data_func(sym, tf):
+                df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                    symbol=sym,
+                    timeframe=tf,
+                    limit=limit,
+                    check_freshness=False
+                )
+                return df
+            
+            def generate_chart_func(df, sym, tf):
+                chart_gen = ChartGenerator(figsize=chart_figsize, style='dark_background', dpi=chart_dpi)
+                return chart_gen.create_chart(
+                    df=df,
+                    symbol=sym,
+                    timeframe=tf,
+                    indicators=indicators or None,
+                    show_volume=True,
+                    show_grid=True
+                )
+            
+            def analyze_chart_func(chart_path, sym, tf):
+                gemini_analyzer = GeminiAnalyzer()
+                return gemini_analyzer.analyze_chart(
+                    image_path=chart_path,
+                    symbol=sym,
+                    timeframe=tf,
+                    prompt_type=prompt_type,
+                    custom_prompt=custom_prompt
+                )
+            
+            # Run multi-timeframe analysis
+            results = mtf_analyzer.analyze_deep(
+                symbol=symbol,
+                timeframes=timeframes_list,
+                fetch_data_func=fetch_data_func,
+                generate_chart_func=generate_chart_func,
+                analyze_chart_func=analyze_chart_func
+            )
+            
+            # Display results
+            print()
+            print(color_text("=" * 60, Fore.GREEN))
+            print(color_text("MULTI-TIMEFRAME ANALYSIS RESULTS", Fore.GREEN))
+            print(color_text("=" * 60, Fore.GREEN))
+            print()
+            print(f"Symbol: {symbol}")
+            print()
+            
+            # Display timeframe breakdown
+            for tf in timeframes_list:
+                if tf in results['timeframes']:
+                    tf_result = results['timeframes'][tf]
+                    signal = tf_result.get('signal', 'NONE')
+                    confidence = tf_result.get('confidence', 0.0)
+                    conf_bars = '█' * int(confidence * 10)
+                    print(f"{tf:>4}: {signal:>6} (confidence: {confidence:.2f}) {conf_bars}")
+            
+            print()
+            # Display aggregated result
+            aggregated = results['aggregated']
+            agg_signal = aggregated.get('signal', 'NONE')
+            agg_conf = aggregated.get('confidence', 0.0)
+            agg_bars = '█' * int(agg_conf * 10)
+            print(color_text(f"AGGREGATED: {agg_signal} (confidence: {agg_conf:.2f}) {agg_bars}", Fore.CYAN, Style.BRIGHT))
+            print()
+            print(color_text("=" * 60, Fore.GREEN))
+            
+            # Store results for saving
+            analysis_result = results
+            chart_paths = {}  # Will be populated from results if needed
+            primary_timeframe = timeframes_list[0] if timeframes_list else '1h'
+            
+        else:
+            # Single timeframe analysis (original logic)
+            # 3. Fetch dữ liệu OHLCV
+            log_info(f"Đang lấy dữ liệu OHLCV cho {symbol} ({timeframe})...")
+            df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol=symbol,
+                timeframe=timeframe,
+                limit=limit,
+                check_freshness=False
+            )
+            
+            if df is None or df.empty:
+                log_error("Không thể lấy dữ liệu OHLCV. Vui lòng kiểm tra lại symbol và timeframe.")
+                return
+            
+            log_success(f"Đã lấy {len(df)} nến từ {exchange_id}")
+            
+            # 4. Cleanup charts cũ trước khi tạo biểu đồ mới (nếu không bị disable)
+            if not no_cleanup:
+                # Get charts directory from module
+                from modules.gemini_chart_analyzer.core.chart_generator import _get_charts_dir
+                charts_dir = _get_charts_dir()
+                if os.path.exists(charts_dir):
+                    cleanup_old_files(charts_dir)
+            
+            # 5. Tạo biểu đồ
+            log_info("Đang tạo biểu đồ...")
+            chart_generator = ChartGenerator(figsize=chart_figsize, style='dark_background', dpi=chart_dpi)
+            
+            chart_path = chart_generator.create_chart(
+                df=df,
+                symbol=symbol,
+                timeframe=timeframe,
+                indicators=indicators or None,  # or just: indicators
+                show_volume=True,
+                show_grid=True
+            )
+            
+            log_success(f"Đã tạo biểu đồ: {chart_path}")
+            
+            # 6. Phân tích bằng Gemini
+            log_info("Đang khởi tạo Gemini Analyzer...")
+            gemini_analyzer = GeminiAnalyzer()
+            
+            log_info("Đang gửi ảnh lên Google Gemini để phân tích...")
+            analysis_result = gemini_analyzer.analyze_chart(
+                image_path=chart_path,
+                symbol=symbol,
+                timeframe=timeframe,
+                prompt_type=prompt_type,
+                custom_prompt=custom_prompt
+            )
+            
+            # 7. Hiển thị kết quả
+            print()
+            print(color_text("=" * 60, Fore.GREEN))
+            print(color_text("KẾT QUẢ PHÂN TÍCH TỪ GEMINI", Fore.GREEN))
+            print(color_text("=" * 60, Fore.GREEN))
+            print()
+            print(analysis_result)
+            print()
+            print(color_text("=" * 60, Fore.GREEN))
+            
+            primary_timeframe = timeframe
         
         # 8. Cleanup results cũ trước khi lưu kết quả mới (nếu không bị disable)
         # Get analysis results directory from module
@@ -605,41 +712,92 @@ def main():
         timestamp = report_datetime.strftime("%Y%m%d_%H%M%S")
         safe_symbol = symbol.replace('/', '_').replace(':', '_')
         
-        # Lưu file .txt (backward compatibility)
-        result_file = os.path.join(output_dir, f"{safe_symbol}_{timeframe}_{timestamp}.txt")
-        with open(result_file, 'w', encoding='utf-8') as f:
-            f.write(f"Symbol: {symbol}\n")
-            f.write(f"Timeframe: {timeframe}\n")
-            f.write(f"Chart Path: {chart_path}\n")
-            f.write(f"Prompt Type: {prompt_type}\n")
-            f.write(f"\n{'='*60}\n")
-            f.write("KẾT QUẢ PHÂN TÍCH\n")
-            f.write(f"{'='*60}\n\n")
-            f.write(analysis_result)
-        
-        log_success(f"Đã lưu kết quả phân tích: {result_file}")
-        
-        # 10. Tạo HTML report và mở browser
-        log_info("Đang tạo HTML report...")
-        html_path = generate_html_report(
-            symbol=symbol,
-            timeframe=timeframe,
-            chart_path=chart_path,
-            analysis_result=analysis_result,
-            report_datetime=report_datetime,
-            output_dir=output_dir
-        )
-        
-        log_success(f"Đã tạo HTML report: {html_path}")
-        
-        # Mở HTML trên browser
-        try:
-            html_uri = Path(html_path).resolve().as_uri()
-            webbrowser.open(html_uri)
-            log_success("Đã mở HTML report trên browser")
-        except Exception as e:
-            log_warn(f"Không thể mở browser tự động: {e}")
-            log_info(f"Vui lòng mở file thủ công: {html_path}")
+        if is_multi_tf:
+            # Multi-timeframe: Save JSON and summary text
+            import json
+            
+            # Save JSON with full results
+            json_file = os.path.join(output_dir, f"{safe_symbol}_multi_tf_{timestamp}.json")
+            with open(json_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'symbol': symbol,
+                    'timestamp': report_datetime.isoformat(),
+                    'timeframes_list': timeframes_list,
+                    'timeframes': results['timeframes'],
+                    'aggregated': results['aggregated'],
+                    'prompt_type': prompt_type
+                }, f, indent=2, ensure_ascii=False)
+            
+            log_success(f"Đã lưu JSON kết quả: {json_file}")
+            
+            # Save summary text file
+            result_file = os.path.join(output_dir, f"{safe_symbol}_multi_tf_{timestamp}.txt")
+            with open(result_file, 'w', encoding='utf-8') as f:
+                f.write(f"Symbol: {symbol}\n")
+                f.write(f"Timeframes: {', '.join(timeframes_list)}\n")
+                f.write(f"Prompt Type: {prompt_type}\n")
+                f.write(f"\n{'='*60}\n")
+                f.write("MULTI-TIMEFRAME ANALYSIS RESULTS\n")
+                f.write(f"{'='*60}\n\n")
+                
+                # Timeframe breakdown
+                for tf in timeframes_list:
+                    if tf in results['timeframes']:
+                        tf_result = results['timeframes'][tf]
+                        signal = tf_result.get('signal', 'NONE')
+                        confidence = tf_result.get('confidence', 0.0)
+                        f.write(f"{tf}: {signal} (confidence: {confidence:.2f})\n")
+                        if 'analysis' in tf_result:
+                            f.write(f"  Analysis: {tf_result['analysis'][:200]}...\n")
+                        f.write("\n")
+                
+                # Aggregated result
+                aggregated = results['aggregated']
+                f.write(f"\nAGGREGATED: {aggregated.get('signal', 'NONE')} (confidence: {aggregated.get('confidence', 0.0):.2f})\n")
+            
+            log_success(f"Đã lưu summary: {result_file}")
+            
+            # For HTML, use primary timeframe chart if available
+            # Note: HTML generation for multi-TF would need to be enhanced
+            log_info("HTML report generation for multi-timeframe is not yet implemented")
+            
+        else:
+            # Single timeframe: Original logic
+            # Lưu file .txt (backward compatibility)
+            result_file = os.path.join(output_dir, f"{safe_symbol}_{primary_timeframe}_{timestamp}.txt")
+            with open(result_file, 'w', encoding='utf-8') as f:
+                f.write(f"Symbol: {symbol}\n")
+                f.write(f"Timeframe: {primary_timeframe}\n")
+                f.write(f"Chart Path: {chart_path}\n")
+                f.write(f"Prompt Type: {prompt_type}\n")
+                f.write(f"\n{'='*60}\n")
+                f.write("KẾT QUẢ PHÂN TÍCH\n")
+                f.write(f"{'='*60}\n\n")
+                f.write(analysis_result if isinstance(analysis_result, str) else str(analysis_result))
+            
+            log_success(f"Đã lưu kết quả phân tích: {result_file}")
+            
+            # 10. Tạo HTML report và mở browser
+            log_info("Đang tạo HTML report...")
+            html_path = generate_html_report(
+                symbol=symbol,
+                timeframe=primary_timeframe,
+                chart_path=chart_path,
+                analysis_result=analysis_result if isinstance(analysis_result, str) else str(analysis_result),
+                report_datetime=report_datetime,
+                output_dir=output_dir
+            )
+            
+            log_success(f"Đã tạo HTML report: {html_path}")
+            
+            # Mở HTML trên browser
+            try:
+                html_uri = Path(html_path).resolve().as_uri()
+                webbrowser.open(html_uri)
+                log_success("Đã mở HTML report trên browser")
+            except Exception as e:
+                log_warn(f"Không thể mở browser tự động: {e}")
+                log_info(f"Vui lòng mở file thủ công: {html_path}")
         
     except KeyboardInterrupt:
         log_warn("\nĐã hủy bởi người dùng")

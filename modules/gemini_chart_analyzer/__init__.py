@@ -14,6 +14,9 @@ from modules.gemini_chart_analyzer.core.simple_chart_generator import SimpleChar
 from modules.gemini_chart_analyzer.core.batch_chart_generator import BatchChartGenerator
 from modules.gemini_chart_analyzer.core.batch_gemini_analyzer import BatchGeminiAnalyzer
 from modules.gemini_chart_analyzer.core.market_batch_scanner import MarketBatchScanner
+from modules.gemini_chart_analyzer.core.multi_timeframe_analyzer import MultiTimeframeAnalyzer
+from modules.gemini_chart_analyzer.core.signal_aggregator import SignalAggregator
+from modules.gemini_chart_analyzer.core.multi_tf_batch_chart_generator import MultiTFBatchChartGenerator
 
 __all__ = [
     'ChartGenerator',
@@ -21,6 +24,9 @@ __all__ = [
     'SimpleChartGenerator',
     'BatchChartGenerator',
     'BatchGeminiAnalyzer',
-    'MarketBatchScanner'
+    'MarketBatchScanner',
+    'MultiTimeframeAnalyzer',
+    'SignalAggregator',
+    'MultiTFBatchChartGenerator'
 ]
 

@@ -52,8 +52,15 @@ def _get_fallback_models(primary_model: str) -> list:
     
     # If primary is flash, try other flash models then pro
     if 'flash' in primary_model.lower():
-        if '2.5' in primary_model or '3' in primary_model:
-            # Try other flash versions
+        if '3' in primary_model:
+            # If primary is gemini-3-flash, try 2.5-flash then 1.5-flash then pro
+            fallbacks.extend([
+                'models/gemini-2.5-flash',
+                'models/gemini-1.5-flash',
+                'models/gemini-1.5-pro'
+            ])
+        elif '2.5' in primary_model:
+            # If primary is gemini-2.5-flash, try 1.5-flash then pro
             fallbacks.extend([
                 'models/gemini-1.5-flash',
                 'models/gemini-1.5-pro'
@@ -65,10 +72,11 @@ def _get_fallback_models(primary_model: str) -> list:
                 'models/gemini-1.5-pro'
             ])
     else:
-        # If primary is pro, try flash models
+        # If primary is pro, try flash models (newer first)
         fallbacks.extend([
-            'models/gemini-1.5-flash',
-            'models/gemini-2.5-flash'
+            'models/gemini-3-flash',
+            'models/gemini-2.5-flash',
+            'models/gemini-1.5-flash'
         ])
     
     # Filter out any entries that equal the primary model (case-insensitive, trimmed)
@@ -182,7 +190,7 @@ def _select_best_model(available_models: Optional[list] = None) -> str:
        - Ưu tiên flash variants (gemini-3-flash hoặc gemini-2.5-flash), trả về flash match đầu tiên
        - Nếu không có flash, fallback sang non-flash pro variants (gemini-3 hoặc gemini-2.5)
        - Nếu không có cả hai, chọn model đầu tiên trong danh sách
-    2. Nếu không có available_models: Trả về 'models/gemini-2.5-flash' làm mặc định
+    2. Nếu không có available_models: Trả về 'models/gemini-3-flash' làm mặc định
     
     Lưu ý: Legacy API có thể không hỗ trợ flash models, nên nhánh legacy sẽ 
     tự xử lý fallback về gemini-1.5-pro nếu cần.
@@ -218,9 +226,9 @@ def _select_best_model(available_models: Optional[list] = None) -> str:
         return available_models[0]
     
     # Fallback: trả về model mặc định (ưu tiên model mới hơn)
-    # Ưu tiên gemini-2.5-flash hoặc gemini-3-flash, fallback về gemini-1.5-flash
+    # Ưu tiên gemini-3-flash, fallback về gemini-2.5-flash hoặc gemini-1.5-flash
     # Lưu ý: Legacy API có thể không hỗ trợ flash, nên nhánh legacy sẽ xử lý fallback riêng
-    return 'models/gemini-2.5-flash'
+    return 'models/gemini-3-flash'
 
 
 class GeminiAnalyzer:

@@ -4,6 +4,8 @@ Module phân tích biểu đồ kỹ thuật bằng Google Gemini AI. Module nà
 
 ## Workflow
 
+### Single Timeframe Analysis (Mặc định)
+
 1. **Nhập thông tin**: Nhập tên symbol (ví dụ: BTC/USDT) và timeframe (ví dụ: 1h, 4h, 1d)
 2. **Cấu hình Indicators**: Chọn các indicators muốn hiển thị trên biểu đồ (MA, RSI, MACD, Bollinger Bands)
 3. **Tạo biểu đồ**: Tự động fetch dữ liệu OHLCV và tạo biểu đồ với các indicators đã chọn
@@ -16,6 +18,20 @@ Module phân tích biểu đồ kỹ thuật bằng Google Gemini AI. Module nà
    - Điểm vào lệnh/cắt lỗ tham khảo (LONG/SHORT với Entry, SL, TP)
    - Cảnh báo rủi ro
    - Khu vực thanh khoản (Liquidity zones)
+
+### Multi-Timeframe Analysis (Mới)
+
+Module hỗ trợ phân tích đa khung thời gian để tăng độ tin cậy của signals:
+
+1. **Chọn Multiple Timeframes**: Chọn nhiều timeframes (ví dụ: `15m,1h,4h,1d`)
+2. **Phân tích từng Timeframe**:
+   - **Deep Analysis Mode**: Phân tích riêng từng timeframe, gửi riêng lẻ lên Gemini
+   - **Batch Analysis Mode**: Gộp nhiều timeframes vào 1 batch chart
+3. **Tổng hợp Signals**: Sử dụng weighted aggregation để tổng hợp signals từ các timeframes
+4. **Nhận kết quả**:
+   - Breakdown theo từng timeframe
+   - Aggregated signal với confidence score
+   - Phân tích chi tiết cho mỗi timeframe
 
 ## Cài đặt
 
@@ -31,7 +47,8 @@ import google.generativeai as genai
 ```
 
 Hoặc thêm vào `requirements.txt`:
-```
+
+```txt
 matplotlib>=3.7.0
 google-genai>=0.3.0
 pillow>=10.0.0
@@ -73,7 +90,9 @@ if __name__ == "__main__":
 ### Workflow tương tác
 
 1. **Nhập Symbol**: Nhập symbol muốn phân tích (ví dụ: `BTC/USDT`)
-2. **Nhập Timeframe**: Nhập timeframe (ví dụ: `1h`, `4h`, `1d`)
+2. **Chọn Analysis Mode**:
+   - **Single Timeframe**: Phân tích 1 timeframe (ví dụ: `1h`, `4h`, `1d`)
+   - **Multi-Timeframe**: Phân tích nhiều timeframes (ví dụ: `15m,1h,4h,1d`) - **Khuyến nghị**
 3. **Cấu hình Indicators**:
    - Moving Averages: Chọn các periods (ví dụ: `20,50,200`)
    - RSI: Chọn period (mặc định: `14`)
@@ -126,6 +145,443 @@ result = gemini_analyzer.analyze_chart(
 
 print(result)
 ```
+
+## Multi-Timeframe Analysis
+
+Multi-Timeframe Analysis là tính năng mạnh mẽ cho phép phân tích cùng một symbol trên nhiều khung thời gian khác nhau, sau đó tổng hợp signals để tăng độ tin cậy. Tính năng này giúp:
+
+- **Tăng độ tin cậy**: Signals được xác nhận trên nhiều timeframes có độ tin cậy cao hơn
+- **Giảm false signals**: Lọc bỏ các tín hiệu chỉ xuất hiện trên 1 timeframe
+- **Phân tích toàn diện**: Hiểu rõ xu hướng từ ngắn hạn đến dài hạn
+
+### Workflow Multi-Timeframe Analysis
+
+```mermaid
+flowchart TD
+    A[User Input: Symbol + Multiple Timeframes] --> B{Analysis Mode?}
+    B -->|Deep Analysis| C[Fetch Data for Each TF]
+    B -->|Batch Analysis| D[Fetch Data for All TFs]
+    
+    C --> E[Generate Separate Charts]
+    E --> F[Analyze Each Chart with Gemini]
+    F --> G[Weighted Signal Aggregation]
+    
+    D --> H[Generate Multi-TF Batch Chart]
+    H --> I[Analyze Batch Chart with Gemini]
+    I --> J[Parse Multi-TF Signals]
+    
+    G --> K[Display Results with Breakdown]
+    J --> K
+    K --> L[Save Results JSON/Text]
+```
+
+### Deep Analysis Mode
+
+Phân tích riêng từng timeframe, gửi riêng lẻ lên Gemini, sau đó tổng hợp kết quả:
+
+**Workflow:**
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│              MULTI-TIMEFRAME DEEP ANALYSIS WORKFLOW             │
+└─────────────────────────────────────────────────────────────────┘
+
+1. KHỞI TẠO
+   │
+   ├─> User chọn symbol và multiple timeframes (ví dụ: 15m,1h,4h,1d)
+   │
+   └─> MultiTimeframeAnalyzer được khởi tạo
+
+2. PHÂN TÍCH TỪNG TIMEFRAME (Loop)
+   │
+   ├─> TIMEFRAME 1: 15m
+   │   │
+   │   ├─> Fetch OHLCV data cho 15m
+   │   ├─> Generate chart với indicators
+   │   ├─> Gửi lên Gemini để phân tích
+   │   └─> Lưu kết quả: {signal, confidence, analysis}
+   │
+   ├─> TIMEFRAME 2: 1h
+   │   │
+   │   ├─> Fetch OHLCV data cho 1h
+   │   ├─> Generate chart với indicators
+   │   ├─> Gửi lên Gemini để phân tích
+   │   └─> Lưu kết quả: {signal, confidence, analysis}
+   │
+   ├─> TIMEFRAME 3: 4h
+   │   └─> (tương tự...)
+   │
+   └─> TIMEFRAME 4: 1d
+       └─> (tương tự...)
+
+3. TỔNG HỢP SIGNALS
+   │
+   ├─> SignalAggregator.aggregate_signals()
+   │   │
+   │   ├─> Tính weighted confidence cho mỗi signal type:
+   │   │   ├─> LONG weighted confidence
+   │   │   ├─> SHORT weighted confidence
+   │   │   └─> NONE weighted confidence
+   │   │
+   │   ├─> Weights theo timeframe:
+   │   │   ├─> 15m: 0.1
+   │   │   ├─> 1h: 0.2
+   │   │   ├─> 4h: 0.25
+   │   │   └─> 1d: 0.3
+   │   │
+   │   └─> Xác định final signal dựa trên weighted confidences
+   │
+   └─> Kết quả: {
+         'signal': 'LONG' | 'SHORT' | 'NONE',
+         'confidence': float (0.0-1.0),
+         'timeframe_breakdown': {...},
+         'weights_used': {...}
+       }
+
+4. HIỂN THỊ KẾT QUẢ
+   │
+   ├─> Console output:
+   │   ├─> Breakdown theo timeframe:
+   │   │   └─> 15m: LONG (confidence: 0.70) ████████
+   │   │   └─> 1h:  LONG (confidence: 0.80) ██████████
+   │   │   └─> 4h:  SHORT (confidence: 0.60) ██████
+   │   │   └─> 1d:  LONG (confidence: 0.75) ████████
+   │   │
+   │   └─> AGGREGATED: LONG (confidence: 0.71) ████████
+   │
+   └─> File output:
+       ├─> JSON: {symbol}_multi_tf_{timestamp}.json
+       └─> Text: {symbol}_multi_tf_{timestamp}.txt
+```
+
+### Batch Analysis Mode
+
+Gộp nhiều timeframes vào 1 batch chart (mỗi symbol có sub-charts cho các timeframes):
+
+**Workflow:**
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│           MULTI-TIMEFRAME BATCH ANALYSIS WORKFLOW                │
+└─────────────────────────────────────────────────────────────────┘
+
+1. KHỞI TẠO
+   │
+   ├─> User chọn multiple timeframes (ví dụ: 15m,1h,4h,1d)
+   │
+   └─> MarketBatchScanner với MultiTFBatchChartGenerator
+
+2. LẤY DANH SÁCH SYMBOLS
+   │
+   └─> Trả về: List[str] symbols (ví dụ: ['BTC/USDT', 'ETH/USDT', ...])
+
+3. CHIA THÀNH BATCHES
+   │
+   ├─> Chia symbols thành các batch
+   │   └─> Mỗi batch chứa tối đa 25 symbols (giảm vì mỗi symbol có nhiều TFs)
+   │
+   └─> Ví dụ: 100 symbols → 4 batches (25, 25, 25, 25)
+
+4. XỬ LÝ TỪNG BATCH (Loop)
+   │
+   ├─> BATCH 1/N
+   │   │
+   │   ├─> 4.1. FETCH OHLCV DATA CHO TẤT CẢ TIMEFRAMES
+   │   │   │
+   │   │   ├─> Với mỗi symbol trong batch:
+   │   │   │   ├─> Fetch data cho 15m
+   │   │   │   ├─> Fetch data cho 1h
+   │   │   │   ├─> Fetch data cho 4h
+   │   │   │   └─> Fetch data cho 1d
+   │   │   │
+   │   │   └─> Lưu vào: {symbol: {timeframe: df}}
+   │   │
+   │   ├─> 4.2. TẠO MULTI-TF BATCH CHART IMAGE
+   │   │   │
+   │   │   ├─> MultiTFBatchChartGenerator.create_multi_tf_batch_chart()
+   │   │   │   │
+   │   │   │   ├─> Layout: Mỗi symbol có sub-charts cho các timeframes
+   │   │   │   │   │
+   │   │   │   │   Symbol 1: [15m] [1h]
+   │   │   │   │             [4h]  [1d]
+   │   │   │   │
+   │   │   │   │   Symbol 2: [15m] [1h]
+   │   │   │   │             [4h]  [1d]
+   │   │   │   │             ...
+   │   │   │   │
+   │   │   │   └─> Lưu ảnh: charts/batch/batch_chart_multi_tf_{tfs}_{timestamp}_batch{N}.png
+   │   │   │
+   │   │   └─> Kết quả: Đường dẫn đến multi-TF batch chart image
+   │   │
+   │   ├─> 4.3. PHÂN TÍCH BẰNG GEMINI
+   │   │   │
+   │   │   ├─> BatchGeminiAnalyzer với multi-TF prompt
+   │   │   │   │
+   │   │   │   ├─> Prompt yêu cầu:
+   │   │   │   │   ├─> Phân tích tất cả symbols × timeframes
+   │   │   │   │   ├─> Trả về JSON với structure:
+   │   │   │   │   │   {
+   │   │   │   │   │     "BTC/USDT": {
+   │   │   │   │   │       "15m": {"signal": "LONG", "confidence": 0.7},
+   │   │   │   │   │       "1h": {"signal": "LONG", "confidence": 0.8},
+   │   │   │   │   │       "4h": {"signal": "SHORT", "confidence": 0.6},
+   │   │   │   │   │       "1d": {"signal": "LONG", "confidence": 0.75},
+   │   │   │   │   │       "aggregated": {"signal": "LONG", "confidence": 0.71}
+   │   │   │   │   │     },
+   │   │   │   │   │     ...
+   │   │   │   │   │   }
+   │   │   │   │   │
+   │   │   │   ├─> Parse JSON response
+   │   │   │   │
+   │   │   │   └─> Aggregate signals cho mỗi symbol
+   │   │   │
+   │   │   └─> Kết quả: Dict[symbol, {timeframes: {...}, aggregated: {...}}]
+   │   │
+   │   └─> Lặp lại cho batch tiếp theo...
+   │
+   └─> Sau khi xử lý tất cả batches
+
+5. TỔNG HỢP KẾT QUẢ
+   │
+   ├─> Extract aggregated signals từ mỗi symbol
+   ├─> Phân loại và sắp xếp theo confidence
+   └─> Lưu kết quả vào JSON với multi-TF structure
+```
+
+### Sử dụng Multi-Timeframe Analysis
+
+#### Chạy CLI với Multi-Timeframe
+
+**Deep Analysis Mode:**
+
+```bash
+# Sử dụng --timeframes argument
+python -m modules.gemini_chart_analyzer.cli.main --symbol BTC/USDT --timeframes 15m,1h,4h,1d
+
+# Hoặc sử dụng interactive menu và chọn "Multi-timeframe" mode
+python -m modules.gemini_chart_analyzer.cli.main
+```
+
+**Batch Analysis Mode:**
+
+```bash
+# Chạy batch scanner và chọn "Multi-timeframe" mode
+python -m modules.gemini_chart_analyzer.cli.batch_scan_main
+```
+
+#### Sử dụng trong code
+
+**Deep Analysis Mode:**
+
+```python
+from modules.gemini_chart_analyzer.core.multi_timeframe_analyzer import MultiTimeframeAnalyzer
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.core.data_fetcher import DataFetcher
+from modules.gemini_chart_analyzer.core.chart_generator import ChartGenerator
+from modules.gemini_chart_analyzer.core.gemini_analyzer import GeminiAnalyzer
+
+# Khởi tạo components
+exchange_manager = ExchangeManager()
+data_fetcher = DataFetcher(exchange_manager)
+chart_generator = ChartGenerator()
+gemini_analyzer = GeminiAnalyzer()
+
+# Khởi tạo multi-timeframe analyzer
+mtf_analyzer = MultiTimeframeAnalyzer()
+
+# Define helper functions
+def fetch_data(symbol, timeframe):
+    df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+        symbol=symbol, timeframe=timeframe, limit=500
+    )
+    return df
+
+def generate_chart(df, symbol, timeframe):
+    return chart_generator.create_chart(
+        df=df, symbol=symbol, timeframe=timeframe,
+        indicators={'MA': {'periods': [20, 50, 200]}, 'RSI': {'period': 14}}
+    )
+
+def analyze_chart(chart_path, symbol, timeframe):
+    return gemini_analyzer.analyze_chart(
+        image_path=chart_path, symbol=symbol, timeframe=timeframe
+    )
+
+# Chạy multi-timeframe analysis
+results = mtf_analyzer.analyze_deep(
+    symbol="BTC/USDT",
+    timeframes=['15m', '1h', '4h', '1d'],
+    fetch_data_func=fetch_data,
+    generate_chart_func=generate_chart,
+    analyze_chart_func=analyze_chart
+)
+
+# Kết quả
+print(f"Aggregated Signal: {results['aggregated']['signal']}")
+print(f"Confidence: {results['aggregated']['confidence']:.2f}")
+
+# Breakdown theo timeframe
+for tf, tf_result in results['timeframes'].items():
+    print(f"{tf}: {tf_result['signal']} (confidence: {tf_result['confidence']:.2f})")
+```
+
+**Batch Analysis Mode:**
+
+```python
+from modules.gemini_chart_analyzer.core.market_batch_scanner import MarketBatchScanner
+
+# Khởi tạo scanner
+scanner = MarketBatchScanner(
+    charts_per_batch=25,  # Giảm vì mỗi symbol có nhiều TFs
+    cooldown_seconds=2.5
+)
+
+# Chạy scan với multi-timeframe
+results = scanner.scan_market(
+    timeframes=['15m', '1h', '4h', '1d'],  # Multi-timeframe mode
+    max_symbols=None,
+    limit=200
+)
+
+# Kết quả đã được aggregated
+print(f"LONG signals: {len(results['long_symbols'])}")
+for symbol, confidence in results['long_symbols_with_confidence']:
+    print(f"{symbol}: {confidence:.2f}")
+```
+
+### Timeframe Weights
+
+Hệ thống sử dụng weighted aggregation, với weights mặc định:
+
+| Timeframe | Weight | Lý do |
+|-----------|--------|-------|
+| 15m       | 0.1    | Ngắn hạn, dễ bị nhiễu |
+| 30m       | 0.15   | Ngắn hạn |
+| 1h        | 0.2    | Trung hạn |
+| 4h        | 0.25   | Trung-dài hạn |
+| 1d        | 0.3    | Dài hạn, quan trọng hơn |
+| 1w        | 0.35   | Rất dài hạn, quan trọng nhất |
+
+**Công thức tính weighted confidence:**
+
+```text
+weighted_confidence = Σ(confidence_i × weight_i) / Σ(weight_i)
+```
+
+### Output của Multi-Timeframe Analysis
+
+#### Console Output (Deep Analysis)
+
+```
+============================================================
+MULTI-TIMEFRAME ANALYSIS RESULTS
+============================================================
+
+Symbol: BTC/USDT
+
+15m: LONG (confidence: 0.70) ████████
+1h:  LONG (confidence: 0.80) ██████████
+4h:  SHORT (confidence: 0.60) ██████
+1d:  LONG (confidence: 0.75) ████████
+
+AGGREGATED: LONG (confidence: 0.71) ████████
+============================================================
+```
+
+#### JSON File (Deep Analysis)
+
+```json
+{
+  "symbol": "BTC/USDT",
+  "timestamp": "2024-01-01T12:00:00",
+  "timeframes_list": ["15m", "1h", "4h", "1d"],
+  "timeframes": {
+    "15m": {
+      "signal": "LONG",
+      "confidence": 0.70,
+      "analysis": "..."
+    },
+    "1h": {
+      "signal": "LONG",
+      "confidence": 0.80,
+      "analysis": "..."
+    },
+    "4h": {
+      "signal": "SHORT",
+      "confidence": 0.60,
+      "analysis": "..."
+    },
+    "1d": {
+      "signal": "LONG",
+      "confidence": 0.75,
+      "analysis": "..."
+    }
+  },
+  "aggregated": {
+    "signal": "LONG",
+    "confidence": 0.71,
+    "weights_used": {
+      "15m": 0.1,
+      "1h": 0.2,
+      "4h": 0.25,
+      "1d": 0.3
+    }
+  }
+}
+```
+
+#### JSON File (Batch Analysis)
+
+```json
+{
+  "timestamp": "2024-01-01T12:00:00",
+  "timeframe": "1h",
+  "timeframes": ["15m", "1h", "4h", "1d"],
+  "summary": {
+    "total_symbols": 100,
+    "scanned_symbols": 98,
+    "long_count": 12,
+    "short_count": 8,
+    "avg_long_confidence": 0.73,
+    "avg_short_confidence": 0.68
+  },
+  "long_symbols": ["BTC/USDT", "ETH/USDT", ...],
+  "all_results": {
+    "BTC/USDT": {
+      "signal": "LONG",
+      "confidence": 0.71
+    },
+    ...
+  }
+}
+```
+
+### Lợi ích của Multi-Timeframe Analysis
+
+1. **Tăng độ tin cậy**: Signals được xác nhận trên nhiều timeframes có độ tin cậy cao hơn
+2. **Giảm false signals**: Lọc bỏ các tín hiệu chỉ xuất hiện trên 1 timeframe
+3. **Phân tích toàn diện**: Hiểu rõ xu hướng từ ngắn hạn đến dài hạn
+4. **Weighted aggregation**: Timeframe lớn hơn có trọng số cao hơn (phù hợp với phân tích kỹ thuật)
+5. **Flexible**: Hỗ trợ cả Deep Analysis (riêng lẻ) và Batch Analysis (gộp)
+
+### Lưu ý khi sử dụng Multi-Timeframe Analysis
+
+1. **API Calls**:
+   - **Deep Analysis**: N timeframes = N API calls (có thể nhiều hơn)
+   - **Batch Analysis**: 1 API call cho tất cả symbols + timeframes (hiệu quả hơn)
+
+2. **Timeframe Selection**:
+   - Khuyến nghị: `15m, 1h, 4h, 1d` cho phân tích toàn diện
+   - Có thể tùy chỉnh theo nhu cầu
+
+3. **Weights**:
+   - Có thể tùy chỉnh weights trong `config/gemini_chart_analyzer.py`
+   - Timeframe lớn hơn thường có weight cao hơn
+
+4. **Confidence Threshold**:
+   - Aggregated confidence > 0.7: Signal mạnh
+   - Aggregated confidence 0.5-0.7: Signal trung bình
+   - Aggregated confidence < 0.5: Signal yếu hoặc NONE
 
 ## Batch Analyzer
 
@@ -298,12 +754,31 @@ Tạo batch chart images chứa nhiều biểu đồ:
 - Mỗi biểu đồ là candlestick chart đơn giản với label symbol
 - Tối ưu hóa kích thước và DPI cho Gemini API
 
-#### 3. BatchGeminiAnalyzer
+#### 3. MultiTFBatchChartGenerator
+Tạo batch chart images với multi-timeframe per symbol:
+- Nhóm 25 symbols vào một ảnh (mỗi symbol có 4 timeframes)
+- Layout: Mỗi symbol có sub-charts cho các timeframes (2x2 grid)
+- Tối ưu hóa cho multi-TF analysis
+
+#### 4. BatchGeminiAnalyzer
 Phân tích batch charts bằng Gemini API:
 - Gửi batch chart image lên Gemini
 - Yêu cầu JSON response với signal và confidence
+- Hỗ trợ cả single-TF và multi-TF prompts
 - Parse và validate JSON response
 - Xử lý rate limiting và retry logic
+
+#### 5. SignalAggregator
+Tổng hợp signals từ nhiều timeframes:
+- Weighted aggregation với weights theo timeframe
+- Tính weighted confidence cho mỗi signal type
+- Xác định final signal dựa trên weighted confidences
+
+#### 6. MultiTimeframeAnalyzer
+Điều phối multi-timeframe analysis:
+- Deep Analysis Mode: Phân tích riêng từng timeframe
+- Batch Analysis Mode: Gộp nhiều timeframes vào batch chart
+- Tích hợp với SignalAggregator để tổng hợp kết quả
 
 ### Sử dụng Batch Analyzer
 
@@ -321,15 +796,18 @@ python -m modules.gemini_chart_analyzer.cli.batch_scan_main
 
 #### Workflow tương tác
 
-1. **Nhập Timeframe**: Chọn timeframe (ví dụ: `1h`, `4h`, `1d`)
+1. **Chọn Analysis Mode**:
+   - **Single Timeframe**: Chọn 1 timeframe (ví dụ: `1h`, `4h`, `1d`)
+   - **Multi-Timeframe**: Chọn nhiều timeframes (ví dụ: `15m,1h,4h,1d`) - **Khuyến nghị**
 2. **Nhập Max Symbols** (tùy chọn): Giới hạn số symbols để scan (Enter = tất cả)
 3. **Nhập Cooldown**: Thời gian chờ giữa các batch requests (mặc định: 2.5s)
 4. **Nhập Candles Limit**: Số nến fetch cho mỗi symbol (mặc định: 200)
 5. **Xác nhận và bắt đầu**: Hệ thống sẽ tự động:
    - Lấy tất cả symbols từ exchange
    - Chia thành batches
-   - Xử lý từng batch
-   - Hiển thị kết quả và lưu file
+   - Xử lý từng batch (với multi-TF nếu được chọn)
+   - Tổng hợp và hiển thị kết quả
+   - Lưu file JSON với đầy đủ thông tin
 
 #### Sử dụng trong code
 
@@ -344,11 +822,18 @@ scanner = MarketBatchScanner(
     exchange_name='binance'     # Exchange name (mặc định: 'binance')
 )
 
-# Chạy scan
+# Chạy scan (Single timeframe)
 results = scanner.scan_market(
-    timeframe='1h',            # Timeframe
+    timeframe='1h',            # Single timeframe
     max_symbols=None,          # None = tất cả symbols
     limit=200                  # Số candles mỗi symbol
+)
+
+# Chạy scan (Multi-timeframe)
+results = scanner.scan_market(
+    timeframes=['15m', '1h', '4h', '1d'],  # Multi-timeframe mode
+    max_symbols=None,
+    limit=200
 )
 
 # Kết quả
@@ -439,8 +924,10 @@ Kết quả được lưu trong `analysis_results/batch_scan/batch_scan_{timefra
    - BatchGeminiAnalyzer tự động retry với exponential backoff
 
 2. **API Quota**:
-   - Mỗi batch = 1 API call
-   - 350 symbols = 4 batches = 4 API calls (thay vì 350 calls)
+   - **Single Timeframe**: Mỗi batch = 1 API call
+     - 350 symbols = 4 batches = 4 API calls (thay vì 350 calls)
+   - **Multi-Timeframe**: Mỗi batch = 1 API call (cho tất cả symbols + timeframes)
+     - 100 symbols × 4 timeframes = 1 batch = 1 API call (rất hiệu quả!)
    - Kiểm tra quota trước khi scan thị trường lớn
 
 3. **Dữ liệu**:
@@ -448,8 +935,9 @@ Kết quả được lưu trong `analysis_results/batch_scan/batch_scan_{timefra
    - Symbols thiếu dữ liệu sẽ được đánh dấu là NONE với confidence 0.0
 
 4. **Kích thước ảnh**:
-   - Batch chart images có thể lớn (10x10 grid)
-   - Gemini API có giới hạn kích thước ảnh, nhưng 100 charts vẫn nằm trong giới hạn
+   - **Single Timeframe**: Batch chart images có thể lớn (10x10 grid = 100 charts)
+   - **Multi-Timeframe**: Batch chart images lớn hơn (25 symbols × 4 TFs = 100 subplots)
+   - Gemini API có giới hạn kích thước ảnh, nhưng vẫn nằm trong giới hạn
 
 5. **Confidence Score**:
    - 0.8-1.0: Tín hiệu rất mạnh và rõ ràng
@@ -538,9 +1026,18 @@ indicators['BB'] = {
 - Style: Dark background (có thể tùy chỉnh)
 
 ### Kết quả phân tích
+
+**Single Timeframe:**
 - Được hiển thị trên console
 - Được lưu trong thư mục `modules/gemini_chart_analyzer/analysis_results/`
-- Format: `{symbol}_{timeframe}_{timestamp}.txt`
+- Format: `{symbol}_{timeframe}_{timestamp}.txt` và `.html`
+
+**Multi-Timeframe:**
+- Được hiển thị trên console với breakdown theo timeframe
+- Được lưu trong thư mục `modules/gemini_chart_analyzer/analysis_results/`
+- Format: 
+  - JSON: `{symbol}_multi_tf_{timestamp}.json`
+  - Text: `{symbol}_multi_tf_{timestamp}.txt`
 
 ## Lưu ý
 
@@ -571,6 +1068,8 @@ indicators['BB'] = {
 - Kiểm tra kết nối internet
 
 ## Ví dụ Output
+
+### Single Timeframe Output
 
 ```
 KẾT QUẢ PHÂN TÍCH TỪ GEMINI
@@ -606,6 +1105,38 @@ KẾT QUẢ PHÂN TÍCH TỪ GEMINI
 6. Khu vực thanh khoản:
    - Vùng thanh khoản phía trên: $46,500 - $47,000
    - Vùng thanh khoản phía dưới: $44,000 - $44,300
+```
+
+### Multi-Timeframe Output
+
+```
+============================================================
+MULTI-TIMEFRAME ANALYSIS RESULTS
+============================================================
+
+Symbol: BTC/USDT
+
+15m: LONG (confidence: 0.70) ████████
+1h:  LONG (confidence: 0.80) ██████████
+4h:  SHORT (confidence: 0.60) ██████
+1d:  LONG (confidence: 0.75) ████████
+
+AGGREGATED: LONG (confidence: 0.71) ████████
+============================================================
+
+Chi tiết phân tích từng timeframe:
+
+[15m Analysis]
+Xu hướng ngắn hạn đang tăng, giá phá vỡ resistance nhỏ...
+
+[1h Analysis]
+Xu hướng trung hạn mạnh, RSI cho thấy momentum tích cực...
+
+[4h Analysis]
+Có dấu hiệu pullback trên khung 4h, cần theo dõi...
+
+[1d Analysis]
+Xu hướng dài hạn vẫn tăng, giá nằm trên MA200...
 ```
 
 ## License
