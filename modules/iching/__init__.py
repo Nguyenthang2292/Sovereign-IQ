@@ -13,6 +13,16 @@ from modules.iching.core.hexagram import (
 )
 from modules.iching.core.image_generator import create_hexagram_image
 from modules.iching.core.result_extractor import IChingResultExtractor
+from modules.iching.core.thien_can import (
+    ThienCan,
+    THIEN_CAN_LIST,
+    THIEN_CAN_DICT,
+    get_thien_can,
+    get_yin_yang,
+    get_wu_hang,
+    is_duong,
+    is_am,
+)
 from modules.iching.core.web_automation import fill_web_form
 from modules.iching.utils.helpers import ensure_utf8_stdout, get_font
 
@@ -30,6 +40,15 @@ __all__ = [
     "IChingResult",
     "HaoInfo",
     "IChingResultExtractor",
+    # Thiên Can
+    "ThienCan",
+    "THIEN_CAN_LIST",
+    "THIEN_CAN_DICT",
+    "get_thien_can",
+    "get_yin_yang",
+    "get_wu_hang",
+    "is_duong",
+    "is_am",
     # Utilities
     "ensure_utf8_stdout",
     "get_font",
