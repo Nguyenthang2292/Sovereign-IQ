@@ -1,18 +1,5 @@
-"""
-I Ching Module.
+"""I Ching prediction and divination constants."""
 
-Module for generating I Ching hexagrams and automating web form filling.
-"""
-
-from modules.iching.core.data_models import HaoInfo, IChingResult
-from modules.iching.core.hexagram import (
-    analyze_line,
-    generate_ns_string,
-    group_string,
-    prepare_hexagram,
-)
-from modules.iching.core.image_generator import create_hexagram_image
-from modules.iching.core.result_extractor import IChingResultExtractor
 from modules.iching.predict.constants import (
     YANG,
     YIN,
@@ -45,23 +32,14 @@ from modules.iching.predict.thien_can import (
     THIEN_CAN_LIST,
     THIEN_CAN_DICT,
 )
-from modules.iching.core.web_automation import fill_web_form
-from modules.iching.utils.helpers import ensure_utf8_stdout, get_font
+
+# Note: get_yin_yang, get_wu_hang, is_yang, is_yin từ cả hai module có cùng tên
+# Để tránh xung đột, sử dụng các alias với prefix:
+# - get_dia_chi_yin_yang, get_dia_chi_wu_hang, is_dia_chi_yang, is_dia_chi_yin
+# - get_thien_can_yin_yang, get_thien_can_wu_hang, is_thien_can_yang, is_thien_can_yin
+# Hoặc import trực tiếp từ module con: from modules.iching.predict.dia_chi import get_yin_yang
 
 __all__ = [
-    # Core functions
-    "generate_ns_string",
-    "group_string",
-    "analyze_line",
-    "prepare_hexagram",
-    # Image generation
-    "create_hexagram_image",
-    # Web automation
-    "fill_web_form",
-    # Result extraction
-    "IChingResult",
-    "HaoInfo",
-    "IChingResultExtractor",
     # Constants
     "YANG",
     "YIN",
@@ -94,8 +72,5 @@ __all__ = [
     "ThienCan",
     "THIEN_CAN_LIST",
     "THIEN_CAN_DICT",
-    # Utilities
-    "ensure_utf8_stdout",
-    "get_font",
 ]
 
