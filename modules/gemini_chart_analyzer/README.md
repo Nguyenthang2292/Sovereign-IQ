@@ -75,13 +75,13 @@ export GEMINI_API_KEY='your-api-key-here'
 ### Chạy CLI
 
 ```bash
-python -m modules.gemini_chart_analyzer.cli.main
+python -m modules.gemini_chart_analyzer.cli.chart_analyzer_main
 ```
 
 Hoặc tạo file main riêng:
 
 ```python
-from modules.gemini_chart_analyzer.cli.main import main
+from modules.gemini_chart_analyzer.cli.chart_analyzer_main import main
 
 if __name__ == "__main__":
     main()
@@ -356,17 +356,17 @@ Gộp nhiều timeframes vào 1 batch chart (mỗi symbol có sub-charts cho cá
 
 ```bash
 # Sử dụng --timeframes argument
-python -m modules.gemini_chart_analyzer.cli.main --symbol BTC/USDT --timeframes 15m,1h,4h,1d
+python -m modules.gemini_chart_analyzer.cli.chart_analyzer_main --symbol BTC/USDT --timeframes 15m,1h,4h,1d
 
 # Hoặc sử dụng interactive menu và chọn "Multi-timeframe" mode
-python -m modules.gemini_chart_analyzer.cli.main
+python -m modules.gemini_chart_analyzer.cli.chart_analyzer_main
 ```
 
 **Batch Analysis Mode:**
 
 ```bash
 # Chạy batch scanner và chọn "Multi-timeframe" mode
-python -m modules.gemini_chart_analyzer.cli.batch_scan_main
+python -m modules.gemini_chart_analyzer.cli.batch_scanner_main
 ```
 
 #### Sử dụng trong code
@@ -791,7 +791,7 @@ python main_batch_scanner.py
 Hoặc:
 
 ```bash
-python -m modules.gemini_chart_analyzer.cli.batch_scan_main
+python -m modules.gemini_chart_analyzer.cli.batch_scanner_main
 ```
 
 #### Workflow tương tác

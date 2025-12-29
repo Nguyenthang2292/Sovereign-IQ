@@ -2,6 +2,8 @@
 Pairs trading analyzer for identifying and validating pairs trading opportunities.
 """
 
+import gc
+import json
 import numpy as np
 import pandas as pd
 from typing import Dict, Optional, Tuple, Any, TYPE_CHECKING
@@ -472,24 +474,39 @@ class PairsTradingAnalyzer:
             self._price_cache[cache_key] = None
             return None
 
-        if "timestamp" not in df1.columns or "timestamp" not in df2.columns:
+        # Handle timestamp: DataFetcher sets timestamp as index (DatetimeIndex)
+        # If timestamp is in columns, convert to index. If already index (DatetimeIndex), use it.
+        if "timestamp" in df1.columns:
+            # Check for duplicate timestamps before setting index
+            if df1["timestamp"].duplicated().any():
+                log_warn(f"Duplicate timestamps found for {symbol1}, using first occurrence")
+                df1 = df1.drop_duplicates(subset=["timestamp"], keep="first")
+            df1 = df1.set_index("timestamp")
+        elif not isinstance(df1.index, pd.DatetimeIndex):
+            # If timestamp is not in columns and index is not DatetimeIndex, cannot align
             log_warn(
-                f"Missing timestamp column for {symbol1} or {symbol2}. "
+                f"Missing timestamp column/index for {symbol1}. "
                 "Cannot align series reliably."
             )
             self._price_cache[cache_key] = None
             return None
-
-        # Check for duplicate timestamps before setting index
-        if df1["timestamp"].duplicated().any():
-            log_warn(f"Duplicate timestamps found for {symbol1}, using first occurrence")
-            df1 = df1.drop_duplicates(subset=["timestamp"], keep="first")
-        if df2["timestamp"].duplicated().any():
-            log_warn(f"Duplicate timestamps found for {symbol2}, using first occurrence")
-            df2 = df2.drop_duplicates(subset=["timestamp"], keep="first")
+        # If index is already DatetimeIndex, use it directly (no conversion needed)
         
-        df1 = df1.set_index("timestamp")
-        df2 = df2.set_index("timestamp")
+        if "timestamp" in df2.columns:
+            # Check for duplicate timestamps before setting index
+            if df2["timestamp"].duplicated().any():
+                log_warn(f"Duplicate timestamps found for {symbol2}, using first occurrence")
+                df2 = df2.drop_duplicates(subset=["timestamp"], keep="first")
+            df2 = df2.set_index("timestamp")
+        elif not isinstance(df2.index, pd.DatetimeIndex):
+            # If timestamp is not in columns and index is not DatetimeIndex, cannot align
+            log_warn(
+                f"Missing timestamp column/index for {symbol2}. "
+                "Cannot align series reliably."
+            )
+            self._price_cache[cache_key] = None
+            return None
+        # If index is already DatetimeIndex, use it directly (no conversion needed)
         
         # Validate close columns contain valid numeric data
         if df1["close"].isna().all() or df2["close"].isna().all():
@@ -780,8 +797,9 @@ class PairsTradingAnalyzer:
                     correlation = self.calculate_correlation(
                         long_symbol, short_symbol, data_fetcher
                     )
-                    # Không loại bỏ pair ngay cả khi tương quan ngoài vùng lý tưởng;
-                    # OpportunityScorer sẽ tự áp dụng hình phạt thông qua hệ số.
+                    
+                    # Don't filter out pairs even if correlation is outside ideal range;
+                    # OpportunityScorer will apply penalties through multipliers.
                     quant_metrics = self._compute_pair_metrics(
                         long_symbol, short_symbol, data_fetcher
                     )
@@ -832,7 +850,7 @@ class PairsTradingAnalyzer:
                 progress.update()
 
         progress.finish()
-
+        
         if not pairs:
             if verbose:
                 log_warn("No pairs opportunities found.")
@@ -886,3 +904,33 @@ class PairsTradingAnalyzer:
             data_fetcher=data_fetcher,
             verbose=verbose,
         )
+     
+    def cleanup(self):
+        """
+        Cleanup resources and free memory.
+        Clears all caches to prevent memory leaks.
+        Call this after analysis is complete to free memory.
+        """
+        
+        # Clear all caches
+        self._correlation_cache.clear()
+        self._price_cache.clear()
+        self._adx_cache.clear()
+        
+        # Force garbage collection to free memory immediately
+        gc.collect()
+        
+        if hasattr(self, 'metrics_computer') and hasattr(self.metrics_computer, 'cleanup'):
+            self.metrics_computer.cleanup()
+        
+        log_info("Cleaned up PairsTradingAnalyzer resources")
+    
+    def clear_caches(self):
+        """
+        Clear all caches without triggering garbage collection.
+        Useful for freeing memory while keeping the analyzer instance.
+        """
+        self._correlation_cache.clear()
+        self._price_cache.clear()
+        self._adx_cache.clear()
+        log_info("Cleared PairsTradingAnalyzer caches")

@@ -188,7 +188,9 @@ def _select_best_model(available_models: Optional[list] = None) -> str:
     
     Priority logic:
     1. If available_models is provided:
-       - Prefer flash variants (gemini-3-flash or gemini-2.5-flash); return the first matching flash model
+       - Prefer gemini-3-flash (newest) first
+       - Then gemini-2.5-flash
+       - Then other flash variants
        - If no flash model is found, fall back to non-flash pro variants (gemini-3 or gemini-2.5)
        - If neither is found, select the first model in the list
     2. If available_models is not provided: Return 'models/gemini-3-flash' as the default
@@ -204,29 +206,67 @@ def _select_best_model(available_models: Optional[list] = None) -> str:
         keeping the format from available_models.
     """
     if available_models:
-        # Step 1: Prefer flash variants (gemini-3-flash or gemini-2.5-flash)
+        # Cache normalized/tokenized results for all models to avoid redundant computation
+        tokenized_models = {m: _normalize_and_tokenize(m) for m in available_models}
+        
+        # Step 1: Prefer gemini-3-flash (newest model) first
+        gemini3_flash = next(
+            (m for m in available_models 
+             if _is_flash_model(tokenized_models[m]) and '3' in tokenized_models[m]),
+            None
+        )
+        if gemini3_flash:
+            return gemini3_flash
+        
+        # Step 2: Then prefer gemini-2.5-flash
+        gemini25_flash = next(
+            (m for m in available_models 
+             if _is_flash_model(tokenized_models[m]) and '2' in tokenized_models[m] and '5' in tokenized_models[m]),
+            None
+        )
+        if gemini25_flash:
+            return gemini25_flash
+        
+        # Step 3: Then any other flash variants
         flash_match = next(
             (m for m in available_models 
-             if _is_flash_model(_normalize_and_tokenize(m))),
+             if _is_flash_model(tokenized_models[m])),
             None
         )
         if flash_match:
             return flash_match
         
-        # Step 2: If no flash, fall back to non-flash pro variants
-        # Look for gemini-3 or gemini-2.5 that are not flash
+        # Step 4: If no flash, fall back to non-flash pro variants
+        # Prefer gemini-3 pro, then gemini-2.5 pro
+        gemini3_pro = next(
+            (m for m in available_models 
+             if _is_pro_model(tokenized_models[m]) and '3' in tokenized_models[m]),
+            None
+        )
+        if gemini3_pro:
+            return gemini3_pro
+        
+        gemini25_pro = next(
+            (m for m in available_models 
+             if _is_pro_model(tokenized_models[m]) and '2' in tokenized_models[m] and '5' in tokenized_models[m]),
+            None
+        )
+        if gemini25_pro:
+            return gemini25_pro
+        
+        # Step 5: Any other pro model
         pro_match = next(
             (m for m in available_models 
-             if _is_pro_model(_normalize_and_tokenize(m))),
+             if _is_pro_model(tokenized_models[m])),
             None
         )
         if pro_match:
             return pro_match
         
-        # Step 3: If neither found, select the first model in the list
+        # Step 6: If neither found, select the first model in the list
         return available_models[0]
     
-    # Fallback: return default model (prefer a newer model)
+    # Fallback: return default model (prefer newest model)
     # Prefer gemini-3-flash, fallback to gemini-2.5-flash or gemini-1.5-flash if needed
     # Note: Legacy API might not support flash, so legacy branch will handle fallback separately
     return 'models/gemini-3-flash'
@@ -268,6 +308,32 @@ class GeminiChartAnalyzer:
                     m.name for m in models 
                     if 'flash' in m.name.lower() or 'pro' in m.name.lower()
                 ]
+                # Sort to prioritize models using the same logic as _select_best_model
+                # This ensures consistency between sorting and selection
+                if available_models:
+                    def model_priority(model_name):
+                        tokens = _normalize_and_tokenize(model_name)
+                        # Priority 0: gemini-3-flash (newest flash model)
+                        if _is_flash_model(tokens) and '3' in tokens:
+                            return 0
+                        # Priority 1: gemini-2.5-flash
+                        elif _is_flash_model(tokens) and '2' in tokens and '5' in tokens:
+                            return 1
+                        # Priority 2: other flash variants
+                        elif _is_flash_model(tokens):
+                            return 2
+                        # Priority 3: gemini-3 pro
+                        elif _is_pro_model(tokens) and '3' in tokens:
+                            return 3
+                        # Priority 4: gemini-2.5 pro
+                        elif _is_pro_model(tokens) and '2' in tokens and '5' in tokens:
+                            return 4
+                        # Priority 5: other pro models
+                        elif _is_pro_model(tokens):
+                            return 5
+                        # Priority 6: everything else
+                        return 6
+                    available_models.sort(key=model_priority)
             except Exception:
                 # If unable to list models, will use default via helper
                 logger.exception("Failed to list available Gemini models, falling back to default model")

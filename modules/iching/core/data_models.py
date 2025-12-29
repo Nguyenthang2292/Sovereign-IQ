@@ -40,23 +40,35 @@ class IChingResult:
             if not str(self.nguyet_lenh).strip():
                 raise ValueError("nguyet_lenh must be a non-empty string")
         
-        # Kiểm tra que_trai có đúng 6 hào
-        if len(self.que_trai) != 6:
-            raise ValueError(f"que_trai must have exactly 6 HaoInfo, got {len(self.que_trai)}")
+        # Validate que_trai: may contain at most 6 HaoInfo entries (0..6 allowed) and must not contain duplicate hao numbers
+        if len(self.que_trai) > 6:
+            raise ValueError(f"que_trai must have at most 6 HaoInfo, got {len(self.que_trai)}")
         
-        # Kiểm tra que_phai có đúng 6 hào
-        if len(self.que_phai) != 6:
-            raise ValueError(f"que_phai must have exactly 6 HaoInfo, got {len(self.que_phai)}")
-        
-        # Kiểm tra mỗi HaoInfo.hao trong que_trai là 1-6
+        # Kiểm tra mỗi HaoInfo.hao trong que_trai là 1-6 (validate range before duplicate check)
         for hao_info in self.que_trai:
             if not isinstance(hao_info.hao, int) or hao_info.hao < 1 or hao_info.hao > 6:
                 raise ValueError(f"que_trai: HaoInfo.hao must be an integer in range 1-6, got {hao_info.hao}")
         
-        # Kiểm tra mỗi HaoInfo.hao trong que_phai là 1-6
+        # Check for duplicate hao numbers
+        hao_nums_trai = [h.hao for h in self.que_trai]
+        
+        if len(set(hao_nums_trai)) != len(hao_nums_trai):
+            raise ValueError("que_trai must not contain duplicate hao numbers")
+
+        # Validate que_phai: may be empty or contain 1-6 HaoInfo objects; all hao numbers must be unique
+        if len(self.que_phai) > 6:
+            raise ValueError(f"que_phai must have at most 6 HaoInfo, got {len(self.que_phai)}")
+        
+        # Kiểm tra mỗi HaoInfo.hao trong que_phai là 1-6 (validate range before duplicate check)
         for hao_info in self.que_phai:
             if not isinstance(hao_info.hao, int) or hao_info.hao < 1 or hao_info.hao > 6:
                 raise ValueError(f"que_phai: HaoInfo.hao must be an integer in range 1-6, got {hao_info.hao}")
+        
+        # Check for duplicate hao numbers after range validation
+        hao_nums_phai = [h.hao for h in self.que_phai]
+        
+        if len(set(hao_nums_phai)) != len(hao_nums_phai):
+            raise ValueError("que_phai must not contain duplicate hao numbers")
         
         # Kiểm tra the_vi_tri là None hoặc 1-6
         if self.the_vi_tri is not None:

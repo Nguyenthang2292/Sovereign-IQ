@@ -13,8 +13,8 @@ from modules.iching.core.result_extractor import IChingResultExtractor
 
 @pytest.fixture
 def mock_gemini_analyzer():
-    """Create a mock GeminiAnalyzer."""
-    with patch('modules.iching.core.result_extractor.GeminiAnalyzer') as mock:
+    """Create a mock GeminiChartAnalyzer."""
+    with patch('modules.iching.core.result_extractor.GeminiChartAnalyzer') as mock:
         analyzer_instance = Mock()
         mock.return_value = analyzer_instance
         yield analyzer_instance
@@ -101,18 +101,25 @@ class TestIChingResultExtractor:
         """Test syncing hao_dong between left and right hexagrams."""
         # Create fresh HaoInfo lists to ensure no is_dong is set
         que_trai = [
-            HaoInfo(hao=h.hao, luc_than=h.luc_than, can_chi=h.can_chi)
+            HaoInfo(hao=h.hao, luc_than=h.luc_than, can_chi=h.can_chi, is_dong=False)
             for h in sample_hao_info_list
         ]
         que_phai = [
-            HaoInfo(hao=h.hao, luc_than=h.luc_than, can_chi=h.can_chi)
+            HaoInfo(hao=h.hao, luc_than=h.luc_than, can_chi=h.can_chi, is_dong=False)
             for h in sample_hao_info_list
+        ]
+        
+        # Create HaoInfo with is_dong=True for que_trai[1] and que_trai[4]
+        que_trai_with_dong = [
+            HaoInfo(hao=h.hao, luc_than=h.luc_than, can_chi=h.can_chi, is_dong=True)
+            if i in (1, 4) else h
+            for i, h in enumerate(que_trai)
         ]
         
         result = IChingResult(
             nhat_than="Sửu-Thổ",
             nguyet_lenh="Tý-Thủy",
-            que_trai=que_trai,
+            que_trai=que_trai_with_dong,
             que_phai=que_phai,
             the_vi_tri=4,
             ung_vi_tri=1
@@ -120,15 +127,11 @@ class TestIChingResultExtractor:
         
         extractor = IChingResultExtractor()
         
-        # Set some hao_dong in que_trai
-        result.que_trai[1].is_dong = True
-        result.que_trai[4].is_dong = True
-        
         # Initially que_phai should not have hao_dong
         assert result.que_phai[1].is_dong is False
         assert result.que_phai[4].is_dong is False
         
-        # Sync
+        # Force synchronization to verify _sync_hao_dong correctly updates hao_dong state
         extractor._sync_hao_dong(result)
         
         # Now que_phai should have matching hao_dong

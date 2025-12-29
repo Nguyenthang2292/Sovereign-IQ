@@ -79,6 +79,10 @@ crypto-probability/
 │   └── display.py                           # Display utilities
 ├── tests/                                    # Comprehensive test suite
 ├── artifacts/                                # Model checkpoints and outputs
+├── setup/                                    # Setup scripts and documentation
+│   ├── QUICK_START_API_KEYS.md             # Quick start guide for API keys
+│   ├── SECURITY.md                          # Security best practices
+│   └── setup_api_keys.*                     # Setup scripts (Windows/Linux/Mac)
 └── README*.md                               # Documentation files
 ```
 
@@ -97,7 +101,21 @@ crypto-probability/
    cd crypto-probability
    ```
 
-2. **Install dependencies:**
+2. **Configure API Keys:** (Chạy sau bước 1, trước hoặc cùng lúc với cài đặt dependencies)
+   ```bash
+   # Windows (PowerShell)
+   .\setup\setup_api_keys.ps1
+   
+   # Windows (Command Prompt)
+   setup\setup_api_keys.bat
+   
+   # Linux/Mac
+   chmod +x setup/setup_api_keys.sh
+   ./setup/setup_api_keys.sh
+   ```
+   **Lưu ý:** Các script này an toàn để chạy lại (idempotent) và việc cấu hình API keys độc lập với cài đặt dependencies, nên bạn có thể chạy trước hoặc sau bước 3. Xem [setup/QUICK_START_API_KEYS.md](./setup/QUICK_START_API_KEYS.md) để biết thêm chi tiết.
+
+3. **Install dependencies:**
 
    **Basic requirements:**
    ```bash
@@ -116,11 +134,25 @@ crypto-probability/
 
 3. **Configure API keys (optional):**
    
-   Create `modules/config_api.py` with your exchange API keys:
+   **Recommended: Use environment variables (see [setup/QUICK_START_API_KEYS.md](./setup/QUICK_START_API_KEYS.md)):**
+   ```bash
+   # Windows (PowerShell)
+   .\setup\setup_api_keys.ps1
+   
+   # Windows (Command Prompt)
+   setup\setup_api_keys.bat
+   
+   # Linux/Mac
+   chmod +x setup/setup_api_keys.sh
+   ./setup/setup_api_keys.sh
+   ```
+   
+   ⚠️ **NOT RECOMMENDED / DEPRECATED: Hardcoded API keys in `config/config_api.py`:**
    ```python
    BINANCE_API_KEY = "your_key"
    BINANCE_API_SECRET = "your_secret"
    ```
+   **⚠️ Lưu ý:** Phương pháp hardcoded API keys KHÔNG được khuyến nghị vì rủi ro bảo mật. Vui lòng sử dụng biến môi trường như hướng dẫn ở trên. Xem [setup/SECURITY.md](./setup/SECURITY.md) để biết thêm chi tiết về bảo mật.
 
 ## 📖 Usage
 
@@ -507,7 +539,7 @@ Configuration is managed in `config/` directory. Key configuration files:
 - **`config/xgboost.py`**: XGBoost model configuration
 - **`config/deep_learning.py`**: Deep learning TFT configuration
 
-For API keys, create `config/config_api.py` (not tracked in git):
+⚠️ **NOT RECOMMENDED / DEPRECATED:** For API keys, you can create `config/config_api.py` (not tracked in git), but **environment variables are the recommended approach**. See [setup/SECURITY.md](./setup/SECURITY.md) for details:
 ```python
 BINANCE_API_KEY = "your_key"
 BINANCE_API_SECRET = "your_secret"

@@ -10,7 +10,7 @@ Tests cover:
 """
 
 import pytest
-from modules.gemini_chart_analyzer.cli.main import format_text_to_html
+from modules.gemini_chart_analyzer.cli.chart_analyzer_main import format_text_to_html
 
 
 class TestFormatTextToHtml:

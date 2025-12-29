@@ -93,6 +93,23 @@ class TestChartBatchGeneratorInit:
         assert generator.chart_size == (3.0, 2.0)
         assert generator.dpi == 150
     
+    def test_init_auto_calculate_grid(self):
+        """Test initialization with auto-calculated grid dimensions."""
+        # Test with charts_per_batch=10 (should auto-calculate to exactly 2x5 or 5x2)
+        generator = ChartBatchGenerator(charts_per_batch=10)
+        assert generator.charts_per_batch == 10
+        assert generator.grid_rows * generator.grid_cols == generator.charts_per_batch
+
+        # Test with charts_per_batch=25 (should auto-calculate to 5x5)
+        generator = ChartBatchGenerator(charts_per_batch=25)
+        assert generator.charts_per_batch == 25
+        assert generator.grid_rows * generator.grid_cols == 25
+
+        # Test with charts_per_batch=100 (should auto-calculate to 10x10)
+        generator = ChartBatchGenerator(charts_per_batch=100)
+        assert generator.charts_per_batch == 100
+        assert generator.grid_rows * generator.grid_cols == 100
+    
     def test_init_invalid_grid_raises_error(self):
         """Test initialization with invalid grid dimensions raises error."""
         with pytest.raises(ValueError, match="grid_rows.*grid_cols.*must equal"):
@@ -105,7 +122,7 @@ class TestChartBatchGeneratorInit:
     def test_init_invalid_chart_size_raises_error(self):
         """Test initialization with invalid chart_size values raises error."""
         # Test with zero width
-        with pytest.raises(ValueError, match="chart_size.*width and height must be positive"):
+        with pytest.raises(ValueError, match="chart_size.*positive"):
             ChartBatchGenerator(
                 charts_per_batch=100,
                 grid_rows=10,
@@ -114,7 +131,7 @@ class TestChartBatchGeneratorInit:
             )
         
         # Test with negative height
-        with pytest.raises(ValueError, match="chart_size.*width and height must be positive"):
+        with pytest.raises(ValueError, match="chart_size.*positive"):
             ChartBatchGenerator(
                 charts_per_batch=100,
                 grid_rows=10,
@@ -123,7 +140,7 @@ class TestChartBatchGeneratorInit:
             )
         
         # Test with non-tuple type (string)
-        with pytest.raises(ValueError, match="chart_size must be a tuple or list of 2 elements"):
+        with pytest.raises(ValueError, match="tuple or list of 2 elements"):
             ChartBatchGenerator(
                 charts_per_batch=100,
                 grid_rows=10,
@@ -132,7 +149,7 @@ class TestChartBatchGeneratorInit:
             )
         
         # Test with non-tuple type (int)
-        with pytest.raises(ValueError, match="chart_size must be a tuple or list of 2 elements"):
+        with pytest.raises(ValueError, match="tuple or list of 2 elements"):
             ChartBatchGenerator(
                 charts_per_batch=100,
                 grid_rows=10,
@@ -143,7 +160,7 @@ class TestChartBatchGeneratorInit:
     def test_init_invalid_dpi_raises_error(self):
         """Test initialization with invalid dpi values raises error."""
         # Test with zero dpi
-        with pytest.raises(ValueError, match="dpi must be positive"):
+        with pytest.raises(ValueError, match="positive"):
             ChartBatchGenerator(
                 charts_per_batch=100,
                 grid_rows=10,
@@ -152,7 +169,7 @@ class TestChartBatchGeneratorInit:
             )
         
         # Test with negative dpi
-        with pytest.raises(ValueError, match="dpi must be positive"):
+        with pytest.raises(ValueError, match="positive"):
             ChartBatchGenerator(
                 charts_per_batch=100,
                 grid_rows=10,

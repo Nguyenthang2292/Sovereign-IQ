@@ -1,0 +1,6 @@
+{
+  "errors": {
+    "logReadError": "Error reading logs: {error}"
+  }
+}
+

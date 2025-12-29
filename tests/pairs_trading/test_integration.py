@@ -88,7 +88,17 @@ def test_performance_and_pairs_pipeline_with_real_data_fetcher(monkeypatch):
     )
 
     assert not performance_df.empty
-    assert list(performance_df["symbol"]) == ["AAA/USDT", "CCC/USDT", "BBB/USDT"]
+    
+    # When scores are equal, results are sorted by symbol (ascending) as secondary sort
+    # This ensures deterministic ordering
+    actual_order = list(performance_df["symbol"])
+    expected_order = ["AAA/USDT", "BBB/USDT", "CCC/USDT"]  # Alphabetical when scores equal
+    
+    # Verify all expected symbols are present
+    assert set(actual_order) == set(expected_order), f"Symbols mismatch: {actual_order} vs {expected_order}"
+    
+    # Verify order (alphabetical when scores are equal)
+    assert actual_order == expected_order, f"Order mismatch: {actual_order} vs {expected_order}"
 
     best = performance_analyzer.get_top_performers(performance_df, top_n=1)
     worst = performance_analyzer.get_worst_performers(performance_df, top_n=1)

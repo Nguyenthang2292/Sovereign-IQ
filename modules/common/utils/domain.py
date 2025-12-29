@@ -2,6 +2,7 @@
 Domain-specific utilities for trading (symbols, timeframes).
 """
 
+import math
 import re
 from config import DEFAULT_QUOTE
 
@@ -15,21 +16,6 @@ TIMEFRAME_RE = re.compile(r"^(\d+)\s*([mhdw])$")
 TIMEFRAME_REVERSE_RE = re.compile(r"^([mhdw])\s*(\d+)$")
 # Pattern for normalized format (no spaces): number + unit
 TIMEFRAME_NORMALIZED_RE = re.compile(r"^(\d+)([mhdw])$")
-
-
-def _validate_timeframe_value(value: int, timeframe: str) -> None:
-    """
-    Validates that timeframe value is positive.
-    
-    Args:
-        value: The numeric value from the timeframe string
-        timeframe: The original timeframe string for error messages
-        
-    Raises:
-        ValueError: If value <= 0
-    """
-    if value <= 0:
-        raise ValueError(f"Invalid timeframe: value must be > 0, got '{timeframe}'")
 
 
 def normalize_timeframe(timeframe: str) -> str:
@@ -51,6 +37,11 @@ def normalize_timeframe(timeframe: str) -> str:
         normalize_timeframe('4h') -> '4h'
         normalize_timeframe('h4') -> '4h'
     """
+    def _validate_timeframe_value(value: int, timeframe: str) -> None:
+        """Validates that timeframe value is positive."""
+        if value <= 0:
+            raise ValueError(f"Invalid timeframe: value must be > 0, got '{timeframe}'")
+    
     if not timeframe:
         return '1h'  # default
     
@@ -106,7 +97,8 @@ def timeframe_to_minutes(timeframe: str) -> int:
         return value * 60 * 24
     if unit == "w":
         return value * 60 * 24 * 7
-    return 60
+    # All units handled above; regex ensures unit is in [mhdw]
+    raise AssertionError(f"Unexpected unit '{unit}' - should be unreachable")
 
 
 # --- Symbol Normalization Utilities ---
@@ -169,4 +161,4 @@ def days_to_candles(days: int, timeframe: str) -> int:
     minutes_per_candle = timeframe_to_minutes(timeframe)
     minutes_per_day = 24 * 60  # 1440 minutes per day
     candles_per_day = minutes_per_day / minutes_per_candle
-    return int(days * candles_per_day)
+    return math.ceil(days * candles_per_day)

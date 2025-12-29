@@ -11,6 +11,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_forecast
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config):
     """Configure pytest to avoid capture issues on Windows."""
+    
     # Ensure capture is disabled if not already set
     if hasattr(config.option, 'capture') and config.option.capture == 'no':
         # Set up safe stderr handling

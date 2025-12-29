@@ -47,6 +47,9 @@ test_output.txt
 tmp_*.py
 
 # API Keys and Secrets (sensitive information)
+.env
+.env.local
+.env.*.local
 modules/config_api.py
 config/config_api.py
 # Snyk Security Extension - AI Rules (auto-generated)
@@ -55,3 +58,6 @@ config/config_api.py
 # Gemini Chart Analyzer outputs
 modules/gemini_chart_analyzer/charts/
 modules/gemini_chart_analyzer/analysis_results/
+
+# Node.js dependencies
+web/static/vue/node_modules/

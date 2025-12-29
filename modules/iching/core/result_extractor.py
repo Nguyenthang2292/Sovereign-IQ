@@ -4,6 +4,7 @@ I Ching result information extractor using Google Gemini API.
 
 import json
 import re
+from dataclasses import replace
 from typing import Optional
 
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
@@ -236,16 +237,29 @@ Lưu ý:
         
         if not hao_dong_trai:
             # Không có hào động ở quẻ trái, đảm bảo tất cả hào ở quẻ phải đều không động
-            for hao in result.que_phai:
-                hao.is_dong = False
+            # HaoInfo is frozen, so we need to create new objects
+            new_que_phai = [
+                replace(hao, is_dong=False) if hao.is_dong else hao
+                for hao in result.que_phai
+            ]
+            # Use object.__setattr__ to modify frozen dataclass field
+            object.__setattr__(result, 'que_phai', new_que_phai)
             return
         
+        # Convert to set for O(1) membership checks
+        hao_dong_trai_set = set(hao_dong_trai)
+        
         # Đồng bộ: Set is_dong: true cho các hào tương ứng ở quẻ phải
-        for hao in result.que_phai:
-            if hao.hao in hao_dong_trai:
-                hao.is_dong = True
-            else:
-                hao.is_dong = False
+        new_que_phai = [
+            replace(hao, is_dong=is_in)
+            if hao.is_dong != is_in
+            else hao
+            for hao in result.que_phai
+            for is_in in [hao.hao in hao_dong_trai_set]
+        ]
+        
+        # Use object.__setattr__ to modify frozen dataclass field
+        object.__setattr__(result, 'que_phai', new_que_phai)
         
         log_info(f"Đã đồng bộ hào động: Quẻ trái có Hào {', '.join(map(str, hao_dong_trai))} động → Quẻ phải cũng có các hào này động")
     

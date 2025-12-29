@@ -13,7 +13,7 @@ Tests cover:
 import pytest
 import json
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -417,8 +417,8 @@ class TestMarketBatchScannerSaveResults:
             'none_count': 1
         }
         
-        # Mock the _get_analysis_results_dir function
-        with patch('modules.gemini_chart_analyzer.core.scanners.market_batch_scanner._get_analysis_results_dir',
+        # Mock the get_analysis_results_dir function
+        with patch('modules.gemini_chart_analyzer.core.utils.chart_paths.get_analysis_results_dir',
                    return_value=str(tmp_path / "analysis_results")):
             results_file = scanner._save_results(
                 all_results=all_results,
@@ -439,5 +439,69 @@ class TestMarketBatchScannerSaveResults:
             assert len(data['long_symbols']) == 1
             assert len(data['short_symbols']) == 1
             assert data['summary']['long_count'] == 1
+
+
+class TestMarketBatchScannerCleanup:
+    """Test cleanup functionality in MarketBatchScanner."""
+    
+    def test_cleanup_resources(self, mock_scanner_dependencies):
+        """Test that cleanup() frees exchange connections and triggers GC."""
+        scanner = MarketBatchScanner()
+        
+        # Mock cleanup methods
+        mock_auth_cleanup = MagicMock()
+        mock_public_cleanup = MagicMock()
+        scanner.exchange_manager.cleanup_unused_exchanges = mock_auth_cleanup
+        scanner.public_exchange_manager.cleanup_unused_exchanges = mock_public_cleanup
+        
+        # Mock gc.collect
+        with patch('gc.collect') as mock_gc:
+            scanner.cleanup()
+            
+            # Verify cleanup was called on both exchange managers
+            mock_auth_cleanup.assert_called_once()
+            mock_public_cleanup.assert_called_once()
+            
+            # Verify GC was called
+            mock_gc.assert_called_once()
+    
+    def test_cleanup_handles_errors(self, mock_scanner_dependencies):
+        """Test that cleanup() handles errors gracefully."""
+        scanner = MarketBatchScanner()
+        
+        # Mock cleanup to raise error
+        scanner.exchange_manager.cleanup_unused_exchanges = MagicMock(
+            side_effect=Exception("Cleanup error")
+        )
+        scanner.public_exchange_manager.cleanup_unused_exchanges = MagicMock()
+        
+        # Should not raise error, should continue
+        with patch('gc.collect') as mock_gc:
+            scanner.cleanup()
+            
+            # Verify public cleanup was still called
+            scanner.public_exchange_manager.cleanup_unused_exchanges.assert_called_once()
+            
+            # Verify GC was still called
+            mock_gc.assert_called_once()
+    
+    def test_cleanup_with_all_errors(self, mock_scanner_dependencies):
+        """Test cleanup when all cleanup methods raise errors."""
+        scanner = MarketBatchScanner()
+        
+        # Mock both cleanup methods to raise errors
+        scanner.exchange_manager.cleanup_unused_exchanges = MagicMock(
+            side_effect=Exception("Auth cleanup error")
+        )
+        scanner.public_exchange_manager.cleanup_unused_exchanges = MagicMock(
+            side_effect=Exception("Public cleanup error")
+        )
+        
+        # Should not raise error, should still call GC
+        with patch('gc.collect') as mock_gc:
+            scanner.cleanup()
+            
+            # Verify GC was still called even with errors
+            mock_gc.assert_called_once()
 
 

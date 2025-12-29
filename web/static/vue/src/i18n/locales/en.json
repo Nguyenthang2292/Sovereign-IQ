@@ -1,0 +1,134 @@
+{
+  "app": {
+    "title": "Gemini Chart Analyzer"
+  },
+  "nav": {
+    "batchScanner": "Batch Scanner",
+    "chartAnalyzer": "Chart Analyzer"
+  },
+  "footer": {
+    "text": "Gemini Chart Analyzer - Powered by Google Gemini AI"
+  },
+  "common": {
+    "singleTimeframe": "Single Timeframe",
+    "multiTimeframe": "Multi-Timeframe",
+    "clear": "Clear",
+    "required": "*",
+    "example": "Example",
+    "all": "All",
+    "waiting": "Waiting for logs...",
+    "loading": "Loading...",
+    "error": "An error occurred.",
+    "symbol": "Symbol",
+    "timeframe": "Timeframe",
+    "timeframes": "Timeframes",
+    "selectTimeframe": "Select timeframe",
+    "commaSeparated": "(comma-separated)",
+    "seconds": "seconds"
+  },
+  "batchScanner": {
+    "title": "Batch Scanner",
+    "subtitle": "Scan the entire market and find LONG/SHORT signals",
+    "configTitle": "Scan Configuration",
+    "startScan": "Start Scan",
+    "cancelScan": "Cancel Scan",
+    "scanning": "Scanning market...",
+    "scanningDescription": "This process may take a few minutes. Please wait.",
+    "logs": "Logs",
+    "fields": {
+      "timeframe": "Timeframe",
+      "timeframes": "Timeframes",
+      "maxSymbols": "Max Symbols (leave blank = all)",
+      "maxSymbolsPlaceholder": "All",
+      "limit": "Number of Candles per Symbol",
+      "cooldown": "Cooldown (seconds)",
+      "example": "Example: 15m, 1h, 4h, 1d"
+    },
+    "errors": {
+      "scanError": "Market scan failed. Possible causes: network connectivity issues, API rate limits, or server timeout. Please check your network connection, verify API permissions, and try again. {{details}}"
+    }
+  },
+  "chartAnalyzer": {
+    "title": "Chart Analyzer",
+    "subtitle": "Analyze technical charts with Google Gemini AI",
+    "configTitle": "Analysis Configuration",
+    "startAnalyze": "Start Analysis",
+    "analyzing": "Analyzing...",
+    "analyzingProgress": "Analyzing...",
+    "analyzingDescription": "This process may take a few minutes. Please wait.",
+    "logs": "Logs",
+    "resultsTitle": "Analysis Results",
+    "detailedAnalysis": "Detailed Analysis",
+    "aggregatedResult": "Aggregated Result",
+    "timeframeBreakdown": "Timeframe Breakdown",
+    "confidence": "Confidence",
+    "fields": {
+      "symbol": "Symbol",
+      "symbolPlaceholder": "BTC/USDT",
+      "timeframe": "Timeframe",
+      "timeframes": "Timeframes",
+      "indicators": "Indicators",
+      "maPeriods": "Moving Average Periods",
+      "maPeriodsPlaceholder": "20, 50, 200",
+      "rsiPeriod": "RSI Period",
+      "enableMacd": "Enable MACD",
+      "enableBb": "Enable Bollinger Bands",
+      "advancedOptions": "Advanced Options",
+      "promptType": "Prompt Type",
+      "customPrompt": "Custom Prompt",
+      "customPromptPlaceholder": "Enter custom prompt...",
+      "limit": "Number of Candles",
+      "example": "Example: 15m, 1h, 4h, 1d"
+    },
+    "promptTypes": {
+      "detailed": "Detailed",
+      "simple": "Simple",
+      "custom": "Custom"
+    },
+    "errors": {
+      "analyzeError": "Chart analysis failed. Possible causes: network connectivity issues, API rate limits, invalid symbol/timeframe, or insufficient data. Please check your network connection, verify the symbol exists and timeframe is valid, and try again. {{details}}"
+    }
+  },
+  "results": {
+    "summary": "Summary",
+    "long": "LONG",
+    "short": "SHORT",
+    "none": "NONE",
+    "total": "TOTAL",
+    "searchPlaceholder": "Search symbol...",
+    "sortBy": {
+      "confidence": "Sort by Confidence",
+      "symbol": "Sort by Symbol",
+      "ascending": "Ascending",
+      "descending": "Descending"
+    },
+    "table": {
+      "symbol": "Symbol",
+      "confidence": "Confidence",
+      "signal": "Signal",
+      "actions": "Actions",
+      "analyze": "Analyze"
+    },
+    "pagination": {
+      "showing": "Showing",
+      "of": "of",
+      "results": "results",
+      "page": "Page",
+      "previous": "← Previous",
+      "next": "Next →"
+    },
+    "itemsPerPage": {
+      "5": "5 rows",
+      "10": "10 rows",
+      "20": "20 rows",
+      "50": "50 rows",
+      "100": "100 rows",
+      "title": "Rows per page"
+    },
+    "empty": {
+      "title": "No results",
+      "description": "No signals found matching the search criteria."
+    }
+  }
+}
+

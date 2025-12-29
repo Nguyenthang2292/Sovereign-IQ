@@ -1,0 +1,6 @@
+{
+  "errors": {
+    "logReadError": "Lỗi khi đọc nhật ký: {error}"
+  }
+}
+

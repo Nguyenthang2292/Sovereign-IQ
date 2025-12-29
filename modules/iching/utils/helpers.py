@@ -67,10 +67,13 @@ def get_font(font_size: int = FONT_SIZE) -> Union[ImageFont.FreeTypeFont, ImageF
 
 def clean_images_folder() -> int:
     """
-    Delete all files in the images folder.
+    Delete all image files in the images folder.
+    
+    Only deletes files with image extensions (.png, .jpg, .jpeg, .gif, .bmp, .svg, etc.).
+    Non-image files are left untouched.
     
     Returns:
-        Number of files deleted
+        Number of image files deleted
     """
     # Import logging here to avoid circular import when importing at the top of the file
     from modules.common.ui.logging import log_warn
@@ -81,19 +84,25 @@ def clean_images_folder() -> int:
     # Create folder if it doesn't exist (with parents=True to create intermediate directories)
     images_dir.mkdir(exist_ok=True, parents=True)
     
+    # Common image file extensions
+    image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp', '.ico', '.tiff', '.tif'}
+    
     # Count files before deletion
     deleted_count = 0
     
-    # Iterate through all files in the folder and delete them
+    # Iterate through all files in the folder and delete only image files
     try:
         for file_path in images_dir.iterdir():
             if file_path.is_file():
-                try:
-                    file_path.unlink()
-                    deleted_count += 1
-                except OSError as e:
-                    # Log warning but continue deleting other files
-                    log_warn(f"Unable to delete file {file_path.name}: {e}")
+                # Check if file has an image extension (case-insensitive)
+                file_ext = file_path.suffix.lower()
+                if file_ext in image_extensions:
+                    try:
+                        file_path.unlink()
+                        deleted_count += 1
+                    except OSError as e:
+                        # Log warning but continue deleting other files
+                        log_warn(f"Unable to delete file {file_path.name}: {e}")
     except Exception as e:
         # If there's a serious error, raise exception
         raise RuntimeError(f"Error while cleaning images folder: {e}") from e

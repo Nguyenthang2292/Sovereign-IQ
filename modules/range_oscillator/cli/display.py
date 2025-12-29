@@ -53,7 +53,6 @@ def display_configuration(
         timeframe: Selected timeframe
         limit: Number of candles
         min_signal: Minimum signal strength
-        max_workers: Number of parallel workers
         strategies: List of strategy numbers (e.g., [2, 3, 4])
         max_symbols: Maximum number of symbols to scan (optional)
     """

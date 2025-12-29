@@ -96,7 +96,6 @@ class TestDisplayConfiguration:
             timeframe='1h',
             limit=500,
             min_signal=0.01,
-            max_workers=10,
             strategies=None
         )
         
@@ -111,7 +110,6 @@ class TestDisplayConfiguration:
             timeframe='15m',
             limit=1000,
             min_signal=0.05,
-            max_workers=20,
             strategies=[2, 3, 4],
             max_symbols=50
         )
@@ -127,7 +125,6 @@ class TestDisplayConfiguration:
             timeframe='1h',
             limit=500,
             min_signal=0.01,
-            max_workers=10,
             strategies=None,
             max_symbols=100
         )

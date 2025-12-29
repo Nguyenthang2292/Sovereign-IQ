@@ -74,7 +74,8 @@ class TestGetFont:
         font = get_font()
         
         # Verify truetype was called once with correct path and size
-        mock_truetype.assert_called_once_with(expected_font_path, size=expected_size)
+        # Note: truetype is called with positional arguments: (path, size)
+        mock_truetype.assert_called_once_with(expected_font_path, expected_size)
         # Verify the returned font is the mock
         assert font is mock_font
     
@@ -104,33 +105,27 @@ class TestCleanImagesFolder:
         images_dir = tmp_path / "images"
         images_dir.mkdir()
         
-        # Mock Path(__file__) to point to a file in tmp_path
-        mock_file_path = tmp_path / "helpers.py"
+        # Monkeypatch IMAGES_DIR directly instead of mocking Path
+        monkeypatch.setattr('modules.iching.utils.helpers.IMAGES_DIR', images_dir)
         
-        def mock_path_init(cls, path, *args, **kwargs):
-            from pathlib import Path as RealPath
-            if isinstance(path, str) and 'helpers.py' in path:
-                # Return a mock that points to tmp_path
-                result = Mock()
-                result.parent = Mock()
-                result.parent.parent = tmp_path
-                return result
-            return RealPath.__new__(cls, path, *args, **kwargs)
-        
-        from pathlib import Path as RealPath
-        original_new = RealPath.__new__
-        monkeypatch.setattr(RealPath, '__new__', staticmethod(mock_path_init))
-        
-        try:
-            count = clean_images_folder()
-            assert count == 0
-        finally:
-            # Restore original
-            monkeypatch.setattr(RealPath, '__new__', staticmethod(original_new))
+        count = clean_images_folder()
+        assert count == 0
     
     def test_clean_images_folder_with_files(self, tmp_path, monkeypatch):
-        """Test cleaning folder with files - simplified test."""
-        # This test is complex due to Path mocking, skip for now
-        # The function is tested indirectly through integration tests
-        pass
+        """Test cleaning folder with files."""
+        images_dir = tmp_path / "images"
+        images_dir.mkdir()
+        # Create some dummy files
+        filenames = ["a.png", "b.jpg", "not_image.txt"]
+        for fn in filenames:
+            (images_dir / fn).write_text("dummy")
+
+        # Monkeypatch IMAGES_DIR directly
+        monkeypatch.setattr('modules.iching.utils.helpers.IMAGES_DIR', images_dir)
+        
+        count = clean_images_folder()
+        # Only .png and .jpg files should be removed (assuming known impl.)
+        assert count == 2
+        # Confirm only non-image file remains
+        assert set(f.name for f in images_dir.iterdir()) == {"not_image.txt"}
 

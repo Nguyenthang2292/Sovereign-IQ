@@ -5,6 +5,7 @@ Groups 100 simple charts into a single batch image (10x10 grid).
 """
 
 import pandas as pd
+import math
 import matplotlib
 # Use non-interactive backend to avoid GUI overhead and memory leaks
 matplotlib.use('Agg')  # Must be set before importing pyplot
@@ -28,8 +29,8 @@ class ChartBatchGenerator:
     def __init__(
         self,
         charts_per_batch: int = 100,
-        grid_rows: int = 10,
-        grid_cols: int = 10,
+        grid_rows: Optional[int] = None,
+        grid_cols: Optional[int] = None,
         chart_size: Tuple[float, float] = (2.0, 1.5),  # inches
         dpi: int = 100
     ):
@@ -38,12 +39,33 @@ class ChartBatchGenerator:
         
         Args:
             charts_per_batch: Number of charts per batch (default: 100)
-            grid_rows: Number of rows in grid (default: 10)
-            grid_cols: Number of columns in grid (default: 10)
+            grid_rows: Number of rows in grid (auto-calculated if None)
+            grid_cols: Number of columns in grid (auto-calculated if None)
             chart_size: Size of each individual chart in inches (width, height)
             dpi: DPI for output image
         """
+        # Validate charts_per_batch type and value
+        if not isinstance(charts_per_batch, int) or charts_per_batch <= 0:
+            raise ValueError(f"charts_per_batch must be a positive integer, got {charts_per_batch}")
+        
         self.charts_per_batch = charts_per_batch
+        
+        # Handle explicit cases for grid_rows/grid_cols None logic
+        if grid_rows is None and grid_cols is None:
+            grid_rows, grid_cols = self._calculate_grid_dimensions(charts_per_batch)
+        elif grid_rows is None:
+            if grid_cols <= 0:
+                raise ValueError("grid_cols must be a positive integer.")
+            if charts_per_batch % grid_cols != 0:
+                raise ValueError(f"charts_per_batch ({charts_per_batch}) is not divisible by grid_cols ({grid_cols})")
+            grid_rows = charts_per_batch // grid_cols
+        elif grid_cols is None:
+            if grid_rows <= 0:
+                raise ValueError("grid_rows must be a positive integer.")
+            if charts_per_batch % grid_rows != 0:
+                raise ValueError(f"charts_per_batch ({charts_per_batch}) is not divisible by grid_rows ({grid_rows})")
+            grid_cols = charts_per_batch // grid_rows
+        
         self.grid_rows = grid_rows
         self.grid_cols = grid_cols
         self.chart_size = chart_size
@@ -76,6 +98,62 @@ class ChartBatchGenerator:
         #     dpi=dpi
         # )
     
+    @staticmethod
+    def _calculate_grid_dimensions(charts_per_batch: int) -> Tuple[int, int]:
+        """
+        Calculate optimal grid_rows and grid_cols for given charts_per_batch.
+        
+        Tries to create a square-ish grid (rows ≈ cols) that exactly equals charts_per_batch.
+        
+        Args:
+            charts_per_batch: Number of charts to fit in grid
+            
+        Returns:
+            Tuple of (grid_rows, grid_cols) where grid_rows * grid_cols == charts_per_batch
+        """
+        
+        # Calculate approximate square root
+        sqrt_val = math.sqrt(charts_per_batch)
+        
+        # Find factors that multiply to exactly charts_per_batch
+        # Optimize by iterating only up to sqrt(charts_per_batch) - O(√n) instead of O(n)
+        best_rows = None
+        best_cols = None
+        min_diff = float('inf')
+        
+        # Iterate only up to sqrt(charts_per_batch) to find all factor pairs
+        sqrt_n = int(math.sqrt(charts_per_batch))
+        for k in range(1, sqrt_n + 1):
+            if charts_per_batch % k == 0:  # k is a factor
+                # Consider both factor pairs: (k, charts_per_batch//k) and (charts_per_batch//k, k)
+                # Pair 1: rows=k, cols=charts_per_batch//k
+                rows1, cols1 = k, charts_per_batch // k
+                diff1 = abs(rows1 - cols1)
+                if diff1 < min_diff:
+                    min_diff = diff1
+                    best_rows = rows1
+                    best_cols = cols1
+                
+                # Pair 2: rows=charts_per_batch//k, cols=k (swapped)
+                rows2, cols2 = charts_per_batch // k, k
+                diff2 = abs(rows2 - cols2)
+                if diff2 < min_diff:
+                    min_diff = diff2
+                    best_rows = rows2
+                    best_cols = cols2
+        
+        # If no factors found (shouldn't happen for positive integers), use ceil approach
+        # The unreachable fallback code is removed since best_rows will never be None for positive integers.
+        
+        # Defensive check: ensure grid dimensions were computed successfully
+        if best_rows is None or best_cols is None:
+            raise RuntimeError(
+                f"Failed to compute grid dimensions for charts_per_batch={charts_per_batch}. "
+                f"This should not happen for positive integers. Please check the input value."
+            )
+        
+        return best_rows, best_cols
+
     def _validate_positive_numeric(
         self,
         value,

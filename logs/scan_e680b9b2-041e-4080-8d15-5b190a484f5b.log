@@ -1,0 +1,40 @@
+[2025-12-29 11:59:10] [22m[37mCLILogger started for session e680b9b2-041e-4080-8d15-5b190a484f5b[0m
+[2025-12-29 11:59:10] 
+[2025-12-29 11:59:12] [22m[34mTask e680b9b2-041e-4080-8d15-5b190a484f5b marked as cancelled[0m
+[2025-12-29 11:59:12] 
+[2025-12-29 11:59:19] [22m[34mCreated log file: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\logs\scan_1e9a00fe-ccb4-4697-a853-e59f99a2f20f.log[0m
+[2025-12-29 11:59:19] 
+[2025-12-29 11:59:19] [22m[34mBackground task started for session 1e9a00fe-ccb4-4697-a853-e59f99a2f20f[0m
+[2025-12-29 11:59:19] 
+[2025-12-29 11:59:19] [22m[37mCLILogger started for session 1e9a00fe-ccb4-4697-a853-e59f99a2f20f[0m
+[2025-12-29 11:59:19] 
+[2025-12-29 12:00:35] HTTP Request: GET https://generativelanguage.googleapis.com/v1beta/models "HTTP/1.1 200 OK"
+[2025-12-29 12:00:35] HTTP Request: GET https://generativelanguage.googleapis.com/v1beta/models?pageToken=Ch9tb2RlbHMvdmVvLTMuMS1nZW5lcmF0ZS1wcmV2aWV3 "HTTP/1.1 200 OK"
+[2025-12-29 12:00:35] [22m[32mSuccessfully connected to the Google Gemini API[0m
+[2025-12-29 12:00:35] 
+[2025-12-29 12:00:35] [22m[34m============================================================[0m
+[2025-12-29 12:00:35] 
+[2025-12-29 12:00:35] [22m[34mMARKET BATCH SCANNER[0m
+[2025-12-29 12:00:35] 
+[2025-12-29 12:00:35] [22m[34m============================================================[0m
+[2025-12-29 12:00:35] 
+[2025-12-29 12:00:35] [22m[34mMulti-timeframe mode: 1d, 4h, 1h, 15m[0m
+[2025-12-29 12:00:35] 
+[2025-12-29 12:00:35] [22m[34mDeleted 1 old batch scan result file(s)[0m
+[2025-12-29 12:00:35] 
+[2025-12-29 12:00:35] [22m[34mDeleted 1 old batch scan HTML report file(s)[0m
+[2025-12-29 12:00:35] 
+[2025-12-29 12:00:35] [22m[34mDeleted 1 old batch chart file(s)[0m
+[2025-12-29 12:00:35] 
+[2025-12-29 12:00:35] [22m[34mStep 1: Getting all symbols from exchange...[0m
+[2025-12-29 12:00:35] 
+[2025-12-29 12:00:38] [22m[34mLimited to 5 symbols[0m
+[2025-12-29 12:00:38] 
+[2025-12-29 12:00:38] [22m[32mFound 5 symbols to scan[0m
+[2025-12-29 12:00:38] 
+[2025-12-29 12:00:38] [22m[34mSplit into 1 batches (25 symbols per batch)[0m
+[2025-12-29 12:00:38] 
+[2025-12-29 12:00:38] [22m[33mScan cancelled by user[0m
+[2025-12-29 12:00:38] 
+[2025-12-29 12:00:38] [22m[34mProcessed 0/1 batches before cancellation[0m
+[2025-12-29 12:00:38] 

@@ -8,7 +8,7 @@ import os
 import json
 import glob
 import time
-from typing import List, Dict, Optional, Tuple, Any, Union
+from typing import List, Dict, Optional, Tuple, Any, Union, Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -16,6 +16,7 @@ from modules.common.core.exchange_manager import ExchangeManager, PublicExchange
 from modules.common.core.data_fetcher import DataFetcher
 from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
 from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
+from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
 from modules.common.ui.logging import log_info, log_error, log_success, log_warn
 
 
@@ -25,13 +26,6 @@ class SymbolFetchError(Exception):
         super().__init__(message)
         self.original_exception = original_exception
         self.is_retryable = is_retryable
-
-
-def _get_analysis_results_dir() -> str:
-    """Get the analysis results directory path relative to module root."""
-    module_root = Path(__file__).parent.parent
-    results_dir = module_root / "analysis_results"
-    return str(results_dir)
 
 
 class MarketBatchScanner:
@@ -81,12 +75,59 @@ class MarketBatchScanner:
         self.batch_chart_generator = ChartBatchGenerator(charts_per_batch=charts_per_batch)
         self.batch_gemini_analyzer = GeminiBatchChartAnalyzer(cooldown_seconds=cooldown_seconds)
     
+    def cleanup(self, force_gc: bool = False):
+        """
+        Cleanup resources and free memory by clearing caches and forcing garbage collection.
+        
+        This method:
+        - Clears cached data in exchange managers
+        - Always triggers garbage collection to free memory
+        - If force_gc is True, performs an additional GC cycle for more aggressive cleanup
+        
+        Call this after scan_market() completes to free exchange connections and other resources.
+        
+        Args:
+            force_gc: If True, perform an additional garbage collection cycle (default: False)
+        """
+        import gc
+        
+        # Cleanup exchange connections and clear their caches
+        # Use separate try-except blocks so one failure doesn't prevent the other from running
+        try:
+            if hasattr(self.exchange_manager, 'cleanup_unused_exchanges'):
+                self.exchange_manager.cleanup_unused_exchanges()
+            if hasattr(self.exchange_manager, 'clear'):
+                self.exchange_manager.clear()
+        except Exception as e:
+            log_warn(f"Error cleaning up exchange manager: {e}")
+        
+        try:
+            if hasattr(self.public_exchange_manager, 'cleanup_unused_exchanges'):
+                self.public_exchange_manager.cleanup_unused_exchanges()
+            if hasattr(self.public_exchange_manager, 'clear'):
+                self.public_exchange_manager.clear()
+        except Exception as e:
+            log_warn(f"Error cleaning up public exchange manager: {e}")
+        
+        # Force garbage collection
+        # Always call gc.collect() to free memory and resources
+        gc.collect()
+        if force_gc:
+            # If force_gc is True, call it again for more aggressive cleanup
+            gc.collect()
+            log_info("Forced garbage collection")
+        else:
+            log_info("Garbage collection completed")
+        
+        log_info("Cleaned up MarketBatchScanner resources")
+    
     def scan_market(
         self,
         timeframe: Optional[str] = '1h',
         timeframes: Optional[List[str]] = None,
         max_symbols: Optional[int] = None,
-        limit: int = 500
+        limit: int = 500,
+        cancelled_callback: Optional[Callable[[], bool]] = None
     ) -> Dict:
         """
         Scan entire market and return LONG/SHORT signals.
@@ -96,6 +137,7 @@ class MarketBatchScanner:
             timeframes: List of timeframes for multi-timeframe analysis (enables multi-TF mode)
             max_symbols: Maximum number of symbols to scan (None = all)
             limit: Number of candles to fetch per symbol (default: 500)
+            cancelled_callback: Optional callable that returns bool; True indicates cancellation and stops processing (default: None)
             
         Returns:
             Dictionary with:
@@ -168,6 +210,41 @@ class MarketBatchScanner:
         batch_results = []
         
         for batch_idx, batch_symbols in enumerate(batches, 1):
+            # Check if cancelled before processing batch
+            if cancelled_callback and cancelled_callback():
+                log_warn("Scan cancelled by user")
+                log_info(f"Processed {batch_idx - 1}/{len(batches)} batches before cancellation")
+                
+                # Extract and categorize partial results
+                (
+                    long_symbols,
+                    short_symbols,
+                    none_symbols,
+                    long_symbols_with_confidence,
+                    short_symbols_with_confidence,
+                    none_symbols_with_confidence
+                ) = self._categorize_and_sort_results(all_results)
+                
+                # Return partial results
+                return {
+                    'status': 'cancelled',
+                    'long_symbols': long_symbols,
+                    'short_symbols': short_symbols,
+                    'none_symbols': none_symbols,
+                    'long_symbols_with_confidence': long_symbols_with_confidence,
+                    'short_symbols_with_confidence': short_symbols_with_confidence,
+                    'none_symbols_with_confidence': none_symbols_with_confidence,
+                    'all_results': all_results,
+                    'summary': {
+                        'total': len(all_results),
+                        'long': len([r for r in all_results.values() if r.get('signal') == 'LONG']),
+                        'short': len([r for r in all_results.values() if r.get('signal') == 'SHORT']),
+                        'none': len([r for r in all_results.values() if r.get('signal') == 'NONE']),
+                    },
+                    'results_file': '',
+                    'batches_processed': batch_idx - 1,
+                    'total_batches': len(batches)
+                }            
             log_info(f"\n{'='*60}")
             log_info(f"Processing batch {batch_idx}/{len(batches)}")
             log_info(f"{'='*60}")
@@ -325,38 +402,14 @@ class MarketBatchScanner:
         log_info(f"{'='*60}")
         
         # Extract signals and confidence
-        long_symbols_with_confidence = []
-        short_symbols_with_confidence = []
-        none_symbols_with_confidence = []
-        
-        for symbol, result in all_results.items():
-            if isinstance(result, dict):
-                signal = result.get('signal', 'NONE')
-                confidence = result.get('confidence', 0.0)
-            else:
-                # Backward compatibility: if result is string
-                # Use 0.0 confidence to denote fallback/untrusted confidence for legacy string results
-                # This ensures real confidence scores remain distinguishable from fallbacks
-                signal = result if isinstance(result, str) else 'NONE'
-                confidence = 0.0
-                log_warn(f"Legacy format detected for {symbol}: using fallback confidence 0.0")
-            
-            if signal == 'LONG':
-                long_symbols_with_confidence.append((symbol, confidence))
-            elif signal == 'SHORT':
-                short_symbols_with_confidence.append((symbol, confidence))
-            else:
-                none_symbols_with_confidence.append((symbol, confidence))
-        
-        # Sort by confidence (descending)
-        long_symbols_with_confidence.sort(key=lambda x: x[1], reverse=True)
-        short_symbols_with_confidence.sort(key=lambda x: x[1], reverse=True)
-        none_symbols_with_confidence.sort(key=lambda x: x[1], reverse=True)
-        
-        # Extract just symbols (sorted by confidence)
-        long_symbols = [s for s, _ in long_symbols_with_confidence]
-        short_symbols = [s for s, _ in short_symbols_with_confidence]
-        none_symbols = [s for s, _ in none_symbols_with_confidence]
+        (
+            long_symbols,
+            short_symbols,
+            none_symbols,
+            long_symbols_with_confidence,
+            short_symbols_with_confidence,
+            none_symbols_with_confidence
+        ) = self._categorize_and_sort_results(all_results)
         
         summary = {
             'total_symbols': len(all_symbols),
@@ -523,6 +576,81 @@ class MarketBatchScanner:
             batches.append(batch)
         return batches
     
+    def _categorize_and_sort_results(
+        self, 
+        all_results: Dict[str, Any]
+    ) -> Tuple[
+        List[str], List[str], List[str],
+        List[Tuple[str, float]], List[Tuple[str, float]], List[Tuple[str, float]]
+    ]:
+        """
+        Categorize results into LONG/SHORT/NONE and sort by confidence.
+        
+        Args:
+            all_results: Dictionary mapping symbol to result (dict with 'signal' and 'confidence' or legacy string)
+            
+        Returns:
+            Tuple of 6 lists:
+            - long_symbols: List of LONG symbols (sorted by confidence, high to low)
+            - short_symbols: List of SHORT symbols (sorted by confidence, high to low)
+            - none_symbols: List of NONE symbols (sorted by confidence, high to low)
+            - long_symbols_with_confidence: List of (symbol, confidence) tuples for LONG
+            - short_symbols_with_confidence: List of (symbol, confidence) tuples for SHORT
+            - none_symbols_with_confidence: List of (symbol, confidence) tuples for NONE
+        """
+        long_symbols_with_confidence = []
+        short_symbols_with_confidence = []
+        none_symbols_with_confidence = []
+        legacy_format_symbols = []
+        
+        for symbol, result in all_results.items():
+            if isinstance(result, dict):
+                signal = result.get('signal', 'NONE')
+                confidence = result.get('confidence', 0.0)
+            else:
+                # Backward compatibility: if result is string
+                # Use 0.0 confidence to denote fallback/untrusted confidence for legacy string results
+                # This ensures real confidence scores remain distinguishable from fallbacks
+                signal = result if isinstance(result, str) else 'NONE'
+                confidence = 0.0
+                legacy_format_symbols.append(symbol)
+            
+            if signal == 'LONG':
+                long_symbols_with_confidence.append((symbol, confidence))
+            elif signal == 'SHORT':
+                short_symbols_with_confidence.append((symbol, confidence))
+            else:
+                none_symbols_with_confidence.append((symbol, confidence))
+        
+        # Log legacy format warning as summary if any found
+        if legacy_format_symbols:
+            count = len(legacy_format_symbols)
+            examples = legacy_format_symbols[:5]  # Show first 5 as examples
+            examples_str = ', '.join(examples)
+            if count > 5:
+                log_warn(f"Legacy format detected for {count} symbol(s) (e.g., {examples_str}, ...): using fallback confidence 0.0")
+            else:
+                log_warn(f"Legacy format detected for {count} symbol(s) ({examples_str}): using fallback confidence 0.0")
+        
+        # Sort by confidence (descending)
+        long_symbols_with_confidence.sort(key=lambda x: x[1], reverse=True)
+        short_symbols_with_confidence.sort(key=lambda x: x[1], reverse=True)
+        none_symbols_with_confidence.sort(key=lambda x: x[1], reverse=True)
+        
+        # Extract just symbols (sorted by confidence)
+        long_symbols = [s for s, _ in long_symbols_with_confidence]
+        short_symbols = [s for s, _ in short_symbols_with_confidence]
+        none_symbols = [s for s, _ in none_symbols_with_confidence]
+        
+        return (
+            long_symbols,
+            short_symbols,
+            none_symbols,
+            long_symbols_with_confidence,
+            short_symbols_with_confidence,
+            none_symbols_with_confidence
+        )
+    
     def _fetch_batch_data(
         self,
         symbols: List[str],
@@ -592,7 +720,7 @@ class MarketBatchScanner:
         Returns:
             Path to saved results file
         """
-        results_base_dir = _get_analysis_results_dir()
+        results_base_dir = get_analysis_results_dir()
         output_dir = os.path.join(results_base_dir, "batch_scan")
         os.makedirs(output_dir, exist_ok=True)
         
@@ -654,7 +782,7 @@ class MarketBatchScanner:
         """
         # Cleanup old batch scan results
         try:
-            results_base_dir = _get_analysis_results_dir()
+            results_base_dir = get_analysis_results_dir()
             batch_scan_dir = os.path.join(results_base_dir, "batch_scan")
             
             if os.path.exists(batch_scan_dir):

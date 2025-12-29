@@ -1,0 +1,135 @@
+{
+  "app": {
+    "title": "Gemini Chart Analyzer"
+  },
+  "nav": {
+    "batchScanner": "Batch Scanner",
+    "chartAnalyzer": "Chart Analyzer"
+  },
+  "footer": {
+    "text": "Gemini Chart Analyzer - Powered by Google Gemini AI"
+  },
+  "common": {
+    "singleTimeframe": "Single Timeframe",
+    "multiTimeframe": "Multi-Timeframe",
+    "clear": "Clear",
+    "required": "*",
+    "example": "Ví dụ",
+    "all": "Tất cả",
+    "waiting": "Đang chờ logs...",
+    "loading": "Đang tải...",
+    "error": "Có lỗi xảy ra",
+    "symbol": "Symbol",
+    "timeframe": "Timeframe",
+    "timeframes": "Timeframes",
+    "selectTimeframe": "Chọn timeframe",
+    "commaSeparated": "(phân tách bằng dấu phẩy)",
+    "seconds": "giây"
+  },
+  "batchScanner": {
+    "title": "Batch Scanner",
+    "subtitle": "Quét toàn bộ thị trường và tìm signals LONG/SHORT",
+    "configTitle": "Cấu Hình Scan",
+    "startScan": "Bắt Đầu Scan",
+    "cancelScan": "Hủy Scan",
+    "scanning": "Đang scan thị trường...",
+    "scanningProgress": "Đang quét thị trường...",
+    "scanningDescription": "Quá trình này có thể mất vài phút. Vui lòng đợi.",
+    "logs": "Logs",
+    "fields": {
+      "timeframe": "Timeframe",
+      "timeframes": "Timeframes",
+      "maxSymbols": "Max Symbols (để trống = tất cả)",
+      "maxSymbolsPlaceholder": "Tất cả",
+      "limit": "Number of Candles per Symbol",
+      "cooldown": "Cooldown (seconds)",
+      "example": "Ví dụ: 15m, 1h, 4h, 1d"
+    },
+    "errors": {
+      "scanError": "Có lỗi xảy ra khi scan thị trường"
+    }
+  },
+  "chartAnalyzer": {
+    "title": "Chart Analyzer",
+    "subtitle": "Phân tích biểu đồ kỹ thuật với Google Gemini AI",
+    "configTitle": "Cấu Hình Phân Tích",
+    "startAnalyze": "Bắt Đầu Phân Tích",
+    "analyzing": "Đang phân tích...",
+    "analyzingProgress": "Đang phân tích...",
+    "analyzingDescription": "Quá trình này có thể mất vài phút. Vui lòng đợi.",
+    "logs": "Logs",
+    "resultsTitle": "Kết Quả Phân Tích",
+    "detailedAnalysis": "Phân Tích Chi Tiết",
+    "aggregatedResult": "Kết Quả Tổng Hợp",
+    "timeframeBreakdown": "Chi Tiết Theo Timeframe",
+    "confidence": "Độ tin cậy",
+    "fields": {
+      "symbol": "Symbol",
+      "symbolPlaceholder": "BTC/USDT",
+      "timeframe": "Timeframe",
+      "timeframes": "Timeframes",
+      "indicators": "Indicators",
+      "maPeriods": "Moving Average Periods",
+      "maPeriodsPlaceholder": "20, 50, 200",
+      "rsiPeriod": "RSI Period",
+      "enableMacd": "Bật MACD",
+      "enableBb": "Bật Dải Bollinger",
+      "advancedOptions": "Tùy Chọn Nâng Cao",
+      "promptType": "Prompt Type",
+      "customPrompt": "Custom Prompt",
+      "customPromptPlaceholder": "Nhập custom prompt...",
+      "limit": "Number of Candles",
+      "example": "Ví dụ: 15m, 1h, 4h, 1d"
+    },
+    "promptTypes": {
+      "detailed": "Chi tiết",
+      "simple": "Đơn giản",
+      "custom": "Tùy chỉnh"
+    },
+    "errors": {
+      "analyzeError": "Có lỗi xảy ra khi phân tích"
+    }
+  },
+  "results": {
+    "summary": "Tổng Kết",
+    "long": "LONG",
+    "short": "SHORT",
+    "none": "NONE",
+    "total": "TỔNG",
+    "searchPlaceholder": "Tìm kiếm symbol...",
+    "sortBy": {
+      "confidence": "Sắp xếp theo Độ tin cậy",
+      "symbol": "Sắp xếp theo Symbol",
+      "ascending": "Tăng dần",
+      "descending": "Giảm dần"
+    },
+    "table": {
+      "symbol": "Symbol",
+      "confidence": "Độ tin cậy",
+      "signal": "Signal",
+      "actions": "Actions",
+      "analyze": "Phân Tích"
+    },
+    "pagination": {
+      "showing": "Hiển thị",
+      "of": "của",
+      "results": "kết quả",
+      "page": "Trang",
+      "previous": "← Trước",
+      "next": "Sau →"
+    },
+    "itemsPerPage": {
+      "5": "5 hàng",
+      "10": "10 hàng",
+      "20": "20 hàng",
+      "50": "50 hàng",
+      "100": "100 hàng",
+      "title": "Số hàng hiển thị"
+    },
+    "empty": {
+      "title": "Không có kết quả",
+      "description": "Không tìm thấy signals nào phù hợp với tiêu chí tìm kiếm."
+    }
+  }
+}
+

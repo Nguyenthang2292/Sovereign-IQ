@@ -1,0 +1,3134 @@
+[2025-12-29 10:29:24] [22m[37mCLILogger started for session e9bdd6c5-c753-40b0-a95e-ecf6d1ce0e91[0m
+[2025-12-29 10:29:24] 
+[2025-12-29 10:29:25] HTTP Request: GET https://generativelanguage.googleapis.com/v1beta/models "HTTP/1.1 200 OK"
+[2025-12-29 10:29:25] HTTP Request: GET https://generativelanguage.googleapis.com/v1beta/models?pageToken=Ch9tb2RlbHMvdmVvLTMuMS1nZW5lcmF0ZS1wcmV2aWV3 "HTTP/1.1 200 OK"
+[2025-12-29 10:29:25] [22m[32mSuccessfully connected to the Google Gemini API[0m
+[2025-12-29 10:29:25] 
+[2025-12-29 10:29:25] [22m[34m============================================================[0m
+[2025-12-29 10:29:25] 
+[2025-12-29 10:29:25] [22m[34mMARKET BATCH SCANNER[0m
+[2025-12-29 10:29:25] 
+[2025-12-29 10:29:25] [22m[34m============================================================[0m
+[2025-12-29 10:29:25] 
+[2025-12-29 10:29:25] [22m[34mMulti-timeframe mode: 1h, 30m, 15m[0m
+[2025-12-29 10:29:25] 
+[2025-12-29 10:29:25] [22m[34mDeleted 2 old batch scan result file(s)[0m
+[2025-12-29 10:29:25] 
+[2025-12-29 10:29:25] [22m[34mDeleted 3 old batch scan HTML report file(s)[0m
+[2025-12-29 10:29:25] 
+[2025-12-29 10:29:25] [22m[34mDeleted 2 old batch chart file(s)[0m
+[2025-12-29 10:29:25] 
+[2025-12-29 10:29:25] [22m[34mStep 1: Getting all symbols from exchange...[0m
+[2025-12-29 10:29:25] 
+[2025-12-29 10:29:29] [22m[32mFound 438 symbols to scan[0m
+[2025-12-29 10:29:29] 
+[2025-12-29 10:29:29] [22m[34mSplit into 18 batches (25 symbols per batch)[0m
+[2025-12-29 10:29:29] 
+[2025-12-29 10:29:29] [22m[34m
+============================================================[0m
+[2025-12-29 10:29:29] 
+[2025-12-29 10:29:29] [22m[34mProcessing batch 1/18[0m
+[2025-12-29 10:29:29] 
+[2025-12-29 10:29:29] [22m[34m============================================================[0m
+[2025-12-29 10:29:29] 
+[2025-12-29 10:29:29] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:29:29] 
+[2025-12-29 10:29:32] [22m[32m[OHLCV] 0G/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:32] 
+[2025-12-29 10:29:32] [22m[32m[OHLCV] 0G/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:32] 
+[2025-12-29 10:29:33] [22m[32m[OHLCV] 0G/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:33] 
+[2025-12-29 10:29:33] [22m[32m[OHLCV] 1000CAT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:33] 
+[2025-12-29 10:29:33] [22m[32m[OHLCV] 1000CAT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:33] 
+[2025-12-29 10:29:34] [22m[32m[OHLCV] 1000CAT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:34] 
+[2025-12-29 10:29:34] [22m[32m[OHLCV] 1000CHEEMS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:34] 
+[2025-12-29 10:29:34] [22m[32m[OHLCV] 1000CHEEMS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:34] 
+[2025-12-29 10:29:35] [22m[32m[OHLCV] 1000CHEEMS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:35] 
+[2025-12-29 10:29:35] [22m[32m[OHLCV] 1000SATS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:35] 
+[2025-12-29 10:29:35] [22m[32m[OHLCV] 1000SATS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:35] 
+[2025-12-29 10:29:36] [22m[32m[OHLCV] 1000SATS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:36] 
+[2025-12-29 10:29:36] [22m[32m[OHLCV] 1INCH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:36] 
+[2025-12-29 10:29:36] [22m[32m[OHLCV] 1INCH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:36] 
+[2025-12-29 10:29:36] [22m[32m[OHLCV] 1INCH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:36] 
+[2025-12-29 10:29:37] [22m[32m[OHLCV] 1MBABYDOGE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:37] 
+[2025-12-29 10:29:37] [22m[32m[OHLCV] 1MBABYDOGE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:37] 
+[2025-12-29 10:29:37] [22m[32m[OHLCV] 1MBABYDOGE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:37] 
+[2025-12-29 10:29:38] [22m[32m[OHLCV] 2Z/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:38] 
+[2025-12-29 10:29:38] [22m[32m[OHLCV] 2Z/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:38] 
+[2025-12-29 10:29:38] [22m[32m[OHLCV] 2Z/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:38] 
+[2025-12-29 10:29:39] [22m[32m[OHLCV] A/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:39] 
+[2025-12-29 10:29:39] [22m[32m[OHLCV] A/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:39] 
+[2025-12-29 10:29:39] [22m[32m[OHLCV] A/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:39] 
+[2025-12-29 10:29:40] [22m[32m[OHLCV] A2Z/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:40] 
+[2025-12-29 10:29:40] [22m[32m[OHLCV] A2Z/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:40] 
+[2025-12-29 10:29:40] [22m[32m[OHLCV] A2Z/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:40] 
+[2025-12-29 10:29:41] [22m[32m[OHLCV] AAVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:41] 
+[2025-12-29 10:29:41] [22m[32m[OHLCV] AAVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:41] 
+[2025-12-29 10:29:41] [22m[32m[OHLCV] AAVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:41] 
+[2025-12-29 10:29:50] [22m[32m[OHLCV] ACA/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:29:50] 
+[2025-12-29 10:29:50] [22m[32m[OHLCV] ACA/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:29:50] 
+[2025-12-29 10:29:50] [22m[32m[OHLCV] ACA/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:29:50] 
+[2025-12-29 10:29:51] [22m[32m[OHLCV] ACE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:51] 
+[2025-12-29 10:29:51] [22m[32m[OHLCV] ACE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:51] 
+[2025-12-29 10:29:51] [22m[32m[OHLCV] ACE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:51] 
+[2025-12-29 10:29:52] [22m[32m[OHLCV] ACH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:52] 
+[2025-12-29 10:29:52] [22m[32m[OHLCV] ACH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:52] 
+[2025-12-29 10:29:52] [22m[32m[OHLCV] ACH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:52] 
+[2025-12-29 10:29:53] [22m[32m[OHLCV] ACM/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:29:53] 
+[2025-12-29 10:29:53] [22m[32m[OHLCV] ACM/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:29:53] 
+[2025-12-29 10:29:53] [22m[32m[OHLCV] ACM/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:29:53] 
+[2025-12-29 10:29:54] [22m[32m[OHLCV] ACT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:54] 
+[2025-12-29 10:29:54] [22m[32m[OHLCV] ACT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:54] 
+[2025-12-29 10:29:54] [22m[32m[OHLCV] ACT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:54] 
+[2025-12-29 10:29:55] [22m[32m[OHLCV] ACX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:55] 
+[2025-12-29 10:29:55] [22m[32m[OHLCV] ACX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:55] 
+[2025-12-29 10:29:55] [22m[32m[OHLCV] ACX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:55] 
+[2025-12-29 10:29:56] [22m[32m[OHLCV] ADA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:56] 
+[2025-12-29 10:29:56] [22m[32m[OHLCV] ADA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:56] 
+[2025-12-29 10:29:56] [22m[32m[OHLCV] ADA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:29:56] 
+[2025-12-29 10:29:57] [22m[32m[OHLCV] ADX/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:29:57] 
+[2025-12-29 10:29:57] [22m[32m[OHLCV] ADX/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:29:57] 
+[2025-12-29 10:29:57] [22m[32m[OHLCV] ADX/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:29:57] 
+[2025-12-29 10:30:06] [1m[31mFailed to fetch OHLCV for AEUR/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:30:06] 
+[2025-12-29 10:30:08] [1m[31mFailed to fetch OHLCV for AEUR/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:30:08] 
+[2025-12-29 10:30:10] [1m[31mFailed to fetch OHLCV for AEUR/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:30:10] 
+[2025-12-29 10:30:10] [22m[32m[OHLCV] AEVO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:10] 
+[2025-12-29 10:30:11] [22m[32m[OHLCV] AEVO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:11] 
+[2025-12-29 10:30:11] [22m[32m[OHLCV] AEVO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:11] 
+[2025-12-29 10:30:11] [22m[32m[OHLCV] AGLD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:11] 
+[2025-12-29 10:30:12] [22m[32m[OHLCV] AGLD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:12] 
+[2025-12-29 10:30:12] [22m[32m[OHLCV] AGLD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:12] 
+[2025-12-29 10:30:12] [22m[32m[OHLCV] AI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:12] 
+[2025-12-29 10:30:13] [22m[32m[OHLCV] AI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:13] 
+[2025-12-29 10:30:13] [22m[32m[OHLCV] AI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:13] 
+[2025-12-29 10:30:13] [22m[32m[OHLCV] AIXBT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:13] 
+[2025-12-29 10:30:14] [22m[32m[OHLCV] AIXBT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:14] 
+[2025-12-29 10:30:14] [22m[32m[OHLCV] AIXBT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:14] 
+[2025-12-29 10:30:14] [22m[32m[OHLCV] ALCX/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:30:14] 
+[2025-12-29 10:30:15] [22m[32m[OHLCV] ALCX/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:30:15] 
+[2025-12-29 10:30:15] [22m[32m[OHLCV] ALCX/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:30:15] 
+[2025-12-29 10:30:15] [22m[32m[OHLCV] ALGO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:15] 
+[2025-12-29 10:30:16] [22m[32m[OHLCV] ALGO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:16] 
+[2025-12-29 10:30:16] [22m[32m[OHLCV] ALGO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:30:16] 
+[2025-12-29 10:30:16] [22m[32mFetched data for 24 symbols[0m
+[2025-12-29 10:30:16] 
+[2025-12-29 10:30:16] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:30:16] 
+[2025-12-29 10:31:21] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_103016_batch1.png[0m
+[2025-12-29 10:31:21] 
+[2025-12-29 10:31:21] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:31:21] 
+[2025-12-29 10:31:21] [22m[34mAnalyzing multi-TF batch chart with 24 symbols across 3 timeframes...[0m
+[2025-12-29 10:31:21] 
+[2025-12-29 10:31:21] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:31:21] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:31:54] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:31:54] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:31:54] [22m[32mMulti-TF batch analysis completed for 24 symbols[0m
+[2025-12-29 10:31:54] 
+[2025-12-29 10:31:54] [22m[34m
+============================================================[0m
+[2025-12-29 10:31:54] 
+[2025-12-29 10:31:54] [22m[34mProcessing batch 2/18[0m
+[2025-12-29 10:31:54] 
+[2025-12-29 10:31:54] [22m[34m============================================================[0m
+[2025-12-29 10:31:54] 
+[2025-12-29 10:31:54] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:31:54] 
+[2025-12-29 10:31:54] [22m[32m[OHLCV] ALICE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:54] 
+[2025-12-29 10:31:54] [22m[32m[OHLCV] ALICE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:54] 
+[2025-12-29 10:31:55] [22m[32m[OHLCV] ALICE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:55] 
+[2025-12-29 10:31:55] [22m[32m[OHLCV] ALLO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:55] 
+[2025-12-29 10:31:55] [22m[32m[OHLCV] ALLO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:55] 
+[2025-12-29 10:31:56] [22m[32m[OHLCV] ALLO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:56] 
+[2025-12-29 10:31:56] [22m[32m[OHLCV] ALPINE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:56] 
+[2025-12-29 10:31:56] [22m[32m[OHLCV] ALPINE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:56] 
+[2025-12-29 10:31:57] [22m[32m[OHLCV] ALPINE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:57] 
+[2025-12-29 10:31:57] [22m[32m[OHLCV] ALT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:57] 
+[2025-12-29 10:31:57] [22m[32m[OHLCV] ALT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:57] 
+[2025-12-29 10:31:58] [22m[32m[OHLCV] ALT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:58] 
+[2025-12-29 10:31:58] [22m[32m[OHLCV] AMP/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 10:31:58] 
+[2025-12-29 10:31:58] [22m[32m[OHLCV] AMP/USDT loaded from kucoin (698 bars)[0m
+[2025-12-29 10:31:58] 
+[2025-12-29 10:31:59] [22m[32m[OHLCV] AMP/USDT loaded from kucoin (697 bars)[0m
+[2025-12-29 10:31:59] 
+[2025-12-29 10:31:59] [22m[32m[OHLCV] ANIME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:59] 
+[2025-12-29 10:31:59] [22m[32m[OHLCV] ANIME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:59] 
+[2025-12-29 10:31:59] [22m[32m[OHLCV] ANIME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:31:59] 
+[2025-12-29 10:32:00] [22m[32m[OHLCV] ANKR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:00] 
+[2025-12-29 10:32:00] [22m[32m[OHLCV] ANKR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:00] 
+[2025-12-29 10:32:00] [22m[32m[OHLCV] ANKR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:00] 
+[2025-12-29 10:32:01] [22m[32m[OHLCV] APE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:01] 
+[2025-12-29 10:32:01] [22m[32m[OHLCV] APE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:01] 
+[2025-12-29 10:32:01] [22m[32m[OHLCV] APE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:01] 
+[2025-12-29 10:32:02] [22m[32m[OHLCV] API3/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:02] 
+[2025-12-29 10:32:02] [22m[32m[OHLCV] API3/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:02] 
+[2025-12-29 10:32:02] [22m[32m[OHLCV] API3/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:02] 
+[2025-12-29 10:32:03] [22m[32m[OHLCV] APT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:03] 
+[2025-12-29 10:32:03] [22m[32m[OHLCV] APT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:03] 
+[2025-12-29 10:32:03] [22m[32m[OHLCV] APT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:03] 
+[2025-12-29 10:32:04] [22m[32m[OHLCV] AR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:04] 
+[2025-12-29 10:32:04] [22m[32m[OHLCV] AR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:04] 
+[2025-12-29 10:32:04] [22m[32m[OHLCV] AR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:04] 
+[2025-12-29 10:32:04] [22m[32m[OHLCV] ARB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:04] 
+[2025-12-29 10:32:05] [22m[32m[OHLCV] ARB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:05] 
+[2025-12-29 10:32:05] [22m[32m[OHLCV] ARB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:05] 
+[2025-12-29 10:32:07] [1m[31mFailed to fetch OHLCV for ARDR/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:32:07] 
+[2025-12-29 10:32:09] [1m[31mFailed to fetch OHLCV for ARDR/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:32:09] 
+[2025-12-29 10:32:10] [1m[31mFailed to fetch OHLCV for ARDR/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:32:10] 
+[2025-12-29 10:32:10] [22m[32m[OHLCV] ARK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:10] 
+[2025-12-29 10:32:10] [22m[32m[OHLCV] ARK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:10] 
+[2025-12-29 10:32:11] [22m[32m[OHLCV] ARK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:11] 
+[2025-12-29 10:32:11] [22m[32m[OHLCV] ARKM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:11] 
+[2025-12-29 10:32:11] [22m[32m[OHLCV] ARKM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:11] 
+[2025-12-29 10:32:12] [22m[32m[OHLCV] ARKM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:12] 
+[2025-12-29 10:32:12] [22m[32m[OHLCV] ARPA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:12] 
+[2025-12-29 10:32:12] [22m[32m[OHLCV] ARPA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:12] 
+[2025-12-29 10:32:12] [22m[32m[OHLCV] ARPA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:12] 
+[2025-12-29 10:32:13] [22m[32m[OHLCV] ASR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:13] 
+[2025-12-29 10:32:13] [22m[32m[OHLCV] ASR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:13] 
+[2025-12-29 10:32:13] [22m[32m[OHLCV] ASR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:13] 
+[2025-12-29 10:32:14] [22m[32m[OHLCV] ASTER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:14] 
+[2025-12-29 10:32:15] [22m[32m[OHLCV] ASTER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:15] 
+[2025-12-29 10:32:15] [22m[32m[OHLCV] ASTER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:15] 
+[2025-12-29 10:32:16] [22m[32m[OHLCV] ASTR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:16] 
+[2025-12-29 10:32:16] [22m[32m[OHLCV] ASTR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:16] 
+[2025-12-29 10:32:16] [22m[32m[OHLCV] ASTR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:16] 
+[2025-12-29 10:32:17] [22m[32m[OHLCV] AT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:17] 
+[2025-12-29 10:32:17] [22m[32m[OHLCV] AT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:17] 
+[2025-12-29 10:32:17] [22m[32m[OHLCV] AT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:17] 
+[2025-12-29 10:32:18] [22m[32m[OHLCV] ATA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:18] 
+[2025-12-29 10:32:18] [22m[32m[OHLCV] ATA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:18] 
+[2025-12-29 10:32:18] [22m[32m[OHLCV] ATA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:18] 
+[2025-12-29 10:32:19] [22m[32m[OHLCV] ATM/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:32:19] 
+[2025-12-29 10:32:19] [22m[32m[OHLCV] ATM/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:32:19] 
+[2025-12-29 10:32:20] [22m[32m[OHLCV] ATM/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:32:20] 
+[2025-12-29 10:32:20] [22m[32m[OHLCV] ATOM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:20] 
+[2025-12-29 10:32:20] [22m[32m[OHLCV] ATOM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:20] 
+[2025-12-29 10:32:21] [22m[32m[OHLCV] ATOM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:21] 
+[2025-12-29 10:32:21] [22m[32m[OHLCV] AUCTION/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:21] 
+[2025-12-29 10:32:21] [22m[32m[OHLCV] AUCTION/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:21] 
+[2025-12-29 10:32:22] [22m[32m[OHLCV] AUCTION/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:32:22] 
+[2025-12-29 10:32:22] [22m[32m[OHLCV] AUDIO/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 10:32:22] 
+[2025-12-29 10:32:22] [22m[32m[OHLCV] AUDIO/USDT loaded from kucoin (697 bars)[0m
+[2025-12-29 10:32:22] 
+[2025-12-29 10:32:23] [22m[32m[OHLCV] AUDIO/USDT loaded from kucoin (695 bars)[0m
+[2025-12-29 10:32:23] 
+[2025-12-29 10:32:23] [22m[32mFetched data for 24 symbols[0m
+[2025-12-29 10:32:23] 
+[2025-12-29 10:32:23] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:32:23] 
+[2025-12-29 10:33:18] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_103223_batch2.png[0m
+[2025-12-29 10:33:18] 
+[2025-12-29 10:33:18] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:33:18] 
+[2025-12-29 10:33:18] [22m[34mAnalyzing multi-TF batch chart with 24 symbols across 3 timeframes...[0m
+[2025-12-29 10:33:18] 
+[2025-12-29 10:33:18] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:33:18] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:34:08] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:34:09] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:34:09] [22m[32mMulti-TF batch analysis completed for 24 symbols[0m
+[2025-12-29 10:34:09] 
+[2025-12-29 10:34:09] [22m[34m
+============================================================[0m
+[2025-12-29 10:34:09] 
+[2025-12-29 10:34:09] [22m[34mProcessing batch 3/18[0m
+[2025-12-29 10:34:09] 
+[2025-12-29 10:34:09] [22m[34m============================================================[0m
+[2025-12-29 10:34:09] 
+[2025-12-29 10:34:09] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:34:09] 
+[2025-12-29 10:34:09] [22m[32m[OHLCV] AVA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:09] 
+[2025-12-29 10:34:09] [22m[32m[OHLCV] AVA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:09] 
+[2025-12-29 10:34:09] [22m[32m[OHLCV] AVA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:09] 
+[2025-12-29 10:34:10] [22m[32m[OHLCV] AVAX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:10] 
+[2025-12-29 10:34:10] [22m[32m[OHLCV] AVAX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:10] 
+[2025-12-29 10:34:10] [22m[32m[OHLCV] AVAX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:10] 
+[2025-12-29 10:34:11] [22m[32m[OHLCV] AVNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:11] 
+[2025-12-29 10:34:11] [22m[32m[OHLCV] AVNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:11] 
+[2025-12-29 10:34:11] [22m[32m[OHLCV] AVNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:11] 
+[2025-12-29 10:34:12] [22m[32m[OHLCV] AWE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:12] 
+[2025-12-29 10:34:12] [22m[32m[OHLCV] AWE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:12] 
+[2025-12-29 10:34:12] [22m[32m[OHLCV] AWE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:12] 
+[2025-12-29 10:34:13] [22m[32m[OHLCV] AXL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:13] 
+[2025-12-29 10:34:13] [22m[32m[OHLCV] AXL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:13] 
+[2025-12-29 10:34:13] [22m[32m[OHLCV] AXL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:13] 
+[2025-12-29 10:34:14] [22m[32m[OHLCV] AXS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:14] 
+[2025-12-29 10:34:14] [22m[32m[OHLCV] AXS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:14] 
+[2025-12-29 10:34:14] [22m[32m[OHLCV] AXS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:14] 
+[2025-12-29 10:34:15] [22m[32m[OHLCV] BABY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:15] 
+[2025-12-29 10:34:15] [22m[32m[OHLCV] BABY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:15] 
+[2025-12-29 10:34:15] [22m[32m[OHLCV] BABY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:15] 
+[2025-12-29 10:34:15] [22m[32m[OHLCV] BANANA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:15] 
+[2025-12-29 10:34:16] [22m[32m[OHLCV] BANANA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:16] 
+[2025-12-29 10:34:16] [22m[32m[OHLCV] BANANA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:16] 
+[2025-12-29 10:34:16] [22m[32m[OHLCV] BANANAS31/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:16] 
+[2025-12-29 10:34:17] [22m[32m[OHLCV] BANANAS31/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:17] 
+[2025-12-29 10:34:17] [22m[32m[OHLCV] BANANAS31/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:17] 
+[2025-12-29 10:34:17] [22m[32m[OHLCV] BAND/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:17] 
+[2025-12-29 10:34:18] [22m[32m[OHLCV] BAND/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:18] 
+[2025-12-29 10:34:18] [22m[32m[OHLCV] BAND/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:18] 
+[2025-12-29 10:34:18] [22m[32m[OHLCV] BANK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:18] 
+[2025-12-29 10:34:19] [22m[32m[OHLCV] BANK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:19] 
+[2025-12-29 10:34:19] [22m[32m[OHLCV] BANK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:19] 
+[2025-12-29 10:34:20] [22m[32m[OHLCV] BAR/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:34:20] 
+[2025-12-29 10:34:20] [22m[32m[OHLCV] BAR/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:34:20] 
+[2025-12-29 10:34:20] [22m[32m[OHLCV] BAR/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:34:20] 
+[2025-12-29 10:34:21] [22m[32m[OHLCV] BARD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:21] 
+[2025-12-29 10:34:21] [22m[32m[OHLCV] BARD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:21] 
+[2025-12-29 10:34:21] [22m[32m[OHLCV] BARD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:21] 
+[2025-12-29 10:34:22] [22m[32m[OHLCV] BAT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:22] 
+[2025-12-29 10:34:22] [22m[32m[OHLCV] BAT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:22] 
+[2025-12-29 10:34:22] [22m[32m[OHLCV] BAT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:22] 
+[2025-12-29 10:34:23] [22m[32m[OHLCV] BB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:23] 
+[2025-12-29 10:34:23] [22m[32m[OHLCV] BB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:23] 
+[2025-12-29 10:34:23] [22m[32m[OHLCV] BB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:23] 
+[2025-12-29 10:34:24] [22m[32m[OHLCV] BCH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:24] 
+[2025-12-29 10:34:24] [22m[32m[OHLCV] BCH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:24] 
+[2025-12-29 10:34:24] [22m[32m[OHLCV] BCH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:24] 
+[2025-12-29 10:34:24] [22m[32m[OHLCV] BEAMX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:24] 
+[2025-12-29 10:34:25] [22m[32m[OHLCV] BEAMX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:25] 
+[2025-12-29 10:34:25] [22m[32m[OHLCV] BEAMX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:25] 
+[2025-12-29 10:34:25] [22m[32m[OHLCV] BEL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:25] 
+[2025-12-29 10:34:27] [22m[32m[OHLCV] BEL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:27] 
+[2025-12-29 10:34:27] [22m[32m[OHLCV] BEL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:27] 
+[2025-12-29 10:34:27] [22m[32m[OHLCV] BERA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:27] 
+[2025-12-29 10:34:28] [22m[32m[OHLCV] BERA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:28] 
+[2025-12-29 10:34:28] [22m[32m[OHLCV] BERA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:28] 
+[2025-12-29 10:34:31] [1m[31mFailed to fetch OHLCV for BFUSD/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:34:31] 
+[2025-12-29 10:34:33] [1m[31mFailed to fetch OHLCV for BFUSD/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:34:33] 
+[2025-12-29 10:34:36] [1m[31mFailed to fetch OHLCV for BFUSD/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:34:36] 
+[2025-12-29 10:34:36] [22m[32m[OHLCV] BICO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:36] 
+[2025-12-29 10:34:36] [22m[32m[OHLCV] BICO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:36] 
+[2025-12-29 10:34:36] [22m[32m[OHLCV] BICO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:36] 
+[2025-12-29 10:34:39] [1m[31mFailed to fetch OHLCV for BIFI/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:34:39] 
+[2025-12-29 10:34:40] [1m[31mFailed to fetch OHLCV for BIFI/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:34:40] 
+[2025-12-29 10:34:43] [1m[31mFailed to fetch OHLCV for BIFI/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:34:43] 
+[2025-12-29 10:34:43] [22m[32m[OHLCV] BIGTIME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:43] 
+[2025-12-29 10:34:43] [22m[32m[OHLCV] BIGTIME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:43] 
+[2025-12-29 10:34:43] [22m[32m[OHLCV] BIGTIME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:43] 
+[2025-12-29 10:34:44] [22m[32m[OHLCV] BIO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:44] 
+[2025-12-29 10:34:44] [22m[32m[OHLCV] BIO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:44] 
+[2025-12-29 10:34:44] [22m[32m[OHLCV] BIO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:44] 
+[2025-12-29 10:34:45] [22m[32m[OHLCV] BLUR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:45] 
+[2025-12-29 10:34:45] [22m[32m[OHLCV] BLUR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:45] 
+[2025-12-29 10:34:45] [22m[32m[OHLCV] BLUR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:34:45] 
+[2025-12-29 10:34:45] [22m[32mFetched data for 23 symbols[0m
+[2025-12-29 10:34:45] 
+[2025-12-29 10:34:45] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:34:45] 
+[2025-12-29 10:35:39] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_103445_batch3.png[0m
+[2025-12-29 10:35:39] 
+[2025-12-29 10:35:39] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:35:39] 
+[2025-12-29 10:35:39] [22m[34mAnalyzing multi-TF batch chart with 23 symbols across 3 timeframes...[0m
+[2025-12-29 10:35:39] 
+[2025-12-29 10:35:39] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:35:39] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:36:09] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:36:09] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:36:09] [22m[32mMulti-TF batch analysis completed for 23 symbols[0m
+[2025-12-29 10:36:09] 
+[2025-12-29 10:36:09] [22m[34m
+============================================================[0m
+[2025-12-29 10:36:09] 
+[2025-12-29 10:36:09] [22m[34mProcessing batch 4/18[0m
+[2025-12-29 10:36:09] 
+[2025-12-29 10:36:09] [22m[34m============================================================[0m
+[2025-12-29 10:36:09] 
+[2025-12-29 10:36:09] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:36:09] 
+[2025-12-29 10:36:09] [22m[32m[OHLCV] BMT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:09] 
+[2025-12-29 10:36:09] [22m[32m[OHLCV] BMT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:09] 
+[2025-12-29 10:36:10] [22m[32m[OHLCV] BMT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:10] 
+[2025-12-29 10:36:10] [22m[32m[OHLCV] BNB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:10] 
+[2025-12-29 10:36:10] [22m[32m[OHLCV] BNB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:10] 
+[2025-12-29 10:36:11] [22m[32m[OHLCV] BNB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:11] 
+[2025-12-29 10:36:14] [1m[31mFailed to fetch OHLCV for BNSOL/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:36:14] 
+[2025-12-29 10:36:15] [1m[31mFailed to fetch OHLCV for BNSOL/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:36:16] 
+[2025-12-29 10:36:18] [1m[31mFailed to fetch OHLCV for BNSOL/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:36:18] 
+[2025-12-29 10:36:19] [22m[32m[OHLCV] BNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:19] 
+[2025-12-29 10:36:19] [22m[32m[OHLCV] BNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:19] 
+[2025-12-29 10:36:19] [22m[32m[OHLCV] BNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:19] 
+[2025-12-29 10:36:20] [22m[32m[OHLCV] BOME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:20] 
+[2025-12-29 10:36:20] [22m[32m[OHLCV] BOME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:20] 
+[2025-12-29 10:36:20] [22m[32m[OHLCV] BOME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:20] 
+[2025-12-29 10:36:21] [22m[32m[OHLCV] BONK/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:36:21] 
+[2025-12-29 10:36:21] [22m[32m[OHLCV] BONK/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:36:21] 
+[2025-12-29 10:36:21] [22m[32m[OHLCV] BONK/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:36:21] 
+[2025-12-29 10:36:22] [22m[32m[OHLCV] BROCCOLI714/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:22] 
+[2025-12-29 10:36:22] [22m[32m[OHLCV] BROCCOLI714/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:22] 
+[2025-12-29 10:36:22] [22m[32m[OHLCV] BROCCOLI714/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:22] 
+[2025-12-29 10:36:23] [22m[32m[OHLCV] BTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:23] 
+[2025-12-29 10:36:24] [22m[32m[OHLCV] BTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:24] 
+[2025-12-29 10:36:24] [22m[32m[OHLCV] BTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:24] 
+[2025-12-29 10:36:26] [1m[31mFailed to fetch OHLCV for BTTC/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:36:26] 
+[2025-12-29 10:36:29] [1m[31mFailed to fetch OHLCV for BTTC/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:36:29] 
+[2025-12-29 10:36:32] [1m[31mFailed to fetch OHLCV for BTTC/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:36:32] 
+[2025-12-29 10:36:32] [22m[32m[OHLCV] C/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:32] 
+[2025-12-29 10:36:32] [22m[32m[OHLCV] C/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:32] 
+[2025-12-29 10:36:32] [22m[32m[OHLCV] C/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:32] 
+[2025-12-29 10:36:33] [22m[32m[OHLCV] C98/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:33] 
+[2025-12-29 10:36:33] [22m[32m[OHLCV] C98/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:33] 
+[2025-12-29 10:36:33] [22m[32m[OHLCV] C98/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:33] 
+[2025-12-29 10:36:34] [22m[32m[OHLCV] CAKE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:34] 
+[2025-12-29 10:36:34] [22m[32m[OHLCV] CAKE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:34] 
+[2025-12-29 10:36:34] [22m[32m[OHLCV] CAKE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:34] 
+[2025-12-29 10:36:35] [22m[32m[OHLCV] CATI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:35] 
+[2025-12-29 10:36:35] [22m[32m[OHLCV] CATI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:35] 
+[2025-12-29 10:36:35] [22m[32m[OHLCV] CATI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:35] 
+[2025-12-29 10:36:35] [22m[32m[OHLCV] CELO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:35] 
+[2025-12-29 10:36:36] [22m[32m[OHLCV] CELO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:36] 
+[2025-12-29 10:36:36] [22m[32m[OHLCV] CELO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:36] 
+[2025-12-29 10:36:36] [22m[32m[OHLCV] CELR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:36] 
+[2025-12-29 10:36:37] [22m[32m[OHLCV] CELR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:37] 
+[2025-12-29 10:36:37] [22m[32m[OHLCV] CELR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:37] 
+[2025-12-29 10:36:37] [22m[32m[OHLCV] CETUS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:37] 
+[2025-12-29 10:36:38] [22m[32m[OHLCV] CETUS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:38] 
+[2025-12-29 10:36:39] [22m[32m[OHLCV] CETUS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:39] 
+[2025-12-29 10:36:39] [22m[32m[OHLCV] CFX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:39] 
+[2025-12-29 10:36:40] [22m[32m[OHLCV] CFX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:40] 
+[2025-12-29 10:36:40] [22m[32m[OHLCV] CFX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:40] 
+[2025-12-29 10:36:40] [22m[32m[OHLCV] CGPT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:40] 
+[2025-12-29 10:36:41] [22m[32m[OHLCV] CGPT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:41] 
+[2025-12-29 10:36:41] [22m[32m[OHLCV] CGPT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:41] 
+[2025-12-29 10:36:41] [22m[32m[OHLCV] CHESS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:41] 
+[2025-12-29 10:36:41] [22m[32m[OHLCV] CHESS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:41] 
+[2025-12-29 10:36:42] [22m[32m[OHLCV] CHESS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:42] 
+[2025-12-29 10:36:42] [22m[32m[OHLCV] CHR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:42] 
+[2025-12-29 10:36:42] [22m[32m[OHLCV] CHR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:42] 
+[2025-12-29 10:36:43] [22m[32m[OHLCV] CHR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:43] 
+[2025-12-29 10:36:43] [22m[32m[OHLCV] CHZ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:43] 
+[2025-12-29 10:36:43] [22m[32m[OHLCV] CHZ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:43] 
+[2025-12-29 10:36:44] [22m[32m[OHLCV] CHZ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:44] 
+[2025-12-29 10:36:45] [22m[32m[OHLCV] CITY/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:36:45] 
+[2025-12-29 10:36:45] [22m[32m[OHLCV] CITY/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:36:45] 
+[2025-12-29 10:36:46] [22m[32m[OHLCV] CITY/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:36:46] 
+[2025-12-29 10:36:47] [22m[32m[OHLCV] CKB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:47] 
+[2025-12-29 10:36:47] [22m[32m[OHLCV] CKB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:47] 
+[2025-12-29 10:36:47] [22m[32m[OHLCV] CKB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:47] 
+[2025-12-29 10:36:48] [22m[32m[OHLCV] COMP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:48] 
+[2025-12-29 10:36:48] [22m[32m[OHLCV] COMP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:48] 
+[2025-12-29 10:36:49] [22m[32m[OHLCV] COMP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:49] 
+[2025-12-29 10:36:49] [22m[32m[OHLCV] COOKIE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:49] 
+[2025-12-29 10:36:50] [22m[32m[OHLCV] COOKIE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:50] 
+[2025-12-29 10:36:50] [22m[32m[OHLCV] COOKIE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:36:50] 
+[2025-12-29 10:36:50] [22m[32mFetched data for 23 symbols[0m
+[2025-12-29 10:36:50] 
+[2025-12-29 10:36:50] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:36:50] 
+[2025-12-29 10:37:44] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_103650_batch4.png[0m
+[2025-12-29 10:37:44] 
+[2025-12-29 10:37:44] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:37:44] 
+[2025-12-29 10:37:44] [22m[34mAnalyzing multi-TF batch chart with 23 symbols across 3 timeframes...[0m
+[2025-12-29 10:37:44] 
+[2025-12-29 10:37:44] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:37:44] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:38:28] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:38:28] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:38:28] [22m[32mMulti-TF batch analysis completed for 23 symbols[0m
+[2025-12-29 10:38:28] 
+[2025-12-29 10:38:28] [22m[34m
+============================================================[0m
+[2025-12-29 10:38:28] 
+[2025-12-29 10:38:28] [22m[34mProcessing batch 5/18[0m
+[2025-12-29 10:38:28] 
+[2025-12-29 10:38:28] [22m[34m============================================================[0m
+[2025-12-29 10:38:28] 
+[2025-12-29 10:38:28] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:38:28] 
+[2025-12-29 10:38:28] [22m[32m[OHLCV] COS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:28] 
+[2025-12-29 10:38:30] [22m[32m[OHLCV] COS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:30] 
+[2025-12-29 10:38:30] [22m[32m[OHLCV] COS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:30] 
+[2025-12-29 10:38:30] [22m[32m[OHLCV] COTI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:30] 
+[2025-12-29 10:38:31] [22m[32m[OHLCV] COTI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:31] 
+[2025-12-29 10:38:31] [22m[32m[OHLCV] COTI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:31] 
+[2025-12-29 10:38:31] [22m[32m[OHLCV] COW/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:31] 
+[2025-12-29 10:38:32] [22m[32m[OHLCV] COW/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:32] 
+[2025-12-29 10:38:32] [22m[32m[OHLCV] COW/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:32] 
+[2025-12-29 10:38:32] [22m[32m[OHLCV] CRV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:32] 
+[2025-12-29 10:38:32] [22m[32m[OHLCV] CRV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:32] 
+[2025-12-29 10:38:33] [22m[32m[OHLCV] CRV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:33] 
+[2025-12-29 10:38:33] [22m[32m[OHLCV] CTK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:33] 
+[2025-12-29 10:38:33] [22m[32m[OHLCV] CTK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:33] 
+[2025-12-29 10:38:34] [22m[32m[OHLCV] CTK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:34] 
+[2025-12-29 10:38:34] [22m[32m[OHLCV] CTSI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:34] 
+[2025-12-29 10:38:34] [22m[32m[OHLCV] CTSI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:34] 
+[2025-12-29 10:38:35] [22m[32m[OHLCV] CTSI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:35] 
+[2025-12-29 10:38:35] [22m[32m[OHLCV] CVC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:35] 
+[2025-12-29 10:38:35] [22m[32m[OHLCV] CVC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:35] 
+[2025-12-29 10:38:36] [22m[32m[OHLCV] CVC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:36] 
+[2025-12-29 10:38:36] [22m[32m[OHLCV] CVX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:36] 
+[2025-12-29 10:38:36] [22m[32m[OHLCV] CVX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:36] 
+[2025-12-29 10:38:37] [22m[32m[OHLCV] CVX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:37] 
+[2025-12-29 10:38:37] [22m[32m[OHLCV] CYBER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:37] 
+[2025-12-29 10:38:37] [22m[32m[OHLCV] CYBER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:37] 
+[2025-12-29 10:38:38] [22m[32m[OHLCV] CYBER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:38] 
+[2025-12-29 10:38:38] [22m[32m[OHLCV] D/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:38] 
+[2025-12-29 10:38:38] [22m[32m[OHLCV] D/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:38] 
+[2025-12-29 10:38:39] [22m[32m[OHLCV] D/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:39] 
+[2025-12-29 10:38:39] [22m[32m[OHLCV] DASH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:39] 
+[2025-12-29 10:38:39] [22m[32m[OHLCV] DASH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:39] 
+[2025-12-29 10:38:39] [22m[32m[OHLCV] DASH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:39] 
+[2025-12-29 10:38:40] [22m[32m[OHLCV] DATA/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:38:40] 
+[2025-12-29 10:38:40] [22m[32m[OHLCV] DATA/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:38:40] 
+[2025-12-29 10:38:41] [22m[32m[OHLCV] DATA/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:38:41] 
+[2025-12-29 10:38:41] [22m[32m[OHLCV] DCR/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:38:41] 
+[2025-12-29 10:38:41] [22m[32m[OHLCV] DCR/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:38:41] 
+[2025-12-29 10:38:42] [22m[32m[OHLCV] DCR/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:38:42] 
+[2025-12-29 10:38:42] [22m[32m[OHLCV] DEGO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:42] 
+[2025-12-29 10:38:42] [22m[32m[OHLCV] DEGO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:42] 
+[2025-12-29 10:38:43] [22m[32m[OHLCV] DEGO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:43] 
+[2025-12-29 10:38:43] [22m[32m[OHLCV] DENT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:43] 
+[2025-12-29 10:38:44] [22m[32m[OHLCV] DENT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:44] 
+[2025-12-29 10:38:44] [22m[32m[OHLCV] DENT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:44] 
+[2025-12-29 10:38:45] [22m[32m[OHLCV] DEXE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:45] 
+[2025-12-29 10:38:45] [22m[32m[OHLCV] DEXE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:45] 
+[2025-12-29 10:38:45] [22m[32m[OHLCV] DEXE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:45] 
+[2025-12-29 10:38:46] [22m[32m[OHLCV] DF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:46] 
+[2025-12-29 10:38:46] [22m[32m[OHLCV] DF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:46] 
+[2025-12-29 10:38:47] [22m[32m[OHLCV] DF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:47] 
+[2025-12-29 10:38:48] [22m[32m[OHLCV] DGB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:48] 
+[2025-12-29 10:38:48] [22m[32m[OHLCV] DGB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:48] 
+[2025-12-29 10:38:48] [22m[32m[OHLCV] DGB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:48] 
+[2025-12-29 10:38:49] [22m[32m[OHLCV] DIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:49] 
+[2025-12-29 10:38:49] [22m[32m[OHLCV] DIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:49] 
+[2025-12-29 10:38:49] [22m[32m[OHLCV] DIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:49] 
+[2025-12-29 10:38:50] [22m[32m[OHLCV] DODO/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:38:50] 
+[2025-12-29 10:38:50] [22m[32m[OHLCV] DODO/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:38:50] 
+[2025-12-29 10:38:50] [22m[32m[OHLCV] DODO/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:38:50] 
+[2025-12-29 10:38:51] [22m[32m[OHLCV] DOGE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:51] 
+[2025-12-29 10:38:51] [22m[32m[OHLCV] DOGE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:51] 
+[2025-12-29 10:38:51] [22m[32m[OHLCV] DOGE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:51] 
+[2025-12-29 10:38:51] [22m[32m[OHLCV] DOGS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:52] 
+[2025-12-29 10:38:52] [22m[32m[OHLCV] DOGS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:52] 
+[2025-12-29 10:38:52] [22m[32m[OHLCV] DOGS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:52] 
+[2025-12-29 10:38:52] [22m[32m[OHLCV] DOLO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:52] 
+[2025-12-29 10:38:53] [22m[32m[OHLCV] DOLO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:53] 
+[2025-12-29 10:38:53] [22m[32m[OHLCV] DOLO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:53] 
+[2025-12-29 10:38:53] [22m[32m[OHLCV] DOT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:53] 
+[2025-12-29 10:38:54] [22m[32m[OHLCV] DOT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:54] 
+[2025-12-29 10:38:54] [22m[32m[OHLCV] DOT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:54] 
+[2025-12-29 10:38:54] [22m[32m[OHLCV] DUSK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:54] 
+[2025-12-29 10:38:55] [22m[32m[OHLCV] DUSK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:55] 
+[2025-12-29 10:38:55] [22m[32m[OHLCV] DUSK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:38:55] 
+[2025-12-29 10:38:55] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:38:55] 
+[2025-12-29 10:38:55] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:38:55] 
+[2025-12-29 10:40:08] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_103855_batch5.png[0m
+[2025-12-29 10:40:08] 
+[2025-12-29 10:40:08] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:40:08] 
+[2025-12-29 10:40:08] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:40:08] 
+[2025-12-29 10:40:08] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:40:08] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:40:56] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:40:56] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:40:56] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 10:40:56] 
+[2025-12-29 10:40:56] [22m[34m
+============================================================[0m
+[2025-12-29 10:40:56] 
+[2025-12-29 10:40:56] [22m[34mProcessing batch 6/18[0m
+[2025-12-29 10:40:56] 
+[2025-12-29 10:40:56] [22m[34m============================================================[0m
+[2025-12-29 10:40:56] 
+[2025-12-29 10:40:56] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:40:56] 
+[2025-12-29 10:40:56] [22m[32m[OHLCV] DYDX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:56] 
+[2025-12-29 10:40:56] [22m[32m[OHLCV] DYDX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:56] 
+[2025-12-29 10:40:56] [22m[32m[OHLCV] DYDX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:56] 
+[2025-12-29 10:40:57] [22m[32m[OHLCV] DYM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:57] 
+[2025-12-29 10:40:57] [22m[32m[OHLCV] DYM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:57] 
+[2025-12-29 10:40:57] [22m[32m[OHLCV] DYM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:57] 
+[2025-12-29 10:40:58] [22m[32m[OHLCV] EDEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:58] 
+[2025-12-29 10:40:58] [22m[32m[OHLCV] EDEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:58] 
+[2025-12-29 10:40:58] [22m[32m[OHLCV] EDEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:58] 
+[2025-12-29 10:40:59] [22m[32m[OHLCV] EDU/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:59] 
+[2025-12-29 10:40:59] [22m[32m[OHLCV] EDU/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:59] 
+[2025-12-29 10:40:59] [22m[32m[OHLCV] EDU/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:40:59] 
+[2025-12-29 10:41:00] [22m[32m[OHLCV] EGLD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:00] 
+[2025-12-29 10:41:00] [22m[32m[OHLCV] EGLD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:00] 
+[2025-12-29 10:41:00] [22m[32m[OHLCV] EGLD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:00] 
+[2025-12-29 10:41:00] [22m[32m[OHLCV] EIGEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:00] 
+[2025-12-29 10:41:01] [22m[32m[OHLCV] EIGEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:01] 
+[2025-12-29 10:41:01] [22m[32m[OHLCV] EIGEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:01] 
+[2025-12-29 10:41:01] [22m[32m[OHLCV] ENA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:01] 
+[2025-12-29 10:41:02] [22m[32m[OHLCV] ENA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:02] 
+[2025-12-29 10:41:02] [22m[32m[OHLCV] ENA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:02] 
+[2025-12-29 10:41:02] [22m[32m[OHLCV] ENJ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:02] 
+[2025-12-29 10:41:03] [22m[32m[OHLCV] ENJ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:03] 
+[2025-12-29 10:41:03] [22m[32m[OHLCV] ENJ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:03] 
+[2025-12-29 10:41:03] [22m[32m[OHLCV] ENS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:03] 
+[2025-12-29 10:41:04] [22m[32m[OHLCV] ENS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:04] 
+[2025-12-29 10:41:04] [22m[32m[OHLCV] ENS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:04] 
+[2025-12-29 10:41:04] [22m[32m[OHLCV] ENSO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:04] 
+[2025-12-29 10:41:05] [22m[32m[OHLCV] ENSO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:05] 
+[2025-12-29 10:41:05] [22m[32m[OHLCV] ENSO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:05] 
+[2025-12-29 10:41:05] [22m[32m[OHLCV] EPIC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:05] 
+[2025-12-29 10:41:06] [22m[32m[OHLCV] EPIC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:06] 
+[2025-12-29 10:41:06] [22m[32m[OHLCV] EPIC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:06] 
+[2025-12-29 10:41:06] [22m[32m[OHLCV] ERA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:06] 
+[2025-12-29 10:41:06] [22m[32m[OHLCV] ERA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:06] 
+[2025-12-29 10:41:07] [22m[32m[OHLCV] ERA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:07] 
+[2025-12-29 10:41:07] [22m[32m[OHLCV] ETC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:07] 
+[2025-12-29 10:41:08] [22m[32m[OHLCV] ETC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:08] 
+[2025-12-29 10:41:08] [22m[32m[OHLCV] ETC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:08] 
+[2025-12-29 10:41:08] [22m[32m[OHLCV] ETH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:08] 
+[2025-12-29 10:41:09] [22m[32m[OHLCV] ETH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:09] 
+[2025-12-29 10:41:09] [22m[32m[OHLCV] ETH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:09] 
+[2025-12-29 10:41:09] [22m[32m[OHLCV] ETHFI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:09] 
+[2025-12-29 10:41:10] [22m[32m[OHLCV] ETHFI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:10] 
+[2025-12-29 10:41:10] [22m[32m[OHLCV] ETHFI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:10] 
+[2025-12-29 10:41:10] [22m[32m[OHLCV] EUL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:10] 
+[2025-12-29 10:41:10] [22m[32m[OHLCV] EUL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:10] 
+[2025-12-29 10:41:11] [22m[32m[OHLCV] EUL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:11] 
+[2025-12-29 10:41:11] [22m[32m[OHLCV] EUR/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:41:11] 
+[2025-12-29 10:41:12] [22m[32m[OHLCV] EUR/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:41:12] 
+[2025-12-29 10:41:12] [22m[32m[OHLCV] EUR/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:41:12] 
+[2025-12-29 10:41:12] [22m[32m[OHLCV] EURI/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:41:12] 
+[2025-12-29 10:41:13] [22m[32m[OHLCV] EURI/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:41:13] 
+[2025-12-29 10:41:13] [22m[32m[OHLCV] EURI/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:41:13] 
+[2025-12-29 10:41:13] [22m[32m[OHLCV] F/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:13] 
+[2025-12-29 10:41:14] [22m[32m[OHLCV] F/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:14] 
+[2025-12-29 10:41:15] [22m[32m[OHLCV] F/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:15] 
+[2025-12-29 10:41:16] [22m[32m[OHLCV] FARM/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:41:16] 
+[2025-12-29 10:41:16] [22m[32m[OHLCV] FARM/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:41:16] 
+[2025-12-29 10:41:16] [22m[32m[OHLCV] FARM/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:41:16] 
+[2025-12-29 10:41:17] [22m[32m[OHLCV] FDUSD/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:41:17] 
+[2025-12-29 10:41:17] [22m[32m[OHLCV] FDUSD/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:41:17] 
+[2025-12-29 10:41:17] [22m[32m[OHLCV] FDUSD/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:41:17] 
+[2025-12-29 10:41:18] [22m[32m[OHLCV] FET/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:18] 
+[2025-12-29 10:41:18] [22m[32m[OHLCV] FET/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:18] 
+[2025-12-29 10:41:18] [22m[32m[OHLCV] FET/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:18] 
+[2025-12-29 10:41:19] [22m[32m[OHLCV] FF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:19] 
+[2025-12-29 10:41:19] [22m[32m[OHLCV] FF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:19] 
+[2025-12-29 10:41:19] [22m[32m[OHLCV] FF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:19] 
+[2025-12-29 10:41:20] [22m[32m[OHLCV] FIDA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:20] 
+[2025-12-29 10:41:20] [22m[32m[OHLCV] FIDA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:20] 
+[2025-12-29 10:41:20] [22m[32m[OHLCV] FIDA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:20] 
+[2025-12-29 10:41:21] [22m[32m[OHLCV] FIL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:21] 
+[2025-12-29 10:41:21] [22m[32m[OHLCV] FIL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:21] 
+[2025-12-29 10:41:21] [22m[32m[OHLCV] FIL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:41:21] 
+[2025-12-29 10:41:21] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:41:21] 
+[2025-12-29 10:41:21] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:41:21] 
+[2025-12-29 10:42:29] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_104121_batch6.png[0m
+[2025-12-29 10:42:29] 
+[2025-12-29 10:42:29] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:42:29] 
+[2025-12-29 10:42:29] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:42:29] 
+[2025-12-29 10:42:29] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:42:29] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:43:07] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:43:07] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:43:07] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 10:43:07] 
+[2025-12-29 10:43:07] [22m[34m
+============================================================[0m
+[2025-12-29 10:43:07] 
+[2025-12-29 10:43:07] [22m[34mProcessing batch 7/18[0m
+[2025-12-29 10:43:07] 
+[2025-12-29 10:43:07] [22m[34m============================================================[0m
+[2025-12-29 10:43:07] 
+[2025-12-29 10:43:07] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:43:07] 
+[2025-12-29 10:43:07] [22m[32m[OHLCV] FIO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:07] 
+[2025-12-29 10:43:07] [22m[32m[OHLCV] FIO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:07] 
+[2025-12-29 10:43:08] [22m[32m[OHLCV] FIO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:08] 
+[2025-12-29 10:43:08] [22m[32m[OHLCV] FLOKI/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:43:08] 
+[2025-12-29 10:43:09] [22m[32m[OHLCV] FLOKI/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:43:09] 
+[2025-12-29 10:43:09] [22m[32m[OHLCV] FLOKI/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:43:09] 
+[2025-12-29 10:43:10] [22m[32m[OHLCV] FLOW/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:10] 
+[2025-12-29 10:43:10] [22m[32m[OHLCV] FLOW/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:10] 
+[2025-12-29 10:43:10] [22m[32m[OHLCV] FLOW/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:10] 
+[2025-12-29 10:43:11] [22m[32m[OHLCV] FLUX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:11] 
+[2025-12-29 10:43:11] [22m[32m[OHLCV] FLUX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:11] 
+[2025-12-29 10:43:11] [22m[32m[OHLCV] FLUX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:11] 
+[2025-12-29 10:43:11] [22m[32m[OHLCV] FORM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:11] 
+[2025-12-29 10:43:12] [22m[32m[OHLCV] FORM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:12] 
+[2025-12-29 10:43:12] [22m[32m[OHLCV] FORM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:12] 
+[2025-12-29 10:43:12] [22m[32m[OHLCV] FORTH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:12] 
+[2025-12-29 10:43:13] [22m[32m[OHLCV] FORTH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:13] 
+[2025-12-29 10:43:13] [22m[32m[OHLCV] FORTH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:13] 
+[2025-12-29 10:43:13] [22m[32m[OHLCV] FTT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:13] 
+[2025-12-29 10:43:14] [22m[32m[OHLCV] FTT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:14] 
+[2025-12-29 10:43:14] [22m[32m[OHLCV] FTT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:14] 
+[2025-12-29 10:43:14] [22m[32m[OHLCV] FUN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:14] 
+[2025-12-29 10:43:15] [22m[32m[OHLCV] FUN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:15] 
+[2025-12-29 10:43:15] [22m[32m[OHLCV] FUN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:15] 
+[2025-12-29 10:43:15] [22m[32m[OHLCV] FXS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:15] 
+[2025-12-29 10:43:16] [22m[32m[OHLCV] FXS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:16] 
+[2025-12-29 10:43:16] [22m[32m[OHLCV] FXS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:16] 
+[2025-12-29 10:43:16] [22m[32m[OHLCV] G/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:16] 
+[2025-12-29 10:43:16] [22m[32m[OHLCV] G/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:16] 
+[2025-12-29 10:43:17] [22m[32m[OHLCV] G/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:17] 
+[2025-12-29 10:43:17] [22m[32m[OHLCV] GALA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:17] 
+[2025-12-29 10:43:17] [22m[32m[OHLCV] GALA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:17] 
+[2025-12-29 10:43:18] [22m[32m[OHLCV] GALA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:18] 
+[2025-12-29 10:43:18] [22m[32m[OHLCV] GAS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:18] 
+[2025-12-29 10:43:18] [22m[32m[OHLCV] GAS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:18] 
+[2025-12-29 10:43:19] [22m[32m[OHLCV] GAS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:19] 
+[2025-12-29 10:43:19] [22m[32m[OHLCV] GHST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:19] 
+[2025-12-29 10:43:19] [22m[32m[OHLCV] GHST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:19] 
+[2025-12-29 10:43:20] [22m[32m[OHLCV] GHST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:20] 
+[2025-12-29 10:43:20] [22m[32m[OHLCV] GIGGLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:20] 
+[2025-12-29 10:43:20] [22m[32m[OHLCV] GIGGLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:20] 
+[2025-12-29 10:43:21] [22m[32m[OHLCV] GIGGLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:21] 
+[2025-12-29 10:43:21] [22m[32m[OHLCV] GLM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:21] 
+[2025-12-29 10:43:21] [22m[32m[OHLCV] GLM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:21] 
+[2025-12-29 10:43:21] [22m[32m[OHLCV] GLM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:21] 
+[2025-12-29 10:43:22] [22m[32m[OHLCV] GLMR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:22] 
+[2025-12-29 10:43:22] [22m[32m[OHLCV] GLMR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:22] 
+[2025-12-29 10:43:22] [22m[32m[OHLCV] GLMR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:22] 
+[2025-12-29 10:43:23] [22m[32m[OHLCV] GMT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:23] 
+[2025-12-29 10:43:23] [22m[32m[OHLCV] GMT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:23] 
+[2025-12-29 10:43:23] [22m[32m[OHLCV] GMT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:23] 
+[2025-12-29 10:43:24] [22m[32m[OHLCV] GMX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:24] 
+[2025-12-29 10:43:24] [22m[32m[OHLCV] GMX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:24] 
+[2025-12-29 10:43:24] [22m[32m[OHLCV] GMX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:24] 
+[2025-12-29 10:43:25] [22m[32m[OHLCV] GNO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:43:25] 
+[2025-12-29 10:43:25] [22m[32m[OHLCV] GNO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:43:25] 
+[2025-12-29 10:43:26] [22m[32m[OHLCV] GNO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:43:26] 
+[2025-12-29 10:43:26] [22m[32m[OHLCV] GNS/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:43:26] 
+[2025-12-29 10:43:26] [22m[32m[OHLCV] GNS/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:43:26] 
+[2025-12-29 10:43:27] [22m[32m[OHLCV] GNS/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:43:27] 
+[2025-12-29 10:43:27] [22m[32m[OHLCV] GPS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:27] 
+[2025-12-29 10:43:27] [22m[32m[OHLCV] GPS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:27] 
+[2025-12-29 10:43:28] [22m[32m[OHLCV] GPS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:28] 
+[2025-12-29 10:43:28] [22m[32m[OHLCV] GRT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:28] 
+[2025-12-29 10:43:28] [22m[32m[OHLCV] GRT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:28] 
+[2025-12-29 10:43:29] [22m[32m[OHLCV] GRT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:29] 
+[2025-12-29 10:43:29] [22m[32m[OHLCV] GTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:29] 
+[2025-12-29 10:43:29] [22m[32m[OHLCV] GTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:29] 
+[2025-12-29 10:43:30] [22m[32m[OHLCV] GTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:30] 
+[2025-12-29 10:43:30] [22m[32m[OHLCV] GUN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:30] 
+[2025-12-29 10:43:31] [22m[32m[OHLCV] GUN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:31] 
+[2025-12-29 10:43:31] [22m[32m[OHLCV] GUN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:31] 
+[2025-12-29 10:43:31] [22m[32m[OHLCV] HAEDAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:31] 
+[2025-12-29 10:43:31] [22m[32m[OHLCV] HAEDAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:31] 
+[2025-12-29 10:43:32] [22m[32m[OHLCV] HAEDAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:43:32] 
+[2025-12-29 10:43:32] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:43:32] 
+[2025-12-29 10:43:32] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:43:32] 
+[2025-12-29 10:44:30] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_104332_batch7.png[0m
+[2025-12-29 10:44:30] 
+[2025-12-29 10:44:30] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:44:30] 
+[2025-12-29 10:44:30] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:44:30] 
+[2025-12-29 10:44:30] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:44:30] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:45:07] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:45:07] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:45:07] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 10:45:07] 
+[2025-12-29 10:45:07] [22m[34m
+============================================================[0m
+[2025-12-29 10:45:07] 
+[2025-12-29 10:45:07] [22m[34mProcessing batch 8/18[0m
+[2025-12-29 10:45:07] 
+[2025-12-29 10:45:07] [22m[34m============================================================[0m
+[2025-12-29 10:45:07] 
+[2025-12-29 10:45:07] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:45:07] 
+[2025-12-29 10:45:08] [22m[32m[OHLCV] HBAR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:08] 
+[2025-12-29 10:45:08] [22m[32m[OHLCV] HBAR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:08] 
+[2025-12-29 10:45:08] [22m[32m[OHLCV] HBAR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:08] 
+[2025-12-29 10:45:09] [22m[32m[OHLCV] HEI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:09] 
+[2025-12-29 10:45:09] [22m[32m[OHLCV] HEI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:09] 
+[2025-12-29 10:45:10] [22m[32m[OHLCV] HEI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:10] 
+[2025-12-29 10:45:11] [22m[32m[OHLCV] HEMI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:11] 
+[2025-12-29 10:45:11] [22m[32m[OHLCV] HEMI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:11] 
+[2025-12-29 10:45:11] [22m[32m[OHLCV] HEMI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:11] 
+[2025-12-29 10:45:12] [22m[32m[OHLCV] HFT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:12] 
+[2025-12-29 10:45:12] [22m[32m[OHLCV] HFT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:12] 
+[2025-12-29 10:45:12] [22m[32m[OHLCV] HFT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:12] 
+[2025-12-29 10:45:13] [22m[32m[OHLCV] HIGH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:13] 
+[2025-12-29 10:45:13] [22m[32m[OHLCV] HIGH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:13] 
+[2025-12-29 10:45:13] [22m[32m[OHLCV] HIGH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:13] 
+[2025-12-29 10:45:13] [22m[32m[OHLCV] HIVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:13] 
+[2025-12-29 10:45:14] [22m[32m[OHLCV] HIVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:14] 
+[2025-12-29 10:45:14] [22m[32m[OHLCV] HIVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:14] 
+[2025-12-29 10:45:14] [22m[32m[OHLCV] HMSTR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:14] 
+[2025-12-29 10:45:15] [22m[32m[OHLCV] HMSTR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:15] 
+[2025-12-29 10:45:15] [22m[32m[OHLCV] HMSTR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:15] 
+[2025-12-29 10:45:15] [22m[32m[OHLCV] HOLO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:15] 
+[2025-12-29 10:45:16] [22m[32m[OHLCV] HOLO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:16] 
+[2025-12-29 10:45:16] [22m[32m[OHLCV] HOLO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:16] 
+[2025-12-29 10:45:16] [22m[32m[OHLCV] HOME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:16] 
+[2025-12-29 10:45:17] [22m[32m[OHLCV] HOME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:17] 
+[2025-12-29 10:45:17] [22m[32m[OHLCV] HOME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:17] 
+[2025-12-29 10:45:17] [22m[32m[OHLCV] HOOK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:17] 
+[2025-12-29 10:45:17] [22m[32m[OHLCV] HOOK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:17] 
+[2025-12-29 10:45:18] [22m[32m[OHLCV] HOOK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:18] 
+[2025-12-29 10:45:18] [22m[32m[OHLCV] HOT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:18] 
+[2025-12-29 10:45:18] [22m[32m[OHLCV] HOT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:18] 
+[2025-12-29 10:45:19] [22m[32m[OHLCV] HOT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:19] 
+[2025-12-29 10:45:19] [22m[32m[OHLCV] HUMA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:19] 
+[2025-12-29 10:45:19] [22m[32m[OHLCV] HUMA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:19] 
+[2025-12-29 10:45:20] [22m[32m[OHLCV] HUMA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:20] 
+[2025-12-29 10:45:20] [22m[32m[OHLCV] HYPER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:20] 
+[2025-12-29 10:45:20] [22m[32m[OHLCV] HYPER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:20] 
+[2025-12-29 10:45:21] [22m[32m[OHLCV] HYPER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:21] 
+[2025-12-29 10:45:21] [22m[32m[OHLCV] ICP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:21] 
+[2025-12-29 10:45:21] [22m[32m[OHLCV] ICP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:21] 
+[2025-12-29 10:45:22] [22m[32m[OHLCV] ICP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:22] 
+[2025-12-29 10:45:22] [22m[32m[OHLCV] ICX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:22] 
+[2025-12-29 10:45:22] [22m[32m[OHLCV] ICX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:22] 
+[2025-12-29 10:45:22] [22m[32m[OHLCV] ICX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:22] 
+[2025-12-29 10:45:23] [22m[32m[OHLCV] ID/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:23] 
+[2025-12-29 10:45:23] [22m[32m[OHLCV] ID/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:23] 
+[2025-12-29 10:45:23] [22m[32m[OHLCV] ID/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:23] 
+[2025-12-29 10:45:24] [22m[32m[OHLCV] IDEX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:24] 
+[2025-12-29 10:45:24] [22m[32m[OHLCV] IDEX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:24] 
+[2025-12-29 10:45:24] [22m[32m[OHLCV] IDEX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:24] 
+[2025-12-29 10:45:25] [22m[32m[OHLCV] ILV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:25] 
+[2025-12-29 10:45:25] [22m[32m[OHLCV] ILV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:25] 
+[2025-12-29 10:45:25] [22m[32m[OHLCV] ILV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:25] 
+[2025-12-29 10:45:26] [22m[32m[OHLCV] IMX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:26] 
+[2025-12-29 10:45:26] [22m[32m[OHLCV] IMX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:26] 
+[2025-12-29 10:45:26] [22m[32m[OHLCV] IMX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:26] 
+[2025-12-29 10:45:26] [22m[32m[OHLCV] INIT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:26] 
+[2025-12-29 10:45:27] [22m[32m[OHLCV] INIT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:27] 
+[2025-12-29 10:45:27] [22m[32m[OHLCV] INIT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:27] 
+[2025-12-29 10:45:27] [22m[32m[OHLCV] INJ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:27] 
+[2025-12-29 10:45:28] [22m[32m[OHLCV] INJ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:28] 
+[2025-12-29 10:45:28] [22m[32m[OHLCV] INJ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:28] 
+[2025-12-29 10:45:29] [22m[32m[OHLCV] IO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:29] 
+[2025-12-29 10:45:29] [22m[32m[OHLCV] IO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:29] 
+[2025-12-29 10:45:29] [22m[32m[OHLCV] IO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:29] 
+[2025-12-29 10:45:30] [22m[32m[OHLCV] IOST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:30] 
+[2025-12-29 10:45:30] [22m[32m[OHLCV] IOST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:30] 
+[2025-12-29 10:45:30] [22m[32m[OHLCV] IOST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:30] 
+[2025-12-29 10:45:31] [22m[32m[OHLCV] IOTA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:31] 
+[2025-12-29 10:45:31] [22m[32m[OHLCV] IOTA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:31] 
+[2025-12-29 10:45:31] [22m[32m[OHLCV] IOTA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:31] 
+[2025-12-29 10:45:32] [22m[32m[OHLCV] IOTX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:32] 
+[2025-12-29 10:45:32] [22m[32m[OHLCV] IOTX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:32] 
+[2025-12-29 10:45:32] [22m[32m[OHLCV] IOTX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:45:32] 
+[2025-12-29 10:45:32] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:45:32] 
+[2025-12-29 10:45:32] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:45:32] 
+[2025-12-29 10:46:17] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_104532_batch8.png[0m
+[2025-12-29 10:46:17] 
+[2025-12-29 10:46:17] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:46:17] 
+[2025-12-29 10:46:17] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:46:17] 
+[2025-12-29 10:46:17] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:46:17] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:47:01] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:47:01] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:47:01] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 10:47:01] 
+[2025-12-29 10:47:01] [22m[34m
+============================================================[0m
+[2025-12-29 10:47:01] 
+[2025-12-29 10:47:01] [22m[34mProcessing batch 9/18[0m
+[2025-12-29 10:47:01] 
+[2025-12-29 10:47:01] [22m[34m============================================================[0m
+[2025-12-29 10:47:01] 
+[2025-12-29 10:47:01] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:47:01] 
+[2025-12-29 10:47:02] [22m[32m[OHLCV] IQ/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:47:02] 
+[2025-12-29 10:47:02] [22m[32m[OHLCV] IQ/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:47:02] 
+[2025-12-29 10:47:02] [22m[32m[OHLCV] IQ/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:47:02] 
+[2025-12-29 10:47:03] [22m[32m[OHLCV] JASMY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:03] 
+[2025-12-29 10:47:03] [22m[32m[OHLCV] JASMY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:03] 
+[2025-12-29 10:47:03] [22m[32m[OHLCV] JASMY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:03] 
+[2025-12-29 10:47:04] [22m[32m[OHLCV] JOE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:04] 
+[2025-12-29 10:47:04] [22m[32m[OHLCV] JOE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:04] 
+[2025-12-29 10:47:05] [22m[32m[OHLCV] JOE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:05] 
+[2025-12-29 10:47:05] [22m[32m[OHLCV] JST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:05] 
+[2025-12-29 10:47:05] [22m[32m[OHLCV] JST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:06] 
+[2025-12-29 10:47:06] [22m[32m[OHLCV] JST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:06] 
+[2025-12-29 10:47:06] [22m[32m[OHLCV] JTO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:06] 
+[2025-12-29 10:47:06] [22m[32m[OHLCV] JTO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:06] 
+[2025-12-29 10:47:07] [22m[32m[OHLCV] JTO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:07] 
+[2025-12-29 10:47:07] [22m[32m[OHLCV] JUP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:07] 
+[2025-12-29 10:47:07] [22m[32m[OHLCV] JUP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:07] 
+[2025-12-29 10:47:08] [22m[32m[OHLCV] JUP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:08] 
+[2025-12-29 10:47:08] [22m[32m[OHLCV] JUV/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:47:08] 
+[2025-12-29 10:47:09] [22m[32m[OHLCV] JUV/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:47:09] 
+[2025-12-29 10:47:10] [22m[32m[OHLCV] JUV/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:47:10] 
+[2025-12-29 10:47:10] [22m[32m[OHLCV] KAIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:10] 
+[2025-12-29 10:47:10] [22m[32m[OHLCV] KAIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:10] 
+[2025-12-29 10:47:11] [22m[32m[OHLCV] KAIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:11] 
+[2025-12-29 10:47:11] [22m[32m[OHLCV] KAITO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:11] 
+[2025-12-29 10:47:12] [22m[32m[OHLCV] KAITO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:12] 
+[2025-12-29 10:47:13] [22m[32m[OHLCV] KAITO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:13] 
+[2025-12-29 10:47:14] [22m[32m[OHLCV] KAVA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:14] 
+[2025-12-29 10:47:14] [22m[32m[OHLCV] KAVA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:14] 
+[2025-12-29 10:47:14] [22m[32m[OHLCV] KAVA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:14] 
+[2025-12-29 10:47:15] [22m[32m[OHLCV] KERNEL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:15] 
+[2025-12-29 10:47:15] [22m[32m[OHLCV] KERNEL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:15] 
+[2025-12-29 10:47:15] [22m[32m[OHLCV] KERNEL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:15] 
+[2025-12-29 10:47:21] [1m[31mFailed to fetch OHLCV for KGST/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:47:21] 
+[2025-12-29 10:47:24] [1m[31mFailed to fetch OHLCV for KGST/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:47:24] 
+[2025-12-29 10:47:28] [1m[31mFailed to fetch OHLCV for KGST/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 10:47:28] 
+[2025-12-29 10:47:28] [22m[32m[OHLCV] KITE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:28] 
+[2025-12-29 10:47:29] [22m[32m[OHLCV] KITE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:29] 
+[2025-12-29 10:47:29] [22m[32m[OHLCV] KITE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:29] 
+[2025-12-29 10:47:29] [22m[32m[OHLCV] KMNO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:29] 
+[2025-12-29 10:47:30] [22m[32m[OHLCV] KMNO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:30] 
+[2025-12-29 10:47:30] [22m[32m[OHLCV] KMNO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:30] 
+[2025-12-29 10:47:30] [22m[32m[OHLCV] KNC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:30] 
+[2025-12-29 10:47:31] [22m[32m[OHLCV] KNC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:31] 
+[2025-12-29 10:47:31] [22m[32m[OHLCV] KNC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:31] 
+[2025-12-29 10:47:31] [22m[32m[OHLCV] KSM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:31] 
+[2025-12-29 10:47:32] [22m[32m[OHLCV] KSM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:32] 
+[2025-12-29 10:47:32] [22m[32m[OHLCV] KSM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:32] 
+[2025-12-29 10:47:32] [22m[32m[OHLCV] LA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:32] 
+[2025-12-29 10:47:32] [22m[32m[OHLCV] LA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:32] 
+[2025-12-29 10:47:33] [22m[32m[OHLCV] LA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:33] 
+[2025-12-29 10:47:33] [22m[32m[OHLCV] LAYER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:33] 
+[2025-12-29 10:47:33] [22m[32m[OHLCV] LAYER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:33] 
+[2025-12-29 10:47:34] [22m[32m[OHLCV] LAYER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:34] 
+[2025-12-29 10:47:34] [22m[32m[OHLCV] LAZIO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:47:34] 
+[2025-12-29 10:47:34] [22m[32m[OHLCV] LAZIO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:47:34] 
+[2025-12-29 10:47:35] [22m[32m[OHLCV] LAZIO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:47:35] 
+[2025-12-29 10:47:35] [22m[32m[OHLCV] LDO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:35] 
+[2025-12-29 10:47:35] [22m[32m[OHLCV] LDO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:35] 
+[2025-12-29 10:47:36] [22m[32m[OHLCV] LDO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:36] 
+[2025-12-29 10:47:36] [22m[32m[OHLCV] LINEA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:36] 
+[2025-12-29 10:47:36] [22m[32m[OHLCV] LINEA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:36] 
+[2025-12-29 10:47:37] [22m[32m[OHLCV] LINEA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:37] 
+[2025-12-29 10:47:37] [22m[32m[OHLCV] LINK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:37] 
+[2025-12-29 10:47:37] [22m[32m[OHLCV] LINK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:37] 
+[2025-12-29 10:47:38] [22m[32m[OHLCV] LINK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:38] 
+[2025-12-29 10:47:38] [22m[32m[OHLCV] LISTA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:38] 
+[2025-12-29 10:47:38] [22m[32m[OHLCV] LISTA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:38] 
+[2025-12-29 10:47:39] [22m[32m[OHLCV] LISTA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:39] 
+[2025-12-29 10:47:39] [22m[32m[OHLCV] LPT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:39] 
+[2025-12-29 10:47:39] [22m[32m[OHLCV] LPT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:39] 
+[2025-12-29 10:47:39] [22m[32m[OHLCV] LPT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:39] 
+[2025-12-29 10:47:40] [22m[32m[OHLCV] LQTY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:40] 
+[2025-12-29 10:47:40] [22m[32m[OHLCV] LQTY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:40] 
+[2025-12-29 10:47:40] [22m[32m[OHLCV] LQTY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:47:40] 
+[2025-12-29 10:47:40] [22m[32mFetched data for 24 symbols[0m
+[2025-12-29 10:47:40] 
+[2025-12-29 10:47:40] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:47:40] 
+[2025-12-29 10:48:24] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_104740_batch9.png[0m
+[2025-12-29 10:48:24] 
+[2025-12-29 10:48:24] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:48:24] 
+[2025-12-29 10:48:24] [22m[34mAnalyzing multi-TF batch chart with 24 symbols across 3 timeframes...[0m
+[2025-12-29 10:48:24] 
+[2025-12-29 10:48:24] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:48:24] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:49:05] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:49:05] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:49:05] [22m[32mMulti-TF batch analysis completed for 24 symbols[0m
+[2025-12-29 10:49:05] 
+[2025-12-29 10:49:05] [22m[34m
+============================================================[0m
+[2025-12-29 10:49:05] 
+[2025-12-29 10:49:05] [22m[34mProcessing batch 10/18[0m
+[2025-12-29 10:49:05] 
+[2025-12-29 10:49:05] [22m[34m============================================================[0m
+[2025-12-29 10:49:05] 
+[2025-12-29 10:49:05] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:49:05] 
+[2025-12-29 10:49:05] [22m[32m[OHLCV] LRC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:05] 
+[2025-12-29 10:49:05] [22m[32m[OHLCV] LRC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:05] 
+[2025-12-29 10:49:05] [22m[32m[OHLCV] LRC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:05] 
+[2025-12-29 10:49:06] [22m[32m[OHLCV] LSK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:06] 
+[2025-12-29 10:49:06] [22m[32m[OHLCV] LSK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:06] 
+[2025-12-29 10:49:06] [22m[32m[OHLCV] LSK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:06] 
+[2025-12-29 10:49:07] [22m[32m[OHLCV] LTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:07] 
+[2025-12-29 10:49:07] [22m[32m[OHLCV] LTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:07] 
+[2025-12-29 10:49:07] [22m[32m[OHLCV] LTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:07] 
+[2025-12-29 10:49:08] [22m[32m[OHLCV] LUMIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:08] 
+[2025-12-29 10:49:08] [22m[32m[OHLCV] LUMIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:08] 
+[2025-12-29 10:49:08] [22m[32m[OHLCV] LUMIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:08] 
+[2025-12-29 10:49:09] [22m[32m[OHLCV] LUNA/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:49:09] 
+[2025-12-29 10:49:09] [22m[32m[OHLCV] LUNA/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:49:09] 
+[2025-12-29 10:49:09] [22m[32m[OHLCV] LUNA/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:49:09] 
+[2025-12-29 10:49:10] [22m[32m[OHLCV] LUNC/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:49:10] 
+[2025-12-29 10:49:10] [22m[32m[OHLCV] LUNC/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:49:10] 
+[2025-12-29 10:49:10] [22m[32m[OHLCV] LUNC/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:49:10] 
+[2025-12-29 10:49:11] [22m[32m[OHLCV] MAGIC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:11] 
+[2025-12-29 10:49:11] [22m[32m[OHLCV] MAGIC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:11] 
+[2025-12-29 10:49:11] [22m[32m[OHLCV] MAGIC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:11] 
+[2025-12-29 10:49:12] [22m[32m[OHLCV] MANA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:12] 
+[2025-12-29 10:49:12] [22m[32m[OHLCV] MANA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:12] 
+[2025-12-29 10:49:12] [22m[32m[OHLCV] MANA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:12] 
+[2025-12-29 10:49:13] [22m[32m[OHLCV] MANTA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:13] 
+[2025-12-29 10:49:13] [22m[32m[OHLCV] MANTA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:13] 
+[2025-12-29 10:49:13] [22m[32m[OHLCV] MANTA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:13] 
+[2025-12-29 10:49:14] [22m[32m[OHLCV] MASK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:14] 
+[2025-12-29 10:49:14] [22m[32m[OHLCV] MASK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:14] 
+[2025-12-29 10:49:14] [22m[32m[OHLCV] MASK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:14] 
+[2025-12-29 10:49:15] [22m[32m[OHLCV] MAV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:15] 
+[2025-12-29 10:49:15] [22m[32m[OHLCV] MAV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:15] 
+[2025-12-29 10:49:15] [22m[32m[OHLCV] MAV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:15] 
+[2025-12-29 10:49:16] [22m[32m[OHLCV] MBL/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:49:16] 
+[2025-12-29 10:49:16] [22m[32m[OHLCV] MBL/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:49:16] 
+[2025-12-29 10:49:16] [22m[32m[OHLCV] MBL/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:49:16] 
+[2025-12-29 10:49:17] [22m[32m[OHLCV] MBOX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:17] 
+[2025-12-29 10:49:18] [22m[32m[OHLCV] MBOX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:18] 
+[2025-12-29 10:49:18] [22m[32m[OHLCV] MBOX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:18] 
+[2025-12-29 10:49:18] [22m[32m[OHLCV] MDT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:18] 
+[2025-12-29 10:49:19] [22m[32m[OHLCV] MDT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:19] 
+[2025-12-29 10:49:19] [22m[32m[OHLCV] MDT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:19] 
+[2025-12-29 10:49:19] [22m[32m[OHLCV] ME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:19] 
+[2025-12-29 10:49:20] [22m[32m[OHLCV] ME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:20] 
+[2025-12-29 10:49:20] [22m[32m[OHLCV] ME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:20] 
+[2025-12-29 10:49:20] [22m[32m[OHLCV] MEME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:20] 
+[2025-12-29 10:49:21] [22m[32m[OHLCV] MEME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:21] 
+[2025-12-29 10:49:21] [22m[32m[OHLCV] MEME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:21] 
+[2025-12-29 10:49:21] [22m[32m[OHLCV] MET/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:21] 
+[2025-12-29 10:49:21] [22m[32m[OHLCV] MET/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:21] 
+[2025-12-29 10:49:22] [22m[32m[OHLCV] MET/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:22] 
+[2025-12-29 10:49:22] [22m[32m[OHLCV] METIS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:22] 
+[2025-12-29 10:49:22] [22m[32m[OHLCV] METIS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:22] 
+[2025-12-29 10:49:23] [22m[32m[OHLCV] METIS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:23] 
+[2025-12-29 10:49:23] [22m[32m[OHLCV] MINA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:23] 
+[2025-12-29 10:49:23] [22m[32m[OHLCV] MINA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:23] 
+[2025-12-29 10:49:24] [22m[32m[OHLCV] MINA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:24] 
+[2025-12-29 10:49:24] [22m[32m[OHLCV] MIRA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:24] 
+[2025-12-29 10:49:24] [22m[32m[OHLCV] MIRA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:24] 
+[2025-12-29 10:49:25] [22m[32m[OHLCV] MIRA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:25] 
+[2025-12-29 10:49:25] [22m[32m[OHLCV] MITO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:25] 
+[2025-12-29 10:49:25] [22m[32m[OHLCV] MITO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:25] 
+[2025-12-29 10:49:26] [22m[32m[OHLCV] MITO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:26] 
+[2025-12-29 10:49:26] [22m[32m[OHLCV] MLN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:26] 
+[2025-12-29 10:49:27] [22m[32m[OHLCV] MLN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:27] 
+[2025-12-29 10:49:27] [22m[32m[OHLCV] MLN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:27] 
+[2025-12-29 10:49:28] [22m[32m[OHLCV] MMT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:28] 
+[2025-12-29 10:49:28] [22m[32m[OHLCV] MMT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:28] 
+[2025-12-29 10:49:28] [22m[32m[OHLCV] MMT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:28] 
+[2025-12-29 10:49:29] [22m[32m[OHLCV] MORPHO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:29] 
+[2025-12-29 10:49:29] [22m[32m[OHLCV] MORPHO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:29] 
+[2025-12-29 10:49:29] [22m[32m[OHLCV] MORPHO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:29] 
+[2025-12-29 10:49:30] [22m[32m[OHLCV] MOVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:30] 
+[2025-12-29 10:49:30] [22m[32m[OHLCV] MOVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:30] 
+[2025-12-29 10:49:30] [22m[32m[OHLCV] MOVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:49:30] 
+[2025-12-29 10:49:30] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:49:30] 
+[2025-12-29 10:49:30] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:49:30] 
+[2025-12-29 10:50:22] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_104930_batch10.png[0m
+[2025-12-29 10:50:22] 
+[2025-12-29 10:50:22] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:50:22] 
+[2025-12-29 10:50:22] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:50:22] 
+[2025-12-29 10:50:22] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:50:22] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:51:07] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:51:07] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:51:07] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 10:51:07] 
+[2025-12-29 10:51:07] [22m[34m
+============================================================[0m
+[2025-12-29 10:51:07] 
+[2025-12-29 10:51:07] [22m[34mProcessing batch 11/18[0m
+[2025-12-29 10:51:07] 
+[2025-12-29 10:51:07] [22m[34m============================================================[0m
+[2025-12-29 10:51:07] 
+[2025-12-29 10:51:07] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:51:07] 
+[2025-12-29 10:51:07] [22m[32m[OHLCV] MOVR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:07] 
+[2025-12-29 10:51:07] [22m[32m[OHLCV] MOVR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:07] 
+[2025-12-29 10:51:07] [22m[32m[OHLCV] MOVR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:07] 
+[2025-12-29 10:51:08] [22m[32m[OHLCV] MTL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:08] 
+[2025-12-29 10:51:08] [22m[32m[OHLCV] MTL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:08] 
+[2025-12-29 10:51:08] [22m[32m[OHLCV] MTL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:08] 
+[2025-12-29 10:51:09] [22m[32m[OHLCV] MUBARAK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:09] 
+[2025-12-29 10:51:10] [22m[32m[OHLCV] MUBARAK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:10] 
+[2025-12-29 10:51:11] [22m[32m[OHLCV] MUBARAK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:11] 
+[2025-12-29 10:51:11] [22m[32m[OHLCV] NEAR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:11] 
+[2025-12-29 10:51:11] [22m[32m[OHLCV] NEAR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:11] 
+[2025-12-29 10:51:11] [22m[32m[OHLCV] NEAR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:11] 
+[2025-12-29 10:51:12] [22m[32m[OHLCV] NEIRO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:12] 
+[2025-12-29 10:51:12] [22m[32m[OHLCV] NEIRO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:12] 
+[2025-12-29 10:51:12] [22m[32m[OHLCV] NEIRO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:12] 
+[2025-12-29 10:51:13] [22m[32m[OHLCV] NEO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:13] 
+[2025-12-29 10:51:13] [22m[32m[OHLCV] NEO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:13] 
+[2025-12-29 10:51:13] [22m[32m[OHLCV] NEO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:13] 
+[2025-12-29 10:51:14] [22m[32m[OHLCV] NEWT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:14] 
+[2025-12-29 10:51:14] [22m[32m[OHLCV] NEWT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:14] 
+[2025-12-29 10:51:14] [22m[32m[OHLCV] NEWT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:14] 
+[2025-12-29 10:51:15] [22m[32m[OHLCV] NEXO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:51:15] 
+[2025-12-29 10:51:15] [22m[32m[OHLCV] NEXO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:51:15] 
+[2025-12-29 10:51:16] [22m[32m[OHLCV] NEXO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:51:16] 
+[2025-12-29 10:51:16] [22m[32m[OHLCV] NFP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:16] 
+[2025-12-29 10:51:16] [22m[32m[OHLCV] NFP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:16] 
+[2025-12-29 10:51:17] [22m[32m[OHLCV] NFP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:17] 
+[2025-12-29 10:51:17] [22m[32m[OHLCV] NIL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:17] 
+[2025-12-29 10:51:17] [22m[32m[OHLCV] NIL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:17] 
+[2025-12-29 10:51:18] [22m[32m[OHLCV] NIL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:18] 
+[2025-12-29 10:51:18] [22m[32m[OHLCV] NKN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:18] 
+[2025-12-29 10:51:18] [22m[32m[OHLCV] NKN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:18] 
+[2025-12-29 10:51:19] [22m[32m[OHLCV] NKN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:19] 
+[2025-12-29 10:51:19] [22m[32m[OHLCV] NMR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:19] 
+[2025-12-29 10:51:19] [22m[32m[OHLCV] NMR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:19] 
+[2025-12-29 10:51:19] [22m[32m[OHLCV] NMR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:19] 
+[2025-12-29 10:51:20] [22m[32m[OHLCV] NOM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:20] 
+[2025-12-29 10:51:20] [22m[32m[OHLCV] NOM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:20] 
+[2025-12-29 10:51:20] [22m[32m[OHLCV] NOM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:20] 
+[2025-12-29 10:51:21] [22m[32m[OHLCV] NOT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:21] 
+[2025-12-29 10:51:21] [22m[32m[OHLCV] NOT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:21] 
+[2025-12-29 10:51:21] [22m[32m[OHLCV] NOT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:21] 
+[2025-12-29 10:51:22] [22m[32m[OHLCV] NTRN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:22] 
+[2025-12-29 10:51:22] [22m[32m[OHLCV] NTRN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:22] 
+[2025-12-29 10:51:22] [22m[32m[OHLCV] NTRN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:22] 
+[2025-12-29 10:51:23] [22m[32m[OHLCV] NXPC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:23] 
+[2025-12-29 10:51:23] [22m[32m[OHLCV] NXPC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:23] 
+[2025-12-29 10:51:23] [22m[32m[OHLCV] NXPC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:23] 
+[2025-12-29 10:51:24] [22m[32m[OHLCV] OG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:24] 
+[2025-12-29 10:51:24] [22m[32m[OHLCV] OG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:24] 
+[2025-12-29 10:51:24] [22m[32m[OHLCV] OG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:24] 
+[2025-12-29 10:51:25] [22m[32m[OHLCV] OGN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:25] 
+[2025-12-29 10:51:25] [22m[32m[OHLCV] OGN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:25] 
+[2025-12-29 10:51:25] [22m[32m[OHLCV] OGN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:25] 
+[2025-12-29 10:51:25] [22m[32m[OHLCV] OM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:25] 
+[2025-12-29 10:51:26] [22m[32m[OHLCV] OM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:26] 
+[2025-12-29 10:51:26] [22m[32m[OHLCV] OM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:26] 
+[2025-12-29 10:51:27] [22m[32m[OHLCV] ONDO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:27] 
+[2025-12-29 10:51:27] [22m[32m[OHLCV] ONDO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:27] 
+[2025-12-29 10:51:27] [22m[32m[OHLCV] ONDO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:27] 
+[2025-12-29 10:51:28] [22m[32m[OHLCV] ONE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:28] 
+[2025-12-29 10:51:28] [22m[32m[OHLCV] ONE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:28] 
+[2025-12-29 10:51:28] [22m[32m[OHLCV] ONE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:28] 
+[2025-12-29 10:51:29] [22m[32m[OHLCV] ONG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:29] 
+[2025-12-29 10:51:29] [22m[32m[OHLCV] ONG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:29] 
+[2025-12-29 10:51:29] [22m[32m[OHLCV] ONG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:29] 
+[2025-12-29 10:51:30] [22m[32m[OHLCV] ONT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:30] 
+[2025-12-29 10:51:30] [22m[32m[OHLCV] ONT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:30] 
+[2025-12-29 10:51:30] [22m[32m[OHLCV] ONT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:30] 
+[2025-12-29 10:51:31] [22m[32m[OHLCV] OP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:31] 
+[2025-12-29 10:51:31] [22m[32m[OHLCV] OP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:31] 
+[2025-12-29 10:51:31] [22m[32m[OHLCV] OP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:31] 
+[2025-12-29 10:51:32] [22m[32m[OHLCV] OPEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:32] 
+[2025-12-29 10:51:32] [22m[32m[OHLCV] OPEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:32] 
+[2025-12-29 10:51:32] [22m[32m[OHLCV] OPEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:51:32] 
+[2025-12-29 10:51:32] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:51:32] 
+[2025-12-29 10:51:32] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:51:32] 
+[2025-12-29 10:52:19] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_105132_batch11.png[0m
+[2025-12-29 10:52:19] 
+[2025-12-29 10:52:19] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:52:19] 
+[2025-12-29 10:52:19] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:52:19] 
+[2025-12-29 10:52:19] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:52:19] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:53:02] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:53:02] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:53:02] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 10:53:02] 
+[2025-12-29 10:53:02] [22m[34m
+============================================================[0m
+[2025-12-29 10:53:02] 
+[2025-12-29 10:53:02] [22m[34mProcessing batch 12/18[0m
+[2025-12-29 10:53:02] 
+[2025-12-29 10:53:02] [22m[34m============================================================[0m
+[2025-12-29 10:53:02] 
+[2025-12-29 10:53:02] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:53:02] 
+[2025-12-29 10:53:03] [22m[32m[OHLCV] ORCA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:03] 
+[2025-12-29 10:53:03] [22m[32m[OHLCV] ORCA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:03] 
+[2025-12-29 10:53:03] [22m[32m[OHLCV] ORCA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:03] 
+[2025-12-29 10:53:04] [22m[32m[OHLCV] ORDI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:04] 
+[2025-12-29 10:53:04] [22m[32m[OHLCV] ORDI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:04] 
+[2025-12-29 10:53:04] [22m[32m[OHLCV] ORDI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:04] 
+[2025-12-29 10:53:04] [22m[32m[OHLCV] OSMO/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:53:04] 
+[2025-12-29 10:53:05] [22m[32m[OHLCV] OSMO/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:53:05] 
+[2025-12-29 10:53:05] [22m[32m[OHLCV] OSMO/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:53:05] 
+[2025-12-29 10:53:05] [22m[32m[OHLCV] OXT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:05] 
+[2025-12-29 10:53:06] [22m[32m[OHLCV] OXT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:06] 
+[2025-12-29 10:53:06] [22m[32m[OHLCV] OXT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:06] 
+[2025-12-29 10:53:06] [22m[32m[OHLCV] PARTI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:06] 
+[2025-12-29 10:53:07] [22m[32m[OHLCV] PARTI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:07] 
+[2025-12-29 10:53:07] [22m[32m[OHLCV] PARTI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:07] 
+[2025-12-29 10:53:07] [22m[32m[OHLCV] PAXG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:07] 
+[2025-12-29 10:53:08] [22m[32m[OHLCV] PAXG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:08] 
+[2025-12-29 10:53:08] [22m[32m[OHLCV] PAXG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:08] 
+[2025-12-29 10:53:08] [22m[32m[OHLCV] PENDLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:08] 
+[2025-12-29 10:53:09] [22m[32m[OHLCV] PENDLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:09] 
+[2025-12-29 10:53:09] [22m[32m[OHLCV] PENDLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:09] 
+[2025-12-29 10:53:09] [22m[32m[OHLCV] PENGU/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:09] 
+[2025-12-29 10:53:10] [22m[32m[OHLCV] PENGU/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:10] 
+[2025-12-29 10:53:10] [22m[32m[OHLCV] PENGU/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:10] 
+[2025-12-29 10:53:10] [22m[32m[OHLCV] PEOPLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:10] 
+[2025-12-29 10:53:10] [22m[32m[OHLCV] PEOPLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:10] 
+[2025-12-29 10:53:11] [22m[32m[OHLCV] PEOPLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:11] 
+[2025-12-29 10:53:11] [22m[32m[OHLCV] PEPE/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:53:11] 
+[2025-12-29 10:53:11] [22m[32m[OHLCV] PEPE/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:53:11] 
+[2025-12-29 10:53:12] [22m[32m[OHLCV] PEPE/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:53:12] 
+[2025-12-29 10:53:12] [22m[32m[OHLCV] PHA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:12] 
+[2025-12-29 10:53:12] [22m[32m[OHLCV] PHA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:12] 
+[2025-12-29 10:53:13] [22m[32m[OHLCV] PHA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:13] 
+[2025-12-29 10:53:13] [22m[32m[OHLCV] PHB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:13] 
+[2025-12-29 10:53:13] [22m[32m[OHLCV] PHB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:13] 
+[2025-12-29 10:53:14] [22m[32m[OHLCV] PHB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:14] 
+[2025-12-29 10:53:14] [22m[32m[OHLCV] PIVX/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:53:14] 
+[2025-12-29 10:53:15] [22m[32m[OHLCV] PIVX/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:53:15] 
+[2025-12-29 10:53:15] [22m[32m[OHLCV] PIVX/USDT loaded from mexc (500 bars)[0m
+[2025-12-29 10:53:15] 
+[2025-12-29 10:53:15] [22m[32m[OHLCV] PIXEL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:15] 
+[2025-12-29 10:53:16] [22m[32m[OHLCV] PIXEL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:16] 
+[2025-12-29 10:53:16] [22m[32m[OHLCV] PIXEL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:16] 
+[2025-12-29 10:53:16] [22m[32m[OHLCV] PLUME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:16] 
+[2025-12-29 10:53:17] [22m[32m[OHLCV] PLUME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:17] 
+[2025-12-29 10:53:17] [22m[32m[OHLCV] PLUME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:17] 
+[2025-12-29 10:53:17] [22m[32m[OHLCV] PNUT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:17] 
+[2025-12-29 10:53:18] [22m[32m[OHLCV] PNUT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:18] 
+[2025-12-29 10:53:18] [22m[32m[OHLCV] PNUT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:18] 
+[2025-12-29 10:53:18] [22m[32m[OHLCV] POL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:18] 
+[2025-12-29 10:53:18] [22m[32m[OHLCV] POL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:18] 
+[2025-12-29 10:53:19] [22m[32m[OHLCV] POL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:19] 
+[2025-12-29 10:53:19] [22m[32m[OHLCV] POLYX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:19] 
+[2025-12-29 10:53:19] [22m[32m[OHLCV] POLYX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:19] 
+[2025-12-29 10:53:20] [22m[32m[OHLCV] POLYX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:20] 
+[2025-12-29 10:53:20] [22m[32m[OHLCV] POND/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:53:20] 
+[2025-12-29 10:53:20] [22m[32m[OHLCV] POND/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:53:20] 
+[2025-12-29 10:53:21] [22m[32m[OHLCV] POND/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:53:21] 
+[2025-12-29 10:53:21] [22m[32m[OHLCV] PORTAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:21] 
+[2025-12-29 10:53:21] [22m[32m[OHLCV] PORTAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:21] 
+[2025-12-29 10:53:22] [22m[32m[OHLCV] PORTAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:22] 
+[2025-12-29 10:53:22] [22m[32m[OHLCV] PORTO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:53:22] 
+[2025-12-29 10:53:23] [22m[32m[OHLCV] PORTO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:53:23] 
+[2025-12-29 10:53:23] [22m[32m[OHLCV] PORTO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:53:23] 
+[2025-12-29 10:53:23] [22m[32m[OHLCV] POWR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:23] 
+[2025-12-29 10:53:24] [22m[32m[OHLCV] POWR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:24] 
+[2025-12-29 10:53:24] [22m[32m[OHLCV] POWR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:24] 
+[2025-12-29 10:53:24] [22m[32m[OHLCV] PROM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:24] 
+[2025-12-29 10:53:25] [22m[32m[OHLCV] PROM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:25] 
+[2025-12-29 10:53:25] [22m[32m[OHLCV] PROM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:25] 
+[2025-12-29 10:53:25] [22m[32m[OHLCV] PROVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:25] 
+[2025-12-29 10:53:26] [22m[32m[OHLCV] PROVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:26] 
+[2025-12-29 10:53:26] [22m[32m[OHLCV] PROVE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:53:26] 
+[2025-12-29 10:53:26] [22m[32m[OHLCV] PSG/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:53:26] 
+[2025-12-29 10:53:27] [22m[32m[OHLCV] PSG/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:53:27] 
+[2025-12-29 10:53:27] [22m[32m[OHLCV] PSG/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:53:27] 
+[2025-12-29 10:53:27] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:53:27] 
+[2025-12-29 10:53:27] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:53:27] 
+[2025-12-29 10:54:31] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_105327_batch12.png[0m
+[2025-12-29 10:54:31] 
+[2025-12-29 10:54:31] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:54:31] 
+[2025-12-29 10:54:31] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:54:31] 
+[2025-12-29 10:54:31] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:54:31] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:55:07] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:55:07] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:55:07] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 10:55:07] 
+[2025-12-29 10:55:07] [22m[34m
+============================================================[0m
+[2025-12-29 10:55:07] 
+[2025-12-29 10:55:07] [22m[34mProcessing batch 13/18[0m
+[2025-12-29 10:55:07] 
+[2025-12-29 10:55:07] [22m[34m============================================================[0m
+[2025-12-29 10:55:07] 
+[2025-12-29 10:55:07] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:55:07] 
+[2025-12-29 10:55:07] [22m[32m[OHLCV] PUMP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:07] 
+[2025-12-29 10:55:07] [22m[32m[OHLCV] PUMP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:07] 
+[2025-12-29 10:55:08] [22m[32m[OHLCV] PUMP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:08] 
+[2025-12-29 10:55:08] [22m[32m[OHLCV] PUNDIX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:08] 
+[2025-12-29 10:55:08] [22m[32m[OHLCV] PUNDIX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:08] 
+[2025-12-29 10:55:09] [22m[32m[OHLCV] PUNDIX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:09] 
+[2025-12-29 10:55:09] [22m[32m[OHLCV] PYR/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:55:09] 
+[2025-12-29 10:55:09] [22m[32m[OHLCV] PYR/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:55:09] 
+[2025-12-29 10:55:20] [22m[32m[OHLCV] PYR/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:55:20] 
+[2025-12-29 10:55:20] [22m[32m[OHLCV] PYTH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:20] 
+[2025-12-29 10:55:20] [22m[32m[OHLCV] PYTH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:20] 
+[2025-12-29 10:55:21] [22m[32m[OHLCV] PYTH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:21] 
+[2025-12-29 10:55:22] [22m[32m[OHLCV] QI/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 10:55:22] 
+[2025-12-29 10:55:22] [22m[32m[OHLCV] QI/USDT loaded from kucoin (697 bars)[0m
+[2025-12-29 10:55:22] 
+[2025-12-29 10:55:22] [22m[32m[OHLCV] QI/USDT loaded from kucoin (693 bars)[0m
+[2025-12-29 10:55:22] 
+[2025-12-29 10:55:23] [22m[32m[OHLCV] QKC/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:55:23] 
+[2025-12-29 10:55:23] [22m[32m[OHLCV] QKC/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 10:55:23] 
+[2025-12-29 10:55:23] [22m[32m[OHLCV] QKC/USDT loaded from kucoin (698 bars)[0m
+[2025-12-29 10:55:23] 
+[2025-12-29 10:55:24] [22m[32m[OHLCV] QNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:24] 
+[2025-12-29 10:55:24] [22m[32m[OHLCV] QNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:24] 
+[2025-12-29 10:55:24] [22m[32m[OHLCV] QNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:24] 
+[2025-12-29 10:55:25] [22m[32m[OHLCV] QTUM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:25] 
+[2025-12-29 10:55:25] [22m[32m[OHLCV] QTUM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:25] 
+[2025-12-29 10:55:25] [22m[32m[OHLCV] QTUM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:25] 
+[2025-12-29 10:55:25] [22m[32m[OHLCV] QUICK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:25] 
+[2025-12-29 10:55:26] [22m[32m[OHLCV] QUICK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:26] 
+[2025-12-29 10:55:26] [22m[32m[OHLCV] QUICK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:26] 
+[2025-12-29 10:55:26] [22m[32m[OHLCV] RAD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:26] 
+[2025-12-29 10:55:27] [22m[32m[OHLCV] RAD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:27] 
+[2025-12-29 10:55:27] [22m[32m[OHLCV] RAD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:27] 
+[2025-12-29 10:55:27] [22m[32m[OHLCV] RARE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:27] 
+[2025-12-29 10:55:28] [22m[32m[OHLCV] RARE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:28] 
+[2025-12-29 10:55:28] [22m[32m[OHLCV] RARE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:28] 
+[2025-12-29 10:55:28] [22m[32m[OHLCV] RAY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:28] 
+[2025-12-29 10:55:29] [22m[32m[OHLCV] RAY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:29] 
+[2025-12-29 10:55:29] [22m[32m[OHLCV] RAY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:29] 
+[2025-12-29 10:55:29] [22m[32m[OHLCV] RDNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:29] 
+[2025-12-29 10:55:30] [22m[32m[OHLCV] RDNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:30] 
+[2025-12-29 10:55:30] [22m[32m[OHLCV] RDNT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:30] 
+[2025-12-29 10:55:30] [22m[32m[OHLCV] RED/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:30] 
+[2025-12-29 10:55:31] [22m[32m[OHLCV] RED/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:31] 
+[2025-12-29 10:55:31] [22m[32m[OHLCV] RED/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:31] 
+[2025-12-29 10:55:31] [22m[32m[OHLCV] RENDER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:31] 
+[2025-12-29 10:55:32] [22m[32m[OHLCV] RENDER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:32] 
+[2025-12-29 10:55:32] [22m[32m[OHLCV] RENDER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:32] 
+[2025-12-29 10:55:32] [22m[32m[OHLCV] REQ/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:55:32] 
+[2025-12-29 10:55:33] [22m[32m[OHLCV] REQ/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:55:33] 
+[2025-12-29 10:55:33] [22m[32m[OHLCV] REQ/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 10:55:33] 
+[2025-12-29 10:55:33] [22m[32m[OHLCV] RESOLV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:33] 
+[2025-12-29 10:55:34] [22m[32m[OHLCV] RESOLV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:34] 
+[2025-12-29 10:55:34] [22m[32m[OHLCV] RESOLV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:34] 
+[2025-12-29 10:55:34] [22m[32m[OHLCV] REZ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:34] 
+[2025-12-29 10:55:35] [22m[32m[OHLCV] REZ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:35] 
+[2025-12-29 10:55:35] [22m[32m[OHLCV] REZ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:35] 
+[2025-12-29 10:55:35] [22m[32m[OHLCV] RIF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:35] 
+[2025-12-29 10:55:36] [22m[32m[OHLCV] RIF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:36] 
+[2025-12-29 10:55:36] [22m[32m[OHLCV] RIF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:36] 
+[2025-12-29 10:55:36] [22m[32m[OHLCV] RLC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:36] 
+[2025-12-29 10:55:37] [22m[32m[OHLCV] RLC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:37] 
+[2025-12-29 10:55:37] [22m[32m[OHLCV] RLC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:37] 
+[2025-12-29 10:55:37] [22m[32m[OHLCV] RONIN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:37] 
+[2025-12-29 10:55:38] [22m[32m[OHLCV] RONIN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:38] 
+[2025-12-29 10:55:38] [22m[32m[OHLCV] RONIN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:38] 
+[2025-12-29 10:55:38] [22m[32m[OHLCV] ROSE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:38] 
+[2025-12-29 10:55:39] [22m[32m[OHLCV] ROSE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:39] 
+[2025-12-29 10:55:39] [22m[32m[OHLCV] ROSE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:39] 
+[2025-12-29 10:55:39] [22m[32m[OHLCV] RPL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:39] 
+[2025-12-29 10:55:40] [22m[32m[OHLCV] RPL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:40] 
+[2025-12-29 10:55:40] [22m[32m[OHLCV] RPL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:40] 
+[2025-12-29 10:55:40] [22m[32m[OHLCV] RSR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:40] 
+[2025-12-29 10:55:41] [22m[32m[OHLCV] RSR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:41] 
+[2025-12-29 10:55:41] [22m[32m[OHLCV] RSR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:41] 
+[2025-12-29 10:55:41] [22m[32m[OHLCV] RUNE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:41] 
+[2025-12-29 10:55:41] [22m[32m[OHLCV] RUNE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:41] 
+[2025-12-29 10:55:42] [22m[32m[OHLCV] RUNE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:55:42] 
+[2025-12-29 10:55:42] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:55:42] 
+[2025-12-29 10:55:42] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:55:42] 
+[2025-12-29 10:56:44] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_105542_batch13.png[0m
+[2025-12-29 10:56:44] 
+[2025-12-29 10:56:44] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:56:44] 
+[2025-12-29 10:56:44] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:56:44] 
+[2025-12-29 10:56:44] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:56:44] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:57:30] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:57:30] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:57:30] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 10:57:30] 
+[2025-12-29 10:57:30] [22m[34m
+============================================================[0m
+[2025-12-29 10:57:30] 
+[2025-12-29 10:57:30] [22m[34mProcessing batch 14/18[0m
+[2025-12-29 10:57:30] 
+[2025-12-29 10:57:30] [22m[34m============================================================[0m
+[2025-12-29 10:57:30] 
+[2025-12-29 10:57:30] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:57:30] 
+[2025-12-29 10:57:30] [22m[32m[OHLCV] RVN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:30] 
+[2025-12-29 10:57:31] [22m[32m[OHLCV] RVN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:31] 
+[2025-12-29 10:57:31] [22m[32m[OHLCV] RVN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:31] 
+[2025-12-29 10:57:31] [22m[32m[OHLCV] S/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:31] 
+[2025-12-29 10:57:32] [22m[32m[OHLCV] S/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:32] 
+[2025-12-29 10:57:32] [22m[32m[OHLCV] S/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:32] 
+[2025-12-29 10:57:34] [22m[32m[OHLCV] SAGA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:34] 
+[2025-12-29 10:57:34] [22m[32m[OHLCV] SAGA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:34] 
+[2025-12-29 10:57:34] [22m[32m[OHLCV] SAGA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:34] 
+[2025-12-29 10:57:34] [22m[32m[OHLCV] SAHARA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:34] 
+[2025-12-29 10:57:35] [22m[32m[OHLCV] SAHARA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:35] 
+[2025-12-29 10:57:35] [22m[32m[OHLCV] SAHARA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:35] 
+[2025-12-29 10:57:35] [22m[32m[OHLCV] SAND/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:35] 
+[2025-12-29 10:57:36] [22m[32m[OHLCV] SAND/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:36] 
+[2025-12-29 10:57:37] [22m[32m[OHLCV] SAND/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:37] 
+[2025-12-29 10:57:37] [22m[32m[OHLCV] SANTOS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:37] 
+[2025-12-29 10:57:38] [22m[32m[OHLCV] SANTOS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:38] 
+[2025-12-29 10:57:38] [22m[32m[OHLCV] SANTOS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:38] 
+[2025-12-29 10:57:38] [22m[32m[OHLCV] SAPIEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:38] 
+[2025-12-29 10:57:38] [22m[32m[OHLCV] SAPIEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:38] 
+[2025-12-29 10:57:39] [22m[32m[OHLCV] SAPIEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:39] 
+[2025-12-29 10:57:39] [22m[32m[OHLCV] SC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:39] 
+[2025-12-29 10:57:39] [22m[32m[OHLCV] SC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:39] 
+[2025-12-29 10:57:40] [22m[32m[OHLCV] SC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:40] 
+[2025-12-29 10:57:40] [22m[32m[OHLCV] SCR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:40] 
+[2025-12-29 10:57:41] [22m[32m[OHLCV] SCR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:41] 
+[2025-12-29 10:57:41] [22m[32m[OHLCV] SCR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:41] 
+[2025-12-29 10:57:41] [22m[32m[OHLCV] SCRT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:41] 
+[2025-12-29 10:57:42] [22m[32m[OHLCV] SCRT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:42] 
+[2025-12-29 10:57:42] [22m[32m[OHLCV] SCRT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:42] 
+[2025-12-29 10:57:42] [22m[32m[OHLCV] SEI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:42] 
+[2025-12-29 10:57:43] [22m[32m[OHLCV] SEI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:43] 
+[2025-12-29 10:57:43] [22m[32m[OHLCV] SEI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:43] 
+[2025-12-29 10:57:43] [22m[32m[OHLCV] SFP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:43] 
+[2025-12-29 10:57:43] [22m[32m[OHLCV] SFP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:43] 
+[2025-12-29 10:57:44] [22m[32m[OHLCV] SFP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:44] 
+[2025-12-29 10:57:44] [22m[32m[OHLCV] SHELL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:44] 
+[2025-12-29 10:57:44] [22m[32m[OHLCV] SHELL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:44] 
+[2025-12-29 10:57:45] [22m[32m[OHLCV] SHELL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:45] 
+[2025-12-29 10:57:45] [22m[32m[OHLCV] SHIB/USDT loaded from kraken (700 bars)[0m
+[2025-12-29 10:57:45] 
+[2025-12-29 10:57:47] [22m[32m[OHLCV] SHIB/USDT loaded from kraken (700 bars)[0m
+[2025-12-29 10:57:47] 
+[2025-12-29 10:57:48] [22m[32m[OHLCV] SHIB/USDT loaded from kraken (700 bars)[0m
+[2025-12-29 10:57:48] 
+[2025-12-29 10:57:48] [22m[32m[OHLCV] SIGN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:48] 
+[2025-12-29 10:57:48] [22m[32m[OHLCV] SIGN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:48] 
+[2025-12-29 10:57:49] [22m[32m[OHLCV] SIGN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:49] 
+[2025-12-29 10:57:49] [22m[32m[OHLCV] SKL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:49] 
+[2025-12-29 10:57:49] [22m[32m[OHLCV] SKL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:49] 
+[2025-12-29 10:57:50] [22m[32m[OHLCV] SKL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:50] 
+[2025-12-29 10:57:50] [22m[32m[OHLCV] SKY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:50] 
+[2025-12-29 10:57:50] [22m[32m[OHLCV] SKY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:50] 
+[2025-12-29 10:57:50] [22m[32m[OHLCV] SKY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:50] 
+[2025-12-29 10:57:51] [22m[32m[OHLCV] SLP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:51] 
+[2025-12-29 10:57:51] [22m[32m[OHLCV] SLP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:51] 
+[2025-12-29 10:57:51] [22m[32m[OHLCV] SLP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:51] 
+[2025-12-29 10:57:52] [22m[32m[OHLCV] SNX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:52] 
+[2025-12-29 10:57:52] [22m[32m[OHLCV] SNX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:52] 
+[2025-12-29 10:57:52] [22m[32m[OHLCV] SNX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:52] 
+[2025-12-29 10:57:53] [22m[32m[OHLCV] SOL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:53] 
+[2025-12-29 10:57:53] [22m[32m[OHLCV] SOL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:53] 
+[2025-12-29 10:57:53] [22m[32m[OHLCV] SOL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:53] 
+[2025-12-29 10:57:54] [22m[32m[OHLCV] SOLV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:54] 
+[2025-12-29 10:57:54] [22m[32m[OHLCV] SOLV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:54] 
+[2025-12-29 10:57:54] [22m[32m[OHLCV] SOLV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:54] 
+[2025-12-29 10:57:55] [22m[32m[OHLCV] SOMI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:55] 
+[2025-12-29 10:57:55] [22m[32m[OHLCV] SOMI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:55] 
+[2025-12-29 10:57:55] [22m[32m[OHLCV] SOMI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:55] 
+[2025-12-29 10:57:55] [22m[32m[OHLCV] SOPH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:55] 
+[2025-12-29 10:57:56] [22m[32m[OHLCV] SOPH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:56] 
+[2025-12-29 10:57:56] [22m[32m[OHLCV] SOPH/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:56] 
+[2025-12-29 10:57:56] [22m[32m[OHLCV] SPELL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:56] 
+[2025-12-29 10:57:57] [22m[32m[OHLCV] SPELL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:57] 
+[2025-12-29 10:57:57] [22m[32m[OHLCV] SPELL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:57] 
+[2025-12-29 10:57:57] [22m[32m[OHLCV] SPK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:57] 
+[2025-12-29 10:57:58] [22m[32m[OHLCV] SPK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:58] 
+[2025-12-29 10:57:58] [22m[32m[OHLCV] SPK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:57:58] 
+[2025-12-29 10:57:58] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:57:58] 
+[2025-12-29 10:57:58] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:57:58] 
+[2025-12-29 10:58:46] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_105758_batch14.png[0m
+[2025-12-29 10:58:46] 
+[2025-12-29 10:58:46] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 10:58:46] 
+[2025-12-29 10:58:46] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:58:46] 
+[2025-12-29 10:58:46] Trying model: models/gemini-3-flash-preview
+[2025-12-29 10:58:46] AFC is enabled with max remote calls: 10.
+[2025-12-29 10:59:31] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 10:59:31] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 10:59:31] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 10:59:31] 
+[2025-12-29 10:59:31] [22m[34m
+============================================================[0m
+[2025-12-29 10:59:31] 
+[2025-12-29 10:59:31] [22m[34mProcessing batch 15/18[0m
+[2025-12-29 10:59:31] 
+[2025-12-29 10:59:31] [22m[34m============================================================[0m
+[2025-12-29 10:59:31] 
+[2025-12-29 10:59:31] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 10:59:31] 
+[2025-12-29 10:59:31] [22m[32m[OHLCV] SSV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:31] 
+[2025-12-29 10:59:32] [22m[32m[OHLCV] SSV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:32] 
+[2025-12-29 10:59:32] [22m[32m[OHLCV] SSV/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:32] 
+[2025-12-29 10:59:32] [22m[32m[OHLCV] STEEM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:32] 
+[2025-12-29 10:59:33] [22m[32m[OHLCV] STEEM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:33] 
+[2025-12-29 10:59:33] [22m[32m[OHLCV] STEEM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:33] 
+[2025-12-29 10:59:33] [22m[32m[OHLCV] STG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:33] 
+[2025-12-29 10:59:34] [22m[32m[OHLCV] STG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:34] 
+[2025-12-29 10:59:34] [22m[32m[OHLCV] STG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:34] 
+[2025-12-29 10:59:34] [22m[32m[OHLCV] STO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:34] 
+[2025-12-29 10:59:35] [22m[32m[OHLCV] STO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:35] 
+[2025-12-29 10:59:35] [22m[32m[OHLCV] STO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:35] 
+[2025-12-29 10:59:35] [22m[32m[OHLCV] STORJ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:35] 
+[2025-12-29 10:59:36] [22m[32m[OHLCV] STORJ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:36] 
+[2025-12-29 10:59:36] [22m[32m[OHLCV] STORJ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:36] 
+[2025-12-29 10:59:36] [22m[32m[OHLCV] STRAX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:36] 
+[2025-12-29 10:59:36] [22m[32m[OHLCV] STRAX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:37] 
+[2025-12-29 10:59:37] [22m[32m[OHLCV] STRAX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:37] 
+[2025-12-29 10:59:37] [22m[32m[OHLCV] STRK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:37] 
+[2025-12-29 10:59:37] [22m[32m[OHLCV] STRK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:37] 
+[2025-12-29 10:59:38] [22m[32m[OHLCV] STRK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:38] 
+[2025-12-29 10:59:38] [22m[32m[OHLCV] STX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:38] 
+[2025-12-29 10:59:38] [22m[32m[OHLCV] STX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:38] 
+[2025-12-29 10:59:39] [22m[32m[OHLCV] STX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:39] 
+[2025-12-29 10:59:39] [22m[32m[OHLCV] SUI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:39] 
+[2025-12-29 10:59:39] [22m[32m[OHLCV] SUI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:39] 
+[2025-12-29 10:59:40] [22m[32m[OHLCV] SUI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:40] 
+[2025-12-29 10:59:40] [22m[32m[OHLCV] SUN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:40] 
+[2025-12-29 10:59:40] [22m[32m[OHLCV] SUN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:40] 
+[2025-12-29 10:59:41] [22m[32m[OHLCV] SUN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:41] 
+[2025-12-29 10:59:41] [22m[32m[OHLCV] SUPER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:41] 
+[2025-12-29 10:59:41] [22m[32m[OHLCV] SUPER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:41] 
+[2025-12-29 10:59:42] [22m[32m[OHLCV] SUPER/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:42] 
+[2025-12-29 10:59:42] [22m[32m[OHLCV] SUSHI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:42] 
+[2025-12-29 10:59:42] [22m[32m[OHLCV] SUSHI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:42] 
+[2025-12-29 10:59:43] [22m[32m[OHLCV] SUSHI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:43] 
+[2025-12-29 10:59:43] [22m[32m[OHLCV] SXP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:43] 
+[2025-12-29 10:59:43] [22m[32m[OHLCV] SXP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:43] 
+[2025-12-29 10:59:43] [22m[32m[OHLCV] SXP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:43] 
+[2025-12-29 10:59:44] [22m[32m[OHLCV] SXT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:44] 
+[2025-12-29 10:59:44] [22m[32m[OHLCV] SXT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:44] 
+[2025-12-29 10:59:44] [22m[32m[OHLCV] SXT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:44] 
+[2025-12-29 10:59:45] [22m[32m[OHLCV] SYN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:45] 
+[2025-12-29 10:59:45] [22m[32m[OHLCV] SYN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:45] 
+[2025-12-29 10:59:45] [22m[32m[OHLCV] SYN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:45] 
+[2025-12-29 10:59:46] [22m[32m[OHLCV] SYRUP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:46] 
+[2025-12-29 10:59:46] [22m[32m[OHLCV] SYRUP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:46] 
+[2025-12-29 10:59:46] [22m[32m[OHLCV] SYRUP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:46] 
+[2025-12-29 10:59:47] [22m[32m[OHLCV] SYS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:47] 
+[2025-12-29 10:59:47] [22m[32m[OHLCV] SYS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:47] 
+[2025-12-29 10:59:47] [22m[32m[OHLCV] SYS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:47] 
+[2025-12-29 10:59:48] [22m[32m[OHLCV] T/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:48] 
+[2025-12-29 10:59:49] [22m[32m[OHLCV] T/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:49] 
+[2025-12-29 10:59:49] [22m[32m[OHLCV] T/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:49] 
+[2025-12-29 10:59:49] [22m[32m[OHLCV] TAO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:49] 
+[2025-12-29 10:59:50] [22m[32m[OHLCV] TAO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:50] 
+[2025-12-29 10:59:50] [22m[32m[OHLCV] TAO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:50] 
+[2025-12-29 10:59:50] [22m[32m[OHLCV] TFUEL/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:59:50] 
+[2025-12-29 10:59:51] [22m[32m[OHLCV] TFUEL/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:59:51] 
+[2025-12-29 10:59:51] [22m[32m[OHLCV] TFUEL/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 10:59:51] 
+[2025-12-29 10:59:51] [22m[32m[OHLCV] THE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:51] 
+[2025-12-29 10:59:52] [22m[32m[OHLCV] THE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:52] 
+[2025-12-29 10:59:52] [22m[32m[OHLCV] THE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:52] 
+[2025-12-29 10:59:52] [22m[32m[OHLCV] THETA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:52] 
+[2025-12-29 10:59:53] [22m[32m[OHLCV] THETA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:53] 
+[2025-12-29 10:59:53] [22m[32m[OHLCV] THETA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:53] 
+[2025-12-29 10:59:53] [22m[32m[OHLCV] TIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:53] 
+[2025-12-29 10:59:54] [22m[32m[OHLCV] TIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:54] 
+[2025-12-29 10:59:54] [22m[32m[OHLCV] TIA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:54] 
+[2025-12-29 10:59:55] [22m[32m[OHLCV] TKO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:59:55] 
+[2025-12-29 10:59:55] [22m[32m[OHLCV] TKO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:59:55] 
+[2025-12-29 10:59:55] [22m[32m[OHLCV] TKO/USDT loaded from gate (700 bars)[0m
+[2025-12-29 10:59:55] 
+[2025-12-29 10:59:56] [22m[32m[OHLCV] TLM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:56] 
+[2025-12-29 10:59:56] [22m[32m[OHLCV] TLM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:56] 
+[2025-12-29 10:59:56] [22m[32m[OHLCV] TLM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 10:59:56] 
+[2025-12-29 10:59:56] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 10:59:56] 
+[2025-12-29 10:59:56] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 10:59:56] 
+[2025-12-29 11:00:57] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_105956_batch15.png[0m
+[2025-12-29 11:00:57] 
+[2025-12-29 11:00:57] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 11:00:57] 
+[2025-12-29 11:00:57] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 11:00:57] 
+[2025-12-29 11:00:57] Trying model: models/gemini-3-flash-preview
+[2025-12-29 11:00:57] AFC is enabled with max remote calls: 10.
+[2025-12-29 11:02:12] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 11:02:12] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 11:02:12] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 11:02:12] 
+[2025-12-29 11:02:12] [22m[34m
+============================================================[0m
+[2025-12-29 11:02:12] 
+[2025-12-29 11:02:12] [22m[34mProcessing batch 16/18[0m
+[2025-12-29 11:02:12] 
+[2025-12-29 11:02:12] [22m[34m============================================================[0m
+[2025-12-29 11:02:12] 
+[2025-12-29 11:02:12] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 11:02:12] 
+[2025-12-29 11:02:12] [22m[32m[OHLCV] TNSR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:12] 
+[2025-12-29 11:02:13] [22m[32m[OHLCV] TNSR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:13] 
+[2025-12-29 11:02:13] [22m[32m[OHLCV] TNSR/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:13] 
+[2025-12-29 11:02:13] [22m[32m[OHLCV] TON/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:13] 
+[2025-12-29 11:02:14] [22m[32m[OHLCV] TON/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:14] 
+[2025-12-29 11:02:14] [22m[32m[OHLCV] TON/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:14] 
+[2025-12-29 11:02:14] [22m[32m[OHLCV] TOWNS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:14] 
+[2025-12-29 11:02:15] [22m[32m[OHLCV] TOWNS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:15] 
+[2025-12-29 11:02:15] [22m[32m[OHLCV] TOWNS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:15] 
+[2025-12-29 11:02:16] [22m[32m[OHLCV] TRB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:16] 
+[2025-12-29 11:02:16] [22m[32m[OHLCV] TRB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:16] 
+[2025-12-29 11:02:17] [22m[32m[OHLCV] TRB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:17] 
+[2025-12-29 11:02:17] [22m[32m[OHLCV] TREE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:17] 
+[2025-12-29 11:02:17] [22m[32m[OHLCV] TREE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:17] 
+[2025-12-29 11:02:18] [22m[32m[OHLCV] TREE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:18] 
+[2025-12-29 11:02:18] [22m[32m[OHLCV] TRU/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:18] 
+[2025-12-29 11:02:19] [22m[32m[OHLCV] TRU/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:19] 
+[2025-12-29 11:02:19] [22m[32m[OHLCV] TRU/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:19] 
+[2025-12-29 11:02:19] [22m[32m[OHLCV] TRUMP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:20] 
+[2025-12-29 11:02:20] [22m[32m[OHLCV] TRUMP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:20] 
+[2025-12-29 11:02:20] [22m[32m[OHLCV] TRUMP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:20] 
+[2025-12-29 11:02:21] [22m[32m[OHLCV] TRX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:21] 
+[2025-12-29 11:02:21] [22m[32m[OHLCV] TRX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:21] 
+[2025-12-29 11:02:22] [22m[32m[OHLCV] TRX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:22] 
+[2025-12-29 11:02:22] [22m[32m[OHLCV] TST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:22] 
+[2025-12-29 11:02:22] [22m[32m[OHLCV] TST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:22] 
+[2025-12-29 11:02:23] [22m[32m[OHLCV] TST/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:23] 
+[2025-12-29 11:02:23] [22m[32m[OHLCV] TURBO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:23] 
+[2025-12-29 11:02:23] [22m[32m[OHLCV] TURBO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:23] 
+[2025-12-29 11:02:23] [22m[32m[OHLCV] TURBO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:23] 
+[2025-12-29 11:02:24] [22m[32m[OHLCV] TURTLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:24] 
+[2025-12-29 11:02:24] [22m[32m[OHLCV] TURTLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:24] 
+[2025-12-29 11:02:24] [22m[32m[OHLCV] TURTLE/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:24] 
+[2025-12-29 11:02:25] [22m[32m[OHLCV] TUSD/USDT loaded from kucoin (696 bars)[0m
+[2025-12-29 11:02:25] 
+[2025-12-29 11:02:25] [22m[32m[OHLCV] TUSD/USDT loaded from kucoin (692 bars)[0m
+[2025-12-29 11:02:25] 
+[2025-12-29 11:02:25] [22m[32m[OHLCV] TUSD/USDT loaded from kucoin (684 bars)[0m
+[2025-12-29 11:02:25] 
+[2025-12-29 11:02:26] [22m[32m[OHLCV] TUT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:26] 
+[2025-12-29 11:02:26] [22m[32m[OHLCV] TUT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:26] 
+[2025-12-29 11:02:26] [22m[32m[OHLCV] TUT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:26] 
+[2025-12-29 11:02:27] [22m[32m[OHLCV] TWT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:27] 
+[2025-12-29 11:02:27] [22m[32m[OHLCV] TWT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:27] 
+[2025-12-29 11:02:27] [22m[32m[OHLCV] TWT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:27] 
+[2025-12-29 11:02:28] [22m[32m[OHLCV] UMA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:28] 
+[2025-12-29 11:02:28] [22m[32m[OHLCV] UMA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:28] 
+[2025-12-29 11:02:28] [22m[32m[OHLCV] UMA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:28] 
+[2025-12-29 11:02:28] [22m[32m[OHLCV] UNI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:28] 
+[2025-12-29 11:02:29] [22m[32m[OHLCV] UNI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:29] 
+[2025-12-29 11:02:29] [22m[32m[OHLCV] UNI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:29] 
+[2025-12-29 11:02:30] [22m[32m[OHLCV] USD1/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 11:02:30] 
+[2025-12-29 11:02:30] [22m[32m[OHLCV] USD1/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 11:02:30] 
+[2025-12-29 11:02:30] [22m[32m[OHLCV] USD1/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 11:02:30] 
+[2025-12-29 11:02:31] [22m[32m[OHLCV] USDC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:31] 
+[2025-12-29 11:02:31] [22m[32m[OHLCV] USDC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:31] 
+[2025-12-29 11:02:31] [22m[32m[OHLCV] USDC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:31] 
+[2025-12-29 11:02:32] [22m[32m[OHLCV] USDE/USDT loaded from kraken (700 bars)[0m
+[2025-12-29 11:02:32] 
+[2025-12-29 11:02:33] [22m[32m[OHLCV] USDE/USDT loaded from kraken (700 bars)[0m
+[2025-12-29 11:02:33] 
+[2025-12-29 11:02:34] [22m[32m[OHLCV] USDE/USDT loaded from kraken (700 bars)[0m
+[2025-12-29 11:02:34] 
+[2025-12-29 11:02:34] [22m[32m[OHLCV] USDP/USDT loaded from kucoin (672 bars)[0m
+[2025-12-29 11:02:34] 
+[2025-12-29 11:02:35] [22m[32m[OHLCV] USDP/USDT loaded from kucoin (645 bars)[0m
+[2025-12-29 11:02:35] 
+[2025-12-29 11:02:35] [22m[32m[OHLCV] USDP/USDT loaded from kucoin (590 bars)[0m
+[2025-12-29 11:02:35] 
+[2025-12-29 11:02:35] [22m[32m[OHLCV] USTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:35] 
+[2025-12-29 11:02:36] [22m[32m[OHLCV] USTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:36] 
+[2025-12-29 11:02:36] [22m[32m[OHLCV] USTC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:36] 
+[2025-12-29 11:02:36] [22m[32m[OHLCV] USUAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:36] 
+[2025-12-29 11:02:37] [22m[32m[OHLCV] USUAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:37] 
+[2025-12-29 11:02:37] [22m[32m[OHLCV] USUAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:37] 
+[2025-12-29 11:02:38] [22m[32m[OHLCV] UTK/USDT loaded from gate (700 bars)[0m
+[2025-12-29 11:02:38] 
+[2025-12-29 11:02:38] [22m[32m[OHLCV] UTK/USDT loaded from gate (700 bars)[0m
+[2025-12-29 11:02:38] 
+[2025-12-29 11:02:39] [22m[32m[OHLCV] UTK/USDT loaded from gate (700 bars)[0m
+[2025-12-29 11:02:39] 
+[2025-12-29 11:02:39] [22m[32m[OHLCV] VANA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:39] 
+[2025-12-29 11:02:39] [22m[32m[OHLCV] VANA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:39] 
+[2025-12-29 11:02:40] [22m[32m[OHLCV] VANA/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:40] 
+[2025-12-29 11:02:40] [22m[32m[OHLCV] VANRY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:40] 
+[2025-12-29 11:02:40] [22m[32m[OHLCV] VANRY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:40] 
+[2025-12-29 11:02:40] [22m[32m[OHLCV] VANRY/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:02:40] 
+[2025-12-29 11:02:40] [22m[32mFetched data for 25 symbols[0m
+[2025-12-29 11:02:40] 
+[2025-12-29 11:02:40] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 11:02:40] 
+[2025-12-29 11:03:35] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_110240_batch16.png[0m
+[2025-12-29 11:03:35] 
+[2025-12-29 11:03:35] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 11:03:35] 
+[2025-12-29 11:03:35] [22m[34mAnalyzing multi-TF batch chart with 25 symbols across 3 timeframes...[0m
+[2025-12-29 11:03:35] 
+[2025-12-29 11:03:35] Trying model: models/gemini-3-flash-preview
+[2025-12-29 11:03:35] AFC is enabled with max remote calls: 10.
+[2025-12-29 11:04:14] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 11:04:14] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 11:04:14] [22m[32mMulti-TF batch analysis completed for 25 symbols[0m
+[2025-12-29 11:04:14] 
+[2025-12-29 11:04:14] [22m[34m
+============================================================[0m
+[2025-12-29 11:04:14] 
+[2025-12-29 11:04:14] [22m[34mProcessing batch 17/18[0m
+[2025-12-29 11:04:14] 
+[2025-12-29 11:04:14] [22m[34m============================================================[0m
+[2025-12-29 11:04:14] 
+[2025-12-29 11:04:14] [22m[34mFetching OHLCV data for 25 symbols across 3 timeframes...[0m
+[2025-12-29 11:04:14] 
+[2025-12-29 11:04:15] [22m[32m[OHLCV] VELODROME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:15] 
+[2025-12-29 11:04:15] [22m[32m[OHLCV] VELODROME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:15] 
+[2025-12-29 11:04:15] [22m[32m[OHLCV] VELODROME/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:15] 
+[2025-12-29 11:04:16] [22m[32m[OHLCV] VET/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:16] 
+[2025-12-29 11:04:16] [22m[32m[OHLCV] VET/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:16] 
+[2025-12-29 11:04:16] [22m[32m[OHLCV] VET/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:16] 
+[2025-12-29 11:04:17] [22m[32m[OHLCV] VIC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:17] 
+[2025-12-29 11:04:17] [22m[32m[OHLCV] VIC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:17] 
+[2025-12-29 11:04:17] [22m[32m[OHLCV] VIC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:17] 
+[2025-12-29 11:04:17] [22m[32m[OHLCV] VIRTUAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:17] 
+[2025-12-29 11:04:18] [22m[32m[OHLCV] VIRTUAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:18] 
+[2025-12-29 11:04:18] [22m[32m[OHLCV] VIRTUAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:18] 
+[2025-12-29 11:04:18] [22m[32m[OHLCV] VTHO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:18] 
+[2025-12-29 11:04:19] [22m[32m[OHLCV] VTHO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:19] 
+[2025-12-29 11:04:19] [22m[32m[OHLCV] VTHO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:19] 
+[2025-12-29 11:04:19] [22m[32m[OHLCV] W/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:19] 
+[2025-12-29 11:04:20] [22m[32m[OHLCV] W/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:20] 
+[2025-12-29 11:04:20] [22m[32m[OHLCV] W/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:20] 
+[2025-12-29 11:04:20] [22m[32m[OHLCV] WAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:20] 
+[2025-12-29 11:04:21] [22m[32m[OHLCV] WAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:21] 
+[2025-12-29 11:04:21] [22m[32m[OHLCV] WAL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:21] 
+[2025-12-29 11:04:21] [22m[32m[OHLCV] WAN/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 11:04:21] 
+[2025-12-29 11:04:22] [22m[32m[OHLCV] WAN/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 11:04:22] 
+[2025-12-29 11:04:22] [22m[32m[OHLCV] WAN/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 11:04:22] 
+[2025-12-29 11:04:22] [22m[32m[OHLCV] WAXP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:22] 
+[2025-12-29 11:04:23] [22m[32m[OHLCV] WAXP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:23] 
+[2025-12-29 11:04:23] [22m[32m[OHLCV] WAXP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:23] 
+[2025-12-29 11:04:25] [1m[31mFailed to fetch OHLCV for WBETH/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 11:04:25] 
+[2025-12-29 11:04:27] [1m[31mFailed to fetch OHLCV for WBETH/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 11:04:27] 
+[2025-12-29 11:04:28] [1m[31mFailed to fetch OHLCV for WBETH/USDT: huobi GET https://api.hbdm.com/linear-swap-api/v1/swap_contract_info?business_type=all[0m
+[2025-12-29 11:04:28] 
+[2025-12-29 11:04:29] [22m[32m[OHLCV] WBTC/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 11:04:29] 
+[2025-12-29 11:04:29] [22m[32m[OHLCV] WBTC/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 11:04:29] 
+[2025-12-29 11:04:30] [22m[32m[OHLCV] WBTC/USDT loaded from kucoin (698 bars)[0m
+[2025-12-29 11:04:30] 
+[2025-12-29 11:04:30] [22m[32m[OHLCV] WCT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:30] 
+[2025-12-29 11:04:30] [22m[32m[OHLCV] WCT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:30] 
+[2025-12-29 11:04:32] [22m[32m[OHLCV] WCT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:32] 
+[2025-12-29 11:04:32] [22m[32m[OHLCV] WIF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:32] 
+[2025-12-29 11:04:32] [22m[32m[OHLCV] WIF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:32] 
+[2025-12-29 11:04:32] [22m[32m[OHLCV] WIF/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:32] 
+[2025-12-29 11:04:33] [22m[32m[OHLCV] WIN/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 11:04:33] 
+[2025-12-29 11:04:33] [22m[32m[OHLCV] WIN/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 11:04:33] 
+[2025-12-29 11:04:33] [22m[32m[OHLCV] WIN/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 11:04:33] 
+[2025-12-29 11:04:34] [22m[32m[OHLCV] WLD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:34] 
+[2025-12-29 11:04:34] [22m[32m[OHLCV] WLD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:34] 
+[2025-12-29 11:04:34] [22m[32m[OHLCV] WLD/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:34] 
+[2025-12-29 11:04:35] [22m[32m[OHLCV] WLFI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:35] 
+[2025-12-29 11:04:35] [22m[32m[OHLCV] WLFI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:35] 
+[2025-12-29 11:04:35] [22m[32m[OHLCV] WLFI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:35] 
+[2025-12-29 11:04:36] [22m[32m[OHLCV] WOO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:36] 
+[2025-12-29 11:04:36] [22m[32m[OHLCV] WOO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:36] 
+[2025-12-29 11:04:36] [22m[32m[OHLCV] WOO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:36] 
+[2025-12-29 11:04:37] [22m[32m[OHLCV] XAI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:37] 
+[2025-12-29 11:04:37] [22m[32m[OHLCV] XAI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:37] 
+[2025-12-29 11:04:37] [22m[32m[OHLCV] XAI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:37] 
+[2025-12-29 11:04:38] [22m[32m[OHLCV] XEC/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 11:04:38] 
+[2025-12-29 11:04:38] [22m[32m[OHLCV] XEC/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 11:04:38] 
+[2025-12-29 11:04:38] [22m[32m[OHLCV] XEC/USDT loaded from kucoin (700 bars)[0m
+[2025-12-29 11:04:38] 
+[2025-12-29 11:04:39] [22m[32m[OHLCV] XLM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:39] 
+[2025-12-29 11:04:39] [22m[32m[OHLCV] XLM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:39] 
+[2025-12-29 11:04:39] [22m[32m[OHLCV] XLM/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:39] 
+[2025-12-29 11:04:40] [22m[32m[OHLCV] XNO/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 11:04:40] 
+[2025-12-29 11:04:40] [22m[32m[OHLCV] XNO/USDT loaded from kucoin (699 bars)[0m
+[2025-12-29 11:04:40] 
+[2025-12-29 11:04:40] [22m[32m[OHLCV] XNO/USDT loaded from kucoin (698 bars)[0m
+[2025-12-29 11:04:40] 
+[2025-12-29 11:04:41] [22m[32m[OHLCV] XPL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:41] 
+[2025-12-29 11:04:41] [22m[32m[OHLCV] XPL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:41] 
+[2025-12-29 11:04:41] [22m[32m[OHLCV] XPL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:41] 
+[2025-12-29 11:04:42] [22m[32m[OHLCV] XRP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:42] 
+[2025-12-29 11:04:42] [22m[32m[OHLCV] XRP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:42] 
+[2025-12-29 11:04:42] [22m[32m[OHLCV] XRP/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:42] 
+[2025-12-29 11:04:43] [22m[32m[OHLCV] XTZ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:43] 
+[2025-12-29 11:04:43] [22m[32m[OHLCV] XTZ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:43] 
+[2025-12-29 11:04:43] [22m[32m[OHLCV] XTZ/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:04:43] 
+[2025-12-29 11:04:44] [22m[32m[OHLCV] XUSD/USDT loaded from bybit (700 bars)[0m
+[2025-12-29 11:04:44] 
+[2025-12-29 11:04:44] [22m[32m[OHLCV] XUSD/USDT loaded from bybit (700 bars)[0m
+[2025-12-29 11:04:44] 
+[2025-12-29 11:04:44] [22m[32m[OHLCV] XUSD/USDT loaded from bybit (700 bars)[0m
+[2025-12-29 11:04:44] 
+[2025-12-29 11:04:44] [22m[32mFetched data for 24 symbols[0m
+[2025-12-29 11:04:44] 
+[2025-12-29 11:04:44] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 11:04:44] 
+[2025-12-29 11:06:03] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_110444_batch17.png[0m
+[2025-12-29 11:06:03] 
+[2025-12-29 11:06:03] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 11:06:03] 
+[2025-12-29 11:06:03] [22m[34mAnalyzing multi-TF batch chart with 24 symbols across 3 timeframes...[0m
+[2025-12-29 11:06:03] 
+[2025-12-29 11:06:03] Trying model: models/gemini-3-flash-preview
+[2025-12-29 11:06:03] AFC is enabled with max remote calls: 10.
+[2025-12-29 11:06:32] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 11:06:32] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 11:06:32] [22m[32mMulti-TF batch analysis completed for 24 symbols[0m
+[2025-12-29 11:06:32] 
+[2025-12-29 11:06:32] [22m[34m
+============================================================[0m
+[2025-12-29 11:06:32] 
+[2025-12-29 11:06:32] [22m[34mProcessing batch 18/18[0m
+[2025-12-29 11:06:32] 
+[2025-12-29 11:06:32] [22m[34m============================================================[0m
+[2025-12-29 11:06:32] 
+[2025-12-29 11:06:32] [22m[34mFetching OHLCV data for 13 symbols across 3 timeframes...[0m
+[2025-12-29 11:06:32] 
+[2025-12-29 11:06:32] [22m[32m[OHLCV] XVG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:32] 
+[2025-12-29 11:06:32] [22m[32m[OHLCV] XVG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:32] 
+[2025-12-29 11:06:33] [22m[32m[OHLCV] XVG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:33] 
+[2025-12-29 11:06:33] [22m[32m[OHLCV] XVS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:33] 
+[2025-12-29 11:06:33] [22m[32m[OHLCV] XVS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:33] 
+[2025-12-29 11:06:33] [22m[32m[OHLCV] XVS/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:33] 
+[2025-12-29 11:06:34] [22m[32m[OHLCV] YB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:34] 
+[2025-12-29 11:06:34] [22m[32m[OHLCV] YB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:34] 
+[2025-12-29 11:06:34] [22m[32m[OHLCV] YB/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:34] 
+[2025-12-29 11:06:35] [22m[32m[OHLCV] YFI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:35] 
+[2025-12-29 11:06:35] [22m[32m[OHLCV] YFI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:35] 
+[2025-12-29 11:06:35] [22m[32m[OHLCV] YFI/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:35] 
+[2025-12-29 11:06:36] [22m[32m[OHLCV] YGG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:36] 
+[2025-12-29 11:06:36] [22m[32m[OHLCV] YGG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:36] 
+[2025-12-29 11:06:36] [22m[32m[OHLCV] YGG/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:36] 
+[2025-12-29 11:06:37] [22m[32m[OHLCV] ZBT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:37] 
+[2025-12-29 11:06:37] [22m[32m[OHLCV] ZBT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:37] 
+[2025-12-29 11:06:37] [22m[32m[OHLCV] ZBT/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:37] 
+[2025-12-29 11:06:38] [22m[32m[OHLCV] ZEC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:38] 
+[2025-12-29 11:06:38] [22m[32m[OHLCV] ZEC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:38] 
+[2025-12-29 11:06:38] [22m[32m[OHLCV] ZEC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:38] 
+[2025-12-29 11:06:39] [22m[32m[OHLCV] ZEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:39] 
+[2025-12-29 11:06:39] [22m[32m[OHLCV] ZEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:39] 
+[2025-12-29 11:06:39] [22m[32m[OHLCV] ZEN/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:39] 
+[2025-12-29 11:06:40] [22m[32m[OHLCV] ZIL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:40] 
+[2025-12-29 11:06:40] [22m[32m[OHLCV] ZIL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:40] 
+[2025-12-29 11:06:40] [22m[32m[OHLCV] ZIL/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:40] 
+[2025-12-29 11:06:40] [22m[32m[OHLCV] ZK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:40] 
+[2025-12-29 11:06:41] [22m[32m[OHLCV] ZK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:41] 
+[2025-12-29 11:06:41] [22m[32m[OHLCV] ZK/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:41] 
+[2025-12-29 11:06:42] [22m[32m[OHLCV] ZKC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:42] 
+[2025-12-29 11:06:42] [22m[32m[OHLCV] ZKC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:42] 
+[2025-12-29 11:06:42] [22m[32m[OHLCV] ZKC/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:42] 
+[2025-12-29 11:06:42] [22m[32m[OHLCV] ZRO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:42] 
+[2025-12-29 11:06:43] [22m[32m[OHLCV] ZRO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:43] 
+[2025-12-29 11:06:43] [22m[32m[OHLCV] ZRO/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:43] 
+[2025-12-29 11:06:43] [22m[32m[OHLCV] ZRX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:43] 
+[2025-12-29 11:06:44] [22m[32m[OHLCV] ZRX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:44] 
+[2025-12-29 11:06:44] [22m[32m[OHLCV] ZRX/USDT loaded from binance (700 bars)[0m
+[2025-12-29 11:06:44] 
+[2025-12-29 11:06:44] [22m[32mFetched data for 13 symbols[0m
+[2025-12-29 11:06:44] 
+[2025-12-29 11:06:44] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2025-12-29 11:06:44] 
+[2025-12-29 11:07:25] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1h_30m_15m_20251229_110644_batch18.png[0m
+[2025-12-29 11:07:25] 
+[2025-12-29 11:07:25] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2025-12-29 11:07:25] 
+[2025-12-29 11:07:25] [22m[34mAnalyzing multi-TF batch chart with 13 symbols across 3 timeframes...[0m
+[2025-12-29 11:07:25] 
+[2025-12-29 11:07:25] Trying model: models/gemini-3-flash-preview
+[2025-12-29 11:07:25] AFC is enabled with max remote calls: 10.
+[2025-12-29 11:07:58] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2025-12-29 11:07:58] Request succeeded with model: models/gemini-3-flash-preview
+[2025-12-29 11:07:58] [22m[32mMulti-TF batch analysis completed for 13 symbols[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[34m
+============================================================[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[34mAggregating and sorting results by confidence...[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[34m============================================================[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32mGenerated HTML report: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\analysis_results\batch_scan\batch_scan_multi_tf_1h_30m_15m_20251229_110758.html[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32mOpened HTML report in browser[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32m
+============================================================[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32mSCAN COMPLETED[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32m============================================================[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32mTotal symbols: 438[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32mLONG signals: 127 (29.0%)[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32m  Average LONG confidence: 0.76[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32mSHORT signals: 224 (51.1%)[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32m  Average SHORT confidence: 0.72[0m
+[2025-12-29 11:07:58] 
+[2025-12-29 11:07:58] [22m[32mResults saved to: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\analysis_results\batch_scan\batch_scan_multi_tf_1h_30m_15m_20251229_110758.json[0m
+[2025-12-29 11:07:58] 

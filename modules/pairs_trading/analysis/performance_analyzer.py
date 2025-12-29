@@ -527,9 +527,9 @@ class PerformanceAnalyzer:
                 columns=['symbol', 'score', '1d_return', '3d_return', '1w_return', 'current_price']
             )
 
-        # Create DataFrame and sort by score (descending)
+        # Create DataFrame and sort by score (descending), then by symbol for deterministic ordering
         df_results = pd.DataFrame(results)
-        df_results = df_results.sort_values('score', ascending=False).reset_index(drop=True)
+        df_results = df_results.sort_values(['score', 'symbol'], ascending=[False, True]).reset_index(drop=True)
 
         if verbose:
             log_success(f"Successfully analyzed {len(df_results)}/{len(symbols)} symbols.")
@@ -587,6 +587,6 @@ class PerformanceAnalyzer:
                 columns=['symbol', 'score', '1d_return', '3d_return', '1w_return', 'current_price']
             )
 
-        # Sort by score ascending and take top N
-        df_sorted = df.sort_values('score', ascending=True).reset_index(drop=True)
+        # Sort by score ascending, then by symbol ascending for consistent ordering
+        df_sorted = df.sort_values(['score', 'symbol'], ascending=[True, True]).reset_index(drop=True)
         return df_sorted.head(top_n).copy()

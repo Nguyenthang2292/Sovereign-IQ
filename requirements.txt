@@ -13,10 +13,16 @@ mlxtend>=0.23.0,<0.24.0
 numba>=0.58.0,<0.60.0  # JIT compilation for performance optimization
 matplotlib>=3.7.0,<3.8.0  # Chart generation for Gemini Chart Analyzer
 mplfinance>=0.12.10,<0.13.0  # Candlestick plotting library
-google-genai>=0.3.0,<0.4.0  # Google Gemini API for chart analysis (new package - recommended)
+google-genai>=0.3.0,<0.4.0  # Google Gemini API for chart analysis
 # Note: package name is google-genai but import as: import google.generativeai as genai
 pillow>=10.0.0,<11.0.0  # Image processing for Gemini Chart Analyzer
 markdown>=3.5.0,<4.0.0  # Markdown to HTML conversion for Gemini Chart Analyzer
+fastapi>=0.104.0,<1.0.0  # FastAPI web framework for Gemini Chart Analyzer web interface
+uvicorn[standard]>=0.24.0,<1.0.0  # ASGI server for FastAPI
+python-multipart>=0.0.6,<1.0.0  # Form data parsing for FastAPI
+redis>=5.0.0,<6.0.0  # Redis client for pub-sub streaming
+websocket-client>=1.6.0,<2.0.0  # WebSocket client for testing
+requests>=2.31.0,<3.0.0  # HTTP client for testing
 
 # Optional stacks are now split out:
 # - requirements-ml.txt  : Deep learning / TFT dependencies
