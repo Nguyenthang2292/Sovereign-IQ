@@ -445,20 +445,11 @@ class TestGetBatchResultsEndpoint:
                 assert "Directory traversal detected" in detail, \
                     f"Expected 'Directory traversal detected' in error message for '{filename}', got: {detail}"
                 
-                # Also test with raw path if it's URL-safe (no spaces, newlines, etc.)
-                # This ensures the check works even without URL encoding
-                if url_safe_filename == filename and not any(c in filename for c in [' ', '\n', '\r', '\t', '\\']):
-                    try:
-                        response_raw = client.get(f"/api/batch/results/{filename}")
-                        assert response_raw.status_code == 400, \
-                            f"Expected 400 for traversal attempt '{filename}' (raw), got {response_raw.status_code}"
-                        detail_raw = response_raw.json()["detail"]
-                        assert "Directory traversal detected" in detail_raw, \
-                            f"Expected 'Directory traversal detected' in error message for '{filename}' (raw), got: {detail_raw}"
-                    except (httpx.InvalidURL, UnicodeEncodeError) as e:
-                        # Some paths might not be valid in URL, skip raw test
-                        # This is expected for paths with special characters
-                        pass
+                # Note: Raw path testing is skipped because HTTP clients (including FastAPI TestClient)
+                # automatically normalize paths containing ".." before sending the request.
+                # This means the API never sees the ".." pattern in raw paths, so the security check
+                # cannot detect traversal attempts. URL encoding is required to prevent normalization.
+                # The encoded test above is sufficient to verify the security check works correctly.
     
     def test_normalized_path_with_traversal_pattern(self, client, tmp_path):
         """Test behavior for paths that normalize to valid filenames but contain traversal patterns.
@@ -503,11 +494,14 @@ class TestGetBatchResultsEndpoint:
             ]
             
             for normalized_path in test_cases:
-                response = client.get(f"/api/batch/results/{normalized_path}")
+                # URL encode the path to prevent HTTP client from normalizing it
+                # This ensures the ".." pattern reaches the API endpoint
+                encoded_path = quote(normalized_path, safe='')
+                response = client.get(f"/api/batch/results/{encoded_path}")
                 
                 # API policy: reject paths containing ".." even if they normalize to valid paths
                 assert response.status_code == 400, \
-                    f"Expected 400 for path '{normalized_path}', got {response.status_code}"
+                    f"Expected 400 for path '{normalized_path}' (encoded: '{encoded_path}'), got {response.status_code}"
                 detail = response.json()["detail"]
                 assert "Directory traversal detected" in detail, \
                     f"Expected 'Directory traversal detected' for path '{normalized_path}', got: {detail}"

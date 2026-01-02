@@ -8,6 +8,7 @@ import pandas_ta as ta
 
 from .base import IndicatorMetadata, IndicatorResult, collect_metadata
 from modules.common.utils import validate_ohlcv_input
+from modules.common.utils.data import validate_price_series
 
 
 def calculate_returns_volatility(df: pd.DataFrame) -> float:
@@ -32,6 +33,37 @@ def calculate_returns_volatility(df: pd.DataFrame) -> float:
     return float(returns.std())
 
 
+def calculate_atr_series(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    length: int = 14,
+    fallback_multiplier: float = 0.01
+) -> pd.Series:
+    """
+    Calculate ATR (Average True Range) series with fallback handling.
+    
+    Args:
+        high: High price series
+        low: Low price series
+        close: Close price series
+        length: ATR period length (default: 14)
+        fallback_multiplier: Multiplier for fallback value (default: 0.01 = 1%)
+        
+    Returns:
+        Series with ATR values, with fallback applied if needed
+    """
+    # Input validation
+    validate_price_series(high, low, close)
+    if length < 1:
+        raise ValueError(f"length must be >= 1, got {length}")
+    
+    atr = ta.atr(high, low, close, length=length)
+    if atr is not None:
+        return atr.ffill().fillna(close * fallback_multiplier)
+    else:
+        return close * fallback_multiplier
+
 def _calculate_atr_with_fallback(
     df: pd.DataFrame, length: int, fallback_multiplier: float = 0.01
 ) -> pd.Series:
@@ -46,11 +78,7 @@ def _calculate_atr_with_fallback(
     Returns:
         Series with ATR values, with fallback applied if needed
     """
-    atr = ta.atr(df["high"], df["low"], df["close"], length=length)
-    if atr is not None:
-        return atr.ffill().fillna(df["close"] * fallback_multiplier)
-    else:
-        return pd.Series(df["close"] * fallback_multiplier, index=df.index)
+    return calculate_atr_series(df["high"], df["low"], df["close"], length, fallback_multiplier)
 
 
 class VolatilityIndicators:
@@ -119,12 +147,7 @@ def calculate_atr_range(
         Series containing ATR-based range values.
     """
     # Input validation
-    if not isinstance(high, pd.Series) or not isinstance(low, pd.Series) or not isinstance(close, pd.Series):
-        raise TypeError("high, low, and close must be pandas Series")
-    if len(high) == 0 or len(low) == 0 or len(close) == 0:
-        raise ValueError("high, low, and close series cannot be empty")
-    if not high.index.equals(low.index) or not low.index.equals(close.index):
-        raise ValueError("high, low, and close must have the same index")
+    validate_price_series(high, low, close)
     if mult <= 0:
         raise ValueError(f"mult must be > 0, got {mult}")
     if atr_length_primary < 1 or atr_length_fallback < 1:
@@ -164,4 +187,9 @@ def calculate_atr_range(
     return range_atr
 
 
-__all__ = ["VolatilityIndicators", "calculate_returns_volatility", "calculate_atr_range"]
+__all__ = [
+    "VolatilityIndicators",
+    "calculate_returns_volatility",
+    "calculate_atr_range",
+    "calculate_atr_series",
+]

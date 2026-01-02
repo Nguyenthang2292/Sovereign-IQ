@@ -1,0 +1,18 @@
+[2026-01-02 14:49:36] [22m[37mCLILogger started for session 1dcd87d1-a350-4d00-80df-176db99e643e[0m
+[2026-01-02 14:49:36] 
+[2026-01-02 14:49:37] HTTP Request: GET https://generativelanguage.googleapis.com/v1beta/models "HTTP/1.1 200 OK"
+[2026-01-02 14:49:37] HTTP Request: GET https://generativelanguage.googleapis.com/v1beta/models?pageToken=Ch9tb2RlbHMvdmVvLTMuMS1nZW5lcmF0ZS1wcmV2aWV3 "HTTP/1.1 200 OK"
+[2026-01-02 14:49:37] [22m[32mSuccessfully connected to the Google Gemini API[0m
+[2026-01-02 14:49:37] 
+[2026-01-02 14:49:37] [22m[34m============================================================[0m
+[2026-01-02 14:49:37] 
+[2026-01-02 14:49:37] [22m[34mMARKET BATCH SCANNER[0m
+[2026-01-02 14:49:37] 
+[2026-01-02 14:49:37] [22m[34m============================================================[0m
+[2026-01-02 14:49:37] 
+[2026-01-02 14:49:37] [22m[34mMulti-timeframe mode: 1h, 30m, 15m[0m
+[2026-01-02 14:49:37] 
+[2026-01-02 14:49:37] [22m[34mDeleted 1 old batch chart file(s)[0m
+[2026-01-02 14:49:37] 
+[2026-01-02 14:49:37] [22m[34mStep 1: Getting all symbols from exchange...[0m
+[2026-01-02 14:49:37] 

@@ -84,23 +84,13 @@ def sanitize_error(error: Union[Exception, str, None]) -> str:
             
             return base_message    
         
-        # Check for stack trace patterns
-        if _is_stack_trace(error_str):
-            return "An error occurred"
-        
-        # Check for sensitive information
-        if _contains_sensitive_info(error_str):
-            # Try to extract a safe message
-            safe_message = _extract_safe_message(error_str)
-            if safe_message:
-                return safe_message
-            return "An error occurred"
-        
-        # If it's a reasonable error message (short, no newlines), use it
-        if len(error_str) < 300 and "\n" not in error_str:
-            # Still sanitize any remaining paths
-            sanitized = _remove_file_paths(error_str)
-            return sanitized if sanitized else "An error occurred"
+        # Use shared sanitization logic for Exception error strings
+        return _sanitize_error_string(error_str)
+    
+    # Handle string input (not Exception)
+    elif isinstance(error, str):
+        # Use shared sanitization logic for string errors
+        return _sanitize_error_string(error)
     
     # Fallback
     return "An error occurred"
@@ -137,6 +127,83 @@ def _is_stack_trace(text: str) -> bool:
         return True
     
     return False
+
+
+def _sanitize_error_string(error_str: str) -> str:
+    """
+    Sanitize an error string that isn't a known Exception type.
+    
+    This function handles the common sanitization flow:
+    - Stack trace detection
+    - Sensitive information detection
+    - Safe message extraction
+    - Path removal while preserving URLs
+    - Fallback to default message
+    
+    Note: Messages longer than 300 characters or containing newlines
+    are treated conservatively to avoid exposing verbose errors. However,
+    for non-sensitive errors, we still attempt path removal and may return
+    the first line or a sanitized version if it's reasonably sized (<500 chars).
+    
+    Args:
+        error_str: Error message string to sanitize
+        
+    Returns:
+        Sanitized error message safe for user display
+    """
+    # Check for stack trace patterns
+    if _is_stack_trace(error_str):
+        return "An error occurred"
+    
+    # Check for sensitive information
+    if _contains_sensitive_info(error_str):
+        # Try to extract a safe message
+        safe_message = _extract_safe_message(error_str)
+        if safe_message:
+            return safe_message
+        # If extraction failed, try removing paths while preserving URLs
+        if len(error_str) < 300 and "\n" not in error_str:
+            sanitized = _remove_file_paths(error_str)
+            if sanitized and sanitized.strip():
+                return sanitized
+        return "An error occurred"
+    
+    # Try to extract safe message even without sensitive info (for Error:/Exception: prefixes)
+    # This allows extraction of safe messages from strings like "Error: Invalid input"
+    if len(error_str) < 300 and "\n" not in error_str:
+        safe_message = _extract_safe_message(error_str)
+        if safe_message:
+            return safe_message
+        # Still sanitize any remaining paths
+        sanitized = _remove_file_paths(error_str)
+        return sanitized if sanitized else "An error occurred"
+    
+    # For longer or multi-line messages without sensitive info,
+    # still attempt path removal and first line extraction as safety measures
+    # Try extracting first line if it exists and is safe
+    if "\n" in error_str:
+        first_line = error_str.split("\n", 1)[0].strip()
+        if first_line and len(first_line) < 300:
+            if not _contains_sensitive_info(first_line):
+                safe_message = _extract_safe_message(first_line)
+                if safe_message:
+                    return safe_message
+                sanitized = _remove_file_paths(first_line)
+                if sanitized and sanitized.strip():
+                    return sanitized
+    
+    # Try path removal on the full message
+    sanitized = _remove_file_paths(error_str)
+    if sanitized and sanitized.strip():
+        # Return sanitized message if it's reasonably sized
+        if len(sanitized) < 500:
+            return sanitized
+        # If still too long, try truncating to first 500 chars
+        truncated = sanitized[:500].rsplit(' ', 1)[0]  # Truncate at word boundary
+        if truncated and len(truncated) > 50:  # Only if we have meaningful content
+            return truncated + "..."
+    
+    return "An error occurred"
 
 
 def _contains_sensitive_info(text: str) -> bool:

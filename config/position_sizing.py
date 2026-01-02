@@ -105,13 +105,6 @@ ENABLE_MULTITHREADING = True  # Enable multithreading for I/O operations
 ENABLE_DEBUG_LOGGING = False  # Enable debug logging (set to False for production to improve performance)
 OPTIMIZE_BATCH_SIZE = True  # Automatically optimize batch size based on DataFrame size and CPU count
 
-# GPU Detection Helper (imported from common utils)
-from modules.common.utils import detect_gpu_availability
-
-def _detect_gpu_availability() -> bool:
-    """Detect if GPU is available for XGBoost (wrapper for common utility)."""
-    return detect_gpu_availability(use_gpu=USE_GPU)
-
 # Lazy evaluation - only check when actually needed
 GPU_AVAILABLE = None  # Will be set on first use
 

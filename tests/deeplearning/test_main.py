@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import warnings
 import tempfile
 import shutil
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -20,10 +20,10 @@ import pytest
 
 from modules.deeplearning.cli.main import (
     parse_args,
-    check_gpu_availability,
     prepare_data,
     create_model_and_train,
 )
+from modules.common.utils.system import detect_pytorch_gpu_availability
 from modules.deeplearning.dataset import TFTDataModule
 
 # Suppress warnings
@@ -114,17 +114,17 @@ def test_parse_args_task_type():
             assert args.task_type == task_type
 
 
-def test_check_gpu_availability():
-    """Test check_gpu_availability function."""
+def test_detect_pytorch_gpu_availability():
+    """Test detect_pytorch_gpu_availability function."""
     # Mock torch.cuda
     with patch("torch.cuda.is_available", return_value=True):
         with patch("torch.cuda.device_count", return_value=1):
             with patch("torch.cuda.get_device_name", return_value="Test GPU"):
-                result = check_gpu_availability()
+                result = detect_pytorch_gpu_availability()
                 assert result is True
     
     with patch("torch.cuda.is_available", return_value=False):
-        result = check_gpu_availability()
+        result = detect_pytorch_gpu_availability()
         assert result is False
 
 

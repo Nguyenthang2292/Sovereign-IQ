@@ -9,10 +9,17 @@ to continue working.
 """
 
 # System utilities
-from .system import configure_windows_stdio, detect_gpu_availability
+from .system import (
+    configure_windows_stdio,
+    detect_gpu_availability,
+    detect_pytorch_cuda_availability,
+    detect_pytorch_gpu_availability,
+    configure_gpu_memory,
+    PyTorchGPUManager,
+)
 
 # Data utilities
-from .data import dataframe_to_close_series, validate_ohlcv_input
+from .data import dataframe_to_close_series, validate_ohlcv_input, fetch_ohlcv_data_dict
 
 # Domain utilities
 from .domain import normalize_symbol, normalize_symbol_key, normalize_timeframe, timeframe_to_minutes, days_to_candles
@@ -40,9 +47,14 @@ __all__ = [
     # System
     "configure_windows_stdio",
     "detect_gpu_availability",
+    "detect_pytorch_cuda_availability",
+    "detect_pytorch_gpu_availability",
+    "configure_gpu_memory",
+    "PyTorchGPUManager",
     # Data
     "dataframe_to_close_series",
     "validate_ohlcv_input",
+    "fetch_ohlcv_data_dict",
     # Domain
     "normalize_symbol",
     "normalize_symbol_key",

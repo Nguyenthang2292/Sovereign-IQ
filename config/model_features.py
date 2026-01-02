@@ -5,31 +5,12 @@ Shared model features list for XGBoost and Random Forest models.
 This file contains the complete list of features used for model training.
 """
 
+from typing import Tuple
+
 # Model Features List
 # Complete list of features including technical indicators and candlestick patterns
-MODEL_FEATURES = [
-    # Basic OHLCV data
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume",
-    # Technical Indicators
-    "SMA_20",
-    "SMA_50",
-    "SMA_200",
-    "RSI_9",
-    "RSI_14",
-    "RSI_25",
-    "ATR_14",
-    "MACD_12_26_9",
-    "MACDh_12_26_9",
-    "MACDs_12_26_9",
-    "BBP_5_2.0",
-    "STOCHRSIk_14_14_3_3",
-    "STOCHRSId_14_14_3_3",
-    "OBV",
-    # Candlestick patterns
+# Define candlestick pattern names once for reuse
+CANDLESTICK_PATTERN_NAMES: Tuple[str, ...] = (
     "DOJI",
     "HAMMER",
     "INVERTED_HAMMER",
@@ -68,5 +49,31 @@ MODEL_FEATURES = [
     "KICKER_BULL",
     "KICKER_BEAR",
     "HANGING_MAN",
+)
+
+MODEL_FEATURES = [
+    # Basic OHLCV data
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    # Technical Indicators
+    "SMA_20",
+    "SMA_50",
+    "SMA_200",
+    "RSI_9",
+    "RSI_14",
+    "RSI_25",
+    "ATR_14",
+    "MACD_12_26_9",
+    "MACDh_12_26_9",
+    "MACDs_12_26_9",
+    "BBP_5_2.0",
+    "STOCHRSIk_14_14_3_3",
+    "STOCHRSId_14_14_3_3",
+    "OBV",
+    # Candlestick patterns; reuse list
+    *CANDLESTICK_PATTERN_NAMES,
 ]
 

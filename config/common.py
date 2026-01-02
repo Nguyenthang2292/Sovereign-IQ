@@ -25,3 +25,23 @@ DEFAULT_QUOTE = "USDT"  # Default quote currency
 DEFAULT_TIMEFRAME = "15m"  # Default timeframe
 DEFAULT_LIMIT = 1500  # Default number of candles to fetch
 
+# Default Symbols and Timeframes for Training and Testing
+DEFAULT_CRYPTO_SYMBOLS_FOR_TRAINING_DL = [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "SOLUSDT",
+    "ADAUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "DOTUSDT",
+    "MATICUSDT",
+    "AVAXUSDT",
+]  # Default list of crypto symbols for training
+
+DEFAULT_TIMEFRAMES_FOR_TRAINING_DL = [
+    "15m",
+    "30m",
+    "1h"
+]  # Default list of timeframes for training
+

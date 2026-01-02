@@ -377,7 +377,7 @@ class LogFileManager:
         
         Note: This method should only be used in tests, not in production code.
         """
-        self.reset_cleanup_timer_for_testing()
+        self._reset_cleanup_timer()
     
     def _reset_cleanup_timer(self):
         """

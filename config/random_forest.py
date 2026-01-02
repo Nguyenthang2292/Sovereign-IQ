@@ -9,9 +9,8 @@ from pathlib import Path
 # Model Features - imported from shared configuration
 from .model_features import MODEL_FEATURES  # noqa: F401
 
-# Confidence Thresholds
-CONFIDENCE_THRESHOLD = 0.6  # Default confidence threshold for signal generation
-CONFIDENCE_THRESHOLDS = [0.5, 0.6, 0.7, 0.8, 0.9]  # Thresholds for model evaluation
+# Confidence Thresholds - imported from shared evaluation configuration
+from .evaluation import CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLDS  # noqa: F401
 
 # Training Configuration
 MAX_TRAINING_ROWS = 100000  # Maximum rows for training (will sample if exceeded)

@@ -76,3 +76,36 @@ DEEP_DEVICES = 1  # Number of devices to use
 DEEP_PRECISION = 32  # Precision: 16, 32, or 'bf16'
 DEEP_GRADIENT_CLIP_VAL = 0.5  # Gradient clipping value (None to disable)
 
+# PyTorch Environment Configuration
+# These environment variables are set before importing PyTorch to ensure proper behavior
+# Production-safe environment variables (minimal, performance-optimized)
+PYTORCH_ENV = {
+    # WARNING: KMP_DUPLICATE_LIB_OK suppresses warnings about duplicate OpenMP libraries.
+    # This flag masks underlying dependency conflicts and should be used with caution.
+    #
+    # Root cause: Multiple packages (PyTorch, NumPy, SciPy, etc.) may ship different
+    # versions of OpenMP libraries, causing conflicts when loaded simultaneously.
+    #
+    # Recommended solutions (in order of preference):
+    # 1. Use conda environments with conda-forge packages (most compatible)
+    # 2. Ensure all packages use compatible OpenMP versions via package manager
+    # 3. Set LD_LIBRARY_PATH (Linux) or DYLD_LIBRARY_PATH (macOS) to prioritize one OpenMP version
+    # 4. Use virtual environments with carefully managed dependencies
+    # 5. As a last resort, keep this flag enabled but monitor for runtime issues
+    #
+    # This is currently enabled to allow the application to run, but investigate
+    # the root cause if you encounter:
+    # - Performance degradation
+    # - Unexpected crashes during multithreaded operations
+    # - Memory issues or resource leaks
+    'KMP_DUPLICATE_LIB_OK': 'True',
+}
+
+# Debug-only environment variables (only applied when DEBUG or DEV env var is set)
+# These settings hurt production performance but help with debugging
+PYTORCH_DEBUG_ENV = {
+    'OMP_NUM_THREADS': '1',  # Limit OpenMP threads to avoid oversubscription
+    'CUDA_LAUNCH_BLOCKING': '1',  # Synchronous CUDA launches for better error messages
+    'TORCH_USE_CUDA_DSA': '1'  # Enable CUDA Device-Side Assertions for debugging
+}
+

@@ -1,6 +1,7 @@
 import warnings
 import pytest
 import sys
+import numpy as np
 
 # Suppress warnings from pytorch_forecasting about non-writable NumPy arrays
 warnings.filterwarnings("ignore", message=".*The given NumPy array is not writable.*")
@@ -47,4 +48,22 @@ def config_factory():
         return config
     
     return _create_config
+
+
+@pytest.fixture
+def seeded_random():
+    """
+    Fixture to provide a seeded NumPy random generator.
+    
+    Returns a NumPy Generator instance seeded with 42 for reproducible
+    random number generation in tests.
+    
+    Usage:
+        def test_something(seeded_random):
+            # Use the seeded generator
+            data = seeded_random.standard_normal(100)
+            # ... rest of test
+    """
+    rng = np.random.default_rng(42)
+    return rng
 

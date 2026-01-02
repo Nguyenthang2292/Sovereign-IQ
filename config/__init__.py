@@ -10,6 +10,7 @@ The configuration is organized into separate modules:
 - spc: Simplified Percentile Clustering configuration
 - xgboost: XGBoost prediction configuration
 - deep_learning: Deep learning models configuration
+- lstm: LSTM/CNN-LSTM models configuration
 - hmm: Hidden Markov Model configuration
 - portfolio: Portfolio manager configuration
 - pairs_trading: Pairs trading configuration
@@ -26,12 +27,16 @@ from .common import *  # noqa: F403, F401
 # Import shared model features before xgboost and random_forest
 from .model_features import *  # noqa: F403, F401
 
+# Import shared evaluation configuration before random_forest (which uses it)
+from .evaluation import *  # noqa: F403, F401
+
 # Import component-specific configurations
 from .range_oscillator import *  # noqa: F403, F401
 from .decision_matrix import *  # noqa: F403, F401
 from .spc import *  # noqa: F403, F401
 from .xgboost import *  # noqa: F403, F401
 from .deep_learning import *  # noqa: F403, F401 (imports from xgboost)
+from .lstm import *  # noqa: F403, F401 (imports from model_features)
 from .hmm import *  # noqa: F403, F401
 from .portfolio import *  # noqa: F403, F401
 from .pairs_trading import *  # noqa: F403, F401
