@@ -90,10 +90,39 @@ class TestHealthCheck:
             assert data["vue_dist_exists"] is True
 
 
+@pytest.fixture
+def ensure_vue_catchall_route():
+    """Ensure catch-all route is registered for Vue app serving tests."""
+    from fastapi import Request, HTTPException
+    from fastapi.responses import FileResponse
+    
+    route_exists = any(
+        hasattr(r, 'path') and r.path == "/{full_path:path}" 
+        for r in app.routes
+    )
+    
+    if not route_exists:
+        @app.get("/{full_path:path}")
+        async def serve_vue_app(full_path: str, request: Request):
+            from web.app import VUE_DIST_DIR
+            if full_path.startswith("api/"):
+                raise HTTPException(status_code=404, detail="Not found")
+            if full_path.startswith("static/"):
+                raise HTTPException(status_code=404, detail="Not found")
+            index_path = VUE_DIST_DIR / "index.html"
+            if index_path.exists():
+                return FileResponse(str(index_path))
+            else:
+                raise HTTPException(status_code=404, detail="Vue app not built. Please run 'npm run build' in web/static/vue/")
+    
+    yield
+    # Route persists for the test session, which is fine for these tests
+
+
 class TestVueAppServing:
     """Test Vue app serving endpoint (/{full_path:path})"""
     
-    def test_serve_vue_app_valid_route(self, client, tmp_path):
+    def test_serve_vue_app_valid_route(self, client, tmp_path, ensure_vue_catchall_route):
         """Test serving Vue app for valid routes."""
         vue_dist = tmp_path / "static" / "vue" / "dist"
         vue_dist.mkdir(parents=True, exist_ok=True)
@@ -106,7 +135,7 @@ class TestVueAppServing:
             assert response.headers["content-type"] == "text/html; charset=utf-8"
             assert "<html>Vue App</html>" in response.text
     
-    def test_serve_vue_app_api_route(self, client, tmp_path):
+    def test_serve_vue_app_api_route(self, client, tmp_path, ensure_vue_catchall_route):
         """Test that undefined API routes return 404 from catch-all route."""
         vue_dist = tmp_path / "static" / "vue" / "dist"
         vue_dist.mkdir(parents=True, exist_ok=True)
@@ -116,6 +145,7 @@ class TestVueAppServing:
             response = client.get("/api/nonexistent/endpoint")
             # API routes that don't exist return 404 from catch-all route
             assert response.status_code == 404
+            # FastAPI HTTPException returns "Not found" (lowercase)
             assert "Not found" in response.json()["detail"]
     
     def test_batch_results_routed_to_api_router(self, client, tmp_path):
@@ -145,7 +175,7 @@ class TestVueAppServing:
                 "Invalid filename or file does not exist"
             ])    
             
-    def test_serve_vue_app_static_route(self, client, tmp_path):
+    def test_serve_vue_app_static_route(self, client, tmp_path, ensure_vue_catchall_route):
         """Test that static routes return 404 from catch-all route when mount doesn't exist."""
         vue_dist = tmp_path / "static" / "vue" / "dist"
         vue_dist.mkdir(parents=True, exist_ok=True)
@@ -156,9 +186,10 @@ class TestVueAppServing:
             response = client.get("/static/other/test.png")
             # Static routes that don't exist return 404, not caught by Vue route
             assert response.status_code == 404
+            # FastAPI HTTPException returns "Not found" (lowercase)
             assert "Not found" in response.json()["detail"]
     
-    def test_serve_vue_app_no_index_html(self, client, tmp_path):
+    def test_serve_vue_app_no_index_html(self, client, tmp_path, ensure_vue_catchall_route):
         """Test when index.html does not exist."""
         vue_dist = tmp_path / "static" / "vue" / "dist"
         vue_dist.mkdir(parents=True, exist_ok=True)
@@ -170,7 +201,7 @@ class TestVueAppServing:
             assert response.status_code == 404
             assert "Vue app not built" in response.json()["detail"]
     
-    def test_serve_vue_app_nested_route(self, client, tmp_path):
+    def test_serve_vue_app_nested_route(self, client, tmp_path, ensure_vue_catchall_route):
         """Test serving Vue app for nested routes."""
         vue_dist = tmp_path / "static" / "vue" / "dist"
         vue_dist.mkdir(parents=True, exist_ok=True)

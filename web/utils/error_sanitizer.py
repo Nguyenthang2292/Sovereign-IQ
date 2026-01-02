@@ -164,7 +164,9 @@ def _sanitize_error_string(error_str: str) -> str:
         # If extraction failed, try removing paths while preserving URLs
         if len(error_str) < 300 and "\n" not in error_str:
             sanitized = _remove_file_paths(error_str)
-            if sanitized and sanitized.strip():
+            # After removing paths, check if sensitive info still exists
+            # If it does, return default message instead of exposing sensitive info
+            if sanitized and sanitized.strip() and not _contains_sensitive_info(sanitized):
                 return sanitized
         return "An error occurred"
     
@@ -306,10 +308,10 @@ def _extract_safe_message(text: str) -> Optional[str]:
     Looks for common error message patterns that don't contain sensitive info.
     """
     # Look for error messages after common prefixes
+    # Only extract from known prefixes to avoid matching URLs or other patterns
     patterns = [
         r'Error:\s*([^\n]+)',
         r'Exception:\s*([^\n]+)',
-        r'([A-Z][^:\n]{10,100})',  # Capitalized sentences
     ]
     
     for pattern in patterns:

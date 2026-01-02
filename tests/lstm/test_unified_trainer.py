@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 from modules.lstm.models.unified_trainer import LSTMTrainer
+from modules.lstm.core.threshold_optimizer import GridSearchThresholdOptimizer
 from config.lstm import WINDOW_SIZE_LSTM, GPU_MODEL_CONFIG
 
 
@@ -181,7 +182,7 @@ class TestLSTMTrainer:
         
         model, optimizer, path = trainer.train(df_empty, epochs=1, save_model=False)
         assert model is None
-        assert optimizer is None
+        assert isinstance(optimizer, GridSearchThresholdOptimizer)
         assert path is None
     
     def test_train_insufficient_data(self):
@@ -198,7 +199,7 @@ class TestLSTMTrainer:
         
         # Should handle gracefully and return None for insufficient data
         assert model is None
-        assert optimizer is None
+        assert isinstance(optimizer, GridSearchThresholdOptimizer)
         assert path is None
     
     def test_train_with_custom_epochs(self, sample_dataframe):

@@ -69,8 +69,8 @@ class TestSanitizeError:
         assert "C:" not in result
         assert "Users" not in result
         assert "file.txt" not in result
-        # The safe message "Error opening file" is extracted (part before the path)
-        assert result == "Error opening file"
+        # Path is replaced with [path] placeholder
+        assert result == "Error opening file: [path]"
     
     def test_sanitize_string_with_unix_path(self):
         """Test sanitizing string containing Unix path."""
@@ -78,8 +78,8 @@ class TestSanitizeError:
         result = sanitize_error(error_str)
         assert "/home" not in result
         assert "secret" not in result
-        # Specify the exact expected output based on implementation
-        assert result == "An error occurred"  # or assert "[path]" in result.lower()
+        # Path is replaced with [path] placeholder
+        assert result == "Error: [path] not found"
     
     def test_sanitize_stack_trace(self):
         """Test sanitizing stack trace."""
@@ -142,6 +142,8 @@ ValueError: Test error"""
         assert "../" not in result
         assert "config" not in result
         assert "secrets.json" not in result
+        # Path is replaced with [path] placeholder
+        assert result == "Error: ..[path] not found"
 
     def test_sanitize_string_with_home_path(self):
         """Test sanitizing string containing home directory path."""
@@ -150,6 +152,8 @@ ValueError: Test error"""
         assert "~/" not in result
         assert ".ssh" not in result
         assert "id_rsa" not in result
+        # Path is replaced with [path] placeholder
+        assert result == "Error: ~[path] not found"
 
     def test_sanitize_string_with_token(self):
         """Test sanitizing string with token."""
@@ -157,6 +161,8 @@ ValueError: Test error"""
         result = sanitize_error(error_str)
         assert "token" not in result.lower()
         assert "secret_token_123" not in result
+        # Sensitive info triggers default message
+        assert result == "An error occurred"
 
     def test_sanitize_string_url_preserved(self):
         """Test that URLs are preserved and not removed as paths."""
@@ -171,6 +177,8 @@ ValueError: Test error"""
         result_with_path = sanitize_error(error_str_with_path)
         assert "/var/log" not in result_with_path
         assert "app.log" not in result_with_path
+        # Path is replaced with [path] placeholder, URL is preserved
+        assert result_with_path == "Error opening [path]: https://api.example.com"
 
     def test_sanitize_string_with_io_mention_preserved(self):
         """Test that I/O mentions are preserved."""
@@ -211,4 +219,6 @@ ValueError: Test error"""
         assert "C:" not in result
         assert "Users" not in result
         assert "file.txt" not in result
+        # Path is replaced with [path] placeholder
+        assert result == "Error: [path]"
 
