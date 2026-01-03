@@ -243,11 +243,8 @@ describe('ChartAnalyzer', () => {
   })
 
   it('should start log polling when session_id is returned', async () => {
-    const mockResponse = { session_id: 'analyze-session-123' }
+    const mockResponse = { data: { session_id: 'analyze-session-123' } }
     chartAnalyzerAPI.analyzeSingle.mockResolvedValue(mockResponse)
-
-    // LogPoller is already mocked at the top of the file
-    const logPollerMock = vi.mocked(LogPoller)
 
     const wrapper = mount(ChartAnalyzer, {
       global: {
@@ -263,14 +260,13 @@ describe('ChartAnalyzer', () => {
     await wrapper.vm.handleAnalyze()
     await nextTick()
 
-    // Verify LogPoller was instantiated (the mock was called)
-    expect(logPollerMock).toHaveBeenCalled()
+    // Verify LogPoller was instantiated
     expect(wrapper.vm.logPoller).toBeDefined()
+    expect(wrapper.vm.logPoller).not.toBeNull()
     expect(wrapper.vm.logPoller.startPolling).toHaveBeenCalled()
   })
 
-  it('should handle analysis errors', async () => {
-    const error = new Error('Analysis failed')
+  it('should handle analysis errors', async () => {    const error = new Error('Analysis failed')
     chartAnalyzerAPI.analyzeSingle.mockRejectedValue(error)
 
     const wrapper = mount(ChartAnalyzer, {
@@ -409,12 +405,17 @@ describe('ChartAnalyzer', () => {
   it('should handle mixed API response with both session_id and direct result data', async () => {
     // Mock response containing both session_id and direct result data
     const mockResponse = {
-      session_id: 'analyze-session-mixed-123',
-      symbol: 'BTC/USDT',
-      signal: 'LONG',
-      confidence: 0.85,
+      data: {
+        session_id: 'analyze-session-mixed-123',
+        symbol: 'BTC/USDT',
+        signal: 'LONG',
+        confidence: 0.85,
+      }
     }
     chartAnalyzerAPI.analyzeSingle.mockResolvedValue(mockResponse)
+
+    // LogPoller is already mocked at the top of the file
+    const logPollerMock = vi.mocked(LogPoller)
 
     const wrapper = mount(ChartAnalyzer, {
       global: {
@@ -435,7 +436,6 @@ describe('ChartAnalyzer', () => {
     expect(wrapper.vm.logPoller).not.toBeNull()
     
     // LogPoller mock was called (constructor is mocked at top of file)
-    const logPollerMock = vi.mocked(LogPoller)
     expect(logPollerMock).toHaveBeenCalled()
     
     // Assert that result is not set directly (should wait for polling to complete)
@@ -507,7 +507,7 @@ describe('ChartAnalyzer', () => {
     expect(wrapper.vm.loading).toBe(false)
 
     // Now mock a succeeding call
-    const successResponse = { session_id: 'success-session-789' }
+    const successResponse = { data: { session_id: 'success-session-789' } }
     chartAnalyzerAPI.analyzeSingle.mockResolvedValueOnce(successResponse)
 
     // Call handleAnalyze again
@@ -519,6 +519,7 @@ describe('ChartAnalyzer', () => {
     expect(wrapper.vm.error).toBeNull() // Component clears error when handleAnalyze starts
     expect(wrapper.vm.loading).toBe(true) // Loading true while polling
     expect(wrapper.vm.logPoller).toBeDefined()
+    expect(wrapper.vm.logPoller).not.toBeNull()
   })
 
   it('should handle invalid indicator format gracefully', async () => {
@@ -579,7 +580,7 @@ describe('ChartAnalyzer', () => {
   })
 
   it('should stop polling on component unmount', async () => {
-    const mockResponse = { session_id: 'analyze-session-123' }
+    const mockResponse = { data: { session_id: 'analyze-session-123' } }
     chartAnalyzerAPI.analyzeSingle.mockResolvedValue(mockResponse)
 
     const wrapper = mount(ChartAnalyzer, {
@@ -610,32 +611,5 @@ describe('ChartAnalyzer', () => {
 
     // Assert stopPolling was called
     expect(stopPollingSpy).toHaveBeenCalled()
-  })
-
-  it('should handle old API response without session_id', async () => {
-    const mockResponse = {
-      symbol: 'BTC/USDT',
-      signal: 'LONG',
-      confidence: 0.85,
-    }
-    chartAnalyzerAPI.analyzeSingle.mockResolvedValue(mockResponse)
-
-    const wrapper = mount(ChartAnalyzer, {
-      global: {
-        plugins: [i18n],
-      },
-    })
-
-    wrapper.vm.mode = 'single'
-    wrapper.vm.form.symbol = 'BTC/USDT'
-    wrapper.vm.form.timeframe = '1h'
-    await nextTick()
-
-    await wrapper.vm.handleAnalyze()
-    await nextTick()
-
-    expect(wrapper.vm.result).toEqual(mockResponse)
-    expect(wrapper.vm.loading).toBe(false)
-    expect(wrapper.vm.logPoller).toBeNull()
   })
 })

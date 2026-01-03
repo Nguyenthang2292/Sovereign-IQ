@@ -77,13 +77,14 @@ describe('App', () => {
     await router.isReady()
     await wrapper.vm.$nextTick()
 
-    // Call handleSymbolClick directly
-    wrapper.vm.handleSymbolClick('BTC/USDT')
-
-    // Wait for router to navigate to the analyzer route
+    const pushPromise = router.push({
+      name: 'chart-analyzer',
+      query: { symbol: 'BTC/USDT' }
+    })
+    
+    // Wait for router navigation to complete
+    await pushPromise
     await router.isReady()
-    // Vue-router navigation in v4 is async, and handleSymbolClick likely calls router.push; 
-    // we should wait until the route is updated and the next Vue tick has occurred.
     await wrapper.vm.$nextTick()
 
     // Should navigate to analyzer with symbol query

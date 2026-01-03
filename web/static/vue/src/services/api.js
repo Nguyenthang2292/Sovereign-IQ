@@ -94,6 +94,17 @@ export const chartAnalyzerAPI = {
    * @returns {Promise} Multi-timeframe analysis result
    */
   analyzeMulti(symbol, timeframes, config = {}) {
+    // Input validation
+    if (typeof symbol !== 'string' || symbol.trim() === '') {
+      return Promise.reject(new Error('Symbol is required and must be a non-empty string.'));
+    }
+    if (!Array.isArray(timeframes) || timeframes.length === 0) {
+      return Promise.reject(new Error('Timeframes is required and must be a non-empty array.'));
+    }
+    if (!timeframes.every(tf => typeof tf === 'string' && tf.trim() !== '')) {
+      return Promise.reject(new Error('All timeframes must be non-empty strings.'));
+    } 
+
     const {
       indicators = {},
       promptType = 'detailed',
@@ -174,6 +185,9 @@ export const batchScannerAPI = {
    * @returns {Promise} Batch scan results
    */
   getResults(filename) {
+    if (typeof filename !== 'string' || filename.trim() === '') {
+      return Promise.reject(new Error('Filename is required and must be a non-empty string.'));
+    }
     return quickApi.get(`/batch/results/${filename}`)
   },
 

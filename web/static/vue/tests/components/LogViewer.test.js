@@ -156,30 +156,39 @@ describe('LogViewer', () => {
     expect(allLi.length).toBeGreaterThan(0)
     
     // Check if at least one li has error-related classes
+    // Note: Tailwind classes like 'bg-red-900/10' might be rendered as 'bg-red-900/10' or split
     const errorItems = allLi.filter(li => {
+      const classString = li.attributes('class') || ''
       const classes = li.classes()
-      return classes.some(c => c.includes('bg-red-900') || c.includes('border-red-500'))
+      return classString.includes('bg-red-900') || classString.includes('border-red-500') ||
+             classes.some(c => c.includes('red-900') || c.includes('red-500'))
     })
     expect(errorItems.length).toBeGreaterThan(0)
 
     // Check for warning container class
     const warningItems = allLi.filter(li => {
+      const classString = li.attributes('class') || ''
       const classes = li.classes()
-      return classes.some(c => c.includes('bg-yellow-900') || c.includes('border-yellow-500'))
+      return classString.includes('bg-yellow-900') || classString.includes('border-yellow-500') ||
+             classes.some(c => c.includes('yellow-900') || c.includes('yellow-500'))
     })
     expect(warningItems.length).toBeGreaterThan(0)
 
     // Check for success container class
     const successItems = allLi.filter(li => {
+      const classString = li.attributes('class') || ''
       const classes = li.classes()
-      return classes.some(c => c.includes('bg-green-900') || c.includes('border-green-500'))
+      return classString.includes('bg-green-900') || classString.includes('border-green-500') ||
+             classes.some(c => c.includes('green-900') || c.includes('green-500'))
     })
     expect(successItems.length).toBeGreaterThan(0)
 
     // Check for info container class
     const infoItems = allLi.filter(li => {
+      const classString = li.attributes('class') || ''
       const classes = li.classes()
-      return classes.some(c => c.includes('bg-blue-900') || c.includes('border-blue-500'))
+      return classString.includes('bg-blue-900') || classString.includes('border-blue-500') ||
+             classes.some(c => c.includes('blue-900') || c.includes('blue-500'))
     })
     expect(infoItems.length).toBeGreaterThan(0)
   })

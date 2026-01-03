@@ -83,12 +83,16 @@ describe('LogPoller', () => {
       // Fast-forward time to trigger intervals
       await vi.advanceTimersByTimeAsync(500)
 
-      expect(logsAPI.getLogs).toHaveBeenCalledWith('session-123', 0, 'scan')
+      expect(logsAPI.getLogs).toHaveBeenCalledWith('session-123', 0, 'scan', expect.objectContaining({
+        signal: expect.any(AbortSignal)
+      }))
       expect(onLogUpdate).toHaveBeenCalled()
 
       await vi.advanceTimersByTimeAsync(500)
 
-      expect(batchScannerAPI.getBatchScanStatus).toHaveBeenCalledWith('session-123')
+      expect(batchScannerAPI.getBatchScanStatus).toHaveBeenCalledWith('session-123', expect.objectContaining({
+        signal: expect.any(AbortSignal)
+      }))
 
       poller.stopPolling()
     })
@@ -213,7 +217,9 @@ describe('LogPoller', () => {
 
       await vi.advanceTimersByTimeAsync(1000)
 
-      expect(chartAnalyzerStatusAPI.getAnalyzeStatus).toHaveBeenCalledWith('session-123')
+      expect(chartAnalyzerStatusAPI.getAnalyzeStatus).toHaveBeenCalledWith('session-123', expect.objectContaining({
+        signal: expect.any(AbortSignal)
+      }))
       expect(batchScannerAPI.getBatchScanStatus).not.toHaveBeenCalled()
 
       poller.stopPolling()
@@ -267,6 +273,18 @@ describe('LogPoller', () => {
   })
 
   describe('stopPolling', () => {
+    /**
+     * Helper function to capture AbortSignals from API calls
+     * @returns {{ logSignal: AbortSignal, statusSignal: AbortSignal }}
+     */
+    function captureAbortSignals() {
+      const logCallArgs = logsAPI.getLogs.mock.calls[0]
+      const logSignal = logCallArgs?.[3]?.signal
+      const statusCallArgs = batchScannerAPI.getBatchScanStatus.mock.calls[0]
+      const statusSignal = statusCallArgs?.[1]?.signal
+      return { logSignal, statusSignal }
+    }
+
     it('should stop polling and clear intervals', async () => {
       const poller = new LogPoller('session-123')
 
@@ -282,14 +300,61 @@ describe('LogPoller', () => {
       })
 
       poller.startPolling()
-      // Let intervals get created
-      await vi.advanceTimersByTimeAsync(1)
+      // Advance time to trigger both log and status polling
+      await vi.advanceTimersByTimeAsync(1000)
+
+      // Capture the AbortSignals before stopping
+      const { logSignal, statusSignal } = captureAbortSignals()
+
+      // Verify signals exist and are not aborted yet
+      expect(logSignal).toBeDefined()
+      expect(logSignal.aborted).toBe(false)
+      expect(statusSignal).toBeDefined()
+      expect(statusSignal.aborted).toBe(false)
 
       poller.stopPolling()
 
       expect(poller.isPolling).toBe(false)
       expect(poller.logInterval).toBeNull()
       expect(poller.statusInterval).toBeNull()
+
+      // Verify signals are aborted after stopping
+      expect(logSignal.aborted).toBe(true)
+      expect(statusSignal.aborted).toBe(true)
+    })
+
+    it('should abort pending requests when stopping', async () => {
+      const poller = new LogPoller('session-123')
+
+      logsAPI.getLogs.mockResolvedValue({
+        success: true,
+        logs: '',
+        offset: 0,
+      })
+      batchScannerAPI.getBatchScanStatus.mockResolvedValue({
+        success: true,
+        status: 'running',
+      })
+
+      poller.startPolling()
+      // Advance timers to trigger both log and status intervals
+      await vi.advanceTimersByTimeAsync(1000)
+
+      // Capture the AbortSignals that were passed to both APIs
+      expect(logsAPI.getLogs).toHaveBeenCalled()
+      expect(batchScannerAPI.getBatchScanStatus).toHaveBeenCalled()
+      
+      const { logSignal, statusSignal } = captureAbortSignals()
+
+      expect(logSignal).toBeDefined()
+      expect(logSignal.aborted).toBe(false)
+      expect(statusSignal).toBeDefined()
+      expect(statusSignal.aborted).toBe(false)
+
+      poller.stopPolling()
+
+      expect(logSignal.aborted).toBe(true)
+      expect(statusSignal.aborted).toBe(true)
     })
 
     it('should not stop if not polling', () => {

@@ -10,7 +10,11 @@ describe('LoadingSpinner', () => {
     const wrapper = mount(LoadingSpinner)
 
     expect(wrapper.find('svg').exists()).toBe(true)
-    expect(wrapper.find('span').exists()).toBe(false)
+    // When no message, span exists but is sr-only (hidden visually)
+    const span = wrapper.find('span')
+    expect(span.exists()).toBe(true)
+    expect(span.classes()).toContain('sr-only')
+    expect(span.text()).toBe('Loading')
   })
 
   it('should render spinner with message', () => {
@@ -22,7 +26,9 @@ describe('LoadingSpinner', () => {
     })
 
     expect(wrapper.find('svg').exists()).toBe(true)
-    expect(wrapper.find('span').text()).toBe(message)
+    const span = wrapper.find('span')
+    expect(span.text()).toBe(message)
+    expect(span.classes()).not.toContain('sr-only')
   })
 
   it('should have proper accessibility attributes', () => {

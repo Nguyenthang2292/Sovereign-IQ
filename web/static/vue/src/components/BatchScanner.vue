@@ -78,11 +78,13 @@
           </label>
           <div class="relative">
             <input
-              v-model.number="form.maxSymbols"
+              v-model="maxSymbolsDisplay"
               type="number"
               min="1"
               max="1000"
               :placeholder="$t('batchScanner.fields.maxSymbolsPlaceholder')"
+              @input="handleMaxSymbolsInput"
+              @blur="handleMaxSymbolsBlur"
               :class="[
                 'w-full px-4 py-3 pl-10 bg-gray-700/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 backdrop-blur-sm',
                 validationErrors.maxSymbols
@@ -107,10 +109,12 @@
           </label>
           <div class="relative">
             <input
-              v-model.number="form.limit"
+              v-model="limitDisplay"
               type="number"
               min="1"
               max="5000"
+              @input="handleLimitInput"
+              @blur="handleLimitBlur"
               :class="[
                 'w-full px-4 py-3 pl-10 bg-gray-700/50 border rounded-lg text-white focus:outline-none focus:ring-2 backdrop-blur-sm',
                 validationErrors.limit
@@ -135,11 +139,13 @@
           </label>
           <div class="relative">
             <input
-              v-model.number="form.cooldown"
+              v-model="cooldownDisplay"
               type="number"
               min="0"
               max="60"
               step="0.1"
+              @input="handleCooldownInput"
+              @blur="handleCooldownBlur"
               :class="[
                 'w-full px-4 py-3 pl-10 bg-gray-700/50 border rounded-lg text-white focus:outline-none focus:ring-2 backdrop-blur-sm',
                 validationErrors.cooldown
@@ -235,13 +241,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onUnmounted, watch, nextTick, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { batchScannerAPI } from '../services/api'
 import LogPoller from '../services/logPoller'
 import ResultsTable from './ResultsTable.vue'
 import LogViewer from './LogViewer.vue'
 import CustomDropdown from './CustomDropdown.vue'
+import { useNumberInput } from '../composables/useNumberInput'
 
 const { t } = useI18n()
 
@@ -273,6 +280,44 @@ const validationErrors = ref({
   limit: null,
   cooldown: null,
 })
+
+// Much more concise if composable supports it
+const maxSymbolsFormRef = toRef(form.value, 'maxSymbols')
+const limitFormRef = toRef(form.value, 'limit')
+const cooldownFormRef = toRef(form.value, 'cooldown')
+
+const maxSymbolsInput = useNumberInput({
+  formValueRef: maxSymbolsFormRef,
+  defaultValue: null, // Optional field
+  validator: validateMaxSymbols,
+  valueValidator: (num) => num > 0,
+})
+
+const limitInput = useNumberInput({
+  formValueRef: limitFormRef,
+  defaultValue: 500, // Required field with default
+  validator: validateLimit,
+  valueValidator: (num) => num > 0,
+})
+
+const cooldownInput = useNumberInput({
+  formValueRef: cooldownFormRef,
+  defaultValue: 2.5, // Required field with default
+  validator: validateCooldown,
+  valueValidator: (num) => num >= 0, // Allow 0 for cooldown
+})
+
+// Expose display values and handlers for template
+const maxSymbolsDisplay = maxSymbolsInput.displayValue
+const limitDisplay = limitInput.displayValue
+const cooldownDisplay = cooldownInput.displayValue
+
+const handleMaxSymbolsInput = maxSymbolsInput.handleInput
+const handleMaxSymbolsBlur = maxSymbolsInput.handleBlur
+const handleLimitInput = limitInput.handleInput
+const handleLimitBlur = limitInput.handleBlur
+const handleCooldownInput = cooldownInput.handleInput
+const handleCooldownBlur = cooldownInput.handleBlur
 
 // Validators
 function validateMaxSymbols() {
@@ -322,6 +367,8 @@ function validateCooldown() {
     validationErrors.value.cooldown = null
   }
 }
+
+// Display values are initialized by useNumberInput composable
 
 // Watch form fields for validation
 watch(() => form.value.maxSymbols, validateMaxSymbols, { immediate: true })

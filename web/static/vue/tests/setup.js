@@ -121,6 +121,34 @@ global.ResizeObserver = class ResizeObserver {
   }
 }
 
+// Mock scrollTo and scrollIntoView for HTMLElement
+if (typeof HTMLElement !== 'undefined') {
+  if (!HTMLElement.prototype.scrollTo) {
+    HTMLElement.prototype.scrollTo = function (xOrOptions, y) {
+      if (typeof xOrOptions === 'object' && xOrOptions !== null) {
+        if (typeof xOrOptions.left === 'number') {
+          this.scrollLeft = xOrOptions.left;
+        }
+        if (typeof xOrOptions.top === 'number') {
+          this.scrollTop = xOrOptions.top;
+        }
+      } else if (typeof xOrOptions === 'number') {
+        this.scrollLeft = xOrOptions;
+        if (typeof y === 'number') {
+          this.scrollTop = y;
+        }
+      }
+    };
+  }
+
+  if (!HTMLElement.prototype.scrollIntoView) {
+    HTMLElement.prototype.scrollIntoView = function(/*options*/) {
+      // No-op in test environment
+    };
+  }
+}
+
+
 // Mock vue-i18n
 import { createI18n } from 'vue-i18n'
 import viLocales from '../src/i18n/locales/vi.json'

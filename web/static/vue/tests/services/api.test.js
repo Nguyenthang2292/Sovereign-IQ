@@ -178,7 +178,7 @@ describe('API Service', () => {
 
       await batchScannerAPI.getBatchScanStatus('session-123')
 
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/batch/scan/session-123/status')
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/batch/scan/session-123/status', {})
     })
   })
 
@@ -216,7 +216,7 @@ describe('API Service', () => {
 
       await chartAnalyzerStatusAPI.getAnalyzeStatus('analyze-session-123')
 
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/analyze/analyze-session-123/status')
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/analyze/analyze-session-123/status', {})
     })
   })
 

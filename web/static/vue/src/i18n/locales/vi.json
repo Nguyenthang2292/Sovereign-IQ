@@ -10,9 +10,9 @@
     "text": "Gemini Chart Analyzer - Powered by Google Gemini AI"
   },
   "common": {
-    "singleTimeframe": "Single Timeframe",
-    "multiTimeframe": "Multi-Timeframe",
-    "clear": "Clear",
+    "singleTimeframe": "Một Timeframe",
+    "multiTimeframe": "Nhiều Timeframe",
+    "clear": "Xóa",
     "required": "*",
     "example": "Ví dụ",
     "all": "Tất cả",
@@ -41,13 +41,25 @@
       "timeframes": "Timeframes",
       "maxSymbols": "Max Symbols (để trống = tất cả)",
       "maxSymbolsPlaceholder": "Tất cả",
-      "limit": "Number of Candles per Symbol",
-      "cooldown": "Cooldown (seconds)",
+      "limit": "Số lượng nến mỗi symbol",
+      "cooldown": "Thời gian chờ (giây)",
       "example": "Ví dụ: 15m, 1h, 4h, 1d"
     },
+    "validation": {
+      "maxSymbolsHelper": "Để trống để quét tất cả symbols. Tối đa 1000 symbols.",
+      "limitHelper": "Số lượng nến cần lấy cho mỗi symbol. Tối đa 5000 nến.",
+      "cooldownHelper": "Thời gian chờ giữa các request (giây). Tối đa 60 giây.",
+      "required": "Trường này là bắt buộc",
+      "positiveNumber": "Vui lòng nhập số dương",
+      "nonNegative": "Vui lòng nhập số không âm",
+      "maxValue": "Giá trị tối đa là {max}",
+      "maxSeconds": "Tối đa {max} giây"
+    },
     "errors": {
-      "scanError": "Có lỗi xảy ra khi scan thị trường"
-    }
+      "scanError": "Có lỗi xảy ra khi scan thị trường",
+      "cancelError": "Có lỗi xảy ra khi hủy scan"
+    },
+    "cancelledByUser": "Đã hủy bởi người dùng"
   },
   "chartAnalyzer": {
     "title": "Chart Analyzer",
@@ -128,7 +140,11 @@
     },
     "empty": {
       "title": "Không có kết quả",
-      "description": "Không tìm thấy signals nào phù hợp với tiêu chí tìm kiếm."
+      "description": "Không tìm thấy signals nào phù hợp với tiêu chí tìm kiếm.",
+      "filtered": {
+        "title": "Không tìm thấy kết quả",
+        "description": "Thử điều chỉnh tiêu chí tìm kiếm hoặc bộ lọc của bạn."
+      }
     }
   }
 }

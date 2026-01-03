@@ -1,17 +1,24 @@
 <template>
   <div v-if="results" class="mt-5">
     <!-- Summary Section -->
-    <div class="glass-panel bg-gradient-to-br from-gray-800/70 to-gray-900/70 p-4 md:p-6 rounded-xl mb-6">
+    <div data-testid="summary-section" class="glass-panel bg-gradient-to-br from-gray-800/70 to-gray-900/70 p-4 md:p-6 rounded-xl mb-6">
       <h3 class="flex items-center gap-2 text-xl font-bold text-green-400 mb-5">
         <span class="text-2xl">📊</span>
         <span>{{ $t('results.summary') }}</span>
       </h3>
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 justify-items-stretch">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 justify-items-stretch">
         <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-green-500/50 hover:border-green-400 transition-all hover:transform hover:-translate-y-1 shadow-md hover:shadow-neon-cyan w-full">
           <span class="text-3xl">📈</span>
           <div class="flex-1">
             <div class="text-xs uppercase text-gray-400 font-semibold tracking-wide">{{ $t('results.long') }}</div>
             <div class="text-2xl font-bold text-green-400">{{ summary.longCount || 0 }}</div>
+          </div>
+        </div>
+        <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-red-500/50 hover:border-red-400 transition-all hover:transform hover:-translate-y-1 shadow-md hover:shadow-neon-red w-full">
+          <span class="text-3xl">📉</span>
+          <div class="flex-1">
+            <div class="text-xs uppercase text-gray-400 font-semibold tracking-wide">{{ $t('results.short') }}</div>
+            <div class="text-2xl font-bold text-red-400">{{ summary.shortCount || 0 }}</div>
           </div>
         </div>
         <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-gray-500/50 hover:border-gray-400 transition-all hover:transform hover:-translate-y-1 shadow-md w-full">
@@ -32,10 +39,36 @@
     </div>
 
     <!-- Signals Table Section -->
-    <div v-if="longSignals.length > 0" class="glass-panel rounded-xl overflow-hidden" style="position: relative;">
-      <!-- Filter and Sort Controls -->
-      <div class="p-4 bg-gray-700/30 border-b border-gray-600/50 flex flex-nowrap gap-4 items-center">
-        <div class="min-w-[200px] flex-1 max-w-[400px]">
+    <div v-if="longSignals.length > 0 || shortSignals.length > 0" class="glass-panel rounded-xl overflow-hidden" style="position: relative;">
+      <div class="table-container">
+        <!-- Tabs -->
+        <div class="table-section-header bg-gray-700/30 border-b border-gray-600/50 flex gap-2">
+          <button
+            @click="activeTab = 'long'"
+            :class="[
+              'px-6 py-2 rounded-lg font-medium transition-all',
+              activeTab === 'long'
+                ? 'bg-green-500/20 text-green-400 border-2 border-green-500/50 shadow-md'
+                : 'bg-gray-700/50 text-gray-400 border-2 border-gray-600/50 hover:bg-gray-600/50'
+            ]"
+          >
+            📈 {{ $t('results.long') }} ({{ longSignals.length }})
+          </button>
+          <button
+            @click="activeTab = 'short'"
+            :class="[
+              'px-6 py-2 rounded-lg font-medium transition-all',
+              activeTab === 'short'
+                ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 shadow-md'
+                : 'bg-gray-700/50 text-gray-400 border-2 border-gray-600/50 hover:bg-gray-600/50'
+            ]"
+          >
+            📉 {{ $t('results.short') }} ({{ shortSignals.length }})
+          </button>
+        </div>
+        <!-- Filter and Sort Controls -->
+        <div class="table-section-header bg-gray-700/30 border-b border-gray-600/50 flex flex-nowrap gap-4 items-center">
+        <div style="flex: 1 1 auto; min-width: 200px;">
           <input
             v-model="filterText"
             type="text"
@@ -43,7 +76,7 @@
             class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 backdrop-blur-sm"
           />
         </div>
-        <div class="flex gap-2 items-center" style="flex-shrink: 0;">
+        <div class="flex gap-2 items-center" style="flex: 0 0 auto;">
           <CustomDropdown
             v-model="sortBy"
             :options="sortByOptions"
@@ -70,11 +103,11 @@
         </div>
       </div>
 
-      <!-- Table -->
-      <div v-if="filteredSignals.length > 0" ref="tableContainerRef" class="overflow-x-auto" style="will-change: scroll-position; min-height: 200px; position: relative; scroll-behavior: auto; overflow-anchor: none; display: block; direction: ltr; text-align: left; scrollbar-gutter: stable;">
+        <!-- Table -->
+        <div v-if="filteredSignals.length > 0" ref="tableContainerRef" class="table-wrapper">
         <table 
           ref="tableRef"
-          style="table-layout: fixed; width: 1231px; border-collapse: separate; border-spacing: 0; contain: layout style paint; backface-visibility: hidden; transform: translateZ(0); opacity: 1; transition: none; position: relative; left: 0; margin: 0; display: table;"
+          class="results-table"
         >
           <colgroup>
             <col style="width: 308px;">
@@ -132,7 +165,10 @@
                 <div class="flex items-center gap-2">
                   <div class="flex-1 bg-gray-700/50 rounded-full h-2 overflow-hidden min-w-0">
                     <div 
-                      class="h-full transition-all bg-green-500"
+                      :class="[
+                        'h-full transition-all',
+                        signal.signal === 'LONG' ? 'bg-green-500' : 'bg-red-500'
+                      ]"
                       :style="{ width: `${(signal.confidence || 0) * 100}%` }"
                     ></div>
                   </div>
@@ -143,7 +179,13 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap" style="width: 231px; min-width: 231px; max-width: 231px; overflow: hidden;">
                 <span 
-                  class="px-3 py-1 rounded-full text-xs font-semibold inline-block bg-green-500/20 text-green-400 border border-green-500/50"
+                  :data-testid="`signal-badge-${signal.signal.toLowerCase()}`"
+                  :class="[
+                    'px-3 py-1 rounded-full text-xs font-semibold inline-block border',
+                    signal.signal === 'LONG'
+                      ? 'bg-green-500/20 text-green-400 border-green-500/50'
+                      : 'bg-red-500/20 text-red-400 border-red-500/50'
+                  ]"
                 >
                   {{ signal.signal }}
                 </span>
@@ -162,15 +204,15 @@
         </table>
       </div>
 
-      <!-- Empty State for Filtered Results -->
-      <div v-else class="p-8 md:p-12 text-center">
-        <div class="text-6xl mb-4">🔍</div>
-        <h3 class="text-xl font-bold text-gray-300 mb-2">{{ $t('results.empty.filtered.title', 'No results found') }}</h3>
-        <p class="text-gray-400">{{ $t('results.empty.filtered.description', 'Try adjusting your search or filter criteria.') }}</p>
-      </div>
+        <!-- Empty State for Filtered Results -->
+        <div v-else class="table-section-header p-8 md:p-12 text-center">
+          <div class="text-6xl mb-4">🔍</div>
+          <h3 class="text-xl font-bold text-gray-300 mb-2">{{ $t('results.empty.filtered.title', 'No results found') }}</h3>
+          <p class="text-gray-400">{{ $t('results.empty.filtered.description', 'Try adjusting your search or filter criteria.') }}</p>
+        </div>
 
-      <!-- Pagination -->
-      <div v-if="filteredSignals.length > 0 && totalPages > 1" class="p-4 bg-gray-700/50 border-t border-gray-600/50 flex flex-col md:flex-row items-center justify-between gap-4">
+        <!-- Pagination -->
+        <div v-if="filteredSignals.length > 0 && totalPages > 1" class="table-section-header bg-gray-700/50 border-t border-gray-600/50 flex flex-col md:flex-row items-center justify-between gap-4">
         <div data-testid="row-count" class="text-sm text-gray-300">
           {{ $t('results.pagination.showing') }} {{ startIndex + 1 }} - {{ endIndex }} {{ $t('results.pagination.of') }} {{ filteredSignals.length }} {{ $t('results.pagination.results') }}
         </div>
@@ -204,11 +246,12 @@
             {{ $t('results.pagination.next') }}
           </button>
         </div>
+        </div>
       </div>
     </div>
 
     <!-- Empty State -->
-    <div v-else class="glass-panel rounded-xl p-8 md:p-12 text-center">
+    <div v-else-if="longSignals.length === 0 && shortSignals.length === 0" class="glass-panel rounded-xl p-8 md:p-12 text-center">
       <div class="text-6xl mb-4">📭</div>
       <h3 class="text-xl font-bold text-gray-300 mb-2">{{ $t('results.empty.title') }}</h3>
       <p class="text-gray-400">{{ $t('results.empty.description') }}</p>
@@ -217,27 +260,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUpdated, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CustomDropdown from './CustomDropdown.vue'
-
-// #region agent log
-const logDebug = (location, message, data, hypothesisId) => {
-  fetch('http://127.0.0.1:7242/ingest/f5c9debd-a932-41da-9194-5079ce360f94', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId
-    })
-  }).catch(() => {});
-};
-// #endregion
 
 const { t } = useI18n()
 
@@ -251,6 +276,7 @@ const props = defineProps({
 const emit = defineEmits(['symbol-click'])
 
 // State
+const activeTab = ref('long')
 const filterText = ref('')
 const sortBy = ref('confidence')
 const sortOrder = ref('desc')
@@ -276,8 +302,22 @@ const longSignals = computed(() => {
   return longSymbols.value.map(s => ({ ...s, signal: 'LONG' }))
 })
 
+const shortSymbols = computed(() => {
+  if (!props.results) return []
+  const symbols = props.results.short_symbols_with_confidence || props.results.shortSymbolsWithConfidence || props.results.short_symbols || props.results.shortSymbols || []
+  return normalizeSymbols(symbols)
+})
+
+const shortSignals = computed(() => {
+  return shortSymbols.value.map(s => ({ ...s, signal: 'SHORT' }))
+})
+
+const currentSignals = computed(() => {
+  return activeTab.value === 'long' ? longSignals.value : shortSignals.value
+})
+
 const filteredSignals = computed(() => {
-  let signals = longSignals.value
+  let signals = currentSignals.value
   if (filterText.value) {
     const filter = filterText.value.toLowerCase()
     signals = signals.filter(s => s.symbol.toLowerCase().includes(filter))
@@ -350,8 +390,9 @@ const summary = computed(() => {
     return result
   }
   
-  // Fallback: calculate from longSignals if summary not available
+  // Fallback: calculate from signals if summary not available
   const longCount = longSignals.value.length
+  const shortCount = shortSignals.value.length
   // Add fallback for camelCase variant of none_symbols
   const noneSymbols =
     props.results.none_symbols ||
@@ -361,14 +402,14 @@ const summary = computed(() => {
   
   const result = {
     longCount: Number(longCount) || 0,
-    shortCount: 0,
+    shortCount: Number(shortCount) || 0,
     noneCount: Number(noneCount) || 0,
-    total: Number(longCount + noneCount) || 0
+    total: Number(longCount + shortCount + noneCount) || 0
   }
   
   // Debug logging in development
   if (import.meta.env.DEV) {
-    console.log('Summary calculated from longSignals:', result, 'longSignals length:', longSignals.value.length)
+    console.log('Summary calculated from signals:', result, 'longSignals length:', longSignals.value.length, 'shortSignals length:', shortSignals.value.length)
   }
   
   return result
@@ -443,77 +484,6 @@ function handleSymbolClick(symbol) {
   emit('symbol-click', symbol)
 }
 
-// Helper function to measure table dimensions
-const measureTableDimensions = (hypothesisId) => {
-  nextTick(() => {
-    const table = tableRef.value || document.querySelector('table');
-    if (!table) {
-      logDebug('ResultsTable.vue:measureTableDimensions', 'Table not found', {}, hypothesisId);
-      return;
-    }
-    
-    const container = tableContainerRef.value || table.parentElement;
-    const containerRect = container ? container.getBoundingClientRect() : null;
-    const containerScrollLeft = container?.scrollLeft || 0;
-    const containerScrollWidth = container?.scrollWidth || 0;
-    const containerClientWidth = container?.clientWidth || 0;
-    
-    const tableRect = table.getBoundingClientRect();
-    const tableWidth = table.offsetWidth;
-    const tableStyle = window.getComputedStyle(table);
-    const columns = table.querySelectorAll('th');
-    const columnWidths = Array.from(columns).map((th, idx) => {
-      const style = window.getComputedStyle(th);
-      const col = table.querySelector(`colgroup > col:nth-child(${idx + 1})`);
-      const thRect = th.getBoundingClientRect();
-      return {
-        index: idx,
-        text: th.textContent.trim(),
-        offsetWidth: th.offsetWidth,
-        computedWidth: style.width,
-        minWidth: style.minWidth,
-        maxWidth: style.maxWidth,
-        colWidth: col ? col.style.width : null,
-        left: thRect.left,
-        right: thRect.right
-      };
-    });
-    
-    const firstRow = table.querySelector('tbody tr');
-    const rowCellWidths = firstRow ? Array.from(firstRow.querySelectorAll('td')).map((td, idx) => {
-      const style = window.getComputedStyle(td);
-      const tdRect = td.getBoundingClientRect();
-      return {
-        index: idx,
-        offsetWidth: td.offsetWidth,
-        computedWidth: style.width,
-        minWidth: style.minWidth,
-        maxWidth: style.maxWidth,
-        left: tdRect.left,
-        right: tdRect.right
-      };
-    }) : [];
-    
-    logDebug('ResultsTable.vue:measureTableDimensions', 'Table dimensions measured', {
-      tableWidth,
-      tableLeft: tableRect.left,
-      tableRight: tableRect.right,
-      containerLeft: containerRect?.left || null,
-      containerRight: containerRect?.right || null,
-      containerWidth: containerRect?.width || null,
-      containerScrollLeft,
-      containerScrollWidth,
-      containerClientWidth,
-      tableLayout: tableStyle.tableLayout,
-      columnCount: columns.length,
-      columnWidths,
-      rowCellWidths,
-      filteredSignalsCount: filteredSignals.value.length,
-      paginatedSignalsCount: paginatedSignals.value.length
-    }, hypothesisId);
-  });
-};
-
 // Watchers
 watch(filterText, () => {
   currentPage.value = 1
@@ -523,28 +493,61 @@ watch(itemsPerPage, () => {
   currentPage.value = 1
 })
 
-// #region agent log
-onMounted(() => {
-  logDebug('ResultsTable.vue:onMounted', 'Component mounted', {
-    hasResults: !!props.results,
-    longSignalsCount: longSignals.value.length
-  }, 'C');
-  
-  measureTableDimensions('C');
-});
-// #endregion
+watch(activeTab, () => {
+  currentPage.value = 1
+})
 
-// #region agent log
-onUpdated(() => {
-  logDebug('ResultsTable.vue:onUpdated', 'Component updated', {
-    filteredSignalsCount: filteredSignals.value.length,
-    paginatedSignalsCount: paginatedSignals.value.length
-  }, 'D');
-  
-  nextTick(() => {
-    measureTableDimensions('D');
-  });
-});
-// #endregion
+onMounted(() => {
+  if (longSignals.value.length === 0 && shortSignals.value.length > 0) {
+    activeTab.value = 'short'
+  }
+})
 </script>
+
+<style scoped>
+.table-container {
+  position: relative;
+  --table-width: 1231px;
+  width: var(--table-width);
+  max-width: 100%;
+  margin: 0 auto;
+  overflow-x: auto;
+  contain: layout style paint;
+}
+
+.table-section-header {
+  width: var(--table-width);
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.table-wrapper {
+  width: var(--table-width);
+  overflow-x: auto;
+  will-change: scroll-position;
+  min-height: 200px;
+  position: relative;
+  scroll-behavior: auto;
+  overflow-anchor: none;
+  display: block;
+  direction: ltr;
+  text-align: left;
+  scrollbar-gutter: stable;
+}
+
+.results-table {
+  table-layout: fixed;
+  width: var(--table-width);
+  border-collapse: separate;
+  border-spacing: 0;
+  contain: layout style paint;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  opacity: 1;
+  transition: none;
+  position: relative;
+  left: 0;
+  margin: 0;
+}
+</style>
 

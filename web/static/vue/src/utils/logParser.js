@@ -85,61 +85,39 @@ export function parseAnsiCodes(text) {
 export function detectLogLevel(text) {
   if (!text) return 'info'
 
-  const lowerText = text.toLowerCase()
-
   // Error patterns (check first for highest priority)
   if (
-    lowerText.includes('failed') ||
-    lowerText.includes('exception') ||
-    lowerText.includes('traceback') ||
-    lowerText.includes('❌') ||
-    lowerText.includes('fatal') ||
-    lowerText.includes('critical')
+    /\b(errors?|failed?|exceptions?|tracebacks?|fatal?|critical?)\b|❌/i.test(text)
   ) {
     return 'error'
   }
 
   // Warning patterns
   if (
-    lowerText.includes('warning') ||
-    lowerText.includes('warn') ||
-    lowerText.includes('⚠️') ||
-    lowerText.includes('⚠') ||
-    lowerText.includes('caution')
+    /\b(warnings?|warns?|caution)\b|⚠️|⚠/i.test(text)
   ) {
     return 'warning'
   }
 
-  // Success patterns
+  // Success patterns (extended for additional tokens and past tenses)
   if (
-    lowerText.includes('success') ||
-    lowerText.includes('created') ||
-    lowerText.includes('completed') ||
-    lowerText.includes('done') ||
-    lowerText.includes('✅') ||
-    lowerText.includes('✓') ||
-    lowerText.includes('finished') ||
-    lowerText.includes('saved')
+    /\b(success|successful|successfully|successes?|create[ds]?|complete[ds]?|done|finish(?:ed)?|save[ds]?|processed?|passed?|succeeded?)\b|✅|✓|🎉|🟢|✔️|✔/i.test(text)
   ) {
     return 'success'
   }
 
   // Debug patterns
+  const lowerText = text.toLowerCase()
   if (
-    lowerText.includes('debug') ||
-    lowerText.includes('[debug]') ||
-    (lowerText.startsWith('[') && lowerText.includes(']') && lowerText.length < 50)
+    /\bdebugs?\b/i.test(text) ||
+    (lowerText.startsWith('[') && lowerText.includes(']') && text.length < 50)
   ) {
     return 'debug'
   }
 
   // Check for common info patterns
   if (
-    lowerText.includes('analyzing') ||
-    lowerText.includes('sending') ||
-    lowerText.includes('processing') ||
-    lowerText.includes('loading') ||
-    lowerText.includes('fetching')
+    /\b(analyzing|sending|processing|loading|fetching)\b/i.test(text)
   ) {
     return 'info'
   }
