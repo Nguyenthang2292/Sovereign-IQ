@@ -6,31 +6,24 @@
         <span class="text-2xl">📊</span>
         <span>{{ $t('results.summary') }}</span>
       </h3>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-green-500/50 hover:border-green-400 transition-all hover:transform hover:-translate-y-1 shadow-md hover:shadow-neon-cyan">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 justify-items-stretch">
+        <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-green-500/50 hover:border-green-400 transition-all hover:transform hover:-translate-y-1 shadow-md hover:shadow-neon-cyan w-full">
           <span class="text-3xl">📈</span>
-          <div>
+          <div class="flex-1">
             <div class="text-xs uppercase text-gray-400 font-semibold tracking-wide">{{ $t('results.long') }}</div>
             <div class="text-2xl font-bold text-green-400">{{ summary.longCount || 0 }}</div>
           </div>
         </div>
-        <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-red-500/50 hover:border-red-400 transition-all hover:transform hover:-translate-y-1 shadow-md hover:shadow-neon-magenta">
-          <span class="text-3xl">📉</span>
-          <div>
-            <div class="text-xs uppercase text-gray-400 font-semibold tracking-wide">{{ $t('results.short') }}</div>
-            <div class="text-2xl font-bold text-red-400">{{ summary.shortCount || 0 }}</div>
-          </div>
-        </div>
-        <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-gray-500/50 hover:border-gray-400 transition-all hover:transform hover:-translate-y-1 shadow-md">
+        <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-gray-500/50 hover:border-gray-400 transition-all hover:transform hover:-translate-y-1 shadow-md w-full">
           <span class="text-3xl">➖</span>
-          <div>
+          <div class="flex-1">
             <div class="text-xs uppercase text-gray-400 font-semibold tracking-wide">{{ $t('results.none') }}</div>
             <div class="text-2xl font-bold text-gray-300">{{ summary.noneCount || 0 }}</div>
           </div>
         </div>
-        <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-purple-500/50 hover:border-purple-400 transition-all hover:transform hover:-translate-y-1 shadow-md hover:shadow-neon-purple">
+        <div class="glass-panel bg-gray-800/50 p-4 md:p-5 rounded-lg flex items-center gap-3 border-2 border-purple-500/50 hover:border-purple-400 transition-all hover:transform hover:-translate-y-1 shadow-md hover:shadow-neon-purple w-full md:col-span-1 col-span-2">
           <span class="text-3xl">🔢</span>
-          <div>
+          <div class="flex-1">
             <div class="text-xs uppercase text-gray-400 font-semibold tracking-wide">{{ $t('results.total') }}</div>
             <div class="text-2xl font-bold text-purple-400">{{ summary.total || 0 }}</div>
           </div>
@@ -39,36 +32,10 @@
     </div>
 
     <!-- Signals Table Section -->
-    <div v-if="allSignals.length > 0" class="glass-panel rounded-xl overflow-hidden">
-      <!-- Tabs -->
-      <div class="flex gap-2 p-4 bg-gray-700/50 border-b border-gray-600/50">
-        <button 
-          @click="activeTab = 'long'"
-          :class="[
-            'px-6 py-3 rounded-t-lg font-semibold transition-colors',
-            activeTab === 'long' 
-              ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-glow-purple' 
-              : 'bg-gray-600/50 text-gray-300 hover:bg-gray-500/50 border border-gray-600/50'
-          ]"
-        >
-          {{ $t('results.long') }} ({{ longSignals.length }})
-        </button>
-        <button 
-          @click="activeTab = 'short'"
-          :class="[
-            'px-6 py-3 rounded-t-lg font-semibold transition-colors',
-            activeTab === 'short' 
-              ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-glow-purple' 
-              : 'bg-gray-600/50 text-gray-300 hover:bg-gray-500/50 border border-gray-600/50'
-          ]"
-        >
-          {{ $t('results.short') }} ({{ shortSignals.length }})
-        </button>
-      </div>
-
+    <div v-if="longSignals.length > 0" class="glass-panel rounded-xl overflow-hidden" style="position: relative;">
       <!-- Filter and Sort Controls -->
-      <div class="p-4 bg-gray-700/30 border-b border-gray-600/50 flex flex-wrap gap-4 items-center">
-        <div class="flex-1 min-w-[200px]">
+      <div class="p-4 bg-gray-700/30 border-b border-gray-600/50 flex flex-nowrap gap-4 items-center">
+        <div class="min-w-[200px] flex-1 max-w-[400px]">
           <input
             v-model="filterText"
             type="text"
@@ -76,18 +43,19 @@
             class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 backdrop-blur-sm"
           />
         </div>
-        <div class="flex gap-2 items-center flex-shrink-0">
+        <div class="flex gap-2 items-center" style="flex-shrink: 0;">
           <CustomDropdown
             v-model="sortBy"
             :options="sortByOptions"
             option-label="label"
             option-value="value"
             :placeholder="$t('results.sortBy.confidence')"
-            class="w-[160px] flex-shrink-0"
+            style="flex-shrink: 0; width: 160px; min-width: 160px; max-width: 160px;"
           />
           <button
             @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
-            class="w-[48px] h-[40px] bg-gray-700/50 border border-gray-600/50 rounded-lg text-white hover:bg-gray-600/50 transition-colors backdrop-blur-sm flex items-center justify-center flex-shrink-0"
+            class="bg-gray-700/50 border border-gray-600/50 rounded-lg text-white hover:bg-gray-600/50 transition-colors backdrop-blur-sm flex items-center justify-center"
+            style="width: 48px; height: 40px; flex-shrink: 0; min-width: 48px; max-width: 48px;"
             :title="sortOrder === 'asc' ? $t('results.sortBy.ascending') : $t('results.sortBy.descending')"
           >
             <span class="text-lg">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
@@ -96,20 +64,30 @@
             v-model="itemsPerPage"
             :options="[5, 10, 20, 50, 100]"
             :placeholder="$t('results.itemsPerPage.title')"
-            class="w-[120px] flex-shrink-0"
+            style="flex-shrink: 0; width: 120px; min-width: 120px; max-width: 120px;"
             data-testid="items-per-page-selector"
           />
         </div>
       </div>
 
       <!-- Table -->
-      <div v-if="filteredSignals.length > 0" class="overflow-x-auto">
-        <table class="w-full" style="table-layout: fixed;">
+      <div v-if="filteredSignals.length > 0" ref="tableContainerRef" class="overflow-x-auto" style="will-change: scroll-position; min-height: 200px; position: relative; scroll-behavior: auto; overflow-anchor: none; display: block; direction: ltr; text-align: left; scrollbar-gutter: stable;">
+        <table 
+          ref="tableRef"
+          style="table-layout: fixed; width: 1231px; border-collapse: separate; border-spacing: 0; contain: layout style paint; backface-visibility: hidden; transform: translateZ(0); opacity: 1; transition: none; position: relative; left: 0; margin: 0; display: table;"
+        >
+          <colgroup>
+            <col style="width: 308px;">
+            <col style="width: 384px;">
+            <col style="width: 231px;">
+            <col style="width: 308px;">
+          </colgroup>
           <thead class="bg-gray-700/50">
             <tr>
               <th 
                 @click="sortTable('symbol')"
-                class="w-[25%] px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
+                class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
+                style="width: 308px; min-width: 308px; max-width: 308px;"
               >
                 {{ $t('results.table.symbol') }}
                 <span v-if="sortBy === 'symbol'" class="ml-1">
@@ -118,17 +96,24 @@
               </th>
               <th 
                 @click="sortTable('confidence')"
-                class="w-[25%] px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
+                class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600"
+                style="width: 384px; min-width: 384px; max-width: 384px;"
               >
                 {{ $t('results.table.confidence') }}
                 <span v-if="sortBy === 'confidence'" class="ml-1">
                   {{ sortOrder === 'asc' ? '↑' : '↓' }}
                 </span>
               </th>
-              <th class="w-[25%] px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th 
+                class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                style="width: 231px; min-width: 231px; max-width: 231px;"
+              >
                 {{ $t('results.table.signal') }}
               </th>
-              <th class="w-[25%] px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th 
+                class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                style="width: 308px; min-width: 308px; max-width: 308px;"
+              >
                 {{ $t('results.table.actions') }}
               </th>
             </tr>
@@ -138,43 +123,36 @@
               v-for="signal in paginatedSignals" 
               :key="signal.symbol"
               class="hover:bg-gray-700/50 transition-colors"
+              style="will-change: auto;"
             >
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium text-white">{{ signal.symbol }}</div>
+              <td class="px-6 py-4 whitespace-nowrap" style="width: 308px; min-width: 308px; max-width: 308px; overflow: hidden;">
+                <div class="text-sm font-medium text-white truncate">{{ signal.symbol }}</div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="px-6 py-4 whitespace-nowrap" style="width: 384px; min-width: 384px; max-width: 384px; overflow: hidden;">
                 <div class="flex items-center gap-2">
-                  <div class="flex-1 bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                  <div class="flex-1 bg-gray-700/50 rounded-full h-2 overflow-hidden min-w-0">
                     <div 
-                      :class="[
-                        'h-full transition-all',
-                        signal.signal === 'LONG' ? 'bg-green-500' : 'bg-red-500'
-                      ]"
+                      class="h-full transition-all bg-green-500"
                       :style="{ width: `${(signal.confidence || 0) * 100}%` }"
                     ></div>
                   </div>
-                  <span class="text-sm text-gray-300 min-w-[50px]">
+                  <span class="text-sm text-gray-300 min-w-[50px] flex-shrink-0">
                     {{ formatConfidence(signal.confidence) }}
                   </span>
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="px-6 py-4 whitespace-nowrap" style="width: 231px; min-width: 231px; max-width: 231px; overflow: hidden;">
                 <span 
-                  :class="[
-                    'px-3 py-1 rounded-full text-xs font-semibold',
-                    signal.signal === 'LONG' 
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/50' 
-                      : 'bg-red-500/20 text-red-400 border border-red-500/50'
-                  ]"
+                  class="px-3 py-1 rounded-full text-xs font-semibold inline-block bg-green-500/20 text-green-400 border border-green-500/50"
                 >
                   {{ signal.signal }}
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="px-6 py-4 whitespace-nowrap" style="width: 308px; min-width: 308px; max-width: 308px; overflow: hidden;">
                 <button
                   @click="handleSymbolClick(signal.symbol)"
                   data-testid="analyze-button"
-                  class="px-4 py-2 btn-gradient hover:shadow-glow-purple text-white rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 active:scale-95"
+                  class="px-4 py-2 btn-gradient hover:shadow-glow-purple text-white rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap"
                 >
                   {{ $t('results.table.analyze') }}
                 </button>
@@ -239,9 +217,27 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUpdated, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CustomDropdown from './CustomDropdown.vue'
+
+// #region agent log
+const logDebug = (location, message, data, hypothesisId) => {
+  fetch('http://127.0.0.1:7242/ingest/f5c9debd-a932-41da-9194-5079ce360f94', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId
+    })
+  }).catch(() => {});
+};
+// #endregion
 
 const { t } = useI18n()
 
@@ -255,12 +251,13 @@ const props = defineProps({
 const emit = defineEmits(['symbol-click'])
 
 // State
-const activeTab = ref('long')
 const filterText = ref('')
 const sortBy = ref('confidence')
 const sortOrder = ref('desc')
 const currentPage = ref(1)
 const itemsPerPage = ref(20)
+const tableRef = ref(null)
+const tableContainerRef = ref(null)
 
 // Computed options for sortBy dropdown
 const sortByOptions = computed(() => [
@@ -275,27 +272,12 @@ const longSymbols = computed(() => {
   return normalizeSymbols(symbols)
 })
 
-const shortSymbols = computed(() => {
-  if (!props.results) return []
-  const symbols = props.results.short_symbols_with_confidence || props.results.shortSymbolsWithConfidence || props.results.short_symbols || props.results.shortSymbols || []
-  return normalizeSymbols(symbols)
-})
-
-const allSignals = computed(() => {
-  const long = longSymbols.value.map(s => ({ ...s, signal: 'LONG' }))
-  const short = shortSymbols.value.map(s => ({ ...s, signal: 'SHORT' }))
-  return [...long, ...short]
-})
-
-const longSignals = computed(() => allSignals.value.filter(s => s.signal === 'LONG'))
-const shortSignals = computed(() => allSignals.value.filter(s => s.signal === 'SHORT'))
-
-const currentTabSignals = computed(() => {
-  return activeTab.value === 'long' ? longSignals.value : shortSignals.value
+const longSignals = computed(() => {
+  return longSymbols.value.map(s => ({ ...s, signal: 'LONG' }))
 })
 
 const filteredSignals = computed(() => {
-  let signals = currentTabSignals.value
+  let signals = longSignals.value
   if (filterText.value) {
     const filter = filterText.value.toLowerCase()
     signals = signals.filter(s => s.symbol.toLowerCase().includes(filter))
@@ -349,20 +331,47 @@ const summary = computed(() => {
   if (!props.results) {
     return { longCount: 0, shortCount: 0, noneCount: 0, total: 0 }
   }
-  const longCount = allSignals.value.filter(s => s.signal === 'LONG').length
-  const shortCount = allSignals.value.filter(s => s.signal === 'SHORT').length
+  
+  // Try to use summary object from server first (more accurate)
+  const serverSummary = props.results.summary
+  if (serverSummary && typeof serverSummary === 'object') {
+    const result = {
+      longCount: Number(serverSummary.long_count || serverSummary.longCount || 0) || 0,
+      shortCount: Number(serverSummary.short_count || serverSummary.shortCount || 0) || 0,
+      noneCount: Number(serverSummary.none_count || serverSummary.noneCount || 0) || 0,
+      total: Number(serverSummary.total_symbols || serverSummary.totalSymbols || serverSummary.scanned_symbols || serverSummary.scannedSymbols || 0) || 0
+    }
+    
+    // Debug logging in development
+    if (import.meta.env.DEV) {
+      console.log('Summary from server:', serverSummary, 'Parsed:', result)
+    }
+    
+    return result
+  }
+  
+  // Fallback: calculate from longSignals if summary not available
+  const longCount = longSignals.value.length
   // Add fallback for camelCase variant of none_symbols
   const noneSymbols =
     props.results.none_symbols ||
     props.results.noneSymbols ||
     []
   const noneCount = noneSymbols.length
-  return {
-    longCount,
-    shortCount,
-    noneCount,
-    total: longCount + shortCount + noneCount
+  
+  const result = {
+    longCount: Number(longCount) || 0,
+    shortCount: 0,
+    noneCount: Number(noneCount) || 0,
+    total: Number(longCount + noneCount) || 0
   }
+  
+  // Debug logging in development
+  if (import.meta.env.DEV) {
+    console.log('Summary calculated from longSignals:', result, 'longSignals length:', longSignals.value.length)
+  }
+  
+  return result
 })
 
 // Methods
@@ -434,6 +443,77 @@ function handleSymbolClick(symbol) {
   emit('symbol-click', symbol)
 }
 
+// Helper function to measure table dimensions
+const measureTableDimensions = (hypothesisId) => {
+  nextTick(() => {
+    const table = tableRef.value || document.querySelector('table');
+    if (!table) {
+      logDebug('ResultsTable.vue:measureTableDimensions', 'Table not found', {}, hypothesisId);
+      return;
+    }
+    
+    const container = tableContainerRef.value || table.parentElement;
+    const containerRect = container ? container.getBoundingClientRect() : null;
+    const containerScrollLeft = container?.scrollLeft || 0;
+    const containerScrollWidth = container?.scrollWidth || 0;
+    const containerClientWidth = container?.clientWidth || 0;
+    
+    const tableRect = table.getBoundingClientRect();
+    const tableWidth = table.offsetWidth;
+    const tableStyle = window.getComputedStyle(table);
+    const columns = table.querySelectorAll('th');
+    const columnWidths = Array.from(columns).map((th, idx) => {
+      const style = window.getComputedStyle(th);
+      const col = table.querySelector(`colgroup > col:nth-child(${idx + 1})`);
+      const thRect = th.getBoundingClientRect();
+      return {
+        index: idx,
+        text: th.textContent.trim(),
+        offsetWidth: th.offsetWidth,
+        computedWidth: style.width,
+        minWidth: style.minWidth,
+        maxWidth: style.maxWidth,
+        colWidth: col ? col.style.width : null,
+        left: thRect.left,
+        right: thRect.right
+      };
+    });
+    
+    const firstRow = table.querySelector('tbody tr');
+    const rowCellWidths = firstRow ? Array.from(firstRow.querySelectorAll('td')).map((td, idx) => {
+      const style = window.getComputedStyle(td);
+      const tdRect = td.getBoundingClientRect();
+      return {
+        index: idx,
+        offsetWidth: td.offsetWidth,
+        computedWidth: style.width,
+        minWidth: style.minWidth,
+        maxWidth: style.maxWidth,
+        left: tdRect.left,
+        right: tdRect.right
+      };
+    }) : [];
+    
+    logDebug('ResultsTable.vue:measureTableDimensions', 'Table dimensions measured', {
+      tableWidth,
+      tableLeft: tableRect.left,
+      tableRight: tableRect.right,
+      containerLeft: containerRect?.left || null,
+      containerRight: containerRect?.right || null,
+      containerWidth: containerRect?.width || null,
+      containerScrollLeft,
+      containerScrollWidth,
+      containerClientWidth,
+      tableLayout: tableStyle.tableLayout,
+      columnCount: columns.length,
+      columnWidths,
+      rowCellWidths,
+      filteredSignalsCount: filteredSignals.value.length,
+      paginatedSignalsCount: paginatedSignals.value.length
+    }, hypothesisId);
+  });
+};
+
 // Watchers
 watch(filterText, () => {
   currentPage.value = 1
@@ -443,8 +523,28 @@ watch(itemsPerPage, () => {
   currentPage.value = 1
 })
 
-watch(activeTab, () => {
-  currentPage.value = 1
-})
+// #region agent log
+onMounted(() => {
+  logDebug('ResultsTable.vue:onMounted', 'Component mounted', {
+    hasResults: !!props.results,
+    longSignalsCount: longSignals.value.length
+  }, 'C');
+  
+  measureTableDimensions('C');
+});
+// #endregion
+
+// #region agent log
+onUpdated(() => {
+  logDebug('ResultsTable.vue:onUpdated', 'Component updated', {
+    filteredSignalsCount: filteredSignals.value.length,
+    paginatedSignalsCount: paginatedSignals.value.length
+  }, 'D');
+  
+  nextTick(() => {
+    measureTableDimensions('D');
+  });
+});
+// #endregion
 </script>
 

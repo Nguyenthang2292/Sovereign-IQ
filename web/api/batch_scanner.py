@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from modules.common.ui.logging import log_error, log_warn
+from modules.common.ui.logging import log_error, log_warn, log_info
 
 from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
 from modules.common.utils import normalize_timeframe
@@ -171,7 +171,11 @@ async def batch_scan(request: BatchScanRequest):
                         return
                     
                     # Save result to task manager
+                    # Use set_result which atomically sets both result and status to 'completed'
                     task_manager.set_result(session_id, response)
+                    
+                    # Log for debugging
+                    log_info(f"Batch scan result saved for session {session_id}")
                     
             except Exception as e:
                 # Don't set error if task was cancelled

@@ -1,0 +1,109 @@
+[2026-01-03 21:57:46] [22m[37mCLILogger started for session 93ac2dd0-4635-42d1-b1c4-93d318a41a74[0m
+[2026-01-03 21:57:46] 
+[2026-01-03 21:57:47] HTTP Request: GET https://generativelanguage.googleapis.com/v1beta/models "HTTP/1.1 200 OK"
+[2026-01-03 21:57:47] HTTP Request: GET https://generativelanguage.googleapis.com/v1beta/models?pageToken=Ch9tb2RlbHMvdmVvLTMuMS1nZW5lcmF0ZS1wcmV2aWV3 "HTTP/1.1 200 OK"
+[2026-01-03 21:57:47] [22m[32mSuccessfully connected to the Google Gemini API[0m
+[2026-01-03 21:57:47] 
+[2026-01-03 21:57:47] [22m[34m============================================================[0m
+[2026-01-03 21:57:47] 
+[2026-01-03 21:57:47] [22m[34mMARKET BATCH SCANNER[0m
+[2026-01-03 21:57:47] 
+[2026-01-03 21:57:47] [22m[34m============================================================[0m
+[2026-01-03 21:57:47] 
+[2026-01-03 21:57:47] [22m[34mMulti-timeframe mode: 1d, 4h, 1h, 15m[0m
+[2026-01-03 21:57:47] 
+[2026-01-03 21:57:47] [22m[34mDeleted 1 old batch scan result file(s)[0m
+[2026-01-03 21:57:47] 
+[2026-01-03 21:57:47] [22m[34mDeleted 1 old batch scan HTML report file(s)[0m
+[2026-01-03 21:57:47] 
+[2026-01-03 21:57:47] [22m[34mDeleted 1 old batch chart file(s)[0m
+[2026-01-03 21:57:47] 
+[2026-01-03 21:57:47] [22m[34mStep 1: Getting all symbols from exchange...[0m
+[2026-01-03 21:57:47] 
+[2026-01-03 21:57:49] [22m[34mLimited to 3 symbols[0m
+[2026-01-03 21:57:49] 
+[2026-01-03 21:57:49] [22m[32mFound 3 symbols to scan[0m
+[2026-01-03 21:57:49] 
+[2026-01-03 21:57:49] [22m[34mSplit into 1 batches (25 symbols per batch)[0m
+[2026-01-03 21:57:49] 
+[2026-01-03 21:57:49] [22m[34m
+============================================================[0m
+[2026-01-03 21:57:49] 
+[2026-01-03 21:57:49] [22m[34mProcessing batch 1/1[0m
+[2026-01-03 21:57:49] 
+[2026-01-03 21:57:49] [22m[34m============================================================[0m
+[2026-01-03 21:57:49] 
+[2026-01-03 21:57:49] [22m[34mFetching OHLCV data for 3 symbols across 4 timeframes...[0m
+[2026-01-03 21:57:49] 
+[2026-01-03 21:57:50] [22m[32m[OHLCV] 0G/USDT loaded from binance (109 bars)[0m
+[2026-01-03 21:57:50] 
+[2026-01-03 21:57:51] [22m[32m[OHLCV] 0G/USDT loaded from binance (500 bars)[0m
+[2026-01-03 21:57:51] 
+[2026-01-03 21:57:51] [22m[32m[OHLCV] 0G/USDT loaded from binance (500 bars)[0m
+[2026-01-03 21:57:51] 
+[2026-01-03 21:57:51] [22m[32m[OHLCV] 0G/USDT loaded from binance (500 bars)[0m
+[2026-01-03 21:57:51] 
+[2026-01-03 21:57:52] [22m[32m[OHLCV] 1000CAT/USDT loaded from binance (440 bars)[0m
+[2026-01-03 21:57:52] 
+[2026-01-03 21:57:52] [22m[32m[OHLCV] 1000CAT/USDT loaded from binance (500 bars)[0m
+[2026-01-03 21:57:52] 
+[2026-01-03 21:57:52] [22m[32m[OHLCV] 1000CAT/USDT loaded from binance (500 bars)[0m
+[2026-01-03 21:57:52] 
+[2026-01-03 21:57:53] [22m[32m[OHLCV] 1000CAT/USDT loaded from binance (500 bars)[0m
+[2026-01-03 21:57:53] 
+[2026-01-03 21:57:53] [22m[32m[OHLCV] 1000CHEEMS/USDT loaded from binance (405 bars)[0m
+[2026-01-03 21:57:53] 
+[2026-01-03 21:57:53] [22m[32m[OHLCV] 1000CHEEMS/USDT loaded from binance (500 bars)[0m
+[2026-01-03 21:57:53] 
+[2026-01-03 21:57:53] [22m[32m[OHLCV] 1000CHEEMS/USDT loaded from binance (500 bars)[0m
+[2026-01-03 21:57:53] 
+[2026-01-03 21:57:54] [22m[32m[OHLCV] 1000CHEEMS/USDT loaded from binance (500 bars)[0m
+[2026-01-03 21:57:54] 
+[2026-01-03 21:57:54] [22m[32mFetched data for 3 symbols[0m
+[2026-01-03 21:57:54] 
+[2026-01-03 21:57:54] [22m[34mGenerating multi-timeframe batch chart image...[0m
+[2026-01-03 21:57:54] 
+[2026-01-03 21:58:00] [22m[32mCreated multi-TF batch chart: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\charts\batch\batch_chart_multi_tf_1d_4h_1h_15m_20260103_215754_batch1.png[0m
+[2026-01-03 21:58:00] 
+[2026-01-03 21:58:00] [22m[34mSending to Gemini for multi-timeframe analysis...[0m
+[2026-01-03 21:58:00] 
+[2026-01-03 21:58:00] [22m[34mAnalyzing multi-TF batch chart with 3 symbols across 4 timeframes...[0m
+[2026-01-03 21:58:00] 
+[2026-01-03 21:58:00] Trying model: models/gemini-3-flash-preview
+[2026-01-03 21:58:00] AFC is enabled with max remote calls: 10.
+[2026-01-03 21:58:22] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent "HTTP/1.1 200 OK"
+[2026-01-03 21:58:22] Request succeeded with model: models/gemini-3-flash-preview
+[2026-01-03 21:58:22] [22m[32mMulti-TF batch analysis completed for 3 symbols[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[34m
+============================================================[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[34mAggregating and sorting results by confidence...[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[34m============================================================[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32mGenerated HTML report: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\analysis_results\batch_scan\batch_scan_multi_tf_1d_4h_1h_15m_20260103_215822.html[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32mOpened HTML report in browser[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32m
+============================================================[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32mSCAN COMPLETED[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32m============================================================[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32mTotal symbols: 3[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32mLONG signals: 1 (33.3%)[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32m  Average LONG confidence: 0.71[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32mSHORT signals: 1 (33.3%)[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32m  Average SHORT confidence: 0.79[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[32mResults saved to: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\modules\gemini_chart_analyzer\analysis_results\batch_scan\batch_scan_multi_tf_1d_4h_1h_15m_20260103_215822.json[0m
+[2026-01-03 21:58:22] 
+[2026-01-03 21:58:22] [22m[34mBatch scan result saved for session 93ac2dd0-4635-42d1-b1c4-93d318a41a74[0m
+[2026-01-03 21:58:22] 

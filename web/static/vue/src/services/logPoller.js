@@ -172,9 +172,10 @@ export class LogPoller {
               } else {
                 console.warn('Status is completed but no result in statusData:', statusData)
                 // Result might not be set yet, retry with exponential backoff
+                // Increase retries and delay to handle race conditions
                 let retryCount = 0
-                const maxRetries = 5
-                const retryDelay = 500 // Start with 500ms
+                const maxRetries = 10 // Increased from 5 to 10
+                const retryDelay = 1000 // Start with 1 second (increased from 500ms)
                 
                 const retryCheck = async () => {
                   // Check if token is still valid (not stale)

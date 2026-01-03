@@ -457,12 +457,35 @@ function startLogPolling(sessionId) {
         
         if (import.meta.env.DEV) {
           console.log('Full result object:', JSON.stringify(resultData, null, 2))
-        }      } else {
+        }
+      } else {
+        // Completed but no result data - retry getting status one more time
+        console.warn('Scan completed but no result data provided, retrying status check...')
         
-        // Completed but no result data - might be normal completion without data
-        error.value = null
-        console.warn('Scan completed but no result data provided')
-        // Keep existing result if any, but don't set error
+        // Retry getting status one more time after a short delay
+        setTimeout(async () => {
+          if (sessionId.value && !loading.value) {
+            try {
+              const retryResponse = await batchScannerAPI.getBatchScanStatus(sessionId.value)
+              const retryData = retryResponse.data || retryResponse
+              
+              if (retryData.success && retryData.status === 'completed' && retryData.result) {
+                error.value = null
+                result.value = retryData.result
+                console.log('Result retrieved after final retry:', retryData.result)
+              } else {
+                // Still no result after retry
+                error.value = null
+                result.value = null
+                console.warn('Scan completed but no result data after final retry')
+              }
+            } catch (err) {
+              console.error('Error in final retry:', err)
+              error.value = null
+              result.value = null
+            }
+          }
+        }, 2000) // Wait 2 seconds before final retry
       }
       
       // Stop polling
