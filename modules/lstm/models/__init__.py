@@ -20,6 +20,7 @@ from modules.lstm.models.unified_trainer import LSTMTrainer
 from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
 from modules.lstm.models.model_utils import (
     load_lstm_model,
+    load_model_and_scaler,
     get_latest_signal,
     # Backward compatibility aliases
     load_lstm_attention_model,
@@ -55,6 +56,7 @@ __all__ = [
     'LSTMTrainer',
     'create_cnn_lstm_attention_model',
     'load_lstm_model',
+    'load_model_and_scaler',
     'get_latest_signal',
     # Backward compatibility aliases
     'load_lstm_attention_model',

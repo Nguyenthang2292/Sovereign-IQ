@@ -272,3 +272,56 @@ def get_latest_lstm_attention_signal(
     """
     return get_latest_signal(df_market_data, model, scaler)
 
+
+def load_model_and_scaler(model_path: Optional[Path] = None) -> tuple[Optional[nn.Module], Optional[MinMaxScaler], Optional[int]]:
+    """
+    Load LSTM model and scaler from checkpoint.
+    
+    This is a convenience function that loads both the model and its associated
+    scaler from a checkpoint file. It wraps `load_lstm_model()` and extracts
+    the scaler and look_back from the checkpoint.
+    
+    Args:
+        model_path: Path to model checkpoint. If None, uses default path.
+        
+    Returns:
+        Tuple of (model, scaler, look_back) or (None, None, None) if failed
+    """
+    if model_path is None:
+        model_path = MODELS_DIR / "lstm_model.pth"
+    
+    if not model_path.exists():
+        log_error(f"Model file not found: {model_path}")
+        log_info(f"Available models in {MODELS_DIR}:")
+        if MODELS_DIR.exists():
+            for f in MODELS_DIR.glob("*.pth"):
+                log_info(f"  - {f.name}")
+        return None, None, None
+    
+    try:
+        checkpoint = torch.load(model_path, map_location='cpu', weights_only=True)
+        
+        # Load model
+        model = load_lstm_model(model_path)
+        if model is None:
+            return None, None, None
+        
+        # Load scaler and look_back from checkpoint
+        scaler = checkpoint.get('scaler')
+        look_back = checkpoint.get('model_config', {}).get('look_back', WINDOW_SIZE_LSTM)
+        
+        if scaler is None:
+            log_warn("Scaler not found in checkpoint. Predictions may be unreliable.")
+        else:
+            log_info(f"Loaded scaler from checkpoint")
+        
+        log_info(f"Loaded model from {model_path}")
+        log_info(f"Model look_back: {look_back}")
+        
+        return model, scaler, look_back
+        
+    except Exception as e:
+        log_error(f"Error loading model: {e}")
+        import traceback
+        log_error(f"Traceback: {traceback.format_exc()}")
+        return None, None, None
