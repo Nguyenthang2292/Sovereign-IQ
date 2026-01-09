@@ -9,9 +9,8 @@ import sys
 import json
 import glob
 import time
-import argparse
-import pandas as pd
-from typing import List, Dict, Optional, Tuple, Any, Union, Callable
+import contextlib
+from typing import List, Dict, Optional, Tuple, Any, Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -21,24 +20,6 @@ from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import 
 from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
 from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
 from modules.common.ui.logging import log_info, log_error, log_success, log_warn
-from core.voting_analyzer import VotingAnalyzer
-from config import (
-    DEFAULT_TIMEFRAME,
-    DECISION_MATRIX_VOTING_THRESHOLD,
-    DECISION_MATRIX_MIN_VOTES,
-    SPC_LOOKBACK,
-    SPC_P_LOW,
-    SPC_P_HIGH,
-    SPC_STRATEGY_PARAMETERS,
-    RANGE_OSCILLATOR_LENGTH,
-    RANGE_OSCILLATOR_MULTIPLIER,
-    HMM_WINDOW_SIZE_DEFAULT,
-    HMM_WINDOW_KAMA_DEFAULT,
-    HMM_FAST_KAMA_DEFAULT,
-    HMM_SLOW_KAMA_DEFAULT,
-    HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
-    HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
-)
 
 
 class SymbolFetchError(Exception):
@@ -47,6 +28,56 @@ class SymbolFetchError(Exception):
         super().__init__(message)
         self.original_exception = original_exception
         self.is_retryable = is_retryable
+
+
+@contextlib.contextmanager
+def _protect_stdin_windows():
+    """
+    Context manager to protect and restore stdin on Windows.
+    
+    This addresses a specific issue where Google SDK initialization (used by GeminiBatchChartAnalyzer)
+    may close or interfere with sys.stdin on Windows, causing "I/O operation on closed file" errors
+    when the application tries to read user input later.
+    
+    The 'CON' device is Windows' console input device. Opening it provides a fallback stdin
+    when the original stdin has been closed by external libraries.
+    
+    Note: We don't save a reference to the original stdin because if it gets closed during the
+    protected operation, both sys.stdin and the saved reference will point to the same closed
+    object. Instead, we always open a fresh 'CON' handle for restoration.
+    
+    Yields:
+        None
+        
+    Example:
+        with _protect_stdin_windows():
+            analyzer = GeminiBatchChartAnalyzer(...)
+    """
+    # Only protect stdin on Windows (other platforms don't have this issue)
+    if sys.platform == 'win32':
+        # If stdin is already closed, reopen it before proceeding
+        if sys.stdin is None or (hasattr(sys.stdin, 'closed') and sys.stdin.closed):
+            try:
+                sys.stdin = open('CON', 'r', encoding='utf-8', errors='replace')
+            except (OSError, IOError):
+                # If we can't reopen stdin, continue anyway (non-critical)
+                # This is best-effort protection
+                pass
+    
+    try:
+        yield
+    finally:
+        # Always restore stdin after the protected operation completes
+        # Open a fresh 'CON' handle instead of trying to restore a potentially closed reference
+        if sys.platform == 'win32':
+            # If stdin was closed during the operation, reopen it
+            if sys.stdin is None or (hasattr(sys.stdin, 'closed') and sys.stdin.closed):
+                try:
+                    sys.stdin = open('CON', 'r', encoding='utf-8', errors='replace')
+                except (OSError, IOError):
+                    # If we can't restore stdin, continue anyway (non-critical)
+                    # This is best-effort restoration
+                    pass
 
 
 class MarketBatchScanner:
@@ -91,63 +122,32 @@ class MarketBatchScanner:
         
         
         # Initialize components (except GeminiBatchChartAnalyzer - lazy init)
-        try:
-            self.exchange_manager = ExchangeManager()
-            
-            self.public_exchange_manager = PublicExchangeManager()  # For load_markets (no credentials needed)
-            
-            self.data_fetcher = DataFetcher(self.exchange_manager)
-            
-            self.batch_chart_generator = ChartBatchGenerator(charts_per_batch=charts_per_batch)
-            
-            
-            # Use lazy initialization for GeminiBatchChartAnalyzer to avoid stdin issues
-            # The genai library initialization can close stdin on Windows, so we delay it
-            # until the analyzer is actually needed (when analyze_batch_chart is called)
-            self._gemini_analyzer_cooldown = cooldown_seconds
-            self._gemini_analyzer = None  # Will be initialized lazily
-        except Exception as e:
-            raise
+        self.exchange_manager = ExchangeManager()
+        self.public_exchange_manager = PublicExchangeManager()  # For load_markets (no credentials needed)
+        self.data_fetcher = DataFetcher(self.exchange_manager)
+        self.batch_chart_generator = ChartBatchGenerator(charts_per_batch=charts_per_batch)
+        self._gemini_analyzer_cooldown = cooldown_seconds
+        self._gemini_analyzer = None  # Will be initialized lazily
     
     @property
     def batch_gemini_analyzer(self):
         """
         Lazy initialization property for GeminiBatchChartAnalyzer.
+        
         Initializes the analyzer only when first accessed, after all user input is collected.
+        This lazy initialization prevents stdin issues during interactive menu setup.
+        
+        The analyzer initialization is protected with stdin handling to prevent
+        "I/O operation on closed file" errors on Windows caused by Google SDK initialization.
+        
+        Returns:
+            GeminiBatchChartAnalyzer: The initialized batch analyzer instance
         """
         if self._gemini_analyzer is None:
-            
-            # Protect stdin before initializing GeminiBatchChartAnalyzer
-            saved_stdin = None
-            if sys.platform == 'win32' and sys.stdin is not None:
-                try:
-                    saved_stdin = sys.stdin
-                    if hasattr(sys.stdin, 'closed') and sys.stdin.closed:
-                        try:
-                            sys.stdin = open('CON', 'r', encoding='utf-8', errors='replace')
-                            saved_stdin = sys.stdin
-                        except (OSError, IOError):
-                            pass
-                except (AttributeError, ValueError, OSError, IOError):
-                    pass
-            
-            try:
+            # Use context manager to protect stdin during initialization
+            # This prevents Google SDK from closing stdin and causing I/O errors
+            with _protect_stdin_windows():
                 self._gemini_analyzer = GeminiBatchChartAnalyzer(cooldown_seconds=self._gemini_analyzer_cooldown)
-            finally:
-                # Restore stdin after initialization
-                if sys.platform == 'win32' and saved_stdin is not None:
-                    try:
-                        if sys.stdin is None or (hasattr(sys.stdin, 'closed') and sys.stdin.closed):
-                            if saved_stdin is not None and not (hasattr(saved_stdin, 'closed') and saved_stdin.closed):
-                                sys.stdin = saved_stdin
-                            else:
-                                try:
-                                    sys.stdin = open('CON', 'r', encoding='utf-8', errors='replace')
-                                except (OSError, IOError):
-                                    pass
-                    except (AttributeError, ValueError, OSError, IOError):
-                        pass
-            
         
         return self._gemini_analyzer
     
@@ -204,7 +204,8 @@ class MarketBatchScanner:
         max_symbols: Optional[int] = None,
         limit: int = 500,
         cancelled_callback: Optional[Callable[[], bool]] = None,
-        initial_symbols: Optional[List[str]] = None
+        initial_symbols: Optional[List[str]] = None,
+        skip_cleanup: bool = False
     ) -> Dict:
         """
         Scan entire market and return LONG/SHORT signals.
@@ -216,6 +217,9 @@ class MarketBatchScanner:
             limit: Number of candles to fetch per symbol (default: 500)
             cancelled_callback: Optional callable that returns bool; True indicates cancellation and stops processing (default: None)
             initial_symbols: Optional list of symbols already pre-filtered from external pre-filter (default: None)
+            skip_cleanup: If True, skip automatic cleanup of old batch scan results and charts (default: False).
+                         When False, all previous batch scan results and charts are deleted before starting a new scan.
+                         Set to True to preserve historical scan data.
             
         Returns:
             Dictionary with:
@@ -251,7 +255,8 @@ class MarketBatchScanner:
             log_info(f"Single timeframe mode: {normalized_tfs[0]}")
         
         # Step 0: Cleanup old batch scan results
-        self._cleanup_old_results()
+        if not skip_cleanup:
+            self._cleanup_old_results()
         
         # Step 1: Get all symbols
         if initial_symbols is not None:
@@ -331,7 +336,8 @@ class MarketBatchScanner:
                     'results_file': '',
                     'batches_processed': batch_idx - 1,
                     'total_batches': len(batches)
-                }            
+                }   
+                         
             log_info(f"\n{'='*60}")
             log_info(f"Processing batch {batch_idx}/{len(batches)}")
             log_info(f"{'='*60}")
@@ -380,10 +386,23 @@ class MarketBatchScanner:
                     log_info("Sending to Gemini for multi-timeframe analysis...")
                     parsed_results = self.batch_gemini_analyzer.analyze_multi_tf_batch_chart(
                         batch_chart_path=batch_chart_path,
-                        symbols=list(valid_symbols),
+                        symbols=sorted(valid_symbols),
                         normalized_timeframes=normalized_tfs
                     )
                     
+                    # Handle case where Gemini returns no results
+                    if parsed_results is None:
+                        log_error(f"Gemini analysis failed for batch {batch_idx}: No results object returned (API error or exception). Skipping batch.")
+                        for symbol in valid_symbols:
+                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                        continue
+                    elif isinstance(parsed_results, dict) and not parsed_results:
+                        log_info(f"Gemini analyzed batch {batch_idx}, but found no signals (empty result set). Skipping batch.")
+                        for symbol in valid_symbols:
+                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                        continue
+                    
+                    log_success(f"Parsed {len(parsed_results)} results from Gemini")
                     # Aggregate signals for each symbol (if aggregated not provided by Gemini)
                     batch_result = {}
                     for symbol in valid_symbols:
@@ -864,8 +883,24 @@ class MarketBatchScanner:
     
     def _cleanup_old_results(self):
         """
-        Cleanup old batch scan results and charts before starting new scan.
-        Deletes all JSON and HTML files in batch_scan directory and PNG files in charts/batch directory.
+        Cleanup old batch scan results and charts before starting a new scan.
+
+        IMPORTANT: This method unconditionally deletes ALL previous batch scan results and charts,
+        without applying any retention policy or age threshold.
+        
+        WARNING:
+            - If you need to preserve historical scan results or charts,
+              you must manually backup or archive files before running a new batch scan.
+            - This cleanup happens automatically at the start of each batch scan operation
+              unless `skip_cleanup=True` is passed to `scan_market()`.
+            - This behavior may surprise users who expect historical data to be preserved.
+            - To prevent automatic cleanup, use `scan_market(..., skip_cleanup=True)`.
+
+        Files deleted by this function:
+            Results: batch_scan/batch_scan_*.json, batch_scan/batch_scan_*.html
+            Charts:  charts/batch/batch_chart_*.png, charts/batch/batch_chart_*.html
+
+        Errors encountered while deleting files are logged as warnings but do not stop the cleanup process.
         """
         # Cleanup old batch scan results
         try:

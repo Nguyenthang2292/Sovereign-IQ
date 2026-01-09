@@ -4,7 +4,8 @@
   },
   "nav": {
     "batchScanner": "Batch Scanner",
-    "chartAnalyzer": "Chart Analyzer"
+    "chartAnalyzer": "Chart Analyzer",
+    "search": "Tìm kiếm..."
   },
   "footer": {
     "text": "Gemini Chart Analyzer - Powered by Google Gemini AI"
@@ -145,6 +146,30 @@
         "title": "Không tìm thấy kết quả",
         "description": "Thử điều chỉnh tiêu chí tìm kiếm hoặc bộ lọc của bạn."
       }
+    }
+  },
+  "workflowDiagrams": {
+    "title": "Sơ Đồ Quy Trình",
+    "subtitle": "Trực quan hóa quy trình làm việc của VotingAnalyzer và HybridAnalyzer",
+    "votingAnalyzer": {
+      "title": "Voting Analyzer",
+      "workflowTitle": "Quy Trình Voting Analyzer",
+      "description": "Hệ Thống Bỏ Phiếu Thuần: Tất cả các chỉ báo tính toán signals song song, sau đó hệ thống bỏ phiếu quyết định symbols nào được giữ lại.",
+      "clickHint": "Nhấp vào bất kỳ node nào trong sơ đồ để chuyển đến chi tiết module bên dưới"
+    },
+    "hybridAnalyzer": {
+      "title": "Hybrid Analyzer",
+      "workflowTitle": "Quy Trình Hybrid Analyzer",
+      "description": "Lọc Tuần Tự + Bỏ Phiếu: Symbols được lọc từng bước để giảm tải công việc trước khi áp dụng bỏ phiếu.",
+      "clickHint": "Nhấp vào bất kỳ node nào trong sơ đồ để chuyển đến chi tiết module bên dưới"
+    },
+    "moduleDetails": {
+      "title": "Chi Tiết Module",
+      "modulePath": "Đường Dẫn Module:",
+      "inputs": "Đầu Vào:",
+      "outputs": "Đầu Ra:",
+      "keyFiles": "File Chính:",
+      "keyFunctions": "Hàm Chính:"
     }
   }
 }

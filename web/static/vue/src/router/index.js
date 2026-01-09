@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const ChartAnalyzer = () => import('../components/ChartAnalyzer.vue')
 const BatchScanner = () => import('../components/BatchScanner.vue')
+const WorkflowDiagrams = () => import('../components/WorkflowDiagrams.vue')
 const NotFound = { 
     template: `
       <div style="text-align: center; padding: 2rem;">
@@ -27,6 +28,11 @@ const routes = [
     path: '/scanner',
     name: 'batch-scanner',
     component: BatchScanner
+  },
+  {
+    path: '/workflow',
+    name: 'workflow-diagrams',
+    component: WorkflowDiagrams
   },
   {
     path: '/:catchAll(.*)',

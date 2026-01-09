@@ -4,7 +4,9 @@
   },
   "nav": {
     "batchScanner": "Batch Scanner",
-    "chartAnalyzer": "Chart Analyzer"
+    "chartAnalyzer": "Chart Analyzer",
+    "workflowDiagrams": "Workflow Diagrams",
+    "search": "Search..."
   },
   "footer": {
     "text": "Gemini Chart Analyzer - Powered by Google Gemini AI"
@@ -128,6 +130,30 @@
     "empty": {
       "title": "No results",
       "description": "No signals found matching the search criteria."
+    }
+  },
+  "workflowDiagrams": {
+    "title": "Workflow Diagrams",
+    "subtitle": "Visualize the workflow of VotingAnalyzer and HybridAnalyzer",
+    "votingAnalyzer": {
+      "title": "Voting Analyzer",
+      "workflowTitle": "Voting Analyzer Workflow",
+      "description": "Pure Voting System: All indicators calculate signals in parallel, then the system decides which symbols to keep.",
+      "clickHint": "Click on any node in the diagram to jump to its module details below"
+    },
+    "hybridAnalyzer": {
+      "title": "Hybrid Analyzer",
+      "workflowTitle": "Hybrid Analyzer Workflow",
+      "description": "Sequential Filtering + Voting: Symbols are filtered step-by-step to reduce processing load before the voting system is applied.",
+      "clickHint": "Click on any node in the diagram to jump to its module details below"
+    },
+    "moduleDetails": {
+      "title": "Module Details",
+      "modulePath": "Module Path:",
+      "inputs": "Inputs:",
+      "outputs": "Outputs:",
+      "keyFiles": "Key Files:",
+      "keyFunctions": "Key Functions:"
     }
   }
 }
