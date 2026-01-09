@@ -8,7 +8,7 @@ import pandas as pd
 import time
 import traceback
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 
 from modules.common.ui.logging import (
     log_success, 
@@ -72,11 +72,45 @@ from config.lstm import (
     VALIDATION_SPLIT,
     WINDOW_SIZE_LSTM,
 )
+from pathlib import Path
 from config.model_features import MODEL_FEATURES
 
 from modules.common.utils.system import detect_pytorch_gpu_availability, configure_gpu_memory
 from modules.lstm.core.focal_loss import FocalLoss
 from modules.lstm.core.threshold_optimizer import GridSearchThresholdOptimizer
+
+
+def _cleanup_old_models(models_dir: Path, max_models: int = 5) -> None:
+    """
+    Remove oldest model files if there are more than max_models.
+    
+    Args:
+        models_dir: Directory containing model files
+        max_models: Maximum number of models to keep (default: 5)
+    """
+    if not models_dir.exists():
+        return
+    
+    # Get all .pth files
+    model_files = list(models_dir.glob("*.pth"))
+    
+    if len(model_files) <= max_models:
+        return
+    
+    # Sort by modification time (oldest first)
+    model_files.sort(key=lambda p: p.stat().st_mtime)
+    
+    # Calculate how many to delete
+    num_to_delete = len(model_files) - max_models
+    
+    # Delete oldest models
+    for i in range(num_to_delete):
+        try:
+            old_model = model_files[i]
+            old_model.unlink()
+            log_info(f"Deleted old model: {old_model.name}")
+        except Exception as e:
+            log_warn(f"Failed to delete old model {model_files[i].name}: {e}")
 from modules.lstm.utils.batch_size import get_optimal_batch_size
 from modules.lstm.utils.preprocessing import preprocess_cnn_lstm_data
 from modules.lstm.utils.data_utils import split_train_test_data
@@ -101,6 +135,8 @@ class BaseLSTMTrainer:
         scheduler_T_0: int = 10,
         scheduler_T_mult: int = 2,
         scheduler_eta_min: float = 1e-6,
+        use_kalman_filter: bool = False,
+        kalman_params: Optional[dict] = None,
     ):
         """
         Initialize base trainer.
@@ -115,10 +151,14 @@ class BaseLSTMTrainer:
             scheduler_T_0: Initial period for CosineAnnealingWarmRestarts (default: 10)
             scheduler_T_mult: Multiplicative factor for period (default: 2)
             scheduler_eta_min: Minimum learning rate (default: 1e-6)
+            use_kalman_filter: Enable Kalman Filter preprocessing to smooth OHLC data (default: False)
+            kalman_params: Optional dictionary of Kalman Filter parameters (default: None, uses config)
         """
         self.look_back = look_back
         self.output_mode = output_mode
         self.use_early_stopping = use_early_stopping
+        self.use_kalman_filter = use_kalman_filter
+        self.kalman_params = kalman_params
         
         # Training hyperparameters (can be overridden before calling train)
         self.learning_rate = learning_rate
@@ -138,6 +178,10 @@ class BaseLSTMTrainer:
         self.gpu_available = False
         self.use_mixed_precision = False
         self.test_indices = None  # Store test indices for accurate price alignment
+        
+        # Log Kalman Filter status
+        if self.use_kalman_filter:
+            log_model(f"Kalman Filter preprocessing enabled (params: {self.kalman_params})")
         
         # Setup GPU
         self._setup_device()
@@ -178,7 +222,12 @@ class BaseLSTMTrainer:
         
         # Preprocess data
         X, y, self.scaler, self.feature_names = preprocess_cnn_lstm_data(
-            df_input, look_back=self.look_back, output_mode=self.output_mode, scaler_type='minmax'
+            df_input, 
+            look_back=self.look_back, 
+            output_mode=self.output_mode, 
+            scaler_type='minmax',
+            use_kalman_filter=self.use_kalman_filter,
+            kalman_params=self.kalman_params
         )
         
         if len(X) == 0:
@@ -535,6 +584,10 @@ class BaseLSTMTrainer:
             Model path string or None if saving failed
         """
         try:
+            # Clean up old models before saving new one (keep max 5 models)
+            MODELS_DIR.mkdir(parents=True, exist_ok=True)
+            _cleanup_old_models(MODELS_DIR, max_models=5)
+            
             # Auto-generate filename with timestamp if not provided
             if model_filename is None:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M")
@@ -542,7 +595,6 @@ class BaseLSTMTrainer:
                 model_filename = f"{model_type}_{self.output_mode}_model_{timestamp}.pth"
             
             model_path = MODELS_DIR / model_filename
-            MODELS_DIR.mkdir(parents=True, exist_ok=True)
             
             save_dict = {
                 'model_state_dict': model.state_dict(),
@@ -566,7 +618,9 @@ class BaseLSTMTrainer:
                     'feature_names': self.feature_names,
                     'train_samples': len(X_train),
                     'val_samples': len(X_val),
-                    'test_samples': len(X_test)
+                    'test_samples': len(X_test),
+                    'use_kalman_filter': self.use_kalman_filter,
+                    'kalman_params': self.kalman_params
                 },
                 'optimization_results': {
                     'optimal_threshold': self.threshold_optimizer.best_threshold,

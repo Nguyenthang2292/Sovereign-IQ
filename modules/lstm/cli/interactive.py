@@ -8,7 +8,7 @@ This module provides interactive menus and prompts for:
 - Training workflow
 """
 
-from typing import List
+from typing import List, Tuple
 
 from modules.common.utils import prompt_user_input, color_text
 from modules.common.ui.logging import log_info, log_error, log_warn
@@ -19,7 +19,7 @@ from modules.lstm.cli.main import (
     train_model_configuration,
     cleanup_resources,
 )
-from config.lstm import WINDOW_SIZE_LSTM
+from config.lstm import WINDOW_SIZE_LSTM, ENABLE_KALMAN_FILTER, KALMAN_PROCESS_VARIANCE, KALMAN_OBSERVATION_VARIANCE
 from config.common import (
     DEFAULT_SYMBOL,
     DEFAULT_TIMEFRAME,
@@ -135,6 +135,25 @@ def select_model_components() -> ModelConfiguration:
     return config
 
 
+def _normalize_symbol(symbol: str) -> str:
+    """
+    Normalize symbol name: uppercase and add USDT suffix if not present.
+    
+    Args:
+        symbol: Input symbol (e.g., "act", "BTC", "1000bonk")
+        
+    Returns:
+        Normalized symbol (e.g., "ACTUSDT", "BTCUSDT", "1000BONKUSDT")
+    """
+    symbol = symbol.strip().upper()
+    
+    # Add USDT suffix if not already present
+    if not symbol.endswith('USDT'):
+        symbol = symbol + 'USDT'
+    
+    return symbol
+
+
 def manage_symbols_menu(initial_symbols: List[str]) -> List[str]:
     """
     Interactive menu to add/remove symbols from training list.
@@ -146,60 +165,73 @@ def manage_symbols_menu(initial_symbols: List[str]) -> List[str]:
         Final list of selected symbols
     """
     symbols = list(initial_symbols)  # Copy list
-    all_available_symbols = list(DEFAULT_CRYPTO_SYMBOLS_FOR_TRAINING_DL)
     
     while True:
         print("\n" + color_text("SYMBOL MANAGEMENT", Fore.YELLOW, Style.BRIGHT))
         print(color_text("-" * 80, Fore.CYAN))
         print(f"\nCurrent symbols ({len(symbols)}):")
-        for i, sym in enumerate(symbols, 1):
-            print(f"  {i}. {sym}")
-        
-        print(f"\nAvailable symbols to add:")
-        available_to_add = [s for s in all_available_symbols if s not in symbols]
-        if available_to_add:
-            for i, sym in enumerate(available_to_add, 1):
+        if symbols:
+            for i, sym in enumerate(symbols, 1):
                 print(f"  {i}. {sym}")
         else:
-            print("  (All available symbols are already in the list)")
+            print("  (No symbols in the list)")
         
         print("\nOptions:")
-        print("  1. Add symbol")
+        print("  1. Add symbol(s) (comma-separated, e.g., btc, eth, 1000bonk)")
         print("  2. Remove symbol")
-        print("  3. Add all available symbols")
-        print("  4. Clear all symbols")
-        print("  5. Done (use current list)")
+        print("  3. Clear all symbols")
+        print("  4. Done (use current list)")
         
         choice = prompt_user_input(
-            "\nSelect option (1-5) [5]: ",
-            default="5"
+            "\nSelect option (1-4) [4]: ",
+            default="4"
         ).strip()
         
         if choice == '1':
-            # Add symbol
-            if not available_to_add:
-                log_warn("No symbols available to add")
-                continue
+            # Add symbol(s)
+            print("\nEnter symbol(s) separated by commas.")
+            print("Examples: btc, eth, sol  or  act, 1000bonk, doge")
+            print("Program will automatically add USDT suffix if not present.")
             
-            print("\nAvailable symbols to add:")
-            for i, sym in enumerate(available_to_add, 1):
-                print(f"  {i}. {sym}")
-            
-            sym_choice = prompt_user_input(
-                f"Select symbol to add (1-{len(available_to_add)}): ",
+            symbol_input = prompt_user_input(
+                "Symbols to add: ",
                 default=""
             ).strip()
             
-            try:
-                sym_idx = int(sym_choice) - 1
-                if 0 <= sym_idx < len(available_to_add):
-                    symbol_to_add = available_to_add[sym_idx]
-                    symbols.append(symbol_to_add)
-                    log_info(f"✓ Added {symbol_to_add}")
-                else:
-                    log_error(f"Invalid choice: {sym_choice}")
-            except ValueError:
-                log_error(f"Invalid input: {sym_choice}")
+            if not symbol_input:
+                log_warn("No symbols entered")
+                continue
+            
+            # Parse comma-separated symbols
+            symbol_list = [s.strip() for s in symbol_input.split(',') if s.strip()]
+            
+            if not symbol_list:
+                log_warn("No valid symbols found in input")
+                continue
+            
+            # Normalize and add symbols
+            added_count = 0
+            skipped_count = 0
+            for symbol_raw in symbol_list:
+                try:
+                    normalized_symbol = _normalize_symbol(symbol_raw)
+                    
+                    # Check if already exists
+                    if normalized_symbol in symbols:
+                        log_warn(f"  {normalized_symbol} is already in the list (skipped)")
+                        skipped_count += 1
+                    else:
+                        symbols.append(normalized_symbol)
+                        log_info(f"  ✓ Added {normalized_symbol}")
+                        added_count += 1
+                except Exception as e:
+                    log_warn(f"  Failed to process '{symbol_raw}': {e} (skipped)")
+                    skipped_count += 1
+            
+            if added_count > 0:
+                log_info(f"\n✓ Successfully added {added_count} symbol(s)")
+            if skipped_count > 0:
+                log_warn(f"Skipped {skipped_count} symbol(s)")
         
         elif choice == '2':
             # Remove symbol
@@ -227,18 +259,6 @@ def manage_symbols_menu(initial_symbols: List[str]) -> List[str]:
                 log_error(f"Invalid input: {sym_choice}")
         
         elif choice == '3':
-            # Add all available
-            added_count = 0
-            for sym in all_available_symbols:
-                if sym not in symbols:
-                    symbols.append(sym)
-                    added_count += 1
-            if added_count > 0:
-                log_info(f"✓ Added {added_count} symbol(s)")
-            else:
-                log_warn("All symbols are already in the list")
-        
-        elif choice == '4':
             # Clear all
             if symbols:
                 confirm = prompt_user_input(
@@ -251,7 +271,7 @@ def manage_symbols_menu(initial_symbols: List[str]) -> List[str]:
             else:
                 log_warn("List is already empty")
         
-        elif choice == '5':
+        elif choice == '4':
             # Done
             break
         
@@ -261,12 +281,12 @@ def manage_symbols_menu(initial_symbols: List[str]) -> List[str]:
     return symbols
 
 
-def train_model_menu() -> bool:
+def train_model_menu() -> Tuple[bool, str]:
     """
     Train LSTM model menu with component selection and symbol management.
     
     Returns:
-        True if training successful, False otherwise
+        Tuple of (success: bool, model_path: str). model_path is empty string if failed.
     """
     log_info("\n" + "=" * 80)
     log_info("LSTM MODEL TRAINING")
@@ -282,7 +302,7 @@ def train_model_menu() -> bool:
     
     if not symbols:
         log_error("No symbols selected for training. Exiting.")
-        return False
+        return False, ""
     
     # Step 3: Select timeframes
     print("\n" + color_text("TIMEFRAME SELECTION", Fore.YELLOW, Style.BRIGHT))
@@ -307,6 +327,57 @@ def train_model_menu() -> bool:
     
     timeframes = DEFAULT_TIMEFRAMES_FOR_TRAINING_DL[:num_timeframes]
     
+    # Step 4: Kalman Filter configuration
+    print("\n" + color_text("KALMAN FILTER PREPROCESSING", Fore.YELLOW, Style.BRIGHT))
+    print(color_text("-" * 80, Fore.CYAN))
+    print("Kalman Filter helps reduce noise in price data before generating indicators.")
+    print("This can help reduce overfitting in LSTM models.")
+    
+    kalman_choice = prompt_user_input(
+        f"Enable Kalman Filter preprocessing? (y/n) [{'y' if ENABLE_KALMAN_FILTER else 'n'}]: ",
+        default="y" if ENABLE_KALMAN_FILTER else "n"
+    ).strip().lower()
+    
+    use_kalman_filter = kalman_choice in ['y', 'yes']
+    kalman_params = None
+    
+    if use_kalman_filter:
+        print("\nKalman Filter Parameters:")
+        print(f"  - Process Variance (Q): Controls smoothing (default: {KALMAN_PROCESS_VARIANCE})")
+        print(f"  - Observation Variance (R): Controls trust in observations (default: {KALMAN_OBSERVATION_VARIANCE})")
+        
+        custom_params = prompt_user_input(
+            "Use custom parameters? (y/n) [n]: ",
+            default="n"
+        ).strip().lower()
+        
+        if custom_params in ['y', 'yes']:
+            try:
+                process_var_input = prompt_user_input(
+                    f"Process Variance (Q) [{KALMAN_PROCESS_VARIANCE}]: ",
+                    default=str(KALMAN_PROCESS_VARIANCE)
+                ).strip()
+                obs_var_input = prompt_user_input(
+                    f"Observation Variance (R) [{KALMAN_OBSERVATION_VARIANCE}]: ",
+                    default=str(KALMAN_OBSERVATION_VARIANCE)
+                ).strip()
+                
+                kalman_params = {
+                    'process_variance': float(process_var_input) if process_var_input else KALMAN_PROCESS_VARIANCE,
+                    'observation_variance': float(obs_var_input) if obs_var_input else KALMAN_OBSERVATION_VARIANCE
+                }
+            except (ValueError, TypeError):
+                log_warn("Invalid parameters entered, using defaults")
+                kalman_params = {
+                    'process_variance': KALMAN_PROCESS_VARIANCE,
+                    'observation_variance': KALMAN_OBSERVATION_VARIANCE
+                }
+        else:
+            kalman_params = {
+                'process_variance': KALMAN_PROCESS_VARIANCE,
+                'observation_variance': KALMAN_OBSERVATION_VARIANCE
+            }
+    
     # Summary
     log_info("\n" + "=" * 80)
     log_info("TRAINING CONFIGURATION SUMMARY")
@@ -317,6 +388,10 @@ def train_model_menu() -> bool:
     log_info(f"  - Attention: {'✓' if selected_config.use_attention else '✗'}")
     log_info(f"Symbols ({len(symbols)}): {', '.join(symbols)}")
     log_info(f"Timeframes ({len(timeframes)}): {', '.join(timeframes)}")
+    log_info(f"Kalman Filter: {'✓ Enabled' if use_kalman_filter else '✗ Disabled'}")
+    if use_kalman_filter and kalman_params:
+        log_info(f"  - Process Variance (Q): {kalman_params.get('process_variance', KALMAN_PROCESS_VARIANCE)}")
+        log_info(f"  - Observation Variance (R): {kalman_params.get('observation_variance', KALMAN_OBSERVATION_VARIANCE)}")
     log_info("=" * 80)
     
     confirm = prompt_user_input(
@@ -326,7 +401,7 @@ def train_model_menu() -> bool:
     
     if confirm not in ['y', 'yes']:
         log_info("Training cancelled by user.")
-        return False
+        return False, ""
     
     # Initialize GPU manager
     gpu_manager = PyTorchGPUManager()
@@ -338,30 +413,32 @@ def train_model_menu() -> bool:
         
         if combined_df is None:
             log_error("Failed to prepare training dataset")
-            return False
+            return False, ""
         
         # Train model
         log_info(f"\nTraining {selected_config.name} model...")
         model, model_path = train_model_configuration(
             selected_config,
             combined_df,
-            gpu_manager
+            gpu_manager,
+            use_kalman_filter=use_kalman_filter,
+            kalman_params=kalman_params
         )
         
         if model is not None and model_path:
             log_info(f"\n✅ Model trained successfully!")
             log_info(f"Model saved to: {model_path}")
             cleanup_resources(model)
-            return True
+            return True, str(model_path)
         else:
             log_error(f"\n❌ Model training failed")
-            return False
+            return False, ""
             
     except Exception as e:
         log_error(f"Error during training: {e}")
         import traceback
         log_error(f"Traceback: {traceback.format_exc()}")
-        return False
+        return False, ""
     finally:
         cleanup_resources()
 

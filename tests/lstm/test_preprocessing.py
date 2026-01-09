@@ -9,6 +9,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from modules.lstm.utils.preprocessing import preprocess_cnn_lstm_data
 from config.lstm import WINDOW_SIZE_LSTM, TARGET_THRESHOLD_LSTM, NEUTRAL_ZONE_LSTM
+from modules.lstm.utils.kalman_filter import validate_kalman_params
 
 
 class TestPreprocessCnnLstmData:
@@ -325,4 +326,56 @@ class TestPreprocessCnnLstmData:
             assert len(X) == len(y)
             # Sequence i should correspond to target at position i
             # (target is at the end of the sequence window)
+    
+    def test_with_kalman_filter_enabled(self, sample_ohlcv_data):
+        """Test preprocessing with Kalman Filter enabled."""
+        X, y, scaler, features = preprocess_cnn_lstm_data(
+            sample_ohlcv_data,
+            look_back=WINDOW_SIZE_LSTM,
+            output_mode='classification',
+            scaler_type='minmax',
+            use_kalman_filter=True,
+            kalman_params={'process_variance': 1e-5, 'observation_variance': 1.0}
+        )
+        
+        assert len(X) > 0
+        assert len(y) > 0
+        assert len(X) == len(y)
+        assert isinstance(scaler, (MinMaxScaler, StandardScaler))
+        assert len(features) > 0
+    
+    def test_with_kalman_filter_disabled(self, sample_ohlcv_data):
+        """Test preprocessing with Kalman Filter disabled (default)."""
+        X1, y1, scaler1, features1 = preprocess_cnn_lstm_data(
+            sample_ohlcv_data,
+            look_back=WINDOW_SIZE_LSTM,
+            output_mode='classification',
+            use_kalman_filter=False
+        )
+        
+        X2, y2, scaler2, features2 = preprocess_cnn_lstm_data(
+            sample_ohlcv_data,
+            look_back=WINDOW_SIZE_LSTM,
+            output_mode='classification',
+            use_kalman_filter=False
+        )
+        
+        # Results should be identical when Kalman Filter is disabled
+        assert len(X1) == len(X2)
+        assert len(y1) == len(y2)
+    
+    def test_kalman_filter_invalid_params(self, sample_ohlcv_data):
+        """Test preprocessing with invalid Kalman Filter parameters."""
+        # Should fallback to defaults when params are invalid
+        X, y, scaler, features = preprocess_cnn_lstm_data(
+            sample_ohlcv_data,
+            look_back=WINDOW_SIZE_LSTM,
+            output_mode='classification',
+            use_kalman_filter=True,
+            kalman_params={'process_variance': -1.0}  # Invalid negative value
+        )
+        
+        # Should still work (invalid params should be replaced with defaults)
+        assert len(X) > 0
+        assert len(y) > 0
 

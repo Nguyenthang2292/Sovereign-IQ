@@ -83,6 +83,8 @@ class LSTMTrainer(BaseLSTMTrainer, CNNFeatureMixin):
         scheduler_T_0: int = 10,
         scheduler_T_mult: int = 2,
         scheduler_eta_min: float = 1e-6,
+        use_kalman_filter: bool = False,
+        kalman_params: Optional[dict] = None,
     ):
         """
         Initialize unified LSTM trainer.
@@ -104,6 +106,8 @@ class LSTMTrainer(BaseLSTMTrainer, CNNFeatureMixin):
             scheduler_T_0: Initial period for CosineAnnealingWarmRestarts (default: 10)
             scheduler_T_mult: Multiplicative factor for period (default: 2)
             scheduler_eta_min: Minimum learning rate (default: 1e-6)
+            use_kalman_filter: Enable Kalman Filter preprocessing to smooth OHLC data (default: False)
+            kalman_params: Optional dictionary of Kalman Filter parameters (default: None, uses config)
         """
         BaseLSTMTrainer.__init__(
             self,
@@ -116,6 +120,8 @@ class LSTMTrainer(BaseLSTMTrainer, CNNFeatureMixin):
             scheduler_T_0=scheduler_T_0,
             scheduler_T_mult=scheduler_T_mult,
             scheduler_eta_min=scheduler_eta_min,
+            use_kalman_filter=use_kalman_filter,
+            kalman_params=kalman_params,
         )
         
         self.use_cnn = use_cnn

@@ -9,6 +9,7 @@ import torch.nn as nn
 import traceback
 
 from config import DEFAULT_CRYPTO_SYMBOLS_FOR_TRAINING_DL, DEFAULT_TIMEFRAMES_FOR_TRAINING_DL, DEFAULT_SYMBOL, DEFAULT_TIMEFRAME
+from config.lstm import ENABLE_KALMAN_FILTER, KALMAN_PROCESS_VARIANCE, KALMAN_OBSERVATION_VARIANCE
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
 from modules.lstm.models import LSTMTrainer
@@ -229,7 +230,9 @@ def prepare_training_dataset(symbols: List[str], timeframes: List[str]) -> Optio
 def train_model_configuration(
     config: ModelConfiguration, 
     combined_df: pd.DataFrame,
-    gpu_manager=None
+    gpu_manager=None,
+    use_kalman_filter: Optional[bool] = None,
+    kalman_params: Optional[dict] = None
 ) -> Tuple[Optional[object], str]:
     """
     Train a specific model configuration with proper resource management
@@ -238,6 +241,8 @@ def train_model_configuration(
         config: Model configuration
         combined_df: Combined training data
         gpu_manager: Optional GPU resource manager (PyTorchGPUManager)
+        use_kalman_filter: Whether to enable Kalman Filter preprocessing. If None, uses config default.
+        kalman_params: Kalman Filter parameters. If None, uses config defaults.
         
     Returns:
         Tuple of (model, model_path)
@@ -287,12 +292,31 @@ def train_model_configuration(
             gpu_manager.configure_memory()
         
         # Use unified trainer for all model configurations
+        # Determine Kalman Filter settings
+        if use_kalman_filter is None:
+            use_kalman_filter = ENABLE_KALMAN_FILTER
+        
+        if use_kalman_filter:
+            if kalman_params is None:
+                kalman_params = {
+                    'process_variance': KALMAN_PROCESS_VARIANCE,
+                    'observation_variance': KALMAN_OBSERVATION_VARIANCE
+                }
+            log_info(f"Kalman Filter: Enabled")
+            log_debug(f"  - Process Variance: {kalman_params.get('process_variance', KALMAN_PROCESS_VARIANCE)}")
+            log_debug(f"  - Observation Variance: {kalman_params.get('observation_variance', KALMAN_OBSERVATION_VARIANCE)}")
+        else:
+            kalman_params = None
+            log_info(f"Kalman Filter: Disabled")
+        
         trainer = LSTMTrainer(
             use_cnn=config.use_cnn,
             use_attention=config.use_attention,
             look_back=config.look_back,
             output_mode=config.output_mode,
-            attention_heads=config.attention_heads
+            attention_heads=config.attention_heads,
+            use_kalman_filter=use_kalman_filter,
+            kalman_params=kalman_params
         )
         
         model, _, model_path = safe_execute_with_gpu(

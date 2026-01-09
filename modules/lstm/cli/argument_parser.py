@@ -63,5 +63,11 @@ Examples:
         help='Number of candles to fetch (default: 1500)'
     )
     
+    parser.add_argument(
+        '--use-kalman-filter',
+        action='store_true',
+        help='Enable Kalman Filter preprocessing to reduce noise in OHLC data (for training)'
+    )
+    
     return parser.parse_args()
 

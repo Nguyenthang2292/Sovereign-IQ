@@ -4,7 +4,7 @@ Data preprocessing utilities for CNN-LSTM models.
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Optional
 
 from modules.common.ui.logging import (log_model, 
                                         log_error, 
@@ -13,17 +13,23 @@ from config.lstm import (
     NEUTRAL_ZONE_LSTM,
     TARGET_THRESHOLD_LSTM,
     WINDOW_SIZE_LSTM,
+    ENABLE_KALMAN_FILTER,
+    KALMAN_PROCESS_VARIANCE,
+    KALMAN_OBSERVATION_VARIANCE,
 )
 from config.model_features import MODEL_FEATURES
 from modules.lstm.utils.indicator_features import generate_indicator_features
 from modules.lstm.core.create_balanced_target import create_balanced_target
+from modules.lstm.utils.kalman_filter import apply_kalman_to_ohlc, validate_kalman_params
 
 
 def preprocess_cnn_lstm_data(
     df_input: pd.DataFrame, 
     look_back: int = WINDOW_SIZE_LSTM, 
     output_mode: str = 'classification', 
-    scaler_type: str = 'minmax'
+    scaler_type: str = 'minmax',
+    use_kalman_filter: bool = False,
+    kalman_params: Optional[dict] = None
 ) -> Tuple[np.ndarray, np.ndarray, Union[MinMaxScaler, StandardScaler], List[str]]:
     """
     Preprocess data for CNN-LSTM model with sliding window approach.
@@ -33,6 +39,9 @@ def preprocess_cnn_lstm_data(
         look_back: Number of time steps to look back for sequence creation
         output_mode: 'classification' for signal prediction or 'regression' for return prediction
         scaler_type: Scaling method ('minmax' or 'standard')
+        use_kalman_filter: Enable Kalman Filter preprocessing to smooth OHLC data before generating indicators
+        kalman_params: Optional dictionary of Kalman Filter parameters. If None, uses config defaults.
+                      Valid keys: 'process_variance', 'observation_variance', 'initial_state', 'initial_uncertainty'
         
     Returns:
         X_sequences: Feature sequences array
@@ -58,8 +67,36 @@ def preprocess_cnn_lstm_data(
         log_error(f"Insufficient data: {len(df_input)} rows, need at least {look_back + 10}")
         return np.array([]), np.array([]), _create_empty_scaler(scaler_type), []
     
-    # Calculate technical features
-    df = generate_indicator_features(df_input.copy())
+    # Apply Kalman Filter if enabled
+    df_for_indicators = df_input.copy()
+    if use_kalman_filter:
+        # Validate Kalman parameters
+        if kalman_params is not None and not validate_kalman_params(kalman_params):
+            log_warn("Invalid Kalman Filter parameters, using defaults")
+            kalman_params = None
+        
+        # Use provided params or config defaults
+        if kalman_params is None:
+            kalman_params = {
+                'process_variance': KALMAN_PROCESS_VARIANCE,
+                'observation_variance': KALMAN_OBSERVATION_VARIANCE
+            }
+        else:
+            # Merge with defaults for missing keys
+            kalman_params = {
+                'process_variance': kalman_params.get('process_variance', KALMAN_PROCESS_VARIANCE),
+                'observation_variance': kalman_params.get('observation_variance', KALMAN_OBSERVATION_VARIANCE)
+            }
+        
+        try:
+            df_for_indicators = apply_kalman_to_ohlc(df_input.copy(), **kalman_params)
+            log_model("Kalman Filter applied to OHLC data before generating indicators")
+        except Exception as e:
+            log_error(f"Error applying Kalman Filter: {e}, using original data")
+            df_for_indicators = df_input.copy()
+    
+    # Calculate technical features from (possibly smoothed) OHLC data
+    df = generate_indicator_features(df_for_indicators)
     if df.empty:
         log_error("Feature calculation returned empty DataFrame")
         return np.array([]), np.array([]), _create_empty_scaler(scaler_type), []

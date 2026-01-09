@@ -5,9 +5,12 @@ Orchestrates the workflow: get symbols → batch → generate charts → analyze
 """
 
 import os
+import sys
 import json
 import glob
 import time
+import argparse
+import pandas as pd
 from typing import List, Dict, Optional, Tuple, Any, Union, Callable
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +21,24 @@ from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import 
 from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
 from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
 from modules.common.ui.logging import log_info, log_error, log_success, log_warn
+from core.voting_analyzer import VotingAnalyzer
+from config import (
+    DEFAULT_TIMEFRAME,
+    DECISION_MATRIX_VOTING_THRESHOLD,
+    DECISION_MATRIX_MIN_VOTES,
+    SPC_LOOKBACK,
+    SPC_P_LOW,
+    SPC_P_HIGH,
+    SPC_STRATEGY_PARAMETERS,
+    RANGE_OSCILLATOR_LENGTH,
+    RANGE_OSCILLATOR_MULTIPLIER,
+    HMM_WINDOW_SIZE_DEFAULT,
+    HMM_WINDOW_KAMA_DEFAULT,
+    HMM_FAST_KAMA_DEFAULT,
+    HMM_SLOW_KAMA_DEFAULT,
+    HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
+    HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
+)
 
 
 class SymbolFetchError(Exception):
@@ -68,12 +89,67 @@ class MarketBatchScanner:
         if self.min_candles <= 0:
             raise ValueError(f"min_candles must be greater than 0, got {self.min_candles}")
         
-        # Initialize components
-        self.exchange_manager = ExchangeManager()
-        self.public_exchange_manager = PublicExchangeManager()  # For load_markets (no credentials needed)
-        self.data_fetcher = DataFetcher(self.exchange_manager)
-        self.batch_chart_generator = ChartBatchGenerator(charts_per_batch=charts_per_batch)
-        self.batch_gemini_analyzer = GeminiBatchChartAnalyzer(cooldown_seconds=cooldown_seconds)
+        
+        # Initialize components (except GeminiBatchChartAnalyzer - lazy init)
+        try:
+            self.exchange_manager = ExchangeManager()
+            
+            self.public_exchange_manager = PublicExchangeManager()  # For load_markets (no credentials needed)
+            
+            self.data_fetcher = DataFetcher(self.exchange_manager)
+            
+            self.batch_chart_generator = ChartBatchGenerator(charts_per_batch=charts_per_batch)
+            
+            
+            # Use lazy initialization for GeminiBatchChartAnalyzer to avoid stdin issues
+            # The genai library initialization can close stdin on Windows, so we delay it
+            # until the analyzer is actually needed (when analyze_batch_chart is called)
+            self._gemini_analyzer_cooldown = cooldown_seconds
+            self._gemini_analyzer = None  # Will be initialized lazily
+        except Exception as e:
+            raise
+    
+    @property
+    def batch_gemini_analyzer(self):
+        """
+        Lazy initialization property for GeminiBatchChartAnalyzer.
+        Initializes the analyzer only when first accessed, after all user input is collected.
+        """
+        if self._gemini_analyzer is None:
+            
+            # Protect stdin before initializing GeminiBatchChartAnalyzer
+            saved_stdin = None
+            if sys.platform == 'win32' and sys.stdin is not None:
+                try:
+                    saved_stdin = sys.stdin
+                    if hasattr(sys.stdin, 'closed') and sys.stdin.closed:
+                        try:
+                            sys.stdin = open('CON', 'r', encoding='utf-8', errors='replace')
+                            saved_stdin = sys.stdin
+                        except (OSError, IOError):
+                            pass
+                except (AttributeError, ValueError, OSError, IOError):
+                    pass
+            
+            try:
+                self._gemini_analyzer = GeminiBatchChartAnalyzer(cooldown_seconds=self._gemini_analyzer_cooldown)
+            finally:
+                # Restore stdin after initialization
+                if sys.platform == 'win32' and saved_stdin is not None:
+                    try:
+                        if sys.stdin is None or (hasattr(sys.stdin, 'closed') and sys.stdin.closed):
+                            if saved_stdin is not None and not (hasattr(saved_stdin, 'closed') and saved_stdin.closed):
+                                sys.stdin = saved_stdin
+                            else:
+                                try:
+                                    sys.stdin = open('CON', 'r', encoding='utf-8', errors='replace')
+                                except (OSError, IOError):
+                                    pass
+                    except (AttributeError, ValueError, OSError, IOError):
+                        pass
+            
+        
+        return self._gemini_analyzer
     
     def cleanup(self, force_gc: bool = False):
         """
@@ -127,7 +203,8 @@ class MarketBatchScanner:
         timeframes: Optional[List[str]] = None,
         max_symbols: Optional[int] = None,
         limit: int = 500,
-        cancelled_callback: Optional[Callable[[], bool]] = None
+        cancelled_callback: Optional[Callable[[], bool]] = None,
+        initial_symbols: Optional[List[str]] = None
     ) -> Dict:
         """
         Scan entire market and return LONG/SHORT signals.
@@ -135,9 +212,10 @@ class MarketBatchScanner:
         Args:
             timeframe: Single timeframe for charts (default: '1h', ignored if timeframes provided)
             timeframes: List of timeframes for multi-timeframe analysis (enables multi-TF mode)
-            max_symbols: Maximum number of symbols to scan (None = all)
+            max_symbols: Maximum number of symbols to scan (None = all). Applied after initial_symbols if provided.
             limit: Number of candles to fetch per symbol (default: 500)
             cancelled_callback: Optional callable that returns bool; True indicates cancellation and stops processing (default: None)
+            initial_symbols: Optional list of symbols already pre-filtered from external pre-filter (default: None)
             
         Returns:
             Dictionary with:
@@ -147,6 +225,7 @@ class MarketBatchScanner:
             - 'all_results': Full results dict {symbol: signal}
             - 'summary': Summary statistics
         """
+        
         log_info("=" * 60)
         log_info("MARKET BATCH SCANNER")
         log_info("=" * 60)
@@ -175,25 +254,33 @@ class MarketBatchScanner:
         self._cleanup_old_results()
         
         # Step 1: Get all symbols
-        log_info("Step 1: Getting all symbols from exchange...")
-        try:
-            all_symbols = self.get_all_symbols()
-        except SymbolFetchError as e:
-            log_error(f"Failed to fetch symbols from exchange: {e}")
-            if e.is_retryable:
-                log_error("This was a retryable error (network/rate limit). Please check your connection and try again.")
-            else:
-                log_error("This was a non-retryable error. Please check exchange configuration and API access.")
-            # Re-raise to let caller handle the failure appropriately
-            raise
+        if initial_symbols is not None:
+            # Use pre-filtered symbols from external pre-filter
+            log_info("Step 1: Using pre-filtered symbols from external pre-filter...")
+            all_symbols = initial_symbols
+            log_info(f"Using {len(all_symbols)} pre-filtered symbols")
+        else:
+            # Get symbols from exchange
+            log_info("Step 1: Getting all symbols from exchange...")
+            try:
+                all_symbols = self.get_all_symbols()
+            except SymbolFetchError as e:
+                log_error(f"Failed to fetch symbols from exchange: {e}")
+                if e.is_retryable:
+                    log_error("This was a retryable error (network/rate limit). Please check your connection and try again.")
+                else:
+                    log_error("This was a non-retryable error. Please check exchange configuration and API access.")
+                # Re-raise to let caller handle the failure appropriately
+                raise
+            
+            if not all_symbols:
+                log_warn("No symbols found matching the criteria. This may indicate:")
+                log_warn(f"  - No active spot markets for {self.quote_currency} on {self.exchange_name}")
+                log_warn(f"  - Exchange API returned empty market list")
+                log_warn("Continuing with empty symbol list...")
         
-        if not all_symbols:
-            log_warn("No symbols found matching the criteria. This may indicate:")
-            log_warn(f"  - No active spot markets for {self.quote_currency} on {self.exchange_name}")
-            log_warn(f"  - Exchange API returned empty market list")
-            log_warn("Continuing with empty symbol list...")
-        
-        if max_symbols:
+        # Apply max_symbols (after initial_symbols if provided)
+        if max_symbols and all_symbols:
             all_symbols = all_symbols[:max_symbols]
             log_info(f"Limited to {max_symbols} symbols")
         

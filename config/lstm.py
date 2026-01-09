@@ -128,6 +128,15 @@ COMPLEXITY_MULTIPLIER = {
 }
 
 # ============================================================================
+# Kalman Filter Configuration
+# ============================================================================
+
+ENABLE_KALMAN_FILTER = False  # Default: disabled for backward compatibility
+KALMAN_PROCESS_VARIANCE = 1e-5  # Process noise covariance (Q) - smaller = smoother output
+KALMAN_OBSERVATION_VARIANCE = 1.0  # Observation noise covariance (R) - smaller = less smoothing
+KALMAN_METHOD = 'univariate'  # 'univariate' or 'multivariate' (currently only univariate implemented)
+
+# ============================================================================
 # Model Features
 # ============================================================================
 # Note: MODEL_FEATURES should be imported directly from config.model_features

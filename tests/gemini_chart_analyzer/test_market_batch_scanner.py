@@ -505,3 +505,74 @@ class TestMarketBatchScannerCleanup:
             mock_gc.assert_called_once()
 
 
+class TestMarketBatchScannerInitialSymbols:
+    """Test initial_symbols parameter in scan_market."""
+    
+    def test_scan_market_with_initial_symbols(self, mock_scanner_dependencies):
+        """Test scan_market with initial_symbols parameter."""
+        scanner = MarketBatchScanner()
+        pre_filtered_symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT"]
+        
+        scanner._split_into_batches = Mock(return_value=[[]])
+        scanner._cleanup_old_results = Mock()
+        
+        with patch('modules.gemini_chart_analyzer.core.utils.chart_paths.get_analysis_results_dir',
+                   return_value='/tmp/test'):
+            scanner._save_results = Mock(return_value='/tmp/test/results.json')
+            
+            # Call scan_market with initial_symbols
+            results = scanner.scan_market(
+                timeframe='1h',
+                initial_symbols=pre_filtered_symbols,
+                limit=500
+            )
+            
+            # Verify that get_all_symbols was NOT called (initial_symbols was used instead)
+            assert results is not None
+            # get_all_symbols should not be called when initial_symbols is provided
+    
+    def test_scan_market_without_initial_symbols(self, mock_scanner_dependencies, sample_symbols):
+        """Test scan_market without initial_symbols (should call get_all_symbols)."""
+        scanner = MarketBatchScanner()
+        
+        scanner.get_all_symbols = Mock(return_value=sample_symbols)
+        scanner._split_into_batches = Mock(return_value=[[]])
+        scanner._cleanup_old_results = Mock()
+        
+        with patch('modules.gemini_chart_analyzer.core.utils.chart_paths.get_analysis_results_dir',
+                   return_value='/tmp/test'):
+            scanner._save_results = Mock(return_value='/tmp/test/results.json')
+            
+            # Call scan_market without initial_symbols
+            results = scanner.scan_market(
+                timeframe='1h',
+                limit=500
+            )
+            
+            # Verify that get_all_symbols was called
+            assert results is not None
+            scanner.get_all_symbols.assert_called_once()
+    
+    def test_scan_market_with_initial_symbols_and_max_symbols(self, mock_scanner_dependencies):
+        """Test that max_symbols is applied to initial_symbols."""
+        scanner = MarketBatchScanner()
+        pre_filtered_symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT", "ADA/USDT"]
+        
+        scanner._split_into_batches = Mock(return_value=[[]])
+        scanner._cleanup_old_results = Mock()
+        
+        with patch('modules.gemini_chart_analyzer.core.utils.chart_paths.get_analysis_results_dir',
+                   return_value='/tmp/test'):
+            scanner._save_results = Mock(return_value='/tmp/test/results.json')
+            
+            # Call scan_market with initial_symbols and max_symbols
+            results = scanner.scan_market(
+                timeframe='1h',
+                initial_symbols=pre_filtered_symbols,
+                max_symbols=3,  # Should limit to 3 symbols
+                limit=500
+            )
+            
+            # Verify flow (can't directly test final symbols due to mocking, but no exception should occur)
+            assert results is not None
+

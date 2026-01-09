@@ -8,20 +8,49 @@ import torch
 import torch.nn as nn
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from modules.common.ui.logging import (
     log_info,
     log_error,
     log_warn,
     log_model,
+    log_debug,
 )
-from config.lstm import MODELS_DIR, WINDOW_SIZE_LSTM
+from config.lstm import MODELS_DIR, WINDOW_SIZE_LSTM, KALMAN_PROCESS_VARIANCE, KALMAN_OBSERVATION_VARIANCE
 from config.model_features import MODEL_FEATURES
 from config.evaluation import CONFIDENCE_THRESHOLD
 from modules.lstm.utils.indicator_features import generate_indicator_features
+from modules.lstm.utils.kalman_filter import apply_kalman_to_ohlc
 from modules.lstm.models.lstm_models import LSTMAttentionModel, LSTMModel
 from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
+
+
+def _load_checkpoint_safe(model_path: Path):
+    """
+    Safely load PyTorch checkpoint with support for sklearn scalers.
+    
+    Tries to load with weights_only=True and safe globals for sklearn scalers.
+    Falls back to weights_only=False if needed (for trusted internal checkpoints).
+    
+    Args:
+        model_path: Path to checkpoint file
+        
+    Returns:
+        Loaded checkpoint dictionary
+    """
+    # Try loading with weights_only=True and safe globals for sklearn scalers
+    try:
+        # Add sklearn scalers to safe globals
+        torch.serialization.add_safe_globals([MinMaxScaler, StandardScaler])
+        checkpoint = torch.load(model_path, map_location='cpu', weights_only=True)
+        return checkpoint
+    except Exception:
+        # Fallback to weights_only=False for internal checkpoints
+        # This is safe because these are checkpoints we created ourselves
+        log_warn("Could not load checkpoint with weights_only=True, using weights_only=False (trusted source)")
+        checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+        return checkpoint
 
 
 def load_lstm_model(model_path: Optional[Path] = None) -> Optional[nn.Module]:
@@ -40,9 +69,26 @@ def load_lstm_model(model_path: Optional[Path] = None) -> Optional[nn.Module]:
     if model_path is None:
         # Try default model filename
         model_path = MODELS_DIR / "lstm_model.pth"
+    elif isinstance(model_path, str):
+        # Convert string to Path object
+        model_path = Path(model_path)
+    
+    # If default model doesn't exist, try to find the latest model
+    if not model_path.exists() and model_path == MODELS_DIR / "lstm_model.pth":
+        if MODELS_DIR.exists():
+            model_files = list(MODELS_DIR.glob("*.pth"))
+            if model_files:
+                # Sort by modification time, newest first
+                model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+                model_path = model_files[0]
+                log_info(f"Default model not found, using latest: {model_path.name}")
+    
+    if not model_path.exists():
+        log_error(f"Model file not found: {model_path}")
+        return None
     
     try:
-        checkpoint = torch.load(model_path, map_location='cpu', weights_only=True)
+        checkpoint = _load_checkpoint_safe(model_path)
         
         # Handle new format (with model_config)
         if 'model_config' in checkpoint:
@@ -113,7 +159,9 @@ def get_latest_signal(
     df_market_data: pd.DataFrame, 
     model: nn.Module, 
     scaler: Optional[MinMaxScaler] = None,
-    look_back: int = WINDOW_SIZE_LSTM
+    look_back: int = WINDOW_SIZE_LSTM,
+    use_kalman_filter: Optional[bool] = None,
+    kalman_params: Optional[dict] = None
 ) -> str:
     """
     Generate trading signal from LSTM model using latest market data.
@@ -126,6 +174,8 @@ def get_latest_signal(
         model: Trained LSTM model (any variant). Model should already be on the desired device.
         scaler: Pre-fitted scaler for feature normalization (optional)
         look_back: Sequence length (default from config)
+        use_kalman_filter: Whether to apply Kalman Filter. If None, checks model metadata.
+        kalman_params: Kalman Filter parameters. If None, uses model metadata or config defaults.
         
     Returns:
         Trading signal: 'BUY', 'SELL', or 'NEUTRAL'
@@ -148,8 +198,32 @@ def get_latest_signal(
         log_warn(f"Missing OHLC columns: {missing_cols}. Available: {list(df_market_data.columns)}")
         return 'NEUTRAL'
     
-    # Generate/check features
-    df_features = generate_indicator_features(df_market_data.copy())
+    # Determine if Kalman Filter should be applied
+    # Check model metadata if use_kalman_filter not explicitly provided
+    if use_kalman_filter is None:
+        use_kalman_filter = getattr(model, '_use_kalman_filter', False)
+    
+    # Get Kalman parameters from model metadata or use provided/defaults
+    if use_kalman_filter and kalman_params is None:
+        kalman_params = getattr(model, '_kalman_params', None)
+        if kalman_params is None:
+            kalman_params = {
+                'process_variance': KALMAN_PROCESS_VARIANCE,
+                'observation_variance': KALMAN_OBSERVATION_VARIANCE
+            }
+    
+    # Apply Kalman Filter if needed
+    df_for_features = df_market_data.copy()
+    if use_kalman_filter:
+        try:
+            df_for_features = apply_kalman_to_ohlc(df_market_data.copy(), **kalman_params)
+            log_model("Applied Kalman Filter to OHLC data for inference")
+        except Exception as e:
+            log_warn(f"Error applying Kalman Filter during inference: {e}, using original data")
+            df_for_features = df_market_data.copy()
+    
+    # Generate/check features from (possibly smoothed) OHLC data
+    df_features = generate_indicator_features(df_for_features)
     if df_features.empty:
         log_warn("Empty DataFrame after feature calculation")
         return 'NEUTRAL'
@@ -164,14 +238,23 @@ def get_latest_signal(
         return 'NEUTRAL'
     
     # Validate feature count matches model expectations using check
+    # Try multiple ways to get input_size based on model type
     expected_input_size = None
-    if hasattr(model, 'lstm') and hasattr(model.lstm, 'input_size'):
-        expected_input_size = model.lstm.input_size
-    elif hasattr(model, 'input_size'):
+    
+    # For CNN-LSTM models: check self.input_size
+    if hasattr(model, 'input_size'):
         expected_input_size = model.input_size
+    # For standard LSTM models: check lstm_layers[0].input_size or self.lstm.input_size
+    elif hasattr(model, 'lstm_layers') and len(model.lstm_layers) > 0:
+        first_lstm = model.lstm_layers[0]
+        if hasattr(first_lstm, 'input_size'):
+            expected_input_size = first_lstm.input_size
+    elif hasattr(model, 'lstm') and hasattr(model.lstm, 'input_size'):
+        expected_input_size = model.lstm.input_size
     
     if expected_input_size and len(available_features) != expected_input_size:
         log_error(f"Feature count mismatch: model expects {expected_input_size}, got {len(available_features)}")
+        log_error(f"Available features: {available_features[:10]}...")  # Show first 10 features
         return 'NEUTRAL'
     
     if len(available_features) < len(MODEL_FEATURES):
@@ -201,12 +284,67 @@ def get_latest_signal(
     input_window = torch.tensor(window_data, dtype=torch.float32, device=model_device).unsqueeze(0)
 
     try:
+        # Debug: Log input window info
+        log_debug(f"Input window shape: {input_window.shape}, dtype: {input_window.dtype}")
+        log_debug(f"Input window stats: min={input_window.min().item():.4f}, max={input_window.max().item():.4f}, mean={input_window.mean().item():.4f}")
+        
         model.eval()
         with torch.no_grad():
-            prediction_probs = model(input_window)[0].cpu().numpy()
+            model_output = model(input_window)
+            
+            # Debug: Log model output info
+            log_debug(f"Model output shape: {model_output.shape}, dtype: {model_output.dtype}")
+            log_debug(f"Model output stats: min={model_output.min().item():.4f}, max={model_output.max().item():.4f}, mean={model_output.mean().item():.4f}")
+            
+            # Check if output is 2D (batch, classes) or already 1D
+            if len(model_output.shape) == 2:
+                prediction_probs = model_output[0].cpu().numpy()
+            else:
+                prediction_probs = model_output.cpu().numpy()
+            
+            # Debug: Log prediction_probs info
+            log_debug(f"Prediction probs shape: {prediction_probs.shape}")
+            log_debug(f"Prediction probs values: {prediction_probs}")
+            log_debug(f"Prediction probs sum: {np.sum(prediction_probs):.6f}")
+            
+            # Check for NaN/Inf
+            if not np.all(np.isfinite(prediction_probs)):
+                log_error(f"Found NaN or Inf in prediction_probs: {prediction_probs}")
+                return 'NEUTRAL'
+            
+            # Verify probabilities sum to ~1 (should be after softmax)
+            prob_sum = np.sum(prediction_probs)
+            
+            # If probabilities don't sum to 1, they might be logits - apply softmax
+            if abs(prob_sum - 1.0) > 0.01:
+                log_warn(f"Prediction probs don't sum to 1.0 (sum={prob_sum:.6f}), applying softmax normalization")
+                # Apply softmax to normalize (handle both logits and unnormalized probs)
+                exp_probs = np.exp(prediction_probs - np.max(prediction_probs))  # Numerical stability
+                prediction_probs = exp_probs / np.sum(exp_probs)
+                log_debug(f"After softmax - probs: {prediction_probs}, sum: {np.sum(prediction_probs):.6f}")
+            
+            # Ensure probabilities are valid (all >= 0, sum = 1)
+            if np.any(prediction_probs < 0):
+                log_warn(f"Found negative probabilities, clipping to 0: {prediction_probs}")
+                prediction_probs = np.maximum(prediction_probs, 0.0)
+                prediction_probs = prediction_probs / np.sum(prediction_probs)  # Renormalize
         
-        predicted_class = np.argmax(prediction_probs) - 1
-        confidence = np.max(prediction_probs)
+        predicted_class_idx = np.argmax(prediction_probs)
+        predicted_class = predicted_class_idx - 1  # Convert 0,1,2 to -1,0,1
+        confidence = float(np.max(prediction_probs))
+        
+        # Additional validation: confidence should be reasonable
+        if confidence <= 0.0 or confidence > 1.0:
+            log_error(f"Invalid confidence value: {confidence}, prediction_probs: {prediction_probs}")
+            return 'NEUTRAL'
+        
+        # If confidence is very low (e.g., uniform distribution), log warning
+        if confidence < (1.0 / len(prediction_probs)):
+            log_warn(f"Very low confidence ({confidence:.6f}), model output may be uniform or unconfident")
+        
+        # Debug: Log final prediction info
+        log_debug(f"Predicted class index: {predicted_class_idx}, predicted_class: {predicted_class}")
+        log_debug(f"Confidence: {confidence:.6f}, all probs: {prediction_probs}")
         
         # Determine model type
         model_type = "LSTM"
@@ -218,7 +356,7 @@ def get_latest_signal(
                 model_type = f"CNN-{model_type}"
         
         device_info = "GPU" if model_device.type in ('cuda', 'mps') else "CPU"
-        log_model(f"{model_type} ({device_info}) - Class: {predicted_class}, Confidence: {confidence:.3f}")
+        log_model(f"{model_type} ({device_info}) - Class: {predicted_class}, Confidence: {confidence:.3f}, Probs: [{prediction_probs[0]:.3f}, {prediction_probs[1]:.3f}, {prediction_probs[2]:.3f}]")
         
         if confidence >= CONFIDENCE_THRESHOLD:
             if predicted_class == 1:
@@ -282,24 +420,53 @@ def load_model_and_scaler(model_path: Optional[Path] = None) -> tuple[Optional[n
     the scaler and look_back from the checkpoint.
     
     Args:
-        model_path: Path to model checkpoint. If None, uses default path.
+        model_path: Path to model checkpoint (can be Path object or string). If None, uses default path.
         
     Returns:
         Tuple of (model, scaler, look_back) or (None, None, None) if failed
     """
     if model_path is None:
         model_path = MODELS_DIR / "lstm_model.pth"
+    elif isinstance(model_path, str):
+        # Convert string to Path object
+        model_path = Path(model_path)
     
     if not model_path.exists():
-        log_error(f"Model file not found: {model_path}")
-        log_info(f"Available models in {MODELS_DIR}:")
-        if MODELS_DIR.exists():
-            for f in MODELS_DIR.glob("*.pth"):
-                log_info(f"  - {f.name}")
-        return None, None, None
+        # Try to find the latest model file if default doesn't exist
+        if model_path == MODELS_DIR / "lstm_model.pth":
+            log_warn(f"Default model file not found: {model_path}")
+            log_info("Searching for latest model file...")
+            
+            if MODELS_DIR.exists():
+                model_files = list(MODELS_DIR.glob("*.pth"))
+                if model_files:
+                    # Sort by modification time, newest first
+                    model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+                    model_path = model_files[0]
+                    log_info(f"Using latest model: {model_path.name}")
+                else:
+                    log_error(f"No model files found in {MODELS_DIR}")
+                    return None, None, None
+            else:
+                log_error(f"Models directory does not exist: {MODELS_DIR}")
+                return None, None, None
+        else:
+            # User-specified model path doesn't exist
+            log_error(f"Model file not found: {model_path}")
+            log_info(f"Available models in {MODELS_DIR}:")
+            if MODELS_DIR.exists():
+                model_files = list(MODELS_DIR.glob("*.pth"))
+                if model_files:
+                    # Sort by modification time for display
+                    model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+                    for f in model_files:
+                        log_info(f"  - {f.name}")
+                else:
+                    log_info("  (no models found)")
+            return None, None, None
     
     try:
-        checkpoint = torch.load(model_path, map_location='cpu', weights_only=True)
+        checkpoint = _load_checkpoint_safe(model_path)
         
         # Load model
         model = load_lstm_model(model_path)
@@ -310,13 +477,26 @@ def load_model_and_scaler(model_path: Optional[Path] = None) -> tuple[Optional[n
         scaler = checkpoint.get('scaler')
         look_back = checkpoint.get('model_config', {}).get('look_back', WINDOW_SIZE_LSTM)
         
+        # Load Kalman Filter metadata from checkpoint
+        data_info = checkpoint.get('data_info', {})
+        use_kalman_filter = data_info.get('use_kalman_filter', False)
+        kalman_params = data_info.get('kalman_params', None)
+        
         if scaler is None:
             log_warn("Scaler not found in checkpoint. Predictions may be unreliable.")
         else:
             log_info(f"Loaded scaler from checkpoint")
         
+        if use_kalman_filter:
+            log_info(f"Model was trained with Kalman Filter preprocessing")
+        
         log_info(f"Loaded model from {model_path}")
         log_info(f"Model look_back: {look_back}")
+        
+        # Store Kalman Filter info in model for inference
+        if hasattr(model, '__dict__'):
+            model._use_kalman_filter = use_kalman_filter
+            model._kalman_params = kalman_params
         
         return model, scaler, look_back
         

@@ -46,6 +46,8 @@ from modules.lstm.cli import (
     prompt_menu_choice,
     train_model_menu,
     generate_signal_workflow,
+    prompt_symbol,
+    prompt_timeframe,
 )
 
 # Fix encoding issues on Windows for interactive CLI runs only
@@ -93,9 +95,35 @@ def main() -> None:
         
         if choice == '1':
             # Train model
-            success = train_model_menu()
+            success, model_path = train_model_menu()
             if success:
                 log_info("\n✅ Training completed successfully!")
+                
+                # Ask if user wants to generate signal with the newly trained model
+                from modules.common.utils import prompt_user_input
+                generate_choice = prompt_user_input(
+                    "\nWould you like to generate a trading signal with this model? (y/n) [y]: ",
+                    default="y"
+                ).strip().lower()
+                
+                if generate_choice in ['y', 'yes']:
+                    log_info("\n" + "=" * 80)
+                    log_info("GENERATE TRADING SIGNAL")
+                    log_info("=" * 80)
+                    
+                    # Prompt for symbol and timeframe
+                    symbol = prompt_symbol()
+                    timeframe = prompt_timeframe()
+                    
+                    # Generate signal with the newly trained model
+                    generate_signal_workflow(
+                        model_path=model_path if model_path else None,
+                        symbol=symbol,
+                        timeframe=timeframe,
+                        limit=args.limit
+                    )
+                else:
+                    log_info("Skipping signal generation.")
             else:
                 log_error("\n❌ Training failed!")
             

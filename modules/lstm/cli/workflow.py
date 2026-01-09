@@ -6,7 +6,7 @@ trained LSTM models.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from modules.common.utils import initialize_components, color_text
 from modules.common.utils.data import fetch_ohlcv_data_dict
@@ -20,7 +20,7 @@ from colorama import Fore, Style
 
 
 def generate_signal_workflow(
-    model_path: Optional[Path] = None,
+    model_path: Optional[Union[Path, str]] = None,
     symbol: Optional[str] = None,
     timeframe: Optional[str] = None,
     limit: int = 1500
@@ -29,7 +29,7 @@ def generate_signal_workflow(
     Generate trading signal workflow.
     
     Args:
-        model_path: Path to model checkpoint
+        model_path: Path to model checkpoint (can be Path object or string)
         symbol: Trading symbol
         timeframe: Timeframe
         limit: Number of candles to fetch
