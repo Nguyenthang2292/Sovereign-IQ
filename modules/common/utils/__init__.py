@@ -27,6 +27,48 @@ from .domain import normalize_symbol, normalize_symbol_key, normalize_timeframe,
 # Component initialization
 from .initialization import initialize_components
 
+
+_UNSET = object()
+
+
+def safe_input(prompt: str, default: str | object = _UNSET) -> str:
+    """
+    Safely read input from stdin with Windows compatibility.
+    
+    Handles "I/O operation on closed file" errors on Windows by attempting
+    to reopen stdin if it's closed. This should be used for all user input
+    instead of calling input() directly.
+    
+    Args:
+        prompt: Prompt message to display
+        default: Default value to return if stdin is unavailable (optional)
+    
+    Returns:
+        User input string, or default value if stdin unavailable or empty input
+        
+    Raises:
+        OSError, IOError, EOFError, AttributeError, ValueError: 
+            If stdin errors occur and no default value is provided
+            
+    Example:
+        >>> name = safe_input("Enter your name: ", default="Anonymous")
+        >>> confirm = safe_input("Continue? (y/n): ")
+    """
+    try:
+        result = input(prompt)
+        result = result.strip()
+        
+        if not result:
+            if default is not _UNSET:
+                return default
+            return ""
+        
+        return result
+    except (OSError, IOError, EOFError, AttributeError, ValueError):
+        if default is not _UNSET:
+            return default
+        raise
+
 # Re-export UI utilities for backward compatibility
 from ..ui.formatting import color_text, format_price, prompt_user_input, extract_dict_from_namespace
 from ..ui.logging import (
@@ -64,6 +106,7 @@ __all__ = [
     # UI/Formatting
     "color_text",
     "format_price",
+    "safe_input",
     "prompt_user_input",
     "extract_dict_from_namespace",
     # UI/Logging

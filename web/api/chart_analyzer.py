@@ -475,139 +475,40 @@ async def get_analyze_status(session_id: str):
         task_manager = get_task_manager()
         status = task_manager.get_status(session_id)
         
-        # Import MockClass here for the check
-        from unittest.mock import Mock as MockClass
-        
-        # CRITICAL: If status itself is a Mock object, we can't trust any of its values
-        # This happens when get_task_manager() is mocked in tests
-        
-        # Mock detection and handling removed as this logic belongs in testing, not production code.
-        # The code now trusts that dependencies return valid types (e.g., dict from get_status()).
-        
         # Check if session doesn't exist
         if status is None:
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
         
+        # Extract status information
+        status_value = status.get('status')
         started_at = status.get('started_at')
         completed_at = status.get('completed_at')
         
-        # Check if values are Mock objects (from unittest.mock) and convert them
-        if isinstance(started_at, MockClass):
-            started_at = None
-        if isinstance(completed_at, MockClass):
-            completed_at = None
-        
-        # Check status value for Mock objects
-        status_value = status.get('status')
-        if isinstance(status_value, MockClass):
-            status_value = 'running'  # Default safe value
-        
-        # Build response with safe serialization
-        # Double-check that status_value is not a Mock before using it
-        if isinstance(status_value, MockClass):
-            status_value = 'running'  # Default safe value
-        
-        # Ensure status_value is a string, not a Mock
-        # Also check if it's already a string representation of Mock
-        if isinstance(status_value, MockClass):
-            # Double-check: if it's still a Mock, convert to safe value
-            safe_status = 'running'
-        elif isinstance(status_value, str):
-            # Check if string representation of Mock
-            if status_value.startswith('<Mock') or status_value.startswith('"<Mock') or "'<Mock" in status_value:
-                safe_status = 'running'
-            else:
-                safe_status = status_value
-        elif status_value is None:
-            safe_status = None
-        else:
-            # Convert to string, but check if result looks like Mock
-            status_str = str(status_value)
-            if status_str.startswith('<Mock') or status_str.startswith('"<Mock') or "'<Mock" in status_str:
-                safe_status = 'running'
-            else:
-                safe_status = status_str
-        
+        # Build response
         response = {
             "success": True,
-            "session_id": str(session_id),  # Ensure string
-            "status": safe_status,
-            "started_at": started_at.isoformat() if started_at is not None and not isinstance(started_at, MockClass) else None,
-            "completed_at": completed_at.isoformat() if completed_at is not None and not isinstance(completed_at, MockClass) else None,
+            "session_id": str(session_id),
+            "status": status_value,
+            "started_at": started_at.isoformat() if started_at is not None else None,
+            "completed_at": completed_at.isoformat() if completed_at is not None else None,
         }
         
-        # Include result if completed - serialize to JSON-safe format
-        # Use safe_status (already cleaned) instead of status_value
-        actual_status = safe_status if safe_status != 'running' or status_value else status.get('status')
-        # Ensure actual_status is not a Mock object
-        if isinstance(actual_status, MockClass):
-            actual_status = 'running'  # Default safe value
-        # Also check if it's a string representation of Mock
-        if isinstance(actual_status, str) and actual_status.startswith('<Mock'):
-            actual_status = 'running'  # Default safe value
-        # Ensure actual_status is not a Mock object
-        if isinstance(actual_status, MockClass):
-            actual_status = 'running'  # Default safe value
-        
-        if actual_status == 'completed' and status.get('result'):
-            result_data = status['result']
-            # Filter out Mock objects from result_data if it's a dict
-            if isinstance(result_data, dict):
-                result_data = {k: v for k, v in result_data.items() if not isinstance(v, MockClass)}
-            # Convert to JSON-serializable format to avoid recursion issues
-            # Use json.loads(json.dumps()) to ensure all objects are serializable and break circular refs
+        # Include result if completed
+        if status_value == 'completed' and status.get('result'):
             try:
-                serialized = json.dumps(result_data, default=str, ensure_ascii=False)
+                # Convert to JSON-serializable format
+                serialized = json.dumps(status['result'], default=str, ensure_ascii=False)
                 response['result'] = json.loads(serialized)
-            except (TypeError, ValueError, RecursionError) as e:
-                # If JSON serialization fails, create a clean dict with only basic types
-                if isinstance(result_data, dict):
-                    clean_result = {}
-                    for k, v in result_data.items():
-                        try:
-                            # Only include serializable values
-                            json.dumps(v, default=str)
-                            clean_result[k] = v
-                        except (TypeError, ValueError, RecursionError):
-                            clean_result[k] = str(v) if v is not None else None
-                    response['result'] = clean_result
-                else:
-                    response['result'] = str(result_data) if result_data is not None else None
+            except (TypeError, ValueError, RecursionError):
+                response['result'] = str(status['result']) if status['result'] else None
         
         # Include error if failed
-        # Use the same actual_status we computed above
-        if actual_status == 'error' and status.get('error'):
-            error_data = status['error']
+        if status_value == 'error' and status.get('error'):
             try:
-                # Sanitize error data as well
-                serialized = json.dumps(error_data, default=str, ensure_ascii=False)
+                serialized = json.dumps(status['error'], default=str, ensure_ascii=False)
                 response['error'] = json.loads(serialized)
             except (TypeError, ValueError, RecursionError):
-                response['error'] = str(error_data) if error_data is not None else None
-        
-        # Final sanitization: ensure entire response is JSON-serializable
-        try:
-            json.dumps(response, default=str)
-        except (TypeError, ValueError, RecursionError):
-            # If response itself has issues, rebuild it with only safe values
-            safe_response = {
-                "success": True,
-                "session_id": str(session_id),
-                "status": str(status.get('status')) if status.get('status') else None,
-                "started_at": started_at.isoformat() if started_at is not None else None,
-                "completed_at": completed_at.isoformat() if completed_at is not None else None,
-            }
-            if status.get('status') == 'completed' and status.get('result'):
-                try:
-                    safe_response['result'] = json.loads(json.dumps(status['result'], default=str))
-                except (json.JSONDecodeError, TypeError, ValueError):
-                    safe_response['result'] = {}
-            if status.get('status') == 'error' and status.get('error'):
-                try:
-                    safe_response['error'] = json.loads(json.dumps(status['error'], default=str))
-                except (json.JSONDecodeError, TypeError, ValueError):
-                    safe_response['error'] = str(status['error']) if status['error'] else None
-            response = safe_response
+                response['error'] = str(status['error']) if status['error'] else None
         
         return response
         
@@ -615,5 +516,56 @@ async def get_analyze_status(session_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi khi lấy status: {str(e)}")
+
+
+@router.post("/analyze/{session_id}/cancel")
+async def cancel_analysis(session_id: str):
+    """
+    Cancel a running analysis task.
+    
+    Args:
+        session_id: Session ID from analyze_single or analyze_multi endpoint
+        
+    Returns:
+        Success message and cancelled status
+    """
+    try:
+        task_manager = get_task_manager()
+        
+        # Check if task exists
+        status = task_manager.get_status(session_id)
+        if status is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Session {session_id} not found"
+            )
+        
+        # Check if task can be cancelled
+        current_status = status.get('status')
+        if current_status not in ['running']:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot cancel task with status '{current_status}'. Only running tasks can be cancelled."
+            )
+        
+        # Cancel task
+        cancelled = task_manager.cancel_task(session_id)
+        if not cancelled:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to cancel task {session_id}"
+            )
+        
+        return {
+            "success": True,
+            "session_id": session_id,
+            "status": "cancelled",
+            "message": "Analysis cancelled successfully. The task will stop processing after current operation."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi cancel analysis: {str(e)}")
 
 

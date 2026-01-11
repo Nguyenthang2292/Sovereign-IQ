@@ -38,6 +38,7 @@ from modules.common.utils import (
     log_progress,
     log_success,
     log_warn,
+    safe_input,
 )
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
@@ -48,6 +49,8 @@ from modules.position_sizing.utils.data_loader import (
     load_symbols_from_file,
     validate_symbols,
 )
+
+
 from modules.position_sizing.cli.argument_parser import (
     parse_args,
     interactive_config_menu,
@@ -273,7 +276,7 @@ def _prompt_for_balance() -> float:
     Exits:
         sys.exit(1) if input cannot be converted to float or if value is not positive
     """
-    account_balance_str = input("\nEnter account balance (USDT): ").strip()
+    account_balance_str = safe_input("\nEnter account balance (USDT): ", default='').strip()
     try:
         balance = float(account_balance_str)
         # Validate balance is positive (inside try block to ensure balance is defined)
@@ -585,7 +588,7 @@ def main() -> None:
             print("  1. Enter balance manually")
             print(color_text("  2. Fetch from Binance (requires API credentials) [default]", Fore.MAGENTA, Style.BRIGHT))
             default_choice_text = color_text("default=2", Fore.MAGENTA)
-            choice = input(f"\nSelect option (1/2, {default_choice_text}): ").strip()
+            choice = safe_input(f"\nSelect option (1/2, {default_choice_text}): ", default='2').strip()
             
             # Default to option 2 if empty input
             if not choice:

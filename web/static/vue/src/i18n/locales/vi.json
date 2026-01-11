@@ -2,9 +2,10 @@
   "app": {
     "title": "Gemini Chart Analyzer"
   },
-  "nav": {
+"nav": {
     "batchScanner": "Batch Scanner",
     "chartAnalyzer": "Chart Analyzer",
+    "workflowDiagrams": "Sơ Đồ Quy Trình",
     "search": "Tìm kiếm..."
   },
   "footer": {

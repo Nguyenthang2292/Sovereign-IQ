@@ -9,13 +9,11 @@ DEFAULT_TIMEFRAMES = ['15m', '30m', '1h']
 
 # Timeframe weights for signal aggregation
 # Larger timeframes have higher weights (more important)
+# Weights sum to 1.0 for proper signal aggregation
 TIMEFRAME_WEIGHTS = {
-    '15m': 0.1,
-    '30m': 0.15,
-    '1h': 0.2,
-    '4h': 0.25,
-    '1d': 0.3,
-    '1w': 0.35
+    '15m': 0.2,   # 20% weight
+    '30m': 0.3,   # 30% weight  
+    '1h': 0.5     # 50% weight (largest timeframe gets highest weight)
 }
 
 # Multi-timeframe batch chart layout configuration

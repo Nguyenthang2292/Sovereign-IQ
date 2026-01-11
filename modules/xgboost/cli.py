@@ -3,7 +3,7 @@ Command-line interface for xgboost_prediction_main.py
 """
 
 import argparse
-from modules.common.utils import color_text
+from modules.common.utils import color_text, safe_input
 from colorama import Fore
 from config import (
     DEFAULT_SYMBOL,
@@ -16,7 +16,7 @@ from config import (
 
 def prompt_with_default(message: str, default, cast=str):
     while True:
-        raw = input(color_text(f"{message} (default {default}): ", Fore.CYAN))
+        raw = safe_input(color_text(f"{message} (default {default}): ", Fore.CYAN), default=str(default))
         value = raw.strip()
         if not value:
             return default

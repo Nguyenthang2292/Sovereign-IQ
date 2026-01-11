@@ -50,6 +50,47 @@ def format_price(value: float) -> str:
     return f"{value:.{precision}f}"
 
 
+def color_text(text: str, color: str = Fore.WHITE, style: str = Style.NORMAL) -> str:
+    """
+    Applies color and style to text using colorama.
+
+    Args:
+        text: Text to format
+        color: Colorama Fore color (default: Fore.WHITE)
+        style: Colorama Style (default: Style.NORMAL)
+
+    Returns:
+        Formatted text string with color and style codes
+    """
+    return f"{style}{color}{text}{Style.RESET_ALL}"
+
+
+def format_price(value: float) -> str:
+    """
+    Formats prices/indicators with adaptive precision so tiny values remain readable.
+
+    Args:
+        value: Numeric value to format
+
+    Returns:
+        Formatted price string with appropriate precision, or "N/A" if invalid
+    """
+    if value is None or pd.isna(value):
+        return "N/A"
+
+    abs_val = abs(value)
+    if abs_val >= 1:
+        precision = 2
+    elif abs_val >= 0.01:
+        precision = 4
+    elif abs_val >= 0.0001:
+        precision = 6
+    else:
+        precision = 8
+
+    return f"{value:.{precision}f}"
+
+
 def prompt_user_input(
     prompt: str,
     default: Optional[str] = None,
@@ -66,7 +107,9 @@ def prompt_user_input(
     Returns:
         User input string, or default if empty input provided
     """
-    user_input = input(color_text(prompt, color)).strip()
+    from modules.common.utils import safe_input
+    
+    user_input = safe_input(color_text(prompt, color), default=default or "")
     return user_input if user_input else (default or "")
 
 
@@ -94,8 +137,10 @@ def _prompt_with_sentinel(
         - (default or "", False) if input was empty
         - (user_input, False) otherwise
     """
+    from modules.common.utils import safe_input
+    
     enhanced_prompt = f"{prompt} (enter '{back_sentinel}' to go back): "
-    user_input = input(color_text(enhanced_prompt, color)).strip()
+    user_input = safe_input(color_text(enhanced_prompt, color), default=default or "")
     
     if user_input == back_sentinel:
         return (None, True)

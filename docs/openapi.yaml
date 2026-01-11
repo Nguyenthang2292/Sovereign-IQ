@@ -1,0 +1,472 @@
+openapi: 3.0.3
+info:
+  title: Gemini Chart Analyzer API
+  version: 1.0.0
+  description: REST API for Gemini Chart Analyzer and Batch Scanner
+servers:
+  - url: http://localhost:8000/api
+paths:
+  "/health":
+    get:
+      tags:
+        - Health
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  "/":
+    get:
+      tags:
+        - Root
+      summary: Root status
+      operationId: getRoot
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RootResponse"
+  "/logs/{session_id}":
+    get:
+      tags:
+        - Logs
+      summary: Get logs
+      operationId: getLogs
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          example: 0
+        - in: query
+          name: command_type
+          required: false
+          schema:
+            type: string
+            enum: ["scan", "analyze"]
+          example: "scan"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogsResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  "/analyze/single":
+    post:
+      tags:
+        - Chart Analyzer
+      summary: Analyze a single symbol in a single timeframe (async)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SingleAnalysisRequest"
+            example:
+              symbol: "BTC/USDT"
+              timeframe: "1h"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeRequestResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  "/analyze/multi":
+    post:
+      tags:
+        - Chart Analyzer
+      summary: Analyze a symbol across multiple timeframes (async)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MultiAnalysisRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeRequestResponse"
+  "/analyze/{session_id}/status":
+    get:
+      tags:
+        - Chart Analyzer
+      summary: Get analysis status
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeStatusResponse"
+  "/batch/scan":
+    post:
+      tags:
+        - Batch Scanner
+      summary: Start batch market scan (async)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchScanRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResponse"
+  "/batch/scan/{session_id}/status":
+    get:
+      tags:
+        - Batch Scanner
+      summary: Get batch scan status
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchScanStatusResponse"
+  "/batch/scan/{session_id}/cancel":
+    post:
+      tags:
+        - Batch Scanner
+      summary: Cancel a running batch scan
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResponse"
+  "/batch/results/{filename}":
+    get:
+      tags:
+        - Batch Scanner
+      summary: Get batch scan results by filename
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          schema:
+            type: string
+          description: Name of the results JSON file
+          # Allow reserved characters in path segment
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResultsResponse"
+  "/batch/list":
+    get:
+      tags:
+        - Batch Scanner
+      summary: List available batch results
+      parameters:
+        - in: query
+          name: skip
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: metadata_only
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchListResponse"
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        charts_dir_exists:
+          type: boolean
+        results_dir_exists:
+          type: boolean
+        vue_dist_exists:
+          type: boolean
+        charts_dir:
+          type: string
+        results_dir:
+          type: string
+    RootResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        status:
+          type: string
+        note:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        detail:
+          type: string
+    LogsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        logs:
+          type: string
+        offset:
+          type: integer
+        has_more:
+          type: boolean
+        file_size:
+          type: integer
+    IndicatorsConfig:
+      type: object
+      properties:
+        ma_periods:
+          type: array
+          items:
+            type: integer
+        rsi_period:
+          type: integer
+        enable_macd:
+          type: boolean
+        enable_bb:
+          type: boolean
+        bb_period:
+          type: integer
+    SingleAnalysisRequest:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        indicators:
+          $ref: "#/components/schemas/IndicatorsConfig"
+        prompt_type:
+          type: string
+        custom_prompt:
+          type: string
+        limit:
+          type: integer
+        chart_figsize:
+          type: array
+          items:
+            type: integer
+          minItems: 2
+          maxItems: 2
+        chart_dpi:
+          type: integer
+        no_cleanup:
+          type: boolean
+      required:
+        - symbol
+        - timeframe
+    MultiAnalysisRequest:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframes:
+          type: array
+          items:
+            type: string
+        indicators:
+          $ref: "#/components/schemas/IndicatorsConfig"
+        prompt_type:
+          type: string
+        custom_prompt:
+          type: string
+        limit:
+          type: integer
+        chart_figsize:
+          type: array
+          items:
+            type: integer
+          minItems: 2
+          maxItems: 2
+        chart_dpi:
+          type: integer
+        no_cleanup:
+          type: boolean
+      required:
+        - symbol
+        - timeframes
+    BatchScanRequest:
+      type: object
+      properties:
+        timeframe:
+          type: string
+        timeframes:
+          type: array
+          items:
+            type: string
+        max_symbols:
+          type: integer
+        limit:
+          type: integer
+        cooldown:
+          type: number
+        charts_per_batch:
+          type: integer
+        quote_currency:
+          type: string
+        exchange_name:
+          type: string
+    AnalyzeRequestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        session_id:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+    AnalyzeStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        session_id:
+          type: string
+        status:
+          type: string
+        started_at:
+          type: string
+        completed_at:
+          type: string
+        result:
+          type: object
+        error:
+          type: string
+    BatchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        session_id:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+    BatchScanStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        session_id:
+          type: string
+        status:
+          type: string
+        started_at:
+          type: string
+        completed_at:
+          type: string
+        result:
+          type: object
+        error:
+          type: string
+    BatchResultsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        filename:
+          type: string
+        results:
+          type: object
+    BatchListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatchListItem"
+    BatchListItem:
+      type: object
+      properties:
+        filename:
+          type: string
+        size:
+          type: integer
+        modified:
+          type: string
+        summary:
+          type: object
+        url:
+          type: string
+

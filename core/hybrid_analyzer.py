@@ -10,6 +10,7 @@ Phương án 1: Kết hợp sequential filtering và voting system.
 """
 
 import threading
+import ccxt
 from typing import Optional, Dict, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
@@ -213,9 +214,12 @@ class HybridAnalyzer:
         strategies: Optional[list] = None,
     ) -> Optional[Dict[str, Any]]:
         """Worker function to process a single symbol for Range Oscillator confirmation."""
+        from modules.common.utils import log_error, log_warn
+        
+        symbol = symbol_data["symbol"]
+        
         try:
             data_fetcher = DataFetcher(exchange_manager)
-            symbol = symbol_data["symbol"]
             
             osc_result = get_range_oscillator_signal(
                 data_fetcher=data_fetcher,
@@ -245,7 +249,14 @@ class HybridAnalyzer:
             
             return None
             
+        except ccxt.NetworkError as e:
+            log_error(f"Network error processing {symbol}: {e}")
+            return None
+        except (KeyError, ValueError, TypeError) as e:
+            log_error(f"Data validation error for {symbol}: {e}")
+            return None
         except Exception as e:
+            log_error(f"Unexpected error processing {symbol}: {type(e).__name__}: {e}")
             return None
     
     def _process_symbol_for_spc(
@@ -448,6 +459,8 @@ class HybridAnalyzer:
         signal_type: str,
     ) -> pd.DataFrame:
         """Calculate SPC signals from all 3 strategies for all symbols."""
+        from modules.common.utils import log_error, log_warn
+        
         if signals_df.empty:
             return pd.DataFrame()
 
@@ -498,8 +511,64 @@ class HybridAnalyzer:
                     if result is not None:
                         with progress_lock:
                             results.append(result)
+                except ccxt.NetworkError as e:
+                    log_error(f"Network error for {symbol}: {e}")
+                except (KeyError, ValueError, TypeError) as e:
+                    log_error(f"SPC data error for {symbol}: {type(e).__name__}: {e}")
                 except Exception as e:
-                    pass
+                    log_error(f"Unexpected SPC error for {symbol}: {type(e).__name__}: {e}")
+                finally:
+                    with progress_lock:
+                        checked_count[0] += 1
+                        current_checked = checked_count[0]
+                        
+                        if current_checked % 10 == 0 or current_checked == total:
+                            log_progress(
+                                f"Calculated SPC signals for {current_checked}/{total} symbols..."
+                            )
+        log_progress(f"Active Indicators: {', '.join(indicators_list)}")
+
+        exchange_manager = self.data_fetcher.exchange_manager
+        
+        symbol_data_list = [row.to_dict() for _, row in signals_df.iterrows()]
+
+        progress_lock = threading.Lock()
+        checked_count = [0]
+
+        results = []
+        
+        with ThreadPoolExecutor(max_workers=self.args.max_workers) as executor:
+            future_to_symbol = {
+                executor.submit(
+                    self._process_symbol_for_spc,
+                    symbol_data,
+                    exchange_manager,
+                    self.selected_timeframe,
+                    self.args.limit,
+                    spc_params,
+                ): symbol_data["symbol"]
+                for symbol_data in symbol_data_list
+            }
+
+            for future in as_completed(future_to_symbol):
+                symbol = future_to_symbol[future]
+                try:
+                    result = future.result()
+                    if result is not None:
+                        with progress_lock:
+                            results.append(result)
+                except ccxt.NetworkError as e:
+                    from modules.common.utils import log_error
+                    log_error(f"Network error for {symbol}: {e}")
+                except ccxt.RateLimitExceeded as e:
+                    from modules.common.utils import log_warn
+                    log_warn(f"Rate limit exceeded for {symbol}: {e}")
+                except (KeyError, ValueError, TypeError) as e:
+                    from modules.common.utils import log_error
+                    log_error(f"SPC data error for {symbol}: {type(e).__name__}: {e}")
+                except Exception as e:
+                    from modules.common.utils import log_error
+                    log_error(f"Unexpected SPC error for {symbol}: {type(e).__name__}: {e}")
                 finally:
                     with progress_lock:
                         checked_count[0] += 1
@@ -537,60 +606,37 @@ class HybridAnalyzer:
                         row_dict["xgboost_signal"] = 0
                         row_dict["xgboost_confidence"] = 0.0
                         xgb_results.append(row_dict)
-                except Exception as e:
+                except (KeyError, ValueError) as e:
                     row_dict = row.to_dict()
                     row_dict["xgboost_signal"] = 0
                     row_dict["xgboost_confidence"] = 0.0
                     xgb_results.append(row_dict)
-            result_df = pd.DataFrame(xgb_results)
-        
-        # Calculate HMM signals if enabled
-        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm and not result_df.empty:
-            log_progress(f"Calculating HMM signals for {len(result_df)} {signal_type} symbols...")
-            hmm_results = []
-            for _, row in result_df.iterrows():
-                try:
-                    hmm_result = get_hmm_signal(
-                        data_fetcher=self.data_fetcher,
-                        symbol=row['symbol'],
-                        timeframe=self.selected_timeframe,
-                        limit=self.args.limit,
-                        window_size=getattr(self.args, 'hmm_window_size', None),
-                        window_kama=getattr(self.args, 'hmm_window_kama', None),
-                        fast_kama=getattr(self.args, 'hmm_fast_kama', None),
-                        slow_kama=getattr(self.args, 'hmm_slow_kama', None),
-                        orders_argrelextrema=getattr(self.args, 'hmm_orders_argrelextrema', None),
-                        strict_mode=getattr(self.args, 'hmm_strict_mode', None),
-                    )
-                    if hmm_result is not None:
-                        row_dict = row.to_dict()
-                        row_dict["hmm_signal"] = hmm_result[0]
-                        row_dict["hmm_confidence"] = hmm_result[1]
-                        hmm_results.append(row_dict)
-                    else:
-                        row_dict = row.to_dict()
-                        row_dict["hmm_signal"] = 0
-                        row_dict["hmm_confidence"] = 0.0
-                        hmm_results.append(row_dict)
-                except Exception as e:
-                    # Log HMM errors but don't fail the entire process
-                    log_warn(f"HMM signal calculation failed for {row['symbol']}: {type(e).__name__}: {e}")
+                except ccxt.NetworkError as e:
+                    # Log network errors but don't fail the entire process
+                    log_warn(f"XGBoost network error for {row['symbol']}: {type(e).__name__}: {e}")
                     row_dict = row.to_dict()
-                    row_dict["hmm_signal"] = 0
-                    row_dict["hmm_confidence"] = 0.0
-                    hmm_results.append(row_dict)
+                    row_dict["xgboost_signal"] = 0
+                    row_dict["xgboost_confidence"] = 0.0
+                    xgb_results.append(row_dict)
+                except Exception as e:
+                    # Log XGBoost errors but don't fail the entire process
+                    log_warn(f"XGBoost signal calculation failed for {row['symbol']}: {type(e).__name__}: {e}")
+                    row_dict = row.to_dict()
+                    row_dict["xgboost_signal"] = 0
+                    row_dict["xgboost_confidence"] = 0.0
+                    xgb_results.append(row_dict)
             
-            result_df = pd.DataFrame(hmm_results)
+            result_df = pd.DataFrame(xgb_results)
             
-            # Log HMM summary
-            if hmm_results:
-                hmm_success_count = sum(1 for r in hmm_results if r.get('hmm_signal', 0) != 0)
-                hmm_total = len(hmm_results)
-                if hmm_total > 0:
-                    hmm_success_rate = (hmm_success_count / hmm_total) * 100
+            # Log XGBoost summary
+            if xgb_results:
+                xgb_success_count = sum(1 for r in xgb_results if r.get('xgboost_signal', 0) != 0)
+                xgb_total = len(xgb_results)
+                if xgb_total > 0:
+                    xgb_success_rate = (xgb_success_count / xgb_total) * 100
                     log_progress(
-                        f"HMM Status: {hmm_success_count}/{hmm_total} symbols with HMM signals "
-                        f"({hmm_success_rate:.1f}% success rate)"
+                        f"XGBoost Status: {xgb_success_count}/{xgb_total} symbols with XGBoost signals "
+                        f"({xgb_success_rate:.1f}% success rate)"
                     )
         
         # Calculate Random Forest signals if enabled

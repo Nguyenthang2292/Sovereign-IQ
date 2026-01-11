@@ -29,8 +29,13 @@ from modules.common.utils import configure_windows_stdio
 configure_windows_stdio()
 
 from colorama import Fore, init as colorama_init
-from modules.common.utils import color_text, log_error, log_warn
-from modules.common.utils import normalize_timeframe
+from modules.common.utils import (
+    color_text,
+    log_error,
+    log_warn,
+    normalize_timeframe,
+    safe_input,
+)
 from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
 from modules.common.core.exchange_manager import PublicExchangeManager
 from modules.common.ui.logging import log_info, log_success
@@ -50,6 +55,7 @@ class SymbolFetchError(Exception):
         super().__init__(message)
         self.original_exception = original_exception
         self.is_retryable = is_retryable
+
 
 
 def get_all_symbols_from_exchange(
@@ -203,7 +209,7 @@ def interactive_batch_scan():
     print("\nAnalysis mode:")
     print("  1. Single timeframe")
     print("  2. Multi-timeframe (recommended)")
-    mode = input(color_text("Select mode (1/2) [2]: ", Fore.YELLOW)).strip()
+    mode = safe_input(color_text("Select mode (1/2) [2]: ", Fore.YELLOW), default='2')
     if not mode:
         mode = '2'
     
@@ -215,8 +221,8 @@ def interactive_batch_scan():
         from modules.gemini_chart_analyzer.core.utils import DEFAULT_TIMEFRAMES, normalize_timeframes
         
         print(f"\nDefault timeframes: {', '.join(DEFAULT_TIMEFRAMES)}")
-        print("Timeframes: 15m, 30m, 1h, 4h, 1d, 1w (comma-separated)")
-        timeframes_input = input(color_text(f"Enter timeframes (comma-separated) [{', '.join(DEFAULT_TIMEFRAMES)}]: ", Fore.YELLOW)).strip()
+        print("Timeframes: 15m, 30m,1h, 4h, 1d, 1w (comma-separated)")
+        timeframes_input = safe_input(color_text(f"Enter timeframes (comma-separated) [{', '.join(DEFAULT_TIMEFRAMES)}]: ", Fore.YELLOW), default='')
         if not timeframes_input:
             timeframes = DEFAULT_TIMEFRAMES
         else:
@@ -231,8 +237,8 @@ def interactive_batch_scan():
                 timeframes = DEFAULT_TIMEFRAMES
     else:
         # Single timeframe mode
-        print("\nTimeframes: 15m, 30m, 1h, 4h, 1d, 1w")
-        timeframe = input(color_text("Enter timeframe [1h]: ", Fore.YELLOW)).strip()
+        print("\nTimeframes: 15m, 30m,1h, 4h, 1d, 1w")
+        timeframe = safe_input(color_text("Enter timeframe [1h]: ", Fore.YELLOW), default='1h')
         if not timeframe:
             timeframe = '1h'
         
@@ -249,7 +255,7 @@ def interactive_batch_scan():
                 raise
     
     # Get max symbols (optional)
-    max_symbols_input = input(color_text("Max symbols to scan (press Enter for all): ", Fore.YELLOW)).strip()
+    max_symbols_input = safe_input(color_text("Max symbols to scan (press Enter for all): ", Fore.YELLOW), default='')
     max_symbols = None
     if max_symbols_input:
         try:
@@ -262,7 +268,7 @@ def interactive_batch_scan():
             log_warn("Invalid input, scanning all symbols")
     
     # Get cooldown
-    cooldown_input = input(color_text("Cooldown between batches in seconds [2.5]: ", Fore.YELLOW)).strip()
+    cooldown_input = safe_input(color_text("Cooldown between batches in seconds [2.5]: ", Fore.YELLOW), default='2.5')
     cooldown = 2.5
     if cooldown_input:
         try:
@@ -275,7 +281,7 @@ def interactive_batch_scan():
             log_warn("Invalid input, using default 2.5s")
     
     # Get candles limit
-    limit_input = input(color_text("Number of candles per symbol [500]: ", Fore.YELLOW)).strip()
+    limit_input = safe_input(color_text("Number of candles per symbol [500]: ", Fore.YELLOW), default='500')
     limit = 500
     if limit_input:
         try:
@@ -291,7 +297,7 @@ def interactive_batch_scan():
     print("\nPre-filter option:")
     print("  Filter symbols using VotingAnalyzer or HybridAnalyzer before Gemini scan")
     print("  (Selects all symbols with signals)")
-    pre_filter_input = input(color_text("Enable pre-filter? (y/n) [n]: ", Fore.YELLOW)).strip().lower()
+    pre_filter_input = safe_input(color_text("Enable pre-filter? (y/n) [n]: ", Fore.YELLOW), default='n').lower()
     if not pre_filter_input:
         pre_filter_input = 'n'
     enable_pre_filter = pre_filter_input in ['y', 'yes']
@@ -302,7 +308,7 @@ def interactive_batch_scan():
         print("\nPre-filter mode:")
         print("  1. Voting (Pure voting system - all indicators vote simultaneously)")
         print("  2. Hybrid (Sequential filtering: ATC → Range Oscillator → SPC → Decision Matrix)")
-        mode_input = input(color_text("Select pre-filter mode (1/2) [1]: ", Fore.YELLOW)).strip()
+        mode_input = safe_input(color_text("Select pre-filter mode (1/2) [1]: ", Fore.YELLOW), default='1')
         if not mode_input:
             mode_input = '1'
         if mode_input == '2':
@@ -330,7 +336,7 @@ def interactive_batch_scan():
         print(f"Pre-filter: Disabled")
     print()
     
-    confirm = input(color_text("Start batch scan? (y/n) [y]: ", Fore.YELLOW)).strip().lower()
+    confirm = safe_input(color_text("Start batch scan? (y/n) [y]: ", Fore.YELLOW), default='y').lower()
     if not confirm:
         confirm = 'y'
     

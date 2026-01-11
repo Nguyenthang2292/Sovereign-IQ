@@ -10,7 +10,7 @@ from colorama import Fore, Style, init as colorama_init
 
 try:
     from modules.common.models.position import Position
-    from modules.common.utils import color_text
+    from modules.common.utils import color_text, safe_input
     from modules.common.core.exchange_manager import ExchangeManager
     from modules.common.core.data_fetcher import DataFetcher
     from modules.portfolio.risk_calculator import PortfolioRiskCalculator
@@ -24,14 +24,17 @@ try:
 except ImportError:
     Position = None
     color_text = None
+    safe_input = None
     ExchangeManager = None
     DataFetcher = None
     PortfolioRiskCalculator = None
     _correlation_analyzer_mod = None
     _hedge_finder_mod = None
-    BENCHMARK_SYMBOL = "BTC/USDT"
-    DEFAULT_VAR_CONFIDENCE = 0.95
-    DEFAULT_VAR_LOOKBACK_DAYS = 90
+
+
+BENCHMARK_SYMBOL = "BTC/USDT"
+DEFAULT_VAR_CONFIDENCE = 0.95
+DEFAULT_VAR_LOOKBACK_DAYS = 90
 
 colorama_init(autoreset=True)
 
@@ -415,7 +418,7 @@ def main():
 
     while True:
         try:
-            choice = input("\nEnter choice (1-3): ").strip()
+            choice = safe_input("\nEnter choice (1-3): ", default='').strip()
             
             if choice == "1":
                 display_portfolio_analysis(pm)

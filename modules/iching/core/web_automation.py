@@ -33,6 +33,7 @@ from config.iching import (
     WAIT_TIMEOUT,
 )
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
+from modules.common.utils import safe_input
 from modules.iching.core.data_models import IChingResult
 from modules.iching.core.result_extractor import IChingResultExtractor
 
@@ -426,7 +427,7 @@ def fill_web_form(
         if not auto_close:
             log_info("Trình duyệt sẽ giữ mở. Nhấn Enter để đóng...")
             try:
-                input()
+                safe_input("")
             except (EOFError, KeyboardInterrupt):
                 log_info("Đang đóng trình duyệt...")
     finally:

@@ -253,6 +253,15 @@ export const chartAnalyzerStatusAPI = {
   getAnalyzeStatus(sessionId, config = {}) {
     return quickApi.get(`/analyze/${sessionId}/status`, config)
   },
+
+  /**
+   * Cancel a running analysis task
+   * @param {string} sessionId - Session ID from analyzeSingle or analyzeMulti
+   * @returns {Promise} Cancellation result
+   */
+  cancelAnalysis(sessionId) {
+    return quickApi.post(`/analyze/${sessionId}/cancel`)
+  },
 }
 
 export default api

@@ -28,6 +28,7 @@ from config import (
 )
 from modules.common.utils import (
     color_text,
+    safe_input,
     prompt_user_input,
 )
 from modules.common.ui.formatting import prompt_user_input_with_backspace
@@ -336,7 +337,7 @@ def _configure_decision_matrix(config, mode="hybrid"):
     print(f"  Voting Threshold: {config.voting_threshold}")
     print(f"  Min Votes: {config.min_votes}")
     
-    input("\nPress Enter to return to main menu...")
+    safe_input("\nPress Enter to return to main menu...", default='')
     return ('main', changed)
 
 

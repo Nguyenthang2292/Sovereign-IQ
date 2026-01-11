@@ -7,7 +7,7 @@ Bayesian Kelly Criterion and Regime Switching.
 
 # Backtest Configuration
 DEFAULT_LOOKBACK_DAYS = 15  # Number of days to look back for backtesting
-DEFAULT_TIMEFRAME = "1h"  # Default timeframe for backtesting
+DEFAULT_TIMEFRAME = "15m"  # Default timeframe for backtesting (aligned with common.py)
 DEFAULT_LIMIT = 1500  # Default number of candles to fetch for backtesting
 
 # Kelly Criterion Configuration
