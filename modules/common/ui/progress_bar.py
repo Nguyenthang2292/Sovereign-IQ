@@ -1,10 +1,18 @@
+
+import threading
+
+from colorama import Fore
+
+from modules.common.ui.formatting import color_text
+
+from modules.common.ui.formatting import color_text
+
 """
 Progress bar utility for displaying task progress.
 """
 
-import threading
-from colorama import Fore
-from modules.common.ui.formatting import color_text
+
+
 
 
 class ProgressBar:
@@ -24,7 +32,7 @@ class ProgressBar:
         self.width = width
         self.current = 0
         self._lock = threading.Lock()
-    
+
     def set_label(self, label: str):
         """Update the label dynamically."""
         with self._lock:
@@ -58,16 +66,15 @@ class ProgressBar:
 class NullProgressBar:
     """
     Null object pattern for ProgressBar.
-    
+
     This class provides the same interface as ProgressBar but does nothing.
     Use this to avoid checking `if progress:` throughout the code.
     """
-    
+
     def update(self, step: int = 1) -> None:
         """No-op update method."""
         pass
-    
+
     def finish(self) -> None:
         """No-op finish method."""
         pass
-

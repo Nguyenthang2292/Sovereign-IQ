@@ -7,20 +7,20 @@ Includes hedge ratio calculation, cointegration testing, and opportunity scoring
 
 # Performance Analysis Weights (Default)
 PAIRS_TRADING_WEIGHTS = {
-    '1d': 0.5,   # Weight for 1 day (24 candles)
-    '3d': 0.3,   # Weight for 3 days (72 candles)
-    '1w': 0.2    # Weight for 1 week (168 candles)
+    "1d": 0.5,  # Weight for 1 day (24 candles)
+    "3d": 0.3,  # Weight for 3 days (72 candles)
+    "1w": 0.2,  # Weight for 1 week (168 candles)
 }
 
 # Performance Analysis Weight Presets
 # Named presets for CLI selection with different trading strategies
 PAIRS_TRADING_WEIGHT_PRESETS = {
-    "momentum": {'1d': 0.5, '3d': 0.3, '1w': 0.2},          # Favor short-term signals
-    "balanced": {'1d': 0.3, '3d': 0.4, '1w': 0.3},          # Balanced short-medium-long term
-    "short_term_bounce": {'1d': 0.7, '3d': 0.2, '1w': 0.1},  # Very sensitive to 1d volatility
-    "trend_follower": {'1d': 0.2, '3d': 0.3, '1w': 0.5},     # Follow longer trends
-    "mean_reversion": {'1d': 0.25, '3d': 0.5, '1w': 0.25},   # Emphasize medium-term for mean reversion
-    "volatility_buffer": {'1d': 0.2, '3d': 0.4, '1w': 0.4},  # Reduce short-term noise, increase stability
+    "momentum": {"1d": 0.5, "3d": 0.3, "1w": 0.2},  # Favor short-term signals
+    "balanced": {"1d": 0.3, "3d": 0.4, "1w": 0.3},  # Balanced short-medium-long term
+    "short_term_bounce": {"1d": 0.7, "3d": 0.2, "1w": 0.1},  # Very sensitive to 1d volatility
+    "trend_follower": {"1d": 0.2, "3d": 0.3, "1w": 0.5},  # Follow longer trends
+    "mean_reversion": {"1d": 0.25, "3d": 0.5, "1w": 0.25},  # Emphasize medium-term for mean reversion
+    "volatility_buffer": {"1d": 0.2, "3d": 0.4, "1w": 0.4},  # Reduce short-term noise, increase stability
 }
 
 # Hedge Ratio Calculation Configuration
@@ -143,47 +143,39 @@ PAIRS_TRADING_QUANTITATIVE_SCORE_WEIGHTS = {
     "cointegration_full_weight": 30.0,  # Full weight if cointegrated
     "cointegration_weak_weight": 15.0,  # Weak weight if pvalue < 0.1
     "cointegration_weak_pvalue_threshold": 0.1,  # Threshold for weak cointegration
-    
     # Half-life weights and thresholds
     "half_life_excellent_weight": 20.0,  # Weight if half_life < excellent_threshold
     "half_life_good_weight": 10.0,  # Weight if half_life < good_threshold
     "half_life_excellent_threshold": 20.0,  # Excellent threshold (periods)
     "half_life_good_threshold": 50.0,  # Good threshold (periods)
-    
     # Hurst exponent weights and thresholds
     "hurst_excellent_weight": 15.0,  # Weight if hurst < excellent_threshold
     "hurst_good_weight": 8.0,  # Weight if hurst < good_threshold
     "hurst_excellent_threshold": 0.4,  # Excellent threshold
     "hurst_good_threshold": 0.5,  # Good threshold
-    
     # Sharpe ratio weights and thresholds
     "sharpe_excellent_weight": 15.0,  # Weight if sharpe > excellent_threshold
     "sharpe_good_weight": 8.0,  # Weight if sharpe > good_threshold
     "sharpe_excellent_threshold": 2.0,  # Excellent threshold
     "sharpe_good_threshold": 1.0,  # Good threshold
-    
     # F1-score weights and thresholds
     "f1_excellent_weight": 10.0,  # Weight if f1 > excellent_threshold
     "f1_good_weight": 5.0,  # Weight if f1 > good_threshold
     "f1_excellent_threshold": 0.7,  # Excellent threshold
     "f1_good_threshold": 0.6,  # Good threshold
-    
     # Max drawdown weights and thresholds
     "maxdd_excellent_weight": 10.0,  # Weight if abs(maxdd) < excellent_threshold
     "maxdd_good_weight": 5.0,  # Weight if abs(maxdd) < good_threshold
     "maxdd_excellent_threshold": 0.2,  # Excellent threshold (20%)
     "maxdd_good_threshold": 0.3,  # Good threshold (30%)
-    
     # Calmar ratio weights and thresholds
     "calmar_excellent_weight": 5.0,  # Weight if calmar >= excellent_threshold
     "calmar_good_weight": 2.5,  # Weight if calmar >= good_threshold
     "calmar_excellent_threshold": 1.0,  # Excellent threshold
     "calmar_good_threshold": 0.5,  # Good threshold
-    
     # Momentum extensions
     "momentum_adx_strong_weight": 10.0,
     "momentum_adx_moderate_weight": 5.0,
-
     # Maximum score cap
     "max_score": 100.0,  # Maximum quantitative score (capped at 100)
 }
@@ -191,17 +183,17 @@ PAIRS_TRADING_QUANTITATIVE_SCORE_WEIGHTS = {
 # Momentum-specific filters and thresholds
 PAIRS_TRADING_ADX_PERIOD = 14
 PAIRS_TRADING_MOMENTUM_FILTERS = {
-    "min_adx": 18.0,            # Minimum ADX required to consider a leg trending
-    "strong_adx": 25.0,         # Strong trend confirmation threshold
-    "adx_base_bonus": 1.03,     # Bonus when both legs pass min_adx
-    "adx_strong_bonus": 1.08,   # Bonus when both legs exceed strong_adx
+    "min_adx": 18.0,  # Minimum ADX required to consider a leg trending
+    "strong_adx": 25.0,  # Strong trend confirmation threshold
+    "adx_base_bonus": 1.03,  # Bonus when both legs pass min_adx
+    "adx_strong_bonus": 1.08,  # Bonus when both legs exceed strong_adx
     "adx_weak_penalty_factor": 0.5,  # Penalty scaling factor when ADX < min_adx (0.0-1.0, lower = more penalty)
     "adx_very_weak_threshold": 10.0,  # ADX below this gets severe penalty
     "adx_very_weak_penalty": 0.3,  # Severe penalty multiplier for very weak ADX
-    "low_corr_threshold": 0.30, # Prefer divergence / low correlation
-    "high_corr_threshold": 0.75,# Penalize highly correlated legs
-    "low_corr_bonus": 1.05,     # Bonus if |corr| below low_corr_threshold
-    "negative_corr_bonus": 1.10,# Bonus if correlation is negative
+    "low_corr_threshold": 0.30,  # Prefer divergence / low correlation
+    "high_corr_threshold": 0.75,  # Penalize highly correlated legs
+    "low_corr_bonus": 1.05,  # Bonus if |corr| below low_corr_threshold
+    "negative_corr_bonus": 1.10,  # Bonus if correlation is negative
     "high_corr_penalty": 0.90,  # Penalty if |corr| above high_corr_threshold
 }
 
@@ -247,52 +239,51 @@ PAIRS_TRADING_HURST_EXPONENT_MEAN_REVERTING_MAX = 0.5  # Maximum Hurst for mean-
 # This includes core pair information and all quantitative metrics
 PAIRS_TRADING_PAIR_COLUMNS = [
     # Core pair information
-    'long_symbol',
-    'short_symbol',
-    'long_score',
-    'short_score',
-    'spread',
-    'correlation',
-    'opportunity_score',
-    'quantitative_score',
+    "long_symbol",
+    "short_symbol",
+    "long_score",
+    "short_score",
+    "spread",
+    "correlation",
+    "opportunity_score",
+    "quantitative_score",
     # OLS-based metrics
-    'hedge_ratio',
-    'adf_pvalue',
-    'is_cointegrated',
-    'half_life',
-    'mean_zscore',
-    'std_zscore',
-    'skewness',
-    'kurtosis',
-    'current_zscore',
-    'hurst_exponent',
-    'spread_sharpe',
-    'max_drawdown',
-    'calmar_ratio',
-    'classification_f1',
-    'classification_precision',
-    'classification_recall',
-    'classification_accuracy',
+    "hedge_ratio",
+    "adf_pvalue",
+    "is_cointegrated",
+    "half_life",
+    "mean_zscore",
+    "std_zscore",
+    "skewness",
+    "kurtosis",
+    "current_zscore",
+    "hurst_exponent",
+    "spread_sharpe",
+    "max_drawdown",
+    "calmar_ratio",
+    "classification_f1",
+    "classification_precision",
+    "classification_recall",
+    "classification_accuracy",
     # Johansen test (independent of hedge ratio method)
-    'johansen_trace_stat',
-    'johansen_critical_value',
-    'is_johansen_cointegrated',
+    "johansen_trace_stat",
+    "johansen_critical_value",
+    "is_johansen_cointegrated",
     # Kalman hedge ratio
-    'kalman_hedge_ratio',
+    "kalman_hedge_ratio",
     # Kalman-based metrics
-    'kalman_half_life',
-    'kalman_mean_zscore',
-    'kalman_std_zscore',
-    'kalman_skewness',
-    'kalman_kurtosis',
-    'kalman_current_zscore',
-    'kalman_hurst_exponent',
-    'kalman_spread_sharpe',
-    'kalman_max_drawdown',
-    'kalman_calmar_ratio',
-    'kalman_classification_f1',
-    'kalman_classification_precision',
-    'kalman_classification_recall',
-    'kalman_classification_accuracy',
+    "kalman_half_life",
+    "kalman_mean_zscore",
+    "kalman_std_zscore",
+    "kalman_skewness",
+    "kalman_kurtosis",
+    "kalman_current_zscore",
+    "kalman_hurst_exponent",
+    "kalman_spread_sharpe",
+    "kalman_max_drawdown",
+    "kalman_calmar_ratio",
+    "kalman_classification_f1",
+    "kalman_classification_precision",
+    "kalman_classification_recall",
+    "kalman_classification_accuracy",
 ]
-

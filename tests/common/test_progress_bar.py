@@ -1,9 +1,11 @@
-import io
-from contextlib import redirect_stdout
 
-import pytest
+from contextlib import redirect_stdout
+import io
 
 from modules.common.ui.progress_bar import ProgressBar
+from modules.common.ui.progress_bar import ProgressBar
+
+
 
 
 def test_progress_bar_reaches_total_and_prints_label():

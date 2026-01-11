@@ -1,11 +1,15 @@
+
+import numpy as np
+import pandas as pd
+
+from modules.common.quantitative_metrics import calculate_calmar_ratio
+from modules.common.quantitative_metrics import calculate_calmar_ratio
+
 """
 Tests for calmar_ratio module.
 """
-import numpy as np
-import pandas as pd
-import pytest
 
-from modules.common.quantitative_metrics import calculate_calmar_ratio
+
 
 
 def test_calculate_calmar_ratio_uses_annual_return_and_drawdown():
@@ -17,12 +21,12 @@ def test_calculate_calmar_ratio_uses_annual_return_and_drawdown():
     # Manual calculation
     pnl_series = equity_curve.diff().dropna()
     annual_return = pnl_series.mean() * periods
-    
+
     # Max drawdown calculation
     running_max = equity_curve.expanding().max()
     drawdown = equity_curve - running_max
     max_dd = abs(drawdown.min())
-    
+
     expected = annual_return / max_dd if max_dd > 0 else None
 
     result = calculate_calmar_ratio(equity_curve, periods)
@@ -85,4 +89,3 @@ def test_calculate_calmar_ratio_with_nan_values():
 
     # Should handle NaN gracefully
     assert result is None or isinstance(result, float)
-

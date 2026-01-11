@@ -1,3 +1,10 @@
+
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+import pandas as pd
+
 """
 Correlation analyzer for portfolio correlation calculations.
 
@@ -6,28 +13,26 @@ various correlation metrics between portfolio positions and new symbols,
 including weighted correlations and portfolio return correlations.
 """
 
-import pandas as pd
-import numpy as np
-from typing import List, Optional, Dict, Tuple, Any, TYPE_CHECKING
+
 
 if TYPE_CHECKING:
     from modules.common.models.position import Position
 
 try:
-    from modules.common.models.position import Position
-    from modules.common.utils import (
-        log_warn,
-        log_error,
-        log_info,
-        log_analysis,
-        log_data,
-        log_success,
-    )
     from config import (
         DEFAULT_CORRELATION_MIN_POINTS,
         DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS,
         HEDGE_CORRELATION_HIGH_THRESHOLD,
         HEDGE_CORRELATION_MEDIUM_THRESHOLD,
+    )
+    from modules.common.models.position import Position
+    from modules.common.utils import (
+        log_analysis,
+        log_data,
+        log_error,
+        log_info,
+        log_success,
+        log_warn,
     )
 except ImportError:
     Position = None
@@ -107,9 +112,7 @@ class PortfolioCorrelationAnalyzer:
                     symbol_series[pos.symbol] = series
         return symbol_series
 
-    def calculate_weighted_correlation(
-        self, verbose: bool = True
-    ) -> Tuple[Optional[float], List[Dict[str, Any]]]:
+    def calculate_weighted_correlation(self, verbose: bool = True) -> Tuple[Optional[float], List[Dict[str, Any]]]:
         """
         Calculate weighted internal correlation of the current portfolio (between positions).
 
@@ -156,7 +159,7 @@ class PortfolioCorrelationAnalyzer:
         # Adjust returns for SHORT positions
         adjusted_returns = returns_df.copy()
         position_map = {p.symbol: p for p in self.positions}
-        
+
         for col in adjusted_returns.columns:
             pos = position_map.get(col)
             if pos and pos.direction == "SHORT":
@@ -164,7 +167,7 @@ class PortfolioCorrelationAnalyzer:
 
         # Calculate correlation matrix (Vectorized O(1) operation relative to loop)
         corr_matrix = adjusted_returns.corr()
-        
+
         correlations = []
         weights = []
         position_pairs = []
@@ -174,7 +177,7 @@ class PortfolioCorrelationAnalyzer:
         for i, symbol1 in enumerate(symbols):
             for j in range(i + 1, len(symbols)):
                 symbol2 = symbols[j]
-                
+
                 # Check for minimum overlapping data points for this specific pair
                 # This is important because dropna(how='all') might leave pairs with few common points
                 pair_data = adjusted_returns[[symbol1, symbol2]].dropna()
@@ -187,10 +190,8 @@ class PortfolioCorrelationAnalyzer:
 
                 pos1 = position_map.get(symbol1)
                 pos2 = position_map.get(symbol2)
-                
-                weight = (
-                    (pos1.size_usdt if pos1 else 0) + (pos2.size_usdt if pos2 else 0)
-                ) / 2
+
+                weight = ((pos1.size_usdt if pos1 else 0) + (pos2.size_usdt if pos2 else 0)) / 2
 
                 correlations.append(corr)
                 weights.append(weight)
@@ -271,45 +272,31 @@ class PortfolioCorrelationAnalyzer:
         if verbose and log_analysis:
             log_analysis("=== Analyzing Correlation Impact of Adding New Symbol ===")
 
-        internal_corr_before, _ = self.calculate_weighted_correlation(
-            verbose=False
-        )
+        internal_corr_before, _ = self.calculate_weighted_correlation(verbose=False)
         result["before"]["internal_correlation"] = internal_corr_before
 
         # Calculate correlation with new symbol
-        weighted_corr, position_details = self.calculate_weighted_correlation_with_new_symbol(
-            new_symbol, verbose=False
-        )
+        weighted_corr, position_details = self.calculate_weighted_correlation_with_new_symbol(new_symbol, verbose=False)
         result["after"]["new_symbol_correlation"] = weighted_corr
 
         # Calculate portfolio return correlation with new symbol
-        portfolio_return_corr, return_metadata = (
-            self.calculate_portfolio_return_correlation(new_symbol, verbose=False)
-        )
+        portfolio_return_corr, return_metadata = self.calculate_portfolio_return_correlation(new_symbol, verbose=False)
         result["after"]["portfolio_return_correlation"] = portfolio_return_corr
 
         # Simulate adding new position and recalculate internal correlation
         if new_position_size > 0:
             from modules.common.models.position import Position
 
-            temp_positions = self.positions + [
-                Position(new_symbol, new_direction, 0.0, new_position_size)
-            ]
-            temp_analyzer = PortfolioCorrelationAnalyzer(
-                self.data_fetcher, temp_positions
-            )
-            internal_corr_after, _ = temp_analyzer.calculate_weighted_correlation(
-                verbose=False
-            )
+            temp_positions = self.positions + [Position(new_symbol, new_direction, 0.0, new_position_size)]
+            temp_analyzer = PortfolioCorrelationAnalyzer(self.data_fetcher, temp_positions)
+            internal_corr_after, _ = temp_analyzer.calculate_weighted_correlation(verbose=False)
             result["after"]["internal_correlation"] = internal_corr_after
 
             # Calculate impact
             if internal_corr_before is not None and internal_corr_after is not None:
                 correlation_change = internal_corr_after - internal_corr_before
                 result["impact"]["correlation_change"] = correlation_change
-                result["impact"]["diversification_improvement"] = (
-                    abs(internal_corr_after) < abs(internal_corr_before)
-                )
+                result["impact"]["diversification_improvement"] = abs(internal_corr_after) < abs(internal_corr_before)
 
         if verbose:
             if log_analysis:
@@ -512,9 +499,7 @@ class PortfolioCorrelationAnalyzer:
                 position_weights[pos.symbol] = abs(pos.size_usdt)
 
         # Filter to only symbols that exist in both adjusted_returns_df and position_weights
-        valid_symbols = [
-            sym for sym in adjusted_returns_df.columns if sym in position_weights
-        ]
+        valid_symbols = [sym for sym in adjusted_returns_df.columns if sym in position_weights]
         if not valid_symbols:
             if verbose and log_warn:
                 log_warn("No valid positions for portfolio return calculation.")

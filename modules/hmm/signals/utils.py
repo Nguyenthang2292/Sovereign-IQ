@@ -1,20 +1,25 @@
+
+import pandas as pd
+
+from modules.common.utils import log_error
+from modules.common.utils import log_error
+
 """
 HMM Signal Utilities Module
 
 Utility functions for data validation.
 """
 
-import pandas as pd
-from modules.common.utils import log_error
+
 
 
 def validate_dataframe(df: pd.DataFrame) -> bool:
     """
     Validate that DataFrame has required OHLCV columns.
-    
+
     Args:
         df: DataFrame to validate
-        
+
     Returns:
         True if valid, False otherwise
     """
@@ -33,4 +38,3 @@ def validate_dataframe(df: pd.DataFrame) -> bool:
         return False
 
     return True
-

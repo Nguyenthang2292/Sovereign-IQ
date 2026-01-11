@@ -1,3 +1,7 @@
+
+import importlib
+import sys
+
 """
 Modules package for crypto prediction system.
 Provides compatibility aliases for legacy import paths used in tests.
@@ -6,8 +10,6 @@ Provides compatibility aliases for legacy import paths used in tests.
 __all__ = []
 
 # Backwards-compatible import aliases
-import importlib
-import sys
 
 _ALIASES = {
     # common subpackage

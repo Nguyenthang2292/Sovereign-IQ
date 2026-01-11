@@ -1,3 +1,6 @@
+
+from pathlib import Path
+
 """
 LSTM Model Configuration.
 
@@ -9,7 +12,6 @@ Configuration constants for LSTM/CNN-LSTM models including:
 - Target creation thresholds
 """
 
-from pathlib import Path
 
 # ============================================================================
 # Directory Configuration
@@ -36,7 +38,9 @@ VALIDATION_SPLIT = 0.15  # Proportion for validation set (15%)
 TARGET_THRESHOLD_LSTM = 0.01  # Threshold for creating classification targets (1%)
 NEUTRAL_ZONE_LSTM = 0.005  # Neutral zone around zero for balanced target creation (0.5%)
 FUTURE_RETURN_SHIFT_MULTIPLIER = 0.4  # Multiplier for calculating future return shift from window size
-FUTURE_RETURN_SHIFT = int(WINDOW_SIZE_LSTM * FUTURE_RETURN_SHIFT_MULTIPLIER)  # Number of periods to shift forward for future return calculation
+FUTURE_RETURN_SHIFT = int(
+    WINDOW_SIZE_LSTM * FUTURE_RETURN_SHIFT_MULTIPLIER
+)  # Number of periods to shift forward for future return calculation
 
 # ============================================================================
 # Model Architecture Configuration
@@ -59,7 +63,7 @@ DROPOUT_FINAL_LAYER = 0.2  # Dropout rate for final layers (classifier/regressor
 # Transformer-style parameters for hybrid LSTM-attention/Transformer-augmented models.
 # These parameters configure transformer components integrated into LSTM architectures:
 # - nhead: Used by MultiHeadAttention (modules/lstm/core/multi_head_attention.py) as num_heads
-# - d_model: Used by PositionalEncoding (modules/lstm/core/positional_encoding.py) and 
+# - d_model: Used by PositionalEncoding (modules/lstm/core/positional_encoding.py) and
 #   FeedForward (modules/lstm/core/feed_forward.py) for model dimension
 # - dim_feedforward: Used by FeedForward as d_ff (feedforward network hidden dimension)
 # - num_layers: Reserved for future transformer encoder/decoder layers
@@ -67,11 +71,11 @@ DROPOUT_FINAL_LAYER = 0.2  # Dropout rate for final layers (classifier/regressor
 # Consumed by: LSTMAttentionModel, CNNLSTMAttentionModel (modules/lstm/models/lstm_models.py),
 #             cnn_lstm_attention_trainer.py, lstm_attention_trainer.py
 GPU_MODEL_CONFIG = {
-    'nhead': 8,  # Number of attention heads for multi-head attention
-    'd_model': 128,  # Model dimension
-    'num_layers': 2,  # Number of encoder/decoder layers
-    'dropout': 0.1,  # Dropout rate
-    'dim_feedforward': 512,  # Feedforward network dimension
+    "nhead": 8,  # Number of attention heads for multi-head attention
+    "d_model": 128,  # Model dimension
+    "num_layers": 2,  # Number of encoder/decoder layers
+    "dropout": 0.1,  # Dropout rate
+    "dim_feedforward": 512,  # Feedforward network dimension
 }
 
 # ============================================================================
@@ -122,9 +126,9 @@ INFERENCE_MEMORY_MULTIPLIER = 1.0
 # Model complexity multipliers (consistent for both CPU and GPU)
 # These represent relative memory overhead of each model type
 COMPLEXITY_MULTIPLIER = {
-    'lstm': 1.0,
-    'lstm_attention': 2.5,  # Attention mechanism requires more memory
-    'cnn_lstm': 3.0,        # CNN + LSTM requires most memory
+    "lstm": 1.0,
+    "lstm_attention": 2.5,  # Attention mechanism requires more memory
+    "cnn_lstm": 3.0,  # CNN + LSTM requires most memory
 }
 
 # ============================================================================
@@ -134,7 +138,7 @@ COMPLEXITY_MULTIPLIER = {
 ENABLE_KALMAN_FILTER = False  # Default: disabled for backward compatibility
 KALMAN_PROCESS_VARIANCE = 1e-5  # Process noise covariance (Q) - smaller = smoother output
 KALMAN_OBSERVATION_VARIANCE = 1.0  # Observation noise covariance (R) - smaller = less smoothing
-KALMAN_METHOD = 'univariate'  # 'univariate' or 'multivariate' (currently only univariate implemented)
+KALMAN_METHOD = "univariate"  # 'univariate' or 'multivariate' (currently only univariate implemented)
 
 # ============================================================================
 # Model Features

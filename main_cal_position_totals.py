@@ -7,16 +7,18 @@ Usage:
 
 import sys
 import threading
-from colorama import Fore, Style, init as colorama_init
 
+from colorama import Fore, Style
+from colorama import init as colorama_init
+
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (
     color_text,
-    log_info,
     log_error,
+    log_info,
     log_success,
 )
-from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.core.data_fetcher import DataFetcher
 
 # Initialize colorama
 colorama_init(autoreset=True)

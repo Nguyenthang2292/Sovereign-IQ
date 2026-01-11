@@ -1,3 +1,10 @@
+
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+import pandas as pd
+
 """
 OLS hedge ratio calculation for quantitative analysis.
 
@@ -25,9 +32,7 @@ When to Use OLS vs Kalman:
 - Kalman: Best for evolving relationships, adapts to regime changes, more complex
 """
 
-import pandas as pd
-import numpy as np
-from typing import Optional
+
 
 try:
     from config import (
@@ -42,7 +47,6 @@ except ImportError:
     LinearRegression = None
 
 
-
 def calculate_ols_hedge_ratio(
     price1: pd.Series,
     price2: pd.Series,
@@ -50,28 +54,28 @@ def calculate_ols_hedge_ratio(
 ) -> Optional[float]:
     """
     Calculate OLS (Ordinary Least Squares) hedge ratio using linear regression.
-    
+
     The hedge ratio (β) determines how many units of asset 2 (price2) to short
     for each unit of asset 1 (price1) to long. It minimizes spread variance:
     spread = price1 - β * price2.
-    
+
     **OLS (Static) vs Kalman (Dynamic)**:
     - OLS: Single constant ratio from all historical data. Best for stable relationships.
     - Kalman: Time-varying ratio that adapts to market changes. Use for evolving relationships.
-    
+
     **Formula**: β = argmin Σ(price1 - β * price2)²
     Regression model: price1 = β * price2 + α (if fit_intercept=True) or price1 = β * price2 (if False)
-    
+
     Args:
         price1: First price series (pd.Series, dependent variable, asset to long)
         price2: Second price series (pd.Series, independent variable, asset to short)
         fit_intercept: Include intercept term. True = price1 = β*price2 + α, False = price1 = β*price2.
             Default: PAIRS_TRADING_OLS_FIT_INTERCEPT (True)
-        
+
     Returns:
         Hedge ratio (β) as float, or None if calculation fails (insufficient data, sklearn not installed,
         invalid input, or calculation error).
-        
+
     Example:
         >>> price1 = pd.Series([100, 102, 101, 103, 105])
         >>> price2 = pd.Series([50, 51, 50.5, 51.5, 52.5])
@@ -80,47 +84,47 @@ def calculate_ols_hedge_ratio(
     """
     if LinearRegression is None:
         return None
-    
+
     if price1 is None or price2 is None:
         return None
-    
+
     if not isinstance(price1, pd.Series) or not isinstance(price2, pd.Series):
         return None
-    
+
     # Check if price1 and price2 have same length
     if len(price1) != len(price2):
         return None
-    
+
     # Align indices and handle NaN values
     common_idx = price1.index.intersection(price2.index)
     if len(common_idx) < 10:
         return None
-    
+
     price1_aligned = price1.loc[common_idx]
     price2_aligned = price2.loc[common_idx]
-    
+
     # Drop rows where either price1 or price2 is NaN
     valid_mask = price1_aligned.notna() & price2_aligned.notna()
     if valid_mask.sum() < 10:
         return None
-    
+
     price1_clean = price1_aligned[valid_mask]
     price2_clean = price2_aligned[valid_mask]
-    
+
     # Validate price1 and price2 don't contain Inf
     if np.isinf(price1_clean.values).any() or np.isinf(price2_clean.values).any():
         return None
-    
+
     # Validate that prices are not constant (zero variance)
     # Constant prices cannot be used to estimate a relationship via regression
-    # 
+    #
     # Critical check: price2 must have variance (it's the independent variable X)
     # If price2 is constant, the regression model Y = βX + α cannot estimate β
     # (the regression coefficient β is undefined when X has no variance)
     # price1 variance check is also important to avoid degenerate cases
     price1_std = price1_clean.std()
     price2_std = price2_clean.std()
-    
+
     # Check for zero or near-zero variance (threshold: 1e-10 to handle floating point precision)
     # This prevents division by zero and singular matrix errors in regression
     if price1_std < 1e-10 or price2_std < 1e-10:
@@ -130,20 +134,20 @@ def calculate_ols_hedge_ratio(
         # OLS regression: price1 = beta * price2 + alpha (if fit_intercept=True).
         # The hedge ratio is the slope beta. When fit_intercept=False, beta ties directly
         # to price1 ≈ beta * price2 (common for spread = price1 - beta * price2).
-        # 
+        #
         # Mathematical formulation:
         # - fit_intercept=True: price1 = β * price2 + α (intercept α allows for price level differences)
         # - fit_intercept=False: price1 = β * price2 (forces relationship through origin)
-        # 
+        #
         # The hedge ratio β minimizes: Σ(price1 - β * price2 - α)²
         # When fit_intercept=False, it minimizes: Σ(price1 - β * price2)²
         model = LinearRegression(fit_intercept=fit_intercept)
         model.fit(price2_clean.values.reshape(-1, 1), price1_clean.values)
-        
+
         # Validate model has coefficient
-        if not hasattr(model, 'coef_') or len(model.coef_) == 0:
+        if not hasattr(model, "coef_") or len(model.coef_) == 0:
             return None
-        
+
         beta = float(model.coef_[0])
 
         # Validate beta (final sanity checks)
@@ -167,4 +171,3 @@ def calculate_ols_hedge_ratio(
     except Exception:
         # Catch any other unexpected exceptions
         return None
-

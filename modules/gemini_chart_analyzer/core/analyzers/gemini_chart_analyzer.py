@@ -1,16 +1,17 @@
+
+from typing import Optional
+import time
+
+from PIL.Image import Image as PILImage
+import PIL.Image
+import PIL.Image
+
 """
 Gemini Analyzer for analyzing chart images using Google Gemini API.
 
 Send a chart image to Google Gemini for analysis and receive LONG/SHORT signals with TP/SL.
 """
 
-import os
-import time
-import logging
-import re
-from typing import Optional
-import PIL.Image
-from PIL.Image import Image as PILImage
 
 # Try importing with the newest syntax first: from google import genai
 # Note: There may be a conflict with other google packages, so try direct import first
@@ -34,253 +35,35 @@ except ImportError as e1:
                 f"Please install: pip install google-genai"
             )
 
-from modules.common.ui.logging import log_info, log_error, log_success
-
-logger = logging.getLogger(__name__)
-
-
-def _get_fallback_models(primary_model: str) -> list:
-    """
-    Get list of fallback models in order of preference.
-    
-    Args:
-        primary_model: The primary model that failed
-        
-    Returns:
-        List of fallback model names (excluding the primary_model)
-    """
-    fallbacks = []
-    
-    # If primary is flash, try other flash models then pro
-    if 'flash' in primary_model.lower():
-        if '3' in primary_model:
-            # If primary is gemini-3-flash, try 2.5-flash then 1.5-flash then pro
-            fallbacks.extend([
-                'models/gemini-2.5-flash',
-                'models/gemini-1.5-flash',
-                'models/gemini-1.5-pro'
-            ])
-        elif '2.5' in primary_model:
-            # If primary is gemini-2.5-flash, try 1.5-flash then pro
-            fallbacks.extend([
-                'models/gemini-1.5-flash',
-                'models/gemini-1.5-pro'
-            ])
-        else:
-            # Try newer flash then pro
-            fallbacks.extend([
-                'models/gemini-2.5-flash',
-                'models/gemini-1.5-pro'
-            ])
-    else:
-        # If primary is pro, try flash models (newer first)
-        fallbacks.extend([
-            'models/gemini-3-flash',
-            'models/gemini-2.5-flash',
-            'models/gemini-1.5-flash'
-        ])
-    
-    # Filter out any entries that equal the primary model (case-insensitive, trimmed)
-    primary_normalized = primary_model.strip().lower()
-    filtered_fallbacks = []
-    seen = set()
-    
-    for fallback in fallbacks:
-        fallback_normalized = fallback.strip().lower()
-        # Skip if it matches primary model or if we've already seen it (preserve order)
-        if fallback_normalized != primary_normalized and fallback_normalized not in seen:
-            filtered_fallbacks.append(fallback)
-            seen.add(fallback_normalized)
-    
-    return filtered_fallbacks
-
-
-def _normalize_and_tokenize(model_name: str) -> list[str]:
-    """
-    Normalize model name to lowercase and split into tokens on non-alphanumeric characters.
-    
-    Args:
-        model_name: Model name string (e.g., "models/gemini-3-flash")
-        
-    Returns:
-        List of tokens (e.g., ["models", "gemini", "3", "flash"])
-    """
-    normalized = model_name.lower()
-    # Split on non-alphanumeric characters
-    tokens = re.split(r'[^a-z0-9]+', normalized)
-    # Filter out empty strings
-    return [token for token in tokens if token]
-
-
-def _is_flash_model(tokens: list[str]) -> bool:
-    """
-    Check if tokens represent a flash model (gemini-3-flash or gemini-2.5-flash).
-    
-    Args:
-        tokens: List of normalized tokens from model name
-        
-    Returns:
-        True if tokens match gemini-3-flash or gemini-2.5-flash pattern
-    """
-    if 'gemini' not in tokens or 'flash' not in tokens:
-        return False
-    
-    try:
-        gemini_idx = tokens.index('gemini')
-        flash_idx = tokens.index('flash')
-        
-        # Extract tokens between gemini and flash
-        between_tokens = tokens[gemini_idx + 1:flash_idx]
-        
-        # Check for gemini-3-flash: must have exactly "3" between gemini and flash
-        if between_tokens == ['3']:
-            return True
-        
-        # Check for gemini-2.5-flash: must have exactly "2", "5" between gemini and flash
-        if between_tokens == ['2', '5']:
-            return True
-    except (ValueError, IndexError):
-        pass
-    
-    return False
-
-
-def _is_pro_model(tokens: list[str]) -> bool:
-    """
-    Check if tokens represent a pro model (gemini-3 or gemini-2.5) without flash.
-    
-    Args:
-        tokens: List of normalized tokens from model name
-        
-    Returns:
-        True if tokens match gemini-3 or gemini-2.5 pattern (without flash)
-    """
-    if 'gemini' not in tokens or 'flash' in tokens:
-        return False
-    
-    try:
-        gemini_idx = tokens.index('gemini')
-        
-        # Check for gemini-3: must have "gemini" followed by "3"
-        # Ensure it's exactly "3" (not part of "3.5" which would have tokens ["3", "5"])
-        if gemini_idx + 1 < len(tokens):
-            next_token = tokens[gemini_idx + 1]
-            # If next token is "3", check that it's not followed by "5" (which would be "3.5")
-            if next_token == '3':
-                # Make sure the token after "3" is not "5" (to avoid matching "gemini-3.5")
-                if gemini_idx + 2 >= len(tokens) or tokens[gemini_idx + 2] != '5':
-                    return True
-        
-        # Check for gemini-2.5: must have "gemini" followed by "2" then "5"
-        if (gemini_idx + 2 < len(tokens) and 
-            tokens[gemini_idx + 1] == '2' and 
-            tokens[gemini_idx + 2] == '5'):
-            return True
-    except (ValueError, IndexError):
-        pass
-    
-    return False
-
-
-def _select_best_model(available_models: Optional[list] = None) -> str:
-    """
-    Select the best model from the list of available models or return a default model.
-    
-    Priority logic:
-    1. If available_models is provided:
-       - Prefer gemini-3-flash (newest) first
-       - Then gemini-2.5-flash
-       - Then other flash variants
-       - If no flash model is found, fall back to non-flash pro variants (gemini-3 or gemini-2.5)
-       - If neither is found, select the first model in the list
-    2. If available_models is not provided: Return 'models/gemini-3-flash' as the default
-    
-    Note: Legacy API may not support flash models, so legacy branches will
-    handle fallback to gemini-1.5-pro if needed.
-    
-    Args:
-        available_models: List of available model names (may be None)
-        
-    Returns:
-        The selected model name as a string (could have a 'models/' prefix),
-        keeping the format from available_models.
-    """
-    if available_models:
-        # Cache normalized/tokenized results for all models to avoid redundant computation
-        tokenized_models = {m: _normalize_and_tokenize(m) for m in available_models}
-        
-        # Step 1: Prefer gemini-3-flash (newest model) first
-        gemini3_flash = next(
-            (m for m in available_models 
-             if _is_flash_model(tokenized_models[m]) and '3' in tokenized_models[m]),
-            None
-        )
-        if gemini3_flash:
-            return gemini3_flash
-        
-        # Step 2: Then prefer gemini-2.5-flash
-        gemini25_flash = next(
-            (m for m in available_models 
-             if _is_flash_model(tokenized_models[m]) and '2' in tokenized_models[m] and '5' in tokenized_models[m]),
-            None
-        )
-        if gemini25_flash:
-            return gemini25_flash
-        
-        # Step 3: Then any other flash variants
-        flash_match = next(
-            (m for m in available_models 
-             if _is_flash_model(tokenized_models[m])),
-            None
-        )
-        if flash_match:
-            return flash_match
-        
-        # Step 4: If no flash, fall back to non-flash pro variants
-        # Prefer gemini-3 pro, then gemini-2.5 pro
-        gemini3_pro = next(
-            (m for m in available_models 
-             if _is_pro_model(tokenized_models[m]) and '3' in tokenized_models[m]),
-            None
-        )
-        if gemini3_pro:
-            return gemini3_pro
-        
-        gemini25_pro = next(
-            (m for m in available_models 
-             if _is_pro_model(tokenized_models[m]) and '2' in tokenized_models[m] and '5' in tokenized_models[m]),
-            None
-        )
-        if gemini25_pro:
-            return gemini25_pro
-        
-        # Step 5: Any other pro model
-        pro_match = next(
-            (m for m in available_models 
-             if _is_pro_model(tokenized_models[m])),
-            None
-        )
-        if pro_match:
-            return pro_match
-        
-        # Step 6: If neither found, select the first model in the list
-        return available_models[0]
-    
-    # Fallback: return default model (prefer newest model)
-    # Prefer gemini-3-flash, fallback to gemini-2.5-flash or gemini-1.5-flash if needed
-    # Note: Legacy API might not support flash, so legacy branch will handle fallback separately
-    return 'models/gemini-3-flash'
-
+from modules.common.ui.logging import log_info, log_error, log_success, log_warn
+from .components.exceptions import (
+    GeminiAPIError,
+    GeminiAuthenticationError,
+    GeminiImageValidationError,
+    GeminiInvalidRequestError,
+    GeminiModelNotFoundError,
+    GeminiQuotaExceededError,
+    GeminiRateLimitError,
+    GeminiResponseParseError,
+)
+from .components.helpers import select_best_model, validate_image
+from .components.image_config import ImageValidationConfig
+from .components.model_config import GeminiModelType
+from .components.token_limit import (
+    MAX_TOKENS_PER_REQUEST,
+    PROMPT_TOKEN_WARNING_THRESHOLD,
+    estimate_token_count,
+)
 
 class GeminiChartAnalyzer:
     """Analyze chart images using Google Gemini AI."""
-    
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, image_config: Optional[ImageValidationConfig] = None):
         """
         Initialize GeminiChartAnalyzer.
-        
+
         Args:
             api_key: Google Gemini API key (if None, will load from config)
+            image_config: Image validation configuration (optional)
         """
         if api_key is None:
             try:
@@ -291,116 +74,95 @@ class GeminiChartAnalyzer:
                     "GEMINI_API_KEY was not found in config.config_api. "
                     "Please add GEMINI_API_KEY to config/config_api.py"
                 )
-        
+
         if not api_key:
             raise ValueError("GEMINI_API_KEY not provided")
-        
+
+        self.image_config = image_config or ImageValidationConfig()
+
+
         # Try new API first (google-genai with Client), fallback to old API
         if hasattr(genai, 'Client'):
             # Use new Client API of google-genai
             self.client = genai.Client(api_key=api_key)
-            
+
             # Try to list available models to find the right one
             available_models = None
             try:
                 models = self.client.models.list()
                 available_models = [
-                    m.name for m in models 
-                    if 'flash' in m.name.lower() or 'pro' in m.name.lower()
+                    str(m.name) for m in models
+                    if m.name and ('flash' in m.name.lower() or 'pro' in m.name.lower())
                 ]
-                # Sort to prioritize models using the same logic as _select_best_model
+                # Sort to prioritize models using the same logic as select_best_model
                 # This ensures consistency between sorting and selection
-                if available_models:
-                    def model_priority(model_name):
-                        tokens = _normalize_and_tokenize(model_name)
-                        # Priority 0: gemini-3-flash (newest flash model)
-                        if _is_flash_model(tokens) and '3' in tokens:
-                            return 0
-                        # Priority 1: gemini-2.5-flash
-                        elif _is_flash_model(tokens) and '2' in tokens and '5' in tokens:
-                            return 1
-                        # Priority 2: other flash variants
-                        elif _is_flash_model(tokens):
-                            return 2
-                        # Priority 3: gemini-3 pro
-                        elif _is_pro_model(tokens) and '3' in tokens:
-                            return 3
-                        # Priority 4: gemini-2.5 pro
-                        elif _is_pro_model(tokens) and '2' in tokens and '5' in tokens:
-                            return 4
-                        # Priority 5: other pro models
-                        elif _is_pro_model(tokens):
-                            return 5
-                        # Priority 6: everything else
-                        return 6
-                    available_models.sort(key=model_priority)
             except Exception:
                 # If unable to list models, will use default via helper
-                logger.exception("Failed to list available Gemini models, falling back to default model")
-            
+                log_error("Failed to list available Gemini models, falling back to default model")
+
             # Use helper function for consistent model selection
-            self.model_name = _select_best_model(available_models)
-            
+            self.model_name = select_best_model(available_models)
+
             self.use_new_api = True
         elif hasattr(genai, 'configure'):
             # Fallback to old API (google-generativeai)
-            genai.configure(api_key=api_key)
-            
+            genai.configure(api_key=api_key)  # type: ignore
+
             # Use the same selection logic (no available_models for legacy)
             # Helper will return default model
-            selected_model = _select_best_model(None)
-            
+            selected_model = select_best_model(None)
+
             # Legacy API may need the format without 'models/' prefix
             model_for_legacy = selected_model.replace('models/', '') if selected_model.startswith('models/') else selected_model
-            
+
             # If the model doesn't exist in legacy, fallback to gemini-1.5-pro
             # (legacy likely doesn't support flash models)
             if 'flash' in model_for_legacy.lower():
                 # Try flash first; if not possible, fallback
                 try:
-                    self.model = genai.GenerativeModel(model_for_legacy)
+                    self.model = genai.GenerativeModel(model_for_legacy)  # type: ignore
                     # Store the model name for fallback logic
                     self.model_name = selected_model  # Keep the format with 'models/' prefix
                 except Exception as e:
                     # Log exception and context before falling back
-                    logger.exception(
+                    log_error(
                         f"Failed to initialize flash model '{model_for_legacy}' for legacy API. "
                         f"Falling back to 'gemini-1.5-pro'"
                     )
                     # Fall back to pro if flash is not available
-                    self.model = genai.GenerativeModel('gemini-1.5-pro')
+                    self.model = genai.GenerativeModel('gemini-1.5-pro')  # type: ignore
                     self.model_name = 'models/gemini-1.5-pro'
             else:
-                self.model = genai.GenerativeModel(model_for_legacy)
+                self.model = genai.GenerativeModel(model_for_legacy)  # type: ignore
                 # Store the model name for fallback logic
                 self.model_name = selected_model  # Keep the format with 'models/' prefix
-            
+
             self.use_new_api = False
         else:
             raise AttributeError("genai module is missing Client, configure, or GenerativeModel")
-        
+
         log_success("Successfully connected to the Google Gemini API")
-    
+
     def _resolve_current_model(self) -> Optional[str]:
         """
         Resolve the current model name from various possible attributes.
-        
+
         This method handles:
         - Inspecting self.model_name, self.model, self.model_id
         - Handling GenerativeModel objects via model_name attribute or str()
         - Guarding against empty/placeholder strings
         - Applying fallback to getattr(self,'model_name',None) or 'models/gemini-1.5-pro'
-        
+
         Returns:
             Normalized model name as string, or None if no valid model found
         """
         # Check both new-API and legacy attributes (model_name, model, model_id)
         current_model = (
-            getattr(self, 'model_name', None) or 
-            getattr(self, 'model', None) or 
+            getattr(self, 'model_name', None) or
+            getattr(self, 'model', None) or
             getattr(self, 'model_id', None)
         )
-        
+
         # If current_model is a GenerativeModel object (legacy API), try to get its name
         if current_model and not isinstance(current_model, str):
             # Try to extract model name from GenerativeModel object
@@ -414,7 +176,7 @@ class GeminiChartAnalyzer:
                     current_model = str_model
                 else:
                     current_model = getattr(self, 'model_name', None)
-        
+
         # Ensure current_model is a string when finished (and not an empty string)
         if current_model:
             if not isinstance(current_model, str):
@@ -422,25 +184,25 @@ class GeminiChartAnalyzer:
             # If it's an empty string after converting, use fallback
             if not current_model.strip():
                 current_model = getattr(self, 'model_name', None) or 'models/gemini-1.5-pro'
-        
+
         return current_model
-    
+
     def _call_model_with_retries(self, prompt: str, image: PILImage) -> str:
         """
         Protected helper method to call Gemini API with retry logic and fallback models.
-        
+
         This method handles:
         - Retry logic with exponential backoff
         - Fallback model selection
         - Response extraction from different API formats
-        
+
         Args:
             prompt: The prompt text to send to the model
             image: PIL Image object to analyze
-            
+
         Returns:
             Response text from Gemini
-            
+
         Raises:
             Exception: If all retries and fallback models are exhausted
         """
@@ -448,20 +210,25 @@ class GeminiChartAnalyzer:
         retry_delay = 1  # seconds
         last_error = None
         response = None
-        
+
         # Get current model and fallback models
         current_model = self._resolve_current_model()
-        fallback_models = _get_fallback_models(current_model) if current_model else []
+        fallback_models = []
+        if current_model:
+            model_type = GeminiModelType.from_name(current_model)
+            if model_type:
+                fallback_models = [m.name for m in GeminiModelType.get_fallback_models(model_type)]
+
         models_to_try = [current_model] + fallback_models if current_model else [None]
-        
+
         for model_idx, model_to_use in enumerate(models_to_try):
             if model_to_use is None and getattr(self, 'use_new_api', False):
                 continue  # Skip None models for new API
-            
+
             # Log which model is being attempted before the inner retry loop starts
             model_identifier = model_to_use if model_to_use else (getattr(self, 'model_name', None) or "primary")
-            logger.info(f"Trying model: {model_identifier}")
-                
+            log_info(f"Trying model: {model_identifier}")
+
             for attempt in range(max_retries):
                 try:
                     if getattr(self, 'use_new_api', False):
@@ -479,11 +246,11 @@ class GeminiChartAnalyzer:
                             # Try fallback model for legacy API
                             model_for_legacy = model_to_use.replace('models/', '') if model_to_use.startswith('models/') else model_to_use
                             try:
-                                fallback_model = genai.GenerativeModel(model_for_legacy)
+                                fallback_model = genai.GenerativeModel(model_for_legacy)  # type: ignore
                                 response = fallback_model.generate_content([prompt, image])
                             except Exception as e:
                                 # Log exception with stack trace before continuing to next model
-                                logger.exception(
+                                log_error(
                                     f"Failed to create fallback model '{model_for_legacy}': {e}. "
                                     f"Switching to next model"
                                 )
@@ -491,37 +258,47 @@ class GeminiChartAnalyzer:
                                 break
                         else:
                             response = self.model.generate_content([prompt, image])
-                    
+
                     # Log success when a request returns
-                    logger.info(f"Request succeeded with model: {model_identifier}")
+                    log_info(f"Request succeeded with model: {model_identifier}")
                     break  # Success, exit retry loop
-                    
+
                 except Exception as e:
-                    last_error = e
-                    error_code = None
+                    # Extract error code and message
+                    error_code = getattr(e, 'status_code', getattr(e, 'code', None))
                     error_message = str(e)
-                    
-                    # Extract error code from exception
-                    if hasattr(e, 'status_code'):
-                        error_code = e.status_code
-                    elif hasattr(e, 'code'):
-                        error_code = e.code
-                    elif '503' in error_message or 'UNAVAILABLE' in error_message:
+
+                    if error_code is None and ('503' in error_message or 'UNAVAILABLE' in error_message):
                         error_code = 503
-                    
+
+                    # Map to custom exceptions
+                    if error_code in [401, 403] or 'permission' in error_message.lower():
+                        last_error = GeminiAuthenticationError(f"Authentication failed: {error_message}")
+                    elif error_code == 404 or 'not found' in error_message.lower():
+                        last_error = GeminiModelNotFoundError(f"Model not found: {error_message}")
+                    elif error_code == 429:
+                        if 'quota' in error_message.lower():
+                            last_error = GeminiQuotaExceededError(f"Quota exceeded: {error_message}")
+                        else:
+                            last_error = GeminiRateLimitError(f"Rate limit exceeded: {error_message}")
+                    elif error_code == 400:
+                        last_error = GeminiInvalidRequestError(f"Invalid request: {error_message}")
+                    else:
+                        last_error = GeminiAPIError(f"API error ({error_code}): {error_message}")
+
                     # Check if error is retryable (503, 429, or network errors)
                     is_retryable = (
-                        error_code in [503, 429] or 
+                        error_code in [503, 429] or
                         'overloaded' in error_message.lower() or
                         'rate limit' in error_message.lower() or
                         'unavailable' in error_message.lower()
                     )
-                    
+
                     if is_retryable and attempt < max_retries - 1:
                         # Exponential backoff
                         wait_time = retry_delay * (2 ** attempt)
                         # Log retryable errors with attempt number and computed wait_time before sleeping
-                        logger.warning(
+                        log_warn(
                             f"Retryable error with model {model_identifier}, "
                             f"attempt {attempt + 1}/{max_retries}: {error_message}. "
                             f"Waiting {wait_time}s before retrying"
@@ -531,7 +308,7 @@ class GeminiChartAnalyzer:
                     elif not is_retryable:
                         # Non-retryable error, try next model
                         # Log non-retryable errors with the model name when breaking to the next model
-                        logger.error(
+                        log_error(
                             f"Non-retryable error with model {model_identifier}: {error_message}. "
                             f"Switching to next model"
                         )
@@ -540,46 +317,59 @@ class GeminiChartAnalyzer:
                         # Max retries reached for this model, try next model
                         # Log when max retries are reached and the code is falling back to the next model
                         if model_idx < len(models_to_try) - 1:
-                            logger.warning(
+                            log_warn(
                                 f"Max retries ({max_retries}) reached with model {model_identifier}: {error_message}. "
                                 f"Falling back to the next model"
                             )
                             break  # Try next model
                         else:
                             # All models exhausted
-                            logger.error(
+                            log_error(
                                 f"Max retries ({max_retries}) reached with model {model_identifier}: {error_message}. "
                                 f"All models have been tried"
                             )
-                            raise
-            
+                            raise last_error
+
             if response is not None:
                 break  # Success, exit model loop
-        
+
         if response is None:
             # All models and retries exhausted
-            raise last_error if last_error else Exception("Failed to get response from any model")
-        
-        # Extract text from response
-        # New API has a different response structure
-        if hasattr(response, 'text'):
-            return response.text
-        elif hasattr(response, 'candidates') and response.candidates is not None and isinstance(response.candidates, (list, tuple)) and len(response.candidates) > 0:
-            candidate = response.candidates[0]
-            if hasattr(candidate, 'content'):
-                if hasattr(candidate.content, 'parts'):
-                    text_parts = ''.join([part.text for part in candidate.content.parts if hasattr(part, 'text')])
-                    # Fall back to str(candidate.content) if no text parts found
-                    return text_parts if text_parts else str(candidate.content)
-                elif hasattr(candidate.content, 'text'):
-                    return candidate.content.text
-                else:
-                    return str(candidate.content)
-            else:
-                return str(response)
-        else:
+            if last_error:
+                raise last_error
+            raise GeminiAPIError("Failed to get response from any model after all retries.")
+
+        try:
+            # Extract text from response
+            if hasattr(response, 'text'):
+                res_text = response.text
+                return str(res_text) if res_text is not None else ""
+
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content:
+                    content = candidate.content
+                    if hasattr(content, 'parts') and content.parts:
+                        # Extract text from parts, ensuring they are strings
+                        parts = []
+                        for part in content.parts:
+                            part_text = getattr(part, 'text', None)
+                            if part_text:
+                                parts.append(str(part_text))
+                        if parts:
+                            return "".join(parts)
+
+                    content_text = getattr(content, 'text', None)
+                    if content_text:
+                        return str(content_text)
+
+                    return str(content)
+
             return str(response)
-    
+        except Exception as e:
+            log_error(f"Error parsing Gemini response: {e}")
+            raise GeminiResponseParseError(f"Failed to parse Gemini response: {e}")
+
     def analyze_chart(
         self,
         image_path: str,
@@ -601,11 +391,23 @@ class GeminiChartAnalyzer:
         Returns:
             Analysis result from Gemini
         """
-        if not os.path.exists(image_path):
-            raise FileNotFoundError(f"Chart image file not found: {image_path}")
+        # Validate image first
+        is_valid, validation_error = validate_image(image_path, self.image_config)
+        if not is_valid:
+            raise GeminiImageValidationError(validation_error)
 
         # Select prompt
         prompt = self._get_prompt(symbol, timeframe, prompt_type, custom_prompt)
+
+        # Check token count
+        token_count = estimate_token_count(prompt)
+        if token_count > MAX_TOKENS_PER_REQUEST:
+            raise GeminiInvalidRequestError(
+                f"Prompt is too long (estimated {token_count} tokens). "
+                f"Max allowed is {MAX_TOKENS_PER_REQUEST} tokens."
+            )
+        elif token_count > (MAX_TOKENS_PER_REQUEST * PROMPT_TOKEN_WARNING_THRESHOLD):
+            log_warn(f"Prompt is relatively long (estimated {token_count} tokens).")
 
         log_info(f"Sending image to Google Gemini for analysis...")
         log_info(f"Symbol: {symbol}, Timeframe: {timeframe}")
@@ -638,7 +440,7 @@ class GeminiChartAnalyzer:
 
         if prompt_type == "custom" and custom_prompt:
             return custom_prompt
-        
+
         if prompt_type == "detailed":
             return f"""Bạn là một chuyên gia phân tích kỹ thuật tài chính cao cấp. Nhiệm vụ của bạn là nhận diện các mẫu hình giá, các vùng hỗ trợ/kháng cự và các chỉ báo kỹ thuật trên hình ảnh biểu đồ được cung cấp.
 
@@ -648,7 +450,7 @@ Hãy phân tích biểu đồ và phản hồi theo cấu trúc sau:
 
 1. **Xu hướng chính**: Mô tả xu hướng hiện tại (tăng, giảm, hoặc đi ngang) và độ mạnh của xu hướng.
 
-2. **Các mẫu hình nhận diện được**: 
+2. **Các mẫu hình nhận diện được**:
    - Các mẫu hình nến (candlestick patterns) quan trọng
    - Các mẫu hình giá (chart patterns) như triangle, head and shoulders, double top/bottom, etc.
    - Các vùng hỗ trợ và kháng cự quan trọng
@@ -673,28 +475,26 @@ Hãy phân tích biểu đồ và phản hồi theo cấu trúc sau:
      * Take Profit 2: Mục tiêu lợi nhuận thứ hai (nếu có)
    - **KHÔNG GIAO DỊCH**: Nếu không có tín hiệu rõ ràng, hãy nêu lý do
 
-5. **Cảnh báo rủi ro**: 
+5. **Cảnh báo rủi ro**:
    - Các yếu tố rủi ro cần lưu ý
    - Độ tin cậy của tín hiệu (cao/trung bình/thấp)
    - Điều kiện để tín hiệu bị vô hiệu hóa
 
-6. **Khu vực thanh khoản (Liquidity)**: 
+6. **Khu vực thanh khoản (Liquidity)**:
    - Xác định các vùng thanh khoản quan trọng (liquidity zones)
    - Các vùng có thể có stop loss hunting
 
 Hãy phân tích chi tiết và đưa ra các con số cụ thể về giá khi có thể."""
-        
+
         elif prompt_type == "simple":
-            return f"""Hãy phân tích biểu đồ {symbol} khung {timeframe} này. 
+            return f"""Hãy phân tích biểu đồ {symbol} khung {timeframe} này.
 
 Cho tôi biết:
 1. Giá đang nằm trong mô hình gì?
 2. Có dấu hiệu phân kỳ RSI nào không?
 3. Hãy khoanh vùng các khu vực thanh khoản (Liquidity) quan trọng.
 4. Đưa ra tín hiệu LONG hoặc SHORT với Entry, Stop Loss và Take Profit nếu có cơ hội giao dịch."""
-        
+
         else:
             # Default prompt
             return f"""Phân tích biểu đồ {symbol} {timeframe} và đưa ra tín hiệu giao dịch với Entry, Stop Loss, Take Profit."""
-
-

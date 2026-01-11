@@ -1,3 +1,10 @@
+
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+import pandas as pd
+
 """
 Risk calculator for portfolio risk metrics (PnL, Delta, Beta, VaR).
 
@@ -6,27 +13,25 @@ risk metrics including profit and loss (PnL), delta exposure, beta-weighted delt
 and Value at Risk (VaR) for cryptocurrency portfolios.
 """
 
-import pandas as pd
-import numpy as np
-from typing import List, Optional, Dict, Tuple, Any
+
 
 try:
-    from modules.common.models.position import Position
-    from modules.common.utils import (
-        log_warn,
-        log_analysis,
-        log_model,
-        normalize_symbol,
-    )
     from config import (
-        DEFAULT_BETA_MIN_POINTS,
+        BENCHMARK_SYMBOL,
         DEFAULT_BETA_LIMIT,
+        DEFAULT_BETA_MIN_POINTS,
         DEFAULT_BETA_TIMEFRAME,
         DEFAULT_VAR_CONFIDENCE,
         DEFAULT_VAR_LOOKBACK_DAYS,
         DEFAULT_VAR_MIN_HISTORY_DAYS,
         DEFAULT_VAR_MIN_PNL_SAMPLES,
-        BENCHMARK_SYMBOL,
+    )
+    from modules.common.models.position import Position
+    from modules.common.utils import (
+        log_analysis,
+        log_model,
+        log_warn,
+        normalize_symbol,
     )
 except ImportError:
     Position = None
@@ -60,9 +65,7 @@ class PortfolioRiskCalculator:
         last_var_confidence: Confidence level used for last VaR calculation
     """
 
-    def __init__(
-        self, data_fetcher: Any, benchmark_symbol: str = BENCHMARK_SYMBOL
-    ) -> None:
+    def __init__(self, data_fetcher: Any, benchmark_symbol: str = BENCHMARK_SYMBOL) -> None:
         """
         Initialize the PortfolioRiskCalculator.
 
@@ -174,7 +177,7 @@ class PortfolioRiskCalculator:
             - Returns None if insufficient data or calculation fails
         """
         benchmark_symbol = benchmark_symbol or self.benchmark_symbol
-        
+
         # Use normalize_symbol from utils if available, otherwise define fallback
         def normalize_symbol_fallback(user_input: str, quote: str = "USDT") -> str:
             """Fallback normalize_symbol function if import fails."""
@@ -184,9 +187,9 @@ class PortfolioRiskCalculator:
             if "/" in norm:
                 return norm
             if norm.endswith(quote):
-                return f"{norm[:-len(quote)]}/{quote}"
+                return f"{norm[: -len(quote)]}/{quote}"
             return f"{norm}/{quote}"
-        
+
         normalize_func = normalize_symbol if normalize_symbol is not None else normalize_symbol_fallback
 
         normalized_symbol = normalize_func(symbol)
@@ -270,16 +273,12 @@ class PortfolioRiskCalculator:
 
         confidence_pct = int(confidence * 100)
         if log_analysis:
-            log_analysis(
-                f"Calculating Historical VaR ({confidence_pct}% confidence, {lookback_days}d lookback)..."
-            )
+            log_analysis(f"Calculating Historical VaR ({confidence_pct}% confidence, {lookback_days}d lookback)...")
 
         price_history = {}
         fetch_limit = max(lookback_days * 2, lookback_days + 50)
         for pos in positions:
-            df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                pos.symbol, limit=fetch_limit, timeframe="1d"
-            )
+            df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(pos.symbol, limit=fetch_limit, timeframe="1d")
             series = self.data_fetcher.dataframe_to_close_series(df)
             if series is not None:
                 price_history[pos.symbol] = series
@@ -304,9 +303,7 @@ class PortfolioRiskCalculator:
 
         if len(price_df) < DEFAULT_VAR_MIN_HISTORY_DAYS:
             if log_warn:
-                log_warn(
-                    f"Insufficient history (<{DEFAULT_VAR_MIN_HISTORY_DAYS} days) for reliable VaR."
-                )
+                log_warn(f"Insufficient history (<{DEFAULT_VAR_MIN_HISTORY_DAYS} days) for reliable VaR.")
             return None
 
         returns_df = price_df.pct_change().dropna(how="all")
@@ -320,9 +317,7 @@ class PortfolioRiskCalculator:
         exposure_map = {}
         for pos in positions:
             sign = 1 if pos.direction == "LONG" else -1
-            exposure_map[pos.symbol] = exposure_map.get(pos.symbol, 0.0) + (
-                pos.size_usdt * sign
-            )
+            exposure_map[pos.symbol] = exposure_map.get(pos.symbol, 0.0) + (pos.size_usdt * sign)
 
         exposures = pd.Series(exposure_map)
 
@@ -346,9 +341,7 @@ class PortfolioRiskCalculator:
 
         if len(daily_pnls) < DEFAULT_VAR_MIN_PNL_SAMPLES:
             if log_warn:
-                log_warn(
-                    f"Not enough historical PnL samples for VaR (need at least {DEFAULT_VAR_MIN_PNL_SAMPLES})."
-                )
+                log_warn(f"Not enough historical PnL samples for VaR (need at least {DEFAULT_VAR_MIN_PNL_SAMPLES}).")
             return None
 
         percentile = max(0, min(100, (1 - confidence) * 100))

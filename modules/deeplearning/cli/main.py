@@ -1,3 +1,10 @@
+
+from pathlib import Path
+from typing import List, Optional
+import argparse
+import json
+import warnings
+
 """
 Deep Learning Training Script for Temporal Fusion Transformer (TFT).
 
@@ -8,11 +15,6 @@ This script implements Phase 5 of the TFT roadmap:
 - Save: best checkpoint, dataset metadata, scaler/config JSON
 """
 
-import argparse
-import json
-import warnings
-from pathlib import Path
-from typing import List, Optional
 
 try:
     import pytorch_lightning as pl
@@ -21,56 +23,53 @@ except ImportError:
     # Fallback to new namespace if legacy import is unavailable
     import lightning.pytorch as pl
     from lightning.pytorch.loggers import TensorBoardLogger
-from colorama import Fore, Style, init as colorama_init
 import torch
+from colorama import Fore, Style
+from colorama import init as colorama_init
 
 from config import (
-    DEFAULT_SYMBOL,
-    DEFAULT_QUOTE,
-    DEFAULT_TIMEFRAME,
-    DEFAULT_LIMIT,
-    DEFAULT_EXCHANGE_STRING,
-    DEFAULT_EXCHANGES,
-    TARGET_HORIZON,
-    DEEP_MAX_ENCODER_LENGTH,
-    DEEP_MAX_PREDICTION_LENGTH,
     DEEP_BATCH_SIZE,
-    DEEP_TARGET_COL,
-    DEEP_TARGET_COL_CLASSIFICATION,
-    DEEP_USE_TRIPLE_BARRIER,
-    DEEP_MAX_EPOCHS,
-    DEEP_ACCELERATOR,
-    DEEP_DEVICES,
-    DEEP_PRECISION,
-    DEEP_GRADIENT_CLIP_VAL,
-    DEEP_CHECKPOINT_DIR,
-    DEEP_EARLY_STOPPING_PATIENCE,
     DEEP_CHECKPOINT_SAVE_TOP_K,
-    DEEP_MODEL_HIDDEN_SIZE,
-    DEEP_MODEL_ATTENTION_HEAD_SIZE,
-    DEEP_MODEL_DROPOUT,
-    DEEP_MODEL_LEARNING_RATE,
-    DEEP_MODEL_QUANTILES,
-    DEEP_OPTUNA_N_TRIALS,
-    DEEP_OPTUNA_MAX_EPOCHS,
-    DEEP_HYBRID_LSTM_HIDDEN_SIZE,
-    DEEP_HYBRID_LSTM_NUM_LAYERS,
+    DEEP_DEVICES,
+    DEEP_EARLY_STOPPING_PATIENCE,
+    DEEP_GRADIENT_CLIP_VAL,
     DEEP_HYBRID_FUSION_SIZE,
-    DEEP_HYBRID_NUM_CLASSES,
     DEEP_HYBRID_LAMBDA_CLASS,
     DEEP_HYBRID_LAMBDA_REG,
     DEEP_HYBRID_LEARNING_RATE,
+    DEEP_HYBRID_LSTM_HIDDEN_SIZE,
+    DEEP_HYBRID_LSTM_NUM_LAYERS,
+    DEEP_HYBRID_NUM_CLASSES,
+    DEEP_MAX_ENCODER_LENGTH,
+    DEEP_MAX_EPOCHS,
+    DEEP_MAX_PREDICTION_LENGTH,
+    DEEP_MODEL_ATTENTION_HEAD_SIZE,
+    DEEP_MODEL_DROPOUT,
+    DEEP_MODEL_HIDDEN_SIZE,
+    DEEP_MODEL_LEARNING_RATE,
+    DEEP_MODEL_QUANTILES,
+    DEEP_OPTUNA_MAX_EPOCHS,
+    DEEP_OPTUNA_N_TRIALS,
+    DEEP_PRECISION,
+    DEEP_TARGET_COL,
+    DEEP_TARGET_COL_CLASSIFICATION,
+    DEEP_USE_TRIPLE_BARRIER,
+    DEFAULT_EXCHANGE_STRING,
+    DEFAULT_LIMIT,
+    DEFAULT_QUOTE,
+    DEFAULT_SYMBOL,
+    DEFAULT_TIMEFRAME,
 )
-from modules.common.utils import color_text, normalize_symbol
-from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.utils import color_text, normalize_symbol
 from modules.deeplearning.data_pipeline import DeepLearningDataPipeline
 from modules.deeplearning.dataset import create_tft_datamodule
 from modules.deeplearning.model import (
-    create_vanilla_tft,
-    create_training_callbacks,
-    optimize_tft_hyperparameters,
     create_hybrid_lstm_tft,
+    create_training_callbacks,
+    create_vanilla_tft,
+    optimize_tft_hyperparameters,
     save_model_config,
 )
 
@@ -84,7 +83,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Train Temporal Fusion Transformer (TFT) for cryptocurrency price prediction."
     )
-    
+
     # Data arguments
     parser.add_argument(
         "-s",
@@ -116,7 +115,7 @@ def parse_args():
         "--exchanges",
         help=f"Comma-separated list of exchanges to try (default: {DEFAULT_EXCHANGE_STRING}).",
     )
-    
+
     # Model arguments
     parser.add_argument(
         "--phase",
@@ -131,7 +130,7 @@ def parse_args():
         default="regression",
         help="Task type: regression or classification (default: regression).",
     )
-    
+
     # Training arguments
     parser.add_argument(
         "--epochs",
@@ -161,7 +160,7 @@ def parse_args():
         default=None,
         help="Number of GPUs to use (default: auto).",
     )
-    
+
     # Phase 2 (Optuna) arguments
     parser.add_argument(
         "--optuna-trials",
@@ -175,7 +174,7 @@ def parse_args():
         default=DEEP_OPTUNA_MAX_EPOCHS,
         help=f"Maximum epochs per Optuna trial (default: {DEEP_OPTUNA_MAX_EPOCHS}).",
     )
-    
+
     # Output arguments
     parser.add_argument(
         "--output-dir",
@@ -189,14 +188,14 @@ def parse_args():
         default=None,
         help="Experiment name for TensorBoard (default: auto-generated).",
     )
-    
+
     # Feature selection
     parser.add_argument(
         "--no-feature-selection",
         action="store_true",
         help="Disable feature selection.",
     )
-    
+
     return parser.parse_args()
 
 
@@ -227,27 +226,27 @@ def prepare_data(
 ) -> tuple:
     """
     Prepare data using DeepLearningDataPipeline.
-    
+
     Returns:
         Tuple of (train_df, val_df, test_df, pipeline)
     """
     print(color_text("=" * 60, Fore.BLUE, Style.BRIGHT))
     print(color_text("DATA PREPARATION", Fore.CYAN, Style.BRIGHT))
     print(color_text("=" * 60, Fore.BLUE, Style.BRIGHT))
-    
+
     # Initialize components
     exchange_manager = ExchangeManager()
     data_fetcher = DataFetcher(exchange_manager)
-    
+
     if exchanges:
         exchange_manager.public.exchange_priority_for_fallback = exchanges
-    
+
     # Create pipeline
     pipeline = DeepLearningDataPipeline(
         data_fetcher=data_fetcher,
         use_feature_selection=use_feature_selection,
     )
-    
+
     # Fetch and prepare data
     print(
         color_text(
@@ -261,21 +260,19 @@ def prepare_data(
         limit=limit,
         check_freshness=False,
     )
-    
+
     print(
         color_text(
             f"Total samples: {len(df)}",
             Fore.GREEN,
         )
     )
-    
+
     # Determine target column
     target_col = (
-        DEEP_TARGET_COL_CLASSIFICATION
-        if task_type == "classification" and DEEP_USE_TRIPLE_BARRIER
-        else DEEP_TARGET_COL
+        DEEP_TARGET_COL_CLASSIFICATION if task_type == "classification" and DEEP_USE_TRIPLE_BARRIER else DEEP_TARGET_COL
     )
-    
+
     # Split data
     train_df, val_df, test_df = pipeline.split_chronological(
         df,
@@ -283,7 +280,7 @@ def prepare_data(
         target_col=target_col,
         task_type=task_type,
     )
-    
+
     return train_df, val_df, test_df, pipeline
 
 
@@ -316,7 +313,7 @@ def _verify_lightning_module(model):
     """
     Verify that model is compatible with PyTorch Lightning Trainer.
     Workaround for version compatibility issues with pytorch-forecasting.
-    
+
     Note: TemporalFusionTransformer from pytorch-forecasting should be a LightningModule,
     but PyTorch Lightning 2.x has strict type checking that may fail.
     This function uses duck typing as a fallback.
@@ -324,7 +321,7 @@ def _verify_lightning_module(model):
     # Check if model is instance of LightningModule
     if isinstance(model, pl.LightningModule):
         return True
-    
+
     # Check version compatibility
     try:
         pl_version = pl.__version__
@@ -334,23 +331,23 @@ def _verify_lightning_module(model):
                 Fore.CYAN,
             )
         )
-    except:
+    except Exception:
         pass
-    
+
     # Duck typing: check if model has required LightningModule methods
-    required_methods = ['training_step', 'configure_optimizers', 'validation_step']
+    required_methods = ["training_step", "configure_optimizers", "validation_step"]
     has_methods = all(hasattr(model, method) for method in required_methods)
-    
+
     if has_methods:
         # Check MRO to see if LightningModule is in inheritance chain
         import inspect
+
         mro = inspect.getmro(type(model))
         has_lightning_in_mro = any(
-            'LightningModule' in str(base) or 
-            (hasattr(base, '__name__') and 'LightningModule' in base.__name__)
+            "LightningModule" in str(base) or (hasattr(base, "__name__") and "LightningModule" in base.__name__)
             for base in mro
         )
-        
+
         if has_lightning_in_mro:
             print(
                 color_text(
@@ -367,7 +364,7 @@ def _verify_lightning_module(model):
                 original_class = model.__class__
                 # Temporarily set __class__ to bypass type checking
                 # Only if model actually has LightningModule methods
-                if hasattr(pl.LightningModule, 'training_step'):
+                if hasattr(pl.LightningModule, "training_step"):
                     # Model should work, just type check is failing
                     pass
                 return True
@@ -388,7 +385,7 @@ def _verify_lightning_module(model):
                 )
             )
             return True
-    
+
     return False
 
 
@@ -412,23 +409,21 @@ def create_model_and_train(
     print(color_text("=" * 60, Fore.BLUE, Style.BRIGHT))
     print(color_text("MODEL CREATION & TRAINING", Fore.CYAN, Style.BRIGHT))
     print(color_text("=" * 60, Fore.BLUE, Style.BRIGHT))
-    
+
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     checkpoint_dir = output_path / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Determine target column
     target_col = (
-        DEEP_TARGET_COL_CLASSIFICATION
-        if task_type == "classification" and DEEP_USE_TRIPLE_BARRIER
-        else DEEP_TARGET_COL
+        DEEP_TARGET_COL_CLASSIFICATION if task_type == "classification" and DEEP_USE_TRIPLE_BARRIER else DEEP_TARGET_COL
     )
-    
+
     # Create datamodule
     print(color_text("Creating DataModule...", Fore.CYAN))
-    
+
     # Check if we have enough data
     if len(train_df) == 0:
         raise ValueError("Training dataset is empty. Please fetch more data.")
@@ -440,7 +435,7 @@ def create_model_and_train(
             )
         )
         val_df = train_df.copy()
-    
+
     datamodule = create_tft_datamodule(
         train_df=train_df,
         val_df=val_df,
@@ -450,27 +445,27 @@ def create_model_and_train(
         batch_size=batch_size,
         timeframe=timeframe,
     )
-    
+
     datamodule.prepare_data()
     datamodule.setup("fit")
-    
+
     print(
         color_text(
             f"Dataset info: {datamodule.get_dataset_info()}",
             Fore.GREEN,
         )
     )
-    
+
     # Create experiment name if not provided
     if experiment_name is None:
         experiment_name = f"tft_phase{phase}_{task_type}_{timeframe}"
-    
+
     # Setup TensorBoard logger
     logger = TensorBoardLogger(
         save_dir=str(output_path / "logs"),
         name=experiment_name,
     )
-    
+
     # Determine accelerator and devices
     if use_gpu and torch.cuda.is_available():
         accelerator = "gpu"
@@ -478,7 +473,7 @@ def create_model_and_train(
     else:
         accelerator = "cpu"
         devices = 1
-    
+
     # Phase-specific model creation and training
     if phase == 1:
         # Phase 1: Vanilla TFT
@@ -492,23 +487,23 @@ def create_model_and_train(
             quantiles=DEEP_MODEL_QUANTILES,
             task_type=task_type,
         )
-        
+
         # Verify model compatibility (using duck typing to handle version incompatibility)
         if not _verify_lightning_module(model):
             raise TypeError(
                 f"Model {type(model)} is not compatible with PyTorch Lightning Trainer. "
                 f"Please check pytorch-forecasting and pytorch-lightning versions compatibility."
             )
-        
+
         callbacks = _normalize_callbacks(
             create_training_callbacks(
-            checkpoint_dir=str(checkpoint_dir),
-            monitor="val_loss",
-            patience=DEEP_EARLY_STOPPING_PATIENCE,
-            save_top_k=DEEP_CHECKPOINT_SAVE_TOP_K,
+                checkpoint_dir=str(checkpoint_dir),
+                monitor="val_loss",
+                patience=DEEP_EARLY_STOPPING_PATIENCE,
+                save_top_k=DEEP_CHECKPOINT_SAVE_TOP_K,
             )
         )
-        
+
         trainer = pl.Trainer(
             max_epochs=epochs,
             callbacks=callbacks,
@@ -518,22 +513,22 @@ def create_model_and_train(
             precision=DEEP_PRECISION,
             gradient_clip_val=DEEP_GRADIENT_CLIP_VAL,
         )
-        
+
         print(color_text("Starting training...", Fore.CYAN))
-        
+
         # Workaround for version compatibility issue with pytorch-lightning 2.x
         # TemporalFusionTransformer should be a LightningModule but may not pass isinstance check
         if not isinstance(model, pl.LightningModule):
             import inspect
+
             mro = inspect.getmro(type(model))
             # Check if LightningModule is actually in the inheritance chain
             is_lightning_subclass = any(
-                issubclass(base, pl.LightningModule) if hasattr(base, '__bases__') 
-                else 'LightningModule' in str(base)
+                issubclass(base, pl.LightningModule) if hasattr(base, "__bases__") else "LightningModule" in str(base)
                 for base in mro
             )
-            
-            if is_lightning_subclass and hasattr(model, 'training_step'):
+
+            if is_lightning_subclass and hasattr(model, "training_step"):
                 print(
                     color_text(
                         "Note: Type check failed but model appears to be a LightningModule. "
@@ -541,7 +536,7 @@ def create_model_and_train(
                         Fore.YELLOW,
                     )
                 )
-        
+
         try:
             trainer.fit(model, datamodule)
         except TypeError as e:
@@ -586,13 +581,13 @@ def create_model_and_train(
                 raise
             else:
                 raise
-        
+
         # Save model config
         save_model_config(
             model=model,
             config_path=output_path / "model_config.json",
         )
-        
+
     elif phase == 2:
         # Phase 2: Optuna Optimization
         print(color_text("Starting Optuna Optimization (Phase 2)...", Fore.CYAN))
@@ -602,7 +597,7 @@ def create_model_and_train(
                 Fore.YELLOW,
             )
         )
-        
+
         best_params, study = optimize_tft_hyperparameters(
             training_dataset=datamodule.training,
             val_dataset=datamodule.validation,
@@ -616,14 +611,14 @@ def create_model_and_train(
             gpus=devices if accelerator == "gpu" else None,
             task_type=task_type,
         )
-        
+
         print(
             color_text(
                 f"Best parameters: {best_params}",
                 Fore.GREEN,
             )
         )
-        
+
         # Train final model with best parameters
         print(color_text("Training final model with best parameters...", Fore.CYAN))
         final_model = create_vanilla_tft(
@@ -631,22 +626,20 @@ def create_model_and_train(
             **best_params,
             task_type=task_type,
         )
-        
+
         # Verify model compatibility
         if not _verify_lightning_module(final_model):
-            raise TypeError(
-                f"Model {type(final_model)} is not compatible with PyTorch Lightning Trainer."
-            )
-        
+            raise TypeError(f"Model {type(final_model)} is not compatible with PyTorch Lightning Trainer.")
+
         callbacks = _normalize_callbacks(
             create_training_callbacks(
-            checkpoint_dir=str(checkpoint_dir),
-            monitor="val_loss",
-            patience=DEEP_EARLY_STOPPING_PATIENCE,
-            save_top_k=DEEP_CHECKPOINT_SAVE_TOP_K,
+                checkpoint_dir=str(checkpoint_dir),
+                monitor="val_loss",
+                patience=DEEP_EARLY_STOPPING_PATIENCE,
+                save_top_k=DEEP_CHECKPOINT_SAVE_TOP_K,
             )
         )
-        
+
         trainer = pl.Trainer(
             max_epochs=epochs,
             callbacks=callbacks,
@@ -656,15 +649,15 @@ def create_model_and_train(
             precision=DEEP_PRECISION,
             gradient_clip_val=DEEP_GRADIENT_CLIP_VAL,
         )
-        
+
         trainer.fit(final_model, datamodule)
-        
+
         # Save model config
         save_model_config(
             model=final_model,
             config_path=output_path / "model_config.json",
         )
-        
+
     elif phase == 3:
         # Phase 3: Hybrid LSTM + TFT
         print(color_text("Creating Hybrid LSTM + TFT (Phase 3)...", Fore.CYAN))
@@ -682,22 +675,20 @@ def create_model_and_train(
             lambda_reg=DEEP_HYBRID_LAMBDA_REG,
             learning_rate=DEEP_HYBRID_LEARNING_RATE,
         )
-        
+
         # Verify model compatibility
         if not _verify_lightning_module(model):
-            raise TypeError(
-                f"Model {type(model)} is not compatible with PyTorch Lightning Trainer."
-            )
-        
+            raise TypeError(f"Model {type(model)} is not compatible with PyTorch Lightning Trainer.")
+
         callbacks = _normalize_callbacks(
             create_training_callbacks(
-            checkpoint_dir=str(checkpoint_dir),
-            monitor="val_loss",
-            patience=DEEP_EARLY_STOPPING_PATIENCE,
-            save_top_k=DEEP_CHECKPOINT_SAVE_TOP_K,
+                checkpoint_dir=str(checkpoint_dir),
+                monitor="val_loss",
+                patience=DEEP_EARLY_STOPPING_PATIENCE,
+                save_top_k=DEEP_CHECKPOINT_SAVE_TOP_K,
             )
         )
-        
+
         trainer = pl.Trainer(
             max_epochs=epochs,
             callbacks=callbacks,
@@ -707,22 +698,22 @@ def create_model_and_train(
             precision=DEEP_PRECISION,
             gradient_clip_val=DEEP_GRADIENT_CLIP_VAL,
         )
-        
+
         print(color_text("Starting training...", Fore.CYAN))
-        
+
         # Workaround for version compatibility issue with pytorch-lightning 2.x
         # TemporalFusionTransformer should be a LightningModule but may not pass isinstance check
         if not isinstance(model, pl.LightningModule):
             import inspect
+
             mro = inspect.getmro(type(model))
             # Check if LightningModule is actually in the inheritance chain
             is_lightning_subclass = any(
-                issubclass(base, pl.LightningModule) if hasattr(base, '__bases__') 
-                else 'LightningModule' in str(base)
+                issubclass(base, pl.LightningModule) if hasattr(base, "__bases__") else "LightningModule" in str(base)
                 for base in mro
             )
-            
-            if is_lightning_subclass and hasattr(model, 'training_step'):
+
+            if is_lightning_subclass and hasattr(model, "training_step"):
                 print(
                     color_text(
                         "Note: Type check failed but model appears to be a LightningModule. "
@@ -730,7 +721,7 @@ def create_model_and_train(
                         Fore.YELLOW,
                     )
                 )
-        
+
         try:
             trainer.fit(model, datamodule)
         except TypeError as e:
@@ -775,19 +766,17 @@ def create_model_and_train(
                 raise
             else:
                 raise
-        
+
         # Save model config
         save_model_config(
             model=model,
             config_path=output_path / "model_config.json",
         )
-    
+
     # Save dataset metadata
     print(color_text("Saving dataset metadata...", Fore.CYAN))
-    datamodule.save_dataset_metadata(
-        filepath=output_path / "dataset_metadata.pkl"
-    )
-    
+    datamodule.save_dataset_metadata(filepath=output_path / "dataset_metadata.pkl")
+
     # Save training configuration
     training_config = {
         "phase": phase,
@@ -803,41 +792,47 @@ def create_model_and_train(
         "val_samples": len(datamodule.val_df),
         "test_samples": len(datamodule.test_df) if datamodule.test_df is not None else 0,
     }
-    
+
     # Add phase-specific config
     if phase == 1:
-        training_config.update({
-            "hidden_size": DEEP_MODEL_HIDDEN_SIZE,
-            "attention_head_size": DEEP_MODEL_ATTENTION_HEAD_SIZE,
-            "dropout": DEEP_MODEL_DROPOUT,
-            "learning_rate": DEEP_MODEL_LEARNING_RATE,
-            "quantiles": DEEP_MODEL_QUANTILES,
-        })
+        training_config.update(
+            {
+                "hidden_size": DEEP_MODEL_HIDDEN_SIZE,
+                "attention_head_size": DEEP_MODEL_ATTENTION_HEAD_SIZE,
+                "dropout": DEEP_MODEL_DROPOUT,
+                "learning_rate": DEEP_MODEL_LEARNING_RATE,
+                "quantiles": DEEP_MODEL_QUANTILES,
+            }
+        )
     elif phase == 2:
-        training_config.update({
-            "optuna_trials": optuna_trials,
-            "optuna_max_epochs": optuna_max_epochs,
-        })
+        training_config.update(
+            {
+                "optuna_trials": optuna_trials,
+                "optuna_max_epochs": optuna_max_epochs,
+            }
+        )
     elif phase == 3:
-        training_config.update({
-            "tft_hidden_size": DEEP_MODEL_HIDDEN_SIZE,
-            "lstm_hidden_size": DEEP_HYBRID_LSTM_HIDDEN_SIZE,
-            "lstm_num_layers": DEEP_HYBRID_LSTM_NUM_LAYERS,
-            "fusion_size": DEEP_HYBRID_FUSION_SIZE,
-            "lambda_class": DEEP_HYBRID_LAMBDA_CLASS,
-            "lambda_reg": DEEP_HYBRID_LAMBDA_REG,
-        })
-    
+        training_config.update(
+            {
+                "tft_hidden_size": DEEP_MODEL_HIDDEN_SIZE,
+                "lstm_hidden_size": DEEP_HYBRID_LSTM_HIDDEN_SIZE,
+                "lstm_num_layers": DEEP_HYBRID_LSTM_NUM_LAYERS,
+                "fusion_size": DEEP_HYBRID_FUSION_SIZE,
+                "lambda_class": DEEP_HYBRID_LAMBDA_CLASS,
+                "lambda_reg": DEEP_HYBRID_LAMBDA_REG,
+            }
+        )
+
     with open(output_path / "training_config.json", "w") as f:
         json.dump(training_config, f, indent=2)
-    
+
     print(
         color_text(
             f"Training configuration saved to: {output_path / 'training_config.json'}",
             Fore.GREEN,
         )
     )
-    
+
     print(
         color_text(
             f"\nTraining completed! Checkpoints saved to: {checkpoint_dir}",
@@ -862,7 +857,7 @@ def create_model_and_train(
 def main():
     """Main training function."""
     args = parse_args()
-    
+
     # Print header
     print(color_text("=" * 60, Fore.BLUE, Style.BRIGHT))
     print(
@@ -873,10 +868,10 @@ def main():
         )
     )
     print(color_text("=" * 60, Fore.BLUE, Style.BRIGHT))
-    
+
     # Check GPU
     gpu_available = check_gpu_availability()
-    
+
     # Determine GPU usage
     if args.no_gpu:
         use_gpu = False
@@ -884,18 +879,18 @@ def main():
         use_gpu = True
     else:
         use_gpu = gpu_available
-    
+
     # Parse symbols
     if args.symbols:
         symbols = [normalize_symbol(s, args.quote) for s in args.symbols]
     else:
         symbols = [DEFAULT_SYMBOL]
-    
+
     # Parse exchanges
     exchanges = None
     if args.exchanges:
         exchanges = [ex.strip() for ex in args.exchanges.split(",") if ex.strip()]
-    
+
     # Prepare data
     train_df, val_df, test_df, pipeline = prepare_data(
         symbols=symbols,
@@ -905,7 +900,7 @@ def main():
         use_feature_selection=not args.no_feature_selection,
         task_type=args.task_type,
     )
-    
+
     # Create model and train
     create_model_and_train(
         train_df=train_df,
@@ -923,7 +918,7 @@ def main():
         optuna_max_epochs=args.optuna_max_epochs,
         timeframe=args.timeframe,
     )
-    
+
     print(color_text("\n" + "=" * 60, Fore.BLUE, Style.BRIGHT))
     print(color_text("TRAINING COMPLETE", Fore.GREEN, Style.BRIGHT))
     print(color_text("=" * 60, Fore.BLUE, Style.BRIGHT))
@@ -931,4 +926,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

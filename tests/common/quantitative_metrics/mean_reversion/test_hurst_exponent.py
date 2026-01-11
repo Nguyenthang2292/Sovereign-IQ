@@ -1,11 +1,15 @@
+
+import numpy as np
+import pandas as pd
+
+from modules.common.quantitative_metrics import calculate_hurst_exponent
+from modules.common.quantitative_metrics import calculate_hurst_exponent
+
 """
 Tests for hurst_exponent module.
 """
-import numpy as np
-import pandas as pd
-import pytest
 
-from modules.common.quantitative_metrics import calculate_hurst_exponent
+
 
 
 def test_calculate_hurst_exponent_returns_value_for_long_series():
@@ -14,7 +18,7 @@ def test_calculate_hurst_exponent_returns_value_for_long_series():
     series = pd.Series(rng.normal(size=500).cumsum())
 
     hurst = calculate_hurst_exponent(series, zscore_lookback=50, max_lag=20)
-    
+
     assert hurst is not None
     assert 0 <= hurst <= 2
 
@@ -29,7 +33,7 @@ def test_calculate_hurst_exponent_mean_reverting_series():
     spread = pd.Series(series)
 
     hurst = calculate_hurst_exponent(spread, zscore_lookback=50, max_lag=50)
-    
+
     # Mean-reverting series should have H < 0.5
     if hurst is not None:
         assert hurst < 0.7  # Allow some margin for estimation error
@@ -38,16 +42,16 @@ def test_calculate_hurst_exponent_mean_reverting_series():
 def test_calculate_hurst_exponent_insufficient_data():
     """Test that calculate_hurst_exponent returns None for insufficient data."""
     spread = pd.Series([1.0, 2.0, 3.0])
-    
+
     hurst = calculate_hurst_exponent(spread, zscore_lookback=50)
-    
+
     assert hurst is None
 
 
 def test_calculate_hurst_exponent_none_input():
     """Test that calculate_hurst_exponent handles None input."""
     hurst = calculate_hurst_exponent(None, zscore_lookback=50)
-    
+
     assert hurst is None
 
 
@@ -59,9 +63,9 @@ def test_calculate_hurst_exponent_with_nan_values():
     values[200] = np.nan
     values[300] = np.nan
     spread = pd.Series(values)
-    
+
     hurst = calculate_hurst_exponent(spread, zscore_lookback=50, max_lag=50)
-    
+
     # Should still compute valid result after dropping NaN
     if len(spread.dropna()) >= 50:
         assert hurst is not None
@@ -73,9 +77,9 @@ def test_calculate_hurst_exponent_random_walk():
     rng = np.random.default_rng(42)
     # Random walk should have H close to 0.5
     spread = pd.Series(rng.normal(size=500).cumsum())
-    
+
     hurst = calculate_hurst_exponent(spread, zscore_lookback=50, max_lag=50)
-    
+
     if hurst is not None:
         # Random walk should be around 0.5, allow some variance
         assert 0.3 <= hurst <= 0.7
@@ -88,9 +92,9 @@ def test_calculate_hurst_exponent_trending_series():
     trend = np.linspace(0, 100, 500)
     noise = rng.normal(0, 1, 500)  # Small noise to create variance
     spread = pd.Series(trend + noise)
-    
+
     hurst = calculate_hurst_exponent(spread, zscore_lookback=50, max_lag=50)
-    
+
     # Trending series should have H > 0.5, but allow for estimation variance
     # Note: Perfect linear series (no variance) may not compute correctly
     if hurst is not None:
@@ -103,9 +107,9 @@ def test_calculate_hurst_exponent_default_parameters():
     """Test that calculate_hurst_exponent uses default parameters."""
     rng = np.random.default_rng(42)
     spread = pd.Series(rng.normal(size=500).cumsum())
-    
+
     hurst = calculate_hurst_exponent(spread)
-    
+
     # Should work with default parameters
     assert hurst is not None
     assert 0 <= hurst <= 2
@@ -114,10 +118,10 @@ def test_calculate_hurst_exponent_default_parameters():
 def test_calculate_hurst_exponent_short_series():
     """Test that calculate_hurst_exponent handles short series correctly."""
     spread = pd.Series([1.0, 2.0, 1.5, 2.5, 1.8, 2.2, 1.9, 2.1] * 10)
-    
+
     # With small lookback, should still work
     hurst = calculate_hurst_exponent(spread, zscore_lookback=20, max_lag=10)
-    
+
     if hurst is not None:
         assert 0 <= hurst <= 2
 
@@ -127,9 +131,9 @@ def test_calculate_hurst_exponent_constant_series():
     # Constant series has zero variance, so std_val = 0 for all lags
     # This should result in all lags being skipped, leading to empty tau list
     constant_series = pd.Series([5.0] * 200)  # All values are the same
-    
+
     hurst = calculate_hurst_exponent(constant_series, zscore_lookback=50, max_lag=50)
-    
+
     # Constant series cannot have meaningful Hurst exponent calculation
     # because variance is zero, so all std_val will be 0 and skipped
     # This should return None

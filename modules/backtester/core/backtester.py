@@ -1,36 +1,42 @@
+
+from indicators (ATC, Oscillator, SPC, etc.) and calculates performance metrics.
+
 """
 Full Backtester for trading strategy simulation.
 
 This module simulates trading with entry/exit rules based on signals
-from indicators (ATC, Oscillator, SPC, etc.) and calculates performance metrics.
 """
 
-from typing import Dict, List, Optional
-import pandas as pd
-import traceback
 import time
+import traceback
+from typing import Dict, List, Optional
 
-from modules.common.core.data_fetcher import DataFetcher
+import pandas as pd
+
 from config.position_sizing import (
+    BACKTEST_MAX_HOLD_PERIODS,
+    BACKTEST_RISK_PER_TRADE,
     BACKTEST_STOP_LOSS_PCT,
     BACKTEST_TAKE_PROFIT_PCT,
     BACKTEST_TRAILING_STOP_PCT,
-    BACKTEST_MAX_HOLD_PERIODS,
-    BACKTEST_RISK_PER_TRADE,
-    ENABLED_INDICATORS,
-    USE_CONFIDENCE_WEIGHTING,
-    MIN_INDICATORS_AGREEMENT,
+    CLEAR_CACHE_ON_COMPLETE,
     ENABLE_PARALLEL_PROCESSING,
     ENABLE_PERFORMANCE_PROFILING,
+    ENABLED_INDICATORS,
     LOG_PERFORMANCE_METRICS,
-    CLEAR_CACHE_ON_COMPLETE,
+    MIN_INDICATORS_AGREEMENT,
     SIGNAL_CALCULATION_MODE,
+    USE_CONFIDENCE_WEIGHTING,
 )
+from modules.common.core.data_fetcher import DataFetcher
 from modules.common.utils import (
     log_error,
-    log_warn,
     log_progress,
+    log_warn,
 )
+
+from .equity_curve import calculate_equity_curve
+from .metrics import calculate_metrics, empty_backtest_result
 
 # Import modules
 from .signal_calculator import (
@@ -38,22 +44,22 @@ from .signal_calculator import (
     calculate_signals_parallel,
     calculate_single_signals,
     calculate_single_signals_parallel,
+)
+from .signal_calculator_incremental import (
     calculate_signals_incremental,
     calculate_single_signals_incremental,
 )
 from .trade_simulator import simulate_trades
-from .equity_curve import calculate_equity_curve
-from .metrics import calculate_metrics, empty_backtest_result
 
 
 class FullBacktester:
     """
     Full backtester that simulates trading based on indicator signals.
-    
+
     Simulates entry/exit rules, tracks trades, calculates PnL,
     and computes performance metrics (win rate, Sharpe ratio, max drawdown, etc.).
     """
-    
+
     def __init__(
         self,
         data_fetcher: DataFetcher,
@@ -65,12 +71,12 @@ class FullBacktester:
         enabled_indicators: Optional[List[str]] = None,
         use_confidence_weighting: bool = USE_CONFIDENCE_WEIGHTING,
         min_indicators_agreement: int = MIN_INDICATORS_AGREEMENT,
-        signal_mode: str = 'majority_vote',
+        signal_mode: str = "majority_vote",
         signal_calculation_mode: str = SIGNAL_CALCULATION_MODE,
     ):
         """
         Initialize Full Backtester.
-        
+
         Args:
             data_fetcher: DataFetcher instance for fetching OHLCV data
             stop_loss_pct: Stop loss percentage (default: 2%)
@@ -84,11 +90,13 @@ class FullBacktester:
             signal_mode: Signal calculation mode - 'majority_vote' (default) or 'single_signal'
             signal_calculation_mode: Signal calculation approach - 'precomputed' (default) or 'incremental'
         """
-        if signal_mode not in ('majority_vote', 'single_signal'):
+        if signal_mode not in ("majority_vote", "single_signal"):
             raise ValueError(f"Invalid signal_mode: {signal_mode}. Must be 'majority_vote' or 'single_signal'")
-        if signal_calculation_mode not in ('precomputed', 'incremental'):
-            raise ValueError(f"Invalid signal_calculation_mode: {signal_calculation_mode}. Must be 'precomputed' or 'incremental'")
-        
+        if signal_calculation_mode not in ("precomputed", "incremental"):
+            raise ValueError(
+                f"Invalid signal_calculation_mode: {signal_calculation_mode}. Must be 'precomputed' or 'incremental'"
+            )
+
         self.data_fetcher = data_fetcher
         self.stop_loss_pct = stop_loss_pct
         self.take_profit_pct = take_profit_pct
@@ -97,10 +105,10 @@ class FullBacktester:
         self.risk_per_trade = risk_per_trade
         self.signal_mode = signal_mode
         self.signal_calculation_mode = signal_calculation_mode
-        
+
         # Lazy import to avoid circular dependency
         from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
-        
+
         # Initialize Hybrid Signal Calculator
         self.hybrid_signal_calculator = HybridSignalCalculator(
             data_fetcher=data_fetcher,
@@ -108,7 +116,7 @@ class FullBacktester:
             use_confidence_weighting=use_confidence_weighting,
             min_indicators_agreement=min_indicators_agreement,
         )
-    
+
     def backtest(
         self,
         symbol: str,
@@ -120,7 +128,7 @@ class FullBacktester:
     ) -> Dict:
         """
         Run full backtest simulation for a symbol.
-        
+
         Args:
             symbol: Trading pair symbol
             timeframe: Timeframe for data
@@ -128,7 +136,7 @@ class FullBacktester:
             signal_type: "LONG" or "SHORT"
             initial_capital: Initial capital for backtesting (default: 10000)
             df: Optional DataFrame to use instead of fetching from API
-            
+
         Returns:
             Dictionary with backtest results:
             {
@@ -151,25 +159,25 @@ class FullBacktester:
             # Validate input parameters
             if signal_type.upper() not in ("LONG", "SHORT"):
                 raise ValueError(f"Invalid signal_type: {signal_type}. Must be 'LONG' or 'SHORT'")
-            
+
             if initial_capital <= 0:
                 raise ValueError(f"initial_capital must be > 0, got {initial_capital}")
-            
+
             if self.stop_loss_pct <= 0:
                 raise ValueError(f"stop_loss_pct must be > 0, got {self.stop_loss_pct}")
-            
+
             if self.take_profit_pct <= 0:
                 raise ValueError(f"take_profit_pct must be > 0, got {self.take_profit_pct}")
-            
+
             if self.trailing_stop_pct <= 0:
                 raise ValueError(f"trailing_stop_pct must be > 0, got {self.trailing_stop_pct}")
-            
+
             if self.max_hold_periods <= 0:
                 raise ValueError(f"max_hold_periods must be > 0, got {self.max_hold_periods}")
-            
+
             if lookback <= 0:
                 raise ValueError(f"lookback must be > 0, got {lookback}")
-            
+
             # Start timing the entire backtest
             backtest_start_time = time.time()
             # Use provided DataFrame if available, otherwise fetch from API
@@ -180,25 +188,25 @@ class FullBacktester:
                     timeframe=timeframe,
                     check_freshness=False,
                 )
-            
+
             if df is None or df.empty:
                 log_warn(f"No data available for {symbol}")
                 return empty_backtest_result()
-            
+
             # Validate required columns
-            required_columns = ['open', 'high', 'low', 'close']
+            required_columns = ["open", "high", "low", "close"]
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 log_error(f"Missing required columns for {symbol}: {missing_columns}")
                 return empty_backtest_result()
-            
+
             # Calculate signals for each period
             start_time = time.time() if (ENABLE_PERFORMANCE_PROFILING or LOG_PERFORMANCE_METRICS) else None
-            
+
             # Check if using incremental mode (combines signal calculation and trade simulation)
-            if self.signal_calculation_mode == 'incremental':
+            if self.signal_calculation_mode == "incremental":
                 # Incremental mode: combine signal calculation and trade simulation
-                if self.signal_mode == 'single_signal':
+                if self.signal_mode == "single_signal":
                     signals, trades = calculate_single_signals_incremental(
                         df=df,
                         symbol=symbol,
@@ -227,7 +235,7 @@ class FullBacktester:
                     )
             else:
                 # Precomputed mode: calculate all signals first, then simulate trades
-                if self.signal_mode == 'single_signal':
+                if self.signal_mode == "single_signal":
                     # Use single signal (highest confidence) mode
                     if ENABLE_PARALLEL_PROCESSING and len(df) > 100:  # Only use parallel for large datasets
                         signals = calculate_single_signals_parallel(
@@ -236,7 +244,11 @@ class FullBacktester:
                             timeframe=timeframe,
                             limit=lookback,
                             hybrid_signal_calculator=self.hybrid_signal_calculator,
-                            fallback_calculate_single_signals=lambda df, symbol, timeframe, limit, hybrid_signal_calculator: calculate_single_signals(
+                            fallback_calculate_single_signals=lambda df,
+                            symbol,
+                            timeframe,
+                            limit,
+                            hybrid_signal_calculator: calculate_single_signals(
                                 df=df,
                                 symbol=symbol,
                                 timeframe=timeframe,
@@ -262,7 +274,11 @@ class FullBacktester:
                             limit=lookback,
                             signal_type=signal_type,
                             hybrid_signal_calculator=self.hybrid_signal_calculator,
-                            fallback_calculate_signals=lambda df, symbol, timeframe, limit, signal_type: calculate_signals(
+                            fallback_calculate_signals=lambda df,
+                            symbol,
+                            timeframe,
+                            limit,
+                            signal_type: calculate_signals(
                                 df=df,
                                 symbol=symbol,
                                 timeframe=timeframe,
@@ -280,11 +296,11 @@ class FullBacktester:
                             signal_type=signal_type,
                             hybrid_signal_calculator=self.hybrid_signal_calculator,
                         )
-                
+
                 if start_time and LOG_PERFORMANCE_METRICS:
                     elapsed = time.time() - start_time
                     log_progress(f"  Signal calculation took {elapsed:.2f} seconds")
-                
+
                 # Simulate trades
                 trades = simulate_trades(
                     df=df,
@@ -296,11 +312,11 @@ class FullBacktester:
                     trailing_stop_pct=self.trailing_stop_pct,
                     max_hold_periods=self.max_hold_periods,
                 )
-            
+
             if not trades:
                 log_warn(f"No trades generated for {symbol}")
                 return empty_backtest_result()
-            
+
             # Calculate equity curve
             equity_curve = calculate_equity_curve(
                 trades=trades,
@@ -308,34 +324,36 @@ class FullBacktester:
                 num_periods=len(df),
                 risk_per_trade=self.risk_per_trade,
             )
-            
+
             # Calculate performance metrics
             metrics_start_time = time.time() if LOG_PERFORMANCE_METRICS else None
-            metrics = calculate_metrics(trades=trades, equity_curve=equity_curve)
+            metrics = calculate_metrics(trades=trades, equity_curve=equity_curve, timeframe=timeframe)
             if metrics_start_time and LOG_PERFORMANCE_METRICS:
                 metrics_elapsed = time.time() - metrics_start_time
                 log_progress(f"  Metrics calculation took {metrics_elapsed:.2f} seconds")
-            
+
             # Log cache statistics
             if LOG_PERFORMANCE_METRICS:
                 cache_stats = self.hybrid_signal_calculator.get_cache_stats()
-                log_progress(f"  Cache stats: {cache_stats['signal_cache_size']}/{cache_stats['signal_cache_max_size']} signals, "
-                           f"hit rate: {cache_stats['cache_hit_rate']*100:.1f}%")
-            
+                log_progress(
+                    f"  Cache stats: {cache_stats['signal_cache_size']}/{cache_stats['signal_cache_max_size']} signals, "
+                    f"hit rate: {cache_stats['cache_hit_rate'] * 100:.1f}%"
+                )
+
             # Clear caches if configured to save memory
             if CLEAR_CACHE_ON_COMPLETE:
                 self.hybrid_signal_calculator.clear_cache()
-            
+
             # Calculate total backtest time
             total_time = time.time() - backtest_start_time
-            
+
             return {
-                'trades': trades,
-                'equity_curve': equity_curve,
-                'metrics': metrics,
-                'total_time': total_time,
+                "trades": trades,
+                "equity_curve": equity_curve,
+                "metrics": metrics,
+                "total_time": total_time,
             }
-            
+
         except Exception as e:
             log_error(f"Error backtesting {symbol}: {e}")
             log_error(f"Traceback: {traceback.format_exc()}")

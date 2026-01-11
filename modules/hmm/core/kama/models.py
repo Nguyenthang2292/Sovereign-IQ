@@ -1,29 +1,35 @@
+
+from dataclasses import dataclass
+from typing import Literal, Tuple
+import os
+import warnings
+
+import numpy as np
+import pandas as pd
+
+from hmmlearn.hmm import GaussianHMM
+from modules.common.utils import log_data, log_error, log_info, log_model, log_warn
+from hmmlearn.hmm import GaussianHMM
+from modules.common.utils import log_data, log_error, log_info, log_model, log_warn
+
 """
 HMM-KAMA Model Operations.
 
 This module contains the HMM_KAMA dataclass and all HMM model training/application operations.
 """
 
-from dataclasses import dataclass
-from typing import Literal, Tuple, cast
-import numpy as np
-import pandas as pd
-from hmmlearn.hmm import GaussianHMM
-
-from modules.common.utils import log_info, log_error, log_warn, log_model, log_data
-
 # Fix KMeans memory leak on Windows with MKL
-import os
-import warnings
+
+
+
 os.environ["OMP_NUM_THREADS"] = "1"
-warnings.filterwarnings(
-    "ignore", message="KMeans is known to have a memory leak on Windows with MKL"
-)
+warnings.filterwarnings("ignore", message="KMeans is known to have a memory leak on Windows with MKL")
 
 
 @dataclass
 class HMM_KAMA:
     """Result dataclass for HMM-KAMA analysis."""
+
     next_state_with_hmm_kama: Literal[-1, 0, 1, 2, 3]
     current_state_of_state_using_std: Literal[-1, 0, 1]
     current_state_of_state_using_hmm: Literal[-1, 0, 1]
@@ -63,12 +69,10 @@ def reorder_hmm_model(model: GaussianHMM) -> GaussianHMM:
         # Note: object.__setattr__ is used to bypass hmmlearn property setter that might reject 2D assignment
         if model.covars_.ndim == 3:
             # Extract diagonal from full covariance matrices first
-            diag_covars = np.array([
-                np.diag(model.covars_[i]) for i in range(model.covars_.shape[0])
-            ])
+            diag_covars = np.array([np.diag(model.covars_[i]) for i in range(model.covars_.shape[0])])
             # Then reorder
             # Use object.__setattr__ to bypass property setter that might reject 2D assignment
-            object.__setattr__(model, 'covars_', diag_covars[order, :])
+            object.__setattr__(model, "covars_", diag_covars[order, :])
         elif model.covars_.ndim == 2:
             # Normal case: (n_components, n_features)
             model.covars_ = model.covars_[order, :]
@@ -106,9 +110,7 @@ def train_hmm(
             col_data = observations[:, col]
             finite_mask = np.isfinite(col_data)
             if finite_mask.any():
-                observations[:, col] = np.where(
-                    finite_mask, col_data, np.median(col_data[finite_mask])
-                )
+                observations[:, col] = np.where(finite_mask, col_data, np.median(col_data[finite_mask]))
             else:
                 observations[:, col] = 0.0
 
@@ -153,7 +155,7 @@ def train_hmm(
             and not np.isfinite(model.means_).all()
         ):
             raise ValueError("Invalid transition matrix or means after fitting")
-        
+
         # Validate covars_ shape before reordering
         if hasattr(model, "covars_"):
             expected_shape = (n_components, n_features)
@@ -167,41 +169,33 @@ def train_hmm(
                     if model.covars_.ndim == 3:
                         # If 3D (full covariance matrix), extract diagonal
                         # Shape: (n_components, n_features, n_features) -> (n_components, n_features)
-                        model.covars_ = np.array([
-                            np.diag(model.covars_[i]) for i in range(min(n_components, model.covars_.shape[0]))
-                        ])
+                        model.covars_ = np.array(
+                            [np.diag(model.covars_[i]) for i in range(min(n_components, model.covars_.shape[0]))]
+                        )
                         # Ensure we have the right number of components
                         if model.covars_.shape[0] < n_components:
-                            model.covars_ = np.tile(
-                                model.covars_[:1, :], (n_components, 1)
-                            )
+                            model.covars_ = np.tile(model.covars_[:1, :], (n_components, 1))
                         elif model.covars_.shape[0] > n_components:
                             model.covars_ = model.covars_[:n_components, :]
                         # Ensure positive values
                         model.covars_ = np.maximum(model.covars_, 1e-6)
                     elif model.covars_.ndim == 1:
                         # If 1D, reshape to (n_components, n_features)
-                        model.covars_ = np.tile(
-                            model.covars_.reshape(-1, 1), (1, n_features)
-                        )[:n_components, :]
+                        model.covars_ = np.tile(model.covars_.reshape(-1, 1), (1, n_features))[:n_components, :]
                         model.covars_ = np.maximum(model.covars_, 1e-6)
                     elif model.covars_.ndim == 2:
                         # If 2D but wrong shape, adjust
                         if model.covars_.shape[0] != n_components:
                             if model.covars_.shape[0] < n_components:
                                 # Tile if too few components
-                                model.covars_ = np.tile(
-                                    model.covars_[:1, :], (n_components, 1)
-                                )
+                                model.covars_ = np.tile(model.covars_[:1, :], (n_components, 1))
                             else:
                                 # Slice if too many components
                                 model.covars_ = model.covars_[:n_components, :]
                         if model.covars_.shape[1] != n_features:
                             if model.covars_.shape[1] < n_features:
                                 # Tile if too few features
-                                model.covars_ = np.tile(
-                                    model.covars_[:, :1], (1, n_features)
-                                )
+                                model.covars_ = np.tile(model.covars_[:, :1], (1, n_features))
                             else:
                                 # Slice if too many features
                                 model.covars_ = model.covars_[:, :n_features]
@@ -210,10 +204,10 @@ def train_hmm(
                 except Exception as fix_error:
                     log_warn(f"Failed to fix covars_ shape: {fix_error}. Using default.")
                     model.covars_ = np.ones((n_components, n_features), dtype=np.float64) * 0.01
-        
+
         # Reorder states to ensure semantic consistency (0=Bearish, 3=Bullish)
         model = reorder_hmm_model(model)
-        
+
         # Final validation after reordering
         # FIX (2025-01-16): Additional validation to handle 3D covars_ that may persist after reorder
         # This is a fallback in case reorder_hmm_model() didn't fully fix the shape
@@ -224,9 +218,9 @@ def train_hmm(
                     f"covars_ is 3D (full covariance): {model.covars_.shape}. "
                     f"Extracting diagonal to get shape ({n_components}, {n_features})."
                 )
-                diag_covars = np.array([
-                    np.diag(model.covars_[i]) for i in range(min(n_components, model.covars_.shape[0]))
-                ])
+                diag_covars = np.array(
+                    [np.diag(model.covars_[i]) for i in range(min(n_components, model.covars_.shape[0]))]
+                )
                 # Ensure we have the right number of components
                 if diag_covars.shape[0] < n_components:
                     diag_covars = np.tile(diag_covars[:1, :], (n_components, 1))
@@ -235,7 +229,7 @@ def train_hmm(
                 # Ensure positive values
                 diag_covars = np.maximum(diag_covars, 1e-6)
                 # Set using object.__setattr__ to bypass property setter
-                object.__setattr__(model, 'covars_', diag_covars)
+                object.__setattr__(model, "covars_", diag_covars)
             elif model.covars_.shape != (n_components, n_features):
                 log_warn(
                     f"covars_ shape incorrect after reordering: {model.covars_.shape}, "
@@ -244,20 +238,20 @@ def train_hmm(
                 try:
                     if model.covars_.ndim == 2 and model.covars_.size > 0:
                         # Use first component's covars and tile
-                        first_covar = model.covars_[0, :] if model.covars_.shape[0] > 0 else model.covars_.flatten()[:n_features]
-                        fixed_covars = np.tile(
-                            first_covar.reshape(1, -1), (n_components, 1)
+                        first_covar = (
+                            model.covars_[0, :] if model.covars_.shape[0] > 0 else model.covars_.flatten()[:n_features]
                         )
+                        fixed_covars = np.tile(first_covar.reshape(1, -1), (n_components, 1))
                         fixed_covars = np.maximum(fixed_covars, 1e-6)
-                        object.__setattr__(model, 'covars_', fixed_covars)
+                        object.__setattr__(model, "covars_", fixed_covars)
                     else:
                         fixed_covars = np.ones((n_components, n_features), dtype=np.float64) * 0.01
-                        object.__setattr__(model, 'covars_', fixed_covars)
+                        object.__setattr__(model, "covars_", fixed_covars)
                 except Exception as e:
                     log_warn(f"Failed to fix covars_ shape: {e}. Using default.")
                     fixed_covars = np.ones((n_components, n_features), dtype=np.float64) * 0.01
-                    object.__setattr__(model, 'covars_', fixed_covars)
-        
+                    object.__setattr__(model, "covars_", fixed_covars)
+
         log_info("HMM training completed successfully")
 
     except Exception as e:
@@ -274,18 +268,14 @@ def train_hmm(
         model.startprob_ = np.ones(n_components, dtype=np.float64) / n_components
         model.transmat_ = (
             np.eye(n_components, dtype=np.float64) * 0.7
-            + np.ones((n_components, n_components), dtype=np.float64)
-            * 0.3
-            / n_components
+            + np.ones((n_components, n_components), dtype=np.float64) * 0.3 / n_components
         )
 
         # Create synthetic means sorted from low to high
         model.means_ = np.zeros((n_components, n_features), dtype=np.float64)
         for i in range(n_components):
             # Synthetic means: spread out based on quantiles
-            model.means_[i] = np.quantile(
-                observations, (i + 1) / (n_components + 1), axis=0
-            )
+            model.means_[i] = np.quantile(observations, (i + 1) / (n_components + 1), axis=0)
 
         try:
             # Calculate variance for each feature
@@ -293,13 +283,11 @@ def train_hmm(
             # Ensure variances is 1D array
             if variances.ndim == 0:
                 variances = np.array([variances])
-            
+
             # For diag covariance type, shape must be (n_components, n_features)
             # Broadcast variances to (n_components, n_features)
-            model.covars_ = np.tile(
-                variances.reshape(1, -1), (n_components, 1)
-            ).astype(np.float64)
-            
+            model.covars_ = np.tile(variances.reshape(1, -1), (n_components, 1)).astype(np.float64)
+
             # Ensure minimum variance to avoid numerical issues
             model.covars_ = np.maximum(model.covars_, 1e-6)
         except Exception as e:
@@ -310,9 +298,7 @@ def train_hmm(
     return model
 
 
-def apply_hmm_model(
-    model: GaussianHMM, data: pd.DataFrame, observations: np.ndarray
-) -> Tuple[pd.DataFrame, int]:
+def apply_hmm_model(model: GaussianHMM, data: pd.DataFrame, observations: np.ndarray) -> Tuple[pd.DataFrame, int]:
     """Apply the trained HMM model to the data and predict hidden states."""
     predicted_states = model.predict(observations)
 
@@ -353,4 +339,3 @@ def apply_hmm_model(
         next_state = 0
 
     return data, next_state
-

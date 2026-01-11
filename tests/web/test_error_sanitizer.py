@@ -1,3 +1,6 @@
+
+from web.utils.error_sanitizer import sanitize_error
+
 """
 Tests for error sanitization utilities (web/utils/error_sanitizer.py).
 
@@ -9,17 +12,16 @@ Tests cover:
 - Mapping of known error types to user-friendly messages
 """
 
-from web.utils.error_sanitizer import sanitize_error
 
 
 class TestSanitizeError:
     """Test sanitize_error function."""
-    
+
     def test_sanitize_none(self):
         """Test sanitizing None returns default message."""
         result = sanitize_error(None)
         assert result == "An error occurred"
-    
+
     def test_sanitize_file_not_found_error(self):
         """Test sanitizing FileNotFoundError."""
         error = FileNotFoundError("C:\\Users\\secret\\file.txt")
@@ -27,31 +29,32 @@ class TestSanitizeError:
         assert result == "File not found"
         assert "secret" not in result
         assert "C:" not in result
-    
+
     def test_sanitize_permission_error(self):
         """Test sanitizing PermissionError."""
         error = PermissionError("Access denied to /etc/passwd")
         result = sanitize_error(error)
         assert result == "Permission denied"
         assert "/etc/passwd" not in result
-    
+
     def test_sanitize_os_error(self):
         """Test sanitizing OSError."""
         error = OSError("System error")
         result = sanitize_error(error)
         assert result == "System error occurred: System error"
-    
+
     def test_sanitize_value_error(self):
         """Test sanitizing ValueError."""
         error = ValueError("Invalid value")
         result = sanitize_error(error)
         assert result == "Invalid value provided: Invalid value"
-    
+
     def test_sanitize_unknown_exception_type(self):
         """Test sanitizing unknown exception type."""
+
         class CustomError(Exception):
             pass
-        
+
         error = CustomError("Custom error message")
         result = sanitize_error(error)
 
@@ -61,7 +64,7 @@ class TestSanitizeError:
         assert result == "Custom error message" or result == "An error occurred"
         # Ensure no sensitive patterns leak through
         assert "Traceback" not in result
-    
+
     def test_sanitize_string_with_file_path(self):
         """Test sanitizing string containing file path."""
         error_str = "Error opening file: C:\\Users\\test\\file.txt"
@@ -71,7 +74,7 @@ class TestSanitizeError:
         assert "file.txt" not in result
         # Path is replaced with [path] placeholder
         assert result == "Error opening file: [path]"
-    
+
     def test_sanitize_string_with_unix_path(self):
         """Test sanitizing string containing Unix path."""
         error_str = "Error: /home/user/secret/config.json not found"
@@ -80,7 +83,7 @@ class TestSanitizeError:
         assert "secret" not in result
         # Path is replaced with [path] placeholder
         assert result == "Error: [path] not found"
-    
+
     def test_sanitize_stack_trace(self):
         """Test sanitizing stack trace."""
         stack_trace = """Traceback (most recent call last):
@@ -92,7 +95,7 @@ ValueError: Test error"""
         assert "Traceback" not in result
         assert "File" not in result
         assert "line" not in result
-    
+
     def test_sanitize_string_with_sensitive_info(self):
         """Test sanitizing string with sensitive information."""
         error_str = "Error: password=secret123 api_key=abc123"
@@ -101,7 +104,7 @@ ValueError: Test error"""
         assert "secret123" not in result
         assert "api_key" not in result.lower()
         assert "abc123" not in result
-    
+
     def test_sanitize_safe_error_message(self):
         """Test that safe error messages are preserved."""
         error_str = "Invalid input provided"
@@ -109,7 +112,7 @@ ValueError: Test error"""
         # Should preserve safe messages
         assert isinstance(result, str)
         assert len(result) > 0
-    
+
     def test_sanitize_error_with_safe_message(self):
         """Test error with safe message that doesn't contain sensitive info."""
         error = ValueError("Invalid number format")
@@ -221,4 +224,3 @@ ValueError: Test error"""
         assert "file.txt" not in result
         # Path is replaced with [path] placeholder
         assert result == "Error: [path]"
-

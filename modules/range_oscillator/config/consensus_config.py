@@ -1,13 +1,15 @@
-"""Configuration for consensus signal generation."""
 
 from dataclasses import dataclass
 from typing import Literal
+
+"""Configuration for consensus signal generation."""
+
 
 
 @dataclass
 class ConsensusConfig:
     """Configuration for consensus signal generation from multiple strategies.
-    
+
     Attributes:
         mode: Consensus mode - "threshold" or "weighted".
         threshold: Threshold for threshold mode (0-1).
@@ -16,17 +18,18 @@ class ConsensusConfig:
         weighted_min_diff: Minimum difference between Long and Short weights.
         weighted_min_total: Minimum total weight of winning side.
     """
+
     mode: Literal["threshold", "weighted"] = "threshold"
-    threshold: float = 0.5   # For threshold mode
-    
+    threshold: float = 0.5  # For threshold mode
+
     # Adaptive weights (Weighted mode)
     adaptive_weights: bool = False
     performance_window: int = 10
-    
+
     # Weighted voting rules
-    weighted_min_diff: float = 0.1    # Difference between Long and Short weights must be > 0.1
-    weighted_min_total: float = 0.5   # Total weight of the winning side must be > 0.5
-    
+    weighted_min_diff: float = 0.1  # Difference between Long and Short weights must be > 0.1
+    weighted_min_total: float = 0.5  # Total weight of the winning side must be > 0.5
+
     def __post_init__(self):
         """Validate configuration values."""
         if self.mode not in ("threshold", "weighted"):
@@ -39,4 +42,3 @@ class ConsensusConfig:
             raise ValueError(f"weighted_min_diff must be >= 0, got {self.weighted_min_diff}")
         if self.weighted_min_total < 0:
             raise ValueError(f"weighted_min_total must be >= 0, got {self.weighted_min_total}")
-

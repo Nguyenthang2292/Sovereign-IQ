@@ -1,3 +1,6 @@
+
+from modules.common.quantitative_metrics import (
+
 """
 Pairs trading analysis component.
 
@@ -12,10 +15,18 @@ This package provides comprehensive tools for pairs trading analysis including:
 """
 
 # Core components
-from modules.pairs_trading.core import (
-    PairsTradingAnalyzer,
-    PairMetricsComputer,
-    OpportunityScorer,
+# Metrics (imported from common.quantitative_metrics)
+    calculate_adf_test,
+    calculate_calmar_ratio,
+    calculate_direction_metrics,
+    calculate_half_life,
+    calculate_hurst_exponent,
+    calculate_johansen_test,
+    calculate_kalman_hedge_ratio,
+    calculate_max_drawdown,
+    calculate_ols_hedge_ratio,
+    calculate_sharpe_ratio,
+    calculate_zscore_stats,
 )
 
 # Analysis components
@@ -23,83 +34,73 @@ from modules.pairs_trading.analysis import (
     PerformanceAnalyzer,
 )
 
-# Metrics (imported from common.quantitative_metrics)
-from modules.common.quantitative_metrics import (
-    calculate_adf_test,
-    calculate_half_life,
-    calculate_johansen_test,
-    calculate_sharpe_ratio,
-    calculate_max_drawdown,
-    calculate_calmar_ratio,
-    calculate_ols_hedge_ratio,
-    calculate_kalman_hedge_ratio,
-    calculate_zscore_stats,
-    calculate_hurst_exponent,
-    calculate_direction_metrics,
+# CLI components
+from modules.pairs_trading.cli import (
+    display_pairs_opportunities,
+    # Display formatters
+    display_performers,
+    # Argument parsing
+    parse_args,
+    parse_symbols,
+    # Input parsers
+    parse_weights,
+    prompt_candidate_depth,
+    # Interactive prompts
+    prompt_interactive_mode,
+    prompt_kalman_preset_selection,
+    prompt_opportunity_preset_selection,
+    prompt_target_pairs,
+    prompt_weight_preset_selection,
+)
+from modules.pairs_trading.core import (
+    OpportunityScorer,
+    PairMetricsComputer,
+    PairsTradingAnalyzer,
 )
 
 # Utility functions
 from modules.pairs_trading.utils import (
-    select_top_unique_pairs,
-    select_pairs_for_symbols,
     ensure_symbols_in_candidate_pools,
-)
-
-# CLI components
-from modules.pairs_trading.cli import (
-    # Display formatters
-    display_performers,
-    display_pairs_opportunities,
-    # Argument parsing
-    parse_args,
-    # Interactive prompts
-    prompt_interactive_mode,
-    prompt_weight_preset_selection,
-    prompt_kalman_preset_selection,
-    prompt_opportunity_preset_selection,
-    prompt_target_pairs,
-    prompt_candidate_depth,
-    # Input parsers
-    parse_weights,
-    parse_symbols,
+    select_pairs_for_symbols,
+    select_top_unique_pairs,
 )
 
 __all__ = [
     # Core classes
-    'PairsTradingAnalyzer',
-    'PairMetricsComputer',
-    'OpportunityScorer',
-    'PerformanceAnalyzer',
+    "PairsTradingAnalyzer",
+    "PairMetricsComputer",
+    "OpportunityScorer",
+    "PerformanceAnalyzer",
     # Statistical tests
-    'calculate_adf_test',
-    'calculate_half_life',
-    'calculate_johansen_test',
+    "calculate_adf_test",
+    "calculate_half_life",
+    "calculate_johansen_test",
     # Risk metrics
-    'calculate_sharpe_ratio',
-    'calculate_max_drawdown',
-    'calculate_calmar_ratio',
+    "calculate_sharpe_ratio",
+    "calculate_max_drawdown",
+    "calculate_calmar_ratio",
     # Hedge ratio
-    'calculate_ols_hedge_ratio',
-    'calculate_kalman_hedge_ratio',
+    "calculate_ols_hedge_ratio",
+    "calculate_kalman_hedge_ratio",
     # Z-score metrics
-    'calculate_zscore_stats',
-    'calculate_hurst_exponent',
-    'calculate_direction_metrics',
+    "calculate_zscore_stats",
+    "calculate_hurst_exponent",
+    "calculate_direction_metrics",
     # Utility functions
-    'select_top_unique_pairs',
-    'select_pairs_for_symbols',
-    'ensure_symbols_in_candidate_pools',
+    "select_top_unique_pairs",
+    "select_pairs_for_symbols",
+    "ensure_symbols_in_candidate_pools",
     # Display functions
-    'display_performers',
-    'display_pairs_opportunities',
+    "display_performers",
+    "display_pairs_opportunities",
     # CLI functions
-    'parse_args',
-    'prompt_interactive_mode',
-    'prompt_weight_preset_selection',
-    'prompt_kalman_preset_selection',
-    'prompt_opportunity_preset_selection',
-    'prompt_target_pairs',
-    'prompt_candidate_depth',
-    'parse_weights',
-    'parse_symbols',
+    "parse_args",
+    "prompt_interactive_mode",
+    "prompt_weight_preset_selection",
+    "prompt_kalman_preset_selection",
+    "prompt_opportunity_preset_selection",
+    "prompt_target_pairs",
+    "prompt_candidate_depth",
+    "parse_weights",
+    "parse_symbols",
 ]

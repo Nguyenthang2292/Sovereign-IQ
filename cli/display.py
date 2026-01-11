@@ -1,17 +1,24 @@
+
+from typing import Any
+
+from colorama import Fore
+import pandas as pd
+
+from modules.common.utils import (
+
+from modules.common.utils import (
+
 """
 Display utilities for ATC + Range Oscillator + SPC Hybrid and Pure Voting.
 
 This module contains functions for displaying configuration and voting metadata.
 """
 
-import pandas as pd
-from typing import Any
-from colorama import Fore
 
-from modules.common.utils import (
-    log_progress,
-    log_data,
+
     color_text,
+    log_data,
+    log_progress,
 )
 from modules.range_oscillator.cli import display_configuration
 
@@ -25,7 +32,7 @@ def display_config(
 ) -> None:
     """
     Display configuration information.
-    
+
     Args:
         selected_timeframe: Selected timeframe for analysis
         args: Arguments namespace object
@@ -42,7 +49,7 @@ def display_config(
         strategies=osc_params["strategies"],
         max_symbols=args.max_symbols,
     )
-    
+
     if args.enable_spc:
         if get_spc_params:
             spc_params = get_spc_params()
@@ -50,27 +57,28 @@ def display_config(
             log_data(f"  K: {spc_params['k']}")
             log_data(f"  Lookback: {spc_params['lookback']}")
             log_data(f"  Percentiles: {spc_params['p_low']}% - {spc_params['p_high']}%")
-            log_data(f"  Strategies: Cluster Transition, Regime Following, Mean Reversion")
-    
-    if hasattr(args, 'enable_xgboost') and args.enable_xgboost:
+            log_data("  Strategies: Cluster Transition, Regime Following, Mean Reversion")
+
+    if hasattr(args, "enable_xgboost") and args.enable_xgboost:
         log_progress("\nXGBoost Configuration:")
-        log_data(f"  XGBoost Prediction: Enabled")
-    
-    if hasattr(args, 'enable_hmm') and args.enable_hmm:
+        log_data("  XGBoost Prediction: Enabled")
+
+    if hasattr(args, "enable_hmm") and args.enable_hmm:
         from config import HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
+
         log_progress("\nHMM Configuration:")
-        log_data(f"  HMM Signal: Enabled")
+        log_data("  HMM Signal: Enabled")
         log_data(f"  Window Size: {getattr(args, 'hmm_window_size', 'N/A')}")
         log_data(f"  Window KAMA: {getattr(args, 'hmm_window_kama', 'N/A')}")
         log_data(f"  Fast KAMA: {getattr(args, 'hmm_fast_kama', 'N/A')}")
         log_data(f"  Slow KAMA: {getattr(args, 'hmm_slow_kama', 'N/A')}")
         log_data(f"  Orders Argrelextrema: {getattr(args, 'hmm_orders_argrelextrema', 'N/A')}")
-        strict_mode = getattr(args, 'hmm_strict_mode', None)
+        strict_mode = getattr(args, "hmm_strict_mode", None)
         strict_mode_display = strict_mode if strict_mode is not None else HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
         log_data(f"  Strict Mode: {strict_mode_display} (default: {HMM_HIGH_ORDER_STRICT_MODE_DEFAULT})")
-    
+
     if mode == "hybrid":
-        if hasattr(args, 'use_decision_matrix') and args.use_decision_matrix:
+        if hasattr(args, "use_decision_matrix") and args.use_decision_matrix:
             log_progress("\nDecision Matrix Configuration:")
             log_data(f"  Voting Threshold: {args.voting_threshold}")
             log_data(f"  Min Votes: {args.min_votes}")
@@ -87,7 +95,7 @@ def display_voting_metadata(
 ) -> None:
     """
     Display voting metadata for signals.
-    
+
     Args:
         signals_df: DataFrame containing signals with voting metadata
         signal_type: "LONG" or "SHORT"
@@ -95,31 +103,31 @@ def display_voting_metadata(
     """
     if signals_df.empty:
         return
-    
+
     # Color code based on signal type: GREEN for LONG, RED for SHORT
     title_color = Fore.GREEN if signal_type == "LONG" else Fore.RED
     title = color_text(f"\n{signal_type} Signals - Voting Breakdown:", title_color)
     log_progress(title)
     log_progress("-" * 80)
-    
+
     for idx, row in signals_df.head(10).iterrows():
-        symbol = row['symbol']
-        weighted_score = row.get('weighted_score', 0.0)
-        voting_breakdown = row.get('voting_breakdown', {})
-        feature_importance = row.get('feature_importance', {})
-        weighted_impact = row.get('weighted_impact', {})
-        
+        symbol = row["symbol"]
+        weighted_score = row.get("weighted_score", 0.0)
+        voting_breakdown = row.get("voting_breakdown", {})
+        feature_importance = row.get("feature_importance", {})
+        weighted_impact = row.get("weighted_impact", {})
+
         log_data(f"\nSymbol: {symbol}")
         log_data(f"  Weighted Score: {weighted_score:.2%}")
-        log_data(f"  Voting Breakdown:")
-        
+        log_data("  Voting Breakdown:")
+
         for indicator, vote_info in voting_breakdown.items():
-            vote = vote_info['vote']
-            weight = vote_info['weight']
-            contribution = vote_info['contribution']
+            vote = vote_info["vote"]
+            weight = vote_info["weight"]
+            contribution = vote_info["contribution"]
             importance = feature_importance.get(indicator, 0.0)
             impact = weighted_impact.get(indicator, 0.0)
-            
+
             # Color code vote indicator: keep ✓ as default, make entire line pink/magenta for ✗
             vote_str = "✓" if vote == 1 else "✗"
             line_content = (
@@ -127,25 +135,24 @@ def display_voting_metadata(
                 f"(Weight: {weight:.1%}, Impact: {impact:.1%}, "
                 f"Importance: {importance:.1%}, Contribution: {contribution:.2%})"
             )
-            
+
             # Make entire line pink/magenta if vote is not 1 (✗)
             if vote != 1:
                 line_content = color_text(line_content, Fore.MAGENTA)
-            
+
             log_data(line_content)
-            
+
             # Debug: Show SPC strategy signals if SPC contribution is 0%
-            if show_spc_debug and indicator == 'spc' and abs(contribution) < 0.0001:
-                spc_ct_signal = row.get('spc_cluster_transition_signal', 0)
-                spc_rf_signal = row.get('spc_regime_following_signal', 0)
-                spc_mr_signal = row.get('spc_mean_reversion_signal', 0)
-                spc_ct_strength = row.get('spc_cluster_transition_strength', 0.0)
-                spc_rf_strength = row.get('spc_regime_following_strength', 0.0)
-                spc_mr_strength = row.get('spc_mean_reversion_strength', 0.0)
+            if show_spc_debug and indicator == "spc" and abs(contribution) < 0.0001:
+                spc_ct_signal = row.get("spc_cluster_transition_signal", 0)
+                spc_rf_signal = row.get("spc_regime_following_signal", 0)
+                spc_mr_signal = row.get("spc_mean_reversion_signal", 0)
+                spc_ct_strength = row.get("spc_cluster_transition_strength", 0.0)
+                spc_rf_strength = row.get("spc_regime_following_strength", 0.0)
+                spc_mr_strength = row.get("spc_mean_reversion_strength", 0.0)
                 log_data(
                     f"      [DEBUG] SPC Strategy Signals: "
                     f"CT={spc_ct_signal} (strength={spc_ct_strength:.2f}), "
                     f"RF={spc_rf_signal} (strength={spc_rf_strength:.2f}), "
                     f"MR={spc_mr_signal} (strength={spc_mr_strength:.2f})"
                 )
-

@@ -1,20 +1,24 @@
+
+from dataclasses import dataclass
+from typing import Callable, List, Optional
+
+from modules.targets.core.base import TargetCalculator, TargetResult
+from modules.targets.core.base import TargetCalculator, TargetResult
+
 """
 ATR Target Calculator.
 
 Tính toán các target prices dựa trên ATR (Average True Range) multiples.
 """
 
-from typing import List, Optional, Callable
-from dataclasses import dataclass
 
-from modules.targets.core.base import TargetResult, TargetCalculator
 
 
 @dataclass
 class ATRTargetResult(TargetResult):
     """
     Kết quả tính toán ATR target.
-    
+
     Attributes:
         multiple: ATR multiple (1, 2, 3, ...)
         target_price: Giá target tính toán
@@ -22,8 +26,9 @@ class ATRTargetResult(TargetResult):
         delta_pct: Delta theo phần trăm
         label: Nhãn mô tả target (ví dụ: "ATR x1")
     """
+
     multiple: int
-    
+
     def __post_init__(self):
         """Đảm bảo label được set từ multiple nếu chưa có."""
         if not self.label:
@@ -34,7 +39,7 @@ class ATRTargetCalculator(TargetCalculator):
     """
     Calculator cho ATR-based targets.
     """
-    
+
     def calculate(
         self,
         current_price: float,
@@ -44,16 +49,16 @@ class ATRTargetCalculator(TargetCalculator):
     ) -> List[ATRTargetResult]:
         """
         Tính toán các target prices dựa trên ATR multiples.
-        
+
         Args:
             current_price: Giá hiện tại
             atr: Giá trị ATR (Average True Range)
             direction: Hướng di chuyển dự kiến ("UP", "DOWN", "NEUTRAL")
             multiples: Danh sách ATR multiples để tính toán (mặc định: [1, 2, 3])
-            
+
         Returns:
             List các ATRTargetResult chứa thông tin về target prices
-            
+
         Examples:
             >>> calculator = ATRTargetCalculator()
             >>> results = calculator.calculate(
@@ -69,7 +74,7 @@ class ATRTargetCalculator(TargetCalculator):
         """
         if multiples is None:
             multiples = [1, 2, 3]
-        
+
         # Xác định sign dựa trên direction
         if direction == "UP":
             atr_sign = 1
@@ -78,19 +83,19 @@ class ATRTargetCalculator(TargetCalculator):
         else:
             # NEUTRAL hoặc direction không hợp lệ
             atr_sign = 0
-        
+
         results = []
-        
+
         for multiple in multiples:
             # Tính target price
             target_price = current_price + atr_sign * multiple * atr
-            
+
             # Tính delta (khoảng cách tuyệt đối)
             move_abs = abs(target_price - current_price)
-            
+
             # Tính delta theo phần trăm
             move_pct = (move_abs / current_price) * 100 if current_price > 0 else 0.0
-            
+
             results.append(
                 ATRTargetResult(
                     multiple=multiple,
@@ -100,9 +105,9 @@ class ATRTargetCalculator(TargetCalculator):
                     label=f"ATR x{multiple}",
                 )
             )
-        
+
         return results
-    
+
     def format_display(
         self,
         result: ATRTargetResult,
@@ -110,14 +115,14 @@ class ATRTargetCalculator(TargetCalculator):
     ) -> str:
         """
         Format một ATR target result thành string để hiển thị.
-        
+
         Args:
             result: ATRTargetResult cần format
             format_price_func: Function để format giá (ví dụ: format_price từ utils)
-            
+
         Returns:
             String đã được format
-            
+
         Example:
             >>> calculator = ATRTargetCalculator()
             >>> result = ATRTargetResult(
@@ -145,15 +150,15 @@ def calculate_atr_targets(
 ) -> List[ATRTargetResult]:
     """
     Tính toán các target prices dựa trên ATR multiples.
-    
+
     Convenience function để giữ backward compatibility với code cũ.
-    
+
     Args:
         current_price: Giá hiện tại
         atr: Giá trị ATR (Average True Range)
         direction: Hướng di chuyển dự kiến ("UP", "DOWN", "NEUTRAL")
         multiples: Danh sách ATR multiples để tính toán (mặc định: [1, 2, 3])
-        
+
     Returns:
         List các ATRTargetResult chứa thông tin về target prices
     """
@@ -172,16 +177,15 @@ def format_atr_target_display(
 ) -> str:
     """
     Format một ATR target result thành string để hiển thị.
-    
+
     Convenience function để giữ backward compatibility với code cũ.
-    
+
     Args:
         result: ATRTargetResult cần format
         format_price_func: Function để format giá (ví dụ: format_price từ utils)
-        
+
     Returns:
         String đã được format
     """
     calculator = ATRTargetCalculator()
     return calculator.format_display(result, format_price_func)
-

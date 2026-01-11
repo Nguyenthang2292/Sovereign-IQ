@@ -1,11 +1,14 @@
+
+import pytest
+
+from modules.iching.core.data_models import HaoInfo, IChingResult
+from modules.iching.core.data_models import HaoInfo, IChingResult
+
 """
 Shared fixtures for I Ching tests.
 """
 
-import pytest
-from pathlib import Path
 
-from modules.iching.core.data_models import HaoInfo, IChingResult
 
 
 @pytest.fixture
@@ -31,7 +34,7 @@ def sample_iching_result(sample_hao_info_list):
         que_phai=sample_hao_info_list.copy(),
         the_vi_tri=4,
         ung_vi_tri=1,
-        tk_vi_tri=[6]
+        tk_vi_tri=[6],
     )
 
 
@@ -40,7 +43,6 @@ def temp_image_path(tmp_path):
     """Create a temporary image file for testing."""
     image_path = tmp_path / "test_image.png"
     # Create a minimal valid PNG file
-    png_header = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82'
+    png_header = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82"
     image_path.write_bytes(png_header)
     return str(image_path)
-

@@ -1,3 +1,10 @@
+
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+import pandas as pd
+
 """
 Correlation calculation for quantitative analysis.
 
@@ -5,9 +12,7 @@ This is a general-purpose correlation calculation that can be used
 for any financial analysis, not just pairs trading.
 """
 
-import pandas as pd
-import numpy as np
-from typing import Optional
+
 
 try:
     from config import PAIRS_TRADING_CORRELATION_MIN_POINTS
@@ -17,6 +22,7 @@ except ImportError:
 try:
     from modules.common.utils import log_warn
 except ImportError:
+
     def log_warn(msg: str) -> None:
         print(f"[WARN] {msg}")
 
@@ -46,7 +52,7 @@ def calculate_correlation(
 
     Returns:
         Correlation coefficient (float between -1 and 1), or None if calculation fails.
-        
+
         Returns None if:
         - Input series are None or empty
         - Insufficient data points after alignment and cleaning
@@ -65,10 +71,10 @@ def calculate_correlation(
     # Validate inputs
     if price1 is None or price2 is None:
         return None
-    
+
     if not isinstance(price1, pd.Series) or not isinstance(price2, pd.Series):
         return None
-    
+
     if price1.empty or price2.empty:
         return None
 
@@ -77,18 +83,18 @@ def calculate_correlation(
     common_index = price1.index.intersection(price2.index)
     if len(common_index) == 0:
         return None
-    
+
     price1_aligned = price1.loc[common_index]
     price2_aligned = price2.loc[common_index]
-    
+
     # Drop NaN values
     valid_mask = ~(price1_aligned.isna() | price2_aligned.isna())
     price1_clean = price1_aligned[valid_mask]
     price2_clean = price2_aligned[valid_mask]
-    
+
     if len(price1_clean) < min_points:
         return None
-    
+
     # Check for infinite values
     if np.isinf(price1_clean).any() or np.isinf(price2_clean).any():
         log_warn("Infinite values found in price series")
@@ -98,22 +104,22 @@ def calculate_correlation(
         # Calculate returns
         returns1 = price1_clean.pct_change().dropna()
         returns2 = price2_clean.pct_change().dropna()
-        
+
         # Align returns by index (after pct_change, indices may differ by 1)
         returns_common = returns1.index.intersection(returns2.index)
         if len(returns_common) < min_points:
             return None
-        
+
         returns1_aligned = returns1.loc[returns_common]
         returns2_aligned = returns2.loc[returns_common]
-        
+
         # Validate returns data
         if returns1_aligned.isna().all() or returns2_aligned.isna().all():
             return None
         if np.isinf(returns1_aligned).any() or np.isinf(returns2_aligned).any():
             log_warn("Infinite values in returns")
             return None
-        
+
         # Check for constant series (zero variance) to avoid divide by zero warnings
         if returns1_aligned.std() == 0 or returns2_aligned.std() == 0:
             # Constant series have no variance, correlation is undefined
@@ -139,4 +145,3 @@ def calculate_correlation(
     except Exception as e:
         log_warn(f"Unexpected error calculating correlation: {e}")
         return None
-

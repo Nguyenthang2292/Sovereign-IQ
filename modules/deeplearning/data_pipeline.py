@@ -1,3 +1,17 @@
+
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+import json
+
+from colorama import Fore, Style
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+import pandas as pd
+
+from config import (
+
+from config import (
+
 """
 Deep Learning Data Preparation Pipeline for Temporal Fusion Transformer (TFT).
 
@@ -11,38 +25,29 @@ This module provides comprehensive data preprocessing including:
 - Chronological train/validation/test split
 """
 
-import json
-import os
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from colorama import Fore, Style
 
-from modules.common.core.data_fetcher import DataFetcher
-from modules.common.core.indicator_engine import IndicatorEngine, IndicatorConfig, IndicatorProfile
-from config import (
-    TARGET_HORIZON,
-    DEEP_TRIPLE_BARRIER_TP_THRESHOLD,
-    DEEP_TRIPLE_BARRIER_SL_THRESHOLD,
-    DEEP_FRACTIONAL_DIFF_D,
-    DEEP_FRACTIONAL_DIFF_WINDOW,
-    DEEP_USE_FRACTIONAL_DIFF,
-    DEEP_USE_TRIPLE_BARRIER,
-    DEEP_SCALER_DIR,
-    DEEP_TRAIN_RATIO,
-    DEEP_VAL_RATIO,
-    DEEP_TEST_RATIO,
-    DEEP_USE_FEATURE_SELECTION,
-    DEEP_FEATURE_SELECTION_METHOD,
-    DEEP_FEATURE_SELECTION_TOP_K,
     DEEP_FEATURE_COLLINEARITY_THRESHOLD,
     DEEP_FEATURE_SELECTION_DIR,
+    DEEP_FEATURE_SELECTION_METHOD,
+    DEEP_FEATURE_SELECTION_TOP_K,
+    DEEP_FRACTIONAL_DIFF_D,
+    DEEP_FRACTIONAL_DIFF_WINDOW,
+    DEEP_SCALER_DIR,
+    DEEP_TEST_RATIO,
+    DEEP_TRAIN_RATIO,
+    DEEP_TRIPLE_BARRIER_SL_THRESHOLD,
+    DEEP_TRIPLE_BARRIER_TP_THRESHOLD,
+    DEEP_USE_FEATURE_SELECTION,
+    DEEP_USE_FRACTIONAL_DIFF,
+    DEEP_USE_TRIPLE_BARRIER,
+    DEEP_VAL_RATIO,
+    TARGET_HORIZON,
 )
-from modules.deeplearning.feature_selection import FeatureSelector
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.indicator_engine import IndicatorConfig, IndicatorEngine, IndicatorProfile
 from modules.common.utils import color_text, timeframe_to_minutes
+from modules.deeplearning.feature_selection import FeatureSelector
 
 
 class TripleBarrierLabeler:
@@ -63,9 +68,7 @@ class TripleBarrierLabeler:
         self.sl_threshold = sl_threshold
         self.time_limit = time_limit or TARGET_HORIZON
 
-    def label(
-        self, df: pd.DataFrame, price_col: str = "close"
-    ) -> pd.DataFrame:
+    def label(self, df: pd.DataFrame, price_col: str = "close") -> pd.DataFrame:
         """
         Apply Triple Barrier Method labeling.
 
@@ -116,9 +119,7 @@ class FractionalDifferentiator:
     Uses the fixed-width window fractional differentiation method.
     """
 
-    def __init__(
-        self, d: float = DEEP_FRACTIONAL_DIFF_D, window: int = DEEP_FRACTIONAL_DIFF_WINDOW
-    ):
+    def __init__(self, d: float = DEEP_FRACTIONAL_DIFF_D, window: int = DEEP_FRACTIONAL_DIFF_WINDOW):
         """
         Args:
             d: Fractional differentiation order (0 < d < 1)
@@ -202,11 +203,8 @@ class DeepLearningDataPipeline:
             feature_selection_dir: Directory to save/load feature selection results
         """
         self.data_fetcher = data_fetcher
-        self.indicator_engine = (
-            indicator_engine
-            or IndicatorEngine(
-                IndicatorConfig.for_profile(IndicatorProfile.DEEP_LEARNING)
-            )
+        self.indicator_engine = indicator_engine or IndicatorEngine(
+            IndicatorConfig.for_profile(IndicatorProfile.DEEP_LEARNING)
         )
         self.use_fractional_diff = use_fractional_diff
         self.fractional_diff_d = fractional_diff_d
@@ -215,13 +213,9 @@ class DeepLearningDataPipeline:
         self.scaler_dir.mkdir(parents=True, exist_ok=True)
         self.use_feature_selection = use_feature_selection
 
-        self.fractional_diff = (
-            FractionalDifferentiator(d=fractional_diff_d) if use_fractional_diff else None
-        )
+        self.fractional_diff = FractionalDifferentiator(d=fractional_diff_d) if use_fractional_diff else None
         self.triple_barrier = (
-            TripleBarrierLabeler(
-                tp_threshold=triple_barrier_tp, sl_threshold=triple_barrier_sl
-            )
+            TripleBarrierLabeler(tp_threshold=triple_barrier_tp, sl_threshold=triple_barrier_sl)
             if use_triple_barrier
             else None
         )
@@ -257,11 +251,7 @@ class DeepLearningDataPipeline:
         all_dfs = []
 
         for symbol in symbols:
-            print(
-                color_text(
-                    f"Fetching data for {symbol}...", Fore.CYAN, Style.BRIGHT
-                )
-            )
+            print(color_text(f"Fetching data for {symbol}...", Fore.CYAN, Style.BRIGHT))
             df, exchange = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
                 symbol=symbol,
                 timeframe=timeframe,
@@ -270,11 +260,7 @@ class DeepLearningDataPipeline:
             )
 
             if df is None or df.empty:
-                print(
-                    color_text(
-                        f"Warning: No data fetched for {symbol}", Fore.YELLOW
-                    )
-                )
+                print(color_text(f"Warning: No data fetched for {symbol}", Fore.YELLOW))
                 continue
 
             # Add symbol column
@@ -290,9 +276,7 @@ class DeepLearningDataPipeline:
         # Process the combined dataframe
         return self.prepare_dataframe(combined_df, timeframe=timeframe)
 
-    def prepare_dataframe(
-        self, df: pd.DataFrame, timeframe: str = "1h"
-    ) -> pd.DataFrame:
+    def prepare_dataframe(self, df: pd.DataFrame, timeframe: str = "1h") -> pd.DataFrame:
         """
         Apply full preprocessing pipeline to a DataFrame.
 
@@ -372,13 +356,9 @@ class DeepLearningDataPipeline:
                 if "symbol" in df.columns:
                     for symbol in df["symbol"].unique():
                         mask = df["symbol"] == symbol
-                        df.loc[mask, f"{col}_frac_diff"] = (
-                            self.fractional_diff.differentiate(df.loc[mask, col])
-                        )
+                        df.loc[mask, f"{col}_frac_diff"] = self.fractional_diff.differentiate(df.loc[mask, col])
                 else:
-                    df[f"{col}_frac_diff"] = self.fractional_diff.differentiate(
-                        df[col]
-                    )
+                    df[f"{col}_frac_diff"] = self.fractional_diff.differentiate(df[col])
 
         return df
 
@@ -401,21 +381,15 @@ class DeepLearningDataPipeline:
             if "symbol" in df.columns:
                 for symbol in df["symbol"].unique():
                     mask = df["symbol"] == symbol
-                    df.loc[mask, "volatility_20"] = (
-                        df.loc[mask, "close"].rolling(20).std()
-                    )
-                    df.loc[mask, "volatility_50"] = (
-                        df.loc[mask, "close"].rolling(50).std()
-                    )
+                    df.loc[mask, "volatility_20"] = df.loc[mask, "close"].rolling(20).std()
+                    df.loc[mask, "volatility_50"] = df.loc[mask, "close"].rolling(50).std()
             else:
                 df["volatility_20"] = df["close"].rolling(20).std()
                 df["volatility_50"] = df["close"].rolling(50).std()
 
         return df
 
-    def _add_known_future_features(
-        self, df: pd.DataFrame, timeframe: str
-    ) -> pd.DataFrame:
+    def _add_known_future_features(self, df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
         """
         Generate known-future features:
         - time-of-day
@@ -446,16 +420,13 @@ class DeepLearningDataPipeline:
 
         # Funding schedule (Binance Futures: 00:00, 08:00, 16:00 UTC)
         funding_hours = [0, 8, 16]
-        df["hours_to_funding"] = df["hour"].apply(
-            lambda h: min([(h - fh) % 24 for fh in funding_hours])
-        )
+        df["hours_to_funding"] = df["hour"].apply(lambda h: min([(h - fh) % 24 for fh in funding_hours]))
         df["is_funding_time"] = df["hour"].isin(funding_hours).astype(int)
 
         # Timeframe-specific features
         timeframe_minutes = timeframe_to_minutes(timeframe)
         df["candle_index"] = (
-            (df["timestamp"] - df["timestamp"].min()).dt.total_seconds()
-            / (timeframe_minutes * 60)
+            (df["timestamp"] - df["timestamp"].min()).dt.total_seconds() / (timeframe_minutes * 60)
         ).astype(int)
 
         return df
@@ -615,27 +586,17 @@ class DeepLearningDataPipeline:
 
         # Apply feature selection
         try:
-            X_selected = self.feature_selector.select_features(
-                X_clean, y_clean, task_type=task_type, symbol=symbol
-            )
+            X_selected = self.feature_selector.select_features(X_clean, y_clean, task_type=task_type, symbol=symbol)
 
             # Combine selected features with non-feature columns (target, timestamp, symbol, etc.)
-            non_feature_cols = [
-                col
-                for col in df.columns
-                if col not in X.columns or col in X_selected.columns
-            ]
-            result_df = pd.concat(
-                [X_selected, df[non_feature_cols].loc[valid_mask]], axis=1
-            )
+            non_feature_cols = [col for col in df.columns if col not in X.columns or col in X_selected.columns]
+            result_df = pd.concat([X_selected, df[non_feature_cols].loc[valid_mask]], axis=1)
 
             # Re-add rows that were removed due to NaN targets (with NaN in target)
             if not valid_mask.all():
                 invalid_df = df[~valid_mask].copy()
                 # Keep only selected features in invalid rows
-                invalid_features = [
-                    col for col in X_selected.columns if col in invalid_df.columns
-                ]
+                invalid_features = [col for col in X_selected.columns if col in invalid_df.columns]
                 invalid_df = invalid_df[non_feature_cols + invalid_features]
                 result_df = pd.concat([result_df, invalid_df], ignore_index=True)
 
@@ -684,7 +645,9 @@ class DeepLearningDataPipeline:
 
         # Ensure sorted by timestamp
         if "timestamp" in df.columns:
-            df = df.sort_values(["symbol", "timestamp"] if "symbol" in df.columns else ["timestamp"]).reset_index(drop=True)
+            df = df.sort_values(["symbol", "timestamp"] if "symbol" in df.columns else ["timestamp"]).reset_index(
+                drop=True
+            )
 
         total_len = len(df)
         train_end = int(total_len * train_ratio)
@@ -715,9 +678,7 @@ class DeepLearningDataPipeline:
                 if self.feature_selector.selected_features:
                     selected_features = self.feature_selector.selected_features
                     # Keep non-feature columns as well
-                    non_feature_cols = [
-                        col for col in df.columns if col not in selected_features
-                    ]
+                    non_feature_cols = [col for col in df.columns if col not in selected_features]
                     all_cols = selected_features + non_feature_cols
 
                     if not val_df.empty:
@@ -735,4 +696,3 @@ class DeepLearningDataPipeline:
         )
 
         return train_df, val_df, test_df
-

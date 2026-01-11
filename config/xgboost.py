@@ -1,3 +1,6 @@
+
+from .model_features import MODEL_FEATURES  # noqa: F401
+
 """
 XGBoost Prediction Configuration.
 
@@ -42,7 +45,6 @@ DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL = [0.2, 0.5, 0.3]  # Medium volatility: bala
 DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL = [0.2, 0.3, 0.5]  # High volatility: favor medium-long
 
 # Model Features - imported from shared configuration
-from .model_features import MODEL_FEATURES  # noqa: F401
 
 # XGBoost Model Hyperparameters
 XGBOOST_PARAMS = {
@@ -58,4 +60,3 @@ XGBOOST_PARAMS = {
     "eval_metric": "mlogloss",  # Thước đo đánh giá lỗi: Multi-class Log Loss.
     "n_jobs": -1,  # Sử dụng tất cả lõi CPU.
 }
-

@@ -1,10 +1,16 @@
-"""Shared types and helpers for indicator blocks."""
-
-from __future__ import annotations
 
 from typing import Callable, Dict, Iterable, Tuple
 
 import pandas as pd
+
+from __future__ import annotations
+
+from __future__ import annotations
+
+"""Shared types and helpers for indicator blocks."""
+
+
+
 
 IndicatorMetadata = Dict[str, str]
 IndicatorResult = Tuple[pd.DataFrame, IndicatorMetadata]

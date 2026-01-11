@@ -1,3 +1,10 @@
+
+from typing import Dict, Optional
+
+import numpy as np
+import pandas as pd
+import pandas as pd
+
 """
 Z-score statistics calculation for quantitative analysis.
 
@@ -5,9 +12,7 @@ This is a general-purpose z-score statistics calculation that can be used
 for any time series analysis, not just pairs trading.
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, Optional
+
 
 try:
     from config import PAIRS_TRADING_ZSCORE_LOOKBACK
@@ -15,33 +20,31 @@ except ImportError:
     PAIRS_TRADING_ZSCORE_LOOKBACK = 60
 
 
-def calculate_zscore(
-    src: pd.Series, length: int, min_periods: Optional[int] = None
-) -> pd.Series:
+def calculate_zscore(src: pd.Series, length: int, min_periods: Optional[int] = None) -> pd.Series:
     """
     Calculate rolling z-score standardization.
-    
+
     Args:
         src: Source series
         length: Window length for rolling calculation
         min_periods: Minimum number of observations in window required to have a value.
                     If None, defaults to 1 (allows calculation from the first data point).
                     If specified, requires at least min_periods valid observations.
-        
+
     Returns:
         Series with z-score values. NaN values are returned where insufficient data.
-        
+
     Example:
         >>> series = pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
         >>> zscore = calculate_zscore(series, length=5)
         >>> # Returns z-score with min_periods=1 (default)
-        
+
         >>> zscore = calculate_zscore(series, length=5, min_periods=5)
         >>> # Returns z-score with min_periods=5 (requires 5 valid points)
     """
     if min_periods is None:
         min_periods = 1
-    
+
     mean = src.rolling(window=length, min_periods=min_periods).mean()
     stdev = src.rolling(window=length, min_periods=min_periods).std()
     return (src - mean) / stdev.replace(0, np.nan)
@@ -52,29 +55,29 @@ def calculate_zscore_stats(
 ) -> Dict[str, Optional[float]]:
     """
     Calculate z-score statistics for the spread series.
-    
+
     Computes rolling z-score (standardized spread) and calculates distribution statistics.
     Z-score measures how many standard deviations the spread is from its rolling mean.
     Useful for identifying mean-reversion opportunities in pairs trading.
-    
+
     **Z-score Formula**: z = (spread - rolling_mean) / rolling_std
-    
+
     **Interpretation**:
         - |z| > 2: Spread is far from mean (potential trading signal)
         - |z| < 1: Spread is close to mean (neutral)
         - Positive z: Spread above mean
         - Negative z: Spread below mean
-    
+
     NaN values in the input spread are dropped before calculation to ensure
     clean statistical computations. Rolling window calculations require at least
     `zscore_lookback` valid (non-NaN) data points. If the spread never changes
     (all movements are zero), metrics cannot be calculated and all values return None.
-    
+
     Args:
         spread: Spread series (pd.Series, price1 - hedge_ratio * price2).
                May contain NaN values, which will be dropped.
         zscore_lookback: Number of periods for rolling window (must be > 0). Default: 60
-        
+
     Returns:
         Dictionary with z-score statistics (all Optional[float]):
         - mean_zscore: Mean of z-score values
@@ -82,9 +85,9 @@ def calculate_zscore_stats(
         - skewness: Skewness of z-score distribution (requires >= 3 data points)
         - kurtosis: Kurtosis of z-score distribution (requires >= 3 data points)
         - current_zscore: Most recent z-score value
-        
+
         All values are None if insufficient data or calculation fails.
-        
+
     Example:
         >>> spread = pd.Series([0.1, -0.05, 0.15, -0.1, 0.08, ...])
         >>> stats = calculate_zscore_stats(spread, zscore_lookback=60)
@@ -100,14 +103,14 @@ def calculate_zscore_stats(
 
     if spread is None:
         return result
-    
+
     if not isinstance(spread, pd.Series):
         return result
-    
+
     # Validate zscore_lookback
     if zscore_lookback <= 0:
         return result
-    
+
     if len(spread) < zscore_lookback:
         return result
 
@@ -117,24 +120,24 @@ def calculate_zscore_stats(
     # Check if we have enough valid data points after removing NaN
     if len(spread_clean) < zscore_lookback:
         return result
-    
+
     # Validate spread_clean doesn't contain Inf
     if np.isinf(spread_clean.values).any():
         return result
-    
+
     # Use calculate_zscore to compute z-score values with min_periods=zscore_lookback
     # This ensures we reuse the same z-score calculation logic and maintain consistency
     zscore = calculate_zscore(spread_clean, length=zscore_lookback, min_periods=zscore_lookback)
     # Validate zscore doesn't contain Inf (shouldn't happen, but safety check)
     if np.isinf(zscore.values).any():
         return result
-    
+
     # Drop NaN values from z-score (from division by NaN std or missing rolling stats)
     zscore = zscore.dropna()
     # Validate we have enough z-score values for meaningful statistics
     if zscore.empty or len(zscore) < 2:
         return result
-    
+
     # Validate zscore doesn't contain Inf (shouldn't happen if inputs are valid, but safety check)
     if np.isinf(zscore.values).any():
         return result
@@ -143,29 +146,29 @@ def calculate_zscore_stats(
         # Calculate statistics with validation
         mean_val = zscore.mean()
         std_val = zscore.std()
-        
+
         # Validate calculated values are finite (not NaN or inf)
         if pd.notna(mean_val) and np.isfinite(mean_val):
             result["mean_zscore"] = float(mean_val)
-        
+
         if pd.notna(std_val) and np.isfinite(std_val):
             result["std_zscore"] = float(std_val)
-        
+
         # Skewness and kurtosis require at least 3 data points
         if len(zscore) >= 3:
             skew_val = zscore.skew()
             if pd.notna(skew_val) and np.isfinite(skew_val):
                 result["skewness"] = float(skew_val)
-            
+
             kurt_val = zscore.kurtosis()
             if pd.notna(kurt_val) and np.isfinite(kurt_val):
                 result["kurtosis"] = float(kurt_val)
-        
+
         # Current z-score (most recent value)
         current_val = zscore.iloc[-1]
         if pd.notna(current_val) and np.isfinite(current_val):
             result["current_zscore"] = float(current_val)
-            
+
     except (ValueError, TypeError, IndexError, AttributeError):
         # ValueError: Invalid values in statistical calculations (NaN, inf)
         # TypeError: Type conversion errors (e.g., float() on invalid types)
@@ -174,6 +177,5 @@ def calculate_zscore_stats(
         # Return partial results if some calculations succeed
         # Note: Exceptions are silently handled as partial results are already populated
         pass
-    
-    return result
 
+    return result

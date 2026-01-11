@@ -1,19 +1,25 @@
+
+from typing import Tuple
+
+from sklearn.cluster import KMeans
+import numpy as np
+import pandas as pd
+
+from hmmlearn.hmm import GaussianHMM
+from mlxtend.frequent_patterns import apriori, association_rules, fpgrowth
+from mlxtend.preprocessing import TransactionEncoder
+from modules.common.utils import log_data, log_model, log_warn
+from mlxtend.preprocessing import TransactionEncoder
+from modules.common.utils import log_data, log_model, log_warn
+
 """
 HMM-KAMA Secondary Analysis.
 
 This module contains secondary analysis functions for duration, ARM, and clustering.
 """
 
-from typing import Tuple
-import numpy as np
-import pandas as pd
-from hmmlearn.hmm import GaussianHMM
-from mlxtend.frequent_patterns import apriori, association_rules, fpgrowth
-from mlxtend.preprocessing import TransactionEncoder
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import LabelEncoder
 
-from modules.common.utils import log_warn, log_model, log_data
+
 
 
 def calculate_all_state_durations(data: pd.DataFrame) -> pd.DataFrame:
@@ -42,15 +48,7 @@ def compute_state_using_standard_deviation(durations: pd.DataFrame) -> int:
     )
     last_duration = durations.iloc[-1]["duration"]
     # If duration is within 1 std dev, return 0, else 1
-    return (
-        0
-        if (
-            mean_duration - std_duration
-            <= last_duration
-            <= mean_duration + std_duration
-        )
-        else 1
-    )
+    return 0 if (mean_duration - std_duration <= last_duration <= mean_duration + std_duration) else 1
 
 
 def compute_state_using_hmm(durations: pd.DataFrame) -> Tuple[pd.DataFrame, int]:
@@ -69,7 +67,7 @@ def compute_state_using_hmm(durations: pd.DataFrame) -> Tuple[pd.DataFrame, int]
             random_state=36,
         )
         model.fit(durations[["duration"]].values)
-        
+
         # FIX (2025-01-16): Normalize transition matrix to ensure rows sum to 1
         # Problem: With sparse data or outliers, some states may have no observed transitions,
         #          resulting in transition matrix rows with zero sum, causing ValueError
@@ -149,9 +147,7 @@ def calculate_composite_scores_association_rule_mining(
                 mean_val, std_val = np.mean(values), np.std(values)
 
                 if std_val > 0 and np.isfinite(std_val):
-                    rules_normalized[metric] = np.clip(
-                        (values - mean_val) / std_val, -5, 5
-                    )
+                    rules_normalized[metric] = np.clip((values - mean_val) / std_val, -5, 5)
                 else:
                     rules_normalized[metric] = 0.0
 
@@ -159,9 +155,7 @@ def calculate_composite_scores_association_rule_mining(
             log_data(f"Manual normalization failed: {e}. Using raw values.")
             pass
 
-    rules_normalized["composite_score"] = (
-        rules_normalized[metrics].mean(axis=1) if metrics else 0.0
-    )
+    rules_normalized["composite_score"] = rules_normalized[metrics].mean(axis=1) if metrics else 0.0
 
     return rules_normalized.sort_values(by="composite_score", ascending=False)
 
@@ -179,9 +173,7 @@ def compute_state_using_association_rule_mining(
     if max_duration > 100:
         bins = [0, 15, 30, max_duration + 1]
 
-    durations["duration_bin"] = pd.cut(
-        durations["duration"], bins=bins, labels=labels, right=False
-    )
+    durations["duration_bin"] = pd.cut(durations["duration"], bins=bins, labels=labels, right=False)
     durations["transaction"] = durations[["state", "duration_bin"]].apply(
         lambda x: [str(x["state"]), str(x["duration_bin"])], axis=1
     )
@@ -199,9 +191,7 @@ def compute_state_using_association_rule_mining(
         frequent_itemsets = pd.DataFrame()
         for min_support_val in [0.2, 0.15, 0.1, 0.05]:
             try:
-                frequent_itemsets = method_func(
-                    df_trans, min_support=min_support_val, use_colnames=True
-                )
+                frequent_itemsets = method_func(df_trans, min_support=min_support_val, use_colnames=True)
                 if not frequent_itemsets.empty:
                     break
             except Exception:
@@ -211,30 +201,20 @@ def compute_state_using_association_rule_mining(
             return pd.DataFrame()
 
         try:
-            return association_rules(
-                frequent_itemsets, metric="confidence", min_threshold=0.6
-            )
+            return association_rules(frequent_itemsets, metric="confidence", min_threshold=0.6)
         except Exception:
             return pd.DataFrame()
 
     rules_apriori = mine_rules(apriori, df_transactions)
-    rules_apriori_sorted = calculate_composite_scores_association_rule_mining(
-        rules_apriori
-    )
+    rules_apriori_sorted = calculate_composite_scores_association_rule_mining(rules_apriori)
     top_antecedents_apriori = (
-        rules_apriori_sorted.iloc[0]["antecedents"]
-        if not rules_apriori_sorted.empty
-        else frozenset()
+        rules_apriori_sorted.iloc[0]["antecedents"] if not rules_apriori_sorted.empty else frozenset()
     )
 
     rules_fpgrowth = mine_rules(fpgrowth, df_transactions)
-    rules_fpgrowth_sorted = calculate_composite_scores_association_rule_mining(
-        rules_fpgrowth
-    )
+    rules_fpgrowth_sorted = calculate_composite_scores_association_rule_mining(rules_fpgrowth)
     top_antecedents_fpgrowth = (
-        rules_fpgrowth_sorted.iloc[0]["antecedents"]
-        if not rules_fpgrowth_sorted.empty
-        else frozenset()
+        rules_fpgrowth_sorted.iloc[0]["antecedents"] if not rules_fpgrowth_sorted.empty else frozenset()
     )
 
     top_apriori, top_fpgrowth = 0, 0
@@ -271,4 +251,3 @@ def compute_state_using_k_means(durations: pd.DataFrame) -> int:
         durations["cluster"] = 0
 
     return int(durations.iloc[-1]["cluster"])
-

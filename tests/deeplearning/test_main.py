@@ -1,29 +1,30 @@
+
+from pathlib import Path
+import sys
+
 """
 Test script for modules.deeplearning.cli.main.py - Training script functions.
 """
 
-import sys
-from pathlib import Path
 
 # Add parent directory to path to allow imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-import warnings
 import tempfile
-import shutil
-from unittest.mock import Mock, patch
+import warnings
 from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from modules.common.utils.system import detect_pytorch_gpu_availability
 from modules.deeplearning.cli.main import (
+    create_model_and_train,
     parse_args,
     prepare_data,
-    create_model_and_train,
 )
-from modules.common.utils.system import detect_pytorch_gpu_availability
 from modules.deeplearning.dataset import TFTDataModule
 
 # Suppress warnings
@@ -37,30 +38,32 @@ def create_sample_dataframe(n_samples=200, symbol="BTC/USDT"):
         periods=n_samples,
         freq="1h",
     )
-    
+
     np.random.seed(42)
     base_price = 50000
     prices = base_price + np.cumsum(np.random.randn(n_samples) * 100)
-    
-    df = pd.DataFrame({
-        "timestamp": timestamps,
-        "symbol": symbol,
-        "open": prices + np.random.randn(n_samples) * 10,
-        "high": prices + np.abs(np.random.randn(n_samples) * 20),
-        "low": prices - np.abs(np.random.randn(n_samples) * 20),
-        "close": prices,
-        "volume": np.random.rand(n_samples) * 1000,
-        "SMA_20": prices,
-        "RSI_14": 50 + np.random.randn(n_samples) * 10,
-        "ATR_14": np.random.rand(n_samples) * 100,
-        "candle_index": range(n_samples),
-        "future_log_return": np.random.randn(n_samples) * 0.01,
-        "hour_sin": np.sin(2 * np.pi * np.arange(n_samples) / 24),
-        "hour_cos": np.cos(2 * np.pi * np.arange(n_samples) / 24),
-    })
-    
+
+    df = pd.DataFrame(
+        {
+            "timestamp": timestamps,
+            "symbol": symbol,
+            "open": prices + np.random.randn(n_samples) * 10,
+            "high": prices + np.abs(np.random.randn(n_samples) * 20),
+            "low": prices - np.abs(np.random.randn(n_samples) * 20),
+            "close": prices,
+            "volume": np.random.rand(n_samples) * 1000,
+            "SMA_20": prices,
+            "RSI_14": 50 + np.random.randn(n_samples) * 10,
+            "ATR_14": np.random.rand(n_samples) * 100,
+            "candle_index": range(n_samples),
+            "future_log_return": np.random.randn(n_samples) * 0.01,
+            "hour_sin": np.sin(2 * np.pi * np.arange(n_samples) / 24),
+            "hour_cos": np.cos(2 * np.pi * np.arange(n_samples) / 24),
+        }
+    )
+
     df = df.ffill().bfill()
-    
+
     return df
 
 
@@ -68,7 +71,7 @@ def test_parse_args_defaults():
     """Test parse_args with default values."""
     with patch("sys.argv", ["modules.deeplearning.cli.main.py"]):
         args = parse_args()
-        
+
         assert args.phase == 1
         assert args.task_type == "regression"
         assert args.epochs == 100  # DEEP_MAX_EPOCHS
@@ -79,17 +82,26 @@ def test_parse_args_defaults():
 
 def test_parse_args_custom_values():
     """Test parse_args with custom values."""
-    with patch("sys.argv", [
-        "modules.deeplearning.cli.main.py",
-        "--symbols", "BTC/USDT", "ETH/USDT",
-        "--timeframe", "4h",
-        "--phase", "2",
-        "--epochs", "50",
-        "--batch-size", "32",
-        "--gpu",
-    ]):
+    with patch(
+        "sys.argv",
+        [
+            "modules.deeplearning.cli.main.py",
+            "--symbols",
+            "BTC/USDT",
+            "ETH/USDT",
+            "--timeframe",
+            "4h",
+            "--phase",
+            "2",
+            "--epochs",
+            "50",
+            "--batch-size",
+            "32",
+            "--gpu",
+        ],
+    ):
         args = parse_args()
-        
+
         assert args.symbols == ["BTC/USDT", "ETH/USDT"]
         assert args.timeframe == "4h"
         assert args.phase == 2
@@ -122,7 +134,7 @@ def test_detect_pytorch_gpu_availability():
             with patch("torch.cuda.get_device_name", return_value="Test GPU"):
                 result = detect_pytorch_gpu_availability()
                 assert result is True
-    
+
     with patch("torch.cuda.is_available", return_value=False):
         result = detect_pytorch_gpu_availability()
         assert result is False
@@ -142,14 +154,14 @@ def test_prepare_data(mock_pipeline_class, mock_fetcher_class, mock_exchange_man
         create_sample_dataframe(75, "BTC/USDT"),
     )
     mock_pipeline_class.return_value = mock_pipeline
-    
+
     # Create mock fetcher
     mock_fetcher = Mock()
     mock_fetcher_class.return_value = mock_fetcher
-    
+
     # Create mock exchange manager
     mock_exchange_manager.return_value = Mock()
-    
+
     train_df, val_df, test_df, pipeline = prepare_data(
         symbols=["BTC/USDT"],
         timeframe="1h",
@@ -158,7 +170,7 @@ def test_prepare_data(mock_pipeline_class, mock_fetcher_class, mock_exchange_man
         use_feature_selection=False,
         task_type="regression",
     )
-    
+
     assert train_df is not None
     assert val_df is not None
     assert test_df is not None
@@ -184,7 +196,7 @@ def test_create_model_and_train_phase1(
     train_df = create_sample_dataframe(100, "BTC/USDT")
     val_df = create_sample_dataframe(50, "BTC/USDT")
     test_df = create_sample_dataframe(30, "BTC/USDT")
-    
+
     # Mock datamodule
     mock_dm = Mock(spec=TFTDataModule)
     mock_dm.training = Mock()
@@ -200,24 +212,24 @@ def test_create_model_and_train_phase1(
     }
     mock_dm.save_dataset_metadata = Mock()
     mock_datamodule.return_value = mock_dm
-    
+
     # Mock model
     mock_model = Mock()
     mock_create_model.return_value = mock_model
-    
+
     # Mock trainer
     mock_trainer_instance = Mock()
     mock_trainer.return_value = mock_trainer_instance
-    
+
     # Mock callbacks
     mock_callbacks = [Mock(), Mock(), Mock()]
     mock_create_callbacks.return_value = mock_callbacks
-    
+
     # Mock logger
     mock_logger_instance = Mock()
     mock_logger_instance.log_dir = "/tmp/logs"
     mock_logger.return_value = mock_logger_instance
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         create_model_and_train(
             train_df=train_df,
@@ -235,7 +247,7 @@ def test_create_model_and_train_phase1(
             optuna_max_epochs=5,
             timeframe="1h",
         )
-        
+
         # Verify calls
         mock_datamodule.assert_called_once()
         mock_create_model.assert_called_once()
@@ -269,11 +281,11 @@ def test_prepare_data_feature_selection(mock_pipeline_class, mock_fetcher_class,
         create_sample_dataframe(75, "BTC/USDT"),
     )
     mock_pipeline_class.return_value = mock_pipeline
-    
+
     mock_fetcher = Mock()
     mock_fetcher_class.return_value = mock_fetcher
     mock_exchange_manager.return_value = Mock()
-    
+
     train_df, val_df, test_df, pipeline = prepare_data(
         symbols=["BTC/USDT"],
         timeframe="1h",
@@ -282,12 +294,14 @@ def test_prepare_data_feature_selection(mock_pipeline_class, mock_fetcher_class,
         use_feature_selection=True,  # Enable feature selection
         task_type="regression",
     )
-    
+
     # Verify that split_chronological was called with apply_feature_selection=True
     assert mock_pipeline.split_chronological.called
-    call_kwargs = mock_pipeline.split_chronological.call_args[1] if mock_pipeline.split_chronological.call_args[1] else {}
+    call_kwargs = (
+        mock_pipeline.split_chronological.call_args[1] if mock_pipeline.split_chronological.call_args[1] else {}
+    )
     # Check if apply_feature_selection was passed (may be positional or keyword)
-    if 'apply_feature_selection' in call_kwargs:
+    if "apply_feature_selection" in call_kwargs:
         assert call_kwargs.get("apply_feature_selection") is True
 
 
@@ -296,7 +310,7 @@ def test_create_model_and_train_cpu_mode(mock_cuda):
     """Test create_model_and_train uses CPU when GPU is not available."""
     train_df = create_sample_dataframe(100, "BTC/USDT")
     val_df = create_sample_dataframe(50, "BTC/USDT")
-    
+
     with patch("modules.deeplearning.cli.main.create_tft_datamodule") as mock_dm:
         with patch("pytorch_lightning.Trainer") as mock_trainer:
             with patch("pytorch_lightning.loggers.TensorBoardLogger"):
@@ -312,10 +326,10 @@ def test_create_model_and_train_cpu_mode(mock_cuda):
                             mock_dm_instance.get_dataset_info.return_value = {}
                             mock_dm_instance.save_dataset_metadata = Mock()
                             mock_dm.return_value = mock_dm_instance
-                            
+
                             mock_trainer_instance = Mock()
                             mock_trainer.return_value = mock_trainer_instance
-                            
+
                             with tempfile.TemporaryDirectory() as tmpdir:
                                 create_model_and_train(
                                     train_df=train_df,
@@ -333,7 +347,7 @@ def test_create_model_and_train_cpu_mode(mock_cuda):
                                     optuna_max_epochs=2,
                                     timeframe="1h",
                                 )
-                                
+
                                 # Verify trainer was created with CPU accelerator
                                 call_kwargs = mock_trainer.call_args[1]
                                 assert call_kwargs["accelerator"] == "cpu"
@@ -362,11 +376,16 @@ def test_parse_args_no_feature_selection():
 
 def test_parse_args_optuna_params():
     """Test parse_args with Optuna parameters."""
-    with patch("sys.argv", [
-        "modules.deeplearning.cli.main.py",
-        "--optuna-trials", "30",
-        "--optuna-max-epochs", "20",
-    ]):
+    with patch(
+        "sys.argv",
+        [
+            "modules.deeplearning.cli.main.py",
+            "--optuna-trials",
+            "30",
+            "--optuna-max-epochs",
+            "20",
+        ],
+    ):
         args = parse_args()
         assert args.optuna_trials == 30
         assert args.optuna_max_epochs == 20
@@ -374,4 +393,3 @@ def test_parse_args_optuna_params():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

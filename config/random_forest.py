@@ -1,16 +1,22 @@
+
+from pathlib import Path
+
+from .evaluation import CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLDS  # noqa: F401
+from .model_features import MODEL_FEATURES  # noqa: F401
+from .model_features import MODEL_FEATURES  # noqa: F401
+
 """
 Random Forest Model Configuration.
 
 Configuration constants for Random Forest model training and prediction.
 """
 
-from pathlib import Path
-
-# Model Features - imported from shared configuration
-from .model_features import MODEL_FEATURES  # noqa: F401
 
 # Confidence Thresholds - imported from shared evaluation configuration
 from .evaluation import CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLDS  # noqa: F401
+
+# Model Features - imported from shared configuration
+from .model_features import MODEL_FEATURES  # noqa: F401
 
 # Training Configuration
 MAX_TRAINING_ROWS = 100000  # Maximum rows for training (will sample if exceeded)
@@ -29,4 +35,3 @@ SELL_THRESHOLD = -0.01  # Threshold for sell signal (-1% future return)
 LARGE_DATASET_THRESHOLD_FOR_SMOTE = 50000  # Threshold to reduce k_neighbors in SMOTE
 MIN_MEMORY_GB = 2.0  # Minimum available memory (GB) to run SMOTE
 MIN_TRAINING_SAMPLES = 100  # Minimum samples required for training
-

@@ -1,3 +1,15 @@
+
+from typing import Optional, Tuple
+import argparse
+import sys
+import warnings
+
+import pandas as pd
+
+from modules.common.utils import configure_windows_stdio
+
+from modules.common.utils import configure_windows_stdio
+
 """
 Simplified Percentile Clustering (SPC) Main Program
 
@@ -7,49 +19,45 @@ Analyzes futures pairs on Binance using Simplified Percentile Clustering:
 - Displays cluster signals and analysis
 """
 
-import warnings
-import sys
-import argparse
-from typing import Optional, Tuple
-import pandas as pd
 
-from modules.common.utils import configure_windows_stdio
+
 
 # Fix encoding issues on Windows for interactive CLI runs only
 configure_windows_stdio()
 
-from colorama import Fore, Style, init as colorama_init
+from colorama import Fore
+from colorama import init as colorama_init
 
 from config import (
-    DEFAULT_SYMBOL,
     DEFAULT_QUOTE,
+    DEFAULT_SYMBOL,
     DEFAULT_TIMEFRAME,
 )
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (
     color_text,
-    normalize_symbol,
-    log_error,
     log_analysis,
     log_data,
+    log_error,
     log_progress,
+    normalize_symbol,
     prompt_user_input,
 )
-from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.core.data_fetcher import DataFetcher
+from modules.simplified_percentile_clustering.config import (
+    ClusterTransitionConfig,
+    MeanReversionConfig,
+    RegimeFollowingConfig,
+)
 from modules.simplified_percentile_clustering.core.clustering import (
-    SimplifiedPercentileClustering,
     ClusteringConfig,
+    SimplifiedPercentileClustering,
 )
 from modules.simplified_percentile_clustering.core.features import FeatureConfig
 from modules.simplified_percentile_clustering.strategies import (
     generate_signals_cluster_transition,
-    generate_signals_regime_following,
     generate_signals_mean_reversion,
-)
-from modules.simplified_percentile_clustering.config import (
-    ClusterTransitionConfig,
-    RegimeFollowingConfig,
-    MeanReversionConfig,
+    generate_signals_regime_following,
 )
 
 # Suppress warnings for cleaner output
@@ -195,7 +203,7 @@ def parse_args() -> argparse.Namespace:
         dest="min_rel_pos_change",
         help="Minimum relative position change for cluster transition (default: 0.1)",
     )
-    
+
     # Strategy-specific parameters for Regime Following
     parser.add_argument(
         "--min-regime-strength",
@@ -211,7 +219,7 @@ def parse_args() -> argparse.Namespace:
         dest="min_cluster_duration",
         help="Minimum bars in same cluster for regime following (default: 2)",
     )
-    
+
     # Strategy-specific parameters for Mean Reversion
     parser.add_argument(
         "--extreme-threshold",
@@ -253,7 +261,7 @@ def display_spc_signals(
 ) -> None:
     """
     Display SPC analysis results and signals.
-    
+
     Args:
         symbol: Trading pair symbol
         df: DataFrame with OHLCV data
@@ -266,25 +274,25 @@ def display_spc_signals(
         log_analysis("=" * 80)
         log_analysis("SIMPLIFIED PERCENTILE CLUSTERING (SPC) ANALYSIS")
         log_analysis("=" * 80)
-    
+
     if log_data:
         log_data(f"Symbol: {symbol}")
         log_data(f"Exchange: {exchange_label}")
         log_data(f"Current Price: {current_price:.8f}")
         log_data(f"Data Points: {len(df)}")
-    
+
     # Get last signal
     if len(signals) > 0:
         last_signal = signals.iloc[-1]
         last_cluster = clustering_result.curr_cluster.iloc[-1]
         last_real_clust = clustering_result.real_clust.iloc[-1]
         last_cluster_val = clustering_result.cluster_val.iloc[-1]
-        
+
         if log_analysis:
             log_analysis("\n" + "-" * 80)
             log_analysis("LATEST SIGNAL")
             log_analysis("-" * 80)
-        
+
         # Display signal
         if pd.notna(last_signal):
             if last_signal > 0:
@@ -295,25 +303,25 @@ def display_spc_signals(
                 signal_text = color_text("NEUTRAL", Fore.YELLOW)
         else:
             signal_text = color_text("NO SIGNAL", Fore.YELLOW)
-        
+
         if log_data:
             log_data(f"Signal: {signal_text}")
             log_data(f"Cluster: {last_cluster} (value: {last_cluster_val:.2f})")
             log_data(f"Real Cluster: {last_real_clust:.4f}")
             log_data(f"Min Distance: {clustering_result.min_dist.iloc[-1]:.4f}")
             log_data(f"Relative Position: {clustering_result.rel_pos.iloc[-1]:.4f}")
-        
+
         # Display last few signals
         if log_analysis:
             log_analysis("\n" + "-" * 80)
             log_analysis("RECENT SIGNALS (Last 10)")
             log_analysis("-" * 80)
-        
+
         recent_df = df.tail(10).copy()
         recent_df["Signal"] = signals.tail(10)
         recent_df["Cluster"] = clustering_result.curr_cluster.tail(10)
         recent_df["Real_Clust"] = clustering_result.real_clust.tail(10)
-        
+
         if log_data:
             for idx, row in recent_df.iterrows():
                 signal_val = row["Signal"]
@@ -326,7 +334,7 @@ def display_spc_signals(
                         sig = color_text("NEUTRAL", Fore.YELLOW)
                 else:
                     sig = "NO SIGNAL"
-                
+
                 log_data(
                     f"{idx} | Price: {row['close']:.8f} | "
                     f"Signal: {sig} | Cluster: {row['Cluster']} | "
@@ -344,7 +352,7 @@ def analyze_symbol(
 ) -> Optional[dict]:
     """
     Analyze a symbol using Simplified Percentile Clustering.
-    
+
     Args:
         symbol: Trading pair symbol
         data_fetcher: DataFetcher instance
@@ -352,7 +360,7 @@ def analyze_symbol(
         strategy: Strategy name
         strategy_params: Strategy-specific parameters
         timeframe: Timeframe for data fetching
-        
+
     Returns:
         Dictionary with analysis results or None if failed
     """
@@ -365,25 +373,25 @@ def analyze_symbol(
             limit=config.lookback,
             check_freshness=False,
         )
-        
+
         if df is None or len(df) == 0:
             log_error(f"Failed to fetch data for {symbol}")
             return None
-        
+
         # Extract OHLCV
         high = df["high"]
         low = df["low"]
         close = df["close"]
-        
+
         # Compute clustering
         log_progress("Computing clustering...")
         clustering = SimplifiedPercentileClustering(config)
         clustering_result = clustering.compute(high, low, close)
-        
+
         # Generate signals based on strategy
         log_progress(f"Generating signals using {strategy} strategy...")
         strategy_params = strategy_params or {}
-        
+
         if strategy == "cluster_transition":
             strategy_config = ClusterTransitionConfig(
                 min_signal_strength=strategy_params.get("min_signal_strength", 0.3),
@@ -423,13 +431,13 @@ def analyze_symbol(
         else:
             log_error(f"Unknown strategy: {strategy}")
             return None
-        
+
         # Get current price
         current_price = float(close.iloc[-1])
-        
+
         # Get exchange label
         exchange_label = exchange_id.upper() if exchange_id else "Unknown Exchange"
-        
+
         return {
             "symbol": symbol,
             "df": df,
@@ -443,6 +451,7 @@ def analyze_symbol(
     except Exception as e:
         log_error(f"Error analyzing {symbol}: {e}")
         import traceback
+
         log_error(f"Traceback: {traceback.format_exc()}")
         return None
 
@@ -452,22 +461,20 @@ def list_futures_symbols(data_fetcher: DataFetcher) -> None:
     try:
         exchange_manager = data_fetcher.exchange_manager
         markets = exchange_manager.exchange.load_markets()
-        
+
         futures_symbols = [
-            symbol
-            for symbol, market in markets.items()
-            if market.get("type") == "swap" or market.get("future")
+            symbol for symbol, market in markets.items() if market.get("type") == "swap" or market.get("future")
         ]
-        
+
         if log_analysis:
             log_analysis("=" * 80)
             log_analysis("AVAILABLE FUTURES SYMBOLS")
             log_analysis("=" * 80)
-        
+
         if log_data:
             for symbol in sorted(futures_symbols)[:50]:  # Show first 50
                 log_data(f"  {symbol}")
-            
+
             if len(futures_symbols) > 50:
                 log_data(f"\n  ... and {len(futures_symbols) - 50} more symbols")
     except Exception as e:
@@ -477,22 +484,22 @@ def list_futures_symbols(data_fetcher: DataFetcher) -> None:
 class SPCAnalyzer:
     """
     SPC Analysis Orchestrator.
-    
+
     Manages the complete SPC analysis workflow including configuration
     and execution of analysis.
     """
-    
+
     def __init__(self, args, data_fetcher: DataFetcher):
         """
         Initialize SPC Analyzer.
-        
+
         Args:
             args: Parsed command-line arguments
             data_fetcher: DataFetcher instance
         """
         self.args = args
         self.data_fetcher = data_fetcher
-    
+
     def get_clustering_config(self) -> ClusteringConfig:
         """Create ClusteringConfig from arguments."""
         feature_config = FeatureConfig(
@@ -503,7 +510,7 @@ class SPCAnalyzer:
             zscore_len=self.args.zscore_len,
             mar_len=self.args.mar_len,
         )
-        
+
         return ClusteringConfig(
             k=self.args.k,
             lookback=self.args.lookback,
@@ -512,7 +519,7 @@ class SPCAnalyzer:
             main_plot=self.args.main_plot,
             feature_config=feature_config,
         )
-    
+
     def get_strategy_params(self) -> dict:
         """Get strategy-specific parameters from arguments."""
         return {
@@ -526,7 +533,7 @@ class SPCAnalyzer:
             "extreme_threshold": self.args.extreme_threshold,
             "min_extreme_duration": self.args.min_extreme_duration,
         }
-    
+
     def display_config(self, symbol: str) -> None:
         """Display configuration."""
         if log_analysis:
@@ -543,11 +550,11 @@ class SPCAnalyzer:
             log_data(f"  Percentiles: {self.args.p_low}% - {self.args.p_high}%")
             log_data(f"  Main Plot: {self.args.main_plot}")
             log_data(f"  Strategy: {self.args.strategy}")
-    
+
     def get_symbol_input(self) -> str:
         """
         Get symbol input from arguments or user prompt.
-        
+
         Returns:
             str: Normalized symbol
         """
@@ -564,7 +571,7 @@ class SPCAnalyzer:
             symbol_input = DEFAULT_SYMBOL
 
         return normalize_symbol(symbol_input, quote)
-    
+
     def run_analysis(self) -> None:
         """Run SPC analysis for a symbol."""
         symbol = self.get_symbol_input()
@@ -606,7 +613,7 @@ class SPCAnalyzer:
                 clustering_config=clustering_config,
                 strategy_params=strategy_params,
             )
-    
+
     def run_interactive_loop(
         self,
         symbol: str,
@@ -616,7 +623,7 @@ class SPCAnalyzer:
     ) -> None:
         """
         Run interactive loop for analyzing multiple symbols.
-        
+
         Args:
             symbol: Initial symbol
             quote: Quote currency
@@ -667,7 +674,7 @@ class SPCAnalyzer:
 def initialize_components() -> Tuple[ExchangeManager, DataFetcher]:
     """
     Initialize ExchangeManager and DataFetcher components.
-    
+
     Returns:
         Tuple of (ExchangeManager, DataFetcher) instances
     """
@@ -714,7 +721,6 @@ if __name__ == "__main__":
     except Exception as e:
         log_error(f"Error: {type(e).__name__}: {e}")
         import traceback
+
         log_error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
-
-

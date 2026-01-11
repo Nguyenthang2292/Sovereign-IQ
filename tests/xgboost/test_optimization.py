@@ -1,3 +1,19 @@
+
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import Mock, patch
+import json
+import tempfile
+
+import numpy as np
+import pandas as pd
+
+from config import MODEL_FEATURES, TARGET_HORIZON, TARGET_LABELS, XGBOOST_PARAMS
+from modules.xgboost.optimization import HyperparameterTuner, StudyManager
+import optuna
+from modules.xgboost.optimization import HyperparameterTuner, StudyManager
+import optuna
+
 """
 Tests for XGBoost hyperparameter optimization module.
 
@@ -6,19 +22,8 @@ Tests cover:
 - HyperparameterTuner: optimization, objective function, edge cases
 """
 
-import json
-import tempfile
-from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
 
-import numpy as np
-import optuna
-import pandas as pd
-import pytest
 
-from config import MODEL_FEATURES, TARGET_HORIZON, TARGET_LABELS, XGBOOST_PARAMS
-from modules.xgboost.optimization import HyperparameterTuner, StudyManager
 
 
 def _synthetic_df(rows=300):
@@ -236,9 +241,7 @@ def test_study_manager_load_best_params_old_study():
 def test_hyperparameter_tuner_init():
     """Test HyperparameterTuner initialization."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
         assert tuner.symbol == "BTCUSDT"
         assert tuner.timeframe == "1h"
         assert tuner.study_manager.storage_dir.exists()
@@ -247,9 +250,7 @@ def test_hyperparameter_tuner_init():
 def test_hyperparameter_tuner_objective():
     """Test _objective function với mock trial."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         df = _synthetic_df(rows=500)  # Đủ data để có valid folds
         X = df[MODEL_FEATURES]
@@ -257,17 +258,21 @@ def test_hyperparameter_tuner_objective():
 
         # Tạo mock trial
         trial = Mock()
-        trial.suggest_int = Mock(side_effect=lambda name, low, high, **kwargs: {
-            "n_estimators": 100,
-            "max_depth": 5,
-            "min_child_weight": 3,
-        }.get(name, (low + high) // 2))
-        trial.suggest_float = Mock(side_effect=lambda name, low, high, **kwargs: {
-            "learning_rate": 0.1,
-            "subsample": 0.8,
-            "colsample_bytree": 0.8,
-            "gamma": 0.1,
-        }.get(name, (low + high) / 2))
+        trial.suggest_int = Mock(
+            side_effect=lambda name, low, high, **kwargs: {
+                "n_estimators": 100,
+                "max_depth": 5,
+                "min_child_weight": 3,
+            }.get(name, (low + high) // 2)
+        )
+        trial.suggest_float = Mock(
+            side_effect=lambda name, low, high, **kwargs: {
+                "learning_rate": 0.1,
+                "subsample": 0.8,
+                "colsample_bytree": 0.8,
+                "gamma": 0.1,
+            }.get(name, (low + high) / 2)
+        )
 
         # Chạy objective
         score = tuner._objective(trial, X, y, n_splits=3)
@@ -280,9 +285,7 @@ def test_hyperparameter_tuner_objective():
 def test_hyperparameter_tuner_objective_insufficient_data():
     """Test _objective với data không đủ (ít hơn TARGET_HORIZON)."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         # Tạo data ít hơn TARGET_HORIZON
         df = _synthetic_df(rows=TARGET_HORIZON - 1)
@@ -302,9 +305,7 @@ def test_hyperparameter_tuner_objective_insufficient_data():
 def test_hyperparameter_tuner_objective_no_valid_folds():
     """Test _objective khi không có valid folds (thiếu classes)."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         df = _synthetic_df(rows=200)
         # Chỉ có 1 class (sẽ không có valid folds)
@@ -325,9 +326,7 @@ def test_hyperparameter_tuner_objective_no_valid_folds():
 def test_hyperparameter_tuner_optimize_insufficient_data():
     """Test optimize với data không đủ (< 100 samples)."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         df = _synthetic_df(rows=50)  # Ít hơn 100
 
@@ -345,9 +344,7 @@ def test_hyperparameter_tuner_optimize_insufficient_data():
 def test_hyperparameter_tuner_optimize(mock_optuna):
     """Test optimize với đủ data."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         df = _synthetic_df(rows=300)
 
@@ -380,9 +377,7 @@ def test_hyperparameter_tuner_optimize(mock_optuna):
 def test_hyperparameter_tuner_optimize_load_existing(mock_optuna):
     """Test optimize với load existing study."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         df = _synthetic_df(rows=300)
 
@@ -411,9 +406,7 @@ def test_hyperparameter_tuner_optimize_load_existing(mock_optuna):
 def test_hyperparameter_tuner_get_best_params_cached():
     """Test get_best_params với cached params."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         df = _synthetic_df(rows=300)
 
@@ -442,9 +435,7 @@ def test_hyperparameter_tuner_get_best_params_cached():
 def test_hyperparameter_tuner_get_best_params_no_cache():
     """Test get_best_params khi không có cache."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         df = _synthetic_df(rows=300)
 
@@ -462,9 +453,7 @@ def test_hyperparameter_tuner_get_best_params_no_cache():
 def test_hyperparameter_tuner_get_best_params_use_cached_false():
     """Test get_best_params với use_cached=False."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         df = _synthetic_df(rows=300)
 
@@ -498,9 +487,7 @@ def test_hyperparameter_tuner_get_best_params_use_cached_false():
 def test_hyperparameter_tuner_objective_with_whitelist():
     """Test _objective với classifier có whitelist (fallback compatibility)."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tuner = HyperparameterTuner(
-            symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir
-        )
+        tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=tmpdir)
 
         df = _synthetic_df(rows=500)
         X = df[MODEL_FEATURES]
@@ -508,16 +495,18 @@ def test_hyperparameter_tuner_objective_with_whitelist():
 
         # Mock classifier với whitelist và predict method
         original_cls = tuner.classifier_cls
-        
+
         # Tạo mock instance với predict trả về array hợp lệ
         mock_instance = Mock()
+
         # Mock predict để trả về array có cùng length với y_test
         def mock_predict(X_test):
             # Trả về array với cùng length, giá trị random trong range [0, len(TARGET_LABELS))
             return np.random.randint(0, len(TARGET_LABELS), size=len(X_test))
+
         mock_instance.predict = Mock(side_effect=mock_predict)
         mock_instance.fit = Mock(return_value=None)
-        
+
         # Mock class với whitelist
         mock_cls = Mock(return_value=mock_instance)
         mock_cls.XGB_PARAM_WHITELIST = {"learning_rate", "max_depth", "random_state"}
@@ -534,4 +523,3 @@ def test_hyperparameter_tuner_objective_with_whitelist():
             assert 0.0 <= score <= 1.0
         finally:
             tuner.classifier_cls = original_cls
-

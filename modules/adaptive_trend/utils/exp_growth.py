@@ -1,11 +1,17 @@
-"""Calculate exponential growth factor over time."""
 
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 
-from modules.common.utils import log_warn, log_error
+from modules.common.utils import log_error, log_warn
+
+from modules.common.utils import log_error, log_warn
+
+"""Calculate exponential growth factor over time."""
+
+
+
 
 
 def exp_growth(
@@ -43,10 +49,10 @@ def exp_growth(
     """
     if not isinstance(L, (int, float)) or np.isnan(L) or np.isinf(L):
         raise ValueError(f"L must be a finite number, got {L}")
-    
+
     if not isinstance(cutout, int) or cutout < 0:
         raise ValueError(f"cutout must be a non-negative integer, got {cutout}")
-    
+
     if index is None:
         index = pd.RangeIndex(0, 0)
 
@@ -59,12 +65,12 @@ def exp_growth(
         # Condition "has passed cutout"
         active = bars >= cutout
         x = pd.Series(1.0, index=index, dtype="float64")
-        
+
         # Calculate exponential growth for active bars
         if active.any():
             # Calculate exponent to check for overflow
             exponents = L * (bars[active] - cutout)
-            
+
             # Check for potential overflow (exp > 700 will overflow float64)
             max_exponent = exponents.max() if len(exponents) > 0 else 0
             if max_exponent > 700:
@@ -72,10 +78,10 @@ def exp_growth(
                     f"Potential overflow in exp_growth: max exponent = {max_exponent:.2f}. "
                     f"Values > 700 may result in inf. L={L}, max_bar={bars[active].max()}, cutout={cutout}"
                 )
-            
+
             # Calculate exponential growth
-            growth_values = np.e ** exponents
-            
+            growth_values = np.e**exponents
+
             # Check for overflow/inf values
             inf_count = np.isinf(growth_values).sum()
             if inf_count > 0:
@@ -85,15 +91,14 @@ def exp_growth(
                 )
                 # Replace inf with a large but finite value
                 growth_values = np.where(np.isinf(growth_values), np.finfo(np.float64).max, growth_values)
-            
+
             x.loc[active] = growth_values.astype("float64")
-        
+
         return x
-    
+
     except OverflowError as e:
         log_error(f"Overflow error in exp_growth: {e}. L={L}, cutout={cutout}")
         raise ValueError(f"Overflow in exponential calculation. L={L} may be too large.") from e
     except Exception as e:
         log_error(f"Error calculating exp_growth: {e}")
         raise
-

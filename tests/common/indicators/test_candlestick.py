@@ -1,6 +1,10 @@
+
 import pandas as pd
 
 from modules.common.indicators.candlestick import CandlestickPatterns
+from modules.common.indicators.candlestick import CandlestickPatterns
+
+
 
 
 def test_hammer_and_shooting_star_detection():

@@ -14,7 +14,9 @@ HMM_WINDOW_SIZE_DEFAULT = 100  # Default window size for HMM analysis
 # High-Order HMM Configuration
 HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT = 5  # Order parameter for argrelextrema swing detection
 HMM_HIGH_ORDER_STRICT_MODE_DEFAULT = True  # Whether to use strict mode for swing-to-state conversion
-HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT = True  # Use data-driven transition matrix and emissions instead of hardcoded values
+HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT = (
+    True  # Use data-driven transition matrix and emissions instead of hardcoded values
+)
 HMM_HIGH_ORDER_MIN_ORDER_DEFAULT = 2  # Minimum order k for High-Order HMM optimization
 HMM_HIGH_ORDER_MAX_ORDER_DEFAULT = 4  # Maximum order k for High-Order HMM optimization
 
@@ -64,15 +66,15 @@ HMM_CONFLICT_RESOLUTION_THRESHOLD = 1.2  # Ratio to prioritize High-Order over K
 HMM_VOLATILITY_CONFIG = {
     "high_threshold": 0.03,  # Volatility threshold (3% std)
     "adjustments": {
-        "high": 1.2,   # Multiplier for high volatility (conservative)
-        "low": 0.9,   # Multiplier for low volatility (aggressive)
-    }
+        "high": 1.2,  # Multiplier for high volatility (conservative)
+        "low": 0.9,  # Multiplier for low volatility (aggressive)
+    },
 }
 
 # State Strength Multipliers Configuration
 HMM_STATE_STRENGTH = {
     "strong": 1.0,  # Multiplier for strong states (0, 3)
-    "weak": 0.7,   # Multiplier for weak states (1, 2)
+    "weak": 0.7,  # Multiplier for weak states (1, 2)
 }
 
 # Strategy Registry Configuration
@@ -85,7 +87,7 @@ HMM_STRATEGIES = {
         "params": {
             "orders_argrelextrema": HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
             "strict_mode": HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
-        }
+        },
     },
     "kama": {
         "enabled": True,
@@ -96,7 +98,7 @@ HMM_STRATEGIES = {
             "fast_kama": HMM_FAST_KAMA_DEFAULT,
             "slow_kama": HMM_SLOW_KAMA_DEFAULT,
             "window_size": HMM_WINDOW_SIZE_DEFAULT,
-        }
+        },
     },
     "true_high_order": {
         "enabled": True,
@@ -107,7 +109,7 @@ HMM_STRATEGIES = {
             "max_order": HMM_HIGH_ORDER_MAX_ORDER_DEFAULT,
             "orders_argrelextrema": HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
             "strict_mode": HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
-        }
+        },
     },
     # Future strategies can be added here:
     # "new_strategy": {
@@ -119,6 +121,7 @@ HMM_STRATEGIES = {
 }
 
 # Voting Mechanism Configuration
-HMM_VOTING_MECHANISM = "confidence_weighted"  # Options: "simple_majority", "weighted_voting", "confidence_weighted", "threshold_based"
+HMM_VOTING_MECHANISM = (
+    "confidence_weighted"  # Options: "simple_majority", "weighted_voting", "confidence_weighted", "threshold_based"
+)
 HMM_VOTING_THRESHOLD = 0.5  # Threshold for threshold_based voting mechanism
-

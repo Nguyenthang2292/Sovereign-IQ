@@ -1,2 +1,1 @@
 """Reporting module."""
-

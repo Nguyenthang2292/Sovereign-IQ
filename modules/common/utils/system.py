@@ -1,13 +1,17 @@
+
+from typing import Optional, Tuple
+import io
+import os
+import sys
+import warnings
+
+from modules.common.ui.logging import log_info, log_system, log_warn
+from modules.common.ui.logging import log_info, log_system, log_warn
+
 """
 System utilities for platform-specific configuration.
 """
 
-import sys
-import io
-import os
-from typing import Optional, Tuple
-import warnings
-from modules.common.ui.logging import log_system, log_warn, log_info
 
 
 # ============================================================================
@@ -18,17 +22,18 @@ from modules.common.ui.logging import log_system, log_warn, log_info
 def detect_gpu_availability(use_gpu: bool = True) -> bool:
     """
     Detect if GPU is available for XGBoost.
-    
+
     Args:
         use_gpu: Whether to check for GPU (if False, returns False immediately)
-        
+
     Returns:
         True if GPU is available and use_gpu is True, False otherwise
     """
     if not use_gpu:
         return False
     try:
-        import xgboost as xgb
+        # import xgboost as xgb
+
         # Check if GPU is available by trying to get device info
         # This is a lightweight check that doesn't create a model
         try:
@@ -49,18 +54,18 @@ def detect_gpu_availability(use_gpu: bool = True) -> bool:
 class PyTorchGPUManager:
     """
     Manager class for PyTorch GPU operations.
-    
+
     This class provides a centralized way to manage GPU detection,
     configuration, and state for PyTorch operations. It caches torch module
     and GPU availability results to avoid repeated checks.
-    
+
     Example:
         manager = PyTorchGPUManager()
         if manager.is_available():
             manager.configure_memory()
             device = manager.get_device()
     """
-    
+
     def __init__(self):
         """Initialize the PyTorch GPU Manager."""
         self._torch = None
@@ -68,46 +73,47 @@ class PyTorchGPUManager:
         self._cuda_version = None
         self._device_count = 0
         self._device = None
-    
+
     @staticmethod
     def _get_torch_module():
         """
         Helper method to import and return torch module.
-        
+
         Returns:
             torch module if available, None otherwise
         """
         try:
             import torch
+
             return torch
         except ImportError:
             return None
-    
+
     @staticmethod
     def _return_cuda_unavailable(reason: str) -> Tuple[bool, Optional[str], int]:
         """
         Helper method to return CUDA unavailable result with logging.
-        
+
         Args:
             reason: Reason why CUDA is unavailable (for logging)
-            
+
         Returns:
             Tuple (False, None, 0) indicating CUDA is not available
         """
         log_info(f"{reason} Using CPU mode.")
         return False, None, 0
-    
+
     @property
     def torch(self):
         """Get or import torch module (cached)."""
         if self._torch is None:
             self._torch = self._get_torch_module()
         return self._torch
-    
+
     def _detect_cuda_availability(self, torch_module) -> Tuple[bool, Optional[str], int]:
         """
         Detect if CUDA is available for PyTorch, verify it's functional, and provide diagnostic info.
-        
+
         This is a private method that performs the actual CUDA detection logic.
 
         Args:
@@ -126,7 +132,7 @@ class PyTorchGPUManager:
         # Check availability flag
         if not callable(getattr(torch_module.cuda, "is_available", None)):
             return self._return_cuda_unavailable("torch.cuda.is_available not callable.")
-        
+
         if not torch_module.cuda.is_available():
             return self._return_cuda_unavailable("CUDA not available,")
 
@@ -136,10 +142,8 @@ class PyTorchGPUManager:
                 warnings.simplefilter("ignore", UserWarning)
                 device_count = torch_module.cuda.device_count()
                 if device_count == 0:
-                    return self._return_cuda_unavailable(
-                        "torch.cuda reports available but no GPU devices detected."
-                    )
-                
+                    return self._return_cuda_unavailable("torch.cuda reports available but no GPU devices detected.")
+
                 # Try all devices and track which ones are functional
                 functional_devices = []
                 for idx in range(device_count):
@@ -150,7 +154,7 @@ class PyTorchGPUManager:
                     except Exception as device_error:
                         log_warn(f"CUDA device {idx} not functional: {device_error}")
                         continue
-                
+
                 # If no devices were confirmed functional, CUDA is not usable
                 if not functional_devices:
                     log_warn("No functional CUDA devices found. Using CPU mode.")
@@ -174,8 +178,7 @@ class PyTorchGPUManager:
                 )
             else:
                 log_warn(
-                    f"CUDA {cuda_version} reports {device_count} device(s) but none are functional. "
-                    "Using CPU mode."
+                    f"CUDA {cuda_version} reports {device_count} device(s) but none are functional. Using CPU mode."
                 )
                 return False, None, 0
 
@@ -191,11 +194,11 @@ class PyTorchGPUManager:
             # application logic (such as the PyTorchGPUManager state) is used to
             # control CUDA usage in the rest of the application.
             return False, None, 0
-    
+
     def detect_cuda_availability(self) -> Tuple[bool, Optional[str], int]:
         """
         Detect if CUDA is available for PyTorch and cache results.
-        
+
         Returns:
             Tuple (is_available, cuda_version, device_count):
                 - is_available: True if CUDA is available and functional
@@ -204,32 +207,32 @@ class PyTorchGPUManager:
         """
         if self._gpu_available is not None:
             return self._gpu_available, self._cuda_version, self._device_count
-        
+
         torch = self.torch
         if torch is None:
             self._gpu_available = False
             self._cuda_version = None
             self._device_count = 0
             return False, None, 0
-        
+
         is_available, cuda_version, device_count = self._detect_cuda_availability(torch)
         self._gpu_available = is_available
         self._cuda_version = cuda_version
         self._device_count = device_count
-        
+
         return is_available, cuda_version, device_count
-    
+
     def is_available(self) -> bool:
         """
         Check if GPU is available for PyTorch (cached).
-        
+
         Returns:
             True if GPU is available and functional, False otherwise
         """
         if self._gpu_available is None:
             self.detect_cuda_availability()
         return self._gpu_available or False
-    
+
     def configure_memory(self) -> bool:
         """
         Configure GPU memory settings for PyTorch.
@@ -259,9 +262,9 @@ class PyTorchGPUManager:
             backends_cuda = getattr(torch, "backends", None)
             if backends_cuda and hasattr(backends_cuda, "cuda"):
                 cuda_backend = backends_cuda.cuda
-                if hasattr(cuda_backend, 'enable_flash_sdp'):
+                if hasattr(cuda_backend, "enable_flash_sdp"):
                     cuda_backend.enable_flash_sdp(True)
-                if hasattr(cuda_backend, 'enable_mem_efficient_sdp'):
+                if hasattr(cuda_backend, "enable_mem_efficient_sdp"):
                     cuda_backend.enable_mem_efficient_sdp(True)
 
             log_system("GPU memory configured successfully")
@@ -269,25 +272,25 @@ class PyTorchGPUManager:
         except Exception as e:
             log_warn(f"Failed to configure GPU memory: {e}")
             return False
-    
+
     def get_device(self, device_id: int = 0):
         """
         Get PyTorch device object for GPU or CPU.
-        
+
         Args:
             device_id: GPU device ID (default: 0)
-            
+
         Returns:
             torch.device object ('cuda:device_id' if available, 'cpu' otherwise)
         """
         if self.is_available() and self._device_count > 0:
-            return self.torch.device(f'cuda:{device_id}')
-        return self.torch.device('cpu') if self.torch else None
-    
+            return self.torch.device(f"cuda:{device_id}")
+        return self.torch.device("cpu") if self.torch else None
+
     def get_info(self) -> dict:
         """
         Get comprehensive GPU information.
-        
+
         Returns:
             Dictionary with GPU information:
             - available: bool
@@ -297,10 +300,10 @@ class PyTorchGPUManager:
         """
         self.detect_cuda_availability()
         return {
-            'available': self._gpu_available or False,
-            'cuda_version': self._cuda_version,
-            'device_count': self._device_count,
-            'device': self.get_device()
+            "available": self._gpu_available or False,
+            "cuda_version": self._cuda_version,
+            "device_count": self._device_count,
+            "device": self.get_device(),
         }
 
 
@@ -316,7 +319,7 @@ _pytorch_gpu_manager = PyTorchGPUManager()
 def detect_pytorch_cuda_availability() -> Tuple[bool, Optional[str], int]:
     """
     Detect if CUDA is available for PyTorch, verify it's functional, and provide diagnostic info.
-    
+
     This is a convenience wrapper that uses PyTorchGPUManager internally.
     For better performance and caching, use PyTorchGPUManager directly.
 
@@ -332,10 +335,10 @@ def detect_pytorch_cuda_availability() -> Tuple[bool, Optional[str], int]:
 def detect_pytorch_gpu_availability() -> bool:
     """
     Detect if GPU is available for PyTorch.
-    
+
     This is a convenience wrapper that detects PyTorch CUDA availability.
     Uses the global PyTorchGPUManager instance for caching.
-    
+
     Returns:
         True if GPU is available and functional, False otherwise
     """
@@ -345,13 +348,13 @@ def detect_pytorch_gpu_availability() -> bool:
 def configure_gpu_memory() -> bool:
     """
     Configure GPU memory settings for PyTorch.
-    
-    Sets up memory management options like memory fraction, 
+
+    Sets up memory management options like memory fraction,
     empty cache, and other optimizations for better GPU utilization.
-    
+
     Note: This function assumes GPU is available. Use detect_pytorch_gpu_availability()
     first to verify GPU availability before calling this function.
-    
+
     Returns:
         True if GPU memory was configured successfully, False otherwise
     """
@@ -366,14 +369,14 @@ def configure_gpu_memory() -> bool:
 def _check_kmp_duplicate_lib_warning(env: dict) -> None:
     """
     Check if KMP_DUPLICATE_LIB_OK is enabled and log a warning with guidance.
-    
+
     This function helps raise awareness about potential OpenMP library conflicts
     when the KMP_DUPLICATE_LIB_OK workaround is used.
-    
+
     Args:
         env: Dictionary of environment variables being set
     """
-    if env.get('KMP_DUPLICATE_LIB_OK') == 'True':
+    if env.get("KMP_DUPLICATE_LIB_OK") == "True":
         log_warn(
             "KMP_DUPLICATE_LIB_OK is enabled. This suppresses warnings about "
             "duplicate OpenMP libraries but may mask dependency conflicts."
@@ -389,31 +392,31 @@ def _check_kmp_duplicate_lib_warning(env: dict) -> None:
 def get_pytorch_env() -> dict:
     """
     Get PyTorch environment variables for the current mode.
-    
+
     Returns production-safe environment by default. Merges debug environment
     variables only when DEBUG or DEV environment variable is set to 'true' or '1'.
-    
+
     These environment variables should be set before importing PyTorch to ensure
     proper behavior. Use os.environ.update(get_pytorch_env()) before importing torch.
-    
+
     Returns:
         dict: Environment variables dictionary to apply via os.environ.update()
     """
-    from config.deep_learning import PYTORCH_ENV, PYTORCH_DEBUG_ENV
-    
+    from config.deep_learning import PYTORCH_DEBUG_ENV, PYTORCH_ENV
+
     env = PYTORCH_ENV.copy()
-    
+
     # Check if debug mode is enabled via environment variable
-    debug_flag = os.environ.get('DEBUG', '').lower() in ('true', '1', 'yes')
-    dev_flag = os.environ.get('DEV', '').lower() in ('true', '1', 'yes')
-    
+    debug_flag = os.environ.get("DEBUG", "").lower() in ("true", "1", "yes")
+    dev_flag = os.environ.get("DEV", "").lower() in ("true", "1", "yes")
+
     if debug_flag or dev_flag:
         env.update(PYTORCH_DEBUG_ENV)
-    
+
     # Warn about KMP_DUPLICATE_LIB_OK in debug/dev mode to raise awareness
     if debug_flag or dev_flag:
         _check_kmp_duplicate_lib_warning(env)
-    
+
     return env
 
 
@@ -425,20 +428,31 @@ def get_pytorch_env() -> dict:
 def configure_windows_stdio() -> None:
     """
     Configure Windows stdio encoding for UTF-8 support.
-    
+
     Only applies to interactive CLI runs, not during pytest.
-    This function fixes encoding issues on Windows by wrapping
+    This function fixes encoding issues on Windows by reconfiguring
     stdout and stderr with UTF-8 encoding.
-    
+
     Note:
         - Only runs on Windows (win32 platform)
         - Skips configuration during pytest runs
-        - Only configures if stdout/stderr have buffer attribute
+        - Uses reconfigure() if available for safety
     """
     if sys.platform != "win32":
         return
     if os.environ.get("PYTEST_CURRENT_TEST"):
         return
+
+    # Use reconfigure if available (Python 3.7+)
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, io.UnsupportedOperation):
+            pass
+        return
+
+    # Fallback for older versions or non-standard streams
     if not hasattr(sys.stdout, "buffer") or isinstance(sys.stdout, io.TextIOWrapper):
         return
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")

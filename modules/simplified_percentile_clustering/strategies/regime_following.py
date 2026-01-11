@@ -1,3 +1,13 @@
+
+from typing import Optional, Tuple
+
+import pandas as pd
+
+from __future__ import annotations
+from modules.simplified_percentile_clustering.config.regime_following_config import (
+from __future__ import annotations
+from modules.simplified_percentile_clustering.config.regime_following_config import (
+
 """
 Regime Following Strategy.
 
@@ -24,20 +34,14 @@ Strategy Logic:
    - Conflicting signals
 """
 
-from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Tuple
 
-import numpy as np
-import pandas as pd
 
+    RegimeFollowingConfig,
+)
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringResult,
     compute_clustering,
-)
-from modules.simplified_percentile_clustering.config.regime_following_config import (
-    RegimeFollowingConfig,
 )
 from modules.simplified_percentile_clustering.utils.helpers import (
     safe_isna,
@@ -74,9 +78,7 @@ def generate_signals_regime_following(
 
     # Compute clustering if not provided
     if clustering_result is None:
-        clustering_result = compute_clustering(
-            high, low, close, config=config.clustering_config
-        )
+        clustering_result = compute_clustering(high, low, close, config=config.clustering_config)
 
     signals = pd.Series(0, index=close.index, dtype=int)
     signal_strength = pd.Series(0.0, index=close.index, dtype=float)
@@ -165,4 +167,3 @@ def generate_signals_regime_following(
 
 
 __all__ = ["RegimeFollowingConfig", "generate_signals_regime_following"]
-

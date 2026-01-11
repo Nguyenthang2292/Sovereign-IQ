@@ -1,3 +1,15 @@
+
+from pathlib import Path
+from typing import Dict, List, Optional
+import json
+
+from colorama import Fore
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.feature_selection import (
+import numpy as np
+import pandas as pd
+import pandas as pd
+
 """
 Feature Selection & Engineering Module for Deep Learning Pipeline.
 
@@ -8,29 +20,20 @@ This module provides comprehensive feature selection including:
 - Feature filtering to avoid "Garbage In, Garbage Out"
 """
 
-import json
-import os
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np
-import pandas as pd
-from sklearn.feature_selection import (
-    mutual_info_regression,
-    mutual_info_classif,
     SelectKBest,
-    f_regression,
     f_classif,
+    f_regression,
+    mutual_info_classif,
+    mutual_info_regression,
 )
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-from colorama import Fore, Style
 
 from config import (
-    DEEP_FEATURE_SELECTION_METHOD,
-    DEEP_FEATURE_SELECTION_TOP_K,
     DEEP_FEATURE_COLLINEARITY_THRESHOLD,
     DEEP_FEATURE_SELECTION_DIR,
+    DEEP_FEATURE_SELECTION_METHOD,
+    DEEP_FEATURE_SELECTION_TOP_K,
 )
 from modules.common.utils import color_text
 
@@ -38,7 +41,7 @@ from modules.common.utils import color_text
 class FeatureSelector:
     """
     Comprehensive feature selection and engineering for deep learning models.
-    
+
     Methods:
     1. Mutual Information: Selects features with highest mutual information with target
     2. Boruta-like: Uses Random Forest importance to select relevant features
@@ -100,21 +103,15 @@ class FeatureSelector:
 
         # Step 3: Apply feature selection method
         if self.method == "mutual_info":
-            selected_features = self._select_by_mutual_info(
-                X_clean, y, task_type
-            )
+            selected_features = self._select_by_mutual_info(X_clean, y, task_type)
         elif self.method == "boruta":
-            selected_features = self._select_by_boruta_like(
-                X_clean, y, task_type
-            )
+            selected_features = self._select_by_boruta_like(X_clean, y, task_type)
         elif self.method == "f_test":
             selected_features = self._select_by_f_test(X_clean, y, task_type)
         elif self.method == "combined":
             selected_features = self._select_combined(X_clean, y, task_type)
         else:
-            raise ValueError(
-                f"Unknown method: {self.method}. Use 'mutual_info', 'boruta', 'f_test', or 'combined'"
-            )
+            raise ValueError(f"Unknown method: {self.method}. Use 'mutual_info', 'boruta', 'f_test', or 'combined'")
 
         # Step 4: Store results
         self.selected_features = selected_features
@@ -129,9 +126,7 @@ class FeatureSelector:
 
         return X_clean[selected_features]
 
-    def _filter_invalid_features(
-        self, X: pd.DataFrame, y: pd.Series
-    ) -> pd.DataFrame:
+    def _filter_invalid_features(self, X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
         """
         Filter out invalid features:
         - Non-numeric columns
@@ -147,9 +142,7 @@ class FeatureSelector:
 
         # Remove columns with >50% NaN values
         nan_threshold = 0.5
-        valid_cols = X_clean.columns[
-            X_clean.isna().sum() / len(X_clean) < nan_threshold
-        ].tolist()
+        valid_cols = X_clean.columns[X_clean.isna().sum() / len(X_clean) < nan_threshold].tolist()
         X_clean = X_clean[valid_cols]
 
         # Remove constant columns (zero or near-zero variance)
@@ -176,11 +169,7 @@ class FeatureSelector:
             "label",
             "triple_barrier",
         ]
-        leakage_cols = [
-            col
-            for col in X_clean.columns
-            if any(keyword in col.lower() for keyword in leakage_keywords)
-        ]
+        leakage_cols = [col for col in X_clean.columns if any(keyword in col.lower() for keyword in leakage_keywords)]
 
         if leakage_cols:
             print(
@@ -211,18 +200,14 @@ class FeatureSelector:
         corr_matrix = X.corr().abs()
 
         # Find pairs with correlation above threshold
-        upper_triangle = corr_matrix.where(
-            np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
-        )
+        upper_triangle = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
 
         # Find features to drop
         to_drop = []
         for col in upper_triangle.columns:
             if col in to_drop:
                 continue
-            highly_correlated = upper_triangle.index[
-                upper_triangle[col] > self.collinearity_threshold
-            ].tolist()
+            highly_correlated = upper_triangle.index[upper_triangle[col] > self.collinearity_threshold].tolist()
 
             if highly_correlated:
                 # Keep the feature with highest variance
@@ -245,9 +230,7 @@ class FeatureSelector:
 
         return X_clean
 
-    def _select_by_mutual_info(
-        self, X: pd.DataFrame, y: pd.Series, task_type: str
-    ) -> List[str]:
+    def _select_by_mutual_info(self, X: pd.DataFrame, y: pd.Series, task_type: str) -> List[str]:
         """Select features using Mutual Information."""
         # Handle NaN values
         X_clean = X.fillna(X.median())
@@ -266,16 +249,12 @@ class FeatureSelector:
         feature_scores = dict(zip(X.columns, mi_scores))
         self.feature_scores = feature_scores
 
-        sorted_features = sorted(
-            feature_scores.items(), key=lambda x: x[1], reverse=True
-        )
+        sorted_features = sorted(feature_scores.items(), key=lambda x: x[1], reverse=True)
         selected = [feat for feat, score in sorted_features[: self.top_k]]
 
         return selected
 
-    def _select_by_boruta_like(
-        self, X: pd.DataFrame, y: pd.Series, task_type: str
-    ) -> List[str]:
+    def _select_by_boruta_like(self, X: pd.DataFrame, y: pd.Series, task_type: str) -> List[str]:
         """
         Boruta-like feature selection using Random Forest importance.
         This is a simplified version that uses RF importance scores.
@@ -285,16 +264,12 @@ class FeatureSelector:
         y_clean = y.fillna(y.median() if task_type == "regression" else y.mode()[0])
 
         if task_type == "regression":
-            model = RandomForestRegressor(
-                n_estimators=100, random_state=42, n_jobs=-1, max_depth=10
-            )
+            model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1, max_depth=10)
         else:
             if not pd.api.types.is_integer_dtype(y_clean):
                 le = LabelEncoder()
                 y_clean = le.fit_transform(y_clean)
-            model = RandomForestClassifier(
-                n_estimators=100, random_state=42, n_jobs=-1, max_depth=10
-            )
+            model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1, max_depth=10)
 
         model.fit(X_clean, y_clean)
 
@@ -304,16 +279,12 @@ class FeatureSelector:
         self.feature_scores = feature_scores
 
         # Select top K features
-        sorted_features = sorted(
-            feature_scores.items(), key=lambda x: x[1], reverse=True
-        )
+        sorted_features = sorted(feature_scores.items(), key=lambda x: x[1], reverse=True)
         selected = [feat for feat, score in sorted_features[: self.top_k]]
 
         return selected
 
-    def _select_by_f_test(
-        self, X: pd.DataFrame, y: pd.Series, task_type: str
-    ) -> List[str]:
+    def _select_by_f_test(self, X: pd.DataFrame, y: pd.Series, task_type: str) -> List[str]:
         """Select features using F-test (ANOVA F-statistic)."""
         # Handle NaN values
         X_clean = X.fillna(X.median())
@@ -338,9 +309,7 @@ class FeatureSelector:
 
         return selected
 
-    def _select_combined(
-        self, X: pd.DataFrame, y: pd.Series, task_type: str
-    ) -> List[str]:
+    def _select_combined(self, X: pd.DataFrame, y: pd.Series, task_type: str) -> List[str]:
         """
         Combined approach: Use both Mutual Information and Boruta-like,
         then take intersection or union of top features.
@@ -362,8 +331,7 @@ class FeatureSelector:
 
             # Normalize scores to [0, 1] range
             mi_norm = (
-                (mi_score - min(mi_scores.values()))
-                / (max(mi_scores.values()) - min(mi_scores.values()) + 1e-8)
+                (mi_score - min(mi_scores.values())) / (max(mi_scores.values()) - min(mi_scores.values()) + 1e-8)
                 if max(mi_scores.values()) > min(mi_scores.values())
                 else 0
             )
@@ -380,9 +348,7 @@ class FeatureSelector:
         self.feature_scores = combined_scores
 
         # Select top K based on combined scores
-        sorted_features = sorted(
-            combined_scores.items(), key=lambda x: x[1], reverse=True
-        )
+        sorted_features = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
         selected = [feat for feat, score in sorted_features[: self.top_k]]
 
         return selected
@@ -394,9 +360,7 @@ class FeatureSelector:
             "top_k": self.top_k,
             "collinearity_threshold": self.collinearity_threshold,
             "selected_features": self.selected_features,
-            "feature_scores": {
-                k: float(v) for k, v in self.feature_scores.items()
-            },
+            "feature_scores": {k: float(v) for k, v in self.feature_scores.items()},
         }
 
         self.selection_metadata = metadata
@@ -433,14 +397,10 @@ class FeatureSelector:
         Must call select_features() or load_selection() first.
         """
         if not self.selected_features:
-            raise ValueError(
-                "No features selected. Call select_features() or load_selection() first."
-            )
+            raise ValueError("No features selected. Call select_features() or load_selection() first.")
 
         # Get available features (some might be missing in new data)
-        available_features = [
-            feat for feat in self.selected_features if feat in X.columns
-        ]
+        available_features = [feat for feat in self.selected_features if feat in X.columns]
 
         if len(available_features) < len(self.selected_features):
             missing = set(self.selected_features) - set(available_features)
@@ -464,13 +424,9 @@ class FeatureSelector:
             {
                 "feature": list(self.feature_scores.keys()),
                 "score": list(self.feature_scores.values()),
-                "selected": [
-                    feat in self.selected_features
-                    for feat in self.feature_scores.keys()
-                ],
+                "selected": [feat in self.selected_features for feat in self.feature_scores.keys()],
             }
         )
 
         df = df.sort_values("score", ascending=False)
         return df
-

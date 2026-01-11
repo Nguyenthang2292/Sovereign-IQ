@@ -1,9 +1,16 @@
-import pandas as pd
-import numpy as np
+
 from types import SimpleNamespace
+
+import numpy as np
+import pandas as pd
 
 from modules.common.models.position import Position
 from modules.portfolio.risk_calculator import PortfolioRiskCalculator
+from modules.common.models.position import Position
+from modules.portfolio.risk_calculator import PortfolioRiskCalculator
+
+
+
 
 
 def test_calculate_stats_handles_long_and_short_positions():
@@ -19,9 +26,7 @@ def test_calculate_stats_handles_long_and_short_positions():
 
     calc = PortfolioRiskCalculator(dummy_fetcher)
     calc.calculate_beta = lambda *args, **kwargs: None
-    df, total_pnl, total_delta, total_beta_delta = calc.calculate_stats(
-        positions, prices
-    )
+    df, total_pnl, total_delta, total_beta_delta = calc.calculate_stats(positions, prices)
 
     assert len(df) == 2
     assert total_pnl > 0
@@ -38,9 +43,7 @@ def test_calculate_beta_returns_none_when_not_enough_data(monkeypatch):
     )
 
     def fake_fetch(symbol, **kwargs):
-        df = pd.DataFrame(
-            {"timestamp": close_series.index, "close": close_series.values}
-        )
+        df = pd.DataFrame({"timestamp": close_series.index, "close": close_series.values})
         return df, "binance"
 
     fetcher = SimpleNamespace(

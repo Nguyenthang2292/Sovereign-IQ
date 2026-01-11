@@ -1,3 +1,6 @@
+
+from typing import Dict, Optional, Tuple
+
 """
 Input parsing utilities for pairs trading CLI.
 
@@ -5,12 +8,11 @@ This module provides functions for parsing and validating user input including
 weights, symbols, and other configuration parameters.
 """
 
-from typing import Dict, Optional, Tuple
 
 try:
     from config import (
-        PAIRS_TRADING_WEIGHTS,
         PAIRS_TRADING_WEIGHT_PRESETS,
+        PAIRS_TRADING_WEIGHTS,
     )
 except ImportError:
     PAIRS_TRADING_WEIGHTS = {"1d": 0.5, "3d": 0.3, "1w": 0.2}
@@ -22,20 +24,19 @@ except ImportError:
 try:
     from modules.common.utils import (
         color_text,
-        log_warn,
         log_error,
+        log_warn,
     )
 except ImportError:
+
     def color_text(text, color=None, style=None):
         return text
-    
+
     def log_warn(message: str) -> None:
         print(f"[WARN] {message}")
-    
+
     def log_error(message: str) -> None:
         print(f"[ERROR] {message}")
-
-from colorama import Fore
 
 
 def standardize_symbol_input(symbol: str) -> str:
@@ -57,11 +58,11 @@ def standardize_symbol_input(symbol: str) -> str:
 
 def parse_weights(weights_str: Optional[str], preset_key: Optional[str] = None) -> Dict[str, float]:
     """Parse weights string into dictionary.
-    
+
     Args:
         weights_str: Weights in format '1d:0.5,3d:0.3,1w:0.2'
         preset_key: Named preset (momentum/balanced)
-        
+
     Returns:
         Dictionary with weights, normalized to sum to 1.0
     """
@@ -74,7 +75,7 @@ def parse_weights(weights_str: Optional[str], preset_key: Optional[str] = None) 
     weights = PAIRS_TRADING_WEIGHTS.copy()
     if not weights_str:
         return weights
-    
+
     try:
         weight_parts = weights_str.split(",")
         weights = {}
@@ -89,31 +90,26 @@ def parse_weights(weights_str: Optional[str], preset_key: Optional[str] = None) 
     except Exception as e:
         log_error(f"Error parsing weights: {e}. Using default weights.")
         weights = PAIRS_TRADING_WEIGHTS.copy()
-    
+
     return weights
 
 
 def parse_symbols(symbols_str: Optional[str]) -> Tuple[list, list]:
     """Parse symbols string into display and parsed lists.
-    
+
     Args:
         symbols_str: Comma/space separated symbols
-        
+
     Returns:
         Tuple of (target_symbol_inputs, parsed_target_symbols)
     """
     target_symbol_inputs = []
     parsed_target_symbols = []
-    
+
     if not symbols_str:
         return target_symbol_inputs, parsed_target_symbols
-    
-    raw_parts = (
-        symbols_str.replace(",", " ")
-        .replace(";", " ")
-        .replace("|", " ")
-        .split()
-    )
+
+    raw_parts = symbols_str.replace(",", " ").replace(";", " ").replace("|", " ").split()
     seen_display = set()
     seen_parsed = set()
     for part in raw_parts:
@@ -129,6 +125,5 @@ def parse_symbols(symbols_str: Optional[str]) -> Tuple[list, list]:
         if parsed_key not in seen_parsed:
             seen_parsed.add(parsed_key)
             parsed_target_symbols.append(parsed_value)
-    
-    return target_symbol_inputs, parsed_target_symbols
 
+    return target_symbol_inputs, parsed_target_symbols

@@ -1,3 +1,12 @@
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+import asyncio
+
+import numpy as np
+import pandas as pd
+import pandas as pd
+
 """ATC Symbol Scanner.
 
 This module provides functions for scanning multiple symbols using
@@ -7,11 +16,7 @@ The scanner fetches data for multiple symbols, calculates ATC signals,
 and filters results based on signal strength and trend direction.
 """
 
-import pandas as pd
-import numpy as np
-from typing import Optional, Tuple, Dict, Any, TYPE_CHECKING
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import asyncio
+
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
@@ -19,22 +24,24 @@ if TYPE_CHECKING:
 try:
     from modules.common.utils import (
         log_error,
-        log_warn,
-        log_success,
         log_progress,
+        log_success,
+        log_warn,
     )
 except ImportError:
+
     def log_error(message: str) -> None:
         print(f"[ERROR] {message}")
-    
+
     def log_warn(message: str) -> None:
         print(f"[WARN] {message}")
-    
+
     def log_success(message: str) -> None:
         print(f"[SUCCESS] {message}")
-    
+
     def log_progress(message: str) -> None:
         print(f"[PROGRESS] {message}")
+
 
 from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals
 from modules.adaptive_trend.core.process_layer1 import trend_sign
@@ -53,17 +60,17 @@ def _scan_sequential(
     error_count = 0
     skipped_symbols = []
     total = len(symbols)
-    
+
     for idx, symbol in enumerate(symbols, 1):
         try:
             result = _process_symbol(symbol, data_fetcher, atc_config, min_signal)
-            
+
             if result is None:
                 skipped_count += 1
                 skipped_symbols.append(symbol)
             else:
                 results.append(result)
-            
+
             # Progress update every 10 symbols
             if idx % 10 == 0 or idx == total:
                 log_progress(
@@ -77,11 +84,8 @@ def _scan_sequential(
         except Exception as e:
             error_count += 1
             skipped_symbols.append(symbol)
-            log_warn(
-                f"Error processing symbol {symbol}: {type(e).__name__}: {e}. "
-                f"Skipping and continuing..."
-            )
-    
+            log_warn(f"Error processing symbol {symbol}: {type(e).__name__}: {e}. Skipping and continuing...")
+
     return results, skipped_count, error_count, skipped_symbols
 
 
@@ -95,27 +99,26 @@ def _scan_threadpool(
     """Scan symbols using ThreadPoolExecutor for parallel data fetching."""
     if max_workers is None:
         max_workers = min(32, len(symbols) + 4)
-    
+
     results = []
     skipped_count = 0
     error_count = 0
     skipped_symbols = []
     total = len(symbols)
     completed = 0
-    
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
         future_to_symbol = {
-            executor.submit(_process_symbol, symbol, data_fetcher, atc_config, min_signal): symbol
-            for symbol in symbols
+            executor.submit(_process_symbol, symbol, data_fetcher, atc_config, min_signal): symbol for symbol in symbols
         }
-        
+
         # Process completed tasks
         try:
             for future in as_completed(future_to_symbol):
                 symbol = future_to_symbol[future]
                 completed += 1
-                
+
                 try:
                     result = future.result()
                     if result is None:
@@ -126,11 +129,8 @@ def _scan_threadpool(
                 except Exception as e:
                     error_count += 1
                     skipped_symbols.append(symbol)
-                    log_warn(
-                        f"Error processing symbol {symbol}: {type(e).__name__}: {e}. "
-                        f"Skipping and continuing..."
-                    )
-                
+                    log_warn(f"Error processing symbol {symbol}: {type(e).__name__}: {e}. Skipping and continuing...")
+
                 # Progress update every 10 symbols
                 if completed % 10 == 0 or completed == total:
                     log_progress(
@@ -143,7 +143,7 @@ def _scan_threadpool(
             # Cancel remaining tasks
             for future in future_to_symbol:
                 future.cancel()
-    
+
     return results, skipped_count, error_count, skipped_symbols
 
 
@@ -177,45 +177,47 @@ def _scan_asyncio(
     max_workers: Optional[int],
 ) -> Tuple[list, int, int, list]:
     """Scan symbols using asyncio for parallel data fetching."""
+
     async def _async_scan():
         loop = asyncio.get_event_loop()
         if max_workers is not None:
             # Use semaphore to limit concurrent tasks
             semaphore = asyncio.Semaphore(max_workers)
-            
+
             async def _process_with_semaphore(symbol):
                 async with semaphore:
                     result = await _process_symbol_async(symbol, data_fetcher, atc_config, min_signal, loop)
                     return symbol, result
-            
+
             tasks = [_process_with_semaphore(symbol) for symbol in symbols]
         else:
             # Wrap to include symbol
             async def _wrap_with_symbol(symbol):
                 result = await _process_symbol_async(symbol, data_fetcher, atc_config, min_signal, loop)
                 return symbol, result
+
             tasks = [_wrap_with_symbol(symbol) for symbol in symbols]
-        
+
         results = []
         skipped_count = 0
         error_count = 0
         skipped_symbols = []
         total = len(symbols)
         completed = 0
-        
+
         try:
             # Process results as they complete
             for coro in asyncio.as_completed(tasks):
                 try:
                     symbol, result = await coro
                     completed += 1
-                    
+
                     if result is None:
                         skipped_count += 1
                         skipped_symbols.append(symbol)
                     else:
                         results.append(result)
-                    
+
                     # Progress update every 10 symbols
                     if completed % 10 == 0 or completed == total:
                         log_progress(
@@ -228,19 +230,16 @@ def _scan_asyncio(
                     completed += 1
                     # Try to get symbol from task if possible
                     skipped_symbols.append("UNKNOWN")
-                    log_warn(
-                        f"Error processing symbol: {type(e).__name__}: {e}. "
-                        f"Skipping and continuing..."
-                    )
+                    log_warn(f"Error processing symbol: {type(e).__name__}: {e}. Skipping and continuing...")
         except KeyboardInterrupt:
             log_warn("Scan interrupted by user")
             # Cancel remaining tasks
             for task in tasks:
                 if not task.done():
                     task.cancel()
-        
+
         return results, skipped_count, error_count, skipped_symbols
-    
+
     # Run async function
     try:
         return asyncio.run(_async_scan())
@@ -262,13 +261,13 @@ def _process_symbol(
 ) -> Optional[Dict[str, Any]]:
     """
     Process a single symbol: fetch data and calculate ATC signals.
-    
+
     Args:
         symbol: Symbol to process
         data_fetcher: DataFetcher instance
         atc_config: ATCConfig object
         min_signal: Minimum signal strength threshold
-        
+
     Returns:
         Dictionary with symbol data if signal found, None otherwise
     """
@@ -283,18 +282,18 @@ def _process_symbol(
 
         if df is None or df.empty:
             return None
-        
+
         if "close" not in df.columns:
             return None
 
         close_prices = df["close"]
-        
+
         # Validate we have enough data
         if len(close_prices) < atc_config.limit:
             return None
-        
+
         current_price = close_prices.iloc[-1]
-        
+
         # Validate price is valid
         if pd.isna(current_price) or current_price <= 0:
             return None
@@ -326,11 +325,11 @@ def _process_symbol(
             return None
 
         latest_signal = average_signal.iloc[-1]
-        
+
         # Validate signal is not NaN
         if pd.isna(latest_signal):
             return None
-        
+
         latest_trend = trend_sign(average_signal)
         latest_trend_value = latest_trend.iloc[-1] if not latest_trend.empty else 0
 
@@ -359,16 +358,16 @@ def scan_all_symbols(
     max_workers: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Scan all futures symbols and filter those with LONG/SHORT signals.
-    
+
     Fetches OHLCV data for multiple symbols, calculates ATC signals for each,
     and returns DataFrames containing symbols with signals above the threshold,
     separated into LONG (trend > 0) and SHORT (trend < 0) signals.
-    
+
     Execution modes:
     - "sequential": Process symbols one by one (safest, avoids rate limits)
     - "threadpool": Use ThreadPoolExecutor for parallel data fetching (default, faster)
     - "asyncio": Use asyncio for parallel data fetching (fastest, but requires async support)
-    
+
     Args:
         data_fetcher: DataFetcher instance for fetching market data.
         atc_config: ATCConfig object containing all ATC parameters.
@@ -377,14 +376,14 @@ def scan_all_symbols(
         execution_mode: Execution mode - "sequential", "threadpool", or "asyncio" (default: "threadpool").
         max_workers: Maximum number of worker threads/processes for parallel execution.
                     If None, uses default (min(32, num_symbols + 4) for threadpool).
-        
+
     Returns:
         Tuple of two DataFrames:
         - long_signals_df: Symbols with bullish signals (trend > 0), sorted by signal strength
         - short_signals_df: Symbols with bearish signals (trend < 0), sorted by signal strength
-        
+
         Each DataFrame contains columns: symbol, signal, trend, price, exchange.
-        
+
     Raises:
         ValueError: If any parameter is invalid.
         TypeError: If data_fetcher is None or missing required methods.
@@ -393,25 +392,22 @@ def scan_all_symbols(
     # Input validation
     if data_fetcher is None:
         raise ValueError("data_fetcher cannot be None")
-    
+
     if not isinstance(atc_config, ATCConfig):
         raise ValueError(f"atc_config must be an ATCConfig instance, got {type(atc_config)}")
-    
+
     # Validate data_fetcher has required methods
     required_methods = ["list_binance_futures_symbols", "fetch_ohlcv_with_fallback_exchange"]
     for method_name in required_methods:
         if not hasattr(data_fetcher, method_name):
-            raise AttributeError(
-                f"data_fetcher must have method '{method_name}', "
-                f"got {type(data_fetcher)}"
-            )
-    
+            raise AttributeError(f"data_fetcher must have method '{method_name}', got {type(data_fetcher)}")
+
     if not isinstance(atc_config.timeframe, str) or not atc_config.timeframe.strip():
         raise ValueError(f"atc_config.timeframe must be a non-empty string, got {atc_config.timeframe}")
-    
+
     if not isinstance(atc_config.limit, int) or atc_config.limit <= 0:
         raise ValueError(f"atc_config.limit must be a positive integer, got {atc_config.limit}")
-    
+
     # Validate all MA lengths
     ma_lengths = {
         "ema_len": atc_config.ema_len,
@@ -424,41 +420,41 @@ def scan_all_symbols(
     for name, length in ma_lengths.items():
         if not isinstance(length, int) or length <= 0:
             raise ValueError(f"atc_config.{name} must be a positive integer, got {length}")
-    
+
     # Validate robustness
     VALID_ROBUSTNESS = {"Narrow", "Medium", "Wide"}
     if atc_config.robustness not in VALID_ROBUSTNESS:
-        raise ValueError(
-            f"atc_config.robustness must be one of {VALID_ROBUSTNESS}, got {atc_config.robustness}"
-        )
-    
+        raise ValueError(f"atc_config.robustness must be one of {VALID_ROBUSTNESS}, got {atc_config.robustness}")
+
     # Validate lambda_param
-    if not isinstance(atc_config.lambda_param, (int, float)) or np.isnan(atc_config.lambda_param) or np.isinf(atc_config.lambda_param):
+    if (
+        not isinstance(atc_config.lambda_param, (int, float))
+        or np.isnan(atc_config.lambda_param)
+        or np.isinf(atc_config.lambda_param)
+    ):
         raise ValueError(f"atc_config.lambda_param must be a finite number, got {atc_config.lambda_param}")
-    
+
     # Validate decay
     if not isinstance(atc_config.decay, (int, float)) or not (0 <= atc_config.decay <= 1):
         raise ValueError(f"atc_config.decay must be between 0 and 1, got {atc_config.decay}")
-    
+
     # Validate cutout
     if not isinstance(atc_config.cutout, int) or atc_config.cutout < 0:
         raise ValueError(f"atc_config.cutout must be a non-negative integer, got {atc_config.cutout}")
-    
+
     # Validate max_symbols
     if max_symbols is not None and (not isinstance(max_symbols, int) or max_symbols <= 0):
         raise ValueError(f"max_symbols must be a positive integer or None, got {max_symbols}")
-    
+
     # Validate min_signal
     if not isinstance(min_signal, (int, float)) or min_signal < 0:
         raise ValueError(f"min_signal must be a non-negative number, got {min_signal}")
-    
+
     # Validate execution_mode
     VALID_MODES = {"sequential", "threadpool", "asyncio"}
     if execution_mode not in VALID_MODES:
-        raise ValueError(
-            f"execution_mode must be one of {VALID_MODES}, got {execution_mode}"
-        )
-    
+        raise ValueError(f"execution_mode must be one of {VALID_MODES}, got {execution_mode}")
+
     # Validate max_workers
     if max_workers is not None and (not isinstance(max_workers, int) or max_workers <= 0):
         raise ValueError(f"max_workers must be a positive integer or None, got {max_workers}")
@@ -477,14 +473,11 @@ def scan_all_symbols(
         # Limit symbols if max_symbols specified
         if max_symbols and max_symbols > 0:
             symbols = all_symbols[:max_symbols]
-            log_success(
-                f"Found {len(all_symbols)} futures symbols, "
-                f"scanning first {len(symbols)} symbols"
-            )
+            log_success(f"Found {len(all_symbols)} futures symbols, scanning first {len(symbols)} symbols")
         else:
             symbols = all_symbols
             log_success(f"Found {len(symbols)} futures symbols")
-        
+
         log_progress(f"Scanning {len(symbols)} symbols for ATC signals using {execution_mode} mode...")
 
         # Route to appropriate execution method
@@ -505,15 +498,14 @@ def scan_all_symbols(
             results, skipped_count, error_count, skipped_symbols = _scan_sequential(
                 symbols, data_fetcher, atc_config, min_signal
             )
-        
+
         total = len(symbols)
 
         # Summary logging
         log_progress(
-            f"Scan complete: {total} total, {len(results)} signals found, "
-            f"{skipped_count} skipped, {error_count} errors"
+            f"Scan complete: {total} total, {len(results)} signals found, {skipped_count} skipped, {error_count} errors"
         )
-        
+
         if skipped_count > 0 and len(skipped_symbols) <= 10:
             log_warn(f"Skipped symbols: {', '.join(skipped_symbols)}")
         elif skipped_count > 10:
@@ -534,9 +526,7 @@ def scan_all_symbols(
         long_signals = long_signals.sort_values("signal", ascending=False).reset_index(drop=True)
         short_signals = short_signals.sort_values("signal", ascending=True).reset_index(drop=True)
 
-        log_success(
-            f"Found {len(long_signals)} LONG signals and {len(short_signals)} SHORT signals"
-        )
+        log_success(f"Found {len(long_signals)} LONG signals and {len(short_signals)} SHORT signals")
 
         return long_signals, short_signals
 
@@ -546,6 +536,6 @@ def scan_all_symbols(
     except Exception as e:
         log_error(f"Fatal error scanning symbols: {type(e).__name__}: {e}")
         import traceback
+
         log_error(f"Traceback: {traceback.format_exc()}")
         return pd.DataFrame(), pd.DataFrame()
-

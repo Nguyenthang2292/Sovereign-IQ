@@ -1,49 +1,53 @@
+
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
+import gc
+
+import numpy as np
+import pandas as pd
+import pandas as pd
+
 """
 Pairs trading analyzer for identifying and validating pairs trading opportunities.
 """
 
-import gc
-import json
-import numpy as np
-import pandas as pd
-from typing import Dict, Optional, Tuple, Any, TYPE_CHECKING
+
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
 
 try:
     from config import (
-        PAIRS_TRADING_MIN_SPREAD,
-        PAIRS_TRADING_MAX_SPREAD,
-        PAIRS_TRADING_MIN_CORRELATION,
-        PAIRS_TRADING_MAX_CORRELATION,
-        PAIRS_TRADING_CORRELATION_MIN_POINTS,
-        PAIRS_TRADING_TIMEFRAME,
-        PAIRS_TRADING_LIMIT,
         PAIRS_TRADING_ADF_PVALUE_THRESHOLD,
-        PAIRS_TRADING_MAX_HALF_LIFE,
-        PAIRS_TRADING_ZSCORE_LOOKBACK,
-        PAIRS_TRADING_HURST_THRESHOLD,
-        PAIRS_TRADING_MIN_SPREAD_SHARPE,
-        PAIRS_TRADING_MAX_DRAWDOWN,
-        PAIRS_TRADING_MIN_CALMAR,
-        PAIRS_TRADING_JOHANSEN_CONFIDENCE,
-        PAIRS_TRADING_PERIODS_PER_YEAR,
+        PAIRS_TRADING_ADX_PERIOD,
         PAIRS_TRADING_CLASSIFICATION_ZSCORE,
-        PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        PAIRS_TRADING_CORRELATION_MIN_POINTS,
+        PAIRS_TRADING_HURST_THRESHOLD,
+        PAIRS_TRADING_JOHANSEN_CONFIDENCE,
         PAIRS_TRADING_KALMAN_DELTA,
         PAIRS_TRADING_KALMAN_OBS_COV,
+        PAIRS_TRADING_LIMIT,
+        PAIRS_TRADING_MAX_CORRELATION,
+        PAIRS_TRADING_MAX_DRAWDOWN,
+        PAIRS_TRADING_MAX_HALF_LIFE,
+        PAIRS_TRADING_MAX_SPREAD,
+        PAIRS_TRADING_MIN_CALMAR,
+        PAIRS_TRADING_MIN_CORRELATION,
+        PAIRS_TRADING_MIN_SPREAD,
+        PAIRS_TRADING_MIN_SPREAD_SHARPE,
+        PAIRS_TRADING_OLS_FIT_INTERCEPT,
         PAIRS_TRADING_PAIR_COLUMNS,
-        PAIRS_TRADING_ADX_PERIOD,
+        PAIRS_TRADING_PERIODS_PER_YEAR,
+        PAIRS_TRADING_TIMEFRAME,
+        PAIRS_TRADING_ZSCORE_LOOKBACK,
     )
-    from modules.common.utils import (
-        log_warn,
-        log_info,
-        log_success,
-        log_progress,
-    )
-    from modules.common.ui.progress_bar import ProgressBar, NullProgressBar
     from modules.common.indicators import calculate_adx
+    from modules.common.ui.progress_bar import NullProgressBar, ProgressBar
+    from modules.common.utils import (
+        log_info,
+        log_progress,
+        log_success,
+        log_warn,
+    )
 except ImportError:
     PAIRS_TRADING_MIN_SPREAD = 0.01
     PAIRS_TRADING_MAX_SPREAD = 0.50
@@ -67,84 +71,86 @@ except ImportError:
     PAIRS_TRADING_KALMAN_OBS_COV = 1.0
     PAIRS_TRADING_PAIR_COLUMNS = [
         # Core pair information
-        'long_symbol',
-        'short_symbol',
-        'long_score',
-        'short_score',
-        'spread',
-        'correlation',
-        'opportunity_score',
-        'quantitative_score',
+        "long_symbol",
+        "short_symbol",
+        "long_score",
+        "short_score",
+        "spread",
+        "correlation",
+        "opportunity_score",
+        "quantitative_score",
         # OLS-based metrics
-        'hedge_ratio',
-        'adf_pvalue',
-        'is_cointegrated',
-        'half_life',
-        'mean_zscore',
-        'std_zscore',
-        'skewness',
-        'kurtosis',
-        'current_zscore',
-        'hurst_exponent',
-        'spread_sharpe',
-        'max_drawdown',
-        'calmar_ratio',
-        'classification_f1',
-        'classification_precision',
-        'classification_recall',
-        'classification_accuracy',
+        "hedge_ratio",
+        "adf_pvalue",
+        "is_cointegrated",
+        "half_life",
+        "mean_zscore",
+        "std_zscore",
+        "skewness",
+        "kurtosis",
+        "current_zscore",
+        "hurst_exponent",
+        "spread_sharpe",
+        "max_drawdown",
+        "calmar_ratio",
+        "classification_f1",
+        "classification_precision",
+        "classification_recall",
+        "classification_accuracy",
         # Johansen test (independent of hedge ratio method)
-        'johansen_trace_stat',
-        'johansen_critical_value',
-        'is_johansen_cointegrated',
+        "johansen_trace_stat",
+        "johansen_critical_value",
+        "is_johansen_cointegrated",
         # Kalman hedge ratio
-        'kalman_hedge_ratio',
+        "kalman_hedge_ratio",
         # Kalman-based metrics
-        'kalman_half_life',
-        'kalman_mean_zscore',
-        'kalman_std_zscore',
-        'kalman_skewness',
-        'kalman_kurtosis',
-        'kalman_current_zscore',
-        'kalman_hurst_exponent',
-        'kalman_spread_sharpe',
-        'kalman_max_drawdown',
-        'kalman_calmar_ratio',
-        'kalman_classification_f1',
-        'kalman_classification_precision',
-        'kalman_classification_recall',
-        'kalman_classification_accuracy',
-        'long_adx',
-        'short_adx',
+        "kalman_half_life",
+        "kalman_mean_zscore",
+        "kalman_std_zscore",
+        "kalman_skewness",
+        "kalman_kurtosis",
+        "kalman_current_zscore",
+        "kalman_hurst_exponent",
+        "kalman_spread_sharpe",
+        "kalman_max_drawdown",
+        "kalman_calmar_ratio",
+        "kalman_classification_f1",
+        "kalman_classification_precision",
+        "kalman_classification_recall",
+        "kalman_classification_accuracy",
+        "long_adx",
+        "short_adx",
     ]
     PAIRS_TRADING_ADX_PERIOD = 14
-    
+
     # Fallback logging functions if modules.common.utils is not available
     def log_warn(msg: str) -> None:
         print(f"[WARN] {msg}")
-    
+
     def log_info(msg: str) -> None:
         print(f"[INFO] {msg}")
-    
+
     def log_success(msg: str) -> None:
         print(f"[SUCCESS] {msg}")
-    
+
     def log_progress(msg: str) -> None:
         print(f"[PROGRESS] {msg}")
-    
+
     ProgressBar = None
-    
+
     class NullProgressBar:
         """Null object pattern for ProgressBar when ProgressBar is not available."""
+
         def update(self, step: int = 1) -> None:
             pass
+
         def finish(self) -> None:
             pass
 
     def calculate_adx(ohlcv: pd.DataFrame, period: int = 14) -> Optional[float]:
         """
         Fallback ADX calculation implementation.
-        
+
         This function is used when modules.common.indicators.calculate_adx cannot be imported.
         It provides a basic ADX calculation but may have different behavior than the main implementation.
         """
@@ -178,16 +184,12 @@ except ImportError:
 
         atr = true_range.ewm(alpha=1 / period, adjust=False).mean()
         plus_di = (
-            pd.Series(plus_dm, index=data.index)
-            .ewm(alpha=1 / period, adjust=False)
-            .mean()
+            pd.Series(plus_dm, index=data.index).ewm(alpha=1 / period, adjust=False).mean()
             * 100
             / atr.replace(0, pd.NA)
         )
         minus_di = (
-            pd.Series(minus_dm, index=data.index)
-            .ewm(alpha=1 / period, adjust=False)
-            .mean()
+            pd.Series(minus_dm, index=data.index).ewm(alpha=1 / period, adjust=False).mean()
             * 100
             / atr.replace(0, pd.NA)
         )
@@ -204,7 +206,7 @@ except ImportError:
             return None
 
         return float(last_value)
-    
+
     # Log warning when using fallback implementation
     log_warn(
         "Using fallback calculate_adx implementation. "
@@ -212,16 +214,16 @@ except ImportError:
         "Please ensure all dependencies are properly installed."
     )
 
-from modules.pairs_trading.core.pair_metrics_computer import PairMetricsComputer
-from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
-from modules.pairs_trading.utils.pairs_validator import validate_pairs as validate_pairs_util
 from modules.common.quantitative_metrics import calculate_correlation as calculate_correlation_metric
+from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
+from modules.pairs_trading.core.pair_metrics_computer import PairMetricsComputer
+from modules.pairs_trading.utils.pairs_validator import validate_pairs as validate_pairs_util
 
 
 def _get_all_pair_columns() -> list:
     """
     Get all column names for pair DataFrames.
-    
+
     Returns column list from PAIRS_TRADING_PAIR_COLUMNS constant.
     This includes core pair information (long_symbol, short_symbol, spread, etc.)
     and all quantitative metrics from PairMetricsComputer.
@@ -231,58 +233,58 @@ def _get_all_pair_columns() -> list:
     except NameError:
         # Fallback if constant not imported
         return [
-            'long_symbol',
-            'short_symbol',
-            'long_score',
-            'short_score',
-            'spread',
-            'correlation',
-            'opportunity_score',
-            'quantitative_score',
-            'hedge_ratio',
-            'adf_pvalue',
-            'is_cointegrated',
-            'half_life',
-            'mean_zscore',
-            'std_zscore',
-            'skewness',
-            'kurtosis',
-            'current_zscore',
-            'hurst_exponent',
-            'spread_sharpe',
-            'max_drawdown',
-            'calmar_ratio',
-            'classification_f1',
-            'classification_precision',
-            'classification_recall',
-            'classification_accuracy',
-            'johansen_trace_stat',
-            'johansen_critical_value',
-            'is_johansen_cointegrated',
-            'kalman_hedge_ratio',
-            'kalman_half_life',
-            'kalman_mean_zscore',
-            'kalman_std_zscore',
-            'kalman_skewness',
-            'kalman_kurtosis',
-            'kalman_current_zscore',
-            'kalman_hurst_exponent',
-            'kalman_spread_sharpe',
-            'kalman_max_drawdown',
-            'kalman_calmar_ratio',
-            'kalman_classification_f1',
-            'kalman_classification_precision',
-            'kalman_classification_recall',
-            'kalman_classification_accuracy',
-            'long_adx',
-            'short_adx',
+            "long_symbol",
+            "short_symbol",
+            "long_score",
+            "short_score",
+            "spread",
+            "correlation",
+            "opportunity_score",
+            "quantitative_score",
+            "hedge_ratio",
+            "adf_pvalue",
+            "is_cointegrated",
+            "half_life",
+            "mean_zscore",
+            "std_zscore",
+            "skewness",
+            "kurtosis",
+            "current_zscore",
+            "hurst_exponent",
+            "spread_sharpe",
+            "max_drawdown",
+            "calmar_ratio",
+            "classification_f1",
+            "classification_precision",
+            "classification_recall",
+            "classification_accuracy",
+            "johansen_trace_stat",
+            "johansen_critical_value",
+            "is_johansen_cointegrated",
+            "kalman_hedge_ratio",
+            "kalman_half_life",
+            "kalman_mean_zscore",
+            "kalman_std_zscore",
+            "kalman_skewness",
+            "kalman_kurtosis",
+            "kalman_current_zscore",
+            "kalman_hurst_exponent",
+            "kalman_spread_sharpe",
+            "kalman_max_drawdown",
+            "kalman_calmar_ratio",
+            "kalman_classification_f1",
+            "kalman_classification_precision",
+            "kalman_classification_recall",
+            "kalman_classification_accuracy",
+            "long_adx",
+            "short_adx",
         ]
 
 
 class PairsTradingAnalyzer:
     """
     Analyzes pairs trading opportunities from best and worst performing symbols.
-    
+
     Pairs trading strategy:
     - Long worst performers (expect mean reversion upward)
     - Short best performers (expect mean reversion downward)
@@ -323,7 +325,7 @@ class PairsTradingAnalyzer:
             max_drawdown_threshold: Maximum drawdown threshold (None to disable)
             min_quantitative_score: Minimum quantitative score (0-100, None to disable)
             strategy: Trading strategy ('reversion' or 'momentum')
-            
+
         Raises:
             ValueError: If parameter values are invalid (e.g., min_spread > max_spread)
         """
@@ -333,50 +335,34 @@ class PairsTradingAnalyzer:
         if max_spread <= 0:
             raise ValueError(f"max_spread must be positive, got {max_spread}")
         if min_spread > max_spread:
-            raise ValueError(
-                f"min_spread ({min_spread}) must be <= max_spread ({max_spread})"
-            )
+            raise ValueError(f"min_spread ({min_spread}) must be <= max_spread ({max_spread})")
         if not (-1 <= min_correlation <= 1):
-            raise ValueError(
-                f"min_correlation must be in [-1, 1], got {min_correlation}"
-            )
+            raise ValueError(f"min_correlation must be in [-1, 1], got {min_correlation}")
         if not (-1 <= max_correlation <= 1):
-            raise ValueError(
-                f"max_correlation must be in [-1, 1], got {max_correlation}"
-            )
+            raise ValueError(f"max_correlation must be in [-1, 1], got {max_correlation}")
         if min_correlation > max_correlation:
-            raise ValueError(
-                f"min_correlation ({min_correlation}) must be <= max_correlation ({max_correlation})"
-            )
+            raise ValueError(f"min_correlation ({min_correlation}) must be <= max_correlation ({max_correlation})")
         if correlation_min_points < 2:
-            raise ValueError(
-                f"correlation_min_points must be >= 2, got {correlation_min_points}"
-            )
+            raise ValueError(f"correlation_min_points must be >= 2, got {correlation_min_points}")
         if max_half_life <= 0:
             raise ValueError(f"max_half_life must be positive, got {max_half_life}")
         if not (0 < hurst_threshold <= 1):
-            raise ValueError(
-                f"hurst_threshold must be in (0, 1], got {hurst_threshold}"
-            )
+            raise ValueError(f"hurst_threshold must be in (0, 1], got {hurst_threshold}")
         if min_spread_sharpe is not None and (np.isnan(min_spread_sharpe) or np.isinf(min_spread_sharpe)):
             raise ValueError(f"min_spread_sharpe must be finite, got {min_spread_sharpe}")
         if max_drawdown_threshold is not None:
             if max_drawdown_threshold <= 0 or max_drawdown_threshold > 1:
-                raise ValueError(
-                    f"max_drawdown_threshold must be in (0, 1], got {max_drawdown_threshold}"
-                )
+                raise ValueError(f"max_drawdown_threshold must be in (0, 1], got {max_drawdown_threshold}")
         if min_quantitative_score is not None:
             if not (0 <= min_quantitative_score <= 100):
-                raise ValueError(
-                    f"min_quantitative_score must be in [0, 100], got {min_quantitative_score}"
-                )
+                raise ValueError(f"min_quantitative_score must be in [0, 100], got {min_quantitative_score}")
         if kalman_delta <= 0 or kalman_delta >= 1:
             raise ValueError(f"kalman_delta must be in (0, 1), got {kalman_delta}")
         if kalman_obs_cov <= 0:
             raise ValueError(f"kalman_obs_cov must be positive, got {kalman_obs_cov}")
         if strategy not in ["reversion", "momentum"]:
             raise ValueError(f"strategy must be 'reversion' or 'momentum', got {strategy}")
-        
+
         self.min_spread = min_spread
         self.max_spread = max_spread
         self.min_correlation = min_correlation
@@ -386,7 +372,9 @@ class PairsTradingAnalyzer:
         self.max_half_life = max_half_life
         self.hurst_threshold = hurst_threshold
         self.min_spread_sharpe = min_spread_sharpe if min_spread_sharpe is not None else PAIRS_TRADING_MIN_SPREAD_SHARPE
-        self.max_drawdown_threshold = max_drawdown_threshold if max_drawdown_threshold is not None else PAIRS_TRADING_MAX_DRAWDOWN
+        self.max_drawdown_threshold = (
+            max_drawdown_threshold if max_drawdown_threshold is not None else PAIRS_TRADING_MAX_DRAWDOWN
+        )
         self.min_quantitative_score = min_quantitative_score
         self.ols_fit_intercept = ols_fit_intercept
         self.kalman_delta = kalman_delta
@@ -399,7 +387,7 @@ class PairsTradingAnalyzer:
         self._price_cache: Dict[Tuple[str, str], Optional[pd.DataFrame]] = {}
         self._adx_cache: Dict[str, Optional[float]] = {}
         self.adx_period = PAIRS_TRADING_ADX_PERIOD
-        
+
         # Initialize metrics computer and opportunity scorer
         self.metrics_computer = PairMetricsComputer(
             adf_pvalue_threshold=self.adf_pvalue_threshold,
@@ -412,7 +400,7 @@ class PairsTradingAnalyzer:
             kalman_delta=self.kalman_delta,
             kalman_obs_cov=self.kalman_obs_cov,
         )
-        
+
         self.opportunity_scorer = OpportunityScorer(
             min_correlation=self.min_correlation,
             max_correlation=self.max_correlation,
@@ -484,14 +472,11 @@ class PairsTradingAnalyzer:
             df1 = df1.set_index("timestamp")
         elif not isinstance(df1.index, pd.DatetimeIndex):
             # If timestamp is not in columns and index is not DatetimeIndex, cannot align
-            log_warn(
-                f"Missing timestamp column/index for {symbol1}. "
-                "Cannot align series reliably."
-            )
+            log_warn(f"Missing timestamp column/index for {symbol1}. Cannot align series reliably.")
             self._price_cache[cache_key] = None
             return None
         # If index is already DatetimeIndex, use it directly (no conversion needed)
-        
+
         if "timestamp" in df2.columns:
             # Check for duplicate timestamps before setting index
             if df2["timestamp"].duplicated().any():
@@ -500,30 +485,25 @@ class PairsTradingAnalyzer:
             df2 = df2.set_index("timestamp")
         elif not isinstance(df2.index, pd.DatetimeIndex):
             # If timestamp is not in columns and index is not DatetimeIndex, cannot align
-            log_warn(
-                f"Missing timestamp column/index for {symbol2}. "
-                "Cannot align series reliably."
-            )
+            log_warn(f"Missing timestamp column/index for {symbol2}. Cannot align series reliably.")
             self._price_cache[cache_key] = None
             return None
         # If index is already DatetimeIndex, use it directly (no conversion needed)
-        
+
         # Validate close columns contain valid numeric data
         if df1["close"].isna().all() or df2["close"].isna().all():
             self._price_cache[cache_key] = None
             return None
-        
+
         # Check for infinite values
         if np.isinf(df1["close"]).any() or np.isinf(df2["close"]).any():
             log_warn(f"Infinite values found in price data for {symbol1} or {symbol2}")
             self._price_cache[cache_key] = None
             return None
-        
-        df_combined = pd.concat(
-            [df1[["close"]], df2[["close"]]], axis=1, join="inner"
-        )
+
+        df_combined = pd.concat([df1[["close"]], df2[["close"]]], axis=1, join="inner")
         df_combined.columns = ["close1", "close2"]
-        
+
         # Validate combined DataFrame
         if df_combined.empty:
             self._price_cache[cache_key] = None
@@ -562,11 +542,7 @@ class PairsTradingAnalyzer:
             self._adx_cache[symbol] = None
             return None
 
-        if (
-            ohlcv is None
-            or ohlcv.empty
-            or not {"high", "low", "close"}.issubset(ohlcv.columns)
-        ):
+        if ohlcv is None or ohlcv.empty or not {"high", "low", "close"}.issubset(ohlcv.columns):
             self._adx_cache[symbol] = None
             return None
 
@@ -603,9 +579,7 @@ class PairsTradingAnalyzer:
             return self._correlation_cache[cache_key]
 
         # Fetch and align prices
-        df_combined = self._fetch_aligned_prices(
-            symbol1, symbol2, data_fetcher, timeframe=timeframe, limit=limit
-        )
+        df_combined = self._fetch_aligned_prices(symbol1, symbol2, data_fetcher, timeframe=timeframe, limit=limit)
 
         if df_combined is None:
             return None
@@ -634,9 +608,7 @@ class PairsTradingAnalyzer:
         data_fetcher: Optional["DataFetcher"],
     ) -> Dict[str, Optional[float]]:
         """Compute Phase 1 quantitative metrics for a pair."""
-        aligned_prices = self._fetch_aligned_prices(
-            symbol1, symbol2, data_fetcher, timeframe=PAIRS_TRADING_TIMEFRAME
-        )
+        aligned_prices = self._fetch_aligned_prices(symbol1, symbol2, data_fetcher, timeframe=PAIRS_TRADING_TIMEFRAME)
         if aligned_prices is None:
             return {}
 
@@ -648,9 +620,7 @@ class PairsTradingAnalyzer:
         metrics["short_adx"] = self._get_symbol_adx(symbol2, data_fetcher)
         return metrics
 
-    def calculate_spread(
-        self, long_symbol: str, short_symbol: str, long_score: float, short_score: float
-    ) -> float:
+    def calculate_spread(self, long_symbol: str, short_symbol: str, long_score: float, short_score: float) -> float:
         """
         Calculate spread between long and short symbols based on performance scores.
 
@@ -662,29 +632,25 @@ class PairsTradingAnalyzer:
 
         Returns:
             Spread as percentage (positive value)
-            
+
         Raises:
             ValueError: If scores are NaN or Inf
         """
         # Validate inputs
         if pd.isna(long_score) or pd.isna(short_score):
-            raise ValueError(
-                f"Invalid scores: long_score={long_score}, short_score={short_score}"
-            )
+            raise ValueError(f"Invalid scores: long_score={long_score}, short_score={short_score}")
         if np.isinf(long_score) or np.isinf(short_score):
-            raise ValueError(
-                f"Infinite scores: long_score={long_score}, short_score={short_score}"
-            )
-        
+            raise ValueError(f"Infinite scores: long_score={long_score}, short_score={short_score}")
+
         # Spread = difference between short score and long score
         # Since long_score is negative and short_score is positive,
         # spread = short_score - long_score (which is positive)
         spread = short_score - long_score
-        
+
         # Validate result
         if np.isnan(spread) or np.isinf(spread):
             raise ValueError(f"Invalid spread calculation result: {spread}")
-        
+
         return abs(spread)  # Ensure positive
 
     def analyze_pairs_opportunity(
@@ -704,17 +670,17 @@ class PairsTradingAnalyzer:
             verbose: If True, print progress messages
 
         Returns:
-            DataFrame with columns: ['long_symbol', 'short_symbol', 'long_score', 
+            DataFrame with columns: ['long_symbol', 'short_symbol', 'long_score',
                                    'short_score', 'spread', 'correlation', 'opportunity_score']
         """
         empty_df = pd.DataFrame(columns=_get_all_pair_columns())
-        
+
         # Validate inputs
         if best_performers is None or worst_performers is None:
             if verbose:
                 log_warn("None DataFrame provided for pairs analysis.")
             return empty_df
-        
+
         if best_performers.empty:
             if verbose:
                 log_warn("No best performers provided for pairs analysis.")
@@ -724,7 +690,7 @@ class PairsTradingAnalyzer:
             if verbose:
                 log_warn("No worst performers provided for pairs analysis.")
             return empty_df
-        
+
         # Validate required columns
         required_columns = {"symbol", "score"}
         if not required_columns.issubset(best_performers.columns):
@@ -749,8 +715,8 @@ class PairsTradingAnalyzer:
             progress = NullProgressBar()
 
         for _, worst_row in worst_performers.iterrows():
-            long_symbol = worst_row.get('symbol')
-            long_score = worst_row.get('score')
+            long_symbol = worst_row.get("symbol")
+            long_score = worst_row.get("score")
 
             # Validate row data
             if pd.isna(long_symbol) or long_symbol is None:
@@ -763,8 +729,8 @@ class PairsTradingAnalyzer:
                 continue
 
             for _, best_row in best_performers.iterrows():
-                short_symbol = best_row.get('symbol')
-                short_score = best_row.get('score')
+                short_symbol = best_row.get("symbol")
+                short_score = best_row.get("score")
 
                 # Validate row data
                 if pd.isna(short_symbol) or short_symbol is None:
@@ -794,15 +760,11 @@ class PairsTradingAnalyzer:
                 correlation = None
                 quant_metrics = {}
                 if data_fetcher is not None:
-                    correlation = self.calculate_correlation(
-                        long_symbol, short_symbol, data_fetcher
-                    )
-                    
+                    correlation = self.calculate_correlation(long_symbol, short_symbol, data_fetcher)
+
                     # Don't filter out pairs even if correlation is outside ideal range;
                     # OpportunityScorer will apply penalties through multipliers.
-                    quant_metrics = self._compute_pair_metrics(
-                        long_symbol, short_symbol, data_fetcher
-                    )
+                    quant_metrics = self._compute_pair_metrics(long_symbol, short_symbol, data_fetcher)
 
                 # Calculate opportunity score
                 try:
@@ -815,12 +777,10 @@ class PairsTradingAnalyzer:
                     if verbose:
                         log_warn(f"Error calculating opportunity_score for {long_symbol}/{short_symbol}: {e}")
                     opportunity_score = 0.0
-                
+
                 # Calculate quantitative score
                 try:
-                    quantitative_score = self.opportunity_scorer.calculate_quantitative_score(
-                        quant_metrics
-                    )
+                    quantitative_score = self.opportunity_scorer.calculate_quantitative_score(quant_metrics)
                     if pd.isna(quantitative_score) or np.isinf(quantitative_score):
                         quantitative_score = 0.0
                 except Exception as e:
@@ -830,16 +790,18 @@ class PairsTradingAnalyzer:
 
                 # Build pair record
                 pair_record = {
-                    'long_symbol': str(long_symbol),
-                    'short_symbol': str(short_symbol),
-                    'long_score': float(long_score),
-                    'short_score': float(short_score),
-                    'spread': float(spread),
-                    'correlation': float(correlation) if correlation is not None and not (pd.isna(correlation) or np.isinf(correlation)) else None,
-                    'opportunity_score': float(opportunity_score),
-                    'quantitative_score': float(quantitative_score),
+                    "long_symbol": str(long_symbol),
+                    "short_symbol": str(short_symbol),
+                    "long_score": float(long_score),
+                    "short_score": float(short_score),
+                    "spread": float(spread),
+                    "correlation": float(correlation)
+                    if correlation is not None and not (pd.isna(correlation) or np.isinf(correlation))
+                    else None,
+                    "opportunity_score": float(opportunity_score),
+                    "quantitative_score": float(quantitative_score),
                 }
-                
+
                 # Add all quant metrics
                 for key in _get_all_pair_columns():
                     if key not in pair_record:
@@ -850,7 +812,7 @@ class PairsTradingAnalyzer:
                 progress.update()
 
         progress.finish()
-        
+
         if not pairs:
             if verbose:
                 log_warn("No pairs opportunities found.")
@@ -858,9 +820,7 @@ class PairsTradingAnalyzer:
 
         df_pairs = pd.DataFrame(pairs)
         # Sort by opportunity_score descending
-        df_pairs = df_pairs.sort_values('opportunity_score', ascending=False).reset_index(
-            drop=True
-        )
+        df_pairs = df_pairs.sort_values("opportunity_score", ascending=False).reset_index(drop=True)
 
         if verbose:
             log_success(f"Found {len(df_pairs)} pairs opportunities.")
@@ -904,27 +864,27 @@ class PairsTradingAnalyzer:
             data_fetcher=data_fetcher,
             verbose=verbose,
         )
-     
+
     def cleanup(self):
         """
         Cleanup resources and free memory.
         Clears all caches to prevent memory leaks.
         Call this after analysis is complete to free memory.
         """
-        
+
         # Clear all caches
         self._correlation_cache.clear()
         self._price_cache.clear()
         self._adx_cache.clear()
-        
+
         # Force garbage collection to free memory immediately
         gc.collect()
-        
-        if hasattr(self, 'metrics_computer') and hasattr(self.metrics_computer, 'cleanup'):
+
+        if hasattr(self, "metrics_computer") and hasattr(self.metrics_computer, "cleanup"):
             self.metrics_computer.cleanup()
-        
+
         log_info("Cleaned up PairsTradingAnalyzer resources")
-    
+
     def clear_caches(self):
         """
         Clear all caches without triggering garbage collection.

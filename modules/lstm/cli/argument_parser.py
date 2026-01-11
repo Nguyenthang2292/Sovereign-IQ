@@ -1,3 +1,11 @@
+
+from pathlib import Path
+import argparse
+
+from config.common import DEFAULT_SYMBOL, DEFAULT_TIMEFRAME
+from config.lstm import MODELS_DIR
+from config.lstm import MODELS_DIR
+
 """
 Command-line argument parser for LSTM Model Manager.
 
@@ -5,17 +13,13 @@ This module provides the main argument parser for the LSTM CLI,
 defining all command-line options and their default values.
 """
 
-import argparse
-from pathlib import Path
 
-from config.lstm import MODELS_DIR
-from config.common import DEFAULT_SYMBOL, DEFAULT_TIMEFRAME
 
 
 def parse_args():
     """
     Parse command-line arguments for LSTM Model Manager.
-    
+
     Returns:
         argparse.Namespace: Parsed arguments
     """
@@ -32,42 +36,30 @@ Examples:
   
   # Interactive mode (prompt for symbol and timeframe)
   python main_lstm.py
-        """
+        """,
     )
-    
+
     parser.add_argument(
-        '--symbol',
-        type=str,
-        default=None,
-        help=f'Trading symbol (e.g., BTCUSDT, ETHUSDT). Default: {DEFAULT_SYMBOL}'
+        "--symbol", type=str, default=None, help=f"Trading symbol (e.g., BTCUSDT, ETHUSDT). Default: {DEFAULT_SYMBOL}"
     )
-    
+
     parser.add_argument(
-        '--timeframe',
-        type=str,
-        default=None,
-        help=f'Timeframe (e.g., 15m, 1h, 4h). Default: {DEFAULT_TIMEFRAME}'
+        "--timeframe", type=str, default=None, help=f"Timeframe (e.g., 15m, 1h, 4h). Default: {DEFAULT_TIMEFRAME}"
     )
-    
+
     parser.add_argument(
-        '--model-path',
+        "--model-path",
         type=Path,
         default=None,
-        help=f'Path to model checkpoint file. Default: {MODELS_DIR / "lstm_model.pth"}'
+        help=f"Path to model checkpoint file. Default: {MODELS_DIR / 'lstm_model.pth'}",
     )
-    
-    parser.add_argument(
-        '--limit',
-        type=int,
-        default=1500,
-        help='Number of candles to fetch (default: 1500)'
-    )
-    
-    parser.add_argument(
-        '--use-kalman-filter',
-        action='store_true',
-        help='Enable Kalman Filter preprocessing to reduce noise in OHLC data (for training)'
-    )
-    
-    return parser.parse_args()
 
+    parser.add_argument("--limit", type=int, default=1500, help="Number of candles to fetch (default: 1500)")
+
+    parser.add_argument(
+        "--use-kalman-filter",
+        action="store_true",
+        help="Enable Kalman Filter preprocessing to reduce noise in OHLC data (for training)",
+    )
+
+    return parser.parse_args()

@@ -1,11 +1,15 @@
+
+import numpy as np
+import pandas as pd
+
+from modules.common.quantitative_metrics import calculate_mar
+from modules.common.quantitative_metrics import calculate_mar
+
 """
 Tests for mar module.
 """
-import numpy as np
-import pandas as pd
-import pytest
 
-from modules.common.quantitative_metrics import calculate_mar
+
 
 
 def test_calculate_mar_matches_manual_computation_sma():
@@ -23,9 +27,7 @@ def test_calculate_mar_matches_manual_computation_sma():
     # Check that non-NaN values match
     valid_mask = ~(result.isna() | expected_mar.isna())
     if valid_mask.any():
-        assert np.allclose(
-            result[valid_mask].values, expected_mar[valid_mask].values, rtol=1e-9
-        )
+        assert np.allclose(result[valid_mask].values, expected_mar[valid_mask].values, rtol=1e-9)
 
 
 def test_calculate_mar_returns_valid_series():
@@ -209,4 +211,3 @@ def test_calculate_mar_different_lengths():
     assert len(result_long) == len(close)
     # Longer length should have more NaN values at the beginning
     assert result_short.notna().sum() >= result_long.notna().sum()
-

@@ -1,3 +1,9 @@
+
+from typing import List, Optional
+
+import pandas as pd
+import pandas as pd
+
 """
 Pair selection utilities for pairs trading analysis.
 
@@ -5,23 +11,22 @@ This module provides functions for selecting and filtering trading pairs
 based on various criteria such as uniqueness, target symbols, and scores.
 """
 
-import pandas as pd
-from typing import Optional, List
+
 
 
 def select_top_unique_pairs(pairs_df: pd.DataFrame, target_pairs: int) -> pd.DataFrame:
     """
     Select up to target_pairs trading pairs, prioritizing unique symbols for diversification.
-    
+
     Uses a two-pass strategy: (1) Select pairs with completely unique symbols (non-overlapping),
     (2) Fill remaining slots with any available pairs. Assumes pairs_df is pre-sorted by score.
-    
+
     Args:
         pairs_df: DataFrame with 'long_symbol' and 'short_symbol' columns. Should be sorted
             by desirability (e.g., opportunity_score) as pairs are selected in order.
         target_pairs: Maximum number of pairs to select. May return fewer if insufficient
             unique pairs are available.
-        
+
     Returns:
         DataFrame with selected pairs (all original columns preserved, index reset).
         Returns original pairs_df if empty/None, or top N pairs if no unique selections found.
@@ -60,25 +65,23 @@ def select_top_unique_pairs(pairs_df: pd.DataFrame, target_pairs: int) -> pd.Dat
 
 
 def select_pairs_for_symbols(
-    pairs_df: pd.DataFrame, 
-    target_symbols: List[str], 
-    max_pairs: Optional[int] = None
+    pairs_df: pd.DataFrame, target_symbols: List[str], max_pairs: Optional[int] = None
 ) -> pd.DataFrame:
     """
     Select the best pair (highest score) for each requested symbol.
-    
+
     This function finds the best pair opportunity for each symbol in target_symbols,
     where the symbol appears as either the long or short side of the pair.
-    
+
     Args:
         pairs_df: DataFrame containing pairs data with 'long_symbol' and 'short_symbol' columns
         target_symbols: List of symbols to find pairs for
         max_pairs: Maximum number of pairs to return (None = no limit)
-        
+
     Returns:
         DataFrame with selected pairs for the requested symbols
         Returns empty DataFrame if no matches found
-        
+
     Example:
         >>> pairs = pd.DataFrame({
         ...     'long_symbol': ['BTC/USDT', 'ETH/USDT'],
@@ -95,9 +98,7 @@ def select_pairs_for_symbols(
     selected_rows = []
     for symbol in target_symbols:
         # Find pairs where symbol appears on either side
-        matches = pairs_df[
-            (pairs_df["long_symbol"] == symbol) | (pairs_df["short_symbol"] == symbol)
-        ]
+        matches = pairs_df[(pairs_df["long_symbol"] == symbol) | (pairs_df["short_symbol"] == symbol)]
         if matches.empty:
             continue
         # Take the best match (first row, assuming sorted by score)
@@ -109,4 +110,3 @@ def select_pairs_for_symbols(
         return pd.DataFrame(columns=pairs_df.columns)
 
     return pd.DataFrame(selected_rows).reset_index(drop=True)
-

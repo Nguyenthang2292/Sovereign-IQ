@@ -1,3 +1,6 @@
+
+import argparse
+
 """
 Command-line argument parser for pairs trading analysis.
 
@@ -5,22 +8,21 @@ This module provides the main argument parser for the pairs trading CLI,
 defining all command-line options and their default values.
 """
 
-import argparse
 
 try:
     from config import (
-        PAIRS_TRADING_TOP_N,
-        PAIRS_TRADING_MIN_SPREAD,
-        PAIRS_TRADING_MAX_SPREAD,
-        PAIRS_TRADING_MIN_CORRELATION,
-        PAIRS_TRADING_MAX_CORRELATION,
-        PAIRS_TRADING_MAX_HALF_LIFE,
-        PAIRS_TRADING_WEIGHT_PRESETS,
-        PAIRS_TRADING_OLS_FIT_INTERCEPT,
         PAIRS_TRADING_KALMAN_DELTA,
         PAIRS_TRADING_KALMAN_OBS_COV,
         PAIRS_TRADING_KALMAN_PRESETS,
+        PAIRS_TRADING_MAX_CORRELATION,
+        PAIRS_TRADING_MAX_HALF_LIFE,
+        PAIRS_TRADING_MAX_SPREAD,
+        PAIRS_TRADING_MIN_CORRELATION,
+        PAIRS_TRADING_MIN_SPREAD,
+        PAIRS_TRADING_OLS_FIT_INTERCEPT,
         PAIRS_TRADING_OPPORTUNITY_PRESETS,
+        PAIRS_TRADING_TOP_N,
+        PAIRS_TRADING_WEIGHT_PRESETS,
     )
 except ImportError:
     PAIRS_TRADING_TOP_N = 5
@@ -132,13 +134,13 @@ def parse_args():
         "--min-spread",
         type=float,
         default=PAIRS_TRADING_MIN_SPREAD,
-        help=f"Minimum spread percentage (default: {PAIRS_TRADING_MIN_SPREAD*100:.2f}%)",
+        help=f"Minimum spread percentage (default: {PAIRS_TRADING_MIN_SPREAD * 100:.2f}%)",
     )
     parser.add_argument(
         "--max-spread",
         type=float,
         default=PAIRS_TRADING_MAX_SPREAD,
-        help=f"Maximum spread percentage (default: {PAIRS_TRADING_MAX_SPREAD*100:.2f}%)",
+        help=f"Maximum spread percentage (default: {PAIRS_TRADING_MAX_SPREAD * 100:.2f}%)",
     )
     parser.add_argument(
         "--min-correlation",
@@ -198,5 +200,5 @@ def parse_args():
         default=None,
         help="Minimum quantitative score (0-100) to accept a pair (default: no threshold)",
     )
-    
+
     return parser.parse_args()

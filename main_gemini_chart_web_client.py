@@ -1,3 +1,11 @@
+
+from pathlib import Path
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+
 """
 Main entry point for Vue.js App (Gemini Chart Analyzer Web Client).
 
@@ -13,12 +21,6 @@ Usage:
     python main_gemini_chart_web_client.py build
 """
 
-import os
-import sys
-import subprocess
-import argparse
-import shutil
-from pathlib import Path
 
 project_root = Path(__file__).parent
 
@@ -39,28 +41,18 @@ def check_node_installed():
     # Use shutil.which to find executables in PATH (cross-platform)
     node_path = shutil.which("node")
     npm_path = shutil.which("npm")
-    
+
     if not node_path or not npm_path:
         print("❌ Error: Node.js and npm are required but not found.")
         print("   Please install Node.js from https://nodejs.org/")
         print(f"   Current PATH: {os.environ.get('PATH', 'Not set')[:200]}...")
         return False
-    
+
     # Verify they work by checking versions
     try:
         # Use global IS_WINDOWS and run_npm_command helper for consistency
-        result_node = run_npm_command(
-            ["node", "--version"],
-            capture_output=True,
-            check=True,
-            text=True
-        )
-        result_npm = run_npm_command(
-            ["npm", "--version"],
-            capture_output=True,
-            check=True,
-            text=True
-        )
+        result_node = run_npm_command(["node", "--version"], capture_output=True, check=True, text=True)
+        result_npm = run_npm_command(["npm", "--version"], capture_output=True, check=True, text=True)
         print(f"✅ Node.js {result_node.stdout.strip()}, npm {result_npm.stdout.strip()}")
         return True
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
@@ -82,17 +74,18 @@ def check_dependencies():
     else:
         print("✅ Dependencies already installed")
 
+
 def run_dev_server():
     """Run Vue development server with hot reload."""
     if not check_node_installed():
         return 1
-    
+
     check_dependencies()
-    
+
     print("🚀 Starting Vue development server...")
     print("   Frontend: http://localhost:5173")
     print("   Press Ctrl+C to stop")
-    
+
     os.chdir(VUE_DIR)
     try:
         run_npm_command(["npm", "run", "dev"], check=True)
@@ -110,9 +103,9 @@ def build_vue_app():
     """Build Vue app for production."""
     if not check_node_installed():
         return 1
-    
+
     check_dependencies()
-    
+
     print("🔨 Building Vue app for production...")
     os.chdir(VUE_DIR)
     try:
@@ -134,17 +127,13 @@ def main():
 Examples:
   python main_gemini_chart_web_client.py dev          # Run Vue dev server
   python main_gemini_chart_web_client.py build         # Build for production
-        """
+        """,
     )
-    
-    parser.add_argument(
-        "command",
-        choices=["dev", "build"],
-        help="Command to execute"
-    )
-    
+
+    parser.add_argument("command", choices=["dev", "build"], help="Command to execute")
+
     args = parser.parse_args()
-    
+
     if args.command == "dev":
         return run_dev_server()
     elif args.command == "build":
@@ -153,4 +142,3 @@ Examples:
 
 if __name__ == "__main__":
     sys.exit(main())
-

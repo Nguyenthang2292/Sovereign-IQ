@@ -1,33 +1,36 @@
+
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+import sys
+
 """
 Test script for modules.deeplearning_environment_setup - Environment checks.
 """
 
-import sys
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-import pytest
 import tempfile
 
+import pytest
+
 from modules.deeplearning.environment_setup import (
+    PACKAGE_IMPORT_MAP,
+    REQUIRED_PACKAGES,
     PackageStatus,
-    check_package,
     check_gpu,
+    check_package,
     ensure_requirements,
     format_report,
     main,
-    REQUIRED_PACKAGES,
-    PACKAGE_IMPORT_MAP,
 )
 
 
 def test_package_status_installed():
     """Test PackageStatus with installed package."""
     status = PackageStatus(name="torch", installed=True, version="1.0.0")
-    
+
     assert status.name == "torch"
     assert status.installed is True
     assert status.version == "1.0.0"
@@ -42,7 +45,7 @@ def test_package_status_not_installed():
         version=None,
         error="ModuleNotFoundError",
     )
-    
+
     assert status.installed is False
     assert status.error is not None
 
@@ -53,9 +56,9 @@ def test_check_package_installed():
         mock_module = MagicMock()
         mock_module.__version__ = "1.0.0"
         mock_import.return_value = mock_module
-        
+
         status = check_package("torch")
-        
+
         assert status.installed is True
         assert status.version == "1.0.0"
         assert status.error is None
@@ -65,7 +68,7 @@ def test_check_package_not_installed():
     """Test check_package with not installed package."""
     with patch("importlib.import_module", side_effect=ModuleNotFoundError("No module")):
         status = check_package("missing_package")
-        
+
         assert status.installed is False
         assert status.error is not None
 
@@ -76,9 +79,9 @@ def test_check_package_no_version():
         mock_module = MagicMock()
         del mock_module.__version__  # No version attribute
         mock_import.return_value = mock_module
-        
+
         status = check_package("torch")
-        
+
         assert status.installed is True
         assert status.version == "unknown"
 
@@ -91,9 +94,9 @@ def test_check_gpu_available():
         mock_torch.cuda.device_count.return_value = 2
         mock_torch.cuda.get_device_name.side_effect = ["GPU 1", "GPU 2"]
         mock_import.return_value = mock_torch
-        
+
         result = check_gpu()
-        
+
         assert "CUDA available" in result
         assert "2 device(s)" in result
 
@@ -104,9 +107,9 @@ def test_check_gpu_not_available():
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
         mock_import.return_value = mock_torch
-        
+
         result = check_gpu()
-        
+
         assert "CUDA not available" in result or "CPU" in result
 
 
@@ -114,7 +117,7 @@ def test_check_gpu_torch_not_installed():
     """Test check_gpu when torch is not installed."""
     with patch("importlib.import_module", side_effect=ModuleNotFoundError("No module")):
         result = check_gpu()
-        
+
         assert "PyTorch not installed" in result or "cannot check" in result
 
 
@@ -125,7 +128,7 @@ def test_ensure_requirements_all_present():
         # So we need exact line matches, or the package name must be a complete line
         f.write("torch\npytorch-lightning\n")
         temp_path = Path(f.name)
-    
+
     try:
         missing = ensure_requirements(["torch", "pytorch-lightning"], temp_path)
         # If packages are present as complete lines, missing should be empty
@@ -140,7 +143,7 @@ def test_ensure_requirements_some_missing():
         # Only torch is in the file
         f.write("torch\n")
         temp_path = Path(f.name)
-    
+
     try:
         missing = ensure_requirements(["torch", "pytorch-lightning"], temp_path)
         # pytorch-lightning should be missing
@@ -171,9 +174,9 @@ def test_format_report():
         PackageStatus(name="missing", installed=False, version=None, error="Error"),
     ]
     missing_req = ["missing"]
-    
+
     report = format_report(statuses, missing_req)
-    
+
     assert "torch" in report
     assert "missing" in report
     assert "1.0.0" in report
@@ -186,9 +189,9 @@ def test_format_report_no_missing():
         PackageStatus(name="torch", installed=True, version="1.0.0"),
     ]
     missing_req = []
-    
+
     report = format_report(statuses, missing_req)
-    
+
     assert "torch" in report
     assert len(missing_req) == 0
 
@@ -212,9 +215,7 @@ def test_package_import_map():
 def test_main_exit_code_all_installed():
     """Test main function when all packages are installed."""
     with patch("modules.deeplearning_environment_setup.check_package") as mock_check:
-        mock_check.return_value = PackageStatus(
-            name="torch", installed=True, version="1.0.0"
-        )
+        mock_check.return_value = PackageStatus(name="torch", installed=True, version="1.0.0")
         with patch("modules.deeplearning_environment_setup.ensure_requirements", return_value=[]):
             with patch("builtins.print"):  # Suppress output
                 exit_code = main()
@@ -224,11 +225,12 @@ def test_main_exit_code_all_installed():
 def test_main_exit_code_some_missing():
     """Test main function when some packages are missing."""
     with patch("modules.deeplearning_environment_setup.check_package") as mock_check:
+
         def side_effect(pkg):
             if pkg == "torch":
                 return PackageStatus(name="torch", installed=True, version="1.0.0")
             return PackageStatus(name=pkg, installed=False, version=None, error="Error")
-        
+
         mock_check.side_effect = side_effect
         with patch("modules.deeplearning_environment_setup.ensure_requirements", return_value=[]):
             with patch("builtins.print"):  # Suppress output
@@ -238,4 +240,3 @@ def test_main_exit_code_some_missing():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

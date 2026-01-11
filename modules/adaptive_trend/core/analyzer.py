@@ -1,3 +1,7 @@
+
+from typing import TYPE_CHECKING, Any, Dict, Optional
+import traceback
+
 """
 ATC Symbol Analyzer.
 
@@ -5,12 +9,9 @@ This module provides functions for analyzing individual symbols using
 Adaptive Trend Classification (ATC).
 """
 
-import traceback
-from typing import TYPE_CHECKING, Optional, Dict, Any
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
-    import pandas as pd
 
 try:
     from modules.common.utils import (
@@ -18,11 +19,13 @@ try:
         log_progress,
     )
 except ImportError:
+
     def log_error(message: str) -> None:
         print(f"[ERROR] {message}")
-    
+
     def log_progress(message: str) -> None:
         print(f"[PROGRESS] {message}")
+
 
 from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals
 from modules.adaptive_trend.utils.config import ATCConfig
@@ -115,4 +118,3 @@ def analyze_symbol(
         log_error(f"Error analyzing {symbol}: {type(e).__name__}: {e}")
         log_error(f"Traceback: {traceback.format_exc()}")
         return None
-

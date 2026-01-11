@@ -1,3 +1,6 @@
+
+from config.xgboost import TARGET_HORIZON
+
 """
 Deep Learning Configuration.
 
@@ -32,7 +35,6 @@ DEEP_USE_FEATURE_SELECTION = True  # Whether to apply feature selection
 
 # Dataset & DataModule Configuration
 # Note: DEEP_MAX_PREDICTION_LENGTH depends on TARGET_HORIZON from xgboost config
-from config.xgboost import TARGET_HORIZON
 
 DEEP_MAX_ENCODER_LENGTH = 64  # Lookback window (64-128 bars recommended)
 DEEP_MAX_PREDICTION_LENGTH = TARGET_HORIZON  # Prediction horizon (align with TARGET_HORIZON)
@@ -98,14 +100,13 @@ PYTORCH_ENV = {
     # - Performance degradation
     # - Unexpected crashes during multithreaded operations
     # - Memory issues or resource leaks
-    'KMP_DUPLICATE_LIB_OK': 'True',
+    "KMP_DUPLICATE_LIB_OK": "True",
 }
 
 # Debug-only environment variables (only applied when DEBUG or DEV env var is set)
 # These settings hurt production performance but help with debugging
 PYTORCH_DEBUG_ENV = {
-    'OMP_NUM_THREADS': '1',  # Limit OpenMP threads to avoid oversubscription
-    'CUDA_LAUNCH_BLOCKING': '1',  # Synchronous CUDA launches for better error messages
-    'TORCH_USE_CUDA_DSA': '1'  # Enable CUDA Device-Side Assertions for debugging
+    "OMP_NUM_THREADS": "1",  # Limit OpenMP threads to avoid oversubscription
+    "CUDA_LAUNCH_BLOCKING": "1",  # Synchronous CUDA launches for better error messages
+    "TORCH_USE_CUDA_DSA": "1",  # Enable CUDA Device-Side Assertions for debugging
 }
-

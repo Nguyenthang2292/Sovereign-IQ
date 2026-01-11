@@ -1,3 +1,10 @@
+
+from typing import Dict, Optional, Tuple
+import sys
+
+from colorama import Fore, Style
+from colorama import Fore, Style
+
 """
 Interactive prompts for pairs trading CLI.
 
@@ -5,44 +12,43 @@ This module provides interactive user input prompts for selecting presets,
 configuring parameters, and choosing analysis modes in the pairs trading CLI.
 """
 
-import sys
-from typing import Dict, Optional, Tuple
 
-from colorama import Fore, Style
 
 try:
     from modules.common.utils import (
         color_text,
+        log_data,
+        log_error,
         log_info,
         log_success,
-        log_error,
         log_warn,
-        log_data,
     )
 except ImportError:
+
     def color_text(text, color=None, style=None):
         return text
-    
+
     def log_info(message: str) -> None:
         print(f"[INFO] {message}")
-    
+
     def log_success(message: str) -> None:
         print(f"[SUCCESS] {message}")
-    
+
     def log_error(message: str) -> None:
         print(f"[ERROR] {message}")
-    
+
     def log_warn(message: str) -> None:
         print(f"[WARN] {message}")
-    
+
     def log_data(message: str) -> None:
         print(f"[DATA] {message}")
 
+
 try:
     from config import (
-        PAIRS_TRADING_WEIGHT_PRESETS,
         PAIRS_TRADING_KALMAN_PRESETS,
         PAIRS_TRADING_OPPORTUNITY_PRESETS,
+        PAIRS_TRADING_WEIGHT_PRESETS,
     )
 except ImportError:
     PAIRS_TRADING_WEIGHT_PRESETS = {
@@ -128,12 +134,15 @@ def prompt_weight_preset_selection(current_preset: Optional[str]) -> str:
     choice_map = {str(idx + 1): key for idx, (key, _) in enumerate(presets)}
 
     while True:
-        user_choice = input(
-            color_text(
-                f"\nEnter preset [1-{len(presets)}] (default {default_choice}): ",
-                Fore.YELLOW,
-            )
-        ).strip() or default_choice
+        user_choice = (
+            input(
+                color_text(
+                    f"\nEnter preset [1-{len(presets)}] (default {default_choice}): ",
+                    Fore.YELLOW,
+                )
+            ).strip()
+            or default_choice
+        )
         if user_choice in choice_map:
             selected = choice_map[user_choice]
             log_success(f"Using {selected.capitalize()} preset")
@@ -166,12 +175,15 @@ def prompt_kalman_preset_selection(
         )
     choice_map = {str(idx): (key, data) for idx, (key, data) in enumerate(presets, start=1)}
     while True:
-        user_choice = input(
-            color_text(
-                f"\nEnter preset [1-{len(presets)}] (default {default_choice}): ",
-                Fore.YELLOW,
-            )
-        ).strip() or default_choice
+        user_choice = (
+            input(
+                color_text(
+                    f"\nEnter preset [1-{len(presets)}] (default {default_choice}): ",
+                    Fore.YELLOW,
+                )
+            ).strip()
+            or default_choice
+        )
         if user_choice in choice_map:
             key, data = choice_map[user_choice]
             delta = float(data.get("delta", current_delta))
@@ -210,12 +222,15 @@ def prompt_opportunity_preset_selection(
 
     choice_map = {str(idx): key for idx, (key, _) in enumerate(presets, start=1)}
     while True:
-        selection = input(
-            color_text(
-                f"\nEnter preset [1-{len(presets)}] (default {default_choice}): ",
-                Fore.YELLOW,
-            )
-        ).strip() or default_choice
+        selection = (
+            input(
+                color_text(
+                    f"\nEnter preset [1-{len(presets)}] (default {default_choice}): ",
+                    Fore.YELLOW,
+                )
+            ).strip()
+            or default_choice
+        )
         if selection in choice_map:
             chosen = choice_map[selection]
             log_success(f"Using {chosen} scoring profile")
@@ -225,10 +240,10 @@ def prompt_opportunity_preset_selection(
 
 def prompt_target_pairs(default_count: int) -> int:
     """Interactive prompt for number of target pairs to return.
-    
+
     Args:
         default_count: Default number of pairs
-        
+
     Returns:
         User-selected number of pairs
     """
@@ -239,10 +254,10 @@ def prompt_target_pairs(default_count: int) -> int:
                 Fore.YELLOW,
             )
         ).strip()
-        
+
         if not user_input:
             return default_count
-        
+
         try:
             count = int(user_input)
             if count > 0:
@@ -254,10 +269,10 @@ def prompt_target_pairs(default_count: int) -> int:
 
 def prompt_candidate_depth(default_depth: int) -> int:
     """Interactive prompt for candidate depth (number of top/bottom symbols to consider).
-    
+
     Args:
         default_depth: Default candidate depth
-        
+
     Returns:
         User-selected candidate depth
     """
@@ -268,10 +283,10 @@ def prompt_candidate_depth(default_depth: int) -> int:
                 Fore.YELLOW,
             )
         ).strip()
-        
+
         if not user_input:
             return default_depth
-        
+
         try:
             depth = int(user_input)
             if depth > 0:
@@ -279,4 +294,3 @@ def prompt_candidate_depth(default_depth: int) -> int:
             log_error("Please enter a positive number.")
         except ValueError:
             log_error("Invalid input. Please enter a number.")
-

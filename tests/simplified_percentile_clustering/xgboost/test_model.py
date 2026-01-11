@@ -1,8 +1,12 @@
+
 import numpy as np
 import pandas as pd
 
-from modules.xgboost.model import predict_next_move, train_and_predict
 from config import TARGET_LABELS
+from modules.xgboost.model import predict_next_move, train_and_predict
+from modules.xgboost.model import predict_next_move, train_and_predict
+
+
 
 
 def _synthetic_df(rows=300):

@@ -1,12 +1,15 @@
-"""Configuration for Adaptive Trend Classification (ATC) analysis."""
 
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, Dict
+
+"""Configuration for Adaptive Trend Classification (ATC) analysis."""
+
 
 
 @dataclass
 class ATCConfig:
     """Configuration for Adaptive Trend Classification (ATC) analysis."""
+
     # Moving Average lengths
     ema_len: int = 28
     hma_len: int = 28
@@ -14,13 +17,13 @@ class ATCConfig:
     dema_len: int = 28
     lsma_len: int = 28
     kama_len: int = 28
-    
+
     # ATC parameters
     robustness: str = "Medium"  # "Narrow", "Medium", or "Wide"
     lambda_param: float = 0.02
     decay: float = 0.03
     cutout: int = 0
-    
+
     # Data parameters
     limit: int = 1500
     timeframe: str = "15m"
@@ -32,11 +35,11 @@ def create_atc_config_from_dict(
 ) -> ATCConfig:
     """
     Create ATCConfig from a dictionary of parameters.
-    
+
     Args:
         params: Dictionary containing ATC parameters
         timeframe: Timeframe for data (default: "15m")
-    
+
     Returns:
         ATCConfig instance with parameters from dict
     """
@@ -54,4 +57,3 @@ def create_atc_config_from_dict(
         decay=params.get("decay", 0.03),
         cutout=params.get("cutout", 0),
     )
-

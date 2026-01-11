@@ -1,4 +1,3 @@
 """
 Tests for statistical tests.
 """
-

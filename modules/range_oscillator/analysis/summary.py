@@ -1,11 +1,17 @@
+
+from typing import Any, Dict
+
+import pandas as pd
+import pandas as pd
+
 """
 Signal Summary Utilities.
 
 This module provides utilities for generating signal summary statistics.
 """
 
-import pandas as pd
-from typing import Any, Dict
+
+
 
 def get_signal_summary(
     signals: pd.Series,
@@ -14,22 +20,26 @@ def get_signal_summary(
 ) -> Dict[str, Any]:
     """
     Generate summary statistics for signal strategy.
-    
+
     Args:
         signals: Signal series (1 = LONG, -1 = SHORT, 0 = NEUTRAL)
         signal_strength: Signal strength series
         close: Close price series
-    
+
     Returns:
         Dictionary with summary statistics
     """
     # Input validation
     if signals is None or signal_strength is None or close is None:
         raise ValueError("All input parameters (signals, signal_strength, close) must be provided")  # pyright: ignore[reportGeneralTypeIssues]
-    
-    if not isinstance(signals, pd.Series) or not isinstance(signal_strength, pd.Series) or not isinstance(close, pd.Series):
+
+    if (
+        not isinstance(signals, pd.Series)
+        or not isinstance(signal_strength, pd.Series)
+        or not isinstance(close, pd.Series)
+    ):
         raise TypeError("All input parameters must be pandas Series")  # pyright: ignore[reportGeneralTypeIssues]
-    
+
     if len(signals) == 0:
         return {
             "total_signals": 0,
@@ -40,11 +50,11 @@ def get_signal_summary(
             "current_signal": 0,
             "current_strength": 0.0,
         }
-    
+
     long_count = (signals == 1).sum()
     short_count = (signals == -1).sum()
     neutral_count = (signals == 0).sum()
-    
+
     # Get current signal (last non-NaN value) - vectorized
     non_nan_signals = signals.dropna()
     if len(non_nan_signals) > 0:
@@ -59,7 +69,7 @@ def get_signal_summary(
     else:
         current_signal = 0
         current_strength = 0.0
-    
+
     # Calculate average strength for non-zero signals
     non_zero_signals = signals[signals != 0]
     avg_strength = 0.0
@@ -68,7 +78,7 @@ def get_signal_summary(
         aligned_strength = signal_strength.reindex(signals.index, fill_value=0.0)
         non_zero_strength = aligned_strength[signals != 0]
         avg_strength = non_zero_strength.mean() if len(non_zero_strength) > 0 else 0.0
-    
+
     return {
         "total_signals": len(signals),
         "long_signals": int(long_count),
@@ -85,4 +95,3 @@ def get_signal_summary(
 __all__ = [
     "get_signal_summary",
 ]
-

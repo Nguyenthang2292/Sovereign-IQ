@@ -1,3 +1,7 @@
+
+from pathlib import Path
+import sys
+
 """
 Test script for main_pairs_trading.py
 
@@ -9,30 +13,23 @@ Tests all functionality including:
 - Reverse pairs functionality
 """
 
-import sys
-from pathlib import Path
 
 # Add parent directory to path to allow imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import warnings
-import pandas as pd
-import numpy as np
-from types import SimpleNamespace
-from unittest.mock import patch, MagicMock
-from colorama import Fore, Style
-from io import StringIO
 import contextlib
+import warnings
+from io import StringIO
+from unittest.mock import MagicMock, patch
 
-from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.core.data_fetcher import DataFetcher
-from modules.pairs_trading.analysis.performance_analyzer import PerformanceAnalyzer
-from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer
+import numpy as np
+import pandas as pd
+from colorama import Fore
 
 # Import functions from their respective modules
 from modules.pairs_trading import (
-    display_performers,
     display_pairs_opportunities,
+    display_performers,
     select_top_unique_pairs,
 )
 
@@ -46,9 +43,7 @@ def _create_mock_ohlcv_data(
     trend: str = "up",
 ) -> pd.DataFrame:
     """Create mock OHLCV DataFrame for testing."""
-    timestamps = pd.date_range(
-        start="2024-01-01", periods=num_candles, freq="1h", tz="UTC"
-    )
+    timestamps = pd.date_range(start="2024-01-01", periods=num_candles, freq="1h", tz="UTC")
 
     if trend == "up":
         trend_factor = np.linspace(0, 0.2, num_candles)
@@ -79,6 +74,7 @@ def _create_mock_ohlcv_data(
 # Tests for display_performers function
 # ============================================================================
 
+
 def test_display_performers_with_data():
     """Test display_performers function with valid data."""
     df = pd.DataFrame(
@@ -102,9 +98,7 @@ def test_display_performers_with_data():
 
 def test_display_performers_with_empty_dataframe():
     """Test display_performers with empty DataFrame."""
-    empty_df = pd.DataFrame(
-        columns=["symbol", "score", "1d_return", "3d_return", "1w_return", "current_price"]
-    )
+    empty_df = pd.DataFrame(columns=["symbol", "score", "1d_return", "3d_return", "1w_return", "current_price"])
 
     # Should not raise exception
     try:
@@ -117,6 +111,7 @@ def test_display_performers_with_empty_dataframe():
 # ============================================================================
 # Tests for display_pairs_opportunities function
 # ============================================================================
+
 
 def test_display_pairs_opportunities_with_data():
     """Test display_pairs_opportunities function with valid data."""
@@ -296,6 +291,7 @@ def test_display_pairs_opportunities_cointegration_status():
 # Tests for select_top_unique_pairs function
 # ============================================================================
 
+
 def test_select_top_unique_pairs():
     """Test select_top_unique_pairs selects unique symbols when possible."""
     pairs_df = pd.DataFrame(
@@ -349,6 +345,7 @@ def test_select_top_unique_pairs_empty_dataframe():
 # Tests for main function
 # ============================================================================
 
+
 def test_main_with_mock_data():
     """Test main function with mocked components."""
     from modules.pairs_trading.cli.main import main
@@ -384,12 +381,8 @@ def test_main_with_mock_data():
     # Mock PerformanceAnalyzer
     mock_performance_analyzer = MagicMock()
     mock_performance_analyzer.analyze_all_symbols = MagicMock(return_value=mock_performance_df)
-    mock_performance_analyzer.get_top_performers = MagicMock(
-        return_value=mock_performance_df.head(2)
-    )
-    mock_performance_analyzer.get_worst_performers = MagicMock(
-        return_value=mock_performance_df.tail(2)
-    )
+    mock_performance_analyzer.get_top_performers = MagicMock(return_value=mock_performance_df.head(2))
+    mock_performance_analyzer.get_worst_performers = MagicMock(return_value=mock_performance_df.tail(2))
 
     # Mock PairsTradingAnalyzer
     mock_pairs_df = pd.DataFrame(
@@ -408,16 +401,16 @@ def test_main_with_mock_data():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=mock_pairs_df)
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=mock_pairs_df)
 
-    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
-        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
-    ), patch(
-        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
-    ), patch(
-        "modules.pairs_trading.cli.main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
-    ), patch(
-        "sys.argv", ["main_pairs_trading.py", "--top-n", "2", "--max-pairs", "5"]
-    ), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
-        "builtins.input", return_value=""
+    with (
+        patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()),
+        patch("modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher),
+        patch("modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer),
+        patch("modules.pairs_trading.cli.main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer),
+        patch("sys.argv", ["main_pairs_trading.py", "--top-n", "2", "--max-pairs", "5"]),
+        patch(
+            "modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}
+        ),
+        patch("builtins.input", return_value=""),
     ):
         try:
             main()
@@ -425,7 +418,7 @@ def test_main_with_mock_data():
         except SystemExit:
             # argparse may call sys.exit, which is fine
             pass
-        except Exception as e:
+        except Exception:
             # Allow some exceptions for incomplete mocking
             pass
 
@@ -438,17 +431,21 @@ def test_main_with_no_symbols():
     mock_data_fetcher = MagicMock()
     mock_data_fetcher.list_binance_futures_symbols = MagicMock(return_value=[])
 
-    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
-        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
-    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
-        "builtins.input", return_value=""
+    with (
+        patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()),
+        patch("modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher),
+        patch("sys.argv", ["main_pairs_trading.py"]),
+        patch(
+            "modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}
+        ),
+        patch("builtins.input", return_value=""),
     ):
         try:
             main()
             assert True
         except SystemExit:
             pass
-        except Exception as e:
+        except Exception:
             # Should handle gracefully
             pass
 
@@ -463,23 +460,24 @@ def test_main_with_empty_performance():
     mock_data_fetcher.list_binance_futures_symbols = MagicMock(return_value=mock_symbols)
 
     mock_performance_analyzer = MagicMock()
-    mock_performance_analyzer.analyze_all_symbols = MagicMock(
-        return_value=pd.DataFrame()
-    )
+    mock_performance_analyzer.analyze_all_symbols = MagicMock(return_value=pd.DataFrame())
 
-    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
-        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
-    ), patch(
-        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
-    ), patch("sys.argv", ["main_pairs_trading.py"]), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
-        "builtins.input", return_value=""
+    with (
+        patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()),
+        patch("modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher),
+        patch("modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer),
+        patch("sys.argv", ["main_pairs_trading.py"]),
+        patch(
+            "modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}
+        ),
+        patch("builtins.input", return_value=""),
     ):
         try:
             main()
             assert True
         except SystemExit:
             pass
-        except Exception as e:
+        except Exception:
             # Should handle gracefully
             pass
 
@@ -516,17 +514,19 @@ def test_main_with_custom_weights():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=pd.DataFrame())
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=pd.DataFrame())
 
-    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
-        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
-    ), patch(
-        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
-    ), patch(
-        "modules.pairs_trading.cli.main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
-    ), patch(
-        "sys.argv",
-        ["main_pairs_trading.py", "--weights", "1d:0.5,3d:0.3,1w:0.2"],
-    ), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
-        "builtins.input", return_value=""
+    with (
+        patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()),
+        patch("modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher),
+        patch("modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer),
+        patch("modules.pairs_trading.cli.main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer),
+        patch(
+            "sys.argv",
+            ["main_pairs_trading.py", "--weights", "1d:0.5,3d:0.3,1w:0.2"],
+        ),
+        patch(
+            "modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}
+        ),
+        patch("builtins.input", return_value=""),
     ):
         try:
             main()
@@ -534,7 +534,7 @@ def test_main_with_custom_weights():
             assert True
         except SystemExit:
             pass
-        except Exception as e:
+        except Exception:
             # Allow some exceptions for incomplete mocking
             pass
 
@@ -580,16 +580,16 @@ def test_main_with_no_validation_flag():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=mock_pairs_df)
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=mock_pairs_df)
 
-    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
-        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
-    ), patch(
-        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
-    ), patch(
-        "modules.pairs_trading.cli.main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer
-    ), patch(
-        "sys.argv", ["main_pairs_trading.py", "--no-validation"]
-    ), patch("modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}), patch(
-        "builtins.input", return_value=""
+    with (
+        patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()),
+        patch("modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher),
+        patch("modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer),
+        patch("modules.pairs_trading.cli.main.PairsTradingAnalyzer", return_value=mock_pairs_analyzer),
+        patch("sys.argv", ["main_pairs_trading.py", "--no-validation"]),
+        patch(
+            "modules.pairs_trading.cli.main.prompt_interactive_mode", return_value={"mode": "auto", "symbols_raw": None}
+        ),
+        patch("builtins.input", return_value=""),
     ):
         try:
             main()
@@ -597,7 +597,7 @@ def test_main_with_no_validation_flag():
             mock_pairs_analyzer.validate_pairs.assert_not_called()
         except SystemExit:
             pass
-        except Exception as e:
+        except Exception:
             # Allow some exceptions for incomplete mocking
             pass
 
@@ -641,19 +641,21 @@ def test_main_momentum_strategy_switches_candidates():
     mock_pairs_analyzer.analyze_pairs_opportunity = MagicMock(return_value=mock_pairs_df)
     mock_pairs_analyzer.validate_pairs = MagicMock(return_value=mock_pairs_df)
 
-    with patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()), patch(
-        "modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher
-    ), patch(
-        "modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer
-    ), patch("modules.pairs_trading.cli.main.PairsTradingAnalyzer") as mock_pairs_class, patch(
-        "sys.argv",
-        [
-            "main_pairs_trading.py",
-            "--no-menu",
-            "--strategy",
-            "momentum",
-            "--require-cointegration",
-        ],
+    with (
+        patch("modules.pairs_trading.cli.main.ExchangeManager", return_value=MagicMock()),
+        patch("modules.pairs_trading.cli.main.DataFetcher", return_value=mock_data_fetcher),
+        patch("modules.pairs_trading.cli.main.PerformanceAnalyzer", return_value=mock_performance_analyzer),
+        patch("modules.pairs_trading.cli.main.PairsTradingAnalyzer") as mock_pairs_class,
+        patch(
+            "sys.argv",
+            [
+                "main_pairs_trading.py",
+                "--no-menu",
+                "--strategy",
+                "momentum",
+                "--require-cointegration",
+            ],
+        ),
     ):
         mock_pairs_class.return_value = mock_pairs_analyzer
         try:

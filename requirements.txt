@@ -23,6 +23,8 @@ python-multipart>=0.0.6,<1.0.0  # Form data parsing for FastAPI
 redis>=5.0.0,<6.0.0  # Redis client for pub-sub streaming
 websocket-client>=1.6.0,<2.0.0  # WebSocket client for testing
 requests>=2.31.0,<3.0.0  # HTTP client for testing
+tradingview-scraper>=1.0.0  # TradingView scraper for forex data (OANDA:<SYMBOL_NAME>)
+tvDatafeed>=1.0.0  # TradingView data feed fallback for forex data
 
 # Optional stacks are now split out:
 # - requirements-ml.txt  : Deep learning / TFT dependencies

@@ -1,4 +1,6 @@
+
 from __future__ import annotations
+
 
 """Layer 1 Processing functions for Adaptive Trend Classification (ATC).
 
@@ -10,18 +12,17 @@ Averages in Layer 1 of the ATC system:
 - _layer1_signal_for_ma: Calculate Layer 1 signal for a specific MA type
 """
 
-from pandas.core.series import Series
 
 from typing import Iterable, Tuple
 
 import numpy as np
 import pandas as pd
 
-from modules.common.utils import log_warn, log_error
+from modules.adaptive_trend.utils import rate_of_change
+from modules.common.utils import log_error, log_warn
 
 from .compute_equity import equity_series
 from .signal_detection import generate_signal_from_ma
-from modules.adaptive_trend.utils import rate_of_change
 
 
 def weighted_signal(
@@ -54,11 +55,10 @@ def weighted_signal(
     """
     signals = list(signals)
     weights = list(weights)
-    
+
     if len(signals) != len(weights):
         raise ValueError(
-            f"signals and weights must have the same length, "
-            f"got {len(signals)} signals and {len(weights)} weights"
+            f"signals and weights must have the same length, got {len(signals)} signals and {len(weights)} weights"
         )
 
     if not signals:
@@ -66,7 +66,7 @@ def weighted_signal(
         return pd.Series(dtype="float64")
 
     # Validate all inputs are Series
-    for i, (sig, wgt) in enumerate(zip(signals, weights)):        
+    for i, (sig, wgt) in enumerate(zip(signals, weights)):
         if not isinstance(sig, pd.Series):
             raise TypeError(f"signals[{i}] must be a pandas Series, got {type(sig)}")
         if not isinstance(wgt, pd.Series):
@@ -76,56 +76,47 @@ def weighted_signal(
         # Check index compatibility
         first_sig_index = signals[0].index
         first_wgt_index = weights[0].index
-        
+
         for i, (sig, wgt) in enumerate(zip(signals[1:], weights[1:]), start=1):
             if not sig.index.equals(first_sig_index):
-                log_warn(
-                    f"signals[{i}] has different index than signals[0]. "
-                    f"Attempting to align indices."
-                )
+                log_warn(f"signals[{i}] has different index than signals[0]. Attempting to align indices.")
             if not wgt.index.equals(first_wgt_index):
-                log_warn(
-                    f"weights[{i}] has different index than weights[0]. "
-                    f"Attempting to align indices."
-                )
+                log_warn(f"weights[{i}] has different index than weights[0]. Attempting to align indices.")
 
         # Calculate weighted average
         # Collect all valid indices from all pairs (union, not intersection)
         # This preserves all indices from all pairs instead of shrinking to intersection
         all_indices = pd.Index([])
         valid_pairs = []
-        
+
         for m, w in zip(signals, weights):
             # Align indices if needed
             common_index = m.index.intersection(w.index)
             if len(common_index) == 0:
-                log_warn(
-                    f"Signal and weight have no common indices. "
-                    f"Skipping this pair."
-                )
+                log_warn("Signal and weight have no common indices. Skipping this pair.")
                 continue
-            
+
             # Store aligned series and their common indices
             m_aligned = m.loc[common_index]
             w_aligned = w.loc[common_index]
             valid_pairs.append((m_aligned, w_aligned))
-            
+
             # Union all indices to preserve all valid indices from all pairs
             all_indices = all_indices.union(common_index)
-        
+
         if not valid_pairs:
             log_warn("No valid signal/weight pairs found, returning empty series")
             return pd.Series(dtype="float64")
-        
+
         # Initialize numerator and denominator with zeros for all indices
         num = pd.Series(0.0, index=all_indices, dtype="float64")
         den = pd.Series(0.0, index=all_indices, dtype="float64")
-        
+
         # Accumulate weighted signals and weights for each pair independently
         for m_aligned, w_aligned in valid_pairs:
             # Calculate term for this pair
             term = m_aligned * w_aligned
-            
+
             # Add to numerator and denominator only where data exists
             # This preserves all indices from all pairs
             num.loc[m_aligned.index] = num.loc[m_aligned.index] + term
@@ -134,7 +125,7 @@ def weighted_signal(
         # Avoid division by zero
         sig = num / den.replace(0, np.nan)
         result = sig.round(2)
-        
+
         # Check for excessive NaN values
         nan_count = result.isna().sum()
         if nan_count > 0:
@@ -144,9 +135,9 @@ def weighted_signal(
                     f"Weighted signal contains {nan_count} NaN values ({nan_pct:.1f}%). "
                     f"This may indicate missing data or zero weights."
                 )
-        
+
         return result
-    
+
     except Exception as e:
         log_error(f"Error calculating weighted signal: {e}")
         raise
@@ -175,32 +166,32 @@ def cut_signal(x: pd.Series, threshold: float = 0.49, cutout: int = 0) -> pd.Ser
     """
     if not isinstance(x, pd.Series):
         raise TypeError(f"x must be a pandas Series, got {type(x)}")  # pyright: ignore[reportUnreachable]
-    
+
     if threshold < 0:
         raise ValueError(f"threshold must be >= 0, got {threshold}")
-    
+
     if cutout < 0:
         raise ValueError(f"cutout must be >= 0, got {cutout}")
-    
+
     if len(x) == 0:
         log_warn("Empty signal series provided, returning empty series")
         return pd.Series(dtype="int8", index=x.index)
-    
+
     try:
         c = pd.Series(0, index=x.index, dtype="int8")
-        
+
         # Handle NaN values: treat as 0 (no signal)
         valid_mask = ~x.isna()
-        
+
         if valid_mask.any():
             c.loc[valid_mask & (x > threshold)] = 1
             c.loc[valid_mask & (x < -threshold)] = -1
-        
+
         # Enforce cutout: set first 'cutout' bars to 0
         if cutout > 0 and cutout < len(c):
             c.iloc[:cutout] = 0
             # Also ensure NaN handling aligns if needed, though int8 has no NaN
-        
+
         # Check for excessive NaN values
         nan_count = (~valid_mask).sum()
         if nan_count > 0:
@@ -210,9 +201,9 @@ def cut_signal(x: pd.Series, threshold: float = 0.49, cutout: int = 0) -> pd.Ser
                     f"Input signal contains {nan_count} NaN values ({nan_pct:.1f}%). "
                     f"These will be treated as 0 (no signal)."
                 )
-        
+
         return c
-    
+
     except Exception as e:
         log_error(f"Error discretizing signal: {e}")
         raise
@@ -242,24 +233,24 @@ def trend_sign(signal: pd.Series, *, strategy: bool = False) -> pd.Series:
     """
     if not isinstance(signal, pd.Series):
         raise TypeError(f"signal must be a pandas Series, got {type(signal)}")  # pyright: ignore[reportUnreachable]
-    
+
     if len(signal) == 0:
         log_warn("Empty signal series provided, returning empty series")
         return pd.Series(dtype="int8", index=signal.index)
-    
+
     try:
         base = signal.shift(1) if strategy else signal
         result = pd.Series(0, index=signal.index, dtype="int8")
-        
+
         # Handle NaN values: treat as 0 (neutral)
         valid_mask = ~base.isna()
-        
+
         if valid_mask.any():
             result.loc[valid_mask & (base > 0)] = 1
             result.loc[valid_mask & (base < 0)] = -1
-        
+
         return result
-    
+
     except Exception as e:
         log_error(f"Error determining trend sign: {e}")
         raise
@@ -305,37 +296,32 @@ def _layer1_signal_for_ma(
     """
     # Input validation
     if not isinstance(prices, pd.Series):
-        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")  # pyright: ignore[reportUnreachable]    
-    
+        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")  # pyright: ignore[reportUnreachable]
+
     if len(prices) == 0:
         raise ValueError("prices cannot be empty")
-    
+
     if not isinstance(ma_tuple, tuple):
         raise TypeError(f"ma_tuple must be a tuple, got {type(ma_tuple)}")  # pyright: ignore[reportUnreachable]
-    
+
     EXPECTED_MA_COUNT = 9
     if len(ma_tuple) != EXPECTED_MA_COUNT:
-        raise ValueError(
-            f"ma_tuple must contain exactly {EXPECTED_MA_COUNT} MA series, "
-            f"got {len(ma_tuple)}"
-        )
-    
+        raise ValueError(f"ma_tuple must contain exactly {EXPECTED_MA_COUNT} MA series, got {len(ma_tuple)}")
+
     # Validate all MAs are Series
     for i, ma in enumerate(ma_tuple):
         if not isinstance(ma, pd.Series):
-            raise TypeError(
-                f"ma_tuple[{i}] must be a pandas Series, got {type(ma)}"
-            )
+            raise TypeError(f"ma_tuple[{i}] must be a pandas Series, got {type(ma)}")
         if len(ma) == 0:
             raise ValueError(f"ma_tuple[{i}] cannot be empty")
-    
+
     # Validate parameters
     if not isinstance(L, (int, float)) or np.isnan(L) or np.isinf(L):
         raise ValueError(f"L must be a finite number, got {L}")
-    
+
     if not (0 <= De <= 1):
         raise ValueError(f"De must be between 0 and 1, got {De}")
-    
+
     if cutout < 0:
         raise ValueError(f"cutout must be >= 0, got {cutout}")
 
@@ -358,16 +344,13 @@ def _layer1_signal_for_ma(
         # Generate signals for all MAs (optimized with list comprehension)
         ma_list = [MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4]
         signals = [generate_signal_from_ma(prices, ma) for ma in ma_list]
-        
+
         # Unpack signals for return tuple (maintaining original variable names)
         s, s1, s2, s3, s4, s_1, s_2, s_3, s_4 = signals
 
         # Calculate equity curves for all signals (optimized with list comprehension)
-        equities = [
-            equity_series(1.0, sig, R, L=L, De=De, cutout=cutout)
-            for sig in signals
-        ]
-        
+        equities = [equity_series(1.0, sig, R, L=L, De=De, cutout=cutout) for sig in signals]
+
         # Unpack equities for return tuple (maintaining original variable names)
         E, E1, E2, E3, E4, E_1, E_2, E_3, E_4 = equities
 
@@ -382,7 +365,7 @@ def _layer1_signal_for_ma(
             (s, s1, s2, s3, s4, s_1, s_2, s_3, s_4),
             (E, E1, E2, E3, E4, E_1, E_2, E_3, E_4),
         )
-    
+
     except Exception as e:
         log_error(f"Error calculating Layer 1 signal for MA: {e}")
         raise
@@ -394,4 +377,3 @@ __all__ = [
     "trend_sign",
     "_layer1_signal_for_ma",
 ]
-

@@ -1,3 +1,10 @@
+
+import numpy as np
+import pandas as pd
+
+from __future__ import annotations
+from __future__ import annotations
+
 """Equity calculations for Adaptive Trend Classification (ATC).
 
 This module provides functions to calculate equity curves based on trading
@@ -9,24 +16,26 @@ Performance optimization:
 - Replaces pd.NA with np.nan for better compatibility with float64 dtype
 """
 
-from __future__ import annotations
 
-import numpy as np
-import pandas as pd
 
 try:
     from numba import njit
+
     _HAS_NUMBA = True
 except ImportError:
     _HAS_NUMBA = False
+
     # Fallback if numba is not installed
     def njit(*args, **kwargs):
         """No-op decorator when numba is not available."""
+
         def decorator(func):
             return func
+
         return decorator
 
-from modules.common.utils import log_warn, log_error
+
+from modules.common.utils import log_error, log_warn
 
 if not _HAS_NUMBA:
     try:
@@ -166,30 +175,30 @@ def equity_series(
     # Input validation
     if sig is None or R is None:
         raise ValueError("sig and R cannot be None")
-    
+
     if len(sig) == 0 or len(R) == 0:
         if verbose:
             log_warn("Empty input series provided, returning empty equity series")
         return pd.Series(dtype="float64")
-    
+
     if not isinstance(sig, pd.Series):
         raise TypeError(f"sig must be a pandas Series, got {type(sig)}")
-    
+
     if not isinstance(R, pd.Series):
         raise TypeError(f"R must be a pandas Series, got {type(R)}")
-    
+
     if starting_equity <= 0:
         raise ValueError(f"starting_equity must be > 0, got {starting_equity}")
-    
+
     if not (0 <= De <= 1):
         raise ValueError(f"De must be between 0 and 1, got {De}")
-    
+
     if not isinstance(L, (int, float)) or np.isnan(L) or np.isinf(L):
         raise ValueError(f"L must be a finite number, got {L}")
-    
+
     if cutout < 0:
         raise ValueError(f"cutout must be >= 0, got {cutout}")
-    
+
     # Check index compatibility
     if not sig.index.equals(R.index):
         if verbose:
@@ -204,28 +213,27 @@ def equity_series(
             raise ValueError("sig and R have no common indices")
         sig = sig.loc[common_index]
         R = R.loc[common_index]
-    
+
     index = sig.index
-    
+
     # Check for excessive NaN values
     sig_nan_count = sig.isna().sum()
     r_nan_count = R.isna().sum()
     total_bars = len(sig)
-    
+
     if verbose and sig_nan_count > 0:
         nan_pct = (sig_nan_count / total_bars) * 100
         log_warn(
             f"Signal series contains {sig_nan_count} NaN values ({nan_pct:.1f}%). "
             f"These will be treated as no position (0)."
         )
-    
+
     if verbose and r_nan_count > 0:
         nan_pct = (r_nan_count / total_bars) * 100
         log_warn(
-            f"Return series contains {r_nan_count} NaN values ({nan_pct:.1f}%). "
-            f"These will be treated as zero return."
+            f"Return series contains {r_nan_count} NaN values ({nan_pct:.1f}%). These will be treated as zero return."
         )
-    
+
     try:
         # R multiplied by e(L) (growth factor)
         growth = exp_growth(L=L, index=index, cutout=cutout)
@@ -250,7 +258,7 @@ def equity_series(
 
         # Create Series with np.nan (not pd.NA) for float64 compatibility
         equity = pd.Series(e_values, index=index, dtype="float64")
-        
+
         # Check for floor hits (equity at minimum value)
         if verbose:
             floor_hits = (equity == 0.25).sum()
@@ -260,9 +268,9 @@ def equity_series(
                     f"Equity floor (0.25) was hit {floor_hits} times ({floor_pct:.1f}% of bars). "
                     f"This may indicate high drawdown periods."
                 )
-        
+
         return equity
-    
+
     except Exception as e:
         log_error(f"Error calculating equity series: {e}")
         raise
@@ -271,4 +279,3 @@ def equity_series(
 __all__ = [
     "equity_series",
 ]
-

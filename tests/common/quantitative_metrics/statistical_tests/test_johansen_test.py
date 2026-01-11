@@ -1,15 +1,20 @@
+
+import numpy as np
+import pandas as pd
+
+from modules.common.quantitative_metrics import calculate_johansen_test
+from modules.common.quantitative_metrics import calculate_johansen_test
+
 """
 Tests for johansen_test module.
 """
-import numpy as np
-import pandas as pd
-import pytest
 
-from modules.common.quantitative_metrics import calculate_johansen_test
+
 
 
 def test_calculate_johansen_test_with_stub(monkeypatch):
     """Test that calculate_johansen_test works with stubbed coint_johansen."""
+
     class DummyResult:
         def __init__(self):
             self.lr1 = np.array([20.0])
@@ -19,6 +24,7 @@ def test_calculate_johansen_test_with_stub(monkeypatch):
         return DummyResult()
 
     from modules.common.quantitative_metrics.statistical_tests import johansen_test
+
     monkeypatch.setattr(johansen_test, "coint_johansen", fake_coint_johansen)
 
     price1 = pd.Series(np.arange(60, dtype=float))
@@ -81,4 +87,3 @@ def test_calculate_johansen_test_invalid_parameters():
     # Invalid k_ar_diff
     result = calculate_johansen_test(price1, price2, k_ar_diff=-1)
     assert result is None
-

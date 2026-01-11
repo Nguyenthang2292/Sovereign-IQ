@@ -1,3 +1,13 @@
+
+from typing import Dict, Optional
+import sys
+
+from colorama import Fore, Style
+
+from modules.common.utils import (
+
+from modules.common.utils import (
+
 """
 Interactive prompts for ATC CLI.
 
@@ -5,17 +15,13 @@ This module provides interactive user input prompts for selecting timeframes,
 configuring parameters, and choosing analysis modes in the ATC CLI.
 """
 
-import sys
-from typing import Dict, Optional
 
-from colorama import Fore, Style
 
-from modules.common.utils import (
     color_text,
-    log_info,
-    log_error,
-    log_warn,
     log_data,
+    log_error,
+    log_info,
+    log_warn,
     prompt_user_input,
 )
 
@@ -28,10 +34,10 @@ except ImportError:
 def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
     """
     Interactive menu for selecting timeframe.
-    
+
     Args:
         default_timeframe: Default timeframe to use
-        
+
     Returns:
         Selected timeframe string
     """
@@ -42,18 +48,18 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
         ("2h", "2 hours"),
         ("4h", "4 hours"),
     ]
-    
+
     print("\n" + color_text("=" * 60, Fore.CYAN))
     print(color_text("SELECT TIMEFRAME", Fore.CYAN, Style.BRIGHT))
     print(color_text("=" * 60, Fore.CYAN))
-    
+
     # Find default index
     default_idx = 0
     for idx, (tf, _) in enumerate(timeframes):
         if tf == default_timeframe:
             default_idx = idx
             break
-    
+
     for idx, (tf, desc) in enumerate(timeframes, 1):
         if tf == default_timeframe:
             # Highlight default option in magenta (pink)
@@ -61,19 +67,19 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
             print(option_text)
         else:
             print(f"{idx:2d}) {tf:4s} - {desc}")
-    
+
     print(f"{len(timeframes) + 1:2d}) Custom timeframe")
     print(f"{len(timeframes) + 2:2d}) Use default ({default_timeframe})")
-    
+
     while True:
         choice = prompt_user_input(
             f"\nSelect timeframe [1-{len(timeframes) + 2}] (default {default_idx + 1}): ",
             default=str(default_idx + 1),
         )
-        
+
         if not choice:
             return default_timeframe
-        
+
         try:
             choice_num = int(choice)
             if 1 <= choice_num <= len(timeframes):
@@ -96,10 +102,10 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
 def prompt_interactive_mode(default_timeframe: str = DEFAULT_TIMEFRAME) -> Dict[str, Optional[str]]:
     """
     Interactive menu for selecting analysis mode and timeframe.
-    
+
     Args:
         default_timeframe: Default timeframe to use
-        
+
     Returns:
         dict with 'mode' key ('auto' or 'manual') and 'timeframe' key
     """
@@ -129,7 +135,7 @@ def prompt_interactive_mode(default_timeframe: str = DEFAULT_TIMEFRAME) -> Dict[
     if choice == "4":
         log_warn("Exiting by user request.")
         sys.exit(0)
-    
+
     if choice == "3":
         # Timeframe selection only
         selected_timeframe = prompt_timeframe(default_timeframe)
@@ -137,9 +143,5 @@ def prompt_interactive_mode(default_timeframe: str = DEFAULT_TIMEFRAME) -> Dict[
 
     # Ask for timeframe after mode selection
     selected_timeframe = prompt_timeframe(default_timeframe)
-    
-    return {
-        "mode": "auto" if choice == "1" else "manual",
-        "timeframe": selected_timeframe
-    }
 
+    return {"mode": "auto" if choice == "1" else "manual", "timeframe": selected_timeframe}

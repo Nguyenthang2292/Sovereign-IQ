@@ -1,3 +1,12 @@
+
+from dataclasses import dataclass
+from typing import Optional
+
+from __future__ import annotations
+from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
+from modules.simplified_percentile_clustering.utils.validation import (
+from modules.simplified_percentile_clustering.utils.validation import (
+
 """
 Configuration for Cluster Transition Strategy.
 
@@ -6,13 +15,8 @@ When the market transitions from one cluster to another, it may indicate
 a regime change and potential trading opportunity.
 """
 
-from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
 
-from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
-from modules.simplified_percentile_clustering.utils.validation import (
     validate_clustering_config,
 )
 
@@ -62,13 +66,9 @@ class ClusterTransitionConfig:
                 self.bearish_transitions = [(2, 1), (2, 0), (1, 0)]
         # Validate configuration
         if not (0.0 <= self.min_signal_strength <= 1.0):
-            raise ValueError(
-                f"min_signal_strength must be in [0.0, 1.0], got {self.min_signal_strength}"
-            )
+            raise ValueError(f"min_signal_strength must be in [0.0, 1.0], got {self.min_signal_strength}")
         if not (0.0 <= self.min_rel_pos_change <= 1.0):
-            raise ValueError(
-                f"min_rel_pos_change must be in [0.0, 1.0], got {self.min_rel_pos_change}"
-            )
+            raise ValueError(f"min_rel_pos_change must be in [0.0, 1.0], got {self.min_rel_pos_change}")
         if self.clustering_config is not None:
             validate_clustering_config(self.clustering_config)
             # Validate transitions are within valid cluster range
@@ -90,4 +90,3 @@ class ClusterTransitionConfig:
 
 
 __all__ = ["ClusterTransitionConfig"]
-

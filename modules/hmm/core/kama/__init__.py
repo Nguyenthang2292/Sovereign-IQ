@@ -1,3 +1,6 @@
+
+from modules.hmm.core.kama.analysis import (
+
 """
 HMM-KAMA Module.
 
@@ -6,31 +9,24 @@ with Association Rule Mining and K-Means clustering for secondary analysis.
 """
 
 # Models
-from modules.hmm.core.kama.models import (
-    HMM_KAMA,
-    reorder_hmm_model,
-    train_hmm,
-    apply_hmm_model,
+# Analysis
+    calculate_all_state_durations,
+    calculate_composite_scores_association_rule_mining,
+    compute_state_using_association_rule_mining,
+    compute_state_using_hmm,
+    compute_state_using_k_means,
+    compute_state_using_standard_deviation,
 )
 
 # Features
 from modules.hmm.core.kama.features import (
     prepare_observations,
 )
-
-# Analysis
-from modules.hmm.core.kama.analysis import (
-    calculate_all_state_durations,
-    compute_state_using_standard_deviation,
-    compute_state_using_hmm,
-    compute_state_using_association_rule_mining,
-    calculate_composite_scores_association_rule_mining,
-    compute_state_using_k_means,
-)
-
-# Workflow
-from modules.hmm.core.kama.workflow import (
-    hmm_kama,
+from modules.hmm.core.kama.models import (
+    HMM_KAMA,
+    apply_hmm_model,
+    reorder_hmm_model,
+    train_hmm,
 )
 
 # Strategy
@@ -42,6 +38,11 @@ from modules.hmm.core.kama.strategy import (
 from modules.hmm.core.kama.utils import (
     prevent_infinite_loop,
     timeout_context,
+)
+
+# Workflow
+from modules.hmm.core.kama.workflow import (
+    hmm_kama,
 )
 
 __all__ = [
@@ -67,4 +68,3 @@ __all__ = [
     "prevent_infinite_loop",
     "timeout_context",
 ]
-

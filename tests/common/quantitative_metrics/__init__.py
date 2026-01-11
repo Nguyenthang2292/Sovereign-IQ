@@ -8,4 +8,3 @@ This package contains tests for all quantitative metrics organized by category:
 - hedge_ratios: OLS hedge ratio, Kalman hedge ratio
 - classification: Direction metrics
 """
-

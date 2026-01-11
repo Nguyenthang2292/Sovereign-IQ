@@ -1,14 +1,16 @@
+
 import pandas as pd
 
 from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer, _get_all_pair_columns
+from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer, _get_all_pair_columns
+
+
 
 
 class DummyFetcher:
     def __init__(self, close_start=100.0):
         timestamps = pd.date_range("2024-01-01", periods=300, freq="h")
-        close = pd.Series(
-            close_start + pd.Series(range(300)).astype(float).values * 0.1
-        )
+        close = pd.Series(close_start + pd.Series(range(300)).astype(float).values * 0.1)
         volume = pd.Series([20000.0] * 300)
         self.df = pd.DataFrame({"timestamp": timestamps, "close": close, "volume": volume})
 
@@ -79,6 +81,8 @@ def test_validate_pairs_filters_by_thresholds(monkeypatch):
 
     assert len(validated) == 1
     assert validated.iloc[0]["long_symbol"] == "BBB/USDT"
+
+
 """
 Test script for PairsTradingAnalyzer
 """
@@ -89,10 +93,9 @@ from pathlib import Path
 # Add parent directory to path to allow imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd
-import numpy as np
 from types import SimpleNamespace
 
+import numpy as np
 
 
 def _create_mock_ohlcv_data(
@@ -117,13 +120,11 @@ def _create_mock_ohlcv_data(
     Returns:
         DataFrame with OHLCV columns
     """
-    timestamps = pd.date_range(
-        start="2024-01-01", periods=num_candles, freq="1h", tz="UTC"
-    )
+    timestamps = pd.date_range(start="2024-01-01", periods=num_candles, freq="1h", tz="UTC")
 
-    if correlation_with is not None and 'close' in correlation_with.columns:
+    if correlation_with is not None and "close" in correlation_with.columns:
         # Generate correlated prices
-        base_returns = correlation_with['close'].pct_change().dropna().values
+        base_returns = correlation_with["close"].pct_change().dropna().values
         np.random.seed(42)
         noise = np.random.normal(0, volatility * (1 - correlation_strength), len(base_returns))
         correlated_returns = base_returns * correlation_strength + noise
@@ -195,9 +196,7 @@ def test_calculate_correlation_with_correlated_data():
 
     # Create correlated data
     df1 = _create_mock_ohlcv_data(start_price=100.0, num_candles=200, trend="up")
-    df2 = _create_mock_ohlcv_data(
-        start_price=50.0, num_candles=200, correlation_with=df1, correlation_strength=0.7
-    )
+    df2 = _create_mock_ohlcv_data(start_price=50.0, num_candles=200, correlation_with=df1, correlation_strength=0.7)
 
     def mock_fetch(symbol, limit=None, timeframe=None, check_freshness=None):
         if symbol == "SYMBOL1/USDT":
@@ -208,9 +207,7 @@ def test_calculate_correlation_with_correlated_data():
 
     mock_fetcher = SimpleNamespace(fetch_ohlcv_with_fallback_exchange=mock_fetch)
 
-    correlation = analyzer.calculate_correlation(
-        "SYMBOL1/USDT", "SYMBOL2/USDT", mock_fetcher
-    )
+    correlation = analyzer.calculate_correlation("SYMBOL1/USDT", "SYMBOL2/USDT", mock_fetcher)
 
     assert correlation is not None
     assert -1 <= correlation <= 1
@@ -235,9 +232,7 @@ def test_calculate_correlation_with_insufficient_data():
 
     mock_fetcher = SimpleNamespace(fetch_ohlcv_with_fallback_exchange=mock_fetch)
 
-    correlation = analyzer.calculate_correlation(
-        "SYMBOL1/USDT", "SYMBOL2/USDT", mock_fetcher
-    )
+    correlation = analyzer.calculate_correlation("SYMBOL1/USDT", "SYMBOL2/USDT", mock_fetcher)
 
     # Should return None due to insufficient data
     assert correlation is None
@@ -252,9 +247,7 @@ def test_calculate_correlation_with_missing_data():
 
     mock_fetcher = SimpleNamespace(fetch_ohlcv_with_fallback_exchange=mock_fetch)
 
-    correlation = analyzer.calculate_correlation(
-        "SYMBOL1/USDT", "SYMBOL2/USDT", mock_fetcher
-    )
+    correlation = analyzer.calculate_correlation("SYMBOL1/USDT", "SYMBOL2/USDT", mock_fetcher)
 
     assert correlation is None
 
@@ -264,9 +257,7 @@ def test_calculate_correlation_uses_cache():
     analyzer = PairsTradingAnalyzer(correlation_min_points=50)
 
     df1 = _create_mock_ohlcv_data(start_price=100.0, num_candles=200)
-    df2 = _create_mock_ohlcv_data(
-        start_price=50.0, num_candles=200, correlation_with=df1, correlation_strength=0.6
-    )
+    df2 = _create_mock_ohlcv_data(start_price=50.0, num_candles=200, correlation_with=df1, correlation_strength=0.6)
 
     call_count = {"count": 0}
 
@@ -319,9 +310,7 @@ def test_analyze_pairs_opportunity():
         }
     )
 
-    pairs_df = analyzer.analyze_pairs_opportunity(
-        best_performers, worst_performers, verbose=False
-    )
+    pairs_df = analyzer.analyze_pairs_opportunity(best_performers, worst_performers, verbose=False)
 
     assert len(pairs_df) > 0
     assert "long_symbol" in pairs_df.columns
@@ -397,9 +386,7 @@ def test_analyze_pairs_opportunity_with_empty_dataframes():
     """Test analyze_pairs_opportunity with empty DataFrames."""
     analyzer = PairsTradingAnalyzer()
 
-    empty_df = pd.DataFrame(
-        columns=["symbol", "score", "1d_return", "3d_return", "1w_return", "current_price"]
-    )
+    empty_df = pd.DataFrame(columns=["symbol", "score", "1d_return", "3d_return", "1w_return", "current_price"])
 
     result = analyzer.analyze_pairs_opportunity(empty_df, empty_df, verbose=False)
 
@@ -409,9 +396,7 @@ def test_analyze_pairs_opportunity_with_empty_dataframes():
 
 def test_validate_pairs_with_valid_spread():
     """Test validate_pairs with valid spread."""
-    analyzer = PairsTradingAnalyzer(
-        min_spread=0.01, max_spread=0.50, min_correlation=0.3, max_correlation=0.9
-    )
+    analyzer = PairsTradingAnalyzer(min_spread=0.01, max_spread=0.50, min_correlation=0.3, max_correlation=0.9)
 
     pairs_df = pd.DataFrame(
         {
@@ -443,9 +428,7 @@ def test_validate_pairs_with_valid_spread():
 
 def test_validate_pairs_with_invalid_spread():
     """Test validate_pairs with invalid spread."""
-    analyzer = PairsTradingAnalyzer(
-        min_spread=0.01, max_spread=0.50, min_correlation=0.3, max_correlation=0.9
-    )
+    analyzer = PairsTradingAnalyzer(min_spread=0.01, max_spread=0.50, min_correlation=0.3, max_correlation=0.9)
 
     pairs_df = pd.DataFrame(
         {
@@ -473,9 +456,7 @@ def test_validate_pairs_with_invalid_spread():
 
 def test_validate_pairs_with_invalid_correlation():
     """Test validate_pairs with invalid correlation."""
-    analyzer = PairsTradingAnalyzer(
-        min_spread=0.01, max_spread=0.50, min_correlation=0.3, max_correlation=0.9
-    )
+    analyzer = PairsTradingAnalyzer(min_spread=0.01, max_spread=0.50, min_correlation=0.3, max_correlation=0.9)
 
     pairs_df = pd.DataFrame(
         {
@@ -618,9 +599,7 @@ def test_opportunity_score_calculation():
         }
     )
 
-    pairs_df = analyzer.analyze_pairs_opportunity(
-        best_performers, worst_performers, verbose=False
-    )
+    pairs_df = analyzer.analyze_pairs_opportunity(best_performers, worst_performers, verbose=False)
 
     assert len(pairs_df) == 1
     # Spread = 0.15 - (-0.1) = 0.25
@@ -652,4 +631,3 @@ if __name__ == "__main__":
     print("✓ test_opportunity_score_calculation")
 
     print("\nAll tests passed!")
-

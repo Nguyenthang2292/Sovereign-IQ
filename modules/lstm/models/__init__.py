@@ -1,3 +1,7 @@
+
+from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
+from modules.lstm.models.model_utils import (
+
 """
 LSTM Model classes and factories.
 
@@ -16,33 +20,33 @@ This module has been refactored to remove several previously exported APIs:
 If you were using any of these, please migrate to using `LSTMTrainer` and the new unified training interface.
 Check the documentation or MIGRATION.md for details on updating your import and usage patterns.
 """
-from modules.lstm.models.unified_trainer import LSTMTrainer
-from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
-from modules.lstm.models.model_utils import (
-    load_lstm_model,
-    load_model_and_scaler,
+
+    get_latest_lstm_attention_signal,
     get_latest_signal,
     # Backward compatibility aliases
     load_lstm_attention_model,
-    get_latest_lstm_attention_signal,
+    load_lstm_model,
+    load_model_and_scaler,
 )
+from modules.lstm.models.unified_trainer import LSTMTrainer
 
 
 def _removed_api(name: str):
     """
     Factory for raising informative errors for removed APIs.
-    
+
     Args:
         name: Name of the removed API
-        
+
     Returns:
         Callable that raises ImportError with migration guidance
     """
+
     def _raise(*args, **kwargs):
         raise ImportError(
-            f"'{name}' has been removed. "
-            f"Please migrate to 'LSTMTrainer'. See MIGRATION_GUIDE.md for details."
+            f"'{name}' has been removed. Please migrate to 'LSTMTrainer'. See MIGRATION_GUIDE.md for details."
         )
+
     return _raise
 
 
@@ -53,17 +57,16 @@ train_lstm_attention_model = _removed_api("train_lstm_attention_model")
 train_and_save_global_lstm_attention_model = _removed_api("train_and_save_global_lstm_attention_model")
 
 __all__ = [
-    'LSTMTrainer',
-    'create_cnn_lstm_attention_model',
-    'load_lstm_model',
-    'load_model_and_scaler',
-    'get_latest_signal',
+    "LSTMTrainer",
+    "create_cnn_lstm_attention_model",
+    "load_lstm_model",
+    "load_model_and_scaler",
+    "get_latest_signal",
     # Backward compatibility aliases
-    'load_lstm_attention_model',
-    'get_latest_lstm_attention_signal',
+    "load_lstm_attention_model",
+    "get_latest_lstm_attention_signal",
     # Deprecated stubs (for migration guidance)
-    'CNNLSTMAttentionTrainer',
-    'train_lstm_attention_model',
-    'train_and_save_global_lstm_attention_model',
+    "CNNLSTMAttentionTrainer",
+    "train_lstm_attention_model",
+    "train_and_save_global_lstm_attention_model",
 ]
-

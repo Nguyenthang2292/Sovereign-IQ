@@ -1,3 +1,16 @@
+
+from typing import Any, Type, Union
+
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import TimeSeriesSplit
+import numpy as np
+import pandas as pd
+
+from config import (
+import xgboost as xgb
+from config import (
+import xgboost as xgb
+
 """
 XGBoost model training and prediction functions.
 
@@ -8,18 +21,12 @@ for cryptocurrency price direction prediction, including:
 - Prediction probability calculation for next candle movement
 """
 
-from typing import Any, Type, Union
 
-import numpy as np
-import pandas as pd
-import xgboost as xgb
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import TimeSeriesSplit
-from config import (
-    TARGET_LABELS,
-    TARGET_HORIZON,
-    MODEL_FEATURES,
+
     ID_TO_LABEL,
+    MODEL_FEATURES,
+    TARGET_HORIZON,
+    TARGET_LABELS,
     XGBOOST_PARAMS,
 )
 from config.position_sizing import (
@@ -27,26 +34,27 @@ from config.position_sizing import (
 )
 from modules.common.utils import (
     log_data,
-    log_info,
-    log_warn,
     log_model,
     log_success,
+    log_warn,
 )
+
 from .display import print_classification_report
 
 
 class ClassDiversityError(ValueError):
     """
     Exception raised when training data lacks sufficient class diversity.
-    
+
     This exception is raised when:
     - Training set has fewer than 2 classes (XGBoost requires at least 2)
     - Training set is missing required class 0 (XGBoost expects classes to start from 0)
     - XGBoost reports class mismatch errors during model fitting
-    
+
     This allows callers to distinguish class diversity issues from other ValueError
     cases, enabling more precise error handling.
     """
+
     pass
 
 
@@ -67,7 +75,7 @@ def _resolve_xgb_classifier() -> Type:
         return xgb.XGBClassifier
     try:
         from xgboost.sklearn import XGBClassifier as sklearn_classifier
-    except Exception as exc:  # pragma: no cover - only hit when package is broken
+    except Exception:  # pragma: no cover - only hit when package is broken
         try:
             from sklearn.ensemble import GradientBoostingClassifier
         except Exception as sklearn_exc:  # pragma: no cover - backup missing
@@ -144,14 +152,15 @@ def train_and_predict(df: pd.DataFrame) -> Any:
         classifier_cls = _resolve_xgb_classifier()
         params = XGBOOST_PARAMS.copy()
         params["num_class"] = len(TARGET_LABELS)
-        
+
         # Add GPU support if available
         if USE_GPU:
             try:
                 # Check if GPU is actually available
                 # Try to detect CUDA availability
                 import subprocess
-                result = subprocess.run(['nvidia-smi'], capture_output=True, timeout=2)
+
+                result = subprocess.run(["nvidia-smi"], capture_output=True, timeout=2)
                 if result.returncode == 0:
                     # GPU is available, use GPU parameters
                     # In XGBoost 2.0+, use 'hist' with device='cuda' instead of 'gpu_hist'
@@ -163,15 +172,15 @@ def train_and_predict(df: pd.DataFrame) -> Any:
             except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
                 # GPU not available or nvidia-smi not found, fall back to CPU
                 pass
-        
+
         # Filter parameters through whitelist if classifier has one (for fallback compatibility)
         whitelist = getattr(classifier_cls, "XGB_PARAM_WHITELIST", None)
         if whitelist is not None:
             params = {k: v for k, v in params.items() if k in whitelist}
-        
+
         try:
             return classifier_cls(**params)
-        except Exception as e:
+        except Exception:
             # Try without device parameter if it fails (XGBoost 3.x might not support device="cuda" with tree_method="hist")
             if "device" in params:
                 params_without_device = params.copy()
@@ -210,9 +219,7 @@ def train_and_predict(df: pd.DataFrame) -> Any:
 
     gap_size = test_start - train_end
     if gap_size > 0:
-        log_data(
-            f"Train/Test split: {len(X_train)} train, {gap_size} gap (to prevent leakage), {len(X_test)} test"
-        )
+        log_data(f"Train/Test split: {len(X_train)} train, {gap_size} gap (to prevent leakage), {len(X_test)} test")
 
     # Validate class diversity in training set before building model
     # XGBoost requires at least 2 classes, but model is configured for 3 classes
@@ -222,19 +229,19 @@ def train_and_predict(df: pd.DataFrame) -> Any:
             f"Insufficient class diversity in training set: found {len(unique_train_classes)} class(es) {unique_train_classes}, "
             f"but XGBoost requires at least 2 classes. Total training samples: {len(y_train)}"
         )
-    
+
     # Check if we have all expected classes (0, 1, 2 for DOWN, NEUTRAL, UP)
     # If not, XGBoost may fail with "Invalid classes" error
     expected_classes = set(range(len(TARGET_LABELS)))  # {0, 1, 2}
     actual_classes = set(unique_train_classes)
-    
+
     # If training set doesn't have class 0, XGBoost will fail because it expects classes to start from 0
     if 0 not in actual_classes:
         raise ClassDiversityError(
             f"Training set missing class 0 (DOWN). Found classes: {unique_train_classes}. "
             f"XGBoost expects classes to start from 0. Total training samples: {len(y_train)}"
         )
-    
+
     if len(unique_train_classes) < len(TARGET_LABELS):
         # Model expects 3 classes but training set only has fewer - this may cause issues
         # XGBoost can sometimes handle this, but it's safer to warn or fail
@@ -304,9 +311,7 @@ def train_and_predict(df: pd.DataFrame) -> Any:
             unique_classes = sorted(y_train_fold.unique())
 
             if len(unique_classes) < 2:
-                log_warn(
-                    f"CV Fold {fold}: Skipped (insufficient class diversity: {unique_classes})"
-                )
+                log_warn(f"CV Fold {fold}: Skipped (insufficient class diversity: {unique_classes})")
                 continue
 
             # Require all target classes for consistency

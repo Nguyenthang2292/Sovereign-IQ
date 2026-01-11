@@ -1,3 +1,20 @@
+
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
+import json
+
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import TimeSeriesSplit
+import numpy as np
+import pandas as pd
+
+from config import (
+from optuna import Study
+import optuna
+from optuna import Study
+import optuna
+
 """
 Hyperparameter Optimization for XGBoost Module.
 
@@ -7,34 +24,21 @@ including:
 - StudyManager: Management and persistence of optimization studies
 """
 
-import json
-import os
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
 
-import numpy as np
-import optuna
-import pandas as pd
-from optuna import Study
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import TimeSeriesSplit
 
-from config import (
-    ID_TO_LABEL,
     MODEL_FEATURES,
     TARGET_HORIZON,
     TARGET_LABELS,
     XGBOOST_PARAMS,
 )
-from modules.common.utils import log_data, log_info, log_model, log_success, log_warn
+from modules.common.utils import log_info, log_success, log_warn
 from modules.xgboost.model import _resolve_xgb_classifier
 
 
 class StudyManager:
     """
     Quản lý và lưu trữ kết quả optimization studies.
-    
+
     Lưu trữ metadata của study bao gồm:
     - Best parameters
     - Best score
@@ -46,7 +50,7 @@ class StudyManager:
     def __init__(self, storage_dir: str = "artifacts/xgboost/optimization"):
         """
         Khởi tạo StudyManager.
-        
+
         Args:
             storage_dir: Thư mục lưu trữ studies (relative từ project root)
         """
@@ -65,14 +69,14 @@ class StudyManager:
     ) -> str:
         """
         Lưu study metadata vào file JSON.
-        
+
         Args:
             study: Optuna Study object
             symbol: Trading symbol (e.g., "BTCUSDT")
             timeframe: Timeframe (e.g., "1h")
             best_params: Best hyperparameters found
             best_score: Best score achieved
-            
+
         Returns:
             Path to saved study file
         """
@@ -109,17 +113,15 @@ class StudyManager:
         log_success(f"Study saved to: {filepath}")
         return str(filepath)
 
-    def load_best_params(
-        self, symbol: str, timeframe: str, max_age_days: int = 30
-    ) -> Optional[Dict[str, Any]]:
+    def load_best_params(self, symbol: str, timeframe: str, max_age_days: int = 30) -> Optional[Dict[str, Any]]:
         """
         Load best parameters từ study gần nhất.
-        
+
         Args:
             symbol: Trading symbol
             timeframe: Timeframe
             max_age_days: Số ngày tối đa cho phép study cũ (default: 30)
-            
+
         Returns:
             Best parameters dict hoặc None nếu không tìm thấy
         """
@@ -136,36 +138,30 @@ class StudyManager:
         try:
             with open(latest_study, "r", encoding="utf-8") as f:
                 study_data = json.load(f)
-        except Exception as e:
+        except Exception:
             return None
 
         # Kiểm tra tuổi của study
         try:
             study_timestamp = datetime.strptime(study_data["timestamp"], "%Y%m%d_%H%M%S")
             age_days = (datetime.now() - study_timestamp).days
-        except (KeyError, ValueError) as e:
+        except (KeyError, ValueError):
             # [DEBUG] Timestamp parsing error handling added
             return None
 
         if age_days > max_age_days:
             # [DEBUG] Study age validation checked
-            log_warn(
-                f"Study is {age_days} days old (max: {max_age_days}). "
-                "Consider re-running optimization."
-            )
+            log_warn(f"Study is {age_days} days old (max: {max_age_days}). Consider re-running optimization.")
             return None
 
-        log_info(
-            f"Loaded best params from study ({age_days} days old): "
-            f"score={study_data['best_score']:.4f}"
-        )
+        log_info(f"Loaded best params from study ({age_days} days old): score={study_data['best_score']:.4f}")
         return study_data["best_params"]
 
 
 class HyperparameterTuner:
     """
     Tích hợp Optuna để tìm kiếm bộ tham số tốt nhất cho XGBoost.
-    
+
     Sử dụng TimeSeriesSplit cross-validation với gap prevention
     để đảm bảo không có data leakage.
     """
@@ -178,7 +174,7 @@ class HyperparameterTuner:
     ):
         """
         Khởi tạo HyperparameterTuner.
-        
+
         Args:
             symbol: Trading symbol (e.g., "BTCUSDT")
             timeframe: Timeframe (e.g., "1h")
@@ -198,13 +194,13 @@ class HyperparameterTuner:
     ) -> float:
         """
         Objective function cho Optuna optimization.
-        
+
         Args:
             trial: Optuna trial object
             X: Feature DataFrame
             y: Target Series
             n_splits: Số folds cho cross-validation
-            
+
         Returns:
             Mean CV accuracy score
         """
@@ -287,21 +283,21 @@ class HyperparameterTuner:
     ) -> Dict[str, Any]:
         """
         Chạy hyperparameter optimization.
-        
+
         Args:
             df: DataFrame chứa features (MODEL_FEATURES) và target ("Target")
             n_trials: Số lượng trials để chạy
             n_splits: Số folds cho cross-validation
             study_name: Tên study (mặc định: auto-generated)
             load_existing: Có load study đã tồn tại không
-            
+
         Returns:
             Dictionary chứa best parameters
         """
         # [DEBUG] Input validation - MODEL_FEATURES and Target column validation added
         try:
             X = df[MODEL_FEATURES]
-        except KeyError as e:
+        except KeyError:
             raise
         # Validate Target column
         if "Target" not in df.columns:
@@ -313,9 +309,7 @@ class HyperparameterTuner:
 
         # Kiểm tra dữ liệu
         if len(df) < 100:
-            log_warn(
-                f"Insufficient data for optimization (need >= 100, got {len(df)})"
-            )
+            log_warn(f"Insufficient data for optimization (need >= 100, got {len(df)})")
             return XGBOOST_PARAMS.copy()
 
         # Tạo study name nếu chưa có
@@ -337,13 +331,13 @@ class HyperparameterTuner:
                     storage=storage_url,
                 )
                 log_info(f"Loaded existing study: {study_name}")
-            except (ValueError, KeyError) as e:
+            except (ValueError, KeyError):
                 # Study chưa tồn tại, tạo mới
                 pass
-            except optuna.exceptions.DuplicatedStudyError as e:
+            except optuna.exceptions.DuplicatedStudyError:
                 # Study đã tồn tại nhưng có conflict, tạo mới với load_if_exists=True
                 pass
-            except Exception as e:
+            except Exception:
                 # Study chưa tồn tại hoặc lỗi khác, tạo mới
                 pass
 
@@ -368,7 +362,7 @@ class HyperparameterTuner:
                     log_info(f"Loaded existing study after conflict: {study_name}")
                 except Exception as load_e:
                     raise RuntimeError(f"Failed to create or load study: {e}") from load_e
-            except Exception as e:
+            except Exception:
                 raise
 
         # Chạy optimization
@@ -394,10 +388,7 @@ class HyperparameterTuner:
             }
         )
 
-        log_success(
-            f"Optimization completed! Best CV accuracy: {best_score:.4f}\n"
-            f"Best parameters: {best_params}"
-        )
+        log_success(f"Optimization completed! Best CV accuracy: {best_score:.4f}\nBest parameters: {best_params}")
 
         # Lưu study
         self.study_manager.save_study(
@@ -410,17 +401,15 @@ class HyperparameterTuner:
 
         return best_params
 
-    def get_best_params(
-        self, df: pd.DataFrame, n_trials: int = 100, use_cached: bool = True
-    ) -> Dict[str, Any]:
+    def get_best_params(self, df: pd.DataFrame, n_trials: int = 100, use_cached: bool = True) -> Dict[str, Any]:
         """
         Lấy best parameters, sử dụng cached nếu có.
-        
+
         Args:
             df: DataFrame chứa features và target
             n_trials: Số trials nếu cần optimize mới
             use_cached: Có sử dụng cached params không
-            
+
         Returns:
             Dictionary chứa best parameters
         """
@@ -436,4 +425,3 @@ class HyperparameterTuner:
         # Chạy optimization mới
         log_info("No cached parameters found, running optimization...")
         return self.optimize(df, n_trials=n_trials)
-

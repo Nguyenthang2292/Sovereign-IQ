@@ -25,4 +25,3 @@ VALID_STRATEGY_IDS = {2, 3, 4, 6, 7, 8, 9}
 # Adjust based on backtesting results or market conditions
 RANGE_OSCILLATOR_LENGTH = 50  # Oscillator length parameter
 RANGE_OSCILLATOR_MULTIPLIER = 2.0  # Oscillator multiplier
-

@@ -1,3 +1,17 @@
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
+from typing import Any, Dict, Optional, Tuple
+import threading
+
+from colorama import Fore, Style
+import pandas as pd
+
+from cli.display import display_config, display_voting_metadata
+from config import (
+from cli.display import display_config, display_voting_metadata
+from config import (
+
 """
 Voting Analyzer for ATC + Range Oscillator + SPC Pure Voting System.
 
@@ -9,73 +23,61 @@ This module contains the VotingAnalyzer class that combines signals from:
 Phương án 2: Thay thế hoàn toàn sequential filtering bằng voting system.
 """
 
-import threading
-from typing import Optional, Dict, Any, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from contextlib import contextmanager
-import pandas as pd
-import json
-import time
 
-from colorama import Fore, Style
 
-from config import (
     DECISION_MATRIX_INDICATOR_ACCURACIES,
-    SPC_STRATEGY_PARAMETERS,
-    SPC_P_LOW,
-    SPC_P_HIGH,
-    SPC_AGGREGATION_MODE,
-    SPC_AGGREGATION_THRESHOLD,
-    SPC_AGGREGATION_WEIGHTED_MIN_TOTAL,
-    SPC_AGGREGATION_WEIGHTED_MIN_DIFF,
-    SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS,
     SPC_AGGREGATION_ADAPTIVE_PERFORMANCE_WINDOW,
-    SPC_AGGREGATION_MIN_SIGNAL_STRENGTH,
+    SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS,
     SPC_AGGREGATION_ENABLE_SIMPLE_FALLBACK,
+    SPC_AGGREGATION_MIN_SIGNAL_STRENGTH,
+    SPC_AGGREGATION_MODE,
     SPC_AGGREGATION_SIMPLE_MIN_ACCURACY_TOTAL,
     SPC_AGGREGATION_STRATEGY_WEIGHTS,
+    SPC_AGGREGATION_THRESHOLD,
+    SPC_AGGREGATION_WEIGHTED_MIN_DIFF,
+    SPC_AGGREGATION_WEIGHTED_MIN_TOTAL,
+    SPC_STRATEGY_PARAMETERS,
 )
+from core.signal_calculators import (
+    get_hmm_signal,
+    get_random_forest_signal,
+    get_range_oscillator_signal,
+    get_spc_signal,
+    get_xgboost_signal,
+)
+from modules.adaptive_trend.cli import prompt_timeframe
+from modules.adaptive_trend.cli.main import ATCAnalyzer
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (
     color_text,
     log_progress,
     log_success,
     log_warn,
 )
-from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.core.data_fetcher import DataFetcher
-from modules.adaptive_trend.cli import prompt_timeframe
-from modules.adaptive_trend.cli.main import ATCAnalyzer
+from modules.decision_matrix.classifier import DecisionMatrixClassifier
 from modules.range_oscillator.cli import (
     display_final_results,
 )
-from cli.display import display_config, display_voting_metadata
-from modules.simplified_percentile_clustering.core.clustering import (
-    ClusteringConfig,
-)
-from modules.simplified_percentile_clustering.core.features import FeatureConfig
 from modules.simplified_percentile_clustering.aggregation import (
     SPCVoteAggregator,
 )
 from modules.simplified_percentile_clustering.config import (
     SPCAggregationConfig,
 )
-from modules.decision_matrix.classifier import DecisionMatrixClassifier
-from core.signal_calculators import (
-    get_range_oscillator_signal,
-    get_spc_signal,
-    get_xgboost_signal,
-    get_hmm_signal,
-    get_random_forest_signal,
+from modules.simplified_percentile_clustering.core.clustering import (
+    ClusteringConfig,
 )
+from modules.simplified_percentile_clustering.core.features import FeatureConfig
 
 
 class VotingAnalyzer:
     """
     ATC + Range Oscillator + SPC Pure Voting Analyzer.
-    
+
     Phương án 2: Thay thế hoàn toàn sequential filtering bằng voting system.
     """
-    
+
     def __init__(self, args, data_fetcher: DataFetcher):
         """Initialize analyzer."""
         self.args = args
@@ -83,7 +85,7 @@ class VotingAnalyzer:
         self.atc_analyzer = ATCAnalyzer(args, data_fetcher)
         self.selected_timeframe = args.timeframe
         self.atc_analyzer.selected_timeframe = args.timeframe
-        
+
         # Initialize SPC Vote Aggregator
         aggregation_config = SPCAggregationConfig(
             mode=SPC_AGGREGATION_MODE,
@@ -98,30 +100,30 @@ class VotingAnalyzer:
             strategy_weights=SPC_AGGREGATION_STRATEGY_WEIGHTS,
         )
         self.spc_aggregator = SPCVoteAggregator(aggregation_config)
-        
+
         # Thread-safe lock for mode changes
         self._mode_lock = threading.Lock()
-        
+
         # Results storage
         self.long_signals_atc = pd.DataFrame()
         self.short_signals_atc = pd.DataFrame()
         self.long_signals_final = pd.DataFrame()
         self.short_signals_final = pd.DataFrame()
-    
+
     def determine_timeframe(self) -> str:
         """Determine timeframe from arguments and interactive menu."""
         self.selected_timeframe = self.args.timeframe
-        
+
         if not self.args.no_menu:
             print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
             print(color_text("TIMEFRAME SELECTION", Fore.CYAN, Style.BRIGHT))
             print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
             self.selected_timeframe = prompt_timeframe(default_timeframe=self.selected_timeframe)
             print(color_text(f"\nSelected timeframe: {self.selected_timeframe}", Fore.GREEN))
-        
+
         self.atc_analyzer.selected_timeframe = self.selected_timeframe
         return self.selected_timeframe
-    
+
     def get_oscillator_params(self) -> dict:
         """Extract Range Oscillator parameters."""
         return {
@@ -130,28 +132,28 @@ class VotingAnalyzer:
             "max_workers": self.args.max_workers,
             "strategies": self.args.osc_strategies,
         }
-    
+
     def get_spc_params(self) -> dict:
         """Extract SPC parameters for all 3 strategies."""
         # Use values from config if not provided in args
-        cluster_transition_params = SPC_STRATEGY_PARAMETERS['cluster_transition'].copy()
-        regime_following_params = SPC_STRATEGY_PARAMETERS['regime_following'].copy()
-        mean_reversion_params = SPC_STRATEGY_PARAMETERS['mean_reversion'].copy()
-        
+        cluster_transition_params = SPC_STRATEGY_PARAMETERS["cluster_transition"].copy()
+        regime_following_params = SPC_STRATEGY_PARAMETERS["regime_following"].copy()
+        mean_reversion_params = SPC_STRATEGY_PARAMETERS["mean_reversion"].copy()
+
         # Override with args if provided (for command-line usage)
-        if hasattr(self.args, 'spc_min_signal_strength'):
-            cluster_transition_params['min_signal_strength'] = self.args.spc_min_signal_strength
-        if hasattr(self.args, 'spc_min_rel_pos_change'):
-            cluster_transition_params['min_rel_pos_change'] = self.args.spc_min_rel_pos_change
-        if hasattr(self.args, 'spc_min_regime_strength'):
-            regime_following_params['min_regime_strength'] = self.args.spc_min_regime_strength
-        if hasattr(self.args, 'spc_min_cluster_duration'):
-            regime_following_params['min_cluster_duration'] = self.args.spc_min_cluster_duration
-        if hasattr(self.args, 'spc_extreme_threshold'):
-            mean_reversion_params['extreme_threshold'] = self.args.spc_extreme_threshold
-        if hasattr(self.args, 'spc_min_extreme_duration'):
-            mean_reversion_params['min_extreme_duration'] = self.args.spc_min_extreme_duration
-        
+        if hasattr(self.args, "spc_min_signal_strength"):
+            cluster_transition_params["min_signal_strength"] = self.args.spc_min_signal_strength
+        if hasattr(self.args, "spc_min_rel_pos_change"):
+            cluster_transition_params["min_rel_pos_change"] = self.args.spc_min_rel_pos_change
+        if hasattr(self.args, "spc_min_regime_strength"):
+            regime_following_params["min_regime_strength"] = self.args.spc_min_regime_strength
+        if hasattr(self.args, "spc_min_cluster_duration"):
+            regime_following_params["min_cluster_duration"] = self.args.spc_min_cluster_duration
+        if hasattr(self.args, "spc_extreme_threshold"):
+            mean_reversion_params["extreme_threshold"] = self.args.spc_extreme_threshold
+        if hasattr(self.args, "spc_min_extreme_duration"):
+            mean_reversion_params["min_extreme_duration"] = self.args.spc_min_extreme_duration
+
         return {
             "k": self.args.spc_k,
             "lookback": self.args.spc_lookback,
@@ -161,7 +163,7 @@ class VotingAnalyzer:
             "regime_following_params": regime_following_params,
             "mean_reversion_params": mean_reversion_params,
         }
-    
+
     def display_config(self) -> None:
         """Display configuration information."""
         display_config(
@@ -171,24 +173,24 @@ class VotingAnalyzer:
             get_spc_params=self.get_spc_params,
             mode="voting",
         )
-    
+
     def run_atc_scan(self) -> bool:
         """
         Run ATC auto scan to get LONG/SHORT signals.
-        
+
         Returns:
             True if signals found, False otherwise
         """
         log_progress("\nStep 1: Running ATC auto scan...")
         log_progress("=" * 80)
-        
+
         self.long_signals_atc, self.short_signals_atc = self.atc_analyzer.run_auto_scan()
-        
+
         original_long_count = len(self.long_signals_atc)
         original_short_count = len(self.short_signals_atc)
-        
+
         log_success(f"\nATC Scan Complete: Found {original_long_count} LONG + {original_short_count} SHORT signals")
-        
+
         if self.long_signals_atc.empty and self.short_signals_atc.empty:
             log_warn("No ATC signals found. Cannot proceed with analysis.")
             log_warn("Please try:")
@@ -196,9 +198,9 @@ class VotingAnalyzer:
             log_warn("  - Different market conditions")
             log_warn("  - Check ATC configuration parameters")
             return False
-        
+
         return True
-    
+
     def _process_symbol_for_all_indicators(
         self,
         symbol_data: Dict[str, Any],
@@ -211,7 +213,7 @@ class VotingAnalyzer:
     ) -> Optional[Dict[str, Any]]:
         """
         Worker function to calculate signals from all indicators in parallel.
-        
+
         This is the key difference from hybrid approach - we calculate all signals
         at once instead of filtering sequentially.
         """
@@ -219,7 +221,7 @@ class VotingAnalyzer:
             data_fetcher = DataFetcher(exchange_manager)
             symbol = symbol_data["symbol"]
             expected_signal = 1 if signal_type == "LONG" else -1
-            
+
             # Calculate all signals in parallel
             results = {
                 "symbol": symbol,
@@ -228,7 +230,7 @@ class VotingAnalyzer:
                 "price": symbol_data["price"],
                 "exchange": symbol_data["exchange"],
             }
-            
+
             # ATC signal (already have it from scan)
             # ATC signal is a percentage value (e.g., 94, -50), not just 1 or -1
             # If symbol is in long_signals_atc/short_signals_atc, it means it passed ATC scan
@@ -240,10 +242,10 @@ class VotingAnalyzer:
             else:  # SHORT
                 atc_vote = 1 if atc_signal < 0 else 0
             atc_strength = abs(atc_signal) / 100.0 if atc_signal != 0 else 0.0
-            results['atc_signal'] = atc_signal
-            results['atc_vote'] = atc_vote
-            results['atc_strength'] = min(atc_strength, 1.0)
-            
+            results["atc_signal"] = atc_signal
+            results["atc_vote"] = atc_vote
+            results["atc_strength"] = min(atc_strength, 1.0)
+
             # Range Oscillator signal
             osc_result = get_range_oscillator_signal(
                 data_fetcher=data_fetcher,
@@ -254,18 +256,18 @@ class VotingAnalyzer:
                 osc_mult=osc_params["osc_mult"],
                 strategies=osc_params["strategies"],
             )
-            
+
             if osc_result is not None:
                 osc_signal, osc_confidence = osc_result
                 osc_vote = 1 if osc_signal == expected_signal else 0
-                results['osc_signal'] = osc_signal
-                results['osc_vote'] = osc_vote
-                results['osc_confidence'] = osc_confidence
+                results["osc_signal"] = osc_signal
+                results["osc_vote"] = osc_vote
+                results["osc_confidence"] = osc_confidence
             else:
-                results['osc_signal'] = 0
-                results['osc_vote'] = 0
-                results['osc_confidence'] = 0.0
-            
+                results["osc_signal"] = 0
+                results["osc_vote"] = 0
+                results["osc_confidence"] = 0.0
+
             # SPC signals from all 3 strategies (if enabled)
             if self.args.enable_spc and spc_params:
                 feature_config = FeatureConfig()
@@ -277,7 +279,7 @@ class VotingAnalyzer:
                     main_plot="Clusters",
                     feature_config=feature_config,
                 )
-                
+
                 # Calculate signals from all 3 strategies
                 # Cluster Transition
                 ct_result = get_spc_signal(
@@ -290,12 +292,12 @@ class VotingAnalyzer:
                     clustering_config=clustering_config,
                 )
                 if ct_result is not None:
-                    results['spc_cluster_transition_signal'] = ct_result[0]
-                    results['spc_cluster_transition_strength'] = ct_result[1]
+                    results["spc_cluster_transition_signal"] = ct_result[0]
+                    results["spc_cluster_transition_strength"] = ct_result[1]
                 else:
-                    results['spc_cluster_transition_signal'] = 0
-                    results['spc_cluster_transition_strength'] = 0.0
-                
+                    results["spc_cluster_transition_signal"] = 0
+                    results["spc_cluster_transition_strength"] = 0.0
+
                 # Regime Following
                 rf_result = get_spc_signal(
                     data_fetcher=data_fetcher,
@@ -307,12 +309,12 @@ class VotingAnalyzer:
                     clustering_config=clustering_config,
                 )
                 if rf_result is not None:
-                    results['spc_regime_following_signal'] = rf_result[0]
-                    results['spc_regime_following_strength'] = rf_result[1]
+                    results["spc_regime_following_signal"] = rf_result[0]
+                    results["spc_regime_following_strength"] = rf_result[1]
                 else:
-                    results['spc_regime_following_signal'] = 0
-                    results['spc_regime_following_strength'] = 0.0
-                
+                    results["spc_regime_following_signal"] = 0
+                    results["spc_regime_following_strength"] = 0.0
+
                 # Mean Reversion
                 mr_result = get_spc_signal(
                     data_fetcher=data_fetcher,
@@ -324,14 +326,14 @@ class VotingAnalyzer:
                     clustering_config=clustering_config,
                 )
                 if mr_result is not None:
-                    results['spc_mean_reversion_signal'] = mr_result[0]
-                    results['spc_mean_reversion_strength'] = mr_result[1]
+                    results["spc_mean_reversion_signal"] = mr_result[0]
+                    results["spc_mean_reversion_strength"] = mr_result[1]
                 else:
-                    results['spc_mean_reversion_signal'] = 0
-                    results['spc_mean_reversion_strength'] = 0.0
-            
+                    results["spc_mean_reversion_signal"] = 0
+                    results["spc_mean_reversion_strength"] = 0.0
+
             # XGBoost prediction (if enabled)
-            if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
+            if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
                 xgb_result = get_xgboost_signal(
                     data_fetcher=data_fetcher,
                     symbol=symbol,
@@ -341,78 +343,78 @@ class VotingAnalyzer:
                 if xgb_result is not None:
                     xgb_signal, xgb_confidence = xgb_result
                     xgb_vote = 1 if xgb_signal == expected_signal else 0
-                    results['xgboost_signal'] = xgb_signal
-                    results['xgboost_vote'] = xgb_vote
-                    results['xgboost_confidence'] = xgb_confidence
+                    results["xgboost_signal"] = xgb_signal
+                    results["xgboost_vote"] = xgb_vote
+                    results["xgboost_confidence"] = xgb_confidence
                 else:
-                    results['xgboost_signal'] = 0
-                    results['xgboost_vote'] = 0
-                    results['xgboost_confidence'] = 0.0
-            
+                    results["xgboost_signal"] = 0
+                    results["xgboost_vote"] = 0
+                    results["xgboost_confidence"] = 0.0
+
             # HMM signal (if enabled)
-            if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+            if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
                 try:
                     hmm_result = get_hmm_signal(
                         data_fetcher=data_fetcher,
                         symbol=symbol,
                         timeframe=timeframe,
                         limit=limit,
-                        window_size=getattr(self.args, 'hmm_window_size', None),
-                        window_kama=getattr(self.args, 'hmm_window_kama', None),
-                        fast_kama=getattr(self.args, 'hmm_fast_kama', None),
-                        slow_kama=getattr(self.args, 'hmm_slow_kama', None),
-                        orders_argrelextrema=getattr(self.args, 'hmm_orders_argrelextrema', None),
-                        strict_mode=getattr(self.args, 'hmm_strict_mode', None),
+                        window_size=getattr(self.args, "hmm_window_size", None),
+                        window_kama=getattr(self.args, "hmm_window_kama", None),
+                        fast_kama=getattr(self.args, "hmm_fast_kama", None),
+                        slow_kama=getattr(self.args, "hmm_slow_kama", None),
+                        orders_argrelextrema=getattr(self.args, "hmm_orders_argrelextrema", None),
+                        strict_mode=getattr(self.args, "hmm_strict_mode", None),
                     )
                     if hmm_result is not None:
                         hmm_signal, hmm_confidence = hmm_result
                         hmm_vote = 1 if hmm_signal == expected_signal else 0
-                        results['hmm_signal'] = hmm_signal
-                        results['hmm_vote'] = hmm_vote
-                        results['hmm_confidence'] = hmm_confidence
+                        results["hmm_signal"] = hmm_signal
+                        results["hmm_vote"] = hmm_vote
+                        results["hmm_confidence"] = hmm_confidence
                     else:
-                        results['hmm_signal'] = 0
-                        results['hmm_vote'] = 0
-                        results['hmm_confidence'] = 0.0
+                        results["hmm_signal"] = 0
+                        results["hmm_vote"] = 0
+                        results["hmm_confidence"] = 0.0
                 except Exception as e:
                     # Log HMM errors but don't fail the entire process
                     log_warn(f"HMM signal calculation failed for {symbol}: {type(e).__name__}: {e}")
-                    results['hmm_signal'] = 0
-                    results['hmm_vote'] = 0
-                    results['hmm_confidence'] = 0.0
-            
+                    results["hmm_signal"] = 0
+                    results["hmm_vote"] = 0
+                    results["hmm_confidence"] = 0.0
+
             # Random Forest prediction (if enabled)
-            if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
+            if hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
                 try:
                     rf_result = get_random_forest_signal(
                         data_fetcher=data_fetcher,
                         symbol=symbol,
                         timeframe=timeframe,
                         limit=limit,
-                        model_path=getattr(self.args, 'random_forest_model_path', None),
+                        model_path=getattr(self.args, "random_forest_model_path", None),
                     )
                     if rf_result is not None:
                         rf_signal, rf_confidence = rf_result
                         rf_vote = 1 if rf_signal == expected_signal else 0
-                        results['random_forest_signal'] = rf_signal
-                        results['random_forest_vote'] = rf_vote
-                        results['random_forest_confidence'] = rf_confidence
+                        results["random_forest_signal"] = rf_signal
+                        results["random_forest_vote"] = rf_vote
+                        results["random_forest_confidence"] = rf_confidence
                     else:
-                        results['random_forest_signal'] = 0
-                        results['random_forest_vote'] = 0
-                        results['random_forest_confidence'] = 0.0
+                        results["random_forest_signal"] = 0
+                        results["random_forest_vote"] = 0
+                        results["random_forest_confidence"] = 0.0
                 except Exception as e:
                     # Log Random Forest errors but don't fail the entire process
                     log_warn(f"Random Forest signal calculation failed for {symbol}: {type(e).__name__}: {e}")
-                    results['random_forest_signal'] = 0
-                    results['random_forest_vote'] = 0
-                    results['random_forest_confidence'] = 0.0
-            
+                    results["random_forest_signal"] = 0
+                    results["random_forest_vote"] = 0
+                    results["random_forest_confidence"] = 0.0
+
             return results
-            
-        except Exception as e:
+
+        except Exception:
             return None
-    
+
     def calculate_signals_for_all_indicators(
         self,
         atc_signals_df: pd.DataFrame,
@@ -420,7 +422,7 @@ class VotingAnalyzer:
     ) -> pd.DataFrame:
         """
         Calculate signals from all indicators in parallel.
-        
+
         This replaces sequential filtering with parallel calculation.
         """
         if atc_signals_df.empty:
@@ -429,16 +431,16 @@ class VotingAnalyzer:
         osc_params = self.get_oscillator_params()
         spc_params = self.get_spc_params() if self.args.enable_spc else None
         total = len(atc_signals_df)
-        
+
         # Build indicator list for logging
         indicators_list = ["ATC", "Range Oscillator"]
         if self.args.enable_spc:
             indicators_list.append("SPC")
-        if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
+        if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
             indicators_list.append("XGBoost")
-        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+        if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
             indicators_list.append("HMM")
-        
+
         log_progress(
             f"Calculating signals from all indicators for {total} {signal_type} symbols "
             f"(workers: {osc_params['max_workers']})..."
@@ -446,7 +448,7 @@ class VotingAnalyzer:
         log_progress(f"Indicators: {', '.join(indicators_list)}")
 
         exchange_manager = self.data_fetcher.exchange_manager
-        
+
         symbol_data_list = [
             {
                 "symbol": row["symbol"],
@@ -463,7 +465,7 @@ class VotingAnalyzer:
         processed_count = [0]
 
         results = []
-        
+
         with ThreadPoolExecutor(max_workers=osc_params["max_workers"]) as executor:
             future_to_symbol = {
                 executor.submit(
@@ -480,21 +482,21 @@ class VotingAnalyzer:
             }
 
             for future in as_completed(future_to_symbol):
-                symbol = future_to_symbol[future]
+                _ = future_to_symbol[future]
                 try:
                     result = future.result()
                     if result is not None:
                         with progress_lock:
                             processed_count[0] += 1
                             results.append(result)
-                except Exception as e:
+                except Exception:
                     pass
                 finally:
                     with progress_lock:
                         checked_count[0] += 1
                         current_checked = checked_count[0]
                         current_processed = processed_count[0]
-                        
+
                         if current_checked % 10 == 0 or current_checked == total:
                             log_progress(
                                 f"Processed {current_checked}/{total} symbols... "
@@ -505,10 +507,10 @@ class VotingAnalyzer:
             return pd.DataFrame()
 
         result_df = pd.DataFrame(results)
-        
+
         # Log HMM summary if enabled
-        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
-            hmm_success_count = sum(1 for r in results if r.get('hmm_signal', 0) != 0)
+        if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
+            hmm_success_count = sum(1 for r in results if r.get("hmm_signal", 0) != 0)
             hmm_total = len(results)
             if hmm_total > 0:
                 hmm_success_rate = (hmm_success_count / hmm_total) * 100
@@ -516,10 +518,10 @@ class VotingAnalyzer:
                     f"HMM Status: {hmm_success_count}/{hmm_total} symbols with HMM signals "
                     f"({hmm_success_rate:.1f}% success rate)"
                 )
-        
+
         # Log Random Forest summary if enabled
-        if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
-            rf_success_count = sum(1 for r in results if r.get('random_forest_signal', 0) != 0)
+        if hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+            rf_success_count = sum(1 for r in results if r.get("random_forest_signal", 0) != 0)
             rf_total = len(results)
             if rf_total > 0:
                 rf_success_rate = (rf_success_count / rf_total) * 100
@@ -529,7 +531,7 @@ class VotingAnalyzer:
                 )
 
         return result_df
-    
+
     @contextmanager
     def _temporary_mode(self, new_mode: str):
         """Context manager to temporarily change spc_aggregator.config.mode (thread-safe)."""
@@ -540,7 +542,7 @@ class VotingAnalyzer:
                 yield
             finally:
                 self.spc_aggregator.config.mode = original_mode
-    
+
     def _aggregate_spc_votes(
         self,
         symbol_data: Dict[str, Any],
@@ -549,7 +551,7 @@ class VotingAnalyzer:
     ) -> Tuple[int, float]:
         """
         Aggregate 3 SPC strategy votes into a single vote.
-        
+
         Uses SPCVoteAggregator with improved voting logic similar to Range Oscillator:
         - Separate LONG/SHORT weight calculation
         - Configurable consensus modes (threshold/weighted)
@@ -557,23 +559,23 @@ class VotingAnalyzer:
         - Signal strength filtering
         - Fallback to threshold mode if weighted mode gives no vote
         - Fallback to simple mode if both weighted and threshold give no vote
-        
+
         Args:
             symbol_data: Symbol data with SPC signals
             signal_type: "LONG" or "SHORT"
             use_threshold_fallback: If True, force use threshold mode
-        
+
         Returns:
             (vote, strength) where vote is 1 if matches expected signal_type, 0 otherwise
         """
         expected_signal = 1 if signal_type == "LONG" else -1
-        
+
         # Use threshold mode if fallback requested
         if use_threshold_fallback or self.spc_aggregator.config.mode == "threshold":
             # Temporarily switch to threshold mode
             with self._temporary_mode("threshold"):
                 vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
-            
+
             # If threshold mode also gives no vote, try simple mode fallback
             if vote == 0 and self.spc_aggregator.config.enable_simple_fallback:
                 with self._temporary_mode("simple"):
@@ -581,26 +583,26 @@ class VotingAnalyzer:
         else:
             # Try weighted mode first
             vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
-            
+
             # If weighted mode gives no vote (vote = 0), fallback to threshold mode
             if vote == 0:
                 with self._temporary_mode("threshold"):
                     vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
-                
+
                 # If threshold mode also gives no vote, try simple mode fallback
                 if vote == 0 and self.spc_aggregator.config.enable_simple_fallback:
                     with self._temporary_mode("simple"):
                         vote, strength, _ = self.spc_aggregator.aggregate(symbol_data, signal_type)
-        
+
         # Convert vote to 1/0 format for Decision Matrix compatibility
         # Only accept vote if it matches the expected signal direction
         final_vote = 1 if vote == expected_signal else 0
         return (final_vote, strength)
-    
+
     def _get_indicator_accuracy(self, indicator: str, signal_type: str) -> float:
         """Get historical accuracy for an indicator from config."""
         return DECISION_MATRIX_INDICATOR_ACCURACIES.get(indicator, 0.5)
-    
+
     def apply_voting_system(
         self,
         signals_df: pd.DataFrame,
@@ -608,68 +610,72 @@ class VotingAnalyzer:
     ) -> pd.DataFrame:
         """
         Apply pure voting system to all signals.
-        
+
         This is the core of Phương án 2 - no sequential filtering,
         just calculate all signals and vote.
         """
         if signals_df.empty:
             return pd.DataFrame()
-        
-        indicators = ['atc', 'oscillator']
+
+        indicators = ["atc", "oscillator"]
         if self.args.enable_spc:
-            indicators.append('spc')
-        if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
-            indicators.append('xgboost')
-        if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
-            indicators.append('hmm')
-        if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
-            indicators.append('random_forest')
-        
+            indicators.append("spc")
+        if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
+            indicators.append("xgboost")
+        if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
+            indicators.append("hmm")
+        if hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+            indicators.append("random_forest")
+
         results = []
-        
+
         for _, row in signals_df.iterrows():
             classifier = DecisionMatrixClassifier(indicators=indicators)
-            
+
             # Get votes from all indicators
-            atc_vote = row.get('atc_vote', 0)
-            atc_strength = row.get('atc_strength', 0.0)
-            classifier.add_node_vote('atc', atc_vote, atc_strength, 
-                self._get_indicator_accuracy('atc', signal_type))
-            
-            osc_vote = row.get('osc_vote', 0)
-            osc_strength = row.get('osc_confidence', 0.0)
-            classifier.add_node_vote('oscillator', osc_vote, osc_strength,
-                self._get_indicator_accuracy('oscillator', signal_type))
-            
+            atc_vote = row.get("atc_vote", 0)
+            atc_strength = row.get("atc_strength", 0.0)
+            classifier.add_node_vote("atc", atc_vote, atc_strength, self._get_indicator_accuracy("atc", signal_type))
+
+            osc_vote = row.get("osc_vote", 0)
+            osc_strength = row.get("osc_confidence", 0.0)
+            classifier.add_node_vote(
+                "oscillator", osc_vote, osc_strength, self._get_indicator_accuracy("oscillator", signal_type)
+            )
+
             if self.args.enable_spc:
                 # Aggregate 3 SPC votes into 1
                 spc_vote, spc_strength = self._aggregate_spc_votes(row.to_dict(), signal_type)
-                classifier.add_node_vote('spc', spc_vote, spc_strength,
-                    self._get_indicator_accuracy('spc', signal_type))
-            
-            if hasattr(self.args, 'enable_xgboost') and self.args.enable_xgboost:
+                classifier.add_node_vote(
+                    "spc", spc_vote, spc_strength, self._get_indicator_accuracy("spc", signal_type)
+                )
+
+            if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
                 # XGBoost vote
-                xgb_vote = row.get('xgboost_vote', 0)
-                xgb_strength = row.get('xgboost_confidence', 0.0)
-                classifier.add_node_vote('xgboost', xgb_vote, xgb_strength,
-                    self._get_indicator_accuracy('xgboost', signal_type))
-            
-            if hasattr(self.args, 'enable_hmm') and self.args.enable_hmm:
+                xgb_vote = row.get("xgboost_vote", 0)
+                xgb_strength = row.get("xgboost_confidence", 0.0)
+                classifier.add_node_vote(
+                    "xgboost", xgb_vote, xgb_strength, self._get_indicator_accuracy("xgboost", signal_type)
+                )
+
+            if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
                 # HMM vote
-                hmm_vote = row.get('hmm_vote', 0)
-                hmm_strength = row.get('hmm_confidence', 0.0)
-                classifier.add_node_vote('hmm', hmm_vote, hmm_strength,
-                    self._get_indicator_accuracy('hmm', signal_type))
-            
-            if hasattr(self.args, 'enable_random_forest') and self.args.enable_random_forest:
+                hmm_vote = row.get("hmm_vote", 0)
+                hmm_strength = row.get("hmm_confidence", 0.0)
+                classifier.add_node_vote(
+                    "hmm", hmm_vote, hmm_strength, self._get_indicator_accuracy("hmm", signal_type)
+                )
+
+            if hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
                 # Random Forest vote
-                rf_vote = row.get('random_forest_vote', 0)
-                rf_strength = row.get('random_forest_confidence', 0.0)
-                classifier.add_node_vote('random_forest', rf_vote, rf_strength,
-                    self._get_indicator_accuracy('random_forest', signal_type))
-            
+                rf_vote = row.get("random_forest_vote", 0)
+                rf_strength = row.get("random_forest_confidence", 0.0)
+                classifier.add_node_vote(
+                    "random_forest", rf_vote, rf_strength, self._get_indicator_accuracy("random_forest", signal_type)
+                )
+
             classifier.calculate_weighted_impact()
-            
+
             cumulative_vote, weighted_score, voting_breakdown = classifier.calculate_cumulative_vote(
                 threshold=self.args.voting_threshold,
                 min_votes=self.args.min_votes,
@@ -677,69 +683,69 @@ class VotingAnalyzer:
             # Only keep if cumulative vote is positive
             if cumulative_vote == 1:
                 result = row.to_dict()
-                result['cumulative_vote'] = cumulative_vote
-                result['weighted_score'] = weighted_score
-                result['voting_breakdown'] = voting_breakdown
-                
+                result["cumulative_vote"] = cumulative_vote
+                result["weighted_score"] = weighted_score
+                result["voting_breakdown"] = voting_breakdown
+
                 metadata = classifier.get_metadata()
-                result['feature_importance'] = metadata['feature_importance']
-                result['weighted_impact'] = metadata['weighted_impact']
-                result['independent_accuracy'] = metadata['independent_accuracy']
-                
+                result["feature_importance"] = metadata["feature_importance"]
+                result["weighted_impact"] = metadata["weighted_impact"]
+                result["independent_accuracy"] = metadata["independent_accuracy"]
+
                 votes_count = sum(v for v in classifier.node_votes.values())
                 if votes_count == len(indicators):
-                    result['source'] = 'ALL_INDICATORS'
+                    result["source"] = "ALL_INDICATORS"
                 elif votes_count >= self.args.min_votes:
-                    result['source'] = 'MAJORITY_VOTE'
+                    result["source"] = "MAJORITY_VOTE"
                 else:
-                    result['source'] = 'WEIGHTED_VOTE'
-                
+                    result["source"] = "WEIGHTED_VOTE"
+
                 results.append(result)
-        
+
         if not results:
             return pd.DataFrame()
-        
+
         result_df = pd.DataFrame(results)
-        result_df = result_df.sort_values('weighted_score', ascending=False).reset_index(drop=True)
-        
+        result_df = result_df.sort_values("weighted_score", ascending=False).reset_index(drop=True)
+
         return result_df
-    
+
     def calculate_and_vote(self) -> None:
         """
         Calculate signals from all indicators and apply voting system.
-        
+
         This is the main step for Phương án 2.
         """
         log_progress("\nStep 2: Calculating signals from all indicators...")
         log_progress("=" * 80)
-        
+
         # Calculate all signals in parallel
         if not self.long_signals_atc.empty:
             long_with_signals = self.calculate_signals_for_all_indicators(
                 atc_signals_df=self.long_signals_atc,
                 signal_type="LONG",
             )
-            
+
             # Apply voting system
             log_progress("\nStep 3: Applying voting system to LONG signals...")
             self.long_signals_final = self.apply_voting_system(long_with_signals, "LONG")
             log_progress(f"LONG signals: {len(self.long_signals_atc)} → {len(self.long_signals_final)} after voting")
         else:
             self.long_signals_final = pd.DataFrame()
-        
+
         if not self.short_signals_atc.empty:
             short_with_signals = self.calculate_signals_for_all_indicators(
                 atc_signals_df=self.short_signals_atc,
                 signal_type="SHORT",
             )
-            
+
             # Apply voting system
             log_progress("\nStep 3: Applying voting system to SHORT signals...")
             self.short_signals_final = self.apply_voting_system(short_with_signals, "SHORT")
             log_progress(f"SHORT signals: {len(self.short_signals_atc)} → {len(self.short_signals_final)} after voting")
         else:
             self.short_signals_final = pd.DataFrame()
-    
+
     def display_results(self) -> None:
         """Display final results with voting metadata."""
         log_progress("\nStep 4: Displaying final results...")
@@ -751,14 +757,14 @@ class VotingAnalyzer:
             long_uses_fallback=False,
             short_uses_fallback=False,
         )
-        
+
         # Display voting metadata
         if not self.long_signals_final.empty:
             self._display_voting_metadata(self.long_signals_final, "LONG")
-        
+
         if not self.short_signals_final.empty:
             self._display_voting_metadata(self.short_signals_final, "SHORT")
-    
+
     def _display_voting_metadata(self, signals_df: pd.DataFrame, signal_type: str) -> None:
         """Display voting metadata for signals."""
         display_voting_metadata(
@@ -766,11 +772,11 @@ class VotingAnalyzer:
             signal_type=signal_type,
             show_spc_debug=False,  # No debug info for voting mode
         )
-    
+
     def run(self) -> None:
         """
         Run the complete Pure Voting System workflow.
-        
+
         Workflow:
         1. Determine timeframe
         2. Display configuration
@@ -782,14 +788,13 @@ class VotingAnalyzer:
         self.determine_timeframe()
         self.display_config()
         log_progress("Initializing components...")
-        
+
         # Run ATC scan - exit early if no signals found
         if not self.run_atc_scan():
             log_warn("\nAnalysis terminated: No ATC signals found.")
             return
-        
+
         self.calculate_and_vote()
         self.display_results()
-        
-        log_success("\nAnalysis complete!")
 
+        log_success("\nAnalysis complete!")

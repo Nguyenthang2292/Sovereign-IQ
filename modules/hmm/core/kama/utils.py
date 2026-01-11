@@ -1,15 +1,17 @@
+
+from contextlib import contextmanager
+import functools
+import threading
+
+from modules.common.utils import log_error, log_warn
+from modules.common.utils import log_error, log_warn
+
 """
 HMM-KAMA Utility Functions.
 
 This module contains utility functions like decorators and context managers.
 """
 
-from contextlib import contextmanager
-import functools
-import threading
-from typing import Any, List
-
-from modules.common.utils import log_warn, log_error
 
 
 _thread_local = threading.local()
@@ -36,11 +38,10 @@ def prevent_infinite_loop(max_calls=3):
                         f"Multiple calls detected for {func_name} ({_thread_local.call_counts[func_name]}). Possible infinite loop."
                     )
                     if _thread_local.call_counts[func_name] > max_calls:
-                        log_error(
-                            f"Too many recursive calls for {func_name}. Breaking to prevent infinite loop."
-                        )
+                        log_error(f"Too many recursive calls for {func_name}. Breaking to prevent infinite loop.")
                         # Import here to avoid circular dependency
                         from modules.hmm.core.kama.models import HMM_KAMA
+
                         # Decrement counter before returning
                         _thread_local.call_counts[func_name] -= 1
                         return HMM_KAMA(-1, -1, -1, -1, -1, -1)
@@ -61,7 +62,7 @@ def prevent_infinite_loop(max_calls=3):
 @contextmanager
 def timeout_context(seconds):
     """Cross-platform timeout context manager
-    
+
     Note: This cannot interrupt a long-running operation, but will detect if it exceeded timeout.
     For true timeout interruption, consider using signal (Unix) or multiprocessing.
     """
@@ -76,4 +77,3 @@ def timeout_context(seconds):
             raise TimeoutError(f"Operation timed out after {seconds} seconds")
     finally:
         timer.cancel()
-

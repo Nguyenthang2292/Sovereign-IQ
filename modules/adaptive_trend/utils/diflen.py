@@ -1,8 +1,12 @@
-"""Calculate length offsets for Moving Averages based on robustness setting."""
 
 from typing import Tuple
 
-from modules.common.utils import log_warn, log_error
+from modules.common.utils import log_error, log_warn
+from modules.common.utils import log_error, log_warn
+
+"""Calculate length offsets for Moving Averages based on robustness setting."""
+
+
 
 
 def diflen(length: int, robustness: str = "Medium") -> Tuple[int, int, int, int, int, int, int, int]:
@@ -29,22 +33,21 @@ def diflen(length: int, robustness: str = "Medium") -> Tuple[int, int, int, int,
     """
     if not isinstance(length, int):
         raise TypeError(f"length must be an integer, got {type(length)}")
-    
+
     if length <= 0:
         raise ValueError(f"length must be > 0, got {length}")
-    
+
     robustness = robustness or "Medium"
-    
+
     if not isinstance(robustness, str):
         raise TypeError(f"robustness must be a string, got {type(robustness)}")
-    
+
     VALID_ROBUSTNESS = {"Narrow", "Medium", "Wide"}
     robustness_normalized = robustness.strip() if isinstance(robustness, str) else str(robustness)
-    
+
     if robustness_normalized not in VALID_ROBUSTNESS:
         log_warn(
-            f"Invalid robustness '{robustness}'. Valid values: {', '.join(VALID_ROBUSTNESS)}. "
-            f"Using default 'Medium'."
+            f"Invalid robustness '{robustness}'. Valid values: {', '.join(VALID_ROBUSTNESS)}. Using default 'Medium'."
         )
         robustness_normalized = "Medium"
 
@@ -68,14 +71,14 @@ def diflen(length: int, robustness: str = "Medium") -> Tuple[int, int, int, int,
         # Ensure all lengths are positive (negative offsets should still be > 0)
         lengths = [L1, L2, L3, L4, L_1, L_2, L_3, L_4]
         min_length = min(lengths)
-        
+
         if min_length <= 0:
             # Adjust negative offsets to be at least 1
             L_1 = max(1, L_1)
             L_2 = max(1, L_2)
             L_3 = max(1, L_3)
             L_4 = max(1, L_4)
-            
+
             log_warn(
                 f"Some calculated lengths were <= 0 for length={length}, robustness={robustness_normalized}. "
                 f"Adjusted negative offsets to minimum 1. "
@@ -83,8 +86,7 @@ def diflen(length: int, robustness: str = "Medium") -> Tuple[int, int, int, int,
             )
 
         return L1, L2, L3, L4, L_1, L_2, L_3, L_4
-    
+
     except Exception as e:
         log_error(f"Error calculating diflen: {e}")
         raise
-

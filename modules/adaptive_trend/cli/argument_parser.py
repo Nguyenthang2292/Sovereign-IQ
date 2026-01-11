@@ -1,3 +1,6 @@
+
+import argparse
+
 """
 Command-line argument parser for ATC analysis.
 
@@ -5,14 +8,13 @@ This module provides the main argument parser for the ATC CLI,
 defining all command-line options and their default values.
 """
 
-import argparse
 
 try:
     from config import (
-        DEFAULT_SYMBOL,
-        DEFAULT_QUOTE,
-        DEFAULT_TIMEFRAME,
         DEFAULT_LIMIT,
+        DEFAULT_QUOTE,
+        DEFAULT_SYMBOL,
+        DEFAULT_TIMEFRAME,
     )
 except ImportError:
     DEFAULT_SYMBOL = "BTC/USDT"
@@ -148,4 +150,3 @@ def parse_args():
     )
 
     return parser.parse_args()
-

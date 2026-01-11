@@ -1,3 +1,6 @@
+
+from typing import Tuple
+
 """
 Model Features Configuration.
 
@@ -5,7 +8,6 @@ Shared model features list for XGBoost and Random Forest models.
 This file contains the complete list of features used for model training.
 """
 
-from typing import Tuple
 
 # Model Features List
 # Complete list of features including technical indicators and candlestick patterns
@@ -76,4 +78,3 @@ MODEL_FEATURES = [
     # Candlestick patterns; reuse list
     *CANDLESTICK_PATTERN_NAMES,
 ]
-

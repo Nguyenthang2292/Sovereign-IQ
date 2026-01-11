@@ -7,13 +7,14 @@ This program combines signals from Adaptive Trend Classification (ATC) and Range
 3. Returns final list of symbols with confirmed signals from both indicators
 """
 
-import warnings
+import logging
 import sys
 import threading
-import logging
 import traceback
-from typing import Optional, Dict, Any, Tuple
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, Optional, Tuple
+
 import pandas as pd
 
 from modules.common.utils import configure_windows_stdio

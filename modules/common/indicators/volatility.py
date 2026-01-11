@@ -1,55 +1,56 @@
-"""Volatility indicator block."""
-
-from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pandas_ta as ta
 
-from .base import IndicatorMetadata, IndicatorResult, collect_metadata
+from .base import IndicatorResult, collect_metadata
+from __future__ import annotations
 from modules.common.utils import validate_ohlcv_input
 from modules.common.utils.data import validate_price_series
+import pandas_ta as ta
+import pandas_ta as ta
+
+"""Volatility indicator block."""
+
+
+
+
 
 
 def calculate_returns_volatility(df: pd.DataFrame) -> float:
     """
     Calculate volatility from price returns.
-    
+
     Computes the standard deviation of returns (pct_change) as a measure of volatility.
-    
+
     Args:
         df: DataFrame with OHLCV data (must have 'close' column)
-        
+
     Returns:
         Volatility value (standard deviation of returns), or 0.0 if insufficient data
     """
     if "close" not in df.columns or len(df) < 2:
         return 0.0
-    
+
     returns = df["close"].pct_change().dropna()
     if len(returns) == 0:
         return 0.0
-    
+
     return float(returns.std())
 
 
 def calculate_atr_series(
-    high: pd.Series,
-    low: pd.Series,
-    close: pd.Series,
-    length: int = 14,
-    fallback_multiplier: float = 0.01
+    high: pd.Series, low: pd.Series, close: pd.Series, length: int = 14, fallback_multiplier: float = 0.01
 ) -> pd.Series:
     """
     Calculate ATR (Average True Range) series with fallback handling.
-    
+
     Args:
         high: High price series
         low: Low price series
         close: Close price series
         length: ATR period length (default: 14)
         fallback_multiplier: Multiplier for fallback value (default: 0.01 = 1%)
-        
+
     Returns:
         Series with ATR values, with fallback applied if needed
     """
@@ -57,24 +58,23 @@ def calculate_atr_series(
     validate_price_series(high, low, close)
     if length < 1:
         raise ValueError(f"length must be >= 1, got {length}")
-    
+
     atr = ta.atr(high, low, close, length=length)
     if atr is not None:
         return atr.ffill().fillna(close * fallback_multiplier)
     else:
         return close * fallback_multiplier
 
-def _calculate_atr_with_fallback(
-    df: pd.DataFrame, length: int, fallback_multiplier: float = 0.01
-) -> pd.Series:
+
+def _calculate_atr_with_fallback(df: pd.DataFrame, length: int, fallback_multiplier: float = 0.01) -> pd.Series:
     """
     Calculate ATR for a given period with fallback handling.
-    
+
     Args:
         df: DataFrame with OHLCV data
         length: ATR period length
         fallback_multiplier: Multiplier for fallback value (default: 0.01 = 1%)
-        
+
     Returns:
         Series with ATR values, with fallback applied if needed
     """
@@ -90,7 +90,7 @@ class VolatilityIndicators:
     def apply(df: pd.DataFrame) -> IndicatorResult:
         # Validate input
         validate_ohlcv_input(df, required_columns=["high", "low", "close"])
-        
+
         result = df.copy()
         before = result.columns.tolist()
 
@@ -103,11 +103,11 @@ class VolatilityIndicators:
         result["ATR_RATIO_14_50"] = np.where(
             pd.notna(atr_50_safe),
             result["ATR_14"] / atr_50_safe,
-            1.0  # Default value when ATR_50 is 0 or NaN
+            1.0,  # Default value when ATR_50 is 0 or NaN
         )
-        result["ATR_RATIO_14_50"] = pd.Series(
-            result["ATR_RATIO_14_50"], index=result.index
-        ).replace([np.inf, -np.inf], np.nan).fillna(1.0)
+        result["ATR_RATIO_14_50"] = (
+            pd.Series(result["ATR_RATIO_14_50"], index=result.index).replace([np.inf, -np.inf], np.nan).fillna(1.0)
+        )
 
         metadata = collect_metadata(
             before,
@@ -151,14 +151,14 @@ def calculate_atr_range(
     if mult <= 0:
         raise ValueError(f"mult must be > 0, got {mult}")
     if atr_length_primary < 1 or atr_length_fallback < 1:
-        raise ValueError(f"ATR lengths must be >= 1")
-    
+        raise ValueError("ATR lengths must be >= 1")
+
     # Try primary ATR length first
     atr_raw = ta.atr(high, low, close, length=atr_length_primary)
     if atr_raw is None or (isinstance(atr_raw, pd.Series) and atr_raw.isna().all()):
         # Fallback to shorter ATR
         atr_raw = ta.atr(high, low, close, length=atr_length_fallback)
-    
+
     # IMPROVEMENT (2025-01-16): Additional fallback for short data series.
     # If both primary and fallback ATR lengths are too large for the data,
     # try progressively smaller lengths (14, then 10, then 5) to ensure

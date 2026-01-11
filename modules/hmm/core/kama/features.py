@@ -1,20 +1,27 @@
+
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+
+from config import (
+
+from config import (
+
 """
 HMM-KAMA Feature Engineering.
 
 This module handles feature preparation and engineering for HMM-KAMA analysis.
 """
 
-from typing import Optional
-import numpy as np
-import pandas as pd
 
-from modules.common.indicators import calculate_kama
-from modules.common.utils import log_data, log_error, log_warn, log_analysis
-from config import (
-    HMM_WINDOW_KAMA_DEFAULT,
+
     HMM_FAST_KAMA_DEFAULT,
     HMM_SLOW_KAMA_DEFAULT,
+    HMM_WINDOW_KAMA_DEFAULT,
 )
+from modules.common.indicators import calculate_kama
+from modules.common.utils import log_analysis, log_data, log_error, log_warn
 
 
 def prepare_observations(
@@ -26,7 +33,7 @@ def prepare_observations(
     """Generate crypto-optimized observation features.
 
     Uses price minus KAMA deviation to keep inputs closer to stationarity.
-    
+
     Args:
         data: DataFrame with OHLCV data
         window_kama: KAMA window size (default: from config)
@@ -34,9 +41,7 @@ def prepare_observations(
         slow_kama: Slow KAMA parameter (default: from config)
     """
     if data.empty or "close" not in data.columns or len(data) < 10:
-        raise ValueError(
-            f"Invalid data: empty={data.empty}, has close={'close' in data.columns}, len={len(data)}"
-        )
+        raise ValueError(f"Invalid data: empty={data.empty}, has close={'close' in data.columns}, len={len(data)}")
 
     close_prices = data["close"].replace([np.inf, -np.inf], np.nan).ffill().bfill()
     if close_prices.isna().any():  # type: ignore
@@ -82,24 +87,15 @@ def prepare_observations(
 
         window = max(2, min(window_param, len(close_prices_array) // 2))
 
-        kama_values = calculate_kama(
-            close_prices_array, window=window, fast=fast, slow=slow
-        )
+        kama_values = calculate_kama(close_prices_array, window=window, fast=fast, slow=slow)
 
         if np.max(kama_values) - np.min(kama_values) < 1e-10:
             log_data("KAMA has zero variance. Adding gradient.")
-            kama_values = np.linspace(
-                kama_values[0] - 0.5, kama_values[0] + 0.5, len(kama_values)
-            )
+            kama_values = np.linspace(kama_values[0] - 0.5, kama_values[0] + 0.5, len(kama_values))
 
     except Exception as e:
         log_error(f"KAMA calculation failed: {e}. Using EMA fallback.")
-        kama_values = (
-            pd.Series(close_prices_array)
-            .ewm(alpha=2.0 / (window_param + 1), adjust=False)
-            .mean()
-            .values
-        )
+        kama_values = pd.Series(close_prices_array).ewm(alpha=2.0 / (window_param + 1), adjust=False).mean().values
 
     # 2. Calculate Features
 
@@ -119,9 +115,7 @@ def prepare_observations(
         log_warn("Volatility has zero variance. Returning None (Neutral).")
         return None
 
-    rolling_vol = (
-        pd.Series(returns).rolling(window=5, min_periods=1).std().fillna(0.01).values
-    )
+    rolling_vol = pd.Series(returns).rolling(window=5, min_periods=1).std().fillna(0.01).values
     volatility = (volatility + np.asarray(rolling_vol)) / 2
 
     # Cleaning
@@ -165,4 +159,3 @@ def prepare_observations(
     )
 
     return feature_matrix
-

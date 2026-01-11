@@ -1,15 +1,20 @@
+
+import numpy as np
+import pandas as pd
+
+from modules.common.quantitative_metrics import calculate_half_life
+from modules.common.quantitative_metrics import calculate_half_life
+
 """
 Tests for half_life module.
 """
-import pandas as pd
-import numpy as np
-import pytest
 
-from modules.common.quantitative_metrics import calculate_half_life
+
 
 
 def test_calculate_half_life_with_stubbed_regression(monkeypatch):
     """Test that calculate_half_life works with stubbed LinearRegression."""
+
     class FakeModel:
         def __init__(self):
             self.coef_ = [-0.1]
@@ -18,6 +23,7 @@ def test_calculate_half_life_with_stubbed_regression(monkeypatch):
             pass
 
     from modules.common.quantitative_metrics.mean_reversion import half_life
+
     monkeypatch.setattr(half_life, "LinearRegression", FakeModel)
 
     spread = pd.Series(np.linspace(100, 80, 50))
@@ -74,4 +80,3 @@ def test_calculate_half_life_with_nan_values():
 
     # Result may be None if insufficient valid data or non-stationary
     assert result is None or isinstance(result, float)
-

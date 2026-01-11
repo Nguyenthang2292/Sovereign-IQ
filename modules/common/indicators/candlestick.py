@@ -1,12 +1,17 @@
-"""Candlestick pattern indicator block."""
-
-from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
-from .base import IndicatorMetadata, IndicatorResult, collect_metadata
+from .base import IndicatorResult, collect_metadata
+from __future__ import annotations
 from modules.common.utils import validate_ohlcv_input
+from modules.common.utils import validate_ohlcv_input
+
+"""Candlestick pattern indicator block."""
+
+
+
+
 
 
 class CandlestickPatterns:
@@ -18,7 +23,7 @@ class CandlestickPatterns:
     def apply(df: pd.DataFrame) -> IndicatorResult:
         # Validate input
         validate_ohlcv_input(df, required_columns=["open", "high", "low", "close"])
-        
+
         result = df.copy()
         before = result.columns.tolist()
 
@@ -37,74 +42,44 @@ class CandlestickPatterns:
         lower_ratio = lower_shadow / range_series
         bullish = c > o
         bearish = o > c
-        prev_open = o.shift(1)
-        prev_close = c.shift(1)
+        # prev_open = o.shift(1)
+        # prev_close = c.shift(1)
         prev_high = h.shift(1)
         prev_low = low.shift(1)
         prev_body = body.shift(1)
-        prev_body_ratio = body_ratio.shift(1)
+        # prev_body_ratio = body_ratio.shift(1)
 
         result["DOJI"] = (body_ratio < 0.1).astype(int)
-        result["HAMMER"] = (
-            (lower_shadow > 2 * body)
-            & (upper_shadow < 0.3 * body)
-            & (body_ratio < 0.3)
-        ).astype(int)
+        result["HAMMER"] = ((lower_shadow > 2 * body) & (upper_shadow < 0.3 * body) & (body_ratio < 0.3)).astype(int)
         result["INVERTED_HAMMER"] = (
-            (upper_shadow > 2 * body)
-            & (lower_shadow < 0.3 * body)
-            & (body_ratio < 0.3)
+            (upper_shadow > 2 * body) & (lower_shadow < 0.3 * body) & (body_ratio < 0.3)
         ).astype(int)
-        result["SHOOTING_STAR"] = (
-            (upper_shadow > 2 * body) & (lower_shadow < 0.3 * body) & (c < o)
-        ).astype(int)
+        result["SHOOTING_STAR"] = ((upper_shadow > 2 * body) & (lower_shadow < 0.3 * body) & (c < o)).astype(int)
         result["MARUBOZU_BULL"] = (
             bullish & (body_ratio > 0.9) & (upper_shadow < 0.05 * body) & (lower_shadow < 0.05 * body)
         ).astype(int)
         result["MARUBOZU_BEAR"] = (
             bearish & (body_ratio > 0.9) & (upper_shadow < 0.05 * body) & (lower_shadow < 0.05 * body)
         ).astype(int)
-        result["SPINNING_TOP"] = (
-            (body_ratio < 0.3) & (upper_shadow > body) & (lower_shadow > body)
-        ).astype(int)
-        result["DRAGONFLY_DOJI"] = (
-            (body_ratio < 0.1) & (upper_ratio < 0.1) & (lower_ratio > 0.6)
-        ).astype(int)
-        result["GRAVESTONE_DOJI"] = (
-            (body_ratio < 0.1) & (lower_ratio < 0.1) & (upper_ratio > 0.6)
-        ).astype(int)
+        result["SPINNING_TOP"] = ((body_ratio < 0.3) & (upper_shadow > body) & (lower_shadow > body)).astype(int)
+        result["DRAGONFLY_DOJI"] = ((body_ratio < 0.1) & (upper_ratio < 0.1) & (lower_ratio > 0.6)).astype(int)
+        result["GRAVESTONE_DOJI"] = ((body_ratio < 0.1) & (lower_ratio < 0.1) & (upper_ratio > 0.6)).astype(int)
 
         prev_bearish = o.shift(1) > c.shift(1)
         curr_bullish = bullish
-        result["BULLISH_ENGULFING"] = (
-            prev_bearish & curr_bullish & (c > o.shift(1)) & (o < c.shift(1))
-        ).astype(int)
+        result["BULLISH_ENGULFING"] = (prev_bearish & curr_bullish & (c > o.shift(1)) & (o < c.shift(1))).astype(int)
 
         prev_bullish = c.shift(1) > o.shift(1)
         curr_bearish = bearish
-        result["BEARISH_ENGULFING"] = (
-            prev_bullish & curr_bearish & (o > c.shift(1)) & (c < o.shift(1))
-        ).astype(int)
+        result["BEARISH_ENGULFING"] = (prev_bullish & curr_bearish & (o > c.shift(1)) & (c < o.shift(1))).astype(int)
         result["BULLISH_HARAMI"] = (
-            prev_bearish
-            & curr_bullish
-            & (o >= c.shift(1))
-            & (c <= o.shift(1))
-            & (body <= 0.6 * prev_body)
+            prev_bearish & curr_bullish & (o >= c.shift(1)) & (c <= o.shift(1)) & (body <= 0.6 * prev_body)
         ).astype(int)
         result["BEARISH_HARAMI"] = (
-            prev_bullish
-            & curr_bearish
-            & (o <= c.shift(1))
-            & (c >= o.shift(1))
-            & (body <= 0.6 * prev_body)
+            prev_bullish & curr_bearish & (o <= c.shift(1)) & (c >= o.shift(1)) & (body <= 0.6 * prev_body)
         ).astype(int)
-        result["HARAMI_CROSS_BULL"] = (
-            result["BULLISH_HARAMI"].astype(bool) & (body_ratio < 0.1)
-        ).astype(int)
-        result["HARAMI_CROSS_BEAR"] = (
-            result["BEARISH_HARAMI"].astype(bool) & (body_ratio < 0.1)
-        ).astype(int)
+        result["HARAMI_CROSS_BULL"] = (result["BULLISH_HARAMI"].astype(bool) & (body_ratio < 0.1)).astype(int)
+        result["HARAMI_CROSS_BEAR"] = (result["BEARISH_HARAMI"].astype(bool) & (body_ratio < 0.1)).astype(int)
 
         body_prev = body.shift(1)
         range_prev = range_series.shift(1)
@@ -112,20 +87,14 @@ class CandlestickPatterns:
         second_small = (body_prev / range_prev) < 0.3
         third_bullish = c > o
         result["MORNING_STAR"] = (
-            first_bearish
-            & second_small
-            & third_bullish
-            & (c > (o.shift(2) + c.shift(2)) / 2)
+            first_bearish & second_small & third_bullish & (c > (o.shift(2) + c.shift(2)) / 2)
         ).astype(int)
 
         first_bullish_es = c.shift(2) > o.shift(2)
         second_small_es = (body_prev / range_prev) < 0.3
         third_bearish_es = o > c
         result["EVENING_STAR"] = (
-            first_bullish_es
-            & second_small_es
-            & third_bearish_es
-            & (c < (o.shift(2) + c.shift(2)) / 2)
+            first_bullish_es & second_small_es & third_bearish_es & (c < (o.shift(2) + c.shift(2)) / 2)
         ).astype(int)
 
         prev_bearish = o.shift(1) > c.shift(1)
@@ -134,28 +103,18 @@ class CandlestickPatterns:
         midpoint = (o.shift(1) + c.shift(1)) / 2
         above_midpoint = c > midpoint
         below_prev_open = c < o.shift(1)
-        
-        result["PIERCING"] = (
-            prev_bearish
-            & curr_bullish
-            & gap_down
-            & above_midpoint
-            & below_prev_open
-        ).astype(int)
-        
+
+        result["PIERCING"] = (prev_bearish & curr_bullish & gap_down & above_midpoint & below_prev_open).astype(int)
+
         prev_bullish_dc = c.shift(1) > o.shift(1)
         curr_bearish_dc = o > c
         gap_up_dc = o > c.shift(1)
         midpoint_dc = (o.shift(1) + c.shift(1)) / 2
         below_midpoint_dc = c < midpoint_dc
         above_prev_open_dc = c > o.shift(1)
-        
+
         result["DARK_CLOUD"] = (
-            prev_bullish_dc
-            & curr_bearish_dc
-            & gap_up_dc
-            & below_midpoint_dc
-            & above_prev_open_dc
+            prev_bullish_dc & curr_bearish_dc & gap_up_dc & below_midpoint_dc & above_prev_open_dc
         ).astype(int)
         result["THREE_WHITE_SOLDIERS"] = (
             bullish
@@ -196,15 +155,9 @@ class CandlestickPatterns:
             & (c < c.shift(1))
         ).astype(int)
         tweezer_tolerance = 0.1 * range_series.combine(range_series.shift(1), np.minimum)
-        result["TWEEZER_TOP"] = (
-            bullish.shift(1)
-            & bearish
-            & (np.abs(h - h.shift(1)) <= tweezer_tolerance)
-        ).astype(int)
+        result["TWEEZER_TOP"] = (bullish.shift(1) & bearish & (np.abs(h - h.shift(1)) <= tweezer_tolerance)).astype(int)
         result["TWEEZER_BOTTOM"] = (
-            bearish.shift(1)
-            & bullish
-            & (np.abs(low - low.shift(1)) <= tweezer_tolerance)
+            bearish.shift(1) & bullish & (np.abs(low - low.shift(1)) <= tweezer_tolerance)
         ).astype(int)
         result["RISING_WINDOW"] = (low > prev_high).astype(int)
         result["FALLING_WINDOW"] = (h < prev_low).astype(int)
@@ -278,27 +231,12 @@ class CandlestickPatterns:
             & (body_ratio < 0.4)
             & (upper_shadow > body)
         ).astype(int)
-        result["BELT_HOLD_BULL"] = (
-            bullish
-            & ((o - low) / range_series < 0.05)
-            & (upper_ratio < 0.3)
-        ).astype(int)
-        result["BELT_HOLD_BEAR"] = (
-            bearish
-            & ((h - o) / range_series < 0.05)
-            & (lower_ratio < 0.3)
-        ).astype(int)
-        result["KICKER_BULL"] = (
-            prev_bearish & bullish & (o >= prev_high) & (body_ratio > 0.5)
-        ).astype(int)
-        result["KICKER_BEAR"] = (
-            prev_bullish & bearish & (o <= prev_low) & (body_ratio > 0.5)
-        ).astype(int)
+        result["BELT_HOLD_BULL"] = (bullish & ((o - low) / range_series < 0.05) & (upper_ratio < 0.3)).astype(int)
+        result["BELT_HOLD_BEAR"] = (bearish & ((h - o) / range_series < 0.05) & (lower_ratio < 0.3)).astype(int)
+        result["KICKER_BULL"] = (prev_bearish & bullish & (o >= prev_high) & (body_ratio > 0.5)).astype(int)
+        result["KICKER_BEAR"] = (prev_bullish & bearish & (o <= prev_low) & (body_ratio > 0.5)).astype(int)
         result["HANGING_MAN"] = (
-            (lower_shadow > 2 * body)
-            & (upper_shadow < body)
-            & (body_ratio < 0.4)
-            & bullish.shift(1)
+            (lower_shadow > 2 * body) & (upper_shadow < body) & (body_ratio < 0.4) & bullish.shift(1)
         ).astype(int)
 
         metadata = collect_metadata(

@@ -1,8 +1,15 @@
+
 import math
-import pytest
+
 import numpy as np
+import pytest
 
 from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
+
+from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
+
+
+
 
 
 def test_calculate_opportunity_score_applies_all_adjustments():
@@ -139,10 +146,11 @@ def test_quantitative_score_adds_momentum_adx_bonus():
 # __init__ Validation Tests
 # ============================================================================
 
+
 def test_init_invalid_min_correlation_out_of_range():
     with pytest.raises(ValueError, match="min_correlation must be in"):
         OpportunityScorer(min_correlation=-1.5)
-    
+
     with pytest.raises(ValueError, match="min_correlation must be in"):
         OpportunityScorer(min_correlation=1.5)
 
@@ -150,7 +158,7 @@ def test_init_invalid_min_correlation_out_of_range():
 def test_init_invalid_max_correlation_out_of_range():
     with pytest.raises(ValueError, match="max_correlation must be in"):
         OpportunityScorer(max_correlation=-1.5)
-    
+
     with pytest.raises(ValueError, match="max_correlation must be in"):
         OpportunityScorer(max_correlation=1.5)
 
@@ -163,7 +171,7 @@ def test_init_min_correlation_greater_than_max():
 def test_init_invalid_adf_pvalue_threshold():
     with pytest.raises(ValueError, match="adf_pvalue_threshold must be in"):
         OpportunityScorer(adf_pvalue_threshold=0.0)
-    
+
     with pytest.raises(ValueError, match="adf_pvalue_threshold must be in"):
         OpportunityScorer(adf_pvalue_threshold=1.5)
 
@@ -171,7 +179,7 @@ def test_init_invalid_adf_pvalue_threshold():
 def test_init_invalid_max_half_life():
     with pytest.raises(ValueError, match="max_half_life must be positive"):
         OpportunityScorer(max_half_life=0)
-    
+
     with pytest.raises(ValueError, match="max_half_life must be positive"):
         OpportunityScorer(max_half_life=-10)
 
@@ -179,7 +187,7 @@ def test_init_invalid_max_half_life():
 def test_init_invalid_hurst_threshold():
     with pytest.raises(ValueError, match="hurst_threshold must be in"):
         OpportunityScorer(hurst_threshold=0.0)
-    
+
     with pytest.raises(ValueError, match="hurst_threshold must be in"):
         OpportunityScorer(hurst_threshold=1.5)
 
@@ -187,7 +195,7 @@ def test_init_invalid_hurst_threshold():
 def test_init_invalid_min_spread_sharpe():
     with pytest.raises(ValueError, match="min_spread_sharpe must be finite"):
         OpportunityScorer(min_spread_sharpe=np.nan)
-    
+
     with pytest.raises(ValueError, match="min_spread_sharpe must be finite"):
         OpportunityScorer(min_spread_sharpe=np.inf)
 
@@ -195,7 +203,7 @@ def test_init_invalid_min_spread_sharpe():
 def test_init_invalid_max_drawdown_threshold():
     with pytest.raises(ValueError, match="max_drawdown_threshold must be in"):
         OpportunityScorer(max_drawdown_threshold=0.0)
-    
+
     with pytest.raises(ValueError, match="max_drawdown_threshold must be in"):
         OpportunityScorer(max_drawdown_threshold=1.5)
 
@@ -203,10 +211,10 @@ def test_init_invalid_max_drawdown_threshold():
 def test_init_invalid_min_calmar():
     with pytest.raises(ValueError, match="min_calmar must be finite"):
         OpportunityScorer(min_calmar=np.nan)
-    
+
     with pytest.raises(ValueError, match="min_calmar must be finite"):
         OpportunityScorer(min_calmar=np.inf)
-    
+
     with pytest.raises(ValueError, match="min_calmar must be finite"):
         OpportunityScorer(min_calmar=-1.0)
 
@@ -249,6 +257,7 @@ def test_init_valid_scoring_multipliers_with_metadata():
 # calculate_opportunity_score Validation Tests
 # ============================================================================
 
+
 def test_calculate_opportunity_score_invalid_spread_negative():
     scorer = OpportunityScorer()
     with pytest.raises(ValueError, match="spread must be non-negative"):
@@ -271,7 +280,7 @@ def test_calculate_opportunity_score_invalid_correlation_out_of_range():
     scorer = OpportunityScorer()
     with pytest.raises(ValueError, match="correlation must be in"):
         scorer.calculate_opportunity_score(spread=0.1, correlation=-1.5)
-    
+
     with pytest.raises(ValueError, match="correlation must be in"):
         scorer.calculate_opportunity_score(spread=0.1, correlation=1.5)
 
@@ -318,6 +327,7 @@ def test_calculate_opportunity_score_handles_nan_in_quant_metrics():
 # calculate_quantitative_score Validation Tests
 # ============================================================================
 
+
 def test_calculate_quantitative_score_empty_metrics():
     scorer = OpportunityScorer()
     score = scorer.calculate_quantitative_score({})
@@ -353,15 +363,15 @@ def test_calculate_quantitative_score_f1_out_of_range():
     # F1 > 1 should be ignored
     quant_metrics = {"classification_f1": 1.5}
     score1 = scorer.calculate_quantitative_score(quant_metrics)
-    
+
     # F1 < 0 should be ignored
     quant_metrics = {"classification_f1": -0.5}
     score2 = scorer.calculate_quantitative_score(quant_metrics)
-    
+
     # Valid F1 should contribute
     quant_metrics = {"classification_f1": 0.75}
     score3 = scorer.calculate_quantitative_score(quant_metrics)
-    
+
     assert score3 > score1
     assert score3 > score2
     assert score1 == score2  # Both invalid, should be treated the same
@@ -372,11 +382,11 @@ def test_calculate_quantitative_score_adx_nan_handling():
     # NaN ADX should not contribute
     quant_metrics = {"long_adx": np.nan, "short_adx": 25.0}
     score1 = scorer.calculate_quantitative_score(quant_metrics)
-    
+
     # Valid ADX should contribute
     quant_metrics = {"long_adx": 28.0, "short_adx": 30.0}
     score2 = scorer.calculate_quantitative_score(quant_metrics)
-    
+
     assert score2 >= score1
 
 
@@ -401,6 +411,7 @@ def test_calculate_quantitative_score_final_score_capped_at_100():
 # _apply_momentum_adx_filter Validation Tests
 # ============================================================================
 
+
 def test_apply_momentum_adx_filter_invalid_adx_nan():
     scorer = OpportunityScorer(strategy="momentum")
     score = scorer._apply_momentum_adx_filter(0.5, np.nan, 25.0)
@@ -423,6 +434,7 @@ def test_apply_momentum_adx_filter_none_adx():
 # ============================================================================
 # _get_metric Validation Tests
 # ============================================================================
+
 
 def test_get_metric_filters_nan_inf():
     scorer = OpportunityScorer()

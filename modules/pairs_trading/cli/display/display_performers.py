@@ -1,3 +1,11 @@
+
+import pandas as pd
+
+
+def _format_price(x):
+    return f"${x:.2f}" if x else "N/A"
+
+
 """
 Performance display formatter for pairs trading analysis.
 
@@ -5,20 +13,18 @@ This module provides formatted display functions for showing symbol performance
 data in a user-friendly table format with color-coded metrics.
 """
 
-import pandas as pd
-from colorama import Fore
 
 try:
     from modules.common.utils import (
         color_text,
         format_price,
-        log_warn,
         log_analysis,
         log_data,
+        log_warn,
     )
 except ImportError:
     color_text = None
-    format_price = lambda x: f"${x:.2f}" if x else "N/A"
+    format_price = _format_price
     log_warn = print
     log_analysis = print
     log_data = print
@@ -27,10 +33,10 @@ except ImportError:
 def display_performers(df: pd.DataFrame, title: str, color: str = "") -> None:
     """
     Display top/worst performers in a formatted table.
-    
+
     This function displays symbol performance data including scores, returns across
     multiple timeframes (1d, 3d, 1w), and current prices in a formatted table.
-    
+
     Args:
         df: DataFrame with performance data containing columns:
             - symbol: Trading symbol (e.g., 'BTC/USDT')
@@ -41,7 +47,7 @@ def display_performers(df: pd.DataFrame, title: str, color: str = "") -> None:
             - current_price: Current price
         title: Title to display for the table
         color: Colorama color code for styling the entire table content (e.g., Fore.GREEN)
-        
+
     Example:
         >>> performance_df = pd.DataFrame({
         ...     'symbol': ['BTC/USDT', 'ETH/USDT'],
@@ -52,7 +58,7 @@ def display_performers(df: pd.DataFrame, title: str, color: str = "") -> None:
         ...     'current_price': [50000, 3000]
         ... })
         >>> display_performers(performance_df, "Top Performers", Fore.GREEN)
-    
+
     Note:
         - Returns are displayed as percentages (multiplied by 100)
         - Scores are also displayed as percentages
@@ -74,9 +80,11 @@ def display_performers(df: pd.DataFrame, title: str, color: str = "") -> None:
         log_analysis("=" * 80)
 
     # Header row
-    header = f"{'Rank':<6} {'Symbol':<15} {'Score':<12} {'1d Return':<12} {'3d Return':<12} {'1w Return':<12} {'Price':<15}"
+    header = (
+        f"{'Rank':<6} {'Symbol':<15} {'Score':<12} {'1d Return':<12} {'3d Return':<12} {'1w Return':<12} {'Price':<15}"
+    )
     separator = "-" * 80
-    
+
     if color and color_text:
         print(color_text(header, color))
         print(color_text(separator, color))
@@ -100,7 +108,7 @@ def display_performers(df: pd.DataFrame, title: str, color: str = "") -> None:
             f"{score:+.2f}%{'':<8} "
             f"{return_1d:+.2f}%{'':<6} {return_3d:+.2f}%{'':<6} {return_1w:+.2f}%{'':<6} {format_price(price):<15}"
         )
-        
+
         if color and color_text:
             print(color_text(row_text, color))
         else:

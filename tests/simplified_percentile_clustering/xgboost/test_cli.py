@@ -1,11 +1,12 @@
+
+from pathlib import Path
+from unittest.mock import patch
+import sys
+
 """
 Test script for modules.xgboost_prediction_cli - CLI parsing functions.
 """
 
-import sys
-from pathlib import Path
-from io import StringIO
-from unittest.mock import patch, Mock
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -13,9 +14,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pytest
 
 from modules.xgboost.cli import (
+    parse_args,
     prompt_with_default,
     resolve_input,
-    parse_args,
 )
 
 
@@ -84,7 +85,7 @@ def test_parse_args_defaults():
     """Test parse_args with default values."""
     with patch("sys.argv", ["xgboost_prediction_cli.py"]):
         args = parse_args()
-        
+
         # All should be None with default values
         assert args.symbol is None
         assert args.quote is None
@@ -103,17 +104,25 @@ def test_parse_args_with_symbol():
 
 def test_parse_args_with_all_args():
     """Test parse_args with all arguments."""
-    with patch("sys.argv", [
-        "xgboost_prediction_cli.py",
-        "--symbol", "ETH/USDT",
-        "--quote", "USDT",
-        "--timeframe", "4h",
-        "--limit", "500",
-        "--exchanges", "binance,kraken",
-        "--no-prompt",
-    ]):
+    with patch(
+        "sys.argv",
+        [
+            "xgboost_prediction_cli.py",
+            "--symbol",
+            "ETH/USDT",
+            "--quote",
+            "USDT",
+            "--timeframe",
+            "4h",
+            "--limit",
+            "500",
+            "--exchanges",
+            "binance,kraken",
+            "--no-prompt",
+        ],
+    ):
         args = parse_args()
-        
+
         assert args.symbol == "ETH/USDT"
         assert args.quote == "USDT"
         assert args.timeframe == "4h"
@@ -124,15 +133,22 @@ def test_parse_args_with_all_args():
 
 def test_parse_args_short_flags():
     """Test parse_args with short flag arguments."""
-    with patch("sys.argv", [
-        "xgboost_prediction_cli.py",
-        "-s", "BTC/USDT",
-        "-t", "1h",
-        "-l", "1000",
-        "-e", "binance",
-    ]):
+    with patch(
+        "sys.argv",
+        [
+            "xgboost_prediction_cli.py",
+            "-s",
+            "BTC/USDT",
+            "-t",
+            "1h",
+            "-l",
+            "1000",
+            "-e",
+            "binance",
+        ],
+    ):
         args = parse_args()
-        
+
         assert args.symbol == "BTC/USDT"
         assert args.timeframe == "1h"
         assert args.limit == 1000
@@ -148,4 +164,3 @@ def test_parse_args_no_prompt_flag():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

@@ -1,22 +1,26 @@
-"""
-Core I Ching hexagram generation logic.
-"""
 
-import random
 from typing import Dict, List, Tuple
+import random
 
 from config.iching import GROUP_SIZE, HEXAGRAM_STRING_LENGTH, NUM_LINES
 from modules.common.ui.logging import log_info, log_success
 from modules.iching.core.image_generator import create_hexagram_image
+from modules.iching.core.image_generator import create_hexagram_image
+
+"""
+Core I Ching hexagram generation logic.
+"""
+
+
 
 
 def generate_ns_string(length: int = HEXAGRAM_STRING_LENGTH) -> str:
     """
     Tạo chuỗi ngẫu nhiên với các ký tự N và S.
-    
+
     Args:
         length: Độ dài chuỗi (mặc định 18)
-        
+
     Returns:
         Chuỗi ngẫu nhiên chứa N và S
     """
@@ -26,11 +30,11 @@ def generate_ns_string(length: int = HEXAGRAM_STRING_LENGTH) -> str:
 def group_string(string: str, group_size: int = GROUP_SIZE) -> List[str]:
     """
     Nhóm chuỗi thành các nhóm có kích thước group_size.
-    
+
     Args:
         string: Chuỗi cần nhóm
         group_size: Kích thước mỗi nhóm (mặc định 3)
-        
+
     Returns:
         Danh sách các nhóm
     """
@@ -40,10 +44,10 @@ def group_string(string: str, group_size: int = GROUP_SIZE) -> List[str]:
 def analyze_line(group: str) -> Tuple[bool, bool]:
     """
     Phân tích vạch: trả về (is_solid, is_red).
-    
+
     Args:
         group: Chuỗi 3 ký tự N/S
-        
+
     Returns:
         Tuple (is_solid, is_red)
     """
@@ -64,10 +68,10 @@ def analyze_line(group: str) -> Tuple[bool, bool]:
 def prepare_hexagram() -> List[Dict[str, bool]]:
     """
     Tạo chuỗi hexagram và trả về thông tin vạch.
-    
+
     Returns:
         Danh sách 6 dict, mỗi dict chứa {"is_solid": bool, "is_red": bool}
-        
+
     Raises:
         ValueError: Nếu không thể tạo hexagram hợp lệ
     """
@@ -90,4 +94,3 @@ def prepare_hexagram() -> List[Dict[str, bool]]:
 
     log_success("Đã hoàn thành việc tạo hexagram và phân tích vạch.")
     return line_info
-

@@ -1,3 +1,10 @@
+
+import sys
+import warnings
+
+from modules.common.utils import (
+from modules.common.utils import (
+
 """
 ATC + Range Oscillator + SPC Hybrid Approach (Phương án 1).
 
@@ -39,20 +46,20 @@ Example:
     Run from command line:
         $ python main_complex_hybrid.py --timeframe 1h --enable-spc --use-decision-matrix
 """
-import warnings
-import sys
 
-from modules.common.utils import (
-    configure_windows_stdio,
+
     color_text,
-    log_error,
+    configure_windows_stdio,
     initialize_components,
+    log_error,
 )
 
 # Fix encoding issues on Windows for interactive CLI runs only
 configure_windows_stdio()
 
-from colorama import Fore, init as colorama_init
+from colorama import Fore
+from colorama import init as colorama_init
+
 colorama_init(autoreset=True)
 
 from cli.argument_parser import parse_args
@@ -61,8 +68,17 @@ from core.hybrid_analyzer import HybridAnalyzer
 # Suppress only benign deprecation and future warnings from third-party libraries
 # Keep warnings from our own code visible by filtering only specific module namespaces
 _EXTERNAL_MODULES = [
-    "pandas", "numpy", "sklearn", "xgboost", "statsmodels",
-    "pandas_ta", "hmmlearn", "pykalman", "numba", "matplotlib", "mplfinance"
+    "pandas",
+    "numpy",
+    "sklearn",
+    "xgboost",
+    "statsmodels",
+    "pandas_ta",
+    "hmmlearn",
+    "pykalman",
+    "numba",
+    "matplotlib",
+    "mplfinance",
 ]
 for _module in _EXTERNAL_MODULES:
     # Use strict regex to match only module and its submodules (e.g., "^pandas(\\.|$)")
@@ -74,10 +90,10 @@ for _module in _EXTERNAL_MODULES:
 def main() -> None:
     """
     Main entry point for Hybrid Analyzer workflow.
-    
+
     Initializes components, creates HybridAnalyzer instance, and runs the
     complete sequential filtering + voting workflow.
-    
+
     Workflow steps:
         1. Parse command-line arguments
         2. Initialize ExchangeManager and DataFetcher
@@ -94,6 +110,7 @@ def main() -> None:
     analyzer = HybridAnalyzer(args, data_fetcher)
     analyzer.run()
 
+
 if __name__ == "__main__":
     try:
         main()
@@ -103,6 +120,6 @@ if __name__ == "__main__":
     except Exception as e:
         log_error(f"Error: {type(e).__name__}: {e}")
         import traceback
+
         log_error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
-

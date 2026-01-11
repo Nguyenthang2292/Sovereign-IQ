@@ -1,3 +1,14 @@
+
+from datetime import datetime
+from html import escape as html_escape
+from pathlib import Path
+from typing import Dict, List
+import json
+import os
+
+from modules.gemini_chart_analyzer.core.utils import find_project_root
+from modules.gemini_chart_analyzer.core.utils import find_project_root
+
 """
 HTML Report Generation for Batch Scan Results.
 
@@ -5,22 +16,13 @@ This module provides functionality to generate HTML reports for batch scan resul
 avoiding circular dependencies by being in the core module.
 """
 
-import os
-import json
-from datetime import datetime
-from html import escape as html_escape
-from pathlib import Path
-from typing import Dict, List, Tuple
 
-from modules.gemini_chart_analyzer.core.utils import find_project_root
 
-def generate_batch_html_report(
-    results_data: Dict,
-    output_dir: str
-) -> str:
+
+def generate_batch_html_report(results_data: Dict, output_dir: str) -> str:
     """
     Tạo HTML report cho batch scan results với accordion layout và sortable tables.
-    
+
     Args:
         results_data: Dict từ batch scan với structure:
             {
@@ -42,57 +44,57 @@ def generate_batch_html_report(
                 'all_results': Dict[str, Dict]
             }
         output_dir: Thư mục lưu HTML file
-        
+
     Returns:
         Đường dẫn đến file HTML đã tạo
     """
     # Parse data
-    timestamp_str = results_data.get('timestamp', datetime.now().isoformat())
+    timestamp_str = results_data.get("timestamp", datetime.now().isoformat())
     try:
         report_datetime = datetime.fromisoformat(timestamp_str)
     except (ValueError, TypeError):
-        report_datetime = datetime.now()    
-    
+        report_datetime = datetime.now()
+
     datetime_str = report_datetime.strftime("%d/%m/%Y %H:%M:%S")
-    timeframes = results_data.get('timeframes', [])
-    summary = results_data.get('summary', {})
-    long_with_conf = results_data.get('long_symbols_with_confidence', [])
-    short_with_conf = results_data.get('short_symbols_with_confidence', [])
-    all_results = results_data.get('all_results', {})
-    
+    timeframes = results_data.get("timeframes", [])
+    summary = results_data.get("summary", {})
+    long_with_conf = results_data.get("long_symbols_with_confidence", [])
+    short_with_conf = results_data.get("short_symbols_with_confidence", [])
+    all_results = results_data.get("all_results", {})
+
     # Signal color mapping
     def get_signal_color(signal: str) -> str:
         signal_upper = signal.upper()
-        if signal_upper == 'LONG':
-            return '#48bb78'  # green
-        elif signal_upper == 'SHORT':
-            return '#f56565'  # red
+        if signal_upper == "LONG":
+            return "#48bb78"  # green
+        elif signal_upper == "SHORT":
+            return "#f56565"  # red
         else:
-            return '#a0a0a0'  # gray
-    
+            return "#a0a0a0"  # gray
+
     # Extract NONE symbols
     none_with_conf = []
     for symbol, result in all_results.items():
         if isinstance(result, dict):
-            signal = result.get('signal', 'NONE')
-            if signal.upper() == 'NONE':
-                confidence = result.get('confidence', 0.0)
+            signal = result.get("signal", "NONE")
+            if signal.upper() == "NONE":
+                confidence = result.get("confidence", 0.0)
                 none_with_conf.append((symbol, confidence))
-    
+
     # Sort by confidence (descending)
     none_with_conf.sort(key=lambda x: x[1], reverse=True)
-    
+
     # Summary statistics
-    total_symbols = summary.get('total_symbols', 0)
-    scanned_symbols = summary.get('scanned_symbols', 0)
-    long_count = summary.get('long_count', 0)
-    short_count = summary.get('short_count', 0)
-    none_count = summary.get('none_count', 0)
-    long_percentage = summary.get('long_percentage', 0.0)
-    short_percentage = summary.get('short_percentage', 0.0)
-    avg_long_conf = summary.get('avg_long_confidence', 0.0)
-    avg_short_conf = summary.get('avg_short_confidence', 0.0)
-    
+    total_symbols = summary.get("total_symbols", 0)
+    scanned_symbols = summary.get("scanned_symbols", 0)
+    long_count = summary.get("long_count", 0)
+    short_count = summary.get("short_count", 0)
+    none_count = summary.get("none_count", 0)
+    long_percentage = summary.get("long_percentage", 0.0)
+    short_percentage = summary.get("short_percentage", 0.0)
+    avg_long_conf = summary.get("avg_long_confidence", 0.0)
+    avg_short_conf = summary.get("avg_short_confidence", 0.0)
+
     # Calculate none_percentage explicitly from counts to avoid rounding errors
     total_count = scanned_symbols if scanned_symbols > 0 else (long_count + short_count + none_count)
     if total_count > 0:
@@ -100,46 +102,46 @@ def generate_batch_html_report(
         none_percentage = max(0.0, none_percentage)  # Clamp to ensure non-negative
     else:
         none_percentage = 0.0
-    
+
     # Generate symbol table rows
     def generate_symbol_rows(symbols_with_conf: List, signal_type: str) -> str:
         rows = []
         is_multi_tf = len(timeframes) > 1 if timeframes else False
         for symbol, confidence in symbols_with_conf:
             result = all_results.get(symbol, {})
-            timeframe_breakdown = result.get('timeframe_breakdown', {}) if isinstance(result, dict) else {}
-            
+            timeframe_breakdown = result.get("timeframe_breakdown", {}) if isinstance(result, dict) else {}
+
             # Generate timeframe breakdown badges
             breakdown_badges = []
             if timeframe_breakdown:
                 for tf, tf_data in timeframe_breakdown.items():
                     if isinstance(tf_data, dict):
-                        tf_signal = tf_data.get('signal', 'NONE')
-                        tf_conf = tf_data.get('confidence', 0.0)
+                        tf_signal = tf_data.get("signal", "NONE")
+                        tf_conf = tf_data.get("confidence", 0.0)
                         tf_color = get_signal_color(tf_signal)
                         breakdown_badges.append(
                             f'<span class="tf-badge" style="background-color: {tf_color}20; color: {tf_color}; border: 1px solid {tf_color}">'
-                            f'{html_escape(str(tf))}: {html_escape(str(tf_signal))} ({tf_conf:.2f})</span>'
+                            f"{html_escape(str(tf))}: {html_escape(str(tf_signal))} ({tf_conf:.2f})</span>"
                         )
-            
-            breakdown_html = ' '.join(breakdown_badges) if breakdown_badges else '<span class="no-breakdown">N/A</span>'
+
+            breakdown_html = " ".join(breakdown_badges) if breakdown_badges else '<span class="no-breakdown">N/A</span>'
             signal_color = get_signal_color(signal_type)
-            
+
             # Escape symbol for use in JavaScript using json.dumps for proper escaping
             symbol_json = json.dumps(symbol)
-            timeframes_json = json.dumps(timeframes) if timeframes else '[]'
-            primary_tf = timeframes[0] if timeframes else results_data.get('timeframe', '1h')
-            
+            timeframes_json = json.dumps(timeframes) if timeframes else "[]"
+            primary_tf = timeframes[0] if timeframes else results_data.get("timeframe", "1h")
+
             # Escape values for safe HTML insertion
             symbol_escaped = html_escape(str(symbol))
             confidence_escaped = html_escape(str(confidence))
             signal_type_escaped = html_escape(str(signal_type))
             primary_tf_escaped = html_escape(str(primary_tf))
-            
+
             # Clamp confidence to 0-1 range for bar width calculation
             # while keeping displayed text unchanged
             width_pct = max(0, min(confidence, 1)) * 100
-            
+
             rows.append(f"""
                 <tr data-symbol="{symbol_escaped}" data-confidence="{confidence_escaped}">
                     <td class="symbol-cell">{symbol_escaped}</td>
@@ -164,26 +166,26 @@ def generate_batch_html_report(
                     </td>
                 </tr>
             """)
-        return '\n'.join(rows)
-    
-    long_rows = generate_symbol_rows(long_with_conf, 'LONG')
-    short_rows = generate_symbol_rows(short_with_conf, 'SHORT')
-    none_rows = generate_symbol_rows(none_with_conf, 'NONE')
-    
-    timeframes_str = ', '.join(timeframes) if timeframes else 'N/A'
-    
+        return "\n".join(rows)
+
+    long_rows = generate_symbol_rows(long_with_conf, "LONG")
+    short_rows = generate_symbol_rows(short_with_conf, "SHORT")
+    none_rows = generate_symbol_rows(none_with_conf, "NONE")
+
+    timeframes_str = ", ".join(timeframes) if timeframes else "N/A"
+
     # Escape values for safe HTML insertion
     datetime_str_escaped = html_escape(datetime_str)
     timeframes_str_escaped = html_escape(timeframes_str)
-    
+
     # Get absolute path to main_gemini_chart_analyzer.py
     # HTML is in analysis_results/batch_scan/, main script is at project root
     # Calculate absolute path using robust project root discovery
     html_dir = Path(output_dir).resolve()
     project_root = find_project_root(html_dir)
-    main_script_path = project_root / 'main_gemini_chart_analyzer.py'
+    main_script_path = project_root / "main_gemini_chart_analyzer.py"
     main_script_absolute = str(main_script_path.resolve())
-    
+
     # HTML template
     html_content = f"""<!DOCTYPE html>
 <html lang="vi">
@@ -197,7 +199,7 @@ def generate_batch_html_report(
             padding: 0;
             box-sizing: border-box;
         }}
-        
+
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
@@ -206,7 +208,7 @@ def generate_batch_html_report(
             padding: 20px;
             min-height: 100vh;
         }}
-        
+
         .container {{
             max-width: 1600px;
             margin: 0 auto;
@@ -215,42 +217,42 @@ def generate_batch_html_report(
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
             overflow: hidden;
         }}
-        
+
         .header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 30px;
             text-align: center;
             color: white;
         }}
-        
+
         .header h1 {{
             font-size: 2.5em;
             margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }}
-        
+
         .header .subtitle {{
             font-size: 1.1em;
             opacity: 0.9;
         }}
-        
+
         .header .datetime {{
             margin-top: 15px;
             font-size: 0.95em;
             opacity: 0.85;
             font-style: italic;
         }}
-        
+
         .header .timeframes-list {{
             margin-top: 10px;
             font-size: 0.9em;
             opacity: 0.9;
         }}
-        
+
         .content {{
             padding: 30px;
         }}
-        
+
         .summary-section {{
             background: #333;
             padding: 25px;
@@ -258,61 +260,61 @@ def generate_batch_html_report(
             margin-bottom: 30px;
             border-left: 4px solid #667eea;
         }}
-        
+
         .summary-section h2 {{
             color: #667eea;
             margin-bottom: 20px;
             font-size: 1.8em;
         }}
-        
+
         .summary-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-top: 20px;
         }}
-        
+
         .summary-card {{
             background: #3a3a3a;
             padding: 20px;
             border-radius: 8px;
             text-align: center;
         }}
-        
+
         .summary-card .label {{
             color: #aaa;
             font-size: 0.9em;
             margin-bottom: 10px;
         }}
-        
+
         .summary-card .value {{
             font-size: 2em;
             font-weight: bold;
             color: #fff;
         }}
-        
+
         .summary-card.long .value {{
             color: #48bb78;
         }}
-        
+
         .summary-card.short .value {{
             color: #f56565;
         }}
-        
+
         .summary-card.none .value {{
             color: #a0a0a0;
         }}
-        
+
         .summary-card .subvalue {{
             font-size: 0.9em;
             color: #888;
             margin-top: 5px;
         }}
-        
+
         .accordion-container {{
             margin-top: 30px;
         }}
-        
+
         .accordion-item {{
             background: #333;
             border-radius: 8px;
@@ -320,11 +322,11 @@ def generate_batch_html_report(
             overflow: hidden;
             border: 1px solid #444;
         }}
-        
+
         .accordion-checkbox {{
             display: none;
         }}
-        
+
         .accordion-header {{
             display: flex;
             align-items: center;
@@ -335,11 +337,11 @@ def generate_batch_html_report(
             user-select: none;
             transition: background-color 0.3s ease;
         }}
-        
+
         .accordion-header:hover {{
             background: #444;
         }}
-        
+
         .accordion-title {{
             display: flex;
             align-items: center;
@@ -347,7 +349,7 @@ def generate_batch_html_report(
             font-size: 1.3em;
             font-weight: bold;
         }}
-        
+
         .signal-type-badge {{
             padding: 8px 16px;
             border-radius: 6px;
@@ -355,7 +357,7 @@ def generate_batch_html_report(
             color: white;
             font-size: 0.9em;
         }}
-        
+
         .count-badge {{
             background: #667eea;
             padding: 5px 12px;
@@ -363,39 +365,39 @@ def generate_batch_html_report(
             font-size: 0.9em;
             font-weight: bold;
         }}
-        
+
         .accordion-toggle {{
             font-size: 0.8em;
             color: #aaa;
             transition: transform 0.3s ease;
         }}
-        
+
         .accordion-checkbox:checked ~ .accordion-header .accordion-toggle {{
             transform: rotate(180deg);
         }}
-        
+
         .accordion-content {{
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.3s ease;
         }}
-        
+
         .accordion-checkbox:checked ~ .accordion-content {{
             max-height: 10000px;
         }}
-        
+
         .table-container {{
             padding: 25px;
             background: #2a2a2a;
             overflow-x: auto;
         }}
-        
+
         .symbols-table {{
             width: 100%;
             border-collapse: collapse;
             background: #333;
         }}
-        
+
         .symbols-table th {{
             background: #3a3a3a;
             padding: 15px;
@@ -408,41 +410,41 @@ def generate_batch_html_report(
             top: 0;
             z-index: 10;
         }}
-        
+
         .symbols-table th:hover {{
             background: #444;
         }}
-        
+
         .symbols-table th.sortable::after {{
             content: ' ↕';
             opacity: 0.5;
             font-size: 0.8em;
         }}
-        
+
         .symbols-table th.sort-asc::after {{
             content: ' ↑';
             opacity: 1;
         }}
-        
+
         .symbols-table th.sort-desc::after {{
             content: ' ↓';
             opacity: 1;
         }}
-        
+
         .symbols-table td {{
             padding: 12px 15px;
             border-bottom: 1px solid #444;
         }}
-        
+
         .symbols-table tr:hover {{
             background: #3a3a3a;
         }}
-        
+
         .symbol-cell {{
             font-weight: bold;
             color: #fff;
         }}
-        
+
         .signal-badge {{
             padding: 5px 12px;
             border-radius: 6px;
@@ -451,23 +453,23 @@ def generate_batch_html_report(
             font-size: 0.9em;
             display: inline-block;
         }}
-        
+
         .confidence-cell {{
             min-width: 150px;
         }}
-        
+
         .confidence-bar-container {{
             display: flex;
             align-items: center;
             gap: 10px;
         }}
-        
+
         .confidence-value {{
             min-width: 45px;
             font-weight: bold;
             color: #f6ad55;
         }}
-        
+
         .confidence-bar {{
             flex: 1;
             height: 20px;
@@ -475,17 +477,17 @@ def generate_batch_html_report(
             border-radius: 10px;
             overflow: hidden;
         }}
-        
+
         .confidence-fill {{
             height: 100%;
             border-radius: 10px;
             transition: width 0.3s ease;
         }}
-        
+
         .breakdown-cell {{
             min-width: 300px;
         }}
-        
+
         .tf-badge {{
             display: inline-block;
             padding: 4px 8px;
@@ -494,16 +496,16 @@ def generate_batch_html_report(
             margin-right: 5px;
             margin-bottom: 5px;
         }}
-        
+
         .no-breakdown {{
             color: #888;
             font-style: italic;
         }}
-        
+
         .action-cell {{
             text-align: center;
         }}
-        
+
         .detail-btn {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -515,16 +517,16 @@ def generate_batch_html_report(
             font-size: 0.9em;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }}
-        
+
         .detail-btn:hover {{
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }}
-        
+
         .detail-btn:active {{
             transform: translateY(0);
         }}
-        
+
         /* Modal styles */
         .modal-overlay {{
             display: none;
@@ -538,11 +540,11 @@ def generate_batch_html_report(
             justify-content: center;
             align-items: center;
         }}
-        
+
         .modal-overlay.show {{
             display: flex;
         }}
-        
+
         .modal-content {{
             background: #2a2a2a;
             border-radius: 12px;
@@ -554,7 +556,7 @@ def generate_batch_html_report(
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
             position: relative;
         }}
-        
+
         .modal-header {{
             display: flex;
             justify-content: space-between;
@@ -563,13 +565,13 @@ def generate_batch_html_report(
             padding-bottom: 15px;
             border-bottom: 2px solid #444;
         }}
-        
+
         .modal-header h2 {{
             color: #667eea;
             font-size: 1.8em;
             margin: 0;
         }}
-        
+
         .modal-close {{
             background: #f56565;
             color: white;
@@ -585,21 +587,21 @@ def generate_batch_html_report(
             justify-content: center;
             transition: background 0.2s ease;
         }}
-        
+
         .modal-close:hover {{
             background: #e53e3e;
         }}
-        
+
         .modal-body {{
             margin-bottom: 20px;
         }}
-        
+
         .modal-body p {{
             color: #ccc;
             margin-bottom: 15px;
             line-height: 1.6;
         }}
-        
+
         .command-container {{
             background: #1a1a1a;
             border: 1px solid #444;
@@ -608,7 +610,7 @@ def generate_batch_html_report(
             margin: 15px 0;
             position: relative;
         }}
-        
+
         .command-text {{
             color: #48bb78;
             font-family: 'Courier New', monospace;
@@ -617,13 +619,13 @@ def generate_batch_html_report(
             user-select: all;
             margin: 0;
         }}
-        
+
         .command-actions {{
             display: flex;
             gap: 10px;
             margin-top: 15px;
         }}
-        
+
         .copy-btn {{
             background: #48bb78;
             color: white;
@@ -635,36 +637,36 @@ def generate_batch_html_report(
             flex: 1;
             transition: background 0.2s ease;
         }}
-        
+
         .copy-btn:hover {{
             background: #38a169;
         }}
-        
+
         .copy-btn.copied {{
             background: #667eea;
         }}
-        
+
         @media (max-width: 768px) {{
             .header h1 {{
                 font-size: 1.8em;
             }}
-            
+
             .content {{
                 padding: 20px;
             }}
-            
+
             .summary-grid {{
                 grid-template-columns: 1fr;
             }}
-            
+
             .table-container {{
                 padding: 15px;
             }}
-            
+
             .symbols-table {{
                 font-size: 0.9em;
             }}
-            
+
             .symbols-table th,
             .symbols-table td {{
                 padding: 10px;
@@ -678,17 +680,17 @@ def generate_batch_html_report(
             const rows = Array.from(tbody.querySelectorAll('tr'));
             const header = table.querySelectorAll('th')[columnIndex];
             const isAscending = header.classList.contains('sort-asc');
-            
+
             // Remove sort classes from all headers
             table.querySelectorAll('th').forEach(th => {{
                 th.classList.remove('sort-asc', 'sort-desc', 'sortable');
             }});
-            
+
             // Add sortable class to all headers
             table.querySelectorAll('th').forEach(th => {{
                 th.classList.add('sortable');
             }});
-            
+
             // Sort rows
             rows.sort((a, b) => {{
                 let aVal, bVal;
@@ -704,23 +706,23 @@ def generate_batch_html_report(
                 }} else {{
                     return 0;
                 }}
-                
+
                 if (isNumeric) {{
                     return isAscending ? aVal - bVal : bVal - aVal;
                 }} else {{
                     return isAscending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
                 }}
             }});
-            
+
             // Clear and re-append sorted rows
             tbody.innerHTML = '';
             rows.forEach(row => tbody.appendChild(row));
-            
+
             // Update header class
             header.classList.remove('sortable');
             header.classList.add(isAscending ? 'sort-desc' : 'sort-asc');
         }}
-        
+
         // Make headers clickable
         document.addEventListener('DOMContentLoaded', function() {{
             document.querySelectorAll('.symbols-table th').forEach((header, index) => {{
@@ -733,22 +735,22 @@ def generate_batch_html_report(
                 }}
             }});
         }});
-        
+
         // Script absolute path (embedded from Python)
         const MAIN_SCRIPT_PATH = {json.dumps(main_script_absolute)};
-        
+
         function getScriptPath() {{
             return MAIN_SCRIPT_PATH;
         }}
-        
+
         // Show detail modal with command
         function showDetailModal(symbol, timeframes, isMultiTF, primaryTF) {{
             const modal = document.getElementById('detailModal');
             const symbolNameEl = document.getElementById('modalSymbolName');
             const commandTextEl = document.getElementById('modalCommandText');
-            
+
             symbolNameEl.textContent = symbol;
-            
+
             // Generate command
             const scriptPath = getScriptPath();
             let command;
@@ -759,11 +761,11 @@ def generate_batch_html_report(
                 const tf = primaryTF || (timeframes && timeframes.length > 0 ? timeframes[0] : '1h');
                 command = `python "${{scriptPath}}" --symbol "${{symbol}}" --timeframe "${{tf}}"`;
             }}
-            
+
             commandTextEl.textContent = command;
             modal.classList.add('show');
         }}
-        
+
         // Close modal
         function closeModal() {{
             const modal = document.getElementById('detailModal');
@@ -772,13 +774,13 @@ def generate_batch_html_report(
             copyBtn.classList.remove('copied');
             copyBtn.textContent = 'Copy Command';
         }}
-        
+
         // Copy command to clipboard
         function copyCommand() {{
             const commandTextEl = document.getElementById('modalCommandText');
             const command = commandTextEl.textContent;
             const copyBtn = document.getElementById('copyCommandBtn');
-            
+
             if (navigator.clipboard && navigator.clipboard.writeText) {{
                 navigator.clipboard.writeText(command).then(() => {{
                     copyBtn.classList.add('copied');
@@ -795,7 +797,7 @@ def generate_batch_html_report(
                 fallbackCopyCommand(command, copyBtn);
             }}
         }}
-        
+
         // Fallback copy method for older browsers
         function fallbackCopyCommand(text, button) {{
             const textarea = document.createElement('textarea');
@@ -818,7 +820,7 @@ def generate_batch_html_report(
             }}
             document.body.removeChild(textarea);
         }}
-        
+
         // Close modal when clicking overlay
         document.addEventListener('DOMContentLoaded', function() {{
             const modal = document.getElementById('detailModal');
@@ -840,7 +842,7 @@ def generate_batch_html_report(
             <div class="datetime">📅 Ngày xuất báo cáo: {datetime_str_escaped}</div>
             <div class="timeframes-list">Timeframes: {timeframes_str_escaped}</div>
         </div>
-        
+
         <div class="content">
             <div class="summary-section">
                 <h2>📈 Tổng Quan Thống Kê</h2>
@@ -867,10 +869,10 @@ def generate_batch_html_report(
                     </div>
                 </div>
             </div>
-            
+
             <div class="accordion-container">
                 <h2 style="color: #667eea; margin-bottom: 20px; font-size: 1.8em;">📋 Chi Tiết Symbols</h2>
-                
+
                 <!-- LONG Section -->
                 <div class="accordion-item">
                     <input type="checkbox" id="accordion-long" class="accordion-checkbox" checked>
@@ -900,7 +902,7 @@ def generate_batch_html_report(
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- SHORT Section -->
                 <div class="accordion-item">
                     <input type="checkbox" id="accordion-short" class="accordion-checkbox" checked>
@@ -930,7 +932,7 @@ def generate_batch_html_report(
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- NONE Section -->
                 <div class="accordion-item">
                     <input type="checkbox" id="accordion-none" class="accordion-checkbox">
@@ -963,7 +965,7 @@ def generate_batch_html_report(
             </div>
         </div>
     </div>
-    
+
     <!-- Detail Modal -->
     <div id="detailModal" class="modal-overlay">
         <div class="modal-content">
@@ -986,24 +988,22 @@ def generate_batch_html_report(
     </div>
 </body>
 </html>"""
-    
+
     # Save HTML file
     timestamp = report_datetime.strftime("%Y%m%d_%H%M%S")
     if timeframes:
         tf_str = "_".join(timeframes)
         html_filename = f"batch_scan_multi_tf_{tf_str}_{timestamp}.html"
     else:
-        timeframe = results_data.get('timeframe', '1h')
+        timeframe = results_data.get("timeframe", "1h")
         html_filename = f"batch_scan_{timeframe}_{timestamp}.html"
-    
+
     html_path = os.path.join(output_dir, html_filename)
-    
+
     # Đảm bảo thư mục output tồn tại trước khi ghi file
     os.makedirs(output_dir, exist_ok=True)
-    
-    with open(html_path, 'w', encoding='utf-8') as f:
+
+    with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_content)
-    
+
     return html_path
-
-

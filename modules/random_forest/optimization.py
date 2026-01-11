@@ -1,3 +1,23 @@
+
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
+import json
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.utils.class_weight import compute_class_weight
+import numpy as np
+import pandas as pd
+
+from config import (
+from optuna import Study
+from optuna.exceptions import DuplicatedStudyError
+import optuna
+from optuna.exceptions import DuplicatedStudyError
+import optuna
+
 """
 Hyperparameter Optimization for Random Forest Module.
 
@@ -7,26 +27,12 @@ including:
 - StudyManager: Management and persistence of optimization studies
 """
 
-import json
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, Optional
 
-import numpy as np
-import optuna
-import pandas as pd
-from optuna import Study
-from optuna.exceptions import DuplicatedStudyError
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.utils.class_weight import compute_class_weight
 
-from config import (
-    MODEL_RANDOM_STATE,
     MIN_TRAINING_SAMPLES,
+    MODEL_RANDOM_STATE,
 )
-from modules.common.ui.logging import log_info, log_success, log_warn, log_error
+from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.random_forest.utils.data_preparation import prepare_training_data
 from modules.random_forest.utils.training import apply_smote
 
@@ -34,7 +40,7 @@ from modules.random_forest.utils.training import apply_smote
 class StudyManager:
     """
     Manage and store results of optimization studies.
-    
+
     Stores study metadata including:
     - Best parameters
     - Best score
@@ -46,7 +52,7 @@ class StudyManager:
     def __init__(self, storage_dir: str = "artifacts/random_forest/optimization"):
         """
         Initialize StudyManager.
-        
+
         Args:
             storage_dir: Directory to store studies (relative to project root)
         """
@@ -64,14 +70,14 @@ class StudyManager:
     ) -> str:
         """
         Save study metadata to JSON file.
-        
+
         Args:
             study: Optuna Study object
             symbol: Trading symbol (e.g., 'BTCUSDT')
             timeframe: Timeframe (e.g., '1h')
             best_params: Best hyperparameters found
             best_score: Best score achieved
-            
+
         Returns:
             Path to saved study file
         """
@@ -102,23 +108,21 @@ class StudyManager:
             if trial.state == optuna.trial.TrialState.COMPLETE
         ]
 
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(study_data, f, indent=2, default=str)
 
         log_success(f"Study saved to: {filepath}")
         return str(filepath)
 
-    def load_best_params(
-        self, symbol: str, timeframe: str, max_age_days: int = 30
-    ) -> Optional[Dict[str, Any]]:
+    def load_best_params(self, symbol: str, timeframe: str, max_age_days: int = 30) -> Optional[Dict[str, Any]]:
         """
         Load best parameters from latest study.
-        
+
         Args:
             symbol: Trading symbol
             timeframe: Timeframe
             max_age_days: Maximum age of study in days (default: 30)
-            
+
         Returns:
             Best parameters dict or None if not found
         """
@@ -131,13 +135,10 @@ class StudyManager:
         # Load latest study
         latest_study = study_files[0]
         try:
-            with open(latest_study, 'r', encoding='utf-8') as f:
+            with open(latest_study, "r", encoding="utf-8") as f:
                 study_data = json.load(f)
         except Exception as e:
-            log_error(
-                f"Failed to read study JSON file '{latest_study}': "
-                f"{type(e).__name__}: {str(e)}"
-            )
+            log_error(f"Failed to read study JSON file '{latest_study}': {type(e).__name__}: {str(e)}")
             return None
 
         # Check age of study
@@ -154,23 +155,17 @@ class StudyManager:
             return None
 
         if age_days > max_age_days:
-            log_warn(
-                f"Study is {age_days} days old (max: {max_age_days}). "
-                "Consider re-running optimization."
-            )
+            log_warn(f"Study is {age_days} days old (max: {max_age_days}). Consider re-running optimization.")
             return None
 
-        log_info(
-            f"Loaded best params from study ({age_days} days old): "
-            f"score={study_data['best_score']:.4f}"
-        )
+        log_info(f"Loaded best params from study ({age_days} days old): score={study_data['best_score']:.4f}")
         return study_data["best_params"]
 
 
 class HyperparameterTuner:
     """
     Integrate Optuna to find the best parameters for Random Forest.
-    
+
     Use TimeSeriesSplit cross-validation with gap prevention
     to ensure no data leakage.
     """
@@ -183,7 +178,7 @@ class HyperparameterTuner:
     ):
         """
         Initialize HyperparameterTuner.
-        
+
         Args:
             symbol: Trading symbol (e.g., 'BTCUSDT')
             timeframe: Timeframe (e.g., '1h')
@@ -204,13 +199,13 @@ class HyperparameterTuner:
     ) -> float:
         """
         Objective function for Optuna optimization.
-        
+
         Args:
             trial: Optuna trial object
             X: Feature DataFrame
             y: Target Series
             n_splits: Number of folds for cross-validation
-            
+
         Returns:
             Mean CV accuracy score
         """
@@ -240,10 +235,12 @@ class HyperparameterTuner:
             train_idx_array = np.array(train_idx)
             if len(train_idx_array) <= self.target_horizon:
                 skipped_folds += 1
-                log_warn(f"Fold {fold_idx + 1}: Training set too small ({len(train_idx_array)} <= {self.target_horizon}), skipping")
+                log_warn(
+                    f"Fold {fold_idx + 1}: Training set too small ({len(train_idx_array)} <= {self.target_horizon}), skipping"
+                )
                 continue
-            
-            train_idx_filtered = train_idx_array[:-self.target_horizon]
+
+            train_idx_filtered = train_idx_array[: -self.target_horizon]
 
             # Ensure test set doesn't overlap with gap
             test_idx_array = np.array(test_idx)
@@ -251,7 +248,7 @@ class HyperparameterTuner:
                 skipped_folds += 1
                 log_warn(f"Fold {fold_idx + 1}: Empty train or test set after gap prevention, skipping")
                 continue
-                
+
             min_test_start = train_idx_filtered[-1] + self.target_horizon + 1
             if test_idx_array[0] < min_test_start:
                 test_idx_array = test_idx_array[test_idx_array >= min_test_start]
@@ -268,37 +265,29 @@ class HyperparameterTuner:
             unique_classes = sorted(y_train_fold.unique())
             if len(unique_classes) < 2:  # Need at least 2 classes
                 skipped_folds += 1
-                log_warn(f"Fold {fold_idx + 1}: Insufficient class diversity ({len(unique_classes)} class(es)), skipping")
+                log_warn(
+                    f"Fold {fold_idx + 1}: Insufficient class diversity ({len(unique_classes)} class(es)), skipping"
+                )
                 continue
 
             # Apply SMOTE to training fold
             try:
                 X_train_resampled, y_train_resampled = apply_smote(X_train_fold, y_train_fold)
-            except (ValueError, RuntimeError, MemoryError) as e:
+            except (ValueError, RuntimeError, MemoryError):
                 # If SMOTE fails due to known issues (e.g. no SMOTE available), use original data
                 X_train_resampled, y_train_resampled = X_train_fold, y_train_fold
             except Exception as e:
                 # Unexpected SMOTE error - log full error and re-raise
-                log_error(
-                    f"Unexpected SMOTE error in fold {fold_idx + 1}: "
-                    f"{type(e).__name__}: {str(e)}"
-                )
+                log_error(f"Unexpected SMOTE error in fold {fold_idx + 1}: {type(e).__name__}: {str(e)}")
                 raise
 
-            # Compute class weights (balanced weights for imbalanced classes)                   
-            class_weights = compute_class_weight(
-                'balanced',
-                classes=np.unique(y_train_resampled),
-                y=y_train_resampled
-            )
-            weight_dict = {
-                int(cls): weight
-                for cls, weight in zip(np.unique(y_train_resampled), class_weights)
-            }
+            # Compute class weights (balanced weights for imbalanced classes)
+            class_weights = compute_class_weight("balanced", classes=np.unique(y_train_resampled), y=y_train_resampled)
+            weight_dict = {int(cls): weight for cls, weight in zip(np.unique(y_train_resampled), class_weights)}
 
             # Create model with optimized params + class weights
             model_params = params.copy()
-            model_params['class_weight'] = weight_dict
+            model_params["class_weight"] = weight_dict
             model = RandomForestClassifier(**model_params)
 
             # Train model
@@ -310,10 +299,7 @@ class HyperparameterTuner:
                 continue
             except Exception as e:
                 # Unexpected training error - log full error and re-raise
-                log_error(
-                    f"Unexpected training error in fold {fold_idx + 1}: "
-                    f"{type(e).__name__}: {str(e)}"
-                )
+                log_error(f"Unexpected training error in fold {fold_idx + 1}: {type(e).__name__}: {str(e)}")
                 raise
 
             # Evaluate on test set
@@ -330,10 +316,7 @@ class HyperparameterTuner:
                     continue
                 except Exception as e:
                     # Unexpected prediction error - log full error and re-raise
-                    log_error(
-                        f"Unexpected prediction error in fold {fold_idx + 1}: "
-                        f"{type(e).__name__}: {str(e)}"
-                    )
+                    log_error(f"Unexpected prediction error in fold {fold_idx + 1}: {type(e).__name__}: {str(e)}")
                     raise
 
         if len(cv_scores) == 0:
@@ -351,27 +334,25 @@ class HyperparameterTuner:
         )
         return mean_score
 
-    def _load_or_create_study(
-        self, study_name: str, storage_url: str, load_existing: bool
-    ) -> Study:
+    def _load_or_create_study(self, study_name: str, storage_url: str, load_existing: bool) -> Study:
         """
         Load existing study or create new one, handling all exception cases.
-        
+
         Args:
             study_name: Name of the study
             storage_url: SQLite storage URL for Optuna
             load_existing: Whether to attempt loading existing study first
-            
+
         Returns:
             Optuna Study object
-            
+
         Raises:
             optuna.exceptions.StorageInternalError: On storage errors when loading
             Exception: On unexpected errors when loading
             RuntimeError: On failure to create or load study after conflict
         """
         study = None
-        
+
         # Load existing study if requested
         if load_existing:
             try:
@@ -380,7 +361,7 @@ class HyperparameterTuner:
                     storage=storage_url,
                 )
                 log_info(f"Loaded existing study: {study_name}")
-            except (ValueError, KeyError) as e:
+            except (ValueError, KeyError):
                 # Study does not exist, create new one
                 log_info(f"Study '{study_name}' not found, will create new study")
             except optuna.exceptions.StorageInternalError as e:
@@ -420,14 +401,14 @@ class HyperparameterTuner:
     ) -> Dict[str, Any]:
         """
         Run hyperparameter optimization.
-        
+
         Args:
             df: DataFrame containing OHLCV data (will be prepared by prepare_training_data)
             n_trials: Number of trials to run
             n_splits: Number of folds for cross-validation
             study_name: Name of study (default: auto-generated)
             load_existing: Load existing study if True
-            
+
         Returns:
             Dictionary containing best parameters
         """
@@ -440,19 +421,17 @@ class HyperparameterTuner:
             raise ValueError(f"n_trials must be positive, got {n_trials}")
         if n_splits <= 0:
             raise ValueError(f"n_splits must be positive, got {n_splits}")
-        
+
         # Prepare training data
         prepared_data = prepare_training_data(df)
         if prepared_data is None:
             raise ValueError("Failed to prepare training data")
-        
+
         features, target = prepared_data
 
         # Validate data
         if len(features) < MIN_TRAINING_SAMPLES:
-            log_warn(
-                f"Insufficient data for optimization (need >= {MIN_TRAINING_SAMPLES}, got {len(features)})"
-            )
+            log_warn(f"Insufficient data for optimization (need >= {MIN_TRAINING_SAMPLES}, got {len(features)})")
             # Return default params (should never happen)
             return {
                 "n_estimators": 100,
@@ -500,15 +479,14 @@ class HyperparameterTuner:
             # Otherwise keep the value as is
 
         # Add fixed parameters that were not optimized
-        best_params.update({
-            "random_state": MODEL_RANDOM_STATE,
-            "n_jobs": -1,
-        })
-
-        log_success(
-            f"Optimization completed! Best CV accuracy: {best_score:.4f}\n"
-            f"Best parameters: {best_params}"
+        best_params.update(
+            {
+                "random_state": MODEL_RANDOM_STATE,
+                "n_jobs": -1,
+            }
         )
+
+        log_success(f"Optimization completed! Best CV accuracy: {best_score:.4f}\nBest parameters: {best_params}")
 
         # Save study
         self.study_manager.save_study(
@@ -521,17 +499,15 @@ class HyperparameterTuner:
 
         return best_params
 
-    def get_best_params(
-        self, df: pd.DataFrame, n_trials: int = 100, use_cached: bool = True
-    ) -> Dict[str, Any]:
+    def get_best_params(self, df: pd.DataFrame, n_trials: int = 100, use_cached: bool = True) -> Dict[str, Any]:
         """
         Get best parameters, using cached if available.
-        
+
         Args:
             df: DataFrame containing OHLCV data
             n_trials: Number of trials to run if new optimization is needed
             use_cached: Use cached params if True
-            
+
         Returns:
             Dictionary containing best parameters
         """
@@ -547,4 +523,3 @@ class HyperparameterTuner:
         # Run new optimization
         log_info("No cached parameters found, running optimization...")
         return self.optimize(df, n_trials=n_trials)
-

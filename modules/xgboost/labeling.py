@@ -1,3 +1,10 @@
+
+import numpy as np
+import pandas as pd
+
+from config import (
+from config import (
+
 """
 Labeling functions for XGBoost prediction model.
 
@@ -6,18 +13,16 @@ based on future price movements, using dynamic thresholds that adapt to market
 volatility and historical price patterns.
 """
 
-import numpy as np
-import pandas as pd
-from config import (
-    TARGET_HORIZON,
-    TARGET_BASE_THRESHOLD,
-    LABEL_TO_ID,
-    DYNAMIC_LOOKBACK_SHORT_MULTIPLIER,
-    DYNAMIC_LOOKBACK_MEDIUM_MULTIPLIER,
+
     DYNAMIC_LOOKBACK_LONG_MULTIPLIER,
+    DYNAMIC_LOOKBACK_MEDIUM_MULTIPLIER,
+    DYNAMIC_LOOKBACK_SHORT_MULTIPLIER,
+    DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL,
     DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL,
     DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL,
-    DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL,
+    LABEL_TO_ID,
+    TARGET_BASE_THRESHOLD,
+    TARGET_HORIZON,
 )
 
 
@@ -49,21 +54,21 @@ def _calculate_lookback_weights(
     # Weight Assignment
     # Assign weights based on volatility regime using vectorized operations
     weight_short = (
-        is_low_vol * DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[0] +
-        is_medium_vol * DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[0] +
-        is_high_vol * DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[0]
+        is_low_vol * DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[0]
+        + is_medium_vol * DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[0]
+        + is_high_vol * DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[0]
     )
     weight_medium = (
-        is_low_vol * DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[1] +
-        is_medium_vol * DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[1] +
-        is_high_vol * DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[1]
+        is_low_vol * DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[1]
+        + is_medium_vol * DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[1]
+        + is_high_vol * DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[1]
     )
     weight_long = (
-        is_low_vol * DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[2] +
-        is_medium_vol * DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[2] +
-        is_high_vol * DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[2]
+        is_low_vol * DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[2]
+        + is_medium_vol * DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[2]
+        + is_high_vol * DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[2]
     )
-    
+
     # Weight Normalization
     # Ensure weights sum to 1.0 for proper weighted average calculation
     total_weight = weight_short + weight_medium + weight_long
@@ -159,7 +164,7 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     base_short = TARGET_HORIZON * DYNAMIC_LOOKBACK_SHORT_MULTIPLIER
     base_medium = TARGET_HORIZON * DYNAMIC_LOOKBACK_MEDIUM_MULTIPLIER
     base_long = TARGET_HORIZON * DYNAMIC_LOOKBACK_LONG_MULTIPLIER
-    
+
     # Rolling Volatility Thresholds
     # Calculate rolling quantiles to define volatility regimes without data leakage
     # Uses rolling window (max 500 periods) to compare current volatility to recent history
@@ -172,7 +177,7 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     # Propagates first valid value forward to handle initial periods
     vol_low_rolling = vol_low_rolling.ffill().fillna(1.5)
     vol_high_rolling = vol_high_rolling.ffill().fillna(2.5)
-    
+
     # Fixed Volatility Anchors for Vectorization
     # Use fixed anchors (1.5 and 3.0) to enable vectorized shift operations
     # Dynamic lookbacks per row would require loops, which is much slower
@@ -185,14 +190,14 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     # Cap maximum lookback to prevent excessive historical references
     max_lookback = min(len(df) - 1, int(TARGET_HORIZON * 5))
     max_lookback = max(1, max_lookback)
-    
+
     lookback_short_low = max(1, min(int(base_short * anchor_low), max_lookback))
     lookback_short_high = max(1, min(int(base_short * anchor_high), max_lookback))
     lookback_medium_low = max(1, min(int(base_medium * anchor_low), max_lookback))
     lookback_medium_high = max(1, min(int(base_medium * anchor_high), max_lookback))
     lookback_long_low = max(1, min(int(base_long * anchor_low), max_lookback))
     lookback_long_high = max(1, min(int(base_long * anchor_high), max_lookback))
-    
+
     # Historical Reference Price Calculation
     # Get reference prices for both low and high volatility scenarios
     # These will be interpolated based on current volatility
@@ -211,19 +216,10 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
 
     # Interpolate reference prices between low and high volatility scenarios
     # Use backward fill to handle NaN values at the beginning
-    ref_short = (
-        ref_short_low.bfill() * (1 - vol_normalized) +
-        ref_short_high.bfill() * vol_normalized
-    )
-    ref_medium = (
-        ref_medium_low.bfill() * (1 - vol_normalized) +
-        ref_medium_high.bfill() * vol_normalized
-    )
-    ref_long = (
-        ref_long_low.bfill() * (1 - vol_normalized) +
-        ref_long_high.bfill() * vol_normalized
-    )
-    
+    ref_short = ref_short_low.bfill() * (1 - vol_normalized) + ref_short_high.bfill() * vol_normalized
+    ref_medium = ref_medium_low.bfill() * (1 - vol_normalized) + ref_medium_high.bfill() * vol_normalized
+    ref_long = ref_long_low.bfill() * (1 - vol_normalized) + ref_long_high.bfill() * vol_normalized
+
     # Weighted Historical Reference
     # Calculate weights based on current volatility regime using rolling thresholds
     weight_short, weight_medium, weight_long = _calculate_lookback_weights(
@@ -231,21 +227,13 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Combine reference prices using volatility-adjusted weights
-    historical_ref = (
-        ref_short * weight_short +
-        ref_medium * weight_medium +
-        ref_long * weight_long
-    )
+    historical_ref = ref_short * weight_short + ref_medium * weight_medium + ref_long * weight_long
     historical_ref = historical_ref.fillna(ref_medium)  # Fallback to medium lookback
 
     # Dynamic Threshold Calculation
     # Base threshold is the absolute percentage deviation from historical reference
     historical_pct = (df["close"] - historical_ref) / historical_ref
-    base_threshold = (
-        historical_pct.abs()
-        .fillna(TARGET_BASE_THRESHOLD)
-        .clip(lower=TARGET_BASE_THRESHOLD)
-    )
+    base_threshold = historical_pct.abs().fillna(TARGET_BASE_THRESHOLD).clip(lower=TARGET_BASE_THRESHOLD)
 
     # ATR Ratio Adjustment
     # Adjust threshold based on current volatility (ATR ratio)

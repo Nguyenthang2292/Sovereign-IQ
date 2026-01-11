@@ -1,3 +1,13 @@
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional
+import importlib
+import sys
+
+from __future__ import annotations
+from __future__ import annotations
+
 """
 Environment readiness checks for Temporal Fusion Transformer roadmap (Section 1).
 
@@ -6,13 +16,7 @@ Run:
 to verify dependencies, GPU availability, and requirements entries.
 """
 
-from __future__ import annotations
 
-import importlib
-import sys
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, Iterable, List, Optional
 
 REQUIRED_PACKAGES: List[str] = [
     "torch",
@@ -52,13 +56,9 @@ def check_package(package: str) -> PackageStatus:
         version = getattr(module, "__version__", "unknown")
         return PackageStatus(name=package, installed=True, version=str(version))
     except ModuleNotFoundError as exc:
-        return PackageStatus(
-            name=package, installed=False, version=None, error=str(exc)
-        )
+        return PackageStatus(name=package, installed=False, version=None, error=str(exc))
     except Exception as exc:  # pragma: no cover - defensive
-        return PackageStatus(
-            name=package, installed=False, version=None, error=str(exc)
-        )
+        return PackageStatus(name=package, installed=False, version=None, error=str(exc))
 
 
 def check_gpu() -> str:
@@ -111,4 +111,3 @@ def main(requirements_path: str = "requirements.txt") -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

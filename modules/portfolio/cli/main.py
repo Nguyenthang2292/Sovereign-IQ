@@ -1,26 +1,32 @@
+
+from typing import List, Optional
+import signal
+import sys
+import threading
+
+from colorama import Fore, Style
+from colorama import init as colorama_init
+from colorama import init as colorama_init
+
 """
 Portfolio Manager - Refactored version using modular components.
 """
 
-import signal
-import sys
-import threading
-from typing import List, Optional
-from colorama import Fore, Style, init as colorama_init
+
 
 try:
-    from modules.common.models.position import Position
-    from modules.common.utils import color_text, safe_input
-    from modules.common.core.exchange_manager import ExchangeManager
-    from modules.common.core.data_fetcher import DataFetcher
-    from modules.portfolio.risk_calculator import PortfolioRiskCalculator
-    from modules.portfolio import correlation_analyzer as _correlation_analyzer_mod
-    from modules.portfolio import hedge_finder as _hedge_finder_mod
     from config import (
         BENCHMARK_SYMBOL,
         DEFAULT_VAR_CONFIDENCE,
         DEFAULT_VAR_LOOKBACK_DAYS,
     )
+    from modules.common.core.data_fetcher import DataFetcher
+    from modules.common.core.exchange_manager import ExchangeManager
+    from modules.common.models.position import Position
+    from modules.common.utils import color_text, safe_input
+    from modules.portfolio import correlation_analyzer as _correlation_analyzer_mod
+    from modules.portfolio import hedge_finder as _hedge_finder_mod
+    from modules.portfolio.risk_calculator import PortfolioRiskCalculator
 except ImportError:
     Position = None
     color_text = None
@@ -43,9 +49,7 @@ class PortfolioManager:
     def _create_correlation_analyzer(self):
         if _correlation_analyzer_mod is None:
             raise RuntimeError("PortfolioCorrelationAnalyzer module not available")
-        analyzer_cls = getattr(
-            _correlation_analyzer_mod, "PortfolioCorrelationAnalyzer", None
-        )
+        analyzer_cls = getattr(_correlation_analyzer_mod, "PortfolioCorrelationAnalyzer", None)
         if analyzer_cls is None:
             raise RuntimeError("PortfolioCorrelationAnalyzer class not available")
         return analyzer_cls(self.data_fetcher, self.positions)
@@ -87,22 +91,14 @@ class PortfolioManager:
         self.data_fetcher = DataFetcher(self.exchange_manager, self.shutdown_event)
         self.risk_calculator = PortfolioRiskCalculator(self.data_fetcher, self.benchmark_symbol)
 
-    def add_position(
-        self, symbol: str, direction: str, entry_price: float, size_usdt: float
-    ):
+    def add_position(self, symbol: str, direction: str, entry_price: float, size_usdt: float):
         """Add a position to the portfolio."""
-        self.positions.append(
-            Position(symbol.upper(), direction.upper(), entry_price, size_usdt)
-        )
+        self.positions.append(Position(symbol.upper(), direction.upper(), entry_price, size_usdt))
 
     def _handle_shutdown(self, signum, frame):
         """Handle shutdown signal."""
         if not self.shutdown_event.is_set():
-            print(
-                color_text(
-                    "\nInterrupt received. Cancelling ongoing tasks...", Fore.YELLOW
-                )
-            )
+            print(color_text("\nInterrupt received. Cancelling ongoing tasks...", Fore.YELLOW))
             self.shutdown_event.set()
         sys.exit(0)
 
@@ -111,9 +107,7 @@ class PortfolioManager:
         if self._signal_handlers_registered:
             return
         if threading.current_thread() is not threading.main_thread():
-            raise RuntimeError(
-                "Signal handlers can only be installed from the main thread."
-            )
+            raise RuntimeError("Signal handlers can only be installed from the main thread.")
         signal.signal(signal.SIGINT, self._handle_shutdown)
         try:
             signal.signal(signal.SIGTERM, self._handle_shutdown)
@@ -126,9 +120,7 @@ class PortfolioManager:
         """Check if shutdown was requested."""
         return self.shutdown_event.is_set()
 
-    def load_from_binance(
-        self, api_key=None, api_secret=None, testnet=None, debug=False
-    ):
+    def load_from_binance(self, api_key=None, api_secret=None, testnet=None, debug=False):
         """Load positions directly from Binance Futures USDT-M."""
         try:
             binance_positions = self.data_fetcher.fetch_binance_futures_positions(
@@ -187,9 +179,7 @@ class PortfolioManager:
         """Calculates PnL, simple delta, and beta-weighted delta for the portfolio."""
         return self.risk_calculator.calculate_stats(self.positions, self.market_prices)
 
-    def calculate_beta(
-        self, symbol: str, benchmark_symbol: Optional[str] = None, **kwargs
-    ):
+    def calculate_beta(self, symbol: str, benchmark_symbol: Optional[str] = None, **kwargs):
         """Calculates beta of a symbol versus a benchmark."""
         return self.risk_calculator.calculate_beta(symbol, benchmark_symbol, **kwargs)
 
@@ -199,9 +189,7 @@ class PortfolioManager:
         lookback_days: int = DEFAULT_VAR_LOOKBACK_DAYS,
     ):
         """Calculates Historical Simulation VaR for the current portfolio."""
-        return self.risk_calculator.calculate_portfolio_var(
-            self.positions, confidence, lookback_days
-        )
+        return self.risk_calculator.calculate_portfolio_var(self.positions, confidence, lookback_days)
 
     @property
     def last_var_value(self):
@@ -215,9 +203,7 @@ class PortfolioManager:
 
     def fetch_ohlcv(self, symbol, limit=1500, timeframe="1h"):
         """Fetches OHLCV data using ccxt with fallback exchanges."""
-        df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol, limit, timeframe
-        )
+        df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(symbol, limit, timeframe)
         return df
 
     def calculate_weighted_correlation(self, new_symbol: str, verbose: bool = True):
@@ -230,19 +216,13 @@ class PortfolioManager:
         analyzer = self._create_correlation_analyzer()
         return analyzer.calculate_portfolio_return_correlation(new_symbol, **kwargs)
 
-    def find_best_hedge_candidate(
-        self, total_delta: float, total_beta_delta: float, **kwargs
-    ):
+    def find_best_hedge_candidate(self, total_delta: float, total_beta_delta: float, **kwargs):
         """Automatically scans Binance futures symbols to find the best hedge candidate."""
         analyzer = self._create_correlation_analyzer()
         hedge_finder = self._create_hedge_finder(analyzer)
-        return hedge_finder.find_best_hedge_candidate(
-            total_delta, total_beta_delta, **kwargs
-        )
+        return hedge_finder.find_best_hedge_candidate(total_delta, total_beta_delta, **kwargs)
 
-    def analyze_new_trade(
-        self, new_symbol: str, total_delta: float, total_beta_delta: float, **kwargs
-    ):
+    def analyze_new_trade(self, new_symbol: str, total_delta: float, total_beta_delta: float, **kwargs):
         """Analyzes a potential new trade and automatically recommends direction for beta-weighted hedging."""
         analyzer = self._create_correlation_analyzer()
         hedge_finder = self._create_hedge_finder(analyzer)
@@ -270,19 +250,13 @@ def display_portfolio_analysis(pm: PortfolioManager):
     print("\n" + color_text("=== PORTFOLIO STATUS ===", Fore.WHITE, Style.BRIGHT))
     print(df.to_string(index=False))
     print("-" * 50)
-    print(
-        f"Total PnL: {color_text(f'{total_pnl:.2f} USDT', Fore.GREEN if total_pnl >= 0 else Fore.RED)}"
-    )
+    print(f"Total PnL: {color_text(f'{total_pnl:.2f} USDT', Fore.GREEN if total_pnl >= 0 else Fore.RED)}")
     print(f"Total Delta: {color_text(f'{total_delta:.2f} USDT', Fore.YELLOW)}")
-    print(
-        f"Total Beta Delta (vs {pm.benchmark_symbol}): {color_text(f'{total_beta_delta:.2f} USDT', Fore.YELLOW)}"
-    )
+    print(f"Total Beta Delta (vs {pm.benchmark_symbol}): {color_text(f'{total_beta_delta:.2f} USDT', Fore.YELLOW)}")
 
     # Calculate and display VaR
     print("\n" + color_text("=== VALUE AT RISK (VaR) ===", Fore.CYAN, Style.BRIGHT))
-    var_value = pm.calculate_portfolio_var(
-        confidence=DEFAULT_VAR_CONFIDENCE, lookback_days=DEFAULT_VAR_LOOKBACK_DAYS
-    )
+    var_value = pm.calculate_portfolio_var(confidence=DEFAULT_VAR_CONFIDENCE, lookback_days=DEFAULT_VAR_LOOKBACK_DAYS)
     if var_value is not None:
         conf_pct = int((pm.last_var_confidence or 0) * 100)
         print(
@@ -398,9 +372,7 @@ def main():
         pm.load_from_binance()
     except Exception as e:
         print(color_text(f"Error loading from Binance: {e}", Fore.RED))
-        print(
-            color_text("Please check your API credentials and try again.", Fore.YELLOW)
-        )
+        print(color_text("Please check your API credentials and try again.", Fore.YELLOW))
         return
 
     if not pm.positions:
@@ -418,8 +390,8 @@ def main():
 
     while True:
         try:
-            choice = safe_input("\nEnter choice (1-3): ", default='').strip()
-            
+            choice = safe_input("\nEnter choice (1-3): ", default="").strip()
+
             if choice == "1":
                 display_portfolio_analysis(pm)
                 break

@@ -1,15 +1,17 @@
-"""Random Forest model for trading signal prediction."""
 
 from modules.random_forest.core import (
-    load_random_forest_model,
-    train_random_forest_model,
-    get_latest_random_forest_signal,
-    train_and_save_global_rf_model,
-    evaluate_model_with_confidence,
+
+"""Random Forest model for trading signal prediction."""
+
     apply_confidence_threshold,
     calculate_and_display_metrics,
     calculate_random_forest_vote,
+    evaluate_model_with_confidence,
+    get_latest_random_forest_signal,
     get_random_forest_signal_for_decision_matrix,
+    load_random_forest_model,
+    train_and_save_global_rf_model,
+    train_random_forest_model,
 )
 from modules.random_forest.optimization import HyperparameterTuner, StudyManager
 
@@ -26,4 +28,3 @@ __all__ = [
     "HyperparameterTuner",
     "StudyManager",
 ]
-

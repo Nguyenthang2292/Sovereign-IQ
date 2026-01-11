@@ -1,3 +1,13 @@
+
+from typing import Optional, Tuple
+
+import pandas as pd
+
+from __future__ import annotations
+from modules.simplified_percentile_clustering.config.cluster_transition_config import (
+from __future__ import annotations
+from modules.simplified_percentile_clustering.config.cluster_transition_config import (
+
 """
 Cluster Transition Strategy.
 
@@ -23,25 +33,18 @@ Strategy Logic:
    - Ambiguous transitions (rel_pos near 0.5)
 """
 
-from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Tuple
 
-import numpy as np
-import pandas as pd
 
+    ClusterTransitionConfig,
+)
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringResult,
     compute_clustering,
 )
-from modules.simplified_percentile_clustering.config.cluster_transition_config import (
-    ClusterTransitionConfig,
-)
 from modules.simplified_percentile_clustering.utils.helpers import (
     safe_isna,
     vectorized_transition_detection,
-    vectorized_crossing_detection,
 )
 
 
@@ -74,9 +77,7 @@ def generate_signals_cluster_transition(
 
     # Compute clustering if not provided
     if clustering_result is None:
-        clustering_result = compute_clustering(
-            high, low, close, config=config.clustering_config
-        )
+        clustering_result = compute_clustering(high, low, close, config=config.clustering_config)
 
     signals = pd.Series(0, index=close.index, dtype=int)
     signal_strength = pd.Series(0.0, index=close.index, dtype=float)
@@ -85,7 +86,7 @@ def generate_signals_cluster_transition(
     prev_cluster_val = clustering_result.cluster_val.shift(1)
     prev_real_clust = clustering_result.real_clust.shift(1)
     price_change = close.pct_change()
-    
+
     # Vectorized transition detection
     bullish_mask, bearish_mask = vectorized_transition_detection(
         prev_cluster_val,
@@ -93,27 +94,25 @@ def generate_signals_cluster_transition(
         config.bullish_transitions,
         config.bearish_transitions,
     )
-    
+
     # Calculate signal strength components using vectorized operations
     real_clust_change = (clustering_result.real_clust - prev_real_clust).abs()
-    max_possible_change = (
-        2.0 if config.clustering_config and config.clustering_config.k == 3 else 1.0
-    )
+    max_possible_change = 2.0 if config.clustering_config and config.clustering_config.k == 3 else 1.0
     strength_from_movement = (real_clust_change / max_possible_change).clip(upper=1.0)
-    rel_pos_strength = (1.0 - clustering_result.rel_pos.clip(upper=1.0))
+    rel_pos_strength = 1.0 - clustering_result.rel_pos.clip(upper=1.0)
     combined_strength = (strength_from_movement + rel_pos_strength) / 2.0
-    
+
     # Apply price confirmation if required
     if config.require_price_confirmation:
         # Only allow signals when price_change is not NaN and matches direction
         bullish_mask &= (price_change > 0) & price_change.notna()
         bearish_mask &= (price_change < 0) & price_change.notna()
-    
+
     # Apply minimum signal strength filter
     strength_mask = combined_strength >= config.min_signal_strength
     bullish_mask &= strength_mask
     bearish_mask &= strength_mask
-    
+
     # Set signals
     signals.loc[bullish_mask] = 1
     signals.loc[bearish_mask] = -1
@@ -125,17 +124,17 @@ def generate_signals_cluster_transition(
         for i in range(1, len(close)):
             prev_real = prev_real_clust.iloc[i]
             curr_real = clustering_result.real_clust.iloc[i]
-            
+
             # Skip if missing data
             if safe_isna(prev_real) or safe_isna(curr_real):
                 continue
-            
+
             # Only process if no transition signal already set
             if signals.iloc[i] != 0:
                 continue
-            
+
             curr_strength = combined_strength.iloc[i] if not safe_isna(combined_strength.iloc[i]) else 0.0
-            
+
             # Crossing from below k0.5 to above (bullish)
             if prev_real < 0.5 and curr_real >= 0.5:
                 if config.clustering_config and config.clustering_config.k == 3:
@@ -161,8 +160,8 @@ def generate_signals_cluster_transition(
                 else:
                     # Crossing to k0
                     if curr_strength >= config.min_signal_strength:
-                            signals.iloc[i] = -1
-                            signal_strength.iloc[i] = curr_strength * 0.8
+                        signals.iloc[i] = -1
+                        signal_strength.iloc[i] = curr_strength * 0.8
 
     # Build metadata DataFrame
     metadata = {
@@ -181,4 +180,3 @@ def generate_signals_cluster_transition(
 
 
 __all__ = ["ClusterTransitionConfig", "generate_signals_cluster_transition"]
-

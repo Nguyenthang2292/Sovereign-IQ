@@ -1,3 +1,7 @@
+
+from pathlib import Path
+import sys
+
 """
 Test cases for quantitative metrics integration in pairs trading.
 
@@ -9,19 +13,17 @@ Tests the new features:
 - Verbose mode display
 """
 
-import sys
-from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import pandas as pd
-import numpy as np
-from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
-from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer, _get_all_pair_columns
+import numpy as np
+import pandas as pd
+
+from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer
 
 
 def _create_mock_ohlcv_data(
@@ -31,9 +33,7 @@ def _create_mock_ohlcv_data(
     volatility: float = 0.01,
 ) -> pd.DataFrame:
     """Create mock OHLCV DataFrame for testing."""
-    timestamps = pd.date_range(
-        start="2024-01-01", periods=num_candles, freq="1h", tz="UTC"
-    )
+    timestamps = pd.date_range(start="2024-01-01", periods=num_candles, freq="1h", tz="UTC")
 
     if trend == "up":
         trend_factor = np.linspace(0, 0.2, num_candles)
@@ -219,7 +219,12 @@ def test_validate_pairs_with_cointegration_requirement():
     # Should only keep cointegrated pair
     assert len(validated) == 1
     assert validated.iloc[0]["long_symbol"] == "WORST1/USDT"
-    assert validated.iloc[0]["is_cointegrated"] == True
+    assert validated.iloc[0]["is_cointegrated"]
+    print("[OK] Filtered to only cointegrated pair")
+
+    return True
+
+    print("[OK] Cointegration filtering works correctly")
 
 
 def test_validate_pairs_with_half_life_threshold():
@@ -546,7 +551,7 @@ def test_validate_pairs_with_multiple_filters():
     # Should only keep the first pair (passes all filters)
     assert len(validated) == 1
     assert validated.iloc[0]["long_symbol"] == "WORST1/USDT"
-    assert validated.iloc[0]["is_cointegrated"] == True
+    assert validated.iloc[0]["is_cointegrated"]
     assert validated.iloc[0]["half_life"] <= 30
     assert validated.iloc[0]["hurst_exponent"] < 0.5
     assert validated.iloc[0]["quantitative_score"] >= 60
@@ -556,4 +561,3 @@ if __name__ == "__main__":
     import pytest
 
     pytest.main([__file__, "-v"])
-

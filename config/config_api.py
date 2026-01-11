@@ -1,3 +1,8 @@
+
+from contextlib import contextmanager
+import os
+import threading
+
 """
 API Configuration for external services.
 This file contains API keys and secrets - DO NOT commit to git!
@@ -13,9 +18,6 @@ SECURITY NOTES:
 - If this file has been committed with keys, rotate (change) the keys immediately
 """
 
-import os
-import threading
-from contextlib import contextmanager
 
 # Try to import winreg (Windows only)
 try:

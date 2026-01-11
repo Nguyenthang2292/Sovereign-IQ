@@ -1,53 +1,59 @@
-import warnings
+
 from pathlib import Path
 import sys
+import warnings
+
 
 # Add project root to sys.path to ensure config module can be imported
 # This is needed when running the file directly from subdirectories
-if '__file__' in globals():
+if "__file__" in globals():
     project_root = Path(__file__).parent.parent.parent.parent
     project_root_str = str(project_root)
     if project_root_str not in sys.path:
         sys.path.insert(0, project_root_str)
 
+import importlib.util
+
+# Import from cli.py file (not cli package) to avoid circular import
+import sys
+
 import numpy as np
-from colorama import Fore, Style, init as colorama_init
+from colorama import Fore, Style
+from colorama import init as colorama_init
 
 # Import from xgboost_prediction_ modules (modules specific to xgboost_prediction_main.py)
 from config import (
-    DEFAULT_SYMBOL,
-    DEFAULT_QUOTE,
-    DEFAULT_TIMEFRAME,
-    DEFAULT_LIMIT,
     DEFAULT_EXCHANGE_STRING,
     DEFAULT_EXCHANGES,
-    TARGET_HORIZON,
-    TARGET_BASE_THRESHOLD,
-    TARGET_LABELS,
-    LABEL_TO_ID,
+    DEFAULT_LIMIT,
+    DEFAULT_QUOTE,
+    DEFAULT_SYMBOL,
+    DEFAULT_TIMEFRAME,
     ID_TO_LABEL,
+    LABEL_TO_ID,
+    TARGET_BASE_THRESHOLD,
+    TARGET_HORIZON,
+    TARGET_LABELS,
 )
 from modules.common.utils import color_text, format_price, normalize_symbol
 from modules.xgboost.utils import get_prediction_window
-# Import from cli.py file (not cli package) to avoid circular import
-import sys
-import importlib.util
+
 cli_file_path = Path(__file__).parent.parent / "cli.py"
 spec = importlib.util.spec_from_file_location("xgboost_cli_module", cli_file_path)
 cli_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cli_module)
 parse_args = cli_module.parse_args
 resolve_input = cli_module.resolve_input
-from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.indicator_engine import (
     IndicatorConfig,
     IndicatorEngine,
     IndicatorProfile,
 )
-from modules.xgboost.labeling import apply_directional_labels
-from modules.xgboost.model import train_and_predict, predict_next_move
 from modules.targets import calculate_atr_targets, format_atr_target_display
+from modules.xgboost.labeling import apply_directional_labels
+from modules.xgboost.model import predict_next_move, train_and_predict
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
@@ -59,21 +65,15 @@ def main():
     allow_prompt = not args.no_prompt
 
     quote = args.quote.upper() if args.quote else DEFAULT_QUOTE
-    timeframe = resolve_input(
-        args.timeframe, DEFAULT_TIMEFRAME, "Enter timeframe", str, allow_prompt
-    ).lower()
+    timeframe = resolve_input(args.timeframe, DEFAULT_TIMEFRAME, "Enter timeframe", str, allow_prompt).lower()
     limit = args.limit if args.limit is not None else DEFAULT_LIMIT
     exchanges_input = args.exchanges if args.exchanges else DEFAULT_EXCHANGE_STRING
-    exchanges = [
-        ex.strip() for ex in exchanges_input.split(",") if ex.strip()
-    ] or DEFAULT_EXCHANGES
+    exchanges = [ex.strip() for ex in exchanges_input.split(",") if ex.strip()] or DEFAULT_EXCHANGES
 
     # Initialize ExchangeManager, DataFetcher, IndicatorEngine
     exchange_manager = ExchangeManager()  # No credentials needed for OHLCV
     data_fetcher = DataFetcher(exchange_manager)
-    indicator_engine = IndicatorEngine(
-        IndicatorConfig.for_profile(IndicatorProfile.XGBOOST)
-    )
+    indicator_engine = IndicatorEngine(IndicatorConfig.for_profile(IndicatorProfile.XGBOOST))
 
     # Set exchange priority if custom exchanges provided
     if exchanges != DEFAULT_EXCHANGES:
@@ -101,11 +101,7 @@ def main():
 
             # Apply directional labels and drop NaN for training data
             df = apply_directional_labels(df)
-            latest_threshold = (
-                df["DynamicThreshold"].iloc[-1]
-                if len(df) > 0
-                else TARGET_BASE_THRESHOLD
-            )
+            latest_threshold = df["DynamicThreshold"].iloc[-1] if len(df) > 0 else TARGET_BASE_THRESHOLD
             df.dropna(inplace=True)
             latest_data["DynamicThreshold"] = latest_threshold
 
@@ -113,9 +109,7 @@ def main():
             model = train_and_predict(df)
 
             proba = predict_next_move(model, latest_data)
-            proba_percent = {
-                label: proba[LABEL_TO_ID[label]] * 100 for label in TARGET_LABELS
-            }
+            proba_percent = {label: proba[LABEL_TO_ID[label]] * 100 for label in TARGET_LABELS}
             best_idx = int(np.argmax(proba))
             direction = ID_TO_LABEL[best_idx]
             probability = proba_percent[direction]
@@ -124,7 +118,7 @@ def main():
             atr = latest_data["ATR_14"].values[0]
             prediction_window = get_prediction_window(timeframe)
             threshold_value = latest_data["DynamicThreshold"].iloc[0]
-            prediction_context = f"{prediction_window} | {TARGET_HORIZON} candles >={threshold_value*100:.2f}% move"
+            prediction_context = f"{prediction_window} | {TARGET_HORIZON} candles >={threshold_value * 100:.2f}% move"
 
             print("\n" + color_text("=" * 40, Fore.BLUE, Style.BRIGHT))
             print(
@@ -134,12 +128,8 @@ def main():
                     Style.BRIGHT,
                 )
             )
-            print(
-                color_text(f"Current Price: {format_price(current_price)}", Fore.WHITE)
-            )
-            print(
-                color_text(f"Market Volatility (ATR): {format_price(atr)}", Fore.WHITE)
-            )
+            print(color_text(f"Current Price: {format_price(current_price)}", Fore.WHITE))
+            print(color_text(f"Market Volatility (ATR): {format_price(atr)}", Fore.WHITE))
             print(color_text("-" * 40, Fore.BLUE))
 
             if direction == "UP":
@@ -158,9 +148,7 @@ def main():
             )
             print(color_text(f"Confidence: {probability:.2f}%", direction_color))
 
-            prob_summary = " | ".join(
-                f"{label}: {value:.2f}%" for label, value in proba_percent.items()
-            )
+            prob_summary = " | ".join(f"{label}: {value:.2f}%" for label, value in proba_percent.items())
             print(color_text(f"Probabilities -> {prob_summary}", Fore.WHITE))
 
             if direction == "NEUTRAL":
@@ -168,7 +156,7 @@ def main():
                 upper_bound = current_price * (1 + threshold_value)
                 lower_bound = current_price * (1 - threshold_value)
                 price_range = upper_bound - lower_bound
-                
+
                 print(
                     color_text(
                         "Market expected to stay within +/-{:.2f}% over the next {} candles.".format(
@@ -185,19 +173,19 @@ def main():
                 )
                 print(
                     color_text(
-                        f"  Upper Bound: {format_price(upper_bound)} (+{threshold_value*100:.2f}%)",
+                        f"  Upper Bound: {format_price(upper_bound)} (+{threshold_value * 100:.2f}%)",
                         Fore.YELLOW,
                     )
                 )
                 print(
                     color_text(
-                        f"  Lower Bound: {format_price(lower_bound)} (-{threshold_value*100:.2f}%)",
+                        f"  Lower Bound: {format_price(lower_bound)} (-{threshold_value * 100:.2f}%)",
                         Fore.YELLOW,
                     )
                 )
                 print(
                     color_text(
-                        f"  Range Width: {format_price(price_range)} ({threshold_value*200:.2f}%)",
+                        f"  Range Width: {format_price(price_range)} ({threshold_value * 200:.2f}%)",
                         Fore.YELLOW,
                     )
                 )
@@ -240,9 +228,7 @@ def main():
 
     try:
         while True:
-            raw_symbol = resolve_input(
-                args.symbol, DEFAULT_SYMBOL, "Enter symbol pair", str, allow_prompt
-            )
+            raw_symbol = resolve_input(args.symbol, DEFAULT_SYMBOL, "Enter symbol pair", str, allow_prompt)
             run_once(raw_symbol)
             args.symbol = None  # force prompt next iteration
             if not allow_prompt:

@@ -1,9 +1,14 @@
+
+from colorama import Fore, Style
+
+from modules.common.ui.formatting import color_text
+from modules.common.ui.formatting import color_text
+
 """
 Logging functions organized by severity level and purpose.
 """
 
-from colorama import Fore, Style
-from modules.common.ui.formatting import color_text
+
 
 
 # Standard severity levels
@@ -61,4 +66,3 @@ def log_system(message: str) -> None:
 def log_progress(message: str) -> None:
     """Print progress update message with yellow color."""
     print(color_text(message, Fore.YELLOW))
-

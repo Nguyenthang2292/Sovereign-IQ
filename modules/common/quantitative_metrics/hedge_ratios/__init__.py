@@ -1,6 +1,8 @@
-"""Hedge ratio calculations for quantitative analysis."""
 
 from modules.common.quantitative_metrics.hedge_ratios.kalman_hedge_ratio import (
+
+"""Hedge ratio calculations for quantitative analysis."""
+
     calculate_kalman_hedge_ratio,
 )
 from modules.common.quantitative_metrics.hedge_ratios.ols_hedge_ratio import (
@@ -8,6 +10,6 @@ from modules.common.quantitative_metrics.hedge_ratios.ols_hedge_ratio import (
 )
 
 __all__ = [
-    'calculate_kalman_hedge_ratio',
-    'calculate_ols_hedge_ratio',
+    "calculate_kalman_hedge_ratio",
+    "calculate_ols_hedge_ratio",
 ]

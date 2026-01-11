@@ -1,23 +1,30 @@
+
+from typing import Dict, List, Optional, Tuple
+
+import pandas as pd
+
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.ui.logging import (
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.ui.logging import (
+
 """
 Data fetcher for retrieving market data from exchanges.
 """
 
-import pandas as pd
-from typing import Dict, Tuple, Optional, List
 
-from modules.common.utils.domain import normalize_symbol, timeframe_to_minutes
-from modules.common.utils.data import dataframe_to_close_series
-from modules.common.ui.logging import (
-    log_exchange,
-    log_error,
-    log_warn,
-    log_success,
-    log_debug,
-    log_info,
+
     log_data,
+    log_debug,
+    log_error,
+    log_exchange,
+    log_info,
+    log_success,
+    log_warn,
 )
 from modules.common.ui.progress_bar import ProgressBar
-from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.utils.data import dataframe_to_close_series
+from modules.common.utils.domain import normalize_symbol, timeframe_to_minutes
 
 
 class DataFetcher:
@@ -26,9 +33,7 @@ class DataFetcher:
     def __init__(self, exchange_manager: ExchangeManager, shutdown_event=None):
         self.exchange_manager = exchange_manager
         self.shutdown_event = shutdown_event
-        self._ohlcv_dataframe_cache: Dict[
-            Tuple[str, str, int], Tuple[pd.DataFrame, Optional[str]]
-        ] = {}
+        self._ohlcv_dataframe_cache: Dict[Tuple[str, str, int], Tuple[pd.DataFrame, Optional[str]]] = {}
         self.market_prices: Dict[str, float] = {}
 
     def should_stop(self) -> bool:
@@ -47,9 +52,7 @@ class DataFetcher:
 
         try:
             # Use authenticated manager for authenticated calls
-            exchange = (
-                self.exchange_manager.authenticated.connect_to_binance_with_credentials()
-            )
+            exchange = self.exchange_manager.authenticated.connect_to_binance_with_credentials()
         except ValueError as e:
             log_error(f"Error: {e}")
             return
@@ -64,9 +67,7 @@ class DataFetcher:
             normalized_symbol = normalize_symbol(symbol)
             try:
                 # Use authenticated manager's throttled_call
-                ticker = self.exchange_manager.authenticated.throttled_call(
-                    exchange.fetch_ticker, normalized_symbol
-                )
+                ticker = self.exchange_manager.authenticated.throttled_call(exchange.fetch_ticker, normalized_symbol)
                 if ticker and "last" in ticker:
                     self.market_prices[symbol] = ticker["last"]
                     fetched_count += 1
@@ -87,9 +88,7 @@ class DataFetcher:
             )
 
         if fetched_count > 0:
-            log_success(
-                f"Successfully fetched prices for {fetched_count}/{len(symbols)} symbols"
-            )
+            log_success(f"Successfully fetched prices for {fetched_count}/{len(symbols)} symbols")
 
     def fetch_binance_futures_positions(
         self,
@@ -126,9 +125,7 @@ class DataFetcher:
 
         try:
             # Fetch all positions using throttled_call
-            positions = self.exchange_manager.authenticated.throttled_call(
-                exchange.fetch_positions
-            )
+            positions = self.exchange_manager.authenticated.throttled_call(exchange.fetch_positions)
 
             # Filter only open positions (size != 0) and USDT-M
             open_positions = []
@@ -137,9 +134,7 @@ class DataFetcher:
                 if contracts is None or contracts == 0:
                     continue
 
-                normalized_symbol = self._normalize_position_symbol(
-                    pos.get("symbol", "")
-                )
+                normalized_symbol = self._normalize_position_symbol(pos.get("symbol", ""))
                 if not self._is_usdtm_symbol(normalized_symbol):
                     continue
 
@@ -148,9 +143,7 @@ class DataFetcher:
                     self._debug_position(pos, normalized_symbol, contracts)
 
                 direction = self._determine_position_direction(pos, contracts)
-                size_usdt = self._calculate_position_size(
-                    pos, contracts, entry_price, exchange
-                )
+                size_usdt = self._calculate_position_size(pos, contracts, entry_price, exchange)
 
                 if size_usdt <= 0:
                     continue
@@ -170,28 +163,18 @@ class DataFetcher:
         except Exception as e:
             error_msg = str(e)
             if "authentication" in error_msg.lower() or "api" in error_msg.lower():
-                raise ValueError(
-                    f"Lỗi xác thực API: {e}\nVui lòng kiểm tra lại API Key và Secret"
-                )
+                raise ValueError(f"Lỗi xác thực API: {e}\nVui lòng kiểm tra lại API Key và Secret")
             elif "network" in error_msg.lower() or "connection" in error_msg.lower():
                 raise ValueError(f"Lỗi kết nối mạng: {e}")
             else:
                 raise ValueError(f"Lỗi khi lấy positions: {e}")
 
-    def _resolve_binance_credentials(
-        self, api_key: Optional[str], api_secret: Optional[str]
-    ) -> Tuple[str, str]:
+    def _resolve_binance_credentials(self, api_key: Optional[str], api_secret: Optional[str]) -> Tuple[str, str]:
         import os
 
-        resolved_key = (
-            api_key
-            or os.getenv("BINANCE_API_KEY")
-            or self.exchange_manager.authenticated.default_api_key
-        )
+        resolved_key = api_key or os.getenv("BINANCE_API_KEY") or self.exchange_manager.authenticated.default_api_key
         resolved_secret = (
-            api_secret
-            or os.getenv("BINANCE_API_SECRET")
-            or self.exchange_manager.authenticated.default_api_secret
+            api_secret or os.getenv("BINANCE_API_SECRET") or self.exchange_manager.authenticated.default_api_secret
         )
 
         if not resolved_key or not resolved_secret:
@@ -215,7 +198,7 @@ class DataFetcher:
             )
         except ValueError as exc:
             raise ValueError(f"Error connecting to Binance: {exc}")
-    
+
     def fetch_binance_account_balance(
         self,
         api_key: Optional[str] = None,
@@ -225,79 +208,77 @@ class DataFetcher:
     ) -> Optional[float]:
         """
         Fetch account balance from Binance Futures USDT-M.
-        
+
         Args:
             api_key: API Key from Binance (optional, uses default if not provided)
             api_secret: API Secret from Binance (optional, uses default if not provided)
             testnet: Use testnet if True (default: False)
             currency: Currency to fetch balance for (default: "USDT")
-            
+
         Returns:
             Account balance in USDT as float, or None if error or no credentials
         """
         try:
             api_key, api_secret = self._resolve_binance_credentials(api_key, api_secret)
             exchange = self._connect_binance_futures(api_key, api_secret, testnet)
-            
+
             # Fetch balance using throttled_call
-            balance = self.exchange_manager.authenticated.throttled_call(
-                exchange.fetch_balance
-            )
-            
+            balance = self.exchange_manager.authenticated.throttled_call(exchange.fetch_balance)
+
             # Extract USDT balance from futures account
             # Binance futures balance structure can vary, try multiple formats
             usdt_balance = None
-            
+
             # Format 1: Direct currency key with total
             if currency in balance:
                 currency_info = balance[currency]
                 if isinstance(currency_info, dict):
-                    total = currency_info.get('total', 0) or 0
+                    total = currency_info.get("total", 0) or 0
                     if total > 0:
                         usdt_balance = float(total)
                 elif isinstance(currency_info, (int, float)):
                     if currency_info > 0:
                         usdt_balance = float(currency_info)
-            
+
             # Format 2: Check in 'info' -> 'assets' (Binance futures API format)
-            if usdt_balance is None and 'info' in balance:
-                info = balance['info']
-                if 'assets' in info:
-                    for asset in info['assets']:
-                        if asset.get('asset') == currency:
-                            wallet_balance = asset.get('walletBalance', 0) or 0
+            if usdt_balance is None and "info" in balance:
+                info = balance["info"]
+                if "assets" in info:
+                    for asset in info["assets"]:
+                        if asset.get("asset") == currency:
+                            wallet_balance = asset.get("walletBalance", 0) or 0
                             if wallet_balance > 0:
                                 usdt_balance = float(wallet_balance)
                                 break
                 # Also check direct currency in info
                 if usdt_balance is None and currency in info:
-                    wallet_balance = info[currency].get('walletBalance', 0) or info[currency].get('total', 0) or 0
+                    wallet_balance = info[currency].get("walletBalance", 0) or info[currency].get("total", 0) or 0
                     if wallet_balance > 0:
                         usdt_balance = float(wallet_balance)
-            
+
             # Format 3: Check in 'total' dict
-            if usdt_balance is None and 'total' in balance:
-                if currency in balance['total']:
-                    total = balance['total'][currency]
+            if usdt_balance is None and "total" in balance:
+                if currency in balance["total"]:
+                    total = balance["total"][currency]
                     if total > 0:
                         usdt_balance = float(total)
-            
+
             # Format 4: Calculate from free + used
             if usdt_balance is None and currency in balance:
                 currency_info = balance[currency]
                 if isinstance(currency_info, dict):
-                    free = float(currency_info.get('free', 0) or 0)
-                    used = float(currency_info.get('used', 0) or 0)
+                    free = float(currency_info.get("free", 0) or 0)
+                    used = float(currency_info.get("used", 0) or 0)
                     total = free + used
                     if total > 0:
                         usdt_balance = total
-            
+
             if usdt_balance is not None and usdt_balance > 0:
                 return usdt_balance
-            
+
             log_warn(f"No {currency} balance found in Binance account")
             return None
-            
+
         except ValueError as e:
             # No credentials or connection error
             log_warn(f"Cannot fetch balance from Binance: {e}")
@@ -341,11 +322,7 @@ class DataFetcher:
         candidates = [
             position.get("positionSide"),
             position.get("side"),
-            (
-                (position.get("info") or {}).get("positionSide")
-                if isinstance(position.get("info"), dict)
-                else None
-            ),
+            ((position.get("info") or {}).get("positionSide") if isinstance(position.get("info"), dict) else None),
         ]
 
         for candidate in candidates:
@@ -368,9 +345,7 @@ class DataFetcher:
 
         return "LONG" if contracts > 0 else "SHORT"
 
-    def _calculate_position_size(
-        self, position: Dict, contracts: float, entry_price: float, exchange
-    ) -> float:
+    def _calculate_position_size(self, position: Dict, contracts: float, entry_price: float, exchange) -> float:
         notional = position.get("notional")
         if notional is not None:
             try:
@@ -401,12 +376,8 @@ class DataFetcher:
         log_debug(f"  contracts: {contracts}")
         log_debug(f"  positionSide: {position.get('positionSide')}")
         log_debug(f"  side: {position.get('side')}")
-        log_debug(
-            f"  info.positionSide: {info.get('positionSide', 'N/A') if isinstance(info, dict) else 'N/A'}"
-        )
-        log_debug(
-            f"  info.positionAmt: {info.get('positionAmt', 'N/A') if isinstance(info, dict) else 'N/A'}"
-        )
+        log_debug(f"  info.positionSide: {info.get('positionSide', 'N/A') if isinstance(info, dict) else 'N/A'}")
+        log_debug(f"  info.positionAmt: {info.get('positionAmt', 'N/A') if isinstance(info, dict) else 'N/A'}")
 
     def list_binance_futures_symbols(
         self,
@@ -430,18 +401,14 @@ class DataFetcher:
 
         try:
             # Use public API - load_markets() doesn't require authentication
-            exchange = self.exchange_manager.public.connect_to_exchange_with_no_credentials(
-                "binance"
-            )
+            exchange = self.exchange_manager.public.connect_to_exchange_with_no_credentials("binance")
         except Exception as exc:
             log_error(f"Unable to connect to Binance: {exc}")
             return []
 
         try:
             # load_markets() is a public API call, no authentication needed
-            markets = self.exchange_manager.public.throttled_call(
-                exchange.load_markets
-            )
+            markets = self.exchange_manager.public.throttled_call(exchange.load_markets)
         except Exception as exc:
             log_error(f"Failed to load Binance markets: {exc}")
             return []
@@ -469,9 +436,7 @@ class DataFetcher:
                 continue
 
             info = market.get("info", {})
-            volume_str = (
-                info.get("volume") or info.get("quoteVolume") or info.get("turnover")
-            )
+            volume_str = info.get("volume") or info.get("quoteVolume") or info.get("turnover")
             try:
                 volume = float(volume_str)
             except (TypeError, ValueError):
@@ -495,7 +460,7 @@ class DataFetcher:
     def dataframe_to_close_series(df: Optional[pd.DataFrame]) -> Optional[pd.Series]:
         """
         Converts a fetched OHLCV DataFrame into a pandas Series of closing prices indexed by timestamp.
-        
+
         This is a wrapper method for backward compatibility. The actual implementation
         is in modules.common.utils.data.dataframe_to_close_series().
         """
@@ -544,9 +509,7 @@ class DataFetcher:
                     del self._ohlcv_dataframe_cache[cache_key]
 
         # Determine which exchanges to try
-        exchange_list = (
-            exchanges or self.exchange_manager.public.exchange_priority_for_fallback
-        )
+        exchange_list = exchanges or self.exchange_manager.public.exchange_priority_for_fallback
 
         # Freshness checking setup
         freshness_minutes = None
@@ -567,9 +530,7 @@ class DataFetcher:
 
             try:
                 # Use public manager for public OHLCV data (no credentials needed)
-                exchange = self.exchange_manager.public.connect_to_exchange_with_no_credentials(
-                    exchange_id
-                )
+                exchange = self.exchange_manager.public.connect_to_exchange_with_no_credentials(exchange_id)
             except Exception as exc:
                 last_error = exc
                 if check_freshness:
@@ -596,9 +557,7 @@ class DataFetcher:
                     log_warn(f"[{exchange_id.upper()}] No data retrieved.")
                 continue
 
-            df = pd.DataFrame(
-                ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"]
-            )
+            df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
             if df.empty:
                 last_error = ValueError(f"{exchange_id}: OHLCV dataframe empty")
                 if check_freshness:
@@ -607,7 +566,7 @@ class DataFetcher:
 
             # Convert timestamp and ensure ordering
             df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-            
+
             # Set timestamp as index (DatetimeIndex) to avoid warnings in downstream modules
             df.set_index("timestamp", inplace=True)
             df.sort_index(inplace=True)
@@ -645,4 +604,3 @@ class DataFetcher:
         # Failed to fetch
         log_error(f"Failed to fetch OHLCV for {normalized_symbol}: {last_error}")
         return None, None
-

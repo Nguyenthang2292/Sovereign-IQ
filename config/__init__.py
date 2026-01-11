@@ -1,3 +1,21 @@
+
+from .common import *  # noqa: F403, F401
+from .config_api import *  # noqa: F403, F401
+from .decision_matrix import *  # noqa: F403, F401
+from .deep_learning import *  # noqa: F403, F401 (imports from xgboost)
+from .evaluation import *  # noqa: F403, F401
+from .gemini_chart_analyzer import *  # noqa: F403, F401
+from .hmm import *  # noqa: F403, F401
+from .iching import *  # noqa: F403, F401
+from .lstm import *  # noqa: F403, F401 (imports from model_features)
+from .model_features import *  # noqa: F403, F401
+from .pairs_trading import *  # noqa: F403, F401
+from .portfolio import *  # noqa: F403, F401
+from .random_forest import *  # noqa: F403, F401
+from .range_oscillator import *  # noqa: F403, F401
+from .spc import *  # noqa: F403, F401
+from .xgboost import *  # noqa: F403, F401
+
 """
 Configuration package.
 
@@ -22,28 +40,26 @@ The configuration is organized into separate modules:
 
 # Import order matters to avoid circular dependencies
 # Import common first as it's used by many modules
-from .common import *  # noqa: F403, F401
-
-# Import shared model features before xgboost and random_forest
-from .model_features import *  # noqa: F403, F401
-
-# Import shared evaluation configuration before random_forest (which uses it)
-from .evaluation import *  # noqa: F403, F401
-
-# Import component-specific configurations
-from .range_oscillator import *  # noqa: F403, F401
-from .decision_matrix import *  # noqa: F403, F401
-from .spc import *  # noqa: F403, F401
-from .xgboost import *  # noqa: F403, F401
-from .deep_learning import *  # noqa: F403, F401 (imports from xgboost)
-from .lstm import *  # noqa: F403, F401 (imports from model_features)
-from .hmm import *  # noqa: F403, F401
-from .portfolio import *  # noqa: F403, F401
-from .pairs_trading import *  # noqa: F403, F401
-from .random_forest import *  # noqa: F403, F401
-from .iching import *  # noqa: F403, F401
-from .gemini_chart_analyzer import *  # noqa: F403, F401
 
 # Import API configuration last
 from .config_api import *  # noqa: F403, F401
+from .decision_matrix import *  # noqa: F403, F401
+from .deep_learning import *  # noqa: F403, F401 (imports from xgboost)
 
+# Import shared evaluation configuration before random_forest (which uses it)
+from .evaluation import *  # noqa: F403, F401
+from .gemini_chart_analyzer import *  # noqa: F403, F401
+from .hmm import *  # noqa: F403, F401
+from .iching import *  # noqa: F403, F401
+from .lstm import *  # noqa: F403, F401 (imports from model_features)
+
+# Import shared model features before xgboost and random_forest
+from .model_features import *  # noqa: F403, F401
+from .pairs_trading import *  # noqa: F403, F401
+from .portfolio import *  # noqa: F403, F401
+from .random_forest import *  # noqa: F403, F401
+
+# Import component-specific configurations
+from .range_oscillator import *  # noqa: F403, F401
+from .spc import *  # noqa: F403, F401
+from .xgboost import *  # noqa: F403, F401

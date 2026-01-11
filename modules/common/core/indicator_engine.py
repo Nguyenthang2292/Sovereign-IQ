@@ -1,8 +1,3 @@
-"""
-Technical indicator and candlestick pattern orchestration.
-"""
-
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -10,7 +5,18 @@ from typing import Dict, Optional, Sequence, Tuple
 
 import pandas as pd
 
+from __future__ import annotations
 from modules.common.indicators.blocks import (
+from __future__ import annotations
+from modules.common.indicators.blocks import (
+
+"""
+Technical indicator and candlestick pattern orchestration.
+"""
+
+
+
+
     BLOCK_SPECS,
     BlockSpec,
     IndicatorFunc,
@@ -65,8 +71,7 @@ class CustomIndicator:
         if isinstance(result, pd.DataFrame):
             return result, {}
         raise TypeError(
-            f"Custom indicator '{self.name}' must return either a DataFrame "
-            "or a (DataFrame, metadata dict) tuple."
+            f"Custom indicator '{self.name}' must return either a DataFrame or a (DataFrame, metadata dict) tuple."
         )
 
 
@@ -146,4 +151,3 @@ class IndicatorEngine:
         if return_metadata:
             return working_df, metadata
         return working_df
-

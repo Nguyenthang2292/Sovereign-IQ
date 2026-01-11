@@ -1,3 +1,6 @@
+
+import argparse
+
 """
 Command-line argument parser for ATC + Range Oscillator combined signal filter.
 
@@ -5,7 +8,6 @@ This module provides the main argument parser for the ATC + Range Oscillator CLI
 defining all command-line options and their default values.
 """
 
-import argparse
 
 try:
     from config import DEFAULT_TIMEFRAME
@@ -16,18 +18,18 @@ except ImportError:
 def parse_args():
     """Parse command-line arguments for ATC + Range Oscillator combined signal filter."""
     # DEBUG POINT: Argument parser entry - Check default_timeframe
-    
+
     parser = argparse.ArgumentParser(
         description="ATC + Range Oscillator Combined Signal Filter",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    
+
     def validate_timeframe(value):
         """Validate timeframe format."""
         if not isinstance(value, str) or len(value) < 2:
             raise argparse.ArgumentTypeError(f"Invalid timeframe format: {value}")
         return value
-    
+
     parser.add_argument(
         "--timeframe",
         type=validate_timeframe,
@@ -39,13 +41,14 @@ def parse_args():
         action="store_true",
         help="Disable interactive timeframe menu",
     )
+
     def validate_positive_int(value):
         """Validate positive integer."""
         ivalue = int(value)
         if ivalue <= 0:
             raise argparse.ArgumentTypeError(f"Value must be positive, got {ivalue}")
         return ivalue
-    
+
     parser.add_argument(
         "--limit",
         type=validate_positive_int,
@@ -144,6 +147,7 @@ def parse_args():
         default=10,
         help="Maximum number of parallel workers for Range Oscillator filtering (default: 10, must be > 0)",
     )
+
     def validate_strategy_id(value):
         """Validate strategy ID."""
         ivalue = int(value)
@@ -151,7 +155,7 @@ def parse_args():
         if ivalue not in valid_ids:
             raise argparse.ArgumentTypeError(f"Invalid strategy ID: {ivalue}. Valid IDs: {sorted(valid_ids)}")
         return ivalue
-    
+
     parser.add_argument(
         "--osc-strategies",
         type=validate_strategy_id,
@@ -159,15 +163,15 @@ def parse_args():
         default=None,
         help="Range Oscillator strategies to use (e.g., --osc-strategies 5 6 7 8 9). Valid IDs: 2, 3, 4, 6, 7, 8, 9",
     )
-    
+
     # DEBUG POINT: Parse arguments - Check parsed values and handle exceptions
     # Check: timeframe, limit, osc_strategies, max_workers
     # On exception: Check exception_type, exception_msg
     try:
         args = parser.parse_args()
-    except Exception as e:
+    except Exception:
         raise
-    
+
     # Additional validation after parsing
     if args.max_workers is not None and args.max_workers <= 0:
         parser.error("--max-workers must be positive")
@@ -177,5 +181,5 @@ def parse_args():
         parser.error("--lambda must be between 0 and 1")
     if args.decay < 0 or args.decay > 1:
         parser.error("--decay must be between 0 and 1")
-    
+
     return args

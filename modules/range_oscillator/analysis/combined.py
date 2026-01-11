@@ -1,3 +1,6 @@
+
+from modules.range_oscillator.strategies.combined import (
+
 """
 DEPRECATED: This module has been moved to strategies/combined.py.
 
@@ -6,15 +9,14 @@ All imports should be updated to use strategies.combined instead.
 """
 
 # Re-export everything from the new location
-from modules.range_oscillator.strategies.combined import (
-    generate_signals_combined_all_strategy,
+    STRATEGY_FUNCTIONS,
+    STRATEGY_NAMES,
     CombinedStrategy,
     CombinedStrategyConfig,
     ConsensusConfig,
     DynamicSelectionConfig,
     StrategySpecificConfig,
-    STRATEGY_FUNCTIONS,
-    STRATEGY_NAMES,
+    generate_signals_combined_all_strategy,
 )
 
 __all__ = [

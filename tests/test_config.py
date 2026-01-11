@@ -1,9 +1,14 @@
+
+import pytest
+
+import config
+import config
+
 """
 Test script for config - Configuration constants and values.
 """
 
-import pytest
-import config
+
 
 
 def test_default_symbol():
@@ -109,7 +114,7 @@ def test_deep_learning_config():
     assert hasattr(config, "DEEP_BATCH_SIZE")
     assert hasattr(config, "DEEP_MODEL_HIDDEN_SIZE")
     assert hasattr(config, "DEEP_MODEL_LEARNING_RATE")
-    
+
     # Test values are reasonable
     assert config.DEEP_MAX_ENCODER_LENGTH > 0
     assert config.DEEP_MAX_PREDICTION_LENGTH > 0
@@ -123,7 +128,7 @@ def test_portfolio_config():
     assert hasattr(config, "BENCHMARK_SYMBOL")
     assert hasattr(config, "DEFAULT_REQUEST_PAUSE")
     assert hasattr(config, "DEFAULT_VAR_CONFIDENCE")
-    
+
     assert config.DEFAULT_REQUEST_PAUSE > 0
     assert 0 < config.DEFAULT_VAR_CONFIDENCE < 1
 
@@ -133,7 +138,7 @@ def test_data_split_ratios():
     train = config.DEEP_TRAIN_RATIO
     val = config.DEEP_VAL_RATIO
     test = config.DEEP_TEST_RATIO
-    
+
     assert abs((train + val + test) - 1.0) < 0.001
     assert train > 0
     assert val > 0
@@ -145,7 +150,7 @@ def test_feature_selection_config():
     assert hasattr(config, "DEEP_FEATURE_SELECTION_METHOD")
     assert hasattr(config, "DEEP_FEATURE_SELECTION_TOP_K")
     assert hasattr(config, "DEEP_FEATURE_COLLINEARITY_THRESHOLD")
-    
+
     assert config.DEEP_FEATURE_SELECTION_METHOD in ["mutual_info", "boruta", "f_test", "combined"]
     assert config.DEEP_FEATURE_SELECTION_TOP_K > 0
     assert 0 < config.DEEP_FEATURE_COLLINEARITY_THRESHOLD < 1
@@ -153,4 +158,3 @@ def test_feature_selection_config():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

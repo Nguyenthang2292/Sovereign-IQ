@@ -1,5 +1,11 @@
+
+from modules.simplified_percentile_clustering.core.centers import (
+
 """Core clustering calculation modules."""
 
+    ClusterCenters,
+    compute_centers,
+)
 from modules.simplified_percentile_clustering.core.clustering import (
     SimplifiedPercentileClustering,
     compute_clustering,
@@ -7,10 +13,6 @@ from modules.simplified_percentile_clustering.core.clustering import (
 from modules.simplified_percentile_clustering.core.features import (
     FeatureCalculator,
     compute_features,
-)
-from modules.simplified_percentile_clustering.core.centers import (
-    ClusterCenters,
-    compute_centers,
 )
 
 __all__ = [
@@ -21,4 +23,3 @@ __all__ = [
     "ClusterCenters",
     "compute_centers",
 ]
-

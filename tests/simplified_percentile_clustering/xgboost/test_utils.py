@@ -1,6 +1,6 @@
-import pytest
 
 from modules.xgboost.utils import get_prediction_window
+
 
 
 def test_get_prediction_window_known_timeframes():
@@ -27,7 +27,7 @@ def test_get_prediction_window_case_insensitive():
 def test_get_prediction_window_all_known_timeframes():
     """Test get_prediction_window for all known timeframes."""
     from config import PREDICTION_WINDOWS
-    
+
     for timeframe, expected in PREDICTION_WINDOWS.items():
         assert get_prediction_window(timeframe) == expected
         # Test uppercase

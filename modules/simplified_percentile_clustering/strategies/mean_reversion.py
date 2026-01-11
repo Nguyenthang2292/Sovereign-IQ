@@ -1,3 +1,13 @@
+
+from typing import Optional, Tuple
+
+import pandas as pd
+
+from __future__ import annotations
+from modules.simplified_percentile_clustering.config.mean_reversion_config import (
+from __future__ import annotations
+from modules.simplified_percentile_clustering.config.mean_reversion_config import (
+
 """
 Mean Reversion Strategy.
 
@@ -24,20 +34,14 @@ Strategy Logic:
    - Ambiguous signals
 """
 
-from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Tuple
 
-import numpy as np
-import pandas as pd
 
+    MeanReversionConfig,
+)
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringResult,
     compute_clustering,
-)
-from modules.simplified_percentile_clustering.config.mean_reversion_config import (
-    MeanReversionConfig,
 )
 from modules.simplified_percentile_clustering.utils.helpers import (
     safe_isna,
@@ -45,9 +49,7 @@ from modules.simplified_percentile_clustering.utils.helpers import (
 )
 
 
-def _detect_reversal(
-    close: pd.Series, i: int, lookback: int, direction: str
-) -> bool:
+def _detect_reversal(close: pd.Series, i: int, lookback: int, direction: str) -> bool:
     """Detect price reversal signal."""
     if i < lookback:
         return False
@@ -104,16 +106,14 @@ def generate_signals_mean_reversion(
     """
     if config is None:
         config = MeanReversionConfig()
-    
+
     # Ensure targets are updated if clustering_config is set
     if config.clustering_config is not None:
         config.update_targets()
 
     # Compute clustering if not provided
     if clustering_result is None:
-        clustering_result = compute_clustering(
-            high, low, close, config=config.clustering_config
-        )
+        clustering_result = compute_clustering(high, low, close, config=config.clustering_config)
 
     signals = pd.Series(0, index=close.index, dtype=int)
     signal_strength = pd.Series(0.0, index=close.index, dtype=float)
@@ -158,9 +158,7 @@ def generate_signals_mean_reversion(
         if is_lower_extreme:
             reversal_confirmed = True
             if config.require_reversal_signal:
-                reversal_confirmed = _detect_reversal(
-                    close, i, config.reversal_lookback, "bullish"
-                )
+                reversal_confirmed = _detect_reversal(close, i, config.reversal_lookback, "bullish")
 
             if reversal_confirmed:
                 # Calculate distance to target
@@ -181,9 +179,7 @@ def generate_signals_mean_reversion(
         if is_upper_extreme:
             reversal_confirmed = True
             if config.require_reversal_signal:
-                reversal_confirmed = _detect_reversal(
-                    close, i, config.reversal_lookback, "bearish"
-                )
+                reversal_confirmed = _detect_reversal(close, i, config.reversal_lookback, "bearish")
 
             if reversal_confirmed:
                 # Calculate distance to target
@@ -192,9 +188,7 @@ def generate_signals_mean_reversion(
                 strength = 1.0 - min(distance_to_target / max_distance, 1.0)
 
                 # Adjust strength based on how extreme (higher = stronger)
-                extreme_strength = (
-                    real_clust - (max_real_clust - config.extreme_threshold)
-                ) / config.extreme_threshold
+                extreme_strength = (real_clust - (max_real_clust - config.extreme_threshold)) / config.extreme_threshold
                 combined_strength = (strength + extreme_strength) / 2.0
 
                 if combined_strength >= config.min_signal_strength:
@@ -209,4 +203,3 @@ def generate_signals_mean_reversion(
 
 
 __all__ = ["MeanReversionConfig", "generate_signals_mean_reversion"]
-

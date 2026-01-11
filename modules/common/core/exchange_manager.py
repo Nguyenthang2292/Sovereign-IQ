@@ -1,16 +1,20 @@
+
+from contextlib import contextmanager
+from typing import Dict, Optional
+import logging
+import os
+import threading
+import time
+
+import ccxt
+import ccxt
+
 """
 Exchange manager for handling exchange connections and API calls.
 Refactored: Separated into AuthenticatedExchangeManager and PublicExchangeManager.
 """
 
-import ccxt
-import os
-import time
-import threading
-import logging
-import warnings
-from typing import Dict, Optional
-from contextlib import contextmanager
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +23,10 @@ from modules.common.utils.domain import normalize_symbol
 
 try:
     from config import (
-        DEFAULT_EXCHANGE_STRING,
-        DEFAULT_REQUEST_PAUSE,
         DEFAULT_CONTRACT_TYPE,
+        DEFAULT_EXCHANGE_STRING,
         DEFAULT_EXCHANGES,
+        DEFAULT_REQUEST_PAUSE,
     )
     from config.config_api import BINANCE_API_KEY, BINANCE_API_SECRET
 except ImportError:
@@ -48,33 +52,33 @@ class ExchangeWrapper:
     Wrapper class to track exchange instance and reference count.
     Ensures thread-safe reference counting for exchange cleanup.
     """
-    
+
     def __init__(self, exchange: ccxt.Exchange):
         """
         Initialize ExchangeWrapper with an exchange instance.
-        
+
         Args:
             exchange: The ccxt.Exchange instance to wrap
         """
         self.exchange = exchange
         self._refcount = 0
         self._refcount_lock = threading.Lock()
-    
+
     def increment_refcount(self) -> int:
         """
         Increment reference count atomically.
-        
+
         Returns:
             New reference count after increment
         """
         with self._refcount_lock:
             self._refcount += 1
             return self._refcount
-    
+
     def decrement_refcount(self) -> int:
         """
         Decrement reference count atomically.
-        
+
         Returns:
             New reference count after decrement
         """
@@ -82,21 +86,21 @@ class ExchangeWrapper:
             if self._refcount > 0:
                 self._refcount -= 1
             return self._refcount
-    
+
     def get_refcount(self) -> int:
         """
         Get current reference count.
-        
+
         Returns:
             Current reference count
         """
         with self._refcount_lock:
             return self._refcount
-    
+
     def is_in_use(self) -> bool:
         """
         Check if exchange is currently in use.
-        
+
         Returns:
             True if refcount > 0, False otherwise
         """
@@ -126,29 +130,21 @@ class AuthenticatedExchangeManager:
             contract_type: Contract type ('spot', 'margin', 'future'). Defaults to DEFAULT_CONTRACT_TYPE
         """
         # Store default credentials for Binance (backward compatibility)
-        self.default_api_key = (
-            api_key or os.getenv("BINANCE_API_KEY") or BINANCE_API_KEY
-        )
-        self.default_api_secret = (
-            api_secret or os.getenv("BINANCE_API_SECRET") or BINANCE_API_SECRET
-        )
+        self.default_api_key = api_key or os.getenv("BINANCE_API_KEY") or BINANCE_API_KEY
+        self.default_api_secret = api_secret or os.getenv("BINANCE_API_SECRET") or BINANCE_API_SECRET
         self.testnet = testnet
-        self.contract_type = contract_type or os.getenv(
-            "DEFAULT_CONTRACT_TYPE", DEFAULT_CONTRACT_TYPE
-        )
+        self.contract_type = contract_type or os.getenv("DEFAULT_CONTRACT_TYPE", DEFAULT_CONTRACT_TYPE)
 
         # Cache for authenticated exchanges (key: exchange_id, value: ExchangeWrapper)
         self._authenticated_exchanges: Dict[str, ExchangeWrapper] = {}
-        
+
         # Store credentials per exchange (key: exchange_id)
         self._exchange_credentials: Dict[str, Dict[str, str]] = {}
-        
+
         # Store timestamps for exchange creation (key: cache_key, value: creation timestamp)
         self._exchange_timestamps: Dict[str, float] = {}
 
-        self.request_pause = float(
-            request_pause or os.getenv("BINANCE_REQUEST_SLEEP", DEFAULT_REQUEST_PAUSE)
-        )
+        self.request_pause = float(request_pause or os.getenv("BINANCE_REQUEST_SLEEP", DEFAULT_REQUEST_PAUSE))
         self._request_lock = threading.Lock()
         self._last_request_ts = 0.0
 
@@ -203,11 +199,7 @@ class AuthenticatedExchangeManager:
             # For other exchanges, try per-exchange credentials or default
             exchange_creds = self._exchange_credentials.get(exchange_id, {})
             cred_key = api_key or exchange_creds.get("api_key") or self.default_api_key
-            cred_secret = (
-                api_secret
-                or exchange_creds.get("api_secret")
-                or self.default_api_secret
-            )
+            cred_secret = api_secret or exchange_creds.get("api_secret") or self.default_api_secret
 
         if not cred_key or not cred_secret:
             raise ValueError(
@@ -263,7 +255,7 @@ class AuthenticatedExchangeManager:
                     existing_wrapper = self._authenticated_exchanges[cache_key]
                     existing_wrapper.increment_refcount()
                     # Try to close the exchange we just created to avoid resource leak
-                    if hasattr(exchange_instance, 'close'):
+                    if hasattr(exchange_instance, "close"):
                         try:
                             exchange_instance.close()
                         except Exception:
@@ -274,12 +266,10 @@ class AuthenticatedExchangeManager:
                     self._authenticated_exchanges[cache_key] = wrapper
                     # Store creation timestamp for age-based cleanup
                     self._exchange_timestamps[cache_key] = time.time()
-            return wrapper.exchange        
-        
+            return wrapper.exchange
+
         except Exception as exc:
-            raise ValueError(
-                f"Cannot initialize authenticated {exchange_id} exchange: {exc}"
-            )
+            raise ValueError(f"Cannot initialize authenticated {exchange_id} exchange: {exc}")
 
     def set_exchange_credentials(self, exchange_id: str, api_key: str, api_secret: str):
         """
@@ -304,24 +294,20 @@ class AuthenticatedExchangeManager:
                     if not wrapper.is_in_use():
                         keys_to_remove.append(k)
                     else:
-                        logger.warning(
-                            f"Cannot clear exchange {k} - still in use (refcount={wrapper.get_refcount()})"
-                        )
+                        logger.warning(f"Cannot clear exchange {k} - still in use (refcount={wrapper.get_refcount()})")
             for key in keys_to_remove:
                 wrapper = self._authenticated_exchanges.pop(key)
                 # Remove timestamp if exists
                 if key in self._exchange_timestamps:
                     del self._exchange_timestamps[key]
                 # Try to close exchange if it has a close method
-                if hasattr(wrapper.exchange, 'close'):
+                if hasattr(wrapper.exchange, "close"):
                     try:
                         wrapper.exchange.close()
                     except Exception as e:
                         logger.warning(f"Error closing exchange {key}: {e}")
 
-    def update_default_credentials(
-        self, api_key: Optional[str] = None, api_secret: Optional[str] = None
-    ):
+    def update_default_credentials(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
         """
         Update default credentials used for authenticated exchanges and clear caches.
 
@@ -344,20 +330,18 @@ class AuthenticatedExchangeManager:
                     if not wrapper.is_in_use():
                         keys_to_remove.append(k)
                     else:
-                        logger.warning(
-                            f"Cannot clear exchange {k} - still in use (refcount={wrapper.get_refcount()})"
-                        )
+                        logger.warning(f"Cannot clear exchange {k} - still in use (refcount={wrapper.get_refcount()})")
                 for key in keys_to_remove:
                     wrapper = self._authenticated_exchanges.pop(key)
                     # Remove timestamp if exists
                     if key in self._exchange_timestamps:
                         del self._exchange_timestamps[key]
-                    if hasattr(wrapper.exchange, 'close'):
+                    if hasattr(wrapper.exchange, "close"):
                         try:
                             wrapper.exchange.close()
                         except Exception as e:
                             logger.warning(f"Error closing exchange {key}: {e}")
-    
+
     def cleanup_unused_exchanges(self, max_age_hours: Optional[float] = None):
         """
         Cleanup cached authenticated exchange connections that are not in use.
@@ -365,20 +349,20 @@ class AuthenticatedExchangeManager:
         This frees memory and closes unused connections by removing only exchanges
         with reference count of 0. Exchanges that are currently in use (refcount > 0)
         will not be cleaned up to prevent TOCTOU race conditions.
-        
+
         Args:
             max_age_hours: Optional maximum age in hours. If None, cleans up all unused exchanges.
                           If provided, only unused exchanges older than max_age_hours will be closed and removed.
-        
+
         Stored credentials are NOT cleared by this method.
-        
+
         Note: This method is thread-safe and will not remove exchanges that are
         currently being used by other threads.
         """
         with self._request_lock:
             current_time = time.time()
             keys_to_remove = []
-            
+
             for cache_key, wrapper in list(self._authenticated_exchanges.items()):
                 # Only consider unused exchanges
                 if not wrapper.is_in_use():
@@ -396,7 +380,7 @@ class AuthenticatedExchangeManager:
                     else:
                         # No age filter, remove all unused
                         keys_to_remove.append(cache_key)
-            
+
             cleared_count = 0
             for cache_key in keys_to_remove:
                 wrapper = self._authenticated_exchanges.pop(cache_key)
@@ -405,15 +389,17 @@ class AuthenticatedExchangeManager:
                     del self._exchange_timestamps[cache_key]
                 cleared_count += 1
                 # Close exchange before removing from cache
-                if hasattr(wrapper.exchange, 'close'):
+                if hasattr(wrapper.exchange, "close"):
                     try:
                         wrapper.exchange.close()
                     except Exception as e:
                         logger.warning(f"Error closing exchange {cache_key}: {e}")
-            
+
             if cleared_count > 0:
                 if max_age_hours is not None:
-                    logger.info(f"Cleaned up {cleared_count} unused authenticated exchange connections (older than {max_age_hours} hours)")
+                    logger.info(
+                        f"Cleaned up {cleared_count} unused authenticated exchange connections (older than {max_age_hours} hours)"
+                    )
                 else:
                     logger.info(f"Cleaned up {cleared_count} unused authenticated exchange connections")
             else:
@@ -421,14 +407,14 @@ class AuthenticatedExchangeManager:
                     logger.debug(f"No unused exchanges found older than {max_age_hours} hours to clean up")
                 else:
                     logger.debug("No unused exchanges to clean up")
-    
+
     def close_exchange(self, exchange_id: str, testnet: bool = False, contract_type: str = None):
         """
         Close and remove a specific exchange connection.
-        
+
         Only closes exchanges that are not in use (refcount = 0). If the exchange
         is currently in use, a warning is logged and the exchange is not closed.
-        
+
         Args:
             exchange_id: Exchange identifier
             testnet: Testnet flag
@@ -436,7 +422,7 @@ class AuthenticatedExchangeManager:
         """
         contract_type = contract_type or self.contract_type
         cache_key = f"{exchange_id}_{testnet}_{contract_type}"
-        
+
         with self._request_lock:
             if cache_key in self._authenticated_exchanges:
                 wrapper = self._authenticated_exchanges[cache_key]
@@ -445,34 +431,32 @@ class AuthenticatedExchangeManager:
                         f"Cannot close exchange {cache_key} - still in use (refcount={wrapper.get_refcount()})"
                     )
                     return
-                
+
                 wrapper = self._authenticated_exchanges.pop(cache_key)
                 # Remove timestamp if exists
                 if cache_key in self._exchange_timestamps:
                     del self._exchange_timestamps[cache_key]
                 # Try to close exchange if it has a close method
-                if hasattr(wrapper.exchange, 'close'):
+                if hasattr(wrapper.exchange, "close"):
                     try:
                         wrapper.exchange.close()
                     except Exception as e:
                         logger.warning(f"Error closing exchange {exchange_id}: {e}")
                 logger.debug(f"Closed exchange connection: {cache_key}")
-    
-    def release_exchange(
-        self, exchange_id: str, testnet: bool = False, contract_type: str = None
-    ):
+
+    def release_exchange(self, exchange_id: str, testnet: bool = False, contract_type: str = None):
         """
         Release a reference to an exchange, decrementing its reference count.
-        
+
         Call this method when you're done using an exchange that was retrieved
         via connect_to_exchange_with_credentials(). This allows cleanup to proceed
         when all references are released.
-        
+
         Args:
             exchange_id: Exchange identifier
             testnet: Testnet flag
             contract_type: Contract type
-        
+
         Note:
             This method is safe to call even if the exchange has already been
             removed from the cache (e.g., by cleanup). It will simply do nothing
@@ -480,20 +464,16 @@ class AuthenticatedExchangeManager:
         """
         contract_type = contract_type or self.contract_type
         cache_key = f"{exchange_id}_{testnet}_{contract_type}"
-        
+
         with self._request_lock:
             if cache_key in self._authenticated_exchanges:
                 wrapper = self._authenticated_exchanges[cache_key]
                 new_refcount = wrapper.decrement_refcount()
-                logger.debug(
-                    f"Released reference to {cache_key}, refcount now: {new_refcount}"
-                )
+                logger.debug(f"Released reference to {cache_key}, refcount now: {new_refcount}")
             else:
                 # Exchange already removed from cache, nothing to release
-                logger.debug(
-                    f"Attempted to release reference to {cache_key}, but exchange not in cache"
-                )
-    
+                logger.debug(f"Attempted to release reference to {cache_key}, but exchange not in cache")
+
     @contextmanager
     def exchange_context(
         self,
@@ -505,23 +485,23 @@ class AuthenticatedExchangeManager:
     ):
         """
         Context manager for safely using an exchange with automatic reference management.
-        
+
         Usage:
             with manager.exchange_context('binance') as exchange:
                 # Use exchange here
                 ticker = exchange.fetch_ticker('BTC/USDT')
             # Exchange reference is automatically released on exit
-        
+
         Args:
             exchange_id: Exchange identifier
             api_key: Optional API key
             api_secret: Optional API secret
             testnet: Optional testnet flag
             contract_type: Optional contract type
-            
+
         Yields:
             ccxt.Exchange: The exchange instance
-            
+
         Note:
             The reference count is automatically decremented when exiting the context,
             even if an exception occurs.
@@ -585,9 +565,7 @@ class AuthenticatedExchangeManager:
         Raises:
             ValueError: If API key/secret not provided
         """
-        return self.connect_to_exchange_with_credentials(
-            "kraken", api_key, api_secret, testnet, contract_type
-        )
+        return self.connect_to_exchange_with_credentials("kraken", api_key, api_secret, testnet, contract_type)
 
     def connect_to_kucoin_with_credentials(
         self,
@@ -613,9 +591,7 @@ class AuthenticatedExchangeManager:
         Raises:
             ValueError: If API key/secret not provided
         """
-        return self.connect_to_exchange_with_credentials(
-            "kucoin", api_key, api_secret, testnet, contract_type
-        )
+        return self.connect_to_exchange_with_credentials("kucoin", api_key, api_secret, testnet, contract_type)
 
     def connect_to_gate_with_credentials(
         self,
@@ -641,9 +617,7 @@ class AuthenticatedExchangeManager:
         Raises:
             ValueError: If API key/secret not provided
         """
-        return self.connect_to_exchange_with_credentials(
-            "gate", api_key, api_secret, testnet, contract_type
-        )
+        return self.connect_to_exchange_with_credentials("gate", api_key, api_secret, testnet, contract_type)
 
     def connect_to_okx_with_credentials(
         self,
@@ -669,9 +643,7 @@ class AuthenticatedExchangeManager:
         Raises:
             ValueError: If API key/secret not provided
         """
-        return self.connect_to_exchange_with_credentials(
-            "okx", api_key, api_secret, testnet, contract_type
-        )
+        return self.connect_to_exchange_with_credentials("okx", api_key, api_secret, testnet, contract_type)
 
     def connect_to_bybit_with_credentials(
         self,
@@ -697,9 +669,7 @@ class AuthenticatedExchangeManager:
         Raises:
             ValueError: If API key/secret not provided
         """
-        return self.connect_to_exchange_with_credentials(
-            "bybit", api_key, api_secret, testnet, contract_type
-        )
+        return self.connect_to_exchange_with_credentials("bybit", api_key, api_secret, testnet, contract_type)
 
     def connect_to_mexc_with_credentials(
         self,
@@ -725,9 +695,7 @@ class AuthenticatedExchangeManager:
         Raises:
             ValueError: If API key/secret not provided
         """
-        return self.connect_to_exchange_with_credentials(
-            "mexc", api_key, api_secret, testnet, contract_type
-        )
+        return self.connect_to_exchange_with_credentials("mexc", api_key, api_secret, testnet, contract_type)
 
     def connect_to_huobi_with_credentials(
         self,
@@ -753,9 +721,7 @@ class AuthenticatedExchangeManager:
         Raises:
             ValueError: If API key/secret not provided
         """
-        return self.connect_to_exchange_with_credentials(
-            "huobi", api_key, api_secret, testnet, contract_type
-        )
+        return self.connect_to_exchange_with_credentials("huobi", api_key, api_secret, testnet, contract_type)
 
     def throttled_call(self, func, *args, **kwargs):
         """
@@ -782,21 +748,17 @@ class PublicExchangeManager:
     """Manages public exchange connections (no credentials required)."""
 
     def __init__(self, request_pause=None):
-        self.request_pause = float(
-            request_pause or os.getenv("BINANCE_REQUEST_SLEEP", DEFAULT_REQUEST_PAUSE)
-        )
+        self.request_pause = float(request_pause or os.getenv("BINANCE_REQUEST_SLEEP", DEFAULT_REQUEST_PAUSE))
         self._request_lock = threading.Lock()
         self._last_request_ts = 0.0
         self._public_exchanges: Dict[str, ccxt.Exchange] = {}
-        
+
         # Store timestamps for exchange creation (key: exchange_id, value: creation timestamp)
         self._exchange_timestamps: Dict[str, float] = {}
         fallback_string = os.getenv("OHLCV_FALLBACKS", DEFAULT_EXCHANGE_STRING)
         self._exchange_priority_for_fallback = fallback_string.split(",")
 
-    def connect_to_exchange_with_no_credentials(
-        self, exchange_id: str
-    ) -> ccxt.Exchange:
+    def connect_to_exchange_with_no_credentials(self, exchange_id: str) -> ccxt.Exchange:
         """
         Connect to public exchange instance (NO credentials required).
 
@@ -846,7 +808,7 @@ class PublicExchangeManager:
                     # Another thread created it first, use that one and close ours
                     existing_exchange = self._public_exchanges[exchange_id]
                     # Try to close the exchange we just created to avoid resource leak
-                    if hasattr(exchange_instance, 'close'):
+                    if hasattr(exchange_instance, "close"):
                         try:
                             exchange_instance.close()
                         except Exception:
@@ -890,7 +852,7 @@ class PublicExchangeManager:
     def exchange_priority_for_fallback(self, value):
         """Set list of exchange IDs in priority order for fallback."""
         self._exchange_priority_for_fallback = value
-    
+
     def cleanup_unused_exchanges(self, max_age_hours: Optional[float] = None):
         """
         Cleanup unused public exchange connections, closing them properly before removal.
@@ -906,7 +868,7 @@ class PublicExchangeManager:
         with self._request_lock:
             current_time = time.time()
             keys_to_remove = []
-            
+
             for exchange_id, exchange in list(self._public_exchanges.items()):
                 remove_exchange = False
                 if max_age_hours is not None:
@@ -925,7 +887,7 @@ class PublicExchangeManager:
 
                 if remove_exchange:
                     keys_to_remove.append(exchange_id)
-            
+
             cleared_count = 0
             for exchange_id in keys_to_remove:
                 exchange = self._public_exchanges.pop(exchange_id)
@@ -934,15 +896,17 @@ class PublicExchangeManager:
                     del self._exchange_timestamps[exchange_id]
                 cleared_count += 1
                 # Close exchange before removing from cache
-                if hasattr(exchange, 'close'):
+                if hasattr(exchange, "close"):
                     try:
                         exchange.close()
                     except Exception as e:
                         logger.warning(f"Error closing public exchange {exchange_id}: {e}")
-            
+
             if cleared_count > 0:
                 if max_age_hours is not None:
-                    logger.info(f"Cleaned up {cleared_count} public exchange connections (older than {max_age_hours} hours)")
+                    logger.info(
+                        f"Cleaned up {cleared_count} public exchange connections (older than {max_age_hours} hours)"
+                    )
                 else:
                     logger.info(f"Cleaned up {cleared_count} public exchange connections")
             else:
@@ -950,11 +914,11 @@ class PublicExchangeManager:
                     logger.debug(f"No exchanges found older than {max_age_hours} hours to clean up")
                 else:
                     logger.debug("No exchanges to clean up")
-    
+
     def close_exchange(self, exchange_id: str):
         """
         Close and remove a specific public exchange connection.
-        
+
         Args:
             exchange_id: Exchange identifier
         """
@@ -965,7 +929,7 @@ class PublicExchangeManager:
                 if exchange_id in self._exchange_timestamps:
                     del self._exchange_timestamps[exchange_id]
                 # Try to close exchange if it has a close method
-                if hasattr(exchange, 'close'):
+                if hasattr(exchange, "close"):
                     try:
                         exchange.close()
                     except Exception as e:
@@ -996,9 +960,7 @@ class ExchangeManager:
 
         # Store credentials for backward compatibility
         self.api_key = api_key or os.getenv("BINANCE_API_KEY") or BINANCE_API_KEY
-        self.api_secret = (
-            api_secret or os.getenv("BINANCE_API_SECRET") or BINANCE_API_SECRET
-        )
+        self.api_secret = api_secret or os.getenv("BINANCE_API_SECRET") or BINANCE_API_SECRET
         self.testnet = testnet
 
     def normalize_symbol(self, market_symbol: str) -> str:
@@ -1027,11 +989,11 @@ class ExchangeManager:
     def exchange_priority_for_fallback(self, value):
         """Set list of exchange IDs in priority order for OHLCV fallback."""
         self.public.exchange_priority_for_fallback = value
-    
+
     def cleanup_unused_exchanges(self, max_age_hours: Optional[float] = None):
         """
         Cleanup unused exchange connections to free memory.
-        
+
         Args:
             max_age_hours: Optional maximum age in hours for authenticated exchanges.
                           If None, cleans up all unused exchanges.
@@ -1039,8 +1001,8 @@ class ExchangeManager:
                           Public exchanges are always cleaned up (age tracking not yet implemented).
         """
         self.authenticated.cleanup_unused_exchanges(max_age_hours)
-        self.public.cleanup_unused_exchanges(max_age_hours)    
-    
+        self.public.cleanup_unused_exchanges(max_age_hours)
+
     def close_exchange(self, exchange_id: str, testnet: bool = False, contract_type: str = None):
         """
         Close and remove a specific exchange connection (both authenticated and public).
@@ -1049,10 +1011,9 @@ class ExchangeManager:
             exchange_id: Exchange identifier
             testnet: Testnet flag (applies to authenticated exchanges)
             contract_type: Contract type (applies to authenticated exchanges)
-        
+
         This method attempts to close the exchange connection with the given ID for both
         authenticated and public managers (if applicable).
         """
         self.authenticated.close_exchange(exchange_id, testnet, contract_type)
         self.public.close_exchange(exchange_id)
-

@@ -1,17 +1,25 @@
+
+import argparse
+
+from colorama import Fore
+
+from config import (
+
+from config import (
+
 """
 Command-line interface for xgboost_prediction_main.py
 """
 
-import argparse
-from modules.common.utils import color_text, safe_input
-from colorama import Fore
-from config import (
-    DEFAULT_SYMBOL,
-    DEFAULT_QUOTE,
-    DEFAULT_TIMEFRAME,
-    DEFAULT_LIMIT,
+
+
     DEFAULT_EXCHANGE_STRING,
+    DEFAULT_LIMIT,
+    DEFAULT_QUOTE,
+    DEFAULT_SYMBOL,
+    DEFAULT_TIMEFRAME,
 )
+from modules.common.utils import color_text, safe_input
 
 
 def prompt_with_default(message: str, default, cast=str):
@@ -35,9 +43,7 @@ def resolve_input(cli_value, default, prompt_message, cast=str, allow_prompt=Tru
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Crypto movement predictor using technical indicators and XGBoost."
-    )
+    parser = argparse.ArgumentParser(description="Crypto movement predictor using technical indicators and XGBoost.")
     parser.add_argument(
         "-s",
         "--symbol",

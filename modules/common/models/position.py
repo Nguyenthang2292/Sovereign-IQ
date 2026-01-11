@@ -1,8 +1,10 @@
+
+from dataclasses import dataclass
+
 """
 Position data class for portfolio management.
 """
 
-from dataclasses import dataclass
 
 
 @dataclass
@@ -13,4 +15,3 @@ class Position:
     direction: str
     entry_price: float
     size_usdt: float
-

@@ -1,11 +1,17 @@
-import math
+
 from dataclasses import dataclass
+import math
 
 import pandas as pd
 
 from modules.common.core.data_fetcher import DataFetcher
 from modules.pairs_trading.analysis.performance_analyzer import PerformanceAnalyzer
 from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer
+from modules.pairs_trading.analysis.performance_analyzer import PerformanceAnalyzer
+from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer
+
+
+
 
 
 def _generate_ohlcv_series(base_price: float, drift: float, length: int = 240):
@@ -83,20 +89,18 @@ def test_performance_and_pairs_pipeline_with_real_data_fetcher(monkeypatch):
 
     performance_analyzer = PerformanceAnalyzer(limit=200, timeframe="1h")
     symbols = ["AAA/USDT", "BBB/USDT", "CCC/USDT"]
-    performance_df = performance_analyzer.analyze_all_symbols(
-        symbols, data_fetcher, verbose=False
-    )
+    performance_df = performance_analyzer.analyze_all_symbols(symbols, data_fetcher, verbose=False)
 
     assert not performance_df.empty
-    
+
     # When scores are equal, results are sorted by symbol (ascending) as secondary sort
     # This ensures deterministic ordering
     actual_order = list(performance_df["symbol"])
     expected_order = ["AAA/USDT", "BBB/USDT", "CCC/USDT"]  # Alphabetical when scores equal
-    
+
     # Verify all expected symbols are present
     assert set(actual_order) == set(expected_order), f"Symbols mismatch: {actual_order} vs {expected_order}"
-    
+
     # Verify order (alphabetical when scores are equal)
     assert actual_order == expected_order, f"Order mismatch: {actual_order} vs {expected_order}"
 
@@ -123,9 +127,7 @@ def test_performance_and_pairs_pipeline_with_real_data_fetcher(monkeypatch):
         correlation_min_points=50,
     )
 
-    pairs_df = analyzer.analyze_pairs_opportunity(
-        best, worst, data_fetcher=data_fetcher, verbose=False
-    )
+    pairs_df = analyzer.analyze_pairs_opportunity(best, worst, data_fetcher=data_fetcher, verbose=False)
 
     assert not pairs_df.empty
     assert pairs_df.iloc[0]["long_symbol"] == worst.iloc[0]["symbol"]
@@ -141,18 +143,11 @@ def test_data_fetcher_cache_reuse_integration():
     exchange_manager = StubExchangeManager(data_map)
     data_fetcher = DataFetcher(exchange_manager)
 
-    df_first, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-        "AAA/USDT", limit=100, timeframe="1h"
-    )
-    df_second, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-        "AAA/USDT", limit=100, timeframe="1h"
-    )
+    df_first, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange("AAA/USDT", limit=100, timeframe="1h")
+    df_second, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange("AAA/USDT", limit=100, timeframe="1h")
 
     assert df_first.equals(df_second)
     # Ensure no mutation occurs between cached copies
     df_first.iloc[0, df_first.columns.get_loc("close")] = 999.0
-    df_third, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-        "AAA/USDT", limit=100, timeframe="1h"
-    )
+    df_third, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange("AAA/USDT", limit=100, timeframe="1h")
     assert df_third.iloc[0]["close"] != 999.0
-

@@ -1,3 +1,12 @@
+
+from typing import Optional, Tuple
+
+import pandas as pd
+
+from config import (
+
+from config import (
+
 """
 Signal calculators for hybrid approach.
 
@@ -9,57 +18,51 @@ This module contains functions to calculate signals from:
 5. Random Forest
 """
 
-from typing import Optional, Tuple
-import json
-import os
-import time
-import pandas as pd
 
+
+    HMM_FAST_KAMA_DEFAULT,
+    HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
+    HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
+    HMM_SLOW_KAMA_DEFAULT,
+    HMM_WINDOW_KAMA_DEFAULT,
+    HMM_WINDOW_SIZE_DEFAULT,
+    ID_TO_LABEL,
+    SPC_P_HIGH,
+    SPC_P_LOW,
+    TARGET_BASE_THRESHOLD,
+)
 from modules.common.core.data_fetcher import DataFetcher
-from modules.range_oscillator.strategies.combined import (
-    generate_signals_combined_all_strategy,
-)
-from modules.range_oscillator.config import (
-    CombinedStrategyConfig,
-)
-from modules.simplified_percentile_clustering.core.clustering import (
-    SimplifiedPercentileClustering,
-    ClusteringConfig,
-)
-from modules.simplified_percentile_clustering.core.features import FeatureConfig
-from modules.simplified_percentile_clustering.strategies import (
-    generate_signals_cluster_transition,
-    generate_signals_regime_following,
-    generate_signals_mean_reversion,
-)
-from modules.simplified_percentile_clustering.config import (
-    ClusterTransitionConfig,
-    RegimeFollowingConfig,
-    MeanReversionConfig,
-)
 from modules.common.core.indicator_engine import (
     IndicatorConfig,
     IndicatorEngine,
     IndicatorProfile,
 )
-from modules.xgboost.labeling import apply_directional_labels
-from modules.xgboost.model import train_and_predict, predict_next_move
 from modules.hmm.signals.combiner import combine_signals
-from modules.hmm.signals.resolution import LONG, HOLD, SHORT
 from modules.random_forest.core.model import load_random_forest_model
 from modules.random_forest.core.signals import get_latest_random_forest_signal
-from config import (
-    SPC_P_LOW,
-    SPC_P_HIGH,
-    TARGET_BASE_THRESHOLD,
-    ID_TO_LABEL,
-    HMM_WINDOW_SIZE_DEFAULT,
-    HMM_WINDOW_KAMA_DEFAULT,
-    HMM_FAST_KAMA_DEFAULT,
-    HMM_SLOW_KAMA_DEFAULT,
-    HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
-    HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
+from modules.range_oscillator.config import (
+    CombinedStrategyConfig,
 )
+from modules.range_oscillator.strategies.combined import (
+    generate_signals_combined_all_strategy,
+)
+from modules.simplified_percentile_clustering.config import (
+    ClusterTransitionConfig,
+    MeanReversionConfig,
+    RegimeFollowingConfig,
+)
+from modules.simplified_percentile_clustering.core.clustering import (
+    ClusteringConfig,
+    SimplifiedPercentileClustering,
+)
+from modules.simplified_percentile_clustering.core.features import FeatureConfig
+from modules.simplified_percentile_clustering.strategies import (
+    generate_signals_cluster_transition,
+    generate_signals_mean_reversion,
+    generate_signals_regime_following,
+)
+from modules.xgboost.labeling import apply_directional_labels
+from modules.xgboost.model import predict_next_move, train_and_predict
 
 
 def get_range_oscillator_signal(
@@ -86,7 +89,7 @@ def get_range_oscillator_signal(
                 check_freshness=False,
             )
         else:
-            exchange_id = None
+            pass
 
         if df is None or df.empty:
             return None
@@ -94,7 +97,7 @@ def get_range_oscillator_signal(
         # Validate required columns
         required_columns = ["high", "low", "close"]
         missing_columns = [col for col in required_columns if col not in df.columns]
-        
+
         if missing_columns:
             return None
 
@@ -125,7 +128,7 @@ def get_range_oscillator_signal(
         # Adaptive weights can be enabled if needed, but will be retried without if errors occur
         config.consensus.adaptive_weights = False
         config.consensus.performance_window = 10
-        
+
         try:
             result = generate_signals_combined_all_strategy(
                 high=high,
@@ -139,12 +142,13 @@ def get_range_oscillator_signal(
             # Handle classification metrics errors by retrying without adaptive weights
             # These errors occur when data doesn't have enough classes for metrics calculation
             error_str = str(e)
-            error_type = type(e).__name__
             is_value_or_type_error = isinstance(e, (ValueError, TypeError))
-            matches_classification = ("Classification metrics" in error_str or 
-                                    "Number of classes" in error_str or 
-                                    "Invalid classes" in error_str)
-            
+            matches_classification = (
+                "Classification metrics" in error_str
+                or "Number of classes" in error_str
+                or "Invalid classes" in error_str
+            )
+
             # Only retry for ValueError/TypeError with classification metrics errors
             if is_value_or_type_error and matches_classification:
                 # Retry without adaptive weights
@@ -158,7 +162,7 @@ def get_range_oscillator_signal(
                         mult=osc_mult,
                         config=config,
                     )
-                except Exception as retry_e:
+                except Exception:
                     raise
             else:
                 # Not a classification metrics error, re-raise to let outer handler catch it
@@ -176,10 +180,12 @@ def get_range_oscillator_signal(
 
         latest_idx = signals[non_nan_mask].index[-1]
         latest_signal = int(signals.loc[latest_idx])
-        latest_confidence = float(confidence.loc[latest_idx]) if confidence is not None and not confidence.empty else 0.0
+        latest_confidence = (
+            float(confidence.loc[latest_idx]) if confidence is not None and not confidence.empty else 0.0
+        )
         return (latest_signal, latest_confidence)
 
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -229,7 +235,7 @@ def get_spc_signal(
         clustering_result = clustering.compute(high, low, close)
 
         strategy_params = strategy_params or {}
-        
+
         if strategy == "cluster_transition":
             strategy_config = ClusterTransitionConfig(
                 min_signal_strength=strategy_params.get("min_signal_strength", 0.3),
@@ -284,7 +290,7 @@ def get_spc_signal(
         latest_strength = float(signal_strength.loc[latest_idx]) if not signal_strength.empty else 0.0
         return (latest_signal, latest_strength)
 
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -313,9 +319,7 @@ def get_xgboost_signal(
             return None
 
         # Initialize IndicatorEngine for XGBoost features
-        indicator_engine = IndicatorEngine(
-            IndicatorConfig.for_profile(IndicatorProfile.XGBOOST)
-        )
+        indicator_engine = IndicatorEngine(IndicatorConfig.for_profile(IndicatorProfile.XGBOOST))
 
         # Calculate indicators without labels first (to preserve latest_data)
         df = indicator_engine.compute_features(df)
@@ -345,7 +349,7 @@ def get_xgboost_signal(
         # Get prediction: UP=1, DOWN=-1, NEUTRAL=0
         best_idx = int(proba.argmax())
         direction = ID_TO_LABEL[best_idx]
-        
+
         # Convert to signal format: UP -> 1, DOWN -> -1, NEUTRAL -> 0
         if direction == "UP":
             signal = 1
@@ -353,12 +357,12 @@ def get_xgboost_signal(
             signal = -1
         else:
             signal = 0
-        
+
         # Use probability as confidence/strength
         confidence = float(proba[best_idx])
         return (signal, confidence)
 
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -377,12 +381,12 @@ def get_hmm_signal(
 ) -> Optional[Tuple[int, float]]:
     """
     Calculate HMM signal for a symbol.
-    
+
     Combines High-Order HMM and HMM-KAMA signals using the same logic as main_hmm.py:
     - If both signals agree and not HOLD -> use that signal
     - If conflict (one LONG, one SHORT) -> HOLD
     - If one is HOLD -> use the other signal
-    
+
     Args:
         data_fetcher: DataFetcher instance
         symbol: Trading pair symbol
@@ -395,7 +399,7 @@ def get_hmm_signal(
         orders_argrelextrema: Order for swing detection (default: from config)
         strict_mode: Use strict mode for swing-to-state conversion (default: from config)
         df: Optional DataFrame to use instead of fetching from API
-    
+
     Returns:
         Tuple of (signal, confidence) where:
         - signal: 1 (LONG), -1 (SHORT), or 0 (HOLD)
@@ -424,19 +428,21 @@ def get_hmm_signal(
             fast_kama=fast_kama if fast_kama is not None else HMM_FAST_KAMA_DEFAULT,
             slow_kama=slow_kama if slow_kama is not None else HMM_SLOW_KAMA_DEFAULT,
             window_size=window_size if window_size is not None else HMM_WINDOW_SIZE_DEFAULT,
-            orders_argrelextrema=orders_argrelextrema if orders_argrelextrema is not None else HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
+            orders_argrelextrema=orders_argrelextrema
+            if orders_argrelextrema is not None
+            else HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
             strict_mode=strict_mode if strict_mode is not None else HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
         )
-        
+
         # Extract combined signal and confidence
         combined_signal = result["combined_signal"]
         confidence = result["confidence"]
-        
+
         # Convert Signal type (Literal[-1, 0, 1]) to int
         signal_value = int(combined_signal)
         return (signal_value, confidence)
 
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -450,7 +456,7 @@ def get_random_forest_signal(
 ) -> Optional[Tuple[int, float]]:
     """
     Calculate Random Forest signal for a symbol.
-    
+
     Args:
         data_fetcher: DataFetcher instance
         symbol: Trading pair symbol
@@ -458,7 +464,7 @@ def get_random_forest_signal(
         limit: Number of candles to fetch
         model_path: Optional path to model file (default: uses default path)
         df: Optional DataFrame to use instead of fetching from API
-    
+
     Returns:
         Tuple of (signal, confidence) where:
         - signal: 1 (LONG), -1 (SHORT), or 0 (NEUTRAL)
@@ -467,10 +473,11 @@ def get_random_forest_signal(
     try:
         # Load model
         from pathlib import Path
+
         model = load_random_forest_model(Path(model_path) if model_path else None)
         if model is None:
             return None
-        
+
         # Use provided DataFrame if available, otherwise fetch from API
         if df is None:
             df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
@@ -479,20 +486,20 @@ def get_random_forest_signal(
                 timeframe=timeframe,
                 check_freshness=False,
             )
-        
+
         if df is None or df.empty:
             return None
-        
+
         # Validate required columns
         required_columns = ["open", "high", "low", "close", "volume"]
         missing_columns = [col for col in required_columns if col not in df.columns]
-        
+
         if missing_columns:
             return None
-        
+
         # Get signal from Random Forest model
         signal_str, confidence = get_latest_random_forest_signal(df, model)
-        
+
         # Convert signal string to int: "LONG" -> 1, "SHORT" -> -1, "NEUTRAL" -> 0
         if signal_str == "LONG":
             signal = 1
@@ -500,9 +507,8 @@ def get_random_forest_signal(
             signal = -1
         else:
             signal = 0
-        
-        return (signal, confidence)
-    
-    except Exception as e:
-        return None
 
+        return (signal, confidence)
+
+    except Exception:
+        return None

@@ -1,3 +1,11 @@
+
+import os
+import sys
+import warnings
+
+from modules.common.utils import configure_windows_stdio
+from modules.common.utils import configure_windows_stdio
+
 """
 ATC + Range Oscillator + SPC Pure Voting System (Phương án 2).
 
@@ -41,24 +49,20 @@ Example:
         $ python main_voting.py --timeframe 1h --enable-spc
 """
 
-import warnings
-import sys
-import os
 
-from modules.common.utils import configure_windows_stdio
 
 configure_windows_stdio()
 
-from colorama import Fore, init as colorama_init
+from colorama import Fore
+from colorama import init as colorama_init
 
-from modules.common.utils import (
-    color_text,
-    log_error,
-    log_progress,
-    initialize_components,
-)
 from cli.argument_parser import parse_args
 from core.voting_analyzer import VotingAnalyzer
+from modules.common.utils import (
+    color_text,
+    initialize_components,
+    log_error,
+)
 
 # Configure warning filters with targeted approach
 # Environment variable ENABLE_DEPRECATION_WARNINGS can be set to "1" or "true" to show all warnings
@@ -68,51 +72,31 @@ ENABLE_ALL_WARNINGS = os.getenv("ENABLE_DEPRECATION_WARNINGS", "").lower() in ("
 if not ENABLE_ALL_WARNINGS:
     # Targeted suppression: Only filter specific noisy warnings from data science libraries
     # This approach allows important warnings to surface while reducing noise
-    
+
     # Pandas-specific deprecation warnings (common in data processing)
-    warnings.filterwarnings(
-        "ignore",
-        category=DeprecationWarning,
-        module="pandas"
-    )
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="pandas")
     # Pandas FutureWarning about upcoming behavior changes
-    warnings.filterwarnings(
-        "ignore",
-        category=FutureWarning,
-        module="pandas"
-    )
-    
+    warnings.filterwarnings("ignore", category=FutureWarning, module="pandas")
+
     # NumPy deprecation warnings (common in numerical operations)
-    warnings.filterwarnings(
-        "ignore",
-        category=DeprecationWarning,
-        module="numpy"
-    )
-    
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="numpy")
+
     # scikit-learn deprecation warnings (common in ML workflows)
-    warnings.filterwarnings(
-        "ignore",
-        category=DeprecationWarning,
-        module="sklearn"
-    )
-    
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="sklearn")
+
     # XGBoost deprecation warnings
-    warnings.filterwarnings(
-        "ignore",
-        category=DeprecationWarning,
-        module="xgboost"
-    )
-    
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="xgboost")
+
     # Common pandas FutureWarning patterns that don't affect current functionality
     warnings.filterwarnings(
         "ignore",
         category=FutureWarning,
-        message=".*DataFrame.*append.*"  # DataFrame.append is deprecated
+        message=".*DataFrame.*append.*",  # DataFrame.append is deprecated
     )
     warnings.filterwarnings(
         "ignore",
         category=FutureWarning,
-        message=".*Series.*append.*"  # Series.append is deprecated
+        message=".*Series.*append.*",  # Series.append is deprecated
     )
 else:
     # All warnings enabled - useful for periodic audits
@@ -133,10 +117,10 @@ colorama_init(autoreset=True)
 def main() -> None:
     """
     Main entry point for Voting Analyzer workflow.
-    
+
     Initializes components, creates VotingAnalyzer instance, and runs the
     complete pure voting system workflow.
-    
+
     Workflow steps:
         1. Parse command-line arguments (voting mode)
         2. Initialize ExchangeManager and DataFetcher
@@ -146,11 +130,11 @@ def main() -> None:
            - Parallel calculation of all indicator signals
            - Voting system application
            - Results display with voting metadata
-    
+
     Note:
         Decision Matrix is always enabled in voting mode (it's the core mechanism).
         SPC can be enabled/disabled via command-line arguments.
-    
+
     Raises:
         SystemExit: On KeyboardInterrupt or unhandled exceptions
     """
@@ -158,6 +142,7 @@ def main() -> None:
     _, data_fetcher = initialize_components()
     analyzer = VotingAnalyzer(args, data_fetcher)
     analyzer.run()
+
 
 if __name__ == "__main__":
     try:
@@ -168,6 +153,6 @@ if __name__ == "__main__":
     except Exception as e:
         log_error(f"Error: {type(e).__name__}: {e}")
         import traceback
+
         log_error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
-

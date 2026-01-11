@@ -1,25 +1,32 @@
+
+from pathlib import Path
+import os
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from web.api import batch_scanner, chart_analyzer, logs
+
+from web.api import batch_scanner, chart_analyzer, logs
+
 """
 FastAPI server for Gemini Chart Analyzer Web Interface.
 
 Serves REST API endpoints and static files for Vue.js frontend.
 """
 
-import os
-from pathlib import Path
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+
 
 # Import API routers
-from web.api import chart_analyzer, batch_scanner, logs
-
+from web.api import batch_scanner, chart_analyzer, logs
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Gemini Chart Analyzer API",
     description="REST API for Gemini Chart Analyzer and Batch Scanner",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS middleware
@@ -55,6 +62,7 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static/charts", StaticFiles(directory=str(CHARTS_DIR)), name="charts")
 app.mount("/static/results", StaticFiles(directory=str(RESULTS_DIR)), name="results")
 
+
 @app.get("/")
 async def root():
     """Root endpoint - serve Vue.js app."""
@@ -65,7 +73,7 @@ async def root():
         return {
             "message": "Gemini Chart Analyzer API",
             "status": "running",
-            "note": "Vue app not built. Please run 'npm run build' in web/static/vue/"
+            "note": "Vue app not built. Please run 'npm run build' in web/static/vue/",
         }
 
 
@@ -81,7 +89,7 @@ async def health_check():
         "status": "healthy",
         "charts_dir_exists": CHARTS_DIR.exists(),
         "results_dir_exists": RESULTS_DIR.exists(),
-        "vue_dist_exists": VUE_DIST_DIR.exists()
+        "vue_dist_exists": VUE_DIST_DIR.exists(),
     }
     if not is_production:
         base_response["charts_dir"] = str(CHARTS_DIR)
@@ -93,7 +101,7 @@ async def health_check():
 if VUE_DIST_DIR.exists():
     # Mount Vue dist directory
     app.mount("/static/vue", StaticFiles(directory=str(VUE_DIST_DIR)), name="vue")
-    
+
     # Serve index.html for all routes (SPA routing)
     # This must be defined AFTER all specific routes like /health
 
@@ -106,27 +114,23 @@ if VUE_DIST_DIR.exists():
         # Check if it's an API route - if so, return 404 (routing handled by API routers)
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="Not found")
-        
+
         # Check if it's a static file request
         if full_path.startswith("static/"):
             raise HTTPException(status_code=404, detail="Not found")
-        
+
         # Serve index.html for all other routes
         index_path = VUE_DIST_DIR / "index.html"
         if index_path.exists():
             return FileResponse(str(index_path))
         else:
-            raise HTTPException(status_code=404, detail="Vue app not built. Please run 'npm run build' in web/static/vue/")
+            raise HTTPException(
+                status_code=404, detail="Vue app not built. Please run 'npm run build' in web/static/vue/"
+            )
 
 
 if __name__ == "__main__":
     import uvicorn
 
     reload = os.getenv("UVICORN_RELOAD", "true").lower() in ("1", "true", "yes")
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        reload=reload
-    )
-
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=reload)

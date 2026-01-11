@@ -1,39 +1,45 @@
+
+from typing import Dict, Optional, Union
+
+import numpy as np
+import pandas as pd
+
+from modules.common.quantitative_metrics import (
+
+from modules.common.quantitative_metrics import (
+
 """
 Pair metrics computer that orchestrates all quantitative metrics calculation.
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, Optional, Union
 
-from modules.common.utils import log_warn
 
-from modules.common.quantitative_metrics import (
     calculate_adf_test,
-    calculate_half_life,
-    calculate_johansen_test,
-    calculate_sharpe_ratio,
-    calculate_max_drawdown,
     calculate_calmar_ratio,
-    calculate_ols_hedge_ratio,
-    calculate_kalman_hedge_ratio,
-    calculate_zscore_stats,
-    calculate_hurst_exponent,
     calculate_direction_metrics,
+    calculate_half_life,
+    calculate_hurst_exponent,
+    calculate_johansen_test,
+    calculate_kalman_hedge_ratio,
+    calculate_max_drawdown,
+    calculate_ols_hedge_ratio,
+    calculate_sharpe_ratio,
+    calculate_zscore_stats,
 )
+from modules.common.utils import log_warn
 
 try:
     from config import (
-        PAIRS_TRADING_TIMEFRAME,
         PAIRS_TRADING_ADF_PVALUE_THRESHOLD,
-        PAIRS_TRADING_PERIODS_PER_YEAR,
-        PAIRS_TRADING_ZSCORE_LOOKBACK,
         PAIRS_TRADING_CLASSIFICATION_ZSCORE,
-        PAIRS_TRADING_JOHANSEN_CONFIDENCE,
         PAIRS_TRADING_CORRELATION_MIN_POINTS,
-        PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        PAIRS_TRADING_JOHANSEN_CONFIDENCE,
         PAIRS_TRADING_KALMAN_DELTA,
         PAIRS_TRADING_KALMAN_OBS_COV,
+        PAIRS_TRADING_OLS_FIT_INTERCEPT,
+        PAIRS_TRADING_PERIODS_PER_YEAR,
+        PAIRS_TRADING_TIMEFRAME,
+        PAIRS_TRADING_ZSCORE_LOOKBACK,
     )
 except ImportError:
     PAIRS_TRADING_TIMEFRAME = "1h"
@@ -65,7 +71,7 @@ class PairMetricsComputer:
     ):
         """
         Initialize PairMetricsComputer.
-        
+
         Args:
             adf_pvalue_threshold: P-value threshold for ADF test (must be in (0, 1])
             periods_per_year: Number of periods per year (must be > 0)
@@ -76,36 +82,28 @@ class PairMetricsComputer:
             ols_fit_intercept: Whether to fit intercept in OLS regression
             kalman_delta: Kalman filter delta parameter (must be in (0, 1))
             kalman_obs_cov: Kalman filter observation covariance (must be > 0)
-            
+
         Raises:
             ValueError: If parameter values are invalid
         """
         # Validate parameters
         if not (0 < adf_pvalue_threshold <= 1):
-            raise ValueError(
-                f"adf_pvalue_threshold must be in (0, 1], got {adf_pvalue_threshold}"
-            )
+            raise ValueError(f"adf_pvalue_threshold must be in (0, 1], got {adf_pvalue_threshold}")
         if periods_per_year <= 0:
             raise ValueError(f"periods_per_year must be positive, got {periods_per_year}")
         if zscore_lookback <= 0:
             raise ValueError(f"zscore_lookback must be positive, got {zscore_lookback}")
         if classification_zscore <= 0:
-            raise ValueError(
-                f"classification_zscore must be positive, got {classification_zscore}"
-            )
+            raise ValueError(f"classification_zscore must be positive, got {classification_zscore}")
         if not (0 < johansen_confidence < 1):
-            raise ValueError(
-                f"johansen_confidence must be in (0, 1), got {johansen_confidence}"
-            )
+            raise ValueError(f"johansen_confidence must be in (0, 1), got {johansen_confidence}")
         if correlation_min_points < 2:
-            raise ValueError(
-                f"correlation_min_points must be >= 2, got {correlation_min_points}"
-            )
+            raise ValueError(f"correlation_min_points must be >= 2, got {correlation_min_points}")
         if kalman_delta <= 0 or kalman_delta >= 1:
             raise ValueError(f"kalman_delta must be in (0, 1), got {kalman_delta}")
         if kalman_obs_cov <= 0:
             raise ValueError(f"kalman_obs_cov must be positive, got {kalman_obs_cov}")
-        
+
         # Check for NaN/Inf
         if np.isnan(adf_pvalue_threshold) or np.isinf(adf_pvalue_threshold):
             raise ValueError(f"adf_pvalue_threshold must be finite, got {adf_pvalue_threshold}")
@@ -132,37 +130,35 @@ class PairMetricsComputer:
     ) -> Dict[str, Optional[Union[float, bool]]]:
         """
         Compute comprehensive quantitative metrics for a pair.
-        
+
         Calculates metrics for both OLS and Kalman hedge ratio methods:
         - OLS-based metrics: half_life, zscore stats, hurst, sharpe, etc. (based on static hedge ratio)
         - Kalman-based metrics: kalman_half_life, kalman_* metrics (based on dynamic hedge ratio)
-        
+
         Note: ADF test and Johansen test are calculated once as they test cointegration
         between price1 and price2, independent of the hedge ratio method.
-        
+
         Args:
             price1: First price series (pd.Series, must not be None/empty, will be validated)
             price2: Second price series (pd.Series, must not be None/empty, will be validated)
-            
+
         Returns:
             Dictionary with all computed metrics (both OLS and Kalman-based).
             Returns metrics dict with all None values if inputs are invalid or calculation fails.
-            
+
         Raises:
             ValueError: If price1 or price2 are None, empty, or invalid type
         """
         # Validate inputs
         if price1 is None or price2 is None:
             raise ValueError("price1 and price2 must not be None")
-        
+
         if not isinstance(price1, pd.Series) or not isinstance(price2, pd.Series):
-            raise ValueError(
-                f"price1 and price2 must be pd.Series, got {type(price1)} and {type(price2)}"
-            )
-        
+            raise ValueError(f"price1 and price2 must be pd.Series, got {type(price1)} and {type(price2)}")
+
         if price1.empty or price2.empty:
             raise ValueError("price1 and price2 must not be empty")
-        
+
         # Check for infinite values in inputs
         if np.isinf(price1).any() or np.isinf(price2).any():
             raise ValueError("price1 and price2 must not contain infinite values")
@@ -218,7 +214,7 @@ class PairMetricsComputer:
         except Exception:
             # If OLS calculation fails, return empty metrics
             return metrics
-        
+
         if hedge_ratio is None or np.isnan(hedge_ratio) or np.isinf(hedge_ratio):
             return metrics
 
@@ -230,7 +226,7 @@ class PairMetricsComputer:
                 return metrics
         except Exception:
             return metrics
-        
+
         metrics["hedge_ratio"] = float(hedge_ratio)
 
         # ADF test
@@ -277,17 +273,17 @@ class PairMetricsComputer:
         try:
             pnl_series = spread_series.diff()
             equity_curve = pnl_series.cumsum()
-            
+
             # Validate series
             if not pnl_series.empty and not equity_curve.empty:
                 sharpe = calculate_sharpe_ratio(pnl_series, self.periods_per_year)
                 if sharpe is not None and not (np.isnan(sharpe) or np.isinf(sharpe)):
                     metrics["spread_sharpe"] = float(sharpe)
-                
+
                 max_dd = calculate_max_drawdown(equity_curve)
                 if max_dd is not None and not (np.isnan(max_dd) or np.isinf(max_dd)):
                     metrics["max_drawdown"] = float(max_dd)
-                
+
                 calmar = calculate_calmar_ratio(equity_curve, self.periods_per_year)
                 if calmar is not None and not (np.isnan(calmar) or np.isinf(calmar)):
                     metrics["calmar_ratio"] = float(calmar)
@@ -321,12 +317,10 @@ class PairMetricsComputer:
                     if adf_cointegrated is None:
                         metrics["is_cointegrated"] = bool(johansen_cointegrated)
                     else:
-                        metrics["is_cointegrated"] = bool(
-                            adf_cointegrated or johansen_cointegrated
-                        )
+                        metrics["is_cointegrated"] = bool(adf_cointegrated or johansen_cointegrated)
         except Exception:
             pass
-        
+
         # Kalman hedge ratio and Kalman-based metrics
         try:
             kalman_beta = calculate_kalman_hedge_ratio(
@@ -337,10 +331,10 @@ class PairMetricsComputer:
             )
         except Exception:
             kalman_beta = None
-        
+
         if kalman_beta is not None and not (np.isnan(kalman_beta) or np.isinf(kalman_beta)):
             metrics["kalman_hedge_ratio"] = float(kalman_beta)
-            
+
             # Calculate Kalman spread
             try:
                 kalman_spread_series = price1 - kalman_beta * price2
@@ -349,7 +343,7 @@ class PairMetricsComputer:
                     return metrics
             except Exception:
                 return metrics
-            
+
             # Kalman half-life
             try:
                 kalman_half_life = calculate_half_life(kalman_spread_series)
@@ -357,12 +351,10 @@ class PairMetricsComputer:
                     metrics["kalman_half_life"] = float(kalman_half_life)
             except Exception:
                 pass
-            
+
             # Kalman z-score stats
             try:
-                kalman_zscore_stats = calculate_zscore_stats(
-                    kalman_spread_series, self.zscore_lookback
-                )
+                kalman_zscore_stats = calculate_zscore_stats(kalman_spread_series, self.zscore_lookback)
                 if kalman_zscore_stats:
                     # Filter out NaN/Inf values
                     for key in ["mean_zscore", "std_zscore", "skewness", "kurtosis", "current_zscore"]:
@@ -371,43 +363,37 @@ class PairMetricsComputer:
                             metrics[f"kalman_{key}"] = float(value)
             except Exception:
                 pass
-            
+
             # Kalman Hurst exponent
             try:
-                kalman_hurst = calculate_hurst_exponent(
-                    kalman_spread_series, self.zscore_lookback
-                )
+                kalman_hurst = calculate_hurst_exponent(kalman_spread_series, self.zscore_lookback)
                 if kalman_hurst is not None and not (np.isnan(kalman_hurst) or np.isinf(kalman_hurst)):
                     metrics["kalman_hurst_exponent"] = float(kalman_hurst)
             except Exception:
                 pass
-            
+
             # Kalman risk metrics
             # Calculate Kalman PnL and Equity
             try:
                 kalman_pnl_series = kalman_spread_series.diff()
                 kalman_equity_curve = kalman_pnl_series.cumsum()
-                
+
                 # Validate series
                 if not kalman_pnl_series.empty and not kalman_equity_curve.empty:
-                    kalman_sharpe = calculate_sharpe_ratio(
-                        kalman_pnl_series, self.periods_per_year
-                    )
+                    kalman_sharpe = calculate_sharpe_ratio(kalman_pnl_series, self.periods_per_year)
                     if kalman_sharpe is not None and not (np.isnan(kalman_sharpe) or np.isinf(kalman_sharpe)):
                         metrics["kalman_spread_sharpe"] = float(kalman_sharpe)
-                    
+
                     kalman_max_dd = calculate_max_drawdown(kalman_equity_curve)
                     if kalman_max_dd is not None and not (np.isnan(kalman_max_dd) or np.isinf(kalman_max_dd)):
                         metrics["kalman_max_drawdown"] = float(kalman_max_dd)
-                    
-                    kalman_calmar = calculate_calmar_ratio(
-                        kalman_equity_curve, self.periods_per_year
-                    )
+
+                    kalman_calmar = calculate_calmar_ratio(kalman_equity_curve, self.periods_per_year)
                     if kalman_calmar is not None and not (np.isnan(kalman_calmar) or np.isinf(kalman_calmar)):
                         metrics["kalman_calmar_ratio"] = float(kalman_calmar)
             except Exception:
                 pass
-            
+
             # Kalman direction metrics
             try:
                 kalman_direction_metrics = calculate_direction_metrics(
@@ -415,7 +401,12 @@ class PairMetricsComputer:
                 )
                 if kalman_direction_metrics:
                     # Filter out NaN/Inf values and validate ranges
-                    for key in ["classification_f1", "classification_precision", "classification_recall", "classification_accuracy"]:
+                    for key in [
+                        "classification_f1",
+                        "classification_precision",
+                        "classification_recall",
+                        "classification_accuracy",
+                    ]:
                         value = kalman_direction_metrics.get(key)
                         if value is not None:
                             # Classification metrics should be in [0, 1]
@@ -442,7 +433,12 @@ class PairMetricsComputer:
                     if value is not None:
                         # Classification metrics should be in [0, 1]
                         if isinstance(value, (int, float)) and not (np.isnan(value) or np.isinf(value)):
-                            if key in ["classification_f1", "classification_precision", "classification_recall", "classification_accuracy"]:
+                            if key in [
+                                "classification_f1",
+                                "classification_precision",
+                                "classification_recall",
+                                "classification_accuracy",
+                            ]:
                                 if 0 <= value <= 1:
                                     metrics[key] = float(value)
                                 else:
@@ -457,4 +453,3 @@ class PairMetricsComputer:
             pass
 
         return metrics
-

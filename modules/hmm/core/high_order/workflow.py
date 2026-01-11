@@ -1,19 +1,26 @@
+
+from typing import Optional
+
+import pandas as pd
+
+from config import (
+
+from config import (
+
 """
 High-Order HMM Main Workflow.
 
 This module contains the main true_high_order_hmm function that orchestrates the entire workflow.
 """
 
-from typing import Optional
-import pandas as pd
 
+
+    HMM_HIGH_ORDER_MAX_ORDER_DEFAULT,
+    HMM_HIGH_ORDER_MIN_ORDER_DEFAULT,
+    HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT,
+)
 from modules.hmm.core.high_order.models import TrueHighOrderHMM
 from modules.hmm.core.swings.models import HMM_SWINGS
-from config import (
-    HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT,
-    HMM_HIGH_ORDER_MIN_ORDER_DEFAULT,
-    HMM_HIGH_ORDER_MAX_ORDER_DEFAULT,
-)
 
 
 def true_high_order_hmm(
@@ -27,9 +34,9 @@ def true_high_order_hmm(
 ) -> HMM_SWINGS:
     """
     Generates and trains a true High-Order Hidden Markov Model using swing points.
-    
+
     This is a wrapper function that uses the TrueHighOrderHMM class internally.
-    
+
     Parameters:
         df: DataFrame containing price data with at least the columns 'open', 'high', 'low', 'close'.
         train_ratio: The ratio of data to use for training (default: 0.8).
@@ -38,7 +45,7 @@ def true_high_order_hmm(
         strict_mode: Whether to use strict mode for swing-to-state conversion (default: from config).
         min_order: Minimum order k to try during optimization (default: 2).
         max_order: Maximum order k to try during optimization (default: 4).
-    
+
     Returns:
         HMM_SWINGS: Instance containing the predicted market state.
     """
@@ -51,4 +58,3 @@ def true_high_order_hmm(
         max_order=max_order,
     )
     return analyzer.analyze(df, eval_mode=eval_mode)
-

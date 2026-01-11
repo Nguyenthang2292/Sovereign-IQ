@@ -1,8 +1,11 @@
-import pandas as pd
+
 import numpy as np
-import pytest
+import pandas as pd
 
 from modules.xgboost import labeling
+from modules.xgboost import labeling
+
+
 
 
 def test_apply_directional_labels_assigns_expected_classes(monkeypatch):
@@ -38,7 +41,7 @@ def test_apply_directional_labels_empty_dataframe(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 0
 
@@ -56,7 +59,7 @@ def test_apply_directional_labels_single_row(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert len(result) == 1
     assert "TargetLabel" in result.columns
     assert "Target" in result.columns
@@ -75,7 +78,7 @@ def test_apply_directional_labels_missing_atr_ratio(monkeypatch):
 
     # Should handle missing ATR_RATIO gracefully
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert "TargetLabel" in result.columns
 
@@ -93,7 +96,7 @@ def test_apply_directional_labels_with_nan(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert "TargetLabel" in result.columns
 
@@ -112,7 +115,7 @@ def test_apply_directional_labels_with_atr(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert "TargetLabel" in result.columns
     assert "DynamicThreshold" in result.columns
@@ -133,7 +136,7 @@ def test_apply_directional_labels_small_dataset_adaptive_window(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 50
     assert "TargetLabel" in result.columns
@@ -156,7 +159,7 @@ def test_apply_directional_labels_large_dataset(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 1000
     assert "TargetLabel" in result.columns
@@ -177,7 +180,7 @@ def test_apply_directional_labels_constant_volatility(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert "TargetLabel" in result.columns
     # All rows should have valid labels (or NaN for last TARGET_HORIZON rows)
@@ -198,7 +201,7 @@ def test_apply_directional_labels_extreme_volatility(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert "TargetLabel" in result.columns
     assert "DynamicThreshold" in result.columns
@@ -222,7 +225,7 @@ def test_apply_directional_labels_large_target_horizon(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert "TargetLabel" in result.columns
     # Last TARGET_HORIZON rows should have NaN labels (no future data)
@@ -242,7 +245,7 @@ def test_apply_directional_labels_atr_ratio_with_inf(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert "TargetLabel" in result.columns
     assert "DynamicThreshold" in result.columns
@@ -265,7 +268,7 @@ def test_apply_directional_labels_two_rows(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 2
     assert "TargetLabel" in result.columns
@@ -286,7 +289,7 @@ def test_apply_directional_labels_consecutive_nan(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert "TargetLabel" in result.columns
     assert "DynamicThreshold" in result.columns
@@ -306,7 +309,7 @@ def test_apply_directional_labels_lookback_exceeds_dataset(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert "TargetLabel" in result.columns
     assert "DynamicThreshold" in result.columns
@@ -324,7 +327,7 @@ def test_apply_directional_labels_rolling_window_behavior(monkeypatch):
     low_vol_prices = 100.0 + np.cumsum(np.random.randn(100) * 0.01)
     high_vol_prices = low_vol_prices[-1] + np.cumsum(np.random.randn(100) * 0.5)
     prices = np.concatenate([low_vol_prices, high_vol_prices])
-    
+
     df = pd.DataFrame(
         {
             "close": prices,
@@ -333,7 +336,7 @@ def test_apply_directional_labels_rolling_window_behavior(monkeypatch):
     )
 
     result = labeling.apply_directional_labels(df.copy())
-    
+
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 200
     assert "TargetLabel" in result.columns

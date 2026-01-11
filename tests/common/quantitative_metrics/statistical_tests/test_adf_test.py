@@ -1,11 +1,15 @@
+
+import numpy as np
+import pandas as pd
+
+from modules.common.quantitative_metrics import calculate_adf_test
+from modules.common.quantitative_metrics import calculate_adf_test
+
 """
 Tests for adf_test module.
 """
-import numpy as np
-import pandas as pd
-import pytest
 
-from modules.common.quantitative_metrics import calculate_adf_test
+
 
 
 def test_calculate_adf_test_uses_stub(monkeypatch):
@@ -17,6 +21,7 @@ def test_calculate_adf_test_uses_stub(monkeypatch):
         return (-3.2, 0.01, None, None, {"5%": -2.9})
 
     from modules.common.quantitative_metrics.statistical_tests import adf_test
+
     monkeypatch.setattr(adf_test, "adfuller", fake_adfuller)
     spread = pd.Series(np.linspace(1, 100, 60))
 
@@ -76,4 +81,3 @@ def test_calculate_adf_test_with_nan_values():
     # If statsmodels is installed and test succeeds, result should be dict
     # If not installed or fails, result is None
     assert result is None or isinstance(result, dict)
-

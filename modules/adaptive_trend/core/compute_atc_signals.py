@@ -1,8 +1,10 @@
+
+from price data. ATC uses multiple types of Moving Averages (EMA, HMA, WMA, DEMA, LSMA, KAMA)
+
 """
 Adaptive Trend Classification (ATC) - Main computation module.
 
 This module provides the main function `compute_atc_signals` to compute ATC signals
-from price data. ATC uses multiple types of Moving Averages (EMA, HMA, WMA, DEMA, LSMA, KAMA)
 with adaptive weighting based on simulated equity curves.
 
 Computation structure:
@@ -31,7 +33,7 @@ import numpy as np
 import pandas as pd
 
 try:
-    from modules.common.utils import log_debug, log_info, log_warn, log_error
+    from modules.common.utils import log_debug, log_error, log_info, log_warn
 except ImportError:
     # Fallback logging if common utils not available
     def log_debug(msg: str) -> None:
@@ -46,10 +48,12 @@ except ImportError:
     def log_error(msg: str) -> None:
         print(f"[ERROR] {msg}")
 
-from .compute_equity import equity_series
-from .process_layer1 import cut_signal, _layer1_signal_for_ma
-from .compute_moving_averages import set_of_moving_averages
+
 from modules.adaptive_trend.utils import rate_of_change
+
+from .compute_equity import equity_series
+from .compute_moving_averages import set_of_moving_averages
+from .process_layer1 import _layer1_signal_for_ma, cut_signal
 
 
 def compute_atc_signals(
@@ -108,23 +112,23 @@ def compute_atc_signals(
     """
     # Input validation
     log_debug(f"Starting ATC signal computation for {len(prices)} bars")
-    
+
     if prices is None or len(prices) == 0:
         log_error("prices cannot be empty or None")
         raise ValueError("prices cannot be empty or None")
-    
+
     if src is None:
         src = prices
-    
+
     if len(src) == 0:
         log_error("src cannot be empty")
         raise ValueError("src cannot be empty")
-    
+
     # Validate robustness
     if robustness not in ("Narrow", "Medium", "Wide"):
         log_warn(f"robustness '{robustness}' is invalid, using 'Medium'")
         robustness = "Medium"  # Default fallback
-    
+
     # Validate cutout
     if cutout < 0:
         log_warn(f"cutout {cutout} < 0, setting to 0")
@@ -160,9 +164,7 @@ def compute_atc_signals(
     log_debug("Computing Layer 1 signals...")
     layer1_signals = {}
     for ma_type, _, _ in ma_configs:
-        signal, _, _ = _layer1_signal_for_ma(
-            prices, ma_tuples[ma_type], L=La, De=De, cutout=cutout
-        )
+        signal, _, _ = _layer1_signal_for_ma(prices, ma_tuples[ma_type], L=La, De=De, cutout=cutout)
         layer1_signals[ma_type] = signal
     log_debug("Completed Layer 1 signals")
 
@@ -170,40 +172,38 @@ def compute_atc_signals(
     # Compute rate_of_change once and reuse for all MA types
     log_debug("Computing rate_of_change (reused for all MA types)...")
     R = rate_of_change(prices)
-    
+
     log_debug("Computing Layer 2 equity weights...")
     layer2_equities = {}
     for ma_type, _, weight in ma_configs:
-        equity = equity_series(
-            weight, layer1_signals[ma_type], R, L=La, De=De, cutout=cutout
-        )
+        equity = equity_series(weight, layer1_signals[ma_type], R, L=La, De=De, cutout=cutout)
         layer2_equities[ma_type] = equity
     log_debug("Completed Layer 2 equity weights")
 
     # FINAL CALCULATIONS - Vectorized for performance
     log_debug("Computing Average_Signal (vectorized)...")
-    
+
     # Vectorize: Compute all cut_signal at once and convert to numpy arrays
     # to leverage NumPy vectorization
     n_bars = len(prices)
     index = prices.index
-    
+
     # Pre-allocate numpy arrays for better performance
     nom_array = np.zeros(n_bars, dtype=np.float64)
     den_array = np.zeros(n_bars, dtype=np.float64)
-    
+
     # Vectorized calculation: compute all signals and equities at once
     for ma_type, _, _ in ma_configs:
         signal = layer1_signals[ma_type]
         equity = layer2_equities[ma_type]
-        
+
         # Cut signal: vectorized operation
         cut_sig = cut_signal(signal, cutout=cutout)
-        
+
         # Convert to numpy arrays for faster computation
         cut_sig_values = cut_sig.values
         equity_values = equity.values
-        
+
         # Vectorized addition (faster than pandas Series addition)
         nom_array += cut_sig_values * equity_values
         den_array += equity_values
@@ -213,17 +213,15 @@ def compute_atc_signals(
     with np.errstate(divide="ignore", invalid="ignore"):
         avg_signal_array = np.divide(nom_array, den_array)
         # Replace inf and nan with 0 when den = 0
-        avg_signal_array = np.where(
-            np.isfinite(avg_signal_array), avg_signal_array, 0.0
-        )
-    
+        avg_signal_array = np.where(np.isfinite(avg_signal_array), avg_signal_array, 0.0)
+
     Average_Signal = pd.Series(avg_signal_array, index=index, dtype="float64")
-    
+
     # Check number of zero divisions (for logging)
     zero_divisions = np.sum(den_array == 0)
     if zero_divisions > 0:
         log_warn(f"Detected {zero_divisions} division by zero cases, replaced with 0")
-    
+
     log_debug("Completed Average_Signal")
 
     # Build result dictionary
@@ -231,7 +229,7 @@ def compute_atc_signals(
     for ma_type, _, _ in ma_configs:
         result[f"{ma_type}_Signal"] = layer1_signals[ma_type]
         result[f"{ma_type}_S"] = layer2_equities[ma_type]
-    
+
     result["Average_Signal"] = Average_Signal
 
     log_info(f"Completed ATC signal computation for {len(prices)} bars")
@@ -241,4 +239,3 @@ def compute_atc_signals(
 __all__ = [
     "compute_atc_signals",
 ]
-

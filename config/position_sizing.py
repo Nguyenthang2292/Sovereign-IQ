@@ -21,14 +21,6 @@ DEFAULT_MAX_POSITION_SIZE = 1.0  # Max 100% of account per symbol
 DEFAULT_MIN_POSITION_SIZE = 0.3  # Min 30% of account per symbol (if signal is valid)
 DEFAULT_MAX_PORTFOLIO_EXPOSURE = 0.5  # Max 50% of account across all positions
 
-# Regime Adjustment Multipliers
-# Adjust Kelly fraction based on detected market regime
-REGIME_MULTIPLIERS = {
-    "BULLISH": 1.2,  # Increase position size by 20% in bullish regime
-    "NEUTRAL": 1.0,  # No adjustment in neutral regime
-    "BEARISH": 0.8,  # Reduce position size by 20% in bearish regime
-}
-
 # Bayesian Prior Parameters (Beta distribution)
 # Prior belief about win rate before seeing data
 # Higher alpha, beta = stronger prior belief
@@ -66,12 +58,12 @@ SUPPORTED_EXPORT_FORMATS = ["csv", "json"]  # Supported export formats
 # Hybrid Signal Configuration
 # Enabled indicators for hybrid signal calculation
 ENABLED_INDICATORS = [
-    'adaptive_trend',
-    'hmm',
-    'range_oscillator',
-    'random_forest',
-    'spc',
-    'xgboost',
+    "adaptive_trend",
+    "hmm",
+    "range_oscillator",
+    "random_forest",
+    "spc",
+    "xgboost",
 ]
 
 # Signal calculation mode
@@ -125,4 +117,3 @@ CLEAR_CACHE_ON_COMPLETE = False  # Clear caches after backtest completes (saves 
 MIN_BATCH_SIZE = 50  # Minimum batch size for parallel processing
 MAX_BATCH_SIZE = 5000  # Maximum batch size for parallel processing
 BATCH_SIZE_OVERHEAD_FACTOR = 4  # Factor for calculating optimal batch size (higher = smaller batches)
-

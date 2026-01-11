@@ -39,9 +39,4 @@ DEFAULT_CRYPTO_SYMBOLS_FOR_TRAINING_DL = [
     "AVAXUSDT",
 ]  # Default list of crypto symbols for training
 
-DEFAULT_TIMEFRAMES_FOR_TRAINING_DL = [
-    "15m",
-    "30m",
-    "1h"
-]  # Default list of timeframes for training
-
+DEFAULT_TIMEFRAMES_FOR_TRAINING_DL = ["15m", "30m", "1h"]  # Default list of timeframes for training

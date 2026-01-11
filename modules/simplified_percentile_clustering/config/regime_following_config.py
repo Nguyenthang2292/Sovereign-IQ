@@ -1,3 +1,12 @@
+
+from dataclasses import dataclass
+from typing import Optional
+
+from __future__ import annotations
+from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
+from modules.simplified_percentile_clustering.utils.validation import (
+from modules.simplified_percentile_clustering.utils.validation import (
+
 """
 Configuration for Regime Following Strategy.
 
@@ -5,13 +14,8 @@ This strategy follows the current market regime (cluster) and generates
 signals when the market is strongly in a particular regime.
 """
 
-from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
 
-from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
-from modules.simplified_percentile_clustering.utils.validation import (
     validate_clustering_config,
 )
 
@@ -75,17 +79,11 @@ class RegimeFollowingConfig:
                             f"{name}: invalid cluster index {cluster} for k={k} (valid range: 0-{max_cluster})"
                         )
         if not (0.0 <= self.min_regime_strength <= 1.0):
-            raise ValueError(
-                f"min_regime_strength must be in [0.0, 1.0], got {self.min_regime_strength}"
-            )
+            raise ValueError(f"min_regime_strength must be in [0.0, 1.0], got {self.min_regime_strength}")
         if self.min_cluster_duration < 1:
-            raise ValueError(
-                f"min_cluster_duration must be at least 1, got {self.min_cluster_duration}"
-            )
+            raise ValueError(f"min_cluster_duration must be at least 1, got {self.min_cluster_duration}")
         if self.momentum_period < 1:
-            raise ValueError(
-                f"momentum_period must be at least 1, got {self.momentum_period}"
-            )
+            raise ValueError(f"momentum_period must be at least 1, got {self.momentum_period}")
         if not (0.0 <= self.bullish_real_clust_threshold <= 1.0):
             raise ValueError(
                 f"bullish_real_clust_threshold must be in [0.0, 1.0], got {self.bullish_real_clust_threshold}"
@@ -97,4 +95,3 @@ class RegimeFollowingConfig:
 
 
 __all__ = ["RegimeFollowingConfig"]
-

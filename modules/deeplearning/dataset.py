@@ -1,3 +1,11 @@
+
+from pathlib import Path
+from typing import Dict, List, Optional
+import pickle
+
+import pandas as pd
+import pandas as pd
+
 """
 Dataset & DataModule for Temporal Fusion Transformer (TFT).
 
@@ -8,31 +16,25 @@ This module provides:
 - Handling of missing candles (resample/ffill) to ensure no gaps in time_idx
 """
 
-import json
-import pickle
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np
-import pandas as pd
+
 # Import from lightning.pytorch to match pytorch-forecasting's imports
 try:
     import lightning.pytorch as pl
 except ImportError:
     import pytorch_lightning as pl
-from pytorch_forecasting import TimeSeriesDataSet, TemporalFusionTransformer
+from colorama import Fore
+from pytorch_forecasting import TimeSeriesDataSet
 from pytorch_forecasting.data import GroupNormalizer
-from colorama import Fore, Style
 
 from config import (
-    TARGET_HORIZON,
+    DEEP_BATCH_SIZE,
+    DEEP_DATASET_DIR,
     DEEP_MAX_ENCODER_LENGTH,
     DEEP_MAX_PREDICTION_LENGTH,
-    DEEP_BATCH_SIZE,
     DEEP_NUM_WORKERS,
     DEEP_TARGET_COL,
     DEEP_TARGET_COL_CLASSIFICATION,
-    DEEP_DATASET_DIR,
     DEEP_USE_TRIPLE_BARRIER,
 )
 from modules.common.utils import color_text
@@ -41,7 +43,7 @@ from modules.common.utils import color_text
 class TFTDataModule(pl.LightningDataModule):
     """
     PyTorch Lightning DataModule for Temporal Fusion Transformer.
-    
+
     Handles:
     - TimeSeriesDataSet creation from preprocessed DataFrames
     - Train/validation/test DataLoaders
@@ -122,10 +124,10 @@ class TFTDataModule(pl.LightningDataModule):
         """Prepare data - resample to handle missing candles and create time_idx."""
         # Prepare training data
         self.train_df = self._prepare_dataframe(self.train_df)
-        
+
         # Prepare validation data
         self.val_df = self._prepare_dataframe(self.val_df)
-        
+
         # Prepare test data if provided
         if self.test_df is not None:
             self.test_df = self._prepare_dataframe(self.test_df)
@@ -165,12 +167,12 @@ class TFTDataModule(pl.LightningDataModule):
     def _resample_missing_candles(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Resample data to fill missing candles with intelligent gap handling.
-        
+
         Strategy:
         1. For short gaps (<= max_gap_candles): Use linear interpolation if enabled
         2. For medium gaps: Use limited forward fill (max_ffill_limit)
         3. For large gaps: Drop or mark as NaN to avoid artificial flat data
-        
+
         This prevents infinite forward fill that could create misleading flat data
         during exchange maintenance or delisting periods.
         """
@@ -193,36 +195,35 @@ class TFTDataModule(pl.LightningDataModule):
 
                 # Resample to create full time index (including missing candles)
                 symbol_df_resampled = symbol_df.resample(freq)
-                
+
                 # Fill missing values based on gap size
                 if self.use_interpolation:
                     # Use interpolation for short gaps (smoother than ffill)
                     symbol_df = symbol_df_resampled.interpolate(
-                        method="linear",
-                        limit=self.max_gap_candles,
-                        limit_direction="both"
+                        method="linear", limit=self.max_gap_candles, limit_direction="both"
                     )
-                    
+
                     # For remaining gaps (medium size), use limited forward fill
                     symbol_df = symbol_df.ffill(limit=self.max_ffill_limit)
                 else:
                     # Use limited forward fill only (prevents infinite fill)
                     symbol_df = symbol_df_resampled.ffill(limit=self.max_ffill_limit)
-                
+
                 # For large gaps that couldn't be filled, we keep them as NaN
                 # This is better than creating artificial flat data
-                
+
                 # Drop rows that were completely NaN (before first valid data or after last valid data)
                 # But keep rows with some NaN values (partial data is better than nothing)
                 symbol_df = symbol_df.dropna(how="all")
-                
+
                 # Recalculate candle_index after resampling (if it existed)
                 # New rows from resampling need updated candle_index
                 if "candle_index" in symbol_df.columns and self.timeframe is not None:
                     from modules.common.utils import timeframe_to_minutes
+
                     timeframe_minutes = timeframe_to_minutes(self.timeframe)
                     timeframe_seconds = timeframe_minutes * 60
-                    
+
                     timestamps = pd.to_datetime(symbol_df.index)
                     min_timestamp = timestamps.min()
                     time_deltas = (timestamps - min_timestamp).total_seconds()
@@ -238,44 +239,44 @@ class TFTDataModule(pl.LightningDataModule):
     def _create_time_idx(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Create time_idx per symbol, reusing candle_index if available from pipeline.
-        
+
         Strategy:
         1. If candle_index exists: Use it as time_idx (per symbol, starting from 0)
         2. If candle_index doesn't exist: Calculate time_idx based on timestamps
-        
+
         This ensures consistency between the feature (candle_index) used for training
         and the index (time_idx) used for sequence ordering in TFT.
-        
+
         Note: candle_index from pipeline is calculated globally, but time_idx needs
         to be per symbol (starting from 0 for each symbol).
         """
         df = df.copy()
-        
+
         # Check if candle_index exists (from deeplearning_data_pipeline)
         if "candle_index" in df.columns:
             # Use candle_index as base, but make it per-symbol (starting from 0 for each symbol)
             df["time_idx"] = 0
-            
+
             for symbol in df["symbol"].unique():
                 mask = df["symbol"] == symbol
                 symbol_df = df[mask].copy()
-                
+
                 if len(symbol_df) == 0:
                     continue
-                
+
                 # Get candle_index for this symbol
                 symbol_candle_index = symbol_df["candle_index"].values
-                
+
                 # Normalize to start from 0 per symbol
                 # This ensures each symbol's time_idx starts from 0
                 min_candle_idx = symbol_candle_index.min()
                 time_idx_values = symbol_candle_index - min_candle_idx
-                
+
                 df.loc[mask, "time_idx"] = time_idx_values
-            
+
             print(
                 color_text(
-                    f"Using candle_index from pipeline as time_idx (per-symbol normalized)",
+                    "Using candle_index from pipeline as time_idx (per-symbol normalized)",
                     Fore.GREEN,
                 )
             )
@@ -286,18 +287,19 @@ class TFTDataModule(pl.LightningDataModule):
             for symbol in df["symbol"].unique():
                 mask = df["symbol"] == symbol
                 symbol_df = df[mask].copy()
-                
+
                 if len(symbol_df) == 0:
                     continue
-                
+
                 # Get timestamps for this symbol
                 timestamps = pd.to_datetime(symbol_df["timestamp"])
                 min_timestamp = timestamps.min()
-                
+
                 # Calculate timeframe interval
                 if self.timeframe is not None:
                     # Use provided timeframe
                     from modules.common.utils import timeframe_to_minutes
+
                     timeframe_minutes = timeframe_to_minutes(self.timeframe)
                     timeframe_seconds = timeframe_minutes * 60
                 else:
@@ -306,7 +308,7 @@ class TFTDataModule(pl.LightningDataModule):
                         time_diffs = timestamps.diff().dropna()
                         median_diff = time_diffs.median()
                         timeframe_seconds = median_diff.total_seconds()
-                        
+
                         # Round to nearest reasonable interval (1m, 5m, 15m, 30m, 1h, 4h, 1d)
                         if timeframe_seconds < 90:  # < 1.5 minutes
                             timeframe_seconds = 60  # 1 minute
@@ -327,7 +329,7 @@ class TFTDataModule(pl.LightningDataModule):
                     else:
                         # Fallback: use 1 hour if only one timestamp
                         timeframe_seconds = 3600
-                
+
                 # Calculate time_idx based on actual timestamp differences
                 # This ensures gaps in time are properly reflected
                 if isinstance(timestamps, pd.DatetimeIndex):
@@ -336,12 +338,12 @@ class TFTDataModule(pl.LightningDataModule):
                     # If it's a Series, convert to Timedelta and get total_seconds
                     time_deltas = (timestamps - min_timestamp).dt.total_seconds()
                 time_idx_values = (time_deltas / timeframe_seconds).astype(int)
-                
+
                 df.loc[mask, "time_idx"] = time_idx_values.values
-            
+
             print(
                 color_text(
-                    f"Calculated time_idx from timestamps (candle_index not found)",
+                    "Calculated time_idx from timestamps (candle_index not found)",
                     Fore.YELLOW,
                 )
             )
@@ -352,15 +354,11 @@ class TFTDataModule(pl.LightningDataModule):
         """Setup datasets for training, validation, and testing."""
         if stage == "test" and self.test_df is not None:
             # Create test dataset
-            self.test = self._create_dataset(
-                self.test_df, training=False, predict_mode=True
-            )
+            self.test = self._create_dataset(self.test_df, training=False, predict_mode=True)
         elif stage == "fit" or stage is None:
             # Create training and validation datasets
             self.training = self._create_dataset(self.train_df, training=True)
-            self.validation = self._create_dataset(
-                self.val_df, training=False, predict_mode=False
-            )
+            self.validation = self._create_dataset(self.val_df, training=False, predict_mode=False)
 
     def _create_dataset(
         self,
@@ -382,8 +380,8 @@ class TFTDataModule(pl.LightningDataModule):
         # TimeSeriesDataSet doesn't allow column names with '.' characters
         # Replace '.' with '_' in column names
         df = df.copy()
-        df.columns = [col.replace('.', '_') for col in df.columns]
-        
+        df.columns = [col.replace(".", "_") for col in df.columns]
+
         # Identify feature columns
         exclude_cols = {
             "timestamp",
@@ -411,9 +409,7 @@ class TFTDataModule(pl.LightningDataModule):
         known_future_reals = [
             col
             for col in df.columns
-            if col in known_future_keywords
-            and col not in exclude_cols
-            and pd.api.types.is_numeric_dtype(df[col])
+            if col in known_future_keywords and col not in exclude_cols and pd.api.types.is_numeric_dtype(df[col])
         ]
 
         # Time-varying unknown reals (features that change over time, not known in advance)
@@ -450,8 +446,7 @@ class TFTDataModule(pl.LightningDataModule):
         # Ensure target column exists (unless in predict mode)
         if not predict_mode and self.target_col not in df.columns:
             raise ValueError(
-                f"Target column '{self.target_col}' not found in DataFrame. "
-                f"Available columns: {list(df.columns)}"
+                f"Target column '{self.target_col}' not found in DataFrame. Available columns: {list(df.columns)}"
             )
 
         # Create dataset
@@ -483,25 +478,19 @@ class TFTDataModule(pl.LightningDataModule):
         """Return training DataLoader."""
         if self.training is None:
             raise RuntimeError("Must call setup('fit') first")
-        return self.training.to_dataloader(
-            train=True, batch_size=self.batch_size, num_workers=self.num_workers
-        )
+        return self.training.to_dataloader(train=True, batch_size=self.batch_size, num_workers=self.num_workers)
 
     def val_dataloader(self):
         """Return validation DataLoader."""
         if self.validation is None:
             raise RuntimeError("Must call setup('fit') first")
-        return self.validation.to_dataloader(
-            train=False, batch_size=self.batch_size, num_workers=self.num_workers
-        )
+        return self.validation.to_dataloader(train=False, batch_size=self.batch_size, num_workers=self.num_workers)
 
     def test_dataloader(self):
         """Return test DataLoader."""
         if self.test is None:
             raise RuntimeError("Must call setup('test') first")
-        return self.test.to_dataloader(
-            train=False, batch_size=self.batch_size, num_workers=self.num_workers
-        )
+        return self.test.to_dataloader(train=False, batch_size=self.batch_size, num_workers=self.num_workers)
 
     def save_dataset_metadata(self, filepath: Optional[str] = None) -> None:
         """Save dataset metadata for later use in inference."""
@@ -554,9 +543,7 @@ class TFTDataModule(pl.LightningDataModule):
 
         if self.training is not None:
             info["training_dataset_size"] = len(self.training)
-            info["training_num_features"] = len(
-                self.training.reals + self.training.categoricals
-            )
+            info["training_num_features"] = len(self.training.reals + self.training.categoricals)
 
         if self.validation is not None:
             info["validation_dataset_size"] = len(self.validation)
@@ -628,4 +615,3 @@ def create_tft_datamodule(
     )
 
     return datamodule
-

@@ -1,3 +1,12 @@
+
+from dataclasses import dataclass
+from typing import Optional
+
+from __future__ import annotations
+from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
+from modules.simplified_percentile_clustering.utils.validation import (
+from modules.simplified_percentile_clustering.utils.validation import (
+
 """
 Configuration for Mean Reversion Strategy.
 
@@ -5,13 +14,8 @@ This strategy generates signals when the market is at cluster extremes
 and expects mean reversion back to the center cluster.
 """
 
-from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
 
-from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
-from modules.simplified_percentile_clustering.utils.validation import (
     validate_clustering_config,
 )
 
@@ -20,7 +24,7 @@ from modules.simplified_percentile_clustering.utils.validation import (
 class MeanReversionConfig:
     """
     Configuration for mean reversion strategy.
-    
+
     Note: If you set `clustering_config` after initialization, you should call
     `update_targets()` to ensure reversion targets are updated based on the
     clustering configuration's k value.
@@ -52,11 +56,11 @@ class MeanReversionConfig:
             else:
                 self.bullish_reversion_target = 0.5  # Target middle
                 self.bearish_reversion_target = 0.5
-    
+
     def update_targets(self):
         """
         Update reversion targets based on current clustering_config.
-        
+
         Call this method if you set clustering_config after initialization
         to ensure targets are correctly set based on the k value.
         """
@@ -67,24 +71,15 @@ class MeanReversionConfig:
         self._update_targets()
         # Validate configuration
         if not (0.0 <= self.extreme_threshold <= 1.0):
-            raise ValueError(
-                f"extreme_threshold must be in [0.0, 1.0], got {self.extreme_threshold}"
-            )
+            raise ValueError(f"extreme_threshold must be in [0.0, 1.0], got {self.extreme_threshold}")
         if self.min_extreme_duration < 1:
-            raise ValueError(
-                f"min_extreme_duration must be at least 1, got {self.min_extreme_duration}"
-            )
+            raise ValueError(f"min_extreme_duration must be at least 1, got {self.min_extreme_duration}")
         if self.reversal_lookback < 1:
-            raise ValueError(
-                f"reversal_lookback must be at least 1, got {self.reversal_lookback}"
-            )
+            raise ValueError(f"reversal_lookback must be at least 1, got {self.reversal_lookback}")
         if not (0.0 <= self.min_signal_strength <= 1.0):
-            raise ValueError(
-                f"min_signal_strength must be in [0.0, 1.0], got {self.min_signal_strength}"
-            )
+            raise ValueError(f"min_signal_strength must be in [0.0, 1.0], got {self.min_signal_strength}")
         if self.clustering_config is not None:
             validate_clustering_config(self.clustering_config)
 
 
 __all__ = ["MeanReversionConfig"]
-

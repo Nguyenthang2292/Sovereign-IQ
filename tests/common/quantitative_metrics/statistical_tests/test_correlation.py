@@ -1,11 +1,15 @@
+
+import numpy as np
+import pandas as pd
+
+from modules.common.quantitative_metrics import calculate_correlation
+from modules.common.quantitative_metrics import calculate_correlation
+
 """
 Tests for correlation module.
 """
-import numpy as np
-import pandas as pd
-import pytest
 
-from modules.common.quantitative_metrics import calculate_correlation
+
 
 
 def test_calculate_correlation_matches_manual_computation():
@@ -209,4 +213,3 @@ def test_calculate_correlation_returns_alignment():
         assert -1 <= result <= 1
         assert not np.isnan(result)
         assert not np.isinf(result)
-

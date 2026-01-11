@@ -1,3 +1,14 @@
+
+from typing import Optional
+
+from colorama import Fore, Style
+import pandas as pd
+
+from modules.adaptive_trend.core.process_layer1 import trend_sign
+from modules.common.utils import (
+from modules.adaptive_trend.core.process_layer1 import trend_sign
+from modules.common.utils import (
+
 """
 Display utilities for ATC CLI.
 
@@ -5,20 +16,14 @@ This module provides formatted display functions for ATC signals,
 scan results, and symbol listings.
 """
 
-import pandas as pd
-from typing import Optional
 
-from colorama import Fore, Style
 
-from modules.common.utils import (
     color_text,
     format_price,
     log_error,
-    log_success,
     log_progress,
+    log_success,
 )
-
-from modules.adaptive_trend.core.process_layer1 import trend_sign
 
 
 def display_atc_signals(
@@ -171,7 +176,7 @@ def display_atc_signals(
 def display_scan_results(long_signals: pd.DataFrame, short_signals: pd.DataFrame, min_signal: float):
     """
     Display scan results for LONG and SHORT signals.
-    
+
     Args:
         long_signals: DataFrame with LONG signals
         short_signals: DataFrame with SHORT signals
@@ -184,7 +189,7 @@ def display_scan_results(long_signals: pd.DataFrame, short_signals: pd.DataFrame
     # LONG Signals
     print("\n" + color_text("LONG SIGNALS (BULLISH)", Fore.GREEN, Style.BRIGHT))
     print(color_text("-" * 80, Fore.CYAN))
-    
+
     if long_signals.empty:
         print(color_text("  No LONG signals found", Fore.YELLOW))
     else:
@@ -192,10 +197,10 @@ def display_scan_results(long_signals: pd.DataFrame, short_signals: pd.DataFrame
         print()
         print(color_text(f"{'Symbol':<15} {'Signal':>12} {'Price':>15} {'Exchange':<10}", Fore.MAGENTA))
         print(color_text("-" * 80, Fore.CYAN))
-        
+
         for _, row in long_signals.iterrows():
             signal_str = f"{row['signal']:+.6f}"
-            price_str = format_price(row['price'])
+            price_str = format_price(row["price"])
             print(
                 color_text(
                     f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}",
@@ -206,18 +211,20 @@ def display_scan_results(long_signals: pd.DataFrame, short_signals: pd.DataFrame
     # SHORT Signals
     print("\n" + color_text("SHORT SIGNALS (BEARISH)", Fore.RED, Style.BRIGHT))
     print(color_text("-" * 80, Fore.CYAN))
-    
+
     if short_signals.empty:
         print(color_text("  No SHORT signals found", Fore.YELLOW))
     else:
-        print(color_text(f"  Found {len(short_signals)} symbols with SHORT signals (min: {min_signal:.4f})", Fore.WHITE))
+        print(
+            color_text(f"  Found {len(short_signals)} symbols with SHORT signals (min: {min_signal:.4f})", Fore.WHITE)
+        )
         print()
         print(color_text(f"{'Symbol':<15} {'Signal':>12} {'Price':>15} {'Exchange':<10}", Fore.MAGENTA))
         print(color_text("-" * 80, Fore.CYAN))
-        
+
         for _, row in short_signals.iterrows():
             signal_str = f"{row['signal']:+.6f}"
-            price_str = format_price(row['price'])
+            price_str = format_price(row["price"])
             print(
                 color_text(
                     f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}",
@@ -226,7 +233,12 @@ def display_scan_results(long_signals: pd.DataFrame, short_signals: pd.DataFrame
             )
 
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
-    print(color_text(f"Total: {len(long_signals)} LONG + {len(short_signals)} SHORT = {len(long_signals) + len(short_signals)} signals", Fore.WHITE))
+    print(
+        color_text(
+            f"Total: {len(long_signals)} LONG + {len(short_signals)} SHORT = {len(long_signals) + len(short_signals)} signals",
+            Fore.WHITE,
+        )
+    )
     print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
 
 
@@ -266,4 +278,3 @@ def list_futures_symbols(data_fetcher, max_symbols: Optional[int] = None):
 
     except Exception as e:
         log_error(f"Error listing symbols: {type(e).__name__}: {e}")
-

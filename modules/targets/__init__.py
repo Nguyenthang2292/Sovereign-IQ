@@ -1,3 +1,6 @@
+
+from modules.targets.core import (
+
 """
 Targets Module.
 
@@ -6,13 +9,12 @@ Module tính toán các target prices với nhiều phương pháp khác nhau:
 - (Có thể mở rộng thêm: Fibonacci, Support/Resistance, v.v.)
 """
 
-from modules.targets.core import (
-    # Base classes
-    TargetResult,
-    TargetCalculator,
+    ATRTargetCalculator,
     # ATR implementation
     ATRTargetResult,
-    ATRTargetCalculator,
+    TargetCalculator,
+    # Base classes
+    TargetResult,
     calculate_atr_targets,
     format_atr_target_display,
 )
@@ -27,4 +29,3 @@ __all__ = [
     "calculate_atr_targets",
     "format_atr_target_display",
 ]
-

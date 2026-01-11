@@ -1,3 +1,16 @@
+
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+
+from .base import IndicatorResult, collect_metadata
+from __future__ import annotations
+from modules.common.utils import validate_ohlcv_input
+import pandas_ta as ta
+from modules.common.utils import validate_ohlcv_input
+import pandas_ta as ta
+
 """Trend indicator block.
 
 This module provides trend-following indicators including:
@@ -7,22 +20,16 @@ This module provides trend-following indicators including:
 - Directional Movement Index difference (DMI difference)
 """
 
-from __future__ import annotations
 
-from typing import Optional
 
-import numpy as np
-import pandas as pd
-import pandas_ta as ta
 
-from .base import IndicatorMetadata, IndicatorResult, collect_metadata
-from modules.common.utils import validate_ohlcv_input
+
 
 
 class TrendIndicators:
     """
     Trend indicators: SMA, EMA, ADX, etc.
-    
+
     This class provides a block-based approach for calculating multiple
     trend indicators at once, suitable for use with IndicatorEngine.
     """
@@ -33,21 +40,21 @@ class TrendIndicators:
     def apply(df: pd.DataFrame) -> IndicatorResult:
         """
         Apply trend indicators to a DataFrame.
-        
+
         Calculates:
         - SMA_20, SMA_50, SMA_200: Simple Moving Averages
         - ADX_14: Average Directional Index
-        
+
         Args:
             df: DataFrame with OHLCV data
-            
+
         Returns:
             Tuple of (result DataFrame, metadata dict)
         """
         # Validate input - SMA only needs close, but ADX needs high/low/close
         # So we validate for close (required for SMA)
         validate_ohlcv_input(df, required_columns=["close"])
-        
+
         result = df.copy()
         before = result.columns.tolist()
 
@@ -74,14 +81,14 @@ class TrendIndicators:
 def calculate_adx_series(ohlcv: pd.DataFrame, period: int = 14) -> Optional[pd.Series]:
     """
     Calculate ADX time-series for all periods.
-    
+
     ADX (Average Directional Index) measures trend strength regardless of direction.
     Higher values indicate stronger trends.
-    
+
     Args:
         ohlcv: DataFrame with high, low, close columns
         period: Period for ADX calculation (default: 14)
-        
+
     Returns:
         Series with ADX values, or None if insufficient data
     """
@@ -120,16 +127,8 @@ def calculate_adx_series(ohlcv: pd.DataFrame, period: int = 14) -> Optional[pd.S
     true_range = tr_components.max(axis=1)
 
     atr = true_range.ewm(alpha=1 / period, adjust=False).mean()
-    plus_di = (
-        plus_dm.ewm(alpha=1 / period, adjust=False).mean()
-        * 100
-        / atr.replace(0, np.nan)
-    )
-    minus_di = (
-        minus_dm.ewm(alpha=1 / period, adjust=False).mean()
-        * 100
-        / atr.replace(0, np.nan)
-    )
+    plus_di = plus_dm.ewm(alpha=1 / period, adjust=False).mean() * 100 / atr.replace(0, np.nan)
+    minus_di = minus_dm.ewm(alpha=1 / period, adjust=False).mean() * 100 / atr.replace(0, np.nan)
 
     denom = (plus_di + minus_di).replace(0, np.nan)
     dx = ((plus_di - minus_di).abs() / denom) * 100
@@ -147,13 +146,13 @@ def calculate_adx_series(ohlcv: pd.DataFrame, period: int = 14) -> Optional[pd.S
 def calculate_adx(ohlcv: pd.DataFrame, period: int = 14) -> Optional[float]:
     """
     Calculate single ADX value (latest).
-    
+
     Convenience function to get the most recent ADX value.
-    
+
     Args:
         ohlcv: DataFrame with high, low, close columns
         period: Period for ADX calculation (default: 14)
-        
+
     Returns:
         Latest ADX value as float, or None if unavailable
     """
@@ -171,22 +170,20 @@ def calculate_adx(ohlcv: pd.DataFrame, period: int = 14) -> Optional[float]:
 # ============================================================================
 
 
-def calculate_cci(
-    high: pd.Series, low: pd.Series, close: pd.Series, length: int = 20
-) -> pd.Series:
+def calculate_cci(high: pd.Series, low: pd.Series, close: pd.Series, length: int = 20) -> pd.Series:
     """
     Calculate Commodity Channel Index (CCI).
-    
+
     CCI is a trend indicator that measures the deviation of price from its
     statistical mean. High values indicate prices are well above their average,
     while low values indicate prices are well below their average.
-    
+
     Args:
         high: High price series
         low: Low price series
         close: Close price series
         length: Period for CCI calculation (default: 20)
-        
+
     Returns:
         Series with CCI values
     """
@@ -236,7 +233,7 @@ def calculate_weighted_ma(
         raise ValueError("close series cannot be empty")
     if length <= 0:
         raise ValueError(f"length must be > 0, got {length}")
-    
+
     # If data is shorter than required length, return all NaN.
     # This matches the expected behavior: insufficient data means no valid MA values.
     if len(close) < length + 1:
@@ -256,7 +253,7 @@ def calculate_weighted_ma(
             prev_idx = idx - 1
             if prev_idx < 0:
                 break
-            
+
             # Check for NaN values
             if pd.isna(close.iloc[idx]) or pd.isna(close.iloc[prev_idx]):
                 continue
@@ -277,7 +274,7 @@ def calculate_weighted_ma(
             ma_value = sum_weighted_close / sum_weights
         else:
             # If all prices are constant (sum_weights = 0), use simple average
-            ma_value = close.iloc[i - length + 1:i + 1].mean()
+            ma_value = close.iloc[i - length + 1 : i + 1].mean()
         ma_values.append(ma_value)
 
     return pd.Series(ma_values, index=close.index, dtype="float64")
@@ -319,7 +316,7 @@ def calculate_trend_direction(
         raise ValueError("close and ma series cannot be empty")
     if not close.index.equals(ma.index):
         raise ValueError("close and ma must have the same index")
-    
+
     trend_dir = pd.Series(0, index=close.index, dtype="int8")
 
     for i in range(len(close)):
@@ -329,7 +326,7 @@ def calculate_trend_direction(
             if i > 0:
                 trend_dir.iloc[i] = trend_dir.iloc[i - 1]
             continue
-            
+
         if pd.isna(close.iloc[i]) or pd.isna(ma.iloc[i]):
             # Use previous value if available
             if i > 0:
@@ -338,7 +335,7 @@ def calculate_trend_direction(
 
         close_value = close.iloc[i]
         ma_value = ma.iloc[i]
-        
+
         if close_value > ma_value:
             trend_dir.iloc[i] = 1
         elif close_value < ma_value:
@@ -356,22 +353,20 @@ def calculate_trend_direction(
 # ============================================================================
 
 
-def calculate_dmi_difference(
-    high: pd.Series, low: pd.Series, close: pd.Series, length: int = 9
-) -> pd.Series:
+def calculate_dmi_difference(high: pd.Series, low: pd.Series, close: pd.Series, length: int = 9) -> pd.Series:
     """
     Calculate simplified DMI difference (plus - minus).
-    
+
     This calculates the difference between +DI and -DI from the Directional
     Movement Index system. Positive values indicate bullish momentum,
     negative values indicate bearish momentum.
-    
+
     Args:
         high: High price series
         low: Low price series
         close: Close price series
         length: Period for DMI calculation (default: 9)
-        
+
     Returns:
         Series with DMI difference values (plus - minus)
     """
@@ -401,29 +396,21 @@ def calculate_dmi_difference(
     # RMA (Running Moving Average) - using EWM with alpha = 1/length
     trur = tr.ewm(alpha=1.0 / length, adjust=False).mean()
     plus = 100 * plus_dm.ewm(alpha=1.0 / length, adjust=False).mean() / trur.replace(0, np.nan)
-    minus = (
-        100
-        * minus_dm.ewm(alpha=1.0 / length, adjust=False).mean()
-        / trur.replace(0, np.nan)
-    )
+    minus = 100 * minus_dm.ewm(alpha=1.0 / length, adjust=False).mean() / trur.replace(0, np.nan)
 
     diff = plus - minus
     return diff.fillna(0.0)
 
 
-def calculate_ma_series(
-    close: pd.Series,
-    period: int,
-    ma_type: str = "SMA"
-) -> pd.Series:
+def calculate_ma_series(close: pd.Series, period: int, ma_type: str = "SMA") -> pd.Series:
     """
     Tính toán Moving Average với period tùy chỉnh.
-    
+
     Args:
         close: Close price series
         period: Period cho MA
         ma_type: Loại MA ('SMA' hoặc 'EMA', default: 'SMA')
-        
+
     Returns:
         Series với MA values
     """

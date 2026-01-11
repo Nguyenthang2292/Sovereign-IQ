@@ -1,19 +1,20 @@
+
+from pathlib import Path
+import sys
+
 """
 Test script for modules.hmm.signal_utils - Signal utilities.
 """
 
-import sys
-from pathlib import Path
 
 # Add parent directory to path to allow imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import numpy as np
 import pandas as pd
-import pytest
 
-from modules.hmm.signals.utils import validate_dataframe
 from modules.common.indicators import calculate_returns_volatility
+from modules.hmm.signals.utils import validate_dataframe
 
 
 def _sample_ohlcv_dataframe(length: int = 100) -> pd.DataFrame:
@@ -26,13 +27,16 @@ def _sample_ohlcv_dataframe(length: int = 100) -> pd.DataFrame:
         change = np.random.normal(0, 0.5)
         base_price += change
         prices.append(base_price)
-    
-    df = pd.DataFrame({
-        "open": prices,
-        "high": [p * 1.01 for p in prices],
-        "low": [p * 0.99 for p in prices],
-        "close": prices,
-    }, index=idx)
+
+    df = pd.DataFrame(
+        {
+            "open": prices,
+            "high": [p * 1.01 for p in prices],
+            "low": [p * 0.99 for p in prices],
+            "close": prices,
+        },
+        index=idx,
+    )
     return df
 
 
@@ -102,9 +106,7 @@ def test_calculate_returns_volatility_empty_dataframe():
 
 def test_calculate_returns_volatility_constant_price():
     """Test calculate_returns_volatility with constant price (zero volatility)."""
-    df = pd.DataFrame({
-        "close": [100.0] * 50
-    })
+    df = pd.DataFrame({"close": [100.0] * 50})
     volatility = calculate_returns_volatility(df)
     assert volatility == 0.0
 
@@ -117,4 +119,3 @@ def test_calculate_returns_volatility_high_volatility():
     volatility = calculate_returns_volatility(df)
     assert volatility > 0.0
     assert volatility < 10.0  # Reasonable upper bound
-

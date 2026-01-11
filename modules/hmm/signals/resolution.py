@@ -1,17 +1,22 @@
+
+from typing import TYPE_CHECKING, Dict, List, Literal, Tuple
+
+from modules.common.utils import log_warn
+from modules.common.utils import log_warn
+
 """
 HMM Signal Resolution Module
 
 Functions for conflict resolution and dynamic threshold adjustment.
 """
 
-from typing import Tuple, Literal, List, Dict, TYPE_CHECKING
-from modules.common.utils import log_warn
+
 
 if TYPE_CHECKING:
     from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
 from config import (
-    HMM_FEATURES,
     HMM_CONFLICT_RESOLUTION_THRESHOLD,
+    HMM_FEATURES,
     HMM_VOLATILITY_CONFIG,
 )
 
@@ -23,32 +28,33 @@ SHORT: Signal = -1
 
 # Export for use in other modules
 __all__ = [
-    'Signal', 'LONG', 'HOLD', 'SHORT',
-    'calculate_dynamic_threshold',
-    'resolve_signal_conflict',
-    'resolve_multi_strategy_conflicts'
+    "Signal",
+    "LONG",
+    "HOLD",
+    "SHORT",
+    "calculate_dynamic_threshold",
+    "resolve_signal_conflict",
+    "resolve_multi_strategy_conflicts",
 ]
 
 
-def calculate_dynamic_threshold(
-    base_threshold: float, volatility: float
-) -> float:
+def calculate_dynamic_threshold(base_threshold: float, volatility: float) -> float:
     """
     Adjust threshold dynamically based on market volatility.
-    
+
     Args:
         base_threshold: Base threshold value
         volatility: Market volatility
-        
+
     Returns:
         Adjusted threshold value
     """
     if not HMM_FEATURES["dynamic_threshold_enabled"]:
         return base_threshold
-    
+
     high_threshold = HMM_VOLATILITY_CONFIG["high_threshold"]
     adjustments = HMM_VOLATILITY_CONFIG["adjustments"]
-    
+
     if volatility > high_threshold:
         # High volatility: increase threshold (more conservative)
         return base_threshold * adjustments["high"]
@@ -68,27 +74,27 @@ def resolve_signal_conflict(
 ) -> Tuple[Signal, Signal]:
     """
     Resolve conflicts when signals from different models disagree.
-    
+
     Args:
         signal_high_order: Signal from High-Order HMM
         signal_kama: Signal from KAMA model
         high_order_prob: Probability from High-Order HMM
         kama_confidence: Confidence from KAMA model
-        
+
     Returns:
         Tuple of (resolved_high_order_signal, resolved_kama_signal)
     """
     if not HMM_FEATURES["conflict_resolution_enabled"]:
         return signal_high_order, signal_kama
-    
+
     # No conflict if signals agree or one is HOLD
     if signal_high_order == signal_kama or signal_high_order == HOLD or signal_kama == HOLD:
         return signal_high_order, signal_kama
-    
+
     # Conflict detected: signals disagree
     # Compare confidence levels
     high_order_confidence = high_order_prob
-    
+
     # If High-Order has significantly higher confidence, downgrade KAMA
     if high_order_confidence > kama_confidence * HMM_CONFLICT_RESOLUTION_THRESHOLD:
         # High-Order is more confident, keep it, downgrade KAMA to HOLD
@@ -107,60 +113,53 @@ def resolve_signal_conflict(
 
 
 def resolve_multi_strategy_conflicts(
-    strategies: List['HMMStrategy'],
-    results: Dict[str, 'HMMStrategyResult']
+    strategies: List["HMMStrategy"], results: Dict[str, "HMMStrategyResult"]
 ) -> Dict[str, Signal]:
     """
     Resolve conflicts between multiple strategy signals.
-    
+
     Uses strategy weights and confidences to resolve conflicts.
     Strategies with higher confidence and weight take precedence.
-    
+
     Args:
         strategies: List of HMM strategies
         results: Dictionary mapping strategy names to results
-        
+
     Returns:
         Dictionary mapping strategy names to resolved signals
     """
     if not HMM_FEATURES.get("conflict_resolution_enabled", True):
         # Return original signals without resolution
         return {name: results[name].signal for name in results.keys()}
-    
+
     resolved_signals = {}
-    
+
     # Group strategies by signal
     signal_groups = {LONG: [], SHORT: [], HOLD: []}
-    
+
     for strategy in strategies:
         if strategy.name not in results:
             continue
-        
+
         result = results[strategy.name]
         signal = result.signal
         signal_groups[signal].append((strategy, result))
-    
+
     # Check for conflicts (both LONG and SHORT signals exist)
     has_conflict = len(signal_groups[LONG]) > 0 and len(signal_groups[SHORT]) > 0
-    
+
     if not has_conflict:
         # No conflict, return original signals
         for strategy in strategies:
             if strategy.name in results:
                 resolved_signals[strategy.name] = results[strategy.name].signal
         return resolved_signals
-    
+
     # Conflict detected: resolve using weighted confidence
     # Calculate total weighted confidence for each signal type
-    long_weighted_conf = sum(
-        s.weight * r.probability
-        for s, r in signal_groups[LONG]
-    )
-    short_weighted_conf = sum(
-        s.weight * r.probability
-        for s, r in signal_groups[SHORT]
-    )
-    
+    long_weighted_conf = sum(s.weight * r.probability for s, r in signal_groups[LONG])
+    short_weighted_conf = sum(s.weight * r.probability for s, r in signal_groups[SHORT])
+
     # Determine winning signal
     if long_weighted_conf > short_weighted_conf * HMM_CONFLICT_RESOLUTION_THRESHOLD:
         # LONG wins: keep LONG signals, downgrade SHORT to HOLD
@@ -180,15 +179,15 @@ def resolve_multi_strategy_conflicts(
             if strategy.name in results:
                 resolved_signals[strategy.name] = HOLD
         return resolved_signals
-    
+
     # Apply resolution: keep winning signals, downgrade losing signals
     for strategy in strategies:
         if strategy.name not in results:
             continue
-        
+
         result = results[strategy.name]
         original_signal = result.signal
-        
+
         if original_signal == winning_signal:
             # Keep winning signal
             resolved_signals[strategy.name] = original_signal
@@ -198,6 +197,5 @@ def resolve_multi_strategy_conflicts(
         else:
             # HOLD signals remain HOLD
             resolved_signals[strategy.name] = HOLD
-    
-    return resolved_signals
 
+    return resolved_signals

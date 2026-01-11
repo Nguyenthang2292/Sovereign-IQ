@@ -1,15 +1,19 @@
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+import numpy as np
+import pandas as pd
+
+from config import (
+from config import (
+
 """Random Forest model evaluation.
 
 This module provides functionality for evaluating Random Forest models with
 various confidence thresholds and calculating performance metrics.
 """
 
-import numpy as np
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
-from config import (
     CONFIDENCE_THRESHOLDS,
 )
 from modules.common.ui.logging import log_error, log_model, log_warn
@@ -32,7 +36,7 @@ def evaluate_model_with_confidence(
     if len(features_test) != len(target_test):
         log_warn(f"Length mismatch: features ({len(features_test)}) != target ({len(target_test)})")
         return
-    
+
     log_model("Evaluating model performance with different confidence thresholds...")
     try:
         y_proba = model.predict_proba(features_test)
@@ -47,9 +51,7 @@ def evaluate_model_with_confidence(
         calculate_and_display_metrics(target_test, y_pred, threshold)
 
 
-def apply_confidence_threshold(
-    y_proba: np.ndarray, threshold: float, classes: np.ndarray
-) -> np.ndarray:
+def apply_confidence_threshold(y_proba: np.ndarray, threshold: float, classes: np.ndarray) -> np.ndarray:
     """Apply a confidence threshold to prediction probabilities.
 
     If the highest probability for a prediction is below the threshold, the
@@ -73,9 +75,7 @@ def apply_confidence_threshold(
     return y_pred_confident
 
 
-def calculate_and_display_metrics(
-    y_true: pd.Series, y_pred: np.ndarray, threshold: float
-) -> None:
+def calculate_and_display_metrics(y_true: pd.Series, y_pred: np.ndarray, threshold: float) -> None:
     """Calculate and logs performance metrics for a given confidence threshold.
 
     Args:
@@ -87,28 +87,21 @@ def calculate_and_display_metrics(
     if len(y_true) == 0 or len(y_pred) == 0:
         log_warn(f"Empty arrays provided. y_true length: {len(y_true)}, y_pred length: {len(y_pred)}")
         return
-    
+
     # Ensure both y_true and y_pred are numeric for consistent label types
-    y_true_numeric = pd.to_numeric(y_true, errors='coerce').astype(int) # type: ignore
+    y_true_numeric = pd.to_numeric(y_true, errors="coerce").astype(int)  # type: ignore
     y_pred_numeric = y_pred.astype(int)
-    
+
     # Convert to numpy array if it's a Series
     y_true_array = y_true_numeric.to_numpy() if isinstance(y_true_numeric, pd.Series) else np.asarray(y_true_numeric)
-    
+
     labels = np.unique(np.concatenate((y_true_array, y_pred_numeric)))
-    precision = precision_score(
-        y_true_numeric, y_pred_numeric, average='weighted', labels=labels, zero_division="warn"
-    )
-    recall = recall_score(
-        y_true_numeric, y_pred_numeric, average='weighted', labels=labels, zero_division="warn"
-    )
-    f1 = f1_score(
-        y_true_numeric, y_pred_numeric, average='weighted', labels=labels, zero_division="warn"
-    )
+    precision = precision_score(y_true_numeric, y_pred_numeric, average="weighted", labels=labels, zero_division="warn")
+    recall = recall_score(y_true_numeric, y_pred_numeric, average="weighted", labels=labels, zero_division="warn")
+    f1 = f1_score(y_true_numeric, y_pred_numeric, average="weighted", labels=labels, zero_division="warn")
     accuracy = accuracy_score(y_true_numeric, y_pred_numeric)
     log_model(
         f"Metrics @ {threshold:.2f} threshold | "
         f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, "
         f"Recall: {recall:.4f}, F1: {f1:.4f}"
     )
-

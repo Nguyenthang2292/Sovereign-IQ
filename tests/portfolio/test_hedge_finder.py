@@ -1,20 +1,22 @@
+
+from pathlib import Path
+from unittest.mock import Mock, patch
+import sys
+
 """
 Test script for modules.HedgeFinder - Hedge finding and scoring logic.
 """
 
-import sys
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from io import StringIO
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import warnings
+
 import pytest
 
-from modules.portfolio.hedge_finder import HedgeFinder
 from modules.common.models.position import Position
+from modules.portfolio.hedge_finder import HedgeFinder
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -26,14 +28,14 @@ def test_hedge_finder_initialization():
     correlation_analyzer = Mock()
     risk_calculator = Mock()
     positions = [Position("BTC/USDT", "LONG", 50000.0, 1000.0)]
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
         risk_calculator=risk_calculator,
         positions=positions,
     )
-    
+
     assert finder.exchange_manager == exchange_manager
     assert finder.correlation_analyzer == correlation_analyzer
     assert finder.risk_calculator == risk_calculator
@@ -47,7 +49,7 @@ def test_hedge_finder_with_data_fetcher():
     risk_calculator = Mock()
     data_fetcher = Mock()
     positions = [Position("BTC/USDT", "LONG", 50000.0, 1000.0)]
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -55,7 +57,7 @@ def test_hedge_finder_with_data_fetcher():
         positions=positions,
         data_fetcher=data_fetcher,
     )
-    
+
     assert finder.data_fetcher == data_fetcher
 
 
@@ -67,7 +69,7 @@ def test_should_stop_with_shutdown_event():
     positions = []
     shutdown_event = Mock()
     shutdown_event.is_set.return_value = True
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -75,7 +77,7 @@ def test_should_stop_with_shutdown_event():
         positions=positions,
         shutdown_event=shutdown_event,
     )
-    
+
     assert finder.should_stop() is True
 
 
@@ -85,14 +87,14 @@ def test_should_stop_without_shutdown_event():
     correlation_analyzer = Mock()
     risk_calculator = Mock()
     positions = []
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
         risk_calculator=risk_calculator,
         positions=positions,
     )
-    
+
     assert finder.should_stop() is False
 
 
@@ -105,7 +107,7 @@ def test_score_candidate():
     risk_calculator = Mock()
     positions = []
     data_fetcher = Mock()
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -113,9 +115,9 @@ def test_score_candidate():
         positions=positions,
         data_fetcher=data_fetcher,
     )
-    
+
     result = finder._score_candidate("ETH/USDT")
-    
+
     assert result is not None
     assert result["symbol"] == "ETH/USDT"
     assert result["weighted_corr"] == 0.8
@@ -132,7 +134,7 @@ def test_score_candidate_none_correlations():
     risk_calculator = Mock()
     positions = []
     data_fetcher = Mock()
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -140,9 +142,9 @@ def test_score_candidate_none_correlations():
         positions=positions,
         data_fetcher=data_fetcher,
     )
-    
+
     result = finder._score_candidate("ETH/USDT")
-    
+
     assert result is None
 
 
@@ -155,7 +157,7 @@ def test_score_candidate_partial_correlations():
     risk_calculator = Mock()
     positions = []
     data_fetcher = Mock()
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -163,9 +165,9 @@ def test_score_candidate_partial_correlations():
         positions=positions,
         data_fetcher=data_fetcher,
     )
-    
+
     result = finder._score_candidate("ETH/USDT")
-    
+
     assert result is not None
     assert result["weighted_corr"] == 0.8
     assert result["return_corr"] is None
@@ -178,7 +180,7 @@ def test_find_best_hedge_candidate_no_positions():
     risk_calculator = Mock()
     positions = []
     data_fetcher = Mock()
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -186,10 +188,10 @@ def test_find_best_hedge_candidate_no_positions():
         positions=positions,
         data_fetcher=data_fetcher,
     )
-    
+
     with patch("modules.portfolio.hedge_finder.log_warn"):
         result = finder.find_best_hedge_candidate(total_delta=1000.0, total_beta_delta=500.0)
-    
+
     assert result is None
 
 
@@ -201,7 +203,7 @@ def test_find_best_hedge_candidate_no_candidates():
     positions = [Position("BTC/USDT", "LONG", 50000.0, 1000.0)]
     data_fetcher = Mock()
     data_fetcher.list_binance_futures_symbols.return_value = []
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -209,11 +211,11 @@ def test_find_best_hedge_candidate_no_candidates():
         positions=positions,
         data_fetcher=data_fetcher,
     )
-    
+
     with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
         with patch("modules.portfolio.hedge_finder.log_warn"):
             result = finder.find_best_hedge_candidate(total_delta=1000.0, total_beta_delta=500.0)
-    
+
     assert result is None
 
 
@@ -225,7 +227,7 @@ def test_find_best_hedge_candidate_with_candidates():
     positions = [Position("BTC/USDT", "LONG", 50000.0, 1000.0)]
     data_fetcher = Mock()
     data_fetcher.list_binance_futures_symbols.return_value = ["ETH/USDT", "BNB/USDT"]
-    
+
     # Mock scoring to return different scores
     def score_candidate(symbol):
         scores = {"ETH/USDT": 0.8, "BNB/USDT": 0.9}
@@ -235,7 +237,7 @@ def test_find_best_hedge_candidate_with_candidates():
             "return_corr": scores[symbol] * 0.9,
             "score": scores[symbol],
         }
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -244,7 +246,7 @@ def test_find_best_hedge_candidate_with_candidates():
         data_fetcher=data_fetcher,
     )
     finder._score_candidate = Mock(side_effect=score_candidate)
-    
+
     with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
         with patch("modules.portfolio.hedge_finder.log_analysis"):
             with patch("modules.portfolio.hedge_finder.log_info"):
@@ -258,7 +260,7 @@ def test_find_best_hedge_candidate_with_candidates():
                                         total_beta_delta=500.0,
                                         max_candidates=2,
                                     )
-    
+
     assert result is not None
     assert result["symbol"] == "BNB/USDT"  # Should be the one with highest score
 
@@ -272,7 +274,7 @@ def test_find_best_hedge_candidate_shutdown():
     data_fetcher = Mock()
     shutdown_event = Mock()
     shutdown_event.is_set.return_value = True
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -281,11 +283,11 @@ def test_find_best_hedge_candidate_shutdown():
         data_fetcher=data_fetcher,
         shutdown_event=shutdown_event,
     )
-    
+
     with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
         with patch("modules.portfolio.hedge_finder.log_warn"):
             result = finder.find_best_hedge_candidate(total_delta=1000.0, total_beta_delta=500.0)
-    
+
     assert result is None
 
 
@@ -299,7 +301,7 @@ def test_analyze_new_trade():
     risk_calculator.calculate_beta.return_value = 1.2
     positions = [Position("BTC/USDT", "LONG", 50000.0, 1000.0)]
     data_fetcher = Mock()
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -307,7 +309,7 @@ def test_analyze_new_trade():
         positions=positions,
         data_fetcher=data_fetcher,
     )
-    
+
     with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
         with patch("modules.portfolio.hedge_finder.log_info"):
             with patch("modules.portfolio.hedge_finder.log_analysis"):
@@ -334,7 +336,7 @@ def test_analyze_new_trade_no_beta():
     risk_calculator.calculate_beta.return_value = None
     positions = [Position("BTC/USDT", "LONG", 50000.0, 1000.0)]
     data_fetcher = Mock()
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -342,7 +344,7 @@ def test_analyze_new_trade_no_beta():
         positions=positions,
         data_fetcher=data_fetcher,
     )
-    
+
     with patch("modules.portfolio.hedge_finder.normalize_symbol", side_effect=lambda x, quote="USDT": x.upper()):
         with patch("modules.portfolio.hedge_finder.log_info"):
             with patch("modules.portfolio.hedge_finder.log_analysis"):
@@ -367,7 +369,7 @@ def test_list_candidate_symbols():
     positions = []
     data_fetcher = Mock()
     data_fetcher.list_binance_futures_symbols.return_value = ["ETH/USDT", "BNB/USDT"]
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -375,9 +377,9 @@ def test_list_candidate_symbols():
         positions=positions,
         data_fetcher=data_fetcher,
     )
-    
+
     result = finder._list_candidate_symbols(exclude_symbols={"BTC/USDT"}, max_candidates=10)
-    
+
     assert result == ["ETH/USDT", "BNB/USDT"]
     data_fetcher.list_binance_futures_symbols.assert_called_once()
 
@@ -388,7 +390,7 @@ def test_list_candidate_symbols_no_data_fetcher():
     correlation_analyzer = Mock()
     risk_calculator = Mock()
     positions = []
-    
+
     finder = HedgeFinder(
         exchange_manager=exchange_manager,
         correlation_analyzer=correlation_analyzer,
@@ -396,11 +398,10 @@ def test_list_candidate_symbols_no_data_fetcher():
         positions=positions,
     )
     finder.data_fetcher = None
-    
+
     with pytest.raises(ImportError, match="DataFetcher is required"):
         finder._list_candidate_symbols()
 
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

@@ -1,8 +1,14 @@
+
 from types import SimpleNamespace
 
 import pandas as pd
 
 from modules.common.core.data_fetcher import DataFetcher
+
+from modules.common.core.data_fetcher import DataFetcher
+
+
+
 
 
 def _build_ohlcv(last_timestamp_ms: int):
@@ -80,12 +86,8 @@ def test_fetch_ohlcv_uses_cache_when_not_checking_freshness():
     exchange_manager = SimpleNamespace(public=public)
     fetcher = DataFetcher(exchange_manager)
 
-    df1, _ = fetcher.fetch_ohlcv_with_fallback_exchange(
-        "btc/usdt", limit=3, timeframe="1h", check_freshness=False
-    )
-    df2, _ = fetcher.fetch_ohlcv_with_fallback_exchange(
-        "btc/usdt", limit=3, timeframe="1h", check_freshness=False
-    )
+    df1, _ = fetcher.fetch_ohlcv_with_fallback_exchange("btc/usdt", limit=3, timeframe="1h", check_freshness=False)
+    df2, _ = fetcher.fetch_ohlcv_with_fallback_exchange("btc/usdt", limit=3, timeframe="1h", check_freshness=False)
 
     assert tracker["calls"] == 1  # second call served from cache
     assert df1.equals(df2)

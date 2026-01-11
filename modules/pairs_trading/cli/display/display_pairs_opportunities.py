@@ -1,3 +1,10 @@
+
+from typing import Optional
+
+from colorama import Fore
+import pandas as pd
+import pandas as pd
+
 """
 Pairs opportunities display formatter for pairs trading analysis.
 
@@ -5,17 +12,15 @@ This module provides formatted display functions for showing pairs trading
 opportunities with color-coded metrics and detailed quantitative information.
 """
 
-import pandas as pd
-from typing import Optional
-from colorama import Fore
+
 
 try:
     from modules.common.utils import (
         color_text,
-        log_warn,
-        log_info,
         log_analysis,
         log_data,
+        log_info,
+        log_warn,
     )
 except ImportError:
     color_text = None
@@ -28,13 +33,13 @@ except ImportError:
 def _pad_colored(text: str, width: int, color: str, style: Optional[str] = None) -> str:
     """
     Pad text to fixed width before applying ANSI colors to avoid misalignment.
-    
+
     Args:
         text: Text to pad and color
         width: Target width for padding
         color: Colorama color code
         style: Optional Colorama style code
-        
+
     Returns:
         Padded and colored text string
     """
@@ -49,12 +54,12 @@ def _pad_colored(text: str, width: int, color: str, style: Optional[str] = None)
 def _format_pair_row(row: pd.Series, rank: int, use_border: bool = True) -> str:
     """
     Format a single pair row with color-coded metrics.
-    
+
     Args:
         row: DataFrame row containing pair data
         rank: Display rank number
         use_border: Whether to use border characters for table formatting
-        
+
     Returns:
         Formatted string for display
     """
@@ -65,13 +70,13 @@ def _format_pair_row(row: pd.Series, rank: int, use_border: bool = True) -> str:
     opportunity_score = row["opportunity_score"] * 100
     quantitative_score = row.get("quantitative_score")
     is_cointegrated = row.get("is_cointegrated")
-    
+
     # Fallback to Johansen cointegration if ADF not available
     if (is_cointegrated is None or pd.isna(is_cointegrated)) and "is_johansen_cointegrated" in row:
         alt_coint = row.get("is_johansen_cointegrated")
         if alt_coint is not None and not pd.isna(alt_coint):
             is_cointegrated = bool(alt_coint)
-    
+
     # Get verbose metrics if available
     half_life = row.get("half_life")
     spread_sharpe = row.get("spread_sharpe")
@@ -80,7 +85,7 @@ def _format_pair_row(row: pd.Series, rank: int, use_border: bool = True) -> str:
 
     # Prepare spread text
     spread_text = f"{spread:+.2f}%"
-    
+
     # Format hedge ratio
     if hedge_ratio is not None and not pd.isna(hedge_ratio):
         hedge_text = f"{hedge_ratio:.4f}"
@@ -139,11 +144,11 @@ def _format_pair_row(row: pd.Series, rank: int, use_border: bool = True) -> str:
     # Format verbose metrics
     half_life_text = f"{half_life:.1f}" if half_life is not None and not pd.isna(half_life) else "N/A"
     sharpe_text = f"{spread_sharpe:.2f}" if spread_sharpe is not None and not pd.isna(spread_sharpe) else "N/A"
-    maxdd_text = f"{max_drawdown*100:.1f}%" if max_drawdown is not None and not pd.isna(max_drawdown) else "N/A"
-    
+    maxdd_text = f"{max_drawdown * 100:.1f}%" if max_drawdown is not None and not pd.isna(max_drawdown) else "N/A"
+
     # Use border characters for better table formatting
     border = "│" if use_border else " "
-    
+
     return (
         f"{border} {rank:<4} {border} {long_symbol:<14} {border} {short_symbol:<14} {border} "
         f"{spread_text:<9} {border} {corr_display} {border} "
@@ -161,12 +166,12 @@ def display_pairs_opportunities(
 ) -> None:
     """
     Display pairs trading opportunities in a formatted table.
-    
+
     This function displays pairs trading opportunities with color-coded metrics
     including opportunity scores, quantitative scores, cointegration status,
     correlation, and various risk metrics. Optionally displays reversed pairs
     (swapped long/short) for alternative trading perspectives.
-    
+
     Args:
         pairs_df: DataFrame with pairs trading opportunities containing columns:
             - long_symbol: Symbol to long (buy)
@@ -181,7 +186,7 @@ def display_pairs_opportunities(
             - spread_sharpe: Spread Sharpe ratio (optional)
             - max_drawdown: Maximum drawdown (optional)
         max_display: Maximum number of pairs to display (default: 10)
-        
+
     Example:
         >>> pairs = pd.DataFrame({
         ...     'long_symbol': ['BTC/USDT'],
@@ -193,7 +198,7 @@ def display_pairs_opportunities(
         ...     'is_cointegrated': [True]
         ... })
         >>> display_pairs_opportunities(pairs, max_display=5)
-    
+
     Note:
         - Opportunity scores > 20% are green, > 10% are yellow
         - Quantitative scores >= 70 are green, >= 50 are yellow, < 50 are red
@@ -218,10 +223,88 @@ def display_pairs_opportunities(
             f"{'OppScore':<10} │ {'QuantScore':<10} │ {'Coint':<6} │ {'HedgeRatio':<11} │ "
             f"{'HalfLife':<9} │ {'Sharpe':<9} │ {'MaxDD':<9} │"
         )
-        separator = "├" + "─" * 6 + "┼" + "─" * 16 + "┼" + "─" * 16 + "┼" + "─" * 11 + "┼" + "─" * 10 + "┼" + "─" * 12 + "┼" + "─" * 12 + "┼" + "─" * 8 + "┼" + "─" * 13 + "┼" + "─" * 11 + "┼" + "─" * 11 + "┼" + "─" * 11 + "┤"
-        top_border = "┌" + "─" * 6 + "┬" + "─" * 16 + "┬" + "─" * 16 + "┬" + "─" * 11 + "┬" + "─" * 10 + "┬" + "─" * 12 + "┬" + "─" * 12 + "┬" + "─" * 8 + "┬" + "─" * 13 + "┬" + "─" * 11 + "┬" + "─" * 11 + "┬" + "─" * 11 + "┐"
-        bottom_border = "└" + "─" * 6 + "┴" + "─" * 16 + "┴" + "─" * 16 + "┴" + "─" * 11 + "┴" + "─" * 10 + "┴" + "─" * 12 + "┴" + "─" * 12 + "┴" + "─" * 8 + "┴" + "─" * 13 + "┴" + "─" * 11 + "┴" + "─" * 11 + "┴" + "─" * 11 + "┘"
-        
+        separator = (
+            "├"
+            + "─" * 6
+            + "┼"
+            + "─" * 16
+            + "┼"
+            + "─" * 16
+            + "┼"
+            + "─" * 11
+            + "┼"
+            + "─" * 10
+            + "┼"
+            + "─" * 12
+            + "┼"
+            + "─" * 12
+            + "┼"
+            + "─" * 8
+            + "┼"
+            + "─" * 13
+            + "┼"
+            + "─" * 11
+            + "┼"
+            + "─" * 11
+            + "┼"
+            + "─" * 11
+            + "┤"
+        )
+        top_border = (
+            "┌"
+            + "─" * 6
+            + "┬"
+            + "─" * 16
+            + "┬"
+            + "─" * 16
+            + "┬"
+            + "─" * 11
+            + "┬"
+            + "─" * 10
+            + "┬"
+            + "─" * 12
+            + "┬"
+            + "─" * 12
+            + "┬"
+            + "─" * 8
+            + "┬"
+            + "─" * 13
+            + "┬"
+            + "─" * 11
+            + "┬"
+            + "─" * 11
+            + "┬"
+            + "─" * 11
+            + "┐"
+        )
+        bottom_border = (
+            "└"
+            + "─" * 6
+            + "┴"
+            + "─" * 16
+            + "┴"
+            + "─" * 16
+            + "┴"
+            + "─" * 11
+            + "┴"
+            + "─" * 10
+            + "┴"
+            + "─" * 12
+            + "┴"
+            + "─" * 12
+            + "┴"
+            + "─" * 8
+            + "┴"
+            + "─" * 13
+            + "┴"
+            + "─" * 11
+            + "┴"
+            + "─" * 11
+            + "┴"
+            + "─" * 11
+            + "┘"
+        )
+
         log_data(top_border)
         log_data(header)
         log_data(separator)
@@ -242,8 +325,4 @@ def display_pairs_opportunities(
 
     if len(pairs_df) > max_display:
         if log_info:
-            log_info(
-                f"Showing top {max_display} of {len(pairs_df)} opportunities. "
-                f"Use --max-pairs to see more."
-            )
-    
+            log_info(f"Showing top {max_display} of {len(pairs_df)} opportunities. Use --max-pairs to see more.")

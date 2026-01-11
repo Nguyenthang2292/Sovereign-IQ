@@ -1,3 +1,15 @@
+
+from dataclasses import dataclass
+from typing import Optional
+
+import pandas as pd
+
+from __future__ import annotations
+from modules.common.indicators.trend import (
+import pandas_ta as ta
+from modules.common.indicators.trend import (
+import pandas_ta as ta
+
 """
 Feature calculations for Simplified Percentile Clustering.
 
@@ -5,30 +17,19 @@ Computes RSI, CCI, Fisher Transform, DMI, Z-Score, and MAR (Moving Average Ratio
 features with optional standardization.
 """
 
-from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
 
-import numpy as np
-import pandas as pd
-import pandas_ta as ta
 
-from modules.simplified_percentile_clustering.utils.validation import (
-    validate_feature_config,
-)
-from modules.simplified_percentile_clustering.utils.helpers import (
-    safe_isna,
-)
-from modules.common.indicators.trend import (
     calculate_cci,
     calculate_dmi_difference,
 )
 from modules.common.quantitative_metrics import (
     calculate_fisher_transform,
-    calculate_zscore,
     calculate_mar,
-    NUMBA_AVAILABLE,
+    calculate_zscore,
+)
+from modules.simplified_percentile_clustering.utils.validation import (
+    validate_feature_config,
 )
 
 
@@ -88,21 +89,17 @@ class FeatureCalculator:
         return 0.999 if val > 0.99 else (-0.999 if val < -0.99 else val)
 
     @staticmethod
-    def fisher_transform(
-        high: pd.Series, low: pd.Series, close: pd.Series, length: int
-    ) -> pd.Series:
+    def fisher_transform(high: pd.Series, low: pd.Series, close: pd.Series, length: int) -> pd.Series:
         """
         Calculate Fisher Transform applied to hl2 over length bars.
-        
+
         Uses Numba JIT compilation for the core recursive calculation if available,
         falling back to pure Python if Numba is not installed.
         """
         return calculate_fisher_transform(high, low, close, length)
 
     @staticmethod
-    def dmi_difference(
-        high: pd.Series, low: pd.Series, close: pd.Series, length: int
-    ) -> pd.Series:
+    def dmi_difference(high: pd.Series, low: pd.Series, close: pd.Series, length: int) -> pd.Series:
         """Calculate simplified DMI difference (plus - minus)."""
         return calculate_dmi_difference(high, low, close, length)
 
@@ -117,7 +114,9 @@ class FeatureCalculator:
         rsi_val = rsi_z if self.config.rsi_standardize else rsi
         return rsi, rsi_val
 
-    def compute_cci(self, high: pd.Series, low: pd.Series, close: pd.Series, lookback: int) -> tuple[pd.Series, pd.Series]:
+    def compute_cci(
+        self, high: pd.Series, low: pd.Series, close: pd.Series, lookback: int
+    ) -> tuple[pd.Series, pd.Series]:
         """Compute CCI and optionally standardized version."""
         cci = calculate_cci(high, low, close, self.config.cci_len)
 
@@ -154,9 +153,7 @@ class FeatureCalculator:
         mar_val = mar_z if self.config.mar_standardize else mar
         return mar, mar_val
 
-    def compute_all(
-        self, high: pd.Series, low: pd.Series, close: pd.Series, lookback: int
-    ) -> dict[str, pd.Series]:
+    def compute_all(self, high: pd.Series, low: pd.Series, close: pd.Series, lookback: int) -> dict[str, pd.Series]:
         """Compute all enabled features."""
         results = {}
 
@@ -205,4 +202,3 @@ def compute_features(
 
 
 __all__ = ["FeatureConfig", "FeatureCalculator", "compute_features"]
-

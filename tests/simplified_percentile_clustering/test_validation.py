@@ -1,19 +1,24 @@
-"""
-Tests for validation utilities.
-"""
+
 import numpy as np
 import pandas as pd
 import pytest
 
+from modules.simplified_percentile_clustering.config import (
+from modules.simplified_percentile_clustering.config import (
+
+"""
+Tests for validation utilities.
+"""
+
+
+    ClusterTransitionConfig,
+    MeanReversionConfig,
+    RegimeFollowingConfig,
+)
 from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringConfig,
 )
 from modules.simplified_percentile_clustering.core.features import FeatureConfig
-from modules.simplified_percentile_clustering.config import (
-    ClusterTransitionConfig,
-    RegimeFollowingConfig,
-    MeanReversionConfig,
-)
 from modules.simplified_percentile_clustering.utils.validation import (
     validate_clustering_config,
     validate_feature_config,
@@ -45,11 +50,11 @@ def test_validate_clustering_config_invalid_percentiles():
     # p_low >= p_high
     with pytest.raises(ValueError, match="Percentiles must satisfy"):
         ClusteringConfig(k=2, p_low=95.0, p_high=5.0)
-    
+
     # p_low <= 0
     with pytest.raises(ValueError, match="Percentiles must satisfy"):
         ClusteringConfig(k=2, p_low=0.0, p_high=95.0)
-    
+
     # p_high >= 100
     with pytest.raises(ValueError, match="Percentiles must satisfy"):
         ClusteringConfig(k=2, p_low=5.0, p_high=100.0)
@@ -92,7 +97,7 @@ def test_validate_feature_config_invalid_length():
     # Length < 1
     with pytest.raises(ValueError, match="rsi_len must be at least 1"):
         FeatureConfig(rsi_len=0)
-    
+
     # Length > 1000
     with pytest.raises(ValueError, match="rsi_len must be at most 1000"):
         FeatureConfig(rsi_len=2000)
@@ -124,11 +129,11 @@ def test_validate_strategy_config_cluster_transition():
         min_signal_strength=0.3,
         min_rel_pos_change=0.1,
     )
-    
+
     # Invalid min_signal_strength
     with pytest.raises(ValueError, match="min_signal_strength must be in"):
         ClusterTransitionConfig(min_signal_strength=1.5)
-    
+
     # Invalid min_rel_pos_change
     with pytest.raises(ValueError, match="min_rel_pos_change must be in"):
         ClusterTransitionConfig(min_rel_pos_change=-0.1)
@@ -142,15 +147,15 @@ def test_validate_strategy_config_regime_following():
         min_cluster_duration=2,
         momentum_period=5,
     )
-    
+
     # Invalid min_regime_strength
     with pytest.raises(ValueError, match="min_regime_strength must be in"):
         RegimeFollowingConfig(min_regime_strength=2.0)
-    
+
     # Invalid min_cluster_duration
     with pytest.raises(ValueError, match="min_cluster_duration must be at least 1"):
         RegimeFollowingConfig(min_cluster_duration=0)
-    
+
     # Invalid momentum_period
     with pytest.raises(ValueError, match="momentum_period must be at least 1"):
         RegimeFollowingConfig(momentum_period=0)
@@ -164,11 +169,11 @@ def test_validate_strategy_config_mean_reversion():
         min_extreme_duration=3,
         reversal_lookback=3,
     )
-    
+
     # Invalid extreme_threshold
     with pytest.raises(ValueError, match="extreme_threshold must be in"):
         MeanReversionConfig(extreme_threshold=1.5)
-    
+
     # Invalid min_extreme_duration
     with pytest.raises(ValueError, match="min_extreme_duration must be at least 1"):
         MeanReversionConfig(min_extreme_duration=0)
@@ -179,7 +184,7 @@ def test_validate_input_data_valid():
     high = pd.Series([100.0, 101.0, 102.0])
     low = pd.Series([99.0, 100.0, 101.0])
     close = pd.Series([99.5, 100.5, 101.5])
-    
+
     # Should not raise
     validate_input_data(high=high, low=low, close=close, require_all=True)
 
@@ -189,7 +194,7 @@ def test_validate_input_data_empty_series():
     high = pd.Series(dtype=float)
     low = pd.Series([99.0, 100.0])
     close = pd.Series([99.5, 100.5])
-    
+
     with pytest.raises(ValueError, match="high series is empty"):
         validate_input_data(high=high, low=low, close=close)
 
@@ -199,7 +204,7 @@ def test_validate_input_data_all_nan():
     high = pd.Series([np.nan, np.nan, np.nan])
     low = pd.Series([99.0, 100.0, 101.0])
     close = pd.Series([99.5, 100.5, 101.5])
-    
+
     with pytest.raises(ValueError, match="high series contains only NaN values"):
         validate_input_data(high=high, low=low, close=close)
 
@@ -209,7 +214,7 @@ def test_validate_input_data_negative_prices():
     high = pd.Series([100.0, -1.0, 102.0])
     low = pd.Series([99.0, 100.0, 101.0])
     close = pd.Series([99.5, 100.5, 101.5])
-    
+
     with pytest.raises(ValueError, match="high series contains negative values"):
         validate_input_data(high=high, low=low, close=close)
 
@@ -219,7 +224,7 @@ def test_validate_input_data_high_less_than_low():
     high = pd.Series([100.0, 99.0, 102.0])  # high[1] < low[1]
     low = pd.Series([99.0, 100.0, 101.0])
     close = pd.Series([99.5, 100.5, 101.5])
-    
+
     with pytest.raises(ValueError, match="high values must be >= low values"):
         validate_input_data(high=high, low=low, close=close)
 
@@ -229,7 +234,7 @@ def test_validate_input_data_inconsistent_indices():
     high = pd.Series([100.0, 101.0], index=[0, 1])
     low = pd.Series([99.0, 100.0], index=[0, 2])  # Different index
     close = pd.Series([99.5, 100.5], index=[0, 1])
-    
+
     # Should catch index mismatch before trying to compare values
     with pytest.raises(ValueError):
         validate_input_data(high=high, low=low, close=close)
@@ -240,7 +245,7 @@ def test_validate_input_data_wrong_type():
     high = [100.0, 101.0, 102.0]  # List instead of Series
     low = pd.Series([99.0, 100.0, 101.0])
     close = pd.Series([99.5, 100.5, 101.5])
-    
+
     with pytest.raises(TypeError, match="high must be a pandas Series"):
         validate_input_data(high=high, low=low, close=close)
 
@@ -265,13 +270,11 @@ def test_config_post_init_validation():
     # ClusteringConfig
     with pytest.raises(ValueError):
         ClusteringConfig(k=5)
-    
+
     # FeatureConfig
     with pytest.raises(ValueError):
-        FeatureConfig(use_rsi=False, use_cci=False, use_fisher=False,
-                     use_dmi=False, use_zscore=False, use_mar=False)
-    
+        FeatureConfig(use_rsi=False, use_cci=False, use_fisher=False, use_dmi=False, use_zscore=False, use_mar=False)
+
     # ClusterTransitionConfig
     with pytest.raises(ValueError):
         ClusterTransitionConfig(min_signal_strength=2.0)
-

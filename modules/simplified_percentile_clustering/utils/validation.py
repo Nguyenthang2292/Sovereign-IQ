@@ -1,12 +1,16 @@
+
+from typing import TYPE_CHECKING, Optional
+
+import pandas as pd
+import pandas as pd
+
 """
 Validation utilities for Simplified Percentile Clustering.
 
 Provides validation functions for configurations and input data.
 """
 
-from typing import Optional, TYPE_CHECKING
-import numpy as np
-import pandas as pd
+
 
 if TYPE_CHECKING:
     from modules.simplified_percentile_clustering.core.clustering import (
@@ -15,44 +19,31 @@ if TYPE_CHECKING:
     from modules.simplified_percentile_clustering.core.features import (
         FeatureConfig,
     )
-    from modules.simplified_percentile_clustering.strategies.cluster_transition import (
-        ClusterTransitionConfig,
-    )
-    from modules.simplified_percentile_clustering.strategies.regime_following import (
-        RegimeFollowingConfig,
-    )
-    from modules.simplified_percentile_clustering.strategies.mean_reversion import (
-        MeanReversionConfig,
-    )
 
 
 def validate_clustering_config(config: "ClusteringConfig") -> None:
     """
     Validate ClusteringConfig parameters.
-    
+
     Args:
         config: ClusteringConfig instance to validate
-        
+
     Raises:
         ValueError: If any parameter is invalid
     """
     if config.k not in [2, 3]:
         raise ValueError(f"k must be 2 or 3, got {config.k}")
-    
+
     if not (0 < config.p_low < config.p_high < 100):
-        raise ValueError(
-            f"Percentiles must satisfy 0 < p_low ({config.p_low}) < p_high ({config.p_high}) < 100"
-        )
-    
+        raise ValueError(f"Percentiles must satisfy 0 < p_low ({config.p_low}) < p_high ({config.p_high}) < 100")
+
     if config.lookback < 10:
         raise ValueError(f"lookback must be at least 10, got {config.lookback}")
-    
+
     valid_main_plots = ["Clusters", "RSI", "CCI", "Fisher", "DMI", "Z-Score", "MAR"]
     if config.main_plot not in valid_main_plots:
-        raise ValueError(
-            f"main_plot must be one of {valid_main_plots}, got {config.main_plot}"
-        )
-    
+        raise ValueError(f"main_plot must be one of {valid_main_plots}, got {config.main_plot}")
+
     if config.feature_config is not None:
         validate_feature_config(config.feature_config)
 
@@ -60,10 +51,10 @@ def validate_clustering_config(config: "ClusteringConfig") -> None:
 def validate_feature_config(config: "FeatureConfig") -> None:
     """
     Validate FeatureConfig parameters.
-    
+
     Args:
         config: FeatureConfig instance to validate
-        
+
     Raises:
         ValueError: If any parameter is invalid
     """
@@ -80,24 +71,23 @@ def validate_feature_config(config: "FeatureConfig") -> None:
             raise ValueError(f"{name} must be at least 1, got {length}")
         if length > 1000:
             raise ValueError(f"{name} must be at most 1000, got {length}")
-    
+
     # Validate MAR type
     if config.mar_type not in ["SMA", "EMA"]:
         raise ValueError(f"mar_type must be 'SMA' or 'EMA', got {config.mar_type}")
-    
+
     # Check if at least one feature is enabled
-    if not any([
-        config.use_rsi,
-        config.use_cci,
-        config.use_fisher,
-        config.use_dmi,
-        config.use_zscore,
-        config.use_mar,
-    ]):
+    if not any(
+        [
+            config.use_rsi,
+            config.use_cci,
+            config.use_fisher,
+            config.use_dmi,
+            config.use_zscore,
+            config.use_mar,
+        ]
+    ):
         raise ValueError("At least one feature must be enabled")
-
-
-
 
 
 def validate_input_data(
@@ -108,13 +98,13 @@ def validate_input_data(
 ) -> None:
     """
     Validate input OHLCV data.
-    
+
     Args:
         high: High price series (optional)
         low: Low price series (optional)
         close: Close price series (optional)
         require_all: If True, all series must be provided and valid
-        
+
     Raises:
         ValueError: If data is invalid
         TypeError: If data types are incorrect
@@ -126,30 +116,30 @@ def validate_input_data(
         series_list.append(("low", low))
     if close is not None:
         series_list.append(("close", close))
-    
+
     if require_all and len(series_list) < 3:
         raise ValueError("high, low, and close must all be provided when require_all=True")
-    
+
     if len(series_list) == 0:
         raise ValueError("At least one series must be provided")
-    
+
     # Check types
     for name, series in series_list:
         if not isinstance(series, pd.Series):
             raise TypeError(f"{name} must be a pandas Series, got {type(series)}")
-        
+
         if len(series) == 0:
             raise ValueError(f"{name} series is empty")
-        
+
         # Check for all NaN
         if series.isna().all():
             raise ValueError(f"{name} series contains only NaN values")
-        
+
         # Check for negative values (prices should be positive)
         if name in ["high", "low", "close"]:
             if (series < 0).any():
                 raise ValueError(f"{name} series contains negative values")
-        
+
     # Check index consistency if multiple series provided (must be done before value comparisons)
     if len(series_list) > 1:
         indices = [s.index for _, s in series_list]
@@ -161,19 +151,16 @@ def validate_input_data(
             if "Can only compare identically-labeled" in str(e) or "All series must have the same index" in str(e):
                 raise ValueError("All series must have the same index") from e
             raise
-    
+
     # Check for high >= low if both provided (after index check)
     if high is not None and low is not None:
         if len(high) == len(low):
             try:
                 invalid = (high < low) & high.notna() & low.notna()
                 if invalid.any():
-                    raise ValueError(
-                        f"high values must be >= low values. Found {invalid.sum()} invalid rows"
-                    )
+                    raise ValueError(f"high values must be >= low values. Found {invalid.sum()} invalid rows")
             except ValueError as e:
                 # If error is about index mismatch, re-raise as our error
                 if "Can only compare identically-labeled" in str(e):
                     raise ValueError("All series must have the same index") from e
                 raise
-

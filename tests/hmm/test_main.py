@@ -1,16 +1,18 @@
+
 import numpy as np
 import pandas as pd
 
 from modules.hmm.cli.main import _compute_std_targets, _print_summary
-from modules.hmm.signals.resolution import LONG, HOLD, SHORT
+from modules.hmm.signals.resolution import HOLD, LONG, SHORT
+from modules.hmm.signals.resolution import HOLD, LONG, SHORT
+
+
 
 
 def _sample_close_dataframe(length: int = 60) -> pd.DataFrame:
     """Helper tạo chuỗi giá đơn giản cho các phép tính rolling."""
     idx = pd.date_range("2024-01-01", periods=length, freq="h")
-    prices = np.linspace(100.0, 110.0, length) + np.random.default_rng(0).normal(
-        0, 0.1, length
-    )
+    prices = np.linspace(100.0, 110.0, length) + np.random.default_rng(0).normal(0, 0.1, length)
     return pd.DataFrame({"close": prices}, index=idx)
 
 
@@ -21,9 +23,15 @@ def test_compute_std_targets_returns_expected_levels():
 
     assert targets is not None
     expected_keys = {
-        "window", "basis", "std",
-        "bearish_1σ", "bearish_2σ", "bearish_3σ",
-        "bullish_1σ", "bullish_2σ", "bullish_3σ"
+        "window",
+        "basis",
+        "std",
+        "bearish_1σ",
+        "bearish_2σ",
+        "bearish_3σ",
+        "bullish_1σ",
+        "bullish_2σ",
+        "bullish_3σ",
     }
     assert set(targets.keys()) == expected_keys
 
@@ -52,7 +60,7 @@ def test_print_summary_includes_std_targets(capsys):
         "bullish_2σ": 109.0,
         "bullish_3σ": 111.0,
     }
-    
+
     # Create result dict matching new signature
     result = {
         "signals": {
@@ -94,7 +102,7 @@ def test_print_summary_shows_bullish_targets_for_long(capsys):
         "bullish_2σ": 109.0,
         "bullish_3σ": 111.0,
     }
-    
+
     # Create result dict with LONG combined signal
     result = {
         "signals": {
@@ -131,7 +139,7 @@ def test_print_summary_shows_bearish_targets_for_short(capsys):
         "bullish_2σ": 109.0,
         "bullish_3σ": 111.0,
     }
-    
+
     # Create result dict with SHORT combined signal
     result = {
         "signals": {
@@ -153,4 +161,3 @@ def test_print_summary_shows_bearish_targets_for_short(capsys):
     assert "-1σ 103.00" in captured
     assert "-2σ 101.00" in captured
     assert "-3σ 99.00" in captured
-

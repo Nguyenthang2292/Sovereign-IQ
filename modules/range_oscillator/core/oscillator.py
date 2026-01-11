@@ -1,3 +1,15 @@
+
+from typing import Tuple
+
+import numpy as np
+import pandas as pd
+
+from __future__ import annotations
+from modules.common.indicators.trend import calculate_weighted_ma
+from modules.common.indicators.volatility import calculate_atr_range
+from modules.common.indicators.trend import calculate_weighted_ma
+from modules.common.indicators.volatility import calculate_atr_range
+
 """Range Oscillator main calculation.
 
 This module provides the main Range Oscillator calculation function that
@@ -13,15 +25,9 @@ Original: https://creativecommons.org/licenses/by-nc-sa/4.0/
 © Zeiierman
 """
 
-from __future__ import annotations
 
-from typing import Tuple
 
-import numpy as np
-import pandas as pd
 
-from modules.common.indicators.trend import calculate_weighted_ma
-from modules.common.indicators.volatility import calculate_atr_range
 
 
 def calculate_range_oscillator(
@@ -78,7 +84,7 @@ def calculate_range_oscillator(
         raise ValueError(f"length must be > 0, got {length}")
     if mult <= 0:
         raise ValueError(f"mult must be > 0, got {mult}")
-    
+
     # Step 1: Calculate weighted MA
     ma = calculate_weighted_ma(close, length=length)
 
@@ -89,15 +95,10 @@ def calculate_range_oscillator(
     # Align all series to close.index to ensure consistent indexing
     ma_aligned = ma.reindex(close.index)
     range_atr_aligned = range_atr.reindex(close.index)
-    
+
     # Create valid mask for all calculations
-    valid_mask = (
-        range_atr_aligned.notna() & 
-        (range_atr_aligned != 0) & 
-        ma_aligned.notna() & 
-        close.notna()
-    )
-    
+    valid_mask = range_atr_aligned.notna() & (range_atr_aligned != 0) & ma_aligned.notna() & close.notna()
+
     # Step 4a: Calculate oscillator value (vectorized)
     oscillator = pd.Series(np.nan, index=close.index, dtype="float64")
     oscillator[valid_mask] = 100 * (close[valid_mask] - ma_aligned[valid_mask]) / range_atr_aligned[valid_mask]

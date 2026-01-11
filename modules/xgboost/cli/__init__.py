@@ -1,8 +1,10 @@
-"""CLI tools for XGBoost module."""
 
 from pathlib import Path
-import sys
 import importlib.util
+import sys
+
+"""CLI tools for XGBoost module."""
+
 
 # Import from cli.py file (not cli package) to avoid circular import
 cli_file_path = Path(__file__).parent.parent / "cli.py"
@@ -24,4 +26,3 @@ __all__ = [
     "resolve_input",
     "parse_args",
 ]
-

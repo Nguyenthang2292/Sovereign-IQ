@@ -1,9 +1,14 @@
+
+import pytest
+
+from modules.common.models.position import Position
+from modules.common.models.position import Position
+
 """
 Test script for modules.Position - Position dataclass.
 """
 
-import pytest
-from modules.common.models.position import Position
+
 
 
 def test_position_creation():
@@ -14,7 +19,7 @@ def test_position_creation():
         entry_price=50000.0,
         size_usdt=1000.0,
     )
-    
+
     assert position.symbol == "BTC/USDT"
     assert position.direction == "LONG"
     assert position.entry_price == 50000.0
@@ -29,7 +34,7 @@ def test_position_short():
         entry_price=3000.0,
         size_usdt=500.0,
     )
-    
+
     assert position.direction == "SHORT"
     assert position.entry_price == 3000.0
 
@@ -39,7 +44,7 @@ def test_position_equality():
     pos1 = Position("BTC/USDT", "LONG", 50000.0, 1000.0)
     pos2 = Position("BTC/USDT", "LONG", 50000.0, 1000.0)
     pos3 = Position("ETH/USDT", "LONG", 50000.0, 1000.0)
-    
+
     assert pos1 == pos2
     assert pos1 != pos3
 
@@ -48,7 +53,7 @@ def test_position_repr():
     """Test Position string representation."""
     position = Position("BTC/USDT", "LONG", 50000.0, 1000.0)
     repr_str = repr(position)
-    
+
     assert "BTC/USDT" in repr_str
     assert "LONG" in repr_str
     assert "50000.0" in repr_str
@@ -58,10 +63,10 @@ def test_position_str_representation():
     """Test Position string representation in different formats."""
     pos1 = Position("BTC/USDT", "LONG", 50000.0, 1000.0)
     pos2 = Position("ETH/USDT", "SHORT", 3000.0, 500.0)
-    
+
     str1 = str(pos1)
     str2 = str(pos2)
-    
+
     assert "BTC/USDT" in str1 or "LONG" in str1
     assert "ETH/USDT" in str2 or "SHORT" in str2
 
@@ -81,4 +86,3 @@ def test_position_negative_price():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

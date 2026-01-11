@@ -1,11 +1,15 @@
+
+import numpy as np
+import pandas as pd
+
+from modules.common.quantitative_metrics import calculate_direction_metrics
+from modules.common.quantitative_metrics import calculate_direction_metrics
+
 """
 Tests for direction_metrics module.
 """
-import numpy as np
-import pandas as pd
-import pytest
 
-from modules.common.quantitative_metrics import calculate_direction_metrics
+
 
 
 def test_calculate_direction_metrics_produces_classification_scores():
@@ -15,9 +19,7 @@ def test_calculate_direction_metrics_produces_classification_scores():
     noise = np.linspace(0, 0.5, 400)
     spread = pd.Series(base + noise)
 
-    metrics = calculate_direction_metrics(
-        spread, zscore_lookback=40, classification_zscore=0.5
-    )
+    metrics = calculate_direction_metrics(spread, zscore_lookback=40, classification_zscore=0.5)
 
     assert metrics["classification_f1"] is not None
     assert metrics["classification_accuracy"] is not None
@@ -29,9 +31,7 @@ def test_calculate_direction_metrics_insufficient_data():
     """Test that calculate_direction_metrics returns None for insufficient data."""
     spread = pd.Series([1.0, 2.0, 3.0])
 
-    metrics = calculate_direction_metrics(
-        spread, zscore_lookback=50, classification_zscore=0.5
-    )
+    metrics = calculate_direction_metrics(spread, zscore_lookback=50, classification_zscore=0.5)
 
     assert metrics["classification_f1"] is None
     assert metrics["classification_accuracy"] is None
@@ -48,9 +48,7 @@ def test_calculate_direction_metrics_with_nan_values():
     spread_values[200] = np.nan
     spread = pd.Series(spread_values)
 
-    metrics = calculate_direction_metrics(
-        spread, zscore_lookback=40, classification_zscore=0.5
-    )
+    metrics = calculate_direction_metrics(spread, zscore_lookback=40, classification_zscore=0.5)
 
     # Should still compute valid metrics after dropping NaN
     if len(spread.dropna()) >= 40:
@@ -61,9 +59,7 @@ def test_calculate_direction_metrics_with_nan_values():
 
 def test_calculate_direction_metrics_none_input():
     """Test that calculate_direction_metrics handles None input."""
-    metrics = calculate_direction_metrics(
-        None, zscore_lookback=40, classification_zscore=0.5
-    )
+    metrics = calculate_direction_metrics(None, zscore_lookback=40, classification_zscore=0.5)
 
     assert metrics["classification_f1"] is None
     assert metrics["classification_accuracy"] is None
@@ -89,9 +85,7 @@ def test_calculate_direction_metrics_insufficient_active_signals():
     # Create spread that rarely exceeds threshold
     spread = pd.Series(np.linspace(0.1, 0.15, 400))  # Very small values
 
-    metrics = calculate_direction_metrics(
-        spread, zscore_lookback=40, classification_zscore=0.5
-    )
+    metrics = calculate_direction_metrics(spread, zscore_lookback=40, classification_zscore=0.5)
 
     # With very few active signals (below minimum), should return None
     if metrics["classification_f1"] is None:
@@ -104,9 +98,7 @@ def test_calculate_direction_metrics_metrics_range():
     noise = np.linspace(0, 0.5, 400)
     spread = pd.Series(base + noise)
 
-    metrics = calculate_direction_metrics(
-        spread, zscore_lookback=40, classification_zscore=0.5
-    )
+    metrics = calculate_direction_metrics(spread, zscore_lookback=40, classification_zscore=0.5)
 
     if metrics["classification_f1"] is not None:
         assert 0 <= metrics["classification_f1"] <= 1
@@ -116,4 +108,3 @@ def test_calculate_direction_metrics_metrics_range():
         assert 0 <= metrics["classification_precision"] <= 1
     if metrics["classification_recall"] is not None:
         assert 0 <= metrics["classification_recall"] <= 1
-

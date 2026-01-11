@@ -1,29 +1,36 @@
+
+from typing import Literal, Optional, cast
+
+from sklearn.preprocessing import LabelEncoder
+import numpy as np
+import pandas as pd
+
+from config import (
+
+from config import (
+
 """
 HMM-KAMA Main Workflow.
 
 This module contains the main hmm_kama function that orchestrates the entire workflow.
 """
 
-from typing import Literal, Optional, cast
-import numpy as np
-import pandas as pd
-from sklearn.preprocessing import LabelEncoder
 
-from modules.hmm.core.kama.models import HMM_KAMA, train_hmm, apply_hmm_model
-from modules.hmm.core.kama.features import prepare_observations
-from modules.hmm.core.kama.analysis import (
-    calculate_all_state_durations,
-    compute_state_using_standard_deviation,
-    compute_state_using_hmm,
-    compute_state_using_association_rule_mining,
-    compute_state_using_k_means,
-)
-from modules.hmm.core.kama.utils import prevent_infinite_loop, timeout_context
-from modules.common.utils import log_warn, log_error
-from config import (
+
     HMM_WINDOW_KAMA_DEFAULT,
     HMM_WINDOW_SIZE_DEFAULT,
 )
+from modules.common.utils import log_error, log_warn
+from modules.hmm.core.kama.analysis import (
+    calculate_all_state_durations,
+    compute_state_using_association_rule_mining,
+    compute_state_using_hmm,
+    compute_state_using_k_means,
+    compute_state_using_standard_deviation,
+)
+from modules.hmm.core.kama.features import prepare_observations
+from modules.hmm.core.kama.models import HMM_KAMA, apply_hmm_model, train_hmm
+from modules.hmm.core.kama.utils import prevent_infinite_loop, timeout_context
 
 
 @prevent_infinite_loop(max_calls=3)
@@ -35,7 +42,7 @@ def hmm_kama(
     window_size: Optional[int] = None,
 ) -> HMM_KAMA:
     """Run the full HMM-KAMA workflow on the provided dataframe.
-    
+
     Args:
         df: DataFrame with OHLCV data
         window_kama: KAMA window size (default: from config)
@@ -58,9 +65,7 @@ def hmm_kama(
             window_size_val = int(window_size if window_size is not None else HMM_WINDOW_SIZE_DEFAULT)
             min_required = max(window_param, window_size_val, 10)
             if len(df) < min_required:
-                raise ValueError(
-                    f"Insufficient data: got {len(df)}, need at least {min_required}"
-                )
+                raise ValueError(f"Insufficient data: got {len(df)}, need at least {min_required}")
 
             # 2. Preprocessing
             df_clean = df.copy()
@@ -68,9 +73,7 @@ def hmm_kama(
 
             for col in numeric_cols:
                 df_clean[col] = df_clean[col].replace([np.inf, -np.inf], np.nan)
-                if pd.notna(df_clean[col].quantile(0.99)) and pd.notna(
-                    df_clean[col].quantile(0.01)
-                ):
+                if pd.notna(df_clean[col].quantile(0.99)) and pd.notna(df_clean[col].quantile(0.01)):
                     df_clean[col] = df_clean[col].clip(
                         lower=df_clean[col].quantile(0.01) * 10,
                         upper=df_clean[col].quantile(0.99) * 10,
@@ -92,45 +95,29 @@ def hmm_kama(
 
             model = train_hmm(observations, n_components=4)
             data, next_state = apply_hmm_model(model, df_clean, observations)
-            hmm_kama_result.next_state_with_hmm_kama = cast(
-                Literal[0, 1, 2, 3], next_state
-            )
+            hmm_kama_result.next_state_with_hmm_kama = cast(Literal[0, 1, 2, 3], next_state)
 
             # 4. Secondary Analysis (Duration, ARM, Clustering)
             all_duration = calculate_all_state_durations(data)
 
             std_state_result = compute_state_using_standard_deviation(all_duration)
-            hmm_kama_result.current_state_of_state_using_std = cast(
-                Literal[0, 1], std_state_result
-            )
+            hmm_kama_result.current_state_of_state_using_std = cast(Literal[0, 1], std_state_result)
 
             if all_duration["state"].nunique() <= 1:
                 all_duration["state_encoded"] = 0
             else:
-                all_duration["state_encoded"] = LabelEncoder().fit_transform(
-                    all_duration["state"]
-                )
+                all_duration["state_encoded"] = LabelEncoder().fit_transform(all_duration["state"])
 
             all_duration, last_hidden_state = compute_state_using_hmm(all_duration)
             hmm_state_clamped = min(1, max(0, last_hidden_state))
-            hmm_kama_result.current_state_of_state_using_hmm = cast(
-                Literal[0, 1], hmm_state_clamped
-            )
+            hmm_kama_result.current_state_of_state_using_hmm = cast(Literal[0, 1], hmm_state_clamped)
 
-            top_apriori, top_fpgrowth = compute_state_using_association_rule_mining(
-                all_duration
-            )
-            hmm_kama_result.state_high_probabilities_using_arm_apriori = cast(
-                Literal[0, 1, 2, 3], top_apriori
-            )
-            hmm_kama_result.state_high_probabilities_using_arm_fpgrowth = cast(
-                Literal[0, 1, 2, 3], top_fpgrowth
-            )
+            top_apriori, top_fpgrowth = compute_state_using_association_rule_mining(all_duration)
+            hmm_kama_result.state_high_probabilities_using_arm_apriori = cast(Literal[0, 1, 2, 3], top_apriori)
+            hmm_kama_result.state_high_probabilities_using_arm_fpgrowth = cast(Literal[0, 1, 2, 3], top_fpgrowth)
 
             kmeans_state_result = compute_state_using_k_means(all_duration)
-            hmm_kama_result.current_state_of_state_using_kmeans = cast(
-                Literal[0, 1], kmeans_state_result
-            )
+            hmm_kama_result.current_state_of_state_using_kmeans = cast(Literal[0, 1], kmeans_state_result)
 
             return hmm_kama_result
 
@@ -138,4 +125,3 @@ def hmm_kama(
         log_error(f"Error in hmm_kama: {str(e)}")
         # Return safe default
         return HMM_KAMA(-1, -1, -1, -1, -1, -1)
-

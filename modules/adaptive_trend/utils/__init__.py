@@ -1,3 +1,9 @@
+
+from modules.adaptive_trend.utils.config import ATCConfig, create_atc_config_from_dict
+from modules.adaptive_trend.utils.diflen import diflen
+from modules.adaptive_trend.utils.exp_growth import exp_growth
+from modules.adaptive_trend.utils.rate_of_change import rate_of_change
+
 """
 Utility functions for Adaptive Trend Classification (ATC).
 
@@ -9,10 +15,6 @@ This package provides core utility functions used throughout the ATC system:
 - create_atc_config_from_dict: Helper to create ATCConfig from dictionary
 """
 
-from modules.adaptive_trend.utils.rate_of_change import rate_of_change
-from modules.adaptive_trend.utils.diflen import diflen
-from modules.adaptive_trend.utils.exp_growth import exp_growth
-from modules.adaptive_trend.utils.config import ATCConfig, create_atc_config_from_dict
 
 __all__ = [
     "rate_of_change",
@@ -21,4 +23,3 @@ __all__ = [
     "ATCConfig",
     "create_atc_config_from_dict",
 ]
-

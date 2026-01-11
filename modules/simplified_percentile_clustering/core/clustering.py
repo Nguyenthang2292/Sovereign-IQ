@@ -1,3 +1,15 @@
+
+from dataclasses import dataclass
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+
+from __future__ import annotations
+from modules.simplified_percentile_clustering.core.centers import (
+from __future__ import annotations
+from modules.simplified_percentile_clustering.core.centers import (
+
 """
 Main clustering calculation for Simplified Percentile Clustering.
 
@@ -5,16 +17,9 @@ Combines feature calculations, center computation, and cluster assignment
 to produce cluster assignments and interpolated cluster values.
 """
 
-from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
-import warnings
 
-import numpy as np
-import pandas as pd
 
-from modules.simplified_percentile_clustering.core.centers import (
     ClusterCenters,
     compute_centers,
 )
@@ -22,15 +27,15 @@ from modules.simplified_percentile_clustering.core.features import (
     FeatureCalculator,
     FeatureConfig,
 )
+from modules.simplified_percentile_clustering.utils.helpers import (
+    normalize_cluster_name,
+    safe_isna,
+    vectorized_min_and_second_min,
+    vectorized_min_distance,
+)
 from modules.simplified_percentile_clustering.utils.validation import (
     validate_clustering_config,
     validate_input_data,
-)
-from modules.simplified_percentile_clustering.utils.helpers import (
-    safe_isna,
-    vectorized_min_distance,
-    vectorized_min_and_second_min,
-    normalize_cluster_name,
 )
 
 
@@ -101,12 +106,10 @@ class SimplifiedPercentileClustering:
             )
         return self._centers_calculators[feature_name]
 
-    def _compute_all_centers(
-        self, features: dict[str, pd.Series]
-    ) -> dict[str, pd.DataFrame]:
+    def _compute_all_centers(self, features: dict[str, pd.Series]) -> dict[str, pd.DataFrame]:
         """
         Compute cluster centers for all features using vectorized operations.
-        
+
         Uses the vectorized compute_centers() function instead of iterative updates.
         """
         centers_dict = {}
@@ -125,12 +128,10 @@ class SimplifiedPercentileClustering:
 
         return centers_dict
 
-    def _compute_distance_single(
-        self, feature_val: pd.Series, centers: pd.DataFrame
-    ) -> pd.Series:
+    def _compute_distance_single(self, feature_val: pd.Series, centers: pd.DataFrame) -> pd.Series:
         """
         Compute distance for single-feature mode using vectorized operations.
-        
+
         This method uses vectorized operations for better performance.
         """
         return vectorized_min_distance(feature_val, centers)
@@ -143,57 +144,57 @@ class SimplifiedPercentileClustering:
     ) -> pd.Series:
         """
         Compute combined distance across all enabled features using vectorized operations.
-        
+
         Uses broadcasting to compute distances for all timestamps at once.
         """
         config = self.config.feature_config
         center_col = f"k{center_idx}"
-        
+
         # Collect all feature distances using vectorized operations
         feature_distances = []
-        
+
         # RSI
         if config.use_rsi and "rsi_val" in features:
             rsi_centers = centers_dict.get("rsi_val")
             if rsi_centers is not None and center_col in rsi_centers.columns:
                 dist = (features["rsi_val"] - rsi_centers[center_col]).abs()
                 feature_distances.append(dist)
-        
+
         # CCI
         if config.use_cci and "cci_val" in features:
             cci_centers = centers_dict.get("cci_val")
             if cci_centers is not None and center_col in cci_centers.columns:
                 dist = (features["cci_val"] - cci_centers[center_col]).abs()
                 feature_distances.append(dist)
-        
+
         # Fisher
         if config.use_fisher and "fisher_val" in features:
             fis_centers = centers_dict.get("fisher_val")
             if fis_centers is not None and center_col in fis_centers.columns:
                 dist = (features["fisher_val"] - fis_centers[center_col]).abs()
                 feature_distances.append(dist)
-        
+
         # DMI
         if config.use_dmi and "dmi_val" in features:
             dmi_centers = centers_dict.get("dmi_val")
             if dmi_centers is not None and center_col in dmi_centers.columns:
                 dist = (features["dmi_val"] - dmi_centers[center_col]).abs()
                 feature_distances.append(dist)
-        
+
         # Z-Score
         if config.use_zscore and "zsc_val" in features:
             zsc_centers = centers_dict.get("zsc_val")
             if zsc_centers is not None and center_col in zsc_centers.columns:
                 dist = (features["zsc_val"] - zsc_centers[center_col]).abs()
                 feature_distances.append(dist)
-        
+
         # MAR
         if config.use_mar and "mar_val" in features:
             mar_centers = centers_dict.get("mar_val")
             if mar_centers is not None and center_col in mar_centers.columns:
                 dist = (features["mar_val"] - mar_centers[center_col]).abs()
                 feature_distances.append(dist)
-        
+
         # Compute weighted average across all features
         if len(feature_distances) > 0:
             # Stack all distances into a DataFrame
@@ -206,9 +207,7 @@ class SimplifiedPercentileClustering:
             index = next(iter(features.values())).index if features else pd.Index([])
             return pd.Series(np.nan, index=index)
 
-    def compute(
-        self, high: pd.Series, low: pd.Series, close: pd.Series
-    ) -> ClusteringResult:
+    def compute(self, high: pd.Series, low: pd.Series, close: pd.Series) -> ClusteringResult:
         """
         Compute clustering for OHLCV data.
 
@@ -219,17 +218,15 @@ class SimplifiedPercentileClustering:
 
         Returns:
             ClusteringResult with all computed values.
-            
+
         Raises:
             ValueError: If input data is invalid
         """
         # Validate input data
         validate_input_data(high=high, low=low, close=close, require_all=True)
-        
+
         # Step 1: Compute all features
-        features = self.feature_calc.compute_all(
-            high, low, close, self.config.lookback
-        )
+        features = self.feature_calc.compute_all(high, low, close, self.config.lookback)
 
         # Step 2: Compute centers for all features
         centers_dict = self._compute_all_centers(features)
@@ -242,7 +239,7 @@ class SimplifiedPercentileClustering:
         # Step 4: Compute distances to all centers using vectorized operations
         # Build a matrix of distances: rows = timestamps, columns = centers (k0, k1, k2)
         distances_df = pd.DataFrame(index=index)
-        
+
         # Map main_plot to feature key
         feature_map = {
             "RSI": "rsi_val",
@@ -252,11 +249,11 @@ class SimplifiedPercentileClustering:
             "Z-Score": "zsc_val",
             "MAR": "mar_val",
         }
-        
+
         # Compute distances for each center using vectorized operations
         for center_idx in range(self.config.k):
             center_col = f"k{center_idx}"
-            
+
             if main_plot in feature_map:
                 # Single feature mode - use broadcasting
                 feature_key = feature_map[main_plot]
@@ -273,62 +270,52 @@ class SimplifiedPercentileClustering:
                     distances_df[center_col] = pd.Series(np.nan, index=index)
             else:
                 # Combined mode - use vectorized combined distance
-                dist_series = self._compute_distance_combined(
-                    features, centers_dict, center_idx
-                )
+                dist_series = self._compute_distance_combined(features, centers_dict, center_idx)
                 distances_df[center_col] = dist_series
 
         # Replace inf with NaN for easier handling
         distances_df = distances_df.replace([np.inf, -np.inf], np.nan)
-        
+
         # Step 5: Find min and second min distances using vectorized operations
         # Convert to numpy array for efficient operations
         dist_array = distances_df.values
-        
+
         # Use helper function for vectorized min and second min calculation
-        min_dist_arr, second_min_dist_arr, cluster_val_arr, second_cluster_val_arr = (
-            vectorized_min_and_second_min(dist_array)
+        min_dist_arr, second_min_dist_arr, cluster_val_arr, second_cluster_val_arr = vectorized_min_and_second_min(
+            dist_array
         )
-        
+
         # Convert to Series
         min_dist = pd.Series(min_dist_arr, index=index)
         second_min_dist = pd.Series(second_min_dist_arr, index=index)
         cluster_val = pd.Series(cluster_val_arr, index=index)
-        
+
         # Convert cluster values to cluster names using helper function
-        curr_cluster = pd.Series(
-            [normalize_cluster_name(cv) for cv in cluster_val_arr],
-            index=index,
-            dtype=object
-        )
+        curr_cluster = pd.Series([normalize_cluster_name(cv) for cv in cluster_val_arr], index=index, dtype=object)
         second_cluster = pd.Series(
-            [normalize_cluster_name(cv) for cv in second_cluster_val_arr],
-            index=index,
-            dtype=object
+            [normalize_cluster_name(cv) for cv in second_cluster_val_arr], index=index, dtype=object
         )
-        
+
         # Step 6: Compute relative position and real_clust using vectorized operations
         # Relative position: min_dist / (min_dist + second_min_dist)
         rel_pos = pd.Series(0.0, index=index)
-        
+
         # IMPROVEMENT (2025-01-16): Handle edge case when both distances are zero.
         # When feature value equals both centers exactly, set rel_pos = 0.5 to indicate
         # the value is exactly between the two centers. This provides more accurate
         # interpolation in real_clust calculation.
         both_zero = (min_dist == 0) & (second_min_dist == 0) & (~safe_isna(min_dist)) & (~safe_isna(second_min_dist))
         rel_pos[both_zero] = 0.5  # Exactly between two centers
-        
+
         # Handle normal case: second_min_dist > 0
         valid_rel = (
-            (second_min_dist > 0) 
-            & (second_min_dist != np.inf) 
+            (second_min_dist > 0)
+            & (second_min_dist != np.inf)
             & (~safe_isna(second_min_dist))
             & (~both_zero)  # Exclude cases already handled above
         )
-        rel_pos[valid_rel] = min_dist[valid_rel] / (
-            min_dist[valid_rel] + second_min_dist[valid_rel]
-        )
-        
+        rel_pos[valid_rel] = min_dist[valid_rel] / (min_dist[valid_rel] + second_min_dist[valid_rel])
+
         # Second cluster value - convert cluster names to numeric values
         second_val = pd.Series(cluster_val.values, index=index)
         second_val_mask = second_cluster.notna()
@@ -337,7 +324,7 @@ class SimplifiedPercentileClustering:
         second_val[second_cluster == "k2"] = 2.0
         # If second_cluster is None/NaN, use cluster_val
         second_val[~second_val_mask] = cluster_val[~second_val_mask]
-        
+
         # Real cluster (interpolated): cluster_val + (second_val - cluster_val) * rel_pos
         real_clust = cluster_val + (second_val - cluster_val) * rel_pos
 
@@ -363,9 +350,7 @@ class SimplifiedPercentileClustering:
         if main_plot == "Clusters":
             plot_k0_center = pd.Series(0.0, index=index)
             plot_k1_center = pd.Series(1.0, index=index)
-            plot_k2_center = (
-                pd.Series(2.0, index=index) if self.config.k == 3 else pd.Series(0.0, index=index)
-            )
+            plot_k2_center = pd.Series(2.0, index=index) if self.config.k == 3 else pd.Series(0.0, index=index)
         else:
             # Use centers from the selected feature
             feature_key = {
@@ -381,9 +366,7 @@ class SimplifiedPercentileClustering:
                 centers = centers_dict[feature_key]
                 plot_k0_center = centers["k0"]
                 plot_k1_center = centers["k1"]
-                plot_k2_center = (
-                    centers["k2"] if self.config.k == 3 else pd.Series(0.0, index=index)
-                )
+                plot_k2_center = centers["k2"] if self.config.k == 3 else pd.Series(0.0, index=index)
             else:
                 plot_k0_center = pd.Series(0.0, index=index)
                 plot_k1_center = pd.Series(0.0, index=index)
@@ -412,16 +395,16 @@ def compute_clustering(
 ) -> ClusteringResult:
     """
     Convenience function to compute clustering.
-    
+
     Args:
         high: High price series.
         low: Low price series.
         close: Close price series.
         config: ClusteringConfig instance (optional).
-        
+
     Returns:
         ClusteringResult with all computed values.
-        
+
     Raises:
         ValueError: If input data or config is invalid
     """
@@ -435,4 +418,3 @@ __all__ = [
     "SimplifiedPercentileClustering",
     "compute_clustering",
 ]
-

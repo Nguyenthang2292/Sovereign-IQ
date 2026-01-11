@@ -1,3 +1,13 @@
+
+from collections import deque
+
+import numpy as np
+import pandas as pd
+
+from __future__ import annotations
+
+from __future__ import annotations
+
 """
 Cluster center calculation using percentiles and running mean.
 
@@ -8,13 +18,8 @@ k centers as:
   k=3 -> [avg(low_pct, mean), mean, avg(high_pct, mean)]
 """
 
-from __future__ import annotations
 
-from collections import deque
-from typing import Optional
 
-import numpy as np
-import pandas as pd
 
 
 class ClusterCenters:
@@ -173,4 +178,3 @@ def compute_centers(
 
 
 __all__ = ["ClusterCenters", "compute_centers"]
-

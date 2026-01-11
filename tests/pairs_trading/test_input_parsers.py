@@ -1,11 +1,13 @@
+
+from modules.pairs_trading.cli.input_parsers import (
+
 """
 Tests for input_parsers module.
 """
-import pytest
-from modules.pairs_trading.cli.input_parsers import (
-    standardize_symbol_input,
-    parse_weights,
+
     parse_symbols,
+    parse_weights,
+    standardize_symbol_input,
 )
 
 
@@ -14,19 +16,19 @@ def test_standardize_symbol_input():
     # Basic cases
     assert standardize_symbol_input("BTC/USDT") == "BTC/USDT"
     assert standardize_symbol_input("btc/usdt") == "BTC/USDT"
-    
+
     # Missing quote
     assert standardize_symbol_input("BTC") == "BTC/USDT"
     assert standardize_symbol_input("btc") == "BTC/USDT"
-    
+
     # Suffix style
     assert standardize_symbol_input("BTCUSDT") == "BTC/USDT"
     assert standardize_symbol_input("btcusdt") == "BTC/USDT"
-    
+
     # Edge cases
     assert standardize_symbol_input("") == ""
     assert standardize_symbol_input("  btc  ") == "BTC/USDT"
-    
+
     # Custom quote
     assert standardize_symbol_input("ETH/BTC") == "ETH/BTC"
 
@@ -47,7 +49,7 @@ def test_parse_weights_preset():
     assert weights["1d"] == 0.3
     assert weights["3d"] == 0.4
     assert weights["1w"] == 0.3
-    
+
     # Momentum preset
     weights = parse_weights(None, preset_key="momentum")
     assert weights["1d"] == 0.5
@@ -59,7 +61,7 @@ def test_parse_weights_custom_string():
     """Test parsing custom weights string."""
     weights_str = "1d:0.8, 3d:0.1, 1w:0.1"
     weights = parse_weights(weights_str)
-    
+
     assert weights["1d"] == 0.8
     assert weights["3d"] == 0.1
     assert weights["1w"] == 0.1
@@ -71,7 +73,7 @@ def test_parse_weights_normalization():
     # Sum = 2.0
     weights_str = "1d:1.0, 3d:0.6, 1w:0.4"
     weights = parse_weights(weights_str)
-    
+
     # Should be normalized by dividing by 2.0
     assert weights["1d"] == 0.5
     assert weights["3d"] == 0.3
@@ -97,22 +99,22 @@ def test_parse_symbols():
     assert "ETH" in inputs
     assert "BTC/USDT" in parsed
     assert "ETH/USDT" in parsed
-    
+
     # Space separated
     inputs, parsed = parse_symbols("BTC ETH")
     assert len(inputs) == 2
-    
+
     # Mixed separators
     inputs, parsed = parse_symbols("BTC, ETH; SOL|ADA")
     assert len(inputs) == 4
     assert "SOL" in inputs
     assert "ADA" in inputs
-    
+
     # Empty input
     inputs, parsed = parse_symbols("")
     assert len(inputs) == 0
     assert len(parsed) == 0
-    
+
     # Duplicates
     inputs, parsed = parse_symbols("BTC, BTC, btc")
     assert len(inputs) == 1

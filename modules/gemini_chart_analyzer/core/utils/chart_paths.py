@@ -1,18 +1,20 @@
+
+from pathlib import Path
+
 """
 Chart path utilities for gemini chart analyzer.
 
 Provides functions for determining chart directory paths.
 """
 
-from pathlib import Path
 
 
 def get_charts_dir() -> Path:
     """
     Get the charts directory path relative to module root.
-    
+
     Creates the charts directory if it does not exist.
-    
+
     Returns:
         Path object pointing to the charts directory
     """
@@ -25,9 +27,9 @@ def get_charts_dir() -> Path:
 def get_analysis_results_dir() -> Path:
     """
     Get the analysis results directory path relative to module root.
-    
+
     Creates the analysis results directory if it does not exist.
-    
+
     Returns:
         Path object pointing to the analysis_results directory
     """

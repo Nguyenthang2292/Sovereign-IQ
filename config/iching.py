@@ -1,11 +1,13 @@
+
+from pathlib import Path
+import os
+
 """
 I Ching Configuration.
 
 Configuration constants for I Ching hexagram generation and web automation.
 """
 
-import os
-from pathlib import Path
 
 # Project paths
 # Calculate project root: config/iching.py -> config/ -> project root
@@ -55,4 +57,3 @@ SUBMIT_DELAY = 2.0
 
 # Web automation settings
 ICHING_URL = os.getenv("ICHING_URL", "https://simkinhdich.com/boi-dich/luc-hao")
-

@@ -14,9 +14,7 @@ DEFAULT_BETA_TIMEFRAME = "1h"  # Default timeframe for beta calculation
 
 # Correlation Analysis Configuration
 DEFAULT_CORRELATION_MIN_POINTS = 10  # Minimum data points for correlation analysis
-DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS = (
-    10  # Minimum data points for weighted correlation
-)
+DEFAULT_WEIGHTED_CORRELATION_MIN_POINTS = 10  # Minimum data points for weighted correlation
 
 # Hedge Correlation Thresholds
 HEDGE_CORRELATION_HIGH_THRESHOLD = 0.7  # High correlation threshold (>= 0.7 = excellent for hedging)
@@ -28,4 +26,3 @@ DEFAULT_VAR_CONFIDENCE = 0.95  # Default confidence level for VaR calculation (9
 DEFAULT_VAR_LOOKBACK_DAYS = 60  # Default lookback period for VaR calculation (days)
 DEFAULT_VAR_MIN_HISTORY_DAYS = 20  # Minimum history required for reliable VaR
 DEFAULT_VAR_MIN_PNL_SAMPLES = 10  # Minimum PnL samples required for VaR
-

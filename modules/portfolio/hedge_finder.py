@@ -1,3 +1,12 @@
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from math import ceil
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
+import os
+
+import numpy as np
+import numpy as np
+
 """
 Hedge finder for discovering and analyzing hedge candidates.
 
@@ -6,43 +15,39 @@ analyzing hedge candidates for cryptocurrency portfolios. It uses correlation
 analysis and beta-weighted calculations to recommend optimal hedging strategies.
 """
 
-import os
-from math import ceil
-from typing import List, Optional, Dict, Tuple, Any, Set, TYPE_CHECKING
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import numpy as np
+
 
 if TYPE_CHECKING:
-    from modules.common.models.position import Position
-    from modules.common.core.exchange_manager import ExchangeManager
     from modules.common.core.data_fetcher import DataFetcher
+    from modules.common.core.exchange_manager import ExchangeManager
+    from modules.common.models.position import Position
     from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
     from modules.portfolio.risk_calculator import PortfolioRiskCalculator
 
 try:
-    from modules.common.models.position import Position
-    from modules.common.utils import (
-        normalize_symbol,
-        log_warn,
-        log_error,
-        log_info,
-        log_analysis,
-        log_model,
-        log_success,
-        log_data,
-        log_system,
-    )
-    from modules.common.ui.progress_bar import ProgressBar
-    from modules.common.core.exchange_manager import ExchangeManager
-    from modules.common.core.data_fetcher import DataFetcher
-    from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
-    from modules.portfolio.risk_calculator import PortfolioRiskCalculator
     from config import (
         BENCHMARK_SYMBOL,
+        HEDGE_CORRELATION_DIFF_THRESHOLD,
         HEDGE_CORRELATION_HIGH_THRESHOLD,
         HEDGE_CORRELATION_MEDIUM_THRESHOLD,
-        HEDGE_CORRELATION_DIFF_THRESHOLD,
     )
+    from modules.common.core.data_fetcher import DataFetcher
+    from modules.common.core.exchange_manager import ExchangeManager
+    from modules.common.models.position import Position
+    from modules.common.ui.progress_bar import ProgressBar
+    from modules.common.utils import (
+        log_analysis,
+        log_data,
+        log_error,
+        log_info,
+        log_model,
+        log_success,
+        log_system,
+        log_warn,
+        normalize_symbol,
+    )
+    from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
+    from modules.portfolio.risk_calculator import PortfolioRiskCalculator
 except ImportError:
     Position = None
     normalize_symbol = None
@@ -164,18 +169,12 @@ class HedgeFinder:
         weighted_corr, _ = self.correlation_analyzer.calculate_weighted_correlation_with_new_symbol(
             symbol, verbose=False
         )
-        return_corr, _ = (
-            self.correlation_analyzer.calculate_portfolio_return_correlation(
-                symbol, verbose=False
-            )
-        )
+        return_corr, _ = self.correlation_analyzer.calculate_portfolio_return_correlation(symbol, verbose=False)
 
         if weighted_corr is None and return_corr is None:
             return None
 
-        score_components = [
-            abs(x) for x in [weighted_corr, return_corr] if x is not None
-        ]
+        score_components = [abs(x) for x in [weighted_corr, return_corr] if x is not None]
         if not score_components:
             return None
 
@@ -216,9 +215,7 @@ class HedgeFinder:
         existing_symbols = {normalize_symbol(p.symbol) for p in self.positions} if normalize_symbol else set()
         if normalize_symbol:
             existing_symbols.add(normalize_symbol(self.benchmark_symbol))
-        candidate_symbols = self._list_candidate_symbols(
-            existing_symbols, max_candidates=None
-        )
+        candidate_symbols = self._list_candidate_symbols(existing_symbols, max_candidates=None)
 
         if not candidate_symbols:
             if log_warn:
@@ -237,10 +234,7 @@ class HedgeFinder:
 
         core_count = max(1, int((os.cpu_count() or 1) * 0.8))
         batch_size = ceil(scan_count / core_count) if scan_count else 0
-        batches = [
-            candidate_symbols[i : i + batch_size]
-            for i in range(0, scan_count, batch_size)
-        ] or [[]]
+        batches = [candidate_symbols[i : i + batch_size] for i in range(0, scan_count, batch_size)] or [[]]
         total_batches = len([b for b in batches if b])
         progress_bar = ProgressBar(total_batches or 1, "Batch Progress")
 
@@ -283,10 +277,7 @@ class HedgeFinder:
                     continue
                 if log_info:
                     log_info(f"Batch {batch_id}: best {batch_best['symbol']} (score {batch_best['score']:.4f})")
-                if (
-                    best_candidate is None
-                    or batch_best["score"] > best_candidate["score"]
-                ):
+                if best_candidate is None or batch_best["score"] > best_candidate["score"]:
                     best_candidate = batch_best
                 progress_bar.update()
         if total_batches:
@@ -387,12 +378,8 @@ class HedgeFinder:
                     target_metric = -current_metric
                 else:
                     direction_multiplier = -np.sign(current_metric) * beta_sign
-                    recommended_direction = (
-                        "LONG" if direction_multiplier >= 0 else "SHORT"
-                    )
-                    recommended_size = abs(current_metric) / max(
-                        abs(new_symbol_beta), 1e-6
-                    )
+                    recommended_direction = "LONG" if direction_multiplier >= 0 else "SHORT"
+                    recommended_size = abs(current_metric) / max(abs(new_symbol_beta), 1e-6)
                     if log_analysis:
                         log_analysis(f"Targeting Beta Neutrality using {metric_label}.")
             if not beta_available:
@@ -430,8 +417,8 @@ class HedgeFinder:
             log_analysis("CORRELATION ANALYSIS - COMPARING BOTH METHODS")
             log_analysis("=" * 70)
 
-        weighted_corr, weighted_details = (
-            self.correlation_analyzer.calculate_weighted_correlation_with_new_symbol(new_symbol)
+        weighted_corr, weighted_details = self.correlation_analyzer.calculate_weighted_correlation_with_new_symbol(
+            new_symbol
         )
         portfolio_return_corr, portfolio_return_details = (
             self.correlation_analyzer.calculate_portfolio_return_correlation(new_symbol)
@@ -444,7 +431,7 @@ class HedgeFinder:
 
         if weighted_corr is not None:
             if log_data:
-                log_data(f"1. Weighted Correlation (by Position Size):")
+                log_data("1. Weighted Correlation (by Position Size):")
                 log_data(f"   {new_symbol} vs Portfolio: {weighted_corr:>6.4f}")
 
             if abs(weighted_corr) > HEDGE_CORRELATION_HIGH_THRESHOLD:
@@ -462,9 +449,7 @@ class HedgeFinder:
 
         if portfolio_return_corr is not None:
             samples_info = (
-                portfolio_return_details.get("samples", "N/A")
-                if isinstance(portfolio_return_details, dict)
-                else "N/A"
+                portfolio_return_details.get("samples", "N/A") if isinstance(portfolio_return_details, dict) else "N/A"
             )
             if log_data:
                 log_data("2. Portfolio Return Correlation (includes direction):")
@@ -544,9 +529,7 @@ class HedgeFinder:
         if log_analysis:
             log_analysis("=" * 70)
 
-        final_corr = (
-            weighted_corr if weighted_corr is not None else portfolio_return_corr
-        )
+        final_corr = weighted_corr if weighted_corr is not None else portfolio_return_corr
 
         return (
             recommended_direction,

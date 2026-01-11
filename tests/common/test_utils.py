@@ -1,4 +1,6 @@
+
 from modules.common.utils import format_price, normalize_symbol, timeframe_to_minutes
+
 
 
 def test_normalize_symbol_defaults_to_btc_when_empty():

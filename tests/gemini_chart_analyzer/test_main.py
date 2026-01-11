@@ -1,3 +1,6 @@
+
+from modules.gemini_chart_analyzer.cli.chart_analyzer_main import format_text_to_html
+
 """
 Tests for main.py module, specifically format_text_to_html function.
 
@@ -9,13 +12,11 @@ Tests cover:
 - Edge cases (empty text, special characters)
 """
 
-import pytest
-from modules.gemini_chart_analyzer.cli.chart_analyzer_main import format_text_to_html
 
 
 class TestFormatTextToHtml:
     """Test format_text_to_html function."""
-    
+
     def test_basic_bold(self):
         """Test basic bold markdown conversion."""
         text = "This is **bold** text"
@@ -23,7 +24,7 @@ class TestFormatTextToHtml:
         assert "<strong>bold</strong>" in result
         assert "This is" in result
         assert "text" in result
-    
+
     def test_basic_italic(self):
         """Test basic italic markdown conversion."""
         text = "This is *italic* text"
@@ -31,7 +32,7 @@ class TestFormatTextToHtml:
         assert "<em>italic</em>" in result
         assert "This is" in result
         assert "text" in result
-    
+
     def test_nested_bold_italic(self):
         """Test nested markdown: bold containing italic."""
         text = "This is **bold *italic* bold** text"
@@ -44,7 +45,7 @@ class TestFormatTextToHtml:
         assert "<em>italic</em>" in result
         # The italic should be inside the bold
         assert result.find("<strong>") < result.find("<em>") < result.find("</em>") < result.find("</strong>")
-    
+
     def test_nested_italic_bold(self):
         """Test nested markdown: italic containing bold."""
         # Note: Standard markdown doesn't support nesting bold inside italic
@@ -55,7 +56,7 @@ class TestFormatTextToHtml:
         # Should handle both formatting correctly
         assert "<em>" in result
         assert "<strong>bold</strong>" in result
-    
+
     def test_multiple_bold_and_italic(self):
         """Test multiple bold and italic in same text."""
         text = "**Bold1** and *italic1* and **Bold2** and *italic2*"
@@ -64,7 +65,7 @@ class TestFormatTextToHtml:
         assert result.count("</strong>") == 2
         assert result.count("<em>") == 2
         assert result.count("</em>") == 2
-    
+
     def test_paragraphs(self):
         """Test paragraph handling."""
         text = "First paragraph.\n\nSecond paragraph."
@@ -72,7 +73,7 @@ class TestFormatTextToHtml:
         assert result.count("<p>") >= 2
         assert "First paragraph" in result
         assert "Second paragraph" in result
-    
+
     def test_line_breaks_in_paragraph(self):
         """Test line breaks within paragraphs."""
         text = "Line 1\nLine 2\nLine 3"
@@ -81,19 +82,19 @@ class TestFormatTextToHtml:
         assert "Line 1" in result
         assert "Line 2" in result
         assert "Line 3" in result
-    
+
     def test_empty_text(self):
         """Test empty text handling."""
         text = ""
         result = format_text_to_html(text)
         assert result == "<p></p>"
-    
+
     def test_whitespace_only(self):
         """Test whitespace-only text handling."""
         text = "   \n\n   "
         result = format_text_to_html(text)
         assert result == "<p></p>"
-    
+
     def test_special_characters(self):
         """Test special HTML characters handling."""
         text = "Text with <script>alert('xss')</script> and & symbols"
@@ -108,7 +109,7 @@ class TestFormatTextToHtml:
         # This is acceptable since input comes from Gemini API (trusted source)
         assert "<script>" in result
         assert "</script>" in result
-    
+
     def test_code_blocks(self):
         """Test code block handling."""
         text = "```python\nprint('hello')\n```"
@@ -118,7 +119,7 @@ class TestFormatTextToHtml:
         assert "<pre>" in result
         assert "<code" in result
         assert "print('hello')" in result
-    
+
     def test_mixed_complex_formatting(self):
         """Test complex mixed formatting scenario."""
         text = "**Bold start** with *italic* and **bold *nested italic* bold** end"
@@ -132,7 +133,7 @@ class TestFormatTextToHtml:
         assert result.count("</em>") == 2
         assert "<strong>" in result
         assert "<em>" in result
-    
+
     def test_asterisks_in_text(self):
         """Test that asterisks in text don't break formatting."""
         text = "Price is $100 * 2 = $200"
@@ -147,7 +148,7 @@ class TestFormatTextToHtml:
         assert "$200" in result
         # The asterisk should be present as literal text
         assert "*" in result
-    
+
     def test_placeholder_collision_prevention(self):
         """Test that placeholder-like strings in input don't break conversion."""
         # Test with strings that look like old placeholders
@@ -160,7 +161,7 @@ class TestFormatTextToHtml:
         assert "BOLD_START" in result
         assert "ITALIC_END" in result
         # The markdown library handles this correctly without placeholder collisions
-    
+
     def test_unclosed_markdown_tags(self):
         """Test handling of unclosed markdown tags."""
         # Test unclosed bold tag
@@ -168,18 +169,18 @@ class TestFormatTextToHtml:
         result = format_text_to_html(text)
         # Markdown library should handle gracefully - either ignore or treat as literal
         assert "bold text without closing" in result
-        
+
         # Test unclosed italic tag
         text = "This is *italic text without closing"
         result = format_text_to_html(text)
         assert "italic text without closing" in result
-        
+
         # Test multiple unclosed tags
         text = "**Bold and *italic without closing"
         result = format_text_to_html(text)
         assert "Bold and" in result
         assert "italic without closing" in result
-    
+
     def test_escaped_asterisks(self):
         """Test handling of escaped asterisks in markdown."""
         # Test escaped asterisks (backslash before asterisk)
@@ -189,13 +190,13 @@ class TestFormatTextToHtml:
         assert "*100*" in result
         assert "<strong>" not in result or "*100*" in result
         assert "<em>" not in result or "*100*" in result
-        
+
         # Test mixed escaped and unescaped
         text = "\\*escaped\\* and **not escaped**"
         result = format_text_to_html(text)
         assert "*escaped*" in result
         assert "<strong>not escaped</strong>" in result
-    
+
     def test_markdown_inside_code_blocks(self):
         """Test that markdown syntax inside code blocks is not processed."""
         # Test markdown syntax inside fenced code block
@@ -213,13 +214,13 @@ class TestFormatTextToHtml:
             code_content = result[code_start:code_end]
             # The markdown syntax should be literal, not converted
             assert "**This should not be bold**" in code_content or "This should not be bold" in code_content
-        
+
         # Test inline code with markdown
         text = "Use `**bold**` in code"
         result = format_text_to_html(text)
         assert "<code>" in result
         # The markdown inside inline code should be literal
-    
+
     def test_very_long_text(self):
         """Test handling of very long text input."""
         # Generate a very long text with markdown formatting
@@ -231,14 +232,14 @@ class TestFormatTextToHtml:
         assert "Bold start" in result
         assert "Bold end" in result
         assert "<strong>" in result
-        
+
         # Test very long text with nested formatting
         long_nested = "**Bold " + "text " * 500 + "*italic* " + "more " * 500 + "bold**"
         result = format_text_to_html(long_nested)
         assert result is not None
         assert len(result) > 0
         assert "<strong>" in result
-    
+
     def test_unicode_handling(self):
         """Test handling of Unicode characters in markdown."""
         # Test with various Unicode characters
@@ -249,7 +250,7 @@ class TestFormatTextToHtml:
         assert "tiếng Việt" in result
         assert "日本語" in result
         assert "русский" in result
-        
+
         # Test with emojis
         text = "**Bold with 🚀 emoji** and *italic with 💰 emoji*"
         result = format_text_to_html(text)
@@ -257,14 +258,14 @@ class TestFormatTextToHtml:
         assert "<em>" in result
         assert "🚀" in result
         assert "💰" in result
-        
+
         # Test with special Unicode symbols
         text = "Price: **€100** and *¥50* and **₹75**"
         result = format_text_to_html(text)
         assert "<strong>€100</strong>" in result or "€100" in result
         assert "<em>¥50</em>" in result or "¥50" in result
         assert "₹75" in result
-        
+
         # Test with Unicode in code blocks
         text = "```\nprint('Hello 世界')\nprint('Привет')\n```"
         result = format_text_to_html(text)
@@ -272,5 +273,3 @@ class TestFormatTextToHtml:
         assert "<code" in result
         assert "世界" in result
         assert "Привет" in result
-
-

@@ -1,3 +1,16 @@
+
+from typing import Any, Dict, Optional
+import argparse
+import warnings
+
+from colorama import Fore, Style
+from colorama import init as colorama_init
+
+from __future__ import annotations
+from config import (
+from __future__ import annotations
+from config import (
+
 """
 CLI tiện ích chạy quy trình HMM Signal Combiner trên dữ liệu OHLCV mới nhất.
 
@@ -6,15 +19,9 @@ Kết hợp High-Order HMM và HMM-KAMA để tạo trading signals.
 Tham khảo cách tổ chức của `xgboost_prediction_main.py` và `pairs_trading_main_v2.py`.
 """
 
-from __future__ import annotations
 
-import argparse
-import warnings
-from typing import Dict, Optional
 
-from colorama import Fore, Style, init as colorama_init
 
-from config import (
     DEFAULT_EXCHANGE_STRING,
     DEFAULT_EXCHANGES,
     DEFAULT_LIMIT,
@@ -22,17 +29,17 @@ from config import (
     DEFAULT_SYMBOL,
     DEFAULT_TIMEFRAME,
     HMM_FAST_KAMA_DEFAULT,
+    HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
+    HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
     HMM_SLOW_KAMA_DEFAULT,
     HMM_WINDOW_KAMA_DEFAULT,
     HMM_WINDOW_SIZE_DEFAULT,
-    HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
-    HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
 )
-from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import color_text, normalize_symbol
-from modules.hmm.signals.combiner import combine_signals, Signal
-from modules.hmm.signals.resolution import LONG, HOLD, SHORT
+from modules.hmm.signals.combiner import Signal, combine_signals
+from modules.hmm.signals.resolution import HOLD, LONG, SHORT
 
 warnings.filterwarnings("ignore")
 colorama_init(autoreset=True)
@@ -170,7 +177,7 @@ def _print_summary(
 ) -> None:
     """
     Print summary of HMM signal analysis.
-    
+
     Args:
         symbol: Trading symbol
         exchange_id: Exchange identifier
@@ -187,27 +194,28 @@ def _print_summary(
     # Display individual strategy signals
     signals = result.get("signals", {})
     results = result.get("results", {})
-    
+
     for strategy_name, signal in signals.items():
         strategy_result = results.get(strategy_name)
         if strategy_result:
             prob = strategy_result.probability
             state = strategy_result.state
-            print(f"{strategy_name.capitalize()} HMM Signal: {_signal_to_text(signal)} "
-                  f"(state: {state}, prob: {prob:.3f})")
+            print(
+                f"{strategy_name.capitalize()} HMM Signal: {_signal_to_text(signal)} (state: {state}, prob: {prob:.3f})"
+            )
         else:
             print(f"{strategy_name.capitalize()} HMM Signal: {_signal_to_text(signal)}")
-    
+
     # Display combined signal
     combined_signal = result.get("combined_signal", HOLD)
     confidence = result.get("confidence", 0.0)
     votes = result.get("votes", {LONG: 0, SHORT: 0, HOLD: 0})
-    
+
     # Determine agreement status
     long_votes = votes.get(LONG, 0)
     short_votes = votes.get(SHORT, 0)
     total_votes = sum(votes.values())
-    
+
     if long_votes >= total_votes / 2:
         agreement_status = color_text("✓ MAJORITY LONG", Fore.GREEN, Style.BRIGHT)
     elif short_votes >= total_votes / 2:
@@ -218,13 +226,15 @@ def _print_summary(
         agreement_status = color_text("○ PARTIAL", Fore.CYAN, Style.NORMAL)
     else:
         agreement_status = color_text("○ HOLD", Fore.YELLOW, Style.NORMAL)
-    
-    print(f"Combined Recommendation: {_signal_to_text(combined_signal)} {agreement_status} "
-          f"(confidence: {confidence:.3f}, votes: L:{long_votes}/S:{short_votes}/H:{votes.get(HOLD, 0)})")
-    
+
+    print(
+        f"Combined Recommendation: {_signal_to_text(combined_signal)} {agreement_status} "
+        f"(confidence: {confidence:.3f}, votes: L:{long_votes}/S:{short_votes}/H:{votes.get(HOLD, 0)})"
+    )
+
     if std_targets:
         print(color_text("-" * 60, Fore.MAGENTA, Style.DIM))
-        
+
         # Display targets based on combined signal
         if combined_signal == LONG:
             # Bullish targets (above mean)
@@ -287,9 +297,7 @@ def main() -> None:
     quote = args.quote.upper() if args.quote else DEFAULT_QUOTE
     timeframe = args.timeframe.lower()
     limit = max(50, args.limit or DEFAULT_LIMIT)
-    exchanges = [
-        ex.strip() for ex in args.exchanges.split(",") if ex.strip()
-    ] or DEFAULT_EXCHANGES
+    exchanges = [ex.strip() for ex in args.exchanges.split(",") if ex.strip()] or DEFAULT_EXCHANGES
 
     exchange_manager = ExchangeManager()
     data_fetcher = DataFetcher(exchange_manager)
@@ -358,4 +366,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
