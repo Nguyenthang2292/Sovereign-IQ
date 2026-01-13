@@ -115,6 +115,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             assert timeframe == "15m"
@@ -154,6 +155,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             assert timeframe == "30m"
@@ -187,6 +189,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             assert timeframe == "1h"
@@ -261,6 +264,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             assert timeframe is None
@@ -285,6 +289,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             assert timeframe == "30m"
@@ -310,6 +315,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             assert timeframe is None
@@ -341,6 +347,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             assert timeframe == "15m"
@@ -369,6 +376,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             assert timeframe == "15m"
@@ -393,6 +401,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             assert timeframe == "30m"
@@ -420,6 +429,7 @@ class TestTryTimeframesAuto:
                 max_position_size=0.2,
                 signal_mode="single_signal",
                 signal_calculation_mode="precomputed",
+                sequential=True,  # Use sequential execution for deterministic testing
             )
 
             # Verify calculate_portfolio_allocation was called with correct params

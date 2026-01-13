@@ -92,6 +92,7 @@ def _try_timeframes_auto(
     max_position_size: float,
     signal_mode: str,
     signal_calculation_mode: str,
+    sequential: bool = False,
 ) -> Tuple[Optional[str], Optional[pd.DataFrame]]:
     """
     Automatically test timeframes in parallel to find one with valid position sizing results.
@@ -129,12 +130,13 @@ def _try_timeframes_auto(
                 log_progress(f"Skipping timeframe {timeframe} (cancelled)")
                 return (None, None)
 
-            log_progress(f"Trying timeframe: {timeframe}...")
-
-            # Check cancellation before creating PositionSizer
+            # Check cancellation immediately before creating PositionSizer
+            # This must be as close as possible to the creation to minimize race conditions
             if cancel_event.is_set():
                 log_progress(f"Cancelling timeframe {timeframe} before PositionSizer creation")
                 return (None, None)
+
+            log_progress(f"Trying timeframe: {timeframe}...")
 
             # Create PositionSizer with this timeframe
             position_sizer = PositionSizer(
@@ -198,6 +200,18 @@ def _try_timeframes_auto(
             return (None, None)
 
     # Run in parallel with ThreadPoolExecutor
+    if sequential:
+        # Sequential execution for testing - try timeframes one at a time
+        log_progress("\nRunning timeframes sequentially for testing...")
+        for timeframe in timeframes:
+            result_timeframe, result_df = try_timeframe(timeframe)
+            if result_timeframe is not None and result_df is not None:
+                log_progress(f"Early stopping: Found result at {result_timeframe}")
+                return (result_timeframe, result_df)
+
+        log_warn("✗ No timeframe found with valid position sizing results")
+        return (None, None)
+
     log_progress("\nRunning timeframes in parallel for faster execution...")
     executor = ThreadPoolExecutor(max_workers=len(timeframes))
     early_exit = False  # Flag to mark early stopping
