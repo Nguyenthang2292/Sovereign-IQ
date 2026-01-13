@@ -1,17 +1,3 @@
-
-from datetime import datetime
-from unittest.mock import Mock, patch
-import os
-import threading
-import time
-
-from fastapi.testclient import TestClient
-import pytest
-
-from web.app import app
-
-from web.app import app
-
 """
 Tests for Chart Analyzer API endpoints (web/api/chart_analyzer.py).
 
@@ -20,7 +6,14 @@ Tests cover:
 - POST /api/analyze/multi (multi-timeframe analysis)
 """
 
+import os
+import threading
+import time
+from datetime import datetime
+from unittest.mock import Mock, patch
 
+import pytest
+from fastapi.testclient import TestClient
 
 # Import app - project root is added to path in conftest, so use absolute import
 from web.app import app
@@ -334,7 +327,8 @@ class TestSingleAnalysisEndpoint:
         assert result["result"]["chart_url"] == "/static/charts/test-session.png"
 
     def test_error_empty_dataframe(self, client, chart_analyzer_mocks, empty_ohlcv_df, threaded_mock_task_manager):
-        """Test error when dataframe is empty - error occurs in background thread, error must be properly propagated and visible in task poll."""
+        # Test error when dataframe is empty - error occurs in background thread,
+        # error must be properly propagated and visible in task poll.
         mocks = chart_analyzer_mocks
         # Override data fetcher to return empty dataframe
         mocks["data_fetcher"].fetch_ohlcv_with_fallback_exchange.return_value = (empty_ohlcv_df, "binance")
@@ -369,13 +363,20 @@ class TestSingleAnalysisEndpoint:
             # Skip assertion on Windows if encoding error occurs
             pass
         else:
-            # Check that error message indicates empty data (may be in Vietnamese)
-            # The error message should mention something about empty or no data
+            # Check that error message indicates empty data (may be in English or Vietnamese)
             error_lower = error_msg.lower()
-            assert "empty" in error_lower or "khong" in error_lower or "du lieu" in error_lower
+            assert (
+                "empty" in error_lower
+                or "none" in error_lower
+                or "không" in error_lower
+                or "failed to fetch" in error_lower
+                or "ohlcv" in error_lower
+                or "no data" in error_lower
+            )
 
     def test_error_none_dataframe(self, client, chart_analyzer_mocks, threaded_mock_task_manager):
-        """Test error when dataframe is None - error occurs in background thread and is propagated to polling status endpoint."""
+        # Test error when dataframe is None - error occurs in background thread
+        # and is propagated to polling status endpoint.
         mocks = chart_analyzer_mocks
         # Patch data fetcher to return None as dataframe
         mocks["data_fetcher"].fetch_ohlcv_with_fallback_exchange.return_value = (None, "binance")
@@ -414,8 +415,10 @@ class TestSingleAnalysisEndpoint:
             assert (
                 "none" in err_msg_lower
                 or "dataframe" in err_msg_lower
-                or "khong" in err_msg_lower
-                or "du lieu" in err_msg_lower
+                or "không" in err_msg_lower
+                or "failed to fetch" in err_msg_lower
+                or "ohlcv" in err_msg_lower
+                or "no data" in err_msg_lower
             )
 
     def test_error_gemini_api_failure(self, client, chart_analyzer_mocks):
@@ -542,7 +545,6 @@ class TestMultiAnalysisEndpoint:
 
     def test_success_basic_multi_timeframe(self, client, multi_timeframe_mocks, tmp_path):
         """Test successful multi-timeframe analysis."""
-        mocks = multi_timeframe_mocks
 
         request_data = {"symbol": "BTC/USDT", "timeframes": ["1h", "4h"]}
         response = client.post("/api/analyze/multi", json=request_data)

@@ -1,4 +1,3 @@
-
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -6,8 +5,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
-from modules.xgboost.model import ClassDiversityError
 from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
 from modules.xgboost.model import ClassDiversityError
 
@@ -19,9 +16,6 @@ Tests cover:
 - Handling ClassDiversityError exceptions from train_and_predict
 - Handling general exceptions for other errors
 """
-
-
-
 
 
 @pytest.fixture

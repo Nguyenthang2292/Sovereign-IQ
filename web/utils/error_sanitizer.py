@@ -1,9 +1,3 @@
-
-from typing import Optional, Union
-import re
-import time
-import uuid
-
 """
 Error sanitization utilities for safe error message display.
 
@@ -11,6 +5,10 @@ Sanitizes error messages to prevent exposing sensitive information
 like file paths, stack traces, or internal details to users.
 """
 
+import re
+import time
+import uuid
+from typing import Optional, Union
 
 # Common error type mappings to user-friendly messages
 ERROR_MESSAGE_MAP = {

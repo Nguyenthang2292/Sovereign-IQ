@@ -1,19 +1,33 @@
+"""
+Command line interface for training, evaluating, and running LSTM-based models
+for time series prediction, such as cryptocurrency price forecasting.
 
-from typing import Dict, List, Optional, Tuple
+This module provides configurable options for model architectures (including
+CNN and attention mechanisms) and data sources, and orchestrates
+end-to-end workflows for data fetching, preprocessing, training, evaluation,
+and real-time inference. Designed for extensibility and integration within a
+modular forecasting system.
+
+Typical usage:
+    python main.py [OPTIONS] [COMMANDS]
+
+Key Components:
+    - ModelConfiguration: Class defining LSTM or hybrid model options.
+    - Data loading utilities: Functions to fetch and validate time series data.
+    - Trainer (LSTMTrainer): Handles model training and evaluation routines.
+    - System tools: GPU management, logging, and error handling utilities.
+"""
+
 import inspect
 import time
 import traceback
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import torch
 
 from config import (
-
-from config import (
-
-
-
     DEFAULT_CRYPTO_SYMBOLS_FOR_TRAINING_DL,
     DEFAULT_SYMBOL,
     DEFAULT_TIMEFRAME,

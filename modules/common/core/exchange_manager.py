@@ -1,20 +1,16 @@
-
-from contextlib import contextmanager
-from typing import Dict, Optional
-import logging
-import os
-import threading
-import time
-
-import ccxt
-import ccxt
-
 """
 Exchange manager for handling exchange connections and API calls.
 Refactored: Separated into AuthenticatedExchangeManager and PublicExchangeManager.
 """
 
+import logging
+import os
+import threading
+import time
+from contextlib import contextmanager
+from typing import Dict, Optional
 
+import ccxt
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +21,12 @@ try:
     from config import (
         DEFAULT_CONTRACT_TYPE,
         DEFAULT_EXCHANGE_STRING,
-        DEFAULT_EXCHANGES,
         DEFAULT_REQUEST_PAUSE,
     )
-    from config.config_api import BINANCE_API_KEY, BINANCE_API_SECRET
+    from config.config_api import (
+        get_binance_api_key,
+        get_binance_api_secret,
+    )
 except ImportError:
     DEFAULT_EXCHANGE_STRING = "binance,kraken,kucoin,gate,okx,bybit,mexc,huobi"
     DEFAULT_REQUEST_PAUSE = 0.2
@@ -43,8 +41,13 @@ except ImportError:
         "mexc",
         "huobi",
     ]
-    BINANCE_API_KEY = None
-    BINANCE_API_SECRET = None
+
+    # Fallback getter functions if config_api is not available
+    def get_binance_api_key():
+        return None
+
+    def get_binance_api_secret():
+        return None
 
 
 class ExchangeWrapper:
@@ -130,8 +133,9 @@ class AuthenticatedExchangeManager:
             contract_type: Contract type ('spot', 'margin', 'future'). Defaults to DEFAULT_CONTRACT_TYPE
         """
         # Store default credentials for Binance (backward compatibility)
-        self.default_api_key = api_key or os.getenv("BINANCE_API_KEY") or BINANCE_API_KEY
-        self.default_api_secret = api_secret or os.getenv("BINANCE_API_SECRET") or BINANCE_API_SECRET
+        # Use thread-safe getter functions for API keys
+        self.default_api_key = api_key or os.getenv("BINANCE_API_KEY") or get_binance_api_key()
+        self.default_api_secret = api_secret or os.getenv("BINANCE_API_SECRET") or get_binance_api_secret()
         self.testnet = testnet
         self.contract_type = contract_type or os.getenv("DEFAULT_CONTRACT_TYPE", DEFAULT_CONTRACT_TYPE)
 
@@ -398,7 +402,8 @@ class AuthenticatedExchangeManager:
             if cleared_count > 0:
                 if max_age_hours is not None:
                     logger.info(
-                        f"Cleaned up {cleared_count} unused authenticated exchange connections (older than {max_age_hours} hours)"
+                        f"Cleaned up {cleared_count} unused authenticated "
+                        f"exchange connections (older than {max_age_hours} hours)"
                     )
                 else:
                     logger.info(f"Cleaned up {cleared_count} unused authenticated exchange connections")
@@ -959,8 +964,9 @@ class ExchangeManager:
         self.public = PublicExchangeManager()
 
         # Store credentials for backward compatibility
-        self.api_key = api_key or os.getenv("BINANCE_API_KEY") or BINANCE_API_KEY
-        self.api_secret = api_secret or os.getenv("BINANCE_API_SECRET") or BINANCE_API_SECRET
+        # Use thread-safe getter functions for API keys
+        self.api_key = api_key or os.getenv("BINANCE_API_KEY") or get_binance_api_key()
+        self.api_secret = api_secret or os.getenv("BINANCE_API_SECRET") or get_binance_api_secret()
         self.testnet = testnet
 
     def normalize_symbol(self, market_symbol: str) -> str:

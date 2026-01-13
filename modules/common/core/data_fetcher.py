@@ -1,19 +1,19 @@
+"""
+This module provides the DataFetcher class, which is responsible for fetching and caching market data
+(prices, OHLCV) from cryptocurrency exchanges via the ExchangeManager interface. It handles efficient
+price lookups, manages shutdown signals for clean operation, and supports real-time data acquisition
+such as current prices and historical candles. It utilizes logging for detailed status reporting,
+and is designed to be robust and extensible for multi-symbol and multi-exchange scenarios.
+"""
 
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
 from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.ui.logging import (
-from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.ui.logging import (
-
-"""
-Data fetcher for retrieving market data from exchanges.
-"""
-
-
-
+from modules.common.ui.progress_bar import ProgressBar
+from modules.common.utils import (
+    dataframe_to_close_series,
     log_data,
     log_debug,
     log_error,
@@ -21,10 +21,9 @@ Data fetcher for retrieving market data from exchanges.
     log_info,
     log_success,
     log_warn,
+    normalize_symbol,
+    timeframe_to_minutes,
 )
-from modules.common.ui.progress_bar import ProgressBar
-from modules.common.utils.data import dataframe_to_close_series
-from modules.common.utils.domain import normalize_symbol, timeframe_to_minutes
 
 
 class DataFetcher:

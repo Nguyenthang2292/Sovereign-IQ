@@ -1,17 +1,13 @@
-
-import math
-
-import matplotlib
-import pandas as pd
-import pandas as pd
-
 """
 Batch Chart Generator for creating composite images of multiple charts.
 
 Groups 100 simple charts into a single batch image (10x10 grid).
 """
 
+import math
 
+import matplotlib
+import pandas as pd
 
 # Use non-interactive backend to avoid GUI overhead and memory leaks
 matplotlib.use("Agg")  # Must be set before importing pyplot
@@ -117,7 +113,7 @@ class ChartBatchGenerator:
         """
 
         # Calculate approximate square root
-        sqrt_val = math.sqrt(charts_per_batch)
+        math.sqrt(charts_per_batch)
 
         # Find factors that multiply to exactly charts_per_batch
         # Optimize by iterating only up to sqrt(charts_per_batch) - O(√n) instead of O(n)

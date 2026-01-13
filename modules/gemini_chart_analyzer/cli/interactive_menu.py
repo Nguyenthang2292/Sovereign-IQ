@@ -1,16 +1,3 @@
-
-from typing import Optional, Tuple
-import argparse
-import copy
-import sys
-
-from colorama import Fore, Style
-
-from modules.common.ui.formatting import prompt_user_input_with_backspace
-from modules.common.utils import (
-from modules.common.ui.formatting import prompt_user_input_with_backspace
-from modules.common.utils import (
-
 """
 Interactive menu for Gemini Chart Analyzer CLI.
 
@@ -18,8 +5,15 @@ This module provides interactive configuration menu for chart analysis
 with Google Gemini AI, following the pattern from other modules.
 """
 
+import argparse
+import copy
+import sys
+from typing import Optional, Tuple
 
+from colorama import Fore, Style
 
+from modules.common.ui.formatting import prompt_user_input_with_backspace
+from modules.common.utils import (
     color_text,
     normalize_timeframe,
     prompt_user_input,
@@ -76,16 +70,15 @@ def _display_main_menu(config):
         bb_val = f"period={INDICATOR_DEFAULTS['BB']['period']}"
 
     prompt_type_val = _format_current_value(getattr(config, "prompt_type", "detailed"))
-    custom_prompt_val = _format_current_value(getattr(config, "custom_prompt", None))
+    _format_current_value(getattr(config, "custom_prompt", None))
 
     if timeframes_val and timeframes_val != "not set":
         tf_display = f"{symbol_val} / Multi-TF: {timeframes_val}"
     else:
         tf_display = f"{symbol_val} / {timeframe_val}"
     print(f"  1. Symbol & Timeframe [{color_text(tf_display, Fore.GREEN)}]")
-    print(
-        f"  2. Indicators Configuration [{color_text(f'MA={ma_val}, RSI={rsi_val}, MACD={macd_val}, BB={bb_val}', Fore.GREEN)}]"
-    )
+    ind_config = f"MA={ma_val}, RSI={rsi_val}, MACD={macd_val}, BB={bb_val}"
+    print(f"  2. Indicators Configuration [{color_text(ind_config, Fore.GREEN)}]")
     print(f"  3. Gemini Prompt Configuration [{color_text(f'{prompt_type_val}', Fore.GREEN)}]")
     print("  4. Review and Confirm")
     print("  5. Exit")
@@ -489,9 +482,10 @@ def _configure_prompt(config):
     current_prompt_type = getattr(config, "prompt_type", "detailed")
     current_custom = getattr(config, "custom_prompt", None)
 
+    default_prompt_val = "1" if current_prompt_type == "detailed" else "2" if current_prompt_type == "simple" else "3"
     choice_input, action = _prompt_with_back(
-        f"Select prompt type (1/2/3) [{('1' if current_prompt_type == 'detailed' else '2' if current_prompt_type == 'simple' else '3')}]: ",
-        default="1" if current_prompt_type == "detailed" else "2" if current_prompt_type == "simple" else "3",
+        f"Select prompt type (1/2/3) [{default_prompt_val}]: ",
+        default=default_prompt_val,
     )
     if action == "main":
         return ("main", False)

@@ -1,20 +1,14 @@
-
-from pathlib import Path
 import json
 import tempfile
+from pathlib import Path
 
 import pandas as pd
-
-from modules.position_sizing.utils.data_loader import (
-
-from modules.position_sizing.utils.data_loader import (
 
 """
 Tests for Data Loader.
 """
 
-
-
+from modules.position_sizing.utils.data_loader import (
     load_symbols_from_dataframe,
     load_symbols_from_file,
     validate_symbols,

@@ -1,15 +1,11 @@
+"""
+Tests for regime_following strategy.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.simplified_percentile_clustering.config import (
-from modules.simplified_percentile_clustering.config import (
-
-"""
-Tests for regime_following strategy.
-"""
-
-
     RegimeFollowingConfig,
 )
 from modules.simplified_percentile_clustering.core.clustering import (

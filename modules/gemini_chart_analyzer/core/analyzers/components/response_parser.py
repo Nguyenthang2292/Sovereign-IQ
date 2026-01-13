@@ -1,10 +1,8 @@
-
-from dataclasses import dataclass
-from typing import Optional
-import re
-
 """Helpers for parsing Gemini responses into structured signals."""
 
+import re
+from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -23,26 +21,48 @@ def parse_trading_signal(response_text: str) -> TradingSignal:
     signal = TradingSignal()
     text_lower = response_text.lower()
 
-    if "long" in text_lower or "mua" in text_lower or "tăng" in text_lower:
-        signal.direction = "LONG"
-    elif "short" in text_lower or "bán" in text_lower or "giảm" in text_lower:
-        signal.direction = "SHORT"
-    else:
-        signal.direction = "NEUTRAL"
+    # Check Vietnamese patterns separately to avoid encoding issues
+    vietnamese_patterns = {
+        "tang": r"t\u0103ng",  # Tang
+        "giam": r"gi\u1ea3m",  # Giam
+        "mua": r"mua",  # Mua
+        "ban": r"b\u00e1n",  # Ban
+    }
+
+    for vi_key, pattern in vietnamese_patterns.items():
+        match = re.search(pattern, response_text, re.IGNORECASE)
+        if match:
+            if vi_key in ["tang", "mua"]:
+                signal.direction = "LONG"
+                break
+            elif vi_key in ["giam", "ban"]:
+                signal.direction = "SHORT"
+                break
+
+    if signal.direction == "":  # Still NEUTRAL, check English
+        if "long" in text_lower:
+            signal.direction = "LONG"
+        elif "short" in text_lower:
+            signal.direction = "SHORT"
+        else:
+            signal.direction = "NEUTRAL"
 
     price_patterns = {
-        "entry": [r"(?:entry|giá vào)[:\s]*([0-9]+\.?[0-9]*)", r"(?:into|at)[:\s]*([0-9]+\.?[0-9]*)"],
+        "entry_price": [
+            r"entry:\s*([0-9]+\.?[0-9]*)",
+            r"(?:into|at):\s*([0-9]+\.?[0-9]*)",
+        ],
         "stop_loss": [
-            r"(?:stop\s*loss|sl|cắt\s*lỗ)[:\s]*([0-9]+\.?[0-9]*)",
-            r"sl[:\s]*([0-9]+\.?[0-9]*)",
+            r"(?:stop\s*loss|sl):\s*([0-9]+\.?[0-9]*)",
+            r"sl:\s*([0-9]+\.?[0-9]*)",
         ],
         "take_profit_1": [
-            r"(?:take\s*profit|tp|chốt\s*lời)[:\s]*1?[:\s]*([0-9]+\.?[0-9]*)",
-            r"tp1?[:\s]*([0-9]+\.?[0-9]*)",
+            r"(?:take\s*profit|tp)\s*1?:\s*([0-9]+\.?[0-9]*)",
+            r"tp1?\s*([0-9]+\.?[0-9]*)",
         ],
         "take_profit_2": [
-            r"(?:take\s*profit|tp|chốt\s*lời)[:\s]*2?[:\s]*([0-9]+\.?[0-9]*)",
-            r"tp2?[:\s]*([0-9]+\.?[0-9]*)",
+            r"(?:take\s*profit|tp)\s*2?:\s*([0-9]+\.?[0-9]*)",
+            r"tp2?\s*([0-9]+\.?[0-9]*)",
         ],
     }
 
@@ -57,8 +77,8 @@ def parse_trading_signal(response_text: str) -> TradingSignal:
                     pass
 
     confidence_patterns = [
-        r"(?:confidence|độ\s*tin\s*cậy)[:\s]*(high|medium|low|cao|trung bình|thấp)",
-        r"(?:probability|xác\s*suất)[:\s]*([0-9]+%)",
+        r"(?:confidence):\s*(high|medium|low|cao|trung bình|thấp)",
+        r"(?:probability):\s*([0-9]+%)",
     ]
 
     for pattern in confidence_patterns:

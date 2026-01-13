@@ -1,12 +1,23 @@
+"""
+Unit tests for the Exchange Manager module.
 
-from unittest.mock import MagicMock
-from unittest.mock import MagicMock as MockModule
+This test suite covers functionality such as:
+- Caching and management of exchange instances in public and authenticated managers
+- Basic exchange wrapper operations and dummy exchange tests
+- Integration mocking for external dependencies (e.g., ccxt, pandas_ta)
+- Mocking and monkeypatching techniques for reliable isolation of tests
+
+The tests here are written using pytest and unittest.mock, and are designed to facilitate development
+and maintenance of exchange-related features.
+"""
+
 import sys
 import threading
 import time
+from unittest.mock import MagicMock
+from unittest.mock import MagicMock as MockModule
 
 import ccxt
-import pytest
 import pytest
 
 # Mock pandas_ta before importing to avoid dependency issues
@@ -216,7 +227,7 @@ class TestAuthenticatedExchangeManagerReferenceCounting:
         """Test that connect_to_exchange_with_credentials increments refcount."""
         manager = AuthenticatedExchangeManager(api_key="test_key", api_secret="test_secret")
 
-        exchange = manager.connect_to_exchange_with_credentials("binance")
+        manager.connect_to_exchange_with_credentials("binance")
 
         cache_key = "binance_False_future"
         assert cache_key in manager._authenticated_exchanges
@@ -241,7 +252,7 @@ class TestAuthenticatedExchangeManagerReferenceCounting:
         """Test that release_exchange decrements refcount."""
         manager = AuthenticatedExchangeManager(api_key="test_key", api_secret="test_secret")
 
-        exchange = manager.connect_to_exchange_with_credentials("binance")
+        manager.connect_to_exchange_with_credentials("binance")
         manager.connect_to_exchange_with_credentials("binance")  # Increment again
 
         cache_key = "binance_False_future"
@@ -268,7 +279,7 @@ class TestAuthenticatedExchangeManagerReferenceCounting:
 
         cache_key = "binance_False_future"
 
-        with manager.exchange_context("binance") as exchange:
+        with manager.exchange_context("binance"):
             wrapper = manager._authenticated_exchanges[cache_key]
             assert wrapper.get_refcount() == 1
             assert wrapper.is_in_use()
@@ -285,7 +296,7 @@ class TestAuthenticatedExchangeManagerReferenceCounting:
         cache_key = "binance_False_future"
 
         with pytest.raises(ValueError):
-            with manager.exchange_context("binance") as exchange:
+            with manager.exchange_context("binance"):
                 wrapper = manager._authenticated_exchanges[cache_key]
                 assert wrapper.get_refcount() == 1
                 raise ValueError("Test exception")
@@ -652,7 +663,7 @@ class TestThreadSafety:
         manager = AuthenticatedExchangeManager(api_key="test_key", api_secret="test_secret")
 
         # Create initial exchange
-        exchange = manager.connect_to_exchange_with_credentials("binance")
+        manager.connect_to_exchange_with_credentials("binance")
         manager.release_exchange("binance")  # Release to make it unused
 
         cleanup_called = []

@@ -1,20 +1,16 @@
-
-from contextlib import contextmanager
-from datetime import datetime
-import logging
-import sys
-import threading
-
-from .log_manager import get_log_manager
-from modules.common.ui.logging import log_debug, log_error
-from modules.common.ui.logging import log_debug, log_error
-
 """
 CLI Logger for capturing stdout/stderr and Python logging output to log files.
 """
 
+import logging
+import sys
+import threading
+from contextlib import contextmanager
+from datetime import datetime
 
+from modules.common.ui.logging import log_debug, log_error
 
+from .log_manager import get_log_manager
 
 # Note: logging module is still needed for intercepting Python logging
 logger = logging.getLogger(__name__)

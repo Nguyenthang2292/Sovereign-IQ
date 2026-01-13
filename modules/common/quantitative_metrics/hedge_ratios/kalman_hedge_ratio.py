@@ -1,10 +1,3 @@
-
-from typing import Optional
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Kalman filter hedge ratio calculation for quantitative analysis.
 
@@ -27,7 +20,10 @@ Edge Cases Handled:
 - Missing pykalman dependency
 """
 
+from typing import Optional
 
+import numpy as np
+import pandas as pd
 
 try:
     from config import (

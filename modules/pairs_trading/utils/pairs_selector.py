@@ -1,9 +1,3 @@
-
-from typing import List, Optional
-
-import pandas as pd
-import pandas as pd
-
 """
 Pair selection utilities for pairs trading analysis.
 
@@ -11,7 +5,9 @@ This module provides functions for selecting and filtering trading pairs
 based on various criteria such as uniqueness, target symbols, and scores.
 """
 
+from typing import List, Optional
 
+import pandas as pd
 
 
 def select_top_unique_pairs(pairs_df: pd.DataFrame, target_pairs: int) -> pd.DataFrame:

@@ -1,14 +1,3 @@
-
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import AsyncMock, Mock, patch, MagicMock, MagicMock as PyMock
-import asyncio
-import time
-import unittest
-
-import pandas as pd
-import pandas as pd
-
 """
 Unit tests for ForexDataFetcher module.
 
@@ -21,11 +10,17 @@ Tests cover:
 - Async methods
 """
 
+import time
+import unittest
+from pathlib import Path
+from unittest.mock import Mock, patch
 
+import pandas as pd
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
 import sys
+
 sys.path.insert(0, str(project_root))
 
 from modules.common.core.forex_data_fetcher import ForexDataFetcher
@@ -36,7 +31,7 @@ class TestForexDataFetcher(unittest.TestCase):
 
     def test_init_without_credentials(self):
         """Test initialization without hardcoded credentials."""
-        with patch.dict('os.environ', {}, clear=True):
+        with patch.dict("os.environ", {}, clear=True):
             fetcher = ForexDataFetcher()
             self.assertIsNotNone(fetcher)
             self.assertEqual(fetcher.request_pause, 1.0)
@@ -104,7 +99,7 @@ class TestForexDataFetcher(unittest.TestCase):
         # First call should not wait
         start = time.time()
         fetcher._throttled_call(mock_func)
-        elapsed1 = time.time() - start
+        time.time() - start
 
         # Second call should wait at least request_pause
         start = time.time()
@@ -190,7 +185,7 @@ class TestForexDataFetcherAsync(unittest.IsolatedAsyncioTestCase):
         """Test async fetch with successful response (requires tvDatafeed installed)."""
         # Skip test if tvDatafeed is not available
         try:
-            from tvDatafeed import Interval
+            import tvDatafeed  # noqa: F401
         except ImportError:
             self.skipTest("tvDatafeed not installed - skipping async success test")
 

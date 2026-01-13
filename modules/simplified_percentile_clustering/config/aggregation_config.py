@@ -1,10 +1,3 @@
-
-from dataclasses import dataclass
-from typing import Dict, Literal, Optional
-
-from __future__ import annotations
-from __future__ import annotations
-
 """
 Configuration for SPC Vote Aggregation.
 
@@ -12,7 +5,10 @@ This module contains the configuration class for aggregating votes from multiple
 SPC strategies into a single vote, similar to Range Oscillator's combined strategy approach.
 """
 
+from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Dict, Literal, Optional
 
 
 @dataclass

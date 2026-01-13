@@ -1,18 +1,14 @@
-
-from typing import List
-import os
-import re
-
-from config.iching import (
-from PIL import Image, ImageDraw
-from PIL import Image, ImageDraw
-
 """
 I Ching hexagram image generation.
 """
 
+import os
+import re
+from typing import List
 
+from PIL import Image, ImageDraw
 
+from config.iching import (
     IMAGE_HEIGHT,
     IMAGE_WIDTH,
     IMAGES_DIR,

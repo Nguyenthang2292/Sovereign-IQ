@@ -1,12 +1,3 @@
-
-from typing import Any, Dict, Optional
-
-from scipy import stats
-
-from config.position_sizing import (
-
-from config.position_sizing import (
-
 """
 Bayesian Kelly Criterion Calculator.
 
@@ -14,8 +5,11 @@ This module implements Bayesian Kelly Criterion for position sizing,
 combining historical performance with confidence intervals.
 """
 
+from typing import Any, Dict, Optional
 
+from scipy import stats
 
+from config.position_sizing import (
     DEFAULT_CONFIDENCE_LEVEL,
     DEFAULT_FRACTIONAL_KELLY,
     DEFAULT_MIN_TRADES,
@@ -157,7 +151,8 @@ class BayesianKellyCalculator:
             # Additional safety check: if Kelly is negative, return 0
             if kelly_fraction < 0:
                 log_warn(
-                    f"Negative Kelly fraction calculated ({kelly_fraction:.4f}). Strategy is not profitable (p*b-q={p * b - q:.4f} < 0). Returning 0.0"
+                    f"Negative Kelly fraction calculated ({kelly_fraction:.4f}). "
+                    f"Strategy is not profitable (p*b-q={p * b - q:.4f} < 0). Returning 0.0"
                 )
                 return 0.0
 

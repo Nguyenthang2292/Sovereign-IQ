@@ -1,10 +1,3 @@
-
-from pathlib import Path
-from typing import List
-import argparse
-import json
-import sys
-
 """
 Pre-filter worker module for running VotingAnalyzer in subprocess.
 
@@ -12,6 +5,11 @@ This module provides a function that can be run in a separate process
 to avoid stdin issues on Windows when running VotingAnalyzer.
 """
 
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import List
 
 # Add project root to sys.path
 # File is at: modules/gemini_chart_analyzer/core/prefilter_worker.py

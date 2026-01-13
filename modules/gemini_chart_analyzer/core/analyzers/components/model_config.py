@@ -1,8 +1,6 @@
-
-from enum import Enum
-
 """Gemini model configuration helpers."""
 
+from enum import Enum
 
 
 class GeminiModelType(Enum):

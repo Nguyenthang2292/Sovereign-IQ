@@ -1,11 +1,3 @@
-
-from pathlib import Path
-from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Tuple, Union
-import json
-import pickle
-import sys
-
 """
 Temporal Fusion Transformer (TFT) Model Configuration & Training.
 
@@ -15,6 +7,12 @@ This module implements 3 phases:
 - Phase 3: Hybrid LSTM + TFT Architecture (Advanced)
 """
 
+import json
+import pickle
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
     import pytorch_lightning as pl

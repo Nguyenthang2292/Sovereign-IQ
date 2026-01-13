@@ -1,4 +1,3 @@
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -7,13 +6,10 @@ import torch
 from config.lstm import GPU_MODEL_CONFIG
 from modules.lstm.core.threshold_optimizer import GridSearchThresholdOptimizer
 from modules.lstm.models.unified_trainer import LSTMTrainer
-from modules.lstm.models.unified_trainer import LSTMTrainer
 
 """
 Tests for unified LSTM trainer.
 """
-
-
 
 
 class TestLSTMTrainer:

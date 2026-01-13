@@ -1,13 +1,3 @@
-
-from argparse import Namespace
-from pathlib import Path
-from typing import Tuple
-import sys
-import warnings
-
-import pandas as pd
-import pandas as pd
-
 """
 Adaptive Trend Classification (ATC) Main Program
 
@@ -17,7 +7,13 @@ Analyzes futures pairs on Binance using Adaptive Trend Classification:
 - Displays trend signals and analysis
 """
 
+import sys
+import warnings
+from argparse import Namespace
+from pathlib import Path
+from typing import Tuple
 
+import pandas as pd
 
 # Add project root to sys.path to ensure modules can be imported
 # This is needed when running the file directly from subdirectories
@@ -46,6 +42,7 @@ from modules.adaptive_trend.cli import (
     prompt_interactive_mode,
 )
 from modules.adaptive_trend.cli.display import display_atc_signals
+from modules.adaptive_trend.cli.interactive_prompts import UserExitRequested
 from modules.adaptive_trend.core.analyzer import analyze_symbol
 from modules.adaptive_trend.core.scanner import scan_all_symbols
 from modules.adaptive_trend.utils.config import create_atc_config_from_dict
@@ -58,6 +55,7 @@ from modules.common.utils import (
     log_data,
     log_error,
     log_progress,
+    log_warn,
     normalize_symbol,
     prompt_user_input,
 )
@@ -102,18 +100,26 @@ class ATCAnalyzer:
         if self.args.auto:
             self.mode = "auto"
         elif not self.args.no_menu:
-            menu_result = prompt_interactive_mode(default_timeframe=self.args.timeframe)
-            self.mode = menu_result.get("mode", "manual")
-            # Use timeframe from menu if selected
-            if "timeframe" in menu_result:
-                self.selected_timeframe = menu_result["timeframe"]
-
-            # If user only selected timeframe, show menu again
-            if self.mode is None:
-                menu_result = prompt_interactive_mode(default_timeframe=self.selected_timeframe)
+            try:
+                menu_result = prompt_interactive_mode(default_timeframe=self.args.timeframe)
                 self.mode = menu_result.get("mode", "manual")
+                # Use timeframe from menu if selected
                 if "timeframe" in menu_result:
                     self.selected_timeframe = menu_result["timeframe"]
+
+                # If user only selected timeframe, show menu again
+                if self.mode is None:
+                    try:
+                        menu_result = prompt_interactive_mode(default_timeframe=self.selected_timeframe)
+                        self.mode = menu_result.get("mode", "manual")
+                        if "timeframe" in menu_result:
+                            self.selected_timeframe = menu_result["timeframe"]
+                    except UserExitRequested:
+                        log_warn("Exiting by user request.")
+                        sys.exit(0)
+            except UserExitRequested:
+                log_warn("Exiting by user request.")
+                sys.exit(0)
 
         return self.mode, self.selected_timeframe
 
@@ -149,7 +155,9 @@ class ATCAnalyzer:
             log_data(f"  Limit: {self.args.limit} candles")
             log_data(f"  Robustness: {self.args.robustness}")
             log_data(
-                f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, WMA={self.args.wma_len}, DEMA={self.args.dema_len}, LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
+                f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, "
+                f"WMA={self.args.wma_len}, DEMA={self.args.dema_len}, "
+                f"LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
             )
             log_data(f"  Lambda: {self.args.lambda_param}, Decay: {self.args.decay}, Cutout: {self.args.cutout}")
             log_data(f"  Min Signal: {self.args.min_signal}")
@@ -226,7 +234,9 @@ class ATCAnalyzer:
             log_data(f"  Limit: {self.args.limit} candles")
             log_data(f"  Robustness: {self.args.robustness}")
             log_data(
-                f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, WMA={self.args.wma_len}, DEMA={self.args.dema_len}, LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
+                f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, "
+                f"WMA={self.args.wma_len}, DEMA={self.args.dema_len}, "
+                f"LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
             )
             log_data(f"  Lambda: {self.args.lambda_param}, Decay: {self.args.decay}, Cutout: {self.args.cutout}")
 

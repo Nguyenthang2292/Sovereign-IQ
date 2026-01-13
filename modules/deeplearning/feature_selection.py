@@ -1,15 +1,3 @@
-
-from pathlib import Path
-from typing import Dict, List, Optional
-import json
-
-from colorama import Fore
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.feature_selection import (
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Feature Selection & Engineering Module for Deep Learning Pipeline.
 
@@ -20,7 +8,15 @@ This module provides comprehensive feature selection including:
 - Feature filtering to avoid "Garbage In, Garbage Out"
 """
 
+import json
+from pathlib import Path
+from typing import Dict, List, Optional
 
+import numpy as np
+import pandas as pd
+from colorama import Fore
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.feature_selection import (
     SelectKBest,
     f_classif,
     f_regression,

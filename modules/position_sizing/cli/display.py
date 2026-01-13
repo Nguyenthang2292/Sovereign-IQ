@@ -1,17 +1,13 @@
-
-from colorama import Fore, Style
-import pandas as pd
-
-from modules.common.utils import (
-from modules.common.utils import (
-
 """
 Display utilities for position sizing CLI.
 
 This module provides formatted display functions for position sizing results.
 """
 
+import pandas as pd
+from colorama import Fore, Style
 
+from modules.common.utils import (
     color_text,
     format_price,
 )
@@ -205,7 +201,6 @@ def display_trades_table(symbol: str, trades: list) -> None:
                     exit_time = str(exit_time)
 
                 # Determine PnL color
-                pnl_color = Fore.GREEN if pnl > 0 else Fore.RED if pnl < 0 else Fore.WHITE
                 pnl_sign = "+" if pnl > 0 else ""
 
                 row_idx = len(trades_rows)  # Index in trades_rows (before append)

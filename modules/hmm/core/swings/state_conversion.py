@@ -1,9 +1,6 @@
-
 from typing import List
 
 import pandas as pd
-
-from modules.common.utils import log_warn
 
 from modules.common.utils import log_warn
 
@@ -12,9 +9,6 @@ HMM-Swings State Conversion.
 
 This module handles conversion from swing points to market states.
 """
-
-
-
 
 
 def convert_swing_to_state(
@@ -54,7 +48,7 @@ def convert_swing_to_state(
         """
         Strict mode: Match swing highs and lows by timestamp proximity,
         then compare consecutive matched pairs to determine state transitions.
-        
+
         This ensures we compare swings that actually occurred close in time,
         rather than just using array indices which can be misaligned.
         """

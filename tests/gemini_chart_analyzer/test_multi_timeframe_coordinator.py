@@ -1,15 +1,3 @@
-
-from unittest.mock import Mock
-
-import numpy as np
-import pandas as pd
-import pytest
-
-from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
-from modules.gemini_chart_analyzer.core.analyzers.multi_timeframe_coordinator import MultiTimeframeCoordinator
-from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
-from modules.gemini_chart_analyzer.core.analyzers.multi_timeframe_coordinator import MultiTimeframeCoordinator
-
 """
 Tests for MultiTimeframeCoordinator class.
 
@@ -22,8 +10,14 @@ Tests cover:
 - Error handling
 """
 
+from unittest.mock import Mock
 
+import numpy as np
+import pandas as pd
+import pytest
 
+from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
+from modules.gemini_chart_analyzer.core.analyzers.multi_timeframe_coordinator import MultiTimeframeCoordinator
 
 
 @pytest.fixture

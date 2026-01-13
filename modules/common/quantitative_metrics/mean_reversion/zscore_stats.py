@@ -1,10 +1,3 @@
-
-from typing import Dict, Optional
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Z-score statistics calculation for quantitative analysis.
 
@@ -12,7 +5,10 @@ This is a general-purpose z-score statistics calculation that can be used
 for any time series analysis, not just pairs trading.
 """
 
+from typing import Dict, Optional
 
+import numpy as np
+import pandas as pd
 
 try:
     from config import PAIRS_TRADING_ZSCORE_LOOKBACK

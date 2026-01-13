@@ -1,13 +1,7 @@
-
-from modules.adaptive_trend.core.analyzer import analyze_symbol
-from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend.core.compute_equity import equity_series
-from modules.adaptive_trend.core.compute_moving_averages import (
-
 """
 Core computation modules for Adaptive Trend Classification (ATC).
 
-This package provides the core computational functions for ATC:
+This package provides core computational functions for ATC:
 - Signal computation and processing
 - Moving average calculations
 - Equity curve calculations
@@ -15,6 +9,10 @@ This package provides the core computational functions for ATC:
 - Signal detection and generation
 """
 
+from modules.adaptive_trend.core.analyzer import analyze_symbol
+from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend.core.compute_equity import equity_series
+from modules.adaptive_trend.core.compute_moving_averages import (
     calculate_kama_atc,
     ma_calculation,
     set_of_moving_averages,

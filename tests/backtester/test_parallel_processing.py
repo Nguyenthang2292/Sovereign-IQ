@@ -1,3 +1,6 @@
+"""
+Tests for parallel processing in Full Backtester.
+"""
 
 from unittest.mock import MagicMock, patch
 
@@ -5,15 +8,6 @@ import numpy as np
 import pandas as pd
 
 from modules.backtester import FullBacktester
-
-from modules.backtester import FullBacktester
-
-"""
-Tests for parallel processing in Full Backtester.
-"""
-
-
-
 
 # Fixtures from conftest.py will be automatically available
 

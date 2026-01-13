@@ -1,6 +1,3 @@
-
-from modules.hmm.core.high_order import (
-
 """
 Core HMM models module.
 
@@ -10,8 +7,9 @@ This module contains the core Hidden Markov Model implementations:
 - HMM-KAMA
 """
 
-# Basic HMM with swings
-# High-Order HMM
+from modules.hmm.core.high_order import (
+    # Basic HMM with swings
+    # High-Order HMM
     TrueHighOrderHMM,
     decode_expanded_state,
     expand_state_sequence,

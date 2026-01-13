@@ -1,10 +1,14 @@
+"""
+Unit tests for the IndicatorEngine and its configurations.
+
+These tests validate that the IndicatorEngine produces expected features and metadata
+depending on the indicator profile (e.g., CORE, XGBOOST). They also verify that custom
+indicator registration correctly extends the feature set returned by the engine.
+"""
 
 import pandas as pd
 
 from modules.common import (
-from modules.common import (
-
-
     IndicatorConfig,
     IndicatorEngine,
     IndicatorProfile,

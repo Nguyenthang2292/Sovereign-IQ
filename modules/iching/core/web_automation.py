@@ -1,23 +1,19 @@
+"""
+Web automation for I Ching form filling.
+"""
 
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 import json
 import time
 import traceback
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
-from selenium.webdriver.support.ui import Select, WebDriverWait
-
-"""
-Web automation for I Ching form filling.
-"""
-
-
 
 try:
     from webdriver_manager.chrome import ChromeDriverManager

@@ -1,8 +1,6 @@
-
-from modules.common.quantitative_metrics.transformations.fisher_transform import (
-
 """Mathematical transformations for quantitative analysis."""
 
+from modules.common.quantitative_metrics.transformations.fisher_transform import (
     NUMBA_AVAILABLE,
     calculate_fisher_transform,
 )

@@ -1,42 +1,10 @@
+from __future__ import annotations
 
 from typing import Optional, Tuple
 
 import pandas as pd
 
-from __future__ import annotations
 from modules.simplified_percentile_clustering.config.mean_reversion_config import (
-from __future__ import annotations
-from modules.simplified_percentile_clustering.config.mean_reversion_config import (
-
-"""
-Mean Reversion Strategy.
-
-This strategy generates signals when the market is at cluster extremes
-and expects mean reversion back to the center cluster.
-
-Strategy Logic:
---------------
-1. LONG Signal:
-   - Market in k0 cluster (lower extreme)
-   - Real_clust near 0 (far from center)
-   - Expecting reversion to k1 or k2
-   - Price showing signs of reversal
-
-2. SHORT Signal:
-   - Market in k2 or k1 cluster (upper extreme)
-   - Real_clust near maximum (far from center)
-   - Expecting reversion to k0 or k1
-   - Price showing signs of reversal
-
-3. NEUTRAL Signal:
-   - Market near center cluster
-   - No extreme conditions
-   - Ambiguous signals
-"""
-
-
-
-
     MeanReversionConfig,
 )
 from modules.simplified_percentile_clustering.core.clustering import (
@@ -47,6 +15,32 @@ from modules.simplified_percentile_clustering.utils.helpers import (
     safe_isna,
     vectorized_extreme_duration,
 )
+
+"""
+Mean Reversion Strategy.
+
+This strategy generates signals when market is at cluster extremes
+and expects mean reversion back to center cluster.
+
+Strategy Logic:
+--------------
+1. LONG Signal:
+    - Market in k0 cluster (lower extreme)
+    - Real_clust near 0 (far from center)
+    - Expecting reversion to k1 or k2
+    - Price showing signs of reversal
+
+2. SHORT Signal:
+    - Market in k2 or k1 cluster (upper extreme)
+    - Real_clust near maximum (far from center)
+    - Expecting reversion to k0 or k1
+    - Price showing signs of reversal
+
+3. NEUTRAL Signal:
+    - Market near center cluster
+    - No extreme conditions
+    - Ambiguous signals
+"""
 
 
 def _detect_reversal(close: pd.Series, i: int, lookback: int, direction: str) -> bool:

@@ -1,8 +1,7 @@
-
-from pathlib import Path
-from unittest.mock import Mock, patch
 import sys
 import unittest
+from pathlib import Path
+from unittest.mock import Mock, patch
 
 """
 Unit tests for system utilities in modules.common.utils.system_utils.

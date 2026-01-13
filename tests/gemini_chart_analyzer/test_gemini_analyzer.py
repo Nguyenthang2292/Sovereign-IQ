@@ -1,12 +1,3 @@
-
-from unittest.mock import Mock, patch
-
-import pytest
-
-from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
-
-from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
-
 """
 Tests for GeminiChartAnalyzer class.
 
@@ -17,8 +8,11 @@ Tests cover:
 - Error handling
 """
 
+from unittest.mock import Mock, patch
 
+import pytest
 
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
 
 
 @pytest.fixture
@@ -33,7 +27,10 @@ def sample_image_path(tmp_path):
     image_path = tmp_path / "test_chart.png"
     # Create a minimal PNG file (1x1 pixel)
     # This is a valid minimal PNG file header
-    png_header = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82"
+    png_header = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+        b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
     image_path.write_bytes(png_header)
     return str(image_path)
 
@@ -180,16 +177,13 @@ class TestGeminiChartAnalyzerPrompts:
 class TestGeminiChartAnalyzerAnalyzeChart:
     """Test chart analysis functionality."""
 
-    @patch("PIL.Image.open")
-    def test_analyze_chart_new_api(self, mock_image_open, mock_analyzer_new_api, sample_image_path):
+    @patch("modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.validate_image")
+    def test_analyze_chart_new_api(self, mock_validate_image, mock_analyzer_new_api, sample_image_path):
         """Test chart analysis using new API."""
         analyzer, mock_client, mock_genai = mock_analyzer_new_api
 
-        # Mock image
-        mock_img = Mock()
-        mock_img.copy.return_value = mock_img
-        mock_image_open.return_value.__enter__ = Mock(return_value=mock_img)
-        mock_image_open.return_value.__exit__ = Mock(return_value=None)
+        # Mock validation to pass
+        mock_validate_image.return_value = (True, None)
 
         # Mock API response
         mock_response = Mock()
@@ -202,20 +196,17 @@ class TestGeminiChartAnalyzerAnalyzeChart:
         assert "bullish" in result.lower()
         mock_client.models.generate_content.assert_called_once()
 
-    @patch("PIL.Image.open")
+    @patch("modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.validate_image")
     def test_analyze_chart_old_api(
-        self, mock_image_open, mock_genai_old_api, mock_api_key, sample_image_path, monkeypatch
+        self, mock_validate_image, mock_genai_old_api, mock_api_key, sample_image_path, monkeypatch
     ):
         """Test chart analysis using old API."""
         mock_genai, mock_model = mock_genai_old_api
         # Patch the genai module with our fixture mock
         monkeypatch.setattr("modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai", mock_genai)
 
-        # Mock image
-        mock_img = Mock()
-        mock_img.copy.return_value = mock_img
-        mock_image_open.return_value.__enter__ = Mock(return_value=mock_img)
-        mock_image_open.return_value.__exit__ = Mock(return_value=None)
+        # Mock validation to pass
+        mock_validate_image.return_value = (True, None)
 
         # Mock API response
         mock_response = Mock()
@@ -229,16 +220,15 @@ class TestGeminiChartAnalyzerAnalyzeChart:
         assert "bearish" in result.lower()
         mock_model.generate_content.assert_called_once()
 
-    @patch("PIL.Image.open")
-    def test_analyze_chart_response_with_candidates(self, mock_image_open, mock_analyzer_new_api, sample_image_path):
+    @patch("modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.validate_image")
+    def test_analyze_chart_response_with_candidates(
+        self, mock_validate_image, mock_analyzer_new_api, sample_image_path
+    ):
         """Test chart analysis with response containing candidates."""
         analyzer, mock_client, mock_genai = mock_analyzer_new_api
 
-        # Mock image
-        mock_img = Mock()
-        mock_img.copy.return_value = mock_img
-        mock_image_open.return_value.__enter__ = Mock(return_value=mock_img)
-        mock_image_open.return_value.__exit__ = Mock(return_value=None)
+        # Mock validation to pass
+        mock_validate_image.return_value = (True, None)
 
         # Mock response with candidates structure
         mock_part = Mock()
@@ -258,21 +248,20 @@ class TestGeminiChartAnalyzerAnalyzeChart:
 
     def test_analyze_chart_file_not_found(self, mock_analyzer_new_api):
         """Test chart analysis with non-existent file raises error."""
+        from modules.gemini_chart_analyzer.core.analyzers.components.exceptions import GeminiImageValidationError
+
         analyzer, mock_client, mock_genai = mock_analyzer_new_api
 
-        with pytest.raises(FileNotFoundError, match="Chart image file not found"):
+        with pytest.raises(GeminiImageValidationError, match="Image file not found"):
             analyzer.analyze_chart(image_path="/nonexistent/path/chart.png", symbol="BTC/USDT", timeframe="1h")
 
-    @patch("PIL.Image.open")
-    def test_analyze_chart_api_error(self, mock_image_open, mock_analyzer_new_api, sample_image_path):
+    @patch("modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.validate_image")
+    def test_analyze_chart_api_error(self, mock_validate_image, mock_analyzer_new_api, sample_image_path):
         """Test chart analysis handles API errors."""
         analyzer, mock_client, mock_genai = mock_analyzer_new_api
 
-        # Mock image
-        mock_img = Mock()
-        mock_img.copy.return_value = mock_img
-        mock_image_open.return_value.__enter__ = Mock(return_value=mock_img)
-        mock_image_open.return_value.__exit__ = Mock(return_value=None)
+        # Mock validation to pass
+        mock_validate_image.return_value = (True, None)
 
         # Mock API error
         mock_client.models.generate_content = Mock(side_effect=Exception("API Error"))

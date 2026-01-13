@@ -1,6 +1,3 @@
-
-from modules.simplified_percentile_clustering.aggregation import (
-
 """
 Simplified Percentile Clustering Module.
 
@@ -25,6 +22,7 @@ Notes:
   - Good for feature engineering and visual regime detection.
 """
 
+from modules.simplified_percentile_clustering.aggregation import (
     SPCVoteAggregator,
 )
 from modules.simplified_percentile_clustering.config import (

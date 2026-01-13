@@ -1,10 +1,3 @@
-
-import numpy as np
-import pandas as pd
-
-from config import (
-from config import (
-
 """
 Labeling functions for XGBoost prediction model.
 
@@ -13,7 +6,10 @@ based on future price movements, using dynamic thresholds that adapt to market
 volatility and historical price patterns.
 """
 
+import numpy as np
+import pandas as pd
 
+from config import (
     DYNAMIC_LOOKBACK_LONG_MULTIPLIER,
     DYNAMIC_LOOKBACK_MEDIUM_MULTIPLIER,
     DYNAMIC_LOOKBACK_SHORT_MULTIPLIER,

@@ -1,9 +1,7 @@
-
 from dataclasses import dataclass
 from typing import Any, Dict
 
 """Configuration for Adaptive Trend Classification (ATC) analysis."""
-
 
 
 @dataclass

@@ -1,8 +1,6 @@
-
 from typing import Any, List, Optional
 
 import numpy as np
-import pandas as pd
 import pandas as pd
 
 """
@@ -11,7 +9,6 @@ Pairs validation utilities for pairs trading analysis.
 This module provides functions for validating pairs trading opportunities
 based on various quantitative and qualitative criteria.
 """
-
 
 
 try:

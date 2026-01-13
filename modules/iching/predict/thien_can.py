@@ -1,9 +1,3 @@
-
-from typing import Dict, Optional, Tuple
-
-from modules.iching.predict.constants import (
-from modules.iching.predict.constants import (
-
 """
 Thiên Can constants and utilities for I Ching divination.
 
@@ -11,7 +5,9 @@ Thiên Can (Heavenly Stems) là 10 can cơ bản trong hệ thống can chi:
 - Giáp, Ất, Bính, Đinh, Mậu, Kỷ, Canh, Tân, Nhâm, Quý
 """
 
+from typing import Dict, Optional, Tuple
 
+from modules.iching.predict.constants import (
     HOA,
     KIM,
     MOC,

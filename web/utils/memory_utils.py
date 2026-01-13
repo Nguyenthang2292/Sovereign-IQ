@@ -1,16 +1,12 @@
-
-from typing import Any, Dict, Optional
 import gc
 import tracemalloc
+from typing import Any, Dict, Optional
 
-from modules.common.ui.logging import log_info, log_warn
 from modules.common.ui.logging import log_info, log_warn
 
 """
 Memory management utilities for monitoring and optimizing memory usage.
 """
-
-
 
 
 def get_memory_usage() -> Dict[str, Any]:

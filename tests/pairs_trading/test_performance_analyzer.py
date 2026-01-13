@@ -1,12 +1,25 @@
+"""
+Unit tests for the PerformanceAnalyzer class in the pairs trading module.
+
+This test suite covers:
+- Validation of the weights argument for correctness.
+- Calculation of performance scores for trading symbols, checking all returned fields.
+- Evaluation of top and worst performers based on computed scores.
+
+Dependencies:
+- numpy
+- pandas
+- pytest
+
+Test inputs are programmatically generated
+or crafted directly in the test cases to validate correctness of the PerformanceAnalyzer methods.
+"""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from modules.pairs_trading.analysis.performance_analyzer import PerformanceAnalyzer
-from modules.pairs_trading.analysis.performance_analyzer import PerformanceAnalyzer
-
-
 
 
 def build_price_series(length=200, start=100.0, step=0.5):
@@ -395,7 +408,7 @@ def test_weights_validation():
 
     # Invalid weights (sum != 1.0)
     try:
-        analyzer2 = PerformanceAnalyzer(weights={"1d": 0.5, "3d": 0.5, "1w": 0.5})
+        PerformanceAnalyzer(weights={"1d": 0.5, "3d": 0.5, "1w": 0.5})
         assert False, "Should have raised ValueError"
     except ValueError:
         pass  # Expected

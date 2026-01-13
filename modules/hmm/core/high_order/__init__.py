@@ -1,6 +1,3 @@
-
-from config.hmm import (
-
 """
 High-Order HMM Module.
 
@@ -8,8 +5,9 @@ This module provides True High-Order HMM implementation using state space expans
 for market state prediction based on k previous states.
 """
 
-# State Expansion
-# Constants
+from config.hmm import (
+    # State Expansion
+    # Constants
     HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES,
 )
 from config.hmm import (

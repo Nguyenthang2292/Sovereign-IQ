@@ -1,15 +1,11 @@
-
 import numpy as np
 import pandas as pd
 
-from modules.common.quantitative_metrics import calculate_johansen_test
 from modules.common.quantitative_metrics import calculate_johansen_test
 
 """
 Tests for johansen_test module.
 """
-
-
 
 
 def test_calculate_johansen_test_with_stub(monkeypatch):

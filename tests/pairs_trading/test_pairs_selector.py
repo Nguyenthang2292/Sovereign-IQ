@@ -1,14 +1,10 @@
-
-import pandas as pd
-
-from modules.pairs_trading.utils.pairs_selector import (
-from modules.pairs_trading.utils.pairs_selector import (
-
 """
 Tests for pairs_selector module.
 """
 
+import pandas as pd
 
+from modules.pairs_trading.utils.pairs_selector import (
     select_pairs_for_symbols,
     select_top_unique_pairs,
 )

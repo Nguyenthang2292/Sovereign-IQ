@@ -1,13 +1,3 @@
-
-from typing import List, Optional
-
-from colorama import Fore, Style
-import pandas as pd
-
-from modules.common.utils import (
-
-from modules.common.utils import (
-
 """
 Display utilities for ATC + Range Oscillator CLI.
 
@@ -15,8 +5,12 @@ This module provides formatted display functions for combined signal results,
 configuration, and summary information.
 """
 
+from typing import List, Optional
 
+import pandas as pd
+from colorama import Fore, Style
 
+from modules.common.utils import (
     color_text,
     format_price,
 )
@@ -72,7 +66,7 @@ def display_configuration(
     print(color_text(f"  Min Signal: {min_signal}", Fore.WHITE))
 
     # Build strategy display string from strategies parameter
-    if strategies and len(strategies) > 0:
+    if strategies:
         # Map strategy numbers to names
         sorted_strategies = sorted(strategies)
         strategy_names = []
@@ -181,9 +175,6 @@ def display_final_results(
         print(color_text("-" * 80, Fore.CYAN))
 
         for idx, row in long_signals.iterrows():
-            # DEBUG POINT: Processing long signal row - Check row data availability
-            # Check: index, has_symbol, has_signal, has_price, has_exchange, has_confidence
-
             try:
                 signal_str = f"{row['signal']:+.6f}"
                 price_str = format_price(row["price"])
@@ -194,7 +185,8 @@ def display_final_results(
                     confidence_str = f"{confidence:.3f}"
                     print(
                         color_text(
-                            f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
+                            f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}\n"
+                            f"{'':<54}{confidence_str:>12}",
                             signal_color,
                         )
                     )
@@ -206,8 +198,6 @@ def display_final_results(
                         )
                     )
             except KeyError as e:
-                # DEBUG POINT: KeyError in long signal row - Check missing keys
-                # Check: index, missing_key, available_keys
                 print(color_text(f"  Warning: Skipping row {idx} due to missing key: {e}", Fore.YELLOW))
                 continue
 
@@ -260,7 +250,8 @@ def display_final_results(
                     confidence_str = f"{confidence:.3f}"
                     print(
                         color_text(
-                            f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10} {confidence_str:>12}",
+                            f"{row['symbol']:<15} {signal_str:>12} {price_str:>15} {row['exchange']:<10}\n"
+                            f"{'':<54}{confidence_str:>12}",
                             signal_color,
                         )
                     )
@@ -283,7 +274,8 @@ def display_final_results(
     print(color_text("Summary:", Fore.WHITE, Style.BRIGHT))
     print(
         color_text(
-            f"  ATC Signals: {original_long_count} LONG + {original_short_count} SHORT = {original_long_count + original_short_count}",
+            f"  ATC Signals:\n"
+            f"{original_long_count} LONG + {original_short_count} SHORT = {original_long_count + original_short_count}",
             Fore.WHITE,
         )
     )
@@ -294,7 +286,9 @@ def display_final_results(
 
     print(
         color_text(
-            f"  Final Signals: {len(long_signals)} LONG ({long_source}) + {len(short_signals)} SHORT ({short_source}) = {len(long_signals) + len(short_signals)}",
+            f"  Final Signals:\n"
+            f"{len(long_signals)} LONG ({long_source})\n"
+            f"{len(short_signals)} SHORT ({short_source}) = {len(long_signals) + len(short_signals)}",
             Fore.WHITE,
             Style.BRIGHT,
         )

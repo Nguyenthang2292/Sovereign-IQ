@@ -1,16 +1,12 @@
-
-from typing import Any, Dict
-
-import pandas as pd
-import pandas as pd
-
 """
 Signal Summary Utilities.
 
 This module provides utilities for generating signal summary statistics.
 """
 
+from typing import Any, Dict
 
+import pandas as pd
 
 
 def get_signal_summary(
@@ -30,15 +26,12 @@ def get_signal_summary(
         Dictionary with summary statistics
     """
     # Input validation
-    if signals is None or signal_strength is None or close is None:
-        raise ValueError("All input parameters (signals, signal_strength, close) must be provided")  # pyright: ignore[reportGeneralTypeIssues]
-
     if (
         not isinstance(signals, pd.Series)
         or not isinstance(signal_strength, pd.Series)
         or not isinstance(close, pd.Series)
     ):
-        raise TypeError("All input parameters must be pandas Series")  # pyright: ignore[reportGeneralTypeIssues]
+        raise TypeError("All input parameters must be pandas Series")
 
     if len(signals) == 0:
         return {

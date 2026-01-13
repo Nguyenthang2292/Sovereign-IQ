@@ -1,10 +1,8 @@
-
 import pytest
 
 from modules.range_oscillator.config.consensus_config import ConsensusConfig
 from modules.range_oscillator.config.dynamic_selection_config import DynamicSelectionConfig
 from modules.range_oscillator.config.strategy_combine_config import CombinedStrategyConfig
-from modules.range_oscillator.config.strategy_specific_config import StrategySpecificConfig
 from modules.range_oscillator.config.strategy_specific_config import StrategySpecificConfig
 
 """
@@ -16,8 +14,6 @@ Tests configuration classes:
 - StrategySpecificConfig
 - CombinedStrategyConfig
 """
-
-
 
 
 class TestConsensusConfig:

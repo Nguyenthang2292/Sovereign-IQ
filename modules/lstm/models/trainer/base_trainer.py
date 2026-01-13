@@ -1,21 +1,15 @@
+"""
+Base trainer class with common training logic for all LSTM variants.
+"""
 
+import os
 from datetime import datetime
 from typing import Optional, Tuple
-import os
 
 import numpy as np
 import pandas as pd
 
 from modules.common.ui.logging import (
-
-from modules.common.ui.logging import (
-
-"""
-Base trainer class with common training logic for all LSTM variants.
-"""
-
-
-
     log_error,
     log_info,
     log_model,
@@ -269,12 +263,13 @@ class BaseLSTMTrainer:
                         self.look_back = fallback_look_back
                         log_model(
                             f"Reduced look_back from {self.original_look_back} to {self.look_back} "
-                            f"due to insufficient data. This affects batch size, model architecture, and evaluation. "
-                            f"Created {len(X)} sequences with minimal features."
+                            f"due to insufficient data. This affects batch size, model architecture, "
+                            f"and evaluation. Created {len(X)} sequences with minimal features."
                         )
                     else:
                         raise ValueError(
-                            "Failed to create sequences even with minimal features. The data may be corrupted or insufficient."
+                            "Failed to create sequences even with minimal features.\n"
+                            "The data may be corrupted or insufficient."
                         )
                 else:
                     raise ValueError("No price data columns found in input data")

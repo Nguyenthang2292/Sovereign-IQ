@@ -1,13 +1,3 @@
-
-from unittest.mock import Mock, patch
-import json
-
-import pytest
-
-from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
-
-from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
-
 """
 Tests for GeminiBatchChartAnalyzer class.
 Tests cover:
@@ -18,8 +8,12 @@ Tests cover:
 - JSON response parsing (various formats)
 """
 
+import json
+from unittest.mock import Mock, patch
 
+import pytest
 
+from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
 
 
 @pytest.fixture
@@ -32,7 +26,10 @@ def mock_api_key():
 def sample_image_path(tmp_path):
     """Create a dummy image file for testing."""
     image_path = tmp_path / "test_batch_chart.png"
-    png_header = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82"
+    png_header = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+        b"\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
     image_path.write_bytes(png_header)
     return str(image_path)
 

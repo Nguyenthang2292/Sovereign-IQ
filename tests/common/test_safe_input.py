@@ -1,9 +1,6 @@
-
 from unittest.mock import patch
 
 import pytest
-
-from modules.common.utils import safe_input
 
 from modules.common.utils import safe_input
 
@@ -13,9 +10,6 @@ Test suite for safe_input() function.
 Tests the safe_input() utility for proper error handling,
 default value behavior, and Windows compatibility.
 """
-
-
-
 
 
 class TestSafeInput:

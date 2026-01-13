@@ -1,12 +1,28 @@
+"""
+This module provides the PositionalEncoding class for injecting positional information into sequence data.
+
+The sinusoidal positional encoding implemented here is commonly used in sequence models such as
+Transformers, as described in "Attention Is All You Need" (Vaswani et al., 2017).
+It allows the model to make use of the order of sequence elements.
+
+Classes:
+    PositionalEncoding (nn.Module): Adds sinusoidal positional encodings to the input tensor.
+
+Typical Usage:
+    pe = PositionalEncoding(d_model=512)
+    x = torch.zeros(batch_size, seq_len, 512)
+    x_pe = pe(x)
+
+Args:
+    d_model (int): Dimension of the embedding/feature space.
+    max_seq_length (int, optional): Maximum length to precompute positional encodings for. Default: 5000.
+"""
 
 import math
 import warnings
 
 import torch
 import torch.nn as nn
-import torch.nn as nn
-
-
 
 
 class PositionalEncoding(nn.Module):

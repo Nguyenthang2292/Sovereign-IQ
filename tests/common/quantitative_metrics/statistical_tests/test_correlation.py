@@ -1,15 +1,11 @@
-
 import numpy as np
 import pandas as pd
 
-from modules.common.quantitative_metrics import calculate_correlation
 from modules.common.quantitative_metrics import calculate_correlation
 
 """
 Tests for correlation module.
 """
-
-
 
 
 def test_calculate_correlation_matches_manual_computation():

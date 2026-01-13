@@ -1,53 +1,9 @@
+"""ATC + Range Oscillator + SPC Hybrid Approach."""
 
 import sys
 import warnings
 
 from modules.common.utils import (
-from modules.common.utils import (
-
-"""
-ATC + Range Oscillator + SPC Hybrid Approach (Phương án 1).
-
-Entry point for the Hybrid Analyzer that combines signals from multiple indicators
-using a sequential filtering approach followed by optional voting system.
-
-Indicators:
-    1. ATC (Adaptive Trend Classification): Market trend classification
-    2. Range Oscillator: Overbought/oversold zone detection
-    3. SPC (Simplified Percentile Clustering): Percentile-based clustering (3 strategies)
-    4. XGBoost (optional): Machine learning prediction
-    5. HMM (optional): Hidden Markov Model signal prediction
-    6. Random Forest (optional): Random Forest model prediction
-
-Workflow:
-    1. Run ATC auto scan to find initial LONG/SHORT signals
-    2. Filter by Range Oscillator confirmation (sequential filtering)
-    3. Calculate SPC signals for remaining symbols (if enabled)
-    4. Apply Decision Matrix voting system (if enabled)
-    5. Display final filtered results
-
-Approach:
-    Sequential filtering + voting system. Symbols are filtered step-by-step
-    to reduce workload before applying voting. Range Oscillator acts as an
-    early filter to remove false positives.
-
-Key Features:
-    - Early filtering reduces computational load
-    - Fallback mechanism when no symbols pass Range Oscillator filter
-    - Optional SPC and Decision Matrix for additional filtering
-    - Sequential approach is easier to debug and monitor
-
-See Also:
-    - core.hybrid_analyzer.HybridAnalyzer: Main analyzer class
-    - core.README.md: Detailed workflow comparison with VotingAnalyzer
-    - main_voting.py: Alternative pure voting approach (Phương án 2)
-
-Example:
-    Run from command line:
-        $ python main_complex_hybrid.py --timeframe 1h --enable-spc --use-decision-matrix
-"""
-
-
     color_text,
     configure_windows_stdio,
     initialize_components,

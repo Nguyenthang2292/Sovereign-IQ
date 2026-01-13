@@ -1,3 +1,6 @@
+"""Indicator block registry."""
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Tuple
@@ -8,13 +11,6 @@ from .momentum import MomentumIndicators
 from .trend import TrendIndicators
 from .volatility import VolatilityIndicators
 from .volume import VolumeIndicators
-from __future__ import annotations
-from __future__ import annotations
-
-"""Indicator block registry."""
-
-
-
 
 
 @dataclass(frozen=True)

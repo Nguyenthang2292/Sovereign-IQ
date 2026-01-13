@@ -1,13 +1,3 @@
-
-from pathlib import Path
-from unittest.mock import Mock
-import sys
-import warnings
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Test file for core.signal_calculators module.
 
@@ -24,7 +14,13 @@ Run with: python -m pytest tests/core/test_signal_calculators.py -v
 Or: python tests/core/test_signal_calculators.py
 """
 
+import sys
+import warnings
+from pathlib import Path
+from unittest.mock import Mock
 
+import numpy as np
+import pandas as pd
 
 # Add project root to path (same as test_main_voting.py)
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -35,15 +31,14 @@ warnings.filterwarnings("ignore")
 
 # Import after path setup
 from core.signal_calculators import (
+    get_hmm_signal,
+    get_random_forest_signal,
     get_range_oscillator_signal,
     get_spc_signal,
     get_xgboost_signal,
-    get_hmm_signal,
-    get_random_forest_signal,
 )
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.core.indicator_engine import IndicatorEngine
 
 
 def create_mock_ohlcv_data(limit: int = 100) -> pd.DataFrame:

@@ -1,3 +1,21 @@
+"""
+LSTM, Attention-based LSTM, and CNN-LSTM model implementations for time series tasks.
+
+This module provides neural network models for use in time series prediction/classification, with support for:
+- Standard multi-layer LSTM models
+- LSTM models enhanced with multi-head attention and optional positional encoding
+- CNN + LSTM models (with optional attention) for more complex sequential feature extraction
+
+Defines:
+    - LSTMModel: Baseline LSTM for classification/regression on sequential data.
+    - LSTMAttentionModel: LSTM with integrated multi-head attention,
+      option for positional encoding, and flexible output heads.
+    - CNNLSTMAttentionModel: Model with one or more 1D CNN feature extractor
+      layers before LSTM, then attention, designed for rich sequence modeling
+      in time series.
+
+All models are implemented as subclasses of torch.nn.Module and are compatible with flexible feature counts.
+"""
 
 from typing import Literal
 
@@ -5,11 +23,6 @@ import torch
 import torch.nn as nn
 
 from config.lstm import (
-
-from config.lstm import (
-
-
-
     CLASSIFIER_HIDDEN_DIM,
     DROPOUT_FINAL_LAYER,
     LSTM_ATTENTION_DIM,
@@ -83,13 +96,14 @@ class LSTMModel(nn.Module):
         dropout_probs = [dropout] * (num_layers - 1) + [DROPOUT_FINAL_LAYER]
         self.dropouts = nn.ModuleList([nn.Dropout(p) for p in dropout_probs[:num_layers]])
 
-        # Final FC layers adapted to variable LSTM stack depth
+        # Final layers adapted to variable LSTM stack depth
         fc_in = hidden_sizes[-1]  # Use the last LSTM layer's output dimension
         self.fc1 = nn.Linear(fc_in, CLASSIFIER_HIDDEN_DIM)
         self.fc2 = nn.Linear(CLASSIFIER_HIDDEN_DIM, num_classes)
 
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
+        self.tanh = nn.Tanh()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -99,18 +113,23 @@ class LSTMModel(nn.Module):
             x (torch.Tensor): Shape (batch_size, seq_len, input_size).
 
         Returns:
-            torch.Tensor: Shape (batch_size, num_classes) (probabilities).
+            torch.Tensor: Shape (batch_size, num_classes) (probabilities or values).
         """
         out = x
         # Process input through LSTM layers
         for i, (lstm_layer, dropout_layer) in enumerate(zip(self.lstm_layers, self.dropouts)):
             out, _ = lstm_layer(out)
             out = dropout_layer(out)
-        # Use last time-step output for classification
+        # Use last time-step output
         out = out[:, -1, :]
         out = self.relu(self.fc1(out))
         out = self.fc2(out)
-        out = self.softmax(out)
+
+        if self.output_mode == "classification":
+            out = self.softmax(out)
+        else:
+            out = self.tanh(out)
+
         return out
 
 
@@ -170,7 +189,8 @@ class LSTMAttentionModel(nn.Module):
             in_dim = input_size if i == 0 else hidden_size
             self.lstm_layers.append(nn.LSTM(in_dim, hidden_size, num_layers=1, batch_first=True))
 
-        # Dynamically construct dropout layers for each LSTM layer (except last, which uses DROPOUT_FINAL_LAYER if available)
+        # Dynamically construct dropout layers for each LSTM layer
+        # (except last, which uses DROPOUT_FINAL_LAYER if available)
         self.dropout_layers = nn.ModuleList()
         for i in range(self.num_layers):
             d = DROPOUT_FINAL_LAYER if (i == self.num_layers - 1) else dropout
@@ -202,13 +222,22 @@ class LSTMAttentionModel(nn.Module):
 
         self.attention_pooling = nn.Sequential(nn.Linear(self.attention_dim, 1), nn.Softmax(dim=1))
 
-        self.classifier = nn.Sequential(
-            nn.Linear(self.attention_dim, CLASSIFIER_HIDDEN_DIM),
-            nn.ReLU(),
-            nn.Dropout(DROPOUT_FINAL_LAYER),
-            nn.Linear(CLASSIFIER_HIDDEN_DIM, num_classes),
-            nn.Softmax(dim=1),
-        )
+        if output_mode == "classification":
+            self.classifier = nn.Sequential(
+                nn.Linear(self.attention_dim, CLASSIFIER_HIDDEN_DIM),
+                nn.ReLU(),
+                nn.Dropout(DROPOUT_FINAL_LAYER),
+                nn.Linear(CLASSIFIER_HIDDEN_DIM, num_classes),
+                nn.Softmax(dim=1),
+            )
+        else:
+            self.regressor = nn.Sequential(
+                nn.Linear(self.attention_dim, CLASSIFIER_HIDDEN_DIM),
+                nn.ReLU(),
+                nn.Dropout(DROPOUT_FINAL_LAYER),
+                nn.Linear(CLASSIFIER_HIDDEN_DIM, 1),
+                nn.Tanh(),
+            )
 
         log_model(f"LSTM-Attention model initialized with {num_heads} heads and {self.attention_dim}D attention")
 
@@ -220,7 +249,7 @@ class LSTMAttentionModel(nn.Module):
             x: Input tensor of shape (batch_size, seq_len, input_size)
 
         Returns:
-            Output probabilities of shape (batch_size, num_classes)
+            Outputprobabilities/values of shape (batch_size, num_classes/1)
         """
         # Process through dynamic LSTM layers
         out = x
@@ -246,7 +275,10 @@ class LSTMAttentionModel(nn.Module):
         attention_weights = self.attention_pooling(ff_output)
         pooled_output = torch.sum(ff_output * attention_weights, dim=1)
 
-        output = self.classifier(pooled_output)
+        if self.output_mode == "classification":
+            output = self.classifier(pooled_output)
+        else:
+            output = self.regressor(pooled_output)
 
         return output
 

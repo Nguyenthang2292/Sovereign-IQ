@@ -1,17 +1,13 @@
-
-from typing import Dict, List
-
-from modules.hmm.signals.resolution import HOLD, LONG, SHORT, Signal
-from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
-from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
-
 """
 HMM Voting Mechanisms Module
 
 Implements various voting mechanisms for combining signals from multiple HMM strategies.
 """
 
+from typing import Dict, List
 
+from modules.hmm.signals.resolution import HOLD, LONG, SHORT, Signal
+from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
 
 
 class VotingMechanism:

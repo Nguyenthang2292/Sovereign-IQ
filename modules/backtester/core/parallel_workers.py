@@ -1,7 +1,3 @@
-
-from typing import Any, Dict, List, Optional
-import pickle
-
 """
 Parallel processing workers for backtester.
 
@@ -9,6 +5,8 @@ This module contains worker functions for multiprocessing,
 used for parallel signal calculation.
 """
 
+import pickle
+from typing import Any, Dict, List, Optional
 
 # Try to import shared memory utilities
 try:

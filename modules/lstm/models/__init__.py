@@ -1,7 +1,3 @@
-
-from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
-from modules.lstm.models.model_utils import (
-
 """
 LSTM Model classes and factories.
 
@@ -21,6 +17,8 @@ If you were using any of these, please migrate to using `LSTMTrainer` and the ne
 Check the documentation or MIGRATION.md for details on updating your import and usage patterns.
 """
 
+from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
+from modules.lstm.models.model_utils import (
     get_latest_lstm_attention_signal,
     get_latest_signal,
     # Backward compatibility aliases

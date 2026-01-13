@@ -1,12 +1,8 @@
-
 import pandas as pd
 
 from modules.common.utils import log_error, log_warn
-from modules.common.utils import log_error, log_warn
 
 """Calculate percentage rate of change for price series."""
-
-
 
 
 def rate_of_change(prices: pd.Series) -> pd.Series:

@@ -1,14 +1,3 @@
-
-import sys
-import time
-
-import pandas as pd
-
-from config.model_features import MODEL_FEATURES
-from modules.common.ui.logging import (
-from config.model_features import MODEL_FEATURES
-from modules.common.ui.logging import (
-
 """
 Main CLI function for Random Forest model training and signal generation.
 
@@ -16,8 +5,13 @@ This module provides the main entry point for training Random Forest models
 and generating trading signals from the command line.
 """
 
+import time
 
+import pandas as pd
 
+from config.model_features import MODEL_FEATURES
+from config.random_forest import DEFAULT_CRYPTO_SYMBOLS
+from modules.common.ui.logging import (
     log_error,
     log_info,
     log_model,
@@ -27,10 +21,7 @@ and generating trading signals from the command line.
 from modules.random_forest import (
     train_and_save_global_rf_model,
 )
-from modules.random_forest.cli.argument_parser import (
-    DEFAULT_CRYPTO_SYMBOLS,
-    parse_args,
-)
+from modules.random_forest.cli.argument_parser import parse_args
 
 
 def main():
@@ -75,15 +66,17 @@ def main():
 
     # TODO: Implement data loading using DataFetcher from modules.common.core.data_fetcher
     # For now, we'll require the user to provide data
-    log_error(
-        "Data loading not implemented. "
-        "Please use DataFetcher from modules.common.core.data_fetcher to load data, "
-        "then call train_and_save_global_rf_model(combined_df) directly."
-    )
-    sys.exit(1)
+    combined_df = None  # Data loading not yet implemented
+
+    if combined_df is None:
+        log_error(
+            "Data loading not implemented. "
+            "Please use DataFetcher from modules.common.core.data_fetcher to load data, "
+            "then call train_and_save_global_rf_model(combined_df) directly."
+        )
+        return
 
     # Train Random Forest model
-    combined_df = None  # Placeholder for linting, code below is unreachable due to sys.exit(1) above
     model, model_path = None, ""
     try:
         model, model_path = train_and_save_global_rf_model(combined_df)
@@ -136,9 +129,12 @@ def main():
                         feature_names.append(f"feature_{num_model_features + i}")
 
                     log_warn(
-                        f"MODEL_FEATURES has {num_model_features} features but model has {num_importances} importances. "
-                        f"Filled {missing_count} missing feature name(s) with placeholders (feature_{num_model_features} to feature_{num_importances - 1}). "
-                        "This may indicate a mismatch between model training features and MODEL_FEATURES configuration."
+                        f"MODEL_FEATURES has {num_model_features} features but model has "
+                        f"{num_importances} importances. "
+                        f"Filled {missing_count} missing feature name(s) with placeholders "
+                        f"(feature_{num_model_features} to feature_{num_importances - 1}). "
+                        "This may indicate a mismatch between model training features and "
+                        "MODEL_FEATURES configuration."
                     )
 
             # Ensure lengths match before creating DataFrame

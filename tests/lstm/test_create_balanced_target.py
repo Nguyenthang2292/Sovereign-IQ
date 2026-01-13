@@ -1,15 +1,11 @@
-
 import numpy as np
 import pandas as pd
 
-from modules.lstm.core.create_balanced_target import create_balanced_target
 from modules.lstm.core.create_balanced_target import create_balanced_target
 
 """
 Tests for create_balanced_target function.
 """
-
-
 
 
 class TestCreateBalancedTarget:
@@ -184,7 +180,7 @@ class TestCreateBalancedTarget:
     def test_create_targets_drops_undefined_rows(self):
         """Test that rows with undefined targets are dropped."""
         # Need at least FUTURE_RETURN_SHIFT + 1 data points
-        df = pd.DataFrame({"close": [100 + i * 0.01 for i in range(30)]})
+        pd.DataFrame({"close": [100 + i * 0.01 for i in range(30)]})
 
     def test_create_targets_with_lowercase_columns(self):
         """Test that function works with lowercase column names."""

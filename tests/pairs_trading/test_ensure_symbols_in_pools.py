@@ -1,14 +1,10 @@
-
-import pandas as pd
-
-from modules.pairs_trading.utils.ensure_symbols_in_pools import (
-from modules.pairs_trading.utils.ensure_symbols_in_pools import (
-
 """
 Tests for ensure_symbols_in_pools module.
 """
 
+import pandas as pd
 
+from modules.pairs_trading.utils.ensure_symbols_in_pools import (
     ensure_symbols_in_candidate_pools,
 )
 

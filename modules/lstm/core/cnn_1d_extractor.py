@@ -1,3 +1,19 @@
+"""
+cnn_1d_extractor.py
+
+This module implements a 1D Convolutional Neural Network (CNN) feature extractor for time series
+or sequence data.
+The main class, CNN1DExtractor, provides multi-scale 1D convolutional layers for extracting
+hierarchical temporal features.
+It supports configurable input channels, variable kernel sizes for multi-scale receptive fields,
+and dropout for regularization.
+
+Typical usage example:
+
+    extractor = CNN1DExtractor(input_channels=16, cnn_features=64, kernel_sizes=[3, 5, 7], dropout=0.3)
+    output = extractor(input_tensor)
+
+"""
 
 from typing import List
 
@@ -5,11 +21,6 @@ import torch
 import torch.nn as nn
 
 from modules.common.ui.logging import log_model
-
-from modules.common.ui.logging import log_model
-
-
-
 
 
 class CNN1DExtractor(nn.Module):

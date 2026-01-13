@@ -1,22 +1,16 @@
-
-from typing import Literal, Optional, cast
-
-from sklearn.preprocessing import LabelEncoder
-import numpy as np
-import pandas as pd
-
-from config import (
-
-from config import (
-
 """
 HMM-KAMA Main Workflow.
 
 This module contains the main hmm_kama function that orchestrates the entire workflow.
 """
 
+from typing import Literal, Optional, cast
 
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
+from config import (
     HMM_WINDOW_KAMA_DEFAULT,
     HMM_WINDOW_SIZE_DEFAULT,
 )
@@ -55,7 +49,9 @@ def hmm_kama(
             # 1. Validation
             if df is None or df.empty or "close" not in df.columns or len(df) < 20:
                 raise ValueError(
-                    f"Invalid DataFrame: empty={df.empty if df is not None else True}, has close={'close' in df.columns if df is not None else False}, len={len(df) if df is not None else 0}"
+                    f"Invalid DataFrame: empty={df.empty if df is not None else True}, "
+                    f"has close={'close' in df.columns if df is not None else False}, "
+                    f"len={len(df) if df is not None else 0}"
                 )
 
             if df["close"].std() == 0 or pd.isna(df["close"].std()):

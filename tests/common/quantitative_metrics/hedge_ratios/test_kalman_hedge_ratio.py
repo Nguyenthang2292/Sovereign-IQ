@@ -1,15 +1,11 @@
+"""
+Tests for kalman_hedge_ratio module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.common.quantitative_metrics import calculate_kalman_hedge_ratio
-from modules.common.quantitative_metrics import calculate_kalman_hedge_ratio
-
-"""
-Tests for kalman_hedge_ratio module.
-"""
-
-
 
 
 def test_calculate_kalman_hedge_ratio_uses_stubbed_filter(monkeypatch):

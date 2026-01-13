@@ -1,28 +1,36 @@
-
-from price data. ATC uses multiple types of Moving Averages (EMA, HMA, WMA, DEMA, LSMA, KAMA)
-
 """
 Adaptive Trend Classification (ATC) - Main computation module.
 
-This module provides the main function `compute_atc_signals` to compute ATC signals
-with adaptive weighting based on simulated equity curves.
+This module exposes the core function `compute_atc_signals`, which generates adaptive trend
+signals using a layer-based approach and simulated equity curves for weighting.
 
-Computation structure:
-1. Layer 1: Compute signals for each MA type based on equity curves
-2. Layer 2: Compute weights from Layer 1 signals
-3. Final: Combine all to create Average_Signal
+Computation workflow:
+1. Layer 1: Generates signals from multiple Moving Average (MA) types,
+   evaluating each based on its equity curve.
+2. Layer 2: Calculates adaptive weights for each MA-derived signal,
+   leveraging the Layer 1 signal performance.
+3. Final aggregation: Produces a consolidated Average_Signal by weighting all MA signals,
+   aiming for robust trend detection.
 
-Supporting modules:
-- utils: Core utilities (rate_of_change, diflen, exp_growth)
-- compute_moving_averages.py: MA calculations
-- signal_detection.py: Signal generation
-- compute_equity.py: Equity curve calculations
-- process_layer1.py: Layer 1 processing
+Dependencies:
+- utils: Core functions (e.g., rate_of_change, diflen, exp_growth)
+- compute_moving_averages.py: Computation of various MAs (EMA, HMA, WMA, DEMA, LSMA, KAMA)
+- signal_detection.py: Generation/classification of buy/sell signals
+- compute_equity.py: Simulation of equity curves per MA
+- process_layer1.py: Implements Layer 1 logic and signal post-processing
 
-Performance optimizations:
-- Vectorized operations using NumPy for final calculations
-- Caching of rate_of_change calculation
-- Logging for debugging and performance monitoring
+Performance/features:
+- Uses vectorized NumPy operations for efficient final calculations.
+- Employs rate_of_change result caching to improve speed.
+- Logs computation progress and anomalies for debugging and monitoring purposes.
+
+Typical ATC workflow:
+    prices (pd.Series) →
+        set_of_moving_averages →
+        _layer1_signal_for_ma →
+        equity_series →
+        adaptive weighting →
+        Average_Signal
 """
 
 from __future__ import annotations

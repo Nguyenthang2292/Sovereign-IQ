@@ -1,7 +1,3 @@
-
-from typing import Optional
-import sys
-
 """
 System utilities for cross-platform compatibility.
 
@@ -9,6 +5,8 @@ This module provides system-level utility functions that need
 to work consistently across Windows and Unix-like systems.
 """
 
+import sys
+from typing import Optional
 
 
 def setup_windows_stdin() -> None:

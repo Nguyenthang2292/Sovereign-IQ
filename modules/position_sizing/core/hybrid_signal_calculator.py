@@ -1,18 +1,3 @@
-
-from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple
-import json
-import traceback
-
-import numpy as np
-import pandas as pd
-
-from config.position_sizing import ENABLE_MULTITHREADING
-from modules.common.core.data_fetcher import DataFetcher
-from modules.common.utils import (
-from modules.common.core.data_fetcher import DataFetcher
-from modules.common.utils import (
-
 """
 Hybrid Signal Calculator for Position Sizing.
 
@@ -20,8 +5,17 @@ This module combines signals from multiple indicators (Range Oscillator, SPC,
 XGBoost, HMM, Random Forest) using majority vote or weighted voting approach.
 """
 
+import json
+import traceback
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Optional, Tuple
 
+import numpy as np
+import pandas as pd
 
+from config.position_sizing import ENABLE_MULTITHREADING
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.utils import (
     log_error,
     log_warn,
 )
@@ -481,7 +475,8 @@ class HybridSignalCalculator(
                     indicator_signals.append(result)
             except Exception as e:
                 log_warn(
-                    f"range_oscillator signal calculation failed: symbol={symbol}, timeframe={timeframe}, period_index={period_index}, error={e}"
+                    f"range_oscillator signal calculation failed: symbol={symbol}, "
+                    f"timeframe={timeframe}, period_index={period_index}, error={e}"
                 )
 
         # 2. SPC (Simplified Percentile Clustering) - 3 strategies
@@ -495,7 +490,8 @@ class HybridSignalCalculator(
                 except Exception as e:
                     indicator_name = f"spc_{strategy}"
                     log_warn(
-                        f"{indicator_name} signal calculation failed: symbol={symbol}, timeframe={timeframe}, period_index={period_index}, error={e}"
+                        f"{indicator_name} signal calculation failed: symbol={symbol}, "
+                        f"timeframe={timeframe}, period_index={period_index}, error={e}"
                     )
 
         # 3. XGBoost
@@ -506,7 +502,8 @@ class HybridSignalCalculator(
                     indicator_signals.append(result)
             except Exception as e:
                 log_warn(
-                    f"xgboost signal calculation failed: symbol={symbol}, timeframe={timeframe}, period_index={period_index}, error={e}"
+                    f"xgboost signal calculation failed: symbol={symbol}, "
+                    f"timeframe={timeframe}, period_index={period_index}, error={e}"
                 )
 
         # 4. HMM
@@ -517,7 +514,8 @@ class HybridSignalCalculator(
                     indicator_signals.append(result)
             except Exception as e:
                 log_warn(
-                    f"hmm signal calculation failed: symbol={symbol}, timeframe={timeframe}, period_index={period_index}, error={e}"
+                    f"hmm signal calculation failed: symbol={symbol}, timeframe={timeframe},\n"
+                    f"period_index={period_index}, error={e}"
                 )
 
         # 5. Random Forest
@@ -528,7 +526,8 @@ class HybridSignalCalculator(
                     indicator_signals.append(result)
             except Exception as e:
                 log_warn(
-                    f"random_forest signal calculation failed: symbol={symbol}, timeframe={timeframe}, period_index={period_index}, error={e}"
+                    f"random_forest signal calculation failed: symbol={symbol}, timeframe={timeframe},\n"
+                    f"period_index={period_index}, error={e}"
                 )
 
         return indicator_signals

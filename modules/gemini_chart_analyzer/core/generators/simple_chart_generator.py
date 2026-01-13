@@ -1,23 +1,17 @@
-
-from typing import Tuple
-
-from matplotlib.patches import Rectangle
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
-import pandas as pd
-
-from modules.common.ui.logging import log_warn
-
-from modules.common.ui.logging import log_warn
-
 """
 Simple Chart Generator for batch scanning.
 
 Render simple candlestick charts without indicators for batch processing.
 """
 
+from typing import Tuple
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import pandas as pd
+from matplotlib.patches import Rectangle
 
+from modules.common.ui.logging import log_warn
 
 # Candle width configuration constants
 CANDLE_WIDTH_RATIO = 0.8  # Fraction of time interval used for candle width (unitless ratio)

@@ -1,7 +1,3 @@
-
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
-
 """
 Decision Matrix Classifier.
 
@@ -9,6 +5,8 @@ Simple Decision Matrix Classification Algorithm inspired by Random Forest.
 Uses voting system with weighted impact and feature importance.
 """
 
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass

@@ -1,10 +1,8 @@
-
-from modules.common.ui.logging import log_system
-
 """
 CNN feature mixin for LSTM trainers.
 """
 
+from modules.common.ui.logging import log_system
 
 # CNN models require more memory, so we reduce batch size
 CNN_MIN_BATCH_SIZE = 4

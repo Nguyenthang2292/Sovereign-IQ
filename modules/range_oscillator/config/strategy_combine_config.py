@@ -1,3 +1,4 @@
+"""Main configuration for Combined Strategy."""
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -5,11 +6,6 @@ from typing import Dict, List, Optional
 from .consensus_config import ConsensusConfig
 from .dynamic_selection_config import DynamicSelectionConfig
 from .strategy_specific_config import StrategySpecificConfig
-from .strategy_specific_config import StrategySpecificConfig
-
-"""Main configuration for Combined Strategy."""
-
-
 
 
 @dataclass

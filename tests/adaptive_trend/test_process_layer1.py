@@ -1,16 +1,12 @@
+"""
+Tests for process_layer1 module.
+"""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from modules.adaptive_trend.core.process_layer1 import (
-from modules.adaptive_trend.core.process_layer1 import (
-
-"""
-Tests for process_layer1 module.
-"""
-
-
     _layer1_signal_for_ma,
     cut_signal,
     trend_sign,

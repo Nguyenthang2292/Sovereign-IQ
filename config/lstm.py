@@ -1,6 +1,3 @@
-
-from pathlib import Path
-
 """
 LSTM Model Configuration.
 
@@ -12,6 +9,7 @@ Configuration constants for LSTM/CNN-LSTM models including:
 - Target creation thresholds
 """
 
+from pathlib import Path
 
 # ============================================================================
 # Directory Configuration

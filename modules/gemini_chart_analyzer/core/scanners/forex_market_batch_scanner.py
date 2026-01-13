@@ -1,3 +1,9 @@
+"""
+Forex Market Batch Scanner using TradingView scraper.
+
+Extends MarketBatchScanner to use TradingView scraper for forex data
+with format: OANDA:<SYMBOL_NAME>
+"""
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
@@ -7,18 +13,6 @@ import pandas as pd
 from modules.common.core.forex_data_fetcher import ForexDataFetcher
 from modules.common.ui.logging import log_error, log_warn
 from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
-from modules.common.ui.logging import log_error, log_warn
-from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
-
-"""
-Forex Market Batch Scanner using TradingView scraper.
-
-Extends MarketBatchScanner to use TradingView scraper for forex data
-with format: OANDA:<SYMBOL_NAME>
-"""
-
-
-
 
 
 class DataFetchStrategy(ABC):
@@ -162,7 +156,9 @@ class ForexMarketBatchScanner(MarketBatchScanner):
         # Use strategy pattern for data fetching
         self.fetch_strategy = fetch_strategy or ForexDataFetchStrategy()
 
-    def _fetch_forex_data(self, symbol: str, timeframe: str, limit: int) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+    def _fetch_forex_data(
+        self, symbol: str, timeframe: str, limit: int
+    ) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
         """
         Fetch OHLCV data for a single forex symbol using configured strategy.
 
@@ -208,4 +204,3 @@ class ForexMarketBatchScanner(MarketBatchScanner):
             strategy: Data fetch strategy instance
         """
         self.fetch_strategy = strategy
-

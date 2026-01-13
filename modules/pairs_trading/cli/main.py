@@ -1,12 +1,3 @@
-
-import warnings
-
-import pandas as pd
-
-from modules.common.utils import configure_windows_stdio
-
-from modules.common.utils import configure_windows_stdio
-
 """
 Pairs Trading Analysis Main Program
 
@@ -17,23 +8,16 @@ Analyzes futures pairs on Binance to identify pairs trading opportunities:
 - Validates pairs using cointegration and quantitative metrics
 """
 
+import warnings
 
-
-
-# Fix encoding issues on Windows for interactive CLI runs only
-configure_windows_stdio()
-
+import pandas as pd
 from colorama import Fore
 from colorama import init as colorama_init
 
-from config import (
-    PAIRS_TRADING_HURST_THRESHOLD,
-    PAIRS_TRADING_OPPORTUNITY_PRESETS,
-)
-from modules.common.core.data_fetcher import DataFetcher
-from modules.common.core.exchange_manager import ExchangeManager
+from modules.common import DataFetcher, ExchangeManager
 from modules.common.utils import (
     color_text,
+    configure_windows_stdio,
     log_analysis,
     log_data,
     log_error,
@@ -43,18 +27,10 @@ from modules.common.utils import (
     log_warn,
     normalize_symbol_key,
 )
-
-# Import directly from submodules to avoid circular import
 from modules.pairs_trading.analysis import PerformanceAnalyzer
-from modules.pairs_trading.cli.argument_parser import parse_args
-from modules.pairs_trading.cli.display import (
-    display_pairs_opportunities,
-    display_performers,
-)
-from modules.pairs_trading.cli.input_parsers import (
-    parse_symbols,
-    parse_weights,
-)
+from modules.pairs_trading.cli.argument_parser import PAIRS_TRADING_OPPORTUNITY_PRESETS, parse_args
+from modules.pairs_trading.cli.display import display_pairs_opportunities, display_performers
+from modules.pairs_trading.cli.input_parsers import parse_symbols, parse_weights
 from modules.pairs_trading.cli.interactive_prompts import (
     prompt_candidate_depth,
     prompt_interactive_mode,
@@ -64,11 +40,15 @@ from modules.pairs_trading.cli.interactive_prompts import (
     prompt_weight_preset_selection,
 )
 from modules.pairs_trading.core import PairsTradingAnalyzer
+from modules.pairs_trading.core.pairs_analyzer import PAIRS_TRADING_HURST_THRESHOLD
 from modules.pairs_trading.utils import (
     ensure_symbols_in_candidate_pools,
     select_pairs_for_symbols,
     select_top_unique_pairs,
 )
+
+# Fix encoding issues on Windows for interactive CLI runs only
+configure_windows_stdio()
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
@@ -302,7 +282,8 @@ def main() -> None:
         if missing_targets:
             if log_warn:
                 log_warn(
-                    f"These symbols were not discovered automatically but will be fetched manually: {', '.join(missing_targets)}"
+                    "These symbols were not discovered automatically but will be "
+                    f"fetched manually: {', '.join(missing_targets)}"
                 )
         target_symbols = mapped_targets
         if target_symbols:
@@ -497,8 +478,8 @@ def main() -> None:
                         avg_combined_adx = (avg_long_adx + avg_short_adx) / 2
 
                         # Count strong trends (ADX >= 25)
-                        strong_long = (long_adx_values >= 25).sum()
-                        strong_short = (short_adx_values >= 25).sum()
+                        (long_adx_values >= 25).sum()
+                        (short_adx_values >= 25).sum()
                         both_strong = ((selected_pairs["long_adx"] >= 25) & (selected_pairs["short_adx"] >= 25)).sum()
 
                         if log_data:
@@ -506,7 +487,9 @@ def main() -> None:
                             log_data(f"  Average Short ADX: {avg_short_adx:.2f}")
                             log_data(f"  Average Combined ADX: {avg_combined_adx:.2f}")
                             log_data(
-                                f"  Strong trends (ADX≥25): {both_strong}/{len(selected_pairs)} pairs ({both_strong / len(selected_pairs) * 100:.1f}%)"
+                                f"  Strong trends (ADX>=25): "
+                                f"{both_strong}/{len(selected_pairs)} pairs "
+                                f"({both_strong / len(selected_pairs) * 100:.1f}%)"
                             )
 
                 # Hurst exponent statistics (should be > 0.5 for momentum)
@@ -528,7 +511,8 @@ def main() -> None:
                             f"  Trending pairs (H>0.5): {trending_count}/{len(hurst_values)} ({trending_pct:.1f}%)"
                         )
                         log_data(
-                            f"  Strong trending (H>0.6): {strong_trending}/{len(hurst_values)} ({strong_trending_pct:.1f}%)"
+                            f"  Strong trending (H>0.6): "
+                            f"{strong_trending}/{len(hurst_values)} ({strong_trending_pct:.1f}%)"
                         )
 
                 # Z-Score divergence statistics
@@ -545,10 +529,14 @@ def main() -> None:
                     if log_data:
                         log_data(f"  Average |Z-Score|: {avg_abs_zscore:.2f}")
                         log_data(
-                            f"  High divergence (|Z|>1): {high_divergence}/{len(zscore_values)} ({high_divergence / len(zscore_values) * 100:.1f}%)"
+                            f"  High divergence (|Z|>1): "
+                            f"{high_divergence}/{len(zscore_values)} "
+                            f"({high_divergence / len(zscore_values) * 100:.1f}%)"
                         )
                         log_data(
-                            f"  Very high divergence (|Z|>2): {very_high_divergence}/{len(zscore_values)} ({very_high_divergence / len(zscore_values) * 100:.1f}%)"
+                            f"  Very high divergence (|Z|>2): "
+                            f"{very_high_divergence}/{len(zscore_values)} "
+                            f"({very_high_divergence / len(zscore_values) * 100:.1f}%)"
                         )
 
             else:
@@ -560,7 +548,8 @@ def main() -> None:
                     cointegration_rate = (cointegrated_count / len(selected_pairs)) * 100
                     if log_data:
                         log_data(
-                            f"  Cointegration rate: {cointegration_rate:.1f}% ({cointegrated_count}/{len(selected_pairs)})"
+                            f"  Cointegration rate: {cointegration_rate:.1f}% "
+                            f"({cointegrated_count}/{len(selected_pairs)})"
                         )
 
                 # Average half-life
@@ -585,7 +574,8 @@ def main() -> None:
                     if log_data:
                         log_data(f"  Average Hurst exponent: {avg_hurst:.3f}")
                         log_data(
-                            f"  Mean-reverting pairs (H<0.5): {mean_reverting}/{len(hurst_values)} ({mean_reverting_pct:.1f}%)"
+                            f"  Mean-reverting pairs (H<0.5): "
+                            f"{mean_reverting}/{len(hurst_values)} ({mean_reverting_pct:.1f}%)"
                         )
 
             # Shared metrics (both strategies)

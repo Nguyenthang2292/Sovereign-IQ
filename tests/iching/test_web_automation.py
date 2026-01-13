@@ -1,19 +1,9 @@
-
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
 from modules.iching.core.web_automation import (
-
-from modules.iching.core.web_automation import (
-
-"""
-Tests for I Ching web automation.
-"""
-
-
-
     clear_all_haodong,
     click_with_fallback,
     ensure_checkbox_checked,
@@ -23,6 +13,10 @@ Tests for I Ching web automation.
     scroll_into_view,
     wait_for_page_load,
 )
+
+"""
+Tests for I Ching web automation.
+"""
 
 
 class TestWaitForPageLoad:

@@ -1,17 +1,21 @@
-
-import pandas as pd
-
-
-def _format_price(x):
-    return f"${x:.2f}" if x else "N/A"
-
-
 """
 Performance display formatter for pairs trading analysis.
 
 This module provides formatted display functions for showing symbol performance
 data in a user-friendly table format with color-coded metrics.
 """
+
+import pandas as pd
+
+
+def _format_price(x):
+    try:
+        # Properly check for None or NaN, display as "N/A"
+        if x is None or (isinstance(x, float) and pd.isna(x)):
+            return "N/A"
+        return f"${x:.2f}"
+    except Exception:
+        return "N/A"
 
 
 try:

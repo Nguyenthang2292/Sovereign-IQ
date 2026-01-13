@@ -1,8 +1,6 @@
-
-from modules.random_forest.core import (
-
 """Random Forest model for trading signal prediction."""
 
+from modules.random_forest.core import (
     apply_confidence_threshold,
     calculate_and_display_metrics,
     calculate_random_forest_vote,

@@ -1,22 +1,16 @@
-
 from unittest.mock import patch
 
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from config.lstm import WINDOW_SIZE_LSTM
-from modules.lstm.utils.preprocessing import preprocess_cnn_lstm_data
 from config.lstm import WINDOW_SIZE_LSTM
 from modules.lstm.utils.preprocessing import preprocess_cnn_lstm_data
 
 """
 Tests for data preprocessing utilities.
 """
-
-
-
 
 
 class TestPreprocessCnnLstmData:

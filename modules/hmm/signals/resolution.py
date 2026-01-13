@@ -1,24 +1,20 @@
-
-from typing import TYPE_CHECKING, Dict, List, Literal, Tuple
-
-from modules.common.utils import log_warn
-from modules.common.utils import log_warn
-
 """
 HMM Signal Resolution Module
 
 Functions for conflict resolution and dynamic threshold adjustment.
 """
 
+from typing import TYPE_CHECKING, Dict, List, Literal, Tuple
 
-
-if TYPE_CHECKING:
-    from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
-from config import (
+from config.hmm import (
     HMM_CONFLICT_RESOLUTION_THRESHOLD,
     HMM_FEATURES,
     HMM_VOLATILITY_CONFIG,
 )
+from modules.common.utils import log_warn
+
+if TYPE_CHECKING:
+    from modules.hmm.signals.strategy import HMMStrategy, HMMStrategyResult
 
 # Signal constants (moved from config for better organization)
 Signal = Literal[-1, 0, 1]

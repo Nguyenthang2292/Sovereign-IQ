@@ -1,11 +1,9 @@
-
-from dataclasses import dataclass
-from typing import List, Optional
-
 """
 Data models for I Ching result extraction.
 """
 
+from dataclasses import dataclass
+from typing import List, Optional
 
 
 @dataclass(frozen=True)
@@ -46,7 +44,8 @@ class IChingResult:
             if not str(self.nguyet_lenh).strip():
                 raise ValueError("nguyet_lenh must be a non-empty string")
 
-        # Validate que_trai: may contain at most 6 HaoInfo entries (0..6 allowed) and must not contain duplicate hao numbers
+        # Validate que_trai: may contain at most 6 HaoInfo entries (0..6 allowed)
+        # and must not contain duplicate hao numbers
         if len(self.que_trai) > 6:
             raise ValueError(f"que_trai must have at most 6 HaoInfo, got {len(self.que_trai)}")
 

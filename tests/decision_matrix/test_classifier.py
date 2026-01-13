@@ -1,14 +1,10 @@
-
-import pytest
-
-from modules.decision_matrix.classifier import DecisionMatrixClassifier
-from modules.decision_matrix.classifier import DecisionMatrixClassifier
-
 """
 Tests for DecisionMatrixClassifier.
 """
 
+import pytest
 
+from modules.decision_matrix.classifier import DecisionMatrixClassifier
 
 
 class TestDecisionMatrixClassifier:
@@ -88,8 +84,8 @@ class TestDecisionMatrixClassifier:
         # Both weights should be proportional to their importance
         # Since neither exceeds 40%, no normalization should occur
         total = 0.65 + 0.70
-        atc_expected = 0.65 / total
-        osc_expected = 0.70 / total
+        0.65 / total
+        0.70 / total
 
         # Check that weights are proportional (may have slight adjustments from normalization)
         assert classifier.weighted_impact["atc"] > 0

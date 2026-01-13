@@ -1,3 +1,9 @@
+"""
+Tests for single signal (highest confidence) backtester.
+
+This module tests the new single signal mode where signals are selected
+based on highest confidence rather than majority vote.
+"""
 
 from unittest.mock import Mock, patch
 
@@ -8,18 +14,6 @@ import pytest
 from modules.backtester import FullBacktester
 from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
 from modules.position_sizing.core.position_sizer import PositionSizer
-from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
-from modules.position_sizing.core.position_sizer import PositionSizer
-
-"""
-Tests for single signal (highest confidence) backtester.
-
-This module tests the new single signal mode where signals are selected
-based on highest confidence rather than majority vote.
-"""
-
-
-
 
 
 @pytest.fixture
@@ -286,7 +280,7 @@ class TestFullBacktesterSingleSignalMode:
         # Mock the data fetcher
         mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (sample_df, None)
 
-        result = backtester.backtest(
+        backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
             lookback=100,

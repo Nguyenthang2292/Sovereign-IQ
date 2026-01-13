@@ -1,4 +1,3 @@
-
 from types import SimpleNamespace
 
 import numpy as np
@@ -6,11 +5,6 @@ import pandas as pd
 
 from modules.common.models.position import Position
 from modules.portfolio.risk_calculator import PortfolioRiskCalculator
-from modules.common.models.position import Position
-from modules.portfolio.risk_calculator import PortfolioRiskCalculator
-
-
-
 
 
 def test_calculate_stats_handles_long_and_short_positions():

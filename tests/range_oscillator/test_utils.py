@@ -1,9 +1,7 @@
-
 import numpy as np
 import pandas as pd
 import pytest
 
-from modules.range_oscillator.utils.oscillator_data import get_oscillator_data
 from modules.range_oscillator.utils.oscillator_data import get_oscillator_data
 
 """
@@ -12,8 +10,6 @@ Tests for range_oscillator utils module.
 Tests utility functions:
 - get_oscillator_data
 """
-
-
 
 
 @pytest.fixture

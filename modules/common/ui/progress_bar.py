@@ -1,18 +1,12 @@
+"""
+Progress bar utility for displaying task progress.
+"""
 
 import threading
 
 from colorama import Fore
 
 from modules.common.ui.formatting import color_text
-
-from modules.common.ui.formatting import color_text
-
-"""
-Progress bar utility for displaying task progress.
-"""
-
-
-
 
 
 class ProgressBar:

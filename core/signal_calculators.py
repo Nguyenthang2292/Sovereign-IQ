@@ -1,12 +1,3 @@
-
-from typing import Optional, Tuple
-
-import pandas as pd
-
-from config import (
-
-from config import (
-
 """
 Signal calculators for hybrid approach.
 
@@ -18,8 +9,11 @@ This module contains functions to calculate signals from:
 5. Random Forest
 """
 
+from typing import Optional, Tuple
 
+import pandas as pd
 
+from config import (
     HMM_FAST_KAMA_DEFAULT,
     HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
     HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
@@ -31,6 +25,14 @@ This module contains functions to calculate signals from:
     SPC_P_LOW,
     TARGET_BASE_THRESHOLD,
 )
+
+# Constants for Range Oscillator strategies
+# Default enabled strategies when strategies parameter is None or when strategy 5 is included
+DEFAULT_ENABLED_STRATEGIES = [2, 3, 4, 6, 7, 8, 9]
+
+# Constants for XGBoost training
+# Minimum number of samples required for training to prevent overfitting
+XGBOOST_MIN_TRAINING_SAMPLES = 50
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.indicator_engine import (
     IndicatorConfig,
@@ -78,6 +80,22 @@ def get_range_oscillator_signal(
     """Calculate Range Oscillator signal for a symbol."""
     # Wrap entire function in try-except to catch all exceptions
     try:
+        # Validate numeric parameters to prevent DoS attacks
+        if not isinstance(limit, int) or limit <= 0 or limit > 10000:
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Invalid limit parameter: {limit}. Must be positive integer <= 10000")
+            return None
+        if not isinstance(osc_length, int) or osc_length <= 0 or osc_length > 1000:
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Invalid osc_length parameter: {osc_length}. Must be positive integer <= 1000")
+            return None
+        if not isinstance(osc_mult, (int, float)) or osc_mult <= 0 or osc_mult > 100:
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Invalid osc_mult parameter: {osc_mult}. Must be positive number <= 100")
+            return None
         # Use provided DataFrame if available, otherwise fetch from API
         if df is None:
             # Use check_freshness=False to avoid multiple fetch attempts and inconsistent results
@@ -108,10 +126,10 @@ def get_range_oscillator_signal(
         close = df["close"].copy()
 
         if strategies is None:
-            enabled_strategies = [2, 3, 4, 6, 7, 8, 9]
+            enabled_strategies = DEFAULT_ENABLED_STRATEGIES
         else:
             if 5 in strategies:
-                enabled_strategies = [2, 3, 4, 6, 7, 8, 9]
+                enabled_strategies = DEFAULT_ENABLED_STRATEGIES
             else:
                 enabled_strategies = strategies
 
@@ -179,13 +197,25 @@ def get_range_oscillator_signal(
             return None
 
         latest_idx = signals[non_nan_mask].index[-1]
-        latest_signal = int(signals.loc[latest_idx])
-        latest_confidence = (
-            float(confidence.loc[latest_idx]) if confidence is not None and not confidence.empty else 0.0
-        )
+        try:
+            latest_signal = int(signals.loc[latest_idx])
+            latest_confidence = (
+                float(confidence.loc[latest_idx]) if confidence is not None and not confidence.empty else 0.0
+            )
+        except (ValueError, TypeError) as e:
+            # Handle type conversion errors explicitly
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Type conversion error in Range Oscillator signal for {symbol}: {type(e).__name__}")
+            return None
         return (latest_signal, latest_confidence)
 
-    except Exception:
+    except Exception as e:
+        # Log error for debugging instead of silently swallowing
+        # Sanitize error message to prevent information leakage
+        from modules.common.ui.logging import log_error
+
+        log_error(f"Error calculating Range Oscillator signal for {symbol}: {type(e).__name__}")
         return None
 
 
@@ -201,6 +231,12 @@ def get_spc_signal(
 ) -> Optional[Tuple[int, float]]:
     """Calculate SPC signal for a symbol."""
     try:
+        # Validate numeric parameters to prevent DoS attacks
+        if not isinstance(limit, int) or limit <= 0 or limit > 10000:
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Invalid limit parameter: {limit}. Must be positive integer <= 10000")
+            return None
         # Use provided DataFrame if available, otherwise fetch from API
         if df is None:
             df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
@@ -213,7 +249,10 @@ def get_spc_signal(
         if df is None or df.empty:
             return None
 
-        if "high" not in df.columns or "low" not in df.columns or "close" not in df.columns:
+        # Validate required columns (standardized validation)
+        required_columns = ["high", "low", "close"]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
             return None
 
         high = df["high"]
@@ -286,11 +325,23 @@ def get_spc_signal(
             return None
 
         latest_idx = signals[non_nan_mask].index[-1]
-        latest_signal = int(signals.loc[latest_idx])
-        latest_strength = float(signal_strength.loc[latest_idx]) if not signal_strength.empty else 0.0
+        try:
+            latest_signal = int(signals.loc[latest_idx])
+            latest_strength = float(signal_strength.loc[latest_idx]) if not signal_strength.empty else 0.0
+        except (ValueError, TypeError) as e:
+            # Handle type conversion errors explicitly
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Type conversion error in SPC signal for {symbol} (strategy: {strategy}): {type(e).__name__}")
+            return None
         return (latest_signal, latest_strength)
 
-    except Exception:
+    except Exception as e:
+        # Log error for debugging instead of silently swallowing
+        # Sanitize error message to prevent information leakage
+        from modules.common.ui.logging import log_error
+
+        log_error(f"Error calculating SPC signal for {symbol} (strategy: {strategy}): {type(e).__name__}")
         return None
 
 
@@ -303,6 +354,13 @@ def get_xgboost_signal(
 ) -> Optional[Tuple[int, float]]:
     """Calculate XGBoost prediction signal for a symbol."""
     try:
+        # Validate numeric parameters to prevent DoS attacks
+        if not isinstance(limit, int) or limit <= 0 or limit > 10000:
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Invalid limit parameter: {limit}. Must be positive integer <= 10000")
+            return None
+
         # Use provided DataFrame if available, otherwise fetch from API
         if df is None:
             df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
@@ -315,7 +373,14 @@ def get_xgboost_signal(
         if df is None or df.empty:
             return None
 
-        if "high" not in df.columns or "low" not in df.columns or "close" not in df.columns:
+        # Validate required columns (standardized validation)
+        required_columns = ["high", "low", "close"]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return None
+
+        # Check data size BEFORE computing expensive features to prevent resource waste
+        if len(df) < XGBOOST_MIN_TRAINING_SAMPLES:
             return None
 
         # Initialize IndicatorEngine for XGBoost features
@@ -339,7 +404,8 @@ def get_xgboost_signal(
         df.dropna(inplace=True)
         latest_data["DynamicThreshold"] = latest_threshold
 
-        if len(df) < 50:  # Need minimum samples for training
+        # Double-check after dropping NaN (shouldn't fail if initial check passed with sufficient margin)
+        if len(df) < XGBOOST_MIN_TRAINING_SAMPLES:
             return None
 
         # Train model and predict
@@ -347,22 +413,34 @@ def get_xgboost_signal(
         proba = predict_next_move(model, latest_data)
 
         # Get prediction: UP=1, DOWN=-1, NEUTRAL=0
-        best_idx = int(proba.argmax())
-        direction = ID_TO_LABEL[best_idx]
+        try:
+            best_idx = int(proba.argmax())
+            direction = ID_TO_LABEL[best_idx]
 
-        # Convert to signal format: UP -> 1, DOWN -> -1, NEUTRAL -> 0
-        if direction == "UP":
-            signal = 1
-        elif direction == "DOWN":
-            signal = -1
-        else:
-            signal = 0
+            # Convert to signal format: UP -> 1, DOWN -> -1, NEUTRAL -> 0
+            if direction == "UP":
+                signal = 1
+            elif direction == "DOWN":
+                signal = -1
+            else:
+                signal = 0
 
-        # Use probability as confidence/strength
-        confidence = float(proba[best_idx])
+            # Use probability as confidence/strength
+            confidence = float(proba[best_idx])
+        except (ValueError, TypeError, KeyError, IndexError) as e:
+            # Handle type conversion errors explicitly
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Type conversion error in XGBoost signal for {symbol}: {type(e).__name__}")
+            return None
         return (signal, confidence)
 
-    except Exception:
+    except Exception as e:
+        # Log error for debugging instead of silently swallowing
+        # Sanitize error message to prevent information leakage
+        from modules.common.ui.logging import log_error
+
+        log_error(f"Error calculating XGBoost signal for {symbol}: {type(e).__name__}")
         return None
 
 
@@ -406,6 +484,23 @@ def get_hmm_signal(
         - confidence: Signal confidence (0.0 to 1.0)
     """
     try:
+        # Validate numeric parameters to prevent DoS attacks
+        if not isinstance(limit, int) or limit <= 0 or limit > 10000:
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Invalid limit parameter: {limit}. Must be positive integer <= 10000")
+            return None
+        if window_size is not None and (not isinstance(window_size, int) or window_size <= 0 or window_size > 1000):
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Invalid window_size parameter: {window_size}. Must be positive integer <= 1000")
+            return None
+        if window_kama is not None and (not isinstance(window_kama, int) or window_kama <= 0 or window_kama > 1000):
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Invalid window_kama parameter: {window_kama}. Must be positive integer <= 1000")
+            return None
+
         # Use provided DataFrame if available, otherwise fetch from API
         if df is None:
             df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
@@ -418,7 +513,10 @@ def get_hmm_signal(
         if df is None or df.empty:
             return None
 
-        if "high" not in df.columns or "low" not in df.columns or "close" not in df.columns:
+        # Validate required columns (standardized validation)
+        required_columns = ["high", "low", "close"]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
             return None
 
         # Get HMM signals using new combiner
@@ -439,10 +537,22 @@ def get_hmm_signal(
         confidence = result["confidence"]
 
         # Convert Signal type (Literal[-1, 0, 1]) to int
-        signal_value = int(combined_signal)
+        try:
+            signal_value = int(combined_signal)
+        except (ValueError, TypeError) as e:
+            # Handle type conversion errors explicitly
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Type conversion error in HMM signal for {symbol}: {type(e).__name__}")
+            return None
         return (signal_value, confidence)
 
-    except Exception:
+    except Exception as e:
+        # Log error for debugging instead of silently swallowing
+        # Sanitize error message to prevent information leakage
+        from modules.common.ui.logging import log_error
+
+        log_error(f"Error calculating HMM signal for {symbol}: {type(e).__name__}")
         return None
 
 
@@ -471,10 +581,56 @@ def get_random_forest_signal(
         - confidence: Signal confidence (0.0 to 1.0)
     """
     try:
+        # Validate numeric parameters to prevent DoS attacks
+        if not isinstance(limit, int) or limit <= 0 or limit > 10000:
+            from modules.common.ui.logging import log_error
+
+            log_error(f"Invalid limit parameter: {limit}. Must be positive integer <= 10000")
+            return None
         # Load model
         from pathlib import Path
 
-        model = load_random_forest_model(Path(model_path) if model_path else None)
+        from config.random_forest import MODELS_DIR
+        from modules.common.ui.logging import log_error
+
+        # Validate and sanitize model_path to prevent path traversal attacks
+        if model_path:
+            path_obj = Path(model_path)
+
+            # Resolve to absolute path to normalize any traversal sequences (../, ..\, etc.)
+            try:
+                resolved_path = path_obj.resolve()
+            except (OSError, RuntimeError) as e:
+                # Sanitize error message to prevent information leakage
+                # Only log path validation errors, not full exception details
+                log_error(f"Invalid model path (cannot resolve): {type(e).__name__}")
+                return None
+
+            # Ensure path is within allowed directory (MODELS_DIR)
+            # Resolve MODELS_DIR to absolute path for comparison
+            try:
+                allowed_dir = Path(MODELS_DIR).resolve()
+            except (OSError, RuntimeError):
+                # If MODELS_DIR cannot be resolved, use it as-is (might be relative)
+                allowed_dir = Path(MODELS_DIR).absolute()
+
+            # Check if resolved path is within allowed directory
+            try:
+                # This will raise ValueError if path is outside allowed_dir
+                resolved_path.relative_to(allowed_dir)
+            except ValueError:
+                # Path is outside allowed directory - security violation
+                log_error(
+                    f"Path traversal detected or invalid model path: {model_path}. "
+                    f"Resolved path: {resolved_path}, Allowed directory: {allowed_dir}"
+                )
+                return None
+
+            validated_path = resolved_path
+        else:
+            validated_path = None
+
+        model = load_random_forest_model(validated_path)
         if model is None:
             return None
 
@@ -510,5 +666,10 @@ def get_random_forest_signal(
 
         return (signal, confidence)
 
-    except Exception:
+    except Exception as e:
+        # Log error for debugging instead of silently swallowing
+        # Sanitize error message to prevent information leakage
+        from modules.common.ui.logging import log_error
+
+        log_error(f"Error calculating Random Forest signal for {symbol}: {type(e).__name__}")
         return None

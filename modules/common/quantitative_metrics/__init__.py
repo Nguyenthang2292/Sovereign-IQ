@@ -1,6 +1,3 @@
-
-from modules.common.quantitative_metrics.classification import (
-
 """
 Quantitative metrics for technical analysis.
 
@@ -26,8 +23,9 @@ Note: CCI and DMI difference have been moved to modules.common.indicators.trend
 as they are standard trend indicators.
 """
 
-# Mathematical transformations
-# Classification metrics
+from modules.common.quantitative_metrics.classification import (
+    # Mathematical transformations
+    # Classification metrics
     calculate_direction_metrics,
 )
 

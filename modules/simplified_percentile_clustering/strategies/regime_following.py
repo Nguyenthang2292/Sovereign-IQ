@@ -1,12 +1,16 @@
+from __future__ import annotations
 
 from typing import Optional, Tuple
 
 import pandas as pd
 
-from __future__ import annotations
 from modules.simplified_percentile_clustering.config.regime_following_config import (
-from __future__ import annotations
-from modules.simplified_percentile_clustering.config.regime_following_config import (
+    RegimeFollowingConfig,
+)
+from modules.simplified_percentile_clustering.core.clustering import (
+    ClusteringResult,
+    compute_clustering,
+)
 
 """
 Regime Following Strategy.
@@ -33,16 +37,6 @@ Strategy Logic:
    - Transitioning between clusters
    - Conflicting signals
 """
-
-
-
-
-    RegimeFollowingConfig,
-)
-from modules.simplified_percentile_clustering.core.clustering import (
-    ClusteringResult,
-    compute_clustering,
-)
 from modules.simplified_percentile_clustering.utils.helpers import (
     safe_isna,
     vectorized_cluster_duration,

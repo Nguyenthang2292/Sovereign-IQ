@@ -1,9 +1,7 @@
-
-from typing import Tuple
 import warnings
+from typing import Tuple
 
 import numpy as np
-import pandas as pd
 import pandas as pd
 
 """
@@ -11,8 +9,6 @@ Helper functions for Simplified Percentile Clustering.
 
 Provides optimized utility functions for common operations.
 """
-
-
 
 
 def safe_isna(value) -> bool:
@@ -250,7 +246,6 @@ def vectorized_extreme_duration(
 
     # Calculate duration: increment when in extreme, reset when not
     extreme_duration = pd.Series(0, index=real_clust.index, dtype=int)
-    real_clust_arr = real_clust.values
     in_extreme_arr = in_extreme.values
 
     for i in range(len(real_clust)):

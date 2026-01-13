@@ -1,18 +1,14 @@
-
-from colorama import Fore
-from sklearn.metrics import classification_report, confusion_matrix
-
-from .utils import color_text
-from config import TARGET_LABELS
-from modules.common.utils import log_analysis, log_info, log_model
-from modules.common.utils import log_analysis, log_info, log_model
-
 """
 Display and reporting functions for xgboost_prediction_main.py
 """
 
+from colorama import Fore
+from sklearn.metrics import classification_report, confusion_matrix
 
+from config import TARGET_LABELS
+from modules.common.utils import log_analysis, log_info, log_model
 
+from .utils import color_text
 
 
 def print_classification_report(y_true, y_pred, title="Classification Report"):

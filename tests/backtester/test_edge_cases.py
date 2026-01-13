@@ -1,3 +1,6 @@
+"""
+Edge case tests for Full Backtester.
+"""
 
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -7,27 +10,16 @@ import pandas as pd
 
 from modules.backtester import FullBacktester
 
-from modules.backtester import FullBacktester
-
-"""
-Edge case tests for Full Backtester.
-"""
-
-
-
-
-# Fixtures from conftest.py will be automatically available
-
 
 def test_backtest_with_no_signals(mock_data_fetcher):
     """Test backtest when no signals are generated."""
     # Override the autouse fixture to return no signals
     with (
-        patch("core.signal_calculators.get_range_oscillator_signal", return_value=(0, 0.0)),
-        patch("core.signal_calculators.get_spc_signal", return_value=(0, 0.0)),
-        patch("core.signal_calculators.get_xgboost_signal", return_value=(0, 0.0)),
-        patch("core.signal_calculators.get_hmm_signal", return_value=(0, 0.0)),
-        patch("core.signal_calculators.get_random_forest_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(0, 0.0)),
     ):
         backtester = FullBacktester(mock_data_fetcher)
 
@@ -67,11 +59,11 @@ def test_backtest_with_very_small_dataset(mock_data_fetcher):
 
     # Mock signal calculators to avoid API calls
     with (
-        patch("core.signal_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
-        patch("core.signal_calculators.get_spc_signal", return_value=(1, 0.6)),
-        patch("core.signal_calculators.get_xgboost_signal", return_value=(1, 0.8)),
-        patch("core.signal_calculators.get_hmm_signal", return_value=(1, 0.65)),
-        patch("core.signal_calculators.get_random_forest_signal", return_value=(1, 0.75)),
+        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
+        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(1, 0.6)),
+        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(1, 0.8)),
+        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(1, 0.65)),
+        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(1, 0.75)),
     ):
         backtester = FullBacktester(small_fetcher)
 
@@ -111,11 +103,11 @@ def test_backtest_with_extreme_price_movements(mock_data_fetcher):
 
     # Mock signal calculators to avoid API calls
     with (
-        patch("core.signal_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
-        patch("core.signal_calculators.get_spc_signal", return_value=(1, 0.6)),
-        patch("core.signal_calculators.get_xgboost_signal", return_value=(1, 0.8)),
-        patch("core.signal_calculators.get_hmm_signal", return_value=(1, 0.65)),
-        patch("core.signal_calculators.get_random_forest_signal", return_value=(1, 0.75)),
+        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
+        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(1, 0.6)),
+        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(1, 0.8)),
+        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(1, 0.65)),
+        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(1, 0.75)),
     ):
         backtester = FullBacktester(extreme_fetcher)
 
@@ -158,11 +150,11 @@ def test_backtest_with_constant_price(mock_data_fetcher):
 
     # Mock signal calculators to avoid API calls
     with (
-        patch("core.signal_calculators.get_range_oscillator_signal", return_value=(0, 0.0)),
-        patch("core.signal_calculators.get_spc_signal", return_value=(0, 0.0)),
-        patch("core.signal_calculators.get_xgboost_signal", return_value=(0, 0.0)),
-        patch("core.signal_calculators.get_hmm_signal", return_value=(0, 0.0)),
-        patch("core.signal_calculators.get_random_forest_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(0, 0.0)),
+        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(0, 0.0)),
     ):
         backtester = FullBacktester(constant_fetcher)
 
@@ -180,7 +172,7 @@ def test_backtest_with_constant_price(mock_data_fetcher):
 
 def test_equity_curve_calculation(mock_data_fetcher):
     """Test equity curve calculation."""
-    backtester = FullBacktester(mock_data_fetcher)
+    FullBacktester(mock_data_fetcher)
 
     # Create mock trades
     trades = [

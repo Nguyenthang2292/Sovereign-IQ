@@ -1,15 +1,11 @@
+"""
+Tests for SPC Vote Aggregation module.
+"""
 
 import pytest
 
 from modules.simplified_percentile_clustering.aggregation import SPCVoteAggregator
 from modules.simplified_percentile_clustering.config.aggregation_config import SPCAggregationConfig
-from modules.simplified_percentile_clustering.config.aggregation_config import SPCAggregationConfig
-
-"""
-Tests for SPC Vote Aggregation module.
-"""
-
-
 
 
 class TestSPCAggregationConfig:

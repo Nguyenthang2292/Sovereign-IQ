@@ -1,10 +1,7 @@
-
 from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
-
-from modules.common.ui.logging import log_error, log_model, log_warn
 
 from modules.common.ui.logging import log_error, log_model, log_warn
 
@@ -14,9 +11,6 @@ Kalman Filter preprocessing utilities for LSTM models.
 This module provides Kalman Filter implementation to smooth OHLC price data
 before generating technical indicators, helping reduce noise and overfitting.
 """
-
-
-
 
 
 class KalmanFilterOHLC:

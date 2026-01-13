@@ -1,16 +1,12 @@
-
 import numpy as np
 import pytest
 
 from config.lstm import TRAIN_TEST_SPLIT, VALIDATION_SPLIT
 from modules.lstm.utils.data_utils import split_train_test_data
-from modules.lstm.utils.data_utils import split_train_test_data
 
 """
 Tests for data utility functions.
 """
-
-
 
 
 class TestSplitTrainTestData:

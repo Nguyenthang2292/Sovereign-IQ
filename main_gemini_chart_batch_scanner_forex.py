@@ -1,8 +1,3 @@
-
-from pathlib import Path
-from typing import List, Optional
-import sys
-
 """
 Main entry point for Forex Market Batch Scanner.
 
@@ -14,6 +9,9 @@ list of major and minor forex pairs. The exchange (binance, kraken, etc.) is
 only used for fetching price data, not for getting the symbol list.
 """
 
+import sys
+from pathlib import Path
+from typing import List, Optional
 
 # Add project root to sys.path
 if "__file__" in globals():
@@ -23,72 +21,29 @@ if "__file__" in globals():
         sys.path.insert(0, project_root_str)
 
 
-def setup_windows_stdin():
-    """Setup stdin for Windows CLI applications."""
-    if sys.platform == "win32":
-        try:
-            if sys.stdin is None or (hasattr(sys.stdin, "closed") and sys.stdin.closed):
-                sys.stdin = open("CON", "r", encoding="utf-8", errors="replace")
-        except (OSError, IOError, AttributeError):
-            pass
-
-
-# Ensure stdin is available on Windows BEFORE any imports
-# This is critical when running to file directly (not via wrapper)
-# This must happen BEFORE configure_windows_stdio() is called
-from modules.common.utils import setup_windows_stdin
-
-setup_windows_stdin()
-
-# Fix encoding issues on Windows
-# This must be called AFTER stdin is opened
-from modules.common.utils import configure_windows_stdio, get_error_code, is_retryable_error
-
-configure_windows_stdio()
-
 import time
+import traceback
 
+from colorama import Fore
+from colorama import init as colorama_init
+
+from config.forex_pairs import FOREX_MAJOR_PAIRS, FOREX_MINOR_PAIRS
 from modules.common.core.exchange_manager import PublicExchangeManager
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
+from modules.common.utils import (
+    color_text,
+    configure_windows_stdio,
+    get_error_code,
+    is_retryable_error,
+    normalize_timeframe,
+    safe_input,
+    setup_windows_stdin,
+)
 from modules.gemini_chart_analyzer.core.scanners.forex_market_batch_scanner import ForexMarketBatchScanner
+from modules.gemini_chart_analyzer.core.utils import DEFAULT_TIMEFRAMES, normalize_timeframes
 
-# 7 Major Forex Pairs
-FOREX_MAJOR_PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "AUD/USD", "USD/CAD", "NZD/USD"]
-
-# Common Minor Forex Pairs (Cross pairs without USD)
-# These are the most commonly traded minor pairs
-FOREX_MINOR_PAIRS = [
-    # EUR crosses
-    "EUR/GBP",
-    "EUR/JPY",
-    "EUR/CHF",
-    "EUR/AUD",
-    "EUR/CAD",
-    "EUR/NZD",
-    # GBP crosses
-    "GBP/JPY",
-    "GBP/CHF",
-    "GBP/AUD",
-    "GBP/CAD",
-    "GBP/NZD",
-    # JPY crosses
-    "AUD/JPY",
-    "CAD/JPY",
-    "CHF/JPY",
-    "NZD/JPY",
-    # AUD crosses
-    "AUD/CAD",
-    "AUD/CHF",
-    "AUD/NZD",
-    # CAD crosses
-    "CAD/CHF",
-    "CAD/NZD",
-    # CHF crosses
-    "CHF/NZD",
-    # NZD crosses
-    "NZD/CAD",
-    "NZD/CHF",
-]
+setup_windows_stdin()
+configure_windows_stdio()
 
 
 def get_forex_symbols(
@@ -116,128 +71,95 @@ def get_forex_symbols(
         minor_pairs = FOREX_MINOR_PAIRS.copy()
         all_symbols = symbols + minor_pairs
         log_info(
-            f"Using hardcoded forex pairs: {len(FOREX_MAJOR_PAIRS)} major + {len(minor_pairs)} minor = {len(all_symbols)} total"
+            f"Using hardcoded forex pairs: {len(FOREX_MAJOR_PAIRS)} major + "
+            f"{len(minor_pairs)} minor = {len(all_symbols)} total"
         )
         return all_symbols
 
     # Try to fetch from exchange
-    last_exception = None
 
-    try:
-        for attempt in range(max_retries):
-            try:
-                # Connect to exchange
-                public_exchange_manager = PublicExchangeManager()
-                exchange = public_exchange_manager.connect_to_exchange_with_no_credentials(exchange_name)
+    for attempt in range(max_retries):
+        try:
+            # Connect to exchange
+            public_exchange_manager = PublicExchangeManager()
+            exchange = public_exchange_manager.connect_to_exchange_with_no_credentials(exchange_name)
 
-                log_info(f"Loading markets from {exchange_name}...")
-                markets = exchange.load_markets()
+            log_info(f"Loading markets from {exchange_name}...")
+            markets = exchange.load_markets()
 
-                # Filter for minor pairs (cross pairs without USD)
-                minor_pairs = []
-                major_pairs_set = set(FOREX_MAJOR_PAIRS)
+            # Filter for minor pairs (cross pairs without USD)
+            minor_pairs = []
+            major_pairs_set = set(FOREX_MAJOR_PAIRS)
 
-                for symbol, market in markets.items():
-                    # Only active spot markets
-                    if not market.get("active", True):
-                        continue
-                    if market.get("type") != "spot":
-                        continue
-
-                    # Skip if already in major pairs
-                    if symbol in major_pairs_set:
-                        continue
-
-                    # Check if it's a minor pair (cross pair without USD)
-                    # Minor pairs are pairs that don't contain USD
-                    base = market.get("base", "")
-                    quote = market.get("quote", "")
-
-                    if "USD" not in base and "USD" not in quote:
-                        minor_pairs.append(symbol)
-
-                # Sort minor pairs alphabetically
-                minor_pairs.sort()
-
-                # Combine: major pairs first, then minor pairs
-                all_symbols = symbols + minor_pairs
-
-                log_success(
-                    f"Found {len(FOREX_MAJOR_PAIRS)} major pairs and {len(minor_pairs)} "
-                    f"minor pairs from {exchange_name}"
-                )
-                log_info(f"Total forex symbols: {len(all_symbols)}")
-
-                return all_symbols
-            except Exception as e:
-                last_exception = e
-
-            except Exception as e:
-                last_exception = e
-                error_message = str(e)
-
-                # Determine if error is retryable
-                is_retryable = False
-                error_code = get_error_code(e)
-
-                # Check if error is retryable using helper
-                is_retryable = is_retryable_error(e)
-
-                # Network errors, rate limits, timeouts are retryable
-                if error_code in [429, 500, 502, 503, 504]:
-                    is_retryable = True
-                elif "timeout" in error_message.lower() or "network" in error_message.lower():
-                    is_retryable = True
-                elif "rate limit" in error_message.lower():
-                    is_retryable = True
-
-                # Log the error
-                if attempt < max_retries - 1 and is_retryable:
-                    wait_time = retry_delay * (2**attempt)
-                    log_warn(
-                        f"Retryable error getting forex symbols (attempt {attempt + 1}/{max_retries}): "
-                        f"{error_message}. Waiting {wait_time}s before retrying..."
-                    )
-                    time.sleep(wait_time)
+            for symbol, market in markets.items():
+                # Only active spot markets
+                if not market.get("active", True):
                     continue
-                else:
-                    # Non-retryable error or final attempt failed
-                    log_warn(f"Error getting forex symbols from exchange: {error_message}")
-                    log_warn("Falling back to hardcoded forex pairs list...")
-                    # Fallback to hardcoded list
-                    minor_pairs = FOREX_MINOR_PAIRS.copy()
-                    all_symbols = symbols + minor_pairs
-                    log_info(
-                        f"Using hardcoded forex pairs: {len(FOREX_MAJOR_PAIRS)} major + {len(minor_pairs)} "
-                        f"minor = {len(all_symbols)} total"
-                    )
-                return all_symbols
+                if market.get("type") != "spot":
+                    continue
 
-            except Exception as e:
-                last_exception = e
-                # Fall through to the outer exception handling
+                # Skip if already in major pairs
+                if symbol in major_pairs_set:
+                    continue
 
-        # This should never be reached, but just in case - fallback to hardcoded
-        if last_exception:
-            log_warn(f"Failed to fetch forex symbols after {max_retries} attempts, using hardcoded list")
-            minor_pairs = FOREX_MINOR_PAIRS.copy()
+                # Check if it's a minor pair (cross pair without USD)
+                # Minor pairs are pairs that don't contain USD
+                base = market.get("base", "")
+                quote = market.get("quote", "")
+
+                if "USD" not in base and "USD" not in quote:
+                    minor_pairs.append(symbol)
+
+            # Sort minor pairs alphabetically
+            minor_pairs.sort()
+
+            # Combine: major pairs first, then minor pairs
             all_symbols = symbols + minor_pairs
-            log_info(
-                f"Using hardcoded forex pairs: {len(FOREX_MAJOR_PAIRS)} major + {len(minor_pairs)} "
-                f"minor = {len(all_symbols)} total"
-            )
-            return all_symbols
 
-    except Exception as e:
-        log_error(f"Unexpected error in get_forex_symbols: {e}")
-        # Fallback to hardcoded list
-        minor_pairs = FOREX_MINOR_PAIRS.copy()
-        all_symbols = FOREX_MAJOR_PAIRS + minor_pairs
-        log_info(
-            f"Using fallback forex pairs: {len(FOREX_MAJOR_PAIRS)} major + {len(minor_pairs)} "
-            f"minor = {len(all_symbols)} total"
-        )
-        return all_symbols
+            log_success(
+                f"Found {len(FOREX_MAJOR_PAIRS)} major pairs and {len(minor_pairs)} minor pairs from {exchange_name}"
+            )
+            log_info(f"Total forex symbols: {len(all_symbols)}")
+
+            return all_symbols
+        except Exception as e:
+            error_message = str(e)
+
+            # Determine if error is retryable
+            is_retryable = is_retryable_error(e)
+            error_code = get_error_code(e)
+
+            # Network errors, rate limits, timeouts are retryable
+            if error_code in [429, 500, 502, 503, 504]:
+                is_retryable = True
+            elif "timeout" in error_message.lower() or "network" in error_message.lower():
+                is_retryable = True
+            elif "rate limit" in error_message.lower():
+                is_retryable = True
+
+            # Log the error
+            if attempt < max_retries - 1 and is_retryable:
+                wait_time = retry_delay * (2**attempt)
+                log_warn(
+                    f"Retryable error getting forex symbols (attempt {attempt + 1}/{max_retries}): "
+                    f"{error_message}. Waiting {wait_time}s before retrying..."
+                )
+                time.sleep(wait_time)
+                continue
+            else:
+                # Non-retryable error or final attempt failed
+                log_warn(f"Error getting forex symbols from exchange: {error_message}")
+                break
+
+    # Fallback to hardcoded list
+    log_warn("Falling back to hardcoded forex pairs list...")
+    minor_pairs = FOREX_MINOR_PAIRS.copy()
+    all_symbols = symbols + minor_pairs
+    log_info(
+        f"Using hardcoded forex pairs: {len(FOREX_MAJOR_PAIRS)} major + {len(minor_pairs)} "
+        f"minor = {len(all_symbols)} total"
+    )
+    return all_symbols
 
 
 def main_forex():
@@ -246,20 +168,6 @@ def main_forex():
 
     Interactive menu for batch scanning forex market with Gemini.
     """
-    import traceback
-
-    from colorama import Fore
-    from colorama import init as colorama_init
-
-    from modules.common.utils import (
-        color_text,
-        log_error,
-        log_warn,
-        normalize_timeframe,
-        safe_input,
-    )
-    from modules.gemini_chart_analyzer.core.utils import DEFAULT_TIMEFRAMES, normalize_timeframes
-
     colorama_init(autoreset=True)
 
     try:

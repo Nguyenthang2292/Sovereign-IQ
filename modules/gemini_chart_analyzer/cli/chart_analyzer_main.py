@@ -1,7 +1,14 @@
+"""
+CLI Main Program for Gemini Chart Analyzer
 
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Optional
+Workflow:
+1. Enter symbol names and timeframe
+2. Generate chart images based on the entered information (can add indicators such as MA, RSI, etc.)
+3. Save the image
+4. Access Google Gemini using the API configured in config/config_api.py
+5. Upload the image for Google Gemini to analyze the chart image (LONG/SHORT - TP/SL)
+"""
+
 import base64
 import fnmatch
 import glob
@@ -12,22 +19,11 @@ import sys
 import urllib.parse
 import warnings
 import webbrowser
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
 
 import markdown
-import markdown
-
-"""
-CLI Main Program for Gemini Chart Analyzer
-
-Workflow:
-1. Nhập tên symbols và timeframe
-2. Tạo ảnh biểu đồ từ thông tin nhập vào (có thể thêm indicators như MA, RSI, etc.)
-3. Lưu ảnh
-4. Truy cập Google Gemini với API được config trong config/config_api.py
-5. Tải ảnh lên để Google Gemini phân tích hình ảnh biểu đồ (LONG/SHORT - TP/SL)
-"""
-
-
 
 # Add project root to sys.path to ensure modules can be imported
 # This is needed when running the file directly from subdirectories
@@ -657,9 +653,10 @@ def generate_multi_tf_html_report(
         analysis_html = format_text_to_html(analysis_text) if analysis_text else "<p>Không có phân tích</p>"
 
         # Chart image section
-        # NOTE: For multi-timeframe report, images are referenced by relative file paths (not embedded as base64).
-        # This is intentional to reduce file size when many charts are included.
-        # If you want full self-contained HTML portability, consider embedding images as base64 (see generate_html_report).
+        # NOTE: For multi-timeframe report, images are referenced by relative file paths
+        # (not embedded as base64). This is intentional to reduce file size when many
+        # charts are included. If you want full self-contained HTML portability,
+        # consider embedding images as base64 (see generate_html_report).
         if chart_path:
             # Sanitize chart path for relative HTML use
             chart_src = _sanitize_chart_path(chart_path, output_dir)
@@ -1085,7 +1082,9 @@ def generate_multi_tf_html_report(
             </div>
 
             <div class="accordion-container">
-                <h2 style="color: #667eea; margin-bottom: 20px; font-size: 1.8em;">📋 Phân Tích Chi Tiết Theo Timeframe</h2>
+                <h2 style="color: #667eea; margin-bottom: 20px; font-size: 1.6em;">
+                    📋 Phân Tích Chi Tiết Theo Timeframe
+                </h2>
                 {timeframe_sections_html}
             </div>
         </div>
@@ -1413,9 +1412,9 @@ def save_and_open_reports(
 
             # Aggregated result
             aggregated = results["aggregated"]
-            f.write(
-                f"\nAGGREGATED: {aggregated.get('signal', 'NONE')} (confidence: {aggregated.get('confidence', 0.0):.2f})\n"
-            )
+            agg_signal = aggregated.get("signal", "NONE")
+            agg_conf = aggregated.get("confidence", 0.0)
+            f.write(f"\nAGGREGATED: {agg_signal} (confidence: {agg_conf:.2f})\n")
 
         log_success(f"Saved summary: {result_file}")
 

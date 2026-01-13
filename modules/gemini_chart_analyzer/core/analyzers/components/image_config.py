@@ -1,8 +1,6 @@
-
-from dataclasses import dataclass
-
 """Image validation configuration for Gemini analyzer."""
 
+from dataclasses import dataclass
 
 
 @dataclass

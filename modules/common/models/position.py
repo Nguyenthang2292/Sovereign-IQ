@@ -1,10 +1,8 @@
-
-from dataclasses import dataclass
-
 """
 Position data class for portfolio management.
 """
 
+from dataclasses import dataclass
 
 
 @dataclass

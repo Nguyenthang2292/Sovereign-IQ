@@ -1,20 +1,14 @@
-
-from unittest.mock import Mock, patch
 import json
+from unittest.mock import Mock, patch
 
 import pytest
 
-from modules.iching.core.data_models import HaoInfo, IChingResult
-from modules.iching.core.result_extractor import IChingResultExtractor
 from modules.iching.core.data_models import HaoInfo, IChingResult
 from modules.iching.core.result_extractor import IChingResultExtractor
 
 """
 Tests for I Ching result extractor.
 """
-
-
-
 
 
 @pytest.fixture

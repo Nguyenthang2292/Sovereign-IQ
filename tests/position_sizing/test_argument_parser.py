@@ -1,7 +1,6 @@
-
+import sys
 from pathlib import Path
 from unittest.mock import patch
-import sys
 
 """
 Tests for modules/position_sizing/cli/argument_parser.py interactive_config_menu.

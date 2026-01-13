@@ -1,13 +1,3 @@
-
-import argparse
-import sys
-
-from colorama import Fore
-
-from modules.common.utils import (
-
-from modules.common.utils import (
-
 """
 Argument parser for Gemini Chart Analyzer CLI.
 
@@ -15,11 +5,16 @@ This module provides functions for parsing command-line arguments
 and interactive configuration menu for chart analysis with Gemini AI.
 """
 
+import argparse
+import sys
 
+from colorama import Fore
 
-    color_text,
-    normalize_timeframe,
-)
+from modules.common.utils import color_text, normalize_timeframe
+
+# ============================================================================
+# Utility Functions
+# ============================================================================
 
 
 def _format_current_value(value) -> str:
@@ -77,12 +72,20 @@ Examples:
         "--timeframe",
         type=str,
         default="1h",
-        help="Timeframe for analysis (default: 1h). Options: 15m/m15, 30m/m30, 1h/h1, 4h/h4, 1d/d1, 1w/w1. Ignored if --timeframes is provided.",
+        help=(
+            "Timeframe for analysis (default: 1h). "
+            "Options: 15m/m15, 30m/m30, 1h/h1, 4h/h4, 1d/d1, 1w/w1. "
+            "Ignored if --timeframes is provided."
+        ),
     )
     parser.add_argument(
         "--timeframes",
         type=str,
-        help='Multiple timeframes for multi-timeframe analysis (comma-separated, e.g., "15m,1h,4h,1d"). If provided, enables multi-timeframe mode.',
+        help=(
+            "Multiple timeframes for multi-timeframe analysis "
+            '(comma-separated, e.g., "15m,1h,4h,1d"). '
+            "If provided, enables multi-timeframe mode."
+        ),
     )
 
     # Indicators configuration

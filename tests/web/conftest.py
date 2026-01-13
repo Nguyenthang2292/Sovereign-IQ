@@ -1,11 +1,9 @@
-
-from pathlib import Path
-import sys
-
 """
 Shared fixtures for web module tests.
 """
 
+import sys
+from pathlib import Path
 
 # Add project root to sys.path for imports
 # This ensures web module and its dependencies can be imported

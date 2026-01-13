@@ -1,25 +1,19 @@
-
-from typing import Tuple
-
-from sklearn.cluster import KMeans
-import numpy as np
-import pandas as pd
-
-from hmmlearn.hmm import GaussianHMM
-from mlxtend.frequent_patterns import apriori, association_rules, fpgrowth
-from mlxtend.preprocessing import TransactionEncoder
-from modules.common.utils import log_data, log_model, log_warn
-from mlxtend.preprocessing import TransactionEncoder
-from modules.common.utils import log_data, log_model, log_warn
-
 """
 HMM-KAMA Secondary Analysis.
 
 This module contains secondary analysis functions for duration, ARM, and clustering.
 """
 
+from typing import Tuple
 
+import numpy as np
+import pandas as pd
+from hmmlearn.hmm import GaussianHMM
+from mlxtend.frequent_patterns import apriori, association_rules, fpgrowth
+from mlxtend.preprocessing import TransactionEncoder
+from sklearn.cluster import KMeans
 
+from modules.common.utils import log_data, log_model, log_warn
 
 
 def calculate_all_state_durations(data: pd.DataFrame) -> pd.DataFrame:

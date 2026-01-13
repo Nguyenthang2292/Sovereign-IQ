@@ -1,6 +1,3 @@
-
-from modules.gemini_chart_analyzer.cli.chart_analyzer_main import format_text_to_html
-
 """
 Tests for main.py module, specifically format_text_to_html function.
 
@@ -12,6 +9,7 @@ Tests cover:
 - Edge cases (empty text, special characters)
 """
 
+from modules.gemini_chart_analyzer.cli.chart_analyzer_main import format_text_to_html
 
 
 class TestFormatTextToHtml:

@@ -1,23 +1,17 @@
-
-from dataclasses import dataclass
-from typing import List, Literal, Optional, Tuple
-
-import numpy as np
-import pandas as pd
-
-from config import (
-from pomegranate.hmm import DenseHMM
-from config import (
-from pomegranate.hmm import DenseHMM
-
 """
 HMM-Swings Model Definitions.
 
 This module contains the HMM_SWINGS dataclass, constants, and the SwingsHMM class.
 """
 
+from dataclasses import dataclass
+from typing import List, Literal, Optional, Tuple
 
+import numpy as np
+import pandas as pd
+from pomegranate.hmm import DenseHMM
 
+from config import (
     HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,
     HMM_HIGH_ORDER_STRICT_MODE_DEFAULT,
     HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT,

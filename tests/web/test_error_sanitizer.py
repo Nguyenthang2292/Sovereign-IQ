@@ -1,6 +1,3 @@
-
-from web.utils.error_sanitizer import sanitize_error
-
 """
 Tests for error sanitization utilities (web/utils/error_sanitizer.py).
 
@@ -12,6 +9,7 @@ Tests cover:
 - Mapping of known error types to user-friendly messages
 """
 
+from web.utils.error_sanitizer import sanitize_error
 
 
 class TestSanitizeError:

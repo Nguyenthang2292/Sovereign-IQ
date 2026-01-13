@@ -1,18 +1,12 @@
+"""
+Tests for core hexagram generation logic.
+"""
 
 import random
 
 import pytest
 
 from modules.iching.core.hexagram import (
-
-from modules.iching.core.hexagram import (
-
-"""
-Tests for core hexagram generation logic.
-"""
-
-
-
     analyze_line,
     generate_ns_string,
     group_string,

@@ -1,9 +1,3 @@
-
-from unittest.mock import MagicMock, patch
-
-from cli.argument_parser import (
-from cli.argument_parser import (
-
 """
 Tests for cli/argument_parser.py interactive_config_menu.
 
@@ -14,7 +8,9 @@ Tests cover:
 - Review and confirm
 """
 
+from unittest.mock import MagicMock, patch
 
+from cli.argument_parser import (
     _configure_decision_matrix,
     _configure_hmm,
     _configure_random_forest,
@@ -217,7 +213,7 @@ class TestConfigureFunctions:
     @patch("cli.argument_parser._prompt_with_back")
     def test_configure_decision_matrix_back_at_threshold(self, mock_prompt, config_factory):
         """Test Decision Matrix configuration with back option at threshold prompt."""
-        config = config_factory()
+        config = config_factory(use_decision_matrix=True)
         config.voting_threshold = 0.5
         config.min_votes = 2
         orig_threshold = config.voting_threshold
@@ -235,7 +231,7 @@ class TestConfigureFunctions:
     @patch("cli.argument_parser._prompt_with_back")
     def test_configure_decision_matrix_back_at_min_votes(self, mock_prompt, config_factory):
         """Test Decision Matrix configuration with back option at min_votes prompt - threshold should be rolled back."""
-        config = config_factory()
+        config = config_factory(use_decision_matrix=True)
         config.voting_threshold = 0.5
         config.min_votes = 2
         orig_threshold = config.voting_threshold
@@ -542,7 +538,7 @@ class TestParseArgs:
     @patch("cli.argument_parser.sys.argv", ["script.py", "--timeframe", "1h"])
     def test_parse_args_voting_mode(self):
         """Test parse_args in voting mode."""
-        args = parse_args(mode="voting")
+        args = parse_args(mode="voting", force_enable_decision_matrix=False)
 
         assert args.enable_spc is True  # Forced enabled
         # In voting mode, verify decision matrix default behavior

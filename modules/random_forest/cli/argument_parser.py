@@ -1,6 +1,3 @@
-
-import argparse
-
 """
 Command-line argument parser for Random Forest model training and signal generation.
 
@@ -8,14 +5,7 @@ This module provides the main argument parser for the Random Forest CLI,
 defining all command-line options and their default values.
 """
 
-
-# Constants
-DATA_PROCESSING_WAIT_TIME_IN_SECONDS = 2
-DEFAULT_CRYPTO_SYMBOLS = ["BTC/USDT", "ETH/USDT", "BNB/USDT"]
-DEFAULT_TEST_SYMBOL = "BTC/USDT"
-DEFAULT_TEST_TIMEFRAME = "1h"
-DEFAULT_TIMEFRAMES = ["1h", "4h", "1d"]
-DEFAULT_TOP_SYMBOLS = 10
+import argparse
 
 
 def parse_args():

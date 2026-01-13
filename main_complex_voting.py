@@ -1,11 +1,3 @@
-
-import os
-import sys
-import warnings
-
-from modules.common.utils import configure_windows_stdio
-from modules.common.utils import configure_windows_stdio
-
 """
 ATC + Range Oscillator + SPC Pure Voting System (Phương án 2).
 
@@ -49,7 +41,11 @@ Example:
         $ python main_voting.py --timeframe 1h --enable-spc
 """
 
+import os
+import sys
+import warnings
 
+from modules.common.utils import configure_windows_stdio
 
 configure_windows_stdio()
 

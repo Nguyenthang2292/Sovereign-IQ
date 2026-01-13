@@ -1,18 +1,3 @@
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from contextlib import contextmanager
-from typing import Any, Dict, Optional, Tuple
-import threading
-
-from colorama import Fore, Style
-import ccxt
-import pandas as pd
-
-from cli.display import display_config, display_voting_metadata
-from config import (
-from cli.display import display_config, display_voting_metadata
-from config import (
-
 """
 Hybrid Analyzer for ATC + Range Oscillator + SPC approach.
 
@@ -21,11 +6,19 @@ This module contains the HybridAnalyzer class that combines signals from:
 2. Range Oscillator
 3. Simplified Percentile Clustering (SPC)
 
-Phương án 1: Kết hợp sequential filtering và voting system.
+Option 1: Combine sequential filtering and voting system.
 """
 
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
+from typing import Any, Dict, Optional, Tuple
 
+import ccxt
+import pandas as pd
+from colorama import Fore, Style
 
+from config import (
     DECISION_MATRIX_INDICATOR_ACCURACIES,
     SPC_AGGREGATION_ADAPTIVE_PERFORMANCE_WINDOW,
     SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS,
@@ -75,7 +68,7 @@ class HybridAnalyzer:
     """
     ATC + Range Oscillator + SPC Hybrid Analyzer.
 
-    Phương án 1: Kết hợp sequential filtering và voting system.
+    Option 1: Combine sequential filtering and voting system.
     """
 
     def __init__(self, args, data_fetcher: DataFetcher):
@@ -101,8 +94,9 @@ class HybridAnalyzer:
         )
         self.spc_aggregator = SPCVoteAggregator(aggregation_config)
 
-        # Thread-safe lock for mode changes
-        self._mode_lock = threading.Lock()
+        # Thread-safe locks
+        self._mode_lock = threading.Lock()  # For SPC aggregator mode changes
+        self._signals_lock = threading.Lock()  # For shared signals DataFrames
 
         # Results storage
         self.long_signals_atc = pd.DataFrame()
@@ -168,6 +162,9 @@ class HybridAnalyzer:
 
     def display_config(self) -> None:
         """Display configuration information."""
+        # Lazy import to avoid circular dependency
+        from cli.display import display_config
+
         display_config(
             selected_timeframe=self.selected_timeframe,
             args=self.args,
@@ -251,13 +248,17 @@ class HybridAnalyzer:
             return None
 
         except ccxt.NetworkError as e:
-            log_error(f"Network error processing {symbol}: {e}")
+            # Sanitize error message to prevent information leakage
+            str(e)[:100] if len(str(e)) > 100 else str(e)
+            log_error(f"Network error processing {symbol}: {type(e).__name__}")
             return None
         except (KeyError, ValueError, TypeError) as e:
-            log_error(f"Data validation error for {symbol}: {e}")
+            # Sanitize error message to prevent information leakage
+            log_error(f"Data validation error for {symbol}: {type(e).__name__}")
             return None
         except Exception as e:
-            log_error(f"Unexpected error processing {symbol}: {type(e).__name__}: {e}")
+            # Sanitize error message to prevent information leakage
+            log_error(f"Unexpected error processing {symbol}: {type(e).__name__}")
             return None
 
     def _process_symbol_for_spc(
@@ -352,7 +353,13 @@ class HybridAnalyzer:
 
             return result
 
-        except Exception:
+        except Exception as e:
+            # Log error for debugging instead of silently swallowing
+            # Sanitize error message to prevent information leakage
+            from modules.common.utils import log_error
+
+            symbol = symbol_data.get("symbol", "unknown")
+            log_error(f"Error processing symbol {symbol} for SPC: {type(e).__name__}")
             return None
 
     def filter_signals_by_range_oscillator(
@@ -392,6 +399,9 @@ class HybridAnalyzer:
 
         filtered_results = []
 
+        # ThreadPoolExecutor automatically handles resource cleanup via context manager
+        # All threads are properly joined and resources released when exiting the 'with' block
+        # No explicit cleanup needed - Python's context manager protocol ensures proper shutdown
         with ThreadPoolExecutor(max_workers=osc_params["max_workers"]) as executor:
             future_to_symbol = {
                 executor.submit(
@@ -416,8 +426,15 @@ class HybridAnalyzer:
                         with progress_lock:
                             confirmed_count[0] += 1
                             filtered_results.append(result)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Log error for debugging instead of silently swallowing
+                    # Sanitize error message to prevent information leakage
+                    from modules.common.utils import log_error
+
+                    symbol = future_to_symbol.get(future, "unknown")
+                    log_error(
+                        f"Error processing symbol {symbol} in filter_signals_by_range_oscillator: {type(e).__name__}"
+                    )
                 finally:
                     with progress_lock:
                         checked_count[0] += 1
@@ -490,6 +507,9 @@ class HybridAnalyzer:
 
         results = []
 
+        # ThreadPoolExecutor automatically handles resource cleanup via context manager
+        # All threads are properly joined and resources released when exiting the 'with' block
+        # No explicit cleanup needed - Python's context manager protocol ensures proper shutdown
         with ThreadPoolExecutor(max_workers=self.args.max_workers) as executor:
             future_to_symbol = {
                 executor.submit(
@@ -511,11 +531,14 @@ class HybridAnalyzer:
                         with progress_lock:
                             results.append(result)
                 except ccxt.NetworkError as e:
-                    log_error(f"Network error for {symbol}: {e}")
+                    # Sanitize error message to prevent information leakage
+                    log_error(f"Network error for {symbol}: {type(e).__name__}")
                 except (KeyError, ValueError, TypeError) as e:
-                    log_error(f"SPC data error for {symbol}: {type(e).__name__}: {e}")
+                    # Sanitize error message to prevent information leakage
+                    log_error(f"SPC data error for {symbol}: {type(e).__name__}")
                 except Exception as e:
-                    log_error(f"Unexpected SPC error for {symbol}: {type(e).__name__}: {e}")
+                    # Sanitize error message to prevent information leakage
+                    log_error(f"Unexpected SPC error for {symbol}: {type(e).__name__}")
                 finally:
                     with progress_lock:
                         checked_count[0] += 1
@@ -557,19 +580,23 @@ class HybridAnalyzer:
                 except ccxt.RateLimitExceeded as e:
                     from modules.common.utils import log_warn
 
-                    log_warn(f"Rate limit exceeded for {symbol}: {e}")
+                    # Sanitize error message to prevent information leakage
+                    log_warn(f"Rate limit exceeded for {symbol}: {type(e).__name__}")
                 except ccxt.NetworkError as e:
                     from modules.common.utils import log_error
 
-                    log_error(f"Network error for {symbol}: {e}")
+                    # Sanitize error message to prevent information leakage
+                    log_error(f"Network error for {symbol}: {type(e).__name__}")
                 except (KeyError, ValueError, TypeError) as e:
                     from modules.common.utils import log_error
 
-                    log_error(f"SPC data error for {symbol}: {type(e).__name__}: {e}")
+                    # Sanitize error message to prevent information leakage
+                    log_error(f"SPC data error for {symbol}: {type(e).__name__}")
                 except Exception as e:
                     from modules.common.utils import log_error
 
-                    log_error(f"Unexpected SPC error for {symbol}: {type(e).__name__}: {e}")
+                    # Sanitize error message to prevent information leakage
+                    log_error(f"Unexpected SPC error for {symbol}: {type(e).__name__}")
                 finally:
                     with progress_lock:
                         checked_count[0] += 1
@@ -886,109 +913,134 @@ class HybridAnalyzer:
         log_progress("\nStep 2: Filtering by Range Oscillator confirmation...")
         log_progress("=" * 80)
 
-        if not self.long_signals_atc.empty:
-            self.long_signals_confirmed = self.filter_signals_by_range_oscillator(
-                atc_signals_df=self.long_signals_atc,
-                signal_type="LONG",
-            )
+        # Thread-safe modification of shared state
+        with self._signals_lock:
+            if not self.long_signals_atc.empty:
+                long_result = self.filter_signals_by_range_oscillator(
+                    atc_signals_df=self.long_signals_atc,
+                    signal_type="LONG",
+                )
+                self.long_signals_confirmed = long_result
 
-            if self.long_signals_confirmed.empty:
-                log_warn("No LONG signals confirmed by Range Oscillator. Falling back to ATC signals only.")
-                self.long_signals_confirmed = self.long_signals_atc.copy()
-                self.long_signals_confirmed["source"] = "ATC_ONLY"
-                self.long_uses_fallback = True
+                if self.long_signals_confirmed.empty:
+                    log_warn("No LONG signals confirmed by Range Oscillator. Falling back to ATC signals only.")
+                    self.long_signals_confirmed = self.long_signals_atc.copy()
+                    self.long_signals_confirmed["source"] = "ATC_ONLY"
+                    self.long_uses_fallback = True
+                else:
+                    self.long_signals_confirmed["source"] = "ATC_OSCILLATOR"
+                    self.long_uses_fallback = False
             else:
-                self.long_signals_confirmed["source"] = "ATC_OSCILLATOR"
+                self.long_signals_confirmed = pd.DataFrame()
                 self.long_uses_fallback = False
-        else:
-            self.long_signals_confirmed = pd.DataFrame()
-            self.long_uses_fallback = False
 
-        if not self.short_signals_atc.empty:
-            self.short_signals_confirmed = self.filter_signals_by_range_oscillator(
-                atc_signals_df=self.short_signals_atc,
-                signal_type="SHORT",
-            )
+            if not self.short_signals_atc.empty:
+                short_result = self.filter_signals_by_range_oscillator(
+                    atc_signals_df=self.short_signals_atc,
+                    signal_type="SHORT",
+                )
+                self.short_signals_confirmed = short_result
 
-            if self.short_signals_confirmed.empty:
-                log_warn("No SHORT signals confirmed by Range Oscillator. Falling back to ATC signals only.")
-                self.short_signals_confirmed = self.short_signals_atc.copy()
-                self.short_signals_confirmed["source"] = "ATC_ONLY"
-                self.short_uses_fallback = True
+                if self.short_signals_confirmed.empty:
+                    log_warn("No SHORT signals confirmed by Range Oscillator. Falling back to ATC signals only.")
+                    self.short_signals_confirmed = self.short_signals_atc.copy()
+                    self.short_signals_confirmed["source"] = "ATC_ONLY"
+                    self.short_uses_fallback = True
+                else:
+                    self.short_signals_confirmed["source"] = "ATC_OSCILLATOR"
+                    self.short_uses_fallback = False
             else:
-                self.short_signals_confirmed["source"] = "ATC_OSCILLATOR"
+                self.short_signals_confirmed = pd.DataFrame()
                 self.short_uses_fallback = False
-        else:
-            self.short_signals_confirmed = pd.DataFrame()
-            self.short_uses_fallback = False
 
     def calculate_spc_signals_for_all(self) -> None:
         """Calculate SPC signals from all 3 strategies for all confirmed signals."""
         log_progress("\nStep 3: Calculating SPC signals (all 3 strategies)...")
         log_progress("=" * 80)
 
-        if not self.long_signals_confirmed.empty:
-            self.long_signals_confirmed = self.calculate_spc_signals(
-                signals_df=self.long_signals_confirmed,
-                signal_type="LONG",
-            )
-            log_progress(f"Calculated SPC signals for {len(self.long_signals_confirmed)} LONG symbols")
+        # Thread-safe modification of shared state
+        with self._signals_lock:
+            if not self.long_signals_confirmed.empty:
+                long_result = self.calculate_spc_signals(
+                    signals_df=self.long_signals_confirmed,
+                    signal_type="LONG",
+                )
+                self.long_signals_confirmed = long_result
+                log_progress(f"Calculated SPC signals for {len(self.long_signals_confirmed)} LONG symbols")
 
-        if not self.short_signals_confirmed.empty:
-            self.short_signals_confirmed = self.calculate_spc_signals(
-                signals_df=self.short_signals_confirmed,
-                signal_type="SHORT",
-            )
-            log_progress(f"Calculated SPC signals for {len(self.short_signals_confirmed)} SHORT symbols")
+            if not self.short_signals_confirmed.empty:
+                short_result = self.calculate_spc_signals(
+                    signals_df=self.short_signals_confirmed,
+                    signal_type="SHORT",
+                )
+                self.short_signals_confirmed = short_result
+                log_progress(f"Calculated SPC signals for {len(self.short_signals_confirmed)} SHORT symbols")
 
     def filter_by_decision_matrix(self) -> None:
         """Filter signals using decision matrix voting system."""
         log_progress("\nStep 4: Applying Decision Matrix voting system...")
         log_progress("=" * 80)
 
-        if not self.long_signals_confirmed.empty:
-            long_before = len(self.long_signals_confirmed)
-            self.long_signals_confirmed = self.apply_decision_matrix(
-                self.long_signals_confirmed,
-                "LONG",
-            )
-            long_after = len(self.long_signals_confirmed)
-            log_progress(f"LONG signals: {long_before} → {long_after} after voting")
-        else:
-            self.long_signals_confirmed = pd.DataFrame()
+        # Thread-safe modification of shared state
+        with self._signals_lock:
+            if not self.long_signals_confirmed.empty:
+                long_before = len(self.long_signals_confirmed)
+                long_result = self.apply_decision_matrix(
+                    self.long_signals_confirmed,
+                    "LONG",
+                )
+                self.long_signals_confirmed = long_result
+                long_after = len(self.long_signals_confirmed)
+                log_progress(f"LONG signals: {long_before} → {long_after} after voting")
+            else:
+                self.long_signals_confirmed = pd.DataFrame()
 
-        if not self.short_signals_confirmed.empty:
-            short_before = len(self.short_signals_confirmed)
-            self.short_signals_confirmed = self.apply_decision_matrix(
-                self.short_signals_confirmed,
-                "SHORT",
-            )
-            short_after = len(self.short_signals_confirmed)
-            log_progress(f"SHORT signals: {short_before} → {short_after} after voting")
-        else:
-            self.short_signals_confirmed = pd.DataFrame()
+            if not self.short_signals_confirmed.empty:
+                short_before = len(self.short_signals_confirmed)
+                short_result = self.apply_decision_matrix(
+                    self.short_signals_confirmed,
+                    "SHORT",
+                )
+                self.short_signals_confirmed = short_result
+                short_after = len(self.short_signals_confirmed)
+                log_progress(f"SHORT signals: {short_before} → {short_after} after voting")
+            else:
+                self.short_signals_confirmed = pd.DataFrame()
 
     def display_results(self) -> None:
         """Display final filtered results."""
         log_progress("\nStep 5: Displaying final results...")
+
+        # Thread-safe read of shared state
+        with self._signals_lock:
+            long_signals = self.long_signals_confirmed.copy()
+            short_signals = self.short_signals_confirmed.copy()
+            long_uses_fallback = self.long_uses_fallback
+            short_uses_fallback = self.short_uses_fallback
+            original_long_count = len(self.long_signals_atc)
+            original_short_count = len(self.short_signals_atc)
+
         display_final_results(
-            long_signals=self.long_signals_confirmed,
-            short_signals=self.short_signals_confirmed,
-            original_long_count=len(self.long_signals_atc),
-            original_short_count=len(self.short_signals_atc),
-            long_uses_fallback=self.long_uses_fallback,
-            short_uses_fallback=self.short_uses_fallback,
+            long_signals=long_signals,
+            short_signals=short_signals,
+            original_long_count=original_long_count,
+            original_short_count=original_short_count,
+            long_uses_fallback=long_uses_fallback,
+            short_uses_fallback=short_uses_fallback,
         )
 
         # Display voting metadata if decision matrix was used
-        if self.args.use_decision_matrix and not self.long_signals_confirmed.empty:
-            self._display_voting_metadata(self.long_signals_confirmed, "LONG")
+        if self.args.use_decision_matrix and not long_signals.empty:
+            self._display_voting_metadata(long_signals, "LONG")
 
-        if self.args.use_decision_matrix and not self.short_signals_confirmed.empty:
-            self._display_voting_metadata(self.short_signals_confirmed, "SHORT")
+        if self.args.use_decision_matrix and not short_signals.empty:
+            self._display_voting_metadata(short_signals, "SHORT")
 
     def _display_voting_metadata(self, signals_df: pd.DataFrame, signal_type: str) -> None:
         """Display voting metadata for signals."""
+        # Lazy import to avoid circular dependency
+        from cli.display import display_voting_metadata
+
         display_voting_metadata(
             signals_df=signals_df,
             signal_type=signal_type,

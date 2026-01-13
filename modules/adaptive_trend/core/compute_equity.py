@@ -1,10 +1,3 @@
-
-import numpy as np
-import pandas as pd
-
-from __future__ import annotations
-from __future__ import annotations
-
 """Equity calculations for Adaptive Trend Classification (ATC).
 
 This module provides functions to calculate equity curves based on trading
@@ -16,7 +9,10 @@ Performance optimization:
 - Replaces pd.NA with np.nan for better compatibility with float64 dtype
 """
 
+from __future__ import annotations
 
+import numpy as np
+import pandas as pd
 
 try:
     from numba import njit

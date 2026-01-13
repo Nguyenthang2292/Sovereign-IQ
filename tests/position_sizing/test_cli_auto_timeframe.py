@@ -1,6 +1,5 @@
-
-from pathlib import Path
 import sys
+from pathlib import Path
 
 """
 Tests for position_sizing CLI auto timeframe feature.

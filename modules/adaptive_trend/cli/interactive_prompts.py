@@ -1,22 +1,20 @@
+"""
+This module provides interactive CLI prompts for user input, specifically for
+configuration of adaptive trend analysis modules. Functions include menu-based
+and direct input prompts for selecting analysis timeframes and other
+parameters, along with support for input validation and user-friendly messages.
+
+Key functionalities:
+- Prompting and validating timeframe selection with clear interactive guidance.
+- Handling user exit requests gracefully during input prompts.
+- Utilizing colored CLI output for enhanced usability.
+"""
 
 from typing import Dict, Optional
-import sys
 
 from colorama import Fore, Style
 
 from modules.common.utils import (
-
-from modules.common.utils import (
-
-"""
-Interactive prompts for ATC CLI.
-
-This module provides interactive user input prompts for selecting timeframes,
-configuring parameters, and choosing analysis modes in the ATC CLI.
-"""
-
-
-
     color_text,
     log_data,
     log_error,
@@ -24,11 +22,18 @@ configuring parameters, and choosing analysis modes in the ATC CLI.
     log_warn,
     prompt_user_input,
 )
+from modules.common.utils.domain import TIMEFRAME_NORMALIZED_RE, normalize_timeframe
 
 try:
     from config import DEFAULT_TIMEFRAME
 except ImportError:
     DEFAULT_TIMEFRAME = "1h"
+
+
+class UserExitRequested(Exception):
+    """Raised when user requests to exit the application."""
+
+    pass
 
 
 def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
@@ -39,7 +44,12 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
         default_timeframe: Default timeframe to use
 
     Returns:
-        Selected timeframe string
+        Selected timeframe string in normalized format (e.g., '15m', '1h', '4h', '1d', '1w').
+        Custom timeframes are validated to ensure they match the expected format:
+        - Number + unit (e.g., '15m', '1h', '4h', '1d', '1w')
+        - Unit + number (e.g., 'm15', 'h1', 'd1') - will be normalized
+        - Units: m (minutes), h (hours), d (days), w (weeks)
+        - Invalid formats will prompt the user to re-enter
     """
     timeframes = [
         ("15m", "15 minutes"),
@@ -86,11 +96,28 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
                 return timeframes[choice_num - 1][0]
             elif choice_num == len(timeframes) + 1:
                 # Custom timeframe
-                custom = prompt_user_input(
-                    f"Enter custom timeframe (e.g., 1h, 4h, 1d) [{default_timeframe}]: ",
-                    default=default_timeframe,
-                )
-                return custom if custom else default_timeframe
+                while True:
+                    custom = prompt_user_input(
+                        f"Enter custom timeframe (e.g., 1h, 4h, 1d) [{default_timeframe}]: ",
+                        default=default_timeframe,
+                    )
+                    if not custom:
+                        return default_timeframe
+
+                    # Validate timeframe format
+                    try:
+                        normalized = normalize_timeframe(custom)
+                        # Check if normalized format matches expected pattern
+                        if TIMEFRAME_NORMALIZED_RE.match(normalized.lower()):
+                            return normalized
+                        else:
+                            log_error(
+                                f"Invalid timeframe format: '{custom}'. "
+                                "Expected format: number + unit (e.g., '15m', '1h', '4h', '1d', '1w'). "
+                                "Units: m (minutes), h (hours), d (days), w (weeks)."
+                            )
+                    except ValueError as e:
+                        log_error(f"Invalid timeframe: {e}")
             elif choice_num == len(timeframes) + 2:
                 return default_timeframe
             else:
@@ -107,7 +134,13 @@ def prompt_interactive_mode(default_timeframe: str = DEFAULT_TIMEFRAME) -> Dict[
         default_timeframe: Default timeframe to use
 
     Returns:
-        dict with 'mode' key ('auto' or 'manual') and 'timeframe' key
+        dict with 'mode' key ('auto' or 'manual') and 'timeframe' key.
+        When option 3 (timeframe-only) is selected, returns {"mode": None, "timeframe": ...}.
+        The caller should handle mode=None by calling this function again to get mode selection.
+
+    Raises:
+        UserExitRequested: When user selects option 4 (Exit). The caller should catch
+                          this exception and handle the exit appropriately (e.g., sys.exit(0)).
     """
     log_data("=" * 60)
     log_info("Adaptive Trend Classification (ATC) - Interactive Launcher")
@@ -134,7 +167,7 @@ def prompt_interactive_mode(default_timeframe: str = DEFAULT_TIMEFRAME) -> Dict[
 
     if choice == "4":
         log_warn("Exiting by user request.")
-        sys.exit(0)
+        raise UserExitRequested()
 
     if choice == "3":
         # Timeframe selection only

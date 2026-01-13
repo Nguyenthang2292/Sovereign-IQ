@@ -1,18 +1,12 @@
+"""
+Command-line interface for xgboost_prediction_main.py
+"""
 
 import argparse
 
 from colorama import Fore
 
 from config import (
-
-from config import (
-
-"""
-Command-line interface for xgboost_prediction_main.py
-"""
-
-
-
     DEFAULT_EXCHANGE_STRING,
     DEFAULT_LIMIT,
     DEFAULT_QUOTE,

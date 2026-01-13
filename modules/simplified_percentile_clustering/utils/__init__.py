@@ -1,12 +1,10 @@
-
-from modules.simplified_percentile_clustering.utils.helpers import (
-
 """
 Utility functions for Simplified Percentile Clustering.
 
 Provides helper functions for common operations, validation, and optimized calculations.
 """
 
+from modules.simplified_percentile_clustering.utils.helpers import (
     normalize_cluster_name,
     safe_isfinite,
     safe_isna,

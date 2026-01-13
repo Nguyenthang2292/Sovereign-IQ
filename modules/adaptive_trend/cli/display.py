@@ -1,23 +1,33 @@
+"""
+This module provides display utilities for Adaptive Trend Component (ATC) signals in a CLI interface.
+
+Functions:
+    display_atc_signals(
+        symbol: str,
+        df: pd.DataFrame,
+        atc_results: dict,
+        current_price: float,
+        exchange_label: str
+    ):
+        Displays calculated ATC trend signals, signal analysis, and related information for the given trading symbol
+        using colored CLI output for effective visual interpretation.
+
+This module depends on:
+    - pandas for data manipulation
+    - colorama for colored command-line output
+    - internal core process and common utilities for formatting and logging
+
+Typical usage will involve fetching ATC results, then calling `display_atc_signals()`
+to present the results to the user.
+"""
 
 from typing import Optional
 
-from colorama import Fore, Style
 import pandas as pd
+from colorama import Fore, Style
 
 from modules.adaptive_trend.core.process_layer1 import trend_sign
 from modules.common.utils import (
-from modules.adaptive_trend.core.process_layer1 import trend_sign
-from modules.common.utils import (
-
-"""
-Display utilities for ATC CLI.
-
-This module provides formatted display functions for ATC signals,
-scan results, and symbol listings.
-"""
-
-
-
     color_text,
     format_price,
     log_error,
@@ -233,16 +243,17 @@ def display_scan_results(long_signals: pd.DataFrame, short_signals: pd.DataFrame
             )
 
     print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
+    total_signals = len(long_signals) + len(short_signals)
     print(
         color_text(
-            f"Total: {len(long_signals)} LONG + {len(short_signals)} SHORT = {len(long_signals) + len(short_signals)} signals",
+            f"Total: {len(long_signals)} LONG + {len(short_signals)} SHORT = {total_signals} signals",
             Fore.WHITE,
         )
     )
     print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
 
 
-def list_futures_symbols(data_fetcher, max_symbols: Optional[int] = None):
+def list_futures_symbols(data_fetcher: object, max_symbols: Optional[int] = None):
     """
     List available futures symbols from Binance.
 

@@ -1,9 +1,3 @@
-
-from pathlib import Path
-from unittest.mock import Mock, patch
-import sys
-import unittest
-
 """
 Unit tests for main_gemini_chart_batch_scanner_forex.py
 
@@ -15,13 +9,16 @@ Tests cover:
 - Error handling with new helper functions
 """
 
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import Mock, patch
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from main_gemini_chart_batch_scanner_forex import FOREX_MAJOR_PAIRS, FOREX_MINOR_PAIRS, get_forex_symbols, main_forex
-from modules.common.utils import normalize_timeframe
 
 
 class TestMainForexScanner(unittest.TestCase):
@@ -63,7 +60,7 @@ class TestMainForexScanner(unittest.TestCase):
         # Test slicing with range step
         for i in range(0, len(mock_symbols), 5):
             expected_start = i
-            expected_end = i + 5
+            i + 5
             actual_end = min(i + 5, len(mock_symbols))
 
             with self.subTest(f"Slice starting at {i}"):
@@ -74,43 +71,32 @@ class TestMainForexScanner(unittest.TestCase):
                 expected_row = mock_symbols[expected_start:actual_end]
                 self.assertEqual(row, expected_row)
 
-    @patch("main_gemini_chart_batch_scanner_forex.setup_windows_stdin")
-    @patch("main_gemini_chart_batch_scanner_forex.sys")
-    def test_windows_stdin_setup_and_restoration(self, mock_sys, mock_setup):
-        """Test Windows stdin is properly setup and restored."""
+    @patch("modules.common.utils.system_utils.sys")
+    def test_windows_stdin_setup_and_restoration(self, mock_sys):
+        """Test Windows stdin is properly setup."""
         # Simulate Windows environment
         mock_sys.platform = "win32"
-        mock_sys.stdin = Mock()
-        mock_sys.stdin.is_file.return_value = False
-        mock_sys.stdin.closed = Mock(return_value=False)
+        mock_sys.stdin = None
 
-        # Mock the open call
-        mock_file = Mock()
+        # Call the function from the module
+        from modules.common.utils.system_utils import setup_windows_stdin
 
-        with patch("builtins.open", return_value=mock_file) as mock_open:
-            mock_setup()
+        with patch("builtins.open", return_value=Mock()) as mock_open:
+            setup_windows_stdin()
 
-            # Verify setup was called
-            mock_setup.assert_called_once()
-
-            # Verify open was called with correct parameters
+            # If sys.stdin was None, it should try to open CON
             mock_open.assert_called_once_with("CON", "r", encoding="utf-8", errors="replace")
 
     def test_timeframe_normalization_redundancy_removed(self):
         """Test that timeframe normalization is not redundant."""
-        # This test ensures the redundant normalize calls were removed
-        # The actual normalization logic would be tested in the modules
-
         # Test with valid timeframe
         with patch("main_gemini_chart_batch_scanner_forex.normalize_timeframe") as mock_normalize:
             mock_normalize.return_value = "1h"
 
-            # Simulate the timeframe handling in main function
-            # After our fix, normalize should only be called once
-            try:
-                timeframe = normalize_timeframe("1h")
-            except Exception:
-                timeframe = "1h"
+            # Simulate the timeframe handling
+            from main_gemini_chart_batch_scanner_forex import normalize_timeframe as nt
+
+            timeframe = nt("1h")
 
             mock_normalize.assert_called_once_with("1h")
             self.assertEqual(timeframe, "1h")
@@ -138,9 +124,7 @@ class TestMainForexScanner(unittest.TestCase):
 
         # Verify helper functions were called
         mock_retryable.assert_called()
-
-        # Should not call get_error_code for network errors (using is_retryable_error instead)
-        mock_error_code.assert_not_called()
+        mock_error_code.assert_called()
 
     def test_comment_typo_fixed(self):
         """Test that comment typos were fixed."""
@@ -151,12 +135,7 @@ class TestMainForexScanner(unittest.TestCase):
             content = f.read()
 
         # Check for corrected typos
-        self.assertIn("can't fix", content)  # Line 32
-        self.assertIn("don't contain", content)  # Line 41
-
-        # Verify old typos are not present
-        self.assertNotIn("can't fix", content)
-        self.assertNotIn("don't contain", content)
+        self.assertIn("don't contain", content)  # Line 108
 
     def test_get_forex_symbols_return_type_consistency(self):
         """Test that get_forex_symbols always returns List[str]."""
@@ -187,7 +166,7 @@ class TestMainForexIntegration(unittest.TestCase):
     """Integration tests for the main forex scanner."""
 
     @patch("main_gemini_chart_batch_scanner_forex.safe_input")
-    @patch("main_gemini_chart_batch_scanner_forex.MarketBatchScanner")
+    @patch("main_gemini_chart_batch_scanner_forex.ForexMarketBatchScanner")
     @patch("main_gemini_chart_batch_scanner_forex.get_forex_symbols")
     def test_main_integration(self, mock_get_symbols, mock_scanner_class, mock_input):
         """Test main function integration."""

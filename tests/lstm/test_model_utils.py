@@ -1,31 +1,25 @@
-
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import pandas as pd
 import pytest
 import torch
 import torch.nn as nn
+from sklearn.preprocessing import MinMaxScaler
 
 from config.lstm import WINDOW_SIZE_LSTM
 from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
 from modules.lstm.models.model_utils import (
-from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
-from modules.lstm.models.model_utils import (
-
-"""
-Tests for model utilities module.
-"""
-
-
-
     get_latest_lstm_attention_signal,
     get_latest_signal,
     load_lstm_attention_model,
     load_lstm_model,
 )
+
+"""
+Tests for model utilities module.
+"""
 
 
 class TestLoadLSTMModel:
@@ -61,14 +55,15 @@ class TestLoadLSTMModel:
 
         with patch("modules.lstm.models.model_utils.torch.load", return_value=checkpoint):
             with patch("modules.lstm.models.model_utils.create_cnn_lstm_attention_model") as mock_factory:
-                mock_model = Mock()
-                mock_model.load_state_dict = Mock()
-                mock_factory.return_value = mock_model
+                with patch("pathlib.Path.exists", return_value=True):
+                    mock_model = Mock()
+                    mock_model.load_state_dict = Mock()
+                    mock_factory.return_value = mock_model
 
-                result = load_lstm_model(Path("test.pth"))
-                assert result is not None
-                mock_model.load_state_dict.assert_called_once()
-                mock_model.eval.assert_called_once()
+                    result = load_lstm_model(Path("test.pth"))
+                    assert result is not None
+                    mock_model.load_state_dict.assert_called_once()
+                    mock_model.eval.assert_called_once()
 
     def test_load_model_new_format_lstm_only(self):
         """Test loading model with new format (LSTM only)."""
@@ -86,12 +81,13 @@ class TestLoadLSTMModel:
 
         with patch("modules.lstm.models.model_utils.torch.load", return_value=checkpoint):
             with patch("modules.lstm.models.model_utils.create_cnn_lstm_attention_model") as mock_factory:
-                mock_model = Mock()
-                mock_model.load_state_dict = Mock()
-                mock_factory.return_value = mock_model
+                with patch("pathlib.Path.exists", return_value=True):
+                    mock_model = Mock()
+                    mock_model.load_state_dict = Mock()
+                    mock_factory.return_value = mock_model
 
-                result = load_lstm_model(Path("test.pth"))
-                assert result is not None
+                    result = load_lstm_model(Path("test.pth"))
+                    assert result is not None
 
     def test_load_model_old_format_with_attention(self):
         """Test loading model with old format (with attention)."""
@@ -99,12 +95,13 @@ class TestLoadLSTMModel:
 
         with patch("modules.lstm.models.model_utils.torch.load", return_value=checkpoint):
             with patch("modules.lstm.models.model_utils.LSTMAttentionModel") as mock_model_class:
-                mock_model = Mock()
-                mock_model.load_state_dict = Mock()
-                mock_model_class.return_value = mock_model
+                with patch("pathlib.Path.exists", return_value=True):
+                    mock_model = Mock()
+                    mock_model.load_state_dict = Mock()
+                    mock_model_class.return_value = mock_model
 
-                result = load_lstm_model(Path("test.pth"))
-                assert result is not None
+                    result = load_lstm_model(Path("test.pth"))
+                    assert result is not None
 
     def test_load_model_old_format_without_attention(self):
         """Test loading model with old format (without attention)."""
@@ -112,12 +109,13 @@ class TestLoadLSTMModel:
 
         with patch("modules.lstm.models.model_utils.torch.load", return_value=checkpoint):
             with patch("modules.lstm.models.model_utils.LSTMModel") as mock_model_class:
-                mock_model = Mock()
-                mock_model.load_state_dict = Mock()
-                mock_model_class.return_value = mock_model
+                with patch("pathlib.Path.exists", return_value=True):
+                    mock_model = Mock()
+                    mock_model.load_state_dict = Mock()
+                    mock_model_class.return_value = mock_model
 
-                result = load_lstm_model(Path("test.pth"))
-                assert result is not None
+                    result = load_lstm_model(Path("test.pth"))
+                    assert result is not None
 
     def test_load_model_old_format_missing_input_size(self):
         """Test loading model with old format missing input_size."""
@@ -243,6 +241,9 @@ class TestGetLatestSignal:
     def test_get_signal_high_confidence_buy(self, sample_model):
         """Test signal generation with high confidence BUY."""
         df = pd.DataFrame({"open": [100] * 100, "high": [101] * 100, "low": [99] * 100, "close": [100] * 100})
+        # Create features with enough columns to match model input_size
+        feature_cols = ["open", "high", "low", "close", "SMA_20", "SMA_50", "SMA_200", "RSI_14", "ATR_14", "OBV"]
+        df_features = pd.DataFrame({col: [1.0] * 100 for col in feature_cols})
 
         # Mock model to return high confidence BUY
         with patch.object(sample_model, "forward") as mock_forward:
@@ -250,7 +251,7 @@ class TestGetLatestSignal:
             mock_forward.return_value = mock_output
 
             with patch("modules.lstm.models.model_utils.generate_indicator_features") as mock_features:
-                mock_features.return_value = df.copy()
+                mock_features.return_value = df_features
 
                 scaler = Mock()
                 scaler.transform.return_value = np.random.randn(100, 10)
@@ -262,6 +263,9 @@ class TestGetLatestSignal:
     def test_get_signal_high_confidence_sell(self, sample_model):
         """Test signal generation with high confidence SELL."""
         df = pd.DataFrame({"open": [100] * 100, "high": [101] * 100, "low": [99] * 100, "close": [100] * 100})
+        # Create features with enough columns to match model input_size
+        feature_cols = ["open", "high", "low", "close", "SMA_20", "SMA_50", "SMA_200", "RSI_14", "ATR_14", "OBV"]
+        df_features = pd.DataFrame({col: [1.0] * 100 for col in feature_cols})
 
         # Mock model to return high confidence SELL
         with patch.object(sample_model, "forward") as mock_forward:
@@ -269,7 +273,7 @@ class TestGetLatestSignal:
             mock_forward.return_value = mock_output
 
             with patch("modules.lstm.models.model_utils.generate_indicator_features") as mock_features:
-                mock_features.return_value = df.copy()
+                mock_features.return_value = df_features
 
                 scaler = Mock()
                 scaler.transform.return_value = np.random.randn(100, 10)

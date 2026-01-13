@@ -1,12 +1,7 @@
-
 from typing import Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
-
-from config import (
-
-from config import (
 
 """Data preparation utilities for Random Forest training.
 
@@ -14,8 +9,7 @@ This module provides utilities for preparing training data, including feature
 engineering and target variable creation.
 """
 
-
-
+from config import (
     BUY_THRESHOLD,
     MIN_TRAINING_SAMPLES,
     SELL_THRESHOLD,

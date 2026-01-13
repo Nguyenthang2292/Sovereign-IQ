@@ -1,8 +1,3 @@
-
-from pathlib import Path
-import os
-import sys
-
 """
 Test script for HMM-KAMA with real BTC data from exchanges.
 
@@ -12,6 +7,9 @@ This script demonstrates how to:
 3. Display results
 """
 
+import os
+import sys
+from pathlib import Path
 
 # Fix encoding for Windows console
 if sys.platform == "win32":

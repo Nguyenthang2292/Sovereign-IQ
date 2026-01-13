@@ -1,6 +1,3 @@
-
-from indicators (ATC, Oscillator, SPC, etc.) and calculates performance metrics.
-
 """
 Full Backtester for trading strategy simulation.
 
@@ -336,7 +333,8 @@ class FullBacktester:
             if LOG_PERFORMANCE_METRICS:
                 cache_stats = self.hybrid_signal_calculator.get_cache_stats()
                 log_progress(
-                    f"  Cache stats: {cache_stats['signal_cache_size']}/{cache_stats['signal_cache_max_size']} signals, "
+                    f"  Cache stats: {cache_stats['signal_cache_size']}/"
+                    f"{cache_stats['signal_cache_max_size']} signals, "
                     f"hit rate: {cache_stats['cache_hit_rate'] * 100:.1f}%"
                 )
 

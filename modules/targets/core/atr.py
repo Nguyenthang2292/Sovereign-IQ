@@ -1,8 +1,6 @@
-
 from dataclasses import dataclass
 from typing import Callable, List, Optional
 
-from modules.targets.core.base import TargetCalculator, TargetResult
 from modules.targets.core.base import TargetCalculator, TargetResult
 
 """
@@ -10,8 +8,6 @@ ATR Target Calculator.
 
 Tính toán các target prices dựa trên ATR (Average True Range) multiples.
 """
-
-
 
 
 @dataclass

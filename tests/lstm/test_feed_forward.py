@@ -1,15 +1,11 @@
-
 import pytest
 import torch
 
-from modules.lstm.core.feed_forward import FeedForward
 from modules.lstm.core.feed_forward import FeedForward
 
 """
 Tests for FeedForward module.
 """
-
-
 
 
 class TestFeedForward:

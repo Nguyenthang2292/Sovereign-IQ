@@ -1,17 +1,13 @@
-
-import pandas as pd
-
-from .base import IndicatorResult, collect_metadata
-from __future__ import annotations
-from modules.common.utils import validate_ohlcv_input
-import pandas_ta as ta
-import pandas_ta as ta
-
 """Volume indicator block."""
 
+from __future__ import annotations
 
+import pandas as pd
+import pandas_ta as ta
 
+from modules.common.utils import validate_ohlcv_input
 
+from .base import IndicatorResult, collect_metadata
 
 
 def calculate_obv_series(close: pd.Series, volume: pd.Series) -> pd.Series:

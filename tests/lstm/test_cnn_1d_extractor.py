@@ -1,15 +1,11 @@
-
 import pytest
 import torch
 
-from modules.lstm.core.cnn_1d_extractor import CNN1DExtractor
 from modules.lstm.core.cnn_1d_extractor import CNN1DExtractor
 
 """
 Tests for CNN1DExtractor module.
 """
-
-
 
 
 class TestCNN1DExtractor:

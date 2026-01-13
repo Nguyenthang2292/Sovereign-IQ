@@ -1,12 +1,10 @@
-
-from pathlib import Path
-from unittest.mock import Mock, patch
 import sys
 import time
 import warnings
+from pathlib import Path
+from unittest.mock import Mock
 
 import numpy as np
-import pandas as pd
 import pandas as pd
 
 """
@@ -17,7 +15,6 @@ This test file tests performance benchmarks and module integrations.
 Run with: python -m pytest tests/performance/test_integration.py -v
 Or: python tests/performance/test_integration.py
 """
-
 
 
 # Add project root to path
@@ -58,9 +55,8 @@ def test_signal_calculation_performance():
 
     try:
         from core.signal_calculators import (
-            get_range_oscillator_signal,
-            get_spc_signal,
             get_random_forest_signal,
+            get_range_oscillator_signal,
         )
         from modules.common.core.data_fetcher import DataFetcher
         from modules.common.core.exchange_manager import ExchangeManager
@@ -111,8 +107,9 @@ def test_memory_usage_performance():
     print("\n=== Test: Memory Usage Performance ===")
 
     try:
-        import psutil
         import os
+
+        import psutil
 
         # Get initial memory
         process = psutil.Process(os.getpid())
@@ -120,13 +117,16 @@ def test_memory_usage_performance():
 
         # Create and process large dataset
         df = create_large_ohlcv_data(limit=5000)
-        
+
         # Process data with some calculations
-        df['sma_20'] = df['close'].rolling(window=20).mean()
-        df['rsi'] = df['close'].pct_change().rolling(window=14).apply(
-            lambda x: np.mean(x[x > 0]) / (np.mean(np.abs(x)) + 1e-10) * 100
+        df["sma_20"] = df["close"].rolling(window=20).mean()
+        df["rsi"] = (
+            df["close"]
+            .pct_change()
+            .rolling(window=14)
+            .apply(lambda x: np.mean(x[x > 0]) / (np.mean(np.abs(x)) + 1e-10) * 100)
         )
-        
+
         # Get peak memory
         peak_memory = process.memory_info().rss / 1024 / 1024  # MB
         memory_increase = peak_memory - initial_memory
@@ -154,12 +154,13 @@ def test_concurrent_signal_processing():
 
     try:
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
         from core.signal_calculators import get_range_oscillator_signal
         from modules.common.core.data_fetcher import DataFetcher
         from modules.common.core.exchange_manager import ExchangeManager
 
         symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT"]
-        
+
         # Create data fetchers
         data_fetchers = []
         for _ in symbols:
@@ -170,7 +171,7 @@ def test_concurrent_signal_processing():
 
         # Test concurrent processing
         start_time = time.time()
-        
+
         with ThreadPoolExecutor(max_workers=3) as executor:
             futures = []
             for i, symbol in enumerate(symbols):
@@ -180,7 +181,7 @@ def test_concurrent_signal_processing():
                     symbol=symbol,
                     timeframe="1h",
                     limit=500,
-                    df=data_fetchers[i].fetch_ohlcv_with_fallback_exchange()[0]
+                    df=data_fetchers[i].fetch_ohlcv_with_fallback_exchange()[0],
                 )
                 futures.append(future)
 
@@ -190,7 +191,7 @@ def test_concurrent_signal_processing():
                 results.append(result)
 
         concurrent_time = time.time() - start_time
-        
+
         # Test sequential processing for comparison
         start_time = time.time()
         sequential_results = []
@@ -200,15 +201,15 @@ def test_concurrent_signal_processing():
                 symbol=symbol,
                 timeframe="1h",
                 limit=500,
-                df=data_fetchers[i].fetch_ohlcv_with_fallback_exchange()[0]
+                df=data_fetchers[i].fetch_ohlcv_with_fallback_exchange()[0],
             )
             sequential_results.append(result)
-        
+
         sequential_time = time.time() - start_time
 
         print(f"Concurrent processing: {concurrent_time:.3f}s, Results: {len(results)}")
         print(f"Sequential processing: {sequential_time:.3f}s, Results: {len(sequential_results)}")
-        print(f"Speedup: {sequential_time/concurrent_time:.2f}x")
+        print(f"Speedup: {sequential_time / concurrent_time:.2f}x")
 
         # Should see some speedup with concurrent processing
         # But allow for overhead in small datasets
@@ -227,8 +228,9 @@ def test_api_response_times():
     print("\n=== Test: API Response Times ===")
 
     try:
-        from web.app import app
         from fastapi.testclient import TestClient
+
+        from web.app import app
 
         client = TestClient(app)
 
@@ -267,12 +269,12 @@ def test_data_loading_performance():
         for size in sizes:
             # Create data
             df = create_large_ohlcv_data(limit=size)
-            
+
             # Measure loading time (simulating file load)
             start_time = time.time()
-            df_copy = df.copy()  # Simulate loading operation
+            df.copy()  # Simulate loading operation
             load_time = time.time() - start_time
-            
+
             load_times.append(load_time)
             print(f"Data size {size}: {load_time:.3f}s")
 
@@ -282,10 +284,10 @@ def test_data_loading_performance():
             # Compare largest to smallest
             scaling_factor = load_times[-1] / load_times[0]
             size_factor = sizes[-1] / sizes[0]
-            
+
             print(f"Time scaling: {scaling_factor:.2f}x")
             print(f"Size scaling: {size_factor:.2f}x")
-            print(f"Efficiency: {size_factor/scaling_factor:.2f}")
+            print(f"Efficiency: {size_factor / scaling_factor:.2f}")
 
             # Time scaling should be reasonable (not more than 3x size scaling)
             assert scaling_factor < size_factor * 3, "Loading time should scale reasonably"
@@ -317,7 +319,7 @@ def test_model_inference_performance():
 
         for i in range(num_tests):
             start_time = time.time()
-            result = get_random_forest_signal(
+            get_random_forest_signal(
                 data_fetcher=data_fetcher,
                 symbol="BTC/USDT",
                 timeframe="1h",
@@ -374,6 +376,7 @@ def run_all_tests():
         except Exception as e:
             print(f"[ERROR] Test error: {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             failed += 1
 

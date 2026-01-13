@@ -1,58 +1,13 @@
-
-from typing import Optional
-import logging
-import sys
-
-from colorama import Fore, Style
-import pandas as pd
-import pandas as pd
-
 """
 Text formatting and user input utilities.
 """
 
+import logging
+import sys
+from typing import Optional
 
-
-
-def color_text(text: str, color: str = Fore.WHITE, style: str = Style.NORMAL) -> str:
-    """
-    Applies color and style to text using colorama.
-
-    Args:
-        text: Text to format
-        color: Colorama Fore color (default: Fore.WHITE)
-        style: Colorama Style (default: Style.NORMAL)
-
-    Returns:
-        Formatted text string with color and style codes
-    """
-    return f"{style}{color}{text}{Style.RESET_ALL}"
-
-
-def format_price(value: float) -> str:
-    """
-    Formats prices/indicators with adaptive precision so tiny values remain readable.
-
-    Args:
-        value: Numeric value to format
-
-    Returns:
-        Formatted price string with appropriate precision, or "N/A" if invalid
-    """
-    if value is None or pd.isna(value):
-        return "N/A"
-
-    abs_val = abs(value)
-    if abs_val >= 1:
-        precision = 2
-    elif abs_val >= 0.01:
-        precision = 4
-    elif abs_val >= 0.0001:
-        precision = 6
-    else:
-        precision = 8
-
-    return f"{value:.{precision}f}"
+import pandas as pd
+from colorama import Fore, Style
 
 
 def color_text(text: str, color: str = Fore.WHITE, style: str = Style.NORMAL) -> str:

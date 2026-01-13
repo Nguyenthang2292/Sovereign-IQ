@@ -1,12 +1,10 @@
-
-from modules.lstm.core.cnn_1d_extractor import CNN1DExtractor
-from modules.lstm.core.create_balanced_target import create_balanced_target
-from modules.lstm.core.evaluate_models import (
-
 """
 Core components for CNN-LSTM models.
 """
 
+from modules.lstm.core.cnn_1d_extractor import CNN1DExtractor
+from modules.lstm.core.create_balanced_target import create_balanced_target
+from modules.lstm.core.evaluate_models import (
     apply_confidence_threshold,
     evaluate_model_in_batches,
     evaluate_model_with_confidence,

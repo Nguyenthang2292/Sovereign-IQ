@@ -1,15 +1,3 @@
-
-import os
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import pytest
-
-from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
-
-from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
-
 """
 Tests for ChartGenerator class.
 
@@ -21,8 +9,14 @@ Tests cover:
 - File output validation
 """
 
+import os
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pytest
 
+from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
 
 
 @pytest.fixture

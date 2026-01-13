@@ -1,12 +1,3 @@
-
-from modules.gemini_chart_analyzer.core.aggregators.signal_aggregator import SignalAggregator
-from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
-from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
-from modules.gemini_chart_analyzer.core.analyzers.multi_timeframe_coordinator import MultiTimeframeCoordinator
-from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
-from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
-from modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_generator import (
-
 """
 Gemini Chart Analyzer Module
 
@@ -17,6 +8,13 @@ This module provides technical chart analysis functionality using Google Gemini 
 - Batch market scanning: scan entire market by batching symbols
 """
 
+from modules.gemini_chart_analyzer.core.aggregators.signal_aggregator import SignalAggregator
+from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
+from modules.gemini_chart_analyzer.core.analyzers.multi_timeframe_coordinator import MultiTimeframeCoordinator
+from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
+from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
+from modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_generator import (
     ChartMultiTimeframeBatchGenerator,
 )
 from modules.gemini_chart_analyzer.core.generators.simple_chart_generator import SimpleChartGenerator

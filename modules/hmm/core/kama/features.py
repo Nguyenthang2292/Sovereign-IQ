@@ -1,3 +1,8 @@
+"""
+HMM-KAMA Feature Engineering.
+
+This module handles feature preparation and engineering for HMM-KAMA analysis.
+"""
 
 from typing import Optional
 
@@ -5,17 +10,6 @@ import numpy as np
 import pandas as pd
 
 from config import (
-
-from config import (
-
-"""
-HMM-KAMA Feature Engineering.
-
-This module handles feature preparation and engineering for HMM-KAMA analysis.
-"""
-
-
-
     HMM_FAST_KAMA_DEFAULT,
     HMM_SLOW_KAMA_DEFAULT,
     HMM_WINDOW_KAMA_DEFAULT,

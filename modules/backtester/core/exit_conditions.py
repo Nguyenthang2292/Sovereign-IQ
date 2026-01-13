@@ -1,6 +1,3 @@
-
-from typing import Tuple
-
 """
 Exit condition checking functions for backtester.
 
@@ -8,6 +5,7 @@ This module contains JIT-compiled functions for checking exit conditions
 (stop loss, take profit, trailing stop, max hold period) for both LONG and SHORT positions.
 """
 
+from typing import Tuple
 
 # Try to import Numba for JIT compilation, fallback if not available
 try:

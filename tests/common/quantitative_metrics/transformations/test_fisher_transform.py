@@ -1,15 +1,11 @@
-
 import numpy as np
 import pandas as pd
 
-from modules.common.quantitative_metrics import calculate_fisher_transform
 from modules.common.quantitative_metrics import calculate_fisher_transform
 
 """
 Tests for fisher_transform module.
 """
-
-
 
 
 def test_calculate_fisher_transform_returns_valid_series():

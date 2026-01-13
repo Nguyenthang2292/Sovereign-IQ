@@ -1,8 +1,3 @@
-
-from pathlib import Path
-import json
-import sys
-
 #!/usr/bin/env python3
 """
 Export OpenAPI specification from FastAPI app to docs directory.
@@ -12,6 +7,9 @@ Usage:
     python scripts/export_openapi.py
 """
 
+import json
+import sys
+from pathlib import Path
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent

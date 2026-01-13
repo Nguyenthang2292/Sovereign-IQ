@@ -1,9 +1,7 @@
-
-from sklearn.model_selection import TimeSeriesSplit
 import numpy as np
+from sklearn.model_selection import TimeSeriesSplit
 
 from modules.common.utils import log_info, log_warn
-from modules.hmm.core.swings.model_creation import create_hmm_model, train_model
 from modules.hmm.core.swings.model_creation import create_hmm_model, train_model
 
 """
@@ -11,8 +9,6 @@ HMM-Swings State Optimization.
 
 This module handles optimization of the number of hidden states using cross-validation.
 """
-
-
 
 
 def _calculate_hmm_parameters(n_states: int, n_symbols: int = 3) -> int:

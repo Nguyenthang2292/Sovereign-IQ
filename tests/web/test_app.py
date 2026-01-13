@@ -1,13 +1,3 @@
-
-from unittest.mock import patch
-
-from fastapi.responses import FileResponse
-import pytest
-
-from web.app import app
-
-from web.app import app
-
 """
 Tests for FastAPI app (web/app.py).
 
@@ -18,7 +8,10 @@ Tests cover:
 - CORS middleware
 """
 
+from unittest.mock import patch
 
+import pytest
+from fastapi.responses import FileResponse
 
 # Import app - project root is added to path in conftest, so use absolute import
 from web.app import app

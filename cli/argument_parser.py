@@ -1,13 +1,3 @@
-
-import argparse
-import sys
-
-from colorama import Fore, Style
-
-from config import (
-
-from config import (
-
 """
 Argument parser for ATC + Range Oscillator + SPC Hybrid and Pure Voting.
 
@@ -15,8 +5,15 @@ This module contains functions for parsing command-line arguments
 and interactive configuration menu for both Hybrid and Pure Voting approaches.
 """
 
+import argparse
+import math
+import os
+import sys
+from pathlib import Path
 
+from colorama import Fore, Style
 
+from config import (
     DECISION_MATRIX_MIN_VOTES,
     DECISION_MATRIX_VOTING_THRESHOLD,
     DEFAULT_TIMEFRAME,
@@ -40,6 +37,149 @@ from modules.common.utils import (
     prompt_user_input,
     safe_input,
 )
+
+
+def _validate_positive_int(value, max_value=10000, param_name="value"):
+    """Validate positive integer with upper bound."""
+    try:
+        ivalue = int(value)
+        if ivalue <= 0:
+            raise argparse.ArgumentTypeError(f"{param_name} must be positive, got {ivalue}")
+        if ivalue > max_value:
+            raise argparse.ArgumentTypeError(f"{param_name} exceeds maximum of {max_value}, got {ivalue}")
+        return ivalue
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{param_name} must be an integer, got {value}")
+
+
+def _validate_and_sanitize_path(path_str: str, param_name: str = "path") -> str:
+    """
+    Validate and sanitize file path to prevent path traversal attacks.
+
+    This function:
+    1. Validates that the path is not empty
+    2. Resolves the path to an absolute path
+    3. Checks for path traversal sequences (..)
+    4. Blocks access to system directories
+
+    Args:
+        path_str: Input path string
+        param_name: Parameter name for error messages
+
+    Returns:
+        str: Sanitized absolute path
+
+    Raises:
+        argparse.ArgumentTypeError: If path contains traversal sequences or is invalid
+    """
+    if not path_str or not path_str.strip():
+        raise argparse.ArgumentTypeError(f"{param_name} cannot be empty")
+
+    # Normalize path and resolve to absolute path
+    try:
+        path = Path(path_str).resolve()
+    except (OSError, ValueError) as e:
+        raise argparse.ArgumentTypeError(f"{param_name} is invalid: {e}")
+
+    # Convert to string for checking
+    path_str_normalized = os.path.normpath(path_str)
+    path_absolute_str = str(path)
+
+    # Check for path traversal attempts in the original input
+    # This catches malicious inputs like "../../../etc/passwd" before resolution
+    if ".." in path_str_normalized:
+        # Count how many levels up the path tries to go
+        parts = path_str_normalized.split(os.sep)
+        up_levels = sum(1 for part in parts if part == "..")
+        if up_levels > 0:
+            raise argparse.ArgumentTypeError(
+                f"{param_name} contains path traversal sequences (..). "
+                "Model files should be in the project directory or subdirectories."
+            )
+
+    # Block access to system directories (Windows)
+    if os.name == "nt":  # Windows
+        path_lower = path_absolute_str.lower().replace("\\", "/")
+        forbidden_patterns = [
+            "/windows/",
+            "/system32/",
+            "/program files/",
+            "/programdata/",
+            "/users/",
+            "/program files (x86)/",
+            "/appdata/",
+            "/temp/",
+        ]
+        # Check if path is in a forbidden system directory
+        if any(pattern in path_lower for pattern in forbidden_patterns):
+            raise argparse.ArgumentTypeError(
+                f"{param_name} points to a system directory. "
+                "Model files should be in the project directory or subdirectories."
+            )
+        # Block direct drive access (e.g., C:\, D:\) unless it's the current working directory
+        if len(path_absolute_str) >= 2 and path_absolute_str[1] == ":":
+            # Allow if it's within the current working directory
+            try:
+                cwd = os.getcwd()
+                if not path_absolute_str.lower().startswith(cwd.lower()):
+                    # Check if it's trying to access root of a drive
+                    if len(path_absolute_str) == 3 and path_absolute_str[2] == "\\":
+                        raise argparse.ArgumentTypeError(
+                            f"{param_name} cannot point to a drive root. "
+                            "Model files should be in the project directory or subdirectories."
+                        )
+            except OSError:
+                pass  # If we can't get cwd, continue with other checks
+
+    # Block access to system directories (Unix-like)
+    else:  # Unix-like systems
+        path_lower = path_absolute_str.lower()
+        forbidden_system_paths = [
+            "/etc/",
+            "/usr/",
+            "/var/",
+            "/bin/",
+            "/sbin/",
+            "/lib/",
+            "/sys/",
+            "/proc/",
+            "/boot/",
+            "/dev/",
+            "/root/",
+            "/run/",
+            "/tmp/",
+            "/opt/",
+        ]
+        if any(path_lower.startswith(forbidden) for forbidden in forbidden_system_paths):
+            raise argparse.ArgumentTypeError(
+                f"{param_name} points to a system directory. "
+                "Model files should be in the project directory or subdirectories."
+            )
+
+    # Return the resolved absolute path as string
+    return path_absolute_str
+
+
+def _validate_float_range(value, min_val=0.0, max_val=1.0, param_name="value"):
+    """Validate float within range, preventing inf/nan."""
+    try:
+        # Check for string representations of inf/nan
+        if isinstance(value, str):
+            value_lower = value.strip().lower()
+            if value_lower in ["inf", "-inf", "nan", "infinity", "-infinity"]:
+                raise argparse.ArgumentTypeError(f"{param_name} cannot be infinity or NaN")
+
+        fvalue = float(value)
+
+        # Check for actual inf/nan values
+        if not math.isfinite(fvalue):
+            raise argparse.ArgumentTypeError(f"{param_name} cannot be infinity or NaN")
+
+        if not (min_val <= fvalue <= max_val):
+            raise argparse.ArgumentTypeError(f"{param_name} must be between {min_val} and {max_val}, got {fvalue}")
+        return fvalue
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{param_name} must be a number, got {value}")
 
 
 def _format_current_value(value) -> str:
@@ -205,23 +345,22 @@ def _configure_xgboost(config, mode="hybrid"):
     Returns:
         tuple: (action, changed) where action is 'main' and changed indicates if changes were made
     """
-    while True:
-        print("\n" + color_text("3. XGBOOST PREDICTION CONFIGURATION (Optional)", Fore.YELLOW, Style.BRIGHT))
-        print(color_text("   b) Back to main menu", Fore.CYAN))
-        print()
+    print("\n" + color_text("3. XGBOOST PREDICTION CONFIGURATION (Optional)", Fore.YELLOW, Style.BRIGHT))
+    print(color_text("   b) Back to main menu", Fore.CYAN))
+    print()
 
-        current_enabled = getattr(config, "enable_xgboost", True)  # Default enabled
-        default_val = "y" if current_enabled else "n"
-        enable_xgb_input, action = _prompt_with_back(
-            f"Enable XGBoost prediction? (y/n) [{default_val}]: ", default=default_val
-        )
-        if action == "main":
-            return ("main", False)
+    current_enabled = getattr(config, "enable_xgboost", True)  # Default enabled
+    default_val = "y" if current_enabled else "n"
+    enable_xgb_input, action = _prompt_with_back(
+        f"Enable XGBoost prediction? (y/n) [{default_val}]: ", default=default_val
+    )
+    if action == "main":
+        return ("main", False)
 
-        new_enabled = enable_xgb_input.lower() in ["y", "yes"]
-        changed = new_enabled != current_enabled
-        config.enable_xgboost = new_enabled
-        return ("main", changed)
+    new_enabled = enable_xgb_input.lower() in ["y", "yes"]
+    changed = new_enabled != current_enabled
+    config.enable_xgboost = new_enabled
+    return ("main", changed)
 
 
 def _configure_hmm(config, mode="hybrid"):
@@ -230,30 +369,29 @@ def _configure_hmm(config, mode="hybrid"):
     Returns:
         tuple: (action, changed) where action is 'main' and changed indicates if changes were made
     """
-    while True:
-        print("\n" + color_text("4. HMM (Hidden Markov Model) CONFIGURATION (Optional)", Fore.YELLOW, Style.BRIGHT))
-        print(color_text("   b) Back to main menu", Fore.CYAN))
-        print()
+    print("\n" + color_text("4. HMM (Hidden Markov Model) CONFIGURATION (Optional)", Fore.YELLOW, Style.BRIGHT))
+    print(color_text("   b) Back to main menu", Fore.CYAN))
+    print()
 
-        current_enabled = getattr(config, "enable_hmm", True)  # Default enabled
-        default_val = "y" if current_enabled else "n"
-        enable_hmm_input, action = _prompt_with_back(f"Enable HMM signal? (y/n) [{default_val}]: ", default=default_val)
-        if action == "main":
-            return ("main", False)
+    current_enabled = getattr(config, "enable_hmm", True)  # Default enabled
+    default_val = "y" if current_enabled else "n"
+    enable_hmm_input, action = _prompt_with_back(f"Enable HMM signal? (y/n) [{default_val}]: ", default=default_val)
+    if action == "main":
+        return ("main", False)
 
-        new_enabled = enable_hmm_input.lower() in ["y", "yes"]
-        changed = new_enabled != current_enabled
-        config.enable_hmm = new_enabled
+    new_enabled = enable_hmm_input.lower() in ["y", "yes"]
+    changed = new_enabled != current_enabled
+    config.enable_hmm = new_enabled
 
-        # HMM parameters: use defaults from config
-        config.hmm_window_size = HMM_WINDOW_SIZE_DEFAULT
-        config.hmm_window_kama = HMM_WINDOW_KAMA_DEFAULT
-        config.hmm_fast_kama = HMM_FAST_KAMA_DEFAULT
-        config.hmm_slow_kama = HMM_SLOW_KAMA_DEFAULT
-        config.hmm_orders_argrelextrema = HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT
-        config.hmm_strict_mode = HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
+    # HMM parameters: use defaults from config
+    config.hmm_window_size = HMM_WINDOW_SIZE_DEFAULT
+    config.hmm_window_kama = HMM_WINDOW_KAMA_DEFAULT
+    config.hmm_fast_kama = HMM_FAST_KAMA_DEFAULT
+    config.hmm_slow_kama = HMM_SLOW_KAMA_DEFAULT
+    config.hmm_orders_argrelextrema = HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT
+    config.hmm_strict_mode = HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
 
-        return ("main", changed)
+    return ("main", changed)
 
 
 def _configure_random_forest(config, mode="hybrid"):
@@ -262,25 +400,24 @@ def _configure_random_forest(config, mode="hybrid"):
     Returns:
         tuple: (action, changed) where action is 'main' and changed indicates if changes were made
     """
-    while True:
-        print("\n" + color_text("5. RANDOM FOREST CONFIGURATION (Optional)", Fore.YELLOW, Style.BRIGHT))
-        print(color_text("   b) Back to main menu", Fore.CYAN))
-        print()
+    print("\n" + color_text("5. RANDOM FOREST CONFIGURATION (Optional)", Fore.YELLOW, Style.BRIGHT))
+    print(color_text("   b) Back to main menu", Fore.CYAN))
+    print()
 
-        current_enabled = getattr(config, "enable_random_forest", True)  # Default enabled
-        default_val = "y" if current_enabled else "n"
-        enable_rf_input, action = _prompt_with_back(
-            f"Enable Random Forest prediction? (y/n) [{default_val}]: ", default=default_val
-        )
-        if action == "main":
-            return ("main", False)
+    current_enabled = getattr(config, "enable_random_forest", True)  # Default enabled
+    default_val = "y" if current_enabled else "n"
+    enable_rf_input, action = _prompt_with_back(
+        f"Enable Random Forest prediction? (y/n) [{default_val}]: ", default=default_val
+    )
+    if action == "main":
+        return ("main", False)
 
-        new_enabled = enable_rf_input.lower() in ["y", "yes"]
-        changed = new_enabled != current_enabled
-        config.enable_random_forest = new_enabled
-        config.random_forest_model_path = None  # Uses default path from config
+    new_enabled = enable_rf_input.lower() in ["y", "yes"]
+    changed = new_enabled != current_enabled
+    config.enable_random_forest = new_enabled
+    config.random_forest_model_path = None  # Uses default path from config
 
-        return ("main", changed)
+    return ("main", changed)
 
 
 def _configure_decision_matrix(config, mode="hybrid"):
@@ -295,6 +432,9 @@ def _configure_decision_matrix(config, mode="hybrid"):
     print(color_text("   b) Back to main menu", Fore.CYAN))
     print()
 
+    # Save original state for rollback
+    original_use_decision_matrix = getattr(config, "use_decision_matrix", False)
+
     # Decision Matrix is always enabled, just configure parameters
     config.use_decision_matrix = True
 
@@ -307,20 +447,30 @@ def _configure_decision_matrix(config, mode="hybrid"):
         f"Voting Threshold (0.0-1.0) [{current_threshold}]: ", default=str(current_threshold)
     )
     if action == "main":
+        # Rollback all changes if user chose back
+        config.use_decision_matrix = original_use_decision_matrix
         return ("main", False)
 
     try:
-        new_threshold = float(threshold_str) if threshold_str else current_threshold
-        if not (0.0 <= new_threshold <= 1.0):
-            print(
-                color_text(
-                    "Warning: Voting Threshold should be between 0.0 and 1.0. Preserving current value.", Fore.YELLOW
-                )
-            )
-            new_threshold = current_threshold
-        config.voting_threshold = new_threshold
-    except ValueError:
-        print(color_text(f"Invalid input. Preserving current value: {current_threshold}", Fore.YELLOW))
+        # Validate input before conversion to prevent inf/nan issues
+        if threshold_str:
+            threshold_lower = threshold_str.strip().lower()
+            if threshold_lower in ["inf", "-inf", "nan", "infinity", "-infinity"]:
+                print(color_text("Invalid input: infinity and NaN values are not allowed.", Fore.YELLOW))
+                config.voting_threshold = current_threshold
+            else:
+                new_threshold = float(threshold_str)
+                # Validate range after conversion
+                if not (0.0 <= new_threshold <= 1.0) or not (new_threshold == new_threshold):  # Check for NaN
+                    msg = "Warning: Voting Threshold should be between 0.0 and 1.0."
+                    msg += " Preserving current value."
+                    print(color_text(msg, Fore.YELLOW))
+                    new_threshold = current_threshold
+                config.voting_threshold = new_threshold
+        else:
+            config.voting_threshold = current_threshold
+    except (ValueError, OverflowError):
+        print(color_text("Invalid input. Please enter a valid number between 0.0 and 1.0.", Fore.YELLOW))
         config.voting_threshold = current_threshold
 
     threshold_changed = config.voting_threshold != current_threshold
@@ -331,18 +481,26 @@ def _configure_decision_matrix(config, mode="hybrid"):
         default=str(current_min_votes),
     )
     if action == "main":
-        # Rollback threshold change if user chose back
+        # Rollback all changes if user chose back
+        config.use_decision_matrix = original_use_decision_matrix
         config.voting_threshold = current_threshold
         return ("main", False)
 
     try:
-        new_min_votes = int(min_votes_str) if min_votes_str else current_min_votes
-        if new_min_votes < 1:
-            print(color_text("Warning: Min Votes should be at least 1. Preserving current value.", Fore.YELLOW))
-            new_min_votes = current_min_votes
-        config.min_votes = new_min_votes
-    except ValueError:
-        print(color_text(f"Invalid input. Preserving current value: {current_min_votes}", Fore.YELLOW))
+        if min_votes_str:
+            new_min_votes = int(min_votes_str)
+            # Validate range: at least 1, maximum 1000 to prevent DoS
+            if new_min_votes < 1:
+                print(color_text("Warning: Min Votes should be at least 1. Preserving current value.", Fore.YELLOW))
+                new_min_votes = current_min_votes
+            elif new_min_votes > 1000:
+                print(color_text("Warning: Min Votes exceeds maximum of 1000. Preserving current value.", Fore.YELLOW))
+                new_min_votes = current_min_votes
+            config.min_votes = new_min_votes
+        else:
+            config.min_votes = current_min_votes
+    except (ValueError, OverflowError):
+        print(color_text("Invalid input. Please enter a valid integer between 1 and 1000.", Fore.YELLOW))
         config.min_votes = current_min_votes
 
     min_votes_changed = config.min_votes != current_min_votes
@@ -494,7 +652,7 @@ def interactive_config_menu(mode="hybrid"):
 
             if confirm in ["y", "yes"]:
                 print(color_text("\nExiting configuration menu.", Fore.YELLOW))
-                sys.exit(0)
+                raise SystemExit(0)
             else:
                 # User chose not to exit, return to menu
                 continue
@@ -540,13 +698,48 @@ def parse_args(mode="hybrid", force_enable_spc=True, force_enable_decision_matri
         help=f"Timeframe for analysis (default: {DEFAULT_TIMEFRAME})",
     )
     parser.add_argument("--no-menu", action="store_true", help="Disable interactive timeframe menu")
-    parser.add_argument("--limit", type=int, default=500, help="Number of candles to fetch (default: 500)")
-    parser.add_argument("--ema-len", type=int, default=28, help="EMA length (default: 28)")
-    parser.add_argument("--hma-len", type=int, default=28, help="HMA length (default: 28)")
-    parser.add_argument("--wma-len", type=int, default=28, help="WMA length (default: 28)")
-    parser.add_argument("--dema-len", type=int, default=28, help="DEMA length (default: 28)")
-    parser.add_argument("--lsma-len", type=int, default=28, help="LSMA length (default: 28)")
-    parser.add_argument("--kama-len", type=int, default=28, help="KAMA length (default: 28)")
+    parser.add_argument(
+        "--limit",
+        type=lambda x: _validate_positive_int(x, max_value=100000, param_name="--limit"),
+        default=500,
+        help="Number of candles to fetch (default: 500, max: 100000)",
+    )
+    parser.add_argument(
+        "--ema-len",
+        type=lambda x: _validate_positive_int(x, max_value=1000, param_name="--ema-len"),
+        default=28,
+        help="EMA length (default: 28, max: 1000)",
+    )
+    parser.add_argument(
+        "--hma-len",
+        type=lambda x: _validate_positive_int(x, max_value=1000, param_name="--hma-len"),
+        default=28,
+        help="HMA length (default: 28, max: 1000)",
+    )
+    parser.add_argument(
+        "--wma-len",
+        type=lambda x: _validate_positive_int(x, max_value=1000, param_name="--wma-len"),
+        default=28,
+        help="WMA length (default: 28, max: 1000)",
+    )
+    parser.add_argument(
+        "--dema-len",
+        type=lambda x: _validate_positive_int(x, max_value=1000, param_name="--dema-len"),
+        default=28,
+        help="DEMA length (default: 28, max: 1000)",
+    )
+    parser.add_argument(
+        "--lsma-len",
+        type=lambda x: _validate_positive_int(x, max_value=1000, param_name="--lsma-len"),
+        default=28,
+        help="LSMA length (default: 28, max: 1000)",
+    )
+    parser.add_argument(
+        "--kama-len",
+        type=lambda x: _validate_positive_int(x, max_value=1000, param_name="--kama-len"),
+        default=28,
+        help="KAMA length (default: 28, max: 1000)",
+    )
     parser.add_argument(
         "--robustness",
         type=str,
@@ -555,9 +748,18 @@ def parse_args(mode="hybrid", force_enable_spc=True, force_enable_decision_matri
         help="Robustness setting (default: Medium)",
     )
     parser.add_argument(
-        "--lambda", type=float, default=0.5, dest="lambda_param", help="Lambda parameter (default: 0.5)"
+        "--lambda",
+        type=lambda x: _validate_float_range(x, min_val=0.0, max_val=1.0, param_name="--lambda"),
+        default=0.5,
+        dest="lambda_param",
+        help="Lambda parameter (default: 0.5, range: 0.0-1.0)",
     )
-    parser.add_argument("--decay", type=float, default=0.1, help="Decay rate (default: 0.1)")
+    parser.add_argument(
+        "--decay",
+        type=lambda x: _validate_float_range(x, min_val=0.0, max_val=1.0, param_name="--decay"),
+        default=0.1,
+        help="Decay rate (default: 0.1, range: 0.0-1.0)",
+    )
     parser.add_argument("--cutout", type=int, default=5, help="Number of bars to skip at start (default: 5)")
     parser.add_argument(
         "--min-signal", type=float, default=0.01, help="Minimum signal strength to display (default: 0.01)"
@@ -718,9 +920,10 @@ def parse_args(mode="hybrid", force_enable_spc=True, force_enable_decision_matri
     )
     parser.add_argument(
         "--random-forest-model-path",
-        type=str,
+        type=lambda x: _validate_and_sanitize_path(x, param_name="--random-forest-model-path"),
         default=None,
-        help="Path to Random Forest model file (default: uses default path from config)",
+        help="Path to Random Forest model file (default: uses default path from config). "
+        "Path is validated to prevent path traversal attacks.",
     )
 
     # Decision Matrix options
@@ -729,20 +932,20 @@ def parse_args(mode="hybrid", force_enable_spc=True, force_enable_decision_matri
             "--use-decision-matrix",
             action="store_true",
             help="Use decision matrix voting system (always enabled with SPC). "
-                 "Note: This flag is always enabled internally.",
+            "Note: This flag is always enabled internally.",
         )
 
     parser.add_argument(
         "--voting-threshold",
-        type=float,
+        type=lambda x: _validate_float_range(x, min_val=0.0, max_val=1.0, param_name="--voting-threshold"),
         default=DECISION_MATRIX_VOTING_THRESHOLD,
-        help=f"Minimum weighted score for positive vote (default: {DECISION_MATRIX_VOTING_THRESHOLD})",
+        help=f"Minimum weighted score for positive vote (default: {DECISION_MATRIX_VOTING_THRESHOLD}, range: 0.0-1.0)",
     )
     parser.add_argument(
         "--min-votes",
-        type=int,
+        type=lambda x: _validate_positive_int(x, max_value=1000, param_name="--min-votes"),
         default=DECISION_MATRIX_MIN_VOTES,
-        help=f"Minimum number of indicators that must agree (default: {DECISION_MATRIX_MIN_VOTES})",
+        help=f"Minimum number of indicators that must agree (default: {DECISION_MATRIX_MIN_VOTES}, max: 1000)",
     )
 
     args = parser.parse_args()
@@ -750,7 +953,7 @@ def parse_args(mode="hybrid", force_enable_spc=True, force_enable_decision_matri
     # Force enable SPC and Decision Matrix if requested
     if force_enable_spc:
         args.enable_spc = True
-    if force_enable_decision_matrix:
-        args.use_decision_matrix = True
+    # Set use_decision_matrix based on mode and force
+    args.use_decision_matrix = force_enable_decision_matrix or (mode == "hybrid")
 
     return args

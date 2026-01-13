@@ -1,16 +1,12 @@
+"""
+Tests for helper utility functions.
+"""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from modules.simplified_percentile_clustering.utils.helpers import (
-from modules.simplified_percentile_clustering.utils.helpers import (
-
-"""
-Tests for helper utility functions.
-"""
-
-
     normalize_cluster_name,
     safe_isfinite,
     safe_isna,

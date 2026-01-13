@@ -1,10 +1,3 @@
-
-from pathlib import Path
-from typing import List, Optional
-import argparse
-import json
-import warnings
-
 """
 Deep Learning Training Script for Temporal Fusion Transformer (TFT).
 
@@ -15,6 +8,11 @@ This script implements Phase 5 of the TFT roadmap:
 - Save: best checkpoint, dataset metadata, scaler/config JSON
 """
 
+import argparse
+import json
+import warnings
+from pathlib import Path
+from typing import List, Optional
 
 try:
     import pytorch_lightning as pl
@@ -361,7 +359,6 @@ def _verify_lightning_module(model):
             # This is a workaround for version compatibility issues
             try:
                 # Store original class
-                original_class = model.__class__
                 # Temporarily set __class__ to bypass type checking
                 # Only if model actually has LightningModule methods
                 if hasattr(pl.LightningModule, "training_step"):

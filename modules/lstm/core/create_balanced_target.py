@@ -1,10 +1,20 @@
+"""
+This module provides functionality to generate balanced target labels
+(-1 for sell, 0 for neutral, 1 for buy) for LSTM training based on
+future returns computed from price data. The primary function
+`create_balanced_target` computes classification targets given
+customizable thresholds for strong market moves and a neutral zone.
+
+Functions:
+    create_balanced_target(df, threshold, neutral_zone):
+        Computes and assigns balanced classification targets to
+        the input DataFrame based on predicted future returns and
+        user-defined thresholds.
+"""
 
 import numpy as np
 
 from config.lstm import (
-from config.lstm import (
-
-
     FUTURE_RETURN_SHIFT,
     NEUTRAL_ZONE_LSTM,
     TARGET_THRESHOLD_LSTM,
@@ -54,8 +64,10 @@ def create_balanced_target(df, threshold=TARGET_THRESHOLD_LSTM, neutral_zone=NEU
         df["Target"] = np.select(conditions, choices, default=np.nan)
 
         # Handle intermediate cases with probabilistic assignment for balance
-        # Use a fixed RNG seed for reproducibility in training/testing (42 chosen arbitrarily, typical for examples and reproducibility).
-        # To allow user/configuration, make seed configurable via argument or environment variable if needed.
+        # Use a fixed RNG seed for reproducibility in training/testing
+        # (42 chosen arbitrarily, typical for examples and reproducibility).
+        # To allow user/configuration, make seed configurable via argument
+        # or environment variable if needed.
         rng = np.random.default_rng(
             42
         )  # Local generator with fixed seed ensures deterministic results for label assignment

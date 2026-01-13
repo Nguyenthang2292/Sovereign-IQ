@@ -1,17 +1,14 @@
-
-from unittest.mock import Mock, patch
 import io
 import sys
+from unittest.mock import Mock, patch
 
 from config.iching import FONT_SIZE
-from modules.iching.utils.helpers import (
-from modules.iching.utils.helpers import (
 
 """
 Tests for utility functions.
 """
 
-
+from modules.iching.utils.helpers import (
     clean_images_folder,
     ensure_utf8_stdout,
     get_font,

@@ -1,15 +1,12 @@
-
-from typing import TYPE_CHECKING, Dict, Optional, Tuple
 import gc
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 import numpy as np
-import pandas as pd
 import pandas as pd
 
 """
 Pairs trading analyzer for identifying and validating pairs trading opportunities.
 """
-
 
 
 if TYPE_CHECKING:
@@ -760,11 +757,17 @@ class PairsTradingAnalyzer:
                 correlation = None
                 quant_metrics = {}
                 if data_fetcher is not None:
-                    correlation = self.calculate_correlation(long_symbol, short_symbol, data_fetcher)
+                    try:
+                        correlation = self.calculate_correlation(long_symbol, short_symbol, data_fetcher)
 
-                    # Don't filter out pairs even if correlation is outside ideal range;
-                    # OpportunityScorer will apply penalties through multipliers.
-                    quant_metrics = self._compute_pair_metrics(long_symbol, short_symbol, data_fetcher)
+                        # Don't filter out pairs even if correlation is outside ideal range;
+                        # OpportunityScorer will apply penalties through multipliers.
+                        quant_metrics = self._compute_pair_metrics(long_symbol, short_symbol, data_fetcher)
+                    except Exception as e:
+                        if verbose:
+                            log_warn(f"Error computing correlation/metrics for {long_symbol}/{short_symbol}: {e}")
+                        correlation = None
+                        quant_metrics = {}
 
                 # Calculate opportunity score
                 try:

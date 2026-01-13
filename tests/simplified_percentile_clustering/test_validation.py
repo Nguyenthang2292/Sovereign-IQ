@@ -1,16 +1,12 @@
+"""
+Tests for validation utilities.
+"""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from modules.simplified_percentile_clustering.config import (
-from modules.simplified_percentile_clustering.config import (
-
-"""
-Tests for validation utilities.
-"""
-
-
     ClusterTransitionConfig,
     MeanReversionConfig,
     RegimeFollowingConfig,

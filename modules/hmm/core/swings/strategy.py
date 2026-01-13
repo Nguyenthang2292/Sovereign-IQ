@@ -1,7 +1,5 @@
-
 from typing import TYPE_CHECKING, Optional
 
-import pandas as pd
 import pandas as pd
 
 """
@@ -9,7 +7,6 @@ HMM-Swings Strategy Implementation.
 
 This module contains the SwingsHMMStrategy class that implements the HMMStrategy interface.
 """
-
 
 
 if TYPE_CHECKING:

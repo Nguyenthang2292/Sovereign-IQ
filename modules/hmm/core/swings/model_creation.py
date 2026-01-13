@@ -1,22 +1,16 @@
-
 from typing import List, Optional
 
 import numpy as np
+from pomegranate.distributions import Categorical
+from pomegranate.hmm import DenseHMM
 
 from modules.common.utils import log_data, log_info, log_warn
-from pomegranate.distributions import Categorical
-from pomegranate.hmm import DenseHMM
-from pomegranate.distributions import Categorical
-from pomegranate.hmm import DenseHMM
 
 """
 HMM-Swings Model Creation.
 
 This module handles HMM model creation, training, and data-driven parameter computation.
 """
-
-
-
 
 
 def _map_observed_to_hidden_state(observed_state: int, n_states: int, n_observed_states: int = 3) -> int:

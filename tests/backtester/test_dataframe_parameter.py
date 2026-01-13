@@ -1,15 +1,3 @@
-
-from types import SimpleNamespace
-from unittest.mock import patch
-
-import numpy as np
-import pandas as pd
-import pytest
-
-from modules.backtester import FullBacktester
-
-from modules.backtester import FullBacktester
-
 """
 Tests for DataFrame parameter optimization in FullBacktester.
 
@@ -19,8 +7,14 @@ Tests verify that:
 3. DataFrame is used instead of fetching from API
 """
 
+from types import SimpleNamespace
+from unittest.mock import patch
 
+import numpy as np
+import pandas as pd
+import pytest
 
+from modules.backtester import FullBacktester
 
 
 @pytest.fixture
@@ -72,11 +66,11 @@ def test_backtest_with_dataframe_parameter(sample_dataframe, mock_data_fetcher):
     """Test that backtest accepts DataFrame parameter and doesn't fetch from API."""
     # Mock signal calculators
     with (
-        patch("core.signal_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
-        patch("core.signal_calculators.get_spc_signal", return_value=(1, 0.6)),
-        patch("core.signal_calculators.get_xgboost_signal", return_value=(1, 0.8)),
-        patch("core.signal_calculators.get_hmm_signal", return_value=(1, 0.65)),
-        patch("core.signal_calculators.get_random_forest_signal", return_value=(1, 0.75)),
+        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
+        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(1, 0.6)),
+        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(1, 0.8)),
+        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(1, 0.65)),
+        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(1, 0.75)),
     ):
         backtester = FullBacktester(mock_data_fetcher)
 
@@ -105,11 +99,11 @@ def test_backtest_without_dataframe_parameter(mock_data_fetcher):
     """Test backward compatibility - backtest without DataFrame still works."""
     # Mock signal calculators
     with (
-        patch("core.signal_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
-        patch("core.signal_calculators.get_spc_signal", return_value=(1, 0.6)),
-        patch("core.signal_calculators.get_xgboost_signal", return_value=(1, 0.8)),
-        patch("core.signal_calculators.get_hmm_signal", return_value=(1, 0.65)),
-        patch("core.signal_calculators.get_random_forest_signal", return_value=(1, 0.75)),
+        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
+        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(1, 0.6)),
+        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(1, 0.8)),
+        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(1, 0.65)),
+        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(1, 0.75)),
     ):
         backtester = FullBacktester(mock_data_fetcher)
 
@@ -137,11 +131,11 @@ def test_backtest_dataframe_vs_fetch_same_result(sample_dataframe, mock_data_fet
     """Test that using DataFrame produces same result as fetching."""
     # Mock signal calculators to return consistent results
     with (
-        patch("core.signal_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
-        patch("core.signal_calculators.get_spc_signal", return_value=(1, 0.6)),
-        patch("core.signal_calculators.get_xgboost_signal", return_value=(1, 0.8)),
-        patch("core.signal_calculators.get_hmm_signal", return_value=(1, 0.65)),
-        patch("core.signal_calculators.get_random_forest_signal", return_value=(1, 0.75)),
+        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
+        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(1, 0.6)),
+        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(1, 0.8)),
+        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(1, 0.65)),
+        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(1, 0.75)),
     ):
         backtester = FullBacktester(mock_data_fetcher)
 
@@ -197,11 +191,11 @@ def test_backtest_dataframe_preserves_index(sample_dataframe, mock_data_fetcher)
     """Test that DataFrame index is preserved in backtest."""
     # Mock signal calculators
     with (
-        patch("core.signal_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
-        patch("core.signal_calculators.get_spc_signal", return_value=(1, 0.6)),
-        patch("core.signal_calculators.get_xgboost_signal", return_value=(1, 0.8)),
-        patch("core.signal_calculators.get_hmm_signal", return_value=(1, 0.65)),
-        patch("core.signal_calculators.get_random_forest_signal", return_value=(1, 0.75)),
+        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
+        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(1, 0.6)),
+        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(1, 0.8)),
+        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(1, 0.65)),
+        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(1, 0.75)),
     ):
         backtester = FullBacktester(mock_data_fetcher)
 

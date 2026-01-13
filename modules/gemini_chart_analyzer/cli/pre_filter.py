@@ -1,16 +1,3 @@
-
-from typing import List, Optional, Set, Union
-import argparse
-import contextlib
-import os
-import sys
-
-import pandas as pd
-
-from config import (
-
-from config import (
-
 """
 Pre-filter symbols using VotingAnalyzer or HybridAnalyzer.
 
@@ -18,8 +5,15 @@ This module provides functionality to filter symbols using VotingAnalyzer or Hyb
 before passing them to Gemini scan.
 """
 
+import argparse
+import contextlib
+import os
+import sys
+from typing import List, Optional, Set, Union
 
+import pandas as pd
 
+from config import (
     DECISION_MATRIX_MIN_VOTES,
     DECISION_MATRIX_VOTING_THRESHOLD,
     HMM_FAST_KAMA_DEFAULT,
@@ -244,9 +238,11 @@ def pre_filter_symbols_with_voting(all_symbols: List[str], timeframe: str, limit
         return all_symbols
 
     total_symbols = len(all_symbols)
-    log_info(
-        f"Pre-filtering symbols using VotingAnalyzer (selecting all symbols with signals from {total_symbols} total symbols)..."
+    msg = (
+        f"Pre-filtering symbols using VotingAnalyzer (selecting all symbols "
+        f"with signals from {total_symbols} total symbols)..."
     )
+    log_info(msg)
 
     with _protect_stdin_windows():
         try:
@@ -294,7 +290,8 @@ def pre_filter_symbols_with_voting(all_symbols: List[str], timeframe: str, limit
             filtered_symbols = [symbol for symbol, _, _ in all_signals_list]
 
             log_success(
-                f"Pre-filter complete: {len(filtered_symbols)}/{total_symbols} symbols selected (all symbols with signals)"
+                f"Pre-filter complete: {len(filtered_symbols)}/{total_symbols} "
+                f"symbols selected (all symbols with signals)"
             )
             return filtered_symbols
 
@@ -328,9 +325,11 @@ def pre_filter_symbols_with_hybrid(all_symbols: List[str], timeframe: str, limit
         return all_symbols
 
     total_symbols = len(all_symbols)
-    log_info(
-        f"Pre-filtering symbols using HybridAnalyzer (selecting all symbols with signals from {total_symbols} total symbols)..."
+    msg = (
+        f"Pre-filtering symbols using HybridAnalyzer (selecting all symbols "
+        f"with signals from {total_symbols} total symbols)..."
     )
+    log_info(msg)
 
     with _protect_stdin_windows():
         try:
@@ -376,7 +375,8 @@ def pre_filter_symbols_with_hybrid(all_symbols: List[str], timeframe: str, limit
                 return all_symbols
 
             log_success(
-                f"Pre-filter complete: {len(filtered_symbols)}/{total_symbols} symbols selected (all symbols with signals)"
+                f"Pre-filter complete: {len(filtered_symbols)}/{total_symbols} "
+                f"symbols selected (all symbols with signals)"
             )
             return filtered_symbols
 

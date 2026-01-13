@@ -1,23 +1,17 @@
-
-from typing import Optional, Tuple
-import os
-
-import numpy as np
-import pandas as pd
-
-from modules.common.utils import log_analysis, log_debug
-from modules.range_oscillator.utils.oscillator_data import get_oscillator_data
-from modules.common.utils import log_analysis, log_debug
-from modules.range_oscillator.utils.oscillator_data import get_oscillator_data
-
 """
 Range Oscillator Strategy 7: Divergence Detection.
 
 This module provides the divergence detection signal generation strategy.
 """
 
+import os
+from typing import Optional, Tuple
 
+import numpy as np
+import pandas as pd
 
+from modules.common.utils import log_analysis, log_debug
+from modules.range_oscillator.utils.oscillator_data import get_oscillator_data
 
 
 def generate_signals_divergence_strategy(

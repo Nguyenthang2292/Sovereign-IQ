@@ -1,10 +1,3 @@
-
-from typing import Optional
-
-from colorama import Fore
-import pandas as pd
-import pandas as pd
-
 """
 Pairs opportunities display formatter for pairs trading analysis.
 
@@ -12,7 +5,10 @@ This module provides formatted display functions for showing pairs trading
 opportunities with color-coded metrics and detailed quantitative information.
 """
 
+from typing import Optional
 
+import pandas as pd
+from colorama import Fore
 
 try:
     from modules.common.utils import (

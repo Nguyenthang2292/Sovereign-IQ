@@ -1,15 +1,4 @@
-
-from unittest.mock import Mock, patch
-import os
-
-import pytest
-
-import config.config_api as config_api
-
-import config.config_api as config_api
-
-"""
-Tests for co11111111111111111111111nfig/config_api.py.
+"""Tests for co11111111111111111111111nfig/config_api.py.
 
 Tests cover:
 - API key reading from environment variables
@@ -18,9 +7,11 @@ Tests cover:
 - Security considerations
 """
 
+import os
+from unittest.mock import Mock, patch
 
+import pytest
 
-# Import the module to test
 import config.config_api as config_api
 
 

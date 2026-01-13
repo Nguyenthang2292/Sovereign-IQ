@@ -1,14 +1,10 @@
-
 import numpy as np
 
-from modules.lstm.core.threshold_optimizer import GridSearchThresholdOptimizer
 from modules.lstm.core.threshold_optimizer import GridSearchThresholdOptimizer
 
 """
 Tests for GridSearchThresholdOptimizer module.
 """
-
-
 
 
 class TestGridSearchThresholdOptimizer:

@@ -1,17 +1,12 @@
-
 from typing import Dict, Optional
 
 import numpy as np
 
 from modules.common.utils import log_warn
 
-from modules.common.utils import log_warn
-
 """
 Opportunity scoring logic for pairs trading.
 """
-
-
 
 
 try:

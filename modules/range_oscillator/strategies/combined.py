@@ -1,16 +1,5 @@
-
-from typing import Dict, List, Optional, Tuple, Union
-import os
-
-import numpy as np
-import pandas as pd
-
-from config import (
-
-from config import (
-
 """
-Range Oscillator Strategy 5: Combined (Enhanced).
+Combined signal generation strategy for Range Oscillator.
 
 This module provides an enhanced combined signal generation strategy that combines
 multiple methods with advanced features:
@@ -23,10 +12,28 @@ multiple methods with advanced features:
 Refactored to use a class-based architecture (`CombinedStrategy`) for better maintainability.
 Moved from analysis/combined.py to strategies/combined.py to fix circular import issues
 and improve namespace organization.
+
+Configuration Classes:
+    The config classes (CombinedStrategyConfig, ConsensusConfig, DynamicSelectionConfig,
+    StrategySpecificConfig) are imported from modules.range_oscillator.config and
+    re-exported here for convenience. However, for clarity and to avoid confusion about
+    canonical import paths, it is recommended to import these classes directly from
+    the config module:
+
+    Recommended:
+        from modules.range_oscillator.config import CombinedStrategyConfig
+
+    Also works (for convenience):
+        from modules.range_oscillator.strategies.combined import CombinedStrategyConfig
 """
 
+import os
+from typing import Dict, List, Optional, Tuple, Union
 
+import numpy as np
+import pandas as pd
 
+from config import (
     AGREEMENT_WEIGHT,
     OSCILLATOR_NORMALIZATION,
     RANGE_BOUND_STRATEGIES,
@@ -134,6 +141,8 @@ class CombinedStrategy:
                 config.dynamic.volatility_threshold = kwargs["dynamic_volatility_threshold"]
             if "dynamic_trend_threshold" in kwargs:
                 config.dynamic.trend_threshold = kwargs["dynamic_trend_threshold"]
+            if "dynamic_range_bound_threshold" in kwargs:
+                config.dynamic.range_bound_threshold = kwargs["dynamic_range_bound_threshold"]
 
             # Params
             p = config.params
@@ -231,6 +240,8 @@ class CombinedStrategy:
                 raise ValueError("volatility_threshold must be in [0, 1]")
             if not (0.0 <= c.dynamic.trend_threshold <= 1.0):
                 raise ValueError("trend_threshold must be in [0, 1]")
+            if not (0.0 <= c.dynamic.range_bound_threshold <= 1.0):
+                raise ValueError("range_bound_threshold must be in [0, 1]")
             if c.dynamic.lookback < 1:
                 raise ValueError("lookback must be >= 1")
 
@@ -305,7 +316,7 @@ class CombinedStrategy:
                 if s in available_strategies and s not in selected:
                     selected.append(s)
 
-        if range_bound >= 0.5:
+        if range_bound >= conf.range_bound_threshold:
             for s in RANGE_BOUND_STRATEGIES:
                 if s in available_strategies and s not in selected:
                     selected.append(s)
@@ -368,42 +379,55 @@ class CombinedStrategy:
     def _calculate_confidence_score(
         self, signals_array: np.ndarray, strengths_array: np.ndarray, n_strategies: int
     ) -> np.ndarray:
-        """Calculate confidence scores."""
+        """Calculate confidence scores using vectorized operations."""
         if n_strategies == 0:
             # Return zero confidence if no strategies
             return np.zeros(signals_array.shape[1] if signals_array.size > 0 else 0, dtype=np.float64)
 
-        n_bars = signals_array.shape[1]
-        confidence = np.zeros(n_bars, dtype=np.float64)
+        signals_array.shape[1]
         c_conf = self.config.consensus
 
-        for i in range(n_bars):
-            bar_sig = signals_array[:, i]
-            bar_str = strengths_array[:, i]
+        # Vectorized vote counting across all bars
+        # signals_array shape: (n_strategies, n_bars)
+        long_votes = np.sum(signals_array == 1, axis=0)  # shape: (n_bars,)
+        short_votes = np.sum(signals_array == -1, axis=0)  # shape: (n_bars,)
+        total = long_votes + short_votes  # shape: (n_bars,)
 
-            long_votes = np.sum(bar_sig == 1)
-            short_votes = np.sum(bar_sig == -1)
-            total = long_votes + short_votes
+        # Handle bars with no votes
+        has_votes = total > 0
 
-            if total == 0:
-                confidence[i] = 0.0
-                continue
+        # Calculate agree_level for all bars
+        if c_conf.mode == "threshold":
+            min_agree = int(np.ceil(n_strategies * c_conf.threshold))
+            # Vectorized conditional logic for agree_level
+            agree_level = np.where(
+                long_votes >= min_agree,
+                long_votes / n_strategies,
+                np.where(
+                    short_votes >= min_agree,
+                    short_votes / n_strategies,
+                    np.maximum(long_votes, short_votes) / n_strategies,
+                ),
+            )
+        else:  # weighted (simplified for confidence score calculation)
+            agree_level = total / n_strategies
 
-            if c_conf.mode == "threshold":
-                min_agree = int(np.ceil(n_strategies * c_conf.threshold))
-                if long_votes >= min_agree:
-                    agree_level = long_votes / n_strategies
-                elif short_votes >= min_agree:
-                    agree_level = short_votes / n_strategies
-                else:
-                    agree_level = max(long_votes, short_votes) / n_strategies
-            else:  # weighted (simplified for confidence score calculation)
-                agree_level = total / n_strategies
+        # Vectorized average strength calculation
+        # agree_mask shape: (n_strategies, n_bars)
+        agree_mask = signals_array != 0
 
-            agree_mask = bar_sig != 0
-            avg_str = np.mean(bar_str[agree_mask]) if np.any(agree_mask) else 0.0
+        # Sum strengths where agree_mask is True, along strategy axis
+        str_sum = np.sum(strengths_array * agree_mask, axis=0)  # shape: (n_bars,)
+        cnt_sum = np.sum(agree_mask, axis=0)  # shape: (n_bars,)
 
-            confidence[i] = (agree_level * AGREEMENT_WEIGHT) + (avg_str * STRENGTH_WEIGHT)
+        # Compute mean with division by zero protection
+        avg_str = np.divide(str_sum, cnt_sum, out=np.zeros_like(str_sum), where=cnt_sum > 0)
+
+        # Calculate confidence scores for all bars
+        confidence = (agree_level * AGREEMENT_WEIGHT) + (avg_str * STRENGTH_WEIGHT)
+
+        # Set confidence to 0.0 for bars with no votes
+        confidence = np.where(has_votes, confidence, 0.0)
 
         return confidence
 
@@ -476,7 +500,7 @@ class CombinedStrategy:
                 if self.debug_enabled:
                     log_warn(f"[Strategy5] Strategy {sid} ({name}) failed: {str(e)}")
                 # Re-raise critical errors that indicate code bugs
-                if isinstance(e, (TypeError, NameError, AttributeError, ValueError, KeyError)):
+                if isinstance(e, (TypeError, NameError, AttributeError, ValueError, KeyError, IndexError)):
                     raise e
 
         p = self.config.params
@@ -705,12 +729,8 @@ class CombinedStrategy:
             conf = self._calculate_confidence_score(signals_array, strengths_array, len(successful_strategies))
             conf_out = pd.Series(conf, index=index)
 
-        # Return format based on config flags for backward compatibility
-        # If no flags are set, return 2 elements (backward compatible)
-        # If any flag is set, return 4 elements (for callers expecting result[3])
-        if not self.config.return_strategy_stats and not self.config.return_confidence_score:
-            return signal_series, strength_series
-
+        # Always return 4 elements for consistent signature
+        # Callers can unpack as needed: signal, strength, *_ = strategy.generate_signals(...)
         return signal_series, strength_series, strategy_stats, conf_out
 
     def _fallback_strategy1(self, high, low, close, oscillator, ma, range_atr, length, mult, index):
@@ -760,13 +780,16 @@ def generate_signals_combined_all_strategy(
     )
 
 
+# Public API exports
+# Note: Config classes are re-exported here for convenience, but the canonical
+# import path is modules.range_oscillator.config. See module docstring for details.
 __all__ = [
     "generate_signals_combined_all_strategy",
     "CombinedStrategy",
-    "CombinedStrategyConfig",
-    "ConsensusConfig",
-    "DynamicSelectionConfig",
-    "StrategySpecificConfig",
+    "CombinedStrategyConfig",  # Re-exported from modules.range_oscillator.config
+    "ConsensusConfig",  # Re-exported from modules.range_oscillator.config
+    "DynamicSelectionConfig",  # Re-exported from modules.range_oscillator.config
+    "StrategySpecificConfig",  # Re-exported from modules.range_oscillator.config
     "STRATEGY_FUNCTIONS",
     "STRATEGY_NAMES",
 ]

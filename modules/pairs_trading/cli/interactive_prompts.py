@@ -1,10 +1,3 @@
-
-from typing import Dict, Optional, Tuple
-import sys
-
-from colorama import Fore, Style
-from colorama import Fore, Style
-
 """
 Interactive prompts for pairs trading CLI.
 
@@ -12,7 +5,10 @@ This module provides interactive user input prompts for selecting presets,
 configuring parameters, and choosing analysis modes in the pairs trading CLI.
 """
 
+import sys
+from typing import Dict, Optional, Tuple
 
+from colorama import Fore, Style
 
 try:
     from modules.common.utils import (

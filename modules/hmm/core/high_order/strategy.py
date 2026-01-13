@@ -1,16 +1,12 @@
-
-from typing import TYPE_CHECKING, Optional
-
-import pandas as pd
-import pandas as pd
-
 """
 High-Order HMM Strategy Implementation.
 
 This module contains the TrueHighOrderHMMStrategy class that implements the HMMStrategy interface.
 """
 
+from typing import TYPE_CHECKING, Optional
 
+import pandas as pd
 
 if TYPE_CHECKING:
     from modules.hmm.signals.strategy import HMMStrategyResult

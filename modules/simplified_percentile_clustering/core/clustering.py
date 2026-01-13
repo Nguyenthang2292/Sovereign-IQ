@@ -1,15 +1,3 @@
-
-from dataclasses import dataclass
-from typing import Optional
-
-import numpy as np
-import pandas as pd
-
-from __future__ import annotations
-from modules.simplified_percentile_clustering.core.centers import (
-from __future__ import annotations
-from modules.simplified_percentile_clustering.core.centers import (
-
 """
 Main clustering calculation for Simplified Percentile Clustering.
 
@@ -17,9 +5,15 @@ Combines feature calculations, center computation, and cluster assignment
 to produce cluster assignments and interpolated cluster values.
 """
 
+from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Optional
 
+import numpy as np
+import pandas as pd
 
+from modules.simplified_percentile_clustering.core.centers import (
     ClusterCenters,
     compute_centers,
 )
@@ -234,7 +228,7 @@ class SimplifiedPercentileClustering:
         # Step 3: Determine which feature/centers to use based on main_plot
         main_plot = self.config.main_plot
         index = close.index
-        n = len(close)
+        len(close)
 
         # Step 4: Compute distances to all centers using vectorized operations
         # Build a matrix of distances: rows = timestamps, columns = centers (k0, k1, k2)

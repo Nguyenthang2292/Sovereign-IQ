@@ -1,7 +1,3 @@
-
-from modules.hmm.signals.combiner import HMMSignalCombiner, combine_signals
-from modules.hmm.signals.confidence import (
-
 """
 Signal processing and combination module.
 
@@ -9,6 +5,8 @@ This module handles signal processing, scoring, confidence calculation,
 and signal resolution for HMM models.
 """
 
+from modules.hmm.signals.combiner import HMMSignalCombiner, combine_signals
+from modules.hmm.signals.confidence import (
     calculate_combined_confidence,
     calculate_kama_confidence,
 )

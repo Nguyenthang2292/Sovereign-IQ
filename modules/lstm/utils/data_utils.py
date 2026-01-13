@@ -1,20 +1,14 @@
-
 from typing import Optional, Tuple, Union
 
-from sklearn.model_selection import train_test_split
 import numpy as np
+from sklearn.model_selection import train_test_split
 
-from config.lstm import TRAIN_TEST_SPLIT, VALIDATION_SPLIT
-from modules.common.ui.logging import log_model
 from config.lstm import TRAIN_TEST_SPLIT, VALIDATION_SPLIT
 from modules.common.ui.logging import log_model
 
 """
 Data utility functions for LSTM models.
 """
-
-
-
 
 
 def split_train_test_data(

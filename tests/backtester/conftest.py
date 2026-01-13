@@ -1,18 +1,21 @@
-
-from pathlib import Path
-from unittest.mock import MagicMock
-import sys
-import warnings
-
 """
 Shared fixtures for backtester tests.
 """
 
+import sys
+import warnings
+from pathlib import Path
+from unittest.mock import MagicMock
 
 # Mock optuna BEFORE any other imports
 # This must happen before core.signal_calculators is imported
 if "optuna" not in sys.modules:
-    sys.modules["optuna"] = MagicMock()
+    optuna_mock = MagicMock()
+    sys.modules["optuna"] = optuna_mock
+    # Also mock submodules used in imports
+    sys.modules["optuna.exceptions"] = MagicMock()
+    sys.modules["optuna.trial"] = MagicMock()
+    sys.modules["optuna.study"] = MagicMock()
 
 # Add project root to path (same as tests/conftest.py)
 ROOT = Path(__file__).resolve().parents[2]
@@ -84,13 +87,13 @@ def mock_signal_calculators():
 
     Use this fixture in tests to prevent API calls to exchanges.
     """
-    # Patch at the usage site in HybridSignalCalculator
+    # Patch at the usage site in HybridSignalCalculator (actually IndicatorCalculatorsMixin)
     with (
-        patch("modules.position_sizing.core.hybrid_signal_calculator.get_range_oscillator_signal") as mock_osc,
-        patch("modules.position_sizing.core.hybrid_signal_calculator.get_spc_signal") as mock_spc,
-        patch("modules.position_sizing.core.hybrid_signal_calculator.get_xgboost_signal") as mock_xgb,
-        patch("modules.position_sizing.core.hybrid_signal_calculator.get_hmm_signal") as mock_hmm,
-        patch("modules.position_sizing.core.hybrid_signal_calculator.get_random_forest_signal") as mock_rf,
+        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal") as mock_osc,
+        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal") as mock_spc,
+        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal") as mock_xgb,
+        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal") as mock_hmm,
+        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal") as mock_rf,
     ):
         # Set default return values
         mock_osc.return_value = (1, 0.7)  # LONG signal with 70% confidence
@@ -116,17 +119,21 @@ def auto_mock_signal_calculators():
     Individual tests can override this if needed.
     """
     # Import core.signal_calculators first (optuna is already mocked)
-    # Then patch the functions
+    # Then patch the functions where they are imported in modules.position_sizing.core.indicator_calculators
     try:
         import core.signal_calculators  # noqa: F401
 
-        # Patch at definition site
+        # Patch at usage site in IndicatorCalculatorsMixin
         with (
-            patch("core.signal_calculators.get_range_oscillator_signal", return_value=(1, 0.7)),
-            patch("core.signal_calculators.get_spc_signal", return_value=(1, 0.6)),
-            patch("core.signal_calculators.get_xgboost_signal", return_value=(1, 0.8)),
-            patch("core.signal_calculators.get_hmm_signal", return_value=(1, 0.65)),
-            patch("core.signal_calculators.get_random_forest_signal", return_value=(1, 0.75)),
+            patch(
+                "modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(1, 0.7)
+            ),
+            patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(1, 0.6)),
+            patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(1, 0.8)),
+            patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(1, 0.65)),
+            patch(
+                "modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(1, 0.75)
+            ),
         ):
             yield
     except (ImportError, AttributeError):

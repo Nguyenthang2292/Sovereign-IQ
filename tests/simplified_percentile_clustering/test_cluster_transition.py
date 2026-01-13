@@ -1,15 +1,11 @@
+"""
+Tests for cluster_transition strategy.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.simplified_percentile_clustering.config import (
-from modules.simplified_percentile_clustering.config import (
-
-"""
-Tests for cluster_transition strategy.
-"""
-
-
     ClusterTransitionConfig,
 )
 from modules.simplified_percentile_clustering.core.clustering import (

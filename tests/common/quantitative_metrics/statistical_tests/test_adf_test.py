@@ -1,15 +1,11 @@
-
 import numpy as np
 import pandas as pd
 
-from modules.common.quantitative_metrics import calculate_adf_test
 from modules.common.quantitative_metrics import calculate_adf_test
 
 """
 Tests for adf_test module.
 """
-
-
 
 
 def test_calculate_adf_test_uses_stub(monkeypatch):

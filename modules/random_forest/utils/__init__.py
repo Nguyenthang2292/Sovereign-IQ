@@ -1,4 +1,3 @@
-
 from modules.random_forest.utils.data_preparation import prepare_training_data
 from modules.random_forest.utils.training import apply_smote, create_model_and_weights
 

@@ -1,6 +1,11 @@
+"""
+Range Oscillator Strategy 6: Range Breakouts.
 
-from typing import Optional, Tuple
+This module provides the range breakout signal generation strategy.
+"""
+
 import os
+from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -8,17 +13,6 @@ import pandas as pd
 from modules.common.indicators.volatility import calculate_atr_range
 from modules.common.utils import log_analysis, log_debug
 from modules.range_oscillator.utils.oscillator_data import get_oscillator_data
-from modules.common.utils import log_analysis, log_debug
-from modules.range_oscillator.utils.oscillator_data import get_oscillator_data
-
-"""
-Range Oscillator Strategy 6: Range Breakouts.
-
-This module provides the range breakout signal generation strategy.
-"""
-
-
-
 
 
 def _calculate_dynamic_exhaustion_threshold(
@@ -132,7 +126,8 @@ def generate_signals_breakout_strategy(
         require_confirmation: If True, require confirmation bars (default: True)
         confirmation_bars: Number of bars to confirm breakout (default: 2)
         detect_exhaustion: If True, detect exhaustion extremes (default: True)
-        exhaustion_threshold: Threshold for exhaustion detection (default: 150.0, used when use_dynamic_exhaustion=False)
+        exhaustion_threshold: Threshold for exhaustion detection
+            (default: 150.0, used when use_dynamic_exhaustion=False)
         use_dynamic_exhaustion: If True, use ATR-based dynamic exhaustion threshold (default: False)
         exhaustion_atr_multiplier: Multiplier for ATR ratio in dynamic threshold calculation (default: 1.0)
         base_exhaustion_threshold: Base threshold value for dynamic calculation (default: 150.0)

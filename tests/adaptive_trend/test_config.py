@@ -1,10 +1,8 @@
-
-from modules.adaptive_trend.utils.config import ATCConfig, create_atc_config_from_dict
-
 """
 Tests for utils/config module.
 """
 
+from modules.adaptive_trend.utils.config import ATCConfig, create_atc_config_from_dict
 
 
 def test_atc_config_defaults():

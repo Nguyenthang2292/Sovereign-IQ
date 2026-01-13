@@ -1,4 +1,3 @@
-
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -7,14 +6,9 @@ import pytest
 
 from modules.xgboost.model import _resolve_xgb_classifier
 
-from modules.xgboost.model import _resolve_xgb_classifier
-
 """
 Tests for GPU support in XGBoost.
 """
-
-
-
 
 
 @pytest.fixture

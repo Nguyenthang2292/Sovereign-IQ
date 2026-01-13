@@ -1,9 +1,3 @@
-
-from pathlib import Path
-from unittest.mock import patch
-import sys
-import warnings
-
 """
 Test file for CLI argument parsers across all modules.
 
@@ -13,6 +7,10 @@ Run with: python -m pytest tests/cli/test_argument_parsers.py -v
 Or: python tests/cli/test_argument_parsers.py
 """
 
+import sys
+import warnings
+from pathlib import Path
+from unittest.mock import patch
 
 # Add project root to path
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -30,17 +28,17 @@ def test_lstm_argument_parser():
         from modules.lstm.cli.argument_parser import parse_args
 
         # Test with default arguments
-        with patch('sys.argv', ['lstm_cli.py']):
+        with patch("sys.argv", ["lstm_cli.py"]):
             args = parse_args()
-            assert hasattr(args, 'symbol'), "Should have symbol attribute"
-            assert hasattr(args, 'timeframe'), "Should have timeframe attribute"
+            assert hasattr(args, "symbol"), "Should have symbol attribute"
+            assert hasattr(args, "timeframe"), "Should have timeframe attribute"
             print("[OK] LSTM parser: Default arguments handled")
 
         # Test with custom arguments
-        with patch('sys.argv', ['lstm_cli.py', '--symbol', 'BTC/USDT', '--timeframe', '1h']):
+        with patch("sys.argv", ["lstm_cli.py", "--symbol", "BTC/USDT", "--timeframe", "1h"]):
             args = parse_args()
-            assert args.symbol == 'BTC/USDT', "Should parse symbol correctly"
-            assert args.timeframe == '1h', "Should parse timeframe correctly"
+            assert args.symbol == "BTC/USDT", "Should parse symbol correctly"
+            assert args.timeframe == "1h", "Should parse timeframe correctly"
             print("[OK] LSTM parser: Custom arguments handled")
 
     except Exception as e:
@@ -56,17 +54,17 @@ def test_random_forest_argument_parser():
         from modules.random_forest.cli.argument_parser import parse_args
 
         # Test with default arguments
-        with patch('sys.argv', ['random_forest_cli.py']):
+        with patch("sys.argv", ["random_forest_cli.py"]):
             args = parse_args()
-            assert hasattr(args, 'symbol'), "Should have symbol attribute"
-            assert hasattr(args, 'timeframe'), "Should have timeframe attribute"
+            assert hasattr(args, "symbol"), "Should have symbol attribute"
+            assert hasattr(args, "timeframe"), "Should have timeframe attribute"
             print("[OK] RF parser: Default arguments handled")
 
         # Test with custom arguments
-        with patch('sys.argv', ['random_forest_cli.py', '--symbol', 'ETH/USDT', '--timeframe', '4h']):
+        with patch("sys.argv", ["random_forest_cli.py", "--symbol", "ETH/USDT", "--timeframe", "4h"]):
             args = parse_args()
-            assert args.symbol == 'ETH/USDT', "Should parse symbol correctly"
-            assert args.timeframe == '4h', "Should parse timeframe correctly"
+            assert args.symbol == "ETH/USDT", "Should parse symbol correctly"
+            assert args.timeframe == "4h", "Should parse timeframe correctly"
             print("[OK] RF parser: Custom arguments handled")
 
     except Exception as e:
@@ -82,17 +80,17 @@ def test_adaptive_trend_argument_parser():
         from modules.adaptive_trend.cli.argument_parser import parse_args
 
         # Test with default arguments
-        with patch('sys.argv', ['atc_cli.py']):
+        with patch("sys.argv", ["atc_cli.py"]):
             args = parse_args()
-            assert hasattr(args, 'symbols'), "Should have symbols attribute"
-            assert hasattr(args, 'timeframe'), "Should have timeframe attribute"
+            assert hasattr(args, "symbols"), "Should have symbols attribute"
+            assert hasattr(args, "timeframe"), "Should have timeframe attribute"
             print("[OK] ATC parser: Default arguments handled")
 
         # Test with custom arguments
-        with patch('sys.argv', ['atc_cli.py', '--symbols', 'BTC/USDT,ETH/USDT', '--timeframe', '1d']):
+        with patch("sys.argv", ["atc_cli.py", "--symbols", "BTC/USDT,ETH/USDT", "--timeframe", "1d"]):
             args = parse_args()
-            assert args.symbols == 'BTC/USDT,ETH/USDT', "Should parse symbols correctly"
-            assert args.timeframe == '1d', "Should parse timeframe correctly"
+            assert args.symbols == "BTC/USDT,ETH/USDT", "Should parse symbols correctly"
+            assert args.timeframe == "1d", "Should parse timeframe correctly"
             print("[OK] ATC parser: Custom arguments handled")
 
     except Exception as e:
@@ -108,17 +106,17 @@ def test_range_oscillator_argument_parser():
         from modules.range_oscillator.cli.argument_parser import parse_args
 
         # Test with default arguments
-        with patch('sys.argv', ['range_oscillator_cli.py']):
+        with patch("sys.argv", ["range_oscillator_cli.py"]):
             args = parse_args()
-            assert hasattr(args, 'symbol'), "Should have symbol attribute"
-            assert hasattr(args, 'timeframe'), "Should have timeframe attribute"
+            assert hasattr(args, "symbol"), "Should have symbol attribute"
+            assert hasattr(args, "timeframe"), "Should have timeframe attribute"
             print("[OK] Range Oscillator parser: Default arguments handled")
 
         # Test with custom arguments
-        with patch('sys.argv', ['range_oscillator_cli.py', '--symbol', 'SOL/USDT', '--timeframe', '15m']):
+        with patch("sys.argv", ["range_oscillator_cli.py", "--symbol", "SOL/USDT", "--timeframe", "15m"]):
             args = parse_args()
-            assert args.symbol == 'SOL/USDT', "Should parse symbol correctly"
-            assert args.timeframe == '15m', "Should parse timeframe correctly"
+            assert args.symbol == "SOL/USDT", "Should parse symbol correctly"
+            assert args.timeframe == "15m", "Should parse timeframe correctly"
             print("[OK] Range Oscillator parser: Custom arguments handled")
 
     except Exception as e:
@@ -134,17 +132,18 @@ def test_gemini_chart_analyzer_argument_parser():
         from modules.gemini_chart_analyzer.cli.argument_parser import parse_args
 
         # Test with default arguments
-        with patch('sys.argv', ['gemini_cli.py']):
+        with patch("sys.argv", ["gemini_cli.py", "--symbol", "BTC/USDT"]):
             args = parse_args()
-            assert hasattr(args, 'symbol'), "Should have symbol attribute"
-            assert hasattr(args, 'timeframe'), "Should have timeframe attribute"
+            assert args is not None, "Should return args when provided"
+            assert hasattr(args, "symbol"), "Should have symbol attribute"
+            assert hasattr(args, "timeframe"), "Should have timeframe attribute"
             print("[OK] Gemini parser: Default arguments handled")
 
         # Test with custom arguments
-        with patch('sys.argv', ['gemini_cli.py', '--symbol', 'BNB/USDT', '--timeframe', '5m']):
+        with patch("sys.argv", ["gemini_cli.py", "--symbol", "BNB/USDT", "--timeframe", "5m"]):
             args = parse_args()
-            assert args.symbol == 'BNB/USDT', "Should parse symbol correctly"
-            assert args.timeframe == '5m', "Should parse timeframe correctly"
+            assert args.symbol == "BNB/USDT", "Should parse symbol correctly"
+            assert args.timeframe == "5m", "Should parse timeframe correctly"
             print("[OK] Gemini parser: Custom arguments handled")
 
     except Exception as e:
@@ -160,17 +159,17 @@ def test_pairs_trading_argument_parser():
         from modules.pairs_trading.cli.argument_parser import parse_args
 
         # Test with default arguments
-        with patch('sys.argv', ['pairs_cli.py']):
+        with patch("sys.argv", ["pairs_cli.py"]):
             args = parse_args()
-            assert hasattr(args, 'symbols'), "Should have symbols attribute"
-            assert hasattr(args, 'timeframe'), "Should have timeframe attribute"
+            assert hasattr(args, "symbols"), "Should have symbols attribute"
+            assert hasattr(args, "timeframe"), "Should have timeframe attribute"
             print("[OK] Pairs Trading parser: Default arguments handled")
 
         # Test with custom arguments
-        with patch('sys.argv', ['pairs_cli.py', '--symbols', 'BTC/USDT,ETH/USDT', '--timeframe', '1h']):
+        with patch("sys.argv", ["pairs_cli.py", "--symbols", "BTC/USDT,ETH/USDT", "--timeframe", "1h"]):
             args = parse_args()
-            assert args.symbols == 'BTC/USDT,ETH/USDT', "Should parse symbols correctly"
-            assert args.timeframe == '1h', "Should parse timeframe correctly"
+            assert args.symbols == "BTC/USDT,ETH/USDT", "Should parse symbols correctly"
+            assert args.timeframe == "1h", "Should parse timeframe correctly"
             print("[OK] Pairs Trading parser: Custom arguments handled")
 
     except Exception as e:
@@ -186,17 +185,17 @@ def test_position_sizing_argument_parser():
         from modules.position_sizing.cli.argument_parser import parse_args
 
         # Test with default arguments
-        with patch('sys.argv', ['position_sizing_cli.py']):
+        with patch("sys.argv", ["position_sizing_cli.py"]):
             args = parse_args()
-            assert hasattr(args, 'capital'), "Should have capital attribute"
-            assert hasattr(args, 'risk'), "Should have risk attribute"
+            assert hasattr(args, "capital"), "Should have capital attribute"
+            assert hasattr(args, "risk"), "Should have risk attribute"
             print("[OK] Position Sizing parser: Default arguments handled")
 
         # Test with custom arguments
-        with patch('sys.argv', ['position_sizing_cli.py', '--capital', '10000', '--risk', '0.02']):
+        with patch("sys.argv", ["position_sizing_cli.py", "--capital", "10000", "--risk", "0.02"]):
             args = parse_args()
-            assert args.capital == '10000', "Should parse capital correctly"
-            assert args.risk == '0.02', "Should parse risk correctly"
+            assert args.capital == "10000", "Should parse capital correctly"
+            assert args.risk == "0.02", "Should parse risk correctly"
             print("[OK] Position Sizing parser: Custom arguments handled")
 
     except Exception as e:
@@ -211,17 +210,18 @@ def test_main_argument_parser():
     try:
         from cli.argument_parser import parse_args
 
-        # Test with default arguments
-        with patch('sys.argv', ['main.py']):
+        # Test with default arguments - use --no-menu to skip interactive mode
+        with patch("sys.argv", ["main.py", "--no-menu"]):
             args = parse_args()
-            assert hasattr(args, 'command'), "Should have command attribute"
+            assert hasattr(args, "timeframe"), "Should have timeframe attribute"
+            assert hasattr(args, "limit"), "Should have limit attribute"
             print("[OK] Main parser: Default arguments handled")
 
         # Test with custom arguments
-        with patch('sys.argv', ['main.py', 'analyze', '--symbol', 'BTC/USDT']):
+        with patch("sys.argv", ["main.py", "--timeframe", "1h", "--limit", "100"]):
             args = parse_args()
-            assert args.command == 'analyze', "Should parse command correctly"
-            assert args.symbol == 'BTC/USDT', "Should parse symbol correctly"
+            assert args.timeframe == "1h", "Should parse timeframe correctly"
+            assert args.limit == 100, "Should parse limit correctly"
             print("[OK] Main parser: Custom arguments handled")
 
     except Exception as e:
@@ -259,6 +259,7 @@ def run_all_tests():
         except Exception as e:
             print(f"[ERROR] Test error: {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             failed += 1
 

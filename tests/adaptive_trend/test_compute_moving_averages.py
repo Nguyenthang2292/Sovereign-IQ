@@ -1,16 +1,12 @@
+"""
+Tests for compute_moving_averages module.
+"""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from modules.adaptive_trend.core.compute_moving_averages import (
-from modules.adaptive_trend.core.compute_moving_averages import (
-
-"""
-Tests for compute_moving_averages module.
-"""
-
-
     calculate_kama_atc,
     ma_calculation,
     set_of_moving_averages,
@@ -195,7 +191,7 @@ def test_set_of_moving_averages_different_robustness():
     # by comparing a few values (after NaN)
     narrow_valid = MA3_narrow.dropna()
     medium_valid = MA3_medium.dropna()
-    wide_valid = MA3_wide.dropna()
+    MA3_wide.dropna()
 
     if len(narrow_valid) > 0 and len(medium_valid) > 0:
         # They should be different (different lengths produce different EMAs)

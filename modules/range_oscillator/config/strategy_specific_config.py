@@ -1,8 +1,6 @@
-
-from dataclasses import dataclass
-
 """Configuration for strategy-specific parameters."""
 
+from dataclasses import dataclass
 
 
 @dataclass

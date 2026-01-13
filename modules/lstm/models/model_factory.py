@@ -1,16 +1,12 @@
+"""
+Model factory for creating CNN-LSTM-Attention models.
+"""
 
 from typing import Literal, Union
 
 from config.lstm import WINDOW_SIZE_LSTM
 from modules.common.ui.logging import log_model
 from modules.lstm.models.lstm_models import CNNLSTMAttentionModel, LSTMAttentionModel, LSTMModel
-from modules.lstm.models.lstm_models import CNNLSTMAttentionModel, LSTMAttentionModel, LSTMModel
-
-"""
-Model factory for creating CNN-LSTM-Attention models.
-"""
-
-
 
 # Allowed parameter sets for each model type
 ATTENTION_ALLOWED_KEYS = {
@@ -66,6 +62,10 @@ def create_cnn_lstm_attention_model(
     # This defensive check ensures runtime safety regardless of type checking.
     if output_mode not in ["classification", "regression"]:
         raise ValueError(f"output_mode must be 'classification' or 'regression', got {output_mode}")
+
+    # Set default num_classes based on output_mode if not provided in kwargs
+    if "num_classes" not in kwargs:
+        kwargs["num_classes"] = 1 if output_mode == "regression" else 3
 
     if use_cnn:
         log_model(f"Creating CNN-LSTM-Attention model with {output_mode} mode")

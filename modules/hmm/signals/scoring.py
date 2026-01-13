@@ -1,9 +1,3 @@
-
-from typing import Dict, List, Tuple
-
-from config import (
-from config import (
-
 """
 HMM Signal Scoring Module
 
@@ -11,7 +5,9 @@ Functions for score normalization and calculation.
 Supports both legacy hardcoded scoring and new strategy-based scoring.
 """
 
+from typing import Dict, List, Tuple
 
+from config import (
     HMM_FEATURES,
     HMM_HIGH_ORDER_MAX_SCORE,
     HMM_HIGH_ORDER_STRENGTH,

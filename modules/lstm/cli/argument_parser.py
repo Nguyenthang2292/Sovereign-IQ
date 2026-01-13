@@ -1,11 +1,3 @@
-
-from pathlib import Path
-import argparse
-
-from config.common import DEFAULT_SYMBOL, DEFAULT_TIMEFRAME
-from config.lstm import MODELS_DIR
-from config.lstm import MODELS_DIR
-
 """
 Command-line argument parser for LSTM Model Manager.
 
@@ -13,7 +5,11 @@ This module provides the main argument parser for the LSTM CLI,
 defining all command-line options and their default values.
 """
 
+import argparse
+from pathlib import Path
 
+from config.common import DEFAULT_SYMBOL, DEFAULT_TIMEFRAME
+from config.lstm import MODELS_DIR
 
 
 def parse_args():
@@ -27,16 +23,17 @@ def parse_args():
         description="Generate trading signals using trained LSTM models",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  # Generate signal with default model
-  python main_lstm.py --symbol BTCUSDT --timeframe 1h
-  
-  # Generate signal with custom model path
-  python main_lstm.py --symbol ETHUSDT --timeframe 15m --model-path artifacts/models/lstm/cnn_lstm_attention_model.pth
-  
-  # Interactive mode (prompt for symbol and timeframe)
-  python main_lstm.py
-        """,
+                Examples:
+                # Generate signal with default model
+                python main_lstm.py --symbol BTCUSDT --timeframe 1h
+
+                # Generate signal with custom model path
+                python main_lstm.py --symbol ETHUSDT --timeframe 15m \\
+                    --model-path artifacts/models/lstm/cnn_lstm_attention_model.pth
+
+                # Interactive mode (prompt for symbol and timeframe)
+                python main_lstm.py
+                        """,
     )
 
     parser.add_argument(

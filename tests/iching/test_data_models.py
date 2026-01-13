@@ -1,14 +1,10 @@
-
-import pytest
-
-from modules.iching.core.data_models import HaoInfo, IChingResult
-from modules.iching.core.data_models import HaoInfo, IChingResult
-
 """
 Tests for I Ching data models.
 """
 
+import pytest
 
+from modules.iching.core.data_models import HaoInfo, IChingResult
 
 
 class TestHaoInfo:

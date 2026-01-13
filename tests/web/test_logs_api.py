@@ -1,13 +1,3 @@
-
-from unittest.mock import MagicMock, patch
-
-from fastapi.testclient import TestClient
-import pytest
-
-from web.app import app
-
-from web.app import app
-
 """
 Tests for Logs API endpoints (web/api/logs.py).
 
@@ -18,7 +8,10 @@ Tests cover:
 - Different command types
 """
 
+from unittest.mock import MagicMock, patch
 
+import pytest
+from fastapi.testclient import TestClient
 
 # Import app - project root is added to path in conftest, so use absolute import
 from web.app import app
@@ -48,7 +41,7 @@ class TestGetLogsEndpoint:
         command_type = "scan"
 
         # Create log file with content
-        log_path = log_manager.create_log_file(session_id, command_type)
+        log_manager.create_log_file(session_id, command_type)
         log_manager.write_log(session_id, "Line 1", command_type)
         log_manager.write_log(session_id, "Line 2", command_type)
 

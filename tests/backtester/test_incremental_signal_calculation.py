@@ -1,3 +1,6 @@
+"""
+Tests for incremental signal calculation with position-aware skipping.
+"""
 
 from unittest.mock import Mock
 
@@ -7,15 +10,6 @@ import pytest
 
 from modules.backtester.core.backtester import FullBacktester
 from modules.backtester.core.signal_calculator_incremental import (
-from modules.backtester.core.backtester import FullBacktester
-from modules.backtester.core.signal_calculator_incremental import (
-
-"""
-Tests for incremental signal calculation with position-aware skipping.
-"""
-
-
-
     calculate_signals_incremental,
     calculate_single_signals_incremental,
 )

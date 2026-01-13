@@ -1,9 +1,3 @@
-
-from typing import Dict, List, Optional, Tuple
-
-from modules.iching.predict.constants import (
-from modules.iching.predict.constants import (
-
 """
 Địa Chi constants and utilities for I Ching divination.
 
@@ -19,7 +13,9 @@ Bao gồm:
 - Hệ thống chấm điểm dựa trên quan hệ
 """
 
+from typing import Dict, List, Optional, Tuple
 
+from modules.iching.predict.constants import (
     HOA,
     KIM,
     MOC,

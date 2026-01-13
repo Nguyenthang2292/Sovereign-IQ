@@ -1,15 +1,11 @@
-
 import pytest
 import torch
 
-from modules.lstm.core.multi_head_attention import MultiHeadAttention
 from modules.lstm.core.multi_head_attention import MultiHeadAttention
 
 """
 Tests for MultiHeadAttention module.
 """
-
-
 
 
 class TestMultiHeadAttention:

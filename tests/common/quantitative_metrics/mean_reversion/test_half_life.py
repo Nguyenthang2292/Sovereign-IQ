@@ -1,15 +1,11 @@
+"""
+Tests for half_life module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.common.quantitative_metrics import calculate_half_life
-from modules.common.quantitative_metrics import calculate_half_life
-
-"""
-Tests for half_life module.
-"""
-
-
 
 
 def test_calculate_half_life_with_stubbed_regression(monkeypatch):

@@ -1,10 +1,9 @@
-
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import List, Optional
 import json
 import os
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -15,14 +14,10 @@ from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import Mar
 from web.utils.cli_logger import CLILogger
 from web.utils.log_manager import get_log_manager
 from web.utils.task_manager import get_task_manager
-from web.utils.log_manager import get_log_manager
-from web.utils.task_manager import get_task_manager
 
 """
 API routes for Batch Scanner (single and multi-timeframe market scanning).
 """
-
-
 
 
 router = APIRouter()
@@ -337,7 +332,7 @@ async def get_batch_results(filename: str):
         # Use try/except with relative_to to check if file is within directory
         # This check must happen BEFORE checking if file exists
         try:
-            relative_path = results_file.relative_to(resolved_dir)
+            results_file.relative_to(resolved_dir)
         except ValueError:
             # ValueError: path is not relative to base (directory traversal detected)
             # Don't check file existence for traversal attempts

@@ -1,12 +1,9 @@
-
-    from modules.common.utils import normalize_symbol, log_info, ...
-from submodules, allowing existing imports like:
-
 """
 Utility functions organized by domain.
 
 This module provides backward compatibility by re-exporting all functions
-
+from submodules, allowing existing imports like:
+    from modules.common.utils import normalize_symbol, log_info, ...
 to continue working.
 """
 

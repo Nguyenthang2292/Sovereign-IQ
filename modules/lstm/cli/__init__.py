@@ -1,11 +1,9 @@
-
-from .argument_parser import parse_args
-from .interactive import (
-
 """
 CLI entry points for LSTM module.
 """
 
+from .argument_parser import parse_args
+from .interactive import (
     display_main_menu,
     manage_symbols_menu,
     prompt_menu_choice,

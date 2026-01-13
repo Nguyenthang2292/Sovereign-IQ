@@ -1,6 +1,3 @@
-
-from typing import Dict, List, Tuple
-
 """
 Signal Combiner Mixin for Hybrid Signal Calculator.
 
@@ -8,6 +5,7 @@ This module provides signal combination functionality using majority vote
 and confidence weighting approaches.
 """
 
+from typing import Dict, List, Tuple
 
 
 class SignalCombinerMixin:

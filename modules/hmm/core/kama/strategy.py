@@ -1,16 +1,12 @@
-
-from typing import TYPE_CHECKING, Optional
-
-import pandas as pd
-import pandas as pd
-
 """
 HMM-KAMA Strategy Implementation.
 
 This module contains the KamaHMMStrategy class that implements the HMMStrategy interface.
 """
 
+from typing import TYPE_CHECKING, Optional
 
+import pandas as pd
 
 if TYPE_CHECKING:
     from modules.hmm.signals.strategy import HMMStrategyResult
@@ -87,7 +83,6 @@ class KamaHMMStrategy(HMMStrategy):
         from modules.hmm.signals.strategy import HMMStrategyResult
 
         # Merge params with kwargs (kwargs take precedence)
-        params = {**self.params, **kwargs}
 
         # Run HMM-KAMA analysis
         result = hmm_kama(

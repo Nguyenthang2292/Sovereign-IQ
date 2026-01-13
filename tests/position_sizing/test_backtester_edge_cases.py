@@ -1,4 +1,3 @@
-
 from types import SimpleNamespace
 
 import numpy as np
@@ -6,14 +5,9 @@ import pandas as pd
 
 from modules.backtester import FullBacktester
 
-from modules.backtester import FullBacktester
-
 """
 Tests for edge cases in Full Backtester.
 """
-
-
-
 
 
 def test_backtest_with_empty_dataframe():

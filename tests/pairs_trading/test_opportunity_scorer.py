@@ -1,3 +1,15 @@
+"""
+Unit tests for the OpportunityScorer class in the pairs trading module.
+
+These tests check the calculation of opportunity scores using various quantitative metrics
+and ensure the scoring logic applies correct boosts and penalties per the business rules,
+such as correlation bounds, cointegration status, Sharpe ratio, drawdown, and others.
+
+Dependencies:
+- numpy
+- pytest
+- modules.pairs_trading.core.opportunity_scorer.OpportunityScorer
+"""
 
 import math
 
@@ -5,11 +17,6 @@ import numpy as np
 import pytest
 
 from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
-
-from modules.pairs_trading.core.opportunity_scorer import OpportunityScorer
-
-
-
 
 
 def test_calculate_opportunity_score_applies_all_adjustments():

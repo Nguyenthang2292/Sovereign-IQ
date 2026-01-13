@@ -1,14 +1,8 @@
+"""Test script for config - Configuration constants and values"""
 
 import pytest
 
 import config
-import config
-
-"""
-Test script for config - Configuration constants and values.
-"""
-
-
 
 
 def test_default_symbol():

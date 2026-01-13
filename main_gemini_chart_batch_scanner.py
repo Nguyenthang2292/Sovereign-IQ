@@ -1,13 +1,11 @@
-
-from pathlib import Path
-import sys
-
 """
 Main entry point for Market Batch Scanner.
 
 Run batch market scanning with Google Gemini AI.
 """
 
+import sys
+from pathlib import Path
 
 # Add project root to sys.path
 if "__file__" in globals():

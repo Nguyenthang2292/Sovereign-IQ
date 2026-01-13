@@ -1,8 +1,23 @@
+"""
+multi_head_attention.py
+
+This module implements the Multi-Head Attention mechanism, designed to work with the outputs
+of LSTM networks. The main purpose is to allow the model to jointly attend to information
+from different representation subspaces at different positions, as popularized by the Transformer
+architecture.
+
+Classes:
+    MultiHeadAttention:
+        PyTorch nn.Module implementing multi-head scaled dot-product attention for use with LSTM outputs.
+        Includes learned linear projections for queries, keys, values, and outputs, as well as dropout and
+        masking support.
+"""
+
+from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 
 
 # Attention Mechanism Components
@@ -11,7 +26,7 @@ class MultiHeadAttention(nn.Module):
     Multi-Head Attention mechanism for LSTM outputs
     """
 
-    def __init__(self, d_model, num_heads=8, dropout=0.1):
+    def __init__(self, d_model: int, num_heads: int = 8, dropout: float = 0.1) -> None:
         super(MultiHeadAttention, self).__init__()
         assert d_model % num_heads == 0
 
@@ -27,7 +42,9 @@ class MultiHeadAttention(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.scale = self.d_k**0.5
 
-    def forward(self, query, key, value, mask=None):
+    def forward(
+        self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         batch_size = query.size(0)
         seq_len_q = query.size(1)
         seq_len_k = key.size(1)
@@ -52,7 +69,14 @@ class MultiHeadAttention(nn.Module):
 
         return output
 
-    def attention(self, query, key, value, mask, dropout):
+    def attention(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        dropout: Optional[nn.Dropout] = None,
+    ) -> torch.Tensor:
         """
         Scaled dot-product attention
 

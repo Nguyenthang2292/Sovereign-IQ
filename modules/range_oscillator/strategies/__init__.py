@@ -1,3 +1,8 @@
+"""
+Range Oscillator Strategies.
+
+This module provides various signal generation strategies for the Range Oscillator.
+"""
 
 from modules.range_oscillator.strategies.basic import generate_signals_basic_strategy
 from modules.range_oscillator.strategies.breakout import generate_signals_breakout_strategy
@@ -8,13 +13,6 @@ from modules.range_oscillator.strategies.mean_reversion import generate_signals_
 from modules.range_oscillator.strategies.momentum import generate_signals_momentum_strategy
 from modules.range_oscillator.strategies.sustained import generate_signals_sustained_strategy
 from modules.range_oscillator.strategies.trend_following import generate_signals_trend_following_strategy
-
-"""
-Range Oscillator Strategies.
-
-This module provides various signal generation strategies for the Range Oscillator.
-"""
-
 
 __all__ = [
     "generate_signals_basic_strategy",

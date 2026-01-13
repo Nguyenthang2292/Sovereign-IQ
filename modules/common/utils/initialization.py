@@ -1,10 +1,8 @@
-
-from typing import TYPE_CHECKING, Tuple
-
 """
 Component initialization utilities.
 """
 
+from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher

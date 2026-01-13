@@ -1,14 +1,3 @@
-
-from unittest.mock import patch
-
-import pandas as pd
-import pytest
-
-from modules.range_oscillator.cli.argument_parser import parse_args
-from modules.range_oscillator.cli.display import (
-from modules.range_oscillator.cli.argument_parser import parse_args
-from modules.range_oscillator.cli.display import (
-
 """
 Tests for range_oscillator CLI module.
 
@@ -18,8 +7,13 @@ Tests CLI functions:
 - display_final_results
 """
 
+from unittest.mock import patch
 
+import pandas as pd
+import pytest
 
+from modules.range_oscillator.cli.argument_parser import parse_args
+from modules.range_oscillator.cli.display import (
     display_configuration,
     display_final_results,
 )

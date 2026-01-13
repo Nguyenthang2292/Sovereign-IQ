@@ -1,6 +1,3 @@
-
-from modules.common.quantitative_metrics import (
-
 """
 Pairs trading analysis component.
 
@@ -16,6 +13,7 @@ This package provides comprehensive tools for pairs trading analysis including:
 
 # Core components
 # Metrics (imported from common.quantitative_metrics)
+from modules.common.quantitative_metrics import (
     calculate_adf_test,
     calculate_calmar_ratio,
     calculate_direction_metrics,

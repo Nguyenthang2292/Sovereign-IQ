@@ -1,18 +1,12 @@
+"""
+Tests for Pivot class in smart money concept module.
+"""
 
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from modules.smart_money_concept.pivot import Pivot
-
-from modules.smart_money_concept.pivot import Pivot
-
-"""
-Tests for Pivot class in smart money concept module.
-"""
-
-
-
 
 
 class TestPivotInitialization:
@@ -281,7 +275,7 @@ class TestPivotEqualityAndComparison:
         """Test __eq__ with non-Pivot object."""
         pivot = Pivot(level=50000.0)
         assert pivot != "not a pivot"
-        assert pivot != None
+        assert pivot is not None
         assert pivot != 50000.0
 
     def test_less_than_comparison(self):

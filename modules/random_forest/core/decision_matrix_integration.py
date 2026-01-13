@@ -1,3 +1,9 @@
+"""
+Random Forest Decision Matrix Integration.
+
+This module provides helper functions to integrate Random Forest predictions
+into the Decision Matrix voting system.
+"""
 
 from pathlib import Path
 from typing import Optional, Tuple
@@ -7,18 +13,6 @@ import pandas as pd
 from modules.common.core.data_fetcher import DataFetcher
 from modules.random_forest.core.model import load_random_forest_model
 from modules.random_forest.core.signals import get_latest_random_forest_signal
-from modules.random_forest.core.model import load_random_forest_model
-from modules.random_forest.core.signals import get_latest_random_forest_signal
-
-"""
-Random Forest Decision Matrix Integration.
-
-This module provides helper functions to integrate Random Forest predictions
-into the Decision Matrix voting system.
-"""
-
-
-
 
 
 def calculate_random_forest_vote(

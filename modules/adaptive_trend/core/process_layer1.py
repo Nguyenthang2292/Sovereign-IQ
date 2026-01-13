@@ -1,7 +1,3 @@
-
-from __future__ import annotations
-
-
 """Layer 1 Processing functions for Adaptive Trend Classification (ATC).
 
 This module provides functions for processing signals from multiple Moving
@@ -12,6 +8,7 @@ Averages in Layer 1 of the ATC system:
 - _layer1_signal_for_ma: Calculate Layer 1 signal for a specific MA type
 """
 
+from __future__ import annotations
 
 from typing import Iterable, Tuple
 

@@ -1,12 +1,8 @@
-
 from typing import Tuple
 
 from modules.common.utils import log_error, log_warn
-from modules.common.utils import log_error, log_warn
 
 """Calculate length offsets for Moving Averages based on robustness setting."""
-
-
 
 
 def diflen(length: int, robustness: str = "Medium") -> Tuple[int, int, int, int, int, int, int, int]:

@@ -1,4 +1,3 @@
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -6,13 +5,10 @@ import torch
 
 from config.lstm import WINDOW_SIZE_LSTM
 from modules.lstm.models.trainer.base_trainer import BaseLSTMTrainer
-from modules.lstm.models.trainer.base_trainer import BaseLSTMTrainer
 
 """
 Tests for base LSTM trainer.
 """
-
-
 
 
 class TestBaseLSTMTrainer:

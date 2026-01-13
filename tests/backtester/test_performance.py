@@ -1,20 +1,14 @@
-
-from types import SimpleNamespace
-from unittest.mock import patch
-import time
-
-import pandas as pd
-
-from modules.backtester import FullBacktester
-
-from modules.backtester import FullBacktester
-
 """
 Tests for performance monitoring and profiling in Full Backtester.
 """
 
+import time
+from types import SimpleNamespace
+from unittest.mock import patch
 
+import pandas as pd
 
+from modules.backtester import FullBacktester
 
 # Fixtures from conftest.py will be automatically available
 

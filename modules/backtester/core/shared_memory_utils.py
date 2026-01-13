@@ -1,12 +1,3 @@
-
-from typing import Any, Dict
-import pickle
-import uuid
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Shared memory utilities for parallel processing.
 
@@ -14,7 +5,12 @@ This module provides utilities for setting up shared memory for DataFrames
 to enable efficient data sharing between processes without pickling overhead.
 """
 
+import pickle
+import uuid
+from typing import Any, Dict
 
+import numpy as np
+import pandas as pd
 
 try:
     from multiprocessing import shared_memory

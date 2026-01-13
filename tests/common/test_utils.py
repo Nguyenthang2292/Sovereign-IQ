@@ -1,6 +1,15 @@
+"""
+Unit tests for utility functions in modules.common.utils.
+
+This module tests:
+- normalize_symbol: Ensures symbol formatting, defaulting, and case normalization.
+- timeframe_to_minutes: Checks correct conversion of various timeframe units to minutes, and fallback on invalid input.
+- format_price: Validates formatting of price values for correct precision and special handling for None.
+
+Ensure that utils functions remain robust and handle edge cases as expected.
+"""
 
 from modules.common.utils import format_price, normalize_symbol, timeframe_to_minutes
-
 
 
 def test_normalize_symbol_defaults_to_btc_when_empty():

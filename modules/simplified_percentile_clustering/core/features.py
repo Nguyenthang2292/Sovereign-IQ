@@ -1,15 +1,3 @@
-
-from dataclasses import dataclass
-from typing import Optional
-
-import pandas as pd
-
-from __future__ import annotations
-from modules.common.indicators.trend import (
-import pandas_ta as ta
-from modules.common.indicators.trend import (
-import pandas_ta as ta
-
 """
 Feature calculations for Simplified Percentile Clustering.
 
@@ -17,9 +5,15 @@ Computes RSI, CCI, Fisher Transform, DMI, Z-Score, and MAR (Moving Average Ratio
 features with optional standardization.
 """
 
+from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Optional
 
+import pandas as pd
+import pandas_ta as ta
 
+from modules.common.indicators.trend import (
     calculate_cci,
     calculate_dmi_difference,
 )

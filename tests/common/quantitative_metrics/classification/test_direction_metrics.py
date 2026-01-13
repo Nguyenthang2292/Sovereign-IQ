@@ -1,15 +1,11 @@
+"""
+Tests for direction_metrics module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.common.quantitative_metrics import calculate_direction_metrics
-from modules.common.quantitative_metrics import calculate_direction_metrics
-
-"""
-Tests for direction_metrics module.
-"""
-
-
 
 
 def test_calculate_direction_metrics_returns_dict_with_all_keys():

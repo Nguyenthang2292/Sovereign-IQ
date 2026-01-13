@@ -1,9 +1,7 @@
-
+import threading
 from functools import wraps
 from typing import Any, List
-import threading
 
-import numpy as np
 import numpy as np
 
 """
@@ -11,8 +9,6 @@ HMM-Swings Utility Functions.
 
 This module contains utility functions like timeout decorator, safe_forward_backward, and swing distance calculation.
 """
-
-
 
 
 def timeout(seconds):

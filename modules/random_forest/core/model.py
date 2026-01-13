@@ -1,27 +1,21 @@
-
-from datetime import datetime
-from pathlib import Path
-from typing import Optional, Tuple
-
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-import pandas as pd
-
-from config import MAX_TRAINING_ROWS, MODEL_RANDOM_STATE, MODEL_TEST_SIZE, MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
-from config.model_features import MODEL_FEATURES
-from modules.common.ui.logging import (
-import joblib
-from modules.common.ui.logging import (
-import joblib
-
 """Random Forest model training, loading, and saving.
 
 This module provides functionality for training, loading, and saving Random Forest models
 for trading signal prediction.
 """
 
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, Tuple
 
+import joblib
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
 
+from config import MAX_TRAINING_ROWS, MODEL_RANDOM_STATE, MODEL_TEST_SIZE, MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
+from config.model_features import MODEL_FEATURES
+from modules.common.ui.logging import (
     log_error,
     log_model,
     log_progress,

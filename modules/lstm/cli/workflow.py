@@ -1,3 +1,9 @@
+"""
+Signal generation workflow for LSTM CLI.
+
+This module provides the workflow for generating trading signals using
+trained LSTM models.
+"""
 
 from pathlib import Path
 from typing import Optional, Union
@@ -10,18 +16,6 @@ from modules.common.utils import color_text, initialize_components
 from modules.common.utils.data import fetch_ohlcv_data_dict
 from modules.lstm.cli.interactive import prompt_symbol, prompt_timeframe
 from modules.lstm.models.model_utils import get_latest_signal, load_model_and_scaler
-from modules.lstm.cli.interactive import prompt_symbol, prompt_timeframe
-from modules.lstm.models.model_utils import get_latest_signal, load_model_and_scaler
-
-"""
-Signal generation workflow for LSTM CLI.
-
-This module provides the workflow for generating trading signals using
-trained LSTM models.
-"""
-
-
-
 
 
 def generate_signal_workflow(

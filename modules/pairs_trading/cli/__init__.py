@@ -1,7 +1,3 @@
-
-from modules.pairs_trading.cli.argument_parser import parse_args
-from modules.pairs_trading.cli.display import (
-
 """
 Command-line interface components for pairs trading analysis.
 
@@ -9,7 +5,7 @@ This package provides CLI utilities including argument parsing, interactive prom
 input validation, and formatted display functions.
 """
 
-# Argument parsing
+from modules.pairs_trading.cli.argument_parser import parse_args
 
 # Display utilities
 from modules.pairs_trading.cli.display import (

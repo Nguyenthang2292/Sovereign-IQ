@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Callable, List
@@ -8,7 +7,6 @@ Base classes và interfaces cho Target Calculator.
 
 Cung cấp base classes để mở rộng cho các loại target khác nhau.
 """
-
 
 
 @dataclass

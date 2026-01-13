@@ -1,16 +1,3 @@
-
-from pathlib import Path
-from unittest.mock import patch
-import os
-
-import numpy as np
-import pandas as pd
-import pytest
-
-from modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_generator import (
-
-from modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_generator import (
-
 """
 Tests for ChartMultiTimeframeBatchGenerator class.
 
@@ -22,8 +9,15 @@ Tests cover:
 - File output validation
 """
 
+import os
+from pathlib import Path
+from unittest.mock import patch
 
+import numpy as np
+import pandas as pd
+import pytest
 
+from modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_generator import (
     ChartMultiTimeframeBatchGenerator,
 )
 from modules.gemini_chart_analyzer.core.utils.chart_paths import get_charts_dir

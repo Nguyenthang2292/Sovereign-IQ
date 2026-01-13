@@ -1,10 +1,3 @@
-
-from typing import Dict, List
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Equity curve calculation for backtester.
 
@@ -12,9 +5,10 @@ This module contains functions for calculating equity curves from trade PnLs,
 using JIT-compiled code when available for performance.
 """
 
+from typing import Dict, List
 
-
-
+import numpy as np
+import pandas as pd
 
 # Try to import Numba for JIT compilation
 try:

@@ -1,19 +1,13 @@
-
 from unittest.mock import patch
 
 import pytest
 import torch
 
-from config.lstm import (
-
-from config.lstm import (
-
 """
 Tests for batch size calculation utilities.
 """
 
-
-
+from config.lstm import (
     CPU_BATCH_DIVISOR_CNN_LSTM,
     CPU_BATCH_DIVISOR_LSTM_ATTENTION,
     CPU_BATCH_SIZE,

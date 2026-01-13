@@ -1,8 +1,6 @@
-
-from pathlib import Path
 import sys
 import warnings
-
+from pathlib import Path
 
 # Add project root to sys.path to ensure config module can be imported
 # This is needed when running the file directly from subdirectories

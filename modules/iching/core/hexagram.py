@@ -1,17 +1,13 @@
-
-from typing import Dict, List, Tuple
-import random
-
-from config.iching import GROUP_SIZE, HEXAGRAM_STRING_LENGTH, NUM_LINES
-from modules.common.ui.logging import log_info, log_success
-from modules.iching.core.image_generator import create_hexagram_image
-from modules.iching.core.image_generator import create_hexagram_image
-
 """
 Core I Ching hexagram generation logic.
 """
 
+import random
+from typing import Dict, List, Tuple
 
+from config.iching import GROUP_SIZE, HEXAGRAM_STRING_LENGTH, NUM_LINES
+from modules.common.ui.logging import log_info, log_success
+from modules.iching.core.image_generator import create_hexagram_image
 
 
 def generate_ns_string(length: int = HEXAGRAM_STRING_LENGTH) -> str:

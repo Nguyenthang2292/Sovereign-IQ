@@ -1,4 +1,3 @@
-
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -8,14 +7,9 @@ import pytest
 
 from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
 
-from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
-
 """
 Tests for multithreading in Hybrid Signal Calculator.
 """
-
-
-
 
 
 @pytest.fixture

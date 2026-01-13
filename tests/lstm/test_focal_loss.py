@@ -1,15 +1,11 @@
-
 import pytest
 import torch
 
-from modules.lstm.core.focal_loss import FocalLoss
 from modules.lstm.core.focal_loss import FocalLoss
 
 """
 Tests for FocalLoss module.
 """
-
-
 
 
 class TestFocalLoss:

@@ -1,15 +1,13 @@
-
-from pathlib import Path
-import argparse
-import sys
-import warnings
-
 """
 Backtester Main Entry Point.
 
-File main để test tính năng của backtester với dữ liệu BTC 1h mặc định.
+Main file to test the features of the backtester with default BTC 1h data.
 """
 
+import argparse
+import sys
+import warnings
+from pathlib import Path
 
 # Add project root to Python path if running directly
 if __name__ == "__main__":
@@ -207,7 +205,10 @@ def main() -> None:
         type=str,
         choices=["precomputed", "incremental"],
         default=SIGNAL_CALCULATION_MODE,
-        help="Signal calculation approach: precomputed (default, calculate all signals first) or incremental (skip when position open)",
+        help=(
+            "Signal calculation approach: precomputed (default, calculate all signals first) "
+            "or incremental (skip when position open)"
+        ),
     )
     args = parser.parse_args()
 
@@ -332,7 +333,8 @@ def main() -> None:
             signal_calculation_mode=signal_calculation_mode,
         )
         log_success(
-            f"FullBacktester created successfully (signal_mode: {signal_mode}, signal_calculation_mode: {signal_calculation_mode})"
+            "FullBacktester created successfully "
+            f"(signal_mode: {signal_mode}, signal_calculation_mode: {signal_calculation_mode})"
         )
 
         # Run backtest
@@ -348,7 +350,8 @@ def main() -> None:
                     log_progress("Using Architecture 5 Hybrid Approach: Vectorized + Parallel + Shared Memory")
                 else:
                     log_progress(
-                        "Using Architecture 5 Hybrid Approach: Vectorized + Parallel + Pickle (shared memory not available)"
+                        "Using Architecture 5 Hybrid Approach: "
+                        "Vectorized + Parallel + Pickle (shared memory not available)"
                     )
             else:
                 log_progress("Using Architecture 5 Hybrid Approach: Vectorized Sequential Processing")

@@ -1,16 +1,12 @@
+"""
+Tests for compute_equity module.
+"""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from modules.adaptive_trend.core.compute_equity import equity_series
-from modules.adaptive_trend.core.compute_equity import equity_series
-
-"""
-Tests for compute_equity module.
-"""
-
-
 
 
 def test_equity_series_basic():
@@ -31,7 +27,6 @@ def test_equity_series_with_cutout():
     """Test that equity_series respects cutout parameter."""
     sig = pd.Series([0, 1, 1, 0, -1])
     R = pd.Series([0.0, 0.01, 0.02, -0.01, -0.02])
-    cutout = 2
 
     # Note: equity_series has a known issue with pd.NA when cutout > 0
     # (pd.NA cannot be converted to float64 dtype)

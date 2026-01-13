@@ -1,6 +1,3 @@
-
-from modules.gemini_chart_analyzer.core.utils import (
-
 """
 Tests for utils module in gemini_chart_analyzer.
 
@@ -11,6 +8,7 @@ Tests cover:
 - validate_timeframes function
 """
 
+from modules.gemini_chart_analyzer.core.utils import (
     get_timeframe_weight,
     normalize_timeframes,
     sort_timeframes_by_weight,

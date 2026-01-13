@@ -1,13 +1,11 @@
-
-from modules.iching.core.data_models import HaoInfo, IChingResult
-from modules.iching.core.hexagram import (
-
 """
 I Ching Module.
 
 Module for generating I Ching hexagrams and automating web form filling.
 """
 
+from modules.iching.core.data_models import HaoInfo, IChingResult
+from modules.iching.core.hexagram import (
     analyze_line,
     generate_ns_string,
     group_string,

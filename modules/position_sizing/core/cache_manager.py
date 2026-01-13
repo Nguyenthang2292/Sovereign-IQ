@@ -1,13 +1,3 @@
-
-from collections import OrderedDict
-from typing import Dict, Optional, Tuple
-
-import pandas as pd
-
-from config.position_sizing import (
-
-from config.position_sizing import (
-
 """
 Cache Manager Mixin for Hybrid Signal Calculator.
 
@@ -15,8 +5,12 @@ This module provides cache management functionality using LRU (Least Recently Us
 strategy for signal, data, and indicator caches.
 """
 
+from collections import OrderedDict
+from typing import Dict, Optional, Tuple
 
+import pandas as pd
 
+from config.position_sizing import (
     DATA_CACHE_MAX_SIZE,
     INDICATOR_CACHE_MAX_SIZE,
     SIGNAL_CACHE_MAX_SIZE,

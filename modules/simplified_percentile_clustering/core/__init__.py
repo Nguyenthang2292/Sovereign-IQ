@@ -1,8 +1,6 @@
-
-from modules.simplified_percentile_clustering.core.centers import (
-
 """Core clustering calculation modules."""
 
+from modules.simplified_percentile_clustering.core.centers import (
     ClusterCenters,
     compute_centers,
 )

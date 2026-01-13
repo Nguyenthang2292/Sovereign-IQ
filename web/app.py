@@ -1,13 +1,10 @@
-
-from pathlib import Path
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-
-from web.api import batch_scanner, chart_analyzer, logs
 
 from web.api import batch_scanner, chart_analyzer, logs
 
@@ -18,9 +15,7 @@ Serves REST API endpoints and static files for Vue.js frontend.
 """
 
 
-
 # Import API routers
-from web.api import batch_scanner, chart_analyzer, logs
 
 # Initialize FastAPI app
 app = FastAPI(

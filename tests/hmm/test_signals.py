@@ -1,11 +1,8 @@
-
-from pathlib import Path
-from unittest.mock import Mock, patch
 import sys
 import warnings
+from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pandas as pd
 
 """
@@ -18,7 +15,6 @@ Or: python tests/hmm/test_signals.py
 """
 
 
-
 # Add project root to path (same as test_main_voting.py)
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -27,13 +23,13 @@ if str(ROOT) not in sys.path:
 warnings.filterwarnings("ignore")
 
 # Import after path setup
+from modules.hmm.signals.resolution import (
+    resolve_multi_strategy_conflicts,
+    resolve_signal_conflict,
+)
 from modules.hmm.signals.scoring import (
     calculate_strategy_scores,
     normalize_strategy_scores,
-)
-from modules.hmm.signals.resolution import (
-    resolve_signal_conflict,
-    resolve_multi_strategy_conflicts,
 )
 from modules.hmm.signals.utils import (
     validate_dataframe,
@@ -146,13 +142,9 @@ def test_resolve_signal_conflict():
 
     try:
         # Test conflicting signals
-        result = resolve_signal_conflict(
-            signals=[1, -1, 1],
-            confidences=[0.8, 0.6, 0.7],
-            threshold=0.7
-        )
+        result = resolve_signal_conflict(signals=[1, -1, 1], confidences=[0.8, 0.6, 0.7], threshold=0.7)
 
-        print(f"Input signals: [1, -1, 1], confidences: [0.8, 0.6, 0.7]")
+        print("Input signals: [1, -1, 1], confidences: [0.8, 0.6, 0.7]")
         print(f"Resolved signal: {result}")
 
         assert result in [-1, 0, 1], "Result should be valid signal"
@@ -217,6 +209,7 @@ def run_all_tests():
         except Exception as e:
             print(f"[ERROR] Test error: {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             failed += 1
 

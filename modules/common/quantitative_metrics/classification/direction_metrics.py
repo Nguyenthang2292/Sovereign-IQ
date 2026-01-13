@@ -1,10 +1,3 @@
-
-from typing import Dict, Optional
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Direction metrics calculation for quantitative analysis.
 
@@ -30,7 +23,10 @@ Edge Cases Handled:
 - Invalid parameters (zscore_lookback <= 0, classification_zscore <= 0)
 """
 
+from typing import Dict, Optional
 
+import numpy as np
+import pandas as pd
 
 try:
     from config import (
@@ -252,7 +248,6 @@ def calculate_direction_metrics(
         # Calculate Long metrics
         long_precision = None
         long_recall = None
-        long_f1 = None
 
         if long_predicted > 0:
             # Long Precision: TP / (TP + FP) = correct Long predictions / all Long predictions
@@ -273,7 +268,6 @@ def calculate_direction_metrics(
         # Calculate Short metrics
         short_precision = None
         short_recall = None
-        short_f1 = None
 
         if short_predicted > 0:
             # Short Precision: TP / (TP + FP) = correct Short predictions / all Short predictions

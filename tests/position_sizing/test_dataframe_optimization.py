@@ -1,7 +1,10 @@
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
-from modules.position_sizing.core.position_sizer import PositionSizer
 from modules.position_sizing.core.position_sizer import PositionSizer
 
 """
@@ -13,8 +16,6 @@ Tests verify that:
 3. Backward compatibility is maintained
 4. API calls are reduced when DataFrame is provided
 """
-
-
 
 
 @pytest.fixture
@@ -190,4 +191,3 @@ def test_backward_compatibility_position_sizer(mock_data_fetcher):
         assert "symbol" in result
         assert "position_size_usdt" in result
         assert result["symbol"] == "BTC/USDT"
-

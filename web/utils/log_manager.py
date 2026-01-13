@@ -1,21 +1,18 @@
-
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional, Tuple
-import os
-import threading
-import time
-
-from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
-from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
-
 """
 Log File Manager for managing log files for CLI output streaming.
 
 Each request gets its own log file identified by session_id.
 """
 
+import os
+import re
+import threading
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional, Tuple
 
+from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 
 class LogFileManager:
@@ -84,17 +81,34 @@ class LogFileManager:
 
     def _get_log_path(self, session_id: str, command_type: str) -> Path:
         """
-        Get log file path for a session.
+        Get log file path for a session with validation to prevent path traversal.
 
         Args:
-            session_id: Unique session identifier
+            session_id: Unique session identifier (validated for alphanumeric only)
             command_type: Type of command ('scan' or 'analyze')
 
         Returns:
             Path to log file
+
+        Raises:
+            ValueError: If session_id contains invalid characters
         """
+        if not session_id or not isinstance(session_id, str):
+            raise ValueError("session_id must be a non-empty string")
+
+        if not re.match(r"^[a-zA-Z0-9_-]+$", session_id):
+            msg = f"Invalid session_id: {session_id}. Only alphanumeric, dash, and underscore characters allowed"
+            raise ValueError(msg)
+
         filename = f"{command_type}_{session_id}.log"
-        return self.logs_dir / filename
+        log_path = self.logs_dir / filename
+
+        log_path = log_path.resolve()
+
+        if not str(log_path).startswith(str(self.logs_dir.resolve())):
+            raise ValueError("Invalid session_id: path traversal attempt detected")
+
+        return log_path
 
     def create_log_file(self, session_id: str, command_type: str) -> Path:
         """

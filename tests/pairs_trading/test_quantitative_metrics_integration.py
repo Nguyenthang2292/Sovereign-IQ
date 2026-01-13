@@ -1,7 +1,3 @@
-
-from pathlib import Path
-import sys
-
 """
 Test cases for quantitative metrics integration in pairs trading.
 
@@ -13,6 +9,8 @@ Tests the new features:
 - Verbose mode display
 """
 
+import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:

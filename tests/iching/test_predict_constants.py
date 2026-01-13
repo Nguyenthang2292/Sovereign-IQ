@@ -1,10 +1,8 @@
-
-from modules.iching.predict.constants import (
-
 """
 Tests for I Ching prediction constants.
 """
 
+from modules.iching.predict.constants import (
     HOA,
     KIM,
     MOC,

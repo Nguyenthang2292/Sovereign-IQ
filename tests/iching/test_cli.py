@@ -1,18 +1,12 @@
+"""
+Tests for I Ching CLI.
+"""
 
 from unittest.mock import patch
 
 import pytest
 
 from modules.iching.cli.main import main
-
-from modules.iching.cli.main import main
-
-"""
-Tests for I Ching CLI.
-"""
-
-
-
 
 
 class TestMain:

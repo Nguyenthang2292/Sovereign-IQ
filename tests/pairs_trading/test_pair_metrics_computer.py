@@ -1,10 +1,6 @@
-
 import pandas as pd
 
 from modules.pairs_trading.core.pair_metrics_computer import PairMetricsComputer
-from modules.pairs_trading.core.pair_metrics_computer import PairMetricsComputer
-
-
 
 
 def test_compute_pair_metrics_collects_all_sources(monkeypatch):

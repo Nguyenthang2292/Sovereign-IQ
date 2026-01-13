@@ -1,16 +1,3 @@
-
-from typing import Optional
-
-import numpy as np
-import pandas as pd
-
-from .base import IndicatorResult, collect_metadata
-from __future__ import annotations
-from modules.common.utils import validate_ohlcv_input
-import pandas_ta as ta
-from modules.common.utils import validate_ohlcv_input
-import pandas_ta as ta
-
 """Trend indicator block.
 
 This module provides trend-following indicators including:
@@ -20,10 +7,17 @@ This module provides trend-following indicators including:
 - Directional Movement Index difference (DMI difference)
 """
 
+from __future__ import annotations
 
+from typing import Optional
 
+import numpy as np
+import pandas as pd
+import pandas_ta as ta
 
+from modules.common.utils import validate_ohlcv_input
 
+from .base import IndicatorResult, collect_metadata
 
 
 class TrendIndicators:

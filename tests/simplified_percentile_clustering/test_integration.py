@@ -1,3 +1,8 @@
+"""
+Integration tests for Simplified Percentile Clustering.
+
+Tests end-to-end workflows, error handling, and performance.
+"""
 
 import time
 
@@ -6,17 +11,6 @@ import pandas as pd
 import pytest
 
 from modules.simplified_percentile_clustering.config import (
-
-from modules.simplified_percentile_clustering.config import (
-
-"""
-Integration tests for Simplified Percentile Clustering.
-
-Tests end-to-end workflows, error handling, and performance.
-"""
-
-
-
     ClusterTransitionConfig,
     MeanReversionConfig,
     RegimeFollowingConfig,
@@ -262,7 +256,7 @@ def test_performance_vectorized_vs_loop():
 
     # Measure time
     start_time = time.time()
-    result = compute_clustering(high, low, close, config=config)
+    compute_clustering(high, low, close, config=config)
     elapsed_time = time.time() - start_time
 
     # Should be reasonably fast with vectorized operations

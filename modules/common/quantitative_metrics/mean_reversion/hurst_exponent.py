@@ -1,10 +1,3 @@
-
-from typing import Optional
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Hurst exponent calculation for quantitative analysis.
 
@@ -12,7 +5,10 @@ This is a general-purpose Hurst exponent calculation that can be used
 for any time series analysis, not just pairs trading.
 """
 
+from typing import Optional
 
+import numpy as np
+import pandas as pd
 
 try:
     from config import (
@@ -93,7 +89,8 @@ def calculate_hurst_exponent(
     if max_lag < PAIRS_TRADING_MIN_LAG:
         return None
     # Start from PAIRS_TRADING_MIN_LAG (2) to ensure meaningful variance calculation
-    # Note: max_lag is already capped at len(series) // PAIRS_TRADING_MAX_LAG_DIVISOR, so lag < len(series) is guaranteed
+    # Note: max_lag is already capped at len(series) // PAIRS_TRADING_MAX_LAG_DIVISOR,
+    # so lag < len(series) is guaranteed
     lags_list = list(range(PAIRS_TRADING_MIN_LAG, max_lag))
     if not lags_list:
         return None

@@ -1,10 +1,3 @@
-
-from typing import List, Tuple
-
-from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
-from modules.common.utils import log_warn
-from modules.common.utils import log_warn
-
 """
 High-Order HMM State Expansion.
 
@@ -12,7 +5,10 @@ This module handles state space expansion for high-order HMM, converting base st
 to expanded states that represent sequences of k previous states.
 """
 
+from typing import List, Tuple
 
+from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
+from modules.common.utils import log_warn
 
 
 def get_expanded_state_count(n_base_states: int, order: int) -> int:

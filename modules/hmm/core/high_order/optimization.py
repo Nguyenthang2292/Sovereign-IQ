@@ -1,17 +1,13 @@
-
-from typing import TYPE_CHECKING, Tuple
-
-from sklearn.model_selection import TimeSeriesSplit
-import numpy as np
-import numpy as np
-
 """
 High-Order HMM Optimization.
 
 This module handles optimization of order k and number of states for high-order HMM.
 """
 
+from typing import TYPE_CHECKING, Tuple
 
+import numpy as np
+from sklearn.model_selection import TimeSeriesSplit
 
 if TYPE_CHECKING:
     from modules.hmm.core.high_order.model_creation import create_high_order_hmm_model, train_model
@@ -251,7 +247,8 @@ def optimize_order_k(
                     best_order = order
                     best_n_states = n_states
                     log_info(
-                        f"New best order={order}, n_states={n_states} with BIC={bic:.2f} (k={k}, N={total_test_samples})"
+                        f"New best order={order}, n_states={n_states} with BIC={bic:.2f} "
+                        f"(k={k}, N={total_test_samples})"
                     )
             else:
                 # Use log-likelihood (higher is better)

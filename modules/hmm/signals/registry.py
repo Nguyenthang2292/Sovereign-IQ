@@ -1,11 +1,3 @@
-
-from typing import Any, Dict, List, Optional, Type
-import importlib
-
-from modules.common.utils import log_error, log_info
-from modules.hmm.signals.strategy import HMMStrategy
-from modules.hmm.signals.strategy import HMMStrategy
-
 """
 HMM Strategy Registry Module
 
@@ -13,7 +5,11 @@ Manages registration and retrieval of HMM strategies using the Registry pattern.
 Enables dynamic strategy loading from configuration.
 """
 
+import importlib
+from typing import Any, Dict, List, Optional, Type
 
+from modules.common.utils import log_error, log_info
+from modules.hmm.signals.strategy import HMMStrategy
 
 
 class HMMStrategyRegistry:

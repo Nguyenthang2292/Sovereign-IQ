@@ -1,19 +1,13 @@
-
 from typing import Dict, Optional, Union
 
 import numpy as np
 import pandas as pd
 
-from modules.common.quantitative_metrics import (
-
-from modules.common.quantitative_metrics import (
-
 """
 Pair metrics computer that orchestrates all quantitative metrics calculation.
 """
 
-
-
+from modules.common.quantitative_metrics import (
     calculate_adf_test,
     calculate_calmar_ratio,
     calculate_direction_metrics,

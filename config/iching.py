@@ -1,13 +1,13 @@
-
-from pathlib import Path
-import os
-
 """
 I Ching Configuration.
 
 Configuration constants for I Ching hexagram generation and web automation.
 """
 
+import os
+import warnings
+from pathlib import Path
+from urllib.parse import urlparse
 
 # Project paths
 # Calculate project root: config/iching.py -> config/ -> project root
@@ -56,4 +56,69 @@ SELECT_DELAY = 0.3
 SUBMIT_DELAY = 2.0
 
 # Web automation settings
-ICHING_URL = os.getenv("ICHING_URL", "https://simkinhdich.com/boi-dich/luc-hao")
+# Default URL with fallback
+_DEFAULT_ICHING_URL = "https://simkinhdich.com/boi-dich/luc-hao"
+_FALLBACK_ICHING_URL = "https://simkinhdich.com/boi-dich/luc-hao"  # Same as default, can be changed if needed
+
+
+def _validate_url(url: str) -> bool:
+    """
+    Validate URL for security: must be HTTPS and have valid scheme.
+
+    Args:
+        url: URL string to validate
+
+    Returns:
+        True if URL is valid and secure (HTTPS), False otherwise
+    """
+    try:
+        parsed = urlparse(url)
+        # Must be HTTPS for security
+        if parsed.scheme != "https":
+            return False
+        # Must have netloc (domain)
+        if not parsed.netloc:
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def _get_iching_url() -> str:
+    """
+    Get I Ching URL with validation and fallback mechanism.
+
+    Returns:
+        Valid HTTPS URL string
+
+    Raises:
+        ValueError: If no valid URL can be determined
+    """
+    url = os.getenv("ICHING_URL", _DEFAULT_ICHING_URL)
+
+    # Validate URL
+    if not _validate_url(url):
+        warning_msg = (
+            f"ICHING_URL từ environment variable không hợp lệ hoặc không an toàn (không phải HTTPS): {url}. "
+            f"Sử dụng URL mặc định: {_DEFAULT_ICHING_URL}"
+        )
+        warnings.warn(warning_msg, UserWarning, stacklevel=2)
+        url = _DEFAULT_ICHING_URL
+
+    # Double-check default URL
+    if not _validate_url(url):
+        # Try fallback
+        if _validate_url(_FALLBACK_ICHING_URL):
+            warning_msg = f"URL mặc định không hợp lệ: {url}. Sử dụng URL dự phòng: {_FALLBACK_ICHING_URL}"
+            warnings.warn(warning_msg, UserWarning, stacklevel=2)
+            url = _FALLBACK_ICHING_URL
+        else:
+            raise ValueError(
+                f"Không thể xác định URL hợp lệ cho I Ching. URL hiện tại: {url}, URL dự phòng: {_FALLBACK_ICHING_URL}"
+            )
+
+    return url
+
+
+# Get validated I Ching URL
+ICHING_URL = _get_iching_url()

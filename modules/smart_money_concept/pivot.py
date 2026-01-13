@@ -1,12 +1,22 @@
+"""
+This module defines the `Pivot` class for representing significant price levels (pivots)
+in financial time series data, such as in smart money concept strategies. Pivots can be
+of different types (support, resistance, swing highs/lows) and are characterized by their
+level, associated time, type, strength, and pip size for accurate calculations. Utility functions
+may be added here for technical analysis and pivot management.
+
+Classes:
+    Pivot: Data structure representing a price pivot with validation logic.
+
+Typical usage example:
+    pivot = Pivot(level=1.2345, bar_time=datetime.utcnow(), pivot_type="support", strength=3)
+"""
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from modules.common.ui.logging import log_warn
-from modules.common.ui.logging import log_warn
-
-
 
 
 @dataclass

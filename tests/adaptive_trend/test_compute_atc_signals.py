@@ -1,15 +1,11 @@
+"""
+Tests for compute_atc_signals module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals
-
-"""
-Tests for compute_atc_signals module.
-"""
-
-
 
 
 def test_compute_atc_signals_basic():

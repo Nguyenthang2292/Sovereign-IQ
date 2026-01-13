@@ -1,11 +1,8 @@
-
 from typing import Optional, Tuple
 
 import pandas as pd
 
 from modules.common.indicators.trend import calculate_weighted_ma
-from modules.common.indicators.volatility import calculate_atr_range
-from modules.range_oscillator.core.oscillator import calculate_range_oscillator
 from modules.common.indicators.volatility import calculate_atr_range
 from modules.range_oscillator.core.oscillator import calculate_range_oscillator
 
@@ -14,9 +11,6 @@ Oscillator data utility functions.
 
 This module provides helper functions for oscillator data handling.
 """
-
-
-
 
 
 def get_oscillator_data(

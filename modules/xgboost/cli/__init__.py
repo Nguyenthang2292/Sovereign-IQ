@@ -1,7 +1,5 @@
-
-from pathlib import Path
 import importlib.util
-import sys
+from pathlib import Path
 
 """CLI tools for XGBoost module."""
 

@@ -1,10 +1,22 @@
+"""
+Unit tests for candlestick pattern detection functionality in the CandlestickPatterns class.
+
+These tests verify that the apply method in CandlestickPatterns correctly detects various
+candlestick patterns (such as HAMMER, SHOOTING_STAR, BULLISH_ENGULFING, BEARISH_ENGULFING,
+and THREE_WHITE_SOLDIERS) by evaluating test DataFrames with known expected patterns.
+
+Test Cases:
+- test_hammer_and_shooting_star_detection: Asserts correct identification of HAMMER and SHOOTING_STAR patterns.
+- test_engulfing_patterns_detected: Checks detection of BULLISH_ENGULFING and BEARISH_ENGULFING patterns.
+- test_three_white_soldiers: Verifies recognition of the THREE_WHITE_SOLDIERS pattern.
+
+The test data is constructed with appropriate open, high, low, close, and volume columns to ensure deterministic
+results for each pattern.
+"""
 
 import pandas as pd
 
 from modules.common.indicators.candlestick import CandlestickPatterns
-from modules.common.indicators.candlestick import CandlestickPatterns
-
-
 
 
 def test_hammer_and_shooting_star_detection():

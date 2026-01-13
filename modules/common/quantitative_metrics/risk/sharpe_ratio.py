@@ -1,10 +1,3 @@
-
-from typing import Optional
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Sharpe ratio calculation for quantitative analysis.
 
@@ -12,7 +5,10 @@ This is a general-purpose Sharpe ratio calculation that can be used
 for any trading strategy or financial analysis, not just pairs trading.
 """
 
+from typing import Optional
 
+import numpy as np
+import pandas as pd
 
 try:
     from config import PAIRS_TRADING_PERIODS_PER_YEAR

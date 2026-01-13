@@ -1,11 +1,3 @@
-
-from pathlib import Path
-from typing import Dict, List, Optional
-import pickle
-
-import pandas as pd
-import pandas as pd
-
 """
 Dataset & DataModule for Temporal Fusion Transformer (TFT).
 
@@ -16,7 +8,11 @@ This module provides:
 - Handling of missing candles (resample/ffill) to ensure no gaps in time_idx
 """
 
+import pickle
+from pathlib import Path
+from typing import Dict, List, Optional
 
+import pandas as pd
 
 # Import from lightning.pytorch to match pytorch-forecasting's imports
 try:

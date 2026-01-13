@@ -1,7 +1,6 @@
-
+import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
-import sys
 
 """
 Test script for modules.HedgeFinder - Hedge finding and scoring logic.

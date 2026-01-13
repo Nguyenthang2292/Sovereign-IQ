@@ -1,16 +1,3 @@
-
-from unittest.mock import patch
-
-import numpy as np
-import pandas as pd
-
-from config.position_sizing import BACKTEST_RISK_PER_TRADE
-from modules.backtester import FullBacktester
-from modules.backtester.core.equity_curve import calculate_equity_curve
-from modules.backtester.core.trade_simulator import simulate_trades
-from modules.backtester.core.equity_curve import calculate_equity_curve
-from modules.backtester.core.trade_simulator import simulate_trades
-
 """
 Test cases for recent improvements to backtester module.
 
@@ -22,8 +9,15 @@ Tests cover:
 5. Parallel processing error handling
 """
 
+from unittest.mock import patch
 
+import numpy as np
+import pandas as pd
 
+from config.position_sizing import BACKTEST_RISK_PER_TRADE
+from modules.backtester import FullBacktester
+from modules.backtester.core.equity_curve import calculate_equity_curve
+from modules.backtester.core.trade_simulator import simulate_trades
 
 
 class TestRiskPerTradeConfigurable:

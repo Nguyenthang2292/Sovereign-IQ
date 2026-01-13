@@ -1,15 +1,11 @@
+"""
+I Ching to Web - Main Entry Point.
+"""
 
-from pathlib import Path
 import argparse
 import sys
 import traceback
-
-"""
-I Ching to Web - Main Entry Point.
-
-Script để tạo hexagram I Ching và tự động điền form web.
-"""
-
+from pathlib import Path
 
 
 def find_project_root(start_path: Path) -> Path:

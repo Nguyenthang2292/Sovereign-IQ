@@ -1,11 +1,8 @@
-
-from pathlib import Path
-from unittest.mock import Mock, patch
 import sys
 import warnings
+from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pandas as pd
 
 """
@@ -18,7 +15,6 @@ Or: python tests/lstm/test_utils.py
 """
 
 
-
 # Add project root to path (same as test_main_voting.py)
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -27,14 +23,14 @@ if str(ROOT) not in sys.path:
 warnings.filterwarnings("ignore")
 
 # Import after path setup
-from modules.lstm.utils.preprocessing import (
-    preprocess_cnn_lstm_data,
+from modules.lstm.utils.data_utils import (
+    split_train_test_data,
 )
 from modules.lstm.utils.indicator_features import (
     generate_indicator_features,
 )
-from modules.lstm.utils.data_utils import (
-    split_train_test_data,
+from modules.lstm.utils.preprocessing import (
+    preprocess_cnn_lstm_data,
 )
 
 
@@ -104,7 +100,7 @@ def test_preprocess_cnn_lstm_data():
     df = create_mock_ohlcv_data(limit=100)
 
     try:
-        result = preprocess_cnn_lstm_data(df, sequence_length=20)
+        result = preprocess_cnn_lstm_data(df, look_back=20)
 
         print(f"Input shape: {df.shape}")
         print(f"Result type: {type(result)}")
@@ -144,14 +140,14 @@ def test_dummy():
     """Dummy test to avoid NameError."""
     pass
     """Test data splitting."""
-    print("\n=== Test: split_train_val_test ===")
+    print("\n=== Test: split_train_test_data ===")
 
     data = np.random.randn(100, 5)
     train_size = 0.6
     val_size = 0.2
 
-    X_train, X_val, X_test, y_train, y_val, y_test = split_train_val_test(
-        data, data, train_size=train_size, val_size=val_size
+    X_train, X_val, X_test, y_train, y_val, y_test = split_train_test_data(
+        data, data, train_ratio=train_size, validation_ratio=val_size
     )
 
     print(f"Original size: {len(data)}")
@@ -191,6 +187,7 @@ def run_all_tests():
         except Exception as e:
             print(f"[ERROR] Test error: {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             failed += 1
 

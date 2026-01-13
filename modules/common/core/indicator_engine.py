@@ -1,3 +1,8 @@
+"""
+Technical indicator and candlestick pattern orchestration.
+"""
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -5,18 +10,7 @@ from typing import Dict, Optional, Sequence, Tuple
 
 import pandas as pd
 
-from __future__ import annotations
 from modules.common.indicators.blocks import (
-from __future__ import annotations
-from modules.common.indicators.blocks import (
-
-"""
-Technical indicator and candlestick pattern orchestration.
-"""
-
-
-
-
     BLOCK_SPECS,
     BlockSpec,
     IndicatorFunc,
@@ -35,7 +29,7 @@ class IndicatorProfile(str, Enum):
 
 @dataclass
 class IndicatorConfig:
-    """Configuration switches for indicator blocks."""
+    """Configuration for indicator engine."""
 
     include_trend: bool = True
     include_momentum: bool = True
@@ -45,7 +39,7 @@ class IndicatorConfig:
     custom_indicators: Dict[str, IndicatorFunc] = field(default_factory=dict)
 
     @classmethod
-    def for_profile(cls, profile: IndicatorProfile) -> "IndicatorConfig":
+    def for_profile(cls, profile: IndicatorProfile) -> IndicatorConfig:
         """Create config presets for known profiles."""
         if profile == IndicatorProfile.CORE:
             return cls(include_candlestick=False)

@@ -1,10 +1,3 @@
-
-import pandas as pd
-
-from __future__ import annotations
-from modules.common.utils import log_error, log_warn
-from modules.common.utils import log_error, log_warn
-
 """Signal generation functions for Adaptive Trend Classification (ATC).
 
 This module provides functions to generate trading signals from Moving Averages:
@@ -13,8 +6,11 @@ This module provides functions to generate trading signals from Moving Averages:
 - generate_signal_from_ma: Generate discrete signals {-1, 0, 1} from price/MA crossovers
 """
 
+from __future__ import annotations
 
+import pandas as pd
 
+from modules.common.utils import log_error, log_warn
 
 
 def crossover(series_a: pd.Series, series_b: pd.Series) -> pd.Series:

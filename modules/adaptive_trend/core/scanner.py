@@ -1,12 +1,3 @@
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
-import asyncio
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """ATC Symbol Scanner.
 
 This module provides functions for scanning multiple symbols using
@@ -16,7 +7,12 @@ The scanner fetches data for multiple symbols, calculates ATC signals,
 and filters results based on signal strength and trend direction.
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
+import numpy as np
+import pandas as pd
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher

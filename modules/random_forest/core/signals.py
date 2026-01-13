@@ -1,24 +1,16 @@
-
-from typing import Tuple
-
-from sklearn.ensemble import RandomForestClassifier
-import numpy as np
-import pandas as pd
-
-from config import (
-
-from config import (
-
 """Random Forest signal generation.
 
 This module provides functionality for generating trading signals using trained
 Random Forest models.
 """
 
+from typing import Tuple
 
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 
-    CONFIDENCE_THRESHOLD,
-)
+from config import CONFIDENCE_THRESHOLD
 from config.model_features import MODEL_FEATURES
 from modules.common.core.indicator_engine import IndicatorConfig, IndicatorEngine, IndicatorProfile
 from modules.common.ui.logging import (
@@ -70,7 +62,8 @@ def get_latest_random_forest_signal(df_market_data: pd.DataFrame, model: RandomF
         # Model was trained with specific feature names - use only those
         model_features = list(model.feature_names_in_)
         log_progress(
-            f"Model expects {len(model_features)} features: {model_features[:5]}{'...' if len(model_features) > 5 else ''}"
+            f"Model expects {len(model_features)} features: "
+            f"{model_features[:5]}{'...' if len(model_features) > 5 else ''}"
         )
 
         # Filter to only features that exist in DataFrame and match model's expected features
@@ -80,7 +73,8 @@ def get_latest_random_forest_signal(df_market_data: pd.DataFrame, model: RandomF
         missing_features = [f for f in model_features if f not in df_with_features.columns]
         if missing_features:
             log_warn(
-                f"Missing features expected by model: {missing_features[:5]}{'...' if len(missing_features) > 5 else ''}. "
+                f"Missing features expected by model: "
+                f"{missing_features[:5]}{'...' if len(missing_features) > 5 else ''}. "
                 "These features will be set to 0 or NaN."
             )
 
@@ -88,7 +82,8 @@ def get_latest_random_forest_signal(df_market_data: pd.DataFrame, model: RandomF
         extra_features = [f for f in df_with_features.columns if f in MODEL_FEATURES and f not in model_features]
         if extra_features:
             log_warn(
-                f"Extra features in DataFrame not expected by model: {extra_features[:5]}{'...' if len(extra_features) > 5 else ''}. "
+                f"Extra features in DataFrame not expected by model: "
+                f"{extra_features[:5]}{'...' if len(extra_features) > 5 else ''}. "
                 "These will be ignored."
             )
     else:

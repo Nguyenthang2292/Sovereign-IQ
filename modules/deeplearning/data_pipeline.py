@@ -1,17 +1,3 @@
-
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import json
-
-from colorama import Fore, Style
-from sklearn.preprocessing import StandardScaler
-import numpy as np
-import pandas as pd
-
-from config import (
-
-from config import (
-
 """
 Deep Learning Data Preparation Pipeline for Temporal Fusion Transformer (TFT).
 
@@ -25,8 +11,16 @@ This module provides comprehensive data preprocessing including:
 - Chronological train/validation/test split
 """
 
+import json
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
+import numpy as np
+import pandas as pd
+from colorama import Fore, Style
+from sklearn.preprocessing import StandardScaler
 
+from config import (
     DEEP_FEATURE_COLLINEARITY_THRESHOLD,
     DEEP_FEATURE_SELECTION_DIR,
     DEEP_FEATURE_SELECTION_METHOD,

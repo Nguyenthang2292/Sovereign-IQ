@@ -1,14 +1,3 @@
-
-from datetime import datetime
-from html import escape as html_escape
-from pathlib import Path
-from typing import Dict, List
-import json
-import os
-
-from modules.gemini_chart_analyzer.core.utils import find_project_root
-from modules.gemini_chart_analyzer.core.utils import find_project_root
-
 """
 HTML Report Generation for Batch Scan Results.
 
@@ -16,7 +5,14 @@ This module provides functionality to generate HTML reports for batch scan resul
 avoiding circular dependencies by being in the core module.
 """
 
+import json
+import os
+from datetime import datetime
+from html import escape as html_escape
+from pathlib import Path
+from typing import Dict, List
 
+from modules.gemini_chart_analyzer.core.utils import find_project_root
 
 
 def generate_batch_html_report(results_data: Dict, output_dir: str) -> str:
@@ -119,10 +115,9 @@ def generate_batch_html_report(results_data: Dict, output_dir: str) -> str:
                         tf_signal = tf_data.get("signal", "NONE")
                         tf_conf = tf_data.get("confidence", 0.0)
                         tf_color = get_signal_color(tf_signal)
-                        breakdown_badges.append(
-                            f'<span class="tf-badge" style="background-color: {tf_color}20; color: {tf_color}; border: 1px solid {tf_color}">'
-                            f"{html_escape(str(tf))}: {html_escape(str(tf_signal))} ({tf_conf:.2f})</span>"
-                        )
+                        badge_style = f"background-color: {tf_color}20; color: {tf_color}; border: 1px solid {tf_color}"
+                        badge_content = f"{html_escape(str(tf))}: {html_escape(str(tf_signal))} ({tf_conf:.2f})"
+                        breakdown_badges.append(f'<span class="tf-badge" style="{badge_style}">{badge_content}</span>')
 
             breakdown_html = " ".join(breakdown_badges) if breakdown_badges else '<span class="no-breakdown">N/A</span>'
             signal_color = get_signal_color(signal_type)
@@ -136,7 +131,7 @@ def generate_batch_html_report(results_data: Dict, output_dir: str) -> str:
             symbol_escaped = html_escape(str(symbol))
             confidence_escaped = html_escape(str(confidence))
             signal_type_escaped = html_escape(str(signal_type))
-            primary_tf_escaped = html_escape(str(primary_tf))
+            html_escape(str(primary_tf))
 
             # Clamp confidence to 0-1 range for bar width calculation
             # while keeping displayed text unchanged
@@ -154,13 +149,16 @@ def generate_batch_html_report(results_data: Dict, output_dir: str) -> str:
                         <div class="confidence-bar-container">
                             <span class="confidence-value">{confidence:.2f}</span>
                             <div class="confidence-bar">
-                                <div class="confidence-fill" style="width: {width_pct}%; background-color: {signal_color}"></div>
+                                <div class="confidence-fill" style="width: {width_pct}%;
+                                    background-color: {signal_color}"></div>
                             </div>
                         </div>
                     </td>
                     <td class="breakdown-cell">{breakdown_html}</td>
                     <td class="action-cell">
-                        <button class="detail-btn" onclick='showDetailModal({symbol_json}, {timeframes_json}, {str(is_multi_tf).lower()}, {json.dumps(primary_tf)})'>
+                        <button class="detail-btn" onclick='showDetailModal(
+                            {symbol_json}, {timeframes_json}, {str(is_multi_tf).lower()},
+                            {json.dumps(primary_tf)})'>
                             Xem chi tiết
                         </button>
                     </td>
@@ -981,7 +979,10 @@ def generate_batch_html_report(results_data: Dict, output_dir: str) -> str:
                 </div>
                 <div class="command-actions">
                     <button class="copy-btn" id="copyCommandBtn" onclick="copyCommand()">Copy Command</button>
-                    <button class="modal-close" onclick="closeModal()" style="padding: 10px 20px; border-radius: 6px; cursor: pointer;">Đóng</button>
+                    <button class="modal-close" onclick="closeModal()"
+                        style="padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                        Đóng
+                    </button>
                 </div>
             </div>
         </div>

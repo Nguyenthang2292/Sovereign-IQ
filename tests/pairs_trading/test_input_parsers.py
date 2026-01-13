@@ -1,10 +1,8 @@
-
-from modules.pairs_trading.cli.input_parsers import (
-
 """
 Tests for input_parsers module.
 """
 
+from modules.pairs_trading.cli.input_parsers import (
     parse_symbols,
     parse_weights,
     standardize_symbol_input,

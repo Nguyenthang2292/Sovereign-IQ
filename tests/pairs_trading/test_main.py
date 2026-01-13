@@ -1,6 +1,5 @@
-
-from pathlib import Path
 import sys
+from pathlib import Path
 
 """
 Test script for main_pairs_trading.py

@@ -1,7 +1,3 @@
-
-from .base import (
-from modules.common.utils import validate_ohlcv_input
-
 """Indicator utilities subpackage.
 
 This module provides basic technical indicators. For advanced quantitative
@@ -9,7 +5,9 @@ metrics (CCI, Fisher Transform, DMI difference, Z-Score, MAR), see
 modules.common.quantitative_metrics.
 """
 
+from modules.common.utils import validate_ohlcv_input
 
+from .base import (
     IndicatorFunc,
     IndicatorMetadata,
     IndicatorResult,

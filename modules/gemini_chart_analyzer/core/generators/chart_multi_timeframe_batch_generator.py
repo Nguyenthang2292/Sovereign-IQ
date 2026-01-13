@@ -1,13 +1,11 @@
-
-import matplotlib
-import pandas as pd
-
 """
 Multi-Timeframe Batch Chart Generator for creating composite images with multiple timeframes per symbol.
 
 Each symbol has sub-charts for different timeframes arranged in a grid layout.
 """
 
+import matplotlib
+import pandas as pd
 
 matplotlib.use("Agg")
 import gc

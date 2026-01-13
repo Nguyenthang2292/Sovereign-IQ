@@ -1,6 +1,3 @@
-
-from modules.hmm.core.high_order import (
-
 """
 HMM (Hidden Markov Model) module.
 
@@ -11,7 +8,8 @@ This module provides Hidden Markov Model implementations for cryptocurrency trad
 - Signal processing and combination
 """
 
-# Core HMM models
+from modules.hmm.core.high_order import (
+    # Core HMM models
     TrueHighOrderHMM,
     decode_expanded_state,
     expand_state_sequence,

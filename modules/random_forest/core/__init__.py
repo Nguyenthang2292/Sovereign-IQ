@@ -1,12 +1,10 @@
-
-from modules.random_forest.core.decision_matrix_integration import (
-
 """Core Random Forest functionality.
 
 This module provides core functionality for Random Forest model training,
 signal generation, and evaluation.
 """
 
+from modules.random_forest.core.decision_matrix_integration import (
     calculate_random_forest_vote,
     get_random_forest_signal_for_decision_matrix,
 )

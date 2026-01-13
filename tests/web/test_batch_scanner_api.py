@@ -1,18 +1,3 @@
-
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
-import json
-import os
-import time
-import uuid
-
-from fastapi.testclient import TestClient
-import pytest
-
-from web.app import app
-
-from web.app import app
-
 """
 Tests for Batch Scanner API endpoints (web/api/batch_scanner.py).
 
@@ -24,10 +9,19 @@ Tests cover:
 - GET /api/batch/list (list all results)
 """
 
+import json
+import os
+import time
+import uuid
+from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+from fastapi.testclient import TestClient
+
+from web.app import app
 
 # Import app - project root is added to path in conftest, so use absolute import
-from web.app import app
 
 
 @pytest.fixture

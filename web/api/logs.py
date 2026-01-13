@@ -1,4 +1,3 @@
-
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -7,14 +6,10 @@ from modules.common.ui.logging import log_error
 from web.utils.error_sanitizer import sanitize_error
 from web.utils.log_manager import get_log_manager
 from web.utils.translations import get_locale_from_header, translate
-from web.utils.log_manager import get_log_manager
-from web.utils.translations import get_locale_from_header, translate
 
 """
 API routes for reading log files.
 """
-
-
 
 
 router = APIRouter()

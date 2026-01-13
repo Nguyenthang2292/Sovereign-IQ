@@ -1,14 +1,10 @@
-
 import pytest
-
-from modules.lstm.models.trainer.cnn_mixin import (
-from modules.lstm.models.trainer.cnn_mixin import (
 
 """
 Tests for CNN feature mixin.
 """
 
-
+from modules.lstm.models.trainer.cnn_mixin import (
     CNN_BATCH_SIZE_REDUCTION_FACTOR,
     CNN_MIN_ADDITIONAL_SAMPLES,
     CNN_MIN_BATCH_SIZE,

@@ -1,6 +1,3 @@
-
-from typing import Dict, Optional, Tuple
-
 """
 Input parsing utilities for pairs trading CLI.
 
@@ -8,6 +5,7 @@ This module provides functions for parsing and validating user input including
 weights, symbols, and other configuration parameters.
 """
 
+from typing import Dict, Optional, Tuple
 
 try:
     from config import (

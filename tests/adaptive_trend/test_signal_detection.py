@@ -1,15 +1,11 @@
+"""
+Tests for signal_detection module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.adaptive_trend.core.signal_detection import crossover, crossunder, generate_signal_from_ma
-from modules.adaptive_trend.core.signal_detection import crossover, crossunder, generate_signal_from_ma
-
-"""
-Tests for signal_detection module.
-"""
-
-
 
 
 def test_crossover_detects_upward_cross():

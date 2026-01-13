@@ -1,21 +1,15 @@
-
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-import numpy as np
-import pandas as pd
-
-from config import (
-from config import (
-
 """Random Forest model evaluation.
 
 This module provides functionality for evaluating Random Forest models with
 various confidence thresholds and calculating performance metrics.
 """
 
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
-    CONFIDENCE_THRESHOLDS,
-)
+from config import CONFIDENCE_THRESHOLDS
 from modules.common.ui.logging import log_error, log_model, log_warn
 
 

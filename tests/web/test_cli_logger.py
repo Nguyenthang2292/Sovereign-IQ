@@ -1,15 +1,3 @@
-
-from unittest.mock import patch
-import logging
-import sys
-
-import pytest
-
-from web.utils.cli_logger import CLILogger
-from web.utils.log_manager import LogFileManager
-from web.utils.cli_logger import CLILogger
-from web.utils.log_manager import LogFileManager
-
 """
 Tests for CLILogger (web/utils/cli_logger.py).
 
@@ -22,8 +10,14 @@ Tests cover:
 - Thread safety
 """
 
+import logging
+import sys
+from unittest.mock import patch
 
+import pytest
 
+from web.utils.cli_logger import CLILogger
+from web.utils.log_manager import LogFileManager
 
 
 @pytest.fixture

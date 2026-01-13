@@ -1,16 +1,3 @@
-
-from typing import Any, Dict, Optional
-
-import pandas as pd
-
-from modules.common.indicators import calculate_returns_volatility
-from modules.common.utils import log_error, log_info
-from modules.hmm.signals.confidence import calculate_combined_confidence, calculate_kama_confidence
-from modules.hmm.signals.registry import HMMStrategyRegistry, get_default_registry
-from modules.hmm.signals.resolution import (
-from modules.hmm.signals.registry import HMMStrategyRegistry, get_default_registry
-from modules.hmm.signals.resolution import (
-
 """
 HMM Signal Combiner Module
 
@@ -18,8 +5,23 @@ Combines multiple HMM strategies to generate trading signals using
 a registry-based approach for scalability.
 """
 
+from typing import Any, Dict, Optional
 
+import pandas as pd
 
+from config import (
+    HMM_FEATURES,
+    HMM_HIGH_ORDER_MAX_SCORE,
+    HMM_SIGNAL_MIN_THRESHOLD,
+    HMM_STRATEGIES,
+    HMM_VOTING_MECHANISM,
+    HMM_VOTING_THRESHOLD,
+)
+from modules.common.indicators import calculate_returns_volatility
+from modules.common.utils import log_error, log_info
+from modules.hmm.signals.confidence import calculate_combined_confidence, calculate_kama_confidence
+from modules.hmm.signals.registry import HMMStrategyRegistry, get_default_registry
+from modules.hmm.signals.resolution import (
     HOLD,
     LONG,
     SHORT,
@@ -34,18 +36,6 @@ from modules.hmm.signals.scoring import (
 from modules.hmm.signals.strategy import HMMStrategyResult
 from modules.hmm.signals.utils import validate_dataframe
 from modules.hmm.signals.voting import VotingMechanism
-
-# Export Signal type for backward compatibility
-__all__ = ["HMMSignalCombiner", "combine_signals", "Signal"]
-
-from config import (
-    HMM_FEATURES,
-    HMM_HIGH_ORDER_MAX_SCORE,
-    HMM_SIGNAL_MIN_THRESHOLD,
-    HMM_STRATEGIES,
-    HMM_VOTING_MECHANISM,
-    HMM_VOTING_THRESHOLD,
-)
 
 
 class HMMSignalCombiner:

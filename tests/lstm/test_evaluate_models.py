@@ -1,19 +1,16 @@
-
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 import numpy as np
 import pytest
 import torch
 import torch.nn as nn
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 from config.evaluation import CONFIDENCE_THRESHOLDS
-from modules.lstm.core.evaluate_models import (
-from modules.lstm.core.evaluate_models import (
 
 """
 Tests for evaluate_models module.
 """
 
-
+from modules.lstm.core.evaluate_models import (
     apply_confidence_threshold,
     evaluate_model_in_batches,
     evaluate_model_with_confidence,

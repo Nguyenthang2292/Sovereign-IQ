@@ -1,12 +1,3 @@
-
-from dataclasses import dataclass
-from typing import Optional
-
-from __future__ import annotations
-from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
-from modules.simplified_percentile_clustering.utils.validation import (
-from modules.simplified_percentile_clustering.utils.validation import (
-
 """
 Configuration for Regime Following Strategy.
 
@@ -14,10 +5,13 @@ This strategy follows the current market regime (cluster) and generates
 signals when the market is strongly in a particular regime.
 """
 
+from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Optional
 
-    validate_clustering_config,
-)
+from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
+from modules.simplified_percentile_clustering.utils.validation import validate_clustering_config
 
 
 @dataclass

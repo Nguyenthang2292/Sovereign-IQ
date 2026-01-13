@@ -1,21 +1,19 @@
-
-from typing import Any, Dict, List, Optional, Tuple
-import math
-
-from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
-from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
-
 """
 Signal Aggregator for combining signals from multiple timeframes.
 
 Aggregate signals from multiple timeframes using weighted aggregation.
 """
 
+import math
+from typing import Any, Dict, List, Optional, Tuple
 
 # Import timeframe weights from config
 from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
 
 
+# ============================================================================
+# Signal Aggregator Class
+# ============================================================================
 class SignalAggregator:
     """Aggregate signals from multiple timeframes using weighted aggregation."""
 

@@ -1,11 +1,9 @@
-
-from pathlib import Path
-import sys
-
 """
 Test script for deeplearning_dataset.py - TFTDataModule and related functions.
 """
 
+import sys
+from pathlib import Path
 
 # Add parent directory to path to allow imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

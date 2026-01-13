@@ -1,16 +1,3 @@
-
-from typing import Optional, Tuple
-import asyncio
-import os
-import threading
-import time
-
-import pandas as pd
-
-from modules.common.ui.logging import (
-
-from modules.common.ui.logging import (
-
 """
 Forex Data Fetcher using TradingView scraper with tvDatafeed fallback.
 
@@ -26,8 +13,15 @@ Supports multiple forex exchanges:
 - Pepperstone
 """
 
+import asyncio
+import os
+import threading
+import time
+from typing import Optional, Tuple
 
+import pandas as pd
 
+from modules.common.ui.logging import (
     log_error,
     log_info,
     log_success,
@@ -71,7 +65,7 @@ class ForexDataFetcher:
         self.request_pause = request_pause
         self._request_lock = threading.Lock()
         self._last_request_ts = 0.0
-        
+
         # Try tvDatafeed first (primary source)
         self.tv_datafeed = None
         self._tvdatafeed_available = False
@@ -91,8 +85,11 @@ class ForexDataFetcher:
                 self.tv_datafeed = TvDatafeed()
                 log_info("tvDatafeed initialized in anonymous mode (primary source)")
                 if not username or not password:
-                    log_info("Tip: Set TRADINGVIEW_USERNAME and TRADINGVIEW_PASSWORD environment variables for authenticated access")
-            
+                    log_info(
+                        "Tip: Set TRADINGVIEW_USERNAME and TRADINGVIEW_PASSWORD "
+                        "environment variables for authenticated access"
+                    )
+
             self.Interval = Interval
             self._tvdatafeed_available = True
         except ImportError:
@@ -287,7 +284,7 @@ class ForexDataFetcher:
             # tvDatafeed returns DataFrame with datetime index and OHLCV columns
             # Ensure column names match our expected format
             df_columns_lower = {col.lower(): col for col in df.columns}
-            
+
             # Map columns to standard format
             column_mapping = {}
             for expected_col in ["open", "high", "low", "close", "volume"]:
@@ -364,7 +361,7 @@ class ForexDataFetcher:
             try:
                 # Convert symbol for this exchange
                 tv_symbol, normalized_exchange = self._convert_forex_symbol_for_tvdatafeed(symbol, exchange)
-                
+
                 log_info(f"Trying tvDatafeed {normalized_exchange}:{tv_symbol} ({timeframe}, {limit} candles)")
 
                 # Fetch data with timeout
@@ -388,7 +385,7 @@ class ForexDataFetcher:
                 else:
                     log_warn(f"No data from {normalized_exchange}:{tv_symbol}, trying next exchange...")
                     continue
-                    
+
             except asyncio.TimeoutError:
                 log_warn(f"Timeout fetching from {exchange}:{symbol}, trying next exchange...")
                 continue
@@ -423,7 +420,7 @@ class ForexDataFetcher:
         for exchange in self.SUPPORTED_FOREX_EXCHANGES:
             try:
                 exchange_symbol = self._convert_forex_symbol_to_tradingview(symbol, exchange)
-                tv_timeframe = self._convert_timeframe_to_tradingview(timeframe)
+                self._convert_timeframe_to_tradingview(timeframe)
 
                 log_info(f"Trying tradingview_scraper {exchange}: {exchange_symbol} ({timeframe}, {limit} candles)")
 
@@ -555,13 +552,16 @@ class ForexDataFetcher:
             try:
                 # Convert symbol for this exchange
                 tv_symbol, normalized_exchange = self._convert_forex_symbol_for_tvdatafeed(symbol, exchange)
-                
+
                 log_info(f"Trying tvDatafeed {normalized_exchange}:{tv_symbol} ({timeframe}, {limit} candles)")
 
                 # Fetch data using tvDatafeed.get_hist with signature:
-                # get_hist(symbol: str, exchange: str = 'NSE', interval: Interval = Interval.in_daily, 
-                #          n_bars: int = 10, fut_contract: int | None = None, extended_session: bool = False) -> DataFrame
-                # For forex: exchange='OANDA'/'FXCM'/'FOREXCOM'/'ICMARKETS'/'PEPPERSTONE', symbol=EURUSD (without '/')
+                # get_hist(symbol: str, exchange: str = 'NSE',
+                #          interval: Interval = Interval.in_daily,
+                #          n_bars: int = 10, fut_contract: int | None = None,
+                #          extended_session: bool = False) -> DataFrame
+                # For forex: exchange='OANDA'/'FXCM'/'FOREXCOM'/'ICMARKETS'/'PEPPERSTONE',
+                # symbol=EURUSD (without '/')
                 df = self._throttled_call(
                     self.tv_datafeed.get_hist,
                     symbol=tv_symbol,
@@ -569,7 +569,7 @@ class ForexDataFetcher:
                     interval=interval,
                     n_bars=limit,
                     fut_contract=None,
-                    extended_session=False
+                    extended_session=False,
                 )
 
                 if df is not None and not df.empty:
@@ -579,7 +579,7 @@ class ForexDataFetcher:
                 else:
                     log_warn(f"No data from {normalized_exchange}:{tv_symbol}, trying next exchange...")
                     continue
-                    
+
             except Exception as e:
                 last_error = e
                 log_warn(f"Error fetching from {exchange}:{symbol} - {e}, trying next exchange...")
@@ -625,7 +625,7 @@ class ForexDataFetcher:
                 try:
                     # Convert symbol to TradingView format with this exchange
                     exchange_symbol = self._convert_forex_symbol_to_tradingview(symbol, exchange)
-                # tv_timeframe = self._convert_timeframe_to_tradingview(timeframe)
+                    # tv_timeframe = self._convert_timeframe_to_tradingview(timeframe)
 
                     log_info(f"Trying tradingview_scraper {exchange}: {exchange_symbol} ({timeframe}, {limit} candles)")
 
@@ -650,7 +650,8 @@ class ForexDataFetcher:
                             # If we've been waiting too long without ANY data, try next exchange
                             if not first_candle_received and elapsed > timeout_seconds:
                                 log_warn(
-                                    f"Timeout: No data received after {timeout_seconds}s from {exchange}, trying next exchange..."
+                                    f"Timeout: No data received after {timeout_seconds}s from "
+                                    f"{exchange}, trying next exchange..."
                                 )
                                 break
 
@@ -667,13 +668,17 @@ class ForexDataFetcher:
 
                                 # If we got some data but then stopped, also check timeout
                                 if count > 0 and current_time - last_data_time > timeout_seconds:
-                                    log_warn(f"Timeout: Stopped receiving data after {count} candles from {exchange}, trying next exchange...")
+                                    log_warn(
+                                        f"Timeout: Stopped receiving data after {count} candles "
+                                        f"from {exchange}, trying next exchange..."
+                                    )
                                     break
 
                             # Check total timeout (double timeout for overall operation)
                             if elapsed > timeout_seconds * 2:
                                 log_warn(
-                                    f"Total timeout: Exceeded {timeout_seconds * 2}s waiting for {exchange}, trying next exchange..."
+                                    f"Total timeout: Exceeded {timeout_seconds * 2}s waiting "
+                                    f"for {exchange}, trying next exchange..."
                                 )
                                 break
 
@@ -686,7 +691,9 @@ class ForexDataFetcher:
                     except StopIteration:
                         pass
                     except Exception as e:
-                        log_warn(f"Error iterating TradingView data generator for {exchange}: {e}, trying next exchange...")
+                        log_warn(
+                            f"Error iterating TradingView data generator for {exchange}: {e}, trying next exchange..."
+                        )
                         break  # Break inner loop, continue to next exchange
 
                     if ohlcv_data:
@@ -705,7 +712,9 @@ class ForexDataFetcher:
                         missing_cols = [col for col in required_cols if col not in df.columns]
                         if not missing_cols:
                             source = f"tradingview_scraper-{exchange}"
-                            log_success(f"Fetched {len(df)} candles for {symbol} from {exchange} via tradingview_scraper")
+                            log_success(
+                                f"Fetched {len(df)} candles for {symbol} from {exchange} via tradingview_scraper"
+                            )
                             return df, source
                         else:
                             log_warn(f"{exchange} data missing columns: {missing_cols}, trying next exchange...")
@@ -713,7 +722,7 @@ class ForexDataFetcher:
                     else:
                         log_warn(f"No data from {exchange}, trying next exchange...")
                         continue  # Try next exchange
-                        
+
                 except Exception as e:
                     log_warn(f"tradingview_scraper failed for {exchange}:{symbol}: {e}, trying next exchange...")
                     continue  # Try next exchange
@@ -727,7 +736,7 @@ class ForexDataFetcher:
         symbol: str,
         timeframe: str = "1h",
         limit: int = 500,
-        use_tradingview: bool = True,
+        _use_tradingview: bool = True,  # noqa: ARG002
     ) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
         """
         Fetch OHLCV data with automatic fallback.
@@ -739,7 +748,7 @@ class ForexDataFetcher:
             symbol: Forex symbol (e.g., 'EUR/USD', 'GBP/USD')
             timeframe: Timeframe string (e.g., '1h', '4h', '1d')
             limit: Number of candles to fetch (default: 500)
-            use_tradingview: Parameter kept for compatibility (not used)
+            _use_tradingview: Parameter kept for compatibility (not used)
 
         Returns:
             Tuple[pd.DataFrame, str]: DataFrame with OHLCV data and source string.

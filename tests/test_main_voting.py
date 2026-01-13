@@ -1,17 +1,11 @@
+"""Tests for main_voting.py (Pure Voting System)"""
 
+import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
-import sys
 
 import pandas as pd
 import pytest
-import pytest
-
-"""
-Tests for main_voting.py (Pure Voting System).
-"""
-
-
 
 # Add parent directory to path
 ROOT = Path(__file__).resolve().parent.parent

@@ -1,24 +1,18 @@
-
-from typing import List
-import warnings
-
-import numpy as np
-
-from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
-from modules.hmm.core.high_order.state_expansion import map_expanded_to_base_state
-from modules.hmm.core.swings.swing_utils import safe_forward_backward
-from pomegranate.hmm import DenseHMM
-from modules.hmm.core.swings.swing_utils import safe_forward_backward
-from pomegranate.hmm import DenseHMM
-
 """
 High-Order HMM Prediction Functions.
 
 This module handles prediction of next states for high-order HMM.
 """
 
+import warnings
+from typing import List
 
+import numpy as np
+from pomegranate.hmm import DenseHMM
 
+from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
+from modules.hmm.core.high_order.state_expansion import map_expanded_to_base_state
+from modules.hmm.core.swings.swing_utils import safe_forward_backward
 
 
 def predict_next_hidden_state_forward_backward_high_order(
@@ -56,7 +50,8 @@ def predict_next_hidden_state_forward_backward_high_order(
     # Issue: log_alpha can have shape (batch_size, sequence_length, n_states) = (1, 93, 9)
     #        Using log_alpha[-1] incorrectly took the last batch instead of last time step
     # Solution: Use log_alpha[-1, -1, :] to get last batch AND last time step
-    # Debug evidence: log_alpha[-1] returned shape (93, 9) instead of (9,), causing next_hidden_proba to have 837 elements
+    # Debug evidence: log_alpha[-1] returned shape (93, 9) instead of (9,),
+    # causing next_hidden_proba to have 837 elements
     # Get the last row (last time step) of log_alpha
     # log_alpha shape can be:
     # - 1D: (n_states,) - already the last state

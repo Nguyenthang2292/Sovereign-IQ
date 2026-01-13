@@ -1,13 +1,3 @@
-
-from unittest.mock import MagicMock, Mock, patch
-import json
-import os
-
-import numpy as np
-import pandas as pd
-import pytest
-import pytest
-
 """
 Tests for MarketBatchScanner class.
 
@@ -20,7 +10,13 @@ Tests cover:
 - Results saving
 """
 
+import json
+import os
+from unittest.mock import MagicMock, Mock, patch
 
+import numpy as np
+import pandas as pd
+import pytest
 
 try:
     import ccxt

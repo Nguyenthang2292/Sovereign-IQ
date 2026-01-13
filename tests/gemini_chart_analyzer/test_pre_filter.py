@@ -1,14 +1,3 @@
-
-from unittest.mock import Mock, patch
-import sys
-
-import pandas as pd
-import pytest
-
-from modules.gemini_chart_analyzer.cli.pre_filter import pre_filter_symbols_with_hybrid, pre_filter_symbols_with_voting
-
-from modules.gemini_chart_analyzer.cli.pre_filter import pre_filter_symbols_with_hybrid, pre_filter_symbols_with_voting
-
 """
 Tests for pre-filter functions (pre_filter.py).
 
@@ -19,8 +8,13 @@ Tests cover:
 - Edge cases
 """
 
+import sys
+from unittest.mock import Mock, patch
 
+import pandas as pd
+import pytest
 
+from modules.gemini_chart_analyzer.cli.pre_filter import pre_filter_symbols_with_hybrid, pre_filter_symbols_with_voting
 
 # Test constants
 TEST_LIMIT = 500
@@ -76,8 +70,8 @@ class TestPreFilterWithVoting:
     def test_pre_filter_voting_no_atc_signals(self, sample_symbols):
         """Test when ATC scan returns no signals."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.VotingAnalyzer") as mock_voting_class,
         ):
             mock_analyzer = Mock()
@@ -95,8 +89,8 @@ class TestPreFilterWithVoting:
     def test_pre_filter_voting_success(self, sample_symbols, mock_voting_analyzer):
         """Test successful pre-filtering with voting mode."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.VotingAnalyzer") as mock_voting_class,
         ):
             mock_voting_class.return_value = mock_voting_analyzer
@@ -120,8 +114,8 @@ class TestPreFilterWithVoting:
     def test_pre_filter_voting_no_signals_found(self, sample_symbols):
         """Test when no signals are found after voting."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.VotingAnalyzer") as mock_voting_class,
         ):
             mock_analyzer = Mock()
@@ -142,8 +136,8 @@ class TestPreFilterWithVoting:
     def test_pre_filter_voting_error_handling(self, sample_symbols):
         """Test error handling in pre-filter."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.VotingAnalyzer") as mock_voting_class,
         ):
             mock_voting_class.side_effect = Exception("Test error")
@@ -156,8 +150,8 @@ class TestPreFilterWithVoting:
     def test_pre_filter_voting_sorted_by_score(self, sample_symbols, mock_voting_analyzer):
         """Test that results are sorted by weighted_score descending."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.VotingAnalyzer") as mock_voting_class,
         ):
             mock_voting_class.return_value = mock_voting_analyzer
@@ -182,8 +176,8 @@ class TestPreFilterWithHybrid:
     def test_pre_filter_hybrid_no_atc_signals(self, sample_symbols):
         """Test when ATC scan returns no signals."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.HybridAnalyzer") as mock_hybrid_class,
         ):
             mock_analyzer = Mock()
@@ -201,8 +195,8 @@ class TestPreFilterWithHybrid:
     def test_pre_filter_hybrid_success(self, sample_symbols, mock_hybrid_analyzer):
         """Test successful pre-filtering with hybrid mode."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.HybridAnalyzer") as mock_hybrid_class,
         ):
             mock_hybrid_class.return_value = mock_hybrid_analyzer
@@ -230,8 +224,8 @@ class TestPreFilterWithHybrid:
     def test_pre_filter_hybrid_no_signals_found(self, sample_symbols):
         """Test when no signals are found after hybrid filtering."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.HybridAnalyzer") as mock_hybrid_class,
         ):
             mock_analyzer = Mock()
@@ -254,8 +248,8 @@ class TestPreFilterWithHybrid:
     def test_pre_filter_hybrid_error_handling(self, sample_symbols):
         """Test error handling in pre-filter."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.HybridAnalyzer") as mock_hybrid_class,
         ):
             mock_hybrid_class.side_effect = Exception("Test error")
@@ -268,8 +262,8 @@ class TestPreFilterWithHybrid:
     def test_pre_filter_hybrid_no_duplicates(self, sample_symbols):
         """Test that duplicate symbols are not included."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.HybridAnalyzer") as mock_hybrid_class,
         ):
             mock_analyzer = Mock()
@@ -300,8 +294,8 @@ class TestPreFilterWithHybrid:
     def test_pre_filter_hybrid_spc_enabled(self, sample_symbols, mock_hybrid_analyzer):
         """Test hybrid mode with SPC enabled (default behavior)."""
         with (
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
             patch("modules.gemini_chart_analyzer.cli.pre_filter.HybridAnalyzer") as mock_hybrid_class,
         ):
             mock_hybrid_class.return_value = mock_hybrid_analyzer
@@ -309,7 +303,7 @@ class TestPreFilterWithHybrid:
             mock_hybrid_analyzer.calculate_spc_signals_for_all = Mock()
             mock_hybrid_analyzer.filter_by_decision_matrix = Mock()
 
-            result = pre_filter_symbols_with_hybrid(sample_symbols, TEST_TIMEFRAME, TEST_LIMIT)
+            pre_filter_symbols_with_hybrid(sample_symbols, TEST_TIMEFRAME, TEST_LIMIT)
 
             # SPC should be called when enabled (default)
             mock_hybrid_analyzer.calculate_spc_signals_for_all.assert_called_once()
@@ -328,8 +322,8 @@ class TestPreFilterStdinHandling:
 
         try:
             with (
-                patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager") as mock_exchange_mgr,
-                patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher") as mock_data_fetcher,
+                patch("modules.gemini_chart_analyzer.cli.pre_filter.ExchangeManager"),
+                patch("modules.gemini_chart_analyzer.cli.pre_filter.DataFetcher"),
                 patch("modules.gemini_chart_analyzer.cli.pre_filter.VotingAnalyzer") as mock_voting_class,
             ):
                 mock_voting_class.return_value = mock_voting_analyzer

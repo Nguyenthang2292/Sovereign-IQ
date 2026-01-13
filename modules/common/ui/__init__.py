@@ -1,9 +1,7 @@
+"""UI/CLI utilities for progress bars, logging, and formatting."""
 
 from .formatting import color_text, extract_dict_from_namespace, format_price, prompt_user_input
 from .logging import (
-
-"""UI/CLI utilities for progress bars, logging, and formatting."""
-
     log_analysis,
     log_data,
     log_debug,

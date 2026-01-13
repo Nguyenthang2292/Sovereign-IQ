@@ -1,4 +1,3 @@
-
 from typing import Optional
 
 import numpy as np
@@ -6,12 +5,7 @@ import pandas as pd
 
 from modules.common.utils import log_error, log_warn
 
-from modules.common.utils import log_error, log_warn
-
 """Calculate exponential growth factor over time."""
-
-
-
 
 
 def exp_growth(

@@ -1,10 +1,3 @@
-
-from typing import Any, Dict, List, Optional, Tuple
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Risk calculator for portfolio risk metrics (PnL, Delta, Beta, VaR).
 
@@ -13,7 +6,10 @@ risk metrics including profit and loss (PnL), delta exposure, beta-weighted delt
 and Value at Risk (VaR) for cryptocurrency portfolios.
 """
 
+from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
+import pandas as pd
 
 try:
     from config import (
@@ -91,7 +87,8 @@ class PortfolioRiskCalculator:
 
         Returns:
             Tuple containing:
-                - DataFrame with per-position statistics (Symbol, Direction, Entry, Current, Size, PnL, Delta, Beta, Beta Delta)
+                - DataFrame with per-position statistics
+                  (Symbol, Direction, Entry, Current, Size, PnL, Delta, Beta, Beta Delta)
                 - Total portfolio PnL in USDT
                 - Total portfolio delta in USDT
                 - Total portfolio beta-weighted delta in USDT

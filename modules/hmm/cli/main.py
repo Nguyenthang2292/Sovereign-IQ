@@ -1,27 +1,21 @@
+"""
+CLI utility for running the HMM Signal Combiner process on the latest OHLCV data.
 
-from typing import Any, Dict, Optional
+Fetch data using `ExchangeManager` + `DataFetcher`, then call `modules.hmm.signal_combiner.hmm_signals`.
+Combine High-Order HMM and HMM-KAMA to generate trading signals.
+See the structure of `xgboost_prediction_main.py` and `pairs_trading_main_v2.py` for reference.
+"""
+
+from __future__ import annotations
+
 import argparse
 import warnings
+from typing import Any, Dict, Optional
 
 from colorama import Fore, Style
 from colorama import init as colorama_init
 
-from __future__ import annotations
 from config import (
-from __future__ import annotations
-from config import (
-
-"""
-CLI tiện ích chạy quy trình HMM Signal Combiner trên dữ liệu OHLCV mới nhất.
-
-Lấy dữ liệu qua `ExchangeManager` + `DataFetcher`, sau đó gọi `modules.hmm.signal_combiner.hmm_signals`.
-Kết hợp High-Order HMM và HMM-KAMA để tạo trading signals.
-Tham khảo cách tổ chức của `xgboost_prediction_main.py` và `pairs_trading_main_v2.py`.
-"""
-
-
-
-
     DEFAULT_EXCHANGE_STRING,
     DEFAULT_EXCHANGES,
     DEFAULT_LIMIT,
@@ -269,7 +263,8 @@ def _print_summary(
         else:
             # HOLD or conflict - show both directions
             print(
-                f"Price Targets (window {std_targets['window']}, Mean: {std_targets['basis']:.2f}, Std: {std_targets['std']:.2f}):"
+                f"Price Targets (window {std_targets['window']}, "
+                f"Mean: {std_targets['basis']:.2f}, Std: {std_targets['std']:.2f}):"
             )
             print(
                 color_text(

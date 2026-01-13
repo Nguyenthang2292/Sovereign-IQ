@@ -1,10 +1,3 @@
-
-from typing import Dict, Optional, Union
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Johansen cointegration test for quantitative analysis.
 
@@ -12,7 +5,10 @@ This is a general-purpose cointegration test that can be used for any
 multivariate time series analysis, not just pairs trading.
 """
 
+from typing import Dict, Optional, Union
 
+import numpy as np
+import pandas as pd
 
 try:
     from statsmodels.tsa.vector_ar.vecm import coint_johansen  # type: ignore

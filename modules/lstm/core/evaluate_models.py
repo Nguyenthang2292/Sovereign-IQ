@@ -1,18 +1,14 @@
-
-from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score
-import numpy as np
-import torch
-
-from config.evaluation import CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLDS
-from modules.common.ui.logging import log_analysis, log_error, log_warn
-from modules.common.ui.logging import log_analysis, log_error, log_warn
-
 """
 Model evaluation utilities for LSTM models.
 Provides functions for batch evaluation and confidence-based evaluation.
 """
 
+import numpy as np
+import torch
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score
 
+from config.evaluation import CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLDS
+from modules.common.ui.logging import log_analysis, log_error, log_warn
 
 # Default number of classes for trading signals: SELL (-1), NEUTRAL (0), BUY (1)
 DEFAULT_NUM_CLASSES = 3

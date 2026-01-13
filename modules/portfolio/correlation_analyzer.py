@@ -1,10 +1,3 @@
-
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Correlation analyzer for portfolio correlation calculations.
 
@@ -13,7 +6,10 @@ various correlation metrics between portfolio positions and new symbols,
 including weighted correlations and portfolio return correlations.
 """
 
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+import numpy as np
+import pandas as pd
 
 if TYPE_CHECKING:
     from modules.common.models.position import Position
@@ -125,7 +121,8 @@ class PortfolioCorrelationAnalyzer:
 
         Returns:
             Tuple containing:
-                - weighted_correlation: Average weighted correlation between all position pairs (None if insufficient data)
+                - weighted_correlation: Average weighted correlation between all
+                  position pairs (None if insufficient data)
                 - position_correlations_list: List of correlation details for each pair
         """
         if len(self.positions) < 2:
@@ -409,7 +406,8 @@ class PortfolioCorrelationAnalyzer:
                 weight_pct = (detail["weight"] / total_weight) * 100
                 if log_data:
                     log_data(
-                        f"  {detail['symbol']:12} ({detail['direction']:5}, {detail['size']:>8.2f} USDT, {weight_pct:>5.1f}%): "
+                        f"  {detail['symbol']:12} ({detail['direction']:5}, "
+                        f"{detail['size']:>8.2f} USDT, {weight_pct:>5.1f}%): "
                         f"{detail['correlation']:>6.4f}"
                     )
 

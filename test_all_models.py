@@ -1,18 +1,15 @@
-
+import random
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, List, Tuple
-import random
-import sys
 
-import pandas as pd
 import pandas as pd
 
 """
 Script để test tất cả models trong artifacts/models/lstm và so sánh signals.
 Giúp phát hiện bias và phân tích performance của từng model.
 """
-
 
 
 # Add project root to path
@@ -236,7 +233,8 @@ def print_aggregated_results(all_results: List[Dict], results_by_model: Dict[str
         print(f"\nAverage confidence: {avg_confidence:.3f}")
         low_confidence_count = sum([1 for c in valid_confidences if c < CONFIDENCE_THRESHOLD])
         print(
-            f"Low confidence tests (< {CONFIDENCE_THRESHOLD}): {low_confidence_count}/{len(valid_confidences)} ({low_confidence_count / len(valid_confidences) * 100:.1f}%)"
+            f"Low confidence tests (< {CONFIDENCE_THRESHOLD}): {low_confidence_count}/{len(valid_confidences)}\n"
+            f"    ({low_confidence_count / len(valid_confidences) * 100:.1f}%)"
         )
 
     # Per-model statistics
@@ -272,7 +270,8 @@ def print_aggregated_results(all_results: List[Dict], results_by_model: Dict[str
         )
         if neutral_ratio > 0.7:
             print(
-                f"\n{Fore.YELLOW}⚠️  WARNING: Potential NEUTRAL bias detected! ({neutral_ratio * 100:.1f}% NEUTRAL){Style.RESET_ALL}"
+                f"\n{Fore.YELLOW}⚠️  WARNING: Potential NEUTRAL bias detected!{Style.RESET_ALL}\n"
+                f"{Fore.YELLOW}    ({neutral_ratio * 100:.1f}% NEUTRAL){Style.RESET_ALL}"
             )
             print("   This might indicate:")
             print("   - Models are too conservative")
@@ -320,7 +319,8 @@ def print_results_table(results: List[Dict]) -> None:
         neutral_prob = probs.get("NEUTRAL", 0.0)
         sell_prob = probs.get("SELL", 0.0)
 
-        row = f"{model_name:<50} {signal_str:<20} {confidence_str:<20} {buy_prob:.3f}   {neutral_prob:.3f}   {sell_prob:.3f}"
+        row = f"{model_name:<50} {signal_str:<20} {confidence_str:<20}\n"
+        row += f"{'':<20} {buy_prob:.3f}   {neutral_prob:.3f}   {sell_prob:.3f}"
         print(row)
 
     print("=" * 100)
@@ -330,11 +330,12 @@ def print_results_table(results: List[Dict]) -> None:
     print(f"\n{'STATISTICS':^100}")
     print("-" * 100)
     print(f"Total models tested: {len(results)}")
-    print(f"BUY signals:    {signal_counts.get('BUY', 0)} ({signal_counts.get('BUY', 0) / len(results) * 100:.1f}%)")
-    print(f"SELL signals:   {signal_counts.get('SELL', 0)} ({signal_counts.get('SELL', 0) / len(results) * 100:.1f}%)")
-    print(
-        f"NEUTRAL signals: {signal_counts.get('NEUTRAL', 0)} ({signal_counts.get('NEUTRAL', 0) / len(results) * 100:.1f}%)"
-    )
+    print(f"BUY signals:    {signal_counts.get('BUY', 0)}")
+    print(f"               ({signal_counts.get('BUY', 0) / len(results) * 100:.1f}%)")
+    print(f"SELL signals:   {signal_counts.get('SELL', 0)}")
+    print(f"               ({signal_counts.get('SELL', 0) / len(results) * 100:.1f}%)")
+    print(f"NEUTRAL signals: {signal_counts.get('NEUTRAL', 0)}")
+    print(f"                ({signal_counts.get('NEUTRAL', 0) / len(results) * 100:.1f}%)")
 
     # Average confidence
     avg_confidence = sum([r["confidence"] for r in results]) / len(results) if results else 0
@@ -349,7 +350,8 @@ def print_results_table(results: List[Dict]) -> None:
     neutral_ratio = signal_counts.get("NEUTRAL", 0) / len(results) if results else 0
     if neutral_ratio > 0.7:
         print(
-            f"\n{Fore.YELLOW}⚠️  WARNING: Potential NEUTRAL bias detected! ({neutral_ratio * 100:.1f}% NEUTRAL){Style.RESET_ALL}"
+            f"\n{Fore.YELLOW}⚠️  WARNING: Potential NEUTRAL bias detected!{Style.RESET_ALL}\n"
+            f"{Fore.YELLOW}    ({neutral_ratio * 100:.1f}% NEUTRAL){Style.RESET_ALL}"
         )
         print("   This might indicate:")
         print("   - Models are too conservative")

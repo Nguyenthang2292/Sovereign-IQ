@@ -1,15 +1,3 @@
-
-from typing import Any, Dict, List
-import math
-import traceback
-
-from pandas.core.frame import DataFrame
-import pandas as pd
-
-from config.position_sizing import (
-
-from config.position_sizing import (
-
 """
 Position Sizer - Main orchestrator for position sizing calculation.
 
@@ -17,8 +5,14 @@ This module combines backtesting and Kelly calculation
 to determine optimal position sizes for trading symbols.
 """
 
+import math
+import traceback
+from typing import Any, Dict, List
 
+import pandas as pd
+from pandas.core.frame import DataFrame
 
+from config.position_sizing import (
     DEFAULT_LOOKBACK_DAYS,
     DEFAULT_MAX_PORTFOLIO_EXPOSURE,
     DEFAULT_MAX_POSITION_SIZE,
@@ -117,8 +111,10 @@ class PositionSizer:
                 'position_size_usdt': float,  # Position size in USDT
                 'position_size_pct': float,  # Position size as percentage of account
                 'kelly_fraction': float,  # Raw Kelly fraction calculated from backtest metrics
-                'adjusted_kelly_fraction': float,  # Kelly fraction adjusted by cumulative performance multiplier and bounds
-                'cumulative_performance_multiplier': float,  # Multiplier based on cumulative equity curve performance (0.5-1.5x)
+                'adjusted_kelly_fraction': float,  # Kelly fraction adjusted by cumulative performance multiplier
+                #   and bounds
+                'cumulative_performance_multiplier': float,  # Multiplier based on cumulative equity curve performance
+                #   (0.5-1.5x)
                 'metrics': dict,  # Backtest performance metrics (win_rate, avg_win, avg_loss, etc.)
                 'backtest_result': dict,  # Full backtest result including trades and equity curve
             }
@@ -249,7 +245,6 @@ class PositionSizer:
             # Apply bounds
             # FIX: Don't clamp to min_position_size if kelly_fraction is 0.0 (no trades or invalid)
             # If Kelly is 0, it means strategy is not working, so position size should be 0
-            adjusted_before = adjusted_kelly_fraction
             if kelly_fraction == 0.0:
                 # If Kelly is 0 (no trades or invalid), keep it at 0, don't clamp to minimum
                 adjusted_kelly_fraction = 0.0
@@ -356,7 +351,8 @@ class PositionSizer:
         # Normalize if total exposure exceeds maximum
         if total_exposure > self.max_portfolio_exposure:
             log_warn(
-                f"Total exposure ({total_exposure * 100:.1f}%) exceeds maximum ({self.max_portfolio_exposure * 100:.1f}%). Normalizing..."
+                f"Total exposure ({total_exposure * 100:.1f}%) exceeds maximum "
+                f"({self.max_portfolio_exposure * 100:.1f}%). Normalizing..."
             )
 
             # Check for division by zero

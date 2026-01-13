@@ -1,21 +1,15 @@
-
-from typing import Any
-
-from colorama import Fore
-import pandas as pd
-
-from modules.common.utils import (
-
-from modules.common.utils import (
-
 """
 Display utilities for ATC + Range Oscillator + SPC Hybrid and Pure Voting.
 
 This module contains functions for displaying configuration and voting metadata.
 """
 
+from typing import Any
 
+import pandas as pd
+from colorama import Fore
 
+from modules.common.utils import (
     color_text,
     log_data,
     log_progress,
@@ -28,7 +22,7 @@ def display_config(
     args: Any,
     get_oscillator_params: callable,
     get_spc_params: callable = None,
-    mode: str = "hybrid",
+    mode: str = "voting",
 ) -> None:
     """
     Display configuration information.
@@ -84,8 +78,8 @@ def display_config(
             log_data(f"  Min Votes: {args.min_votes}")
     else:  # voting mode
         log_progress("\nDecision Matrix Configuration (Pure Voting):")
-        log_data(f"  Voting Threshold: {args.voting_threshold}")
-        log_data(f"  Min Votes: {args.min_votes}")
+        log_data(f"  Voting Threshold: {getattr(args, 'voting_threshold', 'N/A')}")
+        log_data(f"  Min Votes: {getattr(args, 'min_votes', 'N/A')}")
 
 
 def display_voting_metadata(

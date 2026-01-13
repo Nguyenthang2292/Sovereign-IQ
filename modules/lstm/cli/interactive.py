@@ -1,12 +1,3 @@
-
-from typing import List, Tuple
-
-from colorama import Fore, Style
-
-from config.common import (
-
-from config.common import (
-
 """
 Interactive menu and prompt utilities for LSTM CLI.
 
@@ -17,8 +8,11 @@ This module provides interactive menus and prompts for:
 - Training workflow
 """
 
+from typing import List, Tuple
 
+from colorama import Fore, Style
 
+from config.common import (
     DEFAULT_CRYPTO_SYMBOLS_FOR_TRAINING_DL,
     DEFAULT_SYMBOL,
     DEFAULT_TIMEFRAME,

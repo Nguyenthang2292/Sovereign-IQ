@@ -1,17 +1,11 @@
+"""Tests for main_hybrid.py (Hybrid Approach)"""
 
+import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
-import sys
 
 import pandas as pd
 import pytest
-import pytest
-
-"""
-Tests for main_hybrid.py (Hybrid Approach).
-"""
-
-
 
 # Add parent directory to path
 ROOT = Path(__file__).resolve().parent.parent

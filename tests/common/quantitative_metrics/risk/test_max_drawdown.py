@@ -1,15 +1,11 @@
-
 import numpy as np
 import pandas as pd
 
-from modules.common.quantitative_metrics import calculate_max_drawdown
 from modules.common.quantitative_metrics import calculate_max_drawdown
 
 """
 Tests for max_drawdown module.
 """
-
-
 
 
 def test_calculate_max_drawdown_matches_manual():

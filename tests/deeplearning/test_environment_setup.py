@@ -1,12 +1,10 @@
-
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-import sys
-
 """
 Test script for modules.deeplearning_environment_setup - Environment checks.
 """
 
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

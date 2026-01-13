@@ -1,6 +1,3 @@
-
-from trades and equity curves.
-
 """
 Performance metrics calculation for backtester.
 

@@ -1,12 +1,8 @@
-
 import numpy as np
 import pandas as pd
 
 from modules.hmm.cli.main import _compute_std_targets, _print_summary
 from modules.hmm.signals.resolution import HOLD, LONG, SHORT
-from modules.hmm.signals.resolution import HOLD, LONG, SHORT
-
-
 
 
 def _sample_close_dataframe(length: int = 60) -> pd.DataFrame:

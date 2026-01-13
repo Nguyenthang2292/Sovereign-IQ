@@ -1,9 +1,7 @@
-
-from typing import Any, Dict, Optional, Tuple
 import gc
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
-import pandas as pd
 import pandas as pd
 
 """Training utilities for Random Forest models.
@@ -11,7 +9,6 @@ import pandas as pd
 This module provides utilities for training Random Forest models, including
 SMOTE for class balancing and model creation with class weights.
 """
-
 
 
 try:

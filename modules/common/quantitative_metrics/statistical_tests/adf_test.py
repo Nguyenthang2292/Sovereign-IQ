@@ -1,10 +1,3 @@
-
-from typing import Dict, Optional, Union
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Augmented Dickey-Fuller (ADF) test for quantitative analysis.
 
@@ -12,7 +5,10 @@ This is a general-purpose ADF test that can be used for any time series
 stationarity testing, not just pairs trading.
 """
 
+from typing import Dict, Optional, Union
 
+import numpy as np
+import pandas as pd
 
 try:
     from statsmodels.tsa.stattools import adfuller  # type: ignore

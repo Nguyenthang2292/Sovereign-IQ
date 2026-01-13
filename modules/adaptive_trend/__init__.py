@@ -1,6 +1,3 @@
-
-from modules.adaptive_trend.cli import (
-
 """
 Adaptive Trend Classification (ATC) Module.
 
@@ -15,8 +12,7 @@ Core Components:
 - CLI: Command-line interface components
 """
 
-# Core analysis functions
-# CLI components
+from modules.adaptive_trend.cli import (
     display_atc_signals,
     display_scan_results,
     list_futures_symbols,

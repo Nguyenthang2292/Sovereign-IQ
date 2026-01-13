@@ -1,9 +1,7 @@
+"""Configuration for consensus signal generation."""
 
 from dataclasses import dataclass
 from typing import Literal
-
-"""Configuration for consensus signal generation."""
-
 
 
 @dataclass

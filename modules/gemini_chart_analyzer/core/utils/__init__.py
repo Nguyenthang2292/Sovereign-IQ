@@ -1,8 +1,6 @@
-
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
-from modules.common.utils import normalize_timeframe
 from modules.common.utils import normalize_timeframe
 
 """
@@ -10,7 +8,6 @@ Utility modules for gemini chart analyzer.
 
 This module provides utility functions for multi-timeframe analysis and common utilities.
 """
-
 
 
 # Default timeframes for multi-timeframe analysis

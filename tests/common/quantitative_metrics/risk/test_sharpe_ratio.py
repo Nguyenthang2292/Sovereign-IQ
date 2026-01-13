@@ -1,15 +1,11 @@
-
 import numpy as np
 import pandas as pd
 
-from modules.common.quantitative_metrics import calculate_spread_sharpe
 from modules.common.quantitative_metrics import calculate_spread_sharpe
 
 """
 Tests for sharpe_ratio module.
 """
-
-
 
 
 def test_calculate_spread_sharpe_matches_manual_computation():

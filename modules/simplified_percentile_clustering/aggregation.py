@@ -1,12 +1,3 @@
-
-from typing import Dict, Optional, Tuple
-
-import numpy as np
-
-from config import (
-
-from config import (
-
 """
 SPC Vote Aggregation Module.
 
@@ -22,8 +13,11 @@ Features:
 - Multiple consensus modes (threshold, weighted)
 """
 
+from typing import Dict, Optional, Tuple
 
+import numpy as np
 
+from config import (
     AGREEMENT_WEIGHT,
     DECISION_MATRIX_SPC_STRATEGY_ACCURACIES,
     STRENGTH_WEIGHT,

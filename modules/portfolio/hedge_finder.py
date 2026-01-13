@@ -1,12 +1,3 @@
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from math import ceil
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
-import os
-
-import numpy as np
-import numpy as np
-
 """
 Hedge finder for discovering and analyzing hedge candidates.
 
@@ -15,7 +6,12 @@ analyzing hedge candidates for cryptocurrency portfolios. It uses correlation
 analysis and beta-weighted calculations to recommend optimal hedging strategies.
 """
 
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from math import ceil
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
 
+import numpy as np
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher

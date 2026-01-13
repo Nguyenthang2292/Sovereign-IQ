@@ -1,15 +1,11 @@
+"""
+Tests for clustering module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.simplified_percentile_clustering.core.clustering import (
-from modules.simplified_percentile_clustering.core.clustering import (
-
-"""
-Tests for clustering module.
-"""
-
-
     ClusteringConfig,
     ClusteringResult,
     SimplifiedPercentileClustering,

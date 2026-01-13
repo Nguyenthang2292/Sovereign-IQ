@@ -1,16 +1,12 @@
+"""
+Tests for centers module.
+"""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from modules.simplified_percentile_clustering.core.centers import (
-from modules.simplified_percentile_clustering.core.centers import (
-
-"""
-Tests for centers module.
-"""
-
-
     ClusterCenters,
     compute_centers,
 )

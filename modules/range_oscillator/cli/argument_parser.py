@@ -1,6 +1,3 @@
-
-import argparse
-
 """
 Command-line argument parser for ATC + Range Oscillator combined signal filter.
 
@@ -8,6 +5,7 @@ This module provides the main argument parser for the ATC + Range Oscillator CLI
 defining all command-line options and their default values.
 """
 
+import argparse
 
 try:
     from config import DEFAULT_TIMEFRAME

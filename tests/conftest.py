@@ -1,15 +1,14 @@
+"""
+This module configures pytest settings and provides fixtures for testing.
+It suppresses certain warnings, handles pytest capture issues on Windows,
+and defines reusable fixtures to streamline test setup.
+"""
 
-from pathlib import Path
-from unittest.mock import Mock
 import sys
 import warnings
 
 import numpy as np
-import pandas as pd
 import pytest
-import pytest
-
-
 
 # Suppress warnings from pytorch_forecasting about non-writable NumPy arrays
 warnings.filterwarnings("ignore", message=".*The given NumPy array is not writable.*")
@@ -39,7 +38,7 @@ def config_factory():
     def _create_config(**kwargs):
         """Create a Config instance with specified attributes."""
         from types import SimpleNamespace
-        
+
         config = SimpleNamespace()
         # Set default values for all possible attributes
         config.timeframe = kwargs.get("timeframe", None)

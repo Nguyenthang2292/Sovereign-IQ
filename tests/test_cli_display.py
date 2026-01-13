@@ -1,15 +1,4 @@
-
-from unittest.mock import patch
-import re
-
-import pandas as pd
-
-from cli.display import (
-
-from cli.display import (
-
-"""
-Tests for cli/display.py.
+"""Tests for cli/display.py.
 
 Tests cover:
 - display_config function
@@ -17,8 +6,12 @@ Tests cover:
 - Edge cases and different modes
 """
 
+import re
+from unittest.mock import patch
 
+import pandas as pd
 
+from cli.display import (
     display_config,
     display_voting_metadata,
 )

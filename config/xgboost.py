@@ -1,6 +1,3 @@
-
-from .model_features import MODEL_FEATURES  # noqa: F401
-
 """
 XGBoost Prediction Configuration.
 

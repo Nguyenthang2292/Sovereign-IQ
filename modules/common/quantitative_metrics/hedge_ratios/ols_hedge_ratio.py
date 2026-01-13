@@ -1,10 +1,3 @@
-
-from typing import Optional
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 OLS hedge ratio calculation for quantitative analysis.
 
@@ -32,7 +25,10 @@ When to Use OLS vs Kalman:
 - Kalman: Best for evolving relationships, adapts to regime changes, more complex
 """
 
+from typing import Optional
 
+import numpy as np
+import pandas as pd
 
 try:
     from config import (

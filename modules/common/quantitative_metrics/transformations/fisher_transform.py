@@ -1,10 +1,3 @@
-
-import numpy as np
-import pandas as pd
-
-from __future__ import annotations
-from __future__ import annotations
-
 """
 Fisher Transform indicator for technical analysis.
 
@@ -12,7 +5,10 @@ The Fisher Transform is a mathematical transformation that converts prices into
 a Gaussian normal distribution, making it easier to identify turning points.
 """
 
+from __future__ import annotations
 
+import numpy as np
+import pandas as pd
 
 # Try to import Numba for JIT compilation, fallback if not available
 try:

@@ -1,4 +1,3 @@
-
 from types import SimpleNamespace
 
 import numpy as np
@@ -7,15 +6,10 @@ import pytest
 
 from modules.position_sizing.core.kelly_calculator import BayesianKellyCalculator
 from modules.position_sizing.core.position_sizer import PositionSizer
-from modules.position_sizing.core.kelly_calculator import BayesianKellyCalculator
-from modules.position_sizing.core.position_sizer import PositionSizer
 
 """
 Integration tests for Position Sizing module.
 """
-
-
-
 
 
 @pytest.fixture
@@ -135,7 +129,7 @@ def test_kelly_calculator_integration(mock_data_fetcher):
 
 def test_error_handling_in_position_sizing(mock_data_fetcher):
     """Test error handling in position sizing."""
-    position_sizer = PositionSizer(mock_data_fetcher)
+    PositionSizer(mock_data_fetcher)
 
     # Test with invalid symbol (should return empty result)
     def failing_fetch(symbol, **kwargs):

@@ -1,17 +1,15 @@
-
-from functools import lru_cache
-from pathlib import Path
-from typing import Dict, Optional
-import json
-import logging
-import re
-
 """
 Translation/i18n utilities for FastAPI backend.
 
 Provides locale-aware message translation using JSON locale files.
 """
 
+import json
+import logging
+import re
+from functools import lru_cache
+from pathlib import Path
+from typing import Dict, Optional
 
 # Module-level logger
 logger = logging.getLogger(__name__)

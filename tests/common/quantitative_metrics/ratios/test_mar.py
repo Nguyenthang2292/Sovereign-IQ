@@ -1,15 +1,11 @@
-
 import numpy as np
 import pandas as pd
 
-from modules.common.quantitative_metrics import calculate_mar
 from modules.common.quantitative_metrics import calculate_mar
 
 """
 Tests for mar module.
 """
-
-
 
 
 def test_calculate_mar_matches_manual_computation_sma():

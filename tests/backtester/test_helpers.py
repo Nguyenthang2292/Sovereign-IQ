@@ -1,11 +1,9 @@
-
-from contextlib import contextmanager
-from unittest.mock import patch
-
 """
 Helper utilities for backtester tests.
 """
 
+from contextlib import contextmanager
+from unittest.mock import patch
 
 
 @contextmanager

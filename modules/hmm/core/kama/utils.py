@@ -1,18 +1,14 @@
-
-from contextlib import contextmanager
-import functools
-import threading
-
-from modules.common.utils import log_error, log_warn
-from modules.common.utils import log_error, log_warn
-
 """
 HMM-KAMA Utility Functions.
 
 This module contains utility functions like decorators and context managers.
 """
 
+import functools
+import threading
+from contextlib import contextmanager
 
+from modules.common.utils import log_error, log_warn
 
 _thread_local = threading.local()
 
@@ -35,7 +31,8 @@ def prevent_infinite_loop(max_calls=3):
             try:
                 if _thread_local.call_counts[func_name] > 1:
                     log_warn(
-                        f"Multiple calls detected for {func_name} ({_thread_local.call_counts[func_name]}). Possible infinite loop."
+                        f"Multiple calls detected for {func_name} "
+                        f"({_thread_local.call_counts[func_name]}). Possible infinite loop."
                     )
                     if _thread_local.call_counts[func_name] > max_calls:
                         log_error(f"Too many recursive calls for {func_name}. Breaking to prevent infinite loop.")

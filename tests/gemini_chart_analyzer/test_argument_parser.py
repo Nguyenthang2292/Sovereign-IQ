@@ -1,12 +1,3 @@
-
-from unittest.mock import patch
-
-import pytest
-
-from modules.gemini_chart_analyzer.cli.argument_parser import (
-
-from modules.gemini_chart_analyzer.cli.argument_parser import (
-
 """
 Tests for argument_parser module.
 
@@ -18,8 +9,11 @@ Tests cover:
 - Chart figsize parsing
 """
 
+from unittest.mock import patch
 
+import pytest
 
+from modules.gemini_chart_analyzer.cli.argument_parser import (
     _format_current_value,
     parse_args,
 )

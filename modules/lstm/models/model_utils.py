@@ -1,26 +1,20 @@
+"""
+Utility functions for LSTM models (loading and inference).
+"""
 
 from pathlib import Path
 from typing import Optional
 
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from config.evaluation import CONFIDENCE_THRESHOLD
 from config.lstm import KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE, MODELS_DIR, WINDOW_SIZE_LSTM
 from config.model_features import MODEL_FEATURES
 from modules.common.ui.logging import (
-from config.model_features import MODEL_FEATURES
-from modules.common.ui.logging import (
-
-"""
-Utility functions for LSTM models (loading and inference).
-"""
-
-
-
     log_debug,
     log_error,
     log_info,
@@ -291,7 +285,9 @@ def get_latest_signal(
         # Debug: Log input window info
         log_debug(f"Input window shape: {input_window.shape}, dtype: {input_window.dtype}")
         log_debug(
-            f"Input window stats: min={input_window.min().item():.4f}, max={input_window.max().item():.4f}, mean={input_window.mean().item():.4f}"
+            f"Input window stats: min={input_window.min().item():.4f}, "
+            f"max={input_window.max().item():.4f}, "
+            f"mean={input_window.mean().item():.4f}"
         )
 
         model.eval()
@@ -301,7 +297,9 @@ def get_latest_signal(
             # Debug: Log model output info
             log_debug(f"Model output shape: {model_output.shape}, dtype: {model_output.dtype}")
             log_debug(
-                f"Model output stats: min={model_output.min().item():.4f}, max={model_output.max().item():.4f}, mean={model_output.mean().item():.4f}"
+                f"Model output stats: min={model_output.min().item():.4f}, "
+                f"max={model_output.max().item():.4f}, "
+                f"mean={model_output.mean().item():.4f}"
             )
 
             # Check if output is 2D (batch, classes) or already 1D
@@ -364,8 +362,9 @@ def get_latest_signal(
                 model_type = f"CNN-{model_type}"
 
         device_info = "GPU" if model_device.type in ("cuda", "mps") else "CPU"
+        prob_str = f"[{prediction_probs[0]:.3f}, {prediction_probs[1]:.3f}, {prediction_probs[2]:.3f}]"
         log_model(
-            f"{model_type} ({device_info}) - Class: {predicted_class}, Confidence: {confidence:.3f}, Probs: [{prediction_probs[0]:.3f}, {prediction_probs[1]:.3f}, {prediction_probs[2]:.3f}]"
+            f"{model_type} ({device_info}) - Class: {predicted_class}, Confidence: {confidence:.3f}, Probs: {prob_str}"
         )
 
         if confidence >= CONFIDENCE_THRESHOLD:

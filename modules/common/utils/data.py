@@ -1,13 +1,3 @@
-
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
-
-import pandas as pd
-
-from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.ui.logging import log_debug, log_error, log_warn
-from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.ui.logging import log_debug, log_error, log_warn
-
 """
 Data utilities for DataFrame/Series manipulation and OHLCV data fetching.
 
@@ -17,8 +7,12 @@ This module provides utilities for:
 - Fetching OHLCV data from exchanges
 """
 
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
+import pandas as pd
 
+from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.ui.logging import log_debug, log_error, log_warn
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
@@ -190,7 +184,8 @@ def fetch_ohlcv_data_dict(
 
     if error_count:
         log_warn(
-            f"fetch_ohlcv_data_dict completed with {error_count} error(s) for symbols {symbols} and timeframes {timeframes}"
+            f"fetch_ohlcv_data_dict completed with {error_count} error(s) "
+            f"for symbols {symbols} and timeframes {timeframes}"
         )
     if not all_symbols_ohlcv_data:
         log_error("fetch_ohlcv_data_dict did not load any data.")

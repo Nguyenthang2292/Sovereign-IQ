@@ -1,17 +1,3 @@
-
-from multiprocessing import Pool, cpu_count
-import functools
-import pickle
-import signal
-import threading
-
-import numpy as np
-import pandas as pd
-
-from config.position_sizing import (
-
-from config.position_sizing import (
-
 """
 Signal calculation for backtester.
 
@@ -19,8 +5,16 @@ This module contains functions for calculating trading signals,
 both sequentially and in parallel using multiprocessing.
 """
 
+import functools
+import pickle
+import signal
+import threading
+from multiprocessing import Pool, cpu_count
 
+import numpy as np
+import pandas as pd
 
+from config.position_sizing import (
     BATCH_SIZE,
     BATCH_SIZE_OVERHEAD_FACTOR,
     HYBRID_OSC_LENGTH,

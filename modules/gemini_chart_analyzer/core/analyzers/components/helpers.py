@@ -1,31 +1,33 @@
+"""Helper utilities used by the Gemini chart analyzer."""
 
-from typing import List, Optional
 import os
+from typing import List, Optional
+
+import PIL.Image
 
 from .image_config import ImageValidationConfig
 from .model_config import GeminiModelType
-import PIL.Image
-import PIL.Image
-
-"""Helper utilities used by the Gemini chart analyzer."""
-
-
-
 
 
 def select_best_model(available_models: Optional[List[str]] = None) -> str:
-    """Choose the highest priority Gemini model from the available list."""
-    if available_models:
-        available_model_types: List[GeminiModelType] = []
-        for model_name in available_models:
-            model_type = GeminiModelType.from_name(model_name)
-            if model_type:
-                available_model_types.append(model_type)
-        if available_model_types:
-            available_model_types.sort(key=lambda m: m.priority)
-            return available_model_types[0].name
-        return available_models[0] if available_models else GeminiModelType.FLASH_3_PREVIEW.name
-    return GeminiModelType.FLASH_3_PREVIEW.name
+    """Choose highest priority Gemini model from available list."""
+    if available_models is None:
+        return GeminiModelType.FLASH_3_PREVIEW.name
+
+    if len(available_models) == 0:
+        return GeminiModelType.FLASH_25.name
+
+    available_model_types: List[GeminiModelType] = []
+    for model_name in available_models:
+        model_type = GeminiModelType.from_name(model_name)
+        if model_type:
+            available_model_types.append(model_type)
+
+    if available_model_types:
+        available_model_types.sort(key=lambda m: m.priority)
+        return available_model_types[0].name
+
+    return available_models[0]
 
 
 def validate_image(image_path: str, config: Optional[ImageValidationConfig] = None) -> tuple[bool, Optional[str]]:

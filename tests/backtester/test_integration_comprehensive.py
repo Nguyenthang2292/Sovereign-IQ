@@ -1,14 +1,3 @@
-
-from types import SimpleNamespace
-import time
-
-import numpy as np
-import pandas as pd
-
-from modules.backtester.core.backtester import FullBacktester
-
-from modules.backtester.core.backtester import FullBacktester
-
 """
 Comprehensive integration tests for Full Backtester.
 
@@ -19,8 +8,13 @@ Tests cover:
 - Performance and correctness verification
 """
 
+import time
+from types import SimpleNamespace
 
+import numpy as np
+import pandas as pd
 
+from modules.backtester.core.backtester import FullBacktester
 
 
 class TestFullBacktestWorkflow:
@@ -359,7 +353,7 @@ class TestMetricsCalculation:
 
     def test_win_rate_calculation(self):
         """Test that win rate is calculated correctly."""
-        backtester = FullBacktester(SimpleNamespace())
+        FullBacktester(SimpleNamespace())
 
         trades = [
             {"pnl": 0.05, "entry_index": 0, "exit_index": 10},
@@ -442,7 +436,7 @@ class TestPerformanceAndCorrectness:
             def get_cache_stats(self):
                 return {"signal_cache_size": 0, "signal_cache_max_size": 1000}
 
-        data_fetcher = SimpleNamespace(
+        SimpleNamespace(
             fetch_ohlcv_with_fallback_exchange=lambda *args, **kwargs: (df, "binance"),
         )
 

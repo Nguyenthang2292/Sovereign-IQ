@@ -1,24 +1,18 @@
-
-from typing import List, Optional
-
-import numpy as np
-
-from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
-from modules.common.utils import log_info, log_warn
-from modules.hmm.core.high_order.state_expansion import (
-from pomegranate.distributions import Categorical
-from pomegranate.hmm import DenseHMM
-from pomegranate.distributions import Categorical
-from pomegranate.hmm import DenseHMM
-
 """
 High-Order HMM Model Creation.
 
 This module handles HMM model creation, training, and data-driven parameter computation for high-order HMM.
 """
 
+from typing import List, Optional
 
+import numpy as np
+from pomegranate.distributions import Categorical
+from pomegranate.hmm import DenseHMM
 
+from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
+from modules.common.utils import log_info, log_warn
+from modules.hmm.core.high_order.state_expansion import (
     expand_state_sequence,
     get_expanded_state_count,
 )

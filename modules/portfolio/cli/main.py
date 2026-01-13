@@ -1,18 +1,14 @@
-
-from typing import List, Optional
-import signal
-import sys
-import threading
-
-from colorama import Fore, Style
-from colorama import init as colorama_init
-from colorama import init as colorama_init
-
 """
 Portfolio Manager - Refactored version using modular components.
 """
 
+import signal
+import sys
+import threading
+from typing import List, Optional
 
+from colorama import Fore, Style
+from colorama import init as colorama_init
 
 try:
     from config import (
@@ -413,4 +409,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-main()

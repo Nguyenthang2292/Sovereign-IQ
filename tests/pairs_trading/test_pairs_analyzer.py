@@ -1,10 +1,6 @@
-
 import pandas as pd
 
 from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer, _get_all_pair_columns
-from modules.pairs_trading.core.pairs_analyzer import PairsTradingAnalyzer, _get_all_pair_columns
-
-
 
 
 class DummyFetcher:
@@ -273,11 +269,11 @@ def test_calculate_correlation_uses_cache():
 
     # First call
     corr1 = analyzer.calculate_correlation("SYMBOL1/USDT", "SYMBOL2/USDT", mock_fetcher)
-    first_call_count = call_count["count"]
+    call_count["count"]
 
     # Second call (should use cache)
     corr2 = analyzer.calculate_correlation("SYMBOL2/USDT", "SYMBOL1/USDT", mock_fetcher)
-    second_call_count = call_count["count"]
+    call_count["count"]
 
     # Should be same result and cache should prevent additional fetch
     assert corr1 == corr2

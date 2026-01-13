@@ -1,18 +1,3 @@
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Optional, Tuple
-import logging
-import sys
-import threading
-import traceback
-import warnings
-
-import pandas as pd
-
-from modules.common.utils import configure_windows_stdio
-
-from modules.common.utils import configure_windows_stdio
-
 """
 Position Sizing Calculator - CLI Entry Point.
 
@@ -29,8 +14,17 @@ Note:
     are in English for consistency across the codebase.
 """
 
+import logging
+import sys
+import threading
+import traceback
+import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, List, Optional, Tuple
 
+import pandas as pd
 
+from modules.common.utils import configure_windows_stdio
 
 # Fix encoding issues on Windows for interactive CLI runs only
 configure_windows_stdio()
@@ -432,19 +426,18 @@ def render_configuration_summary(
             # When auto_timeframe is enabled, the timeframe is not yet determined
             # so we skip the lookback_candles display here (will be shown after timeframe is resolved)
             print(
-                f"        • {color_text('Parallel processing decision', Fore.CYAN)} will be made after timeframe selection"
+                "        •",
+                color_text("Parallel processing decision", Fore.CYAN),
+                "will be made after timeframe selection",
             )
         else:
-            # Calculate lookback_candles only when timeframe is resolved
             lookback_candles = days_to_candles(args.lookback_days, args.timeframe)
             if lookback_candles > PARALLEL_PROCESSING_THRESHOLD:
-                print(
-                    f"        • {color_text('Will use parallel processing', Fore.CYAN)} for {lookback_candles} periods"
-                )
+                msg = color_text("Will use parallel processing", Fore.CYAN)
+                print("        •", msg, f"for {lookback_candles} periods")
             else:
-                print(
-                    f"        • {color_text('Using sequential processing', Fore.CYAN)} (dataset size <= {PARALLEL_PROCESSING_THRESHOLD})"
-                )
+                msg = color_text("Using sequential processing", Fore.CYAN)
+                print("        •", msg, f"(dataset size <= {PARALLEL_PROCESSING_THRESHOLD})")
     else:
         parallel_status = color_text("❌ DISABLED", Fore.YELLOW)
         print(f"  3. {color_text('Parallel Processing:', Fore.WHITE)} {parallel_status}")
@@ -696,11 +689,13 @@ def main() -> None:
             if ENABLE_PARALLEL_PROCESSING:
                 if final_lookback_candles > PARALLEL_PROCESSING_THRESHOLD:
                     print(
-                        f"  Parallel Processing: {color_text('Was used', Fore.GREEN)} ({final_lookback_candles} periods > {PARALLEL_PROCESSING_THRESHOLD} — processed in parallel)"
+                        f"  Parallel Processing: {color_text('Was used', Fore.GREEN)} "
+                        f"({final_lookback_candles} > {PARALLEL_PROCESSING_THRESHOLD} — parallel)"
                     )
                 else:
                     print(
-                        f"  Parallel Processing: {color_text('Processed sequentially', Fore.YELLOW)} (dataset size <= {PARALLEL_PROCESSING_THRESHOLD} — processed sequentially)"
+                        f"  Parallel Processing: {color_text('Processed sequentially', Fore.YELLOW)} "
+                        f"(<= {PARALLEL_PROCESSING_THRESHOLD} — sequential)"
                     )
             print(color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
 

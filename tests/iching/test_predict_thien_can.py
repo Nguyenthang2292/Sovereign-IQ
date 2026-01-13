@@ -1,15 +1,12 @@
-
 import pytest
 
 from modules.iching.predict.constants import HOA, KIM, MOC, THO, THUY, YANG, YIN
-from modules.iching.predict.thien_can import (
-from modules.iching.predict.thien_can import (
 
 """
 Tests for I Ching Thiên Can (Heavenly Stems).
 """
 
-
+from modules.iching.predict.thien_can import (
     AT,
     BINH,
     CANH,
@@ -120,7 +117,8 @@ class TestThienCanClass:
     def test_eq_same_name(self):
         """Test equality with same name."""
         tc1 = ThienCan(name="Giáp", yin_yang=YANG, wu_hang=MOC)
-        # Same name, but intentionally choose different yin_yang and wu_hang to confirm that only 'name' affects equality
+        # Same name, but intentionally choose different yin_yang and wu_hang to confirm
+        # that only 'name' affects equality
         tc2 = ThienCan(name="Giáp", yin_yang=YIN, wu_hang=HOA)
         # Should be equal because they have same name
         assert tc1 == tc2

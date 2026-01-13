@@ -1,15 +1,11 @@
+"""
+Tests for utils module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.adaptive_trend.utils import diflen, exp_growth, rate_of_change
-from modules.adaptive_trend.utils import diflen, exp_growth, rate_of_change
-
-"""
-Tests for utils module.
-"""
-
-
 
 
 def test_rate_of_change_basic():

@@ -1,15 +1,11 @@
+"""
+Tests for features module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.simplified_percentile_clustering.core.features import (
-from modules.simplified_percentile_clustering.core.features import (
-
-"""
-Tests for features module.
-"""
-
-
     FeatureCalculator,
     FeatureConfig,
     compute_features,

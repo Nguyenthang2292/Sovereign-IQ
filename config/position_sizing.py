@@ -18,8 +18,8 @@ DEFAULT_MIN_TRADES = 10  # Minimum number of trades required for reliable Kelly 
 
 # Position Size Constraints
 DEFAULT_MAX_POSITION_SIZE = 1.0  # Max 100% of account per symbol
-DEFAULT_MIN_POSITION_SIZE = 0.3  # Min 30% of account per symbol (if signal is valid)
-DEFAULT_MAX_PORTFOLIO_EXPOSURE = 0.5  # Max 50% of account across all positions
+DEFAULT_MIN_POSITION_SIZE = 0.1  # Min 10% of account per symbol (if signal is valid)
+DEFAULT_MAX_PORTFOLIO_EXPOSURE = 0.8  # Max 80% of account across all positions
 
 # Bayesian Prior Parameters (Beta distribution)
 # Prior belief about win rate before seeing data

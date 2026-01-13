@@ -1,14 +1,3 @@
-
-from typing import Dict, List
-
-import numpy as np
-import pandas as pd
-
-from .exit_conditions import check_long_exit_conditions, check_short_exit_conditions
-from modules.common.ui.progress_bar import ProgressBar
-from .exit_conditions import check_long_exit_conditions, check_short_exit_conditions
-from modules.common.ui.progress_bar import ProgressBar
-
 """
 Trade simulation logic for backtester.
 
@@ -16,9 +5,14 @@ This module contains functions for simulating trades based on signals,
 including entry/exit logic and position management.
 """
 
+from typing import Dict, List
 
+import numpy as np
+import pandas as pd
 
+from modules.common.ui.progress_bar import ProgressBar
 
+from .exit_conditions import check_long_exit_conditions, check_short_exit_conditions
 
 
 def simulate_trades(

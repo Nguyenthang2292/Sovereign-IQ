@@ -1,15 +1,4 @@
-
-from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import Mock, patch
-import sys
-
-import pandas as pd
-import pytest
-import pytest
-
-"""
-Tests for modules.position_sizing.cli.main.
+"""Tests for modules.position_sizing.cli.main.
 
 Tests cover:
 - Config merge logic (interactive menu values override default args)
@@ -18,7 +7,13 @@ Tests cover:
 - Exception handling in try_timeframes_auto
 """
 
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
+import pandas as pd
+import pytest
 
 # Add parent directory to path
 ROOT = Path(__file__).resolve().parent.parent

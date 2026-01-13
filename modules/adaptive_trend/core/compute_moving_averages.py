@@ -1,16 +1,3 @@
-
-from typing import Optional, Tuple
-
-import pandas as pd
-
-from __future__ import annotations
-from modules.adaptive_trend.utils import diflen
-from modules.common.indicators.momentum import calculate_kama_series
-from modules.common.utils import log_error, log_warn
-import pandas_ta as ta
-from modules.common.utils import log_error, log_warn
-import pandas_ta as ta
-
 """Moving Average calculations for Adaptive Trend Classification (ATC).
 
 This module provides functions to calculate various types of Moving Averages:
@@ -19,9 +6,16 @@ This module provides functions to calculate various types of Moving Averages:
 - set_of_moving_averages: Generate a set of 9 MAs from a base length with offsets
 """
 
+from __future__ import annotations
 
+from typing import Optional, Tuple
 
+import pandas as pd
+import pandas_ta as ta
 
+from modules.adaptive_trend.utils import diflen
+from modules.common.indicators.momentum import calculate_kama_series
+from modules.common.utils import log_error, log_warn
 
 
 def calculate_kama_atc(

@@ -1,4 +1,3 @@
-
 from modules.adaptive_trend.utils.config import ATCConfig, create_atc_config_from_dict
 from modules.adaptive_trend.utils.diflen import diflen
 from modules.adaptive_trend.utils.exp_growth import exp_growth

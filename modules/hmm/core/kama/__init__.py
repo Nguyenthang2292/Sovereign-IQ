@@ -1,6 +1,3 @@
-
-from modules.hmm.core.kama.analysis import (
-
 """
 HMM-KAMA Module.
 
@@ -8,8 +5,9 @@ This module provides HMM-KAMA (Kaufman Adaptive Moving Average based HMM) implem
 with Association Rule Mining and K-Means clustering for secondary analysis.
 """
 
-# Models
-# Analysis
+from modules.hmm.core.kama.analysis import (
+    # Models
+    # Analysis
     calculate_all_state_durations,
     calculate_composite_scores_association_rule_mining,
     compute_state_using_association_rule_mining,

@@ -1,3 +1,6 @@
+"""
+Tests for I Ching image generator.
+"""
 
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -5,15 +8,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from modules.iching.core.image_generator import create_hexagram_image
-
-from modules.iching.core.image_generator import create_hexagram_image
-
-"""
-Tests for I Ching image generator.
-"""
-
-
-
 
 
 class TestCreateHexagramImage:

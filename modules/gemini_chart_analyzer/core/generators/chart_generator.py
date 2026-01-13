@@ -1,18 +1,14 @@
-
-import os
-
-import matplotlib
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Chart Generator for creating technical analysis charts with indicators.
 
 Creates candlestick charts with indicators such as MA, RSI, Volume, etc.
 """
 
+import os
 
+import matplotlib
+import numpy as np
+import pandas as pd
 
 # Use non-interactive backend to avoid GUI overhead and memory leaks
 matplotlib.use("Agg")  # Must be set before importing pyplot
@@ -346,7 +342,8 @@ class ChartGenerator:
             # Warn if color count is less than periods count
             if len(colors) < len(periods):
                 log_warn(
-                    f"Color count ({len(colors)}) is less than number of periods ({len(periods)}). Will use default color or cycle colors."
+                    f"Color count ({len(colors)}) is less than number of periods "
+                    f"({len(periods)}). Will use default color or cycle colors."
                 )
 
             # Use default color if colors is empty, else cycle through colors
@@ -454,7 +451,7 @@ class ChartGenerator:
 
         # MACD
         if "MACD" in indicators and ax_idx < len(axes):
-            macd_config = indicators["MACD"]
+            indicators["MACD"]
             if "MACD" in df.columns and "MACD_signal" in df.columns:
                 ax = axes[ax_idx]
                 current_ax_index = indicator_start_idx + ax_idx

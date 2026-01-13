@@ -1,15 +1,11 @@
+"""
+Tests for ols_hedge_ratio module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.common.quantitative_metrics import calculate_ols_hedge_ratio
-from modules.common.quantitative_metrics import calculate_ols_hedge_ratio
-
-"""
-Tests for ols_hedge_ratio module.
-"""
-
-
 
 
 def test_calculate_ols_hedge_ratio_recovers_linear_beta():

@@ -1,15 +1,11 @@
+"""
+Tests for hurst_exponent module.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.common.quantitative_metrics import calculate_hurst_exponent
-from modules.common.quantitative_metrics import calculate_hurst_exponent
-
-"""
-Tests for hurst_exponent module.
-"""
-
-
 
 
 def test_calculate_hurst_exponent_returns_value_for_long_series():

@@ -1,13 +1,3 @@
-
-from typing import List, Optional
-import argparse
-
-from colorama import Fore, Style
-
-from config.position_sizing import (
-
-from config.position_sizing import (
-
 """
 Argument parser for position sizing CLI.
 
@@ -15,8 +5,12 @@ This module provides functions for parsing command-line arguments
 and interactive configuration for position sizing calculation.
 """
 
+import argparse
+from typing import List, Optional
 
+from colorama import Fore, Style
 
+from config.position_sizing import (
     DEFAULT_LOOKBACK_DAYS,
     DEFAULT_MAX_POSITION_SIZE,
     DEFAULT_TIMEFRAME,
@@ -149,7 +143,9 @@ def parse_args():
         "--max-position-size",
         type=float,
         default=DEFAULT_MAX_POSITION_SIZE,
-        help=f"Maximum position size as fraction of account (default: {DEFAULT_MAX_POSITION_SIZE} = {DEFAULT_MAX_POSITION_SIZE * 100:.0f}% of account balance)",
+        help=f"Maximum position size as fraction of account "
+        f"(default: {DEFAULT_MAX_POSITION_SIZE} = {DEFAULT_MAX_POSITION_SIZE * 100:.0f}% "
+        f"of account ",
     )
 
     # Signal calculation settings
@@ -165,7 +161,8 @@ def parse_args():
         type=str,
         choices=["precomputed", "incremental"],
         default=SIGNAL_CALCULATION_MODE,
-        help="Signal calculation approach: precomputed (default, calculate all signals first) or incremental (skip when position open)",
+        help="Signal calculation approach: precomputed (default, calculate all signals "
+        "first) or incremental (skip when position open)",
     )
 
     # Output options
@@ -225,7 +222,8 @@ def _display_main_menu_ps(config):
     print(f"  1. Symbol Source [{color_text(source_val, Fore.GREEN)}]")
     print(f"  2. Account Balance [{color_text(balance_val, Fore.GREEN)}]")
     print(
-        f"  3. Backtest Settings [{color_text(f'timeframe={timeframe_val}, auto={auto_tf_val}, lookback={lookback_val}', Fore.GREEN)}]"
+        f"  3. Backtest Settings [{color_text(f'{timeframe_val}, auto={auto_tf_val},', Fore.GREEN)}"
+        f"{color_text(f' lookback={lookback_val}', Fore.GREEN)}]"
     )
     print(f"  4. Position Size Constraints [{color_text(f'max={max_size_val}', Fore.GREEN)}]")
     print("  5. Review and Confirm")
@@ -326,7 +324,7 @@ def _configure_symbol_source(config):
                 if not symbols_str:
                     print(
                         color_text(
-                            "Error: At least one symbol is required. Please enter symbols or press Backspace to go back.",
+                            "Error: Enter at least one symbol or press Backspace.",
                             Fore.RED,
                         )
                     )
@@ -338,7 +336,7 @@ def _configure_symbol_source(config):
                 if not normalized_symbols:
                     print(
                         color_text(
-                            "Error: No valid symbols found. Please enter at least one symbol or press Backspace to go back.",
+                            "Error: No valid symbols found. Enter at least one symbol.",
                             Fore.RED,
                         )
                     )
@@ -350,7 +348,7 @@ def _configure_symbol_source(config):
                 if not valid_symbols:
                     print(
                         color_text(
-                            "Error: No valid symbols found after normalization. Please enter valid symbols or press Backspace to go back.",
+                            "Error: No valid symbols. Please try again or press Backspace.",
                             Fore.RED,
                         )
                     )

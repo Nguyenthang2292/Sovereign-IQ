@@ -1,8 +1,3 @@
-
-from pathlib import Path
-import os
-import sys
-
 """
 Test script for High-Order HMM with real BTC data from exchanges.
 
@@ -12,6 +7,9 @@ This script demonstrates how to:
 3. Display results
 """
 
+import os
+import sys
+from pathlib import Path
 
 # Fix encoding for Windows console
 if sys.platform == "win32":
@@ -113,7 +111,7 @@ def main():
             max_order=3,
             train_ratio=0.8,
         )
-        analyzer_result = analyzer.analyze(df, eval_mode=False)
+        analyzer.analyze(df, eval_mode=False)
 
         if analyzer.optimal_order is not None:
             print(f"Order duoc chon: {analyzer.optimal_order}")

@@ -1,13 +1,3 @@
-
-from pathlib import Path
-from unittest.mock import Mock, patch
-import sys
-import warnings
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Test file for configuration validation across all modules.
 
@@ -17,7 +7,9 @@ Run with: python -m pytest tests/config/test_validation.py -v
 Or: python tests/config/test_validation.py
 """
 
-
+import sys
+import warnings
+from pathlib import Path
 
 # Add project root to path
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -35,14 +27,14 @@ def test_xgboost_config_validation():
         import config.xgboost as xgb_config
 
         # Test essential config values exist
-        assert hasattr(xgb_config, 'XGBOOST_PARAMS'), "Should have XGBOOST_PARAMS"
+        assert hasattr(xgb_config, "XGBOOST_PARAMS"), "Should have XGBOOST_PARAMS"
         assert isinstance(xgb_config.XGBOOST_PARAMS, dict), "XGBOOST_PARAMS should be dict"
-        
+
         # Test required parameters
-        required_params = ['n_estimators', 'max_depth', 'learning_rate']
+        required_params = ["n_estimators", "max_depth", "learning_rate"]
         for param in required_params:
             assert param in xgb_config.XGBOOST_PARAMS, f"Should have {param} parameter"
-        
+
         print("[OK] XGBoost configuration validation passed")
 
     except Exception as e:
@@ -58,11 +50,11 @@ def test_lstm_config_validation():
         import config.lstm as lstm_config
 
         # Test essential config values exist
-        assert hasattr(lstm_config, 'SEQUENCE_LENGTH'), "Should have SEQUENCE_LENGTH"
+        assert hasattr(lstm_config, "SEQUENCE_LENGTH"), "Should have SEQUENCE_LENGTH"
         assert isinstance(lstm_config.SEQUENCE_LENGTH, int), "SEQUENCE_LENGTH should be int"
         assert lstm_config.SEQUENCE_LENGTH > 0, "SEQUENCE_LENGTH should be positive"
 
-        assert hasattr(lstm_config, 'HIDDEN_SIZE'), "Should have HIDDEN_SIZE"
+        assert hasattr(lstm_config, "HIDDEN_SIZE"), "Should have HIDDEN_SIZE"
         assert isinstance(lstm_config.HIDDEN_SIZE, int), "HIDDEN_SIZE should be int"
         assert lstm_config.HIDDEN_SIZE > 0, "HIDDEN_SIZE should be positive"
 
@@ -81,11 +73,11 @@ def test_hmm_config_validation():
         import config.hmm as hmm_config
 
         # Test essential config values exist
-        assert hasattr(hmm_config, 'HMM_WINDOW_SIZE_DEFAULT'), "Should have HMM_WINDOW_SIZE_DEFAULT"
+        assert hasattr(hmm_config, "HMM_WINDOW_SIZE_DEFAULT"), "Should have HMM_WINDOW_SIZE_DEFAULT"
         assert isinstance(hmm_config.HMM_WINDOW_SIZE_DEFAULT, int), "Window size should be int"
         assert hmm_config.HMM_WINDOW_SIZE_DEFAULT > 0, "Window size should be positive"
 
-        assert hasattr(hmm_config, 'HMM_FAST_KAMA_DEFAULT'), "Should have HMM_FAST_KAMA_DEFAULT"
+        assert hasattr(hmm_config, "HMM_FAST_KAMA_DEFAULT"), "Should have HMM_FAST_KAMA_DEFAULT"
         assert isinstance(hmm_config.HMM_FAST_KAMA_DEFAULT, int), "Fast KAMA should be int"
         assert hmm_config.HMM_FAST_KAMA_DEFAULT > 0, "Fast KAMA should be positive"
 
@@ -104,11 +96,11 @@ def test_position_sizing_config_validation():
         import config.position_sizing as ps_config
 
         # Test essential config values exist
-        assert hasattr(ps_config, 'DEFAULT_RISK_PERCENTAGE'), "Should have DEFAULT_RISK_PERCENTAGE"
+        assert hasattr(ps_config, "DEFAULT_RISK_PERCENTAGE"), "Should have DEFAULT_RISK_PERCENTAGE"
         assert isinstance(ps_config.DEFAULT_RISK_PERCENTAGE, float), "Risk percentage should be float"
         assert 0 < ps_config.DEFAULT_RISK_PERCENTAGE < 1, "Risk percentage should be between 0 and 1"
 
-        assert hasattr(ps_config, 'MAX_POSITION_SIZE_PERCENTAGE'), "Should have MAX_POSITION_SIZE_PERCENTAGE"
+        assert hasattr(ps_config, "MAX_POSITION_SIZE_PERCENTAGE"), "Should have MAX_POSITION_SIZE_PERCENTAGE"
         assert isinstance(ps_config.MAX_POSITION_SIZE_PERCENTAGE, float), "Max position size should be float"
         assert 0 < ps_config.MAX_POSITION_SIZE_PERCENTAGE <= 1, "Max position size should be between 0 and 1"
 
@@ -127,11 +119,11 @@ def test_range_oscillator_config_validation():
         import config.range_oscillator as ro_config
 
         # Test essential config values exist
-        assert hasattr(ro_config, 'DEFAULT_OSC_LENGTH'), "Should have DEFAULT_OSC_LENGTH"
+        assert hasattr(ro_config, "DEFAULT_OSC_LENGTH"), "Should have DEFAULT_OSC_LENGTH"
         assert isinstance(ro_config.DEFAULT_OSC_LENGTH, int), "Osc length should be int"
         assert ro_config.DEFAULT_OSC_LENGTH > 0, "Osc length should be positive"
 
-        assert hasattr(ro_config, 'DEFAULT_OSC_MULT'), "Should have DEFAULT_OSC_MULT"
+        assert hasattr(ro_config, "DEFAULT_OSC_MULT"), "Should have DEFAULT_OSC_MULT"
         assert isinstance(ro_config.DEFAULT_OSC_MULT, float), "Osc mult should be float"
         assert ro_config.DEFAULT_OSC_MULT > 0, "Osc mult should be positive"
 
@@ -150,11 +142,11 @@ def test_model_features_config_validation():
         import config.model_features as mf_config
 
         # Test essential config values exist
-        assert hasattr(mf_config, 'MODEL_FEATURES'), "Should have MODEL_FEATURES"
+        assert hasattr(mf_config, "MODEL_FEATURES"), "Should have MODEL_FEATURES"
         assert isinstance(mf_config.MODEL_FEATURES, list), "MODEL_FEATURES should be list"
         assert len(mf_config.MODEL_FEATURES) > 0, "MODEL_FEATURES should not be empty"
 
-        assert hasattr(mf_config, 'TARGET_BASE_THRESHOLD'), "Should have TARGET_BASE_THRESHOLD"
+        assert hasattr(mf_config, "TARGET_BASE_THRESHOLD"), "Should have TARGET_BASE_THRESHOLD"
         assert isinstance(mf_config.TARGET_BASE_THRESHOLD, float), "Target threshold should be float"
 
         print("[OK] Model Features configuration validation passed")
@@ -172,10 +164,10 @@ def test_common_config_validation():
         import config.common as common_config
 
         # Test essential config values exist
-        assert hasattr(common_config, 'ID_TO_LABEL'), "Should have ID_TO_LABEL"
+        assert hasattr(common_config, "ID_TO_LABEL"), "Should have ID_TO_LABEL"
         assert isinstance(common_config.ID_TO_LABEL, dict), "ID_TO_LABEL should be dict"
 
-        assert hasattr(common_config, 'TARGET_LABELS'), "Should have TARGET_LABELS"
+        assert hasattr(common_config, "TARGET_LABELS"), "Should have TARGET_LABELS"
         assert isinstance(common_config.TARGET_LABELS, list), "TARGET_LABELS should be list"
         assert len(common_config.TARGET_LABELS) > 0, "TARGET_LABELS should not be empty"
 
@@ -191,13 +183,13 @@ def test_config_api_validation():
     print("\n=== Test: Config API Validation ===")
 
     try:
-        from config.config_api import validate_config, get_config_summary
+        from config.config_api import get_config_summary, validate_config
 
         # Test config validation
         result = validate_config()
         assert isinstance(result, dict), "Validation result should be dict"
-        assert 'valid' in result, "Should have valid status"
-        assert 'errors' in result, "Should have errors list"
+        assert "valid" in result, "Should have valid status"
+        assert "errors" in result, "Should have errors list"
         print("[OK] Config API validation works")
 
         # Test config summary
@@ -219,21 +211,19 @@ def test_config_environment_variables():
         from unittest.mock import patch
 
         # Test with custom environment variables
-        with patch.dict(os.environ, {
-            'RISK_PERCENTAGE': '0.03',
-            'SEQUENCE_LENGTH': '60',
-            'XGB_ESTIMATORS': '200'
-        }):
+        with patch.dict(os.environ, {"RISK_PERCENTAGE": "0.03", "SEQUENCE_LENGTH": "60", "XGB_ESTIMATORS": "200"}):
             # Reload config modules to pick up env vars if implemented
             try:
                 import importlib
+
                 import config.position_sizing as ps_config
+
                 importlib.reload(ps_config)
-                
+
                 # Test if env vars are respected (if implemented)
-                if hasattr(ps_config, 'DEFAULT_RISK_PERCENTAGE'):
+                if hasattr(ps_config, "DEFAULT_RISK_PERCENTAGE"):
                     print(f"Risk percentage from config: {ps_config.DEFAULT_RISK_PERCENTAGE}")
-                
+
                 print("[OK] Environment variable handling works")
             except Exception:
                 print("[OK] Environment variables handled gracefully")
@@ -302,6 +292,7 @@ def run_all_tests():
         except Exception as e:
             print(f"[ERROR] Test error: {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             failed += 1
 

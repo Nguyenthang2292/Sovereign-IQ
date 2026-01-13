@@ -1,17 +1,13 @@
-
-from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Optional
-import gc
-import threading
-
-from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
-from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
-
 """
 Task Manager for managing background tasks and their status.
 """
 
+import gc
+import threading
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, Optional
 
+from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 
 class TaskManager:

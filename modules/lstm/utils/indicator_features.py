@@ -1,18 +1,14 @@
-
-import pandas as pd
-
-from config.model_features import CANDLESTICK_PATTERN_NAMES, MODEL_FEATURES
-from modules.common.indicators.momentum import (
-import pandas_ta as ta
-import pandas_ta as ta
-
 """
 Indicator feature generation utilities for CNN-LSTM models.
 Generates only features defined in config.model_features.MODEL_FEATURES.
 Uses indicator calculation functions from modules.common.indicators for consistency.
 """
 
+import pandas as pd
+import pandas_ta as ta
 
+from config.model_features import CANDLESTICK_PATTERN_NAMES, MODEL_FEATURES
+from modules.common.indicators.momentum import (
     calculate_bollinger_bands_series,
     calculate_macd_series,
     calculate_rsi_series,
@@ -202,9 +198,7 @@ def generate_indicator_features(df_input: pd.DataFrame) -> pd.DataFrame:
         # They are included in MODEL_FEATURES but not calculated here
         candlestick_features = [f for f in MODEL_FEATURES if f in CANDLESTICK_PATTERN_NAMES]
         if candlestick_features:
-            log_warn(
-                "Candlestick patterns are not calculated in this version. Setting all candlestick pattern features to 0.0."
-            )
+            log_warn("Candlestick features set to 0.0 (not calculated).")
             for candlestick_pattern in candlestick_features:
                 df[candlestick_pattern] = 0.0
 
@@ -218,7 +212,8 @@ def generate_indicator_features(df_input: pd.DataFrame) -> pd.DataFrame:
 
         if rows_after > 0 and rows_after < rows_before * 0.5:
             log_warn(
-                f"Significant data loss: {rows_before - rows_after} of {rows_before} rows dropped due to NaN values ({(1 - rows_after / rows_before) * 100:.1f}%)"
+                f"Significant data loss: {rows_before - rows_after} of {rows_before} rows dropped due to NaN values "
+                f"({(1 - rows_after / rows_before) * 100:.1f}%)"
             )
 
         if result_df.empty:
@@ -228,7 +223,8 @@ def generate_indicator_features(df_input: pd.DataFrame) -> pd.DataFrame:
             result_df.columns = result_df.columns.str.lower()
             calculated_features = [f.lower() for f in MODEL_FEATURES if f.lower() in result_df.columns]
             log_model(
-                f"Technical indicators calculated successfully: {len(calculated_features)} features for {len(result_df)} rows"
+                f"Technical indicators calculated successfully: {len(calculated_features)} features "
+                f"for {len(result_df)} rows"
             )
 
         return result_df

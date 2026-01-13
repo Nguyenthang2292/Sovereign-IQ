@@ -1,4 +1,3 @@
-
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -7,14 +6,9 @@ import pandas as pd
 
 from modules.backtester import FullBacktester
 
-from modules.backtester import FullBacktester
-
 """
 Tests for Full Backtester.
 """
-
-
-
 
 
 def test_backtest_returns_valid_structure():

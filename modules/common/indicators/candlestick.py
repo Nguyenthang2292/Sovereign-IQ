@@ -1,17 +1,13 @@
+"""Candlestick pattern indicator block."""
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
+from modules.common.utils import validate_ohlcv_input
+
 from .base import IndicatorResult, collect_metadata
-from __future__ import annotations
-from modules.common.utils import validate_ohlcv_input
-from modules.common.utils import validate_ohlcv_input
-
-"""Candlestick pattern indicator block."""
-
-
-
-
 
 
 class CandlestickPatterns:

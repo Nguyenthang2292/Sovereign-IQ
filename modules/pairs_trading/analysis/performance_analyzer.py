@@ -1,16 +1,12 @@
-
-from typing import TYPE_CHECKING, Dict, List, Optional
-import re
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Performance analyzer for calculating symbol performance scores across multiple timeframes.
 """
 
+import re
+from typing import TYPE_CHECKING, Dict, List, Optional
 
+import numpy as np
+import pandas as pd
 
 if TYPE_CHECKING:
     import threading

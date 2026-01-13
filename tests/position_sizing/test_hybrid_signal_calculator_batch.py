@@ -1,12 +1,9 @@
-
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
-
-from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
 
 from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
 
@@ -18,9 +15,6 @@ Tests cover:
 - Exception handling in batch processing
 - XGBoost batch calculation error handling
 """
-
-
-
 
 
 @pytest.fixture
@@ -266,7 +260,8 @@ class TestXGBoostBatchExceptionHandling:
 
                     # train_and_predict should be called multiple times (proving processing continued after first error)
                     assert mock_train.call_count > 1, (
-                        f"Expected train_and_predict to be called multiple times, but was called {mock_train.call_count} times"
+                        f"Expected train_and_predict to be called multiple times, but was called "
+                        f"{mock_train.call_count} times"
                     )
 
                     # Verify that processing continued after the first error

@@ -1,12 +1,3 @@
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import pytest
-
-from modules.gemini_chart_analyzer.core.generators.simple_chart_generator import SimpleChartGenerator
-from modules.gemini_chart_analyzer.core.generators.simple_chart_generator import SimpleChartGenerator
-
 """
 Tests for SimpleChartGenerator class.
 
@@ -17,7 +8,12 @@ Tests cover:
 - Symbol label display
 """
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pytest
 
+from modules.gemini_chart_analyzer.core.generators.simple_chart_generator import SimpleChartGenerator
 
 
 @pytest.fixture

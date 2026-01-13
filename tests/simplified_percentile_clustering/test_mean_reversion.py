@@ -1,15 +1,11 @@
+"""
+Tests for mean_reversion strategy.
+"""
 
 import numpy as np
 import pandas as pd
 
 from modules.simplified_percentile_clustering.config import (
-from modules.simplified_percentile_clustering.config import (
-
-"""
-Tests for mean_reversion strategy.
-"""
-
-
     MeanReversionConfig,
 )
 from modules.simplified_percentile_clustering.core.clustering import (

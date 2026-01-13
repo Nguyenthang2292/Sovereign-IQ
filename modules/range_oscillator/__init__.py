@@ -1,3 +1,10 @@
+"""
+Range Oscillator module.
+
+This module provides Range Oscillator indicator calculations and signal strategies.
+Note: calculate_weighted_ma, calculate_atr_range, and calculate_trend_direction
+have been moved to modules.common.indicators for reusability.
+"""
 
 from modules.range_oscillator.analysis.summary import get_signal_summary
 from modules.range_oscillator.core.oscillator import calculate_range_oscillator
@@ -10,15 +17,6 @@ from modules.range_oscillator.strategies.mean_reversion import generate_signals_
 from modules.range_oscillator.strategies.momentum import generate_signals_momentum_strategy
 from modules.range_oscillator.strategies.sustained import generate_signals_sustained_strategy
 from modules.range_oscillator.strategies.trend_following import generate_signals_trend_following_strategy
-
-"""
-Range Oscillator module.
-
-This module provides Range Oscillator indicator calculations and signal strategies.
-Note: calculate_weighted_ma, calculate_atr_range, and calculate_trend_direction
-have been moved to modules.common.indicators for reusability.
-"""
-
 
 __all__ = [
     # Core calculations

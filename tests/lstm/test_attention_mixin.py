@@ -1,10 +1,8 @@
-
 from modules.lstm.models.trainer.attention_mixin import AttentionFeatureMixin
 
 """
 Tests for Attention feature mixin.
 """
-
 
 
 class TestAttentionFeatureMixin:

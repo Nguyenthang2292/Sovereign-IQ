@@ -1,9 +1,3 @@
-
-from typing import List, Tuple
-
-import pandas as pd
-import pandas as pd
-
 """
 Candidate pool management utilities for pairs trading analysis.
 
@@ -11,7 +5,9 @@ This module provides functions for managing candidate pools of best and worst
 performing symbols, ensuring target symbols are included in appropriate pools.
 """
 
+from typing import List, Tuple
 
+import pandas as pd
 
 
 def ensure_symbols_in_candidate_pools(

@@ -1,7 +1,5 @@
-
 from typing import TYPE_CHECKING, Optional
 
-import pandas as pd
 import pandas as pd
 
 """
@@ -9,7 +7,6 @@ Validation utilities for Simplified Percentile Clustering.
 
 Provides validation functions for configurations and input data.
 """
-
 
 
 if TYPE_CHECKING:

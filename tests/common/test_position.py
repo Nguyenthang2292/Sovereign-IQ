@@ -1,14 +1,10 @@
-
-import pytest
-
-from modules.common.models.position import Position
-from modules.common.models.position import Position
-
 """
 Test script for modules.Position - Position dataclass.
 """
 
+import pytest
 
+from modules.common.models.position import Position
 
 
 def test_position_creation():

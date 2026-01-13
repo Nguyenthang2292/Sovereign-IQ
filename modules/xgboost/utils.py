@@ -1,4 +1,3 @@
-
 from config import PREDICTION_WINDOWS
 from modules.common.utils import color_text, format_price, timeframe_to_minutes
 

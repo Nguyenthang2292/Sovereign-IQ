@@ -1,13 +1,3 @@
-
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, Iterable, List, Optional
-import importlib
-import sys
-
-from __future__ import annotations
-from __future__ import annotations
-
 """
 Environment readiness checks for Temporal Fusion Transformer roadmap (Section 1).
 
@@ -16,7 +6,13 @@ Run:
 to verify dependencies, GPU availability, and requirements entries.
 """
 
+from __future__ import annotations
 
+import importlib
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional
 
 REQUIRED_PACKAGES: List[str] = [
     "torch",

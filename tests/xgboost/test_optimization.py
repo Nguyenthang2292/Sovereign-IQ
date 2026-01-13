@@ -1,19 +1,3 @@
-
-from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import Mock, patch
-import json
-import tempfile
-
-import numpy as np
-import pandas as pd
-
-from config import MODEL_FEATURES, TARGET_HORIZON, TARGET_LABELS, XGBOOST_PARAMS
-from modules.xgboost.optimization import HyperparameterTuner, StudyManager
-import optuna
-from modules.xgboost.optimization import HyperparameterTuner, StudyManager
-import optuna
-
 """
 Tests for XGBoost hyperparameter optimization module.
 
@@ -22,8 +6,18 @@ Tests cover:
 - HyperparameterTuner: optimization, objective function, edge cases
 """
 
+import json
+import tempfile
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import Mock, patch
 
+import numpy as np
+import optuna
+import pandas as pd
 
+from config import MODEL_FEATURES, TARGET_HORIZON, TARGET_LABELS, XGBOOST_PARAMS
+from modules.xgboost.optimization import HyperparameterTuner, StudyManager
 
 
 def _synthetic_df(rows=300):

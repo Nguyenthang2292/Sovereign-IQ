@@ -1,14 +1,12 @@
-
-from pathlib import Path
-import sys
-import traceback
-
 """
 CLI Main Program for Market Batch Scanner.
 
 Interactive menu for batch scanning entire market with Gemini.
 """
 
+import sys
+import traceback
+from pathlib import Path
 
 # Add project root to sys.path
 if "__file__" in globals():
@@ -395,14 +393,17 @@ def interactive_batch_scan():
 
                 if pre_filtered_symbols is not None:
                     if len(pre_filtered_symbols) < len(all_symbols):
-                        log_info(
-                            f"Pre-filtered: {len(all_symbols)} → {len(pre_filtered_symbols)} symbols (all symbols with signals)"
+                        msg = (
+                            f"Pre-filtered: {len(all_symbols)} → {len(pre_filtered_symbols)} "
+                            f"symbols (all symbols with signals)"
                         )
+                        log_info(msg)
                     elif len(pre_filtered_symbols) == len(all_symbols):
                         log_info(f"Pre-filtered: All {len(all_symbols)} symbols have signals (no filtering applied)")
                     else:
                         log_warn(
-                            "Pre-filtered symbols count is greater than all symbols. There may be an unexpected behavior."
+                            "Pre-filtered symbols count is greater than all symbols. "
+                            "There may be an unexpected behavior."
                         )
                 else:
                     log_info(f"Pre-filtered: No symbols with signals found, using all {len(all_symbols)} symbols")

@@ -1,16 +1,3 @@
-
-from typing import Any, Type, Union
-
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import TimeSeriesSplit
-import numpy as np
-import pandas as pd
-
-from config import (
-import xgboost as xgb
-from config import (
-import xgboost as xgb
-
 """
 XGBoost model training and prediction functions.
 
@@ -21,8 +8,15 @@ for cryptocurrency price direction prediction, including:
 - Prediction probability calculation for next candle movement
 """
 
+from typing import Any, Type, Union
 
+import numpy as np
+import pandas as pd
+import xgboost as xgb
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import TimeSeriesSplit
 
+from config import (
     ID_TO_LABEL,
     MODEL_FEATURES,
     TARGET_HORIZON,
@@ -181,7 +175,8 @@ def train_and_predict(df: pd.DataFrame) -> Any:
         try:
             return classifier_cls(**params)
         except Exception:
-            # Try without device parameter if it fails (XGBoost 3.x might not support device="cuda" with tree_method="hist")
+            # Try without device parameter if it fails
+            # (XGBoost 3.x might not support device="cuda" with tree_method="hist")
             if "device" in params:
                 params_without_device = params.copy()
                 del params_without_device["device"]
@@ -226,8 +221,10 @@ def train_and_predict(df: pd.DataFrame) -> Any:
     unique_train_classes = sorted(y_train.unique())
     if len(unique_train_classes) < 2:
         raise ClassDiversityError(
-            f"Insufficient class diversity in training set: found {len(unique_train_classes)} class(es) {unique_train_classes}, "
-            f"but XGBoost requires at least 2 classes. Total training samples: {len(y_train)}"
+            f"Insufficient class diversity in training set: "
+            f"found {len(unique_train_classes)} class(es) {unique_train_classes}, "
+            f"but XGBoost requires at least 2 classes. "
+            f"Total training samples: {len(y_train)}"
         )
 
     # Check if we have all expected classes (0, 1, 2 for DOWN, NEUTRAL, UP)
@@ -317,9 +314,8 @@ def train_and_predict(df: pd.DataFrame) -> Any:
             # Require all target classes for consistency
             # Skipping folds with missing classes ensures consistent evaluation across folds
             if len(unique_classes) < len(TARGET_LABELS):
-                log_warn(
-                    f"CV Fold {fold}: Skipped (missing classes: expected {TARGET_LABELS}, got {[ID_TO_LABEL[c] for c in unique_classes]})"
-                )
+                class_list = [ID_TO_LABEL[c] for c in unique_classes]
+                log_warn(f"CV Fold {fold}: Skipped (missing classes: expected {TARGET_LABELS}, got {class_list})")
                 continue
 
             cv_model = build_model()
@@ -335,7 +331,9 @@ def train_and_predict(df: pd.DataFrame) -> Any:
                 all_y_pred.extend(preds.tolist())
 
                 log_model(
-                    f"CV Fold {fold} Accuracy: {acc:.4f} (train: {len(train_idx_filtered)}, gap: {TARGET_HORIZON}, test: {len(test_idx_array)})"
+                    f"CV Fold {fold} Accuracy: {acc:.4f} "
+                    f"(train: {len(train_idx_filtered)}, "
+                    f"gap: {TARGET_HORIZON}, test: {len(test_idx_array)})"
                 )
 
         if len(cv_scores) > 0:

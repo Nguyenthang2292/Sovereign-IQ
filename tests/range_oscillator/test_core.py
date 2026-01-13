@@ -1,11 +1,9 @@
-
 import numpy as np
 import pandas as pd
 import pytest
 
 from modules.common.indicators.trend import calculate_trend_direction, calculate_weighted_ma
 from modules.common.indicators.volatility import calculate_atr_range
-from modules.range_oscillator.core.oscillator import calculate_range_oscillator
 from modules.range_oscillator.core.oscillator import calculate_range_oscillator
 
 """
@@ -17,8 +15,6 @@ Tests core calculation functions:
 - calculate_trend_direction (moved to modules.common.indicators.trend)
 - calculate_range_oscillator
 """
-
-
 
 
 @pytest.fixture

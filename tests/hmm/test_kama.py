@@ -1,12 +1,8 @@
-
 import numpy as np
 import pandas as pd
 
 from modules.common.indicators import calculate_kama
 from modules.hmm.core.kama import HMM_KAMA, hmm_kama, prepare_observations
-from modules.hmm.core.kama import HMM_KAMA, hmm_kama, prepare_observations
-
-
 
 
 def _sample_close_dataframe(length: int = 150) -> pd.DataFrame:

@@ -1,6 +1,5 @@
-
-from pathlib import Path
 import sys
+from pathlib import Path
 
 """
 Test script for modules.hmm.signal_scoring - Score normalization.

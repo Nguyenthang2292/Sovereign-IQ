@@ -1,14 +1,12 @@
-
-from modules.hmm.core.swings.model_creation import (
-
 """
 HMM-Swings Module.
 
 This module provides Basic HMM with swing detection implementation for market state prediction.
 """
 
-# Models
-# Model Creation
+from modules.hmm.core.swings.model_creation import (
+    # Models
+    # Model Creation
     _map_observed_to_hidden_state,
     compute_emission_probabilities_from_data,
     compute_start_probabilities_from_data,

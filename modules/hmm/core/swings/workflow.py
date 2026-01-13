@@ -1,10 +1,7 @@
-
 from typing import Optional
 
 import pandas as pd
 
-from config import HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT
-from modules.hmm.core.swings.models import HMM_SWINGS, SwingsHMM
 from config import HMM_HIGH_ORDER_USE_DATA_DRIVEN_INIT
 from modules.hmm.core.swings.models import HMM_SWINGS, SwingsHMM
 
@@ -13,9 +10,6 @@ HMM-Swings Main Workflow.
 
 This module contains the main hmm_swings function that orchestrates the entire workflow.
 """
-
-
-
 
 
 def hmm_swings(

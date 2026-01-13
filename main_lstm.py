@@ -1,10 +1,3 @@
-
-import sys
-import warnings
-
-from modules.common.utils import (
-from modules.common.utils import (
-
 """
 LSTM Model Manager Entry Point.
 
@@ -39,13 +32,10 @@ Example:
     artifacts/models/lstm/cnn_lstm_attention_model.pth
 """
 
+import sys
+import warnings
 
-    color_text,
-    configure_windows_stdio,
-    log_error,
-    log_info,
-    log_warn,
-)
+from modules.common.utils import color_text, configure_windows_stdio, log_error, log_info, log_warn
 from modules.lstm.cli import (
     display_main_menu,
     generate_signal_workflow,

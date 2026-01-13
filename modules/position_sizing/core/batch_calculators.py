@@ -1,13 +1,3 @@
-
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
-
-import numpy as np
-import pandas as pd
-
-from modules.common.utils import log_warn
-
-from modules.common.utils import log_warn
-
 """
 Batch Calculators Mixin for Hybrid Signal Calculator.
 
@@ -19,8 +9,12 @@ This module provides batch/vectorized calculation methods for indicators:
 - Random Forest (batch)
 """
 
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
 
+import numpy as np
+import pandas as pd
 
+from modules.common.utils import log_warn
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher

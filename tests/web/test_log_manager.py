@@ -1,12 +1,3 @@
-
-from datetime import datetime, timedelta
-import os
-import threading
-import time
-
-from web.utils.log_manager import LogFileManager, get_log_manager
-from web.utils.log_manager import LogFileManager, get_log_manager
-
 """
 Tests for LogFileManager (web/utils/log_manager.py).
 
@@ -20,7 +11,12 @@ Tests cover:
 - Thread safety
 """
 
+import os
+import threading
+import time
+from datetime import datetime, timedelta
 
+from web.utils.log_manager import LogFileManager, get_log_manager
 
 
 class TestLogFileManager:
@@ -264,9 +260,9 @@ class TestGetLogManager:
         # Reset the singleton instance before and after each test
         global _log_manager_instance
         try:
-            prev_instance = _log_manager_instance
+            pass
         except NameError:
-            prev_instance = None
+            pass
         _log_manager_instance = None
         yield
         _log_manager_instance = None
@@ -444,7 +440,7 @@ class TestLogFileManagerLocks:
         session_id = "test-session"
 
         # Get lock (creates it)
-        lock = manager._get_lock(session_id)
+        manager._get_lock(session_id)
 
         # Verify lock exists
         assert session_id in manager._locks

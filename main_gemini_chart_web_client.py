@@ -1,11 +1,3 @@
-
-from pathlib import Path
-import argparse
-import os
-import shutil
-import subprocess
-import sys
-
 """
 Main entry point for Vue.js App (Gemini Chart Analyzer Web Client).
 
@@ -21,19 +13,20 @@ Usage:
     python main_gemini_chart_web_client.py build
 """
 
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 
-project_root = Path(__file__).parent
-
+project_root = Path(__file__).parent.resolve()
 VUE_DIR = project_root / "web" / "static" / "vue"
-# Detect Windows platform
-IS_WINDOWS = sys.platform == "win32"
 
 
-def run_npm_command(cmd_args, **kwargs):
-    """Run npm command with proper Windows compatibility."""
-    if IS_WINDOWS:
-        kwargs.setdefault("shell", True)
-    return subprocess.run(cmd_args, **kwargs)
+def run_npm_command(cmd, **kwargs):
+    """Run npm command with proper environment."""
+    return subprocess.run(cmd, **kwargs)
 
 
 def check_node_installed():

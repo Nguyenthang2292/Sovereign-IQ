@@ -1,19 +1,15 @@
+"""Volatility indicator block."""
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pandas_ta as ta
 
-from .base import IndicatorResult, collect_metadata
-from __future__ import annotations
 from modules.common.utils import validate_ohlcv_input
 from modules.common.utils.data import validate_price_series
-import pandas_ta as ta
-import pandas_ta as ta
 
-"""Volatility indicator block."""
-
-
-
-
+from .base import IndicatorResult, collect_metadata
 
 
 def calculate_returns_volatility(df: pd.DataFrame) -> float:

@@ -22,9 +22,14 @@ from modules.common.utils import configure_windows_stdio
 # Fix encoding issues on Windows for interactive CLI runs only
 configure_windows_stdio()
 
-from colorama import Fore, Style, init as colorama_init
+from colorama import Fore, Style
+from colorama import init as colorama_init
 
-from config import DEFAULT_TIMEFRAME
+from cli.argument_parser import parse_args
+from modules.adaptive_trend.cli import prompt_timeframe
+from modules.adaptive_trend.cli.main import ATCAnalyzer
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (
     color_text,
     log_error,
@@ -32,22 +37,15 @@ from modules.common.utils import (
     log_success,
     log_warn,
 )
-from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.core.data_fetcher import DataFetcher
-from modules.adaptive_trend.cli import prompt_timeframe
-from modules.adaptive_trend.cli.main import ATCAnalyzer
 from modules.range_oscillator.cli import (
-    parse_args,
     display_configuration,
     display_final_results,
 )
-from modules.range_oscillator.strategies.combined import (
-    generate_signals_combined_all_strategy,
-)
 from modules.range_oscillator.config import (
     CombinedStrategyConfig,
-    ConsensusConfig,
-    DynamicSelectionConfig,
+)
+from modules.range_oscillator.strategies.combined import (
+    generate_signals_combined_all_strategy,
 )
 
 # Suppress noisy but non-critical warnings from data science libraries
@@ -72,8 +70,9 @@ def get_range_oscillator_signal(
     strategies: Optional[list] = None,
 ) -> Optional[tuple]:
     """
-    Calculate Range Oscillator signal for a symbol using Strategy 5 Combined with Dynamic Selection and Adaptive Weights.
-    
+    Calculate Range Oscillator signal for a symbol using Strategy 5 Combined with
+    Dynamic Selection and Adaptive Weights.
+
     Args:
         data_fetcher: DataFetcher instance
         symbol: Symbol to analyze
@@ -81,9 +80,9 @@ def get_range_oscillator_signal(
         limit: Number of candles
         osc_length: Range Oscillator length parameter
         osc_mult: Range Oscillator multiplier
-        strategies: List of strategy numbers to enable (e.g., [2, 3, 4, 6, 7, 8, 9]). 
+        strategies: List of strategy numbers to enable (e.g., [2, 3, 4, 6, 7, 8, 9]).
                     If None, uses all available strategies [2, 3, 4, 6, 7, 8, 9]
-        
+
     Returns:
         Tuple of (signal, confidence_score):
         - signal: 1 (LONG), -1 (SHORT), 0 (NEUTRAL), or None if error
@@ -124,18 +123,18 @@ def get_range_oscillator_signal(
         config = CombinedStrategyConfig()
         config.enabled_strategies = enabled_strategies
         config.return_confidence_score = True
-        
+
         # Configure dynamic selection
         config.dynamic.enabled = True
         config.dynamic.lookback = 20
         config.dynamic.volatility_threshold = 0.6
         config.dynamic.trend_threshold = 0.5
-        
+
         # Configure consensus with adaptive weights
         config.consensus.mode = "weighted"
         config.consensus.adaptive_weights = True
         config.consensus.performance_window = 10
-        
+
         result = generate_signals_combined_all_strategy(
             high=high,
             low=low,
@@ -143,7 +142,6 @@ def get_range_oscillator_signal(
             length=osc_length,
             mult=osc_mult,
             config=config,
-            
         )
 
         # Unpack tuple: (signal_series, strength_series, strategy_stats, confidence_series)
@@ -161,11 +159,14 @@ def get_range_oscillator_signal(
 
         latest_idx = signals[non_nan_mask].index[-1]
         latest_signal = int(signals.loc[latest_idx])
-        latest_confidence = float(confidence.loc[latest_idx]) if confidence is not None and not confidence.empty else 0.0
+        if confidence is not None and not confidence.empty:
+            latest_confidence = float(confidence.loc[latest_idx])
+        else:
+            latest_confidence = 0.0
 
         return (latest_signal, latest_confidence)
 
-    except Exception as e:
+    except Exception:
         # Skip symbols with errors
         return None
 
@@ -173,7 +174,7 @@ def get_range_oscillator_signal(
 def initialize_components() -> Tuple[ExchangeManager, DataFetcher]:
     """
     Initialize ExchangeManager and DataFetcher components.
-    
+
     Returns:
         Tuple of (ExchangeManager, DataFetcher) instances
     """
@@ -186,35 +187,35 @@ def initialize_components() -> Tuple[ExchangeManager, DataFetcher]:
 class ATCOscillatorAnalyzer:
     """
     ATC + Range Oscillator Combined Signal Filter Orchestrator.
-    
+
     Manages the complete workflow of combining ATC and Range Oscillator signals:
     1. Runs ATC auto scan to find LONG/SHORT signals
     2. Filters symbols by checking if Range Oscillator signals match ATC signals
     3. Returns final list of symbols with confirmed signals from both indicators
-    
+
     This class uses ATCAnalyzer through composition to reuse ATC analysis logic,
     making it easy to extend with other strategies in the future (e.g., ATC + OtherStrategy).
     """
-    
+
     def __init__(self, args, data_fetcher: DataFetcher):
         """
         Initialize ATC + Range Oscillator Analyzer.
-        
+
         Args:
             args: Parsed command-line arguments
             data_fetcher: DataFetcher instance
         """
         self.args = args
         self.data_fetcher = data_fetcher
-        
+
         # Use ATCAnalyzer for ATC-related operations (composition pattern)
         # This allows reuse of ATC logic and makes it easy to extend with other strategies
         self.atc_analyzer = ATCAnalyzer(args, data_fetcher)
-        
+
         # Update timeframe in ATCAnalyzer to match our selected timeframe
         self.selected_timeframe = args.timeframe
         self.atc_analyzer.selected_timeframe = args.timeframe
-        
+
         # Results storage
         self.long_signals_atc = pd.DataFrame()
         self.short_signals_atc = pd.DataFrame()
@@ -223,16 +224,16 @@ class ATCOscillatorAnalyzer:
         # Flags to track which side uses fallback (ATC only)
         self.long_uses_fallback = False
         self.short_uses_fallback = False
-    
+
     def determine_timeframe(self) -> str:
         """
         Determine timeframe from arguments and interactive menu.
-        
+
         Returns:
             str: Selected timeframe
         """
         self.selected_timeframe = self.args.timeframe
-        
+
         # Prompt for timeframe selection if menu is enabled
         if not self.args.no_menu:
             print("\n" + color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
@@ -240,16 +241,16 @@ class ATCOscillatorAnalyzer:
             print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
             self.selected_timeframe = prompt_timeframe(default_timeframe=self.selected_timeframe)
             print(color_text(f"\nSelected timeframe for ATC analysis: {self.selected_timeframe}", Fore.GREEN))
-        
+
         # Sync timeframe with ATCAnalyzer
         self.atc_analyzer.selected_timeframe = self.selected_timeframe
-        
+
         return self.selected_timeframe
-    
+
     def get_atc_params(self) -> dict:
         """Extract ATC parameters from arguments using ATCAnalyzer."""
         return self.atc_analyzer.get_atc_params()
-    
+
     def get_oscillator_params(self) -> dict:
         """Extract Range Oscillator parameters from arguments."""
         return {
@@ -258,7 +259,7 @@ class ATCOscillatorAnalyzer:
             "max_workers": self.args.max_workers,
             "strategies": self.args.osc_strategies,
         }
-    
+
     def display_config(self) -> None:
         """Display configuration information."""
         osc_params = self.get_oscillator_params()
@@ -270,25 +271,25 @@ class ATCOscillatorAnalyzer:
             strategies=osc_params["strategies"],
             max_symbols=self.args.max_symbols,
         )
-    
+
     def run_atc_scan(self) -> None:
         """Run ATC auto scan to get LONG/SHORT signals using ATCAnalyzer."""
         log_progress("\nStep 1: Running ATC auto scan...")
         log_progress("=" * 80)
-        
+
         # Use ATCAnalyzer's run_auto_scan() method to get scan results
         # This reuses the ATC logic and makes the code more maintainable
         self.long_signals_atc, self.short_signals_atc = self.atc_analyzer.run_auto_scan()
-        
+
         original_long_count = len(self.long_signals_atc)
         original_short_count = len(self.short_signals_atc)
-        
+
         log_success(f"\nATC Scan Complete: Found {original_long_count} LONG + {original_short_count} SHORT signals")
-        
+
         if self.long_signals_atc.empty and self.short_signals_atc.empty:
             log_warn("No ATC signals found. Exiting.")
             raise ValueError("No ATC signals found")
-    
+
     def _process_symbol_for_oscillator(
         self,
         symbol_data: Dict[str, Any],
@@ -302,9 +303,9 @@ class ATCOscillatorAnalyzer:
     ) -> Optional[Dict[str, Any]]:
         """
         Worker function to process a single symbol for Range Oscillator confirmation.
-        
+
         This function is designed to be thread-safe by creating its own DataFetcher instance.
-        
+
         Args:
             symbol_data: Dictionary with symbol information (symbol, signal, trend, price, exchange)
             exchange_manager: ExchangeManager instance (shared, thread-safe)
@@ -314,16 +315,16 @@ class ATCOscillatorAnalyzer:
             osc_length: Range Oscillator length parameter
             osc_mult: Range Oscillator multiplier
             strategies: List of strategy numbers to use
-            
+
         Returns:
             Dictionary with confirmed signal data if signals match, None otherwise
         """
         try:
             # Create a new DataFetcher instance for this thread (thread-safe)
             data_fetcher = DataFetcher(exchange_manager)
-            
+
             symbol = symbol_data["symbol"]
-            
+
             # Calculate Range Oscillator signal (returns tuple of (signal, confidence_score))
             osc_result = get_range_oscillator_signal(
                 data_fetcher=data_fetcher,
@@ -337,7 +338,7 @@ class ATCOscillatorAnalyzer:
 
             if osc_result is None:
                 return None
-            
+
             osc_signal, osc_confidence = osc_result
 
             # Check if signals match
@@ -352,9 +353,9 @@ class ATCOscillatorAnalyzer:
                     "osc_signal": osc_signal,
                     "osc_confidence": osc_confidence,  # Confidence score (0.0 to 1.0)
                 }
-            
+
             return None
-            
+
         except Exception as e:
             # Log exception with full context for debugging
             logger.warning(
@@ -362,7 +363,7 @@ class ATCOscillatorAnalyzer:
                 f"Traceback:\n{traceback.format_exc()}"
             )
             return None
-    
+
     def filter_signals_by_range_oscillator(
         self,
         atc_signals_df: pd.DataFrame,
@@ -371,11 +372,11 @@ class ATCOscillatorAnalyzer:
         """
         Filter ATC signals by checking Range Oscillator confirmation using parallel processing.
         Uses "Any Strategy Mode" - accepts signal from any single strategy.
-        
+
         Args:
             atc_signals_df: DataFrame with ATC signals (columns: symbol, signal, trend, price, exchange)
             signal_type: "LONG" or "SHORT"
-            
+
         Returns:
             DataFrame with filtered signals that match Range Oscillator
         """
@@ -385,7 +386,7 @@ class ATCOscillatorAnalyzer:
         osc_params = self.get_oscillator_params()
         expected_osc_signal = 1 if signal_type == "LONG" else -1
         total = len(atc_signals_df)
-        
+
         strategies_str = "Strategy 5 Combined (Dynamic Selection + Adaptive Weights)"
         log_progress(
             f"Checking Range Oscillator signals for {total} {signal_type} symbols "
@@ -394,7 +395,7 @@ class ATCOscillatorAnalyzer:
 
         # Get ExchangeManager from DataFetcher (shared, thread-safe)
         exchange_manager = self.data_fetcher.exchange_manager
-        
+
         # Convert DataFrame rows to list of dictionaries for parallel processing
         symbol_data_list = [
             {
@@ -414,7 +415,7 @@ class ATCOscillatorAnalyzer:
 
         # Process symbols in parallel using ThreadPoolExecutor
         filtered_results = []
-        
+
         with ThreadPoolExecutor(max_workers=osc_params["max_workers"]) as executor:
             # Submit all tasks
             future_to_symbol = {
@@ -442,11 +443,11 @@ class ATCOscillatorAnalyzer:
                             confirmed_count[0] += 1
                             filtered_results.append(result)
                 except Exception as e:
-                    # Log exception with full context for debugging
-                    logger.warning(
-                        f"Error processing future result for symbol {symbol} in Range Oscillator filter: {type(e).__name__}: {e}\n"
-                        f"Traceback:\n{traceback.format_exc()}"
+                    err_msg = (
+                        f"Error processing future result for symbol {symbol} in "
+                        f"Range Oscillator filter: {type(e).__name__}: {e}"
                     )
+                    logger.warning(f"{err_msg}\nTraceback:\n{traceback.format_exc()}")
                     pass
                 finally:
                     # Update progress (thread-safe)
@@ -454,7 +455,7 @@ class ATCOscillatorAnalyzer:
                         checked_count[0] += 1
                         current_checked = checked_count[0]
                         current_confirmed = confirmed_count[0]
-                        
+
                         # Update progress every 10 symbols or at completion
                         if current_checked % 10 == 0 or current_checked == total:
                             log_progress(
@@ -466,18 +467,16 @@ class ATCOscillatorAnalyzer:
             return pd.DataFrame()
 
         filtered_df = pd.DataFrame(filtered_results)
-        
+
         # Sort by confidence score (descending) first, then by signal strength
         if "osc_confidence" in filtered_df.columns:
             if signal_type == "LONG":
                 filtered_df = filtered_df.sort_values(
-                    ["osc_confidence", "signal"], 
-                    ascending=[False, False]
+                    ["osc_confidence", "signal"], ascending=[False, False]
                 ).reset_index(drop=True)
             else:
                 filtered_df = filtered_df.sort_values(
-                    ["osc_confidence", "signal"], 
-                    ascending=[False, True]
+                    ["osc_confidence", "signal"], ascending=[False, True]
                 ).reset_index(drop=True)
         else:
             # Fallback: sort by signal strength (absolute value)
@@ -487,7 +486,7 @@ class ATCOscillatorAnalyzer:
                 filtered_df = filtered_df.sort_values("signal", ascending=True).reset_index(drop=True)
 
         return filtered_df
-    
+
     def filter_by_oscillator(self) -> None:
         """Filter ATC signals by Range Oscillator confirmation with fallback to ATC."""
         log_progress("\nStep 2: Filtering by Range Oscillator confirmation...")
@@ -499,17 +498,17 @@ class ATCOscillatorAnalyzer:
                 atc_signals_df=self.long_signals_atc,
                 signal_type="LONG",
             )
-            
+
             # Fallback to ATC if no confirmed signals
             if self.long_signals_confirmed.empty:
                 log_warn("No LONG signals confirmed by Range Oscillator. Falling back to ATC signals only.")
                 self.long_signals_confirmed = self.long_signals_atc.copy()
                 # Add source marker column
-                self.long_signals_confirmed['source'] = 'ATC_ONLY'
+                self.long_signals_confirmed["source"] = "ATC_ONLY"
                 self.long_uses_fallback = True
             else:
                 # Mark as confirmed by both ATC and Oscillator
-                self.long_signals_confirmed['source'] = 'ATC_OSCILLATOR'
+                self.long_signals_confirmed["source"] = "ATC_OSCILLATOR"
                 self.long_uses_fallback = False
         else:
             self.long_signals_confirmed = pd.DataFrame()
@@ -521,22 +520,22 @@ class ATCOscillatorAnalyzer:
                 atc_signals_df=self.short_signals_atc,
                 signal_type="SHORT",
             )
-            
+
             # Fallback to ATC if no confirmed signals
             if self.short_signals_confirmed.empty:
                 log_warn("No SHORT signals confirmed by Range Oscillator. Falling back to ATC signals only.")
                 self.short_signals_confirmed = self.short_signals_atc.copy()
                 # Add source marker column
-                self.short_signals_confirmed['source'] = 'ATC_ONLY'
+                self.short_signals_confirmed["source"] = "ATC_ONLY"
                 self.short_uses_fallback = True
             else:
                 # Mark as confirmed by both ATC and Oscillator
-                self.short_signals_confirmed['source'] = 'ATC_OSCILLATOR'
+                self.short_signals_confirmed["source"] = "ATC_OSCILLATOR"
                 self.short_uses_fallback = False
         else:
             self.short_signals_confirmed = pd.DataFrame()
             self.short_uses_fallback = False
-    
+
     def display_results(self) -> None:
         """Display final filtered results."""
         log_progress("\nStep 3: Displaying final results...")
@@ -548,11 +547,11 @@ class ATCOscillatorAnalyzer:
             long_uses_fallback=self.long_uses_fallback,
             short_uses_fallback=self.short_uses_fallback,
         )
-    
+
     def run(self) -> None:
         """
         Run the complete ATC + Range Oscillator analysis workflow.
-        
+
         Workflow:
         1. Determine timeframe
         2. Display configuration
@@ -562,29 +561,29 @@ class ATCOscillatorAnalyzer:
         """
         # Step 1: Determine timeframe
         self.determine_timeframe()
-        
+
         # Step 2: Display configuration
         self.display_config()
-        
+
         # Step 3: Components already initialized in __init__
         log_progress("Verifying components are ready...")
-        
+
         # Step 4: Run ATC auto scan
         self.run_atc_scan()
-        
+
         # Step 5: Filter by Range Oscillator confirmation
         self.filter_by_oscillator()
-        
+
         # Step 6: Display final results
         self.display_results()
-        
+
         log_success("\nAnalysis complete!")
 
 
 def main() -> None:
     """
     Main function for ATC + Range Oscillator combined signal filtering.
-    
+
     Orchestrates the complete workflow:
     1. Parse command-line arguments
     2. Initialize components (ExchangeManager, DataFetcher)
@@ -593,13 +592,13 @@ def main() -> None:
     """
     # Parse command-line arguments
     args = parse_args()
-    
+
     # Initialize components
     _, data_fetcher = initialize_components()
-    
+
     # Create analyzer instance
     analyzer = ATCOscillatorAnalyzer(args, data_fetcher)
-    
+
     # Run analysis workflow
     analyzer.run()
 
@@ -613,5 +612,6 @@ if __name__ == "__main__":
     except Exception as e:
         log_error(f"Error: {type(e).__name__}: {e}")
         import traceback
+
         log_error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)

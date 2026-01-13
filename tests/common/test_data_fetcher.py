@@ -1,14 +1,25 @@
+"""
+Unit tests for the DataFetcher class in modules.common.core.data_fetcher.
+
+This module includes helpers and dummy classes to simulate exchange behavior, and tests
+data fetching functionalities, including fallback mechanisms, using pytest and pandas.
+
+Classes:
+    DummyExchange: Simulates a crypto exchange's OHLCV fetching API with optional error and call tracking.
+    DummyPublic: Mocks a public interface that manages exchange connectivity and response priority.
+
+Functions:
+    _build_ohlcv: Builds sample OHLCV lists for testing.
+    test_fetch_ohlcv_with_fallback_prefers_fresh_data: Verifies DataFetcher prioritizes fresh data
+        from fallback sources.
+
+"""
 
 from types import SimpleNamespace
 
 import pandas as pd
 
 from modules.common.core.data_fetcher import DataFetcher
-
-from modules.common.core.data_fetcher import DataFetcher
-
-
-
 
 
 def _build_ohlcv(last_timestamp_ms: int):

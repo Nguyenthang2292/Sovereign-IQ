@@ -1,3 +1,6 @@
+"""
+Tests for I Ching Địa Chi (Earthly Branches).
+"""
 
 from collections import Counter
 
@@ -5,15 +8,6 @@ import pytest
 
 from modules.iching.predict.constants import HOA, KIM, MOC, THO, THUY, YANG, YIN
 from modules.iching.predict.dia_chi import (
-from modules.iching.predict.constants import HOA, KIM, MOC, THO, THUY, YANG, YIN
-from modules.iching.predict.dia_chi import (
-
-"""
-Tests for I Ching Địa Chi (Earthly Branches).
-"""
-
-
-
     DAN,
     DAU,
     DIA_CHI_DICT,

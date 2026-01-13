@@ -1,3 +1,9 @@
+"""
+HMM Strategy Interface Module
+
+Defines the standard interface for all HMM strategies to enable
+scalable strategy management and combination.
+"""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -6,18 +12,6 @@ from typing import Any, Dict
 import pandas as pd
 
 from modules.hmm.signals.resolution import HOLD, LONG, SHORT, Signal
-
-from modules.hmm.signals.resolution import HOLD, LONG, SHORT, Signal
-
-"""
-HMM Strategy Interface Module
-
-Defines the standard interface for all HMM strategies to enable
-scalable strategy management and combination.
-"""
-
-
-
 
 
 @dataclass

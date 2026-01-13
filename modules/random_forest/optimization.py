@@ -1,23 +1,3 @@
-
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, Optional
-import json
-
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.utils.class_weight import compute_class_weight
-import numpy as np
-import pandas as pd
-
-from config import (
-from optuna import Study
-from optuna.exceptions import DuplicatedStudyError
-import optuna
-from optuna.exceptions import DuplicatedStudyError
-import optuna
-
 """
 Hyperparameter Optimization for Random Forest Module.
 
@@ -27,8 +7,22 @@ including:
 - StudyManager: Management and persistence of optimization studies
 """
 
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
 
+import numpy as np
+import optuna
+import pandas as pd
+from optuna import Study
+from optuna.exceptions import DuplicatedStudyError
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.utils.class_weight import compute_class_weight
 
+from config import (
     MIN_TRAINING_SAMPLES,
     MODEL_RANDOM_STATE,
 )
@@ -236,7 +230,8 @@ class HyperparameterTuner:
             if len(train_idx_array) <= self.target_horizon:
                 skipped_folds += 1
                 log_warn(
-                    f"Fold {fold_idx + 1}: Training set too small ({len(train_idx_array)} <= {self.target_horizon}), skipping"
+                    f"Fold {fold_idx + 1}:"
+                    f"Training set too small ({len(train_idx_array)} <= {self.target_horizon}), skipping"
                 )
                 continue
 

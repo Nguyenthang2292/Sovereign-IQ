@@ -1,17 +1,3 @@
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from contextlib import contextmanager
-from typing import Any, Dict, Optional, Tuple
-import threading
-
-from colorama import Fore, Style
-import pandas as pd
-
-from cli.display import display_config, display_voting_metadata
-from config import (
-from cli.display import display_config, display_voting_metadata
-from config import (
-
 """
 Voting Analyzer for ATC + Range Oscillator + SPC Pure Voting System.
 
@@ -20,12 +6,20 @@ This module contains the VotingAnalyzer class that combines signals from:
 2. Range Oscillator
 3. Simplified Percentile Clustering (SPC)
 
-Phương án 2: Thay thế hoàn toàn sequential filtering bằng voting system.
+Option 2: Completely replace sequential filtering with a voting system.
 """
 
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
+from typing import Any, Dict, Optional, Tuple
 
+import pandas as pd
+from colorama import Fore, Style
 
-    DECISION_MATRIX_INDICATOR_ACCURACIES,
+# Import SPC configuration constants
+from config.decision_matrix import DECISION_MATRIX_INDICATOR_ACCURACIES
+from config.spc import (
     SPC_AGGREGATION_ADAPTIVE_PERFORMANCE_WINDOW,
     SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS,
     SPC_AGGREGATION_ENABLE_SIMPLE_FALLBACK,
@@ -75,7 +69,7 @@ class VotingAnalyzer:
     """
     ATC + Range Oscillator + SPC Pure Voting Analyzer.
 
-    Phương án 2: Thay thế hoàn toàn sequential filtering bằng voting system.
+    Option 2: Completely replace sequential filtering with a voting system.
     """
 
     def __init__(self, args, data_fetcher: DataFetcher):
@@ -166,6 +160,9 @@ class VotingAnalyzer:
 
     def display_config(self) -> None:
         """Display configuration information."""
+        # Lazy import to avoid circular dependency
+        from cli.display import display_config
+
         display_config(
             selected_timeframe=self.selected_timeframe,
             args=self.args,
@@ -378,7 +375,8 @@ class VotingAnalyzer:
                         results["hmm_confidence"] = 0.0
                 except Exception as e:
                     # Log HMM errors but don't fail the entire process
-                    log_warn(f"HMM signal calculation failed for {symbol}: {type(e).__name__}: {e}")
+                    # Sanitize error message to prevent information leakage
+                    log_warn(f"HMM signal calculation failed for {symbol}: {type(e).__name__}")
                     results["hmm_signal"] = 0
                     results["hmm_vote"] = 0
                     results["hmm_confidence"] = 0.0
@@ -405,14 +403,21 @@ class VotingAnalyzer:
                         results["random_forest_confidence"] = 0.0
                 except Exception as e:
                     # Log Random Forest errors but don't fail the entire process
-                    log_warn(f"Random Forest signal calculation failed for {symbol}: {type(e).__name__}: {e}")
+                    # Sanitize error message to prevent information leakage
+                    log_warn(f"Random Forest signal calculation failed for {symbol}: {type(e).__name__}")
                     results["random_forest_signal"] = 0
                     results["random_forest_vote"] = 0
                     results["random_forest_confidence"] = 0.0
 
             return results
 
-        except Exception:
+        except Exception as e:
+            # Log error for debugging instead of silently swallowing
+            # Sanitize error message to prevent information leakage
+            from modules.common.utils import log_error
+
+            symbol = symbol_data.get("symbol", "unknown")
+            log_error(f"Error processing symbol {symbol} for all indicators: {type(e).__name__}")
             return None
 
     def calculate_signals_for_all_indicators(
@@ -466,6 +471,9 @@ class VotingAnalyzer:
 
         results = []
 
+        # ThreadPoolExecutor automatically handles resource cleanup via context manager
+        # All threads are properly joined and resources released when exiting the 'with' block
+        # No explicit cleanup needed - Python's context manager protocol ensures proper shutdown
         with ThreadPoolExecutor(max_workers=osc_params["max_workers"]) as executor:
             future_to_symbol = {
                 executor.submit(
@@ -489,8 +497,15 @@ class VotingAnalyzer:
                         with progress_lock:
                             processed_count[0] += 1
                             results.append(result)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Log error for debugging instead of silently swallowing
+                    # Sanitize error message to prevent information leakage
+                    from modules.common.utils import log_error
+
+                    symbol = future_to_symbol.get(future, "unknown")
+                    log_error(
+                        f"Error processing symbol {symbol} in calculate_signals_for_all_indicators: {type(e).__name__}"
+                    )
                 finally:
                     with progress_lock:
                         checked_count[0] += 1
@@ -767,6 +782,9 @@ class VotingAnalyzer:
 
     def _display_voting_metadata(self, signals_df: pd.DataFrame, signal_type: str) -> None:
         """Display voting metadata for signals."""
+        # Lazy import to avoid circular dependency
+        from cli.display import display_voting_metadata
+
         display_voting_metadata(
             signals_df=signals_df,
             signal_type=signal_type,

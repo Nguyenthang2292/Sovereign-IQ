@@ -1,13 +1,12 @@
-
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from urllib.parse import quote
 import gc
 import json
 import os
 import re
 import time
 import uuid
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -23,14 +22,10 @@ from modules.gemini_chart_analyzer.core.utils.chart_paths import get_charts_dir
 from web.utils.cli_logger import CLILogger
 from web.utils.log_manager import get_log_manager
 from web.utils.task_manager import get_task_manager
-from web.utils.log_manager import get_log_manager
-from web.utils.task_manager import get_task_manager
 
 """
 API routes for Chart Analyzer (single and multi-timeframe analysis).
 """
-
-
 
 
 router = APIRouter()

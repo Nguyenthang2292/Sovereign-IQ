@@ -1,15 +1,3 @@
-
-from typing import Optional, Tuple
-import argparse
-import sys
-import warnings
-
-import pandas as pd
-
-from modules.common.utils import configure_windows_stdio
-
-from modules.common.utils import configure_windows_stdio
-
 """
 Simplified Percentile Clustering (SPC) Main Program
 
@@ -19,8 +7,14 @@ Analyzes futures pairs on Binance using Simplified Percentile Clustering:
 - Displays cluster signals and analysis
 """
 
+import argparse
+import sys
+import warnings
+from typing import Optional, Tuple
 
+import pandas as pd
 
+from modules.common.utils import configure_windows_stdio
 
 # Fix encoding issues on Windows for interactive CLI runs only
 configure_windows_stdio()

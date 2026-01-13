@@ -1,13 +1,11 @@
-
-from pathlib import Path
-from unittest.mock import Mock, patch
-import sys
-import tempfile
-
 """
 Test script for modules.deeplearning_model - TFT model creation, callbacks, and optimization.
 """
 
+import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import Mock, patch
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

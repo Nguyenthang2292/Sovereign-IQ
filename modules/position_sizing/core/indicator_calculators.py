@@ -1,12 +1,3 @@
-
-from typing import Any, Callable, Dict, List, Optional, Tuple
-
-import pandas as pd
-
-from core.signal_calculators import (
-
-from core.signal_calculators import (
-
 """
 Indicator Calculators Mixin for Hybrid Signal Calculator.
 
@@ -18,8 +9,11 @@ This module provides individual indicator calculation methods for:
 - Random Forest
 """
 
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import pandas as pd
 
+from core.signal_calculators import (
     get_hmm_signal,
     get_random_forest_signal,
     get_range_oscillator_signal,

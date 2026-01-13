@@ -1,6 +1,5 @@
-
-from pathlib import Path
 import sys
+from pathlib import Path
 
 """
 Tests for Random Forest signals module.
@@ -345,7 +344,7 @@ class TestTrainAndSaveGlobalRfModel:
 
         with patch("modules.random_forest.utils.training.psutil.virtual_memory") as mock_virtual_memory:
             mock_virtual_memory.return_value.available = 4 * 1024**3  # 4GB
-            with patch("modules.random_forest.core.model.joblib.dump") as mock_dump:
+            with patch("modules.random_forest.core.model.joblib.dump"):
                 model, model_path = train_and_save_global_rf_model(training_data, custom_filename)
 
                 if model is not None:
@@ -376,7 +375,7 @@ class TestTrainAndSaveGlobalRfModel:
         """Test global model training with auto-generated timestamped filename"""
         mock_virtual_memory.return_value.available = 4 * 1024**3  # 4GB
 
-        with patch("modules.random_forest.core.model.joblib.dump") as mock_dump:
+        with patch("modules.random_forest.core.model.joblib.dump"):
             # Mock datetime.now() to return a datetime-like object that formats correctly
             from datetime import datetime as dt
 

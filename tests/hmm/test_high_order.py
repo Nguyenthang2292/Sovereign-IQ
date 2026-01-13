@@ -1,6 +1,5 @@
-
-from pathlib import Path
 import sys
+from pathlib import Path
 
 """
 Test script for modules.hmm.high_order - True High-Order HMM implementation.
@@ -16,7 +15,7 @@ import pytest
 
 # Check if pomegranate is available
 try:
-    import pomegranate
+    import pomegranate  # noqa: F401
 
     POMEGRANATE_AVAILABLE = True
 except ImportError:

@@ -1,27 +1,21 @@
-
-from dataclasses import dataclass
-from typing import Literal, Tuple
-import os
-import warnings
-
-import numpy as np
-import pandas as pd
-
-from hmmlearn.hmm import GaussianHMM
-from modules.common.utils import log_data, log_error, log_info, log_model, log_warn
-from hmmlearn.hmm import GaussianHMM
-from modules.common.utils import log_data, log_error, log_info, log_model, log_warn
-
 """
 HMM-KAMA Model Operations.
 
 This module contains the HMM_KAMA dataclass and all HMM model training/application operations.
 """
 
+import os
+import warnings
+from dataclasses import dataclass
+from typing import Literal, Tuple
+
+import numpy as np
+import pandas as pd
+from hmmlearn.hmm import GaussianHMM
+
+from modules.common.utils import log_data, log_error, log_info, log_model, log_warn
+
 # Fix KMeans memory leak on Windows with MKL
-
-
-
 os.environ["OMP_NUM_THREADS"] = "1"
 warnings.filterwarnings("ignore", message="KMeans is known to have a memory leak on Windows with MKL")
 

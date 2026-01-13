@@ -1,8 +1,3 @@
-
-from contextlib import contextmanager
-import os
-import threading
-
 """
 API Configuration for external services.
 This file contains API keys and secrets - DO NOT commit to git!
@@ -18,6 +13,13 @@ SECURITY NOTES:
 - If this file has been committed with keys, rotate (change) the keys immediately
 """
 
+from contextlib import contextmanager
+import os
+import threading
+import logging
+
+# Set up logger for security-related warnings
+_logger = logging.getLogger(__name__)
 
 # Try to import winreg (Windows only)
 try:
@@ -25,9 +27,17 @@ try:
 except ImportError:
     winreg = None  # winreg not available (non-Windows system or Python < 3.2)
 
-# Lock for serializing writes/updates to module-level API key constants.
-# Note: This lock only protects writes, not reads. For thread-safe reads,
-# use get_api_keys() or the individual getter functions (get_binance_api_key(), etc.).
+# Thread-safety note:
+# Direct reads of module-level constants (e.g., `BINANCE_API_KEY`) are NOT protected
+# by the lock and may return stale values in multi-threaded environments. This can
+# occur if load_api_keys() is called after the module has been imported and the
+# constants have already been read by other threads.
+#
+# For thread-safe access, ALWAYS use:
+#   - get_api_keys() for all keys
+#   - get_binance_api_key(), get_binance_api_secret(), get_gemini_api_key() for individual keys
+#
+# These functions acquire the lock before reading, ensuring consistency.
 _api_keys_lock = threading.Lock()
 
 # Context manager for Windows registry keys that automatically closes them
@@ -62,9 +72,25 @@ def _read_from_registry(env_var_name):
             value = winreg.QueryValueEx(key, env_var_name)[0] or None
             if value is not None:
                 return value
-    except (OSError, FileNotFoundError):
-        # Registry key doesn't exist or access denied
+    except FileNotFoundError:
+        # Registry key doesn't exist - this is expected and can be ignored
         pass
+    except PermissionError as e:
+        # Access denied - this is a security issue and should be logged
+        _logger.warning(
+            f"Access denied when reading '{env_var_name}' from Windows Registry "
+            f"(HKEY_CURRENT_USER\\Environment): {e}"
+        )
+    except OSError as e:
+        # Other registry errors - log for debugging but don't fail
+        # Common cases: key doesn't exist (error code 2), which is handled above
+        # But we log other OSError cases that might indicate issues
+        winerror = getattr(e, 'winerror', None)
+        if winerror is not None and winerror != 2:  # 2 = ERROR_FILE_NOT_FOUND, which is expected
+            _logger.debug(
+                f"OSError when reading '{env_var_name}' from Windows Registry "
+                f"(HKEY_CURRENT_USER\\Environment): {e} (error code: {winerror})"
+            )
     
     # If still None, try Machine environment (HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment)
     try:
@@ -72,9 +98,25 @@ def _read_from_registry(env_var_name):
             value = winreg.QueryValueEx(key, env_var_name)[0] or None
             if value is not None:
                 return value
-    except (OSError, FileNotFoundError):
-        # Registry key doesn't exist or access denied
+    except FileNotFoundError:
+        # Registry key doesn't exist - this is expected and can be ignored
         pass
+    except PermissionError as e:
+        # Access denied - this is a security issue and should be logged
+        _logger.warning(
+            f"Access denied when reading '{env_var_name}' from Windows Registry "
+            f"(HKEY_LOCAL_MACHINE): {e}"
+        )
+    except OSError as e:
+        # Other registry errors - log for debugging but don't fail
+        # Common cases: key doesn't exist (error code 2), which is handled above
+        # But we log other OSError cases that might indicate issues
+        winerror = getattr(e, 'winerror', None)
+        if winerror is not None and winerror != 2:  # 2 = ERROR_FILE_NOT_FOUND, which is expected
+            _logger.debug(
+                f"OSError when reading '{env_var_name}' from Windows Registry "
+                f"(HKEY_LOCAL_MACHINE): {e} (error code: {winerror})"
+            )
     
     return None
 
@@ -106,8 +148,14 @@ def _get_key(env_var_name):
 # For security, always use environment variables:
 #   export BINANCE_API_KEY='your-key-here'
 #   export BINANCE_API_SECRET='your-secret-here'
-BINANCE_API_KEY = _get_key("BINANCE_API_KEY")
-BINANCE_API_SECRET = _get_key("BINANCE_API_SECRET")
+#
+# WARNING: Direct access to these constants is NOT thread-safe.
+# Use get_binance_api_key() and get_binance_api_secret() for thread-safe access.
+# Thread-safe initialization: acquire lock during module import to prevent race conditions
+# if load_api_keys() is called concurrently during import
+with _api_keys_lock:
+    BINANCE_API_KEY = _get_key("BINANCE_API_KEY")
+    BINANCE_API_SECRET = _get_key("BINANCE_API_SECRET")
 
 # Google Gemini API Configuration
 # Get API key from: https://makersuite.google.com/app/apikey
@@ -116,7 +164,13 @@ BINANCE_API_SECRET = _get_key("BINANCE_API_SECRET")
 # For security, always use environment variables:
 #   export GEMINI_API_KEY='your-api-key-here'
 #   or in PowerShell: $env:GEMINI_API_KEY='your-api-key-here'
-GEMINI_API_KEY = _get_key("GEMINI_API_KEY")
+#
+# WARNING: Direct access to this constant is NOT thread-safe.
+# Use get_gemini_api_key() for thread-safe access.
+# Thread-safe initialization: acquire lock during module import to prevent race conditions
+# if load_api_keys() is called concurrently during import
+with _api_keys_lock:
+    GEMINI_API_KEY = _get_key("GEMINI_API_KEY")
 
 
 def load_api_keys():

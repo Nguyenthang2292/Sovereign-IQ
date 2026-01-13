@@ -1,23 +1,17 @@
+"""Momentum indicator block."""
 
-from typing import Optional, Union
+from __future__ import annotations
+
 import logging
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
+import pandas_ta as ta
+
+from modules.common.utils import validate_ohlcv_input
 
 from .base import IndicatorResult, collect_metadata
-from __future__ import annotations
-from modules.common.utils import validate_ohlcv_input
-import pandas_ta as ta
-from modules.common.utils import validate_ohlcv_input
-import pandas_ta as ta
-
-"""Momentum indicator block."""
-
-
-
-
-
 
 logger = logging.getLogger(__name__)
 

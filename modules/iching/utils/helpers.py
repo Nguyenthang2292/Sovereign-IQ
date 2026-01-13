@@ -1,20 +1,16 @@
-
-from typing import Union
 import io
 import os
 import platform
 import sys
+from typing import Union
+
+from PIL import ImageFont
 
 from config.iching import FONT_PATHS, FONT_SIZE, IMAGES_DIR
-from PIL import ImageFont
-from PIL import ImageFont
 
 """
 Utility functions for I Ching module.
 """
-
-
-
 
 
 def ensure_utf8_stdout() -> None:

@@ -1,10 +1,3 @@
-
-import numpy as np
-import pandas as pd
-
-import pandas_ta as ta
-import pandas_ta as ta
-
 """
 Moving Average Ratio (MAR) indicator for technical analysis.
 
@@ -12,6 +5,9 @@ MAR calculates the ratio of close price to moving average, providing a normalize
 measure of price position relative to its moving average.
 """
 
+import numpy as np
+import pandas as pd
+import pandas_ta as ta
 
 
 def calculate_mar(close: pd.Series, length: int = 14, ma_type: str = "SMA") -> pd.Series:

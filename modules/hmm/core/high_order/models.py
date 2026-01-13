@@ -1,23 +1,17 @@
-
-from typing import List, Optional, Tuple
-
-from scipy.signal import argrelextrema
-import numpy as np
-import pandas as pd
-
-from config import (
-from pomegranate.hmm import DenseHMM
-from config import (
-from pomegranate.hmm import DenseHMM
-
 """
 High-Order HMM Model Definitions.
 
 This module contains the TrueHighOrderHMM class and related constants.
 """
 
+from typing import List, Optional, Tuple
 
+import numpy as np
+import pandas as pd
+from pomegranate.hmm import DenseHMM
+from scipy.signal import argrelextrema
 
+from config import (
     HMM_HIGH_ORDER_MAX_ORDER_DEFAULT,
     HMM_HIGH_ORDER_MIN_ORDER_DEFAULT,
     HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT,

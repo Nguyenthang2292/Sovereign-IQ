@@ -1,12 +1,3 @@
-
-from datetime import datetime, timedelta
-from unittest.mock import patch
-import threading
-import time
-
-from web.utils.task_manager import TaskManager, get_task_manager
-from web.utils.task_manager import TaskManager, get_task_manager
-
 """
 Tests for TaskManager (web/utils/task_manager.py).
 
@@ -20,7 +11,12 @@ Tests cover:
 - Thread safety
 """
 
+import threading
+import time
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
+from web.utils.task_manager import TaskManager, get_task_manager
 
 
 class TestTaskManager:

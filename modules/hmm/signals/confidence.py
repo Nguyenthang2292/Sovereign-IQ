@@ -1,12 +1,10 @@
-
-from config import (
-
 """
 HMM Signal Confidence Module
 
 Functions for calculating confidence scores from HMM models.
 """
 
+from config import (
     HMM_AGREEMENT_BONUS,
     HMM_FEATURES,
     HMM_HIGH_ORDER_WEIGHT,

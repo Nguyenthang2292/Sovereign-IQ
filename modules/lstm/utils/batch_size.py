@@ -1,10 +1,17 @@
+"""
+Utilities for calculating and determining appropriate batch sizes for LSTM-based models.
+
+This module provides functions and logic to estimate memory usage per batch,
+choose safe and efficient batch sizes for training and inference, and adapt
+batch size based on model type, sequence length, input feature size, available
+system memory, and runtime conditions.
+
+Intended for use with LSTM, LSTM with attention, and CNN-LSTM architectures.
+"""
 
 import torch
 
 from config.lstm import (
-from config.lstm import (
-
-
     COMPLEXITY_MULTIPLIER,
     CPU_BATCH_DIVISOR_CNN_LSTM,
     CPU_BATCH_DIVISOR_LSTM_ATTENTION,
@@ -28,7 +35,7 @@ from config.lstm import (
 from modules.common.ui.logging import log_debug, log_model, log_warn
 
 
-def _estimate_memory_per_sample(input_size, sequence_length, model_type, is_training):
+def _estimate_memory_per_sample(input_size: int, sequence_length: int, model_type: str, is_training: bool) -> float:
     """
     Estimate memory per sample in MB.
 
@@ -65,7 +72,9 @@ def _estimate_memory_per_sample(input_size, sequence_length, model_type, is_trai
     return memory_per_sample_mb
 
 
-def get_optimal_batch_size(device, input_size, sequence_length, model_type="lstm", is_training=True):
+def get_optimal_batch_size(
+    device: torch.device, input_size: int, sequence_length: int, model_type: str = "lstm", is_training: bool = True
+) -> int:
     """
     Dynamically determine optimal batch size based on GPU memory and model complexity.
 
@@ -118,7 +127,21 @@ def get_optimal_batch_size(device, input_size, sequence_length, model_type="lstm
             optimal_batch = max(min_batch, min(calc_batch, max_batch))
             mode_str = "training" if is_training else "inference"
             log_model(
-                f"CPU: Model: {model_type}, Mode: {mode_str}, Estimated per-sample MB: {memory_per_sample_mb:.4f}, Optimal batch: {optimal_batch}"
+                (
+                    f"CPU Batch Size Estimation: "
+                    f"\n  - Model Type: {model_type}"
+                    f"\n  - Mode: {mode_str}"
+                    f"\n  - Estimated Memory Usage per Sample: {memory_per_sample_mb:.4f} MB"
+                    f"\n  - Maximum Usable Batch Memory: {max_usable_memory_mb} MB"
+                    f"\n  - Minimum Batch Size Allowed: {min_batch}"
+                    f"\n  - Calculated Batch Size: {calc_batch}"
+                    f"\n  - Batch Upper Bound for Model Type: {max_batch}"
+                    f"\n  - Selected Optimal Batch Size: {optimal_batch}"
+                    f"\n  **Note:** This is a rough estimate based on input tensor size,"
+                    f"sequence length, and model type.\n"
+                    f"It does NOT consider parameter/gradient/optimizer/hidden state memory. "
+                    f"Monitor system resource usage and adjust as needed if OOM errors occur."
+                )
             )
             log_warn(
                 "Memory estimation is approximate and may underestimate actual requirements. "
@@ -145,7 +168,8 @@ def get_optimal_batch_size(device, input_size, sequence_length, model_type="lstm
                 calc_batch = int((usable_memory_gb * 1024) / memory_per_sample_mb)
             else:
                 log_warn(
-                    f"Memory per sample is zero (input_size={input_size}, sequence_length={sequence_length}), using default GPU_BATCH_SIZE"
+                    f"Memory per sample is zero (input_size={input_size}, sequence_length={sequence_length}), "
+                    f"using default GPU_BATCH_SIZE"
                 )
                 calc_batch = GPU_BATCH_SIZE
 
@@ -172,7 +196,9 @@ def get_optimal_batch_size(device, input_size, sequence_length, model_type="lstm
                 estimated_memory_gb = (optimal_batch * memory_per_sample_mb) / 1024
                 if estimated_memory_gb > usable_memory_gb:
                     log_warn(
-                        f"Even the reduced batch size ({optimal_batch}) may exceed available memory ({usable_memory_gb:.2f}GB)"
+                        f"Even the reduced batch size ({optimal_batch}) may exceed available memory "
+                        f"({usable_memory_gb:.2f}GB). Monitor actual memory usage and adjust batch "
+                        f"size if OOM errors occur."
                     )
 
             mode_str = "training" if is_training else "inference"

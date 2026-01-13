@@ -1,15 +1,12 @@
-
 import pytest
 import torch
 
 from config.lstm import WINDOW_SIZE_LSTM
 from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
-from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
 
 """
 Tests for model factory module.
 """
-
 
 
 # ============================================================================

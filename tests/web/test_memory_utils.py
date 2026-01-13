@@ -1,10 +1,3 @@
-
-from unittest.mock import MagicMock, Mock, patch
-import gc
-
-from web.utils.memory_utils import (
-from web.utils.memory_utils import (
-
 """
 Tests for Memory Utilities (web/utils/memory_utils.py).
 
@@ -17,7 +10,10 @@ Tests cover:
 - Memory optimization
 """
 
+import gc
+from unittest.mock import MagicMock, Mock, patch
 
+from web.utils.memory_utils import (
     force_garbage_collection,
     get_memory_snapshot_diff,
     get_memory_usage,

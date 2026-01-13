@@ -1,10 +1,8 @@
-
 from modules.position_sizing.core.kelly_calculator import BayesianKellyCalculator
 
 """
 Tests for Bayesian Kelly Calculator.
 """
-
 
 
 def test_calculate_kelly_fraction_basic():

@@ -1,12 +1,3 @@
-
-from dataclasses import dataclass
-from typing import Optional
-
-from __future__ import annotations
-from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
-from modules.simplified_percentile_clustering.utils.validation import (
-from modules.simplified_percentile_clustering.utils.validation import (
-
 """
 Configuration for Cluster Transition Strategy.
 
@@ -15,10 +6,13 @@ When the market transitions from one cluster to another, it may indicate
 a regime change and potential trading opportunity.
 """
 
+from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Optional
 
-    validate_clustering_config,
-)
+from modules.simplified_percentile_clustering.core.clustering import ClusteringConfig
+from modules.simplified_percentile_clustering.utils.validation import validate_clustering_config
 
 
 @dataclass

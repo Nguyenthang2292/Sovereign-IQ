@@ -1,22 +1,16 @@
-
-from typing import List
 import warnings
+from typing import List
 
 import numpy as np
+from pomegranate.hmm import DenseHMM
 
 from modules.hmm.core.swings.swing_utils import safe_forward_backward
-from pomegranate.hmm import DenseHMM
-from modules.hmm.core.swings.swing_utils import safe_forward_backward
-from pomegranate.hmm import DenseHMM
 
 """
 HMM-Swings Prediction Functions.
 
 This module handles prediction of next states and model evaluation.
 """
-
-
-
 
 
 def predict_next_hidden_state_forward_backward(model: DenseHMM, observations: list) -> List[float]:

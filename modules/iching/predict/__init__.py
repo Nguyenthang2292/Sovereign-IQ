@@ -1,8 +1,6 @@
-
-from modules.iching.predict.constants import (
-
 """I Ching prediction and divination constants."""
 
+from modules.iching.predict.constants import (
     HOA,
     KIM,
     MOC,

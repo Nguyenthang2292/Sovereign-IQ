@@ -1,4 +1,3 @@
-
 import warnings
 
 import pytest
@@ -6,14 +5,9 @@ import torch
 
 from modules.lstm.core.positional_encoding import PositionalEncoding
 
-from modules.lstm.core.positional_encoding import PositionalEncoding
-
 """
 Tests for PositionalEncoding module.
 """
-
-
-
 
 
 class TestPositionalEncoding:

@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 """
@@ -6,7 +5,6 @@ Chart path utilities for gemini chart analyzer.
 
 Provides functions for determining chart directory paths.
 """
-
 
 
 def get_charts_dir() -> Path:

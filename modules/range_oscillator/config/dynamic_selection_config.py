@@ -1,8 +1,6 @@
-
-from dataclasses import dataclass
-
 """Configuration for dynamic strategy selection."""
 
+from dataclasses import dataclass
 
 
 @dataclass
@@ -14,12 +12,14 @@ class DynamicSelectionConfig:
         lookback: Number of bars to look back for market condition analysis.
         volatility_threshold: Threshold for determining high volatility (0-1).
         trend_threshold: Threshold for determining trending market (0-1).
+        range_bound_threshold: Threshold for determining range-bound market (0-1).
     """
 
     enabled: bool = False
     lookback: int = 20
     volatility_threshold: float = 0.6
     trend_threshold: float = 0.5
+    range_bound_threshold: float = 0.5
 
     def __post_init__(self):
         """Validate configuration values."""
@@ -29,3 +29,5 @@ class DynamicSelectionConfig:
             raise ValueError(f"volatility_threshold must be between 0 and 1, got {self.volatility_threshold}")
         if not (0.0 <= self.trend_threshold <= 1.0):
             raise ValueError(f"trend_threshold must be between 0 and 1, got {self.trend_threshold}")
+        if not (0.0 <= self.range_bound_threshold <= 1.0):
+            raise ValueError(f"range_bound_threshold must be between 0 and 1, got {self.range_bound_threshold}")

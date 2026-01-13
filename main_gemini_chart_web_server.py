@@ -1,8 +1,3 @@
-
-from pathlib import Path
-import os
-import sys
-
 """
 Main entry point for Gemini Chart Analyzer Web Server.
 
@@ -10,6 +5,9 @@ FastAPI server for serving REST API endpoints and Vue.js frontend.
 Run from project root: python main_gemini_chart_web_server.py
 """
 
+import os
+import sys
+from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent

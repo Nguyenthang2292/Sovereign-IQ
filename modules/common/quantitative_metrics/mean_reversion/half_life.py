@@ -1,10 +1,3 @@
-
-from typing import Optional
-
-import numpy as np
-import pandas as pd
-import pandas as pd
-
 """
 Half-life calculation for quantitative analysis.
 
@@ -12,7 +5,10 @@ This is a general-purpose half-life calculation that can be used
 for any mean-reverting time series analysis, not just pairs trading.
 """
 
+from typing import Optional
 
+import numpy as np
+import pandas as pd
 
 try:
     from sklearn.linear_model import LinearRegression

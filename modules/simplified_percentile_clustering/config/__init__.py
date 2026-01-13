@@ -1,6 +1,3 @@
-
-from modules.simplified_percentile_clustering.config.aggregation_config import (
-
 """
 Configuration classes for Simplified Percentile Clustering strategies.
 
@@ -8,6 +5,7 @@ This module contains all configuration dataclasses for clustering and strategies
 Each strategy configuration is in its own file for better organization.
 """
 
+from modules.simplified_percentile_clustering.config.aggregation_config import (
     SPCAggregationConfig,
 )
 from modules.simplified_percentile_clustering.config.cluster_transition_config import (

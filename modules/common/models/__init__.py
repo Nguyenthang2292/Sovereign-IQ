@@ -1,4 +1,3 @@
-
 from .position import Position
 
 """Data models and DTOs."""

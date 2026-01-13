@@ -1,15 +1,3 @@
-
-import os
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import pytest
-
-from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
-
-from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
-
 """
 Tests for ChartBatchGenerator class.
 
@@ -21,8 +9,14 @@ Tests cover:
 - Edge cases (empty data, insufficient symbols)
 """
 
+import os
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pytest
 
+from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
 
 
 @pytest.fixture

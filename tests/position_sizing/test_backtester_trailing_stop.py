@@ -1,9 +1,6 @@
-
 from types import SimpleNamespace
 
 import pandas as pd
-
-from modules.backtester import FullBacktester
 
 from modules.backtester import FullBacktester
 
@@ -13,9 +10,6 @@ Tests for trailing stop fix in Full Backtester.
 These tests verify that trailing stop is only activated after price moves
 favorably, not immediately on entry.
 """
-
-
-
 
 
 def test_trailing_stop_not_triggered_immediately_on_entry_long():

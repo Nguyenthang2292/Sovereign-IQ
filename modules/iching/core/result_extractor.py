@@ -1,19 +1,15 @@
-
-from dataclasses import replace
-from typing import Optional
-import json
-import re
-
-from modules.common.ui.logging import log_error, log_info, log_success, log_warn
-from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
-from modules.iching.core.data_models import IChingResult
-from modules.iching.core.data_models import IChingResult
-
 """
 I Ching result information extractor using Google Gemini API.
 """
 
+import json
+import re
+from dataclasses import replace
+from typing import Optional
 
+from modules.common.ui.logging import log_error, log_info, log_success, log_warn
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
+from modules.iching.core.data_models import IChingResult
 
 
 class IChingResultExtractor:
@@ -94,7 +90,8 @@ class IChingResultExtractor:
         Returns:
             Prompt string
         """
-        return """Bạn là chuyên gia phân tích ảnh kết quả Lục Hào (I Ching). Nhiệm vụ của bạn là trích xuất thông tin chi tiết từ ảnh kết quả divination.
+        return """Bạn là chuyên gia phân tích ảnh kết quả Lục Hào (I Ching).
+Nhiệm vụ của bạn là trích xuất thông tin chi tiết từ ảnh kết quả divination.
 
 Hãy phân tích ảnh và trích xuất các thông tin sau:
 
@@ -108,11 +105,12 @@ Hãy phân tích ảnh và trích xuất các thông tin sau:
      * Hào số (1-6)
      * Lục Thân (Thế, Ứng, Phụ Mẫu, Tử Tôn, Thê Tài, Quan Quỷ, Huynh Đệ)
      * Can Chi (ví dụ: "Tý-Thủy", "Dần-Mộc")
-     * P.Thần (Phục Thần): Từ cột "P.Thần", lấy giá trị. Nếu là "-" hoặc rỗng, để null. Nếu có giá trị (ví dụ: tên Can Chi), lưu vào phuc_than
+     * P.Thần (Phục Thần): Từ cột "P.Thần", lấy giá trị. Nếu là "-" hoặc rỗng, để null.
+       Nếu có giá trị (ví dụ: tên Can Chi), lưu vào phuc_than
    - Xác định vị trí Thế: tìm hào có "Thế" trong cột T/Ư
    - Xác định vị trí Ứng: tìm hào có "Ứng" trong cột T/Ư
    - Xác định vị trí TK: tìm các hào có "K" trong cột T.K
-   - **Xác định hào động (RẤT QUAN TRỌNG - ĐỌC KỸ)**: 
+   - **Xác định hào động (RẤT QUAN TRỌNG - ĐỌC KỸ)**:
      * BƯỚC 1: Trước tiên, hãy QUÉT TOÀN BỘ BẢNG và liệt kê TẤT CẢ các hào có dấu hiệu màu đỏ:
        - Quét từng hàng từ dưới lên (hào 1 đến hào 6)
        - Ghi chú lại: "Hào X có text đỏ" hoặc "Hào Y có vạch đỏ trong hexagram"
@@ -125,7 +123,7 @@ Hãy phân tích ảnh và trích xuất các thông tin sau:
        - Nếu thấy hàng thứ 3 từ dưới lên có "Thê Tài" và "Ngọ-Hỏa" màu đỏ → Hào 3 là hào động (is_dong: true)
        - Nếu thấy hàng thứ 5 từ dưới lên có "Huynh Đệ" và "Hợi-Thủy" màu đỏ → Hào 5 là hào động (is_dong: true)
        - Nếu một hàng KHÔNG có text đỏ, KHÔNG có vạch đỏ → Hào đó không động (is_dong: false)
-     * QUAN TRỌNG: 
+     * QUAN TRỌNG:
        - Hào số được đếm từ DƯỚI LÊN: Hào 1 = hàng dưới cùng, Hào 6 = hàng trên cùng
        - KHÔNG nhầm lẫn: cột T.K có "K" KHÔNG có nghĩa là hào động
        - CÓ THỂ CÓ NHIỀU HÀO ĐỘNG (ví dụ: cả Hào 3 và Hào 5 đều động)
@@ -141,7 +139,8 @@ Hãy phân tích ảnh và trích xuất các thông tin sau:
      * Lục Thú (Thanh Long, Chu Tước, Câu Trần, Đằng Xà, Bạch Hổ, Huyền Vũ)
    - **LƯU Ý**: Không cần xác định hào động cho quẻ phải. Tất cả hào trong quẻ phải đều có is_dong: false
 
-**QUAN TRỌNG**: Bạn PHẢI trả về kết quả dưới dạng JSON hợp lệ, không có markdown code block, không có text thừa. Chỉ trả về JSON thuần.
+**QUAN TRỌNG**: Bạn PHẢI trả về kết quả dưới dạng JSON hợp lệ,
+không có markdown code block, không có text thừa. Chỉ trả về JSON thuần.
 
 Format JSON:
 {
@@ -210,7 +209,8 @@ Lưu ý:
             hao_dong_phai_original = [h.hao for h in result.que_phai if h.is_dong]
             if set(hao_dong_trai_original) != set(hao_dong_phai_original):
                 log_warn(
-                    f"Phát hiện hào động không nhất quán từ Gemini API - Quẻ trái: {hao_dong_trai_original}, Quẻ phải: {hao_dong_phai_original}. "
+                    f"Phát hiện hào động không nhất quán từ Gemini API - "
+                    f"Quẻ trái: {hao_dong_trai_original}, Quẻ phải: {hao_dong_phai_original}. "
                     f"Sẽ tự động đồng bộ để quẻ phải tương ứng với quẻ trái."
                 )
 
@@ -263,7 +263,8 @@ Lưu ý:
         object.__setattr__(result, "que_phai", new_que_phai)
 
         log_info(
-            f"Đã đồng bộ hào động: Quẻ trái có Hào {', '.join(map(str, hao_dong_trai))} động → Quẻ phải cũng có các hào này động"
+            f"Đã đồng bộ hào động: Quẻ trái có Hào {', '.join(map(str, hao_dong_trai))} động "
+            f"→ Quẻ phải cũng có các hào này động"
         )
 
     def _validate_result(self, result: IChingResult) -> None:

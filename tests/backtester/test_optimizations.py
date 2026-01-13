@@ -1,15 +1,3 @@
-
-from types import SimpleNamespace
-from unittest.mock import patch
-
-import numpy as np
-import pandas as pd
-
-from modules.backtester.core.backtester import FullBacktester
-from modules.backtester.core.equity_curve import (
-from modules.backtester.core.backtester import FullBacktester
-from modules.backtester.core.equity_curve import (
-
 """
 Comprehensive tests for optimizations in Full Backtester.
 
@@ -21,8 +9,14 @@ Tests cover:
 - Numba fallback behavior
 """
 
+from types import SimpleNamespace
+from unittest.mock import patch
 
+import numpy as np
+import pandas as pd
 
+from modules.backtester.core.backtester import FullBacktester
+from modules.backtester.core.equity_curve import (
     _calculate_equity_curve_jit,
 )
 from modules.backtester.core.exit_conditions import (
@@ -372,7 +366,7 @@ class TestVectorizationOptimizations:
             def get_cache_stats(self):
                 return {"signal_cache_size": 0, "signal_cache_max_size": 1000}
 
-        data_fetcher = SimpleNamespace(
+        SimpleNamespace(
             fetch_ohlcv_with_fallback_exchange=lambda *args, **kwargs: (df, "binance"),
         )
 
@@ -457,7 +451,7 @@ class TestBatchSizeOptimization:
                     use_confidence_weighting = True
                     min_indicators_agreement = 3
 
-                data_fetcher = SimpleNamespace(
+                SimpleNamespace(
                     fetch_ohlcv_with_fallback_exchange=lambda *args, **kwargs: (df, "binance"),
                 )
 
@@ -512,7 +506,7 @@ class TestBatchSizeOptimization:
                 use_confidence_weighting = True
                 min_indicators_agreement = 3
 
-            data_fetcher = SimpleNamespace(
+            SimpleNamespace(
                 fetch_ohlcv_with_fallback_exchange=lambda *args, **kwargs: (df, "binance"),
             )
 
@@ -883,7 +877,7 @@ class TestConcurrencyAndErrorHandling:
                 use_confidence_weighting = True
                 min_indicators_agreement = 3
 
-            data_fetcher = SimpleNamespace(
+            SimpleNamespace(
                 fetch_ohlcv_with_fallback_exchange=lambda *args, **kwargs: (df, "binance"),
             )
 

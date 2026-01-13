@@ -1,13 +1,3 @@
-
-from typing import Dict, List, Tuple
-
-import numpy as np
-import pandas as pd
-
-from config.position_sizing import (
-
-from config.position_sizing import (
-
 """
 Incremental signal calculation functions with position-aware skipping.
 
@@ -15,8 +5,12 @@ These functions combine signal calculation and trade simulation in a single loop
 skipping signal calculation when a position is open to save computation time.
 """
 
+from typing import Dict, List, Tuple
 
+import numpy as np
+import pandas as pd
 
+from config.position_sizing import (
     HYBRID_OSC_LENGTH,
     HYBRID_OSC_MULT,
     HYBRID_OSC_STRATEGIES,

@@ -1,3 +1,10 @@
+"""
+Tests for optimized backtester implementation.
+
+This module tests the new optimized implementation (vectorized indicators,
+shared memory parallel processing) to ensure it produces the same results
+as the original implementation.
+"""
 
 from unittest.mock import Mock, patch
 
@@ -8,19 +15,6 @@ import pytest
 from modules.backtester.core.signal_calculator import calculate_signals
 from modules.common.core.data_fetcher import DataFetcher
 from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
-from modules.common.core.data_fetcher import DataFetcher
-from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
-
-"""
-Tests for optimized backtester implementation.
-
-This module tests the new optimized implementation (vectorized indicators,
-shared memory parallel processing) to ensure it produces the same results
-as the original implementation.
-"""
-
-
-
 
 
 @pytest.fixture

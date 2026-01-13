@@ -1,27 +1,20 @@
-
-from typing import Any, Dict, List, Optional
-import json
-import logging
-import os
-import re
-import threading
-import time
-
-from modules.common.ui.logging import log_error, log_info, log_success, log_warn
-from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
-import PIL.Image
-import PIL.Image
-
 """
 Batch Gemini Analyzer for analyzing batch chart images.
 
 Extends GeminiChartAnalyzer to handle batch images with JSON response parsing.
 """
 
+import json
+import os
+import re
+import threading
+import time
+from typing import Any, Dict, List, Optional
 
+import PIL.Image
 
-
-logger = logging.getLogger(__name__)
+from modules.common.ui.logging import log_error, log_info, log_success, log_warn
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
 
 
 class GeminiBatchChartAnalyzer(GeminiChartAnalyzer):
@@ -125,9 +118,11 @@ class GeminiBatchChartAnalyzer(GeminiChartAnalyzer):
         # Apply cooldown
         self._apply_cooldown()
 
-        log_info(
-            f"Analyzing multi-TF batch chart with {len(symbols)} symbols across {len(normalized_timeframes)} timeframes..."
+        msg = (
+            f"Analyzing multi-TF batch chart with {len(symbols)} symbols "
+            f"across {len(normalized_timeframes)} timeframes..."
         )
+        log_info(msg)
 
         try:
             # Step 1: Create multi-timeframe batch prompt
@@ -191,7 +186,11 @@ class GeminiBatchChartAnalyzer(GeminiChartAnalyzer):
         if len(symbols) > max_display:
             symbols_list = ", ".join(symbols[:max_display])
             symbols_list += f", ... (và {len(symbols) - max_display} symbols khác)"
-            instruction = f"\n\n⚠️ QUAN TRỌNG: Danh sách trên chỉ hiển thị {max_display} symbols đầu tiên. Bạn PHẢI phân tích TẤT CẢ {len(symbols)} symbols có trong ảnh."
+            instruction = (
+                f"\n\n⚠️ QUAN TRỌNG: Danh sách trên chỉ hiển thị "
+                f"{max_display} symbols đầu tiên. Bạn PHẢI phân tích "
+                f"TẤT CẢ {len(symbols)} symbols có trong ảnh."
+            )
         else:
             symbols_list = all_symbols_list
             instruction = ""
@@ -214,13 +213,19 @@ class GeminiBatchChartAnalyzer(GeminiChartAnalyzer):
 
         # Customize instruction for batch prompt (more detailed)
         if base_instruction:
-            all_symbols_instruction = f"\n\n⚠️ QUAN TRỌNG: Danh sách trên chỉ hiển thị {max_display_symbols} symbols đầu tiên làm ví dụ. Bạn PHẢI phân tích TẤT CẢ {len(symbols)} biểu đồ/symbols có trong ảnh, không chỉ những symbols được liệt kê ở trên. Hãy xem kỹ ảnh và tìm tất cả các symbols có nhãn trên biểu đồ."
+            all_symbols_instruction = (
+                f"\n\n⚠️ QUAN TRỌNG: Danh sách trên chỉ hiển thị {max_display_symbols} "
+                f"symbols đầu tiên làm ví dụ. Bạn PHẢI phân tích TẤT CẢ {len(symbols)} "
+                f"biểu đồ/symbols có trong ảnh, không chỉ những symbols được liệt kê ở "
+                f"trên. Hãy xem kỹ ảnh và tìm tất cả các symbols có nhãn trên biểu đồ."
+            )
         else:
             all_symbols_instruction = ""
 
         prompt = f"""Bạn là một chuyên gia phân tích kỹ thuật tài chính.
 
-Trong ảnh này có {len(symbols)} biểu đồ nến (candlestick charts) của các cặp tiền mã hóa. Mỗi biểu đồ có nhãn symbol ở góc trên trái.
+Trong ảnh này có {len(symbols)} biểu đồ nến (candlestick charts) của các cặp tiền mã hóa.
+Mỗi biểu đồ có nhãn symbol ở góc trên trái.
 
 Danh sách tất cả symbols trong batch này: {symbols_list}{all_symbols_instruction}
 
@@ -273,9 +278,11 @@ Lưu ý:
 
         prompt = f"""Bạn là một chuyên gia phân tích kỹ thuật tài chính.
 
-Trong ảnh này có {len(symbols)} symbols, mỗi symbol có {len(timeframes)} biểu đồ nến cho các timeframes khác nhau: {all_timeframes_list}.
+Trong ảnh này có {len(symbols)} symbols, mỗi symbol có {len(timeframes)} biểu đồ nến
+cho các timeframes khác nhau: {all_timeframes_list}.
 
-Mỗi symbol được hiển thị với các biểu đồ timeframes được sắp xếp trong một grid. Mỗi biểu đồ có nhãn symbol và timeframe ở góc trên trái.
+Mỗi symbol được hiển thị với các biểu đồ timeframes được sắp xếp trong một grid.
+Mỗi biểu đồ có nhãn symbol và timeframe ở góc trên trái.
 
 Danh sách tất cả symbols trong batch này: {symbols_list}{all_symbols_instruction}
 
@@ -477,9 +484,8 @@ Lưu ý:
 
             # Log missing symbols if any
             if missing_symbols:
-                log_warn(
-                    f"{len(missing_symbols)} symbols not found in JSON response: {missing_symbols[:5]}{'...' if len(missing_symbols) > 5 else ''}"
-                )
+                missing_list = f"{missing_symbols[:5]}{'...' if len(missing_symbols) > 5 else ''}"
+                log_warn(f"{len(missing_symbols)} symbols not found in JSON response: {missing_list}")
 
             return normalized_result
 
@@ -605,9 +611,8 @@ Lưu ý:
 
             # Log missing symbols if any
             if missing_symbols:
-                log_warn(
-                    f"{len(missing_symbols)} symbols not found in multi-TF JSON response: {missing_symbols[:5]}{'...' if len(missing_symbols) > 5 else ''}"
-                )
+                missing_list = f"{missing_symbols[:5]}{'...' if len(missing_symbols) > 5 else ''}"
+                log_warn(f"{len(missing_symbols)} symbols not found in multi-TF JSON response: {missing_list}")
 
             return result
 

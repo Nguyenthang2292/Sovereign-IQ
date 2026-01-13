@@ -1,13 +1,18 @@
+"""
+Market Batch Scanner for scanning entire market with Gemini.
 
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+Orchestrates the workflow: get symbols → batch → generate charts → analyze → aggregate results.
+"""
+
 import contextlib
 import glob
 import json
 import os
 import sys
 import time
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager, PublicExchangeManager
@@ -15,15 +20,6 @@ from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
 from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
 from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
-from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
-
-"""
-Market Batch Scanner for scanning entire market with Gemini.
-
-Orchestrates the workflow: get symbols → batch → generate charts → analyze → aggregate results.
-"""
-
-
 
 
 class SymbolFetchError(Exception):
@@ -219,7 +215,8 @@ class MarketBatchScanner:
             timeframes: List of timeframes for multi-timeframe analysis (enables multi-TF mode)
             max_symbols: Maximum number of symbols to scan (None = all). Applied after initial_symbols if provided.
             limit: Number of candles to fetch per symbol (default: 500)
-            cancelled_callback: Optional callable that returns bool; True indicates cancellation and stops processing (default: None)
+            cancelled_callback: Optional callable that returns bool; True indicates
+                cancellation and stops processing (default: None)
             initial_symbols: Optional list of symbols already pre-filtered from external pre-filter (default: None)
             skip_cleanup: If True, skip automatic cleanup of old batch scan results and charts (default: False).
                          When False, all previous batch scan results and charts are deleted before starting a new scan.
@@ -352,9 +349,11 @@ class MarketBatchScanner:
             try:
                 if is_multi_tf:
                     # Multi-timeframe: Fetch data for all timeframes
-                    log_info(
-                        f"Fetching OHLCV data for {len(batch_symbols)} symbols across {len(normalized_tfs)} timeframes..."
+                    msg = (
+                        f"Fetching OHLCV data for {len(batch_symbols)} symbols "
+                        f"across {len(normalized_tfs)} timeframes..."
                     )
+                    log_info(msg)
                     symbols_tf_data = {}  # {symbol: {timeframe: df}}
 
                     for symbol in batch_symbols:
@@ -397,14 +396,16 @@ class MarketBatchScanner:
                     # Handle case where Gemini returns no results
                     if parsed_results is None:
                         log_error(
-                            f"Gemini analysis failed for batch {batch_idx}: No results object returned (API error or exception). Skipping batch."
+                            f"Gemini analysis failed for batch {batch_idx}: "
+                            f"No results object returned (API error or exception). Skipping batch."
                         )
                         for symbol in valid_symbols:
                             all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
                         continue
                     elif isinstance(parsed_results, dict) and not parsed_results:
                         log_info(
-                            f"Gemini analyzed batch {batch_idx}, but found no signals (empty result set). Skipping batch."
+                            f"Gemini analyzed batch {batch_idx}, but found no signals "
+                            f"(empty result set). Skipping batch."
                         )
                         for symbol in valid_symbols:
                             all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
@@ -749,8 +750,10 @@ class MarketBatchScanner:
             examples = legacy_format_symbols[:5]  # Show first 5 as examples
             examples_str = ", ".join(examples)
             if count > 5:
+                examples = f"{examples_str}, ..." if count > 5 else examples_str
                 log_warn(
-                    f"Legacy format detected for {count} symbol(s) (e.g., {examples_str}, ...): using fallback confidence 0.0"
+                    f"Legacy format detected for {count} symbol(s) (e.g., {examples_str}): "
+                    f"using fallback confidence 0.0"
                 )
             else:
                 log_warn(

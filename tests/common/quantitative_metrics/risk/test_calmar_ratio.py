@@ -1,15 +1,11 @@
-
 import numpy as np
 import pandas as pd
 
-from modules.common.quantitative_metrics import calculate_calmar_ratio
 from modules.common.quantitative_metrics import calculate_calmar_ratio
 
 """
 Tests for calmar_ratio module.
 """
-
-
 
 
 def test_calculate_calmar_ratio_uses_annual_return_and_drawdown():

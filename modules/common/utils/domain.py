@@ -1,15 +1,11 @@
+"""
+Domain-specific utilities for trading (symbols, timeframes).
+"""
 
 import math
 import re
 
 from config import DEFAULT_QUOTE
-from config import DEFAULT_QUOTE
-
-"""
-Domain-specific utilities for trading (symbols, timeframes).
-"""
-
-
 
 # --- Timeframe Utilities ---
 

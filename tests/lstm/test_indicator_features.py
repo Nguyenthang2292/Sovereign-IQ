@@ -1,4 +1,3 @@
-
 from unittest.mock import patch
 
 import numpy as np
@@ -7,15 +6,10 @@ import pytest
 
 from config.model_features import MODEL_FEATURES
 from modules.lstm.utils.indicator_features import generate_indicator_features
-from config.model_features import MODEL_FEATURES
-from modules.lstm.utils.indicator_features import generate_indicator_features
 
 """
 Tests for indicator feature generation utilities.
 """
-
-
-
 
 
 class TestGenerateIndicatorFeatures:

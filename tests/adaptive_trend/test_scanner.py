@@ -1,11 +1,9 @@
-
-from pathlib import Path
-import sys
-
 """
 Tests for scanner module.
 """
 
+import sys
+from pathlib import Path
 
 # Add parent directory to path to allow imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -372,7 +370,7 @@ def test_scan_all_symbols_long_and_short_signals(mock_trend_sign, mock_compute_a
             return _create_mock_atc_results(signal_value=-0.05)  # Bearish
 
     def side_effect_trend(*args, **kwargs):
-        signal = args[0]
+        args[0]
         if not hasattr(side_effect_trend, "call_count"):
             side_effect_trend.call_count = 0
         side_effect_trend.call_count += 1

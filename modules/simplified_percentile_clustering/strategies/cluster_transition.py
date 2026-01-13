@@ -1,12 +1,20 @@
+from __future__ import annotations
 
 from typing import Optional, Tuple
 
 import pandas as pd
 
-from __future__ import annotations
 from modules.simplified_percentile_clustering.config.cluster_transition_config import (
-from __future__ import annotations
-from modules.simplified_percentile_clustering.config.cluster_transition_config import (
+    ClusterTransitionConfig,
+)
+from modules.simplified_percentile_clustering.core.clustering import (
+    ClusteringResult,
+    compute_clustering,
+)
+from modules.simplified_percentile_clustering.utils.helpers import (
+    safe_isna,
+    vectorized_transition_detection,
+)
 
 """
 Cluster Transition Strategy.
@@ -18,34 +26,20 @@ a regime change and potential trading opportunity.
 Strategy Logic:
 --------------
 1. LONG Signal:
-   - Transition from k0 (lower cluster) to k1 or k2 (higher clusters)
-   - Real_clust value increasing and crossing cluster boundaries
-   - Confirmation: price moving in same direction
+    - Transition from k0 (lower cluster) to k1 or k2 (higher clusters)
+    - Real_clust value increasing and crossing cluster boundaries
+    - Confirmation: price moving in same direction
 
 2. SHORT Signal:
-   - Transition from k2 or k1 (higher clusters) to k0 (lower cluster)
-   - Real_clust value decreasing and crossing cluster boundaries
-   - Confirmation: price moving in same direction
+    - Transition from k2 or k1 (higher clusters) to k0 (lower cluster)
+    - Real_clust value decreasing and crossing cluster boundaries
+    - Confirmation: price moving in same direction
 
 3. NEUTRAL Signal:
-   - No cluster transition
-   - Real_clust staying within same cluster
-   - Ambiguous transitions (rel_pos near 0.5)
+    - No cluster transition
+    - Real_clust staying within same cluster
+    - Ambiguous transitions (rel_pos near 0.5)
 """
-
-
-
-
-    ClusterTransitionConfig,
-)
-from modules.simplified_percentile_clustering.core.clustering import (
-    ClusteringResult,
-    compute_clustering,
-)
-from modules.simplified_percentile_clustering.utils.helpers import (
-    safe_isna,
-    vectorized_transition_detection,
-)
 
 
 def generate_signals_cluster_transition(

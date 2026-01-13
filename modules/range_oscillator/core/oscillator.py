@@ -1,15 +1,3 @@
-
-from typing import Tuple
-
-import numpy as np
-import pandas as pd
-
-from __future__ import annotations
-from modules.common.indicators.trend import calculate_weighted_ma
-from modules.common.indicators.volatility import calculate_atr_range
-from modules.common.indicators.trend import calculate_weighted_ma
-from modules.common.indicators.volatility import calculate_atr_range
-
 """Range Oscillator main calculation.
 
 This module provides the main Range Oscillator calculation function that
@@ -25,9 +13,15 @@ Original: https://creativecommons.org/licenses/by-nc-sa/4.0/
 © Zeiierman
 """
 
+from __future__ import annotations
 
+from typing import Tuple
 
+import numpy as np
+import pandas as pd
 
+from modules.common.indicators.trend import calculate_weighted_ma
+from modules.common.indicators.volatility import calculate_atr_range
 
 
 def calculate_range_oscillator(

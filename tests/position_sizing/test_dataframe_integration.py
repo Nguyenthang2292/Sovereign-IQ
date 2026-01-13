@@ -1,8 +1,11 @@
+from types import SimpleNamespace
+from unittest.mock import patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from modules.backtester import FullBacktester
-from modules.position_sizing.core.position_sizer import PositionSizer
 from modules.position_sizing.core.position_sizer import PositionSizer
 
 """
@@ -13,8 +16,6 @@ Tests verify end-to-end that:
 2. All components work together with DataFrame parameter
 3. Performance improvement (fewer API calls)
 """
-
-
 
 
 @pytest.fixture
@@ -196,4 +197,3 @@ def test_performance_improvement_with_dataframe(mock_data_fetcher, sample_datafr
         # Both should produce valid results
         assert "trades" in backtest_result1
         assert "trades" in backtest_result2
-

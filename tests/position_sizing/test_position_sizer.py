@@ -1,4 +1,3 @@
-
 from types import SimpleNamespace
 
 import numpy as np
@@ -7,14 +6,9 @@ import pytest
 
 from modules.position_sizing.core.position_sizer import PositionSizer
 
-from modules.position_sizing.core.position_sizer import PositionSizer
-
 """
 Tests for Position Sizer.
 """
-
-
-
 
 
 @pytest.fixture

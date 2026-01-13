@@ -1,14 +1,30 @@
+"""
+This module provides utilities for optimizing signal thresholds in predictive models,
+specifically by maximizing the Sharpe ratio through grid search.
+
+Classes:
+    GridSearchThresholdOptimizer: Performs a grid search over threshold values to determine
+    the threshold that yields the highest Sharpe ratio for both regression and classification
+    model outputs.
+
+Functions:
+    None at top level.
+
+Usage:
+    Instantiate the GridSearchThresholdOptimizer and use its methods to find optimal
+    signal thresholds for your model's predictions, helping to improve trading strategy
+    performance based on historical returns.
+
+Note:
+    - The optimizer is designed to work with numpy arrays of predictions and returns.
+    - The default threshold range spans from 0.01 to 0.14 with 0.01 increments, but can be customized.
+"""
 
 from typing import Optional, Tuple
 
 import numpy as np
 
 from modules.common.ui.logging import log_model
-
-from modules.common.ui.logging import log_model
-
-
-
 
 
 class GridSearchThresholdOptimizer:
