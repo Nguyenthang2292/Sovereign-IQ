@@ -43,8 +43,9 @@ class TestMainLSTM:
     @patch("main_lstm.display_main_menu")
     @patch("main_lstm.prompt_menu_choice")
     @patch("main_lstm.generate_signal_workflow")
+    @patch("modules.common.utils.prompt_user_input")
     def test_main_interactive_mode_choice_2(
-        self, mock_generate_signal, mock_prompt_choice, mock_display_menu, mock_parse_args
+        self, mock_prompt_user_input, mock_generate_signal, mock_prompt_choice, mock_display_menu, mock_parse_args
     ):
         """Test interactive mode with choice 2 (generate signal)."""
         # Mock args without symbol/timeframe (interactive mode)
@@ -57,19 +58,20 @@ class TestMainLSTM:
 
         # Mock menu choice 2, then quit
         mock_prompt_choice.side_effect = ["2", "3"]  # Choice 2 then quit
+        mock_prompt_user_input.return_value = ""  # Just press Enter to continue
 
         # Call main
         main()
 
         # Verify functions were called
-        mock_display_menu.assert_called_once()
+        mock_display_menu.assert_called()
         mock_generate_signal.assert_called_once_with(model_path=None, limit=500)
 
     @patch("main_lstm.parse_args")
     @patch("main_lstm.display_main_menu")
     @patch("main_lstm.prompt_menu_choice")
     @patch("main_lstm.train_model_menu")
-    @patch("main_lstm.prompt_user_input")
+    @patch("modules.common.utils.prompt_user_input")
     @patch("main_lstm.prompt_symbol")
     @patch("main_lstm.prompt_timeframe")
     @patch("main_lstm.generate_signal_workflow")
@@ -123,7 +125,7 @@ class TestMainLSTM:
     @patch("main_lstm.display_main_menu")
     @patch("main_lstm.prompt_menu_choice")
     @patch("main_lstm.train_model_menu")
-    @patch("main_lstm.prompt_user_input")
+    @patch("modules.common.utils.prompt_user_input")
     def test_main_interactive_mode_choice_1_training_failed(
         self, mock_prompt_user_input, mock_train_model, mock_prompt_choice, mock_display_menu, mock_parse_args
     ):
@@ -194,7 +196,7 @@ class TestMainLSTM:
     @patch("main_lstm.display_main_menu")
     @patch("main_lstm.prompt_menu_choice")
     @patch("main_lstm.generate_signal_workflow")
-    @patch("main_lstm.prompt_user_input")
+    @patch("modules.common.utils.prompt_user_input")
     def test_main_interactive_mode_generate_then_quit(
         self, mock_prompt_user_input, mock_generate_signal, mock_prompt_choice, mock_display_menu, mock_parse_args
     ):
@@ -203,6 +205,8 @@ class TestMainLSTM:
         mock_args = MagicMock()
         mock_args.symbol = None
         mock_args.timeframe = None
+        mock_args.model_path = None
+        mock_args.limit = 500
         mock_parse_args.return_value = mock_args
 
         # Mock choice 2 then quit
@@ -228,11 +232,10 @@ class TestMainLSTM:
 
         # Mock display_main_menu to raise KeyboardInterrupt
         with patch("main_lstm.display_main_menu", side_effect=KeyboardInterrupt()):
-            with patch("builtins.print") as mock_print:  # Mock print to capture output
+            with pytest.raises(SystemExit) as exc_info:
                 main()
 
-                # Verify exit message was printed
-                mock_print.assert_called_with("Exiting program by user request.")
+            assert exc_info.value.code == 0
 
     @patch("main_lstm.parse_args")
     def test_main_unexpected_exception(self, mock_parse_args):

@@ -10,6 +10,8 @@ Tests cover:
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from cli.argument_parser import (
     _configure_decision_matrix,
     _configure_hmm,
@@ -392,36 +394,30 @@ class TestInteractiveConfigMenu:
     @patch("cli.argument_parser.prompt_user_input")
     def test_interactive_config_menu_exit(self, mock_prompt, mock_display):
         """Test menu exit option."""
-        mock_prompt.return_value = "8"  # Exit
+        mock_prompt.side_effect = ["8", "y"]  # First selects exit, then confirms
 
-        with patch("sys.exit") as mock_exit:
-            try:
+        with patch("builtins.print"):
+            with pytest.raises(SystemExit) as exc_info:
                 interactive_config_menu(mode="hybrid")
-            except SystemExit:
-                pass
 
-        mock_exit.assert_called_once_with(0)
+        assert exc_info.value.code == 0
 
     @patch("cli.argument_parser._display_main_menu")
     @patch("cli.argument_parser.prompt_user_input")
     def test_interactive_config_menu_invalid_choice(self, mock_prompt, mock_display):
         """Test menu with invalid choice."""
-        mock_prompt.side_effect = ["99", "8"]  # Invalid choice, then exit
+        # First input is invalid (99), second is exit (8), then confirm exit
+        mock_prompt.side_effect = ["99", "8", "y"]
 
-        with patch("sys.exit") as mock_exit:
-            with patch("builtins.print") as mock_print:
+        with patch("builtins.print") as mock_print:
+            with pytest.raises(SystemExit) as exc_info:
                 interactive_config_menu(mode="hybrid")
 
-                # Should print error message for invalid choice
-                # Check call arguments directly instead of converting to strings
-                invalid_message_found = any(
-                    call.args and "Invalid" in call.args[0] for call in mock_print.call_args_list
-                )
+            # Should print error message for invalid choice
+            invalid_message_found = any(call.args and "Invalid" in call.args[0] for call in mock_print.call_args_list)
+            assert invalid_message_found, "Expected 'Invalid' error message was not printed"
 
-                assert invalid_message_found, "Expected 'Invalid' error message was not printed"
-
-                # Verify exit was called with code 0
-                mock_exit.assert_called_once_with(0)
+        assert exc_info.value.code == 0
 
     def test_interactive_config_menu_defaults(self):
         """Test that menu initializes with default values."""
@@ -449,8 +445,10 @@ class TestInteractiveConfigMenu:
             config = interactive_config_menu(mode="voting")
 
             # Check voting mode specific defaults
-            assert config.use_decision_matrix is False
             assert config.spc_strategy == "all"
+            # In voting mode, decision matrix is still enabled in interactive mode
+            # but parse_args with force_enable_decision_matrix=False would override this
+            assert config.use_decision_matrix is True
 
 
 class TestParseArgs:

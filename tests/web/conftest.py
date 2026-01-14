@@ -41,7 +41,7 @@ from web.app import app
 @pytest.fixture
 def client():
     """Create FastAPI TestClient instance."""
-    return TestClient(app)
+    yield TestClient(app)
 
 
 @pytest.fixture
@@ -72,19 +72,24 @@ def sample_ohlcv_df():
     df["high"] = df[["open", "high", "low", "close"]].max(axis=1)
     df["low"] = df[["open", "high", "low", "close"]].min(axis=1)
 
-    return df
+    yield df
+    del df
 
 
 @pytest.fixture
 def empty_ohlcv_df():
     """Create empty OHLCV DataFrame for testing error cases."""
-    return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+    df = pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+    yield df
+    del df
 
 
 @pytest.fixture
 def mock_exchange_manager():
     """Create mock ExchangeManager."""
-    return Mock()
+    res = Mock()
+    yield res
+    del res
 
 
 @pytest.fixture
@@ -92,7 +97,8 @@ def mock_data_fetcher(sample_ohlcv_df):
     """Create mock DataFetcher that returns sample data."""
     mock_fetcher = Mock()
     mock_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (sample_ohlcv_df, "binance")
-    return mock_fetcher
+    yield mock_fetcher
+    del mock_fetcher
 
 
 @pytest.fixture
@@ -100,7 +106,8 @@ def mock_data_fetcher_empty(empty_ohlcv_df):
     """Create mock DataFetcher that returns empty data."""
     mock_fetcher = Mock()
     mock_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (empty_ohlcv_df, "binance")
-    return mock_fetcher
+    yield mock_fetcher
+    del mock_fetcher
 
 
 @pytest.fixture
@@ -108,7 +115,8 @@ def mock_data_fetcher_none():
     """Create mock DataFetcher that returns None."""
     mock_fetcher = Mock()
     mock_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (None, "binance")
-    return mock_fetcher
+    yield mock_fetcher
+    del mock_fetcher
 
 
 @pytest.fixture
@@ -116,7 +124,8 @@ def mock_chart_generator():
     """Create mock ChartGenerator."""
     mock_gen = Mock()
     mock_gen.create_chart.return_value = "/fake/path/to/chart.png"
-    return mock_gen
+    yield mock_gen
+    del mock_gen
 
 
 @pytest.fixture
@@ -127,7 +136,8 @@ def mock_gemini_analyzer():
         "This is a sample analysis. The chart shows a bullish trend with "
         "strong support at $50,000. Long signal recommended."
     )
-    return mock_analyzer
+    yield mock_analyzer
+    del mock_analyzer
 
 
 @pytest.fixture
@@ -138,7 +148,8 @@ def mock_gemini_analyzer_short():
         "This is a sample analysis. The chart shows a bearish trend with "
         "resistance at $55,000. Short signal recommended."
     )
-    return mock_analyzer
+    yield mock_analyzer
+    del mock_analyzer
 
 
 @pytest.fixture
@@ -162,7 +173,8 @@ def mock_multi_timeframe_coordinator():
         },
         "aggregated": {"signal": "LONG", "confidence": 0.75, "weights_used": {"1h": 0.3, "4h": 0.7}},
     }
-    return mock_coordinator
+    yield mock_coordinator
+    del mock_coordinator
 
 
 @pytest.fixture
@@ -188,7 +200,8 @@ def mock_batch_scanner():
         },
         "results_file": "/fake/path/to/results.json",
     }
-    return mock_scanner
+    yield mock_scanner
+    del mock_scanner
 
 
 @pytest.fixture

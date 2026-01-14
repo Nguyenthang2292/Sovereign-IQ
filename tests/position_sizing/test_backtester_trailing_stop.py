@@ -35,7 +35,6 @@ def test_trailing_stop_not_triggered_immediately_on_entry_long():
         )
         return df, "binance"
 
-    # Mock signal calculator to return LONG signal at index 0
     class MockSignalCalculator:
         def calculate_hybrid_signal(self, **kwargs):
             # Return LONG signal (1) at period 0, no signal otherwise
@@ -72,7 +71,12 @@ def test_trailing_stop_not_triggered_immediately_on_entry_long():
             pass
 
         def precompute_all_indicators_vectorized(self, **kwargs):
-            pass  # No-op for mock
+            df = kwargs.get("df")
+            return {
+                "range_oscillator": pd.DataFrame(
+                    {"signal": [1] + [0] * (len(df) - 1), "confidence": [0.8] + [0.0] * (len(df) - 1)}, index=df.index
+                )
+            }
 
     data_fetcher = SimpleNamespace(
         fetch_ohlcv_with_fallback_exchange=fake_fetch,
@@ -154,25 +158,25 @@ def test_trailing_stop_activates_after_favorable_movement_long():
         def calculate_hybrid_signal(self, **kwargs):
             period_index = kwargs.get("period_index", 0)
             if period_index == 0:
-                return 1, 0.8  # LONG signal at period 0
+                return 1, 0.8
             return 0, 0.0
 
         def calculate_single_signal_highest_confidence(self, **kwargs):
             period_index = kwargs.get("period_index", 0)
             if period_index == 0:
-                return 1, 0.8  # LONG signal at period 0
+                return 1, 0.8
             return 0, 0.0
 
         def calculate_signal_from_precomputed(self, **kwargs):
             period_index = kwargs.get("period_index", 0)
             if period_index == 0:
-                return 1, 0.8  # LONG signal at period 0
+                return 1, 0.8
             return 0, 0.0
 
         def calculate_single_signal_from_precomputed(self, **kwargs):
             period_index = kwargs.get("period_index", 0)
             if period_index == 0:
-                return 1, 0.8  # LONG signal at period 0
+                return 1, 0.8
             return 0, 0.0
 
         def get_cache_stats(self):
@@ -182,7 +186,12 @@ def test_trailing_stop_activates_after_favorable_movement_long():
             pass
 
         def precompute_all_indicators_vectorized(self, **kwargs):
-            pass  # No-op for mock
+            df = kwargs.get("df")
+            return {
+                "range_oscillator": pd.DataFrame(
+                    {"signal": [1] + [0] * (len(df) - 1), "confidence": [0.8] + [0.0] * (len(df) - 1)}, index=df.index
+                )
+            }
 
     data_fetcher = SimpleNamespace(
         fetch_ohlcv_with_fallback_exchange=fake_fetch,
@@ -247,25 +256,25 @@ def test_trailing_stop_not_triggered_immediately_on_entry_short():
         def calculate_hybrid_signal(self, **kwargs):
             period_index = kwargs.get("period_index", 0)
             if period_index == 0:
-                return -1, 0.8  # SHORT signal at period 0
+                return -1, 0.8
             return 0, 0.0
 
         def calculate_single_signal_highest_confidence(self, **kwargs):
             period_index = kwargs.get("period_index", 0)
             if period_index == 0:
-                return -1, 0.8  # SHORT signal at period 0
+                return -1, 0.8
             return 0, 0.0
 
         def calculate_signal_from_precomputed(self, **kwargs):
             period_index = kwargs.get("period_index", 0)
             if period_index == 0:
-                return -1, 0.8  # SHORT signal at period 0
+                return -1, 0.8
             return 0, 0.0
 
         def calculate_single_signal_from_precomputed(self, **kwargs):
             period_index = kwargs.get("period_index", 0)
             if period_index == 0:
-                return -1, 0.8  # SHORT signal at period 0
+                return -1, 0.8
             return 0, 0.0
 
         def get_cache_stats(self):
@@ -275,7 +284,12 @@ def test_trailing_stop_not_triggered_immediately_on_entry_short():
             pass
 
         def precompute_all_indicators_vectorized(self, **kwargs):
-            pass  # No-op for mock
+            df = kwargs.get("df")
+            return {
+                "range_oscillator": pd.DataFrame(
+                    {"signal": [-1] + [0] * (len(df) - 1), "confidence": [0.8] + [0.0] * (len(df) - 1)}, index=df.index
+                )
+            }
 
     data_fetcher = SimpleNamespace(
         fetch_ohlcv_with_fallback_exchange=fake_fetch,

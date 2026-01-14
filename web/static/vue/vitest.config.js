@@ -9,7 +9,7 @@ export default defineConfig({
     environment: 'jsdom',
     // Ensure that the setup file exists at ./tests/setup.js relative to this config file.
     // If it does not exist, please create it with any necessary test setup code.
-    setupFiles: ['./tests/setup.js'],
+    setupFiles: ['./tests/setup.js', './tests/setup-mermaid-global.js'],
   },
   resolve: {
     alias: {

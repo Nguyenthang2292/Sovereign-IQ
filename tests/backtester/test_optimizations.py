@@ -428,8 +428,8 @@ class TestBatchSizeOptimization:
         """Test that batch size is optimized when OPTIMIZE_BATCH_SIZE is True."""
         with patch("config.position_sizing.OPTIMIZE_BATCH_SIZE", True):
             with patch("config.position_sizing.BATCH_SIZE", None):
-                dates = pd.date_range("2023-01-01", periods=1000, freq="h")
-                prices = 100 + np.cumsum(np.random.randn(1000) * 0.5)
+                dates = pd.date_range("2023-01-01", periods=300, freq="h")  # Reduced from 1000
+                prices = 100 + np.cumsum(np.random.randn(300) * 0.5)
                 df = pd.DataFrame(
                     {
                         "open": prices,
@@ -802,8 +802,8 @@ class TestEdgeCasesOptimizations:
 
         assert len(equity_curve) == 100
         assert equity_curve.iloc[0] == 10000.0
-        # After first trade, equity should increase
-        assert equity_curve.iloc[1] > equity_curve.iloc[0]
+        # After first trade closes at period 10, equity should increase
+        assert equity_curve.iloc[10] > equity_curve.iloc[0]
 
     def test_equity_curve_padding(self):
         """Test that equity curve is properly padded to num_periods."""
@@ -820,9 +820,9 @@ class TestEdgeCasesOptimizations:
         )
 
         assert len(equity_curve) == 1000
-        # All values after trades should be the same (padded)
+        # All values after the last trade exit should be the same (padded)
         if len(trades) > 0:
-            final_value = equity_curve.iloc[len(trades) + 1]
+            final_value = equity_curve.iloc[10]  # Last trade exits at period 10
             assert equity_curve.iloc[-1] == final_value
 
 

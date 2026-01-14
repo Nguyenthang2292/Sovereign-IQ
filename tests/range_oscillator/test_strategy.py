@@ -34,7 +34,9 @@ def sample_ohlc_data():
     high = close + np.abs(np.random.randn(n) * 50)
     low = close - np.abs(np.random.randn(n) * 50)
 
-    return pd.Series(high, index=dates), pd.Series(low, index=dates), pd.Series(close, index=dates)
+    res = (pd.Series(high, index=dates), pd.Series(low, index=dates), pd.Series(close, index=dates))
+    yield res
+    # Teardown: no explicit cleanup needed, data is garbage collected after test
 
 
 @pytest.fixture
@@ -46,7 +48,9 @@ def sample_oscillator_data(sample_ohlc_data):
     ma = close.rolling(50).mean()
     range_atr = pd.Series(np.ones(len(close)) * 1000, index=close.index)
 
-    return oscillator, ma, range_atr
+    res = (oscillator, ma, range_atr)
+    yield res
+    del res
 
 
 class TestStrategy1:
@@ -95,13 +99,15 @@ class TestStrategy1:
         assert isinstance(signals, pd.Series)
         assert isinstance(strength, pd.Series)
 
+    @pytest.mark.memory_intensive
     def test_strategy1_large_dataset_performance(self):
         """Test Strategy 1 performance with large dataset."""
-        dates = pd.date_range("2024-01-01", periods=10000, freq="1h")
-        oscillator = pd.Series(np.sin(np.linspace(0, 20 * np.pi, 10000)) * 50, index=dates)
-        ma = pd.Series([50000.0] * 10000, index=dates)
-        range_atr = pd.Series([1000.0] * 10000, index=dates)
-        close = pd.Series([51000.0] * 10000, index=dates)
+        # Reduced from 10000 to 1000 to save RAM while still testing performance
+        dates = pd.date_range("2024-01-01", periods=1000, freq="1h")
+        oscillator = pd.Series(np.sin(np.linspace(0, 20 * np.pi, 1000)) * 50, index=dates)
+        ma = pd.Series([50000.0] * 1000, index=dates)
+        range_atr = pd.Series([1000.0] * 1000, index=dates)
+        close = pd.Series([51000.0] * 1000, index=dates)
 
         import time
 
@@ -113,9 +119,9 @@ class TestStrategy1:
 
         elapsed_time = time.time() - start_time
 
-        assert elapsed_time < 1.0, f"Performance test failed: {elapsed_time:.3f}s for 10k bars"
-        assert len(signals) == 10000
-        assert len(strength) == 10000
+        assert elapsed_time < 0.2, f"Performance test failed: {elapsed_time:.3f}s for 1k bars"
+        assert len(signals) == 1000
+        assert len(strength) == 1000
         assert all(signals.isin([-1, 0, 1]))
 
 

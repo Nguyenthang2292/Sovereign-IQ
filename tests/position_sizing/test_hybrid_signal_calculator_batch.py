@@ -51,7 +51,9 @@ class TestPrecomputeAllIndicatorsVectorized:
 
     def test_precompute_returns_dict_of_dataframes(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that precompute_all_indicators_vectorized returns dict of DataFrames."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["range_oscillator", "xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["range_oscillator", "xgboost"], min_indicators_agreement=2
+        )
 
         with (
             patch.object(calculator, "_calc_range_oscillator_vectorized") as mock_osc,
@@ -96,7 +98,9 @@ class TestPrecomputeAllIndicatorsVectorized:
 
     def test_precompute_handles_xgboost_exception(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that XGBoost batch calculation exceptions are handled gracefully."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         with patch.object(calculator, "_calc_xgboost_batch") as mock_xgb:
             # Mock XGBoost to raise exception
@@ -116,9 +120,9 @@ class TestPrecomputeAllIndicatorsVectorized:
             assert isinstance(result, dict)
             assert "xgboost" in result
             assert isinstance(result["xgboost"], pd.DataFrame)
-            # Should have zero signals and confidence when error occurs
-            assert (result["xgboost"]["signal"] == 0).all()
-            assert (result["xgboost"]["confidence"] == 0.0).all()
+            # Should have NaN signals and confidence when error occurs
+            assert result["xgboost"]["signal"].isna().all()
+            assert result["xgboost"]["confidence"].isna().all()
 
     def test_precompute_handles_all_indicators(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that all enabled indicators are precomputed."""
@@ -175,10 +179,12 @@ class TestXGBoostBatchExceptionHandling:
 
     def test_batch_calculation_handles_general_exception(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that general exceptions in batch calculation are caught."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Mock indicator engine to raise exception
-        with patch("modules.position_sizing.core.hybrid_signal_calculator.IndicatorEngine") as mock_engine_class:
+        with patch("modules.common.core.indicator_engine.IndicatorEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine.compute_features = Mock(side_effect=Exception("Unexpected error"))
             mock_engine_class.return_value = mock_engine
@@ -196,7 +202,9 @@ class TestXGBoostBatchExceptionHandling:
 
     def test_batch_calculation_continues_after_period_error(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that batch calculation continues processing after error in one period."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         call_count = 0
 
@@ -205,18 +213,16 @@ class TestXGBoostBatchExceptionHandling:
             call_count += 1
             df_copy = df.copy()
             # Add Target column with sufficient classes
-            df_copy["Target"] = [0, 1, 2] * (len(df) // 3 + 1)
-            return df_copy[: len(df)]
+            df_copy["Target"] = ([0, 1, 2] * (len(df) // 3 + 1))[: len(df)]
+            return df_copy
 
-        with patch("modules.position_sizing.core.hybrid_signal_calculator.IndicatorEngine") as mock_engine_class:
+        with patch("modules.common.core.indicator_engine.IndicatorEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine.compute_features = Mock(side_effect=mock_compute_features)
             mock_engine_class.return_value = mock_engine
 
             # Mock apply_directional_labels
-            with patch(
-                "modules.position_sizing.core.hybrid_signal_calculator.apply_directional_labels"
-            ) as mock_apply_labels:
+            with patch("modules.xgboost.labeling.apply_directional_labels") as mock_apply_labels:
 
                 def mock_apply(df):
                     df_copy = df.copy()
@@ -228,8 +234,8 @@ class TestXGBoostBatchExceptionHandling:
 
                 # Mock train_and_predict to raise error on first call, succeed on others
                 with (
-                    patch("modules.position_sizing.core.hybrid_signal_calculator.train_and_predict") as mock_train,
-                    patch("modules.position_sizing.core.hybrid_signal_calculator.predict_next_move") as mock_predict,
+                    patch("modules.xgboost.model.train_and_predict") as mock_train,
+                    patch("modules.xgboost.model.predict_next_move") as mock_predict,
                 ):
 
                     def train_side_effect(df):

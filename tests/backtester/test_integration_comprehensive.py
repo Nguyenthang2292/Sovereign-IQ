@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from modules.backtester.core.backtester import FullBacktester
 
@@ -412,10 +413,11 @@ class TestMetricsCalculation:
 class TestPerformanceAndCorrectness:
     """Tests for performance and correctness of optimizations."""
 
+    @pytest.mark.memory_intensive
     def test_vectorization_performance(self):
         """Test that vectorization improves performance for large datasets."""
-        dates = pd.date_range("2023-01-01", periods=1000, freq="h")
-        prices = 100 + np.cumsum(np.random.randn(1000) * 0.5)
+        dates = pd.date_range("2023-01-01", periods=500, freq="h")  # Reduced from 1000
+        prices = 100 + np.cumsum(np.random.randn(500) * 0.5)
         df = pd.DataFrame(
             {
                 "open": prices,
@@ -426,7 +428,7 @@ class TestPerformanceAndCorrectness:
             index=dates,
         )
 
-        signals = pd.Series([1 if i % 50 == 0 else 0 for i in range(1000)], index=dates)
+        signals = pd.Series([1 if i % 50 == 0 else 0 for i in range(500)], index=dates)
 
         class MockSignalCalculator:
             def calculate_hybrid_signal(self, **kwargs):
@@ -534,6 +536,7 @@ class TestPerformanceAndCorrectness:
 class TestRealWorldScenarios:
     """Tests for real-world trading scenarios."""
 
+    @pytest.mark.slow
     def test_volatile_market_scenario(self):
         """Test backtest in highly volatile market."""
         dates = pd.date_range("2023-01-01", periods=500, freq="h")
@@ -579,7 +582,7 @@ class TestRealWorldScenarios:
         result = backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
-            lookback=500,
+            lookback=200,  # Reduced from 500
             signal_type="LONG",
             df=df,
         )
@@ -589,6 +592,7 @@ class TestRealWorldScenarios:
         # Metrics should be valid even in volatile market
         assert 0.0 <= result["metrics"]["win_rate"] <= 1.0
 
+    @pytest.mark.slow
     def test_trending_market_scenario(self):
         """Test backtest in strong trending market."""
         dates = pd.date_range("2023-01-01", periods=300, freq="h")
@@ -629,7 +633,7 @@ class TestRealWorldScenarios:
         result = backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
-            lookback=300,
+            lookback=150,  # Reduced from 300
             signal_type="LONG",
             df=df,
         )

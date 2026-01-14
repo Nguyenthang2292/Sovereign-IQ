@@ -17,11 +17,11 @@ def test_parallel_processing_enabled(mock_data_fetcher):
     with patch("config.position_sizing.ENABLE_PARALLEL_PROCESSING", True):
         backtester = FullBacktester(mock_data_fetcher)
 
-        # For large datasets, parallel processing should be used
+        # Medium dataset - enough to trigger parallel but fast
         result = backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
-            lookback=500,  # Large enough to trigger parallel
+            lookback=150,  # Reduced from 500 for faster tests
             signal_type="LONG",
         )
 
@@ -43,7 +43,7 @@ def test_parallel_processing_fallback(mock_data_fetcher):
             result = backtester.backtest(
                 symbol="BTC/USDT",
                 timeframe="1h",
-                lookback=500,
+                lookback=150,  # Reduced from 500
                 signal_type="LONG",
             )
 
@@ -61,7 +61,7 @@ def test_sequential_processing_for_small_datasets(mock_data_fetcher):
         result = backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
-            lookback=50,  # Too small for parallel
+            lookback=50,  # Small enough to skip parallel
             signal_type="LONG",
         )
 
@@ -131,7 +131,7 @@ def test_parallel_vs_sequential_consistency(mock_data_fetcher):
         result_seq = backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
-            lookback=200,
+            lookback=100,  # Reduced from 200 for faster tests
             signal_type="LONG",
         )
 
@@ -139,7 +139,7 @@ def test_parallel_vs_sequential_consistency(mock_data_fetcher):
         result_par = backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
-            lookback=200,
+            lookback=100,  # Reduced from 200
             signal_type="LONG",
         )
 

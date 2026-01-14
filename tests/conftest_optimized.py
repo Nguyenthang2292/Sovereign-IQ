@@ -24,13 +24,15 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_forecast
 # ==========================================================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def session_config():
     """Session configuration object reused across all tests."""
-    return SimpleNamespace(default_symbol="BTC/USDT", default_timeframe="1h", default_limit=100, test_seed=42)
+    config = SimpleNamespace(default_symbol="BTC/USDT", default_timeframe="1h", default_limit=100, test_seed=42)
+    yield config
+    del config
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def cached_ohlcv_data():
     """Generate OHLCV data once and cache for all tests."""
     np.random.seed(42)
@@ -46,10 +48,11 @@ def cached_ohlcv_data():
 
     df = pd.DataFrame({"open": open_price, "high": high, "low": low, "close": close, "volume": volume}, index=dates)
 
-    return df
+    yield df
+    del df
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def mock_data_fetcher(cached_ohlcv_data):
     """Session-scoped mock data fetcher with cached data."""
     from unittest.mock import Mock
@@ -63,19 +66,21 @@ def mock_data_fetcher(cached_ohlcv_data):
     # Mock the fetch method to return cached data
     data_fetcher.fetch_ohlcv_with_fallback_exchange = Mock(return_value=(cached_ohlcv_data, "binance"))
 
-    return data_fetcher
+    yield data_fetcher
+    del data_fetcher
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def mock_trained_model():
     """Mock trained model to avoid expensive training."""
     model = Mock()
     model.predict = Mock(return_value=np.array([1, 0, 1, 0, 1]))
     model.predict_proba = Mock(return_value=np.array([[0.2, 0.8], [0.6, 0.4], [0.7, 0.3], [0.5, 0.5], [0.1, 0.9]]))
-    return model
+    yield model
+    del model
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def precomputed_indicators(cached_ohlcv_data):
     """Precompute common indicators once for all tests."""
     df = cached_ohlcv_data.copy()
@@ -96,7 +101,8 @@ def precomputed_indicators(cached_ohlcv_data):
     # Remove initial NaN values
     df = df.dropna()
 
-    return df
+    yield df
+    del df
 
 
 # ==========================================================
@@ -109,7 +115,8 @@ def mock_xgboost_trainer():
     """Mock XGBoost trainer to avoid actual model training."""
     trainer = Mock()
     trainer.train = Mock(return_value={"model": mock_trained_model(), "accuracy": 0.85, "training_time": 0.1})
-    return trainer
+    yield trainer
+    del trainer
 
 
 @pytest.fixture
@@ -117,7 +124,8 @@ def mock_lstm_trainer():
     """Mock LSTM trainer to avoid expensive neural network training."""
     trainer = Mock()
     trainer.train = Mock(return_value={"model": mock_trained_model(), "loss": 0.25, "training_time": 0.5})
-    return trainer
+    yield trainer
+    del trainer
 
 
 @pytest.fixture
@@ -126,7 +134,8 @@ def mock_exchange_manager():
     manager = Mock()
     manager.get_markets = Mock(return_value=["BTC/USDT", "ETH/USDT"])
     manager.get_symbol_info = Mock(return_value={"min_amount": 0.001})
-    return manager
+    yield manager
+    del manager
 
 
 @pytest.fixture
@@ -135,7 +144,8 @@ def mock_api_client():
     client = Mock()
     client.get = Mock(return_value={"status": "ok", "data": []})
     client.post = Mock(return_value={"success": True})
-    return client
+    yield client
+    del client
 
 
 # ==========================================================
@@ -153,7 +163,7 @@ def small_ohlcv_data():
     base_price = 50000
     prices = base_price + np.cumsum(np.random.randn(n) * 100)
 
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {
             "open": prices + np.random.randn(n) * 25,
             "high": prices + np.abs(np.random.randn(n) * 50),
@@ -163,6 +173,8 @@ def small_ohlcv_data():
         },
         index=dates,
     )
+    yield df
+    del df
 
 
 @pytest.fixture
@@ -175,7 +187,7 @@ def tiny_ohlcv_data():
     base_price = 50000
     prices = base_price + np.cumsum(np.random.randn(n) * 50)
 
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {
             "open": prices + np.random.randn(n) * 10,
             "high": prices + np.abs(np.random.randn(n) * 20),
@@ -185,6 +197,8 @@ def tiny_ohlcv_data():
         },
         index=dates,
     )
+    yield df
+    del df
 
 
 # ==========================================================
@@ -192,23 +206,27 @@ def tiny_ohlcv_data():
 # ==========================================================
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def module_test_data():
-    """Module-scoped data for tests in the same module."""
-    return {
+    """Function-scoped data for tests in the same module."""
+    data = {
         "symbols": ["BTC/USDT", "ETH/USDT", "BNB/USDT"],
         "timeframes": ["1h", "4h", "1d"],
         "signals": [-1, 0, 1],
         "confidence_levels": [0.0, 0.5, 1.0],
     }
+    yield data
+    del data
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def common_test_parameters():
-    """Common parameters used across multiple tests."""
-    return SimpleNamespace(
+    """Function-scoped parameters used across multiple tests."""
+    params = SimpleNamespace(
         osc_length=50, osc_mult=2.0, rsi_period=14, sma_period=20, stop_loss_pct=0.02, take_profit_pct=0.04
     )
+    yield params
+    del params
 
 
 # ==========================================================
@@ -219,19 +237,19 @@ def common_test_parameters():
 @pytest.fixture(params=[0.01, 0.02, 0.05])
 def risk_percentage(request):
     """Parametrized risk percentage for testing different risk levels."""
-    return request.param
+    yield request.param
 
 
 @pytest.fixture(params=[10, 20, 50])
 def sequence_length(request):
     """Parametrized sequence length for testing."""
-    return request.param
+    yield request.param
 
 
 @pytest.fixture(params=["1h", "4h", "1d"])
 def timeframe(request):
     """Parametrized timeframe for testing."""
-    return request.param
+    yield request.param
 
 
 # ==========================================================

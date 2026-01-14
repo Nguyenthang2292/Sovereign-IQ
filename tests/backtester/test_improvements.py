@@ -13,22 +13,24 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from config.position_sizing import BACKTEST_RISK_PER_TRADE
 from modules.backtester import FullBacktester
 from modules.backtester.core.equity_curve import calculate_equity_curve
 from modules.backtester.core.trade_simulator import simulate_trades
+from tests.backtester.conftest import FastMockDataFetcher
 
 
 class TestRiskPerTradeConfigurable:
     """Tests for configurable risk_per_trade parameter."""
 
-    def test_risk_per_trade_default_value(self, mock_data_fetcher):
+    def test_risk_per_trade_default_value(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that default risk_per_trade is used when not specified."""
         backtester = FullBacktester(mock_data_fetcher)
         assert backtester.risk_per_trade == BACKTEST_RISK_PER_TRADE
 
-    def test_risk_per_trade_custom_value(self, mock_data_fetcher):
+    def test_risk_per_trade_custom_value(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that custom risk_per_trade can be set."""
         custom_risk = 0.02  # 2%
         backtester = FullBacktester(
@@ -69,8 +71,10 @@ class TestRiskPerTradeConfigurable:
         # Verify initial capital is same
         assert equity_1pct.iloc[0] == equity_2pct.iloc[0] == 10000.0
 
-    def test_backtester_passes_risk_per_trade_to_equity_curve(self, mock_data_fetcher):
+    def test_backtester_passes_risk_per_trade_to_equity_curve(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that FullBacktester passes risk_per_trade to equity curve calculation."""
+        # Seed NumPy RNG for deterministic test data
+        np.random.seed(42)
         dates = pd.date_range("2023-01-01", periods=100, freq="h")
         prices = 100 + np.cumsum(np.random.randn(100) * 0.5)
         df = pd.DataFrame(
@@ -119,7 +123,7 @@ class TestRiskPerTradeConfigurable:
 class TestInputValidation:
     """Tests for input validation in backtest() method."""
 
-    def test_invalid_signal_type(self, mock_data_fetcher):
+    def test_invalid_signal_type(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that invalid signal_type raises ValueError (caught and returns empty result)."""
         backtester = FullBacktester(mock_data_fetcher)
 
@@ -133,7 +137,7 @@ class TestInputValidation:
         # Should return empty result when validation fails
         assert result["trades"] == []
 
-    def test_zero_initial_capital(self, mock_data_fetcher):
+    def test_zero_initial_capital(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that zero initial_capital raises ValueError."""
         backtester = FullBacktester(mock_data_fetcher)
 
@@ -147,7 +151,7 @@ class TestInputValidation:
         )
         assert result["trades"] == []
 
-    def test_negative_initial_capital(self, mock_data_fetcher):
+    def test_negative_initial_capital(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that negative initial_capital raises ValueError."""
         backtester = FullBacktester(mock_data_fetcher)
 
@@ -161,7 +165,7 @@ class TestInputValidation:
         )
         assert result["trades"] == []
 
-    def test_zero_stop_loss_pct(self, mock_data_fetcher):
+    def test_zero_stop_loss_pct(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that zero stop_loss_pct raises ValueError."""
         backtester = FullBacktester(mock_data_fetcher, stop_loss_pct=0.0)
 
@@ -174,7 +178,7 @@ class TestInputValidation:
         )
         assert result["trades"] == []
 
-    def test_zero_take_profit_pct(self, mock_data_fetcher):
+    def test_zero_take_profit_pct(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that zero take_profit_pct raises ValueError."""
         backtester = FullBacktester(mock_data_fetcher, take_profit_pct=0.0)
 
@@ -187,7 +191,7 @@ class TestInputValidation:
         )
         assert result["trades"] == []
 
-    def test_zero_trailing_stop_pct(self, mock_data_fetcher):
+    def test_zero_trailing_stop_pct(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that zero trailing_stop_pct raises ValueError."""
         backtester = FullBacktester(mock_data_fetcher, trailing_stop_pct=0.0)
 
@@ -200,7 +204,7 @@ class TestInputValidation:
         )
         assert result["trades"] == []
 
-    def test_zero_max_hold_periods(self, mock_data_fetcher):
+    def test_zero_max_hold_periods(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that zero max_hold_periods raises ValueError."""
         backtester = FullBacktester(mock_data_fetcher, max_hold_periods=0)
 
@@ -213,7 +217,7 @@ class TestInputValidation:
         )
         assert result["trades"] == []
 
-    def test_zero_lookback(self, mock_data_fetcher):
+    def test_zero_lookback(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that zero lookback raises ValueError."""
         backtester = FullBacktester(mock_data_fetcher)
 
@@ -228,7 +232,7 @@ class TestInputValidation:
         # Should return empty result when validation fails
         assert result["trades"] == []
 
-    def test_negative_lookback(self, mock_data_fetcher):
+    def test_negative_lookback(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that negative lookback raises ValueError."""
         backtester = FullBacktester(mock_data_fetcher)
 
@@ -242,7 +246,7 @@ class TestInputValidation:
         # Should return empty result when validation fails
         assert result["trades"] == []
 
-    def test_case_insensitive_signal_type(self, mock_data_fetcher):
+    def test_case_insensitive_signal_type(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that signal_type is case-insensitive (should work with lowercase)."""
         dates = pd.date_range("2023-01-01", periods=100, freq="h")
         prices = 100 + np.cumsum(np.random.randn(100) * 0.5)
@@ -444,7 +448,7 @@ class TestTrailingStopNoneCheck:
 class TestParallelProcessingErrorHandling:
     """Tests for parallel processing error handling improvements."""
 
-    def test_parallel_processing_fallback_on_pickle_error(self, mock_data_fetcher):
+    def test_parallel_processing_fallback_on_pickle_error(self, mock_data_fetcher: FastMockDataFetcher):
         """Test that parallel processing falls back to sequential on pickle error."""
         dates = pd.date_range("2023-01-01", periods=200, freq="h")
         prices = 100 + np.cumsum(np.random.randn(200) * 0.5)
@@ -495,11 +499,16 @@ class TestParallelProcessingErrorHandling:
             assert "trades" in result
             assert "metrics" in result
 
-    def test_parallel_processing_with_large_dataframe(self, mock_data_fetcher):
-        """Test that parallel processing handles large DataFrames correctly."""
-        # Create a large DataFrame
-        dates = pd.date_range("2023-01-01", periods=5000, freq="h")
-        prices = 100 + np.cumsum(np.random.randn(5000) * 0.5)
+    @pytest.mark.slow
+    def test_parallel_processing_with_large_dataframe(self, mock_data_fetcher: FastMockDataFetcher):
+        """Test that parallel processing handles large DataFrames correctly.
+
+        This test uses larger data to verify memory handling.
+        Marked as slow - skip with --fast flag.
+        """
+        # Create a medium DataFrame - enough to test parallel processing
+        dates = pd.date_range("2023-01-01", periods=1000, freq="h")  # Reduced from 5000
+        prices = 100 + np.cumsum(np.random.randn(1000) * 0.5)
         df = pd.DataFrame(
             {
                 "open": prices,
@@ -532,7 +541,7 @@ class TestParallelProcessingErrorHandling:
         result = backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
-            lookback=5000,
+            lookback=300,  # Reduced from 5000
             signal_type="LONG",
             df=df,
         )
@@ -544,7 +553,7 @@ class TestParallelProcessingErrorHandling:
 class TestComprehensiveScenarios:
     """Comprehensive test scenarios combining multiple improvements."""
 
-    def test_custom_risk_per_trade_with_validation(self, mock_data_fetcher):
+    def test_custom_risk_per_trade_with_validation(self, mock_data_fetcher: FastMockDataFetcher):
         """Test custom risk_per_trade with input validation."""
         dates = pd.date_range("2023-01-01", periods=100, freq="h")
         prices = 100 + np.cumsum(np.random.randn(100) * 0.5)

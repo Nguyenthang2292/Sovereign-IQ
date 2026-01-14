@@ -28,7 +28,8 @@ class TestGenerateIndicatorFeatures:
                 "volume": seeded_random.integers(1000, 10000, size=n_rows),
             }
         )
-        return df
+        yield df
+        del df
 
     @pytest.fixture
     def minimal_ohlcv_data(self, seeded_random):
@@ -43,7 +44,8 @@ class TestGenerateIndicatorFeatures:
                 "volume": seeded_random.integers(1000, 10000, size=n_rows),
             }
         )
-        return df
+        yield df
+        del df
 
     def test_basic_feature_generation(self, sample_ohlcv_data):
         """Test basic feature generation with valid OHLCV data."""

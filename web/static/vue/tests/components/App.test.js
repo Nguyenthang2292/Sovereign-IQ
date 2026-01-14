@@ -1,7 +1,7 @@
 /**
  * Tests for App component
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { i18n } from '../setup'
@@ -26,16 +26,33 @@ const routes = [
     name: 'batch-scanner',
     component: BatchScanner,
   },
+  {
+    path: '/workflow',
+    name: 'workflow',
+    component: { template: '<div>Workflow</div>' },
+  },
 ]
 
 describe('App', () => {
   let router
 
   beforeEach(() => {
+    // Mock localStorage
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    })
+
     router = createRouter({
       history: createMemoryHistory(),
       routes,
     })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('should render navigation correctly', () => {
@@ -51,19 +68,19 @@ describe('App', () => {
   })
 
   it('should highlight active route in navigation', async () => {
-    await router.push('/scanner')
     const wrapper = mount(App, {
       global: {
         plugins: [router, i18n],
       },
     })
 
+    await router.push('/scanner')
     await router.isReady()
     await wrapper.vm.$nextTick()
 
     const batchScannerLink = wrapper.find('a[href="/scanner"]')
-    // Active route should have btn-gradient class (gradient button style)
-    expect(batchScannerLink.classes()).toContain('btn-gradient')
+    // Active route should have router-link-active class
+    expect(batchScannerLink.classes()).toContain('router-link-active')
   })
 
   it('should handle symbol-click event and navigate to analyzer', async () => {

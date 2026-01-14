@@ -318,7 +318,24 @@ def test_backtest_metrics_with_no_winning_trades():
             return 0, 0.0
 
         def get_cache_stats(self):
-            return {"signal_cache_size": 0, "signal_cache_max_size": 1000}
+            return {"signal_cache_size": 0, "signal_cache_max_size": 1000, "cache_hit_rate": 0.0}
+
+        def precompute_all_indicators_vectorized(self, **kwargs):
+            df = kwargs.get("df")
+            return {
+                "range_oscillator": pd.DataFrame(
+                    {"signal": [1] + [0] * (len(df) - 1), "confidence": [0.8] + [0.0] * (len(df) - 1)}, index=df.index
+                )
+            }
+
+        def calculate_signal_from_precomputed(self, **kwargs):
+            period_index = kwargs.get("period_index", 0)
+            if period_index == 0:
+                return 1, 0.8
+            return 0, 0.0
+
+        def clear_cache(self):
+            pass
 
     data_fetcher = SimpleNamespace(
         fetch_ohlcv_with_fallback_exchange=fake_fetch,
@@ -375,7 +392,24 @@ def test_backtest_metrics_with_no_losing_trades():
             return 0, 0.0
 
         def get_cache_stats(self):
-            return {"signal_cache_size": 0, "signal_cache_max_size": 1000}
+            return {"signal_cache_size": 0, "signal_cache_max_size": 1000, "cache_hit_rate": 0.0}
+
+        def precompute_all_indicators_vectorized(self, **kwargs):
+            df = kwargs.get("df")
+            return {
+                "range_oscillator": pd.DataFrame(
+                    {"signal": [1] + [0] * (len(df) - 1), "confidence": [0.8] + [0.0] * (len(df) - 1)}, index=df.index
+                )
+            }
+
+        def calculate_signal_from_precomputed(self, **kwargs):
+            period_index = kwargs.get("period_index", 0)
+            if period_index == 0:
+                return 1, 0.8
+            return 0, 0.0
+
+        def clear_cache(self):
+            pass
 
     data_fetcher = SimpleNamespace(
         fetch_ohlcv_with_fallback_exchange=fake_fetch,

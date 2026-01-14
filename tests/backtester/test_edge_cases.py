@@ -11,51 +11,57 @@ import pandas as pd
 from modules.backtester import FullBacktester
 
 
-def test_backtest_with_no_signals(mock_data_fetcher):
+def test_backtest_with_no_signals(fast_no_signal_calculator, fast_data_fetcher):
     """Test backtest when no signals are generated."""
-    # Override the autouse fixture to return no signals
-    with (
-        patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal", return_value=(0, 0.0)),
-        patch("modules.position_sizing.core.indicator_calculators.get_spc_signal", return_value=(0, 0.0)),
-        patch("modules.position_sizing.core.indicator_calculators.get_xgboost_signal", return_value=(0, 0.0)),
-        patch("modules.position_sizing.core.indicator_calculators.get_hmm_signal", return_value=(0, 0.0)),
-        patch("modules.position_sizing.core.indicator_calculators.get_random_forest_signal", return_value=(0, 0.0)),
-    ):
-        backtester = FullBacktester(mock_data_fetcher)
+    # Use fast backtester with no signal calculator
+    from modules.backtester.core.backtester import FullBacktester
 
-        result = backtester.backtest(
-            symbol="BTC/USDT",
-            timeframe="1h",
-            lookback=200,
-            signal_type="LONG",
-        )
+    backtester = FullBacktester(fast_data_fetcher)
+    backtester.hybrid_signal_calculator = fast_no_signal_calculator
 
-        # Should return valid structure even with no trades
-        assert "trades" in result
-        assert "metrics" in result
-        assert isinstance(result["trades"], list)
+    result = backtester.backtest(
+        symbol="BTC/USDT",
+        timeframe="1h",
+        signal_type="LONG",
+        lookback=50,  # Reduced for speed
+    )
+
+    # Should return valid structure even with no trades
+    assert "trades" in result
+    assert "metrics" in result
+    assert isinstance(result["trades"], list)
 
 
 def test_backtest_with_very_small_dataset(mock_data_fetcher):
     """Test backtest with very small dataset."""
 
-    def small_fetch(symbol, **kwargs):
-        dates = pd.date_range("2023-01-01", periods=10, freq="h")
-        prices = [100 + i * 0.1 for i in range(10)]
-        df = pd.DataFrame(
-            {
-                "open": prices,
-                "high": [p * 1.01 for p in prices],
-                "low": [p * 0.99 for p in prices],
-                "close": prices,
-            },
-            index=dates,
-        )
-        return df, "binance"
+    class SmallFetcher:
+        def fetch_ohlcv_with_fallback_exchange(self, symbol, **kwargs):
+            dates = pd.date_range("2023-01-01", periods=10, freq="h")
+            prices = [100 + i * 0.1 for i in range(10)]
+            df = pd.DataFrame(
+                {
+                    "open": prices,
+                    "high": [p * 1.01 for p in prices],
+                    "low": [p * 0.99 for p in prices],
+                    "close": prices,
+                },
+                index=dates,
+            )
+            return df, "binance"
 
-    small_fetcher = SimpleNamespace(
-        fetch_ohlcv_with_fallback_exchange=small_fetch,
-    )
+        def fetch_binance_account_balance(self):
+            return None
+
+        @property
+        def market_prices(self):
+            return {}
+
+        @property
+        def _ohlcv_dataframe_cache(self):
+            return {}
+
+    small_fetcher = SmallFetcher()
 
     # Mock signal calculators to avoid API calls
     with (

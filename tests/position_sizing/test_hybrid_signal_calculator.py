@@ -66,6 +66,7 @@ def test_hybrid_signal_calculator_custom_indicators(mock_data_fetcher):
     calculator = HybridSignalCalculator(
         mock_data_fetcher,
         enabled_indicators=["range_oscillator", "hmm"],
+        min_indicators_agreement=2,
     )
 
     assert len(calculator.enabled_indicators) == 2
@@ -78,7 +79,7 @@ def test_calculate_hybrid_signal_returns_tuple(mock_data_fetcher, sample_datafra
     calculator = HybridSignalCalculator(mock_data_fetcher)
 
     # Mock the indicator functions to return simple results
-    with patch("modules.position_sizing.core.hybrid_signal_calculator.get_range_oscillator_signal") as mock_osc:
+    with patch("core.signal_calculators.get_range_oscillator_signal") as mock_osc:
         mock_osc.return_value = (1, 0.8)
 
         signal, confidence = calculator.calculate_hybrid_signal(
@@ -99,8 +100,8 @@ def test_calculate_hybrid_signal_caching(mock_data_fetcher, sample_dataframe):
     """Test that calculate_hybrid_signal uses caching."""
     calculator = HybridSignalCalculator(mock_data_fetcher)
 
-    with patch("modules.position_sizing.core.hybrid_signal_calculator.get_range_oscillator_signal") as mock_osc:
-        mock_osc.return_value = (1, 0.8)
+    with patch.object(calculator, "_calc_range_oscillator") as mock_osc:
+        mock_osc.return_value = {"indicator": "range_oscillator", "signal": 1, "confidence": 0.8}
 
         # First call
         signal1, conf1 = calculator.calculate_hybrid_signal(
@@ -124,8 +125,8 @@ def test_calculate_hybrid_signal_caching(mock_data_fetcher, sample_dataframe):
         assert signal1 == signal2
         assert conf1 == conf2
 
-        # But function should only be called once (cached on second call)
-        # Note: This might not work perfectly due to multiple indicators, but structure is correct
+        # Verify function was called only once (indicating cache hit on second call)
+        assert mock_osc.call_count == 1
 
 
 def test_combine_signals_majority_vote(mock_data_fetcher):

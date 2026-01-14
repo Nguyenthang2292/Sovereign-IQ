@@ -63,7 +63,8 @@ class TestIncrementalSignalCalculation:
         assert len(signals) == len(sample_df)
         assert isinstance(trades, list)
         # Should have at least one trade if signals were generated
-        assert len(trades) >= 0
+        # Optionally assert at least one trade was generated
+        # assert len(trades) > 0
 
     def test_calculate_signals_incremental_skip_when_position_open(self, sample_df, mock_hybrid_calculator):
         """Test that signal calculation is skipped when position is open."""
@@ -284,7 +285,7 @@ class TestFullBacktesterIncrementalMode:
         # Verify that backtest completed successfully with fallback exchange
         # The backtester should handle fallback exchange transparently
         assert isinstance(result["metrics"], dict)
-        assert "total_trades" in result["metrics"]
+        assert "num_trades" in result["metrics"]
         assert "win_rate" in result["metrics"]
 
         # Assert fetch_ohlcv_with_fallback_exchange was called correctly

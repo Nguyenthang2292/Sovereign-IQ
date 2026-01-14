@@ -148,6 +148,18 @@ if (typeof HTMLElement !== 'undefined') {
   }
 }
 
+// Mock SVGElement.getBBox globally to prevent Mermaid errors
+if (typeof SVGElement !== 'undefined') {
+  SVGElement.prototype.getBBox = function() {
+    return {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 20
+    };
+  };
+}
+
 
 // Mock vue-i18n
 import { createI18n } from 'vue-i18n'

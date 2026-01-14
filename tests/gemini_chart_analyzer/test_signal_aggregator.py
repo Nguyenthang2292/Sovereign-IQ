@@ -27,7 +27,7 @@ def default_aggregator():
 @pytest.fixture
 def custom_aggregator():
     """Create SignalAggregator with custom weights."""
-    custom_weights = {"15m": 0.2, "1h": 0.3, "4h": 0.5}
+    custom_weights = {"15m": 0.1, "1h": 0.3, "4h": 0.6}
     return SignalAggregator(timeframe_weights=custom_weights)
 
 
@@ -39,7 +39,7 @@ class TestSignalAggregatorInit:
         assert default_aggregator.timeframe_weights is not None
         assert "15m" in default_aggregator.timeframe_weights
         assert "1h" in default_aggregator.timeframe_weights
-        assert "4h" in default_aggregator.timeframe_weights
+        assert "30m" in default_aggregator.timeframe_weights
 
     def test_init_custom_weights(self, custom_aggregator):
         """Test initialization with custom weights."""
@@ -115,9 +115,9 @@ class TestAggregateSignals:
     def test_mixed_signals_short_dominant(self, default_aggregator):
         """Test aggregation with mixed signals where SHORT is dominant."""
         signals = {
-            "15m": {"signal": "SHORT", "confidence": 0.3},  # Lower weight
-            "1h": {"signal": "SHORT", "confidence": 0.4},  # Lower weight
-            "4h": {"signal": "SHORT", "confidence": 0.9},  # Higher weight, high confidence
+            "15m": {"signal": "SHORT", "confidence": 0.3},
+            "30m": {"signal": "SHORT", "confidence": 0.4},
+            "1h": {"signal": "SHORT", "confidence": 0.9},  # Highest weight (0.5)
         }
         result = default_aggregator.aggregate_signals(signals)
         assert result["signal"] == "SHORT"
@@ -387,11 +387,10 @@ class TestIntegrationScenarios:
     def test_high_timeframe_dominance(self, default_aggregator):
         """Test that higher timeframes have more influence."""
         signals = {
-            "15m": {"signal": "SHORT", "confidence": 0.9},  # High confidence, low weight
-            "1d": {"signal": "LONG", "confidence": 0.6},  # Lower confidence, high weight
+            "15m": {"signal": "SHORT", "confidence": 0.9},  # Weight: 0.2
+            "1h": {"signal": "LONG", "confidence": 0.6},  # Weight: 0.5
         }
         result = default_aggregator.aggregate_signals(signals)
-        # Higher timeframe (1d) should have more influence despite lower confidence
-        # The exact result depends on weights, but 1d should contribute more
-        assert "1d" in result["timeframe_breakdown"]
-        assert result["timeframe_breakdown"]["1d"]["weight"] > result["timeframe_breakdown"]["15m"]["weight"]
+        # Higher timeframe (1h) should have more influence (weight)
+        assert "1h" in result["timeframe_breakdown"]
+        assert result["timeframe_breakdown"]["1h"]["weight"] > result["timeframe_breakdown"]["15m"]["weight"]

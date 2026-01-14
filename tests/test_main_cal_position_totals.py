@@ -155,8 +155,10 @@ class TestMainFunction:
         """Test main function when calculation fails."""
         mock_calc_totals.return_value = (None, None, None, [])
 
-        main()
+        with pytest.raises(SystemExit) as exc_info:
+            main()
 
+        assert exc_info.value.code == 1
         captured = capsys.readouterr()
         assert "Failed to calculate position totals" in captured.out
 
@@ -165,8 +167,10 @@ class TestMainFunction:
         """Test main function with no positions."""
         mock_calc_totals.return_value = (0.0, 0.0, 0.0, [])
 
-        main()
+        with pytest.raises(SystemExit) as exc_info:
+            main()
 
+        assert exc_info.value.code == 0
         captured = capsys.readouterr()
         assert "No open positions found" in captured.out
 
@@ -216,13 +220,21 @@ class TestModuleIntegration:
 
     def test_data_fetcher_integration(self):
         """Test that DataFetcher can be imported and instantiated."""
-        try:
-            from modules.common.core.data_fetcher import DataFetcher
-            from modules.common.core.exchange_manager import ExchangeManager
+        import importlib.util
 
-            # Test that classes can be instantiated (without actual connections)
-            exchange_manager = ExchangeManager()
-            assert exchange_manager is not None
+        data_fetcher_spec = importlib.util.find_spec("modules.common.core.data_fetcher")
+        if data_fetcher_spec is None:
+            pytest.fail("DataFetcher module not found")
 
-        except ImportError as e:
-            pytest.fail(f"Failed to import or instantiate data fetching classes: {e}")
+        exchange_manager_spec = importlib.util.find_spec("modules.common.core.exchange_manager")
+        if exchange_manager_spec is None:
+            pytest.fail("ExchangeManager module not found")
+
+        from modules.common.core.exchange_manager import ExchangeManager
+        from modules.common.core.data_fetcher import DataFetcher
+
+        exchange_manager = ExchangeManager()
+        assert exchange_manager is not None
+
+        data_fetcher = DataFetcher(exchange_manager)
+        assert data_fetcher is not None

@@ -26,6 +26,11 @@ const routes = [
     component: BatchScanner,
   },
   {
+    path: '/workflow',
+    name: 'workflow',
+    component: { template: '<div>Workflow</div>' },
+  },
+  {
     path: '/user/:id',
     name: 'user',
     component: MockUserComponent,

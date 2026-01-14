@@ -1,11 +1,12 @@
+from types import SimpleNamespace
+
 import numpy as np
 import pandas as pd
 import pytest
-from types import SimpleNamespace
 
 
-# Heavy data fixture (session scope) for integration tests
-@pytest.fixture(scope="session")
+# Heavy data fixture (function scope) for integration tests
+@pytest.fixture
 def heavy_position_data():
     n = 5000
     dates = pd.date_range("2023-01-01", periods=n, freq="h")
@@ -20,7 +21,8 @@ def heavy_position_data():
         },
         index=dates,
     )
-    return df
+    yield df
+    del df
 
 
 # Small data fixture (function scope) for fast tests
@@ -63,7 +65,6 @@ def mock_data_fetcher(heavy_position_data):
 def mock_io(monkeypatch):
     def _fake_load_csv(*args, **kwargs):
         import pandas as pd
-        import numpy as np
 
         df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
         return df

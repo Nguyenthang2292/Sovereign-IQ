@@ -29,7 +29,8 @@ class TestLSTMTrainer:
                 "volume": np.random.randn(n_samples) * 1000 + 10000,
             }
         )
-        return df
+        yield df
+        del df
 
     def test_init_lstm_only(self):
         """Test initialization with LSTM only."""

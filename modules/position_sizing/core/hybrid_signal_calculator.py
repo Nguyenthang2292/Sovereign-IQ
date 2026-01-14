@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from config.position_sizing import ENABLE_MULTITHREADING
+from config.position_sizing import ENABLE_MULTITHREADING, MIN_INDICATORS_AGREEMENT
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.utils import (
     log_error,
@@ -43,7 +43,7 @@ class HybridSignalCalculator(
         data_fetcher: DataFetcher,
         enabled_indicators: Optional[List[str]] = None,
         use_confidence_weighting: bool = True,
-        min_indicators_agreement: int = 3,
+        min_indicators_agreement: int = MIN_INDICATORS_AGREEMENT,
         default_confidence: Optional[float] = None,
     ):
         """

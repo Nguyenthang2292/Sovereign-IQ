@@ -55,11 +55,10 @@ class TestNormalizeTimeframes:
 
     def test_normalize_sorts_by_weight(self):
         """Test that timeframes are sorted by weight (descending)."""
-        result = normalize_timeframes(["15m", "1d", "1h", "4h"])
-        # Higher timeframes should come first
-        # 1d should be before 1h, 1h should be before 15m
-        assert result[0] in ["1d", "4h"]  # Highest weight
-        assert "15m" in result  # Should be present
+        result = normalize_timeframes(["15m", "30m", "1h"])
+        # Higher timeframes should come first based on config/gemini_chart_analyzer.py:
+        # "1h": 0.5, "30m": 0.3, "15m": 0.2
+        assert result == ["1h", "30m", "15m"]
 
     def test_normalize_case_insensitive(self):
         """Test that normalization handles case variations."""
@@ -106,14 +105,13 @@ class TestSortTimeframesByWeight:
 
     def test_sort_multiple_timeframes(self):
         """Test sorting multiple timeframes by weight."""
-        result = sort_timeframes_by_weight(["15m", "1d", "1h"])
+        result = sort_timeframes_by_weight(["15m", "1h", "30m"])
         # Higher timeframes (higher weight) should come first
-        assert result[0] in ["1d", "1h"]  # Higher weight
-        assert "15m" in result  # Should be present
+        assert result == ["1h", "30m", "15m"]
 
     def test_sort_preserves_all_timeframes(self):
         """Test that all timeframes are preserved in sorted result."""
-        input_tfs = ["15m", "1h", "4h", "1d"]
+        input_tfs = ["15m", "30m", "1h"]
         result = sort_timeframes_by_weight(input_tfs)
         assert len(result) == len(input_tfs)
         assert set(result) == set(input_tfs)

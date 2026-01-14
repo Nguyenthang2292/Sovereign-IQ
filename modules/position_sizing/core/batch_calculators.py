@@ -325,9 +325,6 @@ class BatchCalculatorsMixin:
                 except ClassDiversityError:
                     # Skip this period if training fails due to class diversity issues
                     continue
-                except Exception:
-                    # Re-raise all other exceptions unchanged
-                    raise
 
                 proba = predict_next_move(model, latest_data)
 
@@ -350,6 +347,7 @@ class BatchCalculatorsMixin:
                 result_df.loc[df.index[i], "confidence"] = confidence
             except Exception as e:
                 log_warn(f"XGBoost batch calculation failed for period {i}: {e}")
+                # Continue to preserve partial results; tests can check logs or result coverage
                 continue
 
         return result_df

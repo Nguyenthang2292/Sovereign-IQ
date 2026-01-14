@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pandas as pd
@@ -16,8 +17,9 @@ def mock_data_fetcher():
     """Create a mock data fetcher for testing."""
 
     def fake_fetch(symbol, **kwargs):
-        dates = pd.date_range("2023-01-01", periods=200, freq="h")
-        prices = 100 + np.cumsum(np.random.randn(200) * 0.5)
+        n = 50
+        dates = pd.date_range("2023-01-01", periods=n, freq="h")
+        prices = 100 + np.cumsum(np.random.randn(n) * 0.5)
         df = pd.DataFrame(
             {
                 "open": prices,
@@ -32,6 +34,44 @@ def mock_data_fetcher():
     return SimpleNamespace(
         fetch_ohlcv_with_fallback_exchange=fake_fetch,
     )
+
+
+@pytest.fixture(autouse=True)
+def mock_backtester():
+    """Mock FullBacktester to avoid heavy calculations."""
+    with patch("modules.position_sizing.core.position_sizer.FullBacktester") as MockBacktester:
+        instance = MockBacktester.return_value
+        instance.backtest.return_value = {
+            "metrics": {
+                "win_rate": 0.5,
+                "num_trades": 20,
+                "avg_win": 0.1,
+                "avg_loss": 0.05,
+                "total_return": 0.5,
+                "sharpe_ratio": 2.0,
+                "max_drawdown": 0.1,
+                "profit_factor": 2.0,
+            },
+            "equity_curve": pd.Series([10000, 10500, 11000, 10800, 11500]),
+            "trades": [Mock()] * 20,
+        }
+        yield instance
+
+
+@pytest.fixture(autouse=True)
+def mock_kelly_calc():
+    """Mock BayesianKellyCalculator."""
+    with patch("modules.position_sizing.core.position_sizer.BayesianKellyCalculator") as MockKelly:
+        instance = MockKelly.return_value
+        instance.calculate_kelly_from_metrics.return_value = 0.05
+        yield instance
+
+
+@pytest.fixture(autouse=True)
+def mock_utils():
+    """Mock utility functions."""
+    with patch("modules.position_sizing.core.position_sizer.days_to_candles", return_value=50):
+        yield
 
 
 def test_calculate_position_size_structure(mock_data_fetcher):
@@ -84,6 +124,7 @@ def test_calculate_position_size_with_custom_params(mock_data_fetcher):
 
     assert result["symbol"] == "ETH/USDT"
     assert result["signal_type"] == "SHORT"
+    # Adjusted Kelly might be capped by max_position_size
     assert result["position_size_usdt"] <= 5000.0 * 0.15
 
 
@@ -108,11 +149,14 @@ def test_calculate_portfolio_allocation(mock_data_fetcher):
 
     # Check that total exposure doesn't exceed max
     total_exposure = results_df["position_size_pct"].sum()
-    assert total_exposure <= position_sizer.max_portfolio_exposure * 100
+    assert total_exposure <= position_sizer.max_portfolio_exposure * 100 + 0.1
 
 
-def test_calculate_portfolio_allocation_normalization(mock_data_fetcher):
+def test_calculate_portfolio_allocation_normalization(mock_data_fetcher, mock_kelly_calc):
     """Test that portfolio allocation normalizes when exceeding max exposure."""
+    # Mock high Kelly to force normalization
+    mock_kelly_calc.calculate_kelly_from_metrics.return_value = 0.2  # 20% each
+
     position_sizer = PositionSizer(
         mock_data_fetcher,
         max_portfolio_exposure=0.3,  # 30% max
@@ -127,8 +171,8 @@ def test_calculate_portfolio_allocation_normalization(mock_data_fetcher):
     )
 
     total_exposure = results_df["position_size_pct"].sum()
-    # Should be normalized to max_portfolio_exposure
-    assert total_exposure <= position_sizer.max_portfolio_exposure * 100 + 1.0  # Allow small rounding error
+    # Should be normalized to max_portfolio_exposure (30%)
+    assert total_exposure <= position_sizer.max_portfolio_exposure * 100 + 0.1
 
 
 def test_empty_result_structure(mock_data_fetcher):
@@ -145,8 +189,11 @@ def test_empty_result_structure(mock_data_fetcher):
     assert "backtest_result" in result
 
 
-def test_position_size_bounds(mock_data_fetcher):
+def test_position_size_bounds(mock_data_fetcher, mock_kelly_calc):
     """Test that position size respects min/max bounds."""
+    # Kelly is 0.2, but max is 0.1
+    mock_kelly_calc.calculate_kelly_from_metrics.return_value = 0.2
+
     position_sizer = PositionSizer(
         mock_data_fetcher,
         max_position_size=0.1,  # 10% max
@@ -160,5 +207,14 @@ def test_position_size_bounds(mock_data_fetcher):
     )
 
     position_pct = result["position_size_pct"]
-    assert position_pct >= position_sizer.min_position_size * 100
-    assert position_pct <= position_sizer.max_position_size * 100
+    assert position_pct == pytest.approx(position_sizer.max_position_size * 100, rel=1e-2)
+
+    # Kelly is 0.001, but min is 0.01
+    mock_kelly_calc.calculate_kelly_from_metrics.return_value = 0.001
+    result = position_sizer.calculate_position_size(
+        symbol="BTC/USDT",
+        account_balance=10000.0,
+        signal_type="LONG",
+    )
+    position_pct = result["position_size_pct"]
+    assert position_pct == pytest.approx(position_sizer.min_position_size * 100, rel=1e-2)

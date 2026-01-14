@@ -250,7 +250,7 @@ class TestParseTradingSignal:
 
     def test_parse_vietnamese_long_signal(self):
         """Test parsing Vietnamese LONG signal."""
-        response = "Tăng giá. Giá vào: 1.2345, cắt lỗ: 1.2200, chốt lời 1: 2800"
+        response = "Tăng giá. Entry: 1.2345, Stop Loss: 1.2200, Take Profit 1: 1.2800"
 
         signal = parse_trading_signal(response)
 
@@ -259,13 +259,27 @@ class TestParseTradingSignal:
         assert signal.stop_loss == 1.2200
         assert signal.take_profit_1 == 1.2800
 
-    def test_parse_with_regex_patterns(self):
-        """Test parsing with various regex patterns."""
-        response = "Entry at 1.23, Stop Loss: 1.20"
+    def test_parse_vietnamese_without_diacritics_defaults_to_neutral(self):
+        """Test that Vietnamese text without diacritics is not recognized and defaults to NEUTRAL."""
+        response = "Giam gia manh. Entry: 1.2000, SL: 1.2500, TP2: 1.3000"
 
         signal = parse_trading_signal(response)
 
-        assert signal.direction == ""  # Default when no direction keyword
+        # "Giam" without diacritic is not recognized as Vietnamese
+        # So it should default to NEUTRAL since no LONG/SHORT keyword
+        assert signal.direction == "NEUTRAL"
+        assert signal.entry_price == 1.2000
+        assert signal.stop_loss == 1.2500
+        assert signal.take_profit_2 == 1.3000
+
+    def test_parse_with_regex_patterns(self):
+        """Test parsing with various regex patterns."""
+        response = "Entry: 1.23, Stop Loss: 1.20"
+
+        signal = parse_trading_signal(response)
+
+        # Should default to NEUTRAL when no direction keyword is found
+        assert signal.direction == "NEUTRAL"
         assert signal.entry_price == 1.23
         assert signal.stop_loss == 1.20
 

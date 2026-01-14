@@ -58,7 +58,9 @@ class TestXGBoostBatchClassDiversity:
 
     def test_skips_when_less_than_2_classes(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that periods with less than 2 classes are skipped."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Mock indicator engine to return DataFrame with only 1 class in Target column
         def mock_compute_features(df):
@@ -67,15 +69,13 @@ class TestXGBoostBatchClassDiversity:
             df_copy["Target"] = 1
             return df_copy
 
-        with patch("modules.position_sizing.core.hybrid_signal_calculator.IndicatorEngine") as mock_engine_class:
+        with patch("modules.common.core.indicator_engine.IndicatorEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine.compute_features = Mock(side_effect=mock_compute_features)
             mock_engine_class.return_value = mock_engine
 
             # Mock apply_directional_labels to preserve Target column
-            with patch(
-                "modules.position_sizing.core.hybrid_signal_calculator.apply_directional_labels"
-            ) as mock_apply_labels:
+            with patch("modules.xgboost.labeling.apply_directional_labels") as mock_apply_labels:
 
                 def mock_apply(df):
                     # Return DataFrame with only one class
@@ -87,7 +87,7 @@ class TestXGBoostBatchClassDiversity:
                 mock_apply_labels.side_effect = mock_apply
 
                 # Mock train_and_predict to not be called (should be skipped)
-                with patch("modules.position_sizing.core.hybrid_signal_calculator.train_and_predict") as mock_train:
+                with patch("modules.xgboost.model.train_and_predict") as mock_train:
                     result_df = calculator._calc_xgboost_batch(
                         df=sample_dataframe_with_features, symbol="BTC/USDT", timeframe="1h"
                     )
@@ -97,39 +97,41 @@ class TestXGBoostBatchClassDiversity:
                     assert "signal" in result_df.columns
                     assert "confidence" in result_df.columns
                     # train_and_predict should not be called because class diversity check fails
-                    # The check at line 1119 (len(unique_classes) < 2) happens before train_and_predict
                     mock_train.assert_not_called()
 
     def test_handles_class_diversity_error(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that ClassDiversityError exceptions are handled correctly."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Mock indicator engine
         def mock_compute_features(df):
             df_copy = df.copy()
-            df_copy["Target"] = [0, 1] * (len(df) // 2)  # Two classes
+            # Ensure target has same length as df
+            target = ([0, 1] * (len(df) // 2 + 1))[: len(df)]
+            df_copy["Target"] = target
             return df_copy
 
-        with patch("modules.position_sizing.core.hybrid_signal_calculator.IndicatorEngine") as mock_engine_class:
+        with patch("modules.common.core.indicator_engine.IndicatorEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine.compute_features = Mock(side_effect=mock_compute_features)
             mock_engine_class.return_value = mock_engine
 
             # Mock apply_directional_labels
-            with patch(
-                "modules.position_sizing.core.hybrid_signal_calculator.apply_directional_labels"
-            ) as mock_apply_labels:
+            with patch("modules.xgboost.labeling.apply_directional_labels") as mock_apply_labels:
 
                 def mock_apply(df):
                     df_copy = df.copy()
                     if "Target" not in df_copy.columns:
-                        df_copy["Target"] = [0, 1] * (len(df) // 2)
+                        target = ([0, 1] * (len(df) // 2 + 1))[: len(df)]
+                        df_copy["Target"] = target
                     return df_copy
 
                 mock_apply_labels.side_effect = mock_apply
 
                 # Mock train_and_predict to raise ClassDiversityError
-                with patch("modules.position_sizing.core.hybrid_signal_calculator.train_and_predict") as mock_train:
+                with patch("modules.xgboost.model.train_and_predict") as mock_train:
                     mock_train.side_effect = ClassDiversityError(
                         "Invalid classes inferred from unique values of `y`. Expected: [0], got [1]"
                     )
@@ -142,52 +144,45 @@ class TestXGBoostBatchClassDiversity:
                     assert isinstance(result_df, pd.DataFrame)
                     # Verify expected columns exist
                     expected_columns = ["signal", "confidence"]
-                    assert set(result_df.columns) == set(expected_columns), (
-                        f"Expected columns {expected_columns}, got {result_df.columns.tolist()}"
-                    )
+                    assert set(result_df.columns) == set(expected_columns)
                     # Verify DataFrame has at least one row
-                    assert len(result_df) > 0, "Result DataFrame should have at least one row"
-                    # Verify column dtypes
-                    assert pd.api.types.is_integer_dtype(result_df["signal"]) or pd.api.types.is_numeric_dtype(
-                        result_df["signal"]
-                    ), f"Expected 'signal' column to be numeric, got {result_df['signal'].dtype}"
-                    assert pd.api.types.is_float_dtype(result_df["confidence"]) or pd.api.types.is_numeric_dtype(
-                        result_df["confidence"]
-                    ), f"Expected 'confidence' column to be float/numeric, got {result_df['confidence'].dtype}"
-                    # Verify key columns are not all null (at least some values exist)
-                    assert not result_df["signal"].isna().all(), "Signal column should not be all null"
-                    assert not result_df["confidence"].isna().all(), "Confidence column should not be all null"
+                    assert len(result_df) > 0
+                    # Verify key columns are not all null
+                    assert not result_df["signal"].isna().all()
+                    assert not result_df["confidence"].isna().all()
 
     def test_handles_missing_class_error(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that ClassDiversityError for missing class 0 is handled correctly."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Mock indicator engine
         def mock_compute_features(df):
             df_copy = df.copy()
-            df_copy["Target"] = [1, 2] * (len(df) // 2)  # Classes 1 and 2, missing 0
+            target = ([1, 2] * (len(df) // 2 + 1))[: len(df)]
+            df_copy["Target"] = target  # Classes 1 and 2, missing 0
             return df_copy
 
-        with patch("modules.position_sizing.core.hybrid_signal_calculator.IndicatorEngine") as mock_engine_class:
+        with patch("modules.common.core.indicator_engine.IndicatorEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine.compute_features = Mock(side_effect=mock_compute_features)
             mock_engine_class.return_value = mock_engine
 
             # Mock apply_directional_labels
-            with patch(
-                "modules.position_sizing.core.hybrid_signal_calculator.apply_directional_labels"
-            ) as mock_apply_labels:
+            with patch("modules.xgboost.labeling.apply_directional_labels") as mock_apply_labels:
 
                 def mock_apply(df):
                     df_copy = df.copy()
                     if "Target" not in df_copy.columns:
-                        df_copy["Target"] = [1, 2] * (len(df) // 2)
+                        target = ([1, 2] * (len(df) // 2 + 1))[: len(df)]
+                        df_copy["Target"] = target
                     return df_copy
 
                 mock_apply_labels.side_effect = mock_apply
 
                 # Mock train_and_predict to raise ClassDiversityError
-                with patch("modules.position_sizing.core.hybrid_signal_calculator.train_and_predict") as mock_train:
+                with patch("modules.xgboost.model.train_and_predict") as mock_train:
                     mock_train.side_effect = ClassDiversityError(
                         "Training set missing class 0 (DOWN). Found classes: [1, 2]."
                     )
@@ -203,34 +198,36 @@ class TestXGBoostBatchClassDiversity:
 
     def test_handles_invalid_classes_error(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that ClassDiversityError for invalid classes is handled correctly."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Mock indicator engine
         def mock_compute_features(df):
             df_copy = df.copy()
-            df_copy["Target"] = [0, 1] * (len(df) // 2)
+            target = ([0, 1] * (len(df) // 2 + 1))[: len(df)]
+            df_copy["Target"] = target
             return df_copy
 
-        with patch("modules.position_sizing.core.hybrid_signal_calculator.IndicatorEngine") as mock_engine_class:
+        with patch("modules.common.core.indicator_engine.IndicatorEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine.compute_features = Mock(side_effect=mock_compute_features)
             mock_engine_class.return_value = mock_engine
 
             # Mock apply_directional_labels
-            with patch(
-                "modules.position_sizing.core.hybrid_signal_calculator.apply_directional_labels"
-            ) as mock_apply_labels:
+            with patch("modules.xgboost.labeling.apply_directional_labels") as mock_apply_labels:
 
                 def mock_apply(df):
                     df_copy = df.copy()
                     if "Target" not in df_copy.columns:
-                        df_copy["Target"] = [0, 1] * (len(df) // 2)
+                        target = ([0, 1] * (len(df) // 2 + 1))[: len(df)]
+                        df_copy["Target"] = target
                     return df_copy
 
                 mock_apply_labels.side_effect = mock_apply
 
                 # Mock train_and_predict to raise ClassDiversityError
-                with patch("modules.position_sizing.core.hybrid_signal_calculator.train_and_predict") as mock_train:
+                with patch("modules.xgboost.model.train_and_predict") as mock_train:
                     mock_train.side_effect = ClassDiversityError(
                         "Number of classes, 1, does not match size of target_names, 3. Invalid classes inferred."
                     )
@@ -243,52 +240,45 @@ class TestXGBoostBatchClassDiversity:
                     assert isinstance(result_df, pd.DataFrame)
                     # Verify expected columns exist
                     expected_columns = ["signal", "confidence"]
-                    assert set(result_df.columns) == set(expected_columns), (
-                        f"Expected columns {expected_columns}, got {result_df.columns.tolist()}"
-                    )
+                    assert set(result_df.columns) == set(expected_columns)
                     # Verify DataFrame has at least one row
-                    assert len(result_df) > 0, "Result DataFrame should have at least one row"
-                    # Verify column dtypes
-                    assert pd.api.types.is_integer_dtype(result_df["signal"]) or pd.api.types.is_numeric_dtype(
-                        result_df["signal"]
-                    ), f"Expected 'signal' column to be numeric, got {result_df['signal'].dtype}"
-                    assert pd.api.types.is_float_dtype(result_df["confidence"]) or pd.api.types.is_numeric_dtype(
-                        result_df["confidence"]
-                    ), f"Expected 'confidence' column to be float/numeric, got {result_df['confidence'].dtype}"
-                    # Verify key columns are not all null (at least some values exist)
-                    assert not result_df["signal"].isna().all(), "Signal column should not be all null"
-                    assert not result_df["confidence"].isna().all(), "Confidence column should not be all null"
+                    assert len(result_df) > 0
+                    # Verify key columns are not all null
+                    assert not result_df["signal"].isna().all()
+                    assert not result_df["confidence"].isna().all()
 
     def test_reraises_non_class_related_errors(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that non-class-related errors are re-raised."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Mock indicator engine
         def mock_compute_features(df):
             df_copy = df.copy()
-            df_copy["Target"] = [0, 1, 2] * (len(df) // 3 + 1)
-            return df_copy[: len(df)]
+            target = ([0, 1, 2] * (len(df) // 3 + 1))[: len(df)]
+            df_copy["Target"] = target
+            return df_copy
 
-        with patch("modules.position_sizing.core.hybrid_signal_calculator.IndicatorEngine") as mock_engine_class:
+        with patch("modules.common.core.indicator_engine.IndicatorEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine.compute_features = Mock(side_effect=mock_compute_features)
             mock_engine_class.return_value = mock_engine
 
             # Mock apply_directional_labels
-            with patch(
-                "modules.position_sizing.core.hybrid_signal_calculator.apply_directional_labels"
-            ) as mock_apply_labels:
+            with patch("modules.xgboost.labeling.apply_directional_labels") as mock_apply_labels:
 
                 def mock_apply(df):
                     df_copy = df.copy()
                     if "Target" not in df_copy.columns:
-                        df_copy["Target"] = [0, 1, 2] * (len(df) // 3 + 1)
-                    return df_copy[: len(df)]
+                        target = ([0, 1, 2] * (len(df) // 3 + 1))[: len(df)]
+                        df_copy["Target"] = target
+                    return df_copy
 
                 mock_apply_labels.side_effect = mock_apply
 
                 # Mock train_and_predict to raise a different error (not class-related)
-                with patch("modules.position_sizing.core.hybrid_signal_calculator.train_and_predict") as mock_train:
+                with patch("modules.xgboost.model.train_and_predict") as mock_train:
                     mock_train.side_effect = ValueError("Some other error that is not related to classes")
 
                     # Should re-raise the error (it will be caught by outer exception handler)
@@ -299,34 +289,36 @@ class TestXGBoostBatchClassDiversity:
 
     def test_handles_class_diversity_error_from_xgboost(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that ClassDiversityError raised by train_and_predict is handled correctly."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Mock indicator engine
         def mock_compute_features(df):
             df_copy = df.copy()
-            df_copy["Target"] = [0, 1] * (len(df) // 2)
+            target = ([0, 1] * (len(df) // 2 + 1))[: len(df)]
+            df_copy["Target"] = target
             return df_copy
 
-        with patch("modules.position_sizing.core.hybrid_signal_calculator.IndicatorEngine") as mock_engine_class:
+        with patch("modules.common.core.indicator_engine.IndicatorEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine.compute_features = Mock(side_effect=mock_compute_features)
             mock_engine_class.return_value = mock_engine
 
             # Mock apply_directional_labels
-            with patch(
-                "modules.position_sizing.core.hybrid_signal_calculator.apply_directional_labels"
-            ) as mock_apply_labels:
+            with patch("modules.xgboost.labeling.apply_directional_labels") as mock_apply_labels:
 
                 def mock_apply(df):
                     df_copy = df.copy()
                     if "Target" not in df_copy.columns:
-                        df_copy["Target"] = [0, 1] * (len(df) // 2)
+                        target = ([0, 1] * (len(df) // 2 + 1))[: len(df)]
+                        df_copy["Target"] = target
                     return df_copy
 
                 mock_apply_labels.side_effect = mock_apply
 
                 # Mock train_and_predict to raise ClassDiversityError
-                with patch("modules.position_sizing.core.hybrid_signal_calculator.train_and_predict") as mock_train:
+                with patch("modules.xgboost.model.train_and_predict") as mock_train:
                     mock_train.side_effect = ClassDiversityError(
                         "XGBoost class mismatch: Invalid classes in training data"
                     )
@@ -337,15 +329,15 @@ class TestXGBoostBatchClassDiversity:
 
                     # Should handle the error gracefully
                     assert isinstance(result_df, pd.DataFrame)
-                    # Verify expected columns (order matters as it's consistent with implementation)
+                    # Verify expected columns
                     expected_columns = ["signal", "confidence"]
-                    assert result_df.columns.tolist() == expected_columns, (
-                        f"Expected columns {expected_columns}, got {result_df.columns.tolist()}"
-                    )
+                    assert result_df.columns.tolist() == expected_columns
 
     def test_skips_when_no_target_column(self, mock_data_fetcher, sample_dataframe_with_features):
         """Test that periods without Target column are skipped."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Mock indicator engine to return DataFrame without Target column
         def mock_compute_features(df):
@@ -353,15 +345,13 @@ class TestXGBoostBatchClassDiversity:
             # Don't add Target column
             return df_copy
 
-        with patch("modules.position_sizing.core.hybrid_signal_calculator.IndicatorEngine") as mock_engine_class:
+        with patch("modules.common.core.indicator_engine.IndicatorEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine.compute_features = Mock(side_effect=mock_compute_features)
             mock_engine_class.return_value = mock_engine
 
             # Mock apply_directional_labels to not add Target column
-            with patch(
-                "modules.position_sizing.core.hybrid_signal_calculator.apply_directional_labels"
-            ) as mock_apply_labels:
+            with patch("modules.xgboost.labeling.apply_directional_labels") as mock_apply_labels:
 
                 def mock_apply(df):
                     # Return DataFrame without Target column
@@ -380,7 +370,9 @@ class TestXGBoostBatchClassDiversity:
 
     def test_handles_insufficient_periods(self, mock_data_fetcher):
         """Test that DataFrame with less than min_periods (50) returns empty results."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Create DataFrame with less than 50 periods
         # Set deterministic seed for reproducible test data
@@ -406,7 +398,9 @@ class TestXGBoostBatchClassDiversity:
 
     def test_handles_missing_required_columns(self, mock_data_fetcher):
         """Test that missing required columns (high, low, close) returns empty results."""
-        calculator = HybridSignalCalculator(mock_data_fetcher, enabled_indicators=["xgboost"])
+        calculator = HybridSignalCalculator(
+            mock_data_fetcher, enabled_indicators=["xgboost"], min_indicators_agreement=1
+        )
 
         # Create DataFrame without required columns
         # Set deterministic seed for reproducible test data

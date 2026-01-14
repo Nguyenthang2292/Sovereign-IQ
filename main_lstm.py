@@ -83,90 +83,91 @@ def main() -> None:
         2. User selects option (train or generate signal)
         3. Execute selected workflow
     """
-    args = parse_args()
+    try:
+        args = parse_args()
 
-    # If command-line arguments provided, skip menu and go directly to signal generation
-    if args.symbol is not None or args.timeframe is not None:
-        generate_signal_workflow(
-            model_path=args.model_path, symbol=args.symbol, timeframe=args.timeframe, limit=args.limit
-        )
-        return
+        # If command-line arguments provided, skip menu and go directly to signal generation
+        if args.symbol is not None or args.timeframe is not None:
+            generate_signal_workflow(
+                model_path=args.model_path, symbol=args.symbol, timeframe=args.timeframe, limit=args.limit
+            )
+            return
 
-    # Interactive menu mode
-    while True:
-        display_main_menu()
-        choice = prompt_menu_choice()
+        # Interactive menu mode
+        while True:
+            display_main_menu()
+            choice = prompt_menu_choice()
 
-        if choice == "1":
-            # Train model
-            success, model_path = train_model_menu()
-            if success:
-                log_info("\n✅ Training completed successfully!")
+            if choice == "1":
+                # Train model
+                success, model_path = train_model_menu()
+                if success:
+                    log_info("\n✅ Training completed successfully!")
 
-                # Ask if user wants to generate signal with the newly trained model
+                    # Ask if user wants to generate signal with the newly trained model
+                    from modules.common.utils import prompt_user_input
+
+                    generate_choice = (
+                        prompt_user_input(
+                            "\nWould you like to generate a trading signal with this model? (y/n) [y]: ", default="y"
+                        )
+                        .strip()
+                        .lower()
+                    )
+
+                    if generate_choice in ["y", "yes"]:
+                        log_info("\n" + "=" * 80)
+                        log_info("GENERATE TRADING SIGNAL")
+                        log_info("=" * 80)
+
+                        # Prompt for symbol and timeframe
+                        symbol = prompt_symbol()
+                        timeframe = prompt_timeframe()
+
+                        # Generate signal with the newly trained model
+                        generate_signal_workflow(
+                            model_path=model_path if model_path else None,
+                            symbol=symbol,
+                            timeframe=timeframe,
+                            limit=args.limit,
+                        )
+                    else:
+                        log_info("Skipping signal generation.")
+                else:
+                    log_error("\n❌ Training failed!")
+
+                # Ask if user wants to continue
                 from modules.common.utils import prompt_user_input
 
-                generate_choice = (
-                    prompt_user_input(
-                        "\nWould you like to generate a trading signal with this model? (y/n) [y]: ", default="y"
-                    )
+                continue_choice = (
+                    prompt_user_input("\nPress Enter to return to main menu, or 'q' to quit: ", default="")
                     .strip()
                     .lower()
                 )
+                if continue_choice == "q":
+                    break
 
-                if generate_choice in ["y", "yes"]:
-                    log_info("\n" + "=" * 80)
-                    log_info("GENERATE TRADING SIGNAL")
-                    log_info("=" * 80)
+            elif choice == "2":
+                # Generate signal
+                generate_signal_workflow(model_path=args.model_path, limit=args.limit)
 
-                    # Prompt for symbol and timeframe
-                    symbol = prompt_symbol()
-                    timeframe = prompt_timeframe()
+                # Ask if user wants to continue
+                from modules.common.utils import prompt_user_input
 
-                    # Generate signal with the newly trained model
-                    generate_signal_workflow(
-                        model_path=model_path if model_path else None,
-                        symbol=symbol,
-                        timeframe=timeframe,
-                        limit=args.limit,
-                    )
-                else:
-                    log_info("Skipping signal generation.")
+                continue_choice = (
+                    prompt_user_input("\nPress Enter to return to main menu, or 'q' to quit: ", default="")
+                    .strip()
+                    .lower()
+                )
+                if continue_choice == "q":
+                    break
+
+            elif choice == "3" or choice.lower() == "q":
+                log_info("\nExiting...")
+                break
             else:
-                log_error("\n❌ Training failed!")
+                log_warn(f"Invalid choice: {choice}. Please select 1-3.")
 
-            # Ask if user wants to continue
-            from modules.common.utils import prompt_user_input
-
-            continue_choice = (
-                prompt_user_input("\nPress Enter to return to main menu, or 'q' to quit: ", default="").strip().lower()
-            )
-            if continue_choice == "q":
-                break
-
-        elif choice == "2":
-            # Generate signal
-            generate_signal_workflow(model_path=args.model_path, limit=args.limit)
-
-            # Ask if user wants to continue
-            from modules.common.utils import prompt_user_input
-
-            continue_choice = (
-                prompt_user_input("\nPress Enter to return to main menu, or 'q' to quit: ", default="").strip().lower()
-            )
-            if continue_choice == "q":
-                break
-
-        elif choice == "3" or choice.lower() == "q":
-            log_info("\nExiting...")
-            break
-        else:
-            log_warn(f"Invalid choice: {choice}. Please select 1-3.")
-
-
-if __name__ == "__main__":
-    try:
-        main()
     except KeyboardInterrupt:
         print(color_text("\nExiting program by user request.", Fore.YELLOW))
         sys.exit(0)
@@ -176,3 +177,7 @@ if __name__ == "__main__":
 
         log_error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

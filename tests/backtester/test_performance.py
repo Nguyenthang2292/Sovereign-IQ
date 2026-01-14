@@ -7,23 +7,21 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 
 from modules.backtester import FullBacktester
 
 # Fixtures from conftest.py will be automatically available
 
 
-def test_performance_logging_enabled(mock_data_fetcher):
+def test_performance_logging_enabled(fast_simple_backtester):
     """Test that performance metrics are logged when enabled."""
     with patch("config.position_sizing.LOG_PERFORMANCE_METRICS", True):
-        backtester = FullBacktester(mock_data_fetcher)
-
         start_time = time.time()
-        result = backtester.backtest(
+        result = fast_simple_backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
-            lookback=300,
-            signal_type="LONG",
+            lookback=50,  # Ultra-fast version
         )
         elapsed = time.time() - start_time
 
@@ -33,16 +31,13 @@ def test_performance_logging_enabled(mock_data_fetcher):
         assert elapsed > 0  # Should take some time
 
 
-def test_performance_profiling_disabled(mock_data_fetcher):
+def test_performance_profiling_disabled(fast_simple_backtester):
     """Test that profiling can be disabled."""
     with patch("config.position_sizing.ENABLE_PERFORMANCE_PROFILING", False):
-        backtester = FullBacktester(mock_data_fetcher)
-
-        result = backtester.backtest(
+        result = fast_simple_backtester.backtest(
             symbol="BTC/USDT",
             timeframe="1h",
-            lookback=300,
-            signal_type="LONG",
+            lookback=50,  # Ultra-fast version
         )
 
         # Should still work without profiling
@@ -50,7 +45,7 @@ def test_performance_profiling_disabled(mock_data_fetcher):
         assert "metrics" in result
 
 
-def test_backtest_handles_empty_data(mock_data_fetcher):
+def test_backtest_handles_empty_data():
     """Test that backtest handles empty data gracefully."""
 
     def empty_fetch(symbol, **kwargs):
@@ -65,7 +60,7 @@ def test_backtest_handles_empty_data(mock_data_fetcher):
     result = backtester.backtest(
         symbol="BTC/USDT",
         timeframe="1h",
-        lookback=100,
+        lookback=50,  # Reduced for speed
         signal_type="LONG",
     )
 
@@ -76,17 +71,17 @@ def test_backtest_handles_empty_data(mock_data_fetcher):
     assert result["metrics"]["num_trades"] == 0
 
 
-def test_backtest_handles_missing_columns(mock_data_fetcher):
+def test_backtest_handles_missing_columns():
     """Test that backtest handles missing columns gracefully."""
 
     def incomplete_fetch(symbol, **kwargs):
-        dates = pd.date_range("2023-01-01", periods=100, freq="h")
+        dates = pd.date_range("2023-01-01", periods=50, freq="h")  # Reduced periods
         # Missing 'close' column
         df = pd.DataFrame(
             {
-                "open": [100] * 100,
-                "high": [101] * 100,
-                "low": [99] * 100,
+                "open": [100] * 50,
+                "high": [101] * 50,
+                "low": [99] * 50,
             },
             index=dates,
         )
@@ -101,7 +96,7 @@ def test_backtest_handles_missing_columns(mock_data_fetcher):
     result = backtester.backtest(
         symbol="BTC/USDT",
         timeframe="1h",
-        lookback=100,
+        lookback=50,  # Reduced for speed
         signal_type="LONG",
     )
 
@@ -111,6 +106,7 @@ def test_backtest_handles_missing_columns(mock_data_fetcher):
     assert result["metrics"]["num_trades"] == 0
 
 
+@pytest.mark.slow
 def test_backtest_metrics_calculation(mock_data_fetcher):
     """Test that backtest calculates metrics correctly."""
     backtester = FullBacktester(mock_data_fetcher)
@@ -118,7 +114,7 @@ def test_backtest_metrics_calculation(mock_data_fetcher):
     result = backtester.backtest(
         symbol="BTC/USDT",
         timeframe="1h",
-        lookback=300,
+        lookback=100,  # Reduced from 300 for faster tests
         signal_type="LONG",
     )
 

@@ -128,10 +128,10 @@ def test_indicator_cache_eviction(mock_data_fetcher):
     calculator = HybridSignalCalculator(mock_data_fetcher)
     calculator._indicator_cache_max_size = 5  # Small cache for testing
 
-    # Fill cache beyond max size
+    # Fill cache beyond max size using the proper method that handles eviction
     for i in range(10):
         cache_key = ("BTC/USDT", i, "range_oscillator")
-        calculator._indicator_cache[cache_key] = {"signal": 1}
+        calculator._cache_indicator_result(cache_key, {"signal": 1})
 
     # Cache should not exceed max size
     assert len(calculator._indicator_cache) <= calculator._indicator_cache_max_size
@@ -142,7 +142,8 @@ def test_calc_indicator_methods(mock_data_fetcher):
     calculator = HybridSignalCalculator(mock_data_fetcher)
 
     # Test that methods exist and can be called
-    with patch("modules.position_sizing.core.hybrid_signal_calculator.get_range_oscillator_signal") as mock_func:
+    # Patch indicator_calculators module instead of hybrid_signal_calculator
+    with patch("modules.position_sizing.core.indicator_calculators.get_range_oscillator_signal") as mock_func:
         mock_func.return_value = (1, 0.8)
 
         result = calculator._calc_range_oscillator(

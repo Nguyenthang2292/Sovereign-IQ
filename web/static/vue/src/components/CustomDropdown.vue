@@ -93,22 +93,13 @@ const props = defineProps({
     required: true,
     validator(value) {
       if (!Array.isArray(value)) {
-        // Not an array
         return false
       }
-      // Allow primitive arrays (strings, numbers) and object arrays with at least label/value, but do not strictly enforce shape
       return value.every(
         (item) =>
           typeof item === 'string' ||
           typeof item === 'number' ||
-          (
-            typeof item === 'object' &&
-            item !== null &&
-            (
-              (typeof item.label === 'string' || typeof item.label === 'number') ||
-              (typeof item.value === 'string' || typeof item.value === 'number')
-            )
-          )
+          (typeof item === 'object' && item !== null)
       )
     }
   },

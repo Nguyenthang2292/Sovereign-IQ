@@ -56,9 +56,11 @@ def sample_data():
 
     volume_data = np.random.uniform(1000, 10000, sample_size)
 
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {"open": open_prices, "high": high_prices, "low": low_prices, "close": close_prices, "volume": volume_data}
     )
+    yield df
+    del df
 
 
 @pytest.fixture
@@ -74,7 +76,7 @@ def training_data():
 
     volume_data_large = np.random.uniform(1000, 10000, training_size)
 
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {
             "open": open_prices_large,
             "high": high_prices_large,
@@ -83,24 +85,30 @@ def training_data():
             "volume": volume_data_large,
         }
     )
+    yield df
+    del df
 
 
 @pytest.fixture
 def empty_dataframe():
     """Create empty DataFrame for edge cases"""
-    return pd.DataFrame()
+    df = pd.DataFrame()
+    yield df
+    del df
 
 
 @pytest.fixture
 def incomplete_dataframe():
     """Create DataFrame with missing columns"""
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {
             "open": [100, 101, 102],
             "high": [105, 106, 107],
             # Missing LOW and CLOSE columns
         }
     )
+    yield df
+    del df
 
 
 @pytest.fixture
@@ -111,7 +119,7 @@ def large_dataframe():
     large_close = 100 + np.cumsum(np.random.randn(large_dataset_size) * 0.5)
     volume_data_large = np.random.uniform(1000, 10000, large_dataset_size)
 
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {
             "open": large_close + np.random.uniform(-1, 1, large_dataset_size),
             "high": large_close + np.random.uniform(0, 2, large_dataset_size),
@@ -120,21 +128,25 @@ def large_dataframe():
             "volume": volume_data_large,
         }
     )
+    yield df
+    del df
 
 
 @pytest.fixture
 def single_class_dataframe():
     """Create DataFrame with single class for testing class imbalance"""
     # Increased size to ensure enough samples after feature calculation
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {"open": [100] * 200, "high": [105] * 200, "low": [95] * 200, "close": [100] * 200, "volume": [5000] * 200}
     )
+    yield df
+    del df
 
 
 @pytest.fixture
 def insufficient_dataframe():
     """Create DataFrame with insufficient samples"""
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {
             "open": [100, 101, 102],
             "high": [105, 106, 107],
@@ -143,6 +155,8 @@ def insufficient_dataframe():
             "volume": [5000, 5100, 5200],
         }
     )
+    yield df
+    del df
 
 
 @pytest.fixture
@@ -165,7 +179,9 @@ def test_evaluation_data():
         ]
     )
     classes = np.array([-1, 0, 1])
-    return {"y_true": y_true, "y_pred": y_pred, "y_proba": y_proba, "classes": classes}
+    res = {"y_true": y_true, "y_pred": y_pred, "y_proba": y_proba, "classes": classes}
+    yield res
+    del res
 
 
 @pytest.fixture

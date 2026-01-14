@@ -73,7 +73,10 @@ SIGNAL_CALCULATION_MODE = "precomputed"  # "precomputed" (default) or "increment
 SIGNAL_COMBINATION_MODE = "majority_vote"  # "majority_vote", "weighted_voting", "consensus"
 
 # Minimum number of indicators that must agree for a valid signal
-MIN_INDICATORS_AGREEMENT = 3  # At least 3 indicators must agree
+MIN_INDICATORS_AGREEMENT = (len(ENABLED_INDICATORS) // 2) + 1  # Simple majority
+
+assert MIN_INDICATORS_AGREEMENT <= len(ENABLED_INDICATORS), \
+    f"MIN_INDICATORS_AGREEMENT ({MIN_INDICATORS_AGREEMENT}) exceeds enabled indicators count ({len(ENABLED_INDICATORS)})"
 
 # Whether to use confidence scores to weight votes
 USE_CONFIDENCE_WEIGHTING = True  # Weight votes by indicator confidence scores

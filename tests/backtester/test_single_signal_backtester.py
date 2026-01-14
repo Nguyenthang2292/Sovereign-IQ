@@ -320,32 +320,31 @@ class TestPositionSizingWithCumulativePerformance:
         # Create PositionSizer
         position_sizer = PositionSizer(data_fetcher=mock_data_fetcher)
 
-        # Mock regime detector
-        with patch.object(position_sizer.regime_detector, "detect_regime", return_value="trending"):
-            # Mock data fetcher
-            mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (
-                pd.DataFrame(
-                    {
-                        "open": [40000] * 100,
-                        "high": [41000] * 100,
-                        "low": [39000] * 100,
-                        "close": [40000] * 100,
-                        "volume": [1000] * 100,
-                    }
-                ),
-                None,
-            )
+        # Mock data fetcher
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (
+            pd.DataFrame(
+                {
+                    "open": [40000] * 100,
+                    "high": [41000] * 100,
+                    "low": [39000] * 100,
+                    "close": [40000] * 100,
+                    "volume": [1000] * 100,
+                },
+                index=pd.date_range("2024-01-01", periods=100, freq="1h"),
+            ),
+            None,
+        )
 
-            result = position_sizer.calculate_position_size(
-                symbol="BTC/USDT",
-                account_balance=10000.0,
-                signal_type="LONG",
-            )
+        result = position_sizer.calculate_position_size(
+            symbol="BTC/USDT",
+            account_balance=10000.0,
+            signal_type="LONG",
+        )
 
-            # Verify that cumulative_performance_multiplier is in result
-            assert "cumulative_performance_multiplier" in result
-            # With 10% gain, multiplier should be > 1.0
-            assert result["cumulative_performance_multiplier"] > 1.0
+        # Verify that cumulative_performance_multiplier is in result
+        assert "cumulative_performance_multiplier" in result
+        # With 10% gain, multiplier should be > 1.0
+        assert result["cumulative_performance_multiplier"] > 1.0
 
     @patch("modules.position_sizing.core.position_sizer.FullBacktester")
     def test_position_sizing_handles_negative_performance(self, mock_backtester_class, mock_data_fetcher):
@@ -372,29 +371,28 @@ class TestPositionSizingWithCumulativePerformance:
         # Create PositionSizer
         position_sizer = PositionSizer(data_fetcher=mock_data_fetcher)
 
-        # Mock regime detector
-        with patch.object(position_sizer.regime_detector, "detect_regime", return_value="trending"):
-            # Mock data fetcher
-            mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (
-                pd.DataFrame(
-                    {
-                        "open": [40000] * 100,
-                        "high": [41000] * 100,
-                        "low": [39000] * 100,
-                        "close": [40000] * 100,
-                        "volume": [1000] * 100,
-                    }
-                ),
-                None,
-            )
+        # Mock data fetcher
+        mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (
+            pd.DataFrame(
+                {
+                    "open": [40000] * 100,
+                    "high": [41000] * 100,
+                    "low": [39000] * 100,
+                    "close": [40000] * 100,
+                    "volume": [1000] * 100,
+                },
+                index=pd.date_range("2024-01-01", periods=100, freq="1h"),
+            ),
+            None,
+        )
 
-            result = position_sizer.calculate_position_size(
-                symbol="BTC/USDT",
-                account_balance=10000.0,
-                signal_type="LONG",
-            )
+        result = position_sizer.calculate_position_size(
+            symbol="BTC/USDT",
+            account_balance=10000.0,
+            signal_type="LONG",
+        )
 
-            # Verify that cumulative_performance_multiplier is in result
-            assert "cumulative_performance_multiplier" in result
-            # With 10% loss, multiplier should be < 1.0
-            assert result["cumulative_performance_multiplier"] < 1.0
+        # Verify that cumulative_performance_multiplier is in result
+        assert "cumulative_performance_multiplier" in result
+        # With 10% loss, multiplier should be < 1.0
+        assert result["cumulative_performance_multiplier"] < 1.0

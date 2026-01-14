@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.common.utils.system import detect_pytorch_gpu_availability
+from modules.common.utils.system import _pytorch_gpu_manager, detect_pytorch_gpu_availability
 from modules.deeplearning.cli.main import (
     create_model_and_train,
     parse_args,
@@ -126,14 +126,66 @@ def test_parse_args_task_type():
 
 def test_detect_pytorch_gpu_availability():
     """Test detect_pytorch_gpu_availability function."""
-    # Mock torch.cuda
-    with patch("torch.cuda.is_available", return_value=True):
-        with patch("torch.cuda.device_count", return_value=1):
-            with patch("torch.cuda.get_device_name", return_value="Test GPU"):
-                result = detect_pytorch_gpu_availability()
-                assert result is True
 
-    with patch("torch.cuda.is_available", return_value=False):
+    def reset_gpu_manager():
+        _pytorch_gpu_manager._gpu_available = None
+        _pytorch_gpu_manager._cuda_version = None
+        _pytorch_gpu_manager._device_count = 0
+        _pytorch_gpu_manager._torch = None
+
+    # Test case 1: GPU available and functional
+    reset_gpu_manager()
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch("torch.cuda.device_count", return_value=1),
+        patch("torch.ones") as mock_ones,
+        patch("torch.version.cuda", "11.8"),
+        patch("modules.common.utils.system.log_system"),
+    ):
+        result = detect_pytorch_gpu_availability()
+        assert result is True
+        # Verify tensor creation was attempted
+        mock_ones.assert_called_with(1, device="cuda:0")
+
+    # Test case 2: GPU not available
+    reset_gpu_manager()
+    with patch("torch.cuda.is_available", return_value=False), patch("modules.common.utils.system.log_info"):
+        result = detect_pytorch_gpu_availability()
+        assert result is False
+
+    # Test case 3: GPU reports available but device creation fails
+    reset_gpu_manager()
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch("torch.cuda.device_count", return_value=1),
+        patch("torch.ones", side_effect=Exception("CUDA error")),
+        patch("modules.common.utils.system.log_warn"),
+    ):
+        result = detect_pytorch_gpu_availability()
+        assert result is False
+
+    # Test case 4: Multiple GPUs, some functional
+    reset_gpu_manager()
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch("torch.cuda.device_count", return_value=2),
+        patch("torch.ones") as mock_ones,
+        patch("torch.version.cuda", "12.1"),
+        patch("modules.common.utils.system.log_system"),
+    ):
+        # Mock so device 0 works, device 1 fails
+        mock_ones.side_effect = [Mock(), Exception("Device 1 error")]
+        result = detect_pytorch_gpu_availability()
+        assert result is True  # At least one device works
+
+    # Test case 5: All devices fail
+    reset_gpu_manager()
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch("torch.cuda.device_count", return_value=2),
+        patch("torch.ones", side_effect=Exception("All devices failed")),
+        patch("modules.common.utils.system.log_warn"),
+    ):
         result = detect_pytorch_gpu_availability()
         assert result is False
 

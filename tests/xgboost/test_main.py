@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 def sample_ohlcv_data():
     """Create sample OHLCV DataFrame."""
     dates = pd.date_range(start="2024-01-01", periods=100, freq="1h")
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {
             "timestamp": dates,
             "open": np.random.uniform(50000, 51000, 100),
@@ -34,6 +34,8 @@ def sample_ohlcv_data():
             "volume": np.random.uniform(1000, 2000, 100),
         }
     )
+    yield df
+    del df
 
 
 @pytest.fixture
@@ -48,7 +50,8 @@ def sample_df_with_indicators(sample_ohlcv_data):
     # Add label columns
     df["Target"] = np.random.choice([0, 1, 2], 100)
     df["DynamicThreshold"] = 0.01
-    return df
+    yield df
+    del df
 
 
 @pytest.fixture
@@ -57,7 +60,8 @@ def mock_exchange_manager():
     manager = Mock()
     manager.public = Mock()
     manager.public.exchange_priority_for_fallback = ["binance"]
-    return manager
+    yield manager
+    del manager
 
 
 @pytest.fixture
@@ -65,7 +69,8 @@ def mock_data_fetcher(sample_ohlcv_data):
     """Create a mock DataFetcher."""
     fetcher = Mock()
     fetcher.fetch_ohlcv_with_fallback_exchange = Mock(return_value=(sample_ohlcv_data, "binance"))
-    return fetcher
+    yield fetcher
+    del fetcher
 
 
 @pytest.fixture
@@ -73,7 +78,8 @@ def mock_indicator_engine(sample_df_with_indicators):
     """Create a mock IndicatorEngine."""
     engine = Mock()
     engine.compute_features = Mock(return_value=sample_df_with_indicators)
-    return engine
+    yield engine
+    del engine
 
 
 @pytest.fixture
@@ -81,7 +87,8 @@ def mock_model():
     """Create a mock XGBoost model."""
     model = Mock()
     model.predict_proba = Mock(return_value=np.array([[0.2, 0.3, 0.5]]))
-    return model
+    yield model
+    del model
 
 
 @patch("modules.xgboost.cli.main.parse_args")

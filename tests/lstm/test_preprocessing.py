@@ -29,7 +29,8 @@ class TestPreprocessCnnLstmData:
                 "volume": seeded_random.integers(1000, 10000, size=n_rows),
             }
         )
-        return df
+        yield df
+        del df
 
     @pytest.fixture
     def minimal_ohlcv_data(self, seeded_random):
@@ -44,7 +45,8 @@ class TestPreprocessCnnLstmData:
                 "volume": seeded_random.integers(1000, 10000, size=n_rows),
             }
         )
-        return df
+        yield df
+        del df
 
     def test_basic_classification_mode(self, sample_ohlcv_data):
         """Test basic preprocessing in classification mode."""
