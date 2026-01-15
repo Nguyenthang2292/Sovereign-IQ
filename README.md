@@ -1,4 +1,4 @@
-# Crypto Probability
+# Sovereign-IQ
 
 A comprehensive cryptocurrency trading analysis system using Machine Learning, Deep Learning, and Quantitative Strategies.
 
