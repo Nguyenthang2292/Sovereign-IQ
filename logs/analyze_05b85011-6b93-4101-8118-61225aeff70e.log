@@ -1,3 +1,0 @@
-[2026-01-14 14:07:55] [22m[37mCLILogger started for session 05b85011-6b93-4101-8118-61225aeff70e[0m
-[2026-01-14 14:07:55] HTTP Request: POST http://testserver/api/analyze/single "HTTP/1.1 200 OK"
-[2026-01-14 14:07:55] 
