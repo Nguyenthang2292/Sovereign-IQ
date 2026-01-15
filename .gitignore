@@ -30,6 +30,7 @@ ENV/
 # IDEs
 .vscode/
 .idea/
+.cursor/
 .cursor/debug.log
 
 # Testing
@@ -39,6 +40,9 @@ ENV/
 htmlcov/
 .tox/
 .hypothesis/
+
+# Ruff cache
+.ruff_cache/
 
 # Temporary files
 *.tmp
@@ -63,3 +67,4 @@ modules/gemini_chart_analyzer/analysis_results/
 
 # Node.js dependencies
 web/static/vue/node_modules/
+node_modules/

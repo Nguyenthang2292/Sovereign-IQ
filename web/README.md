@@ -1,190 +1,166 @@
-# Gemini Chart Analyzer Web Interface
+# Web Apps - Crypto Probability
 
-Giao diện web cho module Gemini Chart Analyzer, hỗ trợ phân tích biểu đồ kỹ thuật và batch scanning thị trường với Google Gemini AI.
+This directory contains web applications for the Crypto Probability project.
 
-## Tính Năng
+## 📦 Applications
 
-- **Chart Analyzer**: Phân tích biểu đồ kỹ thuật cho một symbol
-  - Single Timeframe: Phân tích trên một khung thời gian
-  - Multi-Timeframe: Phân tích trên nhiều khung thời gian với weighted aggregation
-  
-- **Batch Scanner**: Quét toàn bộ thị trường để tìm signals
-  - Single Timeframe: Scan với một timeframe
-  - Multi-Timeframe: Scan với nhiều timeframes
+### 1. Gemini Chart Analyzer
+**Location:** `apps/gemini_analyzer/`
+**Port:** 8001 (backend), 5173 (frontend dev)
 
-## Cấu Trúc
+Web interface for analyzing cryptocurrency charts using Google Gemini AI.
+
+**Features:**
+- Single & multi-timeframe chart analysis
+- Batch market scanning
+- Real-time log streaming
+- Bilingual support (EN/VI)
+
+[Read more →](apps/gemini_analyzer/README.md)
+
+### 2. ATC Visualizer
+**Location:** `apps/atc_visualizer/`
+**Port:** 8002 (backend), 5174 (frontend dev)
+
+Standalone visualization tool for Adaptive Trend Classification algorithm.
+
+**Features:**
+- Real-time OHLCV charts
+- 6 Moving Average types (EMA, HMA, WMA, DEMA, LSMA, KAMA)
+- Signal visualization
+- Interactive parameter controls
+
+[Read more →](apps/atc_visualizer/README.md)
+
+## 🔧 Shared Resources
+
+### Shared Utilities (`shared/`)
+Common code used across all applications:
+
+- **`shared/utils/`** - Task manager, log manager, error handling
+- **`shared/middleware/`** - CORS, authentication (future)
+- **`shared/models/`** - Common Pydantic models
+- **`shared/services/`** - Shared business logic (future)
+
+### Scripts (`scripts/`)
+Management and deployment scripts:
+
+- `start_all.py` - Start all applications
+- `start_app.py` - Start specific app
+- `kill_ports.py` - Kill processes on ports
+- `health_check.py` - Check all apps health
+
+## 🚀 Quick Start
+
+### Start All Apps
+```bash
+cd web
+python scripts/start_all.py
+```
+
+### Start Individual App
+```bash
+# Gemini Analyzer
+cd web/apps/gemini_analyzer/backend && python main.py
+
+# ATC Visualizer
+cd web/apps/atc_visualizer/backend && python main.py
+```
+
+## 📊 Port Allocation
+
+| Application | Backend Port | Frontend Dev Port |
+|-------------|--------------|-------------------|
+| Gemini Analyzer | 8001 | 5173 |
+| ATC Visualizer | 8002 | 5174 |
+| API Gateway (future) | 8000 | - |
+
+## 🏗️ Architecture
 
 ```
 web/
-├── app.py                    # FastAPI server
-├── api/                      # API routes
-│   ├── chart_analyzer.py    # Chart Analyzer endpoints
-│   └── batch_scanner.py     # Batch Scanner endpoints
-├── static/
-│   └── vue/                  # Vue 3 frontend
-│       ├── src/
-│       │   ├── components/   # Vue components
-│       │   ├── services/     # API services
-│       │   └── router/       # Vue Router
-│       └── package.json
+├── shared/                    # Shared utilities
+│   ├── utils/
+│   ├── middleware/
+│   ├── models/
+│   └── services/
+├── apps/                      # Applications
+│   ├── gemini_analyzer/
+│   │   ├── backend/
+│   │   └── frontend/
+│   └── atc_visualizer/
+│       ├── backend/
+│       └── frontend/
+├── gateway/                   # API Gateway (future)
+├── scripts/                   # Management scripts
+├── docker/                    # Docker configs
+└── docs/                      # Documentation
 ```
 
-## Cài Đặt
+## 🔮 Future Applications
 
-### 1. Backend (FastAPI)
+### Portfolio Dashboard (Planned)
+**Port:** 8003 (backend), 5175 (frontend dev)
+
+Real-time portfolio management and risk analysis.
+
+### Pairs Trading Monitor (Planned)
+**Port:** 8004 (backend), 5176 (frontend dev)
+
+Monitor and analyze pairs trading opportunities.
+
+## 🛠️ Development
+
+### Adding New App
+
+1. Create app structure:
+```bash
+mkdir -p web/apps/new_app/backend web/apps/new_app/frontend
+```
+
+2. Copy template files from existing app
+
+3. Update port configuration in `config.py`
+
+4. Add app to `scripts/start_all.py`
+
+See `docs/ADDING_NEW_APP.md` for detailed guide.
+
+### Testing
 
 ```bash
-# Cài đặt Python dependencies (từ thư mục root của project)
-pip install -r requirements.txt
+# Test individual app
+cd apps/gemini_analyzer/frontend
+npm test
+
+# Test all apps
+python scripts/test_all.py
 ```
 
-### 2. Frontend (Vue 3)
+## 📚 Documentation
+
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Adding New App](docs/ADDING_NEW_APP.md)
+- [API Gateway](docs/API_GATEWAY.md) (future)
+
+## 🐳 Docker
 
 ```bash
-cd static/vue
+# Start all apps with Docker Compose
+docker-compose -f docker/docker-compose.yml up
 
-# Cài đặt Node.js dependencies
-npm install
-
-# Build production
-npm run build
+# Start specific app
+docker-compose -f docker/docker-compose.yml up gemini-analyzer
 ```
 
-## Chạy Ứng Dụng
+## ⚠️ Notes
 
-### Development Mode
+- Each app is self-contained and can run independently
+- Shared utilities are imported from `web/shared/`
+- Frontend dev servers proxy API requests to backend
+- Production builds serve static files from backend
 
-**Terminal 1 - Backend:**
-```bash
-# Từ thư mục root của project
-python main_web.py
+## 📞 Support
 
-# Hoặc sử dụng uvicorn trực tiếp
-uvicorn main_web:app --reload --host 0.0.0.0 --port 8000
-```
-
-**Terminal 2 - Frontend:**
-```bash
-# Từ thư mục web/static/vue/
-npm run dev
-```
-
-Truy cập:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-
-### Production Mode
-
-**Build frontend:**
-```bash
-cd static/vue
-npm run build
-```
-
-**Chạy server:**
-```bash
-# Từ thư mục root của project
-python main_web.py
-
-# Hoặc sử dụng uvicorn
-uvicorn main_web:app --host 0.0.0.0 --port 8000
-```
-
-Truy cập: http://localhost:8000
-
-## API Endpoints
-
-### Chart Analyzer
-
-- `POST /api/analyze/single` - Single timeframe analysis
-- `POST /api/analyze/multi` - Multi-timeframe analysis
-
-### Batch Scanner
-
-- `POST /api/batch/scan` - Start batch scan
-- `GET /api/batch/results/{filename}` - Get saved results
-- `GET /api/batch/list` - List all results
-
-### Static Files
-
-- `GET /static/charts/*` - Serve chart images
-- `GET /static/results/*` - Serve analysis results
-
-## Cấu Hình
-
-### Environment Variables
-
-Tạo file `.env` trong thư mục `web/static/vue/` (optional):
-
-```env
-VITE_API_BASE_URL=http://localhost:8000/api
-# Sourcemap configuration for production builds
-# Options: 'true' (inline sourcemaps), 'false' (no sourcemaps), or unset/empty (hidden sourcemaps - default)
-GENERATE_SOURCEMAPS=hidden
-```
-
-**Sourcemap Configuration:**
-- Không set hoặc `GENERATE_SOURCEMAPS=hidden` (mặc định): Tạo sourcemaps nhưng không expose ra browser, an toàn cho production và cho phép server-side debugging
-- `GENERATE_SOURCEMAPS=true`: Tạo inline sourcemaps (có thể expose source code)
-- `GENERATE_SOURCEMAPS=false`: Không tạo sourcemaps
-
-Ví dụ cho CI/CD:
-```bash
-# Production build với hidden sourcemaps (mặc định)
-npm run build
-
-# Production build với inline sourcemaps (cho debugging)
-GENERATE_SOURCEMAPS=true npm run build
-
-# Production build không có sourcemaps
-GENERATE_SOURCEMAPS=false npm run build
-```
-
-### Gemini API Key
-
-Đảm bảo đã cấu hình Gemini API key trong `config/config_api.py`:
-
-```python
-GEMINI_API_KEY = 'your-api-key-here'
-```
-
-## Sử Dụng
-
-### Chart Analyzer
-
-1. Chọn mode: Single hoặc Multi-timeframe
-2. Nhập symbol (ví dụ: BTC/USDT)
-3. Chọn timeframe(s)
-4. Cấu hình indicators (tùy chọn)
-5. Click "Bắt Đầu Phân Tích"
-
-### Batch Scanner
-
-1. Chọn mode: Single hoặc Multi-timeframe
-2. Cấu hình scan parameters
-3. Click "Bắt Đầu Scan"
-4. Xem kết quả trong bảng với filtering và sorting
-
-## Troubleshooting
-
-### Lỗi "Module not found"
-
-Đảm bảo đang chạy từ thư mục gốc của project và Python path đã được cấu hình đúng.
-
-### Lỗi "Vue app not built"
-
-Chạy `npm run build` trong thư mục `web/static/vue/` để build frontend.
-
-### Lỗi CORS
-
-Kiểm tra CORS settings trong `app.py`. Trong production, nên chỉ định origins cụ thể thay vì `"*"`.
-
-### Lỗi "GEMINI_API_KEY not found"
-
-Kiểm tra đã cấu hình API key trong `config/config_api.py` hoặc biến môi trường.
-
-## License
-
-Phần của dự án crypto-probability.
-
+For issues related to specific apps, see their respective README files.
