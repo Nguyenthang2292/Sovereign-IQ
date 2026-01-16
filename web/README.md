@@ -1,6 +1,64 @@
-# Web Apps - Crypto Probability
+# Web Apps - Sovereign-IQ
 
-This directory contains web applications for the Crypto Probability project.
+This directory contains web applications for the Sovereign-IQ project.
+
+## 📋 Migration Summary
+
+**Status:** ✅ Migration Complete (2026-01-16)
+
+The `web/` folder has been reorganized for better scalability and maintainability. Each application is now a self-contained module under `apps/`, with shared utilities separated into `shared/`.
+
+**Key Changes:**
+- Old structure (`web/app.py`, `web/api/`, `web/atc_visualizer/`) → New structure (`web/apps/*/`)
+- All apps moved to `web/apps/` with independent backends/frontend
+- Shared utilities extracted to `web/shared/`
+- Management scripts created in `web/scripts/`
+- Port allocations standardized
+
+**Benefits:**
+- Modular architecture - each app is independent
+- Easy to add new apps without affecting existing ones
+- Ready for microservices deployment
+- Clear organization for new developers
+- Code reusability through shared utilities
+
+## 📁 Folder Structure
+
+```
+web/
+├── shared/                     # Shared utilities
+│   ├── utils/                 # Task manager, log manager, etc.
+│   ├── middleware/            # CORS, auth (future)
+│   ├── models/                # Pydantic models
+│   └── services/              # Shared services (future)
+│
+├── apps/                       # All applications
+│   ├── gemini_analyzer/       # Port 8001 (backend), 5173 (frontend)
+│   │   ├── backend/
+│   │   │   ├── main.py
+│   │   │   ├── config.py
+│   │   │   └── api/
+│   │   └── frontend/
+│   │       └── dist/
+│   │
+│   └── atc_visualizer/        # Port 8002 (backend), 5174 (frontend)
+│       ├── backend/
+│       │   ├── main.py
+│       │   ├── config.py
+│       │   └── services/
+│       └── frontend/
+│           └── dist/
+│
+├── scripts/                    # Management scripts
+│   ├── start_all.py           # Start all apps
+│   ├── start_app.py           # Start specific app
+│   ├── kill_ports.py          # Kill processes on ports
+│   └── health_check.py        # Check all apps health
+│
+├── gateway/                    # API Gateway (future)
+├── docker/                     # Docker configs (future)
+└── docs/                       # Documentation
+```
 
 ## 📦 Applications
 
@@ -58,43 +116,83 @@ cd web
 python scripts/start_all.py
 ```
 
-### Start Individual App
+### Start Specific App
+```bash
+# Using management script (recommended)
+python scripts/start_app.py gemini_analyzer
+python scripts/start_app.py atc_visualizer
+
+# Backend only
+python scripts/start_app.py gemini_analyzer --backend-only
+
+# Frontend only
+python scripts/start_app.py gemini_analyzer --frontend-only
+```
+
+### Manual Start (Development)
 ```bash
 # Gemini Analyzer
 cd web/apps/gemini_analyzer/backend && python main.py
+cd web/apps/gemini_analyzer/frontend && npm run dev
 
 # ATC Visualizer
 cd web/apps/atc_visualizer/backend && python main.py
+cd web/apps/atc_visualizer/frontend && npm run dev
 ```
 
 ## 📊 Port Allocation
 
-| Application | Backend Port | Frontend Dev Port |
-|-------------|--------------|-------------------|
-| Gemini Analyzer | 8001 | 5173 |
-| ATC Visualizer | 8002 | 5174 |
-| API Gateway (future) | 8000 | - |
+| Application | Backend | Frontend Dev | Access Points |
+|-------------|---------|--------------|---------------|
+| Gemini Analyzer | 8001 | 5173 | http://localhost:5173 |
+| ATC Visualizer | 8002 | 5174 | http://localhost:5174 |
+| API Gateway (future) | 8000 | - | http://localhost:8000 |
+
+## 🌐 Access Points
+
+### Gemini Chart Analyzer
+- **Frontend:** http://localhost:5173
+- **Backend:** http://localhost:8001
+- **API Docs:** http://localhost:8001/docs
+- **Health Check:** http://localhost:8001/api/health
+
+### ATC Visualizer
+- **Frontend:** http://localhost:5174
+- **Backend:** http://localhost:8002
+- **API Docs:** http://localhost:8002/docs
+- **Health Check:** http://localhost:8002/api/health
 
 ## 🏗️ Architecture
 
+The new architecture follows a modular microservices pattern:
+
 ```
-web/
-├── shared/                    # Shared utilities
-│   ├── utils/
-│   ├── middleware/
-│   ├── models/
-│   └── services/
-├── apps/                      # Applications
-│   ├── gemini_analyzer/
-│   │   ├── backend/
-│   │   └── frontend/
-│   └── atc_visualizer/
-│       ├── backend/
-│       └── frontend/
-├── gateway/                   # API Gateway (future)
-├── scripts/                   # Management scripts
-├── docker/                    # Docker configs
-└── docs/                      # Documentation
+┌─────────────────────────────────────────────────────┐
+│                     API Gateway                       │
+│                  (future - port 8000)                │
+└────────────────────┬────────────────────────────────┘
+                     │
+        ┌────────────┴────────────┐
+        │                         │
+        ▼                         ▼
+┌───────────────────┐    ┌───────────────────┐
+│  Gemini Analyzer  │    │  ATC Visualizer   │
+│  (port 8001)      │    │  (port 8002)      │
+│  FastAPI + Vue.js │    │  FastAPI + Vue.js │
+└───────────────────┘    └───────────────────┘
+        │                         │
+        └────────────┬────────────┘
+                     │
+        ┌────────────┴────────────┐
+        │                         │
+        ▼                         ▼
+┌───────────────────┐    ┌───────────────────┐
+│   Shared Utils    │    │   Modules/        │
+│   (web/shared/)   │    │   (parent/)       │
+│   • task_manager  │    │   • adaptive_trend│
+│   • log_manager   │    │   • common        │
+│   • cors          │    │   • indicators    │
+└───────────────────┘    └───────────────────┘
 ```
 
 ## 🔮 Future Applications
@@ -139,28 +237,17 @@ python scripts/test_all.py
 
 ## 📚 Documentation
 
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [Deployment Guide](docs/DEPLOYMENT.md)
-- [Adding New App](docs/ADDING_NEW_APP.md)
-- [API Gateway](docs/API_GATEWAY.md) (future)
+### Core Documentation
+- [API Reference](docs/API_REFERENCE.md) - Complete API documentation for all applications
+- [Architecture Overview](docs/ARCHITECTURE.md) - Detailed architecture documentation
+- [Adding New App](docs/ADDING_NEW_APP.md) - Guide for creating new applications
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment guide (future)
+- [API Gateway](docs/API_GATEWAY.md) - API Gateway configuration (future)
 
-## 🐳 Docker
+### App-Specific Documentation
+- [Gemini Analyzer README](apps/gemini_analyzer/README.md) - Chart analysis & batch scanning
+- [ATC Visualizer README](apps/atc_visualizer/README.md) - ATC algorithm visualization
 
-```bash
-# Start all apps with Docker Compose
-docker-compose -f docker/docker-compose.yml up
-
-# Start specific app
-docker-compose -f docker/docker-compose.yml up gemini-analyzer
-```
-
-## ⚠️ Notes
-
-- Each app is self-contained and can run independently
-- Shared utilities are imported from `web/shared/`
-- Frontend dev servers proxy API requests to backend
-- Production builds serve static files from backend
-
-## 📞 Support
-
-For issues related to specific apps, see their respective README files.
+### App-Specific Documentation
+- [Gemini Analyzer README](apps/gemini_analyzer/README.md)
+- [ATC Visualizer README](apps/atc_visualizer/README.md)

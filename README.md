@@ -1,89 +1,223 @@
 # Sovereign-IQ
 
-A comprehensive cryptocurrency trading analysis system using Machine Learning, Deep Learning, and Quantitative Strategies.
+A comprehensive cryptocurrency trading analysis system combining Machine Learning, Deep Learning, and Quantitative Strategies for professional trading analysis and signal generation.
 
 ## 🚀 Features
 
 ### Core Capabilities
 
-- **Multi-Exchange Support**: Automatically fetches data from Binance, Kraken, KuCoin, Gate.io, OKX, Bybit, MEXC, Huobi with smart fallback.
-- **Advanced Indicators**: SMA, RSI, ATR, MACD, Bollinger Bands, Stochastic RSI, OBV, Candlestick Patterns, KAMA, plus custom indicators.
-- **Multiple ML Models**:
-    - XGBoost for directional prediction.
-    - Temporal Fusion Transformer (TFT) for deep learning forecasts.
-    - **HMM (Hidden Markov Model)**: Three HMM strategies:
-        - HMM-Swings: Swing detection-based state classification
-        - HMM-KAMA: KAMA-based HMM with ARM and K-Means clustering
-        - True High-Order HMM: State space expansion with automatic order optimization
-- **Adaptive Trend Classification (ATC)**: Multi-layer trend analysis with robustness filtering.
-- **Range Oscillator**: Advanced oscillator-based signal generation with multiple strategies.
-- **Simplified Percentile Clustering (SPC)**: Cluster-based market regime detection with multiple strategies.
-- **Decision Matrix**: Pseudo Random Forest-like voting system for combining multiple indicators.
-- **Pairs Trading**: Identify and analyze mean-reversion or momentum pairs with extensive quantitative metrics.
-- **Portfolio Management**: Risk calculation, correlation analysis, hedge finding.
+- **Multi-Exchange Support**:
+  - *Crypto:* Automated data fetching from 8+ exchanges (Binance, Kraken, KuCoin, Gate.io, OKX, Bybit, MEXC, Huobi) with intelligent fallback mechanisms.
+
+  - *Forex*: Fetches and analyzes forex market data (EUR/USD, GBP/USD, USD/JPY, etc.) alongside crypto, with seamless integration into all analyzers and strategies. Forex data is fetched via dedicated modules and can be used for cross-market analysis, hedging, and portfolio diversification.
+
+- **Advanced Technical Indicators**: SMA, EMA, RSI, ATR, MACD, Bollinger Bands, Stochastic RSI, OBV, Candlestick Patterns, KAMA, and custom indicators.
+- **Machine Learning Models**:
+  - **XGBoost**: Multi-class classification with hyperparameter optimization and volatility-based labeling
+  - **LSTM**: CNN-LSTM-Attention architecture for temporal sequence modeling
+  - **Temporal Fusion Transformer (TFT)**: Advanced deep learning for time series forecasting
+  - **Random Forest**: Ensemble learning with feature importance analysis
+  - **Hidden Markov Model (HMM)**: Three distinct strategies:
+    - HMM-Swings: Swing detection-based state classification
+    - HMM-KAMA: KAMA-based HMM with ARM and K-Means clustering
+    - True High-Order HMM: State space expansion with automatic order optimization using BIC
+- **Trading Strategies**:
+  - **Adaptive Trend Classification (ATC)**: Multi-layer trend analysis with 6 MA types and equity-based weighting
+  - **Range Oscillator**: Advanced oscillator-based signals with 8 strategies (mean reversion, momentum, divergence, etc.)
+  - **Simplified Percentile Clustering (SPC)**: Cluster-based market regime detection with 3 strategies
+  - **Decision Matrix**: Weighted voting system combining multiple indicators with accuracy-based weights
+  - **Pairs Trading**: Mean-reversion and momentum strategies with comprehensive quantitative metrics
+  - **Portfolio Management**: Risk calculation (VaR, Beta), correlation analysis, and hedge finding
+- **AI-Powered Analysis**: Google Gemini integration for intelligent chart interpretation and batch market scanning
+- **Web Interface**: Modern Vue.js + FastAPI applications for real-time visualization and analysis
 
 ## 📁 Project Structure
 
 ```
 crypto-probability/
-├── main_hybrid.py                           # ATC + Range Oscillator + SPC (Hybrid Analyzer)
-├── main_voting.py                            # ATC + Range Oscillator + SPC (Voting Analyzer)
-├── core/                                     # Core analyzers
+├── main_complex_hybrid.py                   # Hybrid Analyzer (Sequential Filtering)
+├── main_complex_voting.py                   # Voting Analyzer (Pure Voting)
+├── main_complex_atc_oscillator.py           # ATC + Range Oscillator
+├── main_lstm.py                             # LSTM Model Training/Prediction
+├── main_position_sizing.py                  # Position Sizing Calculator
+├── main_gemini_chart_analyzer.py            # AI-Powered Chart Analysis
+├── main_gemini_chart_batch_scanner.py       # Batch Market Scanning
+├── main_gemini_chart_web_server.py          # Web Server for Chart Analysis
+├── main_cal_position_totals.py              # Position Totals Calculator
+│
+├── core/                                     # Core Analyzers
 │   ├── hybrid_analyzer.py                   # Sequential filtering + voting
 │   ├── voting_analyzer.py                   # Pure voting system
 │   ├── signal_calculators.py                # Signal calculation helpers
 │   └── README.md                            # Analyzer workflow comparison
-├── main/                                     # Individual module entry points
-│   ├── main_atc.py                          # Adaptive Trend Classification
-│   ├── main_atc_oscillator.py               # ATC + Range Oscillator
-│   ├── main_xgboost.py                      # XGBoost Prediction
-│   ├── main_simplified_percentile_clustering.py  # SPC Analysis
-│   ├── main_deeplearning_prediction.py      # Deep Learning TFT
-│   ├── main_hmm.py                          # HMM Signal Combiner
-│   ├── main_pairs_trading.py                # Pairs Trading
-│   └── main_portfolio_manager.py            # Portfolio Manager
-├── modules/                                  # Core modules
-│   ├── common/                              # Shared utilities
-│   │   ├── DataFetcher.py                  # Multi-exchange data fetching
-│   │   ├── ExchangeManager.py              # Exchange connection management
-│   │   ├── IndicatorEngine.py              # Technical indicators
-│   │   ├── indicators/                     # Indicator implementations
-│   │   └── quantitative_metrics/            # Quantitative analysis tools
-│   ├── adaptive_trend/                      # Adaptive Trend Classification
-│   ├── range_oscillator/                    # Range Oscillator strategies
-│   ├── simplified_percentile_clustering/   # SPC clustering and strategies
-│   ├── decision_matrix/                     # Decision Matrix voting system
-│   ├── xgboost/                             # XGBoost prediction module
-│   ├── deeplearning/                        # Deep learning module (TFT)
-│   ├── pairs_trading/                       # Pairs trading strategies
-│   ├── portfolio/                           # Portfolio management
-│   └── hmm/                                 # HMM module (3 strategies)
-│       ├── core/                            # HMM implementations
-│       │   ├── swings.py                   # HMM-Swings strategy
-│       │   ├── kama.py                     # HMM-KAMA strategy
-│       │   └── high_order.py               # True High-Order HMM
-│       ├── signals/                         # Signal processing
-│       │   ├── strategy.py                 # Strategy interface
-│       │   ├── registry.py                 # Strategy registry
-│       │   ├── combiner.py                 # Signal combiner
-│       │   ├── voting.py                   # Voting mechanisms
-│       │   └── ...
-│       └── README.md                        # HMM module documentation
-├── config/                                   # Configuration files
-│   ├── common.py                            # Common settings
-│   ├── hmm.py                               # HMM configuration
-│   ├── decision_matrix.py                   # Decision Matrix config
-│   └── ...
-├── cli/                                      # CLI utilities
+│
+├── modules/                                  # Core Modules
+│   ├── common/                              # Shared Utilities
+│   │   ├── core/                           # Business components
+│   │   │   ├── data_fetcher.py            # Multi-exchange data fetching
+│   │   │   ├── exchange_manager.py        # Exchange connection management
+│   │   │   ├── indicator_engine.py        # Technical indicator orchestration
+│   │   │   └── forex_data_fetcher.py      # Forex data fetching
+│   │   ├── models/                         # Data models (Position)
+│   │   ├── ui/                             # UI utilities (progress bars, logging)
+│   │   ├── utils/                          # Domain utilities
+│   │   ├── indicators/                     # Technical indicator implementations
+│   │   └── quantitative_metrics/           # Quantitative analysis
+│   │       ├── statistical_tests/         # ADF, Johansen tests
+│   │       ├── mean_reversion/            # Half-life, Hurst, Z-score
+│   │       ├── hedge_ratios/              # OLS, Kalman filter
+│   │       ├── risk/                      # Sharpe, drawdown, Calmar
+│   │       └── classification/            # Prediction metrics
+│   │
+│   ├── adaptive_trend/                      # Adaptive Trend Classification (ATC)
+│   │   ├── analyzer.py                     # Main ATC analyzer
+│   │   ├── scanner.py                      # Multi-symbol scanner
+│   │   ├── compute_atc_signals.py         # Signal calculation
+│   │   ├── compute_equity.py              # Equity curve calculation
+│   │   └── signal_detection.py            # Signal detection logic
+│   │
+│   ├── range_oscillator/                    # Range Oscillator Strategies
+│   │   ├── oscillator_analyzer.py         # Main oscillator analyzer
+│   │   └── strategies/                    # 8 strategy implementations
+│   │
+│   ├── simplified_percentile_clustering/   # SPC Clustering
+│   │   ├── clustering.py                  # Clustering logic
+│   │   ├── features.py                    # Feature engineering
+│   │   ├── centers.py                     # Cluster center calculation
+│   │   ├── strategies/                    # 3 strategy implementations
+│   │   └── aggregation.py                 # Vote aggregation
+│   │
+│   ├── decision_matrix/                     # Decision Matrix Voting
+│   │   ├── analyzer.py                    # Voting analyzer
+│   │   └── voting.py                      # Voting mechanisms
+│   │
+│   ├── xgboost/                             # XGBoost ML Module
+│   │   ├── model.py                       # Model training/prediction
+│   │   ├── labeling.py                    # Dynamic labeling system
+│   │   ├── optimization.py                # Hyperparameter optimization
+│   │   ├── cli/                           # CLI interface
+│   │   └── utils.py                       # Utilities
+│   │
+│   ├── lstm/                                # LSTM Deep Learning
+│   │   ├── unified_trainer.py             # Training pipeline
+│   │   ├── preprocessing.py               # Data preprocessing
+│   │   ├── model_factory.py               # Model construction
+│   │   ├── attention.py                   # Attention mechanisms
+│   │   └── cnn_lstm_attention.py          # CNN-LSTM-Attention model
+│   │
+│   ├── deeplearning/                        # Temporal Fusion Transformer (TFT)
+│   │   ├── model.py                       # TFT implementation
+│   │   ├── data_pipeline.py               # Data preprocessing
+│   │   ├── dataset.py                     # PyTorch datasets
+│   │   ├── training.py                    # Training loop
+│   │   └── feature_selection/             # Feature selection methods
+│   │
+│   ├── random_forest/                       # Random Forest Module
+│   │   └── model.py                       # RF classifier
+│   │
+│   ├── hmm/                                 # Hidden Markov Model
+│   │   ├── core/                          # 3 HMM implementations
+│   │   │   ├── swings.py                 # Swing-based HMM
+│   │   │   ├── kama.py                   # KAMA-based HMM
+│   │   │   └── high_order.py             # High-Order HMM
+│   │   ├── signals/                       # Signal processing
+│   │   │   ├── strategy.py               # Strategy interface
+│   │   │   ├── registry.py               # Strategy registry
+│   │   │   ├── combiner.py               # Signal combiner
+│   │   │   └── voting.py                 # Voting mechanisms
+│   │   └── cli/                           # CLI interface
+│   │
+│   ├── pairs_trading/                       # Pairs Trading Strategies
+│   │   ├── core/                          # Core analyzers
+│   │   ├── analysis/                      # Performance analysis
+│   │   ├── utils/                         # Selection utilities
+│   │   └── cli/                           # CLI interface
+│   │
+│   ├── portfolio/                           # Portfolio Management
+│   │   ├── risk_calculator.py             # Risk metrics
+│   │   ├── correlation_analyzer.py        # Correlation analysis
+│   │   └── hedge_finder.py                # Hedge identification
+│   │
+│   ├── position_sizing/                     # Position Sizing
+│   │   ├── kelly_calculator.py            # Kelly Criterion
+│   │   └── hybrid_signal_calculator.py    # Signal combination
+│   │
+│   ├── gemini_chart_analyzer/               # AI Chart Analysis
+│   │   ├── core/                          # Analysis engine
+│   │   ├── scanners/                      # Market scanners
+│   │   └── cli/                           # CLI interface
+│   │
+│   └── backtester/                          # Backtesting Framework
+│
+├── web/                                      # Web Applications
+│   ├── shared/                             # Shared utilities
+│   ├── apps/
+│   │   ├── gemini_analyzer/               # Port 8001 (Gemini Chart Analysis)
+│   │   │   ├── backend/                  # FastAPI backend
+│   │   │   └── frontend/                 # Vue.js frontend
+│   │   └── atc_visualizer/                # Port 8002 (ATC Visualization)
+│   │       ├── backend/                  # FastAPI backend
+│   │       └── frontend/                 # Vue.js frontend
+│   ├── scripts/                            # Management scripts
+│   └── docs/                               # Web documentation
+│
+├── config/                                   # Configuration Files
+│   ├── common.py                           # Common settings
+│   ├── config_api.py                       # API keys (supports env vars)
+│   ├── decision_matrix.py                  # Decision Matrix config
+│   ├── range_oscillator.py                 # Oscillator config
+│   ├── spc.py                              # SPC config
+│   ├── pairs_trading.py                    # Pairs trading config
+│   ├── portfolio.py                        # Portfolio config
+│   ├── position_sizing.py                  # Position sizing config
+│   ├── xgboost.py                          # XGBoost config
+│   ├── lstm.py                             # LSTM config
+│   ├── deep_learning.py                    # TFT config
+│   ├── hmm.py                              # HMM config
+│   ├── random_forest.py                    # Random Forest config
+│   ├── gemini_chart_analyzer.py            # Gemini AI config
+│   ├── forex_pairs.py                      # Forex configurations
+│   └── model_features.py                   # Feature definitions
+│
+├── cli/                                      # CLI Utilities
 │   ├── argument_parser.py                  # Argument parsing
-│   └── display.py                           # Display utilities
-├── tests/                                    # Comprehensive test suite
-├── artifacts/                                # Model checkpoints and outputs
-├── setup/                                    # Setup scripts and documentation
-│   ├── QUICK_START_API_KEYS.md             # Quick start guide for API keys
-│   ├── SECURITY.md                          # Security best practices
-│   └── setup_api_keys.*                     # Setup scripts (Windows/Linux/Mac)
-└── README*.md                               # Documentation files
+│   └── display.py                          # Display utilities
+│
+├── tests/                                    # Comprehensive Test Suite
+│   ├── adaptive_trend/                     # ATC tests
+│   ├── xgboost/                            # XGBoost tests
+│   ├── deeplearning/                       # TFT tests
+│   ├── lstm/                               # LSTM tests
+│   ├── pairs_trading/                      # Pairs trading tests
+│   ├── portfolio/                          # Portfolio tests
+│   ├── simplified_percentile_clustering/  # SPC tests
+│   ├── hmm/                                # HMM tests
+│   ├── position_sizing/                    # Position sizing tests
+│   ├── random_forest/                      # Random Forest tests
+│   ├── web/                                # Web API tests
+│   ├── e2e/                                # End-to-end tests
+│   └── performance/                        # Performance tests
+│
+├── artifacts/                                # Model Checkpoints & Outputs
+│   ├── models/                             # Trained models
+│   └── deep/                               # Deep learning artifacts
+│
+├── setup/                                    # Setup Scripts & Documentation
+│   ├── QUICK_START_API_KEYS.md            # API key setup guide
+│   ├── SECURITY.md                         # Security best practices
+│   ├── setup_api_keys.ps1                 # Windows PowerShell setup
+│   ├── setup_api_keys.bat                 # Windows Command Prompt setup
+│   └── setup_api_keys.sh                  # Linux/Mac setup
+│
+├── scripts/                                  # Utility Scripts
+│   └── export_openapi.py                   # OpenAPI schema export
+│
+├── docs/                                     # Documentation
+│   ├── API_DOCUMENTATION.md                # API documentation
+│   ├── openapi.yaml                        # OpenAPI specification
+│   └── setup_tradingview_credentials.md    # TradingView setup
+│
+└── README*.md                               # Project Documentation
 ```
 
 ## 🔧 Installation
@@ -91,50 +225,42 @@ crypto-probability/
 ### Prerequisites
 
 - Python 3.9+ (Python 3.10+ recommended)
-- pip
+- pip (package installer)
+- Git
 
 ### Setup
 
 1. **Clone the repository:**
+
    ```bash
    git clone <repository-url>
    cd crypto-probability
    ```
 
-2. **Configure API Keys:** (Chạy sau bước 1, trước hoặc cùng lúc với cài đặt dependencies)
-   ```bash
-   # Windows (PowerShell)
-   .\setup\setup_api_keys.ps1
-   
-   # Windows (Command Prompt)
-   setup\setup_api_keys.bat
-   
-   # Linux/Mac
-   chmod +x setup/setup_api_keys.sh
-   ./setup/setup_api_keys.sh
-   ```
-   **Lưu ý:** Các script này an toàn để chạy lại (idempotent) và việc cấu hình API keys độc lập với cài đặt dependencies, nên bạn có thể chạy trước hoặc sau bước 3. Xem [setup/QUICK_START_API_KEYS.md](./setup/QUICK_START_API_KEYS.md) để biết thêm chi tiết.
+2. **Install dependencies:**
 
-3. **Install dependencies:**
+   **Basic requirements (required):**
 
-   **Basic requirements:**
    ```bash
    pip install -r requirements.txt
    ```
 
-   **For Deep Learning:**
+   **Machine Learning dependencies (optional, for XGBoost, LSTM, TFT):**
+
    ```bash
    pip install -r requirements-ml.txt
    ```
 
-   **For development:**
+   **Development dependencies (optional, for testing and development):**
+
    ```bash
    pip install -r requirements-dev.txt
    ```
 
-3. **Configure API keys (optional):**
-   
-   **Recommended: Use environment variables (see [setup/QUICK_START_API_KEYS.md](./setup/QUICK_START_API_KEYS.md)):**
+3. **Configure API keys:**
+
+   Use environment variables for secure API key management. Run the appropriate setup script for your platform:
+
    ```bash
    # Windows (PowerShell)
    .\setup\setup_api_keys.ps1
@@ -146,52 +272,21 @@ crypto-probability/
    chmod +x setup/setup_api_keys.sh
    ./setup/setup_api_keys.sh
    ```
-   
-   ⚠️ **NOT RECOMMENDED / DEPRECATED: Hardcoded API keys in `config/config_api.py`:**
-   ```python
-   BINANCE_API_KEY = "your_key"
-   BINANCE_API_SECRET = "your_secret"
-   ```
-   **⚠️ Lưu ý:** Phương pháp hardcoded API keys KHÔNG được khuyến nghị vì rủi ro bảo mật. Vui lòng sử dụng biến môi trường như hướng dẫn ở trên. Xem [setup/SECURITY.md](./setup/SECURITY.md) để biết thêm chi tiết về bảo mật.
+
+   The setup scripts are idempotent and safe to run multiple times. See [setup/QUICK_START_API_KEYS.md](./setup/QUICK_START_API_KEYS.md) for detailed instructions and [setup/SECURITY.md](./setup/SECURITY.md) for security best practices.
 
 ## 📖 Usage
 
-### 1. Adaptive Trend Classification (ATC)
+### 1. Hybrid Analyzer (Sequential Filtering)
 
-Analyze market trends using multi-layer adaptive classification:
-
-```bash
-python main/main_atc.py
-```
-
-**Features:**
-- Multi-layer trend analysis with robustness filtering
-- Auto scan across multiple symbols
-- Interactive timeframe selection
-- Configurable moving averages and parameters
-
-### 2. ATC + Range Oscillator
-
-Combine ATC signals with Range Oscillator confirmation:
+The Hybrid Analyzer uses sequential filtering to efficiently identify trading opportunities:
 
 ```bash
-python main_atc_oscillator.py
-```
-
-**Features:**
-- Sequential filtering: ATC → Range Oscillator
-- Parallel processing for performance
-- Fallback to ATC-only if no oscillator confirmation
-
-### 3. ATC + Range Oscillator + SPC (Hybrid Analyzer)
-
-Hybrid approach combining sequential filtering and voting:
-
-```bash
-python main_hybrid.py
+python main_complex_hybrid.py --timeframe 1h --enable-spc --use-decision-matrix
 ```
 
 **Workflow:**
+
 1. ATC auto scan to find initial LONG/SHORT signals
 2. Filter by Range Oscillator confirmation (sequential filtering)
 3. Calculate SPC signals for remaining symbols (if enabled)
@@ -199,27 +294,40 @@ python main_hybrid.py
 5. Display final filtered results
 
 **Features:**
-- Early filtering reduces computational load
-- Range Oscillator acts as early filter to remove false positives
-- Fallback mechanism when no symbols pass Range Oscillator filter
-- Optional SPC and Decision Matrix for additional filtering
-- Sequential approach is easier to debug and monitor
 
-**Options:**
+- Early filtering reduces computational load by eliminating symbols progressively
+- Range Oscillator acts as confirmation filter to remove false positives
+- Fallback mechanism when no symbols pass filters
+- Sequential approach is easier to debug and monitor
+- Resource-efficient for large symbol pools
+
+**Key Options:**
+
+- `--timeframe TIMEFRAME`: Data timeframe (1h, 4h, 1d, etc.)
 - `--enable-spc`: Enable SPC signal calculation
 - `--use-decision-matrix`: Enable Decision Matrix voting
-- `--timeframe TIMEFRAME`: Data timeframe (1h, 4h, 1d, etc.)
+- `--enable-xgboost`: Enable XGBoost predictions
+- `--enable-hmm`: Enable HMM signal combination
+- `--enable-random-forest`: Enable Random Forest classifier
 - `--no-menu`: Skip interactive prompts
 
-### 4. ATC + Range Oscillator + SPC (Voting Analyzer)
+**When to Use:**
 
-Pure voting system without sequential filtering:
+- Limited computational resources
+- Need faster results with early filtering
+- Range Oscillator is important for your strategy
+- Prefer sequential, easy-to-debug workflow
+
+### 2. Voting Analyzer (Pure Voting System)
+
+The Voting Analyzer evaluates all indicators simultaneously using a weighted voting system:
 
 ```bash
-python main_voting.py
+python main_complex_voting.py --timeframe 1h --enable-spc
 ```
 
 **Workflow:**
+
 1. ATC auto scan to find initial LONG/SHORT signals
 2. Calculate signals from all indicators in parallel for all symbols
 3. Apply voting system with weighted impact and cumulative vote
@@ -227,333 +335,812 @@ python main_voting.py
 5. Display final results with voting metadata
 
 **Features:**
-- Parallel signal calculation for all indicators
-- All symbols evaluated with full indicator information
+
+- Parallel signal calculation for all enabled indicators
+- All symbols evaluated with complete indicator information
 - Voting system considers all indicators simultaneously
 - More flexible, not dependent on filtering order
-- Higher resource usage but potentially better accuracy
+- Potentially better accuracy with higher resource usage
 
-**Options:**
-- `--enable-spc`: Enable SPC signal calculation
+**Key Options:**
+
 - `--timeframe TIMEFRAME`: Data timeframe
+- `--enable-spc`: Enable SPC signal calculation
+- `--enable-xgboost`: Enable XGBoost predictions
+- `--enable-hmm`: Enable HMM signal combination
+- `--enable-random-forest`: Enable Random Forest classifier
 - `--no-menu`: Skip interactive prompts
 
+**When to Use:**
+
+- Sufficient computational resources available
+- Want to consider all indicators simultaneously
+- Prefer pure voting approach without sequential filtering
+- Need maximum flexibility in signal combination
+
 **See Also:**
-- `core/README.md`: Detailed workflow comparison between Hybrid and Voting analyzers
 
-### 5. Simplified Percentile Clustering (SPC)
+- `core/README.md`: Detailed workflow comparison
 
-Standalone SPC analysis:
+### 3. XGBoost Prediction
+
+Multi-class price movement prediction using XGBoost with hyperparameter optimization:
 
 ```bash
-python main/main_simplified_percentile_clustering.py
+python modules/xgboost/cli/main.py --symbol BTC/USDT --timeframe 1h --limit 500
 ```
 
 **Features:**
-- Cluster-based market regime detection
-- Multiple strategies: Cluster Transition, Regime Following, Mean Reversion
-- Configurable clustering parameters
 
-### 6. XGBoost Prediction
+- Multi-class classification (UP, NEUTRAL, DOWN)
+- Dynamic volatility-based labeling with triple-barrier method
+- Hyperparameter optimization using Optuna
+- Time-series cross-validation
+- Feature importance analysis
 
-Predict next price movement using XGBoost classifier:
+**Key Options:**
 
-```bash
-python main/main_xgboost.py
-```
-
-**Options:**
 - `--symbol SYMBOL`: Trading pair (e.g., BTC/USDT)
 - `--timeframe TIMEFRAME`: Timeframe (1h, 4h, 1d)
 - `--limit LIMIT`: Number of candles to fetch
 - `--no-prompt`: Skip interactive prompts
 
-**Example:**
-```bash
-python main/main_xgboost.py --symbol BTC/USDT --timeframe 1h --limit 500
-```
+### 4. LSTM Deep Learning
 
-### 7. Deep Learning (TFT)
-
-Train Temporal Fusion Transformer model for price prediction:
+CNN-LSTM-Attention model for temporal sequence prediction:
 
 ```bash
-python main/main_deeplearning_prediction.py
+python main_lstm.py --symbol BTC/USDT --timeframe 1h --epochs 50
 ```
 
-**Options:**
-- `--symbol SYMBOL`: Trading pair to train on
+**Features:**
+
+- CNN-LSTM-Attention architecture
+- Multi-head attention mechanisms
+- Positional encoding for temporal awareness
+- Focal loss for imbalanced classes
+- Kalman filter for noise reduction
+
+**Key Options:**
+
+- `--symbol SYMBOL`: Trading pair
 - `--timeframe TIMEFRAME`: Data timeframe
-- `--epochs EPOCHS`: Number of training epochs
+- `--epochs EPOCHS`: Training epochs
 - `--batch-size SIZE`: Batch size
-- `--gpu`: Use GPU if available
+
+### 5. Temporal Fusion Transformer (TFT)
+
+Advanced deep learning model for time series forecasting:
+
+```bash
+python modules/deeplearning/cli/main.py --symbol BTC/USDT --timeframe 1h --epochs 10 --gpu
+```
+
+**Features:**
+
+- Temporal Fusion Transformer architecture
+- Quantile regression for uncertainty estimation
+- Advanced feature selection (Mutual Information, Boruta-like, F-test)
+- Fractional differentiation
+- Triple barrier labeling
+
+**Key Options:**
+
+- `--symbol SYMBOL`: Trading pair
+- `--timeframe TIMEFRAME`: Data timeframe
+- `--epochs EPOCHS`: Training epochs
+- `--gpu`: Enable GPU acceleration
 - `--phase PHASE`: Training phase (1=regression, 2=classification)
 
-**Example:**
-```bash
-python main/main_deeplearning_prediction.py --symbol BTC/USDT --timeframe 1h --epochs 10 --gpu
-```
+### 6. Hidden Markov Model (HMM)
 
-### 8. Pairs Trading
-
-Identify pairs trading opportunities:
+State-based market analysis combining three HMM strategies:
 
 ```bash
-python main/main_pairs_trading.py
+python modules/hmm/cli/main.py --symbol BTC/USDT --timeframe 1h --limit 500
 ```
 
-**Options:**
+**HMM Strategies:**
+
+1. **HMM-Swings**: Swing detection-based state classification using highs/lows
+2. **HMM-KAMA**: KAMA-based features with ARM and K-Means clustering
+3. **True High-Order HMM**: State space expansion with automatic order optimization using BIC
+
+**Features:**
+
+- Combines signals from all 3 strategies
+- Multiple voting mechanisms (simple majority, weighted, confidence-weighted, threshold-based)
+- Strategy registry for dynamic management
+- Automatic order selection for High-Order HMM
+- Conflict resolution and confidence calculation
+
+**Key Options:**
+
+- `--symbol SYMBOL`: Trading pair
+- `--timeframe TIMEFRAME`: Data timeframe
+- `--limit N`: Number of candles
+- `--window-size N`: HMM window size
+- `--window-kama N`: KAMA window size
+- `--strict-mode`: Use strict mode for swing-to-state conversion
+
+**See Also:**
+
+- `modules/hmm/README.md`: Detailed HMM documentation
+
+### 7. Pairs Trading
+
+Identify and analyze mean-reversion or momentum pairs:
+
+```bash
+python modules/pairs_trading/cli/main.py --sort-by quantitative_score --require-cointegration --min-quantitative-score 70
+```
+
+**Features:**
+
+- Mean-reversion and momentum strategies
+- Comprehensive quantitative metrics (cointegration, half-life, Hurst exponent)
+- Risk metrics (Sharpe ratio, max drawdown, Calmar ratio)
+- Multi-timeframe performance analysis
+- Opportunity scoring system
+
+**Key Options:**
+
 - `--pairs-count N`: Number of pairs to analyze
 - `--sort-by SCORE`: Sort by `opportunity_score` or `quantitative_score`
 - `--require-cointegration`: Only show cointegrated pairs
 - `--max-half-life N`: Maximum half-life threshold
 - `--min-quantitative-score N`: Minimum quantitative score (0-100)
-- `--max-pairs N`: Maximum pairs to display
-- `--strategy {reversion,momentum}`: Switch between mean-reversion (default) and momentum mode. Without `--no-menu`, the interactive prompt also lets you choose and preview each strategy.
+- `--strategy {reversion,momentum}`: Strategy type
 
-**Example:**
-```bash
-python main/main_pairs_trading.py --sort-by quantitative_score --require-cointegration --min-quantitative-score 70
-```
+### 8. Portfolio Management
 
-### 9. Portfolio Manager
-
-Manage portfolio risk and find hedges:
+Risk analysis and portfolio optimization:
 
 ```bash
-python main/main_portfolio_manager.py
+python modules/portfolio/cli/main.py
 ```
 
 **Features:**
+
 - Portfolio risk calculation (VaR, Beta)
-- Correlation analysis
+- Correlation analysis with caching
 - Automatic hedge finding
 - Real-time position tracking
+- Multi-asset risk assessment
 
-### 10. HMM Signal Combiner
+### 9. Gemini AI Chart Analysis
 
-State-based analysis using multiple Hidden Markov Model strategies:
+AI-powered chart interpretation using Google Gemini:
 
 ```bash
-python main/main_hmm.py
+python main_gemini_chart_analyzer.py --symbol BTC/USDT --timeframes 15m,1h,4h,1d
 ```
-
-**HMM Strategies:**
-1. **HMM-Swings**: Uses swing detection (high/low points) to identify market states
-2. **HMM-KAMA**: Uses KAMA (Kaufman Adaptive Moving Average) as features with ARM and K-Means
-3. **True High-Order HMM**: High-order HMM with state space expansion and automatic order optimization
 
 **Features:**
-- Combines signals from all 3 HMM strategies
-- Multiple voting mechanisms (simple majority, weighted, confidence-weighted, threshold-based)
-- Strategy registry for dynamic strategy management
-- Conflict resolution and confidence calculation
-- Automatic order selection for High-Order HMM using BIC
 
-**Options:**
-- `--symbol SYMBOL`: Trading pair to analyze (e.g., BTC/USDT)
-- `--timeframe TIMEFRAME`: Data timeframe (1h, 4h, 1d, etc.)
-- `--limit N`: Number of candles to fetch
-- `--window-size N`: HMM window size
-- `--window-kama N`: KAMA window size
-- `--fast-kama N`: Fast KAMA parameter
-- `--slow-kama N`: Slow KAMA parameter
-- `--orders-argrelextrema N`: Order for swing detection
-- `--strict-mode`: Use strict mode for swing-to-state conversion
+- Single and multi-timeframe chart analysis
+- Deep analysis mode (analyze each timeframe separately)
+- Batch analysis mode (multi-timeframe batch charts)
+- Weighted signal aggregation across timeframes
+- Real-time log streaming
 
-**Example:**
+**Batch Market Scanning:**
+
 ```bash
-python main/main_hmm.py --symbol BTC/USDT --timeframe 1h --limit 500
+python main_gemini_chart_batch_scanner.py --timeframes 1h,4h --limit 100
 ```
 
-**See Also:**
-- `modules/hmm/README.md`: Detailed HMM module documentation
+Scan entire markets in batches (100 symbols per batch) with AI-powered analysis.
+
+### 10. Position Sizing
+
+Kelly Criterion-based position sizing calculator:
+
+```bash
+python main_position_sizing.py --symbol BTC/USDT --timeframe 1h
+```
+
+**Features:**
+
+- Kelly Criterion calculations
+- Hybrid signal combination
+- Risk management tools
+- Indicator-based position sizing
+
+### 11. Web Interface
+
+Modern web applications for visualization and analysis:
+
+```bash
+# Start all web apps
+python web/scripts/start_all.py
+
+# Start specific app
+python web/scripts/start_app.py gemini_analyzer
+python web/scripts/start_app.py atc_visualizer
+```
+
+**Gemini Analyzer (Port 8001):**
+
+- Web interface for AI chart analysis
+- Single and multi-timeframe analysis
+- Batch market scanning
+- Real-time log streaming
+
+**ATC Visualizer (Port 8002):**
+
+- Real-time OHLCV chart visualization
+- 6 Moving Average types overlay
+- Signal markers (buy/sell arrows)
+- Interactive parameter controls
 
 ## 🧪 Testing
 
-Run the comprehensive test suite:
+The project includes a comprehensive test suite optimized for memory efficiency (80-90% RAM reduction). The test suite covers module-level, integration, and end-to-end tests with advanced memory management through 3 optimization phases.
+
+### 🚀 Recommended Test Commands
 
 ```bash
-# Run all tests
+# Run all tests with optimizations (recommended)
 pytest
 
-# Run specific test module
-pytest tests/adaptive_trend/
-pytest tests/range_oscillator/
-pytest tests/simplified_percentile_clustering/
-pytest tests/hmm/
-pytest tests/xgboost/
-pytest tests/deeplearning/
-pytest tests/pairs_trading/
-pytest tests/portfolio/
-pytest tests/common/
-pytest tests/decision_matrix/
-pytest tests/test_main_hybrid.py
-pytest tests/test_main_voting.py
+# Use helper script for best results
+python run_tests.py
 
-# Run with coverage
-pytest --cov=modules --cov-report=html
+# Windows batch script
+run_tests.bat
+
+# Run with memory profiling (detailed)
+pytest tests/ -c pytest_memory.ini
+
+# Skip memory-intensive tests
+pytest tests/ --skip-memory-intensive
+
+# Single-threaded execution (no parallel processing)
+pytest tests/ -n 0
 ```
+
+### 📊 Memory Optimization Results
+
+| Phase | Optimization | RAM Reduction | Total Reduction |
+|-------|-------------|----------------|----------------|
+| Phase 1 | Garbage collection + data reduction | 50-60% | 50-60% |
+| Phase 2 | Session fixtures + parallel processing | 30-40% | **70-80%** |
+| Phase 3 | Lazy loading + monitoring | 10-20% | **80-90%** |
+
+### 🧪 Test Categories
+
+```bash
+# Core analyzer tests
+pytest tests/test_main_hybrid.py       # Hybrid analyzer
+pytest tests/test_main_voting.py       # Voting analyzer
+
+# Module-specific tests
+pytest tests/adaptive_trend/           # ATC tests
+pytest tests/range_oscillator/         # Range Oscillator tests
+pytest tests/simplified_percentile_clustering/  # SPC tests
+pytest tests/hmm/                      # HMM tests
+pytest tests/xgboost/                  # XGBoost tests
+pytest tests/deeplearning/             # TFT tests
+pytest tests/lstm/                     # LSTM tests
+pytest tests/pairs_trading/            # Pairs trading tests
+pytest tests/portfolio/                # Portfolio tests
+pytest tests/position_sizing/          # Position sizing tests
+pytest tests/random_forest/            # Random Forest tests
+pytest tests/common/                   # Common utilities tests
+pytest tests/decision_matrix/          # Decision Matrix tests
+pytest tests/web/                      # Web API tests
+
+# Special test categories
+pytest tests/e2e/                      # End-to-end tests
+pytest tests/performance/              # Performance tests
+pytest tests/backtester/test_session_fixtures.py -v  # Session fixtures demo
+```
+
+### 📈 Coverage and Reporting
+
+```bash
+# Run with coverage report
+pytest --cov=modules --cov-report=html
+pytest --cov=modules --cov-report=term-missing
+
+# Verbose output
+pytest -v
+
+# Run tests matching pattern
+pytest -k "test_signal"
+
+# Test specific functionality
+pytest -k "signal and (hybrid or voting)"
+```
+
+### 🛠️ Test Infrastructure
+
+**Configuration Files:**
+- `pytest.ini`: Default configuration with parallel processing (xdist)
+- `pytest_memory.ini`: Memory-optimized configuration with profiling
+- `conftest.py`: Shared fixtures and test configuration
+- `conftest_optimized.py`: Memory-optimized test fixtures
+
+**Helper Scripts:**
+- `run_tests.py`: Python helper script for optimized test execution
+- `run_tests.bat`: Windows batch script
+- `.vscode/settings.json`: VSCode integration with memory profiling
+
+### 🔧 Troubleshooting
+
+**VSCode Issues:**
+```bash
+# If VSCode doesn't use default settings
+# 1. Restart VSCode
+# 2. Ensure Python extension testing is enabled
+# 3. Verify .vscode/settings.json syntax
+```
+
+**Memory Profiling Too Verbose:**
+```bash
+# Disable memory profiling
+pytest tests/ --memory-profile=no
+```
+
+**Parallel Processing Issues:**
+```bash
+# Check xdist installation
+pip install pytest-xdist
+
+# Force single-threaded execution
+pytest tests/ -n 0
+```
+
+See `tests/TEST_MEMORY_USAGE_GUIDE.md` for detailed memory optimization documentation.
 
 ## 📚 Documentation
 
-Detailed documentation is available in various markdown files:
+### Root Documentation
 
 - **README.md**: Main project documentation (this file)
-- **README_DECISION_MATRIX.md**: Decision Matrix voting system documentation
-- **OSCILLATOR_SIGNAL_EXPLANATION.md**: Range Oscillator signal explanation
-- **COMBINED_STRATEGY_IMPROVEMENTS.md**: Range Oscillator combined strategy improvements
-- **CODE_REVIEW.md**: Code review and best practices
-- **TFT_IMPLEMENTATION_ROADMAP.md**: Deep learning TFT implementation roadmap
-- **ENHANCE_FUTURES.md**: Futures trading enhancements
+- **CODE_REVIEW.md**: Code review guidelines and best practices
+- **ENHANCE_FUTURES.md**: Futures trading enhancements and roadmap
+- **BATCH_SCANNER_FLOW.md**: Batch scanner workflow documentation
 
-Module-specific documentation:
-- **modules/adaptive_trend/README.md**: Adaptive Trend Classification
-- **modules/range_oscillator/**: Range Oscillator strategies
-- **modules/simplified_percentile_clustering/README.md**: SPC clustering
-- **modules/xgboost/README.md**: XGBoost prediction
-- **modules/deeplearning/README.md**: Deep learning TFT
-- **modules/hmm/README.md**: HMM module (3 strategies, signal combination)
+### Core Documentation
+
+- **core/README.md**: Detailed comparison between Hybrid and Voting analyzers
+
+### Module Documentation
+
+- **modules/adaptive_trend/README.md**: Adaptive Trend Classification system
+- **modules/range_oscillator/**: Range Oscillator strategies and implementations
+  - `OSCILLATOR_SIGNAL_EXPLANATION.md`: Signal generation explanation
+  - `COMBINED_STRATEGY_IMPROVEMENTS.md`: Combined strategy improvements
+- **modules/simplified_percentile_clustering/README.md**: SPC clustering system
+- **modules/decision_matrix/README_DECISION_MATRIX.md**: Decision Matrix voting system
+- **modules/xgboost/README.md**: XGBoost prediction pipeline
+  - `TARGET_HORIZON_EXPLANATION.md`: Target horizon explanation
+- **modules/deeplearning/README.md**: Temporal Fusion Transformer (TFT)
+  - `TFT_IMPLEMENTATION_ROADMAP.md`: Implementation roadmap
+- **modules/lstm/README.md**: LSTM model architecture and training
+- **modules/hmm/README.md**: HMM strategies and signal combination
 - **modules/pairs_trading/README.md**: Pairs trading strategies
-- **modules/portfolio/README.md**: Portfolio management
-- **core/README.md**: Hybrid vs Voting analyzer workflow comparison
+  - `QUANT_METRICS_USAGE_REPORT.md`: Quantitative metrics usage
+- **modules/portfolio/README.md**: Portfolio management system
+- **modules/gemini_chart_analyzer/README.md**: AI-powered chart analysis
+
+### Setup Documentation
+
+- **setup/README.md**: Setup instructions overview
+- **setup/QUICK_START_API_KEYS.md**: Quick start guide for API keys
+- **setup/SECURITY.md**: Security best practices for API keys
+
+### Web Documentation
+
+- **web/README.md**: Web applications overview
+- **web/docs/ARCHITECTURE.md**: Web architecture documentation
+- **web/docs/ADDING_NEW_APP.md**: Guide for adding new web applications
+- **web/MIGRATION_SUMMARY.md**: Migration guide for web components
+- **web/apps/gemini_analyzer/README.md**: Gemini Analyzer app documentation
+- **web/apps/atc_visualizer/README.md**: ATC Visualizer app documentation
+
+### API Documentation
+
+- **docs/API_DOCUMENTATION.md**: REST API documentation
+- **docs/OPENAPI_EXTENDED.md**: Extended OpenAPI documentation
+- **docs/openapi.yaml**: OpenAPI specification (YAML)
+- **docs/openapi.json**: OpenAPI specification (JSON)
+- **docs/setup_tradingview_credentials.md**: TradingView integration setup
+
+### Test Documentation
+
+- **tests/TEST_MEMORY_USAGE_GUIDE.md**: Memory optimization for tests
 
 ## 🏗️ Architecture
 
+### System Architecture
+
+The system is built on a modular, layered architecture:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     User Interface Layer                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │   CLI Apps   │  │  Web Apps    │  │  API Endpoints   │  │
+│  └──────────────┘  └──────────────┘  └──────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                    Core Analyzer Layer                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │   Hybrid     │  │   Voting     │  │  Signal Calc.    │  │
+│  │   Analyzer   │  │   Analyzer   │  │  Helpers         │  │
+│  └──────────────┘  └──────────────┘  └──────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                    Strategy/Module Layer                     │
+│  ┌─────────┐ ┌─────────┐ ┌────────┐ ┌────────┐ ┌────────┐ │
+│  │   ATC   │ │  Range  │ │  SPC   │ │  Pairs │ │  HMM   │ │
+│  │         │ │  Osc.   │ │        │ │Trading │ │        │ │
+│  └─────────┘ └─────────┘ └────────┘ └────────┘ └────────┘ │
+│  ┌─────────┐ ┌─────────┐ ┌────────┐ ┌────────┐ ┌────────┐ │
+│  │ XGBoost │ │  LSTM   │ │  TFT   │ │  R.F.  │ │Gemini  │ │
+│  │         │ │         │ │        │ │        │ │  AI    │ │
+│  └─────────┘ └─────────┘ └────────┘ └────────┘ └────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                   Common Utilities Layer                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ DataFetcher  │  │  Exchange    │  │  Indicator       │  │
+│  │              │  │  Manager     │  │  Engine          │  │
+│  └──────────────┘  └──────────────┘  └──────────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ Quantitative │  │  Technical   │  │  Risk & Risk     │  │
+│  │  Metrics     │  │  Indicators  │  │  Management      │  │
+│  └──────────────┘  └──────────────┘  └──────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                    Data Sources Layer                        │
+│  ┌─────────┐ ┌─────────┐ ┌────────┐ ┌────────┐ ┌────────┐ │
+│  │ Binance │ │ Kraken  │ │KuCoin  │ │Gate.io │ │  OKX   │ │
+│  └─────────┘ └─────────┘ └────────┘ └────────┘ └────────┘ │
+│  ┌─────────┐ ┌─────────┐ ┌────────┐                        │
+│  │  Bybit  │ │  MEXC   │ │ Huobi  │     (Smart Fallback)   │
+│  └─────────┘ └─────────┘ └────────┘                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### Module Organization
 
-- **`modules/common/`**: Shared utilities used across all modules
-  - `DataFetcher`: Multi-exchange data fetching with fallback
-  - `ExchangeManager`: Exchange connection and API management
-  - `IndicatorEngine`: Technical indicator computation
-  - `Position`: Position data structure
+#### **Common Utilities (`modules/common/`)**
 
-- **`modules/adaptive_trend/`**: Adaptive Trend Classification (ATC)
-  - Multi-layer trend analysis
-  - Robustness filtering
-  - Signal detection and scanning
-  - Interactive CLI
+Shared infrastructure used across all modules:
 
-- **`modules/range_oscillator/`**: Range Oscillator strategies
-  - Multiple signal generation strategies (2-9)
-  - Combined strategy with weighted voting
-  - Dynamic strategy selection
-  - Adaptive weights based on performance
+- **Data Layer**:
+  - `DataFetcher`: Multi-exchange data fetching with caching and smart fallback
+  - `ExchangeManager`: Exchange connection management (authenticated & public)
+  - `ForexDataFetcher`: Forex market data fetching
 
-- **`modules/simplified_percentile_clustering/`**: SPC clustering
-  - Percentile-based clustering
-  - Multiple strategies: Cluster Transition, Regime Following, Mean Reversion
-  - Vote aggregation with weighted voting
-  - Configurable clustering parameters
+- **Indicator Layer**:
+  - `IndicatorEngine`: Technical indicator orchestration (CORE, XGBOOST, DEEP_LEARNING profiles)
+  - `indicators/`: 50+ technical indicator implementations
+  - `quantitative_metrics/`: Statistical and quantitative analysis tools
 
-- **`modules/decision_matrix/`**: Decision Matrix voting system
-  - Pseudo Random Forest-like classifier
-  - Weighted voting based on accuracy
-  - Feature importance calculation
-  - Cumulative vote with threshold
+- **Infrastructure**:
+  - `models/`: Data structures (Position)
+  - `ui/`: Progress bars, logging, formatting
+  - `utils/`: Domain-specific utilities
 
-- **`modules/xgboost/`**: XGBoost prediction pipeline
-  - Feature engineering and labeling
-  - Model training and prediction
-  - Classification report generation
+#### **Trading Strategy Modules**
 
-- **`modules/deeplearning/`**: Deep learning models
-  - Temporal Fusion Transformer (TFT) implementation
-  - Data pipeline and preprocessing
-  - Feature selection
-  - Model training with PyTorch Lightning
+- **`adaptive_trend/`**: Multi-layer trend classification with 6 MA types
+- **`range_oscillator/`**: 8 oscillator-based strategies with weighted voting
+- **`simplified_percentile_clustering/`**: Cluster-based regime detection with 3 strategies
+- **`decision_matrix/`**: Weighted voting system for signal combination
+- **`pairs_trading/`**: Mean-reversion and momentum pairs with quantitative metrics
+- **`portfolio/`**: Risk management, correlation analysis, hedge finding
+- **`position_sizing/`**: Kelly Criterion and risk-based sizing
 
-- **`modules/pairs_trading/`**: Pairs trading strategies
-  - Performance analysis
-  - Pair metrics computation (cointegration, half-life, etc.)
-  - Opportunity scoring
-  - Risk metrics
+#### **Machine Learning Modules**
 
-- **`modules/portfolio/`**: Portfolio management
-  - Risk calculation (VaR, Beta)
-  - Correlation analysis
-  - Hedge finding
+- **`xgboost/`**: Multi-class classifier with hyperparameter optimization
+  - Dynamic volatility-based labeling
+  - Triple-barrier method
+  - Time-series cross-validation
+  
+- **`lstm/`**: CNN-LSTM-Attention architecture
+  - Multi-head attention
+  - Positional encoding
+  - Focal loss for imbalanced data
+  
+- **`deeplearning/`**: Temporal Fusion Transformer
+  - Quantile regression
+  - Advanced feature selection
+  - Fractional differentiation
+  
+- **`random_forest/`**: Ensemble learning with feature importance
 
-- **`modules/hmm/`**: Hidden Markov Model analysis
-  - **HMM-Swings**: Swing detection-based state classification
-  - **HMM-KAMA**: KAMA-based HMM with ARM and K-Means clustering
-  - **True High-Order HMM**: State space expansion with automatic order optimization
-  - **Signal Combiner**: Registry-based strategy combination with multiple voting mechanisms
-  - **Strategy Interface**: Standardized interface for all HMM strategies
-  - Conflict resolution and confidence calculation
+- **`hmm/`**: Hidden Markov Models
+  - 3 strategies (Swings, KAMA, High-Order)
+  - Strategy registry and combiner
+  - Multiple voting mechanisms
+
+#### **Specialized Modules**
+
+- **`gemini_chart_analyzer/`**: AI-powered chart analysis using Google Gemini
+  - Single and multi-timeframe analysis
+  - Batch market scanning
+  - Weighted signal aggregation
+
+- **`backtester/`**: Strategy backtesting framework
+- **`smart_money_concept/`**: Institutional trading concepts
+- **`iching/`**: I Ching divination integration
+- **`targets/`**: ATR-based target calculation
+
+### Design Principles
+
+1. **Modularity**: Each module is self-contained with clear interfaces
+2. **Extensibility**: Easy to add new strategies and indicators
+3. **Testability**: Comprehensive test coverage for all components
+4. **Configurability**: Centralized configuration system
+5. **Performance**: Caching, parallel processing, and optimization
+6. **Reliability**: Smart fallback mechanisms and error handling
 
 ## 🔍 Key Features
 
-### Quantitative Metrics
+### 1. Multi-Exchange Data Infrastructure
 
-The pairs trading module includes comprehensive quantitative metrics:
+**Smart Data Fetching:**
 
-- **Cointegration Tests**: ADF and Johansen tests
-- **Mean Reversion**: Half-life, Hurst exponent
-- **Risk Metrics**: Sharpe ratio, max drawdown, Calmar ratio
-- **Statistical Tests**: Z-score analysis, correlation metrics
-- **Classification Metrics**: F1-score, precision, recall
+- Automatic fallback across 8+ exchanges when data is unavailable or stale
+- Intelligent caching system to minimize API calls
+- Data freshness validation
+- Support for both spot and futures markets
+- Forex market data integration
 
-See `QUANT_METRICS_USAGE_REPORT.md` for detailed usage.
+**Supported Exchanges:**
 
-### Smart Data Fetching
+- Binance (primary)
+- Kraken, KuCoin, Gate.io, OKX, Bybit, MEXC, Huobi (fallback)
 
-- Automatic exchange fallback when data is stale
-- Multi-exchange support for redundancy
-- Caching to reduce API calls
-- Freshness checking
+### 2. Technical Indicators (50+)
 
-### Advanced Indicators
+**Trend Indicators:**
 
-- **Trend**: SMA, EMA, MACD, ATC (Adaptive Trend Classification)
-- **Momentum**: RSI, Stochastic RSI
-- **Volatility**: ATR, Bollinger Bands, Range Oscillator
-- **Volume**: OBV, Volume indicators
-- **Candlestick Patterns**: Doji, Engulfing, Three White Soldiers, etc.
-- **Custom**: KAMA (Kaufman Adaptive Moving Average), SPC (Simplified Percentile Clustering)
+- Moving Averages: SMA, EMA, WMA, HMA, DEMA, LSMA
+- MACD (Moving Average Convergence Divergence)
+- ATC (Adaptive Trend Classification)
+- KAMA (Kaufman Adaptive Moving Average)
 
-### Signal Combination Strategies
+**Momentum Indicators:**
 
-- **Hybrid Analyzer**: Sequential filtering (ATC → Range Oscillator → SPC) with optional Decision Matrix
-  - Early filtering reduces computational load
-  - Range Oscillator acts as early filter
-  - Fallback mechanism when no symbols pass filter
-- **Voting Analyzer**: All indicators calculate signals in parallel, then vote through Decision Matrix
-  - All symbols evaluated with full indicator information
-  - More flexible, not dependent on filtering order
-- **SPC Aggregation**: Three SPC strategies (Cluster Transition, Regime Following, Mean Reversion) aggregated into single vote
-- **HMM Signal Combiner**: Three HMM strategies (Swings, KAMA, High-Order) combined with multiple voting mechanisms
-- **Decision Matrix**: Weighted voting system based on historical accuracy and signal strength
+- RSI (Relative Strength Index)
+- Stochastic RSI
+- Momentum oscillators
+
+**Volatility Indicators:**
+
+- ATR (Average True Range)
+- Bollinger Bands
+- Range Oscillator (8 strategies)
+- Keltner Channels
+
+**Volume Indicators:**
+
+- OBV (On-Balance Volume)
+- Volume-weighted indicators
+- Accumulation/Distribution
+
+**Pattern Recognition:**
+
+- Candlestick patterns (Doji, Engulfing, Hammer, Shooting Star, etc.)
+- Three White Soldiers, Three Black Crows
+- Morning Star, Evening Star
+
+### 3. Signal Combination Strategies
+
+**Hybrid Analyzer (Sequential Filtering):**
+
+- Sequential filtering: ATC → Range Oscillator → SPC → Decision Matrix
+- Early filtering reduces computational load by 70-90%
+- Range Oscillator acts as confirmation filter
+- Fallback mechanisms when filters don't match
+- Optimal for resource-constrained environments
+
+**Voting Analyzer (Pure Voting):**
+
+- All indicators calculate signals in parallel
+- Weighted voting based on historical accuracy
+- All symbols evaluated with complete information
+- More flexible, not dependent on filtering order
+- Higher accuracy potential with more resources
+
+**Decision Matrix:**
+
+- Pseudo Random Forest-like voting system
+- Weighted votes based on indicator accuracy
+- Cumulative vote threshold filtering
+- Feature importance calculation
+
+**SPC Aggregation:**
+
+- Three strategies combined (Cluster Transition, Regime Following, Mean Reversion)
+- Weighted voting with configurable weights
+- Cluster-based market regime detection
+
+**HMM Signal Combiner:**
+
+- Three HMM strategies (Swings, KAMA, High-Order)
+- Multiple voting mechanisms (simple majority, weighted, confidence-weighted, threshold-based)
+- Automatic strategy registration and management
+- Conflict resolution and confidence scoring
+
+### 4. Quantitative Metrics
+
+**Statistical Tests:**
+
+- Augmented Dickey-Fuller (ADF) test for stationarity
+- Johansen cointegration test
+- Correlation analysis with caching
+
+**Mean Reversion Metrics:**
+
+- Half-life calculation
+- Hurst exponent
+- Z-score analysis
+- Ornstein-Uhlenbeck process parameters
+
+**Risk Metrics:**
+
+- Sharpe ratio
+- Maximum drawdown
+- Calmar ratio
+- Sortino ratio
+- Value at Risk (VaR)
+- Beta calculation
+
+**Hedge Ratios:**
+
+- Ordinary Least Squares (OLS) regression
+- Kalman filter adaptive estimation
+
+**Classification Metrics:**
+
+- F1-score, precision, recall
+- Confusion matrix
+- Direction prediction accuracy
+
+### 5. Machine Learning Capabilities
+
+**XGBoost:**
+
+- Multi-class classification (UP, NEUTRAL, DOWN)
+- Dynamic volatility-based labeling
+- Triple-barrier method with adaptive thresholds
+- Hyperparameter optimization with Optuna
+- Time-series cross-validation
+- Feature importance analysis
+
+**LSTM:**
+
+- CNN-LSTM-Attention architecture
+- Multi-head attention mechanisms
+- Positional encoding
+- Focal loss for imbalanced classes
+- Kalman filter noise reduction
+
+**Temporal Fusion Transformer:**
+
+- State-of-the-art time series forecasting
+- Quantile regression for uncertainty
+- Advanced feature selection (MI, Boruta, F-test)
+- Fractional differentiation
+- Interpretable attention mechanisms
+
+**Random Forest:**
+
+- Ensemble learning
+- Feature importance ranking
+- Out-of-bag error estimation
+
+**Hidden Markov Models:**
+
+- 3 distinct strategies
+- State space modeling
+- Automatic order optimization using BIC
+- Regime detection and classification
+
+### 6. AI-Powered Analysis
+
+**Google Gemini Integration:**
+
+- Intelligent chart interpretation
+- Single and multi-timeframe analysis
+- Batch market scanning (100 symbols per batch)
+- Deep analysis mode
+- Weighted signal aggregation
+- Natural language insights
+
+### 7. Web Interface
+
+**Modern Tech Stack:**
+
+- FastAPI backend (high-performance async)
+- Vue.js 3 frontend (reactive UI)
+- Real-time log streaming
+- RESTful API with OpenAPI documentation
+
+**Applications:**
+
+- Gemini Analyzer (Port 8001)
+- ATC Visualizer (Port 8002)
+- Extensible architecture for new apps
 
 ## ⚙️ Configuration
 
-Configuration is managed in `config/` directory. Key configuration files:
+All configuration is centralized in the `config/` directory:
 
-- **`config/common.py`**: Common settings (exchanges, timeframes, defaults)
-- **`config/hmm.py`**: HMM configuration (strategies, voting mechanisms, parameters)
-- **`config/decision_matrix.py`**: Decision Matrix voting configuration
-- **`config/range_oscillator.py`**: Range Oscillator strategy configuration
-- **`config/spc.py`**: SPC clustering configuration
-- **`config/pairs_trading.py`**: Pairs trading parameters
-- **`config/portfolio.py`**: Portfolio management settings
-- **`config/xgboost.py`**: XGBoost model configuration
-- **`config/deep_learning.py`**: Deep learning TFT configuration
+### Core Configuration
 
-⚠️ **NOT RECOMMENDED / DEPRECATED:** For API keys, you can create `config/config_api.py` (not tracked in git), but **environment variables are the recommended approach**. See [setup/SECURITY.md](./setup/SECURITY.md) for details:
-```python
-BINANCE_API_KEY = "your_key"
-BINANCE_API_SECRET = "your_secret"
-# ... other exchange keys
+- **`common.py`**: Common settings (exchanges, timeframes, symbols, defaults)
+- **`config_api.py`**: API keys (supports environment variables - recommended)
+- **`model_features.py`**: Feature definitions for ML models
+- **`evaluation.py`**: Evaluation metrics and thresholds
+
+### Strategy Configuration
+
+- **`decision_matrix.py`**: Decision Matrix voting system
+- **`range_oscillator.py`**: Range Oscillator strategies
+- **`spc.py`**: Simplified Percentile Clustering
+- **`pairs_trading.py`**: Pairs trading parameters
+- **`portfolio.py`**: Portfolio management settings
+- **`position_sizing.py`**: Position sizing parameters
+
+### Machine Learning Configuration
+
+- **`xgboost.py`**: XGBoost model parameters
+- **`lstm.py`**: LSTM architecture and training
+- **`deep_learning.py`**: Temporal Fusion Transformer (TFT)
+- **`random_forest.py`**: Random Forest parameters
+- **`hmm.py`**: HMM strategies and voting mechanisms
+
+### Specialized Configuration
+
+- **`gemini_chart_analyzer.py`**: Google Gemini AI settings
+- **`forex_pairs.py`**: Forex pair configurations
+- **`iching.py`**: I Ching integration settings
+
+### API Key Management
+
+**Recommended: Environment Variables**
+
+Use the setup scripts to configure API keys securely:
+
+```bash
+# Windows (PowerShell)
+.\setup\setup_api_keys.ps1
+
+# Windows (Command Prompt)
+setup\setup_api_keys.bat
+
+# Linux/Mac
+./setup/setup_api_keys.sh
 ```
+
+The scripts create environment variables that are automatically loaded by the application. See [setup/SECURITY.md](./setup/SECURITY.md) for security best practices.
 
 ## 🛠️ Development
 
 ### Code Structure
 
-- Modular design with clear separation of concerns
-- Comprehensive test coverage
-- Type hints where applicable
-- Documentation strings
+The codebase follows best practices for maintainability and extensibility:
+
+- **Modular Design**: Clear separation of concerns with independent modules
+- **Test-Driven**: Comprehensive test coverage for all components
+- **Type Safety**: Type hints throughout the codebase
+- **Documentation**: Docstrings and inline comments
+- **Configuration**: Centralized, environment-based configuration
+- **Error Handling**: Robust error handling with fallback mechanisms
 
 ### Running Tests
 
@@ -561,45 +1148,263 @@ BINANCE_API_SECRET = "your_secret"
 # All tests
 pytest
 
-# Specific module
+# Specific module with verbose output
 pytest tests/xgboost/ -v
 
-# With coverage
+# With coverage report
+pytest --cov=modules --cov-report=html
 pytest --cov=modules --cov-report=term-missing
+
+# Run tests matching pattern
+pytest -k "test_signal"
+
+# Run with memory optimization
+pytest -c pytest_memory.ini
+
+# Performance tests
+pytest tests/performance/ -v
 ```
 
-### Code Quality
+### Code Quality Tools
 
-- Linting: `pylint` or `flake8`
-- Formatting: `black` (recommended)
-- Type checking: `mypy` (optional)
+**Linting:**
 
-## 📄 License
+```bash
+# Using pylint
+pylint modules/
 
-See `LICENSE` file for details.
+# Using flake8
+flake8 modules/
+```
 
-## ⚠️ Disclaimer
+**Formatting:**
 
-**Not Financial Advice**: This tool is for educational and research purposes only. Trading cryptocurrency involves high risk and can result in significant financial losses. Always do your own research and never invest more than you can afford to lose.
+```bash
+# Using black (recommended)
+black modules/
+
+# Check formatting without changes
+black --check modules/
+```
+
+**Type Checking:**
+
+```bash
+# Using mypy (optional)
+mypy modules/
+```
+
+### Development Workflow
+
+1. **Create a feature branch:**
+
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make changes and add tests:**
+   - Write tests first (TDD approach)
+   - Implement the feature
+   - Ensure all tests pass
+
+3. **Run code quality checks:**
+
+   ```bash
+   pytest                    # Run tests
+   black modules/            # Format code
+   pylint modules/           # Lint code
+   ```
+
+4. **Commit and push:**
+
+   ```bash
+   git add .
+   git commit -m "feat: add new feature"
+   git push origin feature/your-feature-name
+   ```
+
+5. **Create a pull request**
+
+### Adding New Modules
+
+To add a new trading strategy or indicator module:
+
+1. Create module directory in `modules/`
+2. Implement core logic
+3. Add configuration in `config/`
+4. Create CLI interface in module's `cli/` directory
+5. Add comprehensive tests in `tests/`
+6. Update documentation
+7. Register with signal calculators if applicable
+
+See existing modules for reference implementation.
+
+### Adding New Web Apps
+
+To add a new web application:
+
+1. Create app directory in `web/apps/`
+2. Set up backend (FastAPI) and frontend (Vue.js)
+3. Configure port in `web/scripts/`
+4. Add documentation in `web/docs/`
+
+See `web/docs/ADDING_NEW_APP.md` for detailed instructions.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
+Contributions are welcome! Please follow these guidelines:
 
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new features
-4. Ensure all tests pass
-5. Submit a pull request
+### Contribution Process
+
+1. **Fork the repository**
+
+   ```bash
+   git clone https://github.com/your-username/crypto-probability.git
+   cd crypto-probability
+   ```
+
+2. **Create a feature branch**
+
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+3. **Make your changes**
+   - Write clean, documented code
+   - Follow existing code style and conventions
+   - Add type hints where applicable
+
+4. **Add tests for new features**
+   - Write comprehensive unit tests
+   - Ensure test coverage for new code
+   - Run all tests to verify nothing breaks
+
+5. **Ensure all tests pass**
+
+   ```bash
+   pytest
+   pytest --cov=modules --cov-report=term-missing
+   ```
+
+6. **Run code quality checks**
+
+   ```bash
+   black modules/           # Format code
+   pylint modules/          # Lint code
+   ```
+
+7. **Commit your changes**
+
+   ```bash
+   git add .
+   git commit -m "feat: add your feature description"
+   ```
+
+8. **Push to your fork and submit a pull request**
+
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+### Contribution Guidelines
+
+- **Code Style**: Follow PEP 8 guidelines, use `black` for formatting
+- **Documentation**: Add docstrings to all public functions and classes
+- **Testing**: Maintain or improve test coverage
+- **Commits**: Use clear, descriptive commit messages
+- **Pull Requests**: Include description of changes and motivation
+
+### Areas for Contribution
+
+- 🚀 New trading strategies or indicators
+- 🧪 Additional ML/DL models
+- 📊 Enhanced visualization features
+- 🌐 Web interface improvements
+- 📚 Documentation and examples
+- 🐛 Bug fixes and performance optimizations
+- 🧪 Test coverage improvements
 
 ## 📞 Support
 
-For issues, questions, or contributions, please open an issue on the repository.
+### Getting Help
+
+- **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/your-repo/crypto-probability/issues)
+- **Discussions**: Ask questions in [GitHub Discussions](https://github.com/your-repo/crypto-probability/discussions)
+- **Documentation**: Check the comprehensive documentation in the `docs/` directory and module READMEs
+
+### Common Issues
+
+**Installation Issues:**
+
+- Ensure Python 3.9+ is installed
+- Try creating a fresh virtual environment
+- Check `requirements.txt` for dependency conflicts
+
+**API Key Issues:**
+
+- Verify environment variables are set correctly
+- Run setup scripts again: `./setup/setup_api_keys.sh`
+- See `setup/SECURITY.md` for troubleshooting
+
+**Performance Issues:**
+
+- Use Hybrid Analyzer for better performance
+- Reduce symbol pool size
+- Disable unnecessary indicators
+- Check `tests/TEST_MEMORY_USAGE_GUIDE.md` for optimization tips
+
+**Data Fetching Issues:**
+
+- Check exchange API status
+- Verify API keys are correct
+- System automatically falls back to other exchanges
+
+## ⚠️ Disclaimer
+
+**Important**: This software is provided for educational and research purposes only.
+
+- **Not Financial Advice**: Nothing in this software constitutes financial, investment, trading, or any other type of advice.
+- **High Risk**: Cryptocurrency trading involves substantial risk of loss and is not suitable for every investor.
+- **No Guarantees**: Past performance is not indicative of future results. No guarantee of profit.
+- **Your Responsibility**: Always conduct your own research (DYOR) and consult with a qualified financial advisor before making any investment decisions.
+- **Liability**: The authors and contributors are not liable for any losses or damages resulting from the use of this software.
+- **Use at Your Own Risk**: Never invest more than you can afford to lose.
+
+By using this software, you acknowledge that you have read this disclaimer and agree to use the software at your own risk.
+
+## 📄 License
+
+This project is licensed under the terms specified in the `LICENSE` file.
 
 ---
 
-**Last Updated**: 2025
-**Version**: 3.0
+## 📊 Project Status
+
+**Version**: 3.0  
+**Last Updated**: January 2025  
+**Status**: Active Development  
+**Python**: 3.9+ (3.10+ recommended)  
+
+### Recent Updates
+
+- ✅ Google Gemini AI integration for chart analysis
+- ✅ Web interface with Vue.js + FastAPI
+- ✅ LSTM with CNN-Attention architecture
+- ✅ Enhanced quantitative metrics
+- ✅ Comprehensive test suite with memory optimization
+- ✅ Modular architecture refactoring
+
+### Roadmap
+
+- 🔜 Real-time trading integration
+- 🔜 Advanced portfolio optimization
+- 🔜 Mobile application
+- 🔜 Multi-language support
+- 🔜 Enhanced backtesting framework
+
+---
+
+**Built with ❤️ for the cryptocurrency trading community**
 
 ---
 
@@ -607,47 +1412,141 @@ For issues, questions, or contributions, please open an issue on the repository.
 
 ### For New Users
 
-1. **Install dependencies:**
+1. **Install basic dependencies:**
+
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Try Hybrid Analyzer (recommended for beginners):**
+2. **Configure API keys (optional, but recommended for authenticated endpoints):**
+
    ```bash
-   python main_hybrid.py --timeframe 1h --enable-spc
+   # Windows (PowerShell)
+   .\setup\setup_api_keys.ps1
+   
+   # Linux/Mac
+   ./setup/setup_api_keys.sh
    ```
 
-3. **Try individual modules:**
+3. **Try the Hybrid Analyzer (recommended for beginners):**
+
    ```bash
-   # HMM Signal Combiner
-   python main/main_hmm.py --symbol BTC/USDT --timeframe 1h
-   
-   # XGBoost Prediction
-   python main/main_xgboost.py --symbol BTC/USDT --timeframe 1h
-   
-   # Pairs Trading
-   python main/main_pairs_trading.py
+   python main_complex_hybrid.py --timeframe 1h --enable-spc
    ```
+
+   The Hybrid Analyzer uses sequential filtering to efficiently identify opportunities:
+   - ATC scans for initial signals
+   - Range Oscillator filters confirmation
+   - SPC adds regime detection (if enabled)
+   - Decision Matrix provides weighted voting (if enabled)
+
+4. **Explore individual modules:**
+
+   ```bash
+   # XGBoost ML prediction
+   python modules/xgboost/cli/main.py --symbol BTC/USDT --timeframe 1h
+   
+   # HMM state-based analysis
+   python modules/hmm/cli/main.py --symbol BTC/USDT --timeframe 1h
+   
+   # Pairs trading analysis
+   python modules/pairs_trading/cli/main.py --sort-by quantitative_score
+   
+   # AI-powered chart analysis
+   python main_gemini_chart_analyzer.py --symbol BTC/USDT --timeframes 1h,4h,1d
+   ```
+
+5. **Launch web interface:**
+
+   ```bash
+   # Start all web applications
+   python web/scripts/start_all.py
+   
+   # Access:
+   # - Gemini Analyzer: http://localhost:8001
+   # - ATC Visualizer: http://localhost:8002
+   ```
+
+### For Intermediate Users
+
+**Install ML dependencies for advanced models:**
+
+```bash
+pip install -r requirements-ml.txt
+```
+
+**Try deep learning models:**
+
+```bash
+# LSTM model
+python main_lstm.py --symbol BTC/USDT --timeframe 1h --epochs 50
+
+# Temporal Fusion Transformer
+python modules/deeplearning/cli/main.py --symbol BTC/USDT --timeframe 1h --epochs 10 --gpu
+```
+
+**Compare Hybrid vs Voting analyzers:**
+
+```bash
+# Hybrid (sequential filtering - faster)
+python main_complex_hybrid.py --timeframe 1h --enable-spc --use-decision-matrix
+
+# Voting (parallel evaluation - more comprehensive)
+python main_complex_voting.py --timeframe 1h --enable-spc
+```
 
 ### For Advanced Users
 
-- **Customize configuration**: Edit files in `config/` directory
-- **Add new strategies**: Follow module structure in `modules/`
-- **Extend analyzers**: Modify `core/hybrid_analyzer.py` or `core/voting_analyzer.py`
-- **Add new indicators**: Extend `modules/common/IndicatorEngine.py`
+**Customize configuration:**
+
+- Edit files in `config/` directory to adjust parameters
+- Modify strategy weights and thresholds
+- Configure indicator profiles in `IndicatorEngine`
+
+**Add new strategies:**
+
+- Follow module structure in `modules/`
+- Implement strategy interface
+- Register with signal calculators
+- Add comprehensive tests
+
+**Extend core analyzers:**
+
+- Modify `core/hybrid_analyzer.py` for sequential filtering logic
+- Modify `core/voting_analyzer.py` for voting mechanisms
+- Add new signal calculators in `core/signal_calculators.py`
+
+**Add custom indicators:**
+
+- Extend `modules/common/IndicatorEngine.py`
+- Implement indicator in `modules/common/indicators/`
+- Register with appropriate profile (CORE, XGBOOST, DEEP_LEARNING)
 
 ### Workflow Selection Guide
 
-**Use Hybrid Analyzer (`main_hybrid.py`) when:**
-- You want to reduce computational load with early filtering
-- Range Oscillator is important for your strategy
-- You need a sequential, easy-to-debug workflow
-- You want fallback mechanisms
+**Choose Hybrid Analyzer when:**
 
-**Use Voting Analyzer (`main_voting.py`) when:**
-- You want to consider all indicators simultaneously
-- You have sufficient computational resources
-- You prefer a pure voting approach
-- You want maximum flexibility
+- ✅ Limited computational resources
+- ✅ Need faster results with early filtering
+- ✅ Range Oscillator confirmation is important
+- ✅ Prefer sequential, easy-to-debug workflow
+- ✅ Want fallback mechanisms
+- ✅ Analyzing large symbol pools (100+ symbols)
 
-See `core/README.md` for detailed comparison.
+**Choose Voting Analyzer when:**
+
+- ✅ Sufficient computational resources
+- ✅ Want to consider all indicators simultaneously
+- ✅ Prefer pure voting without sequential bias
+- ✅ Need maximum flexibility in signal combination
+- ✅ Analyzing smaller symbol pools (10-50 symbols)
+- ✅ Want potentially higher accuracy
+
+**Performance Comparison:**
+
+- Hybrid: ~30-60 seconds for 100 symbols
+- Voting: ~2-5 minutes for 100 symbols
+- Hybrid: 70-90% fewer calculations through early filtering
+- Voting: 100% of symbols get full indicator evaluation
+
+See `core/README.md` for detailed workflow comparison and decision tree.

@@ -193,8 +193,113 @@ The visualizer displays:
    - Average_Signal: Combined signal from all MA types
    - Individual MA signals: EMA_Signal, HMA_Signal, etc.
 
+## 📊 ATC Algorithm Parameters
+
+### Moving Average Lengths
+- **ema_len, hma_len, wma_len, dema_len, lsma_len, kama_len**: Base length for each MA type (default: 28)
+- Can be adjusted independently for different MA types
+
+### Robustness Parameter
+Controls the spread of MA offsets from base length:
+- **Narrow**: Small offsets (±1, ±2, ±3, ±4)
+- **Medium** (default): Medium offsets (±1, ±2, ±4, ±6)
+- **Wide**: Large offsets (±1, ±3, ±5, ±7)
+
+### Lambda Parameter
+- **lambda_param** (0.0 - 1.0, default: 0.02)
+- Controls the adaptation rate for signal smoothing
+
+### Decay Parameter
+- **decay** (0.0 - 1.0, default: 0.03)
+- Exponential decay factor for signal weighting
+
+### Cutout Parameter
+- **cutout** (integer, default: 0)
+- Number of candles to exclude from recent calculations
+
+## 🔢 MA Offset Pattern
+
+For each MA type, 9 MAs are calculated with different length offsets:
+
+| MA Name | Length Formula | Purpose |
+|---------|---------------|---------|
+| MA | base_length | Main MA at base length |
+| MA1 | base_length + offset1 | Faster MA |
+| MA2 | base_length + offset2 | |
+| MA3 | base_length + offset3 | |
+| MA4 | base_length + offset4 | |
+| MA_1 | base_length - offset1 | Slower MA |
+| MA_2 | base_length - offset2 | |
+| MA_3 | base_length - offset3 | |
+| MA_4 | base_length - offset4 | |
+
+The offset values depend on the **robustness** setting (see above).
+
+## 🎯 Signal Legend
+
+### Signal Types
+- **Average_Signal**: Combined signal from all 6 MA types (EMA, HMA, WMA, DEMA, LSMA, KAMA)
+- **EMA_Signal**: Buy/sell signals based on EMA crossovers
+- **HMA_Signal**: Buy/sell signals based on HMA crossovers
+- **WMA_Signal**: Buy/sell signals based on WMA crossovers
+- **DEMA_Signal**: Buy/sell signals based on DEMA crossovers
+- **LSMA_Signal**: Buy/sell signals based on LSMA crossovers
+- **KAMA_Signal**: Buy/sell signals based on KAMA crossovers
+
+### Signal Values
+- **+1.0**: Strong Buy signal (↑ green triangle)
+- **0.0**: Neutral (no action)
+- **-1.0**: Strong Sell signal (↓ red triangle)
+- Values between -1 and 1 indicate signal strength
+
+## ⚙️ Default Configuration
+
+| Parameter | Default Value | Range | Description |
+|-----------|---------------|-------|-------------|
+| Symbol | BTC/USDT | - | Trading pair |
+| Timeframe | 15m | 1m-1d | Chart timeframe |
+| Limit | 1500 | 100-5000 | Number of candles |
+| MA Lengths | 28 | 1+ | Base length for all MAs |
+| Robustness | Medium | Narrow/Medium/Wide | MA offset spread |
+| Lambda | 0.02 | 0.0-1.0 | Signal adaptation rate |
+| Decay | 0.03 | 0.0-1.0 | Exponential decay factor |
+| Cutout | 0 | 0+ | Candles to exclude |
+
+## 🔧 Technical Details
+
+### MA Types & Formulas
+- **EMA** (Exponential Moving Average): Weights recent prices more heavily
+- **HMA** (Hull Moving Average): Uses SMA (not classic HMA) - smooths price data
+- **WMA** (Weighted Moving Average): Linear weighting of prices
+- **DEMA** (Double EMA): Reduces lag more than single EMA
+- **LSMA** (Least Squares MA): Linear regression-based MA
+- **KAMA** (Kaufman Adaptive MA): Adjusts based on market volatility (fast=2, slow=30)
+
+### ATC Signal Logic
+1. For each MA type, compute 9 MAs with different lengths
+2. Detect crossovers between faster and slower MAs
+3. Generate individual signals per MA type
+4. Average all MA signals to create combined signal
+5. Apply smoothing with lambda and decay parameters
+
+## 💾 Data Source & Exchange
+
+### Primary Exchange
+- **Binance Futures** for data fetching
+- Real-time market data via ccxt library
+
+### Fallback Mechanism
+- Automatic fallback to alternative exchanges if primary fails
+- Uses `ExchangeManager` for resilient data fetching
+- Supports multiple USDT-M futures pairs
+
+### Available Symbols
+- Top 50 USDT-M futures pairs by volume
+- Listed via `/api/symbols` endpoint
+
 ## 🔌 API Endpoints
 
+### Endpoints
 - `GET /` - Health check with app info
 - `GET /api/health` - API health check
 - `GET /api/symbols` - List available trading symbols
@@ -203,12 +308,83 @@ The visualizer displays:
 - `GET /api/moving-averages` - Get all Moving Averages
 - `GET /api/timeframes` - Get available timeframes
 
+### API Request Examples
+
+#### Fetch OHLCV Data
+```bash
+curl "http://localhost:8002/api/ohlcv?symbol=BTC/USDT&timeframe=15m&limit=1500"
+```
+
+#### Compute ATC Signals
+```bash
+curl "http://localhost:8002/api/atc-signals?symbol=BTC/USDT&timeframe=15m&limit=1500&ema_len=28&robustness=Medium"
+```
+
+#### Get Moving Averages
+```bash
+curl "http://localhost:8002/api/moving-averages?symbol=BTC/USDT&timeframe=15m&limit=1500"
+```
+
+#### List Available Symbols
+```bash
+curl "http://localhost:8002/api/symbols"
+```
+
+## 📦 Dependencies & Module Integration
+
+### Parent Module Dependencies
+The visualizer uses the following modules from the parent `modules/` directory:
+
+- `modules/adaptive_trend/` - ATC algorithm implementation
+  - `core/analyzer.py` - Main ATC analysis logic
+  - `core/compute_moving_averages.py` - MA calculations
+  - `core/compute_atc_signals.py` - Signal computation
+  - `utils/config.py` - ATC configuration classes
+  - `utils/diflen.py` - MA offset calculations
+
+- `modules/common/` - Shared utilities
+  - `core/data_fetcher.py` - OHLCV data fetching
+  - `core/exchange_manager.py` - Exchange connection management
+  - `indicators/momentum.py` - KAMA and other momentum indicators
+  - `utils/logging.py` - Logging utilities
+
+### Backend Requirements
+```txt
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pandas>=2.1.4
+numpy>=1.25.0
+```
+
+### Frontend Dependencies
+```json
+{
+  "dependencies": {
+    "vue": "^3.3.4",
+    "apexcharts": "^4.0.0",
+    "vue3-apexcharts": "^1.10.0"
+  }
+}
+```
+
 ## 🛠️ Technologies
 
-- **Backend**: FastAPI, Pandas, NumPy
-- **Frontend**: Vue.js 3, ApexCharts, Vite
-- **Data**: ccxt (exchange integration), pandas_ta (technical indicators)
-- **API Server**: Uvicorn
+### Backend
+- **FastAPI** (v0.104+): Modern, fast web framework for building APIs
+- **Uvicorn**: ASGI server for FastAPI
+- **Pandas** (v2.1.4+): Data manipulation and analysis
+- **NumPy** (v1.25.0+): Numerical computing
+
+### Frontend
+- **Vue.js 3** (v3.3.4+): Progressive JavaScript framework
+- **ApexCharts** (v4.0.0): Modern charting library
+- **vue3-apexcharts** (v1.10.0): Vue 3 wrapper for ApexCharts
+- **Vite** (v7.3.1+): Next-gen frontend build tool
+
+### Data & Utilities
+- **ccxt**: Exchange integration library (via modules/)
+- **pandas_ta**: Technical analysis indicators (via modules/)
+- **Custom modules**: adaptive_trend, common (from parent directory)
 
 ## 📚 API Documentation
 
@@ -306,6 +482,26 @@ server: {
 4. **Clear browser cache** if frontend seems broken
 5. **Restart IDE** after path changes - LSP errors may be stale
 
+## ⚡ Performance Optimization
+
+### Recommended Settings
+| Use Case | Timeframe | Limit | Robustness |
+|----------|-----------|-------|------------|
+| Scalp Trading | 1m-5m | 500-1000 | Narrow |
+| Day Trading | 15m-1h | 1500-2000 | Medium |
+| Swing Trading | 4h-1d | 2000-5000 | Wide |
+
+### Performance Tips
+- **Lower limits (500-1000)** for faster loading on slower connections
+- **Wider robustness** for trend-following strategies
+- **Narrow robustness** for quick signal detection
+- **Avoid loading 5000 candles on 1m timeframe** - may be slow
+
+### Browser Performance
+- Use Chrome or Firefox for best ApexCharts performance
+- Close other tabs when viewing large datasets
+- Enable hardware acceleration in browser settings
+
 ## 🎯 Key Files
 
 | File | Purpose |
@@ -324,9 +520,121 @@ server: {
 - FastAPI provides automatic validation and type checking for all parameters
 - Port 8002 (backend) and 5174 (frontend) are allocated for this app
 
+## ❓ FAQ
+
+### Q: Why are some MA lines not showing?
+A: Use the SignalLegend panel (bottom of page) to toggle MA types on/off. EMA and HMA are enabled by default.
+
+### Q: What do the different MA colors mean?
+A: Colors are for visual distinction only:
+- EMA: Green (#00E396)
+- HMA: Yellow (#FEB019)
+- WMA: Purple (#775DD0)
+- DEMA: Blue (#008FFB)
+- LSMA: Red (#FF4560)
+- KAMA: Purple (#775DD0)
+
+### Q: How are signals calculated?
+A: Signals are generated by comparing faster MAs (MA1-MA4) against slower MAs (MA_1-MA_4). Crossovers generate buy/sell signals.
+
+### Q: Why use 9 MAs instead of just 1?
+A: The ATC algorithm uses multiple MA offsets to detect trends at different sensitivities, then averages signals for more reliable predictions.
+
+### Q: Can I customize MA colors?
+A: Yes, edit `frontend/src/utils/chartHelper.js` and modify the color hex codes in the `maColors` object.
+
+### Q: Which MA type is best for trading?
+A: There's no "best" MA - each has different characteristics:
+- EMA: Responsive, good for trending markets
+- HMA: Smooth, reduces lag
+- WMA: Simple, widely used
+- DEMA: Very responsive, can be noisy
+- LSMA: Predictive, good for reversals
+- KAMA: Adaptive, adjusts to volatility
+
+## 🛠️ Extending the Visualizer
+
+### Adding New MA Types
+1. Add calculation logic in `modules/common/indicators/`
+2. Update `modules/adaptive_trend/core/compute_moving_averages.py`
+3. Add to frontend legend in `SignalLegend.vue`
+4. Update chart colors in `chartHelper.js`
+
+### Customizing Chart Appearance
+- Edit `frontend/src/components/ChartView.vue` for layout
+- Edit `frontend/src/utils/chartHelper.js` for ApexCharts configuration
+- ApexCharts API: https://apexcharts.com/docs/options/
+
+### Adding New API Endpoints
+1. Add endpoint function in `backend/main.py`
+2. Add corresponding service method in `backend/services/atc_service.py`
+3. Access via frontend in `frontend/src/services/api.js`
+
 ## 🔗 Related Links
 
 - [Main Web Documentation](../README.md)
 - [Architecture Overview](../docs/ARCHITECTURE.md)
 - [Adding New Apps Guide](../docs/ADDING_NEW_APP.md)
 - [Migration Summary](../MIGRATION_SUMMARY.md)
+
+## 🔬 Development & Testing
+
+### Verify Module Imports
+To verify that all parent modules are correctly imported:
+```bash
+cd web/apps/atc_visualizer/backend
+python test_import.py
+```
+
+Expected output: `✅ SUCCESS: All modules imported!`
+
+### Debug Path Issues
+If you encounter import errors, check the path configuration:
+```bash
+cd web/apps/atc_visualizer/backend
+python test_path.py
+```
+
+### Backend Development
+```bash
+# Start backend with auto-reload
+cd web/apps/atc_visualizer/backend
+uvicorn main:app --reload --port 8002
+
+# Check API documentation
+# Open http://localhost:8002/docs in browser
+```
+
+### Frontend Development
+```bash
+cd web/apps/atc_visualizer/frontend
+npm run dev
+
+# Preview production build
+npm run build
+npm run preview
+```
+
+### Linting & Formatting
+```bash
+# Backend (Python)
+pip install black flake8
+cd web/apps/atc_visualizer/backend
+black .
+flake8 .
+
+# Frontend (JavaScript/ESLint - if configured)
+cd web/apps/atc_visualizer/frontend
+npm run lint  # if package.json has lint script
+```
+
+## 📝 Change Log
+
+### v1.0.0
+- Initial release with ATC visualization
+- Support for 6 MA types (EMA, HMA, WMA, DEMA, LSMA, KAMA)
+- 9 MAs per type with configurable robustness
+- Real-time chart with ApexCharts
+- Vue.js 3 frontend with dark mode
+- FastAPI backend with auto-generated docs
+
