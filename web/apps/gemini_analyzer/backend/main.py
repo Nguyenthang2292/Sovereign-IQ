@@ -54,6 +54,12 @@ app.include_router(logs.router, prefix=API_PREFIX, tags=["Logs"])
 app.mount(STATIC_CHARTS_ROUTE, StaticFiles(directory=str(CHARTS_DIR)), name="charts")
 app.mount(STATIC_RESULTS_ROUTE, StaticFiles(directory=str(RESULTS_DIR)), name="results")
 
+# Mount shared assets
+project_root = Path(__file__).resolve().parent.parent.parent.parent
+shared_dir = project_root / "web" / "shared"
+if shared_dir.exists():
+    app.mount("/shared", StaticFiles(directory=str(shared_dir)), name="shared")
+
 
 @app.get("/")
 async def root():

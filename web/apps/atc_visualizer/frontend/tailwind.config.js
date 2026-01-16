@@ -19,6 +19,7 @@ export default {
       backgroundImage: {
         'gradient-blue-purple': 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
         'gradient-cyan-magenta': 'linear-gradient(135deg, #00f0ff 0%, #ff00ff 100%)',
+        'btn-gradient': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       },
       boxShadow: {
         'neon-cyan': '0 0 20px rgba(0, 240, 255, 0.5)',
@@ -33,4 +34,3 @@ export default {
   },
   plugins: [],
 }
-

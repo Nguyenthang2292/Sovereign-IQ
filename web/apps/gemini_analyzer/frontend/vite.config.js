@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { fileURLToPath, URL } from 'node:url'
+import vue from '@vitejs/plugin-vue';
+import { fileURLToPath, URL } from 'node:url';
+import { defineConfig } from 'vite';
 
 // Determine sourcemap configuration based on environment variable
 let sourcemap;
@@ -15,7 +15,7 @@ if (process.env.GENERATE_SOURCEMAPS === 'true') {
 // https://vitejs.dev/config/
 export default defineConfig(async ({ mode }) => {
   const plugins = [vue()]
-  
+
   // Only load imagemin plugin in production builds to avoid import issues in dev
   if (mode === 'production') {
     try {
@@ -42,7 +42,7 @@ export default defineConfig(async ({ mode }) => {
               {
                 name: 'removeViewBox',
                 active: false,
-              },          
+              },
               {
                 name: 'removeEmptyAttrs',
                 active: false,
@@ -61,8 +61,8 @@ export default defineConfig(async ({ mode }) => {
       )
     }
   }
-  
-  return {    
+
+  return {
     plugins,
     resolve: {
       alias: {

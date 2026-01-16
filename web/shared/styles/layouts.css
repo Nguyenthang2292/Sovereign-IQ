@@ -1,0 +1,107 @@
+/* ====================================================================
+ * LAYOUTS
+ * Main content layout, responsive adjustments, and utility classes
+ * ==================================================================== */
+
+/* ============================================
+ * Main Content Layout
+ * Note: Requires .sidebar and .main-content to be siblings in the DOM
+ * The sibling selector (.sidebar.collapsed ~ .main-content) depends on this structure
+ * ============================================ */
+.main-content {
+  margin-left: var(--sidebar-width-expanded);
+  flex: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left var(--transition-slow);
+  width: calc(100% - var(--sidebar-width-expanded));
+}
+
+.main-content-wrapper {
+  flex: 1;
+  padding: var(--spacing-2xl);
+}
+
+.sidebar.collapsed ~ .main-content {
+  margin-left: var(--sidebar-width-collapsed);
+  width: calc(100% - var(--sidebar-width-collapsed));
+}
+
+/* ============================================
+ * Container Utilities
+ * ============================================ */
+.container {
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ============================================
+ * Responsive Adjustments
+ * ============================================ */
+
+/* Mobile Sidebar */
+@media (max-width: 767px) {
+  .sidebar {
+    width: var(--sidebar-width-expanded);
+    transform: translateX(-100%);
+    transition: transform var(--transition-slow);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+    padding: var(--spacing-lg);
+    padding-top: 4rem; /* Space for mobile menu button */
+  }
+
+  .sidebar.collapsed {
+    width: var(--sidebar-width-expanded); /* Don't collapse on mobile */
+  }
+
+  .sidebar-collapse-btn {
+    display: none;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .sidebar {
+    width: var(--sidebar-width-tablet);
+  }
+
+  .sidebar.collapsed {
+    width: var(--sidebar-width-collapsed);
+  }
+
+  .main-content {
+    margin-left: var(--sidebar-width-tablet);
+    width: calc(100% - var(--sidebar-width-tablet));
+  }
+
+  .sidebar.collapsed ~ .main-content {
+    margin-left: var(--sidebar-width-collapsed);
+    width: calc(100% - var(--sidebar-width-collapsed));
+  }
+
+  .sidebar-collapse-btn {
+    left: calc(var(--sidebar-width-tablet) + 12px);
+  }
+
+  .sidebar-collapse-btn.collapsed {
+    left: calc(var(--sidebar-width-collapsed) + 12px);
+  }
+}
+
+/* Responsive adjustments for glass panels */
+@media (max-width: 640px) {
+  .glass-panel {
+    backdrop-filter: var(--blur-sm);
+    -webkit-backdrop-filter: var(--blur-sm);
+  }
+}

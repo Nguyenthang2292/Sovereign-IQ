@@ -1,5 +1,5 @@
 <template>
-  <div class="signal-legend">
+  <div class="glass-panel">
     <div class="legend-section">
       <h3>Moving Averages</h3>
       <div class="legend-grid">
@@ -8,10 +8,9 @@
           :key="maType"
           class="legend-item"
         >
-          <input
-            type="checkbox"
-            v-model="visibleMas[maType]"
-            :style="{ accentColor: getMAColor(maType) }"
+          <Checkbox
+            :model-value="visible"
+            @update:model-value="updateVisibleMA(maType, $event)"
           />
           <span :style="{ color: getMAColor(maType) }">{{ maType }}</span>
         </label>
@@ -26,10 +25,9 @@
           :key="signalType"
           class="legend-item"
         >
-          <input
-            type="checkbox"
-            v-model="showSignals[signalType]"
-            :style="{ accentColor: getSignalColor(signalType) }"
+          <Checkbox
+            :model-value="visible"
+            @update:model-value="updateShowSignal(signalType, $event)"
           />
           <span :style="{ color: getSignalColor(signalType) }">{{ signalType }}</span>
         </label>
@@ -53,7 +51,9 @@
 </template>
 
 <script setup>
-defineProps({
+import Checkbox from '@shared/components/Checkbox.vue'
+
+const props = defineProps({
   visibleMas: {
     type: Object,
     required: true
@@ -63,6 +63,8 @@ defineProps({
     required: true
   }
 })
+
+const emit = defineEmits(['update:visibleMas', 'update:showSignals'])
 
 const getMAColor = (maType) => {
   const colors = {
@@ -88,15 +90,26 @@ const getSignalColor = (signalType) => {
   }
   return colors[signalType] || '#888'
 }
+
+function updateVisibleMA(maType, value) {
+  emit('update:visibleMas', { ...props.visibleMas, [maType]: value })
+}
+
+function updateShowSignal(signalType, value) {
+  emit('update:showSignals', { ...props.showSignals, [signalType]: value })
+}
 </script>
 
 <style scoped>
-.signal-legend {
-  background-color: #16213e;
+.glass-panel {
+  background: rgba(20, 20, 30, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
 .legend-section {

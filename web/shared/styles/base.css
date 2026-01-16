@@ -1,0 +1,164 @@
+/* ====================================================================
+ * BASE STYLES
+ * Reset, typography, scrollbar, and fundamental element styles
+ * ==================================================================== */
+
+/* ============================================
+ * Tailwind Base (if using Tailwind)
+ * Uncomment if apps use Tailwind CSS
+ * ============================================ */
+/*
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+*/
+
+/* ============================================
+ * Body & Root Styles
+ * ============================================ */
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  overflow-x: hidden;
+}
+
+#app {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* ============================================
+ * Custom Scrollbar (Webkit browsers)
+ * ============================================ */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(20, 20, 30, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.5);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.7);
+}
+
+/* Firefox scrollbar fallback */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.5) rgba(20, 20, 30, 0.5);
+}
+
+/* ============================================
+ * Background Layers
+ * ============================================ */
+.app-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-background);
+  background-image: url('./img/aicomplex-1766821124385.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+.app-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-overlay);
+  background: var(--color-glass-overlay);
+  pointer-events: none;
+}
+
+.app-content {
+  position: relative;
+  z-index: var(--z-content);
+}
+
+/* ============================================
+ * Custom Dropdown/Select Styles
+ * ============================================ */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1em 1em;
+  padding-right: 2.5rem;
+  cursor: pointer;
+}
+
+/* Note: Native <select> <option> elements are OS-rendered and don't support 
+   advanced CSS properties like backdrop-filter, gradients, transitions, 
+   :hover/:focus/:checked pseudo-classes, or border-radius.
+   
+   The application uses CustomDropdown component instead, which supports 
+   all these visual effects. If native select is needed, only basic 
+   properties are supported:
+   - background-color
+   - color
+   - font-weight
+   - padding
+   - simple borders
+*/
+
+/* Custom Select Container with Glassmorphism */
+.select-container {
+  position: relative;
+}
+
+/* Use @layer overrides to ensure these rules load last and override conflicting styles */
+@layer overrides {
+  /* Increased specificity: .select-container.select-glass select */
+  .select-container.select-glass select,
+  /* Alternative: utility class on select element itself */
+  .select-container select.select-glass,
+  /* Fallback: higher specificity for default styling */
+  .select-container select {
+    background-color: rgba(55, 65, 81, 0.25);
+    backdrop-filter: var(--blur-xl);
+    -webkit-backdrop-filter: var(--blur-xl);
+    transition: all var(--transition-normal);
+  }
+
+  .select-container.select-glass select:focus,
+  .select-container select.select-glass:focus,
+  .select-container select:focus {
+    background-color: rgba(55, 65, 81, 0.4);
+    border-color: rgba(139, 92, 246, 0.8);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+  }
+
+  .select-container.select-glass select:hover,
+  .select-container select.select-glass:hover,
+  .select-container select:hover {
+    background-color: rgba(55, 65, 81, 0.35);
+    border-color: rgba(139, 92, 246, 0.5);
+  }
+}
+
+/* ============================================
+ * Responsive Mobile Adjustments
+ * ============================================ */
+@media (max-width: 640px) {
+  .app-background {
+    background-attachment: scroll;
+  }
+}

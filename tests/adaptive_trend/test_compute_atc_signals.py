@@ -180,6 +180,43 @@ def test_compute_atc_signals_different_decay():
     # Different decay should produce different results
 
 
+def test_compute_atc_signals_thresholds():
+    """Test that compute_atc_signals accepts long_threshold and short_threshold."""
+    prices = pd.Series(np.linspace(100.0, 110.0, 200))
+
+    result_default = compute_atc_signals(prices)
+    result_custom = compute_atc_signals(
+        prices,
+        long_threshold=0.2,
+        short_threshold=-0.2,
+    )
+
+    assert result_default is not None
+    assert result_custom is not None
+    assert "Average_Signal" in result_default
+    assert "Average_Signal" in result_custom
+    # Different thresholds may produce different cut signals
+    assert len(result_default["Average_Signal"]) == len(result_custom["Average_Signal"])
+
+
+def test_compute_atc_signals_thresholds_defaults():
+    """Test that compute_atc_signals uses default thresholds correctly."""
+    prices = pd.Series(np.linspace(100.0, 110.0, 200))
+
+    # Test with default thresholds (0.1 and -0.1)
+    result = compute_atc_signals(prices)
+
+    assert result is not None
+    assert "Average_Signal" in result
+    # Average_Signal is a weighted average (continuous), not a cut signal
+    # The thresholds are used internally in cut_signal for individual MA signals
+    average_signal = result["Average_Signal"]
+    # Should be finite values (may have NaN at beginning)
+    assert average_signal.notna().any()
+    # Should be a Series with same length as prices
+    assert len(average_signal) == len(prices)
+
+
 def test_compute_atc_signals_average_signal_calculation():
     """Test that Average_Signal is calculated correctly."""
     prices = pd.Series(np.linspace(100.0, 110.0, 200))

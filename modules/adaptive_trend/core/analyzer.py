@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals
 from modules.adaptive_trend.utils.config import ATCConfig
+from modules.common.utils import log_warn
 
 __all__ = ["analyze_symbol"]
 
@@ -70,36 +71,45 @@ def analyze_symbol(
 
         exchange_label = exchange_id.upper() if exchange_id else "UNKNOWN"
 
-        # Get close prices
-        if "close" not in df.columns:
-            log_error(f"No 'close' column in data for {symbol}")
+        # Get price source based on calculation_source config
+        calculation_source = config.calculation_source.lower()
+        valid_sources = ["close", "open", "high", "low"]
+        
+        if calculation_source not in valid_sources:
+            log_warn(f"Invalid calculation_source '{calculation_source}', using 'close'")
+            calculation_source = "close"
+        
+        if calculation_source not in df.columns:
+            log_error(f"No '{calculation_source}' column in data for {symbol}")
             return None
 
-        close_prices = df["close"]
-        current_price = close_prices.iloc[-1]
+        price_series = df[calculation_source]
+        current_price = price_series.iloc[-1]
 
         # Calculate ATC signals
-        log_progress(f"Calculating ATC signals for {symbol}...")
+        log_progress(f"Calculating ATC signals for {symbol} using {calculation_source} prices...")
 
         atc_results = compute_atc_signals(
-            prices=close_prices,
-            src=None,  # Use close prices as source
+            prices=price_series,
+            src=None,  # Use selected price source
             ema_len=config.ema_len,
             hull_len=config.hma_len,
             wma_len=config.wma_len,
             dema_len=config.dema_len,
             lsma_len=config.lsma_len,
             kama_len=config.kama_len,
-            ema_w=1.0,
-            hma_w=1.0,
-            wma_w=1.0,
-            dema_w=1.0,
-            lsma_w=1.0,
-            kama_w=1.0,
+            ema_w=config.ema_w,
+            hma_w=config.hma_w,
+            wma_w=config.wma_w,
+            dema_w=config.dema_w,
+            lsma_w=config.lsma_w,
+            kama_w=config.kama_w,
             robustness=config.robustness,
             La=config.lambda_param,
             De=config.decay,
             cutout=config.cutout,
+            long_threshold=config.long_threshold,
+            short_threshold=config.short_threshold,
         )
 
         # Return results instead of displaying

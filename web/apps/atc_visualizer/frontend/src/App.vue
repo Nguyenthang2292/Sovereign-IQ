@@ -23,7 +23,7 @@
         v-model:show-signals="showSignals"
       />
 
-      <ChartView
+      <LightweightChartView
         v-if="dataLoaded"
         :ohlcv="ohlcvData"
         :moving-averages="movingAveragesData"
@@ -42,10 +42,10 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, shallowRef } from 'vue'
 import ParameterPanel from './components/ParameterPanel.vue'
 import SignalLegend from './components/SignalLegend.vue'
-import ChartView from './components/ChartView.vue'
+import LightweightChartView from './components/LightweightChartView.vue'
 
 let symbol = ref('BTC/USDT')
 let timeframe = ref('15m')
@@ -55,9 +55,10 @@ const loading = ref(false)
 const error = ref(null)
 const dataLoaded = ref(false)
 
-const ohlcvData = ref(null)
-const movingAveragesData = ref(null)
-const signalsData = ref(null)
+// Use shallowRef for large datasets to improve performance
+const ohlcvData = shallowRef(null)
+const movingAveragesData = shallowRef(null)
+const signalsData = shallowRef(null)
 
 let visibleMas = reactive({
   EMA: true,
@@ -91,21 +92,46 @@ const loadData = async () => {
     })
 
     const [ohlcvRes, signalsRes, masRes] = await Promise.all([
-      fetch(`/api/ohlcv?${params}`),
-      fetch(`/api/atc-signals?${params}`),
-      fetch(`/api/moving-averages?${params}`)
+      fetch(`/api/ohlcv?${params}`).catch(err => {
+        console.error('Error fetching OHLCV:', err)
+        return { ok: false, status: 500, json: async () => ({ success: false, error: `Network error: ${err.message}` }) }
+      }),
+      fetch(`/api/atc-signals?${params}`).catch(err => {
+        console.error('Error fetching ATC signals:', err)
+        return { ok: false, status: 500, json: async () => ({ success: false, error: `Network error: ${err.message}` }) }
+      }),
+      fetch(`/api/moving-averages?${params}`).catch(err => {
+        console.error('Error fetching moving averages:', err)
+        return { ok: false, status: 500, json: async () => ({ success: false, error: `Network error: ${err.message}` }) }
+      })
     ])
+
+    // Check if responses are OK
+    if (!ohlcvRes.ok) {
+      const errorData = await ohlcvRes.json().catch(() => ({ error: `HTTP ${ohlcvRes.status}: Failed to load OHLCV data` }))
+      throw new Error(errorData.error || errorData.detail || `HTTP ${ohlcvRes.status}: Failed to load OHLCV data`)
+    }
+
+    if (!signalsRes.ok) {
+      const errorData = await signalsRes.json().catch(() => ({ error: `HTTP ${signalsRes.status}: Failed to load ATC signals` }))
+      throw new Error(errorData.error || errorData.detail || `HTTP ${signalsRes.status}: Failed to load ATC signals`)
+    }
+
+    if (!masRes.ok) {
+      const errorData = await masRes.json().catch(() => ({ error: `HTTP ${masRes.status}: Failed to load moving averages` }))
+      throw new Error(errorData.error || errorData.detail || `HTTP ${masRes.status}: Failed to load moving averages`)
+    }
 
     const ohlcvDataResult = await ohlcvRes.json()
     const signalsDataResult = await signalsRes.json()
     const masDataResult = await masRes.json()
 
     if (!ohlcvDataResult.success) {
-      throw new Error(ohlcvDataResult.error || 'Failed to load OHLCV data')
+      throw new Error(ohlcvDataResult.error || ohlcvDataResult.detail || 'Failed to load OHLCV data')
     }
 
     if (!signalsDataResult.success) {
-      throw new Error(signalsDataResult.error || 'Failed to load ATC signals')
+      throw new Error(signalsDataResult.error || signalsDataResult.detail || 'Failed to load ATC signals')
     }
 
     // Correct data extraction based on backend response structure
@@ -113,9 +139,24 @@ const loadData = async () => {
     signalsData.value = signalsDataResult.data.signals
     movingAveragesData.value = masDataResult.success ? masDataResult.data : null
 
+    // Debug log for signals
+    console.log('=== ATC Signals Debug ===')
+    console.log('Signal keys:', Object.keys(signalsData.value || {}))
+    if (signalsData.value && signalsData.value.Average_Signal) {
+      console.log('Average_Signal sample:', signalsData.value.Average_Signal.slice(0, 5))
+      const strongSignals = signalsData.value.Average_Signal.filter(p => Math.abs(p.y) >= 0.5)
+      console.log(`Average_Signal points with |y| >= 0.5: ${strongSignals.length} / ${signalsData.value.Average_Signal.length}`)
+      if (strongSignals.length > 0) {
+        console.log('Sample strong signals:', strongSignals.slice(0, 3))
+      }
+    } else {
+      console.warn('Average_Signal not found in response!')
+    }
+
     dataLoaded.value = true
   } catch (err) {
-    error.value = err.message
+    console.error('Error loading data:', err)
+    error.value = err.message || 'An unexpected error occurred. Please check if the backend server is running on port 8002.'
   } finally {
     loading.value = false
   }

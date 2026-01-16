@@ -84,6 +84,8 @@ def compute_atc_signals(
     La: float = 0.02,
     De: float = 0.03,
     cutout: int = 0,
+    long_threshold: float = 0.1,
+    short_threshold: float = -0.1,
 ) -> dict[str, pd.Series]:
     """
     Compute Adaptive Trend Classification (ATC) signals.
@@ -105,6 +107,8 @@ def compute_atc_signals(
         La: Lambda (growth rate) for exponential growth factor.
         De: Decay rate for equity calculations.
         cutout: Number of bars to skip at the beginning.
+        long_threshold: Threshold for LONG signals (default: 0.1).
+        short_threshold: Threshold for SHORT signals (default: -0.1).
 
     Returns:
         Dictionary containing:
@@ -206,7 +210,12 @@ def compute_atc_signals(
         equity = layer2_equities[ma_type]
 
         # Cut signal: vectorized operation
-        cut_sig = cut_signal(signal, cutout=cutout)
+        cut_sig = cut_signal(
+            signal,
+            long_threshold=long_threshold,
+            short_threshold=short_threshold,
+            cutout=cutout,
+        )
 
         # Convert to numpy arrays for faster computation
         cut_sig_values = cut_sig.values

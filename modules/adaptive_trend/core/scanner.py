@@ -279,16 +279,23 @@ def _process_symbol(
         if df is None or df.empty:
             return None
 
-        if "close" not in df.columns:
+        # Get price source based on calculation_source config
+        calculation_source = atc_config.calculation_source.lower()
+        valid_sources = ["close", "open", "high", "low"]
+        
+        if calculation_source not in valid_sources:
+            calculation_source = "close"
+        
+        if calculation_source not in df.columns:
             return None
 
-        close_prices = df["close"]
+        price_series = df[calculation_source]
 
         # Validate we have enough data
-        if len(close_prices) < atc_config.limit:
+        if len(price_series) < atc_config.limit:
             return None
 
-        current_price = close_prices.iloc[-1]
+        current_price = price_series.iloc[-1]
 
         # Validate price is valid
         if pd.isna(current_price) or current_price <= 0:
@@ -296,7 +303,7 @@ def _process_symbol(
 
         # Calculate ATC signals
         atc_results = compute_atc_signals(
-            prices=close_prices,
+            prices=price_series,
             src=None,
             ema_len=atc_config.ema_len,
             hull_len=atc_config.hma_len,
@@ -304,16 +311,18 @@ def _process_symbol(
             dema_len=atc_config.dema_len,
             lsma_len=atc_config.lsma_len,
             kama_len=atc_config.kama_len,
-            ema_w=1.0,
-            hma_w=1.0,
-            wma_w=1.0,
-            dema_w=1.0,
-            lsma_w=1.0,
-            kama_w=1.0,
+            ema_w=atc_config.ema_w,
+            hma_w=atc_config.hma_w,
+            wma_w=atc_config.wma_w,
+            dema_w=atc_config.dema_w,
+            lsma_w=atc_config.lsma_w,
+            kama_w=atc_config.kama_w,
             robustness=atc_config.robustness,
             La=atc_config.lambda_param,
             De=atc_config.decay,
             cutout=atc_config.cutout,
+            long_threshold=atc_config.long_threshold,
+            short_threshold=atc_config.short_threshold,
         )
 
         average_signal = atc_results.get("Average_Signal")

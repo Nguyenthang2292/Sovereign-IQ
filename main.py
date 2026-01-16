@@ -3,7 +3,6 @@ import sys
 import time
 import signal
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
 
 
 class ProcessManager:

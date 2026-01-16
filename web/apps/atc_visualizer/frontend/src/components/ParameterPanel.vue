@@ -1,59 +1,66 @@
 <template>
-  <div class="parameter-panel">
+  <div class="glass-panel">
     <div class="panel-title">Chart Parameters</div>
 
     <div class="param-grid">
       <div class="param-group">
         <label for="symbol">Symbol</label>
-        <input
+        <Input
           id="symbol"
           v-model="localSymbol"
           type="text"
           placeholder="BTC/USDT"
           @keyup.enter="handleLoad"
+          icon="💵"
+          fullWidth
         />
       </div>
 
       <div class="param-group">
         <label for="timeframe">Timeframe</label>
-        <select id="timeframe" v-model="localTimeframe">
-          <option value="1m">1 Minute</option>
-          <option value="5m">5 Minutes</option>
-          <option value="15m">15 Minutes</option>
-          <option value="30m">30 Minutes</option>
-          <option value="1h">1 Hour</option>
-          <option value="4h">4 Hours</option>
-          <option value="1d">1 Day</option>
-        </select>
+        <CustomDropdown
+          id="timeframe"
+          v-model="localTimeframe"
+          :options="timeframeOptions"
+          placeholder="Select timeframe"
+        />
       </div>
 
       <div class="param-group">
         <label for="limit">Number of Candles</label>
-        <input
+        <Input
           id="limit"
           v-model.number="localLimit"
           type="number"
           min="100"
           max="5000"
           step="100"
+          icon="📊"
+          placeholder="Enter limit"
+          fullWidth
         />
       </div>
 
       <div class="param-group button-group">
-        <button
+        <Button
           @click="handleLoad"
           :disabled="loading"
-          class="load-button"
+          :loading="loading"
+          loadingText="Loading..."
+          variant="primary"
+          fullWidth
         >
-          <span v-if="!loading">Load Data</span>
-          <span v-else>Loading...</span>
-        </button>
+          Load Data
+        </Button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import Button from '@shared/components/Button.vue'
+import CustomDropdown from '@shared/components/CustomDropdown.vue'
+import Input from '@shared/components/Input.vue'
 import { computed } from 'vue'
 
 const props = defineProps({
@@ -95,15 +102,28 @@ const localLimit = computed({
 const handleLoad = () => {
   emit('load-data')
 }
+
+const timeframeOptions = computed(() => [
+  { value: '1m', label: '1 Minute' },
+  { value: '5m', label: '5 Minutes' },
+  { value: '15m', label: '15 Minutes' },
+  { value: '30m', label: '30 Minutes' },
+  { value: '1h', label: '1 Hour' },
+  { value: '4h', label: '4 Hours' },
+  { value: '1d', label: '1 Day' }
+])
 </script>
 
 <style scoped>
-.parameter-panel {
-  background-color: #16213e;
+.glass-panel {
+  background: rgba(20, 20, 30, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 25px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
 .panel-title {
@@ -132,51 +152,6 @@ const handleLoad = () => {
   font-size: 0.9em;
   margin-bottom: 8px;
   font-weight: 500;
-}
-
-.param-group input,
-.param-group select {
-  background-color: #0f3460;
-  border: 1px solid #1a1a2e;
-  border-radius: 6px;
-  padding: 12px 15px;
-  color: #e0e0e0;
-  font-size: 1em;
-  transition: all 0.3s ease;
-}
-
-.param-group input:focus,
-.param-group select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.param-group button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 6px;
-  padding: 12px 25px;
-  color: white;
-  font-size: 1em;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-}
-
-.param-group button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-}
-
-.param-group button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.param-group button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .button-group {

@@ -16,11 +16,26 @@ class ATCConfig:
     lsma_len: int = 28
     kama_len: int = 28
 
+    # Moving Average weights
+    ema_w: float = 1.0
+    hma_w: float = 1.0
+    wma_w: float = 1.0
+    dema_w: float = 1.0
+    lsma_w: float = 1.0
+    kama_w: float = 1.0
+
     # ATC parameters
     robustness: str = "Medium"  # "Narrow", "Medium", or "Wide"
     lambda_param: float = 0.02
     decay: float = 0.03
     cutout: int = 0
+
+    # Signal threshold parameters
+    long_threshold: float = 0.1
+    short_threshold: float = -0.1
+
+    # Calculation source for Moving Averages
+    calculation_source: str = "close"  # "close", "open", "high", "low"
 
     # Data parameters
     limit: int = 1500
@@ -50,8 +65,17 @@ def create_atc_config_from_dict(
         dema_len=params.get("dema_len", 28),
         lsma_len=params.get("lsma_len", 28),
         kama_len=params.get("kama_len", 28),
+        ema_w=params.get("ema_w", 1.0),
+        hma_w=params.get("hma_w", 1.0),
+        wma_w=params.get("wma_w", 1.0),
+        dema_w=params.get("dema_w", 1.0),
+        lsma_w=params.get("lsma_w", 1.0),
+        kama_w=params.get("kama_w", 1.0),
         robustness=params.get("robustness", "Medium"),
         lambda_param=params.get("lambda_param", 0.02),
         decay=params.get("decay", 0.03),
         cutout=params.get("cutout", 0),
+        long_threshold=params.get("long_threshold", 0.1),
+        short_threshold=params.get("short_threshold", -0.1),
+        calculation_source=params.get("calculation_source", "close"),
     )

@@ -115,6 +115,52 @@ def test_cut_signal_custom_threshold():
     assert result.iloc[2] == 1  # 0.7 > threshold
 
 
+def test_cut_signal_long_threshold():
+    """Test that cut_signal uses long_threshold parameter."""
+    x = pd.Series([0.05, 0.1, 0.15, 0.2])
+    result = cut_signal(x, long_threshold=0.1, short_threshold=-0.1)
+
+    assert result.iloc[0] == 0  # 0.05 < long_threshold
+    assert result.iloc[1] == 0  # 0.1 == long_threshold (not >)
+    assert result.iloc[2] == 1  # 0.15 > long_threshold
+    assert result.iloc[3] == 1  # 0.2 > long_threshold
+
+
+def test_cut_signal_short_threshold():
+    """Test that cut_signal uses short_threshold parameter."""
+    x = pd.Series([-0.2, -0.15, -0.1, -0.05])
+    result = cut_signal(x, long_threshold=0.1, short_threshold=-0.1)
+
+    assert result.iloc[0] == -1  # -0.2 < short_threshold
+    assert result.iloc[1] == -1  # -0.15 < short_threshold
+    assert result.iloc[2] == 0  # -0.1 == short_threshold (not <)
+    assert result.iloc[3] == 0  # -0.05 > short_threshold
+
+
+def test_cut_signal_separate_thresholds():
+    """Test that cut_signal uses separate long and short thresholds."""
+    x = pd.Series([-0.15, -0.05, 0.05, 0.15])
+    result = cut_signal(x, long_threshold=0.1, short_threshold=-0.1)
+
+    assert result.iloc[0] == -1  # -0.15 < short_threshold
+    assert result.iloc[1] == 0  # -0.05 > short_threshold but < long_threshold
+    assert result.iloc[2] == 0  # 0.05 < long_threshold but > short_threshold
+    assert result.iloc[3] == 1  # 0.15 > long_threshold
+
+
+def test_cut_signal_threshold_validation():
+    """Test that cut_signal validates threshold relationship."""
+    x = pd.Series([0.1, 0.2, 0.3])
+
+    # long_threshold must be > short_threshold
+    with pytest.raises(ValueError, match="long_threshold.*must be > short_threshold"):
+        cut_signal(x, long_threshold=0.1, short_threshold=0.2)
+
+    # Should work with correct relationship
+    result = cut_signal(x, long_threshold=0.2, short_threshold=0.1)
+    assert isinstance(result, pd.Series)
+
+
 def test_trend_sign_bullish():
     """Test that trend_sign identifies bullish trend."""
     signal = pd.Series([0.0, 0.5, 1.0, 2.0])

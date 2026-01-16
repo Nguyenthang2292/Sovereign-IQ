@@ -1,0 +1,125 @@
+/* ====================================================================
+ * SHARED CSS VARIABLES
+ * Centralized design tokens for all web apps
+ * ==================================================================== */
+
+:root {
+  /* ============================================
+   * Z-Index Layering System
+   * ============================================
+   * Defines the z-index scale to prevent stacking conflicts.
+   * Lower values are behind higher values in the stacking context.
+   * 
+   * Layer hierarchy (0-10):
+   *   - 0: Background image
+   *   - 1: Background overlay
+   *   - 2: Main content
+   *   - 3-7: Reserved for future layers
+   *   - 8: Mobile overlay (behind sidebar)
+   *   - 9: Sidebar (main navigation)
+   *   - 10: Sidebar controls (collapse button, mobile menu button)
+   */
+  --z-background: 0;
+  --z-overlay: 1;
+  --z-content: 2;
+  --z-mobile-overlay: 8;
+  --z-sidebar: 9;
+  --z-sidebar-controls: 10;
+
+  /* ============================================
+   * Color Palette
+   * ============================================ */
+  
+  /* Background Colors */
+  --color-bg-primary: #0a0a0f;
+  --color-bg-secondary: #1a1a2e;
+  --color-bg-tertiary: rgba(15, 15, 20, 0.95);
+  
+  /* Glass/Panel Colors */
+  --color-glass-panel: rgba(30, 30, 40, 0.7);
+  --color-glass-nav: rgba(20, 20, 30, 0.8);
+  --color-glass-overlay: linear-gradient(180deg, rgba(10, 10, 15, 0.25) 0%, rgba(10, 10, 15, 0.325) 100%);
+  
+  /* Text Colors */
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: rgba(255, 255, 255, 0.7);
+  --color-text-muted: rgba(255, 255, 255, 0.5);
+  
+  /* Border Colors */
+  --color-border-light: rgba(255, 255, 255, 0.06);
+  --color-border-medium: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.1);
+  
+  /* Accent Colors */
+  --color-blue: #3b82f6;
+  --color-blue-light: #60a5fa;
+  --color-purple: #8b5cf6;
+  --color-cyan: #00f0ff;
+  --color-magenta: #ff00ff;
+  
+  /* Neon Colors */
+  --color-neon-cyan: #00f0ff;
+  --color-neon-magenta: #ff00ff;
+  --color-neon-purple: #8b5cf6;
+  
+  /* ============================================
+   * Spacing
+   * ============================================ */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 0.75rem;
+  --spacing-lg: 1rem;
+  --spacing-xl: 1.25rem;
+  --spacing-2xl: 1.5rem;
+  --spacing-3xl: 2rem;
+  
+  /* ============================================
+   * Border Radius
+   * ============================================ */
+  --radius-sm: 0.375rem;  /* 6px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.625rem;  /* 10px */
+  --radius-xl: 0.75rem;   /* 12px */
+  
+  /* ============================================
+   * Transitions
+   * ============================================ */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* ============================================
+   * Shadows
+   * ============================================ */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 2px 0 30px rgba(0, 0, 0, 0.3);
+  
+  /* Glow Shadows */
+  --shadow-glow-purple: 0 0 20px rgba(139, 92, 246, 0.4);
+  --shadow-glow-purple-strong: 0 0 30px rgba(139, 92, 246, 0.6);
+  --shadow-glow-button: 0 4px 15px rgba(139, 92, 246, 0.4);
+  --shadow-glow-button-hover: 0 6px 20px rgba(139, 92, 246, 0.6);
+  
+  /* ============================================
+   * Blur Effects
+   * ============================================ */
+  --blur-sm: blur(8px);
+  --blur-md: blur(10px);
+  --blur-lg: blur(15px);
+  --blur-xl: blur(20px);
+  
+  /* ============================================
+   * Sidebar Dimensions
+   * ============================================ */
+  --sidebar-width-expanded: 260px;
+  --sidebar-width-collapsed: 72px;
+  --sidebar-width-tablet: 220px;
+  
+  /* ============================================
+   * Font Stacks
+   * ============================================ */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}

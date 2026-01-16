@@ -36,6 +36,7 @@ from .config import (
 from .services.atc_service import ATCService
 from web.shared.middleware.cors import setup_cors
 from modules.adaptive_trend.utils.config import ATCConfig
+from fastapi.staticfiles import StaticFiles
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -46,6 +47,12 @@ app = FastAPI(
 
 # Setup CORS
 setup_cors(app, allowed_origins=CORS_ORIGINS)
+
+# Mount shared assets
+shared_dir = project_root / "web" / "shared"
+if shared_dir.exists():
+    app.mount("/shared", StaticFiles(directory=str(shared_dir)), name="shared")
+
 
 # Initialize ATC service
 atc_service = ATCService()

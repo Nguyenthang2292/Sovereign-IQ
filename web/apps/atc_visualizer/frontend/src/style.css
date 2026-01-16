@@ -1,21 +1,28 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* ====================================================================
+ * ATC VISUALIZER - MAIN STYLES
+ * Import shared styles and Tailwind CSS
+ * ==================================================================== */
 
+/* Import shared styles from web/shared/styles */
+@import url('../../../../shared/styles/variables.css');
+@import url('../../../../shared/styles/base.css');
+@import url('../../../../shared/styles/components.css');
+@import url('../../../../shared/styles/layouts.css');
+@import url('../../../../shared/styles/effects.css');
+
+/* Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ====================================================================
+ * APP-SPECIFIC STYLES
+ * Add any customizations specific to ATC Visualizer below
+ * ==================================================================== */
+
+/* Override body background for this app if needed */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #1a1a2e;
-  color: #e0e0e0;
+  background-color: var(--color-bg-secondary);
 }
 
-#app {
-  min-height: 100vh;
-}
-
-.container {
-  max-width: 1800px;
-  margin: 0 auto;
-  padding: 20px;
-}
+/* Add any app-specific component styles here */

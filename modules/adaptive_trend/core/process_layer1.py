@@ -140,7 +140,13 @@ def weighted_signal(
         raise
 
 
-def cut_signal(x: pd.Series, threshold: float = 0.49, cutout: int = 0) -> pd.Series:
+def cut_signal(
+    x: pd.Series,
+    threshold: float = 0.49,
+    long_threshold: float | None = None,
+    short_threshold: float | None = None,
+    cutout: int = 0,
+) -> pd.Series:
     """Discretize continuous signal into {-1, 0, 1} based on threshold.
 
     Port of Pine Script function:
@@ -151,8 +157,13 @@ def cut_signal(x: pd.Series, threshold: float = 0.49, cutout: int = 0) -> pd.Ser
     Args:
         x: Continuous signal series.
         threshold: Threshold for discretization (default: 0.49).
+            Used if long_threshold and short_threshold are not provided.
+        long_threshold: Threshold for LONG signals (default: None, uses threshold).
+            Values > long_threshold → 1.
+        short_threshold: Threshold for SHORT signals (default: None, uses -threshold).
+            Values < short_threshold → -1.
         cutout: Number of bars to skip at beginning (force to 0).
-            Values > threshold → 1, values < -threshold → -1, else → 0.
+            Values > long_threshold → 1, values < short_threshold → -1, else → 0.
 
     Returns:
         Series with discrete values {-1, 0, 1}.
@@ -164,8 +175,16 @@ def cut_signal(x: pd.Series, threshold: float = 0.49, cutout: int = 0) -> pd.Ser
     if not isinstance(x, pd.Series):
         raise TypeError(f"x must be a pandas Series, got {type(x)}")  # pyright: ignore[reportUnreachable]
 
-    if threshold < 0:
-        raise ValueError(f"threshold must be >= 0, got {threshold}")
+    # Determine actual thresholds
+    if long_threshold is None:
+        long_threshold = threshold
+    if short_threshold is None:
+        short_threshold = -threshold
+
+    if long_threshold <= short_threshold:
+        raise ValueError(
+            f"long_threshold ({long_threshold}) must be > short_threshold ({short_threshold})"
+        )
 
     if cutout < 0:
         raise ValueError(f"cutout must be >= 0, got {cutout}")
@@ -181,8 +200,8 @@ def cut_signal(x: pd.Series, threshold: float = 0.49, cutout: int = 0) -> pd.Ser
         valid_mask = ~x.isna()
 
         if valid_mask.any():
-            c.loc[valid_mask & (x > threshold)] = 1
-            c.loc[valid_mask & (x < -threshold)] = -1
+            c.loc[valid_mask & (x > long_threshold)] = 1
+            c.loc[valid_mask & (x < short_threshold)] = -1
 
         # Enforce cutout: set first 'cutout' bars to 0
         if cutout > 0 and cutout < len(c):
