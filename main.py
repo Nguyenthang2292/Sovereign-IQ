@@ -3,6 +3,7 @@ import sys
 import time
 import signal
 from pathlib import Path
+import os
 
 
 class ProcessManager:
@@ -73,6 +74,140 @@ def start_backend_servers(manager):
         )
 
 
+def install_frontend_dependencies():
+    """Install and update dependencies for all frontend apps"""
+    project_root = Path(__file__).resolve().parent
+    if sys.platform == "win32":
+        # Use cmd.exe to avoid PowerShell execution policy issues
+        npm_cmd = ["cmd.exe", "/c", "npm.cmd"]
+    else:
+        npm_cmd = ["npm"]
+
+    frontend_configs = [
+        {
+            "name": "ATC Visualizer Frontend",
+            "cwd": project_root / "web" / "apps" / "atc_visualizer" / "frontend",
+        },
+        {
+            "name": "Gemini Analyzer Frontend",
+            "cwd": project_root / "web" / "apps" / "gemini_analyzer" / "frontend",
+        },
+    ]
+
+    print("\n" + "=" * 60)
+    print("INSTALLING FRONTEND DEPENDENCIES")
+    print("=" * 60 + "\n")
+
+    for config in frontend_configs:
+        cwd_path = config["cwd"]
+        package_json = cwd_path / "package.json"
+
+        if not package_json.exists():
+            print(f"⚠️  Warning: {config['name']} - package.json not found, skipping...")
+            continue
+
+        print(f"📦 Installing dependencies for {config['name']}...")
+        print(f"   Path: {cwd_path}\n")
+
+        # Verify package.json exists
+        if not package_json.exists():
+            print(f"⚠️  Warning: {config['name']} - package.json not found at {package_json}, skipping...")
+            continue
+
+        try:
+            # Run npm install
+            result = subprocess.run(
+                npm_cmd + ["install"],
+                cwd=str(cwd_path),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=300,  # 5 minutes timeout
+            )
+
+            if result.returncode == 0:
+                print(f"✅ {config['name']} - Dependencies installed successfully\n")
+            else:
+                print(f"❌ {config['name']} - Failed to install dependencies")
+                print(f"   Error output: {result.stdout[-500:]}\n")  # Last 500 chars
+                print("⚠️  Continuing anyway, but the app may not work correctly...\n")
+        except subprocess.TimeoutExpired:
+            print(f"⏱️  {config['name']} - Installation timeout (exceeded 5 minutes)")
+            print("⚠️  Continuing anyway...\n")
+        except Exception as e:
+            print(f"❌ {config['name']} - Error during installation: {e}")
+            print("⚠️  Continuing anyway...\n")
+
+    print("=" * 60 + "\n")
+
+
+def build_frontend_apps():
+    """Build all frontend apps before starting dev servers"""
+    project_root = Path(__file__).resolve().parent
+    if sys.platform == "win32":
+        # Use cmd.exe to avoid PowerShell execution policy issues
+        npm_cmd = ["cmd.exe", "/c", "npm.cmd"]
+    else:
+        npm_cmd = ["npm"]
+
+    frontend_configs = [
+        {
+            "name": "ATC Visualizer Frontend",
+            "cwd": project_root / "web" / "apps" / "atc_visualizer" / "frontend",
+        },
+        {
+            "name": "Gemini Analyzer Frontend",
+            "cwd": project_root / "web" / "apps" / "gemini_analyzer" / "frontend",
+        },
+    ]
+
+    print("\n" + "=" * 60)
+    print("BUILDING FRONTEND APPS")
+    print("=" * 60 + "\n")
+
+    for config in frontend_configs:
+        cwd_path = config["cwd"]
+        package_json = cwd_path / "package.json"
+
+        if not package_json.exists():
+            print(f"⚠️  Warning: {config['name']} - package.json not found, skipping...")
+            continue
+
+        print(f"🔨 Building {config['name']}...")
+        print(f"   Path: {cwd_path}\n")
+
+        # Verify package.json exists
+        if not package_json.exists():
+            print(f"⚠️  Warning: {config['name']} - package.json not found at {package_json}, skipping...")
+            continue
+
+        try:
+            # Run npm run build
+            result = subprocess.run(
+                npm_cmd + ["run", "build"],
+                cwd=str(cwd_path),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=600,  # 10 minutes timeout for build
+            )
+
+            if result.returncode == 0:
+                print(f"✅ {config['name']} - Build completed successfully\n")
+            else:
+                print(f"❌ {config['name']} - Build failed")
+                print(f"   Error output: {result.stdout[-500:]}\n")  # Last 500 chars
+                print("⚠️  Continuing anyway, but the app may not work correctly...\n")
+        except subprocess.TimeoutExpired:
+            print(f"⏱️  {config['name']} - Build timeout (exceeded 10 minutes)")
+            print("⚠️  Continuing anyway...\n")
+        except Exception as e:
+            print(f"❌ {config['name']} - Error during build: {e}")
+            print("⚠️  Continuing anyway...\n")
+
+    print("=" * 60 + "\n")
+
+
 def start_frontend_servers(manager):
     project_root = Path(__file__).resolve().parent
 
@@ -87,11 +222,15 @@ def start_frontend_servers(manager):
         },
     ]
 
-    npm_cmd = "npm.cmd" if sys.platform == "win32" else "npm"
+    if sys.platform == "win32":
+        # Use cmd.exe to avoid PowerShell execution policy issues
+        npm_cmd = ["cmd.exe", "/c", "npm.cmd"]
+    else:
+        npm_cmd = ["npm"]
 
     for config in frontend_configs:
         manager.add_process(
-            cmd=[npm_cmd, "run", "dev"],
+            cmd=npm_cmd + ["run", "dev"],
             cwd=config["cwd"],
             name=config["name"],
         )
@@ -123,8 +262,17 @@ def main():
     print_startup_info()
 
     try:
+        # Install frontend dependencies first
+        install_frontend_dependencies()
+        
+        # Build frontend apps before starting dev servers
+        build_frontend_apps()
+        
+        # Start backend servers
         start_backend_servers(manager)
         time.sleep(2)
+        
+        # Start frontend servers
         start_frontend_servers(manager)
 
         print("All servers started successfully!\n")

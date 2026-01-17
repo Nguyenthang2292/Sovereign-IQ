@@ -69,16 +69,16 @@ def diflen(length: int, robustness: str = "Medium") -> Tuple[int, int, int, int,
         min_length = min(lengths)
 
         if min_length <= 0:
-            # Adjust negative offsets to be at least 1
-            L_1 = max(1, L_1)
-            L_2 = max(1, L_2)
-            L_3 = max(1, L_3)
-            L_4 = max(1, L_4)
-
-            log_warn(
-                f"Some calculated lengths were <= 0 for length={length}, robustness={robustness_normalized}. "
-                f"Adjusted negative offsets to minimum 1. "
-                f"Result: L_1={L_1}, L_2={L_2}, L_3={L_3}, L_4={L_4}"
+            # Raise error for invalid lengths (matching Pine Script behavior)
+            # Pine Script: length - offset < 0 would cause calculation errors
+            invalid_lengths = [len_val for len_val in lengths if len_val <= 0]
+            # Calculate minimum length needed to make all offsets positive
+            max_negative_offset = max(0 - len_val for len_val in invalid_lengths)
+            min_required_length = max_negative_offset + length
+            raise ValueError(
+                f"Calculated length offsets contain values <= 0: {invalid_lengths}. "
+                f"Base length={length}, robustness={robustness_normalized}. "
+                f"Please increase base length to at least {min_required_length}."
             )
 
         return L1, L2, L3, L4, L_1, L_2, L_3, L_4

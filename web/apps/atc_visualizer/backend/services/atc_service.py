@@ -9,18 +9,19 @@ import os
 from pathlib import Path
 
 current_file_path = Path(__file__).resolve()
-backend_dir = current_file_path.parent
-
-project_root = backend_dir.parent.parent.parent
+# This file is in: web/apps/atc_visualizer/backend/services/atc_service.py
+# Go up: services -> backend -> atc_visualizer -> apps -> web -> project root
+services_dir = current_file_path.parent  # web/apps/atc_visualizer/backend/services
+backend_dir = services_dir.parent  # web/apps/atc_visualizer/backend
+atc_visualizer_dir = backend_dir.parent  # web/apps/atc_visualizer
+apps_dir = atc_visualizer_dir.parent  # web/apps
+web_dir = apps_dir.parent  # web
+project_root = web_dir.parent  # project root (contains web, modules, etc.)
 project_root_absolute = project_root.resolve()
 
-sys.path.insert(0, str(project_root_absolute))
-
-print(f"[DEBUG] Current file: {current_file_path}")
-print(f"[DEBUG] Backend dir: {backend_dir}")
-print(f"[DEBUG] Project root: {project_root_absolute}")
-print(f"[DEBUG] Modules exists: {(project_root_absolute / 'modules').exists()}")
-print(f"[DEBUG] Python path: {sys.path[:3]}")
+# Only add to sys.path if not already there (to avoid duplicates)
+if str(project_root_absolute) not in sys.path:
+    sys.path.insert(0, str(project_root_absolute))
 
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager

@@ -10,7 +10,7 @@ Averages in Layer 1 of the ATC system:
 
 from __future__ import annotations
 
-from typing import Iterable, Tuple
+from typing import Iterable, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -182,9 +182,7 @@ def cut_signal(
         short_threshold = -threshold
 
     if long_threshold <= short_threshold:
-        raise ValueError(
-            f"long_threshold ({long_threshold}) must be > short_threshold ({short_threshold})"
-        )
+        raise ValueError(f"long_threshold ({long_threshold}) must be > short_threshold ({short_threshold})")
 
     if cutout < 0:
         raise ValueError(f"cutout must be >= 0, got {cutout}")
@@ -279,6 +277,7 @@ def _layer1_signal_for_ma(
     L: float,
     De: float,
     cutout: int = 0,
+    R: Optional[pd.Series] = None,
 ) -> Tuple[pd.Series, Tuple[pd.Series, ...], Tuple[pd.Series, ...]]:
     """Calculate Layer 1 signal for a specific Moving Average type.
 
@@ -288,10 +287,14 @@ def _layer1_signal_for_ma(
         ...
         EMA_Signal = Signal(sE, E, sE1, E1, ..., sE_4, E_4)
 
-    For each of the 9 MAs:
+    For each of 9 MAs:
     1. Generate signal from price/MA crossover
     2. Calculate equity curve from signal
     3. Weight signals by their equity curves to get final Layer 1 signal
+
+    Performance optimization:
+    - Accept R (rate_of_change) as optional parameter to avoid recalculation
+    - If R is None, it will be calculated internally (for backwards compatibility)
 
     Args:
         prices: Price series (typically close prices).
@@ -299,6 +302,7 @@ def _layer1_signal_for_ma(
         L: Lambda (growth rate) for equity calculations.
         De: Decay factor for equity calculations.
         cutout: Number of bars to skip at beginning.
+        R: Pre-calculated rate of change series. If None, will be calculated internally.
 
     Returns:
         Tuple containing:
@@ -312,13 +316,13 @@ def _layer1_signal_for_ma(
     """
     # Input validation
     if not isinstance(prices, pd.Series):
-        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")  # pyright: ignore[reportUnreachable]
+        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")
 
     if len(prices) == 0:
         raise ValueError("prices cannot be empty")
 
     if not isinstance(ma_tuple, tuple):
-        raise TypeError(f"ma_tuple must be a tuple, got {type(ma_tuple)}")  # pyright: ignore[reportUnreachable]
+        raise TypeError(f"ma_tuple must be a tuple, got {type(ma_tuple)}")
 
     EXPECTED_MA_COUNT = 9
     if len(ma_tuple) != EXPECTED_MA_COUNT:
@@ -355,7 +359,8 @@ def _layer1_signal_for_ma(
             MA_4,
         ) = ma_tuple
 
-        R = rate_of_change(prices)
+        if R is None:
+            R = rate_of_change(prices)
 
         # Generate signals for all MAs (optimized with list comprehension)
         ma_list = [MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4]

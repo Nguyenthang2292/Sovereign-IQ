@@ -1,19 +1,10 @@
 /* ====================================================================
  * ATC VISUALIZER - MAIN STYLES
- * Import shared styles and Tailwind CSS
  * ==================================================================== */
 
-/* Import shared styles from web/shared/styles */
-@import url('../../../../shared/styles/variables.css');
-@import url('../../../../shared/styles/base.css');
-@import url('../../../../shared/styles/components.css');
-@import url('../../../../shared/styles/layouts.css');
-@import url('../../../../shared/styles/effects.css');
-
-/* Tailwind CSS */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4 Configuration */
+@import "tailwindcss";
+@source "../../../../shared/**/*.{vue,js,ts,jsx,tsx}";
 
 /* ====================================================================
  * APP-SPECIFIC STYLES

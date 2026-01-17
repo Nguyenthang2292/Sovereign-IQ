@@ -8,9 +8,11 @@
           :key="maType"
           class="legend-item"
         >
-          <Checkbox
-            :model-value="visible"
-            @update:model-value="updateVisibleMA(maType, $event)"
+          <input
+            type="checkbox"
+            :checked="visible"
+            @change="updateVisibleMA(maType, $event.target.checked)"
+            class="w-5 h-5 text-purple-600 bg-gray-700/50 border-gray-600/50 rounded focus:ring-purple-500"
           />
           <span :style="{ color: getMAColor(maType) }">{{ maType }}</span>
         </label>
@@ -25,9 +27,11 @@
           :key="signalType"
           class="legend-item"
         >
-          <Checkbox
-            :model-value="visible"
-            @update:model-value="updateShowSignal(signalType, $event)"
+          <input
+            type="checkbox"
+            :checked="visible"
+            @change="updateShowSignal(signalType, $event.target.checked)"
+            class="w-5 h-5 text-purple-600 bg-gray-700/50 border-gray-600/50 rounded focus:ring-purple-500"
           />
           <span :style="{ color: getSignalColor(signalType) }">{{ signalType }}</span>
         </label>
@@ -51,8 +55,6 @@
 </template>
 
 <script setup>
-import Checkbox from '@shared/components/Checkbox.vue'
-
 const props = defineProps({
   visibleMas: {
     type: Object,

@@ -24,15 +24,22 @@ def calculate_kama_atc(
 ) -> Optional[pd.Series]:
     """Calculate KAMA (Kaufman Adaptive Moving Average) for ATC.
 
-    Uses KAMA formula from `momentum.calculate_kama_series` with parameters
-    chosen to match Pine Script behavior:
-    - length: Window length (default 28, equivalent to Pine `kama_len`)
-    - fast: 2 → fast_sc ≈ 0.666 (matches Pine: 0.666)
-    - slow: 30 → slow_sc ≈ 0.064 (matches Pine: 0.064)
+    Direct port of Pine Script KAMA function to ensure exact matching:
+        kama(source, length) =>
+            fast= 0.666
+            slow = 0.064
+            noisex = math.abs(source - source[1])
+            KAMA = 0.0
+            signal = math.abs(source - source[length])
+            noise = math.sum(noisex, length)
+            ratio = noise != 0 ? signal / noise : 0
+            smooth = math.pow(ratio * (fast - slow) + slow, 2)
+            KAMA := nz(KAMA[1]) + smooth * (source - nz(KAMA[1]))
+            KAMA
 
     Args:
         prices: Price series (typically close prices).
-        length: KAMA window length, equivalent to Pine `kama_len`.
+        length: KAMA window length (efficiency ratio period).
 
     Returns:
         KAMA Series with same index as prices, or None if calculation fails.
@@ -42,7 +49,7 @@ def calculate_kama_atc(
         TypeError: If prices is not a pandas Series.
     """
     if not isinstance(prices, pd.Series):
-        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")  # pyright: ignore[reportUnreachable]
+        raise TypeError(f"prices must be a pandas Series, got {type(prices)}")
 
     if len(prices) == 0:
         log_warn("Empty prices series provided for KAMA calculation")
@@ -58,19 +65,45 @@ def calculate_kama_atc(
         )
 
     try:
-        result = calculate_kama_series(
-            prices=prices,
-            period=length,
-            fast=2,
-            slow=30,
-        )
+        import numpy as np
 
-        if result is None:
-            log_warn(f"KAMA calculation returned None for length={length}")
-        elif len(result) == 0:
-            log_warn(f"KAMA calculation returned empty series for length={length}")
+        prices_array = prices.values.astype(np.float64)
+        n = len(prices_array)
+        kama = np.full(n, np.nan, dtype=np.float64)
 
-        return result
+        if n < 1:
+            return pd.Series(kama, index=prices.index)
+
+        fast = 0.666
+        slow = 0.064
+
+        for i in range(n):
+            if i == 0:
+                kama[i] = prices_array[i]
+                continue
+
+            if i < length:
+                kama[i] = kama[i - 1]
+                continue
+
+            noisex = np.abs(prices_array[i] - prices_array[i - 1])
+            signal = np.abs(prices_array[i] - prices_array[i - length])
+
+            noise = 0.0
+            for j in range(1, min(i, length) + 1):
+                noise += np.abs(prices_array[i - j + 1] - prices_array[i - j])
+
+            ratio = 0.0 if noise == 0 else signal / noise
+
+            smooth = np.power(ratio * (fast - slow) + slow, 2)
+
+            prev_kama = kama[i - 1]
+            if np.isnan(prev_kama):
+                prev_kama = prices_array[i]
+
+            kama[i] = prev_kama + smooth * (prices_array[i] - prev_kama)
+
+        return pd.Series(kama, index=prices.index)
 
     except Exception as e:
         log_error(f"Error calculating KAMA: {e}")
@@ -149,7 +182,11 @@ def ma_calculation(
         if ma == "EMA":
             result = ta.ema(source, length=length)
         elif ma == "HMA":
-            # Pine: HMA branch uses ta.sma, not classic Hull MA.
+            # CRITICAL NOTE: Despite being named "HMA" (Hull Moving Average),
+            # the original Pine Script source_pine.txt uses ta.sma() here.
+            # This is NOT a classic Hull Moving Average.
+            # We maintain this behavior for exact Pine Script compatibility.
+            # Pine Script line: else if ma_type == "HMA" ta.sma(source, length)
             result = ta.sma(source, length=length)
         elif ma == "WMA":
             result = ta.wma(source, length=length)

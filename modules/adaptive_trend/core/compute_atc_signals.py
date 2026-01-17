@@ -35,7 +35,7 @@ Typical ATC workflow:
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -62,6 +62,65 @@ from modules.adaptive_trend.utils import rate_of_change
 from .compute_equity import equity_series
 from .compute_moving_averages import set_of_moving_averages
 from .process_layer1 import _layer1_signal_for_ma, cut_signal
+
+
+def calculate_layer2_equities(
+    layer1_signals: Dict[str, pd.Series],
+    ma_configs: list,
+    R: pd.Series,
+    L: float,
+    De: float,
+    cutout: int,
+) -> Dict[str, pd.Series]:
+    """
+    Calculate Layer 2 equity curves based on Layer 1 signal performance.
+
+    Port of Pine Script Layer 2 calculation:
+        EMA_S = eq(ema_w,  EMA_Signal,  R)
+        HMA_S = eq(hma_w,  HMA_Signal,  R)
+        ...
+
+    This function calculates the equity curve for each MA type based on how well
+    its Layer 1 signal performed. The equity curve serves as a dynamic weight
+    in the final signal aggregation.
+
+    Args:
+        layer1_signals: Dictionary of Layer 1 signals keyed by MA type (e.g., "EMA", "HMA").
+        ma_configs: List of (ma_type, length, initial_weight) tuples.
+        R: Rate of change series (calculated once and reused).
+        L: Lambda (growth rate) for exponential growth factor.
+        De: Decay factor for equity calculations.
+        cutout: Number of bars to skip at beginning.
+
+    Returns:
+        Dictionary of Layer 2 equity curves keyed by MA type.
+
+    Raises:
+        ValueError: If ma_configs contains invalid entries.
+    """
+    log_debug("Computing Layer 2 equity weights...")
+    layer2_equities = {}
+
+    for ma_type, _, initial_weight in ma_configs:
+        if ma_type not in layer1_signals:
+            log_warn(f"Layer 1 signal for {ma_type} not found, skipping")
+            continue
+
+        # Layer 2: Calculate equity curve based on Layer 1 signal performance
+        # Port of Pine Script: EMA_S = eq(ema_w, EMA_Signal, R)
+        # where ema_w is the initial weight (starting_equity)
+        equity = equity_series(
+            starting_equity=initial_weight,
+            sig=layer1_signals[ma_type],
+            R=R,
+            L=L,
+            De=De,
+            cutout=cutout,
+        )
+        layer2_equities[ma_type] = equity
+
+    log_debug("Completed Layer 2 equity weights")
+    return layer2_equities
 
 
 def compute_atc_signals(
@@ -173,24 +232,27 @@ def compute_atc_signals(
     log_debug(f"Computed {len(ma_tuples)} MA types")
 
     # MAIN CALCULATIONS - Adaptability Layer 1
+    # Compute rate_of_change once and reuse for all MA types (performance optimization)
+    log_debug("Computing rate_of_change (reused for Layer 1 and Layer 2)...")
+    R = rate_of_change(prices)
+
     log_debug("Computing Layer 1 signals...")
     layer1_signals = {}
     for ma_type, _, _ in ma_configs:
-        signal, _, _ = _layer1_signal_for_ma(prices, ma_tuples[ma_type], L=La, De=De, cutout=cutout)
+        signal, _, _ = _layer1_signal_for_ma(prices, ma_tuples[ma_type], L=La, De=De, cutout=cutout, R=R)
         layer1_signals[ma_type] = signal
     log_debug("Completed Layer 1 signals")
 
     # Adaptability Layer 2
-    # Compute rate_of_change once and reuse for all MA types
-    log_debug("Computing rate_of_change (reused for all MA types)...")
-    R = rate_of_change(prices)
-
-    log_debug("Computing Layer 2 equity weights...")
-    layer2_equities = {}
-    for ma_type, _, weight in ma_configs:
-        equity = equity_series(weight, layer1_signals[ma_type], R, L=La, De=De, cutout=cutout)
-        layer2_equities[ma_type] = equity
-    log_debug("Completed Layer 2 equity weights")
+    # Calculate equity curves for Layer 2 weighting
+    layer2_equities = calculate_layer2_equities(
+        layer1_signals=layer1_signals,
+        ma_configs=ma_configs,
+        R=R,
+        L=La,
+        De=De,
+        cutout=cutout,
+    )
 
     # FINAL CALCULATIONS - Vectorized for performance
     log_debug("Computing Average_Signal (vectorized)...")
@@ -255,4 +317,5 @@ def compute_atc_signals(
 
 __all__ = [
     "compute_atc_signals",
+    "calculate_layer2_equities",
 ]

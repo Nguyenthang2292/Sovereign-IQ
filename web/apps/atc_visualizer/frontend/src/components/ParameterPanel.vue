@@ -10,47 +10,52 @@
           v-model="localSymbol"
           type="text"
           placeholder="BTC/USDT"
-          @keyup.enter="handleLoad"
           icon="💵"
-          fullWidth
+          :full-width="true"
+          @keyup.enter="handleLoad"
         />
       </div>
 
       <div class="param-group">
         <label for="timeframe">Timeframe</label>
-        <CustomDropdown
-          id="timeframe"
-          v-model="localTimeframe"
-          :options="timeframeOptions"
-          placeholder="Select timeframe"
-        />
+        <div class="relative">
+          <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none">⏰</span>
+          <CustomDropdown
+            id="timeframe"
+            v-model="localTimeframe"
+            :options="timeframeOptions"
+            placeholder="Select timeframe"
+            :has-left-icon="true"
+          />
+        </div>
       </div>
 
       <div class="param-group">
         <label for="limit">Number of Candles</label>
         <Input
           id="limit"
-          v-model.number="localLimit"
+          v-model="localLimit"
           type="number"
           min="100"
           max="5000"
           step="100"
-          icon="📊"
           placeholder="Enter limit"
-          fullWidth
+          icon="📊"
+          :full-width="true"
         />
       </div>
 
       <div class="param-group button-group">
         <Button
           @click="handleLoad"
-          :disabled="loading"
+          :disabled="loading || !symbol"
           :loading="loading"
-          loadingText="Loading..."
+          loading-text="Loading..."
           variant="primary"
-          fullWidth
+          :full-width="true"
         >
-          Load Data
+          <span v-if="!loading">📊</span>
+          <span>Load Data</span>
         </Button>
       </div>
     </div>
@@ -58,9 +63,9 @@
 </template>
 
 <script setup>
-import Button from '@shared/components/Button.vue'
 import CustomDropdown from '@shared/components/CustomDropdown.vue'
 import Input from '@shared/components/Input.vue'
+import Button from '@shared/components/Button.vue'
 import { computed } from 'vue'
 
 const props = defineProps({
@@ -116,6 +121,8 @@ const timeframeOptions = computed(() => [
 
 <style scoped>
 .glass-panel {
+  position: relative;
+  z-index: 20;
   background: rgba(20, 20, 30, 0.5);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);

@@ -7,7 +7,8 @@
       {{ icon }}
     </span>
     <input
-      v-model="localValue"
+      :id="attrs.id"
+      :value="modelValue"
       :type="type"
       :placeholder="placeholder"
       :disabled="disabled"
@@ -16,7 +17,7 @@
       :step="step"
       @input="handleInput"
       @blur="handleBlur"
-      :class="inputClasses"
+      :class="computedClasses"
     />
     <span
       v-if="rightIcon"
@@ -28,7 +29,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, useAttrs } from 'vue'
+
+const attrs = useAttrs()
 
 const props = defineProps({
   modelValue: {
@@ -79,33 +82,18 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'input', 'blur'])
 
-const localValue = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
-})
-
-const inputClasses = computed(() => {
-  const classes = [
-    'px-4 py-3 bg-gray-700/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 backdrop-blur-sm transition-all duration-300',
-    props.fullWidth ? 'w-full' : ''
-  ]
-
-  if (props.hasError) {
-    classes.push('border-red-500 focus:ring-red-500 focus:border-red-500')
-  } else {
-    classes.push('border-gray-600/50 focus:ring-purple-500 focus:border-purple-500')
-  }
-
-  if (props.icon) {
-    classes.push('pl-10')
-  }
-
-  return classes.join(' ')
+const computedClasses = computed(() => {
+  return [
+    props.fullWidth ? 'w-full' : '',
+    'px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 backdrop-blur-sm transition-all duration-300',
+    props.hasError ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '',
+    props.icon ? 'pl-10' : '',
+    props.rightIcon ? 'pr-10' : ''
+  ].filter(c => c).join(' ')
 })
 
 function handleInput(event) {
   let value = event.target.value
-  // Convert to number if type is number
   if (props.type === 'number' && value !== '') {
     const numValue = Number(value)
     if (!isNaN(numValue)) {

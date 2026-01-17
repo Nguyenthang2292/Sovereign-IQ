@@ -11,29 +11,66 @@ from pathlib import Path
 # Setup path for imports
 current_file_path = Path(__file__).resolve()
 backend_dir = current_file_path.parent
-project_root = backend_dir.parent.parent.parent
+# Go from: web/apps/atc_visualizer/backend -> web -> project root (contains web, modules, etc.)
+web_dir = backend_dir.parent.parent
+project_root = web_dir.parent
 sys.path.insert(0, str(project_root))
 
-from .config import (
-    APP_TITLE,
-    APP_DESCRIPTION,
-    APP_VERSION,
-    BACKEND_PORT,
-    FRONTEND_DEV_PORT,
-    CORS_ORIGINS,
-    DEFAULT_SYMBOL,
-    DEFAULT_TIMEFRAME,
-    DEFAULT_LIMIT,
-    MIN_LIMIT,
-    MAX_LIMIT,
-    DEFAULT_MA_LENGTH,
-    DEFAULT_ROBUSTNESS,
-    DEFAULT_LAMBDA,
-    DEFAULT_DECAY,
-    DEFAULT_CUTOUT,
-    TIMEFRAMES,
-)
-from .services.atc_service import ATCService
+# Import directly from file path when running as script, or use relative imports as module
+# Check if we can use relative imports (when run as module)
+try:
+    # Try relative imports first (when run as module)
+    from .config import (
+        APP_TITLE,
+        APP_DESCRIPTION,
+        APP_VERSION,
+        BACKEND_PORT,
+        FRONTEND_DEV_PORT,
+        CORS_ORIGINS,
+        DEFAULT_SYMBOL,
+        DEFAULT_TIMEFRAME,
+        DEFAULT_LIMIT,
+        MIN_LIMIT,
+        MAX_LIMIT,
+        DEFAULT_MA_LENGTH,
+        DEFAULT_ROBUSTNESS,
+        DEFAULT_LAMBDA,
+        DEFAULT_DECAY,
+        DEFAULT_CUTOUT,
+        TIMEFRAMES,
+    )
+    from .services.atc_service import ATCService
+except ImportError:
+    # Running as script - import from file paths directly
+    import importlib.util
+    config_spec = importlib.util.spec_from_file_location("config", backend_dir / "config.py")
+    config_module = importlib.util.module_from_spec(config_spec)
+    config_spec.loader.exec_module(config_module)
+    
+    atc_service_spec = importlib.util.spec_from_file_location(
+        "atc_service", backend_dir / "services" / "atc_service.py"
+    )
+    atc_service_module = importlib.util.module_from_spec(atc_service_spec)
+    atc_service_spec.loader.exec_module(atc_service_module)
+    
+    APP_TITLE = config_module.APP_TITLE
+    APP_DESCRIPTION = config_module.APP_DESCRIPTION
+    APP_VERSION = config_module.APP_VERSION
+    BACKEND_PORT = config_module.BACKEND_PORT
+    FRONTEND_DEV_PORT = config_module.FRONTEND_DEV_PORT
+    CORS_ORIGINS = config_module.CORS_ORIGINS
+    DEFAULT_SYMBOL = config_module.DEFAULT_SYMBOL
+    DEFAULT_TIMEFRAME = config_module.DEFAULT_TIMEFRAME
+    DEFAULT_LIMIT = config_module.DEFAULT_LIMIT
+    MIN_LIMIT = config_module.MIN_LIMIT
+    MAX_LIMIT = config_module.MAX_LIMIT
+    DEFAULT_MA_LENGTH = config_module.DEFAULT_MA_LENGTH
+    DEFAULT_ROBUSTNESS = config_module.DEFAULT_ROBUSTNESS
+    DEFAULT_LAMBDA = config_module.DEFAULT_LAMBDA
+    DEFAULT_DECAY = config_module.DEFAULT_DECAY
+    DEFAULT_CUTOUT = config_module.DEFAULT_CUTOUT
+    TIMEFRAMES = config_module.TIMEFRAMES
+    ATCService = atc_service_module.ATCService
 from web.shared.middleware.cors import setup_cors
 from modules.adaptive_trend.utils.config import ATCConfig
 from fastapi.staticfiles import StaticFiles
