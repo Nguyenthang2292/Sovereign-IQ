@@ -98,12 +98,25 @@ class TestFeatureConsistency:
     def test_model_features_configuration(self):
         """Test that MODEL_FEATURES is properly configured and non-empty"""
         assert MODEL_FEATURES is not None, "MODEL_FEATURES should not be None"
-        assert isinstance(MODEL_FEATURES, (list, tuple)), (
-            f"MODEL_FEATURES should be a list or tuple, got {type(MODEL_FEATURES)}"
-        )
-        assert len(MODEL_FEATURES) > 0, (
-            f"MODEL_FEATURES should have at least one feature, got {len(MODEL_FEATURES)} features"
-        )
+        assert isinstance(
+            MODEL_FEATURES, (list, tuple)
+        ), f"MODEL_FEATURES should be a list or tuple, got {type(MODEL_FEATURES)}"
+        assert (
+            len(MODEL_FEATURES) > 0
+        ), f"MODEL_FEATURES should have at least one feature, got {len(MODEL_FEATURES)} features"
+
+        # Verify raw OHLCV features are NOT in MODEL_FEATURES (replaced by derived features)
+        raw_ohlcv = ["open", "high", "low", "close", "volume"]
+        for feature in raw_ohlcv:
+            assert feature not in MODEL_FEATURES, (
+                f"Raw OHLCV feature '{feature}' should not be in MODEL_FEATURES. "
+                f"Use derived features (returns_1, returns_5, log_volume, high_low_range, close_open_diff) instead."
+            )
+
+        # Verify derived price features ARE in MODEL_FEATURES
+        derived_features = ["returns_1", "returns_5", "log_volume", "high_low_range", "close_open_diff"]
+        for feature in derived_features:
+            assert feature in MODEL_FEATURES, f"Price-derived feature '{feature}' should be in MODEL_FEATURES"
 
     def test_model_trained_with_model_features(self, mock_sufficient_memory, training_data):
         """Test that model is trained with MODEL_FEATURES"""
@@ -132,9 +145,9 @@ class TestFeatureConsistency:
             model_features = list(model.feature_names_in_)
             # Model should have at most the number of features in MODEL_FEATURES
             # (may be less if some features are not available in the data)
-            assert len(model_features) <= len(MODEL_FEATURES), (
-                f"Model has {len(model_features)} features, but MODEL_FEATURES has {len(MODEL_FEATURES)}"
-            )
+            assert len(model_features) <= len(
+                MODEL_FEATURES
+            ), f"Model has {len(model_features)} features, but MODEL_FEATURES has {len(MODEL_FEATURES)}"
 
             # Model should have at least some features
             assert len(model_features) > 0, "Model should have at least one feature"
@@ -203,6 +216,18 @@ class TestFeatureConsistency:
         extra_features = feature_columns - model_features_set
         assert len(extra_features) == 0, f"Features DataFrame contains columns not in MODEL_FEATURES: {extra_features}"
 
+        # Verify derived price features are present
+        derived_features = ["returns_1", "returns_5", "log_volume", "high_low_range", "close_open_diff"]
+        for feature in derived_features:
+            assert (
+                feature in feature_columns
+            ), f"Price-derived feature '{feature}' should be present in prepared features"
+
+        # Verify raw OHLCV features are NOT present
+        raw_ohlcv = ["open", "high", "low", "close", "volume"]
+        for feature in raw_ohlcv:
+            assert feature not in feature_columns, f"Raw OHLCV feature '{feature}' should not be in prepared features"
+
     def test_signal_generation_handles_missing_features(self, mock_sufficient_memory, training_data, sample_data):
         """Test that signal generation handles missing features gracefully"""
         with patch("modules.random_forest.core.model.joblib.dump"):
@@ -255,10 +280,11 @@ class TestFeatureConsistencyIntegration:
         try:
             model_path = Path(temp_dir) / "test_model.joblib"
 
-            # Train and save model
+            # Train and save model (disable versioning for consistent filename)
             with patch("modules.random_forest.core.model.MODELS_DIR", model_path.parent):
                 with patch("modules.random_forest.core.model.RANDOM_FOREST_MODEL_FILENAME", model_path.name):
-                    model = train_random_forest_model(training_data, save_model=True)
+                    with patch("config.random_forest.RANDOM_FOREST_MODEL_VERSIONING_ENABLED", False):
+                        model = train_random_forest_model(training_data, save_model=True)
 
             assert model is not None
 

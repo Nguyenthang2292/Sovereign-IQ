@@ -18,14 +18,22 @@ try:
 except ImportError:
     PSUTIL_AVAILABLE = False
 
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import ADASYN, SMOTE, BorderlineSMOTE
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.utils.class_weight import compute_class_weight
+
+try:
+    from imblearn.ensemble import BalancedRandomForestClassifier
+
+    BALANCED_RF_AVAILABLE = True
+except ImportError:
+    BALANCED_RF_AVAILABLE = False
 
 from config import (
     LARGE_DATASET_THRESHOLD_FOR_SMOTE,
     MIN_MEMORY_GB,
     MODEL_RANDOM_STATE,
+    RANDOM_FOREST_SAMPLING_STRATEGY,
 )
 from modules.common.ui.logging import (
     log_error,
@@ -36,40 +44,56 @@ from modules.common.ui.logging import (
 SMOTE_RANDOM_STATE = MODEL_RANDOM_STATE
 
 
-def apply_smote(features: pd.DataFrame, target: pd.Series) -> Tuple[pd.DataFrame, pd.Series]:
-    """Balance training data using SMOTE.
+def apply_sampling(features: pd.DataFrame, target: pd.Series) -> Tuple[pd.DataFrame, pd.Series, bool]:
+    """Balance training data using chosen sampling strategy.
 
     Args:
         features (pd.DataFrame): Input features.
         target (pd.Series): Target labels.
 
     Returns:
-        Tuple[pd.DataFrame, pd.Series]: Balanced data or original data if error.
+        Tuple[pd.DataFrame, pd.Series, bool]: Balanced data and flag indicating if sampling was applied.
     """
-    log_progress("Applying SMOTE for class balancing...")
+    strategy = RANDOM_FOREST_SAMPLING_STRATEGY
+
+    if strategy == "NONE" or strategy == "BALANCED_RF":
+        log_progress(f"Skipping resampling step (Strategy: {strategy}).")
+        return features, target, False
+
+    log_progress(f"Applying {strategy} for class balancing...")
     try:
         # Check available memory if psutil is available
         if PSUTIL_AVAILABLE:
             available_gb = psutil.virtual_memory().available / (1024**3)
             if available_gb < MIN_MEMORY_GB:
-                log_warn(f"Low memory ({available_gb:.2f}GB), skipping SMOTE to avoid crashing.")
-                return features, target
+                log_warn(f"Low memory ({available_gb:.2f}GB), skipping {strategy}.")
+                return features, target, False
 
-        smote_kwargs = {"random_state": SMOTE_RANDOM_STATE, "sampling_strategy": "auto"}
-        if len(features) > LARGE_DATASET_THRESHOLD_FOR_SMOTE:
-            log_progress("Dataset is large, using reduced k_neighbors for SMOTE.")
-            smote_kwargs["k_neighbors"] = 3
+        kwargs = {"random_state": SMOTE_RANDOM_STATE, "sampling_strategy": "auto"}
 
-        smote = SMOTE(**smote_kwargs)
-        result = smote.fit_resample(features, target)
+        if strategy in ["SMOTE", "BorderlineSMOTE"]:
+            if len(features) > LARGE_DATASET_THRESHOLD_FOR_SMOTE:
+                log_progress(f"Dataset is large, using reduced k_neighbors for {strategy}.")
+                kwargs["k_neighbors"] = 3
 
-        if isinstance(result, tuple) and len(result) == 2:
-            features_resampled, target_resampled = result
+        sampler = None
+        if strategy == "SMOTE":
+            sampler = SMOTE(**kwargs)
+        elif strategy == "ADASYN":
+            sampler = ADASYN(**kwargs)
+        elif strategy == "BorderlineSMOTE":
+            sampler = BorderlineSMOTE(**kwargs)
         else:
-            log_error("SMOTE did not return a tuple of (features, target). Skipping resampling.")
-            return features, target
+            log_warn(f"Unknown sampling strategy '{strategy}'. Falling back to SMOTE.")
+            sampler = SMOTE(**kwargs)
 
-        log_progress(f"SMOTE applied. New data shape: {features_resampled.shape}")
+        try:
+            features_resampled, target_resampled = sampler.fit_resample(features, target)
+        except (ValueError, RuntimeError, MemoryError) as e:
+            log_warn(f"{strategy} application failed: {e}. Proceed with original data.")
+            return features, target, False
+
+        log_progress(f"{strategy} applied successfully. New data shape: {features_resampled.shape}")
         gc.collect()
 
         if not isinstance(features_resampled, pd.DataFrame):
@@ -80,31 +104,49 @@ def apply_smote(features: pd.DataFrame, target: pd.Series) -> Tuple[pd.DataFrame
         # Ensure target remains numeric
         target_resampled = pd.to_numeric(target_resampled, errors="coerce").astype(int)
 
-        return features_resampled, target_resampled
-    except (ValueError, RuntimeError, MemoryError) as e:
-        log_error(f"SMOTE failed: {e}. Training will continue with original data.")
-        return features, target
+        return features_resampled, target_resampled, True
+    except Exception as e:
+        log_error(f"Unexpected error during {strategy} process: {e}. Training will continue with original data.")
+        return features, target, False
 
 
 def create_model_and_weights(
-    target_resampled: pd.Series, custom_params: Optional[Dict[str, Any]] = None
+    target_resampled: pd.Series, custom_params: Optional[Dict[str, Any]] = None, sampling_applied: bool = False
 ) -> RandomForestClassifier:
     """Create Random Forest model and compute class weights.
 
     Args:
         target_resampled (pd.Series): Resampled target variable.
         custom_params (Optional[Dict[str, Any]]): Custom hyperparameters to override defaults.
+        sampling_applied (bool): Whether a resampling strategy was applied to balance the data.
 
     Returns:
-        RandomForestClassifier: Model with computed class weights.
+        RandomForestClassifier: Model (Standard or Balanced).
     """
-    class_weights = compute_class_weight("balanced", classes=np.unique(target_resampled), y=target_resampled)
-    weight_dict = {int(cls): weight for cls, weight in zip(np.unique(target_resampled), class_weights)}
+    strategy = RANDOM_FOREST_SAMPLING_STRATEGY
+
+    use_balanced_rf = strategy == "BALANCED_RF"
+    if use_balanced_rf and not BALANCED_RF_AVAILABLE:
+        log_warn("BalancedRandomForestClassifier not available. Falling back to standard RandomForestClassifier.")
+        use_balanced_rf = False
+
+    class_weight_value = None
+    if use_balanced_rf:
+        log_progress("Using BalancedRandomForestClassifier (handles balancing internally).")
+    elif sampling_applied:
+        # Use strategy from config for logging consistency
+        log_progress(f"{RANDOM_FOREST_SAMPLING_STRATEGY} was applied - disabling class weights.")
+    else:
+        # Compute class weights for imbalanced data
+        class_weights = compute_class_weight("balanced", classes=np.unique(target_resampled), y=target_resampled)
+        weight_dict = {int(cls): weight for cls, weight in zip(np.unique(target_resampled), class_weights)}
+        class_weight_value = weight_dict
+        log_progress("Computing class weights for imbalanced data (No resampling applied).")
 
     # Default parameters
     default_params = {
         "n_estimators": 100,
-        "class_weight": weight_dict,
+        "class_weight": class_weight_value,
         "random_state": MODEL_RANDOM_STATE,
         "n_jobs": -1,
         "min_samples_leaf": 5,
@@ -112,11 +154,15 @@ def create_model_and_weights(
 
     # Merge custom params if provided (custom params override defaults)
     if custom_params:
-        # Ensure class_weight is always from computed weights (don't override)
         model_params = {**default_params, **custom_params}
-        model_params["class_weight"] = weight_dict  # Always use computed weights
+        # Ensure class_weight is set correctly based on strategy/sampling status
+        model_params["class_weight"] = class_weight_value
     else:
         model_params = default_params
 
-    model = RandomForestClassifier(**model_params)
-    return model
+    if use_balanced_rf:
+        # Remove class_weight if using BalancedRandomForest (it handles it via sampling)
+        model_params.pop("class_weight", None)
+        return BalancedRandomForestClassifier(**model_params)
+
+    return RandomForestClassifier(**model_params)

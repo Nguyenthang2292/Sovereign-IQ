@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from modules.xgboost.display import print_classification_report
+from modules.xgboost.utils.display import print_classification_report
 
 
 def test_print_classification_report():

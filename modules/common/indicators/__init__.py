@@ -24,6 +24,7 @@ from .momentum import (
     calculate_rsi_series,
     calculate_stochrsi_series,
 )
+from .price_derived import PriceDerivedIndicators
 from .trend import (
     TrendIndicators,
     calculate_adx,
@@ -61,6 +62,7 @@ __all__ = [
     "IndicatorFunc",
     "collect_metadata",
     "validate_ohlcv_input",
+    "PriceDerivedIndicators",
     "TrendIndicators",
     "MomentumIndicators",
     "VolatilityIndicators",

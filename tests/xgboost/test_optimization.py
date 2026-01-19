@@ -17,7 +17,7 @@ import optuna
 import pandas as pd
 
 from config import MODEL_FEATURES, TARGET_HORIZON, TARGET_LABELS, XGBOOST_PARAMS
-from modules.xgboost.optimization import HyperparameterTuner, StudyManager
+from modules.xgboost.core.optimization import HyperparameterTuner, StudyManager
 
 
 def _synthetic_df(rows=300):

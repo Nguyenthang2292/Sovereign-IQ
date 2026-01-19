@@ -12,7 +12,6 @@ This module covers testing gaps identified in code review:
 """
 
 import concurrent.futures
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -22,10 +21,9 @@ import pandas as pd
 import pytest
 
 from config import MODEL_FEATURES, TARGET_LABELS
-from modules.xgboost import labeling
-from modules.xgboost.model import ClassDiversityError, predict_next_move, train_and_predict
-from modules.xgboost.optimization import HyperparameterTuner, StudyManager
-
+from modules.xgboost.core import labeling
+from modules.xgboost.core.model import ClassDiversityError, predict_next_move, train_and_predict
+from modules.xgboost.core.optimization import HyperparameterTuner, StudyManager
 
 # ==================== Empty DataFrame Tests ====================
 
@@ -436,7 +434,7 @@ def test_study_manager_path_traversal_symbol():
 
         # Attempt path traversal in symbol
         malicious_symbol = "../../../etc/passwd"
-        
+
         # Currently, StudyManager does not sanitize input, so this will create
         # a file with the literal path traversal in the filename
         # This is a security vulnerability that should be fixed
@@ -448,7 +446,7 @@ def test_study_manager_path_traversal_symbol():
                 best_params=best_params,
                 best_score=best_score,
             )
-            
+
             # Verify file was created (even if in wrong location)
             filepath_obj = Path(filepath)
             # The file might be created outside storage_dir due to path traversal

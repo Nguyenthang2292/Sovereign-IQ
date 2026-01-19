@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from modules.position_sizing.core.hybrid_signal_calculator import HybridSignalCalculator
-from modules.xgboost.model import ClassDiversityError
+from modules.xgboost.core.model import ClassDiversityError
 
 """
 Tests for XGBoost batch calculation with class diversity validation.

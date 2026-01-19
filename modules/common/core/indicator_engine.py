@@ -31,6 +31,7 @@ class IndicatorProfile(str, Enum):
 class IndicatorConfig:
     """Configuration for indicator engine."""
 
+    include_price_derived: bool = True  # Price-derived features (returns, log_volume, etc.)
     include_trend: bool = True
     include_momentum: bool = True
     include_volatility: bool = True

@@ -20,7 +20,7 @@ import pandas as pd
 import pytest
 
 from config import TARGET_LABELS
-from modules.xgboost.model import (
+from modules.xgboost.core.model import (
     ClassDiversityError,
     predict_next_move,
     train_and_predict,

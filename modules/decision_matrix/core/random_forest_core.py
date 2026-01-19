@@ -1,7 +1,21 @@
 """
-Random Forest Core Implementation.
+Random Forest Pattern Matching Core (Pine Script Algorithm).
 
-Implements the main radnom_forest_classification algorithm from Pine Script (lines 105-170).
+This module implements a pattern-based classification algorithm from Pine Script.
+It is NOT the sklearn RandomForestClassifier - it uses pattern matching and voting mechanisms.
+
+⚠️ IMPORTANT: This is DIFFERENT from modules.random_forest
+- This module (modules.decision_matrix.core.random_forest_core): Pine Script pattern matching algorithm
+- modules.random_forest: sklearn RandomForestClassifier wrapper (ML-based signals)
+
+This algorithm:
+- Stores training data as matrices [feature, label]
+- Shuffles data randomly
+- Matches patterns using thresholds
+- Votes based on pass/fail counts
+- Calculates accuracy metrics
+
+For sklearn-based ML Random Forest, see modules.random_forest instead.
 """
 
 from dataclasses import dataclass, field
@@ -17,7 +31,12 @@ from modules.decision_matrix.utils.shuffle import ShuffleMechanism
 @dataclass
 class RandomForestCore:
     """
-    Random Forest Classification Algorithm.
+    Random Forest Pattern Matching Algorithm (Pine Script Implementation).
+
+    ⚠️ NOTE: This is NOT sklearn's RandomForestClassifier.
+    This is a pattern-based classification algorithm from Pine Script.
+
+    For sklearn-based ML Random Forest, use modules.random_forest instead.
 
     Based on Pine Script implementation:
     - Stores training data as matrices [feature, label]

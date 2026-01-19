@@ -33,6 +33,7 @@ from config import (
     MODEL_RANDOM_STATE,
 )
 from config.model_features import MODEL_FEATURES
+from config.random_forest import RANDOM_FOREST_TARGET_HORIZON
 from modules.random_forest.optimization import HyperparameterTuner, StudyManager
 from modules.random_forest.utils.data_preparation import prepare_training_data
 
@@ -186,7 +187,7 @@ class TestHyperparameterTuner:
         tuner = HyperparameterTuner(symbol="BTCUSDT", timeframe="1h", storage_dir=temp_storage_dir)
         assert tuner.symbol == "BTCUSDT"
         assert tuner.timeframe == "1h"
-        assert tuner.target_horizon == 5
+        assert tuner.target_horizon == RANDOM_FOREST_TARGET_HORIZON
 
     def test_objective_with_valid_data(self, prepared_data, temp_storage_dir):
         """Test _objective method with valid data"""
@@ -200,6 +201,77 @@ class TestHyperparameterTuner:
         score = tuner._objective(trial, features, target, n_splits=3)
 
         # Score should be between 0 and 1 (accuracy)
+        assert isinstance(score, float)
+        assert 0.0 <= score <= 1.0
+
+    def test_objective_expanded_search_space(self, prepared_data, temp_storage_dir):
+        """Test _objective uses expanded hyperparameter search space"""
+        tuner = HyperparameterTuner("BTCUSDT", "1h", storage_dir=temp_storage_dir)
+        features, target = prepared_data
+
+        study = optuna.create_study()
+        trial = study.ask()
+
+        # Mock trial to capture all suggest calls
+        suggest_calls = {}
+
+        def mock_suggest_int(name, low, high, step=None, **kwargs):
+            suggest_calls[name] = {"type": "int", "low": low, "high": high, "step": step}
+            if step is not None:
+                return (low + high) // 2  # Return midpoint
+            return (low + high) // 2
+
+        def mock_suggest_categorical(name, choices, **kwargs):
+            suggest_calls[name] = {"type": "categorical", "choices": choices}
+            return choices[0]  # Return first choice
+
+        def mock_suggest_float(name, low, high, **kwargs):
+            suggest_calls[name] = {"type": "float", "low": low, "high": high}
+            return (low + high) / 2  # Return midpoint
+
+        # Patch trial methods
+        trial.suggest_int = mock_suggest_int
+        trial.suggest_categorical = mock_suggest_categorical
+        trial.suggest_float = mock_suggest_float
+
+        score = tuner._objective(trial, features, target, n_splits=3)
+
+        # Verify all hyperparameters are suggested with correct ranges
+        assert "n_estimators" in suggest_calls
+        assert suggest_calls["n_estimators"]["low"] == 100
+        assert suggest_calls["n_estimators"]["high"] == 1000
+        assert suggest_calls["n_estimators"]["step"] == 100
+
+        assert "max_depth" in suggest_calls
+        assert suggest_calls["max_depth"]["low"] == 0
+        assert suggest_calls["max_depth"]["high"] == 50
+
+        assert "min_samples_split" in suggest_calls
+        assert suggest_calls["min_samples_split"]["low"] == 2
+        assert suggest_calls["min_samples_split"]["high"] == 50
+
+        assert "min_samples_leaf" in suggest_calls
+        assert suggest_calls["min_samples_leaf"]["low"] == 1
+        assert suggest_calls["min_samples_leaf"]["high"] == 20
+
+        assert "max_features" in suggest_calls
+        assert suggest_calls["max_features"]["type"] == "categorical"
+        assert set(suggest_calls["max_features"]["choices"]) == {"sqrt", "log2", 0.5, 0.7, None}
+
+        assert "criterion" in suggest_calls
+        assert suggest_calls["criterion"]["type"] == "categorical"
+        assert set(suggest_calls["criterion"]["choices"]) == {"gini", "entropy", "log_loss"}
+
+        assert "min_impurity_decrease" in suggest_calls
+        assert suggest_calls["min_impurity_decrease"]["type"] == "float"
+        assert suggest_calls["min_impurity_decrease"]["low"] == 0.0
+        assert suggest_calls["min_impurity_decrease"]["high"] == 0.1
+
+        assert "bootstrap" in suggest_calls
+        assert suggest_calls["bootstrap"]["type"] == "categorical"
+        assert set(suggest_calls["bootstrap"]["choices"]) == {True, False}
+
+        # Score should be valid
         assert isinstance(score, float)
         assert 0.0 <= score <= 1.0
 
@@ -391,3 +463,59 @@ class TestOptimizationIntegration:
         # Should complete without errors (class weights are computed internally)
         assert isinstance(score, float)
         assert 0.0 <= score <= 1.0
+
+    def test_data_preparation_drops_nan_targets(self, sample_optimization_data):
+        """Test that prepare_training_data drops NaN targets correctly"""
+        prepared = prepare_training_data(sample_optimization_data)
+        
+        if prepared is None:
+            pytest.skip("Failed to prepare training data")
+        
+        features, target = prepared
+        
+        # Target should not contain NaN values
+        assert not target.isna().any(), "Target should not contain NaN values"
+        
+        # Features and target should have same length
+        assert len(features) == len(target), "Features and target should have same length"
+        
+        # Verify that last RANDOM_FOREST_TARGET_HORIZON rows were dropped
+        # Original data has 200 rows, after dropping last 5 rows with NaN targets, should have <= 195
+        # (may be less due to feature NaN drops)
+        assert len(features) <= len(sample_optimization_data) - RANDOM_FOREST_TARGET_HORIZON, (
+            f"Expected at most {len(sample_optimization_data) - RANDOM_FOREST_TARGET_HORIZON} rows "
+            f"after dropping NaN targets, got {len(features)}"
+        )
+
+    def test_data_preparation_uses_target_horizon_constant(self, sample_optimization_data):
+        """Test that prepare_training_data uses RANDOM_FOREST_TARGET_HORIZON constant"""
+        # This test verifies that the constant is used (indirectly by checking behavior)
+        prepared = prepare_training_data(sample_optimization_data)
+        
+        if prepared is None:
+            pytest.skip("Failed to prepare training data")
+        
+        features, target = prepared
+        
+        # Verify that the number of dropped rows matches the target horizon
+        # We can't directly test the shift value, but we can verify the behavior
+        # The last RANDOM_FOREST_TARGET_HORIZON rows should be dropped
+        expected_min_rows = len(sample_optimization_data) - RANDOM_FOREST_TARGET_HORIZON - 10  # Allow some margin for feature NaN
+        assert len(features) >= expected_min_rows, (
+            f"Expected at least {expected_min_rows} rows after preparation, got {len(features)}"
+        )
+        
+        # Verify derived price features are present
+        derived_features = ["returns_1", "returns_5", "log_volume", "high_low_range", "close_open_diff"]
+        feature_columns = set(features.columns)
+        for feature in derived_features:
+            assert feature in feature_columns, (
+                f"Price-derived feature '{feature}' should be present in prepared features"
+            )
+        
+        # Verify raw OHLCV features are NOT in features (they're used for calculation but not in final features)
+        raw_ohlcv = ["open", "high", "low", "close", "volume"]
+        for feature in raw_ohlcv:
+            assert feature not in feature_columns, (
+                f"Raw OHLCV feature '{feature}' should not be in final features DataFrame"
+            )

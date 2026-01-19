@@ -28,6 +28,7 @@ import pytest
 
 from config import CONFIDENCE_THRESHOLDS, MAX_TRAINING_ROWS, MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
 from config.model_features import MODEL_FEATURES
+from config.random_forest import RANDOM_FOREST_TARGET_HORIZON, RANDOM_FOREST_TOTAL_GAP
 from modules.random_forest import (
     apply_confidence_threshold,
     calculate_and_display_metrics,
@@ -286,10 +287,13 @@ class TestTrainRandomForestModel:
             result = train_random_forest_model(training_data, save_model=False)
             assert result is not None
 
+    @patch("modules.random_forest.utils.training.apply_sampling")
     @patch("modules.random_forest.utils.training.compute_class_weight")
-    def test_class_weight_error(self, mock_weight, mock_sufficient_memory, training_data):
+    def test_class_weight_error(self, mock_weight, mock_smote_func, mock_sufficient_memory, training_data):
         """Test model training when class weight computation fails"""
         mock_weight.side_effect = ValueError("Class weight computation failed")
+        # Force SMOTE to not be applied so class weights are computed
+        mock_smote_func.return_value = (training_data, pd.Series([0] * len(training_data)), False)
 
         with patch("modules.random_forest.core.model.joblib.dump"):
             # When class weight computation fails, training should fail and return None
@@ -325,6 +329,65 @@ class TestTrainRandomForestModel:
 
         result = train_random_forest_model(test_data, save_model=False)  # type: ignore
         assert result is None
+
+    def test_time_series_split_with_gap_validation(self, mock_sufficient_memory, training_data):
+        """Test that train_random_forest_model uses time-series split with gap validation"""
+        from modules.random_forest.core.model import _time_series_split_with_gap
+        from modules.random_forest.utils.data_preparation import prepare_training_data
+        from config import MODEL_TEST_SIZE
+
+        # Prepare data
+        prepared = prepare_training_data(training_data)
+        if prepared is None:
+            pytest.skip("Failed to prepare training data")
+
+        features, target = prepared
+
+        # Test the split function directly with total_gap (target_horizon + safety_gap)
+        features_train, features_test, target_train, target_test = _time_series_split_with_gap(
+            features, target, test_size=MODEL_TEST_SIZE, gap=RANDOM_FOREST_TOTAL_GAP
+        )
+
+        # Verify gap exists: train_end + gap + 1 <= test_start
+        # train_end is the last index in training set (0-indexed)
+        train_end_idx = len(features_train) - 1
+        # test_start is the first index in test set (0-indexed)
+        test_start_idx = len(features) - len(features_test)
+
+        # Gap should be at least RANDOM_FOREST_TOTAL_GAP (target_horizon + safety_gap)
+        # Gap = test_start_idx - train_end_idx - 1
+        actual_gap = test_start_idx - train_end_idx - 1
+        assert actual_gap >= RANDOM_FOREST_TOTAL_GAP, (
+            f"Gap between train and test should be at least {RANDOM_FOREST_TOTAL_GAP} "
+            f"(target_horizon={RANDOM_FOREST_TARGET_HORIZON} + safety_gap={RANDOM_FOREST_TOTAL_GAP - RANDOM_FOREST_TARGET_HORIZON}), "
+            f"got {actual_gap}. Train ends at index {train_end_idx}, test starts at index {test_start_idx}"
+        )
+
+        # Verify no overlap
+        assert train_end_idx < test_start_idx, "Train and test sets should not overlap"
+
+        # Verify lengths are reasonable
+        assert len(features_train) > 0, "Training set should not be empty"
+        assert len(features_test) > 0, "Test set should not be empty"
+
+        # Verify they sum to less than original (due to gap)
+        total_used = len(features_train) + len(features_test)
+        assert total_used < len(features), (
+            f"Total used rows ({total_used}) should be < original ({len(features)}) "
+            f"due to total gap of {RANDOM_FOREST_TOTAL_GAP} (target_horizon={RANDOM_FOREST_TARGET_HORIZON} + safety_gap={RANDOM_FOREST_TOTAL_GAP - RANDOM_FOREST_TARGET_HORIZON})"
+        )
+
+    def test_time_series_split_insufficient_data(self):
+        """Test that _time_series_split_with_gap raises error with insufficient data"""
+        from modules.random_forest.core.model import _time_series_split_with_gap
+
+        # Create very small dataset
+        small_features = pd.DataFrame(np.random.randn(10, 5), columns=[f"f{i}" for i in range(5)])
+        small_target = pd.Series([0, 1] * 5)
+
+        # Should raise ValueError when gap is too large
+        with pytest.raises(ValueError, match="Insufficient data"):
+            _time_series_split_with_gap(small_features, small_target, test_size=0.2, gap=RANDOM_FOREST_TOTAL_GAP)
 
 
 # ============================================================================

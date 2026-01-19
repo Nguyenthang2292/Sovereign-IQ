@@ -5,7 +5,7 @@ Tests for the labeling functions in the modules.xgboost.labeling module.
 import numpy as np
 import pandas as pd
 
-from modules.xgboost import labeling
+from modules.xgboost.core import labeling
 
 
 def test_apply_directional_labels_assigns_expected_classes(monkeypatch):

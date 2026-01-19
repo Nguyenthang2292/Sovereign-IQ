@@ -266,8 +266,8 @@ class BatchCalculatorsMixin:
             IndicatorEngine,
             IndicatorProfile,
         )
-        from modules.xgboost.labeling import apply_directional_labels
-        from modules.xgboost.model import ClassDiversityError, predict_next_move, train_and_predict
+        from modules.xgboost.core.labeling import apply_directional_labels
+        from modules.xgboost.core.model import ClassDiversityError, predict_next_move, train_and_predict
 
         # Validate required columns
         required_columns = ["high", "low", "close"]

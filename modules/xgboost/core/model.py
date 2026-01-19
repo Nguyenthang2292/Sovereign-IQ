@@ -34,8 +34,7 @@ from modules.common.utils import (
     log_success,
     log_warn,
 )
-
-from .display import print_classification_report
+from modules.xgboost.utils.display import print_classification_report
 
 
 class ClassDiversityError(ValueError):

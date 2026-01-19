@@ -37,7 +37,7 @@ from config import (
     XGBOOST_PARAMS,
 )
 from modules.common.utils import log_error, log_info, log_success, log_warn
-from modules.xgboost.model import _resolve_xgb_classifier
+from modules.xgboost.core.model import _resolve_xgb_classifier
 
 
 @contextmanager

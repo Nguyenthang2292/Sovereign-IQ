@@ -8,6 +8,12 @@ from modules.random_forest.core.decision_matrix_integration import (
     calculate_random_forest_vote,
     get_random_forest_signal_for_decision_matrix,
 )
+from modules.random_forest.core.ensemble import (
+    LSTMWrapper,
+    create_ensemble,
+    load_lstm_model_wrapped,
+    load_xgboost_model,
+)
 from modules.random_forest.core.evaluation import (
     apply_confidence_threshold,
     calculate_and_display_metrics,
@@ -32,4 +38,9 @@ __all__ = [
     "calculate_and_display_metrics",
     "calculate_random_forest_vote",
     "get_random_forest_signal_for_decision_matrix",
+    # Ensemble exports
+    "LSTMWrapper",
+    "create_ensemble",
+    "load_lstm_model_wrapped",
+    "load_xgboost_model",
 ]

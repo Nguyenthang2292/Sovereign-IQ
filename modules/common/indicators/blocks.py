@@ -8,6 +8,7 @@ from typing import Tuple
 from .base import IndicatorFunc, IndicatorMetadata, collect_metadata
 from .candlestick import CandlestickPatterns
 from .momentum import MomentumIndicators
+from .price_derived import PriceDerivedIndicators
 from .trend import TrendIndicators
 from .volatility import VolatilityIndicators
 from .volume import VolumeIndicators
@@ -23,6 +24,11 @@ class BlockSpec:
 
 
 BLOCK_SPECS: Tuple[BlockSpec, ...] = (
+    BlockSpec(
+        name=PriceDerivedIndicators.CATEGORY,
+        toggle_attr="include_price_derived",
+        handler=PriceDerivedIndicators.apply,
+    ),
     BlockSpec(
         name=TrendIndicators.CATEGORY,
         toggle_attr="include_trend",
@@ -55,6 +61,7 @@ __all__ = [
     "IndicatorMetadata",
     "IndicatorFunc",
     "collect_metadata",
+    "PriceDerivedIndicators",
     "TrendIndicators",
     "MomentumIndicators",
     "VolatilityIndicators",

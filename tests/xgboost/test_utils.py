@@ -9,7 +9,7 @@ This test suite verifies:
 - Graceful handling or appropriate error raising for None input.
 """
 
-from modules.xgboost.utils import get_prediction_window
+from modules.xgboost.utils.utils import get_prediction_window
 
 
 def test_get_prediction_window_known_timeframes():

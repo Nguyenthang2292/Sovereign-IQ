@@ -63,8 +63,8 @@ from modules.simplified_percentile_clustering.strategies import (
     generate_signals_mean_reversion,
     generate_signals_regime_following,
 )
-from modules.xgboost.labeling import apply_directional_labels
-from modules.xgboost.model import ClassDiversityError, predict_next_move, train_and_predict
+from modules.xgboost.core.labeling import apply_directional_labels
+from modules.xgboost.core.model import ClassDiversityError, predict_next_move, train_and_predict
 
 
 def get_range_oscillator_signal(

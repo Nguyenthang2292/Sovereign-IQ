@@ -7,8 +7,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 
 from config import TARGET_LABELS
 from modules.common.utils import log_analysis, log_info, log_model
-
-from .utils import color_text
+from modules.xgboost.utils.utils import color_text
 
 
 def print_classification_report(y_true, y_pred, title="Classification Report"):

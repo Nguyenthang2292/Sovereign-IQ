@@ -52,12 +52,13 @@ CANDLESTICK_PATTERN_NAMES: Tuple[str, ...] = (
 )
 
 MODEL_FEATURES = [
-    # Basic OHLCV data
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume",
+    # Price-derived features (normalized, scale-invariant)
+    # These features generalize across different assets and timeframes
+    "returns_1",  # 1-period return (pct_change)
+    "returns_5",  # 5-period return (pct_change)
+    "log_volume",  # Log-normalized volume
+    "high_low_range",  # (high - low) / close (normalized range)
+    "close_open_diff",  # (close - open) / open (normalized price change)
     # Technical Indicators
     "SMA_20",
     "SMA_50",
@@ -75,4 +76,41 @@ MODEL_FEATURES = [
     "OBV",
     # Candlestick patterns; reuse list
     *CANDLESTICK_PATTERN_NAMES,
+    # Advanced Features
+    # Price Momentum (Rate of Change)
+    "roc_3",
+    "roc_5",
+    "roc_10",
+    "roc_20",
+    # Volatility Ratios
+    "atr_ratio",
+    # Relative Strength (Price vs Moving Averages)
+    "price_to_SMA_20",
+    "price_to_SMA_50",
+    "price_to_SMA_200",
+    # Rolling Statistics on Returns
+    "rolling_std_10",
+    "rolling_std_20",
+    "rolling_skew_10",
+    "rolling_skew_20",
+    # Lag Features (for returns_1)
+    "returns_1_lag_1",
+    "returns_1_lag_2",
+    "returns_1_lag_3",
+    # Lag Features (for RSI_14)
+    "RSI_14_lag_1",
+    "RSI_14_lag_2",
+    "RSI_14_lag_3",
+    # Lag Features (for log_volume)
+    "log_volume_lag_1",
+    "log_volume_lag_2",
+    "log_volume_lag_3",
+    # Lag Features (for atr_ratio)
+    "atr_ratio_lag_1",
+    "atr_ratio_lag_2",
+    "atr_ratio_lag_3",
+    # Time-based features (if DatetimeIndex available)
+    "hour",
+    "dayofweek",
+    "month",
 ]

@@ -26,9 +26,10 @@ from config import (
     MIN_TRAINING_SAMPLES,
     MODEL_RANDOM_STATE,
 )
+from config.random_forest import RANDOM_FOREST_TARGET_HORIZON, RANDOM_FOREST_TOTAL_GAP
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.random_forest.utils.data_preparation import prepare_training_data
-from modules.random_forest.utils.training import apply_smote
+from modules.random_forest.utils.training import apply_sampling
 
 
 class StudyManager:
@@ -181,8 +182,13 @@ class HyperparameterTuner:
         self.symbol = symbol
         self.timeframe = timeframe
         self.study_manager = StudyManager(storage_dir)
-        # Target horizon for gap prevention (5 periods for Random Forest)
-        self.target_horizon = 5
+        # Target horizon for gap prevention (must match RANDOM_FOREST_TARGET_HORIZON from config)
+        self.target_horizon = RANDOM_FOREST_TARGET_HORIZON
+        # Total gap = target_horizon (for label lookahead) + safety_gap (for independence)
+        # Training labels at index N use data from N+target_horizon, so we need:
+        # - target_horizon periods to account for the lookahead in training labels
+        # - safety_gap additional periods to ensure true independence between train/test windows
+        self.total_gap = RANDOM_FOREST_TOTAL_GAP
 
     def _objective(
         self,
@@ -203,18 +209,21 @@ class HyperparameterTuner:
         Returns:
             Mean CV accuracy score
         """
-        # Define search space for Random Forest
+        # Define expanded search space for Random Forest
         # For max_depth, use suggest_int with None as a special case
-        # We'll suggest a value 0-30, where 0 means None
-        max_depth_val = trial.suggest_int("max_depth", 0, 30)
+        # We'll suggest a value 0-50, where 0 means None
+        max_depth_val = trial.suggest_int("max_depth", 0, 50)
         max_depth = None if max_depth_val == 0 else max_depth_val
 
         params = {
-            "n_estimators": trial.suggest_int("n_estimators", 50, 500, step=50),
+            "n_estimators": trial.suggest_int("n_estimators", 100, 1000, step=100),
             "max_depth": max_depth,
-            "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
-            "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
-            "max_features": trial.suggest_categorical("max_features", ["sqrt", "log2", None]),
+            "min_samples_split": trial.suggest_int("min_samples_split", 2, 50),
+            "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 20),
+            "max_features": trial.suggest_categorical("max_features", ["sqrt", "log2", 0.5, 0.7, None]),
+            "criterion": trial.suggest_categorical("criterion", ["gini", "entropy", "log_loss"]),
+            "min_impurity_decrease": trial.suggest_float("min_impurity_decrease", 0.0, 0.1),
+            "bootstrap": trial.suggest_categorical("bootstrap", [True, False]),
             "random_state": MODEL_RANDOM_STATE,
             "n_jobs": -1,
         }
@@ -227,15 +236,18 @@ class HyperparameterTuner:
         for fold_idx, (train_idx, test_idx) in enumerate(tscv.split(X)):
             # Apply gap to prevent data leakage (target horizon = 5 periods)
             train_idx_array = np.array(train_idx)
-            if len(train_idx_array) <= self.target_horizon:
+            # Total gap accounts for: target_horizon (label lookahead) + safety_gap (independence)
+            if len(train_idx_array) <= self.total_gap:
                 skipped_folds += 1
                 log_warn(
                     f"Fold {fold_idx + 1}:"
-                    f"Training set too small ({len(train_idx_array)} <= {self.target_horizon}), skipping"
+                    f"Training set too small ({len(train_idx_array)} <= {self.total_gap}), skipping"
                 )
                 continue
 
-            train_idx_filtered = train_idx_array[: -self.target_horizon]
+            # Remove last total_gap rows from training set to prevent data leakage
+            # This accounts for both the lookahead in training labels and safety margin
+            train_idx_filtered = train_idx_array[: -self.total_gap]
 
             # Ensure test set doesn't overlap with gap
             test_idx_array = np.array(test_idx)
@@ -244,7 +256,10 @@ class HyperparameterTuner:
                 log_warn(f"Fold {fold_idx + 1}: Empty train or test set after gap prevention, skipping")
                 continue
 
-            min_test_start = train_idx_filtered[-1] + self.target_horizon + 1
+            # Minimum test start = last training index + total_gap + 1
+            # This ensures complete independence: training labels use data up to train_end+target_horizon,
+            # and we add safety_gap more periods before test starts
+            min_test_start = train_idx_filtered[-1] + self.total_gap + 1
             if test_idx_array[0] < min_test_start:
                 test_idx_array = test_idx_array[test_idx_array >= min_test_start]
                 if len(test_idx_array) == 0:
@@ -265,24 +280,32 @@ class HyperparameterTuner:
                 )
                 continue
 
-            # Apply SMOTE to training fold
+            # Apply sampling to training fold
+            smote_applied = False
             try:
-                X_train_resampled, y_train_resampled = apply_smote(X_train_fold, y_train_fold)
+                X_train_resampled, y_train_resampled, smote_applied = apply_sampling(X_train_fold, y_train_fold)
             except (ValueError, RuntimeError, MemoryError):
                 # If SMOTE fails due to known issues (e.g. no SMOTE available), use original data
                 X_train_resampled, y_train_resampled = X_train_fold, y_train_fold
+                smote_applied = False
             except Exception as e:
                 # Unexpected SMOTE error - log full error and re-raise
                 log_error(f"Unexpected SMOTE error in fold {fold_idx + 1}: {type(e).__name__}: {str(e)}")
                 raise
 
-            # Compute class weights (balanced weights for imbalanced classes)
-            class_weights = compute_class_weight("balanced", classes=np.unique(y_train_resampled), y=y_train_resampled)
-            weight_dict = {int(cls): weight for cls, weight in zip(np.unique(y_train_resampled), class_weights)}
+            # After SMOTE, don't use class weights (data is already balanced)
+            # Only compute class weights if SMOTE was NOT applied
+            if smote_applied:
+                class_weight_value = None
+            else:
+                # Compute class weights for imbalanced data
+                class_weights = compute_class_weight("balanced", classes=np.unique(y_train_resampled), y=y_train_resampled)
+                weight_dict = {int(cls): weight for cls, weight in zip(np.unique(y_train_resampled), class_weights)}
+                class_weight_value = weight_dict
 
-            # Create model with optimized params + class weights
+            # Create model with optimized params + class weights (or None if SMOTE applied)
             model_params = params.copy()
-            model_params["class_weight"] = weight_dict
+            model_params["class_weight"] = class_weight_value
             model = RandomForestClassifier(**model_params)
 
             # Train model

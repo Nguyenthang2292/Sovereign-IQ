@@ -3,6 +3,10 @@ Decision Matrix Classifier.
 
 Simple Decision Matrix Classification Algorithm inspired by Random Forest.
 Uses voting system with weighted impact and feature importance.
+
+⚠️ NOTE: This module uses modules.decision_matrix.core.random_forest_core.RandomForestCore,
+which is a Pine Script pattern matching algorithm, NOT sklearn's RandomForestClassifier.
+For sklearn-based ML Random Forest, see modules.random_forest instead.
 """
 
 from dataclasses import dataclass, field

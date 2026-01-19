@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.xgboost.model import _resolve_xgb_classifier
+from modules.xgboost.core.model import _resolve_xgb_classifier
 
 """
 Tests for GPU support in XGBoost.

@@ -2,6 +2,11 @@
 
 This module provides functionality for generating trading signals using trained
 Random Forest models.
+
+⚠️ IMPORTANT: This module only supports models trained with derived features
+(returns_1, returns_5, log_volume, high_low_range, close_open_diff).
+Models trained with raw OHLCV features (open, high, low, close, volume) are
+no longer supported and will be rejected with an error message.
 """
 
 from typing import Tuple
@@ -53,6 +58,12 @@ def get_latest_random_forest_signal(df_market_data: pd.DataFrame, model: RandomF
     try:
         engine = IndicatorEngine(IndicatorConfig.for_profile(IndicatorProfile.CORE))
         df_with_features = engine.compute_features(df_market_data)
+
+        # Apply Advanced Feature Engineering (must match training)
+        from modules.random_forest.utils.features import add_advanced_features
+
+        df_with_features = add_advanced_features(df_with_features)
+
     except (ValueError, KeyError) as e:
         log_warn(f"Error computing features: {e}. Returning NEUTRAL.")
         return "NEUTRAL", 0.0
@@ -107,15 +118,42 @@ def get_latest_random_forest_signal(df_market_data: pd.DataFrame, model: RandomF
 
     # Select features in the exact order expected by model
     if hasattr(model, "feature_names_in_") and model.feature_names_in_ is not None:
+        # First, check if model uses any deprecated raw OHLCV features
+        raw_ohlcv_features = ["open", "high", "low", "close", "volume"]
+        model_raw_ohlcv = [f for f in model.feature_names_in_ if f in raw_ohlcv_features]
+        if model_raw_ohlcv:
+            log_error(
+                f"Model uses deprecated raw OHLCV features: {model_raw_ohlcv}. "
+                f"Raw OHLCV features are no longer supported. "
+                f"Please retrain model with derived features (returns_1, returns_5, log_volume, high_low_range, close_open_diff)."
+            )
+            return "NEUTRAL", 0.0
+
         # Reorder and fill missing features with 0
         latest_features = pd.DataFrame(index=df_with_features.index[-1:])
         for feature in model.feature_names_in_:
             if feature in df_with_features.columns:
                 latest_features[feature] = df_with_features[feature].iloc[-1:]
             else:
-                # Fill missing feature with 0
-                log_warn(f"Filling missing feature '{feature}' with 0")
-                latest_features[feature] = 0.0
+                # Check for critical price-derived features (required for all models)
+                critical_derived_features = [
+                    "returns_1",
+                    "returns_5",
+                    "log_volume",
+                    "high_low_range",
+                    "close_open_diff",
+                ]
+
+                if feature in critical_derived_features:
+                    log_error(
+                        f"Critical: Missing price-derived feature '{feature}' in input data during inference. "
+                        f"Model requires derived features. Please ensure feature engineering is applied."
+                    )
+                    return "NEUTRAL", 0.0
+                else:
+                    # Fill missing non-critical feature with 0
+                    log_warn(f"Filling missing feature '{feature}' with 0")
+                    latest_features[feature] = 0.0
         # Ensure column order matches model's expected order
         latest_features = latest_features[list(model.feature_names_in_)]
     else:

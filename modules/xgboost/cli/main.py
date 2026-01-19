@@ -39,9 +39,9 @@ from modules.common.utils import (
     log_error,
     normalize_symbol,
 )
-from modules.xgboost.utils import get_prediction_window
+from modules.xgboost.utils.utils import get_prediction_window
 
-cli_file_path = Path(__file__).parent.parent / "cli.py"
+cli_file_path = Path(__file__).parent / "argument_parser.py"
 spec = importlib.util.spec_from_file_location("xgboost_cli_module", cli_file_path)
 cli_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cli_module)
@@ -55,8 +55,8 @@ from modules.common.core.indicator_engine import (
     IndicatorProfile,
 )
 from modules.targets import calculate_atr_targets, format_atr_target_display
-from modules.xgboost.labeling import apply_directional_labels
-from modules.xgboost.model import predict_next_move, train_and_predict
+from modules.xgboost.core.labeling import apply_directional_labels
+from modules.xgboost.core.model import predict_next_move, train_and_predict
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
