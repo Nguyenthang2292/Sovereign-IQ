@@ -1,9 +1,9 @@
+import os
+import signal
 import subprocess
 import sys
 import time
-import signal
 from pathlib import Path
-import os
 
 
 class ProcessManager:
@@ -38,7 +38,6 @@ class ProcessManager:
 
 
 def start_backend_servers(manager):
-    import os
 
     project_root = Path(__file__).resolve().parent
 
@@ -264,14 +263,14 @@ def main():
     try:
         # Install frontend dependencies first
         install_frontend_dependencies()
-        
+
         # Build frontend apps before starting dev servers
         build_frontend_apps()
-        
+
         # Start backend servers
         start_backend_servers(manager)
         time.sleep(2)
-        
+
         # Start frontend servers
         start_frontend_servers(manager)
 

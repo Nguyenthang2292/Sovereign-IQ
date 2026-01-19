@@ -11,7 +11,7 @@
           <input
             type="checkbox"
             :checked="visible"
-            @change="updateVisibleMA(maType, $event.target.checked)"
+            @change="updateVisibleMA(maType, ($event.target as HTMLInputElement).checked)"
             class="w-5 h-5 text-purple-600 bg-gray-700/50 border-gray-600/50 rounded focus:ring-purple-500"
           />
           <span :style="{ color: getMAColor(maType) }">{{ maType }}</span>
@@ -30,7 +30,7 @@
           <input
             type="checkbox"
             :checked="visible"
-            @change="updateShowSignal(signalType, $event.target.checked)"
+            @change="updateShowSignal(signalType, ($event.target as HTMLInputElement).checked)"
             class="w-5 h-5 text-purple-600 bg-gray-700/50 border-gray-600/50 rounded focus:ring-purple-500"
           />
           <span :style="{ color: getSignalColor(signalType) }">{{ signalType }}</span>
@@ -54,22 +54,21 @@
   </div>
 </template>
 
-<script setup>
-const props = defineProps({
-  visibleMas: {
-    type: Object,
-    required: true
-  },
-  showSignals: {
-    type: Object,
-    required: true
-  }
-})
+<script setup lang="ts">
+interface Props {
+  visibleMas: Record<string, boolean>
+  showSignals: Record<string, boolean>
+}
 
-const emit = defineEmits(['update:visibleMas', 'update:showSignals'])
+const props = defineProps<Props>()
 
-const getMAColor = (maType) => {
-  const colors = {
+const emit = defineEmits<{
+  (e: 'update:visibleMas', value: Record<string, boolean>): void
+  (e: 'update:showSignals', value: Record<string, boolean>): void
+}>()
+
+const getMAColor = (maType: string): string => {
+  const colors: Record<string, string> = {
     EMA: '#00E396',
     HMA: '#FEB019',
     WMA: '#775DD0',
@@ -80,9 +79,9 @@ const getMAColor = (maType) => {
   return colors[maType] || '#888'
 }
 
-const getSignalColor = (signalType) => {
+const getSignalColor = (signalType: string): string => {
   if (signalType === 'Average_Signal') return '#FFFFFF'
-  const colors = {
+  const colors: Record<string, string> = {
     EMA_Signal: '#00E396',
     HMA_Signal: '#FEB019',
     WMA_Signal: '#775DD0',
@@ -93,11 +92,13 @@ const getSignalColor = (signalType) => {
   return colors[signalType] || '#888'
 }
 
-function updateVisibleMA(maType, value) {
+function updateVisibleMA(maType: string, value: boolean) {
+  // @ts-ignore - Event target check
   emit('update:visibleMas', { ...props.visibleMas, [maType]: value })
 }
 
-function updateShowSignal(signalType, value) {
+function updateShowSignal(signalType: string, value: boolean) {
+  // @ts-ignore
   emit('update:showSignals', { ...props.showSignals, [signalType]: value })
 }
 </script>

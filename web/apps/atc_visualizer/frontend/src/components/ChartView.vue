@@ -8,56 +8,40 @@
       <div v-if="!ohlcv || ohlcv.length === 0" class="no-data">
         No OHLCV data available for the selected parameters.
       </div>
-      <apexchart
-        v-else
-        ref="chart"
-        type="candlestick"
-        :options="chartOptions"
-        :series="chartSeries"
-        :height="800"
-      />
+      <apexchart v-else ref="chart" type="candlestick" :options="chartOptions" :series="chartSeries" :height="800" />
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, watch } from 'vue'
+<script setup lang="ts">
+import { ref, computed } from 'vue'
 
-const props = defineProps({
-  ohlcv: {
-    type: Array,
-    required: true
-  },
-  movingAverages: {
-    type: Object,
-    default: null
-  },
-  signals: {
-    type: Object,
-    required: true
-  },
-  visibleMas: {
-    type: Object,
-    required: true
-  },
-  showSignals: {
-    type: Object,
-    required: true
-  },
-  symbol: {
-    type: String,
-    required: true
-  },
-  timeframe: {
-    type: String,
-    required: true
-  }
-})
+interface OHLCVData {
+  x: number
+  y: number[]
+}
+
+interface Point {
+  x: number
+  y: number
+}
+
+interface Props {
+  ohlcv: OHLCVData[]
+  movingAverages?: Record<string, Point[]> | null
+  signals: Record<string, Point[]>
+  visibleMas: Record<string, boolean>
+  showSignals: Record<string, boolean>
+  symbol: string
+  timeframe: string
+}
+
+const props = defineProps<Props>()
 
 const chart = ref(null)
 
-const getMAColor = (maType) => {
-  const colors = {
+const getMAColor = (maType: string): string => {
+  const colors: Record<string, string> = {
     EMA: '#00E396',
     HMA: '#FEB019',
     WMA: '#775DD0',
@@ -68,9 +52,9 @@ const getMAColor = (maType) => {
   return colors[maType] || '#888'
 }
 
-const getSignalColor = (signalType) => {
+const getSignalColor = (signalType: string): string => {
   if (signalType === 'Average_Signal') return '#FFFFFF'
-  const colors = {
+  const colors: Record<string, string> = {
     EMA_Signal: '#00E396',
     HMA_Signal: '#FEB019',
     WMA_Signal: '#775DD0',
@@ -81,12 +65,12 @@ const getSignalColor = (signalType) => {
   return colors[signalType] || '#888'
 }
 
-const getSignalMarkers = (signalData) => {
+const getSignalMarkers = (signalData: Point[]) => {
   if (!signalData || !props.ohlcv) return []
 
-  const markers = []
+  const markers: any[] = []
   // Create a map for quick price lookup by timestamp
-  const priceMap = new Map()
+  const priceMap = new Map<number, number[]>()
   props.ohlcv.forEach(d => {
     priceMap.set(d.x, d.y) // d.y is [O, H, L, C]
   })
@@ -128,7 +112,7 @@ const getSignalMarkers = (signalData) => {
 }
 
 const chartSeries = computed(() => {
-  const series = []
+  const series: any[] = []
 
   series.push({
     name: 'Candlestick',
@@ -143,11 +127,11 @@ const chartSeries = computed(() => {
       if (props.visibleMas[maType]) {
         const baseKey = `${maType}_MA`
 
-        if (props.movingAverages[baseKey]) {
+        if (props.movingAverages![baseKey]) {
           series.push({
             name: baseKey,
             type: 'line',
-            data: props.movingAverages[baseKey],
+            data: props.movingAverages![baseKey],
             tooltip: {
               enabled: false // Tắt tooltip cho MA để tăng tốc
             }
@@ -158,22 +142,22 @@ const chartSeries = computed(() => {
           const posKey = `${maType}_MA${i}`
           const negKey = `${maType}_MA_${i}`
 
-          if (props.movingAverages[posKey]) {
+          if (props.movingAverages![posKey]) {
             series.push({
               name: posKey,
               type: 'line',
-              data: props.movingAverages[posKey],
+              data: props.movingAverages![posKey],
               tooltip: {
                 enabled: false
               }
             })
           }
 
-          if (props.movingAverages[negKey]) {
+          if (props.movingAverages![negKey]) {
             series.push({
               name: negKey,
               type: 'line',
-              data: props.movingAverages[negKey],
+              data: props.movingAverages![negKey],
               tooltip: {
                 enabled: false
               }

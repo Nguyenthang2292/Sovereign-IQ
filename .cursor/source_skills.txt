@@ -1,0 +1,2 @@
+https://github.com/VoltAgent/awesome-claude-skills
+awesome-mcp-servers

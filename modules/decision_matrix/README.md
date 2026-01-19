@@ -2,210 +2,214 @@
 
 ## Tổng quan
 
-Đã triển khai 2 phương án tích hợp Decision Matrix vào ATC + Range Oscillator + SPC workflow:
+Decision Matrix module cung cấp 2 hệ thống classification:
 
-1. **Phương án 1 (Hybrid)**: `main_hybrid.py`
-   - Kết hợp sequential filtering và voting system
-   - Workflow: ATC → Range Oscillator → SPC → Decision Matrix Voting
+1. **Voting System**: Hệ thống voting dựa trên weighted impact và feature importance.
+2. **Random Forest Algorithm**: Implementation đúng theo Pine Script (`source_pine.txt`), sử dụng pattern-based classification với historical data.
 
-2. **Phương án 2 (Pure Voting)**: `main_voting.py`
-   - Thay thế hoàn toàn bằng voting system
-   - Workflow: Calculate all signals → Voting System → Final Results
+Cả hai hệ thống có thể được sử dụng độc lập hoặc kết hợp để đưa ra dự đoán chính xác hơn.
 
-## Files đã tạo
+## Files cấu trúc
 
-### Main Files
-- `main_hybrid.py` - Phương án 1: Hybrid Approach
-- `main_voting.py` - Phương án 2: Pure Voting System
+### Main Files (Workflows)
+- `main_hybrid.py` - **Phương án 1 (Hybrid)**: Kết hợp ATC scan, Range Oscillator filter và Decision Matrix voting.
+- `main_voting.py` - **Phương án 2 (Pure Voting)**: Thay thế hoàn toàn bằng voting system, tính toán song song.
 
 ### Module Files
-- `modules/decision_matrix/__init__.py` - Module init
-- `modules/decision_matrix/classifier.py` - DecisionMatrixClassifier class
+- `modules/decision_matrix/classifier.py`: `DecisionMatrixClassifier` class (wrapper chính).
+- `modules/decision_matrix/random_forest_core.py`: `RandomForestCore` (thuật toán cốt lõi).
+- `modules/decision_matrix/training_data.py`: Storage cho training data.
+- `modules/decision_matrix/pattern_matcher.py`: Logic so khớp pattern.
+- `modules/decision_matrix/shuffle.py`: Fisher-Yates shuffle.
+- `modules/decision_matrix/config.py`: Configuration classes.
+- `modules/decision_matrix/threshold.py`: Tính toán threshold động.
 
 ## Cài đặt
 
-Không cần cài đặt thêm, chỉ cần đảm bảo các dependencies hiện có đã được cài đặt.
+Module tự quản lý dependencies (chủ yếu là `numpy`), không cần cài đặt thêm packages ngoài môi trường dự án chuẩn.
 
-## Sử dụng
+---
 
-### Phương án 1: Hybrid Approach
+## Hướng dẫn nhanh (Quick Start)
 
-**Workflow:**
-1. ATC Scan → tìm signals ban đầu
-2. Range Oscillator Filter → xác nhận signals
-3. SPC Filter (optional) → xác nhận thêm
-4. Decision Matrix Voting (optional) → voting system
-5. Final Results
+### 1. Minimal Example (Random Forest)
 
-**Ví dụ chạy:**
+```python
+from modules.decision_matrix import (
+    DecisionMatrixClassifier,
+    FeatureType,
+)
+
+# Initialize classifier
+classifier = DecisionMatrixClassifier()
+
+# Collect training data (accumulate over time)
+classifier.add_training_sample(x1=50.0, x2=1000.0, y=1)
+classifier.add_training_sample(x1=45.0, x2=800.0, y=0)
+# ... add more samples
+
+# Classify
+results = classifier.classify_with_random_forest(
+    x1=52.0,
+    x2=1200.0,
+    y=1,
+    x1_type="RSI",
+    x2_type="Volume",
+)
+
+print(f"Prediction: {results['vote']}")
+print(f"Accuracy: {results['accuracy']:.2f}%")
+```
+
+### 2. Minimal Example (Voting System)
+
+```python
+from modules.decision_matrix import DecisionMatrixClassifier
+
+# Initialize with indicators
+classifier = DecisionMatrixClassifier(indicators=["atc", "oscillator"])
+
+# Add votes from indicators
+classifier.add_node_vote("atc", vote=1, signal_strength=0.7, accuracy=0.65)
+classifier.add_node_vote("oscillator", vote=1, signal_strength=0.8, accuracy=0.72)
+
+# Calculate weighted impact
+classifier.calculate_weighted_impact()
+
+# Get cumulative vote
+vote, weighted_score, breakdown = classifier.calculate_cumulative_vote(
+    threshold=0.5, min_votes=2
+)
+
+print(f"Vote: {vote}, Score: {weighted_score:.2f}")
+```
+
+### 3. Using Individual Components
+
+Nếu bạn muốn sử dụng từng component riêng lẻ:
+
+```python
+from modules.decision_matrix import (
+    TrainingDataStorage,
+    ThresholdCalculator,
+    RandomForestCore,
+)
+
+# Training Data Storage
+storage = TrainingDataStorage(training_length=850)
+storage.add_sample(1.0, 2.0, 1)
+
+# Random Forest Core
+rf = RandomForestCore()
+x1_matrix = storage.get_x1_matrix()
+x2_matrix = storage.get_x2_matrix()
+
+results = rf.classify(
+    x1_matrix, x2_matrix, 
+    current_x1=1.5, current_x2=2.5,
+    x1_threshold=0.5, x2_threshold=1.0
+)
+```
+
+---
+
+## Chi tiết thuật toán (Algorithm Details)
+
+### Random Forest Algorithm
+Implementation dựa trên `source_pine.txt` (lines 84-170):
+
+1. **Collect Training Data**: Lưu trữ cặp [feature, label] lịch sử.
+2. **Shuffle Data**: Randomize training matrices bằng Fisher-Yates (đảm bảo tính ngẫu nhiên như Pine Script).
+3. **Match Patterns**: Tìm dữ liệu lịch sử nằm trong khoảng `±threshold` của giá trị hiện tại.
+   - Volume: `stdev(volume, 14)`
+   - Z-Score: `0.05`
+   - Khác (RSI, MFI, v.v.): `0.5`
+4. **Count Pass/Fail**: Đếm số lượng match có label=1 vs label=0.
+5. **Vote**: So sánh total passes vs fails.
+
+### Voting System
+Hệ thống bỏ phiếu có trọng số:
+
+1. **Weight Capping**: Tự động giới hạn trọng số để tránh việc một chỉ báo chiếm ưu thế quá lớn.
+   - **N=2**: Cap ở mức 60% (tỷ lệ tối đa 60-40).
+   - **N>=3**: Cap ở mức 40% (tỷ lệ tối đa 40-30-30...).
+2. **Thresholds**:
+   - `threshold`: Điểm số trọng số tối thiểu để vote 1 (default 0.5).
+   - `min_votes`: Số lượng chỉ báo tối thiểu phải đồng thuận.
+
+---
+
+## Workflows thực tế
+
+Module đã tích hợp sẵn 2 workflows chính trong thư mục gốc:
+
+### Phương án 1: Hybrid Approach (`main_hybrid.py`)
+Kết hợp tuần tự: ATC Scan → Range Oscillator Filter → SPC Filter → Decision Matrix Voting.
 
 ```bash
-# Chạy với SPC và Decision Matrix
-python main_hybrid.py \
-    --timeframe 1h \
-    --enable-spc \
-    --spc-strategy cluster_transition \
-    --use-decision-matrix \
-    --voting-threshold 0.6 \
-    --min-votes 2
-
-# Chạy chỉ với SPC (không dùng Decision Matrix)
-python main_hybrid.py \
-    --timeframe 1h \
-    --enable-spc \
-    --spc-strategy regime_following
-
-# Chạy không có SPC (giống main_atc_oscillator.py cũ)
-python main_hybrid.py --timeframe 1h
+python main_hybrid.py --timeframe 1h --enable-spc --use-decision-matrix --voting-threshold 0.6
 ```
 
-**Command-line Arguments:**
-
-**SPC Options:**
-- `--enable-spc`: Bật SPC filtering
-- `--spc-strategy`: Chọn strategy (cluster_transition, regime_following, mean_reversion)
-- `--spc-k`: Số clusters (2 hoặc 3)
-- `--spc-lookback`: Số bars lịch sử
-- `--spc-p-low`, `--spc-p-high`: Percentiles
-- `--spc-min-signal-strength`, `--spc-min-rel-pos-change`: Cluster transition params
-- `--spc-min-regime-strength`, `--spc-min-cluster-duration`: Regime following params
-- `--spc-extreme-threshold`, `--spc-min-extreme-duration`: Mean reversion params
-
-**Decision Matrix Options:**
-- `--use-decision-matrix`: Bật voting system
-- `--voting-threshold`: Ngưỡng weighted score (default: 0.5)
-- `--min-votes`: Số indicators tối thiểu phải agree (default: 2)
-
-### Phương án 2: Pure Voting System
-
-**Workflow:**
-1. ATC Scan → tìm signals ban đầu
-2. Calculate all signals → tính signals từ tất cả indicators song song
-3. Voting System → áp dụng voting system
-4. Final Results
-
-**Ví dụ chạy:**
+### Phương án 2: Pure Voting System (`main_voting.py`)
+Tính toán song song tất cả signals và đưa vào Voting System.
 
 ```bash
-# Chạy với SPC
-python main_voting.py \
-    --timeframe 1h \
-    --enable-spc \
-    --spc-strategy cluster_transition \
-    --voting-threshold 0.6 \
-    --min-votes 2
-
-# Chạy không có SPC (chỉ ATC + Range Oscillator)
-python main_voting.py \
-    --timeframe 1h \
-    --voting-threshold 0.5 \
-    --min-votes 2
+python main_voting.py --timeframe 1h --voting-threshold 0.5 --min-votes 2
 ```
 
-**Command-line Arguments:**
+---
 
-Tương tự như Phương án 1, nhưng:
-- **Không có** `--use-decision-matrix` (voting system luôn được dùng)
-- `--voting-threshold` và `--min-votes` là bắt buộc
+## Cấu hình (Configuration)
 
-## So sánh 2 phương án
+Sử dụng `RandomForestConfig` để quản lý tham số:
 
-### Phương án 1: Hybrid Approach
+```python
+from modules.decision_matrix import RandomForestConfig, FeatureType, TargetType
 
-**Ưu điểm:**
-- ✅ Linh hoạt: Có thể bật/tắt từng bước
-- ✅ Backward compatible: Có thể chạy như workflow cũ
-- ✅ Có fallback logic: Tự động fallback nếu không có signals match
-- ✅ Có thể so sánh sequential vs voting
+config = RandomForestConfig(
+    training_length=850,
+    x1_type=FeatureType.RSI,
+    x2_type=FeatureType.VOLUME,
+    target_type=TargetType.RED_GREEN_CANDLE,
+    # Các tham số optional khác:
+    rsi_length=14,
+    atr_length=14
+)
 
-**Nhược điểm:**
-- ⚠️ Phức tạp hơn: Nhiều bước hơn
-- ⚠️ Có thể chậm hơn: Sequential filtering
-
-**Khi nào dùng:**
-- Khi muốn giữ logic cũ và thêm voting system
-- Khi muốn so sánh 2 approaches
-- Khi muốn có fallback logic
-
-### Phương án 2: Pure Voting System
-
-**Ưu điểm:**
-- ✅ Đơn giản hơn: Chỉ có voting system
-- ✅ Nhanh hơn: Tính signals song song
-- ✅ Dễ mở rộng: Dễ thêm indicators mới
-- ✅ Có đầy đủ metrics: Feature importance, accuracy, weighted impact
-
-**Nhược điểm:**
-- ⚠️ Thay đổi lớn: Khác hoàn toàn workflow cũ
-- ⚠️ Không có fallback: Phải dựa vào voting
-
-**Khi nào dùng:**
-- Khi muốn approach mới hoàn toàn
-- Khi muốn đơn giản hóa workflow
-- Khi muốn tính signals song song
-
-## Output
-
-Cả 2 phương án đều hiển thị:
-
-1. **Final Results**: Danh sách symbols với confirmed signals
-2. **Voting Metadata** (nếu dùng Decision Matrix):
-   - Weighted Score
-   - Voting Breakdown (Node 1, Node 2, Node 3)
-   - Feature Importance
-   - Weighted Impact
-   - Independent Accuracy
-
-**Ví dụ output:**
-
-```
-LONG Signals - Voting Breakdown:
---------------------------------------------------------------------------------
-
-Symbol: BTC/USDT
-  Weighted Score: 72.50%
-  Voting Breakdown:
-    ATC: ✓ (Weight: 33.3%, Impact: 33.3%, Importance: 65.0%, Contribution: 0.22)
-    OSCILLATOR: ✓ (Weight: 33.3%, Impact: 33.3%, Importance: 70.0%, Contribution: 0.23)
-    SPC: ✓ (Weight: 33.3%, Impact: 33.3%, Importance: 68.0%, Contribution: 0.23)
+# Export/Import dict
+config_dict = config.to_dict()
+new_config = RandomForestConfig.from_dict(config_dict)
 ```
 
-## Performance
+## Best Practices
 
-### Phương án 1 (Hybrid)
-- Sequential filtering: Có thể chậm hơn
-- Parallel processing trong mỗi bước
-- Tổng thời gian: ~3-5 phút cho 100 symbols
+1. **Training Data Collection**: 
+   - Thu thập data liên tục qua từng nến (time-series).
+   - Không add toàn bộ data một lần nếu muốn mô phỏng đúng quá trình học.
 
-### Phương án 2 (Pure Voting)
-- Parallel calculation: Nhanh hơn
-- Tính tất cả signals một lần
-- Tổng thời gian: ~2-3 phút cho 100 symbols
+2. **Voting Sequence**:
+   - Luôn gọi `calculate_weighted_impact()` trước khi `calculate_cumulative_vote()`.
+   - Nếu thiếu bước này sẽ gây ra lỗi `ValueError`.
+
+3. **Choosing Thresholds**:
+   - Conservative: `threshold=0.6`, `min_votes=3` (ít tín hiệu, độ chính xác cao hơn).
+   - Aggressive: `threshold=0.3`, `min_votes=1` (nhiều tín hiệu hơn).
 
 ## Troubleshooting
 
-### Lỗi: "No ATC signals found"
-- Kiểm tra timeframe và limit
-- Kiểm tra kết nối exchange
+- **Lỗi "Missing feature importance data"**:
+  - Nguyên nhân: Gọi `calculate_weighted_impact` khi chưa add votes hoặc thiếu tham số accuracy.
+  - Khắc phục: Đảm bảo gọi `add_node_vote` cho các indicators đã khai báo.
 
-### Lỗi: "No signals confirmed"
-- Giảm `--voting-threshold`
-- Giảm `--min-votes`
-- Kiểm tra SPC parameters
+- **Lỗi Import**:
+  - Đảm bảo đang chạy python từ root directory của project.
+  - Kiểm tra `__init__.py` đã export đúng class.
 
-### Lỗi: Import errors
-- Đảm bảo đã cài đặt tất cả dependencies
-- Kiểm tra Python path
+## Testing
 
-## Next Steps
+```bash
+# Run all tests
+pytest modules/decision_matrix/test_decision_matrix.py -v
+```
 
-1. **Backtesting**: So sánh performance của 2 phương án
-2. **Tuning**: Điều chỉnh voting threshold và min_votes
-3. **Accuracy Tracking**: Tính toán accuracy thực tế từ historical data
-4. **Feature Selection**: Tự động chọn indicators tốt nhất
-
-## Tham khảo
-
-- `Decision Matrix.pdf`: Tài liệu gốc về Decision Matrix (trong cùng thư mục)
-- `modules/decision_matrix/classifier.py`: Implementation của DecisionMatrixClassifier
-
+Tests cover: Shuffle mechanism, Threshold calculation, Pattern matching, và Storage logic.

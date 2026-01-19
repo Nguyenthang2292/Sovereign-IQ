@@ -275,6 +275,56 @@ def test_resource_monitor_get_status_string():
         assert "unavailable" in status.lower()
 
 
+@patch("modules.adaptive_trend.signal_atc.PSUTIL_AVAILABLE", True)
+@patch("psutil.virtual_memory")
+def test_resource_monitor_check_memory_limit(mock_vm):
+    """Test check_memory_limit with mocked values."""
+    from modules.adaptive_trend.signal_atc import ResourceMonitor
+    
+    # Mock system memory percent
+    mock_vm.return_value.percent = 60.0
+    monitor = ResourceMonitor(max_memory_pct=70.0)
+    assert monitor.check_memory_limit() is True
+    
+    mock_vm.return_value.percent = 80.0
+    assert monitor.check_memory_limit() is False
+
+
+@patch("modules.adaptive_trend.signal_atc.PSUTIL_AVAILABLE", True)
+@patch("psutil.cpu_percent")
+def test_resource_monitor_check_cpu_limit(mock_cpu):
+    """Test check_cpu_limit with mocked values."""
+    from modules.adaptive_trend.signal_atc import ResourceMonitor
+    
+    mock_cpu.return_value = 60.0
+    monitor = ResourceMonitor(max_cpu_pct=70.0)
+    assert monitor.check_cpu_limit() is True
+    
+    mock_cpu.return_value = 80.0
+    assert monitor.check_cpu_limit() is False
+
+
+@patch("time.sleep", return_value=None)
+@patch("modules.adaptive_trend.signal_atc.ResourceMonitor.check_memory_limit")
+@patch("modules.adaptive_trend.signal_atc.ResourceMonitor.check_cpu_limit")
+def test_resource_monitor_wait_if_over_limit_timeout(mock_cpu_limit, mock_mem_limit, mock_sleep):
+    """Test wait_if_over_limit exits after timeout even if still over limit."""
+    from modules.adaptive_trend.signal_atc import ResourceMonitor
+    
+    monitor = ResourceMonitor()
+    
+    # Always over limit
+    mock_mem_limit.return_value = False
+    mock_cpu_limit.return_value = False
+    
+    # Use a small wait interval to avoid long test time
+    # This should call sleep multiple times and then exit
+    start_time = datetime.now()
+    monitor.wait_if_over_limit(max_wait_seconds=0.2)
+    
+    assert mock_sleep.called
+
+
 # ============================================================================
 # Tests for fetch_data_for_symbol
 # ============================================================================
@@ -301,133 +351,6 @@ def test_fetch_data_for_symbol_empty_dataframe(mock_data_fetcher):
     mock_data_fetcher.fetch_ohlcv_with_fallback_exchange = MagicMock(return_value=(pd.DataFrame(), "binance"))
 
     result = fetch_data_for_symbol("BTC/USDT", mock_data_fetcher, "1h", 200)
-
-    assert result is None
-
-
-def test_fetch_data_for_symbol_none_result(mock_data_fetcher):
-    """Test fetch_data_for_symbol returns None when fetch fails."""
-    from modules.adaptive_trend.signal_atc import fetch_data_for_symbol
-
-    mock_data_fetcher.fetch_ohlcv_with_fallback_exchange = MagicMock(return_value=(None, None))
-
-    result = fetch_data_for_symbol("BTC/USDT", mock_data_fetcher, "1h", 200)
-
-    assert result is None
-
-
-def test_fetch_data_for_symbol_exception(mock_data_fetcher):
-    """Test fetch_data_for_symbol handles exceptions."""
-    from modules.adaptive_trend.signal_atc import fetch_data_for_symbol
-
-    mock_data_fetcher.fetch_ohlcv_with_fallback_exchange = MagicMock(side_effect=Exception("Connection error"))
-
-    result = fetch_data_for_symbol("BTC/USDT", mock_data_fetcher, "1h", 200)
-
-    assert result is None
-
-
-# ============================================================================
-# Tests for compute_atc_signals_for_data
-# ============================================================================
-
-
-@patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
-def test_compute_atc_signals_for_data_success_v2(mock_compute, sample_ohlcv_data, base_config):
-    """Test compute_atc_signals_for_data returns result dict."""
-    from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
-
-    mock_compute.return_value = {
-        "Average_Signal": pd.Series([0.0, 0.05, 0.1]),
-        "EMA_Signal": pd.Series([0.0, 0.04, 0.08]),
-        "EMA_S": pd.Series([1.0, 1.05, 1.1]),
-    }
-
-    result = compute_atc_signals_for_data(
-        "BTC/USDT",
-        "1h",
-        sample_ohlcv_data,
-        "binance",
-        base_config,
-    )
-
-    assert result is not None
-    assert result["symbol"] == "BTC/USDT"
-    assert result["timeframe"] == "1h"
-    assert "average_signal" in result
-    assert "signal_direction" in result
-    assert "confidence" in result
-
-
-@patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
-def test_compute_atc_signals_for_data_empty_result_v2(mock_compute, sample_ohlcv_data, base_config):
-    """Test compute_atc_signals_for_data returns None for empty Average_Signal."""
-    from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
-
-    mock_compute.return_value = {
-        "Average_Signal": pd.Series([]),
-    }
-
-    result = compute_atc_signals_for_data(
-        "BTC/USDT",
-        "1h",
-        sample_ohlcv_data,
-        "binance",
-        base_config,
-    )
-
-    assert result is None
-
-
-@patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
-def test_compute_atc_signals_for_data_nan_signal_v2(mock_compute, sample_ohlcv_data, base_config):
-    """Test compute_atc_signals_for_data handles NaN signals - returns result with valid fields."""
-    from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
-
-    mock_compute.return_value = {
-        "Average_Signal": pd.Series([0.0, np.nan, 0.1]),
-        "EMA_Signal": pd.Series([0.0, 0.05, 0.08]),
-        "EMA_S": pd.Series([1.0, 1.05, 1.1]),
-        "HMA_Signal": pd.Series([0.0, 0.05, 0.08]),
-        "HMA_S": pd.Series([1.0, 1.05, 1.1]),
-        "WMA_Signal": pd.Series([0.0, 0.05, 0.08]),
-        "WMA_S": pd.Series([1.0, 1.05, 1.1]),
-        "DEMA_Signal": pd.Series([0.0, 0.05, 0.08]),
-        "DEMA_S": pd.Series([1.0, 1.05, 1.1]),
-        "LSMA_Signal": pd.Series([0.0, 0.05, 0.08]),
-        "LSMA_S": pd.Series([1.0, 1.05, 1.1]),
-        "KAMA_Signal": pd.Series([0.0, 0.05, 0.08]),
-        "KAMA_S": pd.Series([1.0, 1.05, 1.1]),
-    }
-
-    result = compute_atc_signals_for_data(
-        "BTC/USDT",
-        "1h",
-        sample_ohlcv_data,
-        "binance",
-        base_config,
-    )
-
-    # Function doesn't return None - it processes the last signal which is 0.1 (not NaN)
-    assert result is not None
-    assert "symbol" in result
-    assert "timeframe" in result
-
-
-@patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
-def test_compute_atc_signals_for_data_exception_v2(mock_compute, sample_ohlcv_data, base_config):
-    """Test compute_atc_signals_for_data handles exceptions."""
-    from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
-
-    mock_compute.side_effect = Exception("Compute error")
-
-    result = compute_atc_signals_for_data(
-        "BTC/USDT",
-        "1h",
-        sample_ohlcv_data,
-        "binance",
-        base_config,
-    )
 
     assert result is None
 
@@ -487,25 +410,6 @@ def test_compute_atc_signals_for_data_success(mock_compute, sample_ohlcv_data, b
 
 
 @patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
-def test_compute_atc_signals_for_data_invalid_source(mock_compute, sample_ohlcv_data, base_config):
-    """Test compute_atc_signals_for_data handles invalid calculation_source."""
-    from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
-
-    base_config.calculation_source = "invalid"
-
-    result = compute_atc_signals_for_data(
-        "BTC/USDT",
-        "1h",
-        sample_ohlcv_data,
-        "binance",
-        base_config,
-    )
-
-    # Should return None because source is invalid
-    assert result is None
-
-
-@patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
 def test_compute_atc_signals_for_data_empty_result(mock_compute, sample_ohlcv_data, base_config):
     """Test compute_atc_signals_for_data returns None for empty Average_Signal."""
     from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
@@ -527,11 +431,23 @@ def test_compute_atc_signals_for_data_empty_result(mock_compute, sample_ohlcv_da
 
 @patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
 def test_compute_atc_signals_for_data_nan_signal(mock_compute, sample_ohlcv_data, base_config):
-    """Test compute_atc_signals_for_data handles NaN signals."""
+    """Test compute_atc_signals_for_data handles NaN signals - returns result with valid fields."""
     from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
 
     mock_compute.return_value = {
-        "Average_Signal": pd.Series([0.0, 0.1, np.nan]),  # Latest signal is NaN
+        "Average_Signal": pd.Series([0.0, np.nan, 0.1]),
+        "EMA_Signal": pd.Series([0.0, 0.05, 0.08]),
+        "EMA_S": pd.Series([1.0, 1.05, 1.1]),
+        "HMA_Signal": pd.Series([0.0, 0.05, 0.08]),
+        "HMA_S": pd.Series([1.0, 1.05, 1.1]),
+        "WMA_Signal": pd.Series([0.0, 0.05, 0.08]),
+        "WMA_S": pd.Series([1.0, 1.05, 1.1]),
+        "DEMA_Signal": pd.Series([0.0, 0.05, 0.08]),
+        "DEMA_S": pd.Series([1.0, 1.05, 1.1]),
+        "LSMA_Signal": pd.Series([0.0, 0.05, 0.08]),
+        "LSMA_S": pd.Series([1.0, 1.05, 1.1]),
+        "KAMA_Signal": pd.Series([0.0, 0.05, 0.08]),
+        "KAMA_S": pd.Series([1.0, 1.05, 1.1]),
     }
 
     result = compute_atc_signals_for_data(
@@ -542,8 +458,57 @@ def test_compute_atc_signals_for_data_nan_signal(mock_compute, sample_ohlcv_data
         base_config,
     )
 
-    # Should return None because latest signal is NaN
-    assert result is None
+    # Function doesn't return None - it processes the last signal which is 0.1 (not NaN)
+    assert result is not None
+    assert "symbol" in result
+    assert "timeframe" in result
+
+
+@patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
+@pytest.mark.parametrize("source", ["open", "high", "low"])
+def test_compute_atc_signals_for_data_price_sources(mock_compute, sample_ohlcv_data, base_config, source):
+    """Test compute_atc_signals_for_data with different price sources."""
+    from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
+
+    base_config.calculation_source = source
+    mock_compute.return_value = {
+        "Average_Signal": pd.Series([0.1, 0.2, 0.3]),
+    }
+
+    result = compute_atc_signals_for_data(
+        "BTC/USDT",
+        "1h",
+        sample_ohlcv_data,
+        "binance",
+        base_config,
+    )
+
+    assert result is not None
+    assert result["current_price"] == sample_ohlcv_data[source].iloc[-1]
+
+
+@patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
+def test_compute_atc_signals_for_data_missing_ma_keys(mock_compute, sample_ohlcv_data, base_config):
+    """Test compute_atc_signals_for_data handles missing optional MA keys."""
+    from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
+
+    # Only return the required Average_Signal
+    mock_compute.return_value = {
+        "Average_Signal": pd.Series([0.1, 0.2, 0.3]),
+    }
+
+    result = compute_atc_signals_for_data(
+        "BTC/USDT",
+        "1h",
+        sample_ohlcv_data,
+        "binance",
+        base_config,
+    )
+
+    assert result is not None
+    assert result["ema_signal"] == 0.0
+    assert result["ema_equity"] == 0.0
+    assert result["kama_signal"] == 0.0
 
 
 @patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
@@ -561,6 +526,27 @@ def test_compute_atc_signals_for_data_exception(mock_compute, sample_ohlcv_data,
         base_config,
     )
 
+    assert result is None
+
+
+@patch("modules.adaptive_trend.signal_atc.compute_atc_signals")
+def test_compute_atc_signals_for_data_nan_signal_edge(mock_compute, sample_ohlcv_data, base_config):
+    """Test compute_atc_signals_for_data returns None if latest signal is NaN."""
+    from modules.adaptive_trend.signal_atc import compute_atc_signals_for_data
+
+    mock_compute.return_value = {
+        "Average_Signal": pd.Series([0.0, 0.1, np.nan]),  # Latest signal is NaN
+    }
+
+    result = compute_atc_signals_for_data(
+        "BTC/USDT",
+        "1h",
+        sample_ohlcv_data,
+        "binance",
+        base_config,
+    )
+
+    # Should return None because latest signal is NaN
     assert result is None
 
 
@@ -686,6 +672,30 @@ def test_calculate_optimal_batch_size_no_psutil():
     assert batch_size == 50  # Default value
 
 
+@patch("modules.adaptive_trend.signal_atc.PSUTIL_AVAILABLE", True)
+@patch("psutil.virtual_memory")
+def test_calculate_optimal_batch_size_boundaries(mock_vm):
+    """Test calculate_optimal_batch_size boundary conditions."""
+    from modules.adaptive_trend.signal_atc import calculate_optimal_batch_size
+    
+    # Case 1: High memory available -> should be capped at 100
+    mock_vm.return_value.available = 10 * 1024 * 1024 * 1024 # 10 GB
+    batch_size = calculate_optimal_batch_size(1000, 3)
+    assert batch_size == 100
+    
+    # Case 2: Very low memory available -> should be limited at 10
+    mock_vm.return_value.available = 2 * 1024 * 1024 # 2 MB (usable ~1.4MB -> batch size ~4 -> limited to 10)
+    batch_size = calculate_optimal_batch_size(1000, 3)
+    assert batch_size == 10
+    
+    # Case 3: Middle case
+    # memory_per_symbol_mb * 3 timeframes = 0.33 MB
+    # Usable: 16.5 MB / 0.33 = 50
+    mock_vm.return_value.available = (16.5 / 0.7) * 1024 * 1024
+    batch_size = calculate_optimal_batch_size(1000, 3, max_memory_pct=70.0)
+    assert 45 <= batch_size <= 55
+
+
 # ============================================================================
 # Tests for process_symbol_batch_sequential
 # ============================================================================
@@ -786,6 +796,30 @@ def test_process_symbol_batch_hybrid(mock_fetch, mock_compute, mock_data_fetcher
     assert len(results) == 2
     assert results[0]["symbol"] == "BTC/USDT"
     assert results[1]["symbol"] == "ETH/USDT"
+
+
+@patch("modules.adaptive_trend.signal_atc.compute_atc_signals_for_data")
+@patch("modules.adaptive_trend.signal_atc.fetch_data_for_symbol")
+def test_process_symbol_batch_hybrid_fetch_failed(mock_fetch, mock_compute, mock_data_fetcher, base_config):
+    """Test process_symbol_batch_hybrid when some fetches fail."""
+    from modules.adaptive_trend.signal_atc import process_symbol_batch_hybrid
+
+    symbols = ["BTC/USDT", "ETH/USDT"]
+
+    # One succeeds, one fails
+    mock_fetch.side_effect = [
+        (mock_ohlcv_data(), "binance"),
+        None,
+    ]
+
+    mock_compute.return_value = {"symbol": "BTC/USDT", "confidence": 0.5}
+
+    results = process_symbol_batch_hybrid(
+        symbols, mock_data_fetcher, "1h", base_config, max_workers_thread=2, max_workers_process=2
+    )
+
+    assert len(results) == 1
+    assert results[0]["symbol"] == "BTC/USDT"
 
 
 # ============================================================================

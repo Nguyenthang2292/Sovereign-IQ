@@ -4,7 +4,7 @@ Tests for DecisionMatrixClassifier.
 
 import pytest
 
-from modules.decision_matrix.classifier import DecisionMatrixClassifier
+from modules.decision_matrix.core.classifier import DecisionMatrixClassifier
 
 
 class TestDecisionMatrixClassifier:
@@ -61,6 +61,20 @@ class TestDecisionMatrixClassifier:
         assert classifier.node_votes["oscillator"] == 1
         assert classifier.node_votes["spc"] == 0
         assert len(classifier.node_votes) == 3
+
+    def test_add_node_vote_invalid_indicator(self):
+        """Test adding vote for indicator not in list."""
+        classifier = DecisionMatrixClassifier(indicators=["atc"])
+        with pytest.raises(ValueError, match="is not in the active indicators list"):
+            classifier.add_node_vote("oscillator", vote=1)
+
+    def test_calculate_weighted_impact_single_indicator(self):
+        """Test weighted impact calculation with only one indicator."""
+        classifier = DecisionMatrixClassifier(indicators=["atc"])
+        classifier.add_node_vote("atc", vote=1, signal_strength=0.7)
+        classifier.calculate_weighted_impact()
+
+        assert classifier.weighted_impact["atc"] == 1.0
 
     def test_calculate_weighted_impact_equal_importance(self):
         """Test weighted impact calculation with equal importance."""
@@ -123,24 +137,54 @@ class TestDecisionMatrixClassifier:
         classifier2.add_node_vote("oscillator", vote=1, signal_strength=0.8, accuracy=0.1)
         classifier2.calculate_weighted_impact()
 
-        # With N=2, normalization is skipped, so weights should be proportional to importance
-        # atc: 0.9/(0.9+0.1) = 0.9, oscillator: 0.1/(0.9+0.1) = 0.1
-        assert abs(classifier2.weighted_impact["atc"] - 0.9) < 0.001
-        assert abs(classifier2.weighted_impact["oscillator"] - 0.1) < 0.001
+        # With N=2, ATC has 90% importance, so it should be capped at 60%
+        # atc: 0.6, oscillator: 0.4
+        assert abs(classifier2.weighted_impact["atc"] - 0.6) < 0.001
+        assert abs(classifier2.weighted_impact["oscillator"] - 0.4) < 0.001
         total2 = sum(classifier2.weighted_impact.values())
         assert abs(total2 - 1.0) < 0.001
+
+    def test_calculate_weighted_impact_cap_n2(self):
+        """Test 60% cap for N=2 indicators."""
+        classifier = DecisionMatrixClassifier(indicators=["atc", "oscillator"])
+        # ATC has very high importance, should be capped at 60%
+        classifier.add_node_vote("atc", vote=1, accuracy=0.9)
+        classifier.add_node_vote("oscillator", vote=1, accuracy=0.1)
+        classifier.calculate_weighted_impact()
+
+        # Original proportion would be 0.9. Cap is 0.6.
+        assert abs(classifier.weighted_impact["atc"] - 0.6) < 0.001
+        assert abs(classifier.weighted_impact["oscillator"] - 0.4) < 0.001
+
+    def test_calculate_weighted_impact_iterative_cap_n3(self):
+        """Test iterative 40% cap for N=3 indicators."""
+        classifier = DecisionMatrixClassifier(indicators=["atc", "oscillator", "spc"])
+        # ATC=0.8, OSC=0.1, SPC=0.1. Total=1.0.
+        # ATC proportion is 0.8. Cap is 0.4.
+        # Excess is 0.4, redistributed to others: 0.1 + 0.2 = 0.3 each.
+        classifier.add_node_vote("atc", vote=1, accuracy=0.8)
+        classifier.add_node_vote("oscillator", vote=1, accuracy=0.1)
+        classifier.add_node_vote("spc", vote=1, accuracy=0.1)
+        classifier.calculate_weighted_impact()
+
+        assert abs(classifier.weighted_impact["atc"] - 0.4) < 0.001
+        assert abs(classifier.weighted_impact["oscillator"] - 0.3) < 0.001
+        assert abs(classifier.weighted_impact["spc"] - 0.3) < 0.001
+
+    def test_calculate_weighted_impact_missing_data_error(self):
+        """Test error when calculate_weighted_impact is called with partial votes."""
+        classifier = DecisionMatrixClassifier(indicators=["atc", "oscillator"])
+        classifier.add_node_vote("atc", vote=1, accuracy=0.5)
+        with pytest.raises(ValueError, match=r"Missing feature importance data for indicators: \['oscillator'\]"):
+            classifier.calculate_weighted_impact()
 
     def test_calculate_weighted_impact_no_importance(self):
         """Test weighted impact with no importance data (equal weights)."""
         classifier = DecisionMatrixClassifier(indicators=["atc", "oscillator", "spc"])
 
-        # Don't add any votes - no importance data at all
-        classifier.calculate_weighted_impact()
-
-        # Should use equal weights when total_importance == 0
-        expected_weight = 1.0 / 3
-        for indicator in classifier.indicators:
-            assert abs(classifier.weighted_impact.get(indicator, 0) - expected_weight) < 0.001
+        # Should raise ValueError because no votes were added
+        with pytest.raises(ValueError, match="Missing feature importance data"):
+            classifier.calculate_weighted_impact()
 
     def test_calculate_cumulative_vote_all_agree(self):
         """Test cumulative vote when all indicators agree."""

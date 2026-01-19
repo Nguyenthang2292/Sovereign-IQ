@@ -11,11 +11,22 @@ from __future__ import annotations
 from typing import Optional, Tuple
 
 import pandas as pd
+import numpy as np
 import pandas_ta as ta
 
 from modules.adaptive_trend.utils import diflen
 from modules.common.indicators.momentum import calculate_kama_series
 from modules.common.utils import log_error, log_warn
+
+try:
+    from numba import njit
+    _HAS_NUMBA = True
+except ImportError:
+    _HAS_NUMBA = False
+    def njit(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
 
 
 def calculate_kama_atc(
@@ -65,49 +76,59 @@ def calculate_kama_atc(
         )
 
     try:
-        import numpy as np
-
-        prices_array = prices.values.astype(np.float64)
-        n = len(prices_array)
-        kama = np.full(n, np.nan, dtype=np.float64)
-
-        if n < 1:
-            return pd.Series(kama, index=prices.index)
-
-        fast = 0.666
-        slow = 0.064
-
-        for i in range(n):
-            if i == 0:
-                kama[i] = prices_array[i]
-                continue
-
-            if i < length:
-                kama[i] = kama[i - 1]
-                continue
-
-            noisex = np.abs(prices_array[i] - prices_array[i - 1])
-            signal = np.abs(prices_array[i] - prices_array[i - length])
-
-            noise = 0.0
-            for j in range(1, min(i, length) + 1):
-                noise += np.abs(prices_array[i - j + 1] - prices_array[i - j])
-
-            ratio = 0.0 if noise == 0 else signal / noise
-
-            smooth = np.power(ratio * (fast - slow) + slow, 2)
-
-            prev_kama = kama[i - 1]
-            if np.isnan(prev_kama):
-                prev_kama = prices_array[i]
-
-            kama[i] = prev_kama + smooth * (prices_array[i] - prev_kama)
-
-        return pd.Series(kama, index=prices.index)
+        prices_array = prices.values.astype("float64")
+        kama_array = _calculate_kama_atc_core(prices_array, length)
+        return pd.Series(kama_array, index=prices.index)
 
     except Exception as e:
         log_error(f"Error calculating KAMA: {e}")
         raise
+
+# @njit(cache=True)
+def _calculate_kama_atc_core(
+    prices_array: np.ndarray,
+    length: int,
+) -> np.ndarray:
+    """Core KAMA calculation optimized with Numba."""
+    n = len(prices_array)
+    kama = np.full(n, np.nan, dtype=np.float64)
+
+    if n < 1:
+        return kama
+
+    fast = 0.666
+    slow = 0.064
+
+    for i in range(n):
+        if i == 0:
+            kama[i] = prices_array[i]
+            continue
+
+        if i < length:
+            kama[i] = kama[i - 1]
+            continue
+
+        # Calculate noise: PineScript math.sum(math.abs(src - src[1]), length)
+        noise = 0.0
+        for j in range(i - length + 1, i + 1):
+            if j <= 0:
+                continue
+            noise += abs(prices_array[j] - prices_array[j - 1])
+
+        signal = abs(prices_array[i] - prices_array[i - length])
+        ratio = 0.0 if noise == 0 else signal / noise
+        
+        # Use float64 power directly
+        smooth = (ratio * (fast - slow) + slow) ** 2
+
+        prev_kama = kama[i - 1]
+        # Use np.isnan on float64 explicitly
+        if np.isnan(prev_kama):
+            prev_kama = prices_array[i]
+
+        kama[i] = prev_kama + (smooth * (prices_array[i] - prev_kama))
+
+    return kama
 
 
 def ma_calculation(

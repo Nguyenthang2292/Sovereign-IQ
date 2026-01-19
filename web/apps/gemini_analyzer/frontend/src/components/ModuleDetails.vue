@@ -89,28 +89,35 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 
-const props = defineProps({
-  modules: {
-    type: Array,
-    required: true
-  },
-  highlightedModule: {
-    type: String,
-    default: null
-  }
+interface ModuleInfo {
+  name: string
+  description: string
+  path: string
+  inputs: string[]
+  outputs: string[]
+  keyFiles?: string[]
+  keyFunctions?: string[]
+}
+
+interface Props {
+  modules: ModuleInfo[]
+  highlightedModule?: string | null
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  highlightedModule: null
 })
 
-const expandedModules = ref({})
+const expandedModules = ref<Record<number, boolean>>({})
 
-function toggleModule(index) {
+function toggleModule(index: number) {
   expandedModules.value[index] = !expandedModules.value[index]
 }
 
-function getModuleId(moduleName) {
+function getModuleId(moduleName: string): string {
   // Convert module name to a valid ID
   return moduleName
     .toLowerCase()
@@ -119,7 +126,7 @@ function getModuleId(moduleName) {
 }
 
 // Expose method to scroll to module
-function scrollToModule(moduleName) {
+function scrollToModule(moduleName: string) {
   const moduleId = getModuleId(moduleName)
   const element = document.getElementById(`module-${moduleId}`)
   if (element) {
@@ -131,7 +138,7 @@ function scrollToModule(moduleName) {
     }
   } else {
     // Try to find by text content as fallback
-    document.querySelectorAll('[id^="module-"]')
+    // const fallback = ...
     // No debug output
   }
 }

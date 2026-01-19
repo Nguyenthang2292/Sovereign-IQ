@@ -145,6 +145,7 @@ def compute_atc_signals(
     cutout: int = 0,
     long_threshold: float = 0.1,
     short_threshold: float = -0.1,
+    strategy_mode: bool = False,
 ) -> dict[str, pd.Series]:
     """
     Compute Adaptive Trend Classification (ATC) signals.
@@ -208,7 +209,11 @@ def compute_atc_signals(
         log_error(f"cutout ({cutout}) >= prices length ({len(prices)})")
         raise ValueError(f"cutout ({cutout}) must be less than prices length ({len(prices)})")
 
-    log_info(f"Parameters: robustness={robustness}, La={La}, De={De}, cutout={cutout}")
+    # Apply PineScript scaling to Lambda and Decay
+    La_scaled = La / 1000.0
+    De_scaled = De / 100.0
+
+    log_info(f"Parameters: robustness={robustness}, La_scaled={La_scaled}, De_scaled={De_scaled}, cutout={cutout}, strategy_mode={strategy_mode}")
 
     # Define configuration for each MA type
     ma_configs = [
@@ -239,7 +244,7 @@ def compute_atc_signals(
     log_debug("Computing Layer 1 signals...")
     layer1_signals = {}
     for ma_type, _, _ in ma_configs:
-        signal, _, _ = _layer1_signal_for_ma(prices, ma_tuples[ma_type], L=La, De=De, cutout=cutout, R=R)
+        signal, _, _ = _layer1_signal_for_ma(prices, ma_tuples[ma_type], L=La_scaled, De=De_scaled, cutout=cutout, R=R)
         layer1_signals[ma_type] = signal
     log_debug("Completed Layer 1 signals")
 
@@ -249,8 +254,8 @@ def compute_atc_signals(
         layer1_signals=layer1_signals,
         ma_configs=ma_configs,
         R=R,
-        L=La,
-        De=De,
+        L=La_scaled,
+        De=De_scaled,
         cutout=cutout,
     )
 
@@ -295,6 +300,10 @@ def compute_atc_signals(
         avg_signal_array = np.where(np.isfinite(avg_signal_array), avg_signal_array, 0.0)
 
     Average_Signal = pd.Series(avg_signal_array, index=index, dtype="float64")
+
+    # Handle strategy mode (non-repainting)
+    if strategy_mode:
+        Average_Signal = Average_Signal.shift(1).fillna(0)
 
     # Check number of zero divisions (for logging)
     zero_divisions = np.sum(den_array == 0)

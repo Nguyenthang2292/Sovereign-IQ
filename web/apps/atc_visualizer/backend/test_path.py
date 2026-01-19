@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 p = Path(__file__).resolve()
 print("[DEBUG] File:", p)

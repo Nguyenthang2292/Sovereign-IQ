@@ -30,8 +30,6 @@ ENV/
 # IDEs
 .vscode/
 .idea/
-.cursor/
-.cursor/debug.log
 
 # Testing
 .pytest_cache/
@@ -58,8 +56,6 @@ tmp_*.py
 .env.*.local
 modules/config_api.py
 config/config_api.py
-# Snyk Security Extension - AI Rules (auto-generated)
-.cursor/rules/snyk_rules.mdc
 
 # Gemini Chart Analyzer outputs
 modules/gemini_chart_analyzer/charts/

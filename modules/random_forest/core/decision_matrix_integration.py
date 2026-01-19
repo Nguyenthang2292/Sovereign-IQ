@@ -2,9 +2,10 @@
 Random Forest Decision Matrix Integration.
 
 This module provides helper functions to integrate Random Forest predictions
-into the Decision Matrix voting system.
+into Decision Matrix voting system.
 """
 
+import logging
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -13,6 +14,8 @@ import pandas as pd
 from modules.common.core.data_fetcher import DataFetcher
 from modules.random_forest.core.model import load_random_forest_model
 from modules.random_forest.core.signals import get_latest_random_forest_signal
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_random_forest_vote(
@@ -45,6 +48,7 @@ def calculate_random_forest_vote(
         # Load model
         model = load_random_forest_model(Path(model_path) if model_path else None)
         if model is None:
+            logger.warning(f"Random Forest model not found for {symbol} ({timeframe})")
             return (0, 0.0)
 
         # Use provided DataFrame if available, otherwise fetch from API
@@ -57,6 +61,7 @@ def calculate_random_forest_vote(
             )
 
         if df is None or df.empty:
+            logger.warning(f"Empty or None DataFrame for {symbol} ({timeframe})")
             return (0, 0.0)
 
         # Validate required columns
@@ -64,6 +69,7 @@ def calculate_random_forest_vote(
         missing_columns = [col for col in required_columns if col not in df.columns]
 
         if missing_columns:
+            logger.warning(f"Missing required columns for {symbol} ({timeframe}): {missing_columns}")
             return (0, 0.0)
 
         # Get signal from Random Forest model
@@ -82,7 +88,11 @@ def calculate_random_forest_vote(
 
         return (vote, confidence)
 
-    except Exception:
+    except Exception as e:
+        logger.error(
+            f"Error calculating Random Forest vote for {symbol} ({timeframe}): {e}",
+            exc_info=True,
+        )
         return (0, 0.0)
 
 
@@ -118,6 +128,7 @@ def get_random_forest_signal_for_decision_matrix(
         # Load model
         model = load_random_forest_model(Path(model_path) if model_path else None)
         if model is None:
+            logger.warning(f"Random Forest model not found for {symbol} ({timeframe})")
             return None
 
         # Use provided DataFrame if available, otherwise fetch from API
@@ -130,6 +141,7 @@ def get_random_forest_signal_for_decision_matrix(
             )
 
         if df is None or df.empty:
+            logger.warning(f"Empty or None DataFrame for {symbol} ({timeframe})")
             return None
 
         # Validate required columns
@@ -137,6 +149,7 @@ def get_random_forest_signal_for_decision_matrix(
         missing_columns = [col for col in required_columns if col not in df.columns]
 
         if missing_columns:
+            logger.warning(f"Missing required columns for {symbol} ({timeframe}): {missing_columns}")
             return None
 
         # Get signal from Random Forest model
@@ -152,7 +165,11 @@ def get_random_forest_signal_for_decision_matrix(
 
         return (signal, confidence)
 
-    except Exception:
+    except Exception as e:
+        logger.error(
+            f"Error getting Random Forest signal for {symbol} ({timeframe}): {e}",
+            exc_info=True,
+        )
         return None
 
 

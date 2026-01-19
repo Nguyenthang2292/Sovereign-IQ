@@ -5,55 +5,29 @@
     <div class="param-grid">
       <div class="param-group">
         <label for="symbol">Symbol</label>
-        <Input
-          id="symbol"
-          v-model="localSymbol"
-          type="text"
-          placeholder="BTC/USDT"
-          icon="💵"
-          :full-width="true"
-          @keyup.enter="handleLoad"
-        />
+        <Input id="symbol" v-model="localSymbol" type="text" placeholder="BTC/USDT" icon="💵" :full-width="true"
+          @keyup.enter="handleLoad" />
       </div>
 
       <div class="param-group">
         <label for="timeframe">Timeframe</label>
         <div class="relative">
-          <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none">⏰</span>
-          <CustomDropdown
-            id="timeframe"
-            v-model="localTimeframe"
-            :options="timeframeOptions"
-            placeholder="Select timeframe"
-            :has-left-icon="true"
-          />
+          <span
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none">⏰</span>
+          <CustomDropdown id="timeframe" v-model="localTimeframe" :options="timeframeOptions"
+            placeholder="Select timeframe" :has-left-icon="true" />
         </div>
       </div>
 
       <div class="param-group">
         <label for="limit">Number of Candles</label>
-        <Input
-          id="limit"
-          v-model="localLimit"
-          type="number"
-          min="100"
-          max="5000"
-          step="100"
-          placeholder="Enter limit"
-          icon="📊"
-          :full-width="true"
-        />
+        <Input id="limit" v-model="localLimit" type="number" min="100" max="5000" step="100" placeholder="Enter limit"
+          icon="📊" :full-width="true" />
       </div>
 
       <div class="param-group button-group">
-        <Button
-          @click="handleLoad"
-          :disabled="loading || !symbol"
-          :loading="loading"
-          loading-text="Loading..."
-          variant="primary"
-          :full-width="true"
-        >
+        <Button @click="handleLoad" :disabled="loading || !symbol" :loading="loading" loading-text="Loading..."
+          variant="primary" :full-width="true">
           <span v-if="!loading">📊</span>
           <span>Load Data</span>
         </Button>
@@ -62,32 +36,29 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import CustomDropdown from '@shared/components/CustomDropdown.vue'
 import Input from '@shared/components/Input.vue'
 import Button from '@shared/components/Button.vue'
 import { computed } from 'vue'
 
-const props = defineProps({
-  symbol: {
-    type: String,
-    required: true
-  },
-  timeframe: {
-    type: String,
-    required: true
-  },
-  limit: {
-    type: Number,
-    required: true
-  },
-  loading: {
-    type: Boolean,
-    default: false
-  }
+interface Props {
+  symbol: string
+  timeframe: string
+  limit: number
+  loading?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  loading: false
 })
 
-const emit = defineEmits(['update:symbol', 'update:timeframe', 'update:limit', 'load-data'])
+const emit = defineEmits<{
+  (e: 'update:symbol', value: string): void
+  (e: 'update:timeframe', value: string): void
+  (e: 'update:limit', value: number): void
+  (e: 'load-data'): void
+}>()
 
 const localSymbol = computed({
   get: () => props.symbol,
@@ -101,7 +72,16 @@ const localTimeframe = computed({
 
 const localLimit = computed({
   get: () => props.limit,
-  set: (value) => emit('update:limit', value)
+  set: (value: any) => {
+    // Allow empty string (user is clearing the field)
+    if (value === '') {
+      return
+    }
+    const numValue = Number(value)
+    if (!isNaN(numValue) && numValue > 0) {
+      emit('update:limit', numValue)
+    }
+  }
 })
 
 const handleLoad = () => {

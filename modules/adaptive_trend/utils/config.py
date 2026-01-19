@@ -29,6 +29,17 @@ class ATCConfig:
     lambda_param: float = 0.02
     decay: float = 0.03
     cutout: int = 0
+    strategy_mode: bool = False  # Set to True for shifted, non-repainting signals (Strategy View)
+
+    @property
+    def lambda_scaled(self) -> float:
+        """Lambda scaled for calculations (divided by 1000 to match PineScript)."""
+        return self.lambda_param / 1000
+
+    @property
+    def decay_scaled(self) -> float:
+        """Decay scaled for calculations (divided by 100 to match PineScript)."""
+        return self.decay / 100
 
     # Signal threshold parameters
     long_threshold: float = 0.1
@@ -78,4 +89,5 @@ def create_atc_config_from_dict(
         long_threshold=params.get("long_threshold", 0.1),
         short_threshold=params.get("short_threshold", -0.1),
         calculation_source=params.get("calculation_source", "close"),
+        strategy_mode=params.get("strategy_mode", False),
     )

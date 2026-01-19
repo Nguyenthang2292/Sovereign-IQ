@@ -60,7 +60,7 @@ const ohlcvData = shallowRef(null)
 const movingAveragesData = shallowRef(null)
 const signalsData = shallowRef(null)
 
-let visibleMas = reactive({
+const visibleMas = ref({
   EMA: true,
   HMA: true,
   WMA: false,
@@ -69,7 +69,7 @@ let visibleMas = reactive({
   KAMA: false
 })
 
-let showSignals = reactive({
+const showSignals = ref({
   Average_Signal: true,
   EMA_Signal: false,
   HMA_Signal: false,

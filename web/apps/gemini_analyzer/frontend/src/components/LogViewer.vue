@@ -37,20 +37,35 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { parseAnsiCodes, detectLogLevel, getAnsiColorClass, cleanAnsiCodes } from '../utils/logParser'
+import { parseAnsiCodes, detectLogLevel, getAnsiColorClass, cleanAnsiCodes, AnsiPart } from '../utils/logParser'
 
-const props = defineProps({
-  logs: {
-    type: Array,
-    default: () => [],
-    validator: (logs) => logs.every(log => typeof log === 'string' || (typeof log === 'object' && log !== null && !Array.isArray(log)))
-  },
+interface LogEntry {
+  id?: string | number
+  message?: string
+  text?: string
+  [key: string]: any
+}
+
+interface ProcessedLog {
+  id: string
+  original: string
+  clean: string
+  level: string
+  parts: (AnsiPart & { colorClass: string })[]
+}
+
+interface Props {
+  logs: (string | LogEntry)[]
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  logs: () => []
 })
 
 // Expose scrollable container ref to parent
-const scrollContainerRef = ref(null)
+const scrollContainerRef = ref<HTMLElement | null>(null)
 defineExpose({
   scrollContainer: scrollContainerRef
 })
@@ -59,7 +74,7 @@ defineExpose({
 const idCounter = ref(0)
 
 // Map to cache IDs for log content (ensures same content gets same ID)
-const logIdCache = ref(new Map())
+const logIdCache = ref(new Map<string, string>())
 
 // Clear cache when logs array reference changes to prevent memory leak
 watch(() => props.logs, () => {
@@ -78,7 +93,7 @@ watch(() => props.logs, () => {
  * @param {Set<string>} usedIdsInRender - Set of IDs already used in current render (for duplicate detection)
  * @returns {string} A unique identifier
  */
-function generateLogId(log, index, usedIdsInRender = null) {
+function generateLogId(log: string | LogEntry, index: number, usedIdsInRender: Set<string> | null = null): string {
   // If log is an object with an id property (backend-provided), use it
   if (typeof log === 'object' && log !== null && log.id) {
     return String(log.id)
@@ -93,7 +108,7 @@ function generateLogId(log, index, usedIdsInRender = null) {
   
   // Return cached ID if exists, otherwise generate new one
   if (logIdCache.value.has(cacheKey)) {
-    const cachedId = logIdCache.value.get(cacheKey)
+    const cachedId = logIdCache.value.get(cacheKey)!
     // For duplicates in the same render, append index to ensure Vue key uniqueness
     if (usedIdsInRender && usedIdsInRender.has(cachedId)) {
       return `${cachedId}-${index}`
@@ -121,7 +136,7 @@ function generateLogId(log, index, usedIdsInRender = null) {
  * @param {string} str - String to hash
  * @returns {string} Hash value
  */
-function simpleHash(str) {
+function simpleHash(str: string): string {
   let hash = 0
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i)
@@ -131,11 +146,11 @@ function simpleHash(str) {
   return Math.abs(hash).toString(36)
 }
 
-const processedLogs = computed(() => {
+const processedLogs = computed<ProcessedLog[]>(() => {
   // Track IDs used in this render to handle duplicates
-  const usedIdsInRender = new Set()
+  const usedIdsInRender = new Set<string>()
   
-  return props.logs.map((log, index) => {
+  return props.logs.map((log: string | LogEntry, index: number) => {
     try {
       // Ensure log is a string
       const logString = typeof log === 'string' ? log : (log?.message || log?.text || String(log))
@@ -162,14 +177,14 @@ const processedLogs = computed(() => {
         original: String(log),
         clean: String(log),
         level: 'default',
-        parts: [{ text: String(log), color: null, colorClass: '' }],
+        parts: [{ text: String(log), color: 'default', colorClass: '' }],
       }
     }
   })
 })
 
-function getLogIcon(level) {
-  const icons = {
+function getLogIcon(level: string): string {
+  const icons: Record<string, string> = {
     error: '❌',
     warning: '⚠️',
     info: 'ℹ️',
@@ -180,8 +195,8 @@ function getLogIcon(level) {
   return icons[level] || icons.default
 }
 
-function getLogIconClass(level) {
-  const classes = {
+function getLogIconClass(level: string): string {
+  const classes: Record<string, string> = {
     error: 'text-red-400',
     warning: 'text-yellow-400',
     info: 'text-blue-400',
@@ -192,8 +207,8 @@ function getLogIconClass(level) {
   return classes[level] || classes.default
 }
 
-function getLogContainerClass(level) {
-  const classes = {
+function getLogContainerClass(level: string): string {
+  const classes: Record<string, string> = {
     error: 'bg-red-900/10 border-l-2 border-red-500',
     warning: 'bg-yellow-900/10 border-l-2 border-yellow-500',
     info: 'bg-blue-900/10 border-l-2 border-blue-500',

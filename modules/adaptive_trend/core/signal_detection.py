@@ -212,6 +212,13 @@ def generate_signal_from_ma(
             )
             sig.loc[conflict_mask] = 0
 
+        # FIX: Persist signal state (matching PineScript 'var' behavior)
+        # We need the signal to stay 1 after a crossover and -1 after a crossunder 
+        # until the opposite event occurs.
+        # Replace 0 with NaN, then forward fill, then fill remaining NaN with 0.
+        import numpy as np
+        sig = sig.replace(0, np.nan).ffill().fillna(0).astype("int8")
+
         return sig
 
     except Exception as e:

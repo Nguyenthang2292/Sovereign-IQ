@@ -1,35 +1,19 @@
 <template>
   <div class="relative" :class="{ 'w-full': fullWidth }">
-    <span
-      v-if="icon"
-      class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none"
-    >
+    <span v-if="icon" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none">
       {{ icon }}
     </span>
-    <input
-      :id="attrs.id"
-      :value="modelValue"
-      :type="type"
-      :placeholder="placeholder"
-      :disabled="disabled"
-      :min="min"
-      :max="max"
-      :step="step"
-      @input="handleInput"
-      @blur="handleBlur"
-      :class="computedClasses"
-    />
-    <span
-      v-if="rightIcon"
-      class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
-    >
+    <input :id="attrs.id" :value="localValue" :type="type" :placeholder="placeholder" :disabled="disabled" :min="min"
+      :max="max" :step="step" @input="handleInput" @blur="handleBlur" :class="computedClasses" />
+    <span v-if="rightIcon"
+      class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
       {{ rightIcon }}
     </span>
   </div>
 </template>
 
 <script setup>
-import { computed, useAttrs } from 'vue'
+import { computed, useAttrs, ref, watch } from 'vue'
 
 const attrs = useAttrs()
 
@@ -80,6 +64,14 @@ const props = defineProps({
   }
 })
 
+// Local state for smooth typing without re-renders
+const localValue = ref('')
+
+// Sync localValue with prop changes from parent
+watch(() => props.modelValue, (newVal) => {
+  localValue.value = newVal
+}, { immediate: true })
+
 const emit = defineEmits(['update:modelValue', 'input', 'blur'])
 
 const computedClasses = computed(() => {
@@ -93,18 +85,15 @@ const computedClasses = computed(() => {
 })
 
 function handleInput(event) {
-  let value = event.target.value
-  if (props.type === 'number' && value !== '') {
-    const numValue = Number(value)
-    if (!isNaN(numValue)) {
-      value = numValue
-    }
-  }
-  emit('update:modelValue', value)
+  // Update local value for smooth typing
+  localValue.value = event.target.value
   emit('input', event)
 }
 
 function handleBlur(event) {
+  // Only emit to parent on blur to prevent re-render during typing
+  const value = event.target.value
+  emit('update:modelValue', value)
   emit('blur', event)
 }
 </script>

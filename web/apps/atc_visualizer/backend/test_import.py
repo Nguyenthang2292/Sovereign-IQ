@@ -12,10 +12,10 @@ print(f"[DEBUG] Modules exists: {(project_root_absolute / 'modules').exists()}")
 sys.path.insert(0, str(project_root_absolute))
 
 try:
-    from modules.common.core.data_fetcher import DataFetcher
-    from modules.common.core.exchange_manager import ExchangeManager
     from modules.adaptive_trend.core.analyzer import analyze_symbol
     from modules.adaptive_trend.utils.config import ATCConfig
+    from modules.common.core.data_fetcher import DataFetcher
+    from modules.common.core.exchange_manager import ExchangeManager
 
     print("✅ SUCCESS: All modules imported!")
 except Exception as e:

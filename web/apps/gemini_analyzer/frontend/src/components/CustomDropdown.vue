@@ -78,62 +78,48 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, useAttrs } from 'vue'
 
 const attrs = useAttrs()
 
-const props = defineProps({
-  modelValue: {
-    type: [String, Number],
-    default: null
-  },
-  options: {
-    type: Array,
-    required: true,
-    validator(value) {
-      if (!Array.isArray(value)) {
-        return false
-      }
-      return value.every(
-        (item) =>
-          typeof item === 'string' ||
-          typeof item === 'number' ||
-          (typeof item === 'object' && item !== null)
-      )
-    }
-  },
-  placeholder: {
-    type: String,
-    default: 'Select an option'
-  },
-  disabled: {
-    type: Boolean,
-    default: false
-  },
-  optionLabel: {
-    type: String,
-    default: 'label'
-  },
-  optionValue: {
-    type: String,
-    default: 'value'
-  },
-  hasLeftIcon: {
-    type: Boolean,
-    default: false
-  }
+interface OptionObject {
+  [key: string]: any
+}
+
+type DropdownOption = string | number | OptionObject
+
+interface Props {
+  modelValue?: string | number | null
+  options: DropdownOption[]
+  placeholder?: string
+  disabled?: boolean
+  optionLabel?: string
+  optionValue?: string
+  hasLeftIcon?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  modelValue: null,
+  placeholder: 'Select an option',
+  disabled: false,
+  optionLabel: 'label',
+  optionValue: 'value',
+  hasLeftIcon: false
 })
 
-const emit = defineEmits(['update:modelValue', 'change'])
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string | number | null): void
+  (e: 'change', value: string | number | null): void
+}>()
 
 const isOpen = ref(false)
 const isFocused = ref(false)
-const hoveredIndex = ref(null) // Tracks which option is focused (for arrow navigation)
-const triggerRef = ref(null)
-const listboxRef = ref(null)
-const rootRef = ref(null)
-const optionRefs = ref({})
+const hoveredIndex = ref<number | null>(null) // Tracks which option is focused (for arrow navigation)
+const triggerRef = ref<HTMLButtonElement | null>(null)
+const listboxRef = ref<HTMLDivElement | null>(null)
+const rootRef = ref<HTMLDivElement | null>(null)
+const optionRefs = ref<Record<number, HTMLElement>>({})
 
 // Provide a unique ID for ARIA attributes (important for multi-instance use)
 let _id = 0
@@ -151,26 +137,26 @@ const selectedLabel = computed(() => {
   return selectedOption ? getOptionLabel(selectedOption) : null
 })
 
-function getOptionLabel(option) {
+function getOptionLabel(option: DropdownOption): string {
   if (typeof option === 'string' || typeof option === 'number') {
     return String(option)
   }
-  return option[props.optionLabel] || option.value || option
+  return option[props.optionLabel] || option.value || JSON.stringify(option)
 }
 
-function getOptionValue(option, index) {
+function getOptionValue(option: DropdownOption, index: number): string | number {
   if (typeof option === 'string' || typeof option === 'number') {
     return option
   }
   return option[props.optionValue] !== undefined ? option[props.optionValue] : index
 }
 
-function isSelected(option, index) {
+function isSelected(option: DropdownOption, index: number): boolean {
   const value = getOptionValue(option, index)
   return value === props.modelValue
 }
 
-function getOptionId(index) {
+function getOptionId(index: number): string {
   return `dropdown-option-${id}-${index}`
 }
 
@@ -206,7 +192,7 @@ function closeDropdown() {
   })
 }
 
-function selectOption(option, index) {
+function selectOption(option: DropdownOption, index: number) {
   const value = getOptionValue(option, index)
   emit('update:modelValue', value)
   emit('change', value)
@@ -214,7 +200,7 @@ function selectOption(option, index) {
 }
 
 // Focus helpers
-function setHoveredIndex(index) {
+function setHoveredIndex(index: number) {
   hoveredIndex.value = index
 }
 
@@ -222,7 +208,7 @@ function clearHoveredIndex() {
   hoveredIndex.value = null
 }
 
-function getSelectedIndex() {
+function getSelectedIndex(): number {
   return props.options.findIndex((option, index) =>
     getOptionValue(option, index) === props.modelValue
   )
@@ -249,7 +235,7 @@ function scrollHoveredOptionIntoView() {
 }
 
 // Keyboard handling for the button/trigger
-function handleTriggerKeydown(event) {
+function handleTriggerKeydown(event: KeyboardEvent) {
   if (props.disabled) return
   switch (event.key) {
     case ' ':
@@ -288,7 +274,7 @@ function handleTriggerKeydown(event) {
 }
 
 // Keyboard handling for the dropdown menu/options
-function handleOptionKeydown(event, index) {
+function handleOptionKeydown(event: KeyboardEvent, index: number) {
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()
@@ -305,7 +291,9 @@ function handleOptionKeydown(event, index) {
     case 'Enter':
     case ' ':
       event.preventDefault()
-      selectOption(props.options[hoveredIndex.value], hoveredIndex.value)
+      if (hoveredIndex.value !== null) {
+        selectOption(props.options[hoveredIndex.value], hoveredIndex.value)
+      }
       break
     case 'Tab':
       closeDropdown()
@@ -319,7 +307,7 @@ function handleOptionKeydown(event, index) {
   }
 }
 
-function moveHover(direction) {
+function moveHover(direction: number) {
   let idx = hoveredIndex.value
   if (idx === null || idx === undefined) idx = -1
   const optionsLength = props.options.length
@@ -330,14 +318,14 @@ function moveHover(direction) {
 }
 
 // Outside click and escape
-function handleClickOutside(event) {
+function handleClickOutside(event: Event) {
   // Only close if click is truly outside THIS dropdown instance
-  if (rootRef.value && !rootRef.value.contains(event.target)) {
+  if (rootRef.value && !rootRef.value.contains(event.target as Node)) {
     closeDropdown()
   }
 }
 
-function handleDocumentKeydown(event) {
+function handleDocumentKeydown(event: KeyboardEvent) {
   // Only act if menu is open; most key handling is local to components
   if (
     event.key === 'Escape' &&
@@ -350,11 +338,11 @@ function handleDocumentKeydown(event) {
 // Manage list of optionRefs for focus control; optionRefs is an array of DOM nodes
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  document.addEventListener('keydown', handleDocumentKeydown)
+  document.addEventListener('keydown', handleDocumentKeydown as any)
 })
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
-  document.removeEventListener('keydown', handleDocumentKeydown)
+  document.removeEventListener('keydown', handleDocumentKeydown as any)
 })
 
 watch(() => props.modelValue, () => {
@@ -363,9 +351,9 @@ watch(() => props.modelValue, () => {
 })
 
 // Handle keyboard navigation on each option
-function setOptionRef(el, index) {
+function setOptionRef(el: any, index: number) {
   if (el) {
-    optionRefs.value[index] = el
+    optionRefs.value[index] = el as HTMLElement
   } else {
     // Remove ref when element is unmounted
     delete optionRefs.value[index]

@@ -3,7 +3,7 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 
 // Determine sourcemap configuration based on environment variable
-let sourcemap;
+let sourcemap: boolean | 'inline' | 'hidden';
 if (process.env.GENERATE_SOURCEMAPS === 'true') {
   sourcemap = 'inline';
 } else if (process.env.GENERATE_SOURCEMAPS === 'false') {
@@ -19,6 +19,7 @@ export default defineConfig(async ({ mode }) => {
   // Only load imagemin plugin in production builds to avoid import issues in dev
   if (mode === 'production') {
     try {
+      // @ts-ignore
       const imageminModule = await import('vite-plugin-imagemin')
       const viteImagemin = imageminModule.default || imageminModule
       plugins.push(
@@ -54,7 +55,7 @@ export default defineConfig(async ({ mode }) => {
           },
         })
       )
-    } catch (error) {
+    } catch (error: any) {
       console.warn(
         'vite-plugin-imagemin not available, skipping image optimization:',
         error?.message || error

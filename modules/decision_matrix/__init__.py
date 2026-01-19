@@ -5,14 +5,32 @@ Inspired by Random Forest voting system, this module provides a voting-based
 classification system for combining signals from multiple indicators.
 """
 
-from modules.decision_matrix.classifier import DecisionMatrixClassifier
-from modules.random_forest.core.decision_matrix_integration import (
-    calculate_random_forest_vote,
-    get_random_forest_signal_for_decision_matrix,
+from modules.decision_matrix.core.classifier import DecisionMatrixClassifier
+from modules.decision_matrix.core.random_forest_core import RandomForestCore
+from modules.decision_matrix.utils.pattern_matcher import PatternMatcher
+from modules.decision_matrix.utils.shuffle import ShuffleMechanism
+from modules.decision_matrix.utils.threshold import ThresholdCalculator
+from modules.decision_matrix.utils.training_data import TrainingDataStorage
+from modules.decision_matrix.config.config import (
+    FeatureType,
+    RandomForestConfig,
+    TargetType,
+    MAX_WEIGHT_CAP_N2,
+    MAX_WEIGHT_CAP_N3_PLUS,
+    MAX_CAP_ITERATIONS,
 )
 
 __all__ = [
     "DecisionMatrixClassifier",
-    "calculate_random_forest_vote",
-    "get_random_forest_signal_for_decision_matrix",
+    "TrainingDataStorage",
+    "ShuffleMechanism",
+    "ThresholdCalculator",
+    "PatternMatcher",
+    "RandomForestCore",
+    "RandomForestConfig",
+    "FeatureType",
+    "TargetType",
+    "MAX_WEIGHT_CAP_N2",
+    "MAX_WEIGHT_CAP_N3_PLUS",
+    "MAX_CAP_ITERATIONS",
 ]

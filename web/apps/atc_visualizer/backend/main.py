@@ -2,11 +2,12 @@
 ATC Visualizer API - FastAPI REST API for ATC chart visualization.
 """
 
-from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
-from typing import List
 import sys
 from pathlib import Path
+from typing import List
+
+from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel
 
 # Setup path for imports
 current_file_path = Path(__file__).resolve()
@@ -21,38 +22,39 @@ sys.path.insert(0, str(project_root))
 try:
     # Try relative imports first (when run as module)
     from .config import (
-        APP_TITLE,
         APP_DESCRIPTION,
+        APP_TITLE,
         APP_VERSION,
         BACKEND_PORT,
-        FRONTEND_DEV_PORT,
         CORS_ORIGINS,
-        DEFAULT_SYMBOL,
-        DEFAULT_TIMEFRAME,
+        DEFAULT_CUTOUT,
+        DEFAULT_DECAY,
+        DEFAULT_LAMBDA,
         DEFAULT_LIMIT,
-        MIN_LIMIT,
-        MAX_LIMIT,
         DEFAULT_MA_LENGTH,
         DEFAULT_ROBUSTNESS,
-        DEFAULT_LAMBDA,
-        DEFAULT_DECAY,
-        DEFAULT_CUTOUT,
+        DEFAULT_SYMBOL,
+        DEFAULT_TIMEFRAME,
+        FRONTEND_DEV_PORT,
+        MAX_LIMIT,
+        MIN_LIMIT,
         TIMEFRAMES,
     )
     from .services.atc_service import ATCService
 except ImportError:
     # Running as script - import from file paths directly
     import importlib.util
+
     config_spec = importlib.util.spec_from_file_location("config", backend_dir / "config.py")
     config_module = importlib.util.module_from_spec(config_spec)
     config_spec.loader.exec_module(config_module)
-    
+
     atc_service_spec = importlib.util.spec_from_file_location(
         "atc_service", backend_dir / "services" / "atc_service.py"
     )
     atc_service_module = importlib.util.module_from_spec(atc_service_spec)
     atc_service_spec.loader.exec_module(atc_service_module)
-    
+
     APP_TITLE = config_module.APP_TITLE
     APP_DESCRIPTION = config_module.APP_DESCRIPTION
     APP_VERSION = config_module.APP_VERSION
@@ -71,9 +73,10 @@ except ImportError:
     DEFAULT_CUTOUT = config_module.DEFAULT_CUTOUT
     TIMEFRAMES = config_module.TIMEFRAMES
     ATCService = atc_service_module.ATCService
-from web.shared.middleware.cors import setup_cors
-from modules.adaptive_trend.utils.config import ATCConfig
 from fastapi.staticfiles import StaticFiles
+
+from modules.adaptive_trend.utils.config import ATCConfig
+from web.shared.middleware.cors import setup_cors
 
 # Initialize FastAPI app
 app = FastAPI(

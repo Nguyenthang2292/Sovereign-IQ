@@ -12,8 +12,13 @@ Features:
 
 Usage:
     python -m modules.adaptive_trend.test_signal_atc
+        (automatically shows interactive menu)
+    python -m modules.adaptive_trend.test_signal_atc --menu
+        (explicitly shows interactive menu)
     python -m modules.adaptive_trend.test_signal_atc --execution-mode hybrid --batch-size 50
+        (use command-line arguments directly)
     python -m modules.adaptive_trend.test_signal_atc --max-symbols 100 --max-workers-thread 16
+        (use command-line arguments directly)
 
 Output:
     Creates a CSV report: atc_signals_report_{timestamp}.csv
@@ -41,10 +46,12 @@ except ImportError:
 
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.utils import log_info, log_error, log_warn, log_success, log_progress
+from modules.common.utils import log_info, log_error, log_warn, log_success, log_progress, color_text, prompt_user_input
 
 from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals
 from modules.adaptive_trend.utils.config import ATCConfig
+
+from colorama import Fore, Style
 
 
 class ResourceMonitor:
@@ -602,11 +609,157 @@ def process_symbol_batch_hybrid(
     return results
 
 
+def interactive_menu() -> dict:
+    """Interactive menu for configuring ATC test parameters.
+    
+    Returns:
+        Dictionary with configuration parameters matching argparse namespace.
+    """
+    print("\n" + color_text("=" * 60, Fore.CYAN))
+    print(color_text("ATC SIGNAL TEST - INTERACTIVE CONFIGURATION", Fore.CYAN, Style.BRIGHT))
+    print(color_text("=" * 60, Fore.CYAN))
+    
+    config = {}
+    
+    # 1. Max symbols
+    print("\n" + color_text("1. Maximum Symbols", Fore.YELLOW))
+    print("   Leave empty for all symbols")
+    max_symbols_input = prompt_user_input("   Enter max symbols [all]: ", default="")
+    if max_symbols_input.strip():
+        try:
+            config["max_symbols"] = int(max_symbols_input)
+        except ValueError:
+            log_warn("Invalid number, using default: all symbols")
+            config["max_symbols"] = None
+    else:
+        config["max_symbols"] = None
+    
+    # 2. Limit (candles)
+    print("\n" + color_text("2. Data Limit", Fore.YELLOW))
+    limit_input = prompt_user_input("   Number of candles to fetch per symbol [1500]: ", default="1500")
+    try:
+        config["limit"] = int(limit_input) if limit_input.strip() else 1500
+    except ValueError:
+        log_warn("Invalid number, using default: 1500")
+        config["limit"] = 1500
+    
+    # 3. Timeframes
+    print("\n" + color_text("3. Timeframes", Fore.YELLOW))
+    print("   Available: 15m, 30m, 1h")
+    print("   Enter comma-separated list (e.g., 15m,30m,1h)")
+    timeframes_input = prompt_user_input("   Timeframes [15m,30m,1h]: ", default="15m,30m,1h")
+    config["timeframes"] = timeframes_input.strip() if timeframes_input.strip() else "15m,30m,1h"
+    
+    # 4. Output file
+    print("\n" + color_text("4. Output File", Fore.YELLOW))
+    print("   Leave empty for auto-generated filename")
+    output_input = prompt_user_input("   Output CSV file path [auto]: ", default="")
+    config["output"] = output_input.strip() if output_input.strip() else None
+    
+    # 5. Batch size
+    print("\n" + color_text("5. Batch Size", Fore.YELLOW))
+    print("   Leave empty for auto-calculation based on RAM")
+    batch_size_input = prompt_user_input("   Batch size [auto]: ", default="")
+    if batch_size_input.strip():
+        try:
+            config["batch_size"] = int(batch_size_input)
+        except ValueError:
+            log_warn("Invalid number, using default: auto")
+            config["batch_size"] = None
+    else:
+        config["batch_size"] = None
+    
+    # 6. Max workers (thread)
+    print("\n" + color_text("6. Worker Threads", Fore.YELLOW))
+    print("   Leave empty for auto-calculation")
+    max_workers_thread_input = prompt_user_input("   Max worker threads [auto]: ", default="")
+    if max_workers_thread_input.strip():
+        try:
+            config["max_workers_thread"] = int(max_workers_thread_input)
+        except ValueError:
+            log_warn("Invalid number, using default: auto")
+            config["max_workers_thread"] = None
+    else:
+        config["max_workers_thread"] = None
+    
+    # 7. Max workers (process)
+    print("\n" + color_text("7. Worker Processes", Fore.YELLOW))
+    print("   Leave empty for CPU count")
+    max_workers_process_input = prompt_user_input("   Max worker processes [auto]: ", default="")
+    if max_workers_process_input.strip():
+        try:
+            config["max_workers_process"] = int(max_workers_process_input)
+        except ValueError:
+            log_warn("Invalid number, using default: auto")
+            config["max_workers_process"] = None
+    else:
+        config["max_workers_process"] = None
+    
+    # 8. Execution mode
+    print("\n" + color_text("8. Execution Mode", Fore.YELLOW))
+    print("   1) Sequential - Process one symbol at a time")
+    print("   2) Threading - Use threads for I/O-bound tasks")
+    print("   3) Multiprocessing - Use processes for CPU-bound tasks")
+    print("   4) Hybrid - Use threads for fetch, processes for compute (recommended)")
+    mode_choice = prompt_user_input("   Select execution mode [1-4] [4]: ", default="4")
+    mode_map = {"1": "sequential", "2": "threading", "3": "multiprocessing", "4": "hybrid"}
+    config["execution_mode"] = mode_map.get(mode_choice.strip(), "hybrid")
+    
+    # 9. Max memory percentage
+    print("\n" + color_text("9. Memory Limit", Fore.YELLOW))
+    max_memory_input = prompt_user_input("   Maximum memory usage percentage [70.0]: ", default="70.0")
+    try:
+        config["max_memory_pct"] = float(max_memory_input) if max_memory_input.strip() else 70.0
+    except ValueError:
+        log_warn("Invalid number, using default: 70.0")
+        config["max_memory_pct"] = 70.0
+    
+    # 10. Max CPU percentage
+    print("\n" + color_text("10. CPU Limit", Fore.YELLOW))
+    max_cpu_input = prompt_user_input("   Maximum CPU usage percentage [70.0]: ", default="70.0")
+    try:
+        config["max_cpu_pct"] = float(max_cpu_input) if max_cpu_input.strip() else 70.0
+    except ValueError:
+        log_warn("Invalid number, using default: 70.0")
+        config["max_cpu_pct"] = 70.0
+    
+    # Summary
+    print("\n" + color_text("=" * 60, Fore.CYAN))
+    print(color_text("CONFIGURATION SUMMARY", Fore.CYAN, Style.BRIGHT))
+    print(color_text("=" * 60, Fore.CYAN))
+    print(f"  Max Symbols: {config['max_symbols'] or 'All'}")
+    print(f"  Limit: {config['limit']} candles")
+    print(f"  Timeframes: {config['timeframes']}")
+    print(f"  Output: {config['output'] or 'Auto-generated'}")
+    print(f"  Batch Size: {config['batch_size'] or 'Auto'}")
+    print(f"  Worker Threads: {config['max_workers_thread'] or 'Auto'}")
+    print(f"  Worker Processes: {config['max_workers_process'] or 'Auto'}")
+    print(f"  Execution Mode: {config['execution_mode']}")
+    print(f"  Memory Limit: {config['max_memory_pct']}%")
+    print(f"  CPU Limit: {config['max_cpu_pct']}%")
+    
+    confirm = prompt_user_input("\nProceed with this configuration? [Y/n]: ", default="Y")
+    if confirm.strip().lower() not in ("", "y", "yes"):
+        log_warn("Configuration cancelled.")
+        return None
+    
+    return config
+
+
 def main():
     """Main function to run ATC test across all symbols and timeframes."""
     import argparse
 
+    # Check if any arguments were provided (excluding script name)
+    # If no arguments, automatically show menu
+    show_menu_automatically = len(sys.argv) == 1
+
     parser = argparse.ArgumentParser(description="Test ATC signals across all Binance symbols")
+    parser.add_argument(
+        "--menu",
+        action="store_true",
+        help="Launch interactive menu for configuration (default: shown if no args provided)",
+    )
     parser.add_argument(
         "--max-symbols",
         type=int,
@@ -669,6 +822,17 @@ def main():
         help="Maximum CPU usage percentage (default: 70.0)",
     )
     args = parser.parse_args()
+    
+    # Interactive menu mode (show menu if --menu flag is set OR if no arguments provided)
+    if args.menu or show_menu_automatically:
+        menu_config = interactive_menu()
+        if menu_config is None:
+            log_warn("Exiting...")
+            return 0
+        
+        # Override args with menu configuration
+        for key, value in menu_config.items():
+            setattr(args, key, value)
 
     log_info("=" * 60)
     log_info("ATC SIGNAL TEST ACROSS ALL BINANCE SYMBOLS")

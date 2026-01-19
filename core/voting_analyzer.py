@@ -49,7 +49,7 @@ from modules.common.utils import (
     log_success,
     log_warn,
 )
-from modules.decision_matrix.classifier import DecisionMatrixClassifier
+from modules.decision_matrix.core.classifier import DecisionMatrixClassifier
 from modules.range_oscillator.cli import (
     display_final_results,
 )

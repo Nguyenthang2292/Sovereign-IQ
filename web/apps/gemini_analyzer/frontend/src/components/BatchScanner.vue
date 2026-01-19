@@ -12,26 +12,20 @@
     <!-- Mode Toggle -->
     <div class="glass-panel rounded-xl p-4 mb-6">
       <div class="flex gap-4">
-        <button
-          @click="mode = 'single'"
-          :class="[
-            'flex-1 px-4 md:px-6 py-3 rounded-lg font-semibold transition-all duration-300',
-            mode === 'single'
-              ? 'btn-gradient text-white hover:shadow-glow-purple hover:scale-[1.02] active:scale-[0.98]'
-              : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600/50'
-          ]"
-        >
+        <button @click="mode = 'single'" :class="[
+          'flex-1 px-4 md:px-6 py-3 rounded-lg font-semibold transition-all duration-300',
+          mode === 'single'
+            ? 'btn-gradient text-white hover:shadow-glow-purple hover:scale-[1.02] active:scale-[0.98]'
+            : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600/50'
+        ]">
           {{ $t('common.singleTimeframe') }}
         </button>
-        <button
-          @click="mode = 'multi'"
-          :class="[
-            'flex-1 px-4 md:px-6 py-3 rounded-lg font-semibold transition-all duration-300',
-            mode === 'multi'
-              ? 'btn-gradient text-white hover:shadow-glow-purple hover:scale-[1.02] active:scale-[0.98]'
-              : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600/50'
-          ]"
-        >
+        <button @click="mode = 'multi'" :class="[
+          'flex-1 px-4 md:px-6 py-3 rounded-lg font-semibold transition-all duration-300',
+          mode === 'multi'
+            ? 'btn-gradient text-white hover:shadow-glow-purple hover:scale-[1.02] active:scale-[0.98]'
+            : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600/50'
+        ]">
           {{ $t('common.multiTimeframe') }}
         </button>
       </div>
@@ -40,7 +34,7 @@
     <!-- Form -->
     <div class="glass-panel rounded-xl p-4 md:p-6 mb-6">
       <h2 class="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6">{{ $t('batchScanner.configTitle') }}</h2>
-      
+
       <!-- 4 Input Fields Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <!-- 1. Timeframe -->
@@ -50,24 +44,18 @@
             <span>{{ $t('common.timeframe') }} <span class="text-red-400">{{ $t('common.required') }}</span></span>
           </label>
           <div class="relative" v-if="mode === 'single'">
-            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none">⏰</span>
-            <CustomDropdown
-              v-model="form.timeframe"
-              :options="['15m', '30m', '1h', '4h', '1d', '1w']"
-              :placeholder="$t('common.selectTimeframe')"
-              :has-left-icon="true"
-            />
+            <span
+              class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none">⏰</span>
+            <CustomDropdown v-model="form.timeframe" :options="['15m', '30m', '1h', '4h', '1d', '1w']"
+              :placeholder="$t('common.selectTimeframe')" :has-left-icon="true" />
           </div>
           <div class="relative" v-else>
-            <input
-              v-model="form.timeframes"
-              type="text"
-              :placeholder="$t('batchScanner.fields.example')"
-              class="w-full px-4 py-3 pl-10 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 backdrop-blur-sm"
-            />
+            <input v-model="form.timeframes" type="text" :placeholder="$t('batchScanner.fields.example')"
+              class="w-full px-4 py-3 pl-10 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 backdrop-blur-sm" />
             <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">⏰</span>
           </div>
-          <p v-if="mode === 'multi'" class="mt-2 text-xs text-gray-400">{{ $t('common.example') }}: {{ $t('batchScanner.fields.example') }}</p>
+          <p v-if="mode === 'multi'" class="mt-2 text-xs text-gray-400">{{ $t('common.example') }}: {{
+            $t('batchScanner.fields.example') }}</p>
         </div>
 
         <!-- 2. Max Symbols -->
@@ -77,21 +65,14 @@
             <span>{{ $t('batchScanner.fields.maxSymbols') }}</span>
           </label>
           <div class="relative">
-            <input
-              v-model="maxSymbolsDisplay"
-              type="number"
-              min="1"
-              max="1000"
-              :placeholder="$t('batchScanner.fields.maxSymbolsPlaceholder')"
-              @input="handleMaxSymbolsInput"
-              @blur="handleMaxSymbolsBlur"
-              :class="[
+            <input v-model="maxSymbolsDisplay" type="number" min="1" max="1000"
+              :placeholder="$t('batchScanner.fields.maxSymbolsPlaceholder')" @input="handleMaxSymbolsInput"
+              @blur="handleMaxSymbolsBlur" :class="[
                 'w-full px-4 py-3 pl-10 bg-gray-700/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 backdrop-blur-sm',
                 validationErrors.maxSymbols
                   ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                   : 'border-gray-600/50 focus:ring-purple-500 focus:border-purple-500'
-              ]"
-            />
+              ]" />
             <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔢</span>
           </div>
           <p v-if="validationErrors.maxSymbols" class="mt-1 text-xs text-red-400">
@@ -99,7 +80,8 @@
           </p>
           <p v-else class="mt-1 text-xs text-gray-400">
             {{ $t('batchScanner.validation.maxSymbolsHelper') }}
-          </p>        </div>
+          </p>
+        </div>
 
         <!-- 3. Number of Candles per Symbol -->
         <div>
@@ -108,20 +90,13 @@
             <span>{{ $t('batchScanner.fields.limit') }}</span>
           </label>
           <div class="relative">
-            <input
-              v-model="limitDisplay"
-              type="number"
-              min="1"
-              max="5000"
-              @input="handleLimitInput"
-              @blur="handleLimitBlur"
-              :class="[
+            <input v-model="limitDisplay" type="number" min="1" max="5000" @input="handleLimitInput"
+              @blur="handleLimitBlur" :class="[
                 'w-full px-4 py-3 pl-10 bg-gray-700/50 border rounded-lg text-white focus:outline-none focus:ring-2 backdrop-blur-sm',
                 validationErrors.limit
                   ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                   : 'border-gray-600/50 focus:ring-purple-500 focus:border-purple-500'
-              ]"
-            />
+              ]" />
             <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">📊</span>
           </div>
           <p v-if="validationErrors.limit" class="mt-1 text-xs text-red-400">
@@ -129,7 +104,8 @@
           </p>
           <p v-else class="mt-1 text-xs text-gray-400">
             {{ $t('batchScanner.validation.limitHelper') }}
-          </p>        </div>
+          </p>
+        </div>
 
         <!-- 4. Cooldown -->
         <div>
@@ -138,21 +114,13 @@
             <span>{{ $t('batchScanner.fields.cooldown') }}</span>
           </label>
           <div class="relative">
-            <input
-              v-model="cooldownDisplay"
-              type="number"
-              min="0"
-              max="60"
-              step="0.1"
-              @input="handleCooldownInput"
-              @blur="handleCooldownBlur"
-              :class="[
+            <input v-model="cooldownDisplay" type="number" min="0" max="60" step="0.1" @input="handleCooldownInput"
+              @blur="handleCooldownBlur" :class="[
                 'w-full px-4 py-3 pl-10 bg-gray-700/50 border rounded-lg text-white focus:outline-none focus:ring-2 backdrop-blur-sm',
                 validationErrors.cooldown
                   ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                   : 'border-gray-600/50 focus:ring-purple-500 focus:border-purple-500'
-              ]"
-            />
+              ]" />
             <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">⏳</span>
           </div>
           <p v-if="validationErrors.cooldown" class="mt-1 text-xs text-red-400">
@@ -166,36 +134,31 @@
 
       <!-- Submit Button -->
       <div class="pt-4 md:pt-6">
-          <button
-            v-if="!loading"
-            @click="handleScan"
-            :disabled="!isFormValid"
-            :class="[
-              'w-full px-6 py-4 rounded-lg font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2',
-              !isFormValid
-                ? 'bg-gray-600/50 cursor-not-allowed border border-gray-600/50'
-                : 'btn-gradient hover:shadow-glow-purple hover:scale-[1.02] active:scale-[0.98]'
-            ]"
-          >
-            🚀 {{ $t('batchScanner.startScan') }}
-          </button>
-          <button
-            v-else
-            @click="handleCancel"
-            class="w-full px-6 py-4 rounded-lg font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <span>❌</span>
-            <span>{{ $t('batchScanner.cancelScan') }}</span>
-          </button>
+        <button v-if="!loading" @click="handleScan" :disabled="!isFormValid" :class="[
+          'w-full px-6 py-4 rounded-lg font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2',
+          !isFormValid
+            ? 'bg-gray-600/50 cursor-not-allowed border border-gray-600/50'
+            : 'btn-gradient hover:shadow-glow-purple hover:scale-[1.02] active:scale-[0.98]'
+        ]">
+          🚀 {{ $t('batchScanner.startScan') }}
+        </button>
+        <button v-else @click="handleCancel"
+          class="w-full px-6 py-4 rounded-lg font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]">
+          <span>❌</span>
+          <span>{{ $t('batchScanner.cancelScan') }}</span>
+        </button>
       </div>
     </div>
 
     <!-- Progress Indicator -->
     <div v-if="loading" class="glass-panel rounded-xl p-4 md:p-6 mb-6">
       <div class="flex items-center gap-4 mb-4">
-        <svg class="animate-spin h-8 w-8 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <svg class="animate-spin h-8 w-8 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+          viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          <path class="opacity-75" fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+          </path>
         </svg>
         <div class="flex-1">
           <h3 class="text-lg font-semibold text-white mb-1">{{ $t('batchScanner.scanningProgress') }}</h3>
@@ -211,11 +174,8 @@
     <div v-if="logs.length > 0" class="glass-panel rounded-xl p-4 md:p-6 mb-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-white">{{ $t('batchScanner.logs') }}</h3>
-        <button
-          v-if="!loading"
-          @click="logs = []"
-          class="px-3 py-1 text-sm text-gray-400 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-        >
+        <button v-if="!loading" @click="logs = []"
+          class="px-3 py-1 text-sm text-gray-400 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
           {{ $t('common.clear') }}
         </button>
       </div>
@@ -224,10 +184,7 @@
 
     <!-- Results -->
     <div v-if="result && !loading" class="mt-6">
-      <ResultsTable 
-        :results="result" 
-        @symbol-click="handleSymbolClick"
-      />
+      <ResultsTable :results="result" @symbol-click="handleSymbolClick" />
     </div>
 
     <!-- Error Message -->
@@ -240,7 +197,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onUnmounted, watch, nextTick, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { batchScannerAPI } from '../services/api'
@@ -252,21 +209,46 @@ import { useNumberInput } from '../composables/useNumberInput'
 
 const { t } = useI18n()
 
+// Type Definitions
+interface BatchScannerForm {
+  timeframe: string
+  timeframes: string
+  maxSymbols: number | null
+  limit: number
+  cooldown: number
+}
+
+interface ValidationErrors {
+  maxSymbols: string | null
+  limit: string | null
+  cooldown: string | null
+}
+
+interface ScanConfig {
+  timeframe: string | null
+  timeframes: string[] | null
+  maxSymbols: number | null
+  limit: number
+  cooldown: number
+}
+
 // Emit
-const emit = defineEmits(['symbol-click'])
+const emit = defineEmits<{
+  (e: 'symbol-click', symbol: string): void
+}>()
 
 // State
-const mode = ref('multi')
+const mode = ref<'single' | 'multi'>('multi')
 const loading = ref(false)
-const error = ref(null)
-const result = ref(null)
-const logs = ref([])
-const logPoller = ref(null)
-const sessionId = ref(null)
-const logContainerRef = ref(null)
+const error = ref<string | null>(null)
+const result = ref<any>(null)
+const logs = ref<string[]>([])
+const logPoller = ref<LogPoller | null>(null)
+const sessionId = ref<string | null>(null)
+const logContainerRef = ref<any>(null) // LogViewer component ref
 
 // Form data
-const form = ref({
+const form = ref<BatchScannerForm>({
   timeframe: '1h',
   timeframes: '15m, 1h, 4h, 1d',
   maxSymbols: null,
@@ -275,7 +257,7 @@ const form = ref({
 })
 
 // Validation errors
-const validationErrors = ref({
+const validationErrors = ref<ValidationErrors>({
   maxSymbols: null,
   limit: null,
   cooldown: null,
@@ -322,7 +304,7 @@ const handleCooldownBlur = cooldownInput.handleBlur
 // Validators
 function validateMaxSymbols() {
   const value = form.value.maxSymbols
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined) {
     validationErrors.value.maxSymbols = null
     return
   }
@@ -338,7 +320,7 @@ function validateMaxSymbols() {
 
 function validateLimit() {
   const value = form.value.limit
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined) {
     validationErrors.value.limit = t('batchScanner.validation.required')
     return
   }
@@ -354,7 +336,7 @@ function validateLimit() {
 
 function validateCooldown() {
   const value = form.value.cooldown
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined) {
     validationErrors.value.cooldown = null
     return
   }
@@ -396,13 +378,14 @@ async function handleScan() {
   logs.value = []
 
   // Stop existing poller if any
-  if (logPoller.value) {
-    logPoller.value.stopPolling()
+  const existingPoller = logPoller.value
+  if (existingPoller) {
+    existingPoller.stopPolling()
     logPoller.value = null
   }
 
   try {
-    const config = {
+    const config: ScanConfig = {
       timeframe: mode.value === 'single' ? form.value.timeframe : null,
       timeframes: mode.value === 'multi'
         ? form.value.timeframes.split(',').map(s => s.trim()).filter(s => s)
@@ -414,23 +397,25 @@ async function handleScan() {
 
     // Start scan and get session_id
     const response = await batchScannerAPI.scanMarket(config)
-    
-    if (response.data?.session_id) {
-      sessionId.value = response.data.session_id
+
+    const responseData = (response as any).data || response
+    if (responseData?.session_id) {
+      sessionId.value = responseData.session_id
       // Start polling logs and status
-      startLogPolling(response.data.session_id)
+      startLogPolling(responseData.session_id)
     } else {
       // Fallback: if no session_id, treat as old API response
-      result.value = response.data || response
+      result.value = responseData
       loading.value = false
     }
-  } catch (err) {
+  } catch (err: any) {
     error.value = err.message || t('batchScanner.errors.scanError')
     console.error('Scan error:', err)
     loading.value = false
     sessionId.value = null
-    if (logPoller.value) {
-      logPoller.value.stopPolling()
+    const currentPoller = logPoller.value
+    if (currentPoller) {
+      currentPoller.stopPolling()
       logPoller.value = null
     }
   }
@@ -441,35 +426,36 @@ async function handleCancel() {
 
   try {
     await batchScannerAPI.cancelBatchScan(sessionId.value)
-    
+
     // Stop polling
-    if (logPoller.value) {
-      logPoller.value.stopPolling()
+    const cancelPoller = logPoller.value
+    if (cancelPoller) {
+      cancelPoller.stopPolling()
       logPoller.value = null
     }
-    
+
     // Update UI
     loading.value = false
     error.value = null
-    
+
     // Add cancel message to logs
     logs.value.push(`⚠️ ${t('batchScanner.cancelledByUser')}`)
-    
+
     // Clear session ID
     sessionId.value = null
-  } catch (err) {
+  } catch (err: any) {
     error.value = err.message || t('batchScanner.errors.cancelError')
     console.error('Cancel error:', err)
   }
 }
 
-function startLogPolling(sessionId) {
+function startLogPolling(pollingSessionId: string) {
   // Create log poller
   logPoller.value = new LogPoller(
-    sessionId,
+    pollingSessionId,
     'scan',
     // onLogUpdate
-    (newLogLines, allLogs) => {
+    (_newLogLines: string[], allLogs: string[]) => {
       logs.value = [...allLogs]
       // Auto-scroll to bottom using Vue ref
       nextTick(() => {
@@ -484,13 +470,13 @@ function startLogPolling(sessionId) {
       })
     },
     // onStatusUpdate
-    (status, statusResponse) => {
+    (_status: string, _statusResponse: any) => {
       // Status updated, can show progress if needed
     },
     // onComplete
-    (resultData, errorMsg) => {
+    (resultData: any, errorMsg: string | null) => {
       loading.value = false
-      
+
       if (errorMsg) {
         // Error occurred
         error.value = errorMsg
@@ -501,40 +487,43 @@ function startLogPolling(sessionId) {
         error.value = null
         result.value = resultData
         console.log('Scan completed successfully with result:', resultData)
-        
+
         if (import.meta.env.DEV) {
           console.log('Full result object:', JSON.stringify(resultData, null, 2))
         }
       } else {
         // Completed but no result data - retry getting status one more time
         console.warn('Scan completed but no result data provided, retrying status check...')
-        
+
         // Retry getting status one more time after a short delay
         setTimeout(async () => {
-          if (sessionId.value && !loading.value) {
-            try {
-              const retryResponse = await batchScannerAPI.getBatchScanStatus(sessionId.value)
-              const retryData = retryResponse.data || retryResponse
-              
-              if (retryData.success && retryData.status === 'completed' && retryData.result) {
-                error.value = null
-                result.value = retryData.result
-                console.log('Result retrieved after final retry:', retryData.result)
-              } else {
-                // Still no result after retry
+          if (pollingSessionId && !loading.value) {
+            const currentSessionId = pollingSessionId
+            if (currentSessionId) {
+              try {
+                const retryResponse = await batchScannerAPI.getBatchScanStatus(currentSessionId)
+                const retryData = (retryResponse as any).data || retryResponse
+
+                if (retryData.success && retryData.status === 'completed' && retryData.result) {
+                  error.value = null
+                  result.value = retryData.result
+                  console.log('Result retrieved after final retry:', retryData.result)
+                } else {
+                  // Still no result after retry
+                  error.value = null
+                  result.value = null
+                  console.warn('Scan completed but no result data after final retry')
+                }
+              } catch (err) {
+                console.error('Error in final retry:', err)
                 error.value = null
                 result.value = null
-                console.warn('Scan completed but no result data after final retry')
               }
-            } catch (err) {
-              console.error('Error in final retry:', err)
-              error.value = null
-              result.value = null
             }
           }
         }, 2000) // Wait 2 seconds before final retry
       }
-      
+
       // Stop polling
       if (logPoller.value) {
         logPoller.value.stopPolling()
@@ -554,8 +543,7 @@ onUnmounted(() => {
   }
 })
 
-function handleSymbolClick(symbol) {
+function handleSymbolClick(symbol: string) {
   emit('symbol-click', symbol)
 }
 </script>
-
