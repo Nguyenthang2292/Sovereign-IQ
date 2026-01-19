@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Optional, Tuple
 
+import numpy as np
 import pandas as pd
 
 from modules.simplified_percentile_clustering.config.mean_reversion_config import (
@@ -79,6 +80,7 @@ def generate_signals_mean_reversion(
     low: pd.Series,
     close: pd.Series,
     *,
+    volume: Optional[pd.Series] = None,
     clustering_result: Optional[ClusteringResult] = None,
     config: Optional[MeanReversionConfig] = None,
 ) -> Tuple[pd.Series, pd.Series, pd.DataFrame]:
@@ -89,6 +91,7 @@ def generate_signals_mean_reversion(
         high: High price series.
         low: Low price series.
         close: Close price series.
+        volume: Volume series (optional, for future enhancements).
         clustering_result: Pre-computed clustering result (optional).
         config: Strategy configuration.
 
@@ -112,6 +115,16 @@ def generate_signals_mean_reversion(
     signals = pd.Series(0, index=close.index, dtype=int)
     signal_strength = pd.Series(0.0, index=close.index, dtype=float)
 
+    # Compute RSI if confirmation is enabled
+    rsi_vals = None
+    if config.use_rsi_confirmation:
+        delta = close.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=config.rsi_period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=config.rsi_period).mean()
+        rs = gain / loss.replace(0, np.nan)
+        rsi_vals = 100 - (100 / (1 + rs))
+        rsi_vals = rsi_vals.fillna(50.0)
+
     # Determine max real_clust value based on k
     k = 2
     if config.clustering_config:
@@ -133,6 +146,8 @@ def generate_signals_mean_reversion(
         "in_extreme": in_extreme,
         "price_change": close.pct_change(),
     }
+    if rsi_vals is not None:
+        metadata["rsi"] = rsi_vals
 
     for i in range(len(close)):
         real_clust = metadata["real_clust"].iloc[i]
@@ -154,7 +169,13 @@ def generate_signals_mean_reversion(
             if config.require_reversal_signal:
                 reversal_confirmed = _detect_reversal(close, i, config.reversal_lookback, "bullish")
 
-            if reversal_confirmed:
+            # Check RSI confirmation if enabled
+            rsi_confirmed = True
+            if config.use_rsi_confirmation and rsi_vals is not None:
+                rsi_val = rsi_vals.iloc[i]
+                rsi_confirmed = rsi_val < config.rsi_oversold
+
+            if reversal_confirmed and rsi_confirmed:
                 # Calculate distance to target
                 distance_to_target = abs(real_clust - config.bullish_reversion_target)
                 max_distance = max_real_clust
@@ -175,7 +196,13 @@ def generate_signals_mean_reversion(
             if config.require_reversal_signal:
                 reversal_confirmed = _detect_reversal(close, i, config.reversal_lookback, "bearish")
 
-            if reversal_confirmed:
+            # Check RSI confirmation if enabled
+            rsi_confirmed = True
+            if config.use_rsi_confirmation and rsi_vals is not None:
+                rsi_val = rsi_vals.iloc[i]
+                rsi_confirmed = rsi_val > config.rsi_overbought
+
+            if reversal_confirmed and rsi_confirmed:
                 # Calculate distance to target
                 distance_to_target = abs(real_clust - config.bearish_reversion_target)
                 max_distance = max_real_clust

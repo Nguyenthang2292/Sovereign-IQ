@@ -21,7 +21,9 @@ from config import (
     MODEL_FEATURES,
     TARGET_HORIZON,
     TARGET_LABELS,
+    XGBOOST_MIN_TRAIN_FRACTION,
     XGBOOST_PARAMS,
+    XGBOOST_TRAIN_TEST_SPLIT,
 )
 from config.position_sizing import (
     USE_GPU,
@@ -154,7 +156,7 @@ def train_and_predict(df: pd.DataFrame) -> Any:
                 # Try to detect CUDA availability
                 import subprocess
 
-                result = subprocess.run(["nvidia-smi"], capture_output=True, timeout=2)
+                result = subprocess.run(["nvidia-smi"], capture_output=True, timeout=5)
                 if result.returncode == 0:
                     # GPU is available, use GPU parameters
                     # In XGBoost 2.0+, use 'hist' with device='cuda' instead of 'gpu_hist'
@@ -192,22 +194,23 @@ def train_and_predict(df: pd.DataFrame) -> Any:
     # IMPORTANT: The gap prevents data leakage because labels for the last TARGET_HORIZON
     # rows of the training set would require future prices from the test set.
     # Example: If TARGET_HORIZON=24, we predict 24 candles ahead, so we need a 24-candle gap.
-    split = int(len(df) * 0.8)
+    split = int(len(df) * XGBOOST_TRAIN_TEST_SPLIT)
     train_end = split - TARGET_HORIZON
     test_start = split
 
     # Adjust split if gap creation leaves insufficient training data
-    if train_end < len(df) * 0.5:
-        train_end = int(len(df) * 0.5)
+    if train_end < len(df) * XGBOOST_MIN_TRAIN_FRACTION:
+        train_end = int(len(df) * XGBOOST_MIN_TRAIN_FRACTION)
         test_start = train_end + TARGET_HORIZON
         if test_start >= len(df):
             # Not enough data for proper train/test split with gap
-            log_warn(
+            min_required_rows = int(len(df) * XGBOOST_MIN_TRAIN_FRACTION) + TARGET_HORIZON + 1
+            raise ValueError(
                 f"Insufficient data for train/test split with gap. "
-                f"Need at least {len(df) + TARGET_HORIZON} rows. Using all data for training."
+                f"Need at least {min_required_rows} rows "
+                f"({XGBOOST_MIN_TRAIN_FRACTION:.0%} train + {TARGET_HORIZON} gap + 1 test), "
+                f"but only have {len(df)} rows."
             )
-            train_end = len(df)
-            test_start = len(df)
 
     X_train, X_test = X.iloc[:train_end], X.iloc[test_start:]
     y_train, y_test = y.iloc[:train_end], y.iloc[test_start:]
@@ -240,13 +243,12 @@ def train_and_predict(df: pd.DataFrame) -> Any:
         )
 
     if len(unique_train_classes) < len(TARGET_LABELS):
-        # Model expects 3 classes but training set only has fewer - this may cause issues
-        # XGBoost can sometimes handle this, but it's safer to warn or fail
+        # Model expects 3 classes but training set only has fewer - this leads to biased predictions
         missing_classes = expected_classes - actual_classes
-        log_warn(
+        raise ClassDiversityError(
             f"Training set has {len(unique_train_classes)} class(es) {[ID_TO_LABEL[c] for c in unique_train_classes]}, "
             f"but model expects {len(TARGET_LABELS)} classes. Missing: {[ID_TO_LABEL[c] for c in missing_classes]}. "
-            f"This may cause issues during training."
+            f"Training with missing classes produces biased predictions."
         )
 
     model = build_model()
@@ -297,10 +299,12 @@ def train_and_predict(df: pd.DataFrame) -> Any:
                 min_test_start = train_idx_filtered[-1] + TARGET_HORIZON + 1
                 if test_idx_array[0] < min_test_start:
                     # Adjust test start to create proper gap
-                    test_idx_array = test_idx_array[test_idx_array >= min_test_start]
-                    if len(test_idx_array) == 0:
+                    test_idx_filtered = test_idx_array[test_idx_array >= min_test_start]
+                    if len(test_idx_filtered) == 0:
                         log_warn(f"CV Fold {fold}: Skipped (no valid test data after gap)")
                         continue
+                else:
+                    test_idx_filtered = test_idx_array
 
             # Class Diversity Validation
             # XGBoost requires at least 2 classes, but we need all 3 for proper multi-class prediction
@@ -320,9 +324,9 @@ def train_and_predict(df: pd.DataFrame) -> Any:
 
             cv_model = build_model()
             cv_model.fit(X.iloc[train_idx_filtered], y.iloc[train_idx_filtered])
-            if len(test_idx_array) > 0:
-                y_test_fold = y.iloc[test_idx_array]
-                preds = cv_model.predict(X.iloc[test_idx_array])
+            if len(test_idx_filtered) > 0:
+                y_test_fold = y.iloc[test_idx_filtered]
+                preds = cv_model.predict(X.iloc[test_idx_filtered])
                 acc = accuracy_score(y_test_fold, preds)
                 cv_scores.append(acc)
 

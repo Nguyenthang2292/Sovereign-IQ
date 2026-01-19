@@ -64,7 +64,7 @@ from modules.simplified_percentile_clustering.strategies import (
     generate_signals_regime_following,
 )
 from modules.xgboost.labeling import apply_directional_labels
-from modules.xgboost.model import predict_next_move, train_and_predict
+from modules.xgboost.model import ClassDiversityError, predict_next_move, train_and_predict
 
 
 def get_range_oscillator_signal(
@@ -383,6 +383,25 @@ def get_xgboost_signal(
         if len(df) < XGBOOST_MIN_TRAINING_SAMPLES:
             return None
 
+        # Early validation: Check for problematic price data (constant prices)
+        # This prevents wasting resources on feature calculation for invalid data
+        close_prices = df["close"]
+        price_range = close_prices.max() - close_prices.min()
+        unique_prices = close_prices.nunique()
+
+        # If price range is zero or very small, or only 1-2 unique prices, data is problematic
+        # Note: HMM features will try to fix this, but XGBoost may still fail due to class diversity
+        # So we skip early to avoid wasting resources
+        if price_range == 0 or unique_prices <= 2:
+            from modules.common.ui.logging import log_warn
+
+            log_warn(
+                f"Skipping XGBoost signal for {symbol}: problematic price data "
+                f"(range={price_range:.6f}, unique_prices={unique_prices}). "
+                f"This would likely cause class diversity errors."
+            )
+            return None
+
         # Initialize IndicatorEngine for XGBoost features
         indicator_engine = IndicatorEngine(IndicatorConfig.for_profile(IndicatorProfile.XGBOOST))
 
@@ -435,12 +454,36 @@ def get_xgboost_signal(
             return None
         return (signal, confidence)
 
+    except ClassDiversityError as e:
+        # Handle class diversity errors specifically with detailed logging
+        from modules.common.ui.logging import log_error, log_warn
+
+        log_warn(
+            f"XGBoost signal calculation failed for {symbol} due to insufficient class diversity: {str(e)}. "
+            f"This usually occurs when price data has insufficient variation (e.g., all prices are the same). "
+            f"Skipping this symbol."
+        )
+        return None
+    except ValueError as e:
+        # Handle other ValueError cases with more context
+        from modules.common.ui.logging import log_error, log_warn
+
+        error_msg = str(e)
+        # Check if it's related to data quality issues
+        if "invalid" in error_msg.lower() or "expected" in error_msg.lower():
+            log_warn(
+                f"XGBoost signal calculation failed for {symbol} due to data quality issue: {error_msg}. "
+                f"This may be caused by problematic price data (e.g., constant prices). Skipping this symbol."
+            )
+        else:
+            log_error(f"ValueError calculating XGBoost signal for {symbol}: {error_msg}")
+        return None
     except Exception as e:
         # Log error for debugging instead of silently swallowing
         # Sanitize error message to prevent information leakage
         from modules.common.ui.logging import log_error
 
-        log_error(f"Error calculating XGBoost signal for {symbol}: {type(e).__name__}")
+        log_error(f"Error calculating XGBoost signal for {symbol}: {type(e).__name__}: {str(e)}")
         return None
 
 

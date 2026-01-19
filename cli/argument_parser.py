@@ -861,6 +861,68 @@ def parse_args(mode="hybrid", force_enable_spc=True, force_enable_decision_matri
         help="Minimum bars in extreme for SPC mean reversion (default: 3)",
     )
 
+    # SPC Enhancement Arguments
+    parser.add_argument(
+        "--spc-volatility-adjustment",
+        action="store_true",
+        help="Enable volatility-adaptive percentiles (Enhancement 1). Adjusts percentiles based on market volatility.",
+    )
+    parser.add_argument(
+        "--spc-use-correlation-weights",
+        action="store_true",
+        help="Enable correlation-based feature weighting (Enhancement 2). Weights features by uniqueness.",
+    )
+    parser.add_argument(
+        "--spc-time-decay-factor",
+        type=float,
+        default=None,
+        help="Time decay factor for distance calculation (Enhancement 3). 1.0=no decay, <1.0=decay (e.g., 0.99). Default: from config",
+    )
+    parser.add_argument(
+        "--spc-interpolation-mode",
+        type=str,
+        choices=["linear", "sigmoid", "exponential"],
+        default=None,
+        help="Interpolation mode for cluster transitions (Enhancement 4). Options: linear, sigmoid, exponential. Default: from config",
+    )
+    parser.add_argument(
+        "--spc-min-flip-duration",
+        type=int,
+        default=None,
+        help="Minimum bars in cluster before allowing flip (Enhancement 5). Default: from config",
+    )
+    parser.add_argument(
+        "--spc-flip-confidence-threshold",
+        type=float,
+        default=None,
+        help="Required confidence to flip clusters (Enhancement 5). Range: 0.0-1.0. Default: from config",
+    )
+    parser.add_argument(
+        "--spc-enable-mtf",
+        action="store_true",
+        help="Enable multi-timeframe analysis (Enhancement 6). Analyzes clustering across multiple timeframes.",
+    )
+    parser.add_argument(
+        "--spc-mtf-timeframes",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Timeframes for multi-timeframe analysis (Enhancement 6). Example: --spc-mtf-timeframes 1h 4h 1d. Default: from config",
+    )
+    parser.add_argument(
+        "--spc-mtf-require-alignment",
+        action="store_true",
+        default=None,
+        help="Require all timeframes to align for signal (Enhancement 6). Default: from config",
+    )
+    parser.add_argument(
+        "--spc-preset",
+        type=str,
+        choices=["conservative", "balanced", "aggressive"],
+        default=None,
+        help="Use preset configuration for SPC enhancements. Options: conservative, balanced, aggressive. Overrides individual enhancement flags.",
+    )
+
     # XGBoost configuration (optional)
     parser.add_argument(
         "--enable-xgboost",

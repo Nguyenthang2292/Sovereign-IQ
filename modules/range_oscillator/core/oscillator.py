@@ -15,13 +15,15 @@ Original: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
 from modules.common.indicators.trend import calculate_weighted_ma
 from modules.common.indicators.volatility import calculate_atr_range
+from modules.range_oscillator.config.heatmap_config import HeatmapConfig
+from modules.range_oscillator.core.heatmap import calculate_heat_colors, calculate_trend_direction
 
 
 def calculate_range_oscillator(
@@ -100,6 +102,69 @@ def calculate_range_oscillator(
     return oscillator, ma, range_atr
 
 
+def calculate_range_oscillator_with_heatmap(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    *,
+    length: int = 50,
+    mult: float = 2.0,
+    heatmap_config: Optional[HeatmapConfig] = None,
+) -> Tuple[pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series]:
+    """Calculate Range Oscillator indicator with heatmap colors.
+
+    This function extends `calculate_range_oscillator()` to also calculate
+    heatmap colors and trend direction for visualization purposes.
+
+    Args:
+        high: High price series.
+        low: Low price series.
+        close: Close price series.
+        length: Minimum range length (default: 50).
+        mult: Range width multiplier (default: 2.0).
+        heatmap_config: Heatmap configuration. If None, uses default config.
+
+    Returns:
+        Tuple containing:
+        - oscillator: Oscillator values
+        - ma: Weighted moving average
+        - range_atr: ATR-based range
+        - heat_colors: Heatmap colors as hex strings
+        - trend_direction: Trend direction (1=bullish, -1=bearish, 0=neutral)
+        - osc_colors: Final indicator colors (includes breakout overrides)
+    """
+    # Calculate base oscillator
+    oscillator, ma, range_atr = calculate_range_oscillator(
+        high=high,
+        low=low,
+        close=close,
+        length=length,
+        mult=mult,
+    )
+
+    # Calculate trend direction
+    trend_direction = calculate_trend_direction(close, ma)
+
+    # Calculate heatmap colors (already includes transition color on flips)
+    heat_colors = calculate_heat_colors(oscillator, trend_direction, config=heatmap_config)
+
+    # Final oscillator colors (apply breakout overrides matching Pine Script)
+    if heatmap_config is None:
+        heatmap_config = HeatmapConfig()
+
+    osc_colors = heat_colors.copy()
+
+    # breakout logic: breakUp = close > ma + rangeATR, breakDn = close < ma - rangeATR
+    break_up = close > (ma + range_atr)
+    break_dn = close < (ma - range_atr)
+
+    osc_colors[break_up] = heatmap_config.strong_bullish_color
+    osc_colors[break_dn] = heatmap_config.strong_bearish_color
+
+    return oscillator, ma, range_atr, heat_colors, trend_direction, osc_colors
+
+
 __all__ = [
     "calculate_range_oscillator",
+    "calculate_range_oscillator_with_heatmap",
 ]

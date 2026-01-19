@@ -11,6 +11,10 @@ from modules.simplified_percentile_clustering.core.clustering import (
     ClusteringResult,
     compute_clustering,
 )
+from modules.simplified_percentile_clustering.utils.helpers import (
+    safe_isna,
+    vectorized_cluster_duration,
+)
 
 """
 Regime Following Strategy.
@@ -37,10 +41,33 @@ Strategy Logic:
    - Transitioning between clusters
    - Conflicting signals
 """
-from modules.simplified_percentile_clustering.utils.helpers import (
-    safe_isna,
-    vectorized_cluster_duration,
-)
+
+
+def _check_volume_confirmation(i: int, signal: int, volume: Optional[pd.Series], lookback: int = 20) -> bool:
+    """
+    Confirm trend signals with volume.
+
+    Args:
+        i: Current index.
+        signal: Signal direction (1 for LONG, -1 for SHORT).
+        volume: Volume series (optional).
+        lookback: Lookback period for average volume calculation.
+
+    Returns:
+        True if volume confirms the signal, False otherwise.
+
+    Logic:
+        - LONG: Volume above average on bullish transitions
+        - SHORT: Volume above average on bearish transitions
+    """
+    if volume is None or i < lookback:
+        return True  # Skip if no volume data or insufficient lookback
+
+    avg_volume = volume.rolling(window=lookback).mean().iloc[i]
+    current_volume = volume.iloc[i]
+
+    # Require above-average volume for trend confirmation
+    return current_volume > avg_volume
 
 
 def generate_signals_regime_following(
@@ -48,6 +75,7 @@ def generate_signals_regime_following(
     low: pd.Series,
     close: pd.Series,
     *,
+    volume: Optional[pd.Series] = None,
     clustering_result: Optional[ClusteringResult] = None,
     config: Optional[RegimeFollowingConfig] = None,
 ) -> Tuple[pd.Series, pd.Series, pd.DataFrame]:
@@ -58,6 +86,7 @@ def generate_signals_regime_following(
         high: High price series.
         low: Low price series.
         close: Close price series.
+        volume: Volume series (optional, for volume confirmation).
         clustering_result: Pre-computed clustering result (optional).
         config: Strategy configuration.
 
@@ -125,33 +154,42 @@ def generate_signals_regime_following(
             else:
                 momentum_confirmed = True  # Will check direction below
 
+        # Check volume confirmation if required
+        volume_confirmed = True
+        if config.require_volume_confirmation:
+            volume_confirmed = _check_volume_confirmation(
+                i, 1 if cluster_int in config.bullish_clusters else -1, volume, config.volume_lookback
+            )
+
         # Bullish signal
         if cluster_int in config.bullish_clusters:
             if real_clust >= config.bullish_real_clust_threshold:
                 if not config.require_momentum or (momentum_confirmed and mom >= 0):
-                    signals.iloc[i] = 1  # LONG
-                    # Signal strength based on regime strength and real_clust position
-                    if config.clustering_config and config.clustering_config.k == 3:
-                        # Normalize real_clust to [0, 1] for k=3
-                        normalized_real = (real_clust - 0) / 2.0
-                    else:
-                        # Normalize real_clust to [0, 1] for k=2
-                        normalized_real = (real_clust - 0) / 1.0
-                    signal_strength.iloc[i] = (strength + normalized_real) / 2.0
+                    if not config.require_volume_confirmation or volume_confirmed:
+                        signals.iloc[i] = 1  # LONG
+                        # Signal strength based on regime strength and real_clust position
+                        if config.clustering_config and config.clustering_config.k == 3:
+                            # Normalize real_clust to [0, 1] for k=3
+                            normalized_real = (real_clust - 0) / 2.0
+                        else:
+                            # Normalize real_clust to [0, 1] for k=2
+                            normalized_real = (real_clust - 0) / 1.0
+                        signal_strength.iloc[i] = (strength + normalized_real) / 2.0
 
         # Bearish signal
         elif cluster_int in config.bearish_clusters:
             if real_clust <= config.bearish_real_clust_threshold:
                 if not config.require_momentum or (momentum_confirmed and mom <= 0):
-                    signals.iloc[i] = -1  # SHORT
-                    # Signal strength based on regime strength and real_clust position
-                    if config.clustering_config and config.clustering_config.k == 3:
-                        # Normalize real_clust to [0, 1] for k=3 (inverted)
-                        normalized_real = 1.0 - (real_clust - 0) / 2.0
-                    else:
-                        # Normalize real_clust to [0, 1] for k=2 (inverted)
-                        normalized_real = 1.0 - (real_clust - 0) / 1.0
-                    signal_strength.iloc[i] = (strength + normalized_real) / 2.0
+                    if not config.require_volume_confirmation or volume_confirmed:
+                        signals.iloc[i] = -1  # SHORT
+                        # Signal strength based on regime strength and real_clust position
+                        if config.clustering_config and config.clustering_config.k == 3:
+                            # Normalize real_clust to [0, 1] for k=3 (inverted)
+                            normalized_real = 1.0 - (real_clust - 0) / 2.0
+                        else:
+                            # Normalize real_clust to [0, 1] for k=2 (inverted)
+                            normalized_real = 1.0 - (real_clust - 0) / 1.0
+                        signal_strength.iloc[i] = (strength + normalized_real) / 2.0
 
     metadata_df = pd.DataFrame(metadata, index=close.index)
     metadata_df["signal"] = signals

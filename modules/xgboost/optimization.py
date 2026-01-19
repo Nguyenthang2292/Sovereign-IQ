@@ -7,9 +7,20 @@ This module provides tools for automated hyperparameter tuning using Optuna, inc
 """
 
 import json
+import os
+import re
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+if os.name == "nt":
+    import msvcrt
+else:
+    try:
+        import fcntl
+    except ImportError:
+        fcntl = None
 
 import numpy as np
 import optuna
@@ -22,10 +33,35 @@ from config import (
     MODEL_FEATURES,
     TARGET_HORIZON,
     TARGET_LABELS,
+    XGBOOST_MIN_OPTIMIZATION_SAMPLES,
     XGBOOST_PARAMS,
 )
-from modules.common.utils import log_info, log_success, log_warn
+from modules.common.utils import log_error, log_info, log_success, log_warn
 from modules.xgboost.model import _resolve_xgb_classifier
+
+
+@contextmanager
+def file_lock(lock_file_path: Path):
+    """
+    Cross-platform file locking for SQLite access coordination.
+    """
+    lock_file = open(lock_file_path, "w")
+    try:
+        if os.name == "nt":
+            # Windows locking
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            # Unix locking
+            if fcntl:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        yield
+    finally:
+        if os.name == "nt":
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            if fcntl:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        lock_file.close()
 
 
 class StudyManager:
@@ -47,9 +83,13 @@ class StudyManager:
         Args:
             storage_dir: Directory to store studies (relative to project root)
         """
-        # [DEBUG] Path resolution checked - resolves from current working directory
-        # Resolve path from project root to ensure absolute path
-        self.storage_dir = Path(storage_dir).resolve()
+        # [DEBUG] Path resolution - always resolve relative to project root
+        # Calculate project root: modules/xgboost/optimization.py -> modules/xgboost/ -> modules/ -> project root
+        # Adjust depth as needed based on actual file location
+        _PROJECT_ROOT = Path(__file__).parent.parent.parent
+        # Resolve storage_dir relative to project root to ensure consistent behavior
+        # regardless of current working directory
+        self.storage_dir = (_PROJECT_ROOT / storage_dir).resolve()
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
     def save_study(
@@ -131,7 +171,17 @@ class StudyManager:
         try:
             with open(latest_study, "r", encoding="utf-8") as f:
                 study_data = json.load(f)
-        except Exception:
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            # File system errors - file may have been deleted or permission denied
+            log_warn(f"Could not read study file {latest_study}: {e}")
+            return None
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            # JSON parsing errors - file may be corrupted or invalid format
+            log_warn(f"Could not parse study file {latest_study}: {e}")
+            return None
+        except Exception as e:
+            # Unexpected errors
+            log_error(f"Unexpected error loading study file {latest_study}: {e}")
             return None
 
         # Check age of study
@@ -237,9 +287,11 @@ class HyperparameterTuner:
             if len(train_idx_filtered) > 0 and len(test_idx_array) > 0:
                 min_test_start = train_idx_filtered[-1] + TARGET_HORIZON + 1
                 if test_idx_array[0] < min_test_start:
-                    test_idx_array = test_idx_array[test_idx_array >= min_test_start]
-                    if len(test_idx_array) == 0:
+                    test_idx_filtered = test_idx_array[test_idx_array >= min_test_start]
+                    if len(test_idx_filtered) == 0:
                         continue
+                else:
+                    test_idx_filtered = test_idx_array
 
             # Class diversity validation
             y_train_fold = y.iloc[train_idx_filtered]
@@ -253,10 +305,10 @@ class HyperparameterTuner:
             model.fit(X.iloc[train_idx_filtered], y.iloc[train_idx_filtered])
 
             # Evaluate on test set
-            # [DEBUG] test_idx_array usage verified - correctly used after filtering
-            if len(test_idx_array) > 0:
-                y_test_fold = y.iloc[test_idx_array]
-                preds = model.predict(X.iloc[test_idx_array])
+            # [DEBUG] test_idx_filtered usage verified - correctly used after filtering
+            if len(test_idx_filtered) > 0:
+                y_test_fold = y.iloc[test_idx_filtered]
+                preds = model.predict(X.iloc[test_idx_filtered])
                 acc = accuracy_score(y_test_fold, preds)
                 cv_scores.append(acc)
 
@@ -290,8 +342,13 @@ class HyperparameterTuner:
         # [DEBUG] Input validation - MODEL_FEATURES and Target column validation added
         try:
             X = df[MODEL_FEATURES]
-        except KeyError:
-            raise
+        except KeyError as e:
+            # Identify which specific features are missing for better error message
+            missing_features = set(MODEL_FEATURES) - set(df.columns)
+            raise ValueError(
+                f"DataFrame missing required features: {sorted(missing_features)}. "
+                f"Available columns: {sorted(df.columns)}"
+            ) from e
         # Validate Target column
         if "Target" not in df.columns:
             raise ValueError("DataFrame must contain 'Target' column")
@@ -301,70 +358,83 @@ class HyperparameterTuner:
             raise ValueError(f"Cannot convert 'Target' column to int: {e}") from e
 
         # Check data length
-        if len(df) < 100:
-            log_warn(f"Insufficient data for optimization (need >= 100, got {len(df)})")
+        if len(df) < XGBOOST_MIN_OPTIMIZATION_SAMPLES:
+            log_warn(f"Insufficient data for optimization (need >= {XGBOOST_MIN_OPTIMIZATION_SAMPLES}, got {len(df)})")
             return XGBOOST_PARAMS.copy()
 
         # Create study name if not provided
         if study_name is None:
-            study_name = f"xgboost_{self.symbol}_{self.timeframe}"
+            raw_name = f"xgboost_{self.symbol}_{self.timeframe}"
+            # Sanitize name to prevent SQL Injection and ensure valid filename
+            study_name = re.sub(r"[^a-zA-Z0-9_-]", "_", raw_name)
 
         # Create storage path for Optuna (absolute path from artifacts)
         storage_path = self.study_manager.storage_dir / "studies.db"
         # Use absolute path to ensure Optuna finds the correct file
         storage_url = f"sqlite:///{storage_path.resolve()}"
 
-        # Load existing study if available
-        # [DEBUG] Exception handling improved - added DuplicatedStudyError handling for Optuna
-        study = None
-        if load_existing:
-            try:
-                study = optuna.load_study(
-                    study_name=study_name,
-                    storage=storage_url,
-                )
-                log_info(f"Loaded existing study: {study_name}")
-            except (ValueError, KeyError):
-                # Study does not exist, will create new
-                pass
-            except optuna.exceptions.DuplicatedStudyError:
-                # Study exists but conflict, create new with load_if_exists=True
-                pass
-            except Exception:
-                # Study does not exist or other error, will create new
-                pass
+        # Coordinate access with file lock
+        lock_file_path = self.study_manager.storage_dir / "studies.db.lock"
 
-        # Create new study if not loaded
-        # [DEBUG] DuplicatedStudyError handling with fallback to load_study added
-        if study is None:
-            try:
-                study = optuna.create_study(
-                    study_name=study_name,
-                    direction="maximize",
-                    storage=storage_url,
-                    load_if_exists=True,
-                )
-                log_info(f"Created new study: {study_name}")
-            except optuna.exceptions.DuplicatedStudyError as e:
-                # Study exists, load it
+        with file_lock(lock_file_path):
+            # Load existing study if available
+            # [DEBUG] Exception handling improved - added DuplicatedStudyError handling for Optuna
+            study = None
+            if load_existing:
                 try:
                     study = optuna.load_study(
                         study_name=study_name,
                         storage=storage_url,
                     )
-                    log_info(f"Loaded existing study after conflict: {study_name}")
-                except Exception as load_e:
-                    raise RuntimeError(f"Failed to create or load study: {e}") from load_e
-            except Exception:
-                raise
+                    log_info(f"Loaded existing study: {study_name}")
+                except (ValueError, KeyError) as e:
+                    # Study does not exist, will create new
+                    log_warn(f"Could not load study (not found): {e}. Creating new study.")
+                except optuna.exceptions.DuplicatedStudyError:
+                    # Study exists but conflict, create new with load_if_exists=True
+                    pass
+                except (FileNotFoundError, OSError, PermissionError) as e:
+                    # File system errors (file not found, permission denied, etc.)
+                    log_warn(f"Could not load study (file system error): {e}. Creating new study.")
+                except Exception as e:
+                    # Unexpected errors (database corruption, network errors, etc.)
+                    log_error(f"Unexpected error loading study: {e}")
+                    raise
 
-        # Run optimization
-        log_info(f"Starting optimization with {n_trials} trials...")
-        study.optimize(
-            lambda trial: self._objective(trial, X, y, n_splits=n_splits),
-            n_trials=n_trials,
-            show_progress_bar=True,
-        )
+            # Create new study if not loaded
+            # [DEBUG] DuplicatedStudyError handling with fallback to load_study added
+            if study is None:
+                try:
+                    study = optuna.create_study(
+                        study_name=study_name,
+                        direction="maximize",
+                        storage=storage_url,
+                        load_if_exists=True,
+                    )
+                    log_info(f"Created new study: {study_name}")
+                except optuna.exceptions.DuplicatedStudyError as e:
+                    # Study exists, load it
+                    try:
+                        study = optuna.load_study(
+                            study_name=study_name,
+                            storage=storage_url,
+                        )
+                        log_info(f"Loaded existing study after conflict: {study_name}")
+                    except Exception as load_e:
+                        raise RuntimeError(f"Failed to create or load study: {e}") from load_e
+                except Exception:
+                    raise
+
+            # Run optimization
+            log_info(f"Starting optimization with {n_trials} trials...")
+            # Optuna's internal SQLite handler handles concurrent write attempts,
+            # but our file lock ensures we don't have multiple processes trying
+            # to initialize the study at the exact same millisecond.
+            study.optimize(
+                lambda trial: self._objective(trial, X, y, n_splits=n_splits),
+                n_trials=n_trials,
+                show_progress_bar=True,
+            )
 
         # Get best parameters
         best_params = study.best_params.copy()

@@ -27,6 +27,10 @@ class RegimeFollowingConfig:
     require_momentum: bool = True  # Require price momentum confirmation
     momentum_period: int = 5  # Period for momentum calculation
 
+    # Volume Confirmation (NEW)
+    require_volume_confirmation: bool = False  # Enable volume confirmation
+    volume_lookback: int = 20  # Lookback period for average volume calculation
+
     # Cluster preferences
     bullish_clusters: Optional[list[int]] = None  # Clusters considered bullish (e.g., [1, 2])
     bearish_clusters: Optional[list[int]] = None  # Clusters considered bearish (e.g., [0])
@@ -78,6 +82,8 @@ class RegimeFollowingConfig:
             raise ValueError(f"min_cluster_duration must be at least 1, got {self.min_cluster_duration}")
         if self.momentum_period < 1:
             raise ValueError(f"momentum_period must be at least 1, got {self.momentum_period}")
+        if self.volume_lookback < 1:
+            raise ValueError(f"volume_lookback must be at least 1, got {self.volume_lookback}")
         if not (0.0 <= self.bullish_real_clust_threshold <= 1.0):
             raise ValueError(
                 f"bullish_real_clust_threshold must be in [0.0, 1.0], got {self.bullish_real_clust_threshold}"

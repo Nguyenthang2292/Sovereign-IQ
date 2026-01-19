@@ -6,13 +6,17 @@ Configuration constants for Random Forest model training and prediction.
 
 from pathlib import Path
 
+# Calculate project root: config/random_forest.py -> config/ -> project root
+_PROJECT_ROOT = Path(__file__).parent.parent
+
 # Training Configuration
 MAX_TRAINING_ROWS = 100000  # Maximum rows for training (will sample if exceeded)
 MODEL_RANDOM_STATE = 42  # Random state for reproducibility
 MODEL_TEST_SIZE = 0.2  # Test set size ratio (20%)
 
 # Model Storage
-MODELS_DIR = Path("artifacts/models/random_forest")  # Directory to save models
+# Note: Model file is stored directly in artifacts/models/ (not in subfolder)
+MODELS_DIR = _PROJECT_ROOT / "artifacts" / "models"  # Directory to save models
 RANDOM_FOREST_MODEL_FILENAME = "random_forest_model.joblib"  # Default model filename
 
 # Target Label Creation

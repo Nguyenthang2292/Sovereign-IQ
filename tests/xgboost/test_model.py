@@ -17,9 +17,14 @@ Test structures should follow best practices to ensure model robustness and repr
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from config import TARGET_LABELS
-from modules.xgboost.model import predict_next_move, train_and_predict
+from modules.xgboost.model import (
+    ClassDiversityError,
+    predict_next_move,
+    train_and_predict,
+)
 
 
 def _synthetic_df(rows=300):
@@ -109,8 +114,36 @@ def test_predict_next_move_returns_valid_probabilities():
 def test_train_and_predict_handles_small_dataset(monkeypatch):
     df = _synthetic_df(rows=60)
 
-    # Force TARGET_HORIZON to be larger to trigger warning branch
+    # Force TARGET_HORIZON to be larger to trigger exception branch
     monkeypatch.setattr("modules.xgboost.model.TARGET_HORIZON", 50)
-    model = train_and_predict(df)
+    with pytest.raises(ValueError, match="Insufficient data for train/test split with gap"):
+        train_and_predict(df)
 
-    assert hasattr(model, "predict")
+
+def test_train_and_predict_raises_class_diversity_error():
+    df = _synthetic_df(rows=100)
+    # Force all targets to 0 and 1 (missing class 2 if TARGET_LABELS has 3)
+    df["Target"] = 0
+    df.iloc[0, df.columns.get_loc("Target")] = 1  # Ensure at least 2 classes but not all 3
+
+    if len(TARGET_LABELS) > 2:
+        with pytest.raises(ClassDiversityError, match="Training set has 2 class"):
+            train_and_predict(df)
+
+
+def test_train_and_predict_raises_error_missing_class_0():
+    df = _synthetic_df(rows=100)
+    # Force targets to 1 and 2 (missing class 0)
+    df["Target"] = 1
+    df.iloc[0, df.columns.get_loc("Target")] = 2
+
+    with pytest.raises(ClassDiversityError, match="Training set missing class 0"):
+        train_and_predict(df)
+
+
+def test_train_and_predict_raises_on_single_class():
+    """Test that ClassDiversityError is raised when all labels are the same class."""
+    df = _synthetic_df(rows=100)
+    df["Target"] = 0  # All DOWN
+    with pytest.raises(ClassDiversityError, match="Insufficient class diversity in training set"):
+        train_and_predict(df)

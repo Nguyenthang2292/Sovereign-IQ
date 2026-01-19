@@ -9,26 +9,31 @@ XGBoost prediction component sử dụng machine learning (XGBoost) để dự �
 ## Components
 
 ### Model
+
 - **Location:** `modules/xgboost/model.py`
 - XGBoost model training và prediction
 - Multi-class classification (UP, NEUTRAL, DOWN)
 
 ### Labeling
+
 - **Location:** `modules/xgboost/labeling.py`
 - Dynamic labeling dựa trên volatility
 - Triple-barrier method với adaptive thresholds
 
 ### CLI
+
 - **Location:** `modules/xgboost/cli.py`
 - Command-line interface parser
 - Input validation và prompts
 
 ### Display
+
 - **Location:** `modules/xgboost/display.py`
 - Classification report formatting
 - Confusion matrix visualization
 
 ### Optimization
+
 - **Location:** `modules/xgboost/optimization.py`
 - Hyperparameter optimization với Optuna
 - Study management và caching
@@ -43,6 +48,7 @@ python xgboost_prediction_main.py
 ## Configuration
 
 Tất cả config được định nghĩa trong `modules/config.py` section **XGBoost Prediction Configuration**:
+
 - `TARGET_HORIZON` - Số candles để predict ahead
 - `TARGET_BASE_THRESHOLD` - Base threshold cho labeling
 - `XGBOOST_PARAMS` - Model hyperparameters
@@ -158,6 +164,7 @@ HyperparameterTuner tự động tìm kiếm trong các ranges sau:
 - `min_child_weight`: 1-10
 
 Các parameters cố định:
+
 - `random_state`: 42
 - `objective`: "multi:softprob"
 - `eval_metric`: "mlogloss"
@@ -167,10 +174,12 @@ Các parameters cố định:
 ### Lưu trữ
 
 Studies được lưu tại:
+
 - **SQLite database**: `artifacts/xgboost/optimization/studies.db`
 - **JSON metadata**: `artifacts/xgboost/optimization/study_{symbol}_{timeframe}_{timestamp}.json`
 
 Mỗi study JSON chứa:
+
 - Best parameters và best score
 - Trial history
 - Timestamp và metadata
@@ -225,12 +234,20 @@ Nếu có ít hơn 100 samples, module sẽ trả về default parameters từ `
 #### No valid folds
 
 Nếu không có fold nào hợp lệ sau khi áp dụng gap, hãy:
+
 - Tăng số lượng data
 - Giảm `n_splits`
 - Kiểm tra class distribution
+
+### Concurrent Usage
+
+Khi chạy nhiều quá trình tối ưu hóa đồng thời bằng SQLite:
+
+1. Module sử dụng file locking (`.lock`) để điều phối việc tạo/truy cập study.
+2. Tuy nhiên, SQLite không tối ưu cho ghi đồng thời ở quy mô lớn.
+3. **Khuyến nghị**: Đối với môi trường production cần chạy nhiều tối ưu hóa cùng lúc, hãy chuyển sang dùng **PostgreSQL** hoặc **MySQL/MariaDB** thay thế cho SQLite URL trong `storage_url`.
 
 ## Related Documentation
 
 - [Common Utilities](../common/) - DataFetcher, ExchangeManager
 - [Config](../../config/xgboost.py) - XGBoost configuration
-

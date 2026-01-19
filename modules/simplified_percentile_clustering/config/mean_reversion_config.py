@@ -33,6 +33,12 @@ class MeanReversionConfig:
     require_reversal_signal: bool = True  # Require price reversal confirmation
     reversal_lookback: int = 3  # Bars to look back for reversal
 
+    # RSI Confirmation (NEW)
+    use_rsi_confirmation: bool = False  # Enable RSI confirmation
+    rsi_period: int = 14  # RSI calculation period
+    rsi_oversold: float = 30.0  # RSI threshold for oversold (LONG signals)
+    rsi_overbought: float = 70.0  # RSI threshold for overbought (SHORT signals)
+
     # Reversion targets
     bullish_reversion_target: float = 0.5  # Target real_clust for bullish reversion
     bearish_reversion_target: float = 0.5  # Target real_clust for bearish reversion
@@ -70,6 +76,16 @@ class MeanReversionConfig:
             raise ValueError(f"min_extreme_duration must be at least 1, got {self.min_extreme_duration}")
         if self.reversal_lookback < 1:
             raise ValueError(f"reversal_lookback must be at least 1, got {self.reversal_lookback}")
+        if self.rsi_period < 1:
+            raise ValueError(f"rsi_period must be at least 1, got {self.rsi_period}")
+        if not (0.0 <= self.rsi_oversold <= 100.0):
+            raise ValueError(f"rsi_oversold must be in [0.0, 100.0], got {self.rsi_oversold}")
+        if not (0.0 <= self.rsi_overbought <= 100.0):
+            raise ValueError(f"rsi_overbought must be in [0.0, 100.0], got {self.rsi_overbought}")
+        if self.rsi_oversold >= self.rsi_overbought:
+            raise ValueError(
+                f"rsi_oversold must be less than rsi_overbought, got {self.rsi_oversold} >= {self.rsi_overbought}"
+            )
         if not (0.0 <= self.min_signal_strength <= 1.0):
             raise ValueError(f"min_signal_strength must be in [0.0, 1.0], got {self.min_signal_strength}")
         if self.clustering_config is not None:

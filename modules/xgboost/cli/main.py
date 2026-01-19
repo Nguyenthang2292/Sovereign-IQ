@@ -33,7 +33,12 @@ from config import (
     TARGET_HORIZON,
     TARGET_LABELS,
 )
-from modules.common.utils import color_text, format_price, normalize_symbol
+from modules.common.utils import (
+    color_text,
+    format_price,
+    log_error,
+    normalize_symbol,
+)
 from modules.xgboost.utils import get_prediction_window
 
 cli_file_path = Path(__file__).parent.parent / "cli.py"
@@ -95,7 +100,7 @@ def main():
             # Save latest data before applying labels and dropping NaN
             latest_data = df.iloc[-1:].copy()
             # Fill any remaining NaN in latest_data with forward fill then backward fill
-            latest_data = latest_data.ffill().bfill()
+            latest_data = latest_data.ffill()
 
             # Apply directional labels and drop NaN for training data
             df = apply_directional_labels(df)
@@ -239,6 +244,10 @@ def main():
             )
     except KeyboardInterrupt:
         print(color_text("\nExiting program by user request.", Fore.YELLOW))
+    except Exception as e:
+        print(color_text(f"\nCRITICAL ERROR: {str(e)}", Fore.RED, Style.BRIGHT))
+        log_error(f"XGBoost CLI encountered a fatal error: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

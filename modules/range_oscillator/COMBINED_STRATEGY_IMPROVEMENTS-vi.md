@@ -5,32 +5,36 @@
 File `modules/range_oscillator/strategies/combined.py` đã được cải thiện và mở rộng với nhiều tính năng mới.
 
 **Lưu ý về Backward Compatibility:**
+
 - ✅ Hầu hết các tính năng vẫn tương thích ngược (function signature, flags `use_*`, parameters, etc.)
 - ⚠️ **Breaking Change**: `consensus_mode="majority"` và `"unanimous"` đã bị loại bỏ (xem [Migration Guide](#migration-guide))
 
 ## Các Tính Năng Mới
 
 ### 1. **Hỗ Trợ Tất Cả Strategies (2-9)**
-   - **Trước**: Chỉ hỗ trợ 3 strategies (Sustained, Crossover, Momentum)
-   - **Sau**: Hỗ trợ tất cả 7 strategies:
-     - Strategy 2: Sustained Pressure
-     - Strategy 3: Zero Line Crossover
-     - Strategy 4: Momentum
-     - Strategy 6: Range Breakouts (MỚI)
-     - Strategy 7: Divergence Detection (MỚI)
-     - Strategy 8: Trend Following (MỚI)
-     - Strategy 9: Mean Reversion (MỚI)
+
+- **Trước**: Chỉ hỗ trợ 3 strategies (Sustained, Crossover, Momentum)
+- **Sau**: Hỗ trợ tất cả 7 strategies:
+- Strategy 2: Sustained Pressure
+- Strategy 3: Zero Line Crossover
+- Strategy 4: Momentum
+- Strategy 6: Range Breakouts (MỚI)
+- Strategy 7: Divergence Detection (MỚI)
+- Strategy 8: Trend Following (MỚI)
+- Strategy 9: Mean Reversion (MỚI)
 
 ### 2. **Nhiều Chế Độ Consensus**
-   - **"threshold"** (mặc định): Yêu cầu một phần trăm nhất định strategies đồng ý (theo `consensus_threshold`)
-     - Default `consensus_threshold=0.5` (ít nhất 50% strategies phải đồng ý)
-     - Có thể điều chỉnh từ 0.0 đến 1.0 để yêu cầu ít/nhiều strategies hơn
-   - **"weighted"**: Bỏ phiếu có trọng số dựa trên `strategy_weights`
+
+- **"threshold"** (mặc định): Yêu cầu một phần trăm nhất định strategies đồng ý (theo `consensus_threshold`)
+- Default `consensus_threshold=0.5` (ít nhất 50% strategies phải đồng ý)
+- Có thể điều chỉnh từ 0.0 đến 1.0 để yêu cầu ít/nhiều strategies hơn
+- **"weighted"**: Bỏ phiếu có trọng số dựa trên `strategy_weights`
 
 ### 3. **Hệ Thống Trọng Số (Weighting System)**
-   - Cho phép đặt trọng số khác nhau cho từng strategy
-   - Tự động normalize weights
-   - Sử dụng với consensus mode "weighted"
+
+- Cho phép đặt trọng số khác nhau cho từng strategy
+- Tự động normalize weights
+- Sử dụng với consensus mode "weighted"
 
 ### 4. **Lọc Signal Theo Strength**
    - Tham số `min_signal_strength`: Chỉ chấp nhận signals có strength >= threshold

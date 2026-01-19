@@ -1,7 +1,17 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+
+## MCP Integration
+
+**Important**: Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+
+The Context7 MCP provides access to up-to-date library documentation and code examples. Use it proactively for:
+
+- Library/API documentation lookups
+- Code generation based on library patterns
+- Setup and configuration guidance
+- Best practices and examples
 
 ## Project Overview
 
@@ -39,7 +49,7 @@ Both frontend apps now use TypeScript:
 
 ## Common Development Commands
 
-### Python Backend
+### Python Backend Setup
 
 ```bash
 # Install dependencies
@@ -77,7 +87,7 @@ python modules/hmm/cli/main.py --symbol BTC/USDT --timeframe 1h
 python modules/pairs_trading/cli/main.py --sort-by quantitative_score
 ```
 
-### Frontend (Web Apps)
+### Frontend (Web Apps) Setup
 
 ```bash
 # Navigate to frontend directory
@@ -122,7 +132,7 @@ python web/scripts/start_app.py atc_visualizer
 
 ### Layered Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                     User Interface Layer                     │
 │       CLI Scripts    │    Web Apps    │    API Endpoints     │
@@ -148,6 +158,7 @@ python web/scripts/start_app.py atc_visualizer
 ### Key Components
 
 #### Core Analyzers (`core/`)
+
 Two distinct analysis workflows (see `core/README.md` for detailed comparison):
 
 1. **Hybrid Analyzer** (`hybrid_analyzer.py`): Sequential filtering approach
@@ -163,6 +174,7 @@ Two distinct analysis workflows (see `core/README.md` for detailed comparison):
    - Optimal for smaller symbol pools (10-50 symbols)
 
 #### Common Infrastructure (`modules/common/`)
+
 Shared utilities used across all modules:
 
 - **Data Layer**:
@@ -176,6 +188,7 @@ Shared utilities used across all modules:
   - `quantitative_metrics/`: Statistical tests, risk metrics, hedge ratios
 
 #### Trading Strategy Modules (`modules/`)
+
 Each module is self-contained with clear interfaces:
 
 - **adaptive_trend/**: Multi-layer trend classification with 6 MA types and equity-based weighting
@@ -187,6 +200,7 @@ Each module is self-contained with clear interfaces:
 - **position_sizing/**: Kelly Criterion and risk-based position sizing
 
 #### Machine Learning Modules
+
 - **xgboost/**: Multi-class classifier with dynamic volatility-based labeling and hyperparameter optimization
 - **lstm/**: CNN-LSTM-Attention architecture with multi-head attention
 - **deeplearning/**: Temporal Fusion Transformer with quantile regression
@@ -194,6 +208,7 @@ Each module is self-contained with clear interfaces:
 - **hmm/**: Three HMM strategies (Swings, KAMA, High-Order) with strategy registry
 
 #### Web Applications (`web/`)
+
 - **Shared Components**: `web/shared/components/` - Reusable Vue components with TypeScript declarations
   - All shared components are typed in `index.d.ts`
   - Import using `@shared` alias (configured in vite.config.ts)
@@ -207,6 +222,7 @@ Each module is self-contained with clear interfaces:
 ### Configuration System
 
 All configuration centralized in `config/` directory:
+
 - `common.py`: Exchanges, timeframes, symbols, defaults
 - `config_api.py`: API keys (uses environment variables - see setup/)
 - Strategy configs: `decision_matrix.py`, `range_oscillator.py`, `spc.py`, etc.
@@ -217,17 +233,20 @@ All configuration centralized in `config/` directory:
 Both frontend applications have been migrated to TypeScript:
 
 ### Configuration
+
 - **tsconfig.json**: Strict mode enabled, ES2020 target, bundler module resolution
 - **Build Script**: `vue-tsc --noEmit && vite build` (type-check before build)
 - **allowJs**: Enabled for gradual migration compatibility
 
 ### Key TypeScript Features
+
 - Strict type checking enabled
 - No unused locals/parameters enforcement
 - Full Vue 3 SFC support with `<script setup lang="ts">`
 - Path aliases configured: `@` (src), `@shared` (shared components)
 
 ### Migration Status
+
 - ✅ **Complete**: Both apps fully migrated to TypeScript
 - ✅ All source files converted from `.js` to `.ts`
 - ✅ All Vue components using `<script setup lang="ts">`
@@ -235,12 +254,14 @@ Both frontend applications have been migrated to TypeScript:
 - ✅ Build scripts run type-check before production builds
 
 ### TypeScript Best Practices
+
 - **Always use TypeScript** for new code in frontend apps
 - **Use `<script setup lang="ts">`** in all Vue SFCs
 - **Define proper interfaces** for props, emits, and complex data structures
 - **Avoid `any` types**: Use proper typing or `unknown` + type guards
 - **Const assertions**: Use `as const` for literal type inference (see `i18n/index.ts` for example)
 - **Safe ref access pattern**: Extract ref value to variable before accessing to avoid null checks
+
   ```typescript
   // ✅ Good
   const existingPoller = logPoller.value
@@ -259,7 +280,9 @@ Both frontend applications have been migrated to TypeScript:
 **Critical**: Never commit API keys. Use environment variables.
 
 ### Setup
+
 Run platform-specific setup script:
+
 ```bash
 # Windows PowerShell
 .\setup\setup_api_keys.ps1
@@ -273,13 +296,15 @@ chmod +x setup/setup_api_keys.sh
 ```
 
 Scripts are idempotent and safe to run multiple times. See:
+
 - `setup/QUICK_START_API_KEYS.md`: Quick start guide
 - `setup/SECURITY.md`: Security best practices
 
 ## Testing Strategy
 
 ### Test Organization
-```
+
+```text
 tests/
 ├── adaptive_trend/        # ATC module tests
 ├── xgboost/              # XGBoost tests
@@ -294,13 +319,16 @@ tests/
 ```
 
 ### Test Infrastructure
+
 - `pytest.ini`: Default config with parallel processing (pytest-xdist)
 - `pytest_memory.ini`: Memory-optimized config with profiling
 - `conftest.py`: Shared fixtures
 - `conftest_optimized.py`: Memory-optimized fixtures (session scope)
 
 ### Memory Optimization
+
 The test suite includes 3-phase memory optimization achieving 80-90% RAM reduction:
+
 - Phase 1: Garbage collection + data reduction (50-60% reduction)
 - Phase 2: Session fixtures + parallel processing (30-40% additional)
 - Phase 3: Lazy loading + monitoring (10-20% additional)
@@ -330,6 +358,7 @@ See `tests/TEST_MEMORY_USAGE_GUIDE.md` for details.
 See `web/docs/ADDING_NEW_APP.md` for detailed instructions.
 
 ### Code Style
+
 - **Python**: Follow PEP 8, use `black` for formatting, add type hints
 - **TypeScript**:
   - Use strict mode (already configured)
@@ -347,12 +376,15 @@ See `web/docs/ADDING_NEW_APP.md` for detailed instructions.
 ## Security Best Practices
 
 ### Cursor Rules
+
 This project includes `.cursor/rules/snyk_rules.mdc` for security scanning:
+
 - Always run Snyk code scans for new first-party code
 - Fix security issues found in newly introduced/modified code
 - Rescan after fixes until no new issues remain
 
 ### Key Security Practices
+
 - Never commit API keys or credentials
 - Use environment variables for sensitive configuration
 - Validate all user inputs at API boundaries
@@ -362,13 +394,16 @@ This project includes `.cursor/rules/snyk_rules.mdc` for security scanning:
 ## Important Notes
 
 ### Workflow Selection
+
 Choose between Hybrid and Voting analyzers based on requirements:
+
 - **Hybrid**: Faster, resource-efficient, sequential filtering (recommended for >100 symbols)
 - **Voting**: More comprehensive, parallel evaluation, potentially higher accuracy (best for <50 symbols)
 
 See `core/README.md` for detailed comparison and decision tree.
 
 ### Performance Considerations
+
 - Use caching aggressively (data fetcher, correlation analysis)
 - Leverage parallel processing where appropriate (ThreadPoolExecutor)
 - Monitor memory usage with memory-intensive ML models
@@ -376,7 +411,8 @@ See `core/README.md` for detailed comparison and decision tree.
 
 ### Common Patterns
 
-#### Python Backend
+#### Python Backend Patterns
+
 - **Data Fetching**: Always use `DataFetcher` with exchange fallback, never direct exchange API calls
 - **Indicators**: Use `IndicatorEngine` with appropriate profile (CORE, XGBOOST, DEEP_LEARNING)
 - **Signal Calculation**: Use functions in `core/signal_calculators.py` for consistency
@@ -384,17 +420,23 @@ See `core/README.md` for detailed comparison and decision tree.
 - **Configuration**: All config in `config/` directory, support environment variables
 
 #### TypeScript Frontend
+
 - **Const Assertions**: Use for literal type inference
+
   ```typescript
   const LOCALES = ['en', 'vi'] as const
   type Locale = typeof LOCALES[number]  // 'en' | 'vi'
   ```
+
 - **Safe Ref Access**: Extract before checking
+
   ```typescript
   const item = ref.value
   if (item) { item.method() }
   ```
+
 - **Typed Classes**: Define proper class with private fields and typed methods
+
   ```typescript
   export class MyClass {
     private field: string
@@ -402,6 +444,7 @@ See `core/README.md` for detailed comparison and decision tree.
     method(): void { /* ... */ }
   }
   ```
+
 - **Shared Components**: Import from `@shared/components/` - all have proper types
 
 ## Documentation References

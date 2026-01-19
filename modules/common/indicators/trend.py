@@ -220,7 +220,6 @@ def calculate_weighted_ma(
         Series containing weighted moving average values.
         First `length` values are NaN.
     """
-    # Input validation
     if not isinstance(close, pd.Series):
         raise TypeError(f"close must be a pandas Series, got {type(close)}")
     if len(close) == 0:
@@ -228,50 +227,34 @@ def calculate_weighted_ma(
     if length <= 0:
         raise ValueError(f"length must be > 0, got {length}")
 
-    # If data is shorter than required length, return all NaN.
-    # This matches the expected behavior: insufficient data means no valid MA values.
     if len(close) < length + 1:
         return pd.Series(np.nan, index=close.index, dtype="float64")
 
-    ma_values = []
-    for i in range(len(close)):
-        if i < length:
-            ma_values.append(np.nan)
-            continue
+    # Vectorized implementation - much faster than nested loops
+    prev_close = close.shift(1)
+    delta = (close - prev_close).abs()
 
-        sum_weighted_close = 0.0
-        sum_weights = 0.0
+    # Handle division by zero
+    weights = np.where((prev_close != 0) & (~pd.isna(prev_close)), delta / prev_close, 0.0)
+    weights = pd.Series(weights, index=close.index)
 
-        for j in range(length):
-            idx = i - j
-            prev_idx = idx - 1
-            if prev_idx < 0:
-                break
+    # Weighted close prices
+    weighted_close = close * weights
 
-            # Check for NaN values
-            if pd.isna(close.iloc[idx]) or pd.isna(close.iloc[prev_idx]):
-                continue
+    # Rolling sums
+    sum_weighted = weighted_close.rolling(window=length).sum()
+    sum_weights = weights.rolling(window=length).sum()
 
-            delta = abs(close.iloc[idx] - close.iloc[prev_idx])
-            prev_close = close.iloc[prev_idx]
-            if prev_close == 0 or pd.isna(prev_close):
-                w = 0.0
-            else:
-                w = delta / prev_close
+    # Calculate MA with fallback for zero weights
+    ma = sum_weighted.copy()
+    zero_weights_mask = (sum_weights == 0) | sum_weights.isna()
+    ma[~zero_weights_mask] = sum_weighted[~zero_weights_mask] / sum_weights[~zero_weights_mask]
+    ma[zero_weights_mask] = close.rolling(window=length).mean()[zero_weights_mask]
 
-            sum_weighted_close += close.iloc[idx] * w
-            sum_weights += w
+    # Ensure initial period is NaN to match intended logic and tests
+    ma.iloc[:length] = np.nan
 
-        # IMPROVEMENT (2025-01-16): Handle case when sum_weights = 0 (constant prices).
-        # Fallback to simple average when all prices are the same to avoid NaN.
-        if sum_weights != 0 and not pd.isna(sum_weights):
-            ma_value = sum_weighted_close / sum_weights
-        else:
-            # If all prices are constant (sum_weights = 0), use simple average
-            ma_value = close.iloc[i - length + 1 : i + 1].mean()
-        ma_values.append(ma_value)
-
-    return pd.Series(ma_values, index=close.index, dtype="float64")
+    return ma
 
 
 # ============================================================================
@@ -298,12 +281,8 @@ def calculate_trend_direction(
         ma: Moving average series (typically from calculate_weighted_ma).
 
     Returns:
-        Series with trend direction:
-        - 1: Bullish (close > MA)
-        - -1: Bearish (close < MA)
-        - 0: Neutral (uses previous value if close == MA)
+        Series with trend direction: 1 (bullish), -1 (bearish), 0 (neutral).
     """
-    # Input validation
     if not isinstance(close, pd.Series) or not isinstance(ma, pd.Series):
         raise TypeError("close and ma must be pandas Series")
     if len(close) == 0 or len(ma) == 0:
@@ -311,33 +290,19 @@ def calculate_trend_direction(
     if not close.index.equals(ma.index):
         raise ValueError("close and ma must have the same index")
 
+    # Vectorized comparison
     trend_dir = pd.Series(0, index=close.index, dtype="int8")
 
-    for i in range(len(close)):
-        # Bounds checking
-        if i >= len(ma):
-            # Use previous value if available
-            if i > 0:
-                trend_dir.iloc[i] = trend_dir.iloc[i - 1]
-            continue
+    # Determine initial values based on close vs ma
+    mask_bullish = (close > ma) & (~pd.isna(close)) & (~pd.isna(ma))
+    mask_bearish = (close < ma) & (~pd.isna(close)) & (~pd.isna(ma))
+    mask_equal = (close == ma) & (~pd.isna(close)) & (~pd.isna(ma))
 
-        if pd.isna(close.iloc[i]) or pd.isna(ma.iloc[i]):
-            # Use previous value if available
-            if i > 0:
-                trend_dir.iloc[i] = trend_dir.iloc[i - 1]
-            continue
+    trend_dir[mask_bullish] = 1
+    trend_dir[mask_bearish] = -1
 
-        close_value = close.iloc[i]
-        ma_value = ma.iloc[i]
-
-        if close_value > ma_value:
-            trend_dir.iloc[i] = 1
-        elif close_value < ma_value:
-            trend_dir.iloc[i] = -1
-        else:
-            # Use previous value
-            if i > 0:
-                trend_dir.iloc[i] = trend_dir.iloc[i - 1]
+    # Forward fill for equal/NA values (use previous value)
+    trend_dir = trend_dir.replace(0, np.nan).ffill().fillna(0).astype("int8")
 
     return trend_dir
 

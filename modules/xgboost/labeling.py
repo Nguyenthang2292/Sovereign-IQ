@@ -19,6 +19,7 @@ from config import (
     LABEL_TO_ID,
     TARGET_BASE_THRESHOLD,
     TARGET_HORIZON,
+    XGBOOST_VOLATILITY_ROLLING_WINDOW,
 )
 
 
@@ -45,24 +46,33 @@ def _calculate_lookback_weights(
     # Classify each row into low/medium/high volatility based on rolling thresholds
     is_low_vol = volatility_multiplier < vol_low_threshold
     is_high_vol = volatility_multiplier > vol_high_threshold
-    is_medium_vol = ~(is_low_vol | is_high_vol)
 
     # Weight Assignment
-    # Assign weights based on volatility regime using vectorized operations
-    weight_short = (
-        is_low_vol * DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[0]
-        + is_medium_vol * DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[0]
-        + is_high_vol * DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[0]
+    # Assign weights based on volatility regime using np.select() for clearer code
+    # np.select() is more readable than boolean masks with arithmetic operations
+    weight_short = pd.Series(
+        np.select(
+            [is_low_vol, is_high_vol],
+            [DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[0], DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[0]],
+            default=DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[0],
+        ),
+        index=volatility_multiplier.index,
     )
-    weight_medium = (
-        is_low_vol * DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[1]
-        + is_medium_vol * DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[1]
-        + is_high_vol * DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[1]
+    weight_medium = pd.Series(
+        np.select(
+            [is_low_vol, is_high_vol],
+            [DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[1], DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[1]],
+            default=DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[1],
+        ),
+        index=volatility_multiplier.index,
     )
-    weight_long = (
-        is_low_vol * DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[2]
-        + is_medium_vol * DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[2]
-        + is_high_vol * DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[2]
+    weight_long = pd.Series(
+        np.select(
+            [is_low_vol, is_high_vol],
+            [DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL[2], DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL[2]],
+            default=DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL[2],
+        ),
+        index=volatility_multiplier.index,
     )
 
     # Weight Normalization
@@ -97,6 +107,9 @@ def _calculate_volatility_multiplier(df: pd.DataFrame) -> pd.Series:
         atr_pct = (df["ATR_14"] / df["close"]).fillna(0.01)
         # Compare current ATR to rolling median to get relative volatility
         atr_median = atr_pct.rolling(window=50, min_periods=1).median()
+        # Prevent division by zero: replace zeros in atr_median before division
+        # (extremely unlikely with real data, but possible with flat synthetic data)
+        atr_median = atr_median.replace(0, 0.01)
         volatility_multiplier = (atr_pct / atr_median).fillna(2.0)
         # Clip to reasonable range: 1.5x (low vol) to 3.0x (high vol) of base lookback
         volatility_multiplier = volatility_multiplier.clip(lower=1.5, upper=3.0)
@@ -163,9 +176,12 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
 
     # Rolling Volatility Thresholds
     # Calculate rolling quantiles to define volatility regimes without data leakage
-    # Uses rolling window (max 500 periods) to compare current volatility to recent history
-    # This prevents using future information when determining current volatility regime
-    rolling_window = min(500, len(df))
+    # Uses rolling window to compare current volatility to recent history
+    # IMPORTANT: The rolling window is BACKWARD-LOOKING ONLY. At position i, it looks at
+    # positions [i-window+1, i] (past and current data only), NOT future data.
+    # This prevents using future information when determining current volatility regime.
+    # The .rolling() method with default parameters is backward-looking by design.
+    rolling_window = min(XGBOOST_VOLATILITY_ROLLING_WINDOW, len(df))
     vol_low_rolling = volatility_multiplier.rolling(window=rolling_window, min_periods=1).quantile(0.33)
     vol_high_rolling = volatility_multiplier.rolling(window=rolling_window, min_periods=1).quantile(0.67)
 
@@ -184,6 +200,15 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     # Lookback Period Calculation
     # Calculate lookback periods for both low and high volatility scenarios
     # Cap maximum lookback to prevent excessive historical references
+    # Rationale for capping:
+    # 1. `len(df) - 1`: Ensures we never look back beyond available data (avoids index errors)
+    #    For a 1000-row dataframe, max lookback is 999 (one less than total rows)
+    # 2. `TARGET_HORIZON * 5`: Limits lookback to 5x the prediction horizon
+    #    If TARGET_HORIZON=24, max lookback is 120 candles (~5 days for hourly data)
+    #    This prevents using too-distant historical data that may not be relevant
+    #    for current market conditions, while still providing sufficient history
+    #    for volatility regime classification
+    # 3. `max(1, max_lookback)`: Ensures minimum lookback of 1 period (safety check)
     max_lookback = min(len(df) - 1, int(TARGET_HORIZON * 5))
     max_lookback = max(1, max_lookback)
 
@@ -228,6 +253,9 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
 
     # Dynamic Threshold Calculation
     # Base threshold is the absolute percentage deviation from historical reference
+    # Safeguard: Replace zeros in historical_ref to prevent division by zero
+    # (unlikely with real price data, but possible with synthetic data or edge cases)
+    historical_ref = historical_ref.replace(0, np.nan)
     historical_pct = (df["close"] - historical_ref) / historical_ref
     base_threshold = historical_pct.abs().fillna(TARGET_BASE_THRESHOLD).clip(lower=TARGET_BASE_THRESHOLD)
 

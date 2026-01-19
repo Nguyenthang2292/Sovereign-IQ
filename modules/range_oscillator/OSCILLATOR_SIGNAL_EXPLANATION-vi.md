@@ -3,6 +3,7 @@
 ## Tổng quan
 
 Range Oscillator signal được tạo ra qua 3 bước chính:
+
 1. **Tính toán Range Oscillator indicator** (giá trị oscillator từ -100 đến +100)
 2. **Áp dụng các strategies** để tạo signals (LONG/SHORT/NEUTRAL)
 3. **Voting mechanism** để kết hợp signals từ nhiều strategies
@@ -12,6 +13,7 @@ Range Oscillator signal được tạo ra qua 3 bước chính:
 ## Bước 1: Tính toán Range Oscillator Indicator
 
 ### 1.1. Tính Weighted Moving Average (MA)
+
 ```python
 # Từ close prices, tính weighted MA dựa trên price deltas
 from modules.common.indicators.trend import calculate_weighted_ma
@@ -19,6 +21,7 @@ ma = calculate_weighted_ma(close, length=50)
 ```
 
 **Công thức:**
+
 - Với mỗi bar, tính `delta = |close[i] - close[i+1]|`
 - Weight `w = delta / close[i+1]`
 - Weighted MA = `Σ(close[i] * w) / Σ(w)`
@@ -26,6 +29,7 @@ ma = calculate_weighted_ma(close, length=50)
 **Mục đích:** Nhấn mạnh các bar có biến động lớn hơn, tạo MA responsive hơn.
 
 ### 1.2. Tính ATR Range
+
 ```python
 # Tính ATR (Average True Range) và nhân với multiplier
 from modules.common.indicators.volatility import calculate_atr_range
@@ -33,25 +37,77 @@ range_atr = calculate_atr_range(high, low, close, mult=2.0)
 ```
 
 **Công thức:**
+
 - ATR = Average True Range với length 2000 (fallback 200)
 - Range ATR = `ATR * mult` (default: 2.0)
 
 **Mục đích:** Xác định độ rộng của range bands, adapt với volatility.
 
 ### 1.3. Tính Oscillator Value
+
 ```python
 # Với mỗi bar:
 osc_value = 100 * (close - MA) / RangeATR
 ```
 
 **Giá trị:**
+
 - **+100**: Price ở upper bound của range (breakout lên trên)
 - **0**: Price ở equilibrium (MA)
 - **-100**: Price ở lower bound của range (breakout xuống dưới)
 
 **Ví dụ:**
+
 - Nếu `close = 50000`, `MA = 49000`, `RangeATR = 2000`
 - `oscillator = 100 * (50000 - 49000) / 2000 = 50` (bullish, ở giữa range)
+
+### 1.4. Hiển thị Heatmap (Tùy chọn)
+
+Tính năng heatmap cung cấp hiển thị trực quan bằng màu sắc cho các "heat zones" của oscillator dựa trên histogram giá trị:
+
+```python
+from modules.range_oscillator.core.oscillator import calculate_range_oscillator_with_heatmap
+from modules.range_oscillator.config.heatmap_config import HeatmapConfig
+
+oscillator, ma, range_atr, heat_colors, trend_direction = calculate_range_oscillator_with_heatmap(
+    high=high,
+    low=low,
+    close=close,
+    length=50,
+    mult=2.0,
+    heatmap_config=HeatmapConfig(
+        levels_inp=5,      # Số lượng heat levels
+        heat_thresh=3,      # Số lần chạm tối thiểu cho mỗi level
+        lookback_bars=100,  # Lookback window
+    ),
+)
+```
+
+**Cách hoạt động:**
+
+1. **Chia phạm vi oscillator** thành `levels_inp` levels ngang
+2. **Đếm số lần chạm** cho mỗi level trong `lookback_bars` bars gần nhất
+3. **Áp dụng màu gradient** dựa trên tần suất chạm:
+   - Ít chạm → màu lạnh (weak zones)
+   - Nhiều chạm → màu nóng (strong zones)
+4. **Màu sắc dựa trên trend**:
+   - Bullish trend: Gradient xanh lá (weak → strong bullish)
+   - Bearish trend: Gradient đỏ (weak → strong bearish)
+   - Neutral/Transition: Xanh dương
+
+**Use cases:**
+
+- **UI Visualization**: Mã màu cho đường/biểu đồ oscillator
+- **Signal Strength**: Độ nóng của heatmap cho biết độ mạnh của zone
+- **Zone Identification**: Xác định các mức giá thường xuyên được chạm
+
+**Ý nghĩa màu sắc:**
+
+- **Strong Bullish** (`#09ff00`): Kháng cự cao trong uptrends
+- **Weak Bullish** (`#008000`): Vùng áp lực trong uptrends
+- **Strong Bearish** (`#ff0000`): Kháng cự cao trong downtrends
+- **Weak Bearish** (`#800000`): Vùng áp lực trong downtrends
+- **Transition** (`#0000ff`): Thay đổi trend hoặc trạng thái trung lập
 
 ---
 
@@ -60,6 +116,7 @@ osc_value = 100 * (close - MA) / RangeATR
 Mỗi strategy phân tích oscillator và tạo signals dựa trên logic khác nhau:
 
 ### Strategy 5: Combined (Sustained + Crossover + Momentum)
+
 ```python
 signals, signal_strength = generate_signals_combined_all_strategy(
     high=high, low=low, close=close,
@@ -71,17 +128,20 @@ signals, signal_strength = generate_signals_combined_all_strategy(
 ```
 
 **Logic:**
+
 - **Strategy 2 (Sustained)**: Oscillator ở trên/dưới 0 trong N bars → LONG/SHORT
 - **Strategy 3 (Crossover)**: Oscillator cắt zero line → LONG/SHORT
 - **Strategy 4 (Momentum)**: Rate of change của oscillator → LONG/SHORT
 - **Voting**: Majority vote từ 3 strategies
 
 **Signal:**
+
 - `1` = LONG (bullish)
 - `-1` = SHORT (bearish)
 - `0` = NEUTRAL
 
 ### Strategy 6: Breakout
+
 ```python
 signals, signal_strength = generate_signals_strategy6_breakout(
     high=high, low=low, close=close,
@@ -90,12 +150,14 @@ signals, signal_strength = generate_signals_strategy6_breakout(
 ```
 
 **Logic:**
+
 - Phát hiện khi oscillator **breakout** khỏi extreme thresholds (±100)
 - **LONG**: Oscillator breakout lên trên +100
 - **SHORT**: Oscillator breakout xuống dưới -100
 - Forward fill signal trong khi oscillator vẫn ở breakout zone
 
 ### Strategy 7: Divergence
+
 ```python
 signals, signal_strength = generate_signals_divergence_strategy(
     high=high, low=low, close=close,
@@ -104,11 +166,13 @@ signals, signal_strength = generate_signals_divergence_strategy(
 ```
 
 **Logic:**
+
 - Phát hiện **divergence** giữa price và oscillator:
   - **Bearish Divergence**: Price tạo higher high, nhưng oscillator tạo lower high → SHORT
   - **Bullish Divergence**: Price tạo lower low, nhưng oscillator tạo higher low → LONG
 
 ### Strategy 8: Trend Following
+
 ```python
 signals, signal_strength = generate_signals_trend_following_strategy(
     high=high, low=low, close=close,
@@ -117,11 +181,13 @@ signals, signal_strength = generate_signals_trend_following_strategy(
 ```
 
 **Logic:**
+
 - Theo trend với consistent oscillator position:
   - **LONG**: Oscillator ở trên 0 và trend là bullish
   - **SHORT**: Oscillator ở dưới 0 và trend là bearish
 
 ### Strategy 9: Mean Reversion
+
 ```python
 signals, signal_strength = generate_signals_mean_reversion_strategy(
     high=high, low=low, close=close,
@@ -130,6 +196,7 @@ signals, signal_strength = generate_signals_mean_reversion_strategy(
 ```
 
 **Logic:**
+
 - Phát hiện mean reversion khi oscillator từ extreme về zero:
   - **SHORT**: Oscillator ở extreme positive (>+80), bắt đầu về zero
   - **LONG**: Oscillator ở extreme negative (<-80), bắt đầu về zero
@@ -152,7 +219,8 @@ if len(non_nan_signals) > 0:
 ```
 
 **Ví dụ:**
-```
+
+```text
 Bar 1: NaN
 Bar 2: NaN
 Bar 3: 0
@@ -190,6 +258,7 @@ else:
 ```
 
 **Ví dụ cụ thể:**
+
 - **Strategies**: [5, 6, 7, 8, 9]
 - **Signals từ mỗi strategy**: [1, 1, -1, 1, 0]
   - Strategy 5: LONG (1)
@@ -247,9 +316,8 @@ def get_range_oscillator_signal(...):
 5. **Final Signal**: Trả về 1 (LONG), -1 (SHORT), hoặc 0 (NEUTRAL)
 
 **Lợi ích của voting mechanism:**
+
 - ✅ Tăng độ chính xác (nhiều strategies cùng xác nhận)
 - ✅ Giảm false signals (cần consensus)
 - ✅ Robust (nếu 1 strategy fail, các strategies khác vẫn hoạt động)
 - ✅ Linh hoạt (có thể chọn strategies và threshold)
-
-

@@ -287,8 +287,8 @@ def interactive_batch_scan():
             log_warn("Invalid input, using default 2.5s")
 
     # Get candles limit
-    limit_input = safe_input(color_text("Number of candles per symbol [500]: ", Fore.YELLOW), default="500")
-    limit = 500
+    limit_input = safe_input(color_text("Number of candles per symbol [700]: ", Fore.YELLOW), default="700")
+    limit = 700
     if limit_input:
         try:
             limit = int(limit_input)
@@ -297,19 +297,33 @@ def interactive_batch_scan():
                 log_warn(f"limit ({limit}) must be >= 1, clamping to 1")
                 limit = 1
         except ValueError:
-            log_warn("Invalid input, using default 500")
+            log_warn("Invalid input, using default 700")
 
     # Get pre-filter option (yes/no)
     print("\nPre-filter option:")
     print("  Filter symbols using VotingAnalyzer or HybridAnalyzer before Gemini scan")
     print("  (Selects all symbols with signals)")
-    pre_filter_input = safe_input(color_text("Enable pre-filter? (y/n) [n]: ", Fore.YELLOW), default="n").lower()
+    pre_filter_input = safe_input(color_text("Enable pre-filter? (y/n) [y]: ", Fore.YELLOW), default="y").lower()
     if not pre_filter_input:
-        pre_filter_input = "n"
+        pre_filter_input = "y"
     enable_pre_filter = pre_filter_input in ["y", "yes"]
+
+    # Initialize SPC configuration variables (used in pre-filter)
+    spc_preset = None
+    spc_volatility_adjustment = False
+    spc_use_correlation_weights = False
+    spc_time_decay_factor = None
+    spc_interpolation_mode = None
+    spc_min_flip_duration = None
+    spc_flip_confidence_threshold = None
+    spc_enable_mtf = False
+    spc_mtf_timeframes = None
+    spc_mtf_require_alignment = None
+    spc_config_mode = "3"  # Default: skip
 
     # Get pre-filter mode (voting/hybrid) if pre-filter is enabled
     pre_filter_mode = "voting"  # Default
+    fast_mode = True  # Default to fast mode (recommended)
     if enable_pre_filter:
         print("\nPre-filter mode:")
         print("  1. Voting (Pure voting system - all indicators vote simultaneously)")
@@ -321,6 +335,135 @@ def interactive_batch_scan():
             pre_filter_mode = "hybrid"
         else:
             pre_filter_mode = "voting"
+
+        # Get fast mode option
+        print("\nPre-filter speed mode:")
+        print("  1. Fast (ATC + Range Osc + SPC only - Recommended)")
+        print("     Pre-filter with fast indicators, then run XGBoost/HMM/RF in main Gemini scan")
+        print("  2. Full (All indicators including ML models - SLOW!)")
+        fast_mode_input = safe_input(color_text("Select mode (1/2) [1]: ", Fore.YELLOW), default="1")
+        if not fast_mode_input:
+            fast_mode_input = "1"
+        fast_mode = fast_mode_input != "2"  # True if not "2", False if "2"
+
+        # SPC Enhancements Configuration
+        print("\nSPC Enhancements Configuration:")
+        print("  Configure Simplified Percentile Clustering enhancements")
+        print("  1. Use preset (Conservative/Balanced/Aggressive)")
+        print("  2. Custom configuration")
+        print("  3. Skip (use defaults from config file)")
+        spc_config_mode = safe_input(color_text("Select SPC config mode (1/2/3) [3]: ", Fore.YELLOW), default="3")
+        if not spc_config_mode:
+            spc_config_mode = "3"
+
+        if spc_config_mode == "1":
+            # Preset mode
+            print("\nSPC Preset:")
+            print("  1. Conservative (Most stable - choppy markets)")
+            print("  2. Balanced (Recommended - most crypto markets) ⭐")
+            print("  3. Aggressive (Most responsive - trending markets)")
+            preset_input = safe_input(color_text("Select preset (1/2/3) [2]: ", Fore.YELLOW), default="2")
+            if not preset_input:
+                preset_input = "2"
+            if preset_input == "1":
+                spc_preset = "conservative"
+            elif preset_input == "2":
+                spc_preset = "balanced"
+            elif preset_input == "3":
+                spc_preset = "aggressive"
+        elif spc_config_mode == "2":
+            # Custom configuration
+            print("\nSPC Enhancement Options:")
+
+            # Volatility adjustment
+            vol_adj_input = safe_input(
+                color_text("Enable volatility-adaptive percentiles? (y/n) [n]: ", Fore.YELLOW), default="n"
+            ).lower()
+            spc_volatility_adjustment = vol_adj_input in ["y", "yes"]
+
+            # Correlation weights
+            corr_weights_input = safe_input(
+                color_text("Enable correlation-based feature weighting? (y/n) [n]: ", Fore.YELLOW), default="n"
+            ).lower()
+            spc_use_correlation_weights = corr_weights_input in ["y", "yes"]
+
+            # Time decay factor
+            time_decay_input = safe_input(
+                color_text("Time decay factor (1.0=no decay, 0.99=light, 0.95=moderate) [1.0]: ", Fore.YELLOW),
+                default="1.0",
+            )
+            if time_decay_input:
+                try:
+                    spc_time_decay_factor = float(time_decay_input)
+                    if not (0.5 <= spc_time_decay_factor <= 1.0):
+                        log_warn("Time decay factor must be in [0.5, 1.0], using default 1.0")
+                        spc_time_decay_factor = None
+                except ValueError:
+                    log_warn("Invalid time decay factor, using default")
+                    spc_time_decay_factor = None
+
+            # Interpolation mode
+            print("\nInterpolation mode:")
+            print("  1. Linear (default)")
+            print("  2. Sigmoid (smooth transitions)")
+            print("  3. Exponential (sticky to current cluster)")
+            interp_input = safe_input(color_text("Select interpolation mode (1/2/3) [1]: ", Fore.YELLOW), default="1")
+            if not interp_input:
+                interp_input = "1"
+            if interp_input == "2":
+                spc_interpolation_mode = "sigmoid"
+            elif interp_input == "3":
+                spc_interpolation_mode = "exponential"
+            else:
+                spc_interpolation_mode = "linear"
+
+            # Min flip duration
+            flip_dur_input = safe_input(
+                color_text("Minimum bars in cluster before flip (1-10) [3]: ", Fore.YELLOW), default="3"
+            )
+            if flip_dur_input:
+                try:
+                    spc_min_flip_duration = int(flip_dur_input)
+                    if not (1 <= spc_min_flip_duration <= 10):
+                        log_warn("Min flip duration must be in [1, 10], using default 3")
+                        spc_min_flip_duration = None
+                except ValueError:
+                    log_warn("Invalid min flip duration, using default")
+                    spc_min_flip_duration = None
+
+            # Flip confidence threshold
+            conf_thresh_input = safe_input(
+                color_text("Flip confidence threshold (0.0-1.0) [0.6]: ", Fore.YELLOW), default="0.6"
+            )
+            if conf_thresh_input:
+                try:
+                    spc_flip_confidence_threshold = float(conf_thresh_input)
+                    if not (0.0 <= spc_flip_confidence_threshold <= 1.0):
+                        log_warn("Confidence threshold must be in [0.0, 1.0], using default 0.6")
+                        spc_flip_confidence_threshold = None
+                except ValueError:
+                    log_warn("Invalid confidence threshold, using default")
+                    spc_flip_confidence_threshold = None
+
+            # Multi-timeframe (optional)
+            mtf_input = safe_input(
+                color_text("Enable multi-timeframe analysis? (y/n) [n]: ", Fore.YELLOW), default="n"
+            ).lower()
+            spc_enable_mtf = mtf_input in ["y", "yes"]
+            if spc_enable_mtf:
+                mtf_tf_input = safe_input(
+                    color_text("MTF timeframes (comma-separated, e.g., 1h,4h,1d) [1h,4h]: ", Fore.YELLOW),
+                    default="1h,4h",
+                )
+                if mtf_tf_input:
+                    spc_mtf_timeframes = [tf.strip() for tf in mtf_tf_input.split(",") if tf.strip()]
+                else:
+                    spc_mtf_timeframes = ["1h", "4h"]
+
+                align_input = safe_input(
+                    color_text("Require all timeframes to align? (y/n) [y]: ", Fore.YELLOW), default="y"
+                ).lower()
+                spc_mtf_require_alignment = align_input in ["y", "yes"]
 
     # Confirm BEFORE running pre-filter (to avoid stdin issues)
     # This ensures all user input is collected before any operations that might affect stdin
@@ -337,7 +480,39 @@ def interactive_batch_scan():
     print(f"Candles per symbol: {limit}")
     if enable_pre_filter:
         mode_display = "Voting mode" if pre_filter_mode == "voting" else "Hybrid mode"
-        print(f"Pre-filter: Enabled ({mode_display})")
+        speed_display = "Fast (ATC/RangeOsc/SPC only)" if fast_mode else "Full (All indicators)"
+        print(f"Pre-filter: Enabled ({mode_display}, {speed_display})")
+
+        # Display SPC configuration
+        if spc_config_mode != "3":
+            print("\nSPC Enhancements:")
+            if spc_preset:
+                print(f"  Preset: {spc_preset.capitalize()}")
+            else:
+                enhancements_list = []
+                if spc_volatility_adjustment:
+                    enhancements_list.append("Volatility Adjustment")
+                if spc_use_correlation_weights:
+                    enhancements_list.append("Correlation Weighting")
+                if spc_time_decay_factor and spc_time_decay_factor != 1.0:
+                    enhancements_list.append(f"Time Decay ({spc_time_decay_factor})")
+                if spc_interpolation_mode and spc_interpolation_mode != "linear":
+                    enhancements_list.append(f"Interpolation ({spc_interpolation_mode})")
+                if spc_min_flip_duration:
+                    enhancements_list.append(f"Min Flip Duration ({spc_min_flip_duration})")
+                if spc_flip_confidence_threshold:
+                    enhancements_list.append(f"Confidence Threshold ({spc_flip_confidence_threshold})")
+                if spc_enable_mtf:
+                    mtf_display = f"MTF ({', '.join(spc_mtf_timeframes or [])})"
+                    if spc_mtf_require_alignment:
+                        mtf_display += " [Require Alignment]"
+                    enhancements_list.append(mtf_display)
+
+                if enhancements_list:
+                    print(f"  Custom: {', '.join(enhancements_list)}")
+                else:
+                    print("  Using defaults from config file")
+            print()
     else:
         print("Pre-filter: Disabled")
     print()
@@ -377,7 +552,20 @@ def interactive_batch_scan():
                 if pre_filter_mode == "hybrid":
                     try:
                         pre_filtered_symbols = pre_filter_symbols_with_hybrid(
-                            all_symbols=all_symbols, timeframe=primary_timeframe, limit=limit
+                            all_symbols=all_symbols,
+                            timeframe=primary_timeframe,
+                            limit=limit,
+                            fast_mode=fast_mode,
+                            spc_preset=spc_preset,
+                            spc_volatility_adjustment=spc_volatility_adjustment,
+                            spc_use_correlation_weights=spc_use_correlation_weights,
+                            spc_time_decay_factor=spc_time_decay_factor,
+                            spc_interpolation_mode=spc_interpolation_mode,
+                            spc_min_flip_duration=spc_min_flip_duration,
+                            spc_flip_confidence_threshold=spc_flip_confidence_threshold,
+                            spc_enable_mtf=spc_enable_mtf,
+                            spc_mtf_timeframes=spc_mtf_timeframes,
+                            spc_mtf_require_alignment=spc_mtf_require_alignment,
                         )
                     except Exception as e:
                         log_error(f"Exception during hybrid pre-filtering: {e}")
@@ -385,7 +573,20 @@ def interactive_batch_scan():
                 else:
                     try:
                         pre_filtered_symbols = pre_filter_symbols_with_voting(
-                            all_symbols=all_symbols, timeframe=primary_timeframe, limit=limit
+                            all_symbols=all_symbols,
+                            timeframe=primary_timeframe,
+                            limit=limit,
+                            fast_mode=fast_mode,
+                            spc_preset=spc_preset,
+                            spc_volatility_adjustment=spc_volatility_adjustment,
+                            spc_use_correlation_weights=spc_use_correlation_weights,
+                            spc_time_decay_factor=spc_time_decay_factor,
+                            spc_interpolation_mode=spc_interpolation_mode,
+                            spc_min_flip_duration=spc_min_flip_duration,
+                            spc_flip_confidence_threshold=spc_flip_confidence_threshold,
+                            spc_enable_mtf=spc_enable_mtf,
+                            spc_mtf_timeframes=spc_mtf_timeframes,
+                            spc_mtf_require_alignment=spc_mtf_require_alignment,
                         )
                     except Exception as e:
                         log_error(f"Exception during voting pre-filtering: {e}")

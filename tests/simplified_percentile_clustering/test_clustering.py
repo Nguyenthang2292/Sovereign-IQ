@@ -36,6 +36,30 @@ def test_clustering_config_defaults():
     assert config.p_low == 5.0
     assert config.p_high == 95.0
     assert config.main_plot == "Clusters"
+    assert config.use_correlation_weights is False
+    assert config.time_decay_factor == 1.0
+    assert config.interpolation_mode == "linear"
+    assert config.min_flip_duration == 3
+    assert config.flip_confidence_threshold == 0.6
+
+
+def test_clustering_config_new_parameters():
+    """Test new clustering config parameters are properly initialized."""
+    config = ClusteringConfig(
+        k=2,
+        lookback=100,
+        use_correlation_weights=True,
+        time_decay_factor=0.99,
+        interpolation_mode="sigmoid",
+        min_flip_duration=5,
+        flip_confidence_threshold=0.7,
+    )
+
+    assert config.use_correlation_weights is True
+    assert config.time_decay_factor == 0.99
+    assert config.interpolation_mode == "sigmoid"
+    assert config.min_flip_duration == 5
+    assert config.flip_confidence_threshold == 0.7
 
 
 def test_clustering_config_with_feature_config():

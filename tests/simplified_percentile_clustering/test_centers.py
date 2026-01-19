@@ -207,3 +207,29 @@ def test_cluster_centers_percentile_calculation():
     assert centers[0] < centers[1]
     assert centers[0] < 50.0  # Should be below mean
     assert centers[1] > 50.0  # Should be above mean
+
+
+def test_compute_centers_with_volatility_adjustment():
+    """Test that volatility_adjustment parameter works."""
+    values = pd.Series(np.random.normal(100, 10, 200))
+
+    centers_static = compute_centers(
+        values, lookback=50, p_low=5, p_high=95, k=2, volatility_adjustment=False
+    )
+
+    centers_adaptive = compute_centers(
+        values, lookback=50, p_low=5, p_high=95, k=2, volatility_adjustment=True
+    )
+
+    # Both should produce valid results (after lookback period)
+    assert len(centers_static) == len(centers_adaptive) == len(values)
+    # Check valid values (after lookback)
+    valid_static = centers_static.iloc[50:].dropna()
+    valid_adaptive = centers_adaptive.iloc[50:].dropna()
+    assert len(valid_static) > 0, "Should have valid static centers after lookback"
+    assert len(valid_adaptive) > 0, "Should have valid adaptive centers after lookback"
+    # Centers should be ordered where valid
+    if len(valid_static) > 0:
+        assert (valid_static["k0"] < valid_static["k1"]).all()
+    if len(valid_adaptive) > 0:
+        assert (valid_adaptive["k0"] < valid_adaptive["k1"]).all()

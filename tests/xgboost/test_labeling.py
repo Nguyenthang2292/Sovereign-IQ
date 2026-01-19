@@ -348,3 +348,30 @@ def test_apply_directional_labels_rolling_window_behavior(monkeypatch):
     # This is a sanity check - thresholds should exist and be valid
     assert early_thresholds.notna().all()
     assert late_thresholds.notna().all()
+
+
+def test_apply_directional_labels_handles_zero_historical_ref(monkeypatch):
+    """Test that division by zero is handled when historical_ref contains zeros."""
+    monkeypatch.setattr(labeling, "TARGET_HORIZON", 2)
+    monkeypatch.setattr(labeling, "TARGET_BASE_THRESHOLD", 0.05)
+
+    # Create dataset where historical_ref might contain zeros
+    # This can happen with synthetic data or edge cases
+    df = pd.DataFrame(
+        {
+            "close": [0.0, 0.0, 0.01, 0.02, 0.03],  # Starting with zeros
+            "ATR_RATIO_14_50": [1.0] * 5,
+        }
+    )
+
+    result = labeling.apply_directional_labels(df.copy())
+
+    assert isinstance(result, pd.DataFrame)
+    assert "TargetLabel" in result.columns
+    assert "DynamicThreshold" in result.columns
+    # Thresholds should be valid (not NaN, not inf) even with zero prices
+    assert result["DynamicThreshold"].notna().all()
+    assert not (result["DynamicThreshold"] == np.inf).any()
+    assert not (result["DynamicThreshold"] == -np.inf).any()
+    # Thresholds should be >= TARGET_BASE_THRESHOLD (clipped)
+    assert (result["DynamicThreshold"] >= 0.05).all()

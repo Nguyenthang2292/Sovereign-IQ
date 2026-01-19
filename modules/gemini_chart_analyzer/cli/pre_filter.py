@@ -65,7 +65,22 @@ def _extract_valid_symbols(df: pd.DataFrame, symbol_col: str, all_symbols_set: S
     return set(valid_symbols)
 
 
-def _create_analyzer_args(timeframe: str, limit: int, max_workers: Optional[int] = None) -> argparse.Namespace:
+def _create_analyzer_args(
+    timeframe: str,
+    limit: int,
+    max_workers: Optional[int] = None,
+    fast_mode: bool = True,
+    spc_preset: Optional[str] = None,
+    spc_volatility_adjustment: bool = False,
+    spc_use_correlation_weights: bool = False,
+    spc_time_decay_factor: Optional[float] = None,
+    spc_interpolation_mode: Optional[str] = None,
+    spc_min_flip_duration: Optional[int] = None,
+    spc_flip_confidence_threshold: Optional[float] = None,
+    spc_enable_mtf: bool = False,
+    spc_mtf_timeframes: Optional[List[str]] = None,
+    spc_mtf_require_alignment: Optional[bool] = None,
+) -> argparse.Namespace:
     """
     Create a standardized argparse.Namespace with default values for analyzer configuration.
 
@@ -77,6 +92,8 @@ def _create_analyzer_args(timeframe: str, limit: int, max_workers: Optional[int]
                     - Uses min(10, max(1, cpu_count)) to balance performance
                     - Ensures at least 1 worker and caps at 10 to prevent resource exhaustion
                     - Defaults to 1 if cpu_count cannot be determined
+        fast_mode: If True, disable ML models for faster pre-filtering (only use ATC, Range Osc, SPC).
+                   If False, enable all indicators including ML models (XGBoost, HMM, Random Forest).
 
     Returns:
         argparse.Namespace with all required analyzer configuration
@@ -125,15 +142,41 @@ def _create_analyzer_args(timeframe: str, limit: int, max_workers: Optional[int]
     args.spc_extreme_threshold = SPC_STRATEGY_PARAMETERS["mean_reversion"]["extreme_threshold"]
     args.spc_min_extreme_duration = SPC_STRATEGY_PARAMETERS["mean_reversion"]["min_extreme_duration"]
     args.spc_strategy = "all"
-    args.enable_xgboost = True
-    args.enable_hmm = True
+
+    # SPC Enhancement parameters (from menu or defaults)
+    args.spc_preset = spc_preset
+    args.spc_volatility_adjustment = spc_volatility_adjustment
+    args.spc_use_correlation_weights = spc_use_correlation_weights
+    args.spc_time_decay_factor = spc_time_decay_factor
+    args.spc_interpolation_mode = spc_interpolation_mode
+    args.spc_min_flip_duration = spc_min_flip_duration
+    args.spc_flip_confidence_threshold = spc_flip_confidence_threshold
+    args.spc_enable_mtf = spc_enable_mtf
+    args.spc_mtf_timeframes = spc_mtf_timeframes
+    args.spc_mtf_require_alignment = spc_mtf_require_alignment
+
+    # Fast mode: Only use fast indicators (ATC + Range Osc + SPC + Voting)
+    # Full mode: Use all indicators including ML models (SLOW!)
+    if fast_mode:
+        # Fast mode: Only fast indicators
+        args.enable_spc = True  # Keep SPC (relatively fast, necessary)
+        args.enable_xgboost = False  # TẮT (quá chậm cho pre-filter)
+        args.enable_hmm = False  # TẮT (quá chậm cho pre-filter)
+        args.enable_random_forest = False  # TẮT (quá chậm cho pre-filter)
+    else:
+        # Full mode: Use all indicators (SLOW!)
+        args.enable_spc = True
+        args.enable_xgboost = True
+        args.enable_hmm = True
+        args.enable_random_forest = True
+
+    # HMM parameters (only used if enable_hmm is True)
     args.hmm_window_size = HMM_WINDOW_SIZE_DEFAULT
     args.hmm_window_kama = HMM_WINDOW_KAMA_DEFAULT
     args.hmm_fast_kama = HMM_FAST_KAMA_DEFAULT
     args.hmm_slow_kama = HMM_SLOW_KAMA_DEFAULT
     args.hmm_orders_argrelextrema = HMM_HIGH_ORDER_ORDERS_ARGRELEXTREMA_DEFAULT
     args.hmm_strict_mode = HMM_HIGH_ORDER_STRICT_MODE_DEFAULT
-    args.enable_random_forest = True
     args.random_forest_model_path = None
     args.use_decision_matrix = True
     args.voting_threshold = DECISION_MATRIX_VOTING_THRESHOLD
@@ -217,7 +260,22 @@ def _create_and_setup_analyzer(
     return analyzer
 
 
-def pre_filter_symbols_with_voting(all_symbols: List[str], timeframe: str, limit: int) -> List[str]:
+def pre_filter_symbols_with_voting(
+    all_symbols: List[str],
+    timeframe: str,
+    limit: int,
+    fast_mode: bool = True,
+    spc_preset: Optional[str] = None,
+    spc_volatility_adjustment: bool = False,
+    spc_use_correlation_weights: bool = False,
+    spc_time_decay_factor: Optional[float] = None,
+    spc_interpolation_mode: Optional[str] = None,
+    spc_min_flip_duration: Optional[int] = None,
+    spc_flip_confidence_threshold: Optional[float] = None,
+    spc_enable_mtf: bool = False,
+    spc_mtf_timeframes: Optional[List[str]] = None,
+    spc_mtf_require_alignment: Optional[bool] = None,
+) -> List[str]:
     """
     Pre-filter symbols using VotingAnalyzer to select all symbols with signals.
 
@@ -229,6 +287,7 @@ def pre_filter_symbols_with_voting(all_symbols: List[str], timeframe: str, limit
         all_symbols: List of all symbols to filter
         timeframe: Timeframe string for analysis
         limit: Number of candles to fetch per symbol
+        fast_mode: If True, disable ML models for faster pre-filtering (default: True)
 
     Returns:
         List of all filtered symbols with signals, sorted by weighted_score descending.
@@ -246,7 +305,21 @@ def pre_filter_symbols_with_voting(all_symbols: List[str], timeframe: str, limit
 
     with _protect_stdin_windows():
         try:
-            args = _create_analyzer_args(timeframe, limit)
+            args = _create_analyzer_args(
+                timeframe,
+                limit,
+                fast_mode=fast_mode,
+                spc_preset=spc_preset,
+                spc_volatility_adjustment=spc_volatility_adjustment,
+                spc_use_correlation_weights=spc_use_correlation_weights,
+                spc_time_decay_factor=spc_time_decay_factor,
+                spc_interpolation_mode=spc_interpolation_mode,
+                spc_min_flip_duration=spc_min_flip_duration,
+                spc_flip_confidence_threshold=spc_flip_confidence_threshold,
+                spc_enable_mtf=spc_enable_mtf,
+                spc_mtf_timeframes=spc_mtf_timeframes,
+                spc_mtf_require_alignment=spc_mtf_require_alignment,
+            )
             analyzer = _create_and_setup_analyzer(VotingAnalyzer, args, timeframe)
 
             # Run ATC scan first to get initial signals
@@ -304,7 +377,22 @@ def pre_filter_symbols_with_voting(all_symbols: List[str], timeframe: str, limit
             return all_symbols
 
 
-def pre_filter_symbols_with_hybrid(all_symbols: List[str], timeframe: str, limit: int) -> List[str]:
+def pre_filter_symbols_with_hybrid(
+    all_symbols: List[str],
+    timeframe: str,
+    limit: int,
+    fast_mode: bool = True,
+    spc_preset: Optional[str] = None,
+    spc_volatility_adjustment: bool = False,
+    spc_use_correlation_weights: bool = False,
+    spc_time_decay_factor: Optional[float] = None,
+    spc_interpolation_mode: Optional[str] = None,
+    spc_min_flip_duration: Optional[int] = None,
+    spc_flip_confidence_threshold: Optional[float] = None,
+    spc_enable_mtf: bool = False,
+    spc_mtf_timeframes: Optional[List[str]] = None,
+    spc_mtf_require_alignment: Optional[bool] = None,
+) -> List[str]:
     """
     Pre-filter symbols using HybridAnalyzer to select all symbols with signals.
 
@@ -316,6 +404,7 @@ def pre_filter_symbols_with_hybrid(all_symbols: List[str], timeframe: str, limit
         all_symbols: List of all symbols to filter
         timeframe: Timeframe string for analysis
         limit: Number of candles to fetch per symbol
+        fast_mode: If True, disable ML models for faster pre-filtering (default: True)
 
     Returns:
         List of all filtered symbols with signals.
@@ -333,7 +422,21 @@ def pre_filter_symbols_with_hybrid(all_symbols: List[str], timeframe: str, limit
 
     with _protect_stdin_windows():
         try:
-            args = _create_analyzer_args(timeframe, limit)
+            args = _create_analyzer_args(
+                timeframe,
+                limit,
+                fast_mode=fast_mode,
+                spc_preset=spc_preset,
+                spc_volatility_adjustment=spc_volatility_adjustment,
+                spc_use_correlation_weights=spc_use_correlation_weights,
+                spc_time_decay_factor=spc_time_decay_factor,
+                spc_interpolation_mode=spc_interpolation_mode,
+                spc_min_flip_duration=spc_min_flip_duration,
+                spc_flip_confidence_threshold=spc_flip_confidence_threshold,
+                spc_enable_mtf=spc_enable_mtf,
+                spc_mtf_timeframes=spc_mtf_timeframes,
+                spc_mtf_require_alignment=spc_mtf_require_alignment,
+            )
             analyzer = _create_and_setup_analyzer(HybridAnalyzer, args, timeframe)
 
             # Run ATC scan first to get initial signals
