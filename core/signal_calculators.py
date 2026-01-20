@@ -645,8 +645,7 @@ def get_random_forest_signal(
                 resolved_path = path_obj.resolve()
             except (OSError, RuntimeError) as e:
                 # Sanitize error message to prevent information leakage
-                # Only log path validation errors, not full exception details
-                log_error(f"Invalid model path (cannot resolve): {type(e).__name__}")
+                log_error(f"Invalid model path (cannot resolve): {type(e).__name__}: {e}")
                 return None
 
             # Ensure path is within allowed directory (MODELS_DIR)
@@ -673,8 +672,13 @@ def get_random_forest_signal(
         else:
             validated_path = None
 
-        model = load_random_forest_model(validated_path)
-        if model is None:
+        try:
+            model = load_random_forest_model(validated_path)
+            if model is None:
+                log_error(f"load_random_forest_model returned None for path: {validated_path}")
+                return None
+        except Exception as e:
+            log_error(f"Error loading model in get_random_forest_signal: {type(e).__name__}: {e}")
             return None
 
         # Use provided DataFrame if available, otherwise fetch from API

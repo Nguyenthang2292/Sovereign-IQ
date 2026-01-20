@@ -17,7 +17,7 @@ MODEL_TEST_SIZE = 0.2  # Test set size ratio (20%)
 # Model Storage
 # Note: Model file is stored directly in artifacts/models/ (not in subfolder)
 MODELS_DIR = _PROJECT_ROOT / "artifacts" / "models"  # Directory to save models
-RANDOM_FOREST_MODEL_FILENAME = "random_forest_model.joblib"  # Default model filename
+RANDOM_FOREST_MODEL_FILENAME = "rf_v1_20260120_112819.joblib"  # Default model filename
 
 # Target Prediction Configuration
 RANDOM_FOREST_TARGET_HORIZON = 5  # Number of periods to predict ahead for target variable creation
@@ -65,7 +65,9 @@ RANDOM_FOREST_ENSEMBLE_METHOD = "voting"  # "voting" or "stacking"
 RANDOM_FOREST_ENSEMBLE_VOTING = "soft"  # "hard" or "soft" (for VotingClassifier)
 RANDOM_FOREST_ENSEMBLE_INCLUDE_XGBOOST = True  # Include XGBoost in ensemble
 RANDOM_FOREST_ENSEMBLE_INCLUDE_LSTM = True  # Include LSTM in ensemble
-RANDOM_FOREST_ENSEMBLE_FINAL_ESTIMATOR = "RandomForest"  # Final estimator for StackingClassifier ("RandomForest", "XGBoost", "LogisticRegression")
+RANDOM_FOREST_ENSEMBLE_FINAL_ESTIMATOR = (
+    "RandomForest"  # Final estimator for StackingClassifier ("RandomForest", "XGBoost", "LogisticRegression")
+)
 
 # Walk-Forward Optimization Configuration
 RANDOM_FOREST_USE_WALK_FORWARD = False  # Enable walk-forward validation instead of single split

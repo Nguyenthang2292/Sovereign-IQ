@@ -4,8 +4,9 @@ Gemini Analyzer for analyzing chart images using Google Gemini API.
 Send a chart image to Google Gemini for analysis and receive LONG/SHORT signals with TP/SL.
 """
 
+import os
 import time
-from typing import Optional
+from typing import List, Optional
 
 import PIL.Image
 from PIL.Image import Image as PILImage
@@ -34,6 +35,8 @@ except ImportError as e1:
 
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 
+from ..exceptions import GeminiAnalysisError
+from .components.analyzer_config import GeminiModelType, ImageValidationConfig
 from .components.exceptions import (
     GeminiAPIError,
     GeminiAuthenticationError,
@@ -44,14 +47,61 @@ from .components.exceptions import (
     GeminiRateLimitError,
     GeminiResponseParseError,
 )
-from .components.helpers import select_best_model, validate_image
-from .components.image_config import ImageValidationConfig
-from .components.model_config import GeminiModelType
 from .components.token_limit import (
     MAX_TOKENS_PER_REQUEST,
     PROMPT_TOKEN_WARNING_THRESHOLD,
     estimate_token_count,
 )
+
+
+def select_best_model(available_models: Optional[List[str]] = None) -> str:
+    """Choose highest priority Gemini model from available list."""
+    if available_models is None:
+        return GeminiModelType.FLASH_3_PREVIEW.name
+
+    if len(available_models) == 0:
+        return GeminiModelType.FLASH_25.name
+
+    available_model_types: List[GeminiModelType] = []
+    for model_name in available_models:
+        model_type = GeminiModelType.from_name(model_name)
+        if model_type:
+            available_model_types.append(model_type)
+
+    if available_model_types:
+        available_model_types.sort(key=lambda m: m.priority)
+        return available_model_types[0].name
+
+    return available_models[0]
+
+
+def validate_image(image_path: str, config: Optional[ImageValidationConfig] = None) -> tuple[bool, Optional[str]]:
+    """Validate an image file against the configured limits."""
+    if config is None:
+        config = ImageValidationConfig()
+
+    if not os.path.exists(image_path):
+        return False, f"Image file not found: {image_path}"
+
+    file_ext = os.path.splitext(image_path)[1].upper().lstrip(".")
+    if file_ext not in config.supported_formats:
+        return False, f"Unsupported image format: {file_ext}. Supported: {config.supported_formats}"
+
+    file_size_mb = os.path.getsize(image_path) / (1024 * 1024)
+    if file_size_mb > config.max_file_size_mb:
+        return False, f"Image file too large: {file_size_mb:.2f}MB (max: {config.max_file_size_mb}MB)"
+
+    try:
+        with PIL.Image.open(image_path) as img:
+            width, height = img.size
+            if width < config.min_width or height < config.min_height:
+                return False, f"Image too small: {width}x{height} (min: {config.min_width}x{config.min_height})"
+            if width > config.max_width or height > config.max_height:
+                return False, f"Image too large: {width}x{height} (max: {config.max_width}x{config.max_height})"
+    except Exception as exc:
+        return False, f"Failed to validate image: {exc}"
+
+    return True, None
 
 
 class GeminiChartAnalyzer:
@@ -425,9 +475,9 @@ class GeminiChartAnalyzer:
 
             return result
 
-        except Exception as e:
-            log_error(f"Error while analyzing chart: {e}")
-            raise
+        except Exception:
+            log_error(f"Error while analyzing chart {symbol}")
+            raise GeminiAnalysisError(f"Failed to analyze chart {symbol} on {timeframe}")
 
     def _get_prompt(self, symbol: str, timeframe: str, prompt_type: str, custom_prompt: Optional[str]) -> str:
         """Generate prompt for Gemini."""

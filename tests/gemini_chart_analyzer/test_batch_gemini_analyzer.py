@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
+from modules.gemini_chart_analyzer.core.exceptions import GeminiAnalysisError
 
 
 @pytest.fixture
@@ -224,10 +225,10 @@ class TestGeminiBatchChartAnalyzerParseJSON:
         result = analyzer._parse_json_response(response_text, sample_symbols)
 
         assert len(result) == 5
-        assert result["BTC/USDT"]["signal"] == "LONG"
-        assert result["BTC/USDT"]["confidence"] == 0.85
-        assert result["ETH/USDT"]["signal"] == "SHORT"
-        assert result["BNB/USDT"]["signal"] == "NONE"
+        assert result["BTC/USDT"].signal == "LONG"
+        assert result["BTC/USDT"].confidence == 0.85
+        assert result["ETH/USDT"].signal == "SHORT"
+        assert result["BNB/USDT"].signal == "NONE"
 
     def test_parse_json_response_markdown_wrapped(self, mock_batch_analyzer, sample_symbols):
         """Test parsing JSON wrapped in markdown code blocks."""
@@ -242,7 +243,7 @@ class TestGeminiBatchChartAnalyzerParseJSON:
         result = analyzer._parse_json_response(response_text, sample_symbols[:2])
 
         assert len(result) == 2
-        assert result["BTC/USDT"]["signal"] == "LONG"
+        assert result["BTC/USDT"].signal == "LONG"
 
     def test_parse_json_response_missing_symbols(self, mock_batch_analyzer, sample_symbols):
         """Test parsing JSON with missing symbols (should default to NONE)."""
@@ -257,10 +258,10 @@ class TestGeminiBatchChartAnalyzerParseJSON:
         result = analyzer._parse_json_response(response_text, sample_symbols)
 
         assert len(result) == 5
-        assert result["BTC/USDT"]["signal"] == "LONG"
+        assert result["BTC/USDT"].signal == "LONG"
         # Missing symbols should default to NONE
-        assert result["ETH/USDT"]["signal"] == "NONE"
-        assert result["ETH/USDT"]["confidence"] == 0.0
+        assert result["ETH/USDT"].signal == "NONE"
+        assert result["ETH/USDT"].confidence == 0.0
 
     def test_parse_json_response_invalid_json(self, mock_batch_analyzer, sample_symbols):
         """Test parsing invalid JSON (should return all NONE)."""
@@ -272,8 +273,8 @@ class TestGeminiBatchChartAnalyzerParseJSON:
 
         # All should be NONE with 0 confidence
         for symbol in sample_symbols:
-            assert result[symbol]["signal"] == "NONE"
-            assert result[symbol]["confidence"] == 0.0
+            assert result[symbol].signal == "NONE"
+            assert result[symbol].confidence == 0.0
 
     def test_parse_json_response_old_format_string(self, mock_batch_analyzer, sample_symbols):
         """Test parsing old format (string signals instead of dict)."""
@@ -284,11 +285,11 @@ class TestGeminiBatchChartAnalyzerParseJSON:
 
         result = analyzer._parse_json_response(response_text, sample_symbols[:3])
 
-        assert result["BTC/USDT"]["signal"] == "LONG"
-        assert result["ETH/USDT"]["signal"] == "SHORT"
-        assert result["BNB/USDT"]["signal"] == "NONE"
+        assert result["BTC/USDT"].signal == "LONG"
+        assert result["ETH/USDT"].signal == "SHORT"
+        assert result["BNB/USDT"].signal == "NONE"
         # Should have default confidence
-        assert result["BTC/USDT"]["confidence"] > 0
+        assert result["BTC/USDT"].confidence > 0
 
 
 class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
@@ -323,14 +324,13 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
 
         # Check BTC/USDT
         btc_result = result["BTC/USDT"]
-        assert "timeframes" in btc_result
-        assert "aggregated" in btc_result
-        assert btc_result["timeframes"]["15m"]["signal"] == "LONG"
-        assert btc_result["timeframes"]["15m"]["confidence"] == 0.70
-        assert btc_result["timeframes"]["1h"]["signal"] == "LONG"
-        assert btc_result["timeframes"]["4h"]["signal"] == "SHORT"
-        assert btc_result["aggregated"]["signal"] == "LONG"
-        assert btc_result["aggregated"]["confidence"] == 0.71
+        assert "15m" in btc_result.timeframes
+        assert btc_result.timeframes["15m"].signal == "LONG"
+        assert btc_result.timeframes["15m"].confidence == 0.70
+        assert btc_result.timeframes["1h"].signal == "LONG"
+        assert btc_result.timeframes["4h"].signal == "SHORT"
+        assert btc_result.aggregated.signal == "LONG"
+        assert btc_result.aggregated.confidence == 0.71
 
     def test_parse_multi_tf_json_response_markdown_wrapped(self, mock_batch_analyzer, sample_symbols):
         """Test parsing multi-TF JSON wrapped in markdown code blocks."""
@@ -350,8 +350,8 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
 
         assert len(result) == 1
         assert "BTC/USDT" in result
-        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "LONG"
-        assert result["BTC/USDT"]["aggregated"]["signal"] == "LONG"
+        assert result["BTC/USDT"].timeframes["15m"].signal == "LONG"
+        assert result["BTC/USDT"].aggregated.signal == "LONG"
 
     def test_parse_multi_tf_json_response_missing_symbols(self, mock_batch_analyzer, sample_symbols):
         """Test parsing multi-TF JSON with missing symbols."""
@@ -367,11 +367,11 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
         result = analyzer._parse_multi_tf_json_response(response_text, sample_symbols[:2], timeframes)
 
         assert len(result) == 2
-        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "LONG"
+        assert result["BTC/USDT"].timeframes["15m"].signal == "LONG"
         # Missing symbol should have empty timeframes with NONE
         assert "ETH/USDT" in result
-        assert result["ETH/USDT"]["timeframes"]["15m"]["signal"] == "NONE"
-        assert result["ETH/USDT"]["timeframes"]["15m"]["confidence"] == 0.0
+        assert result["ETH/USDT"].timeframes["15m"].signal == "NONE"
+        assert result["ETH/USDT"].timeframes["15m"].confidence == 0.0
 
     def test_parse_multi_tf_json_response_missing_timeframes(self, mock_batch_analyzer, sample_symbols):
         """Test parsing multi-TF JSON with missing timeframes."""
@@ -389,11 +389,10 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
 
         result = analyzer._parse_multi_tf_json_response(response_text, sample_symbols[:1], timeframes)
 
-        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "LONG"
-        assert result["BTC/USDT"]["timeframes"]["1h"]["signal"] == "LONG"
-        # Missing timeframe should default to NONE
-        assert result["BTC/USDT"]["timeframes"]["4h"]["signal"] == "NONE"
-        assert result["BTC/USDT"]["timeframes"]["4h"]["confidence"] == 0.0
+        assert result["BTC/USDT"].timeframes["15m"].signal == "LONG"
+        assert result["BTC/USDT"].timeframes["1h"].signal == "LONG"
+        assert result["BTC/USDT"].timeframes["4h"].signal == "NONE"
+        assert result["BTC/USDT"].timeframes["4h"].confidence == 0.0
 
     def test_parse_multi_tf_json_response_no_aggregated(self, mock_batch_analyzer, sample_symbols):
         """Test parsing multi-TF JSON without aggregated field."""
@@ -411,7 +410,7 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
 
         result = analyzer._parse_multi_tf_json_response(response_text, sample_symbols[:1], timeframes)
 
-        assert result["BTC/USDT"]["aggregated"] is None
+        assert result["BTC/USDT"].aggregated is None
 
     def test_parse_multi_tf_json_response_invalid_format(self, mock_batch_analyzer, sample_symbols):
         """Test parsing multi-TF JSON with invalid format."""
@@ -426,7 +425,7 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
 
         # Should return empty result structure
         assert "BTC/USDT" in result
-        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "NONE"
+        assert result["BTC/USDT"].timeframes["15m"].signal == "NONE"
 
     def test_parse_multi_tf_json_response_invalid_timeframe_format(self, mock_batch_analyzer, sample_symbols):
         """Test parsing multi-TF JSON with invalid timeframe format."""
@@ -444,10 +443,10 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
         result = analyzer._parse_multi_tf_json_response(response_text, sample_symbols[:1], timeframes)
 
         # Invalid timeframe should default to NONE
-        assert result["BTC/USDT"]["timeframes"]["15m"]["signal"] == "NONE"
-        assert result["BTC/USDT"]["timeframes"]["15m"]["confidence"] == 0.0
+        assert result["BTC/USDT"].timeframes["15m"].signal == "NONE"
+        assert result["BTC/USDT"].timeframes["15m"].confidence == 0.0
         # Valid timeframe should still work
-        assert result["BTC/USDT"]["timeframes"]["1h"]["signal"] == "LONG"
+        assert result["BTC/USDT"].timeframes["1h"].signal == "LONG"
 
     def test_parse_multi_tf_json_response_invalid_json(self, mock_batch_analyzer, sample_symbols):
         """Test parsing invalid multi-TF JSON."""
@@ -460,8 +459,8 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
 
         # All should have NONE signals
         for symbol in sample_symbols[:2]:
-            assert result[symbol]["timeframes"]["15m"]["signal"] == "NONE"
-            assert result[symbol]["timeframes"]["15m"]["confidence"] == 0.0
+            assert result[symbol].timeframes["15m"].signal == "NONE"
+            assert result[symbol].timeframes["15m"].confidence == 0.0
 
     def test_parse_multi_tf_json_response_confidence_clamping(self, mock_batch_analyzer, sample_symbols):
         """Test that confidence values are clamped to [0.0, 1.0]."""
@@ -477,7 +476,7 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
 
         result = analyzer._parse_multi_tf_json_response(response_text, sample_symbols[:1], timeframes)
 
-        assert result["BTC/USDT"]["timeframes"]["15m"]["confidence"] == 1.0
+        assert result["BTC/USDT"].timeframes["15m"].confidence == 1.0
 
         # Test negative confidence
         json_response = {
@@ -489,7 +488,7 @@ class TestGeminiBatchChartAnalyzerParseMultiTFJSON:
 
         result = analyzer._parse_multi_tf_json_response(response_text, sample_symbols[:1], timeframes)
 
-        assert result["BTC/USDT"]["timeframes"]["15m"]["confidence"] == 0.0
+        assert result["BTC/USDT"].timeframes["15m"].confidence == 0.0
 
 
 class TestGeminiBatchChartAnalyzerAnalyzeBatchChart:
@@ -521,8 +520,8 @@ class TestGeminiBatchChartAnalyzerAnalyzeBatchChart:
         )
 
         assert len(result) == 3
-        assert result["BTC/USDT"]["signal"] == "LONG"
-        assert result["ETH/USDT"]["signal"] == "SHORT"
+        assert result["BTC/USDT"].signal == "LONG"
+        assert result["ETH/USDT"].signal == "SHORT"
         mock_client.models.generate_content.assert_called_once()
 
     @patch("PIL.Image.open")
@@ -541,24 +540,18 @@ class TestGeminiBatchChartAnalyzerAnalyzeBatchChart:
         # Mock API error
         mock_client.models.generate_content = Mock(side_effect=Exception("API Error"))
 
-        result = analyzer.analyze_batch_chart(
-            image_path=sample_image_path, batch_id=1, total_batches=5, symbols=sample_symbols[:3]
-        )
-
-        # Should return all NONE on error
-        for symbol in sample_symbols[:3]:
-            assert result[symbol]["signal"] == "NONE"
-            assert result[symbol]["confidence"] == 0.0
+        # Should raise GeminiAnalysisError on API error
+        with pytest.raises(GeminiAnalysisError, match="Failed to analyze batch"):
+            analyzer.analyze_batch_chart(
+                image_path=sample_image_path, batch_id=1, total_batches=5, symbols=sample_symbols[:3]
+            )
 
     def test_analyze_batch_chart_file_not_found(self, mock_batch_analyzer, sample_symbols):
         """Test batch chart analysis with non-existent file."""
         analyzer, _, _ = mock_batch_analyzer
 
-        result = analyzer.analyze_batch_chart(
-            image_path="/nonexistent/path/chart.png", batch_id=1, total_batches=5, symbols=sample_symbols[:3]
-        )
-
-        # Should return all NONE on file error
-        for symbol in sample_symbols[:3]:
-            assert result[symbol]["signal"] == "NONE"
-            assert result[symbol]["confidence"] == 0.0
+        # Should raise GeminiAnalysisError on file not found
+        with pytest.raises(GeminiAnalysisError, match="Failed to analyze batch"):
+            analyzer.analyze_batch_chart(
+                image_path="/nonexistent/path/chart.png", batch_id=1, total_batches=5, symbols=sample_symbols[:3]
+            )

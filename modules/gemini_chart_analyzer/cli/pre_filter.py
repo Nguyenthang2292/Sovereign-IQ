@@ -92,8 +92,8 @@ def _create_analyzer_args(
                     - Uses min(10, max(1, cpu_count)) to balance performance
                     - Ensures at least 1 worker and caps at 10 to prevent resource exhaustion
                     - Defaults to 1 if cpu_count cannot be determined
-        fast_mode: If True, disable ML models for faster pre-filtering (only use ATC, Range Osc, SPC).
-                   If False, enable all indicators including ML models (XGBoost, HMM, Random Forest).
+        fast_mode: If True, use 3-stage filtering (Stage 1: ATC, Stage 2: Range Osc + SPC, Stage 3: All ML models).
+                   If False, enable all indicators including ML models from the start (XGBoost, HMM, Random Forest).
 
     Returns:
         argparse.Namespace with all required analyzer configuration
@@ -155,14 +155,14 @@ def _create_analyzer_args(
     args.spc_mtf_timeframes = spc_mtf_timeframes
     args.spc_mtf_require_alignment = spc_mtf_require_alignment
 
-    # Fast mode: Only use fast indicators (ATC + Range Osc + SPC + Voting)
-    # Full mode: Use all indicators including ML models (SLOW!)
+    # Fast mode: 3-stage filtering (Stage 1: ATC, Stage 2: Range Osc + SPC, Stage 3: All ML models)
+    # Full mode: Use all indicators including ML models from the start (SLOW!)
     if fast_mode:
-        # Fast mode: Only fast indicators
+        # Fast mode: Initial setup - ML models will be enabled in Stage 3
         args.enable_spc = True  # Keep SPC (relatively fast, necessary)
-        args.enable_xgboost = False  # TẮT (quá chậm cho pre-filter)
-        args.enable_hmm = False  # TẮT (quá chậm cho pre-filter)
-        args.enable_random_forest = False  # TẮT (quá chậm cho pre-filter)
+        args.enable_xgboost = False  # Will be enabled in Stage 3
+        args.enable_hmm = False  # Will be enabled in Stage 3
+        args.enable_random_forest = False  # Will be enabled in Stage 3 if model available
     else:
         # Full mode: Use all indicators (SLOW!)
         args.enable_spc = True
@@ -287,7 +287,7 @@ def pre_filter_symbols_with_voting(
         all_symbols: List of all symbols to filter
         timeframe: Timeframe string for analysis
         limit: Number of candles to fetch per symbol
-        fast_mode: If True, disable ML models for faster pre-filtering (default: True)
+        fast_mode: If True, use 3-stage filtering (Stage 3 runs ML models for symbols that passed Stage 2) (default: True)
 
     Returns:
         List of all filtered symbols with signals, sorted by weighted_score descending.
@@ -404,7 +404,7 @@ def pre_filter_symbols_with_hybrid(
         all_symbols: List of all symbols to filter
         timeframe: Timeframe string for analysis
         limit: Number of candles to fetch per symbol
-        fast_mode: If True, disable ML models for faster pre-filtering (default: True)
+        fast_mode: If True, use 3-stage filtering (Stage 3 runs ML models for symbols that passed Stage 2) (default: True)
 
     Returns:
         List of all filtered symbols with signals.

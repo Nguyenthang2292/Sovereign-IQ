@@ -15,6 +15,8 @@ import PIL.Image
 
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
+from modules.gemini_chart_analyzer.core.exceptions import GeminiAnalysisError
+from modules.gemini_chart_analyzer.core.scanner_types import SignalResult, SymbolScanResult
 
 
 class GeminiBatchChartAnalyzer(GeminiChartAnalyzer):
@@ -83,8 +85,8 @@ class GeminiBatchChartAnalyzer(GeminiChartAnalyzer):
 
         except Exception as e:
             log_error(f"Error analyzing batch {batch_id}: {e}")
-            # Return empty dict with NONE for all symbols
-            return {symbol: {"signal": "NONE", "confidence": 0.0} for symbol in symbols}
+            # Raise custom error for higher-level handling
+            raise GeminiAnalysisError(f"Failed to analyze batch {batch_id}: {e}") from e
 
     def analyze_multi_tf_batch_chart(
         self, batch_chart_path: str, symbols: List[str], normalized_timeframes: List[str]
@@ -103,16 +105,12 @@ class GeminiBatchChartAnalyzer(GeminiChartAnalyzer):
             normalized_timeframes: List of normalized timeframe strings (e.g., ['15m', '1h', '4h'])
 
         Returns:
-            Dictionary mapping symbol to timeframe results:
+            Dictionary mapping symbol to SymbolScanResult:
             {
-                symbol: {
-                    'timeframes': {
-                        tf: {'signal': 'LONG'|'SHORT'|'NONE', 'confidence': float},
-                        ...
-                    },
-                    'aggregated': {'signal': '...', 'confidence': ...}  # Optional, may be None
-                },
-                ...
+                symbol: SymbolScanResult(
+                    timeframes={tf: SignalResult(signal='...', confidence=...)},
+                    aggregated=SignalResult(signal='...', confidence=...)
+                )
             }
         """
         # Apply cooldown
@@ -146,8 +144,8 @@ class GeminiBatchChartAnalyzer(GeminiChartAnalyzer):
 
         except Exception as e:
             log_error(f"Error analyzing multi-TF batch chart: {e}")
-            # Return empty result structure for all symbols
-            return self._create_empty_multi_tf_result(symbols, normalized_timeframes)
+            # Raise custom error for higher-level handling
+            raise GeminiAnalysisError(f"Failed to analyze multi-TF batch chart: {e}") from e
 
     def _apply_cooldown(self):
         """
@@ -435,7 +433,7 @@ Lưu ý:
         json_str = self._extract_json_from_text(response_text)
         if json_str is None:
             log_error("No JSON found in response")
-            return {symbol: {"signal": "NONE", "confidence": 0.0} for symbol in expected_symbols}
+            return {symbol: SignalResult(signal="NONE", confidence=0.0) for symbol in expected_symbols}
 
         try:
             # Parse JSON
@@ -444,7 +442,7 @@ Lưu ý:
             # Validate result is a dict
             if not isinstance(result, dict):
                 log_error(f"JSON response is not a dictionary, got {type(result).__name__}")
-                return {symbol: {"signal": "NONE", "confidence": 0.0} for symbol in expected_symbols}
+                return {symbol: SignalResult(signal="NONE", confidence=0.0) for symbol in expected_symbols}
 
             # Validate and normalize
             normalized_result = {}
@@ -463,24 +461,24 @@ Lưu ý:
                         confidence = self._clamp_confidence(confidence)
 
                         if signal in ["LONG", "SHORT", "NONE"]:
-                            normalized_result[symbol] = {"signal": signal, "confidence": confidence}
+                            normalized_result[symbol] = SignalResult(signal=signal, confidence=confidence)
                         else:
-                            normalized_result[symbol] = {"signal": "NONE", "confidence": 0.0}
+                            normalized_result[symbol] = SignalResult(signal="NONE", confidence=0.0)
                     elif isinstance(value, str):
                         # Old format: "LONG" or "SHORT" or "NONE"
                         signal = value.upper().strip()
                         if signal in ["LONG", "SHORT", "NONE"]:
                             # Default confidence based on signal
                             confidence = 0.7 if signal in ["LONG", "SHORT"] else 0.5
-                            normalized_result[symbol] = {"signal": signal, "confidence": confidence}
+                            normalized_result[symbol] = SignalResult(signal=signal, confidence=confidence)
                         else:
-                            normalized_result[symbol] = {"signal": "NONE", "confidence": 0.0}
+                            normalized_result[symbol] = SignalResult(signal="NONE", confidence=0.0)
                     else:
-                        normalized_result[symbol] = {"signal": "NONE", "confidence": 0.0}
+                        normalized_result[symbol] = SignalResult(signal="NONE", confidence=0.0)
                 else:
                     # Symbol not found in response
                     missing_symbols.append(symbol)
-                    normalized_result[symbol] = {"signal": "NONE", "confidence": 0.0}
+                    normalized_result[symbol] = SignalResult(signal="NONE", confidence=0.0)
 
             # Log missing symbols if any
             if missing_symbols:
@@ -492,10 +490,10 @@ Lưu ý:
         except json.JSONDecodeError as e:
             log_error(f"JSON decode error: {e}")
             log_error(f"Response text: {response_text[:500]}")
-            return {symbol: {"signal": "NONE", "confidence": 0.0} for symbol in expected_symbols}
+            return {symbol: SignalResult(signal="NONE", confidence=0.0) for symbol in expected_symbols}
         except (ValueError, TypeError) as e:
             log_error(f"Error parsing confidence: {e}")
-            return {symbol: {"signal": "NONE", "confidence": 0.0} for symbol in expected_symbols}
+            return {symbol: SignalResult(signal="NONE", confidence=0.0) for symbol in expected_symbols}
 
     def _parse_multi_tf_json_response(
         self, response_text: str, expected_symbols: List[str], expected_timeframes: List[str]
@@ -519,16 +517,12 @@ Lưu ý:
             expected_timeframes: List of expected timeframes (for validation)
 
         Returns:
-            Dictionary mapping symbol to timeframe results:
+            Dictionary mapping symbol to SymbolScanResult:
             {
-                symbol: {
-                    'timeframes': {
-                        tf: {'signal': '...', 'confidence': ...},
-                        ...
-                    },
-                    'aggregated': {'signal': '...', 'confidence': ...}  # Optional, may be missing
-                },
-                ...
+                symbol: SymbolScanResult(
+                    timeframes={tf: SignalResult(signal='...', confidence=...)},
+                    aggregated=SignalResult(signal='...', confidence=...)
+                )
             }
         """
         # Extract JSON from response text using helper method
@@ -577,16 +571,16 @@ Lưu ý:
                             confidence = self._clamp_confidence(confidence)
 
                             if signal in ["LONG", "SHORT", "NONE"]:
-                                tf_signals[tf] = {"signal": signal, "confidence": confidence}
+                                tf_signals[tf] = SignalResult(signal=signal, confidence=confidence)
                             else:
                                 log_warn(f"Invalid signal '{signal}' for {symbol} {tf}, using NONE")
-                                tf_signals[tf] = {"signal": "NONE", "confidence": 0.0}
+                                tf_signals[tf] = SignalResult(signal="NONE", confidence=0.0)
                         else:
                             log_warn(f"Invalid format for {symbol} {tf}, expected dict, got {type(tf_data).__name__}")
-                            tf_signals[tf] = {"signal": "NONE", "confidence": 0.0}
+                            tf_signals[tf] = SignalResult(signal="NONE", confidence=0.0)
                     else:
                         # Timeframe missing from response
-                        tf_signals[tf] = {"signal": "NONE", "confidence": 0.0}
+                        tf_signals[tf] = SignalResult(signal="NONE", confidence=0.0)
 
                 # Extract aggregated signal if present (optional)
                 aggregated = None
@@ -598,16 +592,16 @@ Lưu ý:
                         confidence = self._clamp_confidence(confidence)
 
                         if signal in ["LONG", "SHORT", "NONE"]:
-                            aggregated = {"signal": signal, "confidence": confidence}
+                            aggregated = SignalResult(signal=signal, confidence=confidence)
                         else:
                             log_warn(f"Invalid aggregated signal '{signal}' for {symbol}")
                     else:
                         log_warn(f"Invalid aggregated format for {symbol}, expected dict")
 
-                result[symbol] = {
-                    "timeframes": tf_signals,
-                    "aggregated": aggregated,  # May be None if not provided
-                }
+                result[symbol] = SymbolScanResult(
+                    timeframes=tf_signals,
+                    aggregated=aggregated,  # May be None if not provided
+                )
 
             # Log missing symbols if any
             if missing_symbols:
@@ -626,13 +620,13 @@ Lưu ý:
 
     def _create_empty_multi_tf_result(
         self, expected_symbols: List[str], expected_timeframes: List[str]
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> Dict[str, SymbolScanResult]:
         """Create empty result structure for multi-TF response."""
         return {symbol: self._create_empty_symbol_multi_tf_result(expected_timeframes) for symbol in expected_symbols}
 
-    def _create_empty_symbol_multi_tf_result(self, expected_timeframes: List[str]) -> Dict[str, Any]:
+    def _create_empty_symbol_multi_tf_result(self, expected_timeframes: List[str]) -> SymbolScanResult:
         """Create empty result structure for a single symbol in multi-TF response."""
-        return {
-            "timeframes": {tf: {"signal": "NONE", "confidence": 0.0} for tf in expected_timeframes},
-            "aggregated": None,
-        }
+        return SymbolScanResult(
+            timeframes={tf: SignalResult(signal="NONE", confidence=0.0) for tf in expected_timeframes},
+            aggregated=None,
+        )

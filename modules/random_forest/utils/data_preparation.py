@@ -81,16 +81,21 @@ def prepare_training_data(df: pd.DataFrame) -> Optional[Tuple[pd.DataFrame, pd.S
         )
 
     # Filter features: Include both base MODEL_FEATURES and new enhanced features
+    # CRITICAL: Exclude raw OHLCV columns to prevent model from using them
+    # Model should ONLY use derived features (returns_1, returns_5, log_volume, high_low_range, close_open_diff)
+    # and technical indicators, NOT raw price/volume data
+    raw_ohlcv_columns = ["open", "high", "low", "close", "volume"]
+
     # Better approach: preserve order from MODEL_FEATURES
     available_features = []
     for feat in MODEL_FEATURES:
-        if feat in df_with_features.columns:
+        if feat in df_with_features.columns and feat not in raw_ohlcv_columns:
             available_features.append(feat)
 
     # Then add enhanced features that aren't in MODEL_FEATURES
     enhanced_features = get_enhanced_feature_names(df_with_features.columns.tolist())
     for feat in enhanced_features:
-        if feat not in available_features:
+        if feat not in available_features and feat not in raw_ohlcv_columns:
             available_features.append(feat)
 
     # No need to sort - preserve insertion order to ensure consistency between training/inference

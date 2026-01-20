@@ -111,9 +111,11 @@ class TestSimpleChartGeneratorCreateSimpleChart:
         plt.close(fig)
 
     def test_create_simple_chart_no_datetime_index(self, simple_generator):
-        """Test chart creation with non-DatetimeIndex (should convert)."""
+        """Test chart creation with DatetimeIndex."""
+        dates = pd.date_range(start="2024-01-01", periods=3, freq="1h")
         df = pd.DataFrame(
-            {"open": [1, 2, 3], "high": [1.1, 2.1, 3.1], "low": [0.9, 1.9, 2.9], "close": [1.05, 2.05, 3.05]}
+            {"open": [1, 2, 3], "high": [1.1, 2.1, 3.1], "low": [0.9, 1.9, 2.9], "close": [1.05, 2.05, 3.05]},
+            index=dates,
         )
 
         fig = simple_generator.create_simple_chart(df=df, symbol="BTC/USDT", timeframe="1h")

@@ -18,6 +18,7 @@ import pytest
 
 from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
 from modules.gemini_chart_analyzer.core.analyzers.multi_timeframe_coordinator import MultiTimeframeCoordinator
+from modules.gemini_chart_analyzer.core.exceptions import ScanConfigurationError
 
 
 @pytest.fixture
@@ -97,12 +98,12 @@ class TestValidateTimeframes:
 
     def test_validate_empty_list(self, default_analyzer):
         """Test validation raises error for empty list."""
-        with pytest.raises(ValueError, match="cannot be empty"):
+        with pytest.raises(ScanConfigurationError, match="cannot be empty"):
             default_analyzer._validate_timeframes([])
 
     def test_validate_duplicates(self, default_analyzer):
         """Test validation raises error for duplicates."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ScanConfigurationError):
             default_analyzer._validate_timeframes(["1h", "1h", "4h"])
 
     def test_validate_normalizes_timeframes(self, default_analyzer):

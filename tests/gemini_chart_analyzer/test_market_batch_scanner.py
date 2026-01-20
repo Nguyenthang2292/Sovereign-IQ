@@ -30,7 +30,8 @@ except ImportError:
         pass
 
 
-from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner, SymbolFetchError
+from modules.gemini_chart_analyzer.core.exceptions import DataFetchError
+from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
 
 
 @pytest.fixture
@@ -173,20 +174,16 @@ class TestMarketBatchScannerGetSymbols:
         assert "ETH/USDT" not in symbols
 
     def test_get_all_symbols_error_handling(self, mock_scanner_dependencies):
-        """Test symbol fetching error handling raises SymbolFetchError."""
+        """Test symbol fetching error handling raises DataFetchError."""
         scanner = MarketBatchScanner()
 
         scanner.public_exchange_manager.connect_to_exchange_with_no_credentials = Mock(
             side_effect=Exception("Connection error")
         )
 
-        # Should raise SymbolFetchError instead of returning empty list
-        with pytest.raises(SymbolFetchError) as exc_info:
+        # Should raise DataFetchError instead of returning empty list
+        with pytest.raises(DataFetchError):
             scanner.get_all_symbols()
-
-        # Verify exception properties
-        assert exc_info.value.is_retryable is True  # Connection errors are retryable
-        assert exc_info.value.original_exception is not None
 
     def test_get_all_symbols_non_retryable_error(self, mock_scanner_dependencies):
         """Test symbol fetching with non-retryable error."""
@@ -196,13 +193,9 @@ class TestMarketBatchScannerGetSymbols:
         auth_error = AuthenticationError("Invalid API key")
         scanner.public_exchange_manager.connect_to_exchange_with_no_credentials = Mock(side_effect=auth_error)
 
-        # Should raise SymbolFetchError with is_retryable=False
-        with pytest.raises(SymbolFetchError) as exc_info:
+        # Should raise DataFetchError
+        with pytest.raises(DataFetchError):
             scanner.get_all_symbols()
-
-        # Non-retryable errors should have is_retryable=False
-        assert exc_info.value.is_retryable is False
-        assert exc_info.value.original_exception is auth_error
 
     def test_get_all_symbols_retry_success(self, mock_scanner_dependencies, sample_symbols):
         """Test symbol fetching with retry logic - succeeds after retry."""

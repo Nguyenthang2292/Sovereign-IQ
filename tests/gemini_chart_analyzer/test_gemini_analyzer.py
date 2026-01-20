@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
+from modules.gemini_chart_analyzer.core.exceptions import GeminiAnalysisError
 
 
 @pytest.fixture
@@ -266,5 +267,5 @@ class TestGeminiChartAnalyzerAnalyzeChart:
         # Mock API error
         mock_client.models.generate_content = Mock(side_effect=Exception("API Error"))
 
-        with pytest.raises(Exception, match="API Error"):
+        with pytest.raises(GeminiAnalysisError, match="Failed to analyze chart BTC/USDT on 1h"):
             analyzer.analyze_chart(image_path=sample_image_path, symbol="BTC/USDT", timeframe="1h")

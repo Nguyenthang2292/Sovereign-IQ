@@ -14,19 +14,13 @@ Tests cover:
 import pytest
 from PIL import Image
 
-from modules.gemini_chart_analyzer.core.analyzers.components.helpers import (
-    select_best_model,
-    validate_image,
-)
-from modules.gemini_chart_analyzer.core.analyzers.components.image_config import (
+from modules.gemini_chart_analyzer.core.analyzers.components.analyzer_config import (
+    GeminiModelType,
     ImageValidationConfig,
 )
-from modules.gemini_chart_analyzer.core.analyzers.components.model_config import (
-    GeminiModelType,
-)
-from modules.gemini_chart_analyzer.core.analyzers.components.response_parser import (
-    TradingSignal,
-    parse_trading_signal,
+from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import (
+    select_best_model,
+    validate_image,
 )
 from modules.gemini_chart_analyzer.core.analyzers.components.token_limit import (
     estimate_token_count,
@@ -217,73 +211,6 @@ class TestValidateImage:
         assert error_msg is None
 
 
-class TestParseTradingSignal:
-    """Test parse_trading_signal function."""
-
-    def test_parse_long_signal(self):
-        """Test parsing LONG signal."""
-        response = "LONG signal. Entry: 1.2345, SL: 1.2200, TP1: 1.2800, Confidence: high"
-
-        signal = parse_trading_signal(response)
-
-        assert signal.direction == "LONG"
-        assert signal.confidence == "high"
-
-    def test_parse_short_signal(self):
-        """Test parsing SHORT signal."""
-        response = "SHORT position. Entry: 1.2000, SL: 1.2500, TP2: 1.3000"
-
-        signal = parse_trading_signal(response)
-
-        assert signal.direction == "SHORT"
-        assert signal.entry_price == 1.2000
-        assert signal.stop_loss == 1.2500
-        assert signal.take_profit_2 == 1.3000
-
-    def test_parse_neutral_signal(self):
-        """Test parsing NEUTRAL signal."""
-        response = "No clear signal detected, market is ranging."
-
-        signal = parse_trading_signal(response)
-
-        assert signal.direction == "NEUTRAL"
-
-    def test_parse_vietnamese_long_signal(self):
-        """Test parsing Vietnamese LONG signal."""
-        response = "Tăng giá. Entry: 1.2345, Stop Loss: 1.2200, Take Profit 1: 1.2800"
-
-        signal = parse_trading_signal(response)
-
-        assert signal.direction == "LONG"
-        assert signal.entry_price == 1.2345
-        assert signal.stop_loss == 1.2200
-        assert signal.take_profit_1 == 1.2800
-
-    def test_parse_vietnamese_without_diacritics_defaults_to_neutral(self):
-        """Test that Vietnamese text without diacritics is not recognized and defaults to NEUTRAL."""
-        response = "Giam gia manh. Entry: 1.2000, SL: 1.2500, TP2: 1.3000"
-
-        signal = parse_trading_signal(response)
-
-        # "Giam" without diacritic is not recognized as Vietnamese
-        # So it should default to NEUTRAL since no LONG/SHORT keyword
-        assert signal.direction == "NEUTRAL"
-        assert signal.entry_price == 1.2000
-        assert signal.stop_loss == 1.2500
-        assert signal.take_profit_2 == 1.3000
-
-    def test_parse_with_regex_patterns(self):
-        """Test parsing with various regex patterns."""
-        response = "Entry: 1.23, Stop Loss: 1.20"
-
-        signal = parse_trading_signal(response)
-
-        # Should default to NEUTRAL when no direction keyword is found
-        assert signal.direction == "NEUTRAL"
-        assert signal.entry_price == 1.23
-        assert signal.stop_loss == 1.20
-
-
 class TestEstimateTokenCount:
     """Test estimate_token_count function."""
 
@@ -337,45 +264,3 @@ class TestImageValidationConfig:
         assert config.min_width == 50
         assert config.min_height == 50
         assert config.supported_formats == ("PNG", "JPG")
-
-
-class TestTradingSignal:
-    """Test TradingSignal dataclass."""
-
-    def test_default_values(self):
-        """Test default signal values."""
-        signal = TradingSignal()
-
-        assert signal.direction == ""
-        assert signal.entry_price is None
-        assert signal.stop_loss is None
-        assert signal.take_profit_1 is None
-        assert signal.take_profit_2 is None
-        assert signal.confidence is None
-        assert signal.reasoning is None
-
-    def test_long_signal(self):
-        """Test LONG signal."""
-        signal = TradingSignal(
-            direction="LONG", entry_price=1.2345, stop_loss=1.2200, take_profit_1=1.2800, confidence="high"
-        )
-
-        assert signal.direction == "LONG"
-        assert signal.entry_price == 1.2345
-        assert signal.stop_loss == 1.2200
-        assert signal.take_profit_1 == 1.2800
-        assert signal.confidence == "high"
-
-    def test_short_signal(self):
-        """Test SHORT signal."""
-        signal = TradingSignal(
-            direction="SHORT",
-            entry_price=1.2000,
-            stop_loss=1.2500,
-            take_profit_2=1.3000,
-        )
-
-        assert signal.direction == "SHORT"
-        assert signal.entry_price == 1.2000
-        assert signal.stop_loss == 1.2500
-        assert signal.take_profit_2 == 1.3000

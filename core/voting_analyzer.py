@@ -12,7 +12,7 @@ Option 2: Completely replace sequential filtering with a voting system.
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 from colorama import Fore, Style
@@ -298,6 +298,7 @@ class VotingAnalyzer:
         signal_type: str,
         osc_params: dict,
         spc_params: Optional[dict],
+        indicators_to_calculate: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Worker function to calculate signals from all indicators in parallel.
@@ -335,29 +336,34 @@ class VotingAnalyzer:
             results["atc_strength"] = min(atc_strength, 1.0)
 
             # Range Oscillator signal
-            osc_result = get_range_oscillator_signal(
-                data_fetcher=data_fetcher,
-                symbol=symbol,
-                timeframe=timeframe,
-                limit=limit,
-                osc_length=osc_params["osc_length"],
-                osc_mult=osc_params["osc_mult"],
-                strategies=osc_params["strategies"],
-            )
+            if indicators_to_calculate is None or "oscillator" in indicators_to_calculate:
+                osc_result = get_range_oscillator_signal(
+                    data_fetcher=data_fetcher,
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    limit=limit,
+                    osc_length=osc_params["osc_length"],
+                    osc_mult=osc_params["osc_mult"],
+                    strategies=osc_params["strategies"],
+                )
 
-            if osc_result is not None:
-                osc_signal, osc_confidence = osc_result
-                osc_vote = 1 if osc_signal == expected_signal else 0
-                results["osc_signal"] = osc_signal
-                results["osc_vote"] = osc_vote
-                results["osc_confidence"] = osc_confidence
+                if osc_result is not None:
+                    osc_signal, osc_confidence = osc_result
+                    osc_vote = 1 if osc_signal == expected_signal else 0
+                    results["osc_signal"] = osc_signal
+                    results["osc_vote"] = osc_vote
+                    results["osc_confidence"] = osc_confidence
+                else:
+                    results["osc_signal"] = 0
+                    results["osc_vote"] = 0
+                    results["osc_confidence"] = 0.0
             else:
                 results["osc_signal"] = 0
                 results["osc_vote"] = 0
                 results["osc_confidence"] = 0.0
 
             # SPC signals from all 3 strategies (if enabled)
-            if self.args.enable_spc and spc_params:
+            if (indicators_to_calculate is None or "spc" in indicators_to_calculate) and self.args.enable_spc and spc_params:
                 feature_config = FeatureConfig()
                 clustering_config = ClusteringConfig(
                     k=spc_params["k"],
@@ -428,7 +434,7 @@ class VotingAnalyzer:
                     results["spc_mean_reversion_strength"] = 0.0
 
             # XGBoost prediction (if enabled)
-            if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
+            if (indicators_to_calculate is None or "xgboost" in indicators_to_calculate) and hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
                 xgb_result = get_xgboost_signal(
                     data_fetcher=data_fetcher,
                     symbol=symbol,
@@ -447,7 +453,7 @@ class VotingAnalyzer:
                     results["xgboost_confidence"] = 0.0
 
             # HMM signal (if enabled)
-            if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
+            if (indicators_to_calculate is None or "hmm" in indicators_to_calculate) and hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
                 try:
                     hmm_result = get_hmm_signal(
                         data_fetcher=data_fetcher,
@@ -480,7 +486,7 @@ class VotingAnalyzer:
                     results["hmm_confidence"] = 0.0
 
             # Random Forest prediction (if enabled)
-            if hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+            if (indicators_to_calculate is None or "random_forest" in indicators_to_calculate) and hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
                 try:
                     rf_result = get_random_forest_signal(
                         data_fetcher=data_fetcher,
@@ -522,11 +528,19 @@ class VotingAnalyzer:
         self,
         atc_signals_df: pd.DataFrame,
         signal_type: str,
+        indicators_to_calculate: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """
         Calculate signals from all indicators in parallel.
 
         This replaces sequential filtering with parallel calculation.
+
+        Args:
+            atc_signals_df: DataFrame with ATC signals
+            signal_type: "LONG" or "SHORT"
+            indicators_to_calculate: Optional list of indicator names to calculate.
+                If None, calculates all enabled indicators.
+                Valid names: "oscillator", "spc", "xgboost", "hmm", "random_forest"
         """
         if atc_signals_df.empty:
             return pd.DataFrame()
@@ -536,16 +550,33 @@ class VotingAnalyzer:
         total = len(atc_signals_df)
 
         # Build indicator list for logging
-        indicators_list = ["ATC", "Range Oscillator"]
-        if self.args.enable_spc:
-            indicators_list.append("SPC")
-        if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
-            indicators_list.append("XGBoost")
-        if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
-            indicators_list.append("HMM")
+        indicators_list = ["ATC"]
+        if indicators_to_calculate is None:
+            # Calculate all enabled indicators
+            indicators_list.append("Range Oscillator")
+            if self.args.enable_spc:
+                indicators_list.append("SPC")
+            if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
+                indicators_list.append("XGBoost")
+            if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
+                indicators_list.append("HMM")
+            if hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+                indicators_list.append("Random Forest")
+        else:
+            # Only calculate specified indicators
+            if "oscillator" in indicators_to_calculate:
+                indicators_list.append("Range Oscillator")
+            if "spc" in indicators_to_calculate and self.args.enable_spc:
+                indicators_list.append("SPC")
+            if "xgboost" in indicators_to_calculate and hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
+                indicators_list.append("XGBoost")
+            if "hmm" in indicators_to_calculate and hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
+                indicators_list.append("HMM")
+            if "random_forest" in indicators_to_calculate and hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+                indicators_list.append("Random Forest")
 
         log_progress(
-            f"Calculating signals from all indicators for {total} {signal_type} symbols "
+            f"Calculating signals from indicators for {total} {signal_type} symbols "
             f"(workers: {osc_params['max_workers']})..."
         )
         log_progress(f"Indicators: {', '.join(indicators_list)}")
@@ -583,6 +614,7 @@ class VotingAnalyzer:
                     signal_type,
                     osc_params,
                     spc_params,
+                    indicators_to_calculate,
                 ): symbol_data["symbol"]
                 for symbol_data in symbol_data_list
             }
@@ -720,50 +752,65 @@ class VotingAnalyzer:
         self,
         signals_df: pd.DataFrame,
         signal_type: str,
+        indicators_to_include: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """
         Apply pure voting system to all signals.
 
         This is the core of Phương án 2 - no sequential filtering,
         just calculate all signals and vote.
+
+        Args:
+            signals_df: DataFrame with calculated signals
+            signal_type: "LONG" or "SHORT"
+            indicators_to_include: Optional list of indicator names to include in voting.
+                If None, includes all enabled indicators.
+                Valid names: "atc", "oscillator", "spc", "xgboost", "hmm", "random_forest"
         """
         if signals_df.empty:
             return pd.DataFrame()
 
-        indicators = ["atc", "oscillator"]
-        if self.args.enable_spc:
-            indicators.append("spc")
-        if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
-            indicators.append("xgboost")
-        if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
-            indicators.append("hmm")
-        if hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
-            indicators.append("random_forest")
+        if indicators_to_include is None:
+            # Include all enabled indicators
+            indicators = ["atc", "oscillator"]
+            if self.args.enable_spc:
+                indicators.append("spc")
+            if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
+                indicators.append("xgboost")
+            if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
+                indicators.append("hmm")
+            if hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+                indicators.append("random_forest")
+        else:
+            # Only include specified indicators
+            indicators = indicators_to_include.copy()
 
         results = []
 
         for _, row in signals_df.iterrows():
             classifier = DecisionMatrixClassifier(indicators=indicators)
 
-            # Get votes from all indicators
-            atc_vote = row.get("atc_vote", 0)
-            atc_strength = row.get("atc_strength", 0.0)
-            classifier.add_node_vote("atc", atc_vote, atc_strength, self._get_indicator_accuracy("atc", signal_type))
+            # Get votes from all indicators (only include those in indicators list)
+            if "atc" in indicators:
+                atc_vote = row.get("atc_vote", 0)
+                atc_strength = row.get("atc_strength", 0.0)
+                classifier.add_node_vote("atc", atc_vote, atc_strength, self._get_indicator_accuracy("atc", signal_type))
 
-            osc_vote = row.get("osc_vote", 0)
-            osc_strength = row.get("osc_confidence", 0.0)
-            classifier.add_node_vote(
-                "oscillator", osc_vote, osc_strength, self._get_indicator_accuracy("oscillator", signal_type)
-            )
+            if "oscillator" in indicators:
+                osc_vote = row.get("osc_vote", 0)
+                osc_strength = row.get("osc_confidence", 0.0)
+                classifier.add_node_vote(
+                    "oscillator", osc_vote, osc_strength, self._get_indicator_accuracy("oscillator", signal_type)
+                )
 
-            if self.args.enable_spc:
+            if "spc" in indicators and self.args.enable_spc:
                 # Aggregate 3 SPC votes into 1
                 spc_vote, spc_strength = self._aggregate_spc_votes(row.to_dict(), signal_type)
                 classifier.add_node_vote(
                     "spc", spc_vote, spc_strength, self._get_indicator_accuracy("spc", signal_type)
                 )
 
-            if hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
+            if "xgboost" in indicators and hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
                 # XGBoost vote
                 xgb_vote = row.get("xgboost_vote", 0)
                 xgb_strength = row.get("xgboost_confidence", 0.0)
@@ -771,7 +818,7 @@ class VotingAnalyzer:
                     "xgboost", xgb_vote, xgb_strength, self._get_indicator_accuracy("xgboost", signal_type)
                 )
 
-            if hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
+            if "hmm" in indicators and hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
                 # HMM vote
                 hmm_vote = row.get("hmm_vote", 0)
                 hmm_strength = row.get("hmm_confidence", 0.0)
@@ -779,7 +826,7 @@ class VotingAnalyzer:
                     "hmm", hmm_vote, hmm_strength, self._get_indicator_accuracy("hmm", signal_type)
                 )
 
-            if hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+            if "random_forest" in indicators and hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
                 # Random Forest vote
                 rf_vote = row.get("random_forest_vote", 0)
                 rf_strength = row.get("random_forest_confidence", 0.0)

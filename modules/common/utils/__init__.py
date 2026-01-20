@@ -14,6 +14,9 @@ from .data import dataframe_to_close_series, fetch_ohlcv_data_dict, validate_ohl
 # Domain utilities
 from .domain import days_to_candles, normalize_symbol, normalize_symbol_key, normalize_timeframe, timeframe_to_minutes
 
+# File utilities
+from .file import cleanup_old_files
+
 # Component initialization
 from .initialization import initialize_components
 from .system import (
@@ -29,11 +32,12 @@ from .system_utils import (
     is_retryable_error,
     setup_windows_stdin,
 )
+from typing import Any, Iterable
 
 _UNSET = object()
 
 
-def safe_input(prompt: str, default: str | object = _UNSET) -> str:
+def safe_input(prompt: str, default: Any = _UNSET) -> str:
     """
     Safely read input from stdin with Windows compatibility.
 
@@ -62,13 +66,13 @@ def safe_input(prompt: str, default: str | object = _UNSET) -> str:
 
         if not result:
             if default is not _UNSET:
-                return default
+                return str(default)
             return ""
 
         return result
     except (OSError, IOError, EOFError, AttributeError, ValueError):
         if default is not _UNSET:
-            return default
+            return str(default)
         raise
 
 
@@ -110,6 +114,8 @@ __all__ = [
     "normalize_timeframe",
     "timeframe_to_minutes",
     "days_to_candles",
+    # File
+    "cleanup_old_files",
     # UI/Formatting
     "color_text",
     "format_price",

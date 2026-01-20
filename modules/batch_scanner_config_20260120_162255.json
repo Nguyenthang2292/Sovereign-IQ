@@ -1,0 +1,31 @@
+{
+  "analysis_mode": "multi-timeframe",
+  "timeframe": "1h",
+  "timeframes": [
+    "15m",
+    "30m",
+    "1h"
+  ],
+  "cooldown": 2.5,
+  "limit": 700,
+  "enable_pre_filter": true,
+  "pre_filter_mode": "voting",
+  "fast_mode": true,
+  "spc_config": {
+    "preset": "aggressive",
+    "volatility_adjustment": false,
+    "use_correlation_weights": false,
+    "time_decay_factor": null,
+    "interpolation_mode": null,
+    "min_flip_duration": null,
+    "flip_confidence_threshold": null,
+    "enable_mtf": false,
+    "mtf_timeframes": null,
+    "mtf_require_alignment": null
+  },
+  "random_forest_model": {
+    "status": null,
+    "retrained": false
+  },
+  "export_timestamp": "2026-01-20T16:22:55.591217"
+}

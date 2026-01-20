@@ -10,25 +10,37 @@ import json
 import os
 import sys
 import time
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+# Add project root to sys.path
+# File is at: modules/gemini_chart_analyzer/core/scanners/market_batch_scanner.py
+# Project root is: modules/gemini_chart_analyzer/core/ -> modules/gemini_chart_analyzer/ -> modules/ -> project_root
+if "__file__" in globals():
+    current_file = Path(__file__).resolve()
+    # Go up 5 levels: scanners -> core -> gemini_chart_analyzer -> modules -> project_root
+    project_root = current_file.parent.parent.parent.parent.parent
+    project_root_str = str(project_root)
+    if project_root_str not in sys.path:
+        sys.path.insert(0, project_root_str)
 
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager, PublicExchangeManager
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
+from modules.gemini_chart_analyzer.core.exceptions import (
+    ChartGenerationError,
+    DataFetchError,
+    GeminiAnalysisError,
+    ReportGenerationError,
+    ScanConfigurationError,
+)
 from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
+from modules.gemini_chart_analyzer.core.prefilter_worker import run_prefilter_worker
+from modules.gemini_chart_analyzer.core.scanner_types import BatchScanResult, SignalResult, SymbolScanResult
 from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
-
-
-class SymbolFetchError(Exception):
-    """Custom exception for symbol fetching errors."""
-
-    def __init__(self, message: str, original_exception: Optional[Exception] = None, is_retryable: bool = False):
-        super().__init__(message)
-        self.original_exception = original_exception
-        self.is_retryable = is_retryable
 
 
 @contextlib.contextmanager
@@ -97,6 +109,7 @@ class MarketBatchScanner:
         quote_currency: str = "USDT",
         exchange_name: str = "binance",
         min_candles: Optional[int] = None,
+        rf_model_path: Optional[str] = None,
     ):
         """
         Initialize MarketBatchScanner.
@@ -107,6 +120,7 @@ class MarketBatchScanner:
             quote_currency: Quote currency to filter symbols (default: 'USDT')
             exchange_name: Exchange name to connect to (default: 'binance')
             min_candles: Minimum number of candles required for reliable technical analysis (default: 20)
+            rf_model_path: Path to Random Forest model for pre-filtering (default: None)
 
         Raises:
             ValueError: If min_candles is less than or equal to 0
@@ -120,6 +134,8 @@ class MarketBatchScanner:
         self.min_candles = min_candles if min_candles is not None else self.MIN_CANDLES
         if self.min_candles <= 0:
             raise ValueError(f"min_candles must be greater than 0, got {self.min_candles}")
+
+        self.rf_model_path = rf_model_path
 
         # Initialize components (except GeminiBatchChartAnalyzer - lazy init)
         self.exchange_manager = ExchangeManager()
@@ -205,8 +221,13 @@ class MarketBatchScanner:
         limit: int = 500,
         cancelled_callback: Optional[Callable[[], bool]] = None,
         initial_symbols: Optional[List[str]] = None,
+        enable_pre_filter: bool = False,
+        pre_filter_mode: str = "voting",
+        pre_filter_percentage: Optional[float] = None,
+        fast_mode: bool = True,
+        spc_config: Optional[Dict[str, Any]] = None,
         skip_cleanup: bool = False,
-    ) -> Dict:
+    ) -> BatchScanResult:
         """
         Scan entire market and return LONG/SHORT signals.
 
@@ -218,6 +239,12 @@ class MarketBatchScanner:
             cancelled_callback: Optional callable that returns bool; True indicates
                 cancellation and stops processing (default: None)
             initial_symbols: Optional list of symbols already pre-filtered from external pre-filter (default: None)
+            enable_pre_filter: Whether to run internal pre-filtering using VotingAnalyzer (default: False)
+            pre_filter_mode: Mode for pre-filtering ('voting' or 'hybrid') (default: 'voting')
+            pre_filter_percentage: Percentage of symbols to select via pre-filter (0-100).
+                                  If None, defaults to 10.0. Only used when enable_pre_filter=True.
+            fast_mode: Whether to run pre-filter in fast mode (default: True)
+            spc_config: Optional configuration for SPC analyzer (default: None)
             skip_cleanup: If True, skip automatic cleanup of old batch scan results and charts (default: False).
                          When False, all previous batch scan results and charts are deleted before starting a new scan.
                          Set to True to preserve historical scan data.
@@ -245,6 +272,8 @@ class MarketBatchScanner:
             from modules.gemini_chart_analyzer.core.utils import normalize_timeframes
 
             normalized_tfs = normalize_timeframes(timeframes)
+            if not normalized_tfs:
+                raise ScanConfigurationError("No valid timeframes provided for multi-timeframe scan")
             log_info(f"Multi-timeframe mode: {', '.join(normalized_tfs)}")
 
             # Use multi-TF batch chart generator
@@ -271,14 +300,8 @@ class MarketBatchScanner:
             log_info("Step 1: Getting all symbols from exchange...")
             try:
                 all_symbols = self.get_all_symbols()
-            except SymbolFetchError as e:
+            except DataFetchError as e:
                 log_error(f"Failed to fetch symbols from exchange: {e}")
-                if e.is_retryable:
-                    log_error(
-                        "This was a retryable error (network/rate limit). Please check your connection and try again."
-                    )
-                else:
-                    log_error("This was a non-retryable error. Please check exchange configuration and API access.")
                 # Re-raise to let caller handle the failure appropriately
                 raise
 
@@ -287,6 +310,40 @@ class MarketBatchScanner:
                 log_warn(f"  - No active spot markets for {self.quote_currency} on {self.exchange_name}")
                 log_warn("  - Exchange API returned empty market list")
                 log_warn("Continuing with empty symbol list...")
+
+        # Step 1.5: Apply internal pre-filter if enabled
+        if enable_pre_filter and all_symbols:
+            log_info(f"Step 1.5: Running internal pre-filter ({pre_filter_mode})...")
+            # Use provided percentage or default to 10%
+            # This percentage determines how many top-scoring symbols to select for Gemini analysis
+            # Lower percentage = fewer symbols but higher quality signals
+            # Higher percentage = more symbols but may include lower quality signals
+            if pre_filter_percentage is None:
+                pre_filter_percentage = 10.0
+            elif pre_filter_percentage <= 0.0 or pre_filter_percentage > 100.0:
+                log_warn(f"Invalid pre_filter_percentage {pre_filter_percentage}, using default 10.0")
+                pre_filter_percentage = 10.0
+
+            log_info(f"Pre-filter will select top {pre_filter_percentage}% of symbols by weighted score")
+
+            try:
+                pre_filtered = self._run_pre_filter(
+                    symbols=all_symbols,
+                    percentage=pre_filter_percentage,
+                    timeframe=normalized_tfs[0],
+                    limit=limit,
+                    mode=pre_filter_mode,
+                    fast_mode=fast_mode,
+                    spc_config=spc_config,
+                )
+                if pre_filtered:
+                    log_success(f"Internal pre-filter selected {len(pre_filtered)}/{len(all_symbols)} symbols")
+                    all_symbols = pre_filtered
+                else:
+                    log_warn("Internal pre-filter returned no symbols, continuing with original list")
+            except Exception as e:
+                log_error(f"Error during internal pre-filtering: {e}")
+                log_warn("Continuing with original symbol list due to pre-filter error")
 
         # Apply max_symbols (after initial_symbols if provided)
         if max_symbols and all_symbols:
@@ -321,26 +378,36 @@ class MarketBatchScanner:
                     none_symbols_with_confidence,
                 ) = self._categorize_and_sort_results(all_results)
 
+                # Helper function to extract signal from result (supports both dataclass and dict)
+                def _get_signal(result):
+                    if hasattr(result, "signal"):
+                        return result.signal
+                    elif isinstance(result, dict):
+                        return result.get("signal", "NONE")
+                    elif isinstance(result, str):
+                        return result
+                    return "NONE"
+
                 # Return partial results
-                return {
-                    "status": "cancelled",
-                    "long_symbols": long_symbols,
-                    "short_symbols": short_symbols,
-                    "none_symbols": none_symbols,
-                    "long_symbols_with_confidence": long_symbols_with_confidence,
-                    "short_symbols_with_confidence": short_symbols_with_confidence,
-                    "none_symbols_with_confidence": none_symbols_with_confidence,
-                    "all_results": all_results,
-                    "summary": {
+                return BatchScanResult(
+                    status="cancelled",
+                    long_symbols=long_symbols,
+                    short_symbols=short_symbols,
+                    none_symbols=none_symbols,
+                    long_symbols_with_confidence=long_symbols_with_confidence,
+                    short_symbols_with_confidence=short_symbols_with_confidence,
+                    none_symbols_with_confidence=none_symbols_with_confidence,
+                    all_results=all_results,
+                    summary={
                         "total": len(all_results),
-                        "long": len([r for r in all_results.values() if r.get("signal") == "LONG"]),
-                        "short": len([r for r in all_results.values() if r.get("signal") == "SHORT"]),
-                        "none": len([r for r in all_results.values() if r.get("signal") == "NONE"]),
+                        "long": len([r for r in all_results.values() if _get_signal(r) == "LONG"]),
+                        "short": len([r for r in all_results.values() if _get_signal(r) == "SHORT"]),
+                        "none": len([r for r in all_results.values() if _get_signal(r) == "NONE"]),
                     },
-                    "results_file": "",
-                    "batches_processed": batch_idx - 1,
-                    "total_batches": len(batches),
-                }
+                    results_file="",
+                    batches_processed=batch_idx - 1,
+                    total_batches=len(batches),
+                )
 
             log_info(f"\n{'=' * 60}")
             log_info(f"Processing batch {batch_idx}/{len(batches)}")
@@ -367,6 +434,7 @@ class MarketBatchScanner:
                                     symbols_tf_data[symbol][tf] = df
                             except Exception as e:
                                 log_error(f"Error fetching {symbol} {tf}: {e}")
+                                # continue to next timeframe for this symbol
 
                     # Filter symbols that have data for at least one timeframe
                     valid_symbols = {sym for sym, tf_data in symbols_tf_data.items() if tf_data}
@@ -374,7 +442,7 @@ class MarketBatchScanner:
                     if not valid_symbols:
                         log_warn(f"No valid data for batch {batch_idx}, skipping...")
                         for symbol in batch_symbols:
-                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
                         continue
 
                     log_success(f"Fetched data for {len(valid_symbols)} symbols")
@@ -400,7 +468,7 @@ class MarketBatchScanner:
                             f"No results object returned (API error or exception). Skipping batch."
                         )
                         for symbol in valid_symbols:
-                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
                         continue
                     elif isinstance(parsed_results, dict) and not parsed_results:
                         log_info(
@@ -408,7 +476,7 @@ class MarketBatchScanner:
                             f"(empty result set). Skipping batch."
                         )
                         for symbol in valid_symbols:
-                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
                         continue
 
                     log_success(f"Parsed {len(parsed_results)} results from Gemini")
@@ -417,21 +485,36 @@ class MarketBatchScanner:
                     for symbol in valid_symbols:
                         if symbol in parsed_results:
                             symbol_result = parsed_results[symbol]
-                            tf_signals = symbol_result.get("timeframes", {})
-                            aggregated = symbol_result.get("aggregated")
+
+                            # Support both new dataclass format (SymbolScanResult) and legacy dict format
+                            if isinstance(symbol_result, SymbolScanResult):
+                                tf_signals = symbol_result.timeframes
+                                aggregated = symbol_result.aggregated
+                            elif isinstance(symbol_result, dict):
+                                # Backward compatibility: dict format
+                                tf_signals = symbol_result.get("timeframes", {})
+                                aggregated = symbol_result.get("aggregated")
+                            else:
+                                # Unexpected format - log and create empty result
+                                log_warn(
+                                    f"Unexpected result format for {symbol}: {type(symbol_result).__name__}, "
+                                    f"expected SymbolScanResult or dict"
+                                )
+                                tf_signals = {}
+                                aggregated = None
 
                             # If aggregated signal not provided by Gemini, calculate it
                             if aggregated is None:
                                 aggregated = signal_aggregator.aggregate_signals(tf_signals)
 
-                            batch_result[symbol] = {"timeframes": tf_signals, "aggregated": aggregated}
+                            batch_result[symbol] = SymbolScanResult(timeframes=tf_signals, aggregated=aggregated)
                         else:
                             # Symbol not found in parsed results (shouldn't happen, but handle gracefully)
                             log_warn(f"Symbol {symbol} not found in parsed multi-TF results")
-                            batch_result[symbol] = {
-                                "timeframes": {tf: {"signal": "NONE", "confidence": 0.0} for tf in normalized_tfs},
-                                "aggregated": {"signal": "NONE", "confidence": 0.0},
-                            }
+                            batch_result[symbol] = SymbolScanResult(
+                                timeframes={tf: SignalResult(signal="NONE", confidence=0.0) for tf in normalized_tfs},
+                                aggregated=SignalResult(signal="NONE", confidence=0.0),
+                            )
 
                 else:
                     # Single timeframe: Original logic
@@ -443,7 +526,7 @@ class MarketBatchScanner:
                         log_warn(f"No data fetched for batch {batch_idx}, skipping...")
                         # Mark all as NONE
                         for symbol in batch_symbols:
-                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
                         continue
 
                     log_success(f"Fetched data for {len(symbols_data)} symbols")
@@ -471,10 +554,10 @@ class MarketBatchScanner:
                 if is_multi_tf:
                     # For multi-TF, extract aggregated signals
                     for symbol, result in batch_result.items():
-                        if isinstance(result, dict) and "aggregated" in result:
-                            all_results[symbol] = result["aggregated"]
+                        if hasattr(result, "aggregated") and result.aggregated:
+                            all_results[symbol] = result.aggregated
                         else:
-                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
 
                     batch_results.append(
                         {"batch_id": batch_idx, "symbols": list(valid_symbols), "results": batch_result}
@@ -483,7 +566,7 @@ class MarketBatchScanner:
                     # Handle symbols that failed
                     for symbol in batch_symbols:
                         if symbol not in valid_symbols:
-                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
                 else:
                     # Single timeframe: Original logic
                     all_results.update(batch_result)
@@ -499,14 +582,25 @@ class MarketBatchScanner:
                     fetched_symbols = {sd["symbol"] for sd in symbols_data}
                     for symbol in batch_symbols:
                         if symbol not in fetched_symbols:
-                            all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
 
+            except GeminiAnalysisError as e:
+                log_error(f"Gemini analysis error for batch {batch_idx}: {e}")
+                # Mark all remaining symbols in this batch as NONE
+                for symbol in batch_symbols:
+                    if symbol not in all_results:
+                        all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
+            except ChartGenerationError as e:
+                log_error(f"Chart generation error for batch {batch_idx}: {e}")
+                for symbol in batch_symbols:
+                    if symbol not in all_results:
+                        all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
             except Exception as e:
-                log_error(f"Error processing batch {batch_idx}: {e}")
+                log_error(f"Unexpected error processing batch {batch_idx}: {e}")
                 # Mark all symbols in this batch as NONE
                 for symbol in batch_symbols:
                     if symbol not in all_results:
-                        all_results[symbol] = {"signal": "NONE", "confidence": 0.0}
+                        all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
 
         # Step 4: Aggregate and sort results by confidence
         log_info(f"\n{'=' * 60}")
@@ -566,16 +660,16 @@ class MarketBatchScanner:
             log_success(f"  Average SHORT confidence: {summary['avg_short_confidence']:.2f}")
         log_success(f"Results saved to: {results_file}")
 
-        return {
-            "long_symbols": long_symbols,  # Sorted by confidence (high to low)
-            "short_symbols": short_symbols,  # Sorted by confidence (high to low)
-            "none_symbols": none_symbols,
-            "long_symbols_with_confidence": long_symbols_with_confidence,  # [(symbol, confidence), ...]
-            "short_symbols_with_confidence": short_symbols_with_confidence,  # [(symbol, confidence), ...]
-            "all_results": all_results,
-            "summary": summary,
-            "results_file": results_file,
-        }
+        return BatchScanResult(
+            long_symbols=long_symbols,  # Sorted by confidence (high to low)
+            short_symbols=short_symbols,  # Sorted by confidence (high to low)
+            none_symbols=none_symbols,
+            long_symbols_with_confidence=long_symbols_with_confidence,  # [(symbol, confidence), ...]
+            short_symbols_with_confidence=short_symbols_with_confidence,  # [(symbol, confidence), ...]
+            all_results=all_results,
+            summary=summary,
+            results_file=results_file,
+        )
 
     def get_all_symbols(self, max_retries: int = 3, retry_delay: float = 1.0) -> List[str]:
         """
@@ -659,26 +753,72 @@ class MarketBatchScanner:
                     log_error(f"Error getting symbols: {error_message}")
                     if is_retryable:
                         # Final retry failed
-                        raise SymbolFetchError(
-                            f"Failed to fetch symbols after {max_retries} attempts: {error_message}",
-                            original_exception=e,
-                            is_retryable=True,
+                        raise DataFetchError(
+                            f"Failed to fetch symbols after {max_retries} attempts: {error_message}"
                         ) from e
                     else:
                         # Non-retryable error
-                        raise SymbolFetchError(
-                            f"Failed to fetch symbols (non-retryable error): {error_message}",
-                            original_exception=e,
-                            is_retryable=False,
-                        ) from e
+                        raise DataFetchError(f"Failed to fetch symbols (non-retryable error): {error_message}") from e
 
         # This should never be reached, but just in case
         if last_exception:
-            raise SymbolFetchError(
-                f"Failed to fetch symbols after {max_retries} attempts",
-                original_exception=last_exception,
-                is_retryable=True,
+            raise DataFetchError(
+                f"Failed to fetch symbols after {max_retries} attempts: {last_exception}"
             ) from last_exception
+
+    def _run_pre_filter(
+        self,
+        symbols: List[str],
+        percentage: float,
+        timeframe: str,
+        limit: int,
+        mode: str = "voting",
+        fast_mode: bool = True,
+        spc_config: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """
+        Run internal pre-filter using 3-stage sequential filtering workflow.
+
+        Stage 1: ATC scan → keep 100% of symbols that pass ATC
+        Stage 2: Range Oscillator + SPC → Voting → Decision Matrix → keep 100% that pass
+        Stage 3: XGBoost + HMM + RF → Voting → Decision Matrix → keep 100% that pass
+
+        Args:
+            symbols: List of symbols to filter
+            percentage: Percentage of symbols to select (0-100) - applied to final result if needed
+            timeframe: Timeframe for analysis
+            limit: Number of candles per symbol
+            mode: Pre-filter mode ('voting' or 'hybrid')
+            fast_mode: Whether to run in fast mode (Stage 3 still calculates all ML models)
+            spc_config: Optional SPC configuration
+
+        Returns:
+            List of pre-filtered symbols from Stage 3 (or percentage of final result)
+        """
+        try:
+            log_info(f"Pre-filter processing {len(symbols)} symbols (this may take several minutes)...")
+
+            # Call pre-filter function directly in the same process
+            filtered_symbols = run_prefilter_worker(
+                all_symbols=symbols,
+                percentage=percentage,
+                timeframe=timeframe,
+                limit=limit,
+                mode=mode,
+                fast_mode=fast_mode,
+                spc_config=spc_config,
+                rf_model_path=self.rf_model_path,
+            )
+
+            log_success(f"Pre-filter completed: Selected {len(filtered_symbols)}/{len(symbols)} symbols")
+            return filtered_symbols
+
+        except Exception as e:
+            log_error(f"Failed to run pre-filter: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return symbols
 
     def _split_into_batches(self, symbols: List[str], batch_size: Optional[int] = None) -> List[List[str]]:
         """
@@ -726,7 +866,10 @@ class MarketBatchScanner:
         legacy_format_symbols = []
 
         for symbol, result in all_results.items():
-            if isinstance(result, dict):
+            if hasattr(result, "signal"):
+                signal = result.signal
+                confidence = result.confidence
+            elif isinstance(result, dict):
                 signal = result.get("signal", "NONE")
                 confidence = result.get("confidence", 0.0)
             else:
@@ -805,7 +948,7 @@ class MarketBatchScanner:
                     log_warn(f"Insufficient data for {symbol}, skipping...")
 
             except Exception as e:
-                log_warn(f"Error fetching {symbol}: {e}, skipping...")
+                log_error(f"Error fetching data for {symbol}: {e}")
                 continue
 
         return symbols_data
@@ -848,6 +991,14 @@ class MarketBatchScanner:
         else:
             results_file = os.path.join(output_dir, f"batch_scan_{timeframe}_{timestamp}.json")
 
+        # Convert dataclasses to dicts for JSON serialization
+        serializable_results = {}
+        for k, v in all_results.items():
+            if hasattr(v, "__dataclass_fields__"):
+                serializable_results[k] = asdict(v)
+            else:
+                serializable_results[k] = v
+
         results_data = {
             "timestamp": datetime.now().isoformat(),
             "timeframe": timeframe,
@@ -857,18 +1008,18 @@ class MarketBatchScanner:
             "short_symbols": short_symbols,  # Sorted by confidence
             "long_symbols_with_confidence": long_with_confidence or [],
             "short_symbols_with_confidence": short_with_confidence or [],
-            "all_results": all_results,
+            "all_results": serializable_results,
         }
 
         try:
             with open(results_file, "w", encoding="utf-8") as f:
                 json.dump(results_data, f, indent=2, ensure_ascii=False)
         except OSError as e:
-            log_error(f"Failed to save results file {results_file}: {e}")
-            raise IOError(f"Failed to save results file: {e}") from e
+            log_error(f"IO Error saving results file {results_file}: {e}")
+            raise ReportGenerationError(f"Failed to save results file: {e}") from e
         except Exception as e:
             log_error(f"Unexpected error saving results file: {e}")
-            raise RuntimeError(f"Unexpected error saving results file: {e}") from e
+            raise ReportGenerationError(f"Unexpected error saving results file: {e}") from e
 
         # Generate HTML report
         html_path = None
@@ -929,8 +1080,10 @@ class MarketBatchScanner:
                     try:
                         os.remove(file_path)
                         deleted_count += 1
-                    except Exception as e:
+                    except OSError as e:
                         log_warn(f"Could not delete file {os.path.basename(file_path)}: {e}")
+                    except Exception as e:
+                        log_warn(f"Unexpected error deleting {os.path.basename(file_path)}: {e}")
 
                 if deleted_count > 0:
                     log_info(f"Deleted {deleted_count} old batch scan result file(s)")

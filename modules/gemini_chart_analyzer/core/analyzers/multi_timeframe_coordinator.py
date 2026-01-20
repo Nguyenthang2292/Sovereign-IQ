@@ -11,6 +11,12 @@ from typing import Any, Callable, Dict, List, Optional
 from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
 from modules.common.ui.logging import log_debug, log_error, log_info, log_success, log_warn
 from modules.gemini_chart_analyzer.core.aggregators.signal_aggregator import SignalAggregator
+from modules.gemini_chart_analyzer.core.exceptions import (
+    ChartGenerationError,
+    DataFetchError,
+    GeminiAnalysisError,
+    ScanConfigurationError,
+)
 from modules.gemini_chart_analyzer.core.utils import normalize_timeframes, validate_timeframes
 
 
@@ -41,11 +47,11 @@ class MultiTimeframeCoordinator:
             ValueError: If the timeframes are invalid
         """
         if not timeframes:
-            raise ValueError("Timeframes list cannot be empty")
+            raise ScanConfigurationError("Timeframes list cannot be empty")
 
         is_valid, error_msg = validate_timeframes(timeframes)
         if not is_valid:
-            raise ValueError(error_msg or "Invalid timeframes")
+            raise ScanConfigurationError(error_msg or "Invalid timeframes")
 
         return normalize_timeframes(timeframes)
 
@@ -206,31 +212,36 @@ class MultiTimeframeCoordinator:
 
                 log_success(f"Completed analysis for {symbol} on {tf}")
 
-            except FileNotFoundError as e:
-                # Sanitize error message to prevent information leakage
-                log_error(f"Chart file not found for {symbol} on {tf}: {type(e).__name__}")
+            except GeminiAnalysisError as e:
+                log_error(f"Gemini analysis error for {symbol} on {tf}: {e}")
                 timeframe_results[tf] = {
                     "signal": "NONE",
                     "confidence": 0.0,
-                    "analysis": "Chart file not found",
-                    "error": "FileNotFoundError",
+                    "analysis": "Gemini analysis error",
+                    "error": str(e),
+                }
+            except ChartGenerationError as e:
+                log_error(f"Chart generation error for {symbol} on {tf}: {e}")
+                timeframe_results[tf] = {
+                    "signal": "NONE",
+                    "confidence": 0.0,
+                    "analysis": "Chart generation error",
+                    "error": str(e),
+                }
+            except DataFetchError as e:
+                log_error(f"Data fetch error for {symbol} on {tf}: {e}")
+                timeframe_results[tf] = {
+                    "signal": "NONE",
+                    "confidence": 0.0,
+                    "analysis": "Data fetch error",
+                    "error": str(e),
                 }
             except (OSError, IOError) as e:
-                # Sanitize error message to prevent information leakage
-                log_error(f"File I/O error analyzing {symbol} on {tf}: {type(e).__name__}")
+                log_error(f"File I/O error analyzing {symbol} on {tf}: {e}")
                 timeframe_results[tf] = {
                     "signal": "NONE",
                     "confidence": 0.0,
                     "analysis": "File I/O error",
-                    "error": type(e).__name__,
-                }
-            except ValueError as e:
-                # Sanitize error message to prevent information leakage
-                log_error(f"Invalid data error analyzing {symbol} on {tf}: {type(e).__name__}")
-                timeframe_results[tf] = {
-                    "signal": "NONE",
-                    "confidence": 0.0,
-                    "analysis": "Invalid data error",
                     "error": type(e).__name__,
                 }
             except Exception as e:
@@ -311,20 +322,9 @@ class MultiTimeframeCoordinator:
         chart_path = None
         try:
             chart_path = generate_batch_chart_func(symbols_data, normalized_tfs)
-        except (OSError, IOError) as e:
+        except (ChartGenerationError, OSError, IOError) as e:
             # Sanitize error message to prevent information leakage
-            log_error(
-                f"File I/O error generating batch chart for {len(symbols)} symbols "
-                f"across {len(normalized_tfs)} timeframes: {type(e).__name__}"
-            )
-            # Return empty batch_results structure for all symbols
-            return {symbol: self._create_empty_symbol_result() for symbol in symbols}
-        except ValueError as e:
-            # Sanitize error message to prevent information leakage
-            log_error(
-                f"Invalid data error generating batch chart for {len(symbols)} symbols "
-                f"across {len(normalized_tfs)} timeframes: {type(e).__name__}"
-            )
+            log_error(f"Error generating batch chart: {e}")
             # Return empty batch_results structure for all symbols
             return {symbol: self._create_empty_symbol_result() for symbol in symbols}
         except Exception as e:
@@ -343,29 +343,14 @@ class MultiTimeframeCoordinator:
         batch_results = None
         try:
             batch_results = analyze_batch_chart_func(chart_path, symbols, normalized_tfs)
-        except FileNotFoundError as e:
-            # Sanitize error message to prevent information leakage
-            log_error(
-                f"Chart file not found for batch analysis of {len(symbols)} symbols "
-                f"across {len(normalized_tfs)} timeframes: {type(e).__name__}"
-            )
-            # Return empty batch_results structure for all symbols
+        except GeminiAnalysisError as e:
+            log_error(f"Gemini analysis error for batch: {e}")
             batch_results = {symbol: self._create_empty_symbol_result() for symbol in symbols}
-        except (ValueError, TypeError) as e:
-            # Sanitize error message to prevent information leakage
-            log_error(
-                f"Data parsing error analyzing batch chart for {len(symbols)} symbols "
-                f"across {len(normalized_tfs)} timeframes: {type(e).__name__}"
-            )
-            # Return empty batch_results structure for all symbols
+        except FileNotFoundError as e:
+            log_error(f"Chart file not found for batch analysis: {e}")
             batch_results = {symbol: self._create_empty_symbol_result() for symbol in symbols}
         except Exception as e:
-            # Sanitize error message to prevent information leakage
-            log_error(
-                f"Unexpected error analyzing batch chart for {len(symbols)} symbols "
-                f"across {len(normalized_tfs)} timeframes: {type(e).__name__}"
-            )
-            # Return empty batch_results structure for all symbols
+            log_error(f"Unexpected error in batch analysis: {e}")
             batch_results = {symbol: self._create_empty_symbol_result() for symbol in symbols}
         finally:
             # Ensure chart cleanup happens on both success and failure paths
