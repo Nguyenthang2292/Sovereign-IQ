@@ -405,8 +405,14 @@ def get_xgboost_signal(
         # Initialize IndicatorEngine for XGBoost features
         indicator_engine = IndicatorEngine(IndicatorConfig.for_profile(IndicatorProfile.XGBOOST))
 
-        # Calculate indicators without labels first (to preserve latest_data)
+        # Calculate basic indicators without labels first (to preserve latest_data)
         df = indicator_engine.compute_features(df)
+
+        # Calculate advanced features required by XGBoost MODEL_FEATURES
+        # This includes: ROC, atr_ratio, price_to_SMA, rolling stats, lag features, time features
+        from modules.random_forest.utils.features import add_advanced_features
+
+        df = add_advanced_features(df)
 
         # Save latest data before applying labels and dropping NaN
         latest_data = df.iloc[-1:].copy()

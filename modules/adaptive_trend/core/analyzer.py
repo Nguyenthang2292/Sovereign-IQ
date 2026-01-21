@@ -74,11 +74,11 @@ def analyze_symbol(
         # Get price source based on calculation_source config
         calculation_source = config.calculation_source.lower()
         valid_sources = ["close", "open", "high", "low"]
-        
+
         if calculation_source not in valid_sources:
             log_warn(f"Invalid calculation_source '{calculation_source}', using 'close'")
             calculation_source = "close"
-        
+
         if calculation_source not in df.columns:
             log_error(f"No '{calculation_source}' column in data for {symbol}")
             return None

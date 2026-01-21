@@ -35,6 +35,13 @@ def _synthetic_df(rows=300):
         "low": rng.normal(99, 1, rows).cumsum(),
         "close": rng.normal(100.5, 1, rows).cumsum(),
         "volume": rng.integers(1000, 2000, rows),
+        # Price-derived features (required by MODEL_FEATURES)
+        "returns_1": rng.normal(0, 0.01, rows),
+        "returns_5": rng.normal(0, 0.02, rows),
+        "log_volume": np.log1p(rng.integers(1000, 2000, rows)),
+        "high_low_range": rng.uniform(0.001, 0.01, rows),
+        "close_open_diff": rng.normal(0, 0.005, rows),
+        # Technical indicators
         "SMA_20": rng.normal(100, 1, rows),
         "SMA_50": rng.normal(100, 1, rows),
         "SMA_200": rng.normal(100, 1, rows),
@@ -88,6 +95,36 @@ def _synthetic_df(rows=300):
         "KICKER_BULL": rng.integers(0, 2, rows),
         "KICKER_BEAR": rng.integers(0, 2, rows),
         "HANGING_MAN": rng.integers(0, 2, rows),
+        # Advanced features (required by MODEL_FEATURES)
+        "roc_3": rng.normal(0, 0.01, rows),
+        "roc_5": rng.normal(0, 0.015, rows),
+        "roc_10": rng.normal(0, 0.02, rows),
+        "roc_20": rng.normal(0, 0.03, rows),
+        "atr_ratio": rng.uniform(0.005, 0.02, rows),
+        "price_to_SMA_20": rng.normal(1.0, 0.05, rows),
+        "price_to_SMA_50": rng.normal(1.0, 0.08, rows),
+        "price_to_SMA_200": rng.normal(1.0, 0.15, rows),
+        "rolling_std_10": rng.uniform(0.005, 0.02, rows),
+        "rolling_std_20": rng.uniform(0.005, 0.025, rows),
+        "rolling_skew_10": rng.normal(0, 0.5, rows),
+        "rolling_skew_20": rng.normal(0, 0.5, rows),
+        # Lag features
+        "returns_1_lag_1": rng.normal(0, 0.01, rows),
+        "returns_1_lag_2": rng.normal(0, 0.01, rows),
+        "returns_1_lag_3": rng.normal(0, 0.01, rows),
+        "RSI_14_lag_1": rng.uniform(0, 100, rows),
+        "RSI_14_lag_2": rng.uniform(0, 100, rows),
+        "RSI_14_lag_3": rng.uniform(0, 100, rows),
+        "log_volume_lag_1": np.log1p(rng.integers(1000, 2000, rows)),
+        "log_volume_lag_2": np.log1p(rng.integers(1000, 2000, rows)),
+        "log_volume_lag_3": np.log1p(rng.integers(1000, 2000, rows)),
+        "atr_ratio_lag_1": rng.uniform(0.005, 0.02, rows),
+        "atr_ratio_lag_2": rng.uniform(0.005, 0.02, rows),
+        "atr_ratio_lag_3": rng.uniform(0.005, 0.02, rows),
+        # Time-based features
+        "hour": rng.integers(0, 24, rows),
+        "dayofweek": rng.integers(0, 7, rows),
+        "month": rng.integers(1, 13, rows),
     }
     df = pd.DataFrame(data)
     df["Target"] = rng.integers(0, len(TARGET_LABELS), rows)
@@ -115,7 +152,7 @@ def test_train_and_predict_handles_small_dataset(monkeypatch):
     df = _synthetic_df(rows=60)
 
     # Force TARGET_HORIZON to be larger to trigger exception branch
-    monkeypatch.setattr("modules.xgboost.model.TARGET_HORIZON", 50)
+    monkeypatch.setattr("modules.xgboost.core.model.TARGET_HORIZON", 50)
     with pytest.raises(ValueError, match="Insufficient data for train/test split with gap"):
         train_and_predict(df)
 
