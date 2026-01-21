@@ -665,7 +665,7 @@ def main() -> None:
 
         # Check shared memory availability for configuration display
         try:
-            from modules.backtester.core.shared_memory_utils import SHARED_MEMORY_AVAILABLE
+            from modules.common.system.shared_memory_utils import SHARED_MEMORY_AVAILABLE
 
             shared_memory_available = SHARED_MEMORY_AVAILABLE
         except ImportError:

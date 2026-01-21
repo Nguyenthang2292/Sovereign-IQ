@@ -5,14 +5,14 @@ from typing import Optional, Tuple
 
 import pandas as pd
 
-from modules.adaptive_trend_enhance.core.hardware_manager import get_hardware_manager
-from modules.adaptive_trend_enhance.core.memory_manager import track_memory
 from modules.adaptive_trend_enhance.utils import diflen
+from modules.common.system import get_hardware_manager, temp_series, track_memory
 from modules.common.utils import log_error, log_warn
 
 from .ma_calculation_enhanced import ma_calculation_enhanced
 
 
+@temp_series
 def set_of_moving_averages_enhanced(
     length: int,
     source: pd.Series,

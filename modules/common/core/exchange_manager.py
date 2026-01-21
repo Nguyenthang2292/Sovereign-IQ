@@ -15,7 +15,7 @@ import ccxt
 logger = logging.getLogger(__name__)
 
 # Import normalize_symbol from utils (core module, should always be available)
-from modules.common.utils.domain import normalize_symbol
+from modules.common.domain import normalize_symbol
 
 try:
     from config import (

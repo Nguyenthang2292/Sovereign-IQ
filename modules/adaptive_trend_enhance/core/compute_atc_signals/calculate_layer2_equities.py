@@ -18,9 +18,9 @@ except ImportError:
     def log_warn(msg: str) -> None:  # pragma: no cover
         print(f"[WARN] {msg}")
 
+
 from modules.adaptive_trend_enhance.core.compute_equity import equity_series
-from modules.adaptive_trend_enhance.core.hardware_manager import get_hardware_manager
-from modules.adaptive_trend_enhance.core.memory_manager import get_memory_manager
+from modules.common.system import get_memory_manager, temp_series, get_hardware_manager
 
 try:
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -30,6 +30,7 @@ except ImportError:  # pragma: no cover
     THREADING_AVAILABLE = False
 
 
+@temp_series
 def calculate_layer2_equities(
     layer1_signals: Dict[str, pd.Series],
     ma_configs: list,

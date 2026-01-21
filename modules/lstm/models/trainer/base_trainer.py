@@ -9,6 +9,8 @@ from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 
+# Environment setup for PyTorch from config
+from modules.common.system import get_pytorch_env
 from modules.common.ui.logging import (
     log_error,
     log_info,
@@ -17,9 +19,6 @@ from modules.common.ui.logging import (
     log_system,
     log_warn,
 )
-
-# Environment setup for PyTorch from config
-from modules.common.utils.system import get_pytorch_env
 
 os.environ.update(get_pytorch_env())
 
@@ -75,7 +74,7 @@ from config.lstm import (
     WINDOW_SIZE_LSTM,
 )
 from config.model_features import MODEL_FEATURES
-from modules.common.utils.system import configure_gpu_memory, detect_pytorch_gpu_availability
+from modules.common.system import configure_gpu_memory, detect_pytorch_gpu_availability
 from modules.lstm.core.focal_loss import FocalLoss
 from modules.lstm.core.threshold_optimizer import GridSearchThresholdOptimizer
 

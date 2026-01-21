@@ -3,13 +3,11 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 import pandas_ta as ta
 
-from modules.adaptive_trend_enhance.core.hardware_manager import get_hardware_manager
-from modules.adaptive_trend_enhance.core.memory_manager import track_memory
 from modules.adaptive_trend_enhance.utils.cache_manager import get_cached_ma
+from modules.common.system import get_hardware_manager, track_memory
 from modules.common.utils import log_error, log_warn
 
 from ._gpu import _calculate_ma_gpu

@@ -84,7 +84,7 @@ Equity curves mô phỏng performance của trading strategy:
 
 ```python
 import pandas as pd
-from modules.adaptive_trend import compute_atc_signals, ATCConfig
+from modules.adaptive_trend_enhance import compute_atc_signals, ATCConfig
 
 # Chuẩn bị dữ liệu
 prices = pd.Series([...])  # Close prices
@@ -128,9 +128,9 @@ hma_signal = results["HMA_Signal"]         # Layer 1: HMA signal
 ### Phân tích một symbol
 
 ```python
-from modules.adaptive_trend import analyze_symbol, ATCConfig
-from modules.common.DataFetcher import DataFetcher
-from modules.common.ExchangeManager import ExchangeManager
+from modules.adaptive_trend_enhance import analyze_symbol, ATCConfig
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
 
 # Khởi tạo
 exchange_manager = ExchangeManager()
@@ -160,9 +160,9 @@ if result:
 ### Scan nhiều symbols
 
 ```python
-from modules.adaptive_trend import scan_all_symbols, ATCConfig
-from modules.common.DataFetcher import DataFetcher
-from modules.common.ExchangeManager import ExchangeManager
+from modules.adaptive_trend_enhance import scan_all_symbols, ATCConfig
+from modules.common.core.data_fetcher import DataFetcher
+from modules.common.core.exchange_manager import ExchangeManager
 
 # Khởi tạo
 exchange_manager = ExchangeManager()
@@ -176,17 +176,14 @@ config = ATCConfig(
 )
 
 # Scan
-symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT"]
-results, stats = scan_all_symbols(
-    symbols=symbols,
+results, short_signals = scan_all_symbols(
     data_fetcher=data_fetcher,
     atc_config=config,
     min_signal=0.5,  # Minimum signal strength
-    parallel=True,   # Use parallel processing
 )
 
 # Kết quả
-for result in results:
+for _, result in results.iterrows():
     print(f"{result['symbol']}: Signal = {result['signal']}")
 ```
 
@@ -194,16 +191,16 @@ for result in results:
 
 ```bash
 # Phân tích một symbol
-python main_atc.py BTC/USDT
+python -m modules.adaptive_trend_enhance.cli.main BTC/USDT
 
 # Scan tất cả futures symbols
-python main_atc.py --auto --scan
+python -m modules.adaptive_trend_enhance.cli.main --auto
 
 # Interactive mode
-python main_atc.py --interactive
+python -m modules.adaptive_trend_enhance.cli.main
 
 # Custom timeframe
-python main_atc.py BTC/USDT --timeframe 1h
+python -m modules.adaptive_trend_enhance.cli.main BTC/USDT --timeframe 1h
 ```
 
 ## Cấu hình
@@ -263,7 +260,7 @@ Tất cả đều là `pd.Series` với cùng index như input prices.
 Tính toán rate of change (tỷ lệ thay đổi) của một series:
 
 ```python
-from modules.adaptive_trend.utils import rate_of_change
+from modules.adaptive_trend_enhance.utils import rate_of_change
 
 roc = rate_of_change(prices, period=1)
 ```
@@ -273,7 +270,7 @@ roc = rate_of_change(prices, period=1)
 Tính toán độ dài khác biệt dựa trên robustness mode:
 
 ```python
-from modules.adaptive_trend.utils import diflen
+from modules.adaptive_trend_enhance.utils import diflen
 
 offset = diflen(robustness="Medium")  # Returns offset value
 ```
@@ -283,7 +280,7 @@ offset = diflen(robustness="Medium")  # Returns offset value
 Tính toán exponential growth factor:
 
 ```python
-from modules.adaptive_trend.utils import exp_growth
+from modules.adaptive_trend_enhance.utils import exp_growth
 
 growth = exp_growth(La=0.02, period=1)
 ```
@@ -316,19 +313,18 @@ growth = exp_growth(La=0.02, period=1)
 
 ## CLI Commands
 
-Module cung cấp CLI interface qua `main_atc.py`:
+Module cung cấp CLI interface qua `modules/adaptive_trend_enhance/cli/main.py`:
 
 ```bash
 # Basic usage
-python main_atc.py <SYMBOL>
+python -m modules.adaptive_trend_enhance.cli.main <SYMBOL>
 
 # Options
 --timeframe TIMEFRAME    # Set timeframe (default: 15m)
---auto                   # Auto mode (no interactive menu)
---scan                   # Scan all futures symbols
+--auto                   # Auto mode (scan all futures symbols)
 --min-signal FLOAT       # Minimum signal strength for scan
 --no-menu                # Skip interactive menu
---parallel               # Use parallel processing for scan
+--batch-size INT         # Batch size for memory optimization
 ```
 
 ## Ví dụ nâng cao
@@ -336,7 +332,7 @@ python main_atc.py <SYMBOL>
 ### Custom configuration từ dictionary
 
 ```python
-from modules.adaptive_trend.utils.config import create_atc_config_from_dict
+from modules.adaptive_trend_enhance.utils.config import create_atc_config_from_dict
 
 params = {
     "ema_len": 21,
@@ -357,8 +353,8 @@ config = create_atc_config_from_dict(params, timeframe="1h")
 ### Kết hợp với các indicators khác
 
 ```python
-from modules.adaptive_trend import compute_atc_signals
-from modules.common.IndicatorEngine import IndicatorEngine
+from modules.adaptive_trend_enhance import compute_atc_signals
+from modules.common.core.indicator_engine import IndicatorEngine
 
 # Tính ATC signals
 atc_results = compute_atc_signals(prices=df['close'], ...)

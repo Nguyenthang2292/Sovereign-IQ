@@ -9,8 +9,8 @@ import traceback
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.memory_manager import get_memory_manager
 from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.common.system import get_memory_manager
 from modules.common.utils import log_warn
 
 __all__ = ["analyze_symbol"]

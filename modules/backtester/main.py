@@ -123,7 +123,7 @@ def display_backtest_results(
         print("  • Vectorized Indicator Pre-computation: All indicators calculated once")
         print("  • Incremental Signal Calculation: Signals extracted from pre-computed data")
         try:
-            from modules.backtester.core.shared_memory_utils import SHARED_MEMORY_AVAILABLE
+            from modules.common.system.shared_memory_utils import SHARED_MEMORY_AVAILABLE
 
             if ENABLE_PARALLEL_PROCESSING and SHARED_MEMORY_AVAILABLE:
                 print("  • Parallel Processing: Enabled with shared memory (efficient inter-process communication)")
@@ -272,7 +272,7 @@ def main() -> None:
 
     # 3. Shared Memory for Parallel Processing
     try:
-        from modules.backtester.core.shared_memory_utils import SHARED_MEMORY_AVAILABLE
+        from modules.common.system.shared_memory_utils import SHARED_MEMORY_AVAILABLE
 
         shared_memory_available = SHARED_MEMORY_AVAILABLE
     except ImportError:
@@ -343,7 +343,7 @@ def main() -> None:
 
         # Log which optimization path will be used
         try:
-            from modules.backtester.core.shared_memory_utils import SHARED_MEMORY_AVAILABLE
+            from modules.common.system.shared_memory_utils import SHARED_MEMORY_AVAILABLE
 
             if ENABLE_PARALLEL_PROCESSING and lookback > 100:
                 if SHARED_MEMORY_AVAILABLE:

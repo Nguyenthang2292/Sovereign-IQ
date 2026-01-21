@@ -175,7 +175,7 @@ class TestSharedMemoryUtils:
     )
     def test_setup_shared_memory_for_dataframe(self, sample_dataframe):
         """Test shared memory setup for DataFrame."""
-        from modules.backtester.core.shared_memory_utils import (
+        from modules.common.system.shared_memory_utils import (
             cleanup_shared_memory,
             reconstruct_dataframe_from_shared_memory,
             setup_shared_memory_for_dataframe,
@@ -210,7 +210,7 @@ class TestSharedMemoryUtils:
     )
     def test_shared_memory_cleanup(self, sample_dataframe):
         """Test that shared memory cleanup works correctly."""
-        from modules.backtester.core.shared_memory_utils import (
+        from modules.common.system.shared_memory_utils import (
             cleanup_shared_memory,
             setup_shared_memory_for_dataframe,
         )

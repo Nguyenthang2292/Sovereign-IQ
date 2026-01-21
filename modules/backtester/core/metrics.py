@@ -9,11 +9,11 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
+from modules.common.domain.timeframes import timeframe_to_minutes
 from modules.common.quantitative_metrics.risk import (
     calculate_max_drawdown,
     calculate_sharpe_ratio,
 )
-from modules.common.utils.domain import timeframe_to_minutes
 
 
 def calculate_metrics(

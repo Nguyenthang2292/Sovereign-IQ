@@ -3,9 +3,8 @@ import pandas as pd
 import pytest
 
 from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.hardware_manager import get_hardware_manager
-from modules.adaptive_trend_enhance.core.memory_manager import get_memory_manager
 from modules.adaptive_trend_enhance.core.process_layer1 import cut_signal, trend_sign, weighted_signal
+from modules.common.system import get_hardware_manager, get_memory_manager
 
 
 @pytest.fixture

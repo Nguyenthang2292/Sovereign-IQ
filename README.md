@@ -57,7 +57,7 @@ crypto-probability/
 │   │   │   ├── data_fetcher.py            # Multi-exchange data fetching
 │   │   │   ├── exchange_manager.py        # Exchange connection management
 │   │   │   ├── indicator_engine.py        # Technical indicator orchestration
-│   │   │   └── forex_data_fetcher.py      # Forex data fetching
+│   │   │   └── data_fetcher_forex.py      # Forex data fetching
 │   │   ├── models/                         # Data models (Position)
 │   │   ├── ui/                             # UI utilities (progress bars, logging)
 │   │   ├── utils/                          # Domain utilities

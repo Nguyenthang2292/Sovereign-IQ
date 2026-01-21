@@ -36,9 +36,9 @@ from config import (
 from config.lstm import ENABLE_KALMAN_FILTER, KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.system import PyTorchGPUManager
 from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 from modules.common.utils.data import fetch_ohlcv_data_dict, validate_ohlcv_input
-from modules.common.utils.system import PyTorchGPUManager
 from modules.lstm.models import LSTMTrainer
 from modules.lstm.models.model_utils import get_latest_signal
 

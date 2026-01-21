@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_enhance.core.memory_manager import track_memory
+from modules.common.system import track_memory
 from modules.common.utils import log_error, log_warn
 
 from ._numba_cores import _calculate_kama_atc_core

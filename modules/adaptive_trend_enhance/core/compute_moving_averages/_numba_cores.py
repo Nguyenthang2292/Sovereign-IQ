@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover
     prange = range
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True, parallel=True)
 def _calculate_wma_core(prices: np.ndarray, length: int) -> np.ndarray:
     n = len(prices)
     wma = np.full(n, np.nan, dtype=np.float64)
@@ -28,7 +28,8 @@ def _calculate_wma_core(prices: np.ndarray, length: int) -> np.ndarray:
 
     denominator = length * (length + 1) / 2.0
 
-    for i in range(length - 1, n):
+    # Parallel loop over independent windows
+    for i in prange(length - 1, n):
         weighted_sum = 0.0
         for j in range(length):
             weight = length - j
@@ -63,7 +64,7 @@ def _calculate_dema_core(prices: np.ndarray, length: int) -> np.ndarray:
     return 2.0 * ema1 - ema2
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True, parallel=True)
 def _calculate_lsma_core(prices: np.ndarray, length: int) -> np.ndarray:
     n = len(prices)
     lsma = np.full(n, np.nan, dtype=np.float64)
@@ -76,7 +77,8 @@ def _calculate_lsma_core(prices: np.ndarray, length: int) -> np.ndarray:
     for i in range(length):
         x_sq_sum += (i - x_mean) ** 2
 
-    for i in range(length - 1, n):
+    # Parallel loop over independent windows
+    for i in prange(length - 1, n):
         y_sum = 0.0
         for j in range(length):
             y_sum += prices[i - length + 1 + j]

@@ -26,7 +26,6 @@ modules/backtester/
 │   ├── metrics.py             # Performance metrics calculation
 │   ├── exit_conditions.py    # Exit condition checks (JIT-compiled)
 │   ├── parallel_workers.py   # Multiprocessing worker functions
-│   └── shared_memory_utils.py # Shared memory utilities for parallel processing
 └── README.md
 ```
 

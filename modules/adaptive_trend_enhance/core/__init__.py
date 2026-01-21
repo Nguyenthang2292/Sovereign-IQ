@@ -41,17 +41,15 @@ from modules.adaptive_trend_enhance.core.signal_detection import (
 )
 
 # NEW: Hardware and Memory Management
-from modules.adaptive_trend_enhance.core.hardware_manager import (
+from modules.common.system import (
     HardwareManager,
     HardwareResources,
-    WorkloadConfig,
-    get_hardware_manager,
-    reset_hardware_manager,
-)
-from modules.adaptive_trend_enhance.core.memory_manager import (
     MemoryManager,
     MemorySnapshot,
+    WorkloadConfig,
+    get_hardware_manager,
     get_memory_manager,
+    reset_hardware_manager,
     reset_memory_manager,
     track_memory,
 )

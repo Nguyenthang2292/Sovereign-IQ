@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 # Try to import shared memory utilities
 try:
-    from .shared_memory_utils import (
+    from modules.common.system.shared_memory_utils import (
         SHARED_MEMORY_AVAILABLE,
         reconstruct_dataframe_from_shared_memory,
     )

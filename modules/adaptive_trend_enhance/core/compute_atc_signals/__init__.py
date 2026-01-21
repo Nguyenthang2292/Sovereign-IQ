@@ -1,9 +1,14 @@
-"""
-Adaptive Trend Classification (ATC) - Main computation module.
+"""Adaptive Trend Classification (ATC) - Main computation module.
 
-This package exposes:
-- compute_atc_signals: orchestrates the full ATC pipeline
+This sub-module provides the complete ATC signal computation pipeline:
+
+Public API:
+- compute_atc_signals: Main orchestration function for ATC computation
 - calculate_layer2_equities: Layer 2 equity calculations
+
+Internal modules:
+- validation: Input validation utilities
+- average_signal: Final Average_Signal calculation
 """
 
 from .calculate_layer2_equities import calculate_layer2_equities

@@ -14,6 +14,7 @@ from typing import Dict, Optional
 
 from colorama import Fore, Style
 
+from modules.common.domain.timeframes import TIMEFRAME_NORMALIZED_RE, normalize_timeframe
 from modules.common.utils import (
     color_text,
     log_data,
@@ -22,7 +23,6 @@ from modules.common.utils import (
     log_warn,
     prompt_user_input,
 )
-from modules.common.utils.domain import TIMEFRAME_NORMALIZED_RE, normalize_timeframe
 
 try:
     from config import DEFAULT_TIMEFRAME

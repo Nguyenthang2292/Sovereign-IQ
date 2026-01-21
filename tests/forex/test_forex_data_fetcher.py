@@ -23,7 +23,7 @@ import sys
 
 sys.path.insert(0, str(project_root))
 
-from modules.common.core.forex_data_fetcher import ForexDataFetcher
+from modules.common.core.data_fetcher_forex import ForexDataFetcher
 
 
 class TestForexDataFetcher(unittest.TestCase):

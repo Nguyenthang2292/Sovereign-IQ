@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from modules.common.core.forex_data_fetcher import ForexDataFetcher
+from modules.common.core.data_fetcher_forex import ForexDataFetcher
 from modules.common.ui.logging import log_error, log_warn
 from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
 

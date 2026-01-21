@@ -38,7 +38,7 @@ from .parallel_workers import calculate_signal_batch_worker, calculate_single_si
 
 # Try to import shared memory utilities
 try:
-    from .shared_memory_utils import (
+    from modules.common.system.shared_memory_utils import (
         SHARED_MEMORY_AVAILABLE,
         cleanup_shared_memory,
         setup_shared_memory_for_dataframe,

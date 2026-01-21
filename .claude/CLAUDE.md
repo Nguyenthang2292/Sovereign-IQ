@@ -180,7 +180,7 @@ Shared utilities used across all modules:
 - **Data Layer**:
   - `core/data_fetcher.py`: Multi-exchange fetching with caching and smart fallback
   - `core/exchange_manager.py`: Exchange connection management
-  - `core/forex_data_fetcher.py`: Forex market data
+  - `core/data_fetcher_forex.py`: Forex market data
 
 - **Indicator Layer**:
   - `core/indicator_engine.py`: Technical indicator orchestration with profiles (CORE, XGBOOST, DEEP_LEARNING)

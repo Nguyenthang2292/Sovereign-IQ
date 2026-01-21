@@ -22,17 +22,6 @@ from modules.adaptive_trend_enhance.cli import (
 )
 from modules.adaptive_trend_enhance.core.analyzer import analyze_symbol
 from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-
-# Hardware and Memory Management
-from modules.adaptive_trend_enhance.core.hardware_manager import (
-    HardwareManager,
-    get_hardware_manager,
-)
-from modules.adaptive_trend_enhance.core.memory_manager import (
-    MemoryManager,
-    get_memory_manager,
-    track_memory,
-)
 from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
 
 # Utility functions
@@ -46,6 +35,15 @@ from modules.adaptive_trend_enhance.utils import (
 from modules.adaptive_trend_enhance.utils.config import (
     ATCConfig,
     create_atc_config_from_dict,
+)
+
+# Hardware and Memory Management
+from modules.common.system import (
+    HardwareManager,
+    MemoryManager,
+    get_hardware_manager,
+    get_memory_manager,
+    track_memory,
 )
 
 __all__ = [

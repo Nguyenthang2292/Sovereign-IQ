@@ -18,7 +18,8 @@ warnings.filterwarnings("ignore")
 
 def test_detect_pytorch_gpu_availability_comprehensive():
     """Comprehensive test for detect_pytorch_gpu_availability function."""
-    from modules.common.utils.system import _pytorch_gpu_manager, detect_pytorch_gpu_availability
+    from modules.common.system import detect_pytorch_gpu_availability
+    from modules.common.system.system import _pytorch_gpu_manager
 
     print("Testing PyTorch GPU availability detection...")
 
@@ -107,7 +108,7 @@ def test_detect_pytorch_gpu_availability_comprehensive():
 
 def test_pytorch_gpu_manager_caching():
     """Test that GPU detection results are cached."""
-    from modules.common.utils.system import _pytorch_gpu_manager
+    from modules.common.system.system import _pytorch_gpu_manager
 
     print("\nTesting GPU detection caching...")
 

@@ -7,7 +7,7 @@ import pandas as pd
 import pandas_ta as ta
 
 from modules.common.utils import validate_ohlcv_input
-from modules.common.utils.data import validate_price_series
+from modules.common.data import validate_price_series
 
 from .base import IndicatorResult, collect_metadata
 

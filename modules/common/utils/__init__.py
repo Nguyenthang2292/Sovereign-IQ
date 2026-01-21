@@ -2,37 +2,80 @@
 Utility functions organized by domain.
 
 This module provides backward compatibility by re-exporting all functions
-from submodules, allowing existing imports like:
+from new organized packages, allowing existing imports like:
     from modules.common.utils import normalize_symbol, log_info, ...
 to continue working.
+
+NOTE: New code should import directly from organized packages:
+    - from modules.common.domain import normalize_symbol
+    - from modules.common.data import validate_ohlcv_input
+    - from modules.common.io import cleanup_old_files
 """
 
-# System utilities
-# Data utilities
-from .data import dataframe_to_close_series, fetch_ohlcv_data_dict, validate_ohlcv_input
+from typing import Any, Iterable
 
-# Domain utilities
-from .domain import days_to_candles, normalize_symbol, normalize_symbol_key, normalize_timeframe, timeframe_to_minutes
+# Re-export from domain package (trading domain utilities)
+from modules.common.domain import (
+    days_to_candles,
+    normalize_symbol,
+    normalize_symbol_key,
+    normalize_timeframe,
+    timeframe_to_minutes,
+)
 
-# File utilities
-from .file import cleanup_old_files
+# Re-export from data package (DataFrame/Series utilities)
+from modules.common.data import (
+    dataframe_to_close_series,
+    fetch_ohlcv_data_dict,
+    validate_ohlcv_input,
+)
 
-# Component initialization
-from .initialization import initialize_components
-from .system import (
+# Re-export from io package (file operations)
+from modules.common.io import cleanup_old_files
+
+# System and hardware management (re-exported from system module)
+from modules.common.system import (
+    HardwareManager,
+    HardwareResources,
+    WorkloadConfig,
     PyTorchGPUManager,
     configure_gpu_memory,
     configure_windows_stdio,
     detect_gpu_availability,
     detect_pytorch_cuda_availability,
     detect_pytorch_gpu_availability,
+    get_hardware_manager,
+    reset_hardware_manager,
 )
+
+
+# Component initialization (re-exported from core, lazy import to avoid circular dependency)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Tuple
+    from modules.common.core.data_fetcher import DataFetcher
+    from modules.common.core.exchange_manager import ExchangeManager
+
+
+def initialize_components() -> "Tuple[ExchangeManager, DataFetcher]":
+    """
+    Initialize ExchangeManager and DataFetcher components.
+    
+    This is a lazy import wrapper to avoid circular dependencies.
+    For direct access, import from modules.common.core.initialization instead.
+    
+    Returns:
+        Tuple containing (ExchangeManager, DataFetcher) instances
+    """
+    from modules.common.core.initialization import initialize_components as _initialize_components
+    return _initialize_components()
+# System imports removed - now re-exported from modules.common.system above
 from .system_utils import (
     get_error_code,
     is_retryable_error,
     setup_windows_stdin,
 )
-from typing import Any, Iterable
 
 _UNSET = object()
 
@@ -93,6 +136,12 @@ from ..ui.logging import (
 )
 
 __all__ = [
+    # Hardware Management
+    "HardwareManager",
+    "HardwareResources",
+    "WorkloadConfig",
+    "get_hardware_manager",
+    "reset_hardware_manager",
     # System
     "configure_windows_stdio",
     "detect_gpu_availability",

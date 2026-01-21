@@ -7,7 +7,7 @@ import pytest
 
 from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals as compute_base
 from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals as compute_enhanced
-from modules.adaptive_trend_enhance.core.memory_manager import get_memory_manager
+from modules.common.system import get_memory_manager
 
 
 @pytest.fixture

@@ -17,7 +17,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.common.utils.system import _pytorch_gpu_manager, detect_pytorch_gpu_availability
+from modules.common.system import detect_pytorch_gpu_availability
+from modules.common.system.system import _pytorch_gpu_manager
 from modules.deeplearning.cli.main import (
     create_model_and_train,
     parse_args,
