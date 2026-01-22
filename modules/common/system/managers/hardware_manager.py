@@ -13,7 +13,6 @@ Supports:
 Author: Crypto Probability Team
 """
 
-import logging
 import multiprocessing as mp
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -21,11 +20,10 @@ from typing import Any, Dict, Literal, Optional, Tuple
 
 from modules.common.system.detection import CPUDetector, GPUDetector, SystemInfo
 from modules.common.system.managers.pytorch_gpu_manager import PyTorchGPUManager
+from modules.common.ui.logging import log_debug, log_info, log_warn
 
 # Type alias for GPU types
 GpuType = Literal["cuda", "opencl", "pytorch", "xgboost"]
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -96,7 +94,7 @@ class HardwareManager:
         self._workload_config: Optional[WorkloadConfig] = None
         self._pytorch_gpu_manager = pytorch_gpu_manager or PyTorchGPUManager()
 
-        logger.info("Hardware Manager initialized")
+        log_info("Hardware Manager initialized")
 
     def detect_resources(self) -> HardwareResources:
         """
@@ -136,7 +134,7 @@ class HardwareManager:
             xgboost_gpu_available=gpu_info.xgboost_available,
         )
 
-        logger.info(
+        log_info(
             f"Hardware detected: {cpu_cores} cores, "
             f"{total_ram_gb:.2f}GB RAM ({ram_percent_used:.1f}% used), "
             f"GPU: {gpu_info.gpu_type if gpu_info.available else 'None'}"
@@ -209,13 +207,61 @@ class HardwareManager:
             chunk_size=chunk_size,
         )
 
-        logger.info(
+        log_info(
             f"Workload config: MP={use_multiprocessing}({num_processes}), "
             f"MT={use_multithreading}({num_threads}), GPU={gpu_backend}, "
             f"batch={batch_size}, chunk={chunk_size}"
         )
 
         return self._workload_config
+
+    def get_optimal_execution_mode(self, workload_size: int, estimated_data_points: int = 0) -> str:
+        """
+        Determine optimal execution mode based on workload and hardware.
+
+        Heuristic:
+        - Sequential: Very small batches (N < 10) to avoid overhead.
+        - ThreadPool: Medium batches (10 <= N < 50) where I/O dominates.
+        - ProcessPool: Large batches (N >= 50) where CPU compute dominates.
+        - GPU Batch: Massive batches (N >= 500) if GPU available.
+
+        Args:
+            workload_size: Number of symbols/items to process.
+            estimated_data_points: Total data points (optional, for finer grain).
+
+        Returns:
+            Mode string: "sequential", "threadpool", "processpool", or "gpu_batch".
+        """
+        if self._resources is None:
+            self.detect_resources()
+
+        # Thresholds
+        SEQ_THRESHOLD = 10
+        PROCESS_THRESHOLD = 50
+        GPU_THRESHOLD = 500
+
+        # Auto-select mode
+        if workload_size < SEQ_THRESHOLD:
+            return "sequential"
+
+        # Check for GPU availability for massive batch
+        if (
+            workload_size >= GPU_THRESHOLD
+            and self._resources.gpu_available
+            and (self._resources.gpu_type in ("cuda", "opencl", "pytorch"))
+        ):
+            return "gpu_batch"
+
+        # For medium to large workloads, prefer ProcessPool for CPU-bound tasks (like ATC)
+        # ATC is mixed IO/CPU, but Numba calculations are CPU heavy.
+        if workload_size >= PROCESS_THRESHOLD:
+            # ProcessPool is better for CPU-bound, but has startup cost.
+            # On Windows, spawn cost is high.
+            # But ATC calculation is heavy enough to justify it for 50+ symbols.
+            return "processpool"
+
+        # Catch-all for medium workloads (10-50)
+        return "threadpool"
 
     def _calculate_max_parallel_tasks(self, workload_size: int) -> int:
         """
@@ -259,6 +305,36 @@ class HardwareManager:
             "ram_percent": memory_info.percent_used,
             "ram_available_gb": memory_info.available_gb,
         }
+
+    def should_use_intra_symbol_parallelism(self, data_length: int, is_nested: bool = False) -> bool:
+        """
+        Determine if intra-symbol parallelization (Numba parallel=True) should be enabled.
+
+        Heuristic:
+        - If nested (running inside a worker process), disable to avoid oversubscription
+          unless we have massive core count (not typical).
+        - If data_length is small (< 500), overhead of Numba parallel thread spawning
+          outweighs benefit.
+
+        Args:
+            data_length: Length of the time series (number of bars).
+            is_nested: True if currently running inside a child process.
+
+        Returns:
+            True if parallel=True should be used for Numba functions.
+        """
+        # 1. Avoid nested parallelism to prevent resource contention
+        if is_nested:
+            return False
+
+        # 2. Threshold for Numba parallel efficacy
+        # Benchmarks show < 500-1000 bars is faster sequentially due to thread overhead.
+        # Layer 1 has 6 components. Layer 2 has 6 components.
+        # Total OPS is fairly high, but thread creation cost is ~50us-1ms depending on OS.
+        if data_length < 500:
+            return False
+
+        return True
 
     def check_resources_available(self) -> Tuple[bool, str]:
         """
@@ -305,7 +381,7 @@ class HardwareManager:
             if available:
                 return
 
-            logger.debug(f"Waiting for resources: {reason}")
+            log_debug(f"Waiting for resources: {reason}")
             time.sleep(check_interval)
             elapsed += check_interval
 
@@ -393,7 +469,7 @@ class HardwareManager:
                 "device": "cuda",
             }
         # nvidia-smi found GPU but no CUDA Python bindings available
-        logger.warning(
+        log_warn(
             "XGBoost GPU detected via nvidia-smi but no CUDA Python bindings found. "
             "Install PyTorch, CuPy, or Numba with CUDA support for GPU acceleration."
         )
@@ -406,6 +482,7 @@ from modules.common.system.utils.singleton import SingletonMeta
 
 class HardwareManagerSingleton(HardwareManager, metaclass=SingletonMeta):
     """HardwareManager with singleton pattern."""
+
     pass
 
 
@@ -417,4 +494,5 @@ def get_hardware_manager() -> HardwareManager:
 def reset_hardware_manager():
     """Reset global HardwareManager (useful for testing)"""
     from modules.common.system.utils.singleton import reset_singleton
+
     reset_singleton(HardwareManagerSingleton)

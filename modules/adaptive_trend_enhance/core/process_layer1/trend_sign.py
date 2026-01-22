@@ -6,6 +6,7 @@ from signal series.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from modules.common.system import get_memory_manager
@@ -45,14 +46,11 @@ def trend_sign(signal: pd.Series, *, strategy: bool = False) -> pd.Series:
         mem_manager = get_memory_manager()
         with mem_manager.track_memory("trend_sign"):
             base = signal.shift(1) if strategy else signal
-            result = pd.Series(0, index=signal.index, dtype="int8")
 
-        # Handle NaN values: treat as 0 (neutral)
-        valid_mask = ~base.isna()
-
-        if valid_mask.any():
-            result.loc[valid_mask & (base > 0)] = 1
-            result.loc[valid_mask & (base < 0)] = -1
+            # Vectorize trend sign (Task 8.5)
+            v = base.values
+            res_vals = np.where(v > 0, 1, np.where(v < 0, -1, 0)).astype(np.int8)
+            result = pd.Series(res_vals, index=signal.index, dtype="int8")
 
         return result
 

@@ -9,7 +9,7 @@ This module provides:
 from __future__ import annotations
 
 try:
-    from numba import njit
+    from numba import njit, prange
 
     _HAS_NUMBA = True
 except ImportError:
@@ -24,6 +24,11 @@ except ImportError:
 
         return decorator
 
+    def prange(*args, **kwargs):
+        """Fallback for prange when numba is not available."""
+        return range(*args, **kwargs)
+
+
 from modules.common.utils import log_warn
 
 if not _HAS_NUMBA:
@@ -32,4 +37,4 @@ if not _HAS_NUMBA:
     except Exception:
         print("[WARN] Numba not installed. Performance will be degraded.")
 
-__all__ = ["njit", "_HAS_NUMBA"]
+__all__ = ["njit", "prange", "_HAS_NUMBA"]

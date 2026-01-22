@@ -27,7 +27,6 @@ def equity_series(
     *,
     L: float,
     De: float,
-    cutout: int = 0,
     verbose: bool = False,
 ) -> pd.Series:
     """Calculate equity curve from trading signals and returns.
@@ -107,8 +106,8 @@ def equity_series(
     if not isinstance(L, (int, float)) or np.isnan(L) or np.isinf(L):
         raise ValueError(f"L must be a finite number, got {L}")
 
-    if cutout < 0:
-        raise ValueError(f"cutout must be >= 0, got {cutout}")
+    # cutout is always 0 now as slicing happens early in compute_atc_signals
+    cutout = 0
 
     # Check index compatibility
     if not sig.index.equals(R.index):
@@ -148,7 +147,7 @@ def equity_series(
     try:
         # Try to get from cache
         cache = get_cache_manager()
-        cached_equity = cache.get_equity(signal=sig, R=R, L=L, De=De, cutout=cutout, starting_equity=starting_equity)
+        cached_equity = cache.get_equity(signal=sig, R=R, L=L, De=De, starting_equity=starting_equity)
 
         if cached_equity is not None:
             return cached_equity
@@ -171,7 +170,8 @@ def equity_series(
         equity = get_series_pool().acquire(len(index), dtype=np.float64, index=index)
 
         # Calculate equity using optimized Numba function, writing directly to equity.values
-        _calculate_equity_core(
+        # Note: _calculate_equity_core may return a copy if the input array wasn't writable
+        result_array = _calculate_equity_core(
             r_values=r_values,
             sig_prev_values=sig_prev_values,
             starting_equity=starting_equity,
@@ -180,8 +180,12 @@ def equity_series(
             out=equity.values,
         )
 
+        # If a copy was made, update the Series
+        if result_array is not equity.values:
+            equity = pd.Series(result_array, index=index, dtype=np.float64)
+
         # Cache the result
-        cache.put_equity(signal=sig, R=R, L=L, De=De, cutout=cutout, starting_equity=starting_equity, equity=equity)
+        cache.put_equity(signal=sig, R=R, L=L, De=De, starting_equity=starting_equity, equity=equity)
 
         # Check for floor hits (equity at minimum value)
         if verbose:

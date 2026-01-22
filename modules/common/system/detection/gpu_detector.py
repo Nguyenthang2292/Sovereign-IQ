@@ -9,15 +9,12 @@ Single source of truth for GPU detection across:
 - OpenCL
 """
 
-import logging
 import subprocess
 import warnings
 from dataclasses import dataclass
 from typing import Literal, Optional, Tuple
 
-from modules.common.ui.logging import log_system, log_warn
-
-logger = logging.getLogger(__name__)
+from modules.common.ui.logging import log_debug, log_info, log_system, log_warn
 
 # Type alias for GPU types
 GpuType = Literal["cuda", "opencl", "pytorch", "xgboost"]
@@ -173,10 +170,10 @@ class GPUDetector:
         try:
             return GPUDetector._detect_pytorch_cuda(torch)
         except ImportError:
-            logger.debug("PyTorch not installed")
+            log_debug("PyTorch not installed")
             return False, None, 0
         except Exception as e:
-            logger.warning(f"PyTorch GPU detection error: {e}")
+            log_warn(f"PyTorch GPU detection error: {e}")
             return False, None, 0
 
     @staticmethod
@@ -195,14 +192,14 @@ class GPUDetector:
             if cupy_device_count > 0:
                 # Get memory of first GPU
                 gpu_memory_gb = cp.cuda.Device(0).mem_info[1] / (1024**3)
-                logger.info(f"CuPy CUDA GPU detected: {cupy_device_count} device(s), {gpu_memory_gb:.2f} GB")
+                log_info(f"CuPy CUDA GPU detected: {cupy_device_count} device(s), {gpu_memory_gb:.2f} GB")
                 return True, cupy_device_count, gpu_memory_gb
             return False, 0, None
         except ImportError:
-            logger.debug("CuPy not installed")
+            log_debug("CuPy not installed")
             return False, 0, None
         except Exception as e:
-            logger.warning(f"CuPy CUDA detection error: {e}")
+            log_warn(f"CuPy CUDA detection error: {e}")
             return False, 0, None
 
     @staticmethod
@@ -219,14 +216,14 @@ class GPUDetector:
         try:
             numba_gpu_count = len(cuda.gpus)
             if numba_gpu_count > 0:
-                logger.info(f"CUDA GPU detected via Numba: {numba_gpu_count} device(s)")
+                log_info(f"CUDA GPU detected via Numba: {numba_gpu_count} device(s)")
                 return True, numba_gpu_count
             return False, 0
         except ImportError:
-            logger.debug("Numba CUDA not available")
+            log_debug("Numba CUDA not available")
             return False, 0
         except Exception as e:
-            logger.warning(f"Numba CUDA detection error: {e}")
+            log_warn(f"Numba CUDA detection error: {e}")
             return False, 0
 
     @staticmethod
@@ -246,14 +243,14 @@ class GPUDetector:
                 devices = platform.get_devices(device_type=cl.device_type.GPU)
                 if devices:
                     gpu_count = len(devices)
-                    logger.info(f"OpenCL GPU detected: {gpu_count} device(s)")
+                    log_info(f"OpenCL GPU detected: {gpu_count} device(s)")
                     return True, gpu_count
             return False, 0
         except ImportError:
-            logger.debug("PyOpenCL not installed")
+            log_debug("PyOpenCL not installed")
             return False, 0
         except Exception as e:
-            logger.warning(f"OpenCL detection error: {e}")
+            log_warn(f"OpenCL detection error: {e}")
             return False, 0
 
     @staticmethod
@@ -275,18 +272,18 @@ class GPUDetector:
                 text=True,
             )
             if result.returncode == 0:
-                logger.info("XGBoost GPU available (nvidia-smi check passed)")
-                logger.debug(f"nvidia-smi output: {result.stdout.strip()}")
+                log_info("XGBoost GPU available (nvidia-smi check passed)")
+                log_debug(f"nvidia-smi output: {result.stdout.strip()}")
                 return True
             return False
         except FileNotFoundError:
-            logger.debug("nvidia-smi not found in PATH")
+            log_debug("nvidia-smi not found in PATH")
             return False
         except subprocess.TimeoutExpired:
-            logger.debug("nvidia-smi command timed out")
+            log_debug("nvidia-smi command timed out")
             return False
         except Exception as e:
-            logger.warning(f"XGBoost GPU check error: {e}")
+            log_warn(f"XGBoost GPU check error: {e}")
             return False
 
     @staticmethod
@@ -324,7 +321,7 @@ class GPUDetector:
                 try:
                     gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
                 except Exception as e:
-                    logger.debug(f"Could not retrieve GPU memory info: {e}")
+                    log_debug(f"Could not retrieve GPU memory info: {e}")
 
         # Try CuPy CUDA if PyTorch not available or as additional check
         if not gpu_available and CUPY_AVAILABLE:
@@ -357,7 +354,7 @@ class GPUDetector:
             # If no other GPU detected, use XGBoost detection
             gpu_available = True
             gpu_type = "xgboost"
-            logger.info("XGBoost GPU detected via nvidia-smi")
+            log_info("XGBoost GPU detected via nvidia-smi")
 
         return GPUInfo(
             available=gpu_available,

@@ -1,6 +1,9 @@
 # 📚 ExchangeManager Documentation
 
+> **Language / Ngôn ngữ**: [English](ExchangeManager-en.md) | [Tiếng Việt](ExchangeManager-vi.md)
+
 ## Mục lục
+
 1. [Tổng quan](#tổng-quan)
 2. [AuthenticatedExchangeManager](#authenticatedexchangemanager)
 3. [PublicExchangeManager](#publicexchangemanager)
@@ -22,6 +25,7 @@
 
 | Loại dữ liệu | Cần credentials? | Dùng manager nào? |
 |--------------|------------------|-------------------|
+
 | Giá hiện tại (ticker) | ✅ Có | `authenticated.connect_to_binance_with_credentials()` |
 | Danh sách symbols (markets) | ✅ Có | `authenticated.connect_to_binance_with_credentials()` |
 | Positions từ account | ✅ Có | `authenticated.connect_to_binance_with_credentials()` |
@@ -33,6 +37,7 @@
 ## AuthenticatedExchangeManager
 
 ### Mục đích
+
 Quản lý các kết nối exchange **cần xác thực** (authentication) thông qua API key và secret. Dùng cho các operations liên quan đến account của bạn.
 
 ### Khởi tạo
@@ -52,6 +57,7 @@ auth_manager = AuthenticatedExchangeManager()  # Tự động lấy từ env/con
 ```
 
 **Thứ tự ưu tiên lấy credentials:**
+
 1. Tham số khi khởi tạo
 2. Biến môi trường: `BINANCE_API_KEY`, `BINANCE_API_SECRET`
 3. File config: `modules/config_api.py`
@@ -65,12 +71,14 @@ auth_manager = AuthenticatedExchangeManager()  # Tự động lấy từ env/con
 **Hỗ trợ các exchanges**: binance, okx, kucoin, bybit, gate, mexc, huobi, kraken, và tất cả exchanges được hỗ trợ bởi ccxt.
 
 **Khi nào dùng:**
+
 - ✅ Lấy giá hiện tại (`fetch_ticker`)
 - ✅ Liệt kê danh sách symbols (`load_markets`)
 - ✅ Lấy thông tin positions từ account (`fetch_positions`)
 - ✅ Bất kỳ API call nào cần authentication
 
 **Tham số:**
+
 - `exchange_id` (str): Tên exchange (e.g., 'binance', 'okx', 'kucoin', 'bybit')
 - `api_key` (Optional[str]): API key cho exchange này (optional)
 - `api_secret` (Optional[str]): API secret cho exchange này (optional)
@@ -78,6 +86,7 @@ auth_manager = AuthenticatedExchangeManager()  # Tự động lấy từ env/con
 - `contract_type` (Optional[str]): Loại contract ('spot', 'margin', 'future') (optional)
 
 **Ví dụ:**
+
 ```python
 # Kết nối đến OKX
 okx = auth_manager.connect_to_exchange_with_credentials('okx', 
@@ -101,6 +110,7 @@ bybit = auth_manager.connect_to_exchange_with_credentials('bybit',
 ```
 
 **Lưu ý:**
+
 - ⚠️ **Bắt buộc** phải có API key và secret (có thể set qua `set_exchange_credentials()` hoặc truyền trực tiếp)
 - ⚠️ Nếu không có credentials, sẽ raise `ValueError`
 - ✅ Instance được cache, chỉ tạo một lần (lazy initialization)
@@ -114,10 +124,12 @@ bybit = auth_manager.connect_to_exchange_with_credentials('bybit',
 **Mục đích**: Set credentials cho một exchange cụ thể để dùng sau này.
 
 **Khi nào dùng:**
+
 - ✅ Khi muốn set credentials một lần và dùng nhiều lần
 - ✅ Khi quản lý credentials cho nhiều exchanges
 
 **Ví dụ:**
+
 ```python
 # Set credentials cho OKX
 auth_manager.set_exchange_credentials('okx', 'okx_key', 'okx_secret')
@@ -131,6 +143,7 @@ kucoin = auth_manager.connect_to_exchange_with_credentials('kucoin')
 ```
 
 **Lưu ý:**
+
 - ✅ Credentials được lưu per-exchange
 - ✅ Khi set credentials mới, cache của exchange đó sẽ bị clear để force reconnection
 
@@ -143,12 +156,14 @@ kucoin = auth_manager.connect_to_exchange_with_credentials('kucoin')
 **DEPRECATED**: Nên dùng `connect_to_exchange_with_credentials('binance')` thay thế. Giữ lại để backward compatibility.
 
 **Khi nào dùng:**
+
 - ✅ Lấy giá hiện tại (`fetch_ticker`)
 - ✅ Liệt kê danh sách symbols (`load_markets`)
 - ✅ Lấy thông tin positions từ account (`fetch_positions`)
 - ✅ Bất kỳ API call nào cần authentication
 
 **Ví dụ:**
+
 ```python
 # Kết nối đến authenticated Binance exchange (cần credentials)
 exchange = auth_manager.connect_to_binance_with_credentials()
@@ -168,12 +183,14 @@ for pos in positions:
 ```
 
 **Lưu ý:**
+
 - ⚠️ **Bắt buộc** phải có API key và secret
 - ⚠️ Nếu không có credentials, sẽ raise `ValueError`
 - ✅ Instance được cache, chỉ tạo một lần (lazy initialization)
 - ✅ Tự động enable rate limiting
 
 **Lỗi có thể gặp:**
+
 ```python
 # Nếu không có credentials
 try:
@@ -199,6 +216,7 @@ Các phương thức tiện lợi để kết nối đến các exchanges phổ 
 Tất cả các methods này đều là wrapper của `connect_to_exchange_with_credentials()` với exchange_id tương ứng.
 
 **Ví dụ:**
+
 ```python
 # Cách 1: Set credentials trước
 auth_manager.set_exchange_credentials('okx', 'okx_key', 'okx_secret')
@@ -226,16 +244,19 @@ bybit = auth_manager.connect_to_bybit_with_credentials(
 **Mục đích**: Gọi một hàm với rate limiting tự động để tránh vượt quá giới hạn API.
 
 **Khi nào dùng:**
+
 - ✅ Bất kỳ API call nào cần đảm bảo không vượt rate limit
 - ✅ Khi gọi nhiều API calls liên tiếp
 - ✅ Để tránh bị ban IP do quá nhiều requests
 
 **Cách hoạt động:**
+
 - Tự động tính toán thời gian chờ giữa các requests
 - Đảm bảo mỗi request cách nhau ít nhất `request_pause` giây (mặc định 0.2s)
 - Thread-safe (có thể dùng trong multi-threading)
 
 **Ví dụ:**
+
 ```python
 exchange = auth_manager.connect_to_binance_with_credentials()
 
@@ -256,11 +277,13 @@ for symbol in symbols:
 ```
 
 **Tham số:**
+
 - `func`: Hàm cần gọi (thường là method của exchange)
 - `*args`: Các tham số vị trí cho hàm
 - `**kwargs`: Các tham số keyword cho hàm
 
 **Lưu ý:**
+
 - ✅ Tự động sleep nếu cần để đảm bảo rate limit
 - ✅ Thread-safe (dùng lock)
 - ✅ Có thể điều chỉnh `request_pause` qua environment variable `BINANCE_REQUEST_SLEEP`
@@ -270,6 +293,7 @@ for symbol in symbols:
 ## PublicExchangeManager
 
 ### Mục đích
+
 Quản lý các kết nối exchange **không cần xác thực** (public data). Dùng cho các operations lấy dữ liệu công khai.
 
 ### Khởi tạo
@@ -288,11 +312,13 @@ public_manager = PublicExchangeManager()
 **Mục đích**: Kết nối đến một exchange công khai (KHÔNG cần credentials).
 
 **Khi nào dùng:**
+
 - ✅ Lấy dữ liệu OHLCV (lịch sử giá)
 - ✅ Lấy dữ liệu public khác
 - ✅ Khi cần fallback sang exchange khác nếu Binance không có dữ liệu
 
 **Ví dụ:**
+
 ```python
 # Kết nối đến Binance public (không cần credentials)
 binance = public_manager.connect_to_exchange_with_no_credentials("binance")
@@ -309,15 +335,18 @@ okx = public_manager.connect_to_exchange_with_no_credentials("okx")
 ```
 
 **Tham số:**
+
 - `exchange_id` (str): Tên exchange (ví dụ: "binance", "kraken", "kucoin", "gate", "okx", "bybit", "mexc", "huobi")
 
 **Lưu ý:**
+
 - ✅ **Không cần** API key/secret
 - ✅ Instance được cache, chỉ tạo một lần cho mỗi exchange
 - ✅ Tự động enable rate limiting
 - ✅ Tự động set `defaultType: 'future'` cho futures trading
 
 **Lỗi có thể gặp:**
+
 ```python
 # Nếu exchange không được hỗ trợ
 try:
@@ -327,6 +356,7 @@ except ValueError as e:
 ```
 
 **Các exchange được hỗ trợ:**
+
 - `binance` - Binance
 - `kraken` - Kraken
 - `kucoin` - KuCoin
@@ -344,6 +374,7 @@ except ValueError as e:
 **Mục đích**: Tương tự như `AuthenticatedExchangeManager.throttled_call()`, nhưng dùng cho public calls.
 
 **Ví dụ:**
+
 ```python
 exchange = public_manager.connect_to_exchange_with_no_credentials("kraken")
 
@@ -363,6 +394,7 @@ ohlcv = public_manager.throttled_call(
 **Mục đích**: Danh sách các exchange theo thứ tự ưu tiên khi cần fallback.
 
 **Ví dụ:**
+
 ```python
 # Xem danh sách ưu tiên hiện tại
 print(public_manager.exchange_priority_for_fallback)
@@ -376,6 +408,7 @@ public_manager.exchange_priority_for_fallback = ['kraken', 'binance', 'kucoin']
 ```
 
 **Cách sử dụng trong fallback:**
+
 ```python
 # Thử lấy OHLCV từ các exchange theo thứ tự ưu tiên
 for exchange_id in public_manager.exchange_priority_for_fallback:
@@ -391,6 +424,7 @@ for exchange_id in public_manager.exchange_priority_for_fallback:
 ```
 
 **Lưu ý:**
+
 - ✅ Có thể set qua environment variable `OHLCV_FALLBACKS`
 - ✅ Mặc định: `"binance,kraken,kucoin,gate,okx,bybit,mexc,huobi"`
 - ✅ Tương đương với `em.exchange_priority_for_fallback` (trong ExchangeManager)
@@ -400,6 +434,7 @@ for exchange_id in public_manager.exchange_priority_for_fallback:
 ## ExchangeManager (Composite)
 
 ### Mục đích
+
 Composite manager kết hợp cả `AuthenticatedExchangeManager` và `PublicExchangeManager`, cung cấp interface thống nhất và giữ backward compatibility.
 
 ### Khởi tạo
@@ -437,6 +472,7 @@ em.public  # PublicExchangeManager instance
 **Mục đích**: Chuẩn hóa symbol từ Binance futures format.
 
 **Ví dụ:**
+
 ```python
 # Chuẩn hóa symbol
 symbol1 = em.normalize_symbol("BTC/USDT:USDT")  # → "BTC/USDT"
@@ -445,6 +481,7 @@ symbol3 = em.normalize_symbol("BNB/USDT")       # → "BNB/USDT"
 ```
 
 **Khi nào dùng:**
+
 - ✅ Khi nhận symbol từ Binance markets (có format `BTC/USDT:USDT`)
 - ✅ Cần chuẩn hóa về format `BASE/QUOTE`
 
@@ -455,6 +492,7 @@ symbol3 = em.normalize_symbol("BNB/USDT")       # → "BNB/USDT"
 **Mục đích**: Danh sách exchange ưu tiên cho OHLCV fallback.
 
 **Ví dụ:**
+
 ```python
 # Xem danh sách
 print(em.exchange_priority_for_fallback)
@@ -464,6 +502,7 @@ em.exchange_priority_for_fallback = ['kraken', 'binance', 'kucoin']
 ```
 
 **Lưu ý:**
+
 - ✅ Tương đương với `em.public.exchange_priority_for_fallback`
 - ✅ Có thể set/get như property
 - ✅ Được sử dụng cho OHLCV fallback mechanism
@@ -715,6 +754,7 @@ except ValueError as e:
 
 | Manager | Khi nào dùng | Cần credentials? | Methods chính |
 |---------|--------------|------------------|---------------|
+
 | `AuthenticatedExchangeManager` | Lấy giá, markets, positions | ✅ Có | `connect_to_exchange_with_credentials()`, `connect_to_*_with_credentials()`, `set_exchange_credentials()`, `throttled_call()` |
 | `PublicExchangeManager` | Lấy OHLCV, public data | ❌ Không | `connect_to_exchange_with_no_credentials()`, `throttled_call()` |
 | `ExchangeManager` | Composite, backward compatibility | Tùy | Tất cả methods trên + `normalize_symbol()` |
@@ -722,6 +762,7 @@ except ValueError as e:
 ### Supported Exchanges (Authenticated)
 
 Các exchanges được hỗ trợ với convenience methods:
+
 - ✅ Binance (`connect_to_binance_with_credentials()`)
 - ✅ Kraken (`connect_to_kraken_with_credentials()`)
 - ✅ KuCoin (`connect_to_kucoin_with_credentials()`)
@@ -739,4 +780,3 @@ Hoặc dùng `connect_to_exchange_with_credentials(exchange_id)` cho bất kỳ 
 
 - [ccxt Documentation](https://docs.ccxt.com/)
 - [Binance API Documentation](https://binance-docs.github.io/apidocs/)
-

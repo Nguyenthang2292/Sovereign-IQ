@@ -7,17 +7,14 @@ allocation overhead and GC pressure in high-throughput applications.
 
 from __future__ import annotations
 
-import logging
 import queue
 import threading
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
 from modules.common.ui.logging import log_error
-
-logger = logging.getLogger(__name__)
 
 
 class ArrayPool:
@@ -52,7 +49,7 @@ class ArrayPool:
 
         self._initialized = True
 
-    def acquire(self, shape: Tuple[int, ...], dtype: np.dtype = np.float64) -> np.ndarray:
+    def acquire(self, shape: Tuple[int, ...], dtype: Union[np.dtype, type, str] = np.float64) -> np.ndarray:
         """
         Acquire an array from the pool or create a new one.
 
@@ -88,7 +85,7 @@ class ArrayPool:
             log_error(f"Error accessing ArrayPool: {e}")
             return np.zeros(shape, dtype=dtype)
 
-    def acquire_dirty(self, shape: Tuple[int, ...], dtype: np.dtype = np.float64) -> np.ndarray:
+    def acquire_dirty(self, shape: Tuple[int, ...], dtype: Union[np.dtype, type, str] = np.float64) -> np.ndarray:
         """
         Acquire an array but do NOT clear it (faster, content works like np.empty).
         """
@@ -177,7 +174,7 @@ class SeriesPool:
         self.misses = 0
         self._initialized = True
 
-    def acquire(self, length: int, dtype: np.dtype = np.float64, index=None, name=None) -> pd.Series:
+    def acquire(self, length: int, dtype: Union[np.dtype, type, str] = np.float64, index=None, name=None) -> pd.Series:
         """
         Acquire a Series of specific length.
         """
@@ -199,6 +196,10 @@ class SeriesPool:
             # Check if underlying array needs zeroing?
             # Yes, standard behavior is clean.
             s[:] = 0
+
+        # Ensure the underlying array is writable (critical for in-place operations)
+        if not s.values.flags.writeable:
+            s = pd.Series(s.values.copy(), dtype=dtype)
 
         # Set attributes
         if index is not None:

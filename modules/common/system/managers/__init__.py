@@ -23,6 +23,13 @@ from .memory_manager import (
     temp_series,
     track_memory,
 )
+from .memory_pool import (
+    ArrayPool,
+    SeriesPool,
+    cleanup_pools,
+    get_array_pool,
+    get_series_pool,
+)
 from .pytorch_gpu_manager import PyTorchGPUManager
 
 __all__ = [
@@ -40,6 +47,12 @@ __all__ = [
     "track_memory",
     "temp_series",
     "cleanup_series",
+    # Memory Pooling
+    "ArrayPool",
+    "SeriesPool",
+    "get_array_pool",
+    "get_series_pool",
+    "cleanup_pools",
     # PyTorch GPU Management
     "PyTorchGPUManager",
 ]

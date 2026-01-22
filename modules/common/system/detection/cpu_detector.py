@@ -4,11 +4,7 @@ CPU detection utilities.
 Provides CPU information detection.
 """
 
-import logging
-
 from .system_info import CPUInfo, SystemInfo
-
-logger = logging.getLogger(__name__)
 
 
 class CPUDetector:

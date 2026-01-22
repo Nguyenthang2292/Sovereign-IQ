@@ -25,7 +25,6 @@ def _layer1_signal_for_ma(
     *,
     L: float,
     De: float,
-    cutout: int = 0,
     R: Optional[pd.Series] = None,
 ) -> Tuple[pd.Series, Tuple[pd.Series, ...], Tuple[pd.Series, ...]]:
     """Calculate Layer 1 signal for a specific Moving Average type.
@@ -91,9 +90,6 @@ def _layer1_signal_for_ma(
     if not (0 <= De <= 1):
         raise ValueError(f"De must be between 0 and 1, got {De}")
 
-    if cutout < 0:
-        raise ValueError(f"cutout must be >= 0, got {cutout}")
-
     try:
         mem_manager = get_memory_manager()
         with mem_manager.track_memory("_layer1_signal_for_ma"):
@@ -130,7 +126,7 @@ def _layer1_signal_for_ma(
 
                     # Prepare data for vectorized calculation
                     index = signals[0].index
-                    growth = exp_growth(L=L, index=index, cutout=cutout)
+                    growth = exp_growth(L=L, index=index, cutout=0)
                     r = R * growth
                     d = 1.0 - De
 
@@ -160,7 +156,7 @@ def _layer1_signal_for_ma(
                             sig_prev_values=sig_prev_values,
                             r_values=r_values,
                             decay_multiplier=d,
-                            cutout=cutout,
+                            cutout=0,
                         )
                     finally:
                         # Always release buffer
@@ -170,11 +166,11 @@ def _layer1_signal_for_ma(
                     equities = [pd.Series(e_values_array[i], index=index, dtype="float64") for i in range(9)]
                 else:
                     # Fallback to sequential calculation
-                    equities = [equity_series(1.0, sig, R, L=L, De=De, cutout=cutout) for sig in signals]
+                    equities = [equity_series(1.0, sig, R, L=L, De=De, cutout=0) for sig in signals]
             except Exception:
                 # Fallback to sequential calculation on any error
                 log_warn("Vectorized equity calculation failed, using sequential version")
-                equities = [equity_series(1.0, sig, R, L=L, De=De, cutout=cutout) for sig in signals]
+                equities = [equity_series(1.0, sig, R, L=L, De=De, cutout=0) for sig in signals]
 
             # Unpack equities for return tuple (maintaining original variable names)
             E, E1, E2, E3, E4, E_1, E_2, E_3, E_4 = equities

@@ -3,91 +3,99 @@ import sys
 
 import numpy as np
 import pandas as pd
+import pytest
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from modules.common.system.memory_pool import cleanup_pools, get_array_pool, get_series_pool
+from modules.common.system.managers.memory_pool import cleanup_pools, get_array_pool, get_series_pool
 
 
-class TestMemoryPool:
-    def setup_method(self):
-        cleanup_pools()
+@pytest.fixture(autouse=True)
+def setup_pool():
+    """Cleanup pools before and after each test."""
+    cleanup_pools()
+    yield
+    cleanup_pools()
 
-    def test_array_pool_acquire_release(self):
-        pool = get_array_pool()
-        shape = (100, 100)
-        dtype = np.float64
 
-        # First acquire - should allocate new
-        arr1 = pool.acquire(shape, dtype)
-        assert arr1.shape == shape
-        assert arr1.dtype == dtype
+def test_array_pool_acquire_release():
+    pool = get_array_pool()
+    shape = (100, 100)
+    dtype = np.float64
 
-        # Modify it
-        arr1[0, 0] = 99.9
+    # First acquire - should allocate new
+    arr1 = pool.acquire(shape, dtype)
+    assert arr1.shape == shape
+    assert arr1.dtype == dtype
 
-        # Release it
-        pool.release(arr1)
+    # Modify it
+    arr1[0, 0] = 99.9
 
-        # Second acquire - should reuse (and be zeroed if acquire() used)
-        arr2 = pool.acquire(shape, dtype)
-        assert arr2.shape == shape
-        assert arr2.dtype == dtype
-        # Check if zeroed (default acquire zeroes)
-        assert arr2[0, 0] == 0.0
+    # Release it
+    pool.release(arr1)
 
-        # Check instance equality (implementation detail: assuming direct object reuse)
-        # Note: Depending on queue implementation, might not be exact same object if queue order varies
-        # or concurrent access. But here strictly single threaded.
-        assert arr1 is arr2
+    # Second acquire - should reuse (and be zeroed if acquire() used)
+    arr2 = pool.acquire(shape, dtype)
+    assert arr2.shape == shape
+    assert arr2.dtype == dtype
+    # Check if zeroed (default acquire zeroes)
+    assert arr2[0, 0] == 0.0
 
-    def test_array_pool_acquire_dirty(self):
-        pool = get_array_pool()
-        shape = (50,)
+    # Check instance equality (implementation detail: assuming direct object reuse)
+    # Note: Depending on queue implementation, might not be exact same object if queue order varies
+    # or concurrent access. But here strictly single threaded.
+    assert arr1 is arr2
 
-        arr1 = pool.acquire_dirty(shape)
-        arr1[0] = 123.45
-        pool.release(arr1)
 
-        arr2 = pool.acquire_dirty(shape)
-        # Should contain old data (dirty)
-        assert arr2[0] == 123.45
+def test_array_pool_acquire_dirty():
+    pool = get_array_pool()
+    shape = (50,)
 
-    def test_series_pool(self):
-        pool = get_series_pool()
-        length = 100
-        index = pd.RangeIndex(length)
+    arr1 = pool.acquire_dirty(shape)
+    arr1[0] = 123.45
+    pool.release(arr1)
 
-        s1 = pool.acquire(length, index=index, dtype=np.float64)
-        assert isinstance(s1, pd.Series)
-        assert len(s1) == length
+    arr2 = pool.acquire_dirty(shape)
+    # Should contain old data (dirty)
+    assert arr2[0] == 123.45
 
-        s1.iloc[0] = 55.5
-        pool.release(s1)
 
-        s2 = pool.acquire(length, index=index, dtype=np.float64)
-        assert s2.iloc[0] == 0.0  # Should be clean
-        # Checking reuse behavior depends on SeriesPool implementation detail.
-        # But functional correctness is met.
+def test_series_pool():
+    pool = get_series_pool()
+    length = 100
+    index = pd.RangeIndex(length)
 
-    def test_pool_stress(self):
-        pool = get_array_pool()
-        shape = (10,)
+    s1 = pool.acquire(length, index=index, dtype=np.float64)
+    assert isinstance(s1, pd.Series)
+    assert len(s1) == length
 
-        arrays = []
-        # Allocate 50 arrays
-        for _ in range(50):
-            arrays.append(pool.acquire(shape))
+    s1.iloc[0] = 55.5
+    pool.release(s1)
 
-        # Release all
-        for arr in arrays:
-            pool.release(arr)
+    s2 = pool.acquire(length, index=index, dtype=np.float64)
+    assert s2.iloc[0] == 0.0  # Should be clean
+    # Checking reuse behavior depends on SeriesPool implementation detail.
+    # But functional correctness is met.
 
-        # Re-acquire
-        reacquired = []
-        for _ in range(50):
-            reacquired.append(pool.acquire(shape))
 
-        # Should not raise errors
-        assert len(reacquired) == 50
+def test_pool_stress():
+    pool = get_array_pool()
+    shape = (10,)
+
+    arrays = []
+    # Allocate 50 arrays
+    for _ in range(50):
+        arrays.append(pool.acquire(shape))
+
+    # Release all
+    for arr in arrays:
+        pool.release(arr)
+
+    # Re-acquire
+    reacquired = []
+    for _ in range(50):
+        reacquired.append(pool.acquire(shape))
+
+    # Should not raise errors
+    assert len(reacquired) == 50

@@ -4,7 +4,7 @@ GPU-accelerated equity calculation kernels.
 
 from __future__ import annotations
 
-import logging
+from modules.common.ui.logging import log_debug
 
 try:
     import cupy as cp
@@ -12,8 +12,6 @@ try:
     _HAS_CUPY = True
 except ImportError:
     _HAS_CUPY = False
-
-logger = logging.getLogger(__name__)
 
 # CUDA Kernel for Equity Calculation (Scan)
 # Each thread handles one signal (one row) and iterates over time.
@@ -43,7 +41,7 @@ void equity_scan_kernel(
         int idx = row_offset + t;
 
         if (t < cutout) {
-            out_equity[idx] = NAN;
+            out_equity[idx] = nan("");
             continue;
         }
 

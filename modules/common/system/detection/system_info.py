@@ -4,9 +4,10 @@ System information detection with psutil wrapper.
 Single source of truth for system information queries with fallback handling.
 """
 
-import logging
 from dataclasses import dataclass
 from typing import Optional
+
+from modules.common.ui.logging import log_warn
 
 try:
     import psutil
@@ -14,9 +15,7 @@ try:
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
-    logging.warning("psutil not available. Install with: pip install psutil")
-
-logger = logging.getLogger(__name__)
+    log_warn("psutil not available. Install with: pip install psutil")
 
 
 @dataclass
@@ -81,7 +80,7 @@ class SystemInfo:
                 percent_used=mem.percent,
             )
         except Exception as e:
-            logger.warning(f"Error getting memory info: {e}")
+            log_warn(f"Error getting memory info: {e}")
             return MemoryInfo(
                 total_gb=0.0,
                 available_gb=0.0,
@@ -113,7 +112,7 @@ class SystemInfo:
                 percent_used=psutil.cpu_percent(interval=0.1),
             )
         except Exception as e:
-            logger.warning(f"Error getting CPU info: {e}")
+            log_warn(f"Error getting CPU info: {e}")
             import multiprocessing as mp
 
             return CPUInfo(
@@ -139,5 +138,5 @@ class SystemInfo:
         try:
             return psutil.cpu_percent(interval=interval)
         except Exception as e:
-            logger.warning(f"Error getting CPU percent: {e}")
+            log_warn(f"Error getting CPU percent: {e}")
             return 0.0

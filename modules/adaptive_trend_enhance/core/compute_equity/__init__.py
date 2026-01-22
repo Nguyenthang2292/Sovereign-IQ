@@ -17,11 +17,12 @@ Modules:
 
 from __future__ import annotations
 
-from .core import _calculate_equity_core, _calculate_equity_vectorized
+from .core import _calculate_equities_parallel, _calculate_equity_core, _calculate_equity_vectorized
 from .equity_series import equity_series
 
 __all__ = [
     "equity_series",
     "_calculate_equity_vectorized",
     "_calculate_equity_core",
+    "_calculate_equities_parallel",
 ]

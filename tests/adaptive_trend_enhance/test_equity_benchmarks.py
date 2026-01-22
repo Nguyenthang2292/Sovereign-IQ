@@ -41,17 +41,16 @@ def test_equity_caching_correctness():
     sig, R = create_test_data()
     L = 0.00002
     De = 0.0003
-    cutout = 50
     start_eq = 1.0
 
     # First call (uncached)
     start_time = time.time()
-    eq1 = equity_series(start_eq, sig, R, L=L, De=De, cutout=cutout)
+    eq1 = equity_series(start_eq, sig, R, L=L, De=De)
     duration1 = time.time() - start_time
 
     # Second call (cached)
     start_time = time.time()
-    eq2 = equity_series(start_eq, sig, R, L=L, De=De, cutout=cutout)
+    eq2 = equity_series(start_eq, sig, R, L=L, De=De)
     duration2 = time.time() - start_time
 
     # Verify results are identical
@@ -74,25 +73,24 @@ def test_equity_cache_key_sensitivity():
     sig, R = create_test_data()
     L = 0.0002
     De = 0.003
-    cutout = 50
 
     # Base call
-    eq1 = equity_series(1.0, sig, R, L=L, De=De, cutout=cutout)
+    eq1 = equity_series(1.0, sig, R, L=L, De=De)
 
     # Different Lambda (significantly different)
-    eq2 = equity_series(1.0, sig, R, L=0.01, De=De, cutout=cutout)
+    eq2 = equity_series(1.0, sig, R, L=0.0, De=De)
     # They should be different at least in some values
     assert not eq1.equals(eq2)
 
     # Different Decay
-    eq3 = equity_series(1.0, sig, R, L=L, De=0.05, cutout=cutout)
+    eq3 = equity_series(1.0, sig, R, L=L, De=0.1)
     assert not eq1.equals(eq3)
 
     # Different Signal (even one value)
-    # We change a value AFTER the cutout
+    # We change a value at index 100
     sig_diff = sig.copy()
     sig_diff.iloc[100] = -1 if sig_diff.iloc[100] >= 0 else 1
-    eq4 = equity_series(1.0, sig_diff, R, L=L, De=De, cutout=cutout)
+    eq4 = equity_series(1.0, sig_diff, R, L=L, De=De)
     assert not eq1.equals(eq4)
 
     # Check cache stats
@@ -109,7 +107,6 @@ def test_layer2_parallel_benchmark():
     sig, R = create_test_data(size=size)
     L = 0.00002
     De = 0.0003
-    cutout = 100
 
     # Prepare Layer 1 signals (6 types)
     ma_types = ["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"]
@@ -119,13 +116,13 @@ def test_layer2_parallel_benchmark():
     # Sequential run
     reset_cache_manager()  # Ensure no cache hits
     start_time = time.time()
-    res_seq = calculate_layer2_equities(layer1_signals, ma_configs, R, L, De, cutout, parallel=False)
+    res_seq = calculate_layer2_equities(layer1_signals, ma_configs, R, L, De, parallel=False)
     duration_seq = time.time() - start_time
 
     # Parallel run
     reset_cache_manager()  # Ensure no cache hits
     start_time = time.time()
-    res_par = calculate_layer2_equities(layer1_signals, ma_configs, R, L, De, cutout, parallel=True)
+    res_par = calculate_layer2_equities(layer1_signals, ma_configs, R, L, De, parallel=True)
     duration_par = time.time() - start_time
 
     # Verify results
@@ -138,7 +135,7 @@ def test_layer2_parallel_benchmark():
     print(f"Sequential: {duration_seq:.4f}s")
     print(f"Parallel: {duration_par:.4f}s")
     if duration_par < duration_seq:
-        print(f"Speedup: {duration_seq / duration_par:.2x}")
+        print(f"Speedup: {duration_seq / duration_par:.2f}x")
     else:
         print("Note: Parallel was not faster (overhead > benefit for small workload)")
 
@@ -147,14 +144,16 @@ def test_cache_eviction():
     """Verify that cache eviction works when full."""
     cache = get_cache_manager()
     # Mock settings for testing eviction
-    cache.max_entries = 5
+    cache.max_entries_l1 = 5
+    cache.max_entries_l2 = 0  # Disable L2 for testing
+    cache._l2_cache.clear()  # Clear any existing L2 entries
 
     sig, R = create_test_data(size=100)
 
     # Add 6 entries
     for i in range(6):
-        equity_series(1.0 + i, sig, R, L=0.02, De=0.03, cutout=0)
+        equity_series(1.0 + i, sig, R, L=0.02, De=0.03)
 
     stats = cache.get_stats()
-    assert stats["entries"] <= 5
+    assert stats["entries_l1"] <= 5
     assert stats["misses"] == 6

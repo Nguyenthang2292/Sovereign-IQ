@@ -8,12 +8,14 @@ Author: Adaptive Trend Enhanced Team
 """
 
 import hashlib
-import logging
+import os
 import pickle
 import time
 from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Callable, Dict, Optional
+
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 try:
     import numpy as np
@@ -22,10 +24,7 @@ try:
     PANDAS_AVAILABLE = True
 except ImportError:
     PANDAS_AVAILABLE = False
-    logging.warning("pandas/numpy not available")
-
-
-logger = logging.getLogger(__name__)
+    log_warn("pandas/numpy not available")
 
 
 @dataclass
@@ -37,68 +36,87 @@ class CacheEntry:
     timestamp: float
     hits: int = 0
     size_bytes: int = 0
+    ma_type: Optional[str] = None
+    length: Optional[int] = None
+
+    def score(self) -> float:
+        """Calculate importance score (Hybrid LRU+LFU)"""
+        # Frequency weight
+        freq = self.hits
+        # Recency weight (seconds since creation relative to current time)
+        recency = self.timestamp
+        return freq + recency
 
 
 class CacheManager:
     """
-    Intelligent cache manager for MA calculations.
+    Enhanced multi-level cache manager for ATC calculations.
 
-    Features:
-    - Hash-based caching (length + price series)
-    - LRU eviction policy
-    - Size-based eviction
-    - Hit rate tracking
-    - TTL (time-to-live) support
-    - Memory-efficient storage
+    Levels:
+    - L1 (Memory): Small, very fast LRU for current symbol components.
+    - L2 (Memory): Larger pool for frequent patterns across symbols.
+    - Persistent (Disk): Pickled L2 cache for cross-session reuse.
     """
 
-    def __init__(self, max_entries: int = 1000, max_size_mb: float = 500.0, ttl_seconds: Optional[float] = 3600.0):
+    def __init__(
+        self,
+        max_entries_l1: int = 128,
+        max_entries_l2: int = 1024,
+        max_size_mb_l2: float = 1000.0,
+        ttl_seconds: Optional[float] = 3600.0,
+        cache_dir: str = ".cache/atc",
+    ):
         """
-        Initialize Cache Manager.
+        Initialize Enhanced Cache Manager.
 
         Args:
-            max_entries: Maximum number of cache entries
-            max_size_mb: Maximum cache size in MB
-            ttl_seconds: Time-to-live in seconds (None for no expiration)
+            max_entries_l1: Max entries in L1 (very fast)
+            max_entries_l2: Max entries in L2 (bulk)
+            max_size_mb_l2: Max size for L2 in MB
+            ttl_seconds: TTL for entries
+            cache_dir: Directory for persistent cache
         """
-        self.max_entries = max_entries
-        self.max_size_bytes = int(max_size_mb * 1024 * 1024)
+        self.max_entries_l1 = max_entries_l1
+        self.max_entries_l2 = max_entries_l2
+        self.max_size_bytes_l2 = int(max_size_mb_l2 * 1024 * 1024)
         self.ttl_seconds = ttl_seconds
+        self.cache_dir = cache_dir
 
-        self._cache: Dict[str, CacheEntry] = {}
-        self._total_size_bytes = 0
-        self._hits = 0
+        self._l1_cache: Dict[str, CacheEntry] = {}
+        self._l2_cache: Dict[str, CacheEntry] = {}
+        self._l2_size_bytes = 0
+        self._hits_l1 = 0
+        self._hits_l2 = 0
         self._misses = 0
 
-        logger.info(
-            f"Cache Manager initialized: max_entries={max_entries}, max_size={max_size_mb}MB, ttl={ttl_seconds}s"
+        if not os.path.exists(cache_dir):
+            try:
+                os.makedirs(cache_dir, exist_ok=True)
+            except Exception as e:
+                log_warn(f"Could not create cache directory {cache_dir}: {e}")
+        else:
+            # Auto-load existing cache
+            self.load_from_disk()
+
+        log_info(
+            f"Enhanced Cache Manager initialized: L1={max_entries_l1}, L2={max_entries_l2}, "
+            f"L2_max_size={max_size_mb_l2}MB, dir={cache_dir}"
         )
 
     def _generate_key(self, ma_type: str, length: int, price_data: Any, extra_params: Optional[Dict] = None) -> str:
-        """
-        Generate cache key from parameters.
-
-        Args:
-            ma_type: Moving average type (e.g., 'EMA', 'WMA')
-            length: MA length
-            price_data: Price series (pandas Series or numpy array)
-            extra_params: Additional parameters
-
-        Returns:
-            Cache key string
-        """
+        """Generate cache key using MD5 (fast)."""
         # Convert price data to hashable format
         if PANDAS_AVAILABLE and isinstance(price_data, pd.Series):
-            # Use Series values and length
-            data_hash = hashlib.sha256(price_data.values.tobytes()).hexdigest()[:16]
+            data_raw = price_data.values.tobytes()
         elif isinstance(price_data, np.ndarray):
-            data_hash = hashlib.sha256(price_data.tobytes()).hexdigest()[:16]
+            data_raw = price_data.tobytes()
         else:
-            # Fallback: convert to string
-            data_hash = hashlib.sha256(str(price_data).encode()).hexdigest()[:16]
+            data_raw = str(price_data).encode()
+
+        data_hash = hashlib.md5(data_raw).hexdigest()[:16]
 
         # Build key components
-        key_parts = [f"ma_type={ma_type}", f"length={length}", f"data={data_hash}"]
+        key_parts = [f"ma={ma_type}", f"len={length}", f"d={data_hash}"]
 
         if extra_params:
             for k, v in sorted(extra_params.items()):
@@ -106,9 +124,7 @@ class CacheManager:
 
         return "|".join(key_parts)
 
-    def _generate_equity_key(
-        self, signal_hash: str, R_hash: str, L: float, De: float, cutout: int, starting_equity: float
-    ) -> str:
+    def _generate_equity_key(self, signal_hash: str, R_hash: str, L: float, De: float, starting_equity: float) -> str:
         """
         Generate cache key for equity calculation.
 
@@ -117,7 +133,6 @@ class CacheManager:
             R_hash: Hash of rate of change series
             L: Lambda parameter
             De: Decay parameter
-            cutout: Cutout parameter
             starting_equity: Starting equity value
 
         Returns:
@@ -129,110 +144,102 @@ class CacheManager:
             f"R={R_hash}",
             f"L={L:.6f}",
             f"De={De:.6f}",
-            f"cutout={cutout}",
             f"start={starting_equity:.6f}",
         ]
         return "|".join(key_parts)
 
-    def get_equity(
-        self, signal: Any, R: Any, L: float, De: float, cutout: int, starting_equity: float
-    ) -> Optional[Any]:
-        """
-        Get cached equity curve.
-
-        Args:
-            signal: Signal series
-            R: Rate of change series
-            L: Lambda parameter
-            De: Decay parameter
-            cutout: Cutout parameter
-            starting_equity: Starting equity value
-
-        Returns:
-            Cached equity series or None if not found
-        """
-        # Generate hashes for signal and R
-        if PANDAS_AVAILABLE and isinstance(signal, pd.Series):
-            signal_hash = hashlib.sha256(signal.values.tobytes()).hexdigest()[:16]
-        elif isinstance(signal, np.ndarray):
-            signal_hash = hashlib.sha256(signal.tobytes()).hexdigest()[:16]
-        else:
-            signal_hash = hashlib.sha256(str(signal).encode()).hexdigest()[:16]
-
-        if PANDAS_AVAILABLE and isinstance(R, pd.Series):
-            R_hash = hashlib.sha256(R.values.tobytes()).hexdigest()[:16]
-        elif isinstance(R, np.ndarray):
-            R_hash = hashlib.sha256(R.tobytes()).hexdigest()[:16]
-        else:
-            R_hash = hashlib.sha256(str(R).encode()).hexdigest()[:16]
-
-        key = self._generate_equity_key(signal_hash, R_hash, L, De, cutout, starting_equity)
-        entry = self._cache.get(key)
-
-        if entry is None:
-            self._misses += 1
-            return None
-
-        # Check TTL
-        if self.ttl_seconds is not None:
-            age = time.time() - entry.timestamp
-            if age > self.ttl_seconds:
-                self._remove_entry(key)
-                self._misses += 1
-                return None
-
-        # Hit
-        entry.hits += 1
-        self._hits += 1
-        logger.debug(f"Equity cache HIT: L={L}, De={De}, cutout={cutout}")
-        return entry.value
-
-    def put_equity(self, signal: Any, R: Any, L: float, De: float, cutout: int, starting_equity: float, equity: Any):
-        """
-        Cache equity curve.
-
-        Args:
-            signal: Signal series
-            R: Rate of change series
-            L: Lambda parameter
-            De: Decay parameter
-            cutout: Cutout parameter
-            starting_equity: Starting equity value
-            equity: Equity series to cache
-        """
+    def get_equity(self, signal: Any, R: Any, L: float, De: float, starting_equity: float) -> Optional[Any]:
+        """Get cached equity curve (checks L1 and L2)."""
         # Generate hashes
         if PANDAS_AVAILABLE and isinstance(signal, pd.Series):
-            signal_hash = hashlib.sha256(signal.values.tobytes()).hexdigest()[:16]
+            s_raw = signal.values.tobytes()
         elif isinstance(signal, np.ndarray):
-            signal_hash = hashlib.sha256(signal.tobytes()).hexdigest()[:16]
+            s_raw = signal.tobytes()
         else:
-            signal_hash = hashlib.sha256(str(signal).encode()).hexdigest()[:16]
+            s_raw = str(signal).encode()
+
+        signal_hash = hashlib.md5(s_raw).hexdigest()[:16]
 
         if PANDAS_AVAILABLE and isinstance(R, pd.Series):
-            R_hash = hashlib.sha256(R.values.tobytes()).hexdigest()[:16]
+            r_raw = R.values.tobytes()
         elif isinstance(R, np.ndarray):
-            R_hash = hashlib.sha256(R.tobytes()).hexdigest()[:16]
+            r_raw = R.tobytes()
         else:
-            R_hash = hashlib.sha256(str(R).encode()).hexdigest()[:16]
+            r_raw = str(R).encode()
 
-        key = self._generate_equity_key(signal_hash, R_hash, L, De, cutout, starting_equity)
+        R_hash = hashlib.md5(r_raw).hexdigest()[:16]
 
-        # Estimate size
-        size_bytes = self._estimate_size(equity)
+        key = self._generate_equity_key(signal_hash, R_hash, L, De, starting_equity)
+        return self._get_entry(key)
 
-        # Check if we need to evict
-        while len(self._cache) >= self.max_entries or self._total_size_bytes + size_bytes > self.max_size_bytes:
-            if not self._evict_lru():
-                logger.warning("Equity cache full, cannot add new entry")
-                return
+    def _get_entry(self, key: str) -> Optional[Any]:
+        """Base get logic with multi-level promotion."""
+        # Check L1
+        entry = self._l1_cache.get(key)
+        if entry:
+            self._hits_l1 += 1
+            entry.hits += 1
+            return entry.value
 
-        # Create entry
-        entry = CacheEntry(key=key, value=equity, timestamp=time.time(), hits=0, size_bytes=size_bytes)
+        # Check L2
+        entry = self._l2_cache.get(key)
+        if entry:
+            self._hits_l2 += 1
+            entry.hits += 1
+            # Promote to L1 (replace oldest if full)
+            if len(self._l1_cache) >= self.max_entries_l1:
+                oldest_key = min(self._l1_cache.keys(), key=lambda k: self._l1_cache[k].timestamp)
+                self._l1_cache.pop(oldest_key)
+            self._l1_cache[key] = entry
+            return entry.value
 
-        self._cache[key] = entry
-        self._total_size_bytes += size_bytes
+        self._misses += 1
+        return None
 
-        logger.debug(f"Equity cache PUT: L={L}, De={De}, cutout={cutout} ({size_bytes} bytes)")
+    def put_equity(self, signal: Any, R: Any, L: float, De: float, starting_equity: float, equity: Any):
+        """Cache equity curve (puts in L1 and L2)."""
+        # Generate hashes
+        if PANDAS_AVAILABLE and isinstance(signal, pd.Series):
+            s_raw = signal.values.tobytes()
+        elif isinstance(signal, np.ndarray):
+            s_raw = signal.tobytes()
+        else:
+            s_raw = str(signal).encode()
+        signal_hash = hashlib.md5(s_raw).hexdigest()[:16]
+
+        if PANDAS_AVAILABLE and isinstance(R, pd.Series):
+            r_raw = R.values.tobytes()
+        elif isinstance(R, np.ndarray):
+            r_raw = R.tobytes()
+        else:
+            r_raw = str(R).encode()
+        R_hash = hashlib.md5(r_raw).hexdigest()[:16]
+
+        key = self._generate_equity_key(signal_hash, R_hash, L, De, starting_equity)
+        self._put_entry(key, equity)
+
+    def _put_entry(self, key: str, value: Any, ma_type: str = None, length: int = None):
+        """Base put logic for multi-level cache."""
+        size_bytes = self._estimate_size(value)
+        entry = CacheEntry(
+            key=key, value=value, timestamp=time.time(), hits=1, size_bytes=size_bytes, ma_type=ma_type, length=length
+        )
+
+        # L1 logic (Strict LRU if full)
+        if len(self._l1_cache) >= self.max_entries_l1:
+            # Pop oldest from L1
+            oldest_key = min(self._l1_cache.keys(), key=lambda k: self._l1_cache[k].timestamp)
+            self._l1_cache.pop(oldest_key)
+        self._l1_cache[key] = entry
+
+        # L2 logic (Hybrid LRU+LFU)
+        while len(self._l2_cache) >= self.max_entries_l2 or self._l2_size_bytes + size_bytes > self.max_size_bytes_l2:
+            if not self._evict_l2():
+                break
+
+        if len(self._l2_cache) < self.max_entries_l2 and self._l2_size_bytes + size_bytes <= self.max_size_bytes_l2:
+            self._l2_cache[key] = entry
+            self._l2_size_bytes += size_bytes
 
     def _estimate_size(self, value: Any) -> int:
         """
@@ -258,129 +265,98 @@ class CacheManager:
                 return 1000
 
     def get(self, ma_type: str, length: int, price_data: Any, extra_params: Optional[Dict] = None) -> Optional[Any]:
-        """
-        Get cached MA result.
-
-        Args:
-            ma_type: Moving average type
-            length: MA length
-            price_data: Price series
-            extra_params: Additional parameters
-
-        Returns:
-            Cached value or None if not found
-        """
+        """Get cached MA result."""
         key = self._generate_key(ma_type, length, price_data, extra_params)
-
-        entry = self._cache.get(key)
-
-        if entry is None:
-            self._misses += 1
-            return None
-
-        # Check TTL
-        if self.ttl_seconds is not None:
-            age = time.time() - entry.timestamp
-            if age > self.ttl_seconds:
-                # Expired
-                self._remove_entry(key)
-                self._misses += 1
-                return None
-
-        # Hit
-        entry.hits += 1
-        self._hits += 1
-
-        logger.debug(f"Cache HIT: {ma_type} length={length}")
-        return entry.value
+        return self._get_entry(key)
 
     def put(self, ma_type: str, length: int, price_data: Any, value: Any, extra_params: Optional[Dict] = None):
-        """
-        Store MA result in cache.
-
-        Args:
-            ma_type: Moving average type
-            length: MA length
-            price_data: Price series
-            value: MA result to cache
-            extra_params: Additional parameters
-        """
+        """Store MA result in cache."""
         key = self._generate_key(ma_type, length, price_data, extra_params)
-
-        # Estimate size
-        size_bytes = self._estimate_size(value)
-
-        # Check if we need to evict
-        while len(self._cache) >= self.max_entries or self._total_size_bytes + size_bytes > self.max_size_bytes:
-            if not self._evict_lru():
-                # Can't evict anymore
-                logger.warning("Cache full, cannot add new entry")
-                return
-
-        # Create entry
-        entry = CacheEntry(key=key, value=value, timestamp=time.time(), hits=0, size_bytes=size_bytes)
-
-        self._cache[key] = entry
-        self._total_size_bytes += size_bytes
-
-        logger.debug(f"Cache PUT: {ma_type} length={length} ({size_bytes} bytes)")
+        self._put_entry(key, value, ma_type, length)
 
     def _remove_entry(self, key: str):
-        """Remove entry from cache"""
-        entry = self._cache.pop(key, None)
+        """Remove entry from all cache levels."""
+        self._l1_cache.pop(key, None)
+        entry = self._l2_cache.pop(key, None)
         if entry:
-            self._total_size_bytes -= entry.size_bytes
+            self._l2_size_bytes -= entry.size_bytes
 
-    def _evict_lru(self) -> bool:
-        """
-        Evict least recently used entry.
-
-        Returns:
-            True if an entry was evicted
-        """
-        if not self._cache:
+    def _evict_l2(self) -> bool:
+        """Evict entry from L2 using Hybrid LRU+LFU."""
+        if not self._l2_cache:
             return False
 
-        # Find LRU entry (oldest timestamp, fewest hits)
-        lru_key = min(self._cache.keys(), key=lambda k: (self._cache[k].timestamp, self._cache[k].hits))
-
-        self._remove_entry(lru_key)
-        logger.debug(f"Evicted LRU entry: {lru_key}")
+        # Find entry with lowest score
+        evict_key = min(self._l2_cache.keys(), key=lambda k: self._l2_cache[k].score())
+        self._remove_entry(evict_key)
         return True
 
+    def save_to_disk(self, filename: str = "cache_v1.pkl"):
+        """Save L2 cache to disk."""
+        path = os.path.join(self.cache_dir, filename)
+        log_info(f"Saving cache to {path}...")
+        try:
+            # We only save entries with hits > 1 to avoid bloating
+            to_save = {k: v for k, v in self._l2_cache.items() if v.hits > 1}
+            with open(path, "wb") as f:
+                pickle.dump(to_save, f)
+            log_info(f"Saved {len(to_save)} persistent entries")
+        except Exception as e:
+            log_error(f"Failed to save cache: {e}")
+
+    def load_from_disk(self, filename: str = "cache_v1.pkl"):
+        """Load L2 cache from disk."""
+        path = os.path.join(self.cache_dir, filename)
+        if not os.path.exists(path):
+            return
+        log_info(f"Loading cache from {path}...")
+        try:
+            with open(path, "rb") as f:
+                loaded = pickle.load(f)
+
+            for k, v in loaded.items():
+                if k not in self._l2_cache:
+                    # Reset stats for new session? Or keep?
+                    v.timestamp = time.time()
+                    self._l2_cache[k] = v
+                    self._l2_size_bytes += v.size_bytes
+            log_info(f"Loaded {len(loaded)} entries from disk")
+        except Exception as e:
+            log_error(f"Failed to load cache: {e}")
+
     def clear(self):
-        """Clear all cache entries"""
-        self._cache.clear()
-        self._total_size_bytes = 0
-        logger.info("Cache cleared")
+        """Clear all cache levels."""
+        self._l1_cache.clear()
+        self._l2_cache.clear()
+        self._l2_size_bytes = 0
+        log_info("Enhanced Cache cleared")
 
     def get_stats(self) -> Dict[str, Any]:
-        """
-        Get cache statistics.
-
-        Returns:
-            Dictionary with cache stats
-        """
-        total_requests = self._hits + self._misses
-        hit_rate = (self._hits / total_requests * 100) if total_requests > 0 else 0.0
+        """Get enhanced cache statistics."""
+        total_hits = self._hits_l1 + self._hits_l2
+        total_entries = len(self._l1_cache) + len(self._l2_cache)
+        total_requests = total_hits + self._misses
+        hit_rate = (total_hits / total_requests * 100) if total_requests > 0 else 0.0
 
         return {
-            "entries": len(self._cache),
-            "size_mb": self._total_size_bytes / (1024 * 1024),
-            "hits": self._hits,
+            "entries": total_entries,
+            "entries_l1": len(self._l1_cache),
+            "entries_l2": len(self._l2_cache),
+            "size_l2_mb": self._l2_size_bytes / (1024 * 1024),
+            "hits": total_hits,
+            "hits_l1": self._hits_l1,
+            "hits_l2": self._hits_l2,
             "misses": self._misses,
             "hit_rate_percent": hit_rate,
-            "max_entries": self.max_entries,
-            "max_size_mb": self.max_size_bytes / (1024 * 1024),
         }
 
     def log_stats(self):
-        """Log cache statistics"""
+        """Log enhanced cache statistics."""
         stats = self.get_stats()
-        logger.info(
-            f"Cache Stats: {stats['entries']} entries, "
-            f"{stats['size_mb']:.2f}MB, "
-            f"Hit rate: {stats['hit_rate_percent']:.1f}%"
+        log_info(
+            f"Cache Stats: L1={stats['entries_l1']}, L2={stats['entries_l2']}, "
+            f"Size={stats['size_l2_mb']:.2f}MB, Hit Rate={stats['hit_rate_percent']:.1f}% "
+            f"(L1={stats['hits_l1']}, L2={stats['hits_l2']})"
         )
 
 

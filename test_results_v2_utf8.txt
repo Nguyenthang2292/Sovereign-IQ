@@ -1,0 +1,105 @@
+﻿
+============================================================
+Python: 3.13.9 (tags/v3.13.9:8183fa5, Oct 14 2025, 14:09:13) [MSC v.1944 64 bit (AMD64)]
+Project Root: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-
+Python Executable: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.venv\Scripts\python.exe
+============================================================
+
+[1m============================= test session starts =============================[0m
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.12.0, asyncio-1.3.0, cov-4.1.0, memprof-0.2.0, timeout-2.4.0, xdist-3.8.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+created: 20/20 workers
+20 workers [14 items]
+
+scheduling tests via LoadScopeScheduling
+
+tests/adaptive_trend_enhance/test_integration.py::TestEnhancedScannerWithRealMarketData::test_scanner_with_realistic_data 
+tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_detect_hardware_info 
+tests/adaptive_trend_enhance/test_integration.py::TestCLICompatibility::test_cli_argument_parsing 
+tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[sequential] 
+[gw2][36m [  7%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestCLICompatibility::test_cli_argument_parsing 
+[gw1][36m [ 14%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_detect_hardware_info 
+[gw3][36m [ 21%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestEnhancedScannerWithRealMarketData::test_scanner_with_realistic_data 
+[gw0][36m [ 28%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[sequential] 
+tests/adaptive_trend_enhance/test_integration.py::TestCLICompatibility::test_cli_config_integration 
+[gw2][36m [ 35%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestCLICompatibility::test_cli_config_integration 
+tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_adaptive_configuration_based_on_hardware 
+[gw1][36m [ 42%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_adaptive_configuration_based_on_hardware 
+tests/adaptive_trend_enhance/test_integration.py::TestEnhancedScannerWithRealMarketData::test_scanner_with_varying_data_quality 
+tests/adaptive_trend_enhance/test_integration.py::TestCLICompatibility::test_cli_scanner_integration 
+tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[threadpool] 
+[gw2][36m [ 50%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestCLICompatibility::test_cli_scanner_integration 
+[gw3][36m [ 57%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestEnhancedScannerWithRealMarketData::test_scanner_with_varying_data_quality 
+tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_low_memory_configuration 
+[gw0][36m [ 64%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[threadpool] 
+tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[asyncio] 
+[gw0][36m [ 71%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[asyncio] 
+[gw1][36m [ 78%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_low_memory_configuration 
+tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[processpool] 
+[gw0][36m [ 85%] [0m[31mFAILED[0m tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[processpool] 
+tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_high_memory_configuration 
+[gw1][36m [ 92%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_high_memory_configuration 
+tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_execution_mode_consistency 
+[gw0][36m [100%] [0m[32mPASSED[0m tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_execution_mode_consistency 
+
+================================== FAILURES ===================================
+[31m[1m______ TestDifferentExecutionModes.test_all_execution_modes[processpool] ______[0m
+[gw0] win32 -- Python 3.13.9 D:\NGUYEN QUANG THANG\Probability projects\crypto-probability-\.venv\Scripts\python.exe
+[1m[31mtests\adaptive_trend_enhance\test_integration.py[0m:193: in test_all_execution_modes
+    [0m[94massert[39;49;00m [96mlen[39;49;00m(long_df) == [94m20[39;49;00m, [33mf[39;49;00m[33m"[39;49;00m[33m{[39;49;00mexecution_mode[33m}[39;49;00m[33m mode should process all symbols[39;49;00m[33m"[39;49;00m[90m[39;49;00m
+[1m[31mE   AssertionError: processpool mode should process all symbols[0m
+[1m[31mE   assert 0 == 20[0m
+[1m[31mE    +  where 0 = len(Empty DataFrame\nColumns: []\nIndex: [])[0m
+---------------------------- Captured stdout call -----------------------------
+\x1b[22m\x1b[33mFetching futures symbols from Binance...\x1b[0m\n\x1b[22m\x1b[32mFound 20 futures symbols, scanning first 20 symbols\x1b[0m\n\x1b[22m\x1b[33mScanning 20 symbols for ATC signals using processpool mode (workers=2)...\x1b[0m\n\x1b[22m\x1b[37m[scan_all_symbols:20] Starting - RAM: 43.9%\x1b[0m\n\x1b[22m\x1b[37mStarting ProcessPool scan with 2 workers\x1b[0m\n\x1b[22m\x1b[37m[scan_all_symbols:20] Completed - RAM: 43.9% (\u0394+0.001GB), GPU: 0.00GB (\u0394+0.000GB)\x1b[0m\n\x1b[22m\x1b[37mMemory cleanup started (aggressive=False)\x1b[0m\n\x1b[22m\x1b[37mCleanup complete: RAM at 43.9%\x1b[0m\n\x1b[1m\x1b[31mFatal error scanning symbols: PicklingError: Can't pickle <class 'unittest.mock.MagicMock'>: it's not the same object as unittest.mock.MagicMock\x1b[0m\n\x1b[1m\x1b[31mTraceback: Traceback (most recent call last):\n  File "D:\\NGUYEN QUANG THANG\\Probability projects\\crypto-probability-\\modules\\adaptive_trend_enhance\\core\\scanner\\scan_all_symbols.py", line 209, in scan_all_symbols\n    results, skipped_count, error_count, skipped_symbols = _scan_processpool(\n                                                           ~~~~~~~~~~~~~~~~~^\n        symbols, data_fetcher, atc_config, min_signal, max_workers, batch_size\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File "D:\\NGUYEN QUANG THANG\\Probability projects\\crypto-probability-\\modules\\adaptive_trend_enhance\\core\\scanner\\processpool.py", line 126, in _scan_processpool\n    executor.submit(_worker_task, symbol, atc_config, min_signal): symbol for symbol in batch_symbols\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\ServBay\\packages\\python\\current\\Lib\\concurrent\\futures\\process.py", line 808, in submit\n    self._adjust_process_count()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File "C:\\ServBay\\packages\\python\\current\\Lib\\concurrent\\futures\\process.py", line 767, in _adjust_process_count\n    self._spawn_process()\n    ~~~~~~~~~~~~~~~~~~~^^\n  File "C:\\ServBay\\packages\\python\\current\\Lib\\concurrent\\futures\\process.py", line 785, in _spawn_process\n    p.start()\n    ~~~~~~~^^\n  File "C:\\ServBay\\packages\\python\\current\\Lib\\multiprocessing\\process.py", line 121, in start\n    self._popen = self._Popen(self)\n                  ~~~~~~~~~~~^^^^^^\n  File "C:\\ServBay\\packages\\python\\current\\Lib\\multiprocessing\\context.py", line 337, in _Popen\n    return Popen(process_obj)\n  File "C:\\ServBay\\packages\\python\\current\\Lib\\multiprocessing\\popen_spawn_win32.py", line 97, in __init__\n    reduction.dump(process_obj, to_child)\n    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\ServBay\\packages\\python\\current\\Lib\\multiprocessing\\reduction.py", line 60, in dump\n    ForkingPickler(file, protocol).dump(obj)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^\n_pickle.PicklingError: Can't pickle <class 'unittest.mock.MagicMock'>: it's not the same object as unittest.mock.MagicMock\n\x1b[0m\n\nExecution Mode: processpool\n  Results: 0 long, 0 short
+-------------------------- Captured stderr teardown ---------------------------
+Traceback (most recent call last):
+
+  File "<string>", line 1, in <module>
+
+    from multiprocessing.spawn import spawn_main; spawn_main(parent_pid=50748, pipe_handle=1608)
+
+                                                  ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "C:\ServBay\packages\python\current\Lib\multiprocessing\spawn.py", line 113, in spawn_main
+
+    new_handle = reduction.duplicate(pipe_handle,
+
+                                     source_process=source_process)
+
+  File "C:\ServBay\packages\python\current\Lib\multiprocessing\reduction.py", line 79, in duplicate
+
+    return _winapi.DuplicateHandle(
+
+           ~~~~~~~~~~~~~~~~~~~~~~~^
+
+        source_process, handle, target_process,
+
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        0, inheritable, _winapi.DUPLICATE_SAME_ACCESS)
+
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+OSError: [WinError 6] The handle is invalid
+
+============================ slowest 10 durations =============================
+1.35s call     tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_low_memory_configuration
+1.16s call     tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_execution_mode_consistency
+0.81s teardown tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[sequential]
+0.80s teardown tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_detect_hardware_info
+0.80s teardown tests/adaptive_trend_enhance/test_integration.py::TestCLICompatibility::test_cli_config_integration
+0.80s teardown tests/adaptive_trend_enhance/test_integration.py::TestEnhancedScannerWithRealMarketData::test_scanner_with_realistic_data
+0.79s call     tests/adaptive_trend_enhance/test_integration.py::TestDifferentExecutionModes::test_all_execution_modes[sequential]
+0.78s teardown tests/adaptive_trend_enhance/test_integration.py::TestCLICompatibility::test_cli_argument_parsing
+0.78s teardown tests/adaptive_trend_enhance/test_integration.py::TestDifferentHardwareConfigurations::test_adaptive_configuration_based_on_hardware
+0.69s call     tests/adaptive_trend_enhance/test_integration.py::TestEnhancedScannerWithRealMarketData::test_scanner_with_realistic_data
+[36m[1m=========================== short test summary info ===========================[0m
+[31mFAILED[0m tests/adaptive_trend_enhance/test_integration.py::[1mTestDifferentExecutionModes::test_all_execution_modes[processpool][0m - AssertionError: processpool mode should process all symbols
+assert 0 == 20
+ +  where 0 = len(Empty DataFrame\nColumns: []\nIndex: [])
+[31m======================== [31m[1m1 failed[0m, [32m13 passed[0m[31m in 30.67s[0m[31m ========================[0m

@@ -30,18 +30,19 @@ from .managers.memory_manager import (
     MemorySnapshot,
     cleanup_series,
     get_memory_manager,
+    profile_memory,
     reset_memory_manager,
     temp_series,
     track_memory,
 )
-from .managers.pytorch_gpu_manager import PyTorchGPUManager
-from .memory_pool import (
+from .managers.memory_pool import (
     ArrayPool,
     SeriesPool,
     cleanup_pools,
     get_array_pool,
     get_series_pool,
 )
+from .managers.pytorch_gpu_manager import PyTorchGPUManager
 
 # Shared utilities
 from .shared_memory_utils import (
@@ -83,6 +84,7 @@ __all__ = [
     "track_memory",
     "temp_series",
     "cleanup_series",
+    "profile_memory",
     # Shared Memory Utilities
     "SHARED_MEMORY_AVAILABLE",
     "setup_shared_memory_for_dataframe",

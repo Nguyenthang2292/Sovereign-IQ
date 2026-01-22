@@ -10,6 +10,7 @@ Averages in Layer 1 of the ATC system:
 
 from __future__ import annotations
 
+from ._parallel_layer1 import _layer1_parallel_atc_signals
 from .cut_signal import cut_signal
 from .layer1_signal import _layer1_signal_for_ma
 from .trend_sign import trend_sign
@@ -20,4 +21,5 @@ __all__ = [
     "cut_signal",
     "trend_sign",
     "_layer1_signal_for_ma",
+    "_layer1_parallel_atc_signals",
 ]

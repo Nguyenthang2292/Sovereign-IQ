@@ -7,15 +7,10 @@ on NumPy arrays and Pandas Series/DataFrames.
 
 from __future__ import annotations
 
-import logging
-from typing import Any, Union
+from typing import Union
 
 import numpy as np
 import pandas as pd
-
-from modules.common.ui.logging import log_warn
-
-logger = logging.getLogger(__name__)
 
 
 def ensure_zero_copy(arr: np.ndarray, base: np.ndarray) -> bool:

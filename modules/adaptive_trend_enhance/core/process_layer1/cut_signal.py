@@ -6,6 +6,7 @@ signals into discrete values {-1, 0, 1}.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from modules.common.system import get_memory_manager
@@ -66,14 +67,12 @@ def cut_signal(
     try:
         mem_manager = get_memory_manager()
         with mem_manager.track_memory("cut_signal"):
-            c = pd.Series(0, index=x.index, dtype="int8")
+            # Vectorize discretization (Task 8.5)
+            # c = x > long ? 1 : x < short ? -1 : 0
+            v = x.values
+            c_vals = np.select([v > long_threshold, v < short_threshold], [1, -1], default=0).astype(np.int8)
 
-        # Handle NaN values: treat as 0 (no signal)
-        valid_mask = ~x.isna()
-
-        if valid_mask.any():
-            c.loc[valid_mask & (x > long_threshold)] = 1
-            c.loc[valid_mask & (x < short_threshold)] = -1
+            c = pd.Series(c_vals, index=x.index, dtype="int8")
 
         # Enforce cutout: set first 'cutout' bars to 0
         if cutout > 0 and cutout < len(c):
@@ -81,7 +80,7 @@ def cut_signal(
             # Also ensure NaN handling aligns if needed, though int8 has no NaN
 
         # Check for excessive NaN values
-        nan_count = (~valid_mask).sum()
+        nan_count = x.isna().sum()
         if nan_count > 0:
             nan_pct = (nan_count / len(x)) * 100
             if nan_pct > 10:  # Warn if more than 10% NaN

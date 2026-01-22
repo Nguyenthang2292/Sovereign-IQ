@@ -4,10 +4,11 @@ GPU-accelerated signal processing logic.
 
 from __future__ import annotations
 
-import logging
 from typing import Dict, Optional, Union
 
 import numpy as np
+
+from modules.common.ui.logging import log_debug
 
 try:
     import cupy as cp
@@ -15,8 +16,6 @@ try:
     _HAS_CUPY = True
 except ImportError:
     _HAS_CUPY = False
-
-logger = logging.getLogger(__name__)
 
 
 # CUDA Kernel for Signal Persistence (Forward Fill 0s)
@@ -87,21 +86,18 @@ def rate_of_change_gpu(prices_gpu: cp.ndarray, length: int = 1) -> cp.ndarray:
     curr = prices_gpu[:, length:]
     prev = prices_gpu[:, :-length]
 
-    # Avoid div by zero
-    with cp.errstate(divide="ignore", invalid="ignore"):
-        roc = (curr - prev) / prev
+    # Calculate rate of change: (curr - prev) / prev
+    # CuPy will automatically produce NaN/Inf for division by zero
+    # We handle this by using safe division with mask
+    mask = prev != 0
+    roc = cp.where(mask, (curr - prev) / prev, cp.nan)
 
-    # Replace Inf with NaN if needed, or handle
-    roc = cp.nan_to_num(roc, nan=0.0, posinf=0.0, neginf=0.0)
+    # Replace Inf with NaN (keep NaN as NaN to match CPU behavior)
+    # CPU version (pandas pct_change) returns NaN for invalid values
+    roc = cp.where(cp.isinf(roc), cp.nan, roc)
 
-    # Pad beginning
-    pad = cp.zeros((n_rows, length), dtype=prices_gpu.dtype)
-    # Usually RoC first value is NaN or 0?
-    # Pine Script change() returns NaN at start?
-    # Let's fill 0.0 to be safe for subsequent calcs, or NaN if consistent.
-    # The CPU version returns NaN at start? Pandas pct_change returns NaN.
-    # However, equity calculation handles NaNs by treating a=0. So NaN is fine.
-    pad[:] = cp.nan
+    # Pad beginning with NaN (matches CPU behavior: pandas pct_change returns NaN at start)
+    pad = cp.full((n_rows, length), cp.nan, dtype=prices_gpu.dtype)
 
     return cp.hstack([pad, roc])
 

@@ -11,6 +11,12 @@ from __future__ import annotations
 
 from .scan_all_symbols import scan_all_symbols
 
+# Re-export for testing patches
+from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_enhance.core.process_layer1 import trend_sign
+
 __all__ = [
     "scan_all_symbols",
+    "compute_atc_signals",
+    "trend_sign",
 ]

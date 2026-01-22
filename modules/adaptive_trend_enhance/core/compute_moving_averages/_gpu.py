@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import logging
 import math
 from typing import Optional
 
 import numpy as np
+
+from modules.common.ui.logging import log_debug, log_error
 
 try:
     import cupy as cp
@@ -12,9 +13,6 @@ try:
     _HAS_CUPY = True
 except ImportError:  # pragma: no cover
     _HAS_CUPY = False
-
-
-logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -130,10 +128,10 @@ def _calculate_ma_gpu(prices: np.ndarray, length: int, ma_type: str) -> Optional
     try:
         # Move inputs to GPU
         # Check if already on GPU
-        if hasattr(prices, "device"):  # Is CuPy array
+        if isinstance(prices, cp.ndarray):  # Is CuPy array
             prices_gpu = prices
         else:
-            prices_gpu = cp.array(prices, dtype=cp.float64)
+            prices_gpu = cp.asarray(prices, dtype=cp.float64)
 
         if ma_type == "EMA":
             result_gpu = _calculate_ema_gpu_loop(prices_gpu, length)
@@ -152,13 +150,13 @@ def _calculate_ma_gpu(prices: np.ndarray, length: int, ma_type: str) -> Optional
             return None
 
         # Return as numpy array if input was numpy
-        if hasattr(prices, "device"):
+        if isinstance(prices, cp.ndarray):
             return result_gpu
         else:
             return cp.asnumpy(result_gpu)
 
     except Exception as e:
-        logger.debug(f"GPU calculation failed for {ma_type}: {e}")
+        log_debug(f"GPU calculation failed for {ma_type}: {e}")
         return None
 
 
@@ -193,7 +191,8 @@ def _calculate_ema_gpu_loop(prices_gpu: cp.ndarray, length: int) -> cp.ndarray:
 
     # Launch with 1 block, 1 thread (Sequential GPU)
     # This is SLOW (approx same as CPU) but keeps data on GPU.
-    kernel((1,), (1,), (prices_gpu, output, n, alpha))
+    # Use numpy types for scalars to ensure correct kernel argument mapping
+    kernel((1,), (1,), (prices_gpu, output, np.int32(n), np.float64(alpha)))
     return output
 
 
@@ -208,7 +207,11 @@ def _calculate_wma_gpu_optimized(prices_gpu: cp.ndarray, length: int) -> cp.ndar
     threads_per_block = 256
     blocks_per_grid = (n_bars + threads_per_block - 1) // threads_per_block
 
-    kernel((blocks_per_grid,), (threads_per_block,), (prices_gpu, output, n_bars, length))
+    kernel(
+        (blocks_per_grid,),
+        (threads_per_block,),
+        (prices_gpu, output, np.int32(n_bars), np.int32(length)),
+    )
 
     return output
 
@@ -223,7 +226,11 @@ def _calculate_lsma_gpu_optimized(prices_gpu: cp.ndarray, length: int) -> cp.nda
     threads_per_block = 256
     blocks_per_grid = (n_bars + threads_per_block - 1) // threads_per_block
 
-    kernel((blocks_per_grid,), (threads_per_block,), (prices_gpu, output, n_bars, length))
+    kernel(
+        (blocks_per_grid,),
+        (threads_per_block,),
+        (prices_gpu, output, np.int32(n_bars), np.int32(length)),
+    )
 
     return output
 
@@ -320,7 +327,7 @@ def calculate_batch_ema_gpu(prices_batch: cp.ndarray, length: int) -> cp.ndarray
 
     # Ensure input is 2D
     if prices_batch.ndim != 2:
-        logger.error(f"calculate_batch_ema_gpu requires 2D array, got {prices_batch.ndim}D")
+        log_error(f"calculate_batch_ema_gpu requires 2D array, got {prices_batch.ndim}D")
         return None
 
     num_symbols, n_bars = prices_batch.shape
@@ -336,7 +343,11 @@ def calculate_batch_ema_gpu(prices_batch: cp.ndarray, length: int) -> cp.ndarray
     threads_per_block = 256
     blocks_per_grid = (num_symbols + threads_per_block - 1) // threads_per_block
 
-    kernel((blocks_per_grid,), (threads_per_block,), (prices_batch, output, num_symbols, n_bars, alpha))
+    kernel(
+        (blocks_per_grid,),
+        (threads_per_block,),
+        (prices_batch, output, np.int32(num_symbols), np.int32(n_bars), np.float64(alpha)),
+    )
 
     return output
 

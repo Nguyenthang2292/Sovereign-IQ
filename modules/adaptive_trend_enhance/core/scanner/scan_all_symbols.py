@@ -36,6 +36,7 @@ from modules.common.system import get_hardware_manager, get_memory_manager
 
 from .asyncio_scan import _scan_asyncio
 from .gpu_scan import _scan_gpu_batch
+from .processpool import _scan_processpool
 from .sequential import _scan_sequential
 from .threadpool import _scan_threadpool
 
@@ -145,7 +146,7 @@ def scan_all_symbols(
         raise ValueError(f"min_signal must be a non-negative number, got {min_signal}")
 
     # Validate execution_mode
-    VALID_MODES = {"sequential", "threadpool", "asyncio"}
+    VALID_MODES = {"sequential", "threadpool", "asyncio", "processpool", "gpu_batch", "auto"}
     if execution_mode not in VALID_MODES:
         raise ValueError(f"execution_mode must be one of {VALID_MODES}, got {execution_mode}")
 
@@ -175,6 +176,11 @@ def scan_all_symbols(
             symbols = all_symbols
             log_success(f"Found {len(symbols)} futures symbols")
 
+        # Use hardware manager to determine optimal execution mode if auto
+        if execution_mode == "auto":
+            execution_mode = hw_manager.get_optimal_execution_mode(len(symbols))
+            log_progress(f"Auto-selected execution mode: {execution_mode}")
+
         # Use hardware manager to determine optimal workers if not provided
         if max_workers is None:
             config = hw_manager.get_optimal_workload_config(len(symbols))
@@ -197,6 +203,10 @@ def scan_all_symbols(
                 )
             elif execution_mode == "asyncio":
                 results, skipped_count, error_count, skipped_symbols = _scan_asyncio(
+                    symbols, data_fetcher, atc_config, min_signal, max_workers, batch_size
+                )
+            elif execution_mode == "processpool":
+                results, skipped_count, error_count, skipped_symbols = _scan_processpool(
                     symbols, data_fetcher, atc_config, min_signal, max_workers, batch_size
                 )
             elif execution_mode == "gpu_batch":
@@ -242,6 +252,9 @@ def scan_all_symbols(
             short_signals = short_signals.sort_values("signal", ascending=True).reset_index(drop=True)
 
             log_success(f"Found {len(long_signals)} LONG signals and {len(short_signals)} SHORT signals")
+
+            # Final memory log
+            mem_manager.log_memory_stats()
 
             return long_signals, short_signals
 

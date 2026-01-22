@@ -67,6 +67,12 @@ def _process_symbol(
         # The computation functions extract .values, so we need .values to be contiguous
 
         raw_values = df[calculation_source].values
+
+        # Cast to target precision
+        target_dtype = np.float32 if atc_config.precision == "float32" else np.float64
+        if raw_values.dtype != target_dtype:
+            raw_values = raw_values.astype(target_dtype)
+
         if not raw_values.flags["C_CONTIGUOUS"]:
             raw_values = np.ascontiguousarray(raw_values)
 
@@ -104,6 +110,7 @@ def _process_symbol(
             cutout=atc_config.cutout,
             long_threshold=atc_config.long_threshold,
             short_threshold=atc_config.short_threshold,
+            precision=atc_config.precision,
         )
 
         average_signal = atc_results.get("Average_Signal")

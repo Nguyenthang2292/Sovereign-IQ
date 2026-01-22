@@ -4,13 +4,13 @@ Batch GPU scanning implementation for ATC scanner.
 
 from __future__ import annotations
 
-import logging
-from typing import TYPE_CHECKING, Tuple, Dict, List
+from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
-import pandas as pd
 
 try:
+    from concurrent.futures import ThreadPoolExecutor
+
     import cupy as cp
 
     from modules.adaptive_trend_enhance.core.compute_moving_averages._gpu import (
@@ -20,14 +20,13 @@ try:
         _calculate_wma_gpu_optimized,
         calculate_batch_ema_gpu,
     )
-    from modules.adaptive_trend_enhance.core.process_layer1._gpu_signals import (
-        cut_signal_gpu,
-        rate_of_change_gpu,
-        generate_signal_from_ma_gpu,
-        trend_sign_gpu,
-    )
     from modules.adaptive_trend_enhance.core.process_layer1._gpu_equity import (
         calculate_equity_gpu,
+    )
+    from modules.adaptive_trend_enhance.core.process_layer1._gpu_signals import (
+        generate_signal_from_ma_gpu,
+        rate_of_change_gpu,
+        trend_sign_gpu,
     )
     from modules.adaptive_trend_enhance.utils.diflen import diflen
 
@@ -39,9 +38,81 @@ if TYPE_CHECKING:
     from modules.adaptive_trend_enhance.utils.config import ATCConfig
     from modules.common.core.data_fetcher import DataFetcher
 
-from modules.common.utils import log_error, log_progress
+from modules.common.ui.logging import log_debug, log_error
+from modules.common.utils import log_progress
 
-logger = logging.getLogger(__name__)
+
+def _fetch_batch_data(
+    symbols: list, data_fetcher: "DataFetcher", atc_config: "ATCConfig"
+) -> Tuple[List[np.ndarray], List[Tuple[str, float, str]], int, int, List[str]]:
+    """
+    Fetch data for a batch of symbols.
+    Returns: (batch_data, valid_symbols_meta, skipped_count, error_count, skipped_symbols)
+    """
+    batch_data = []
+    valid_symbols_meta = []  # (symbol, price, exchange)
+    skipped_count = 0
+    error_count = 0
+    skipped_symbols = []
+
+    target_len = atc_config.limit
+
+    # Pre-calculate MA configurations
+    ma_setup = [
+        ("EMA", atc_config.ema_len),
+        ("HMA", atc_config.hma_len),
+        ("WMA", atc_config.wma_len),
+        ("DEMA", atc_config.dema_len),
+        ("LSMA", atc_config.lsma_len),
+        ("KAMA", atc_config.kama_len),
+    ]
+
+    # Calculate max loop length needed for diflen
+    max_base_len = max(cfg[1] for cfg in ma_setup)
+    fetch_len = target_len + max_base_len + 50  # enough buffer
+
+    # Optimization: Parallel fetch within batch?
+    # Current DataFetcher might not support concurrent calls if not designed for it,
+    # but DataFetcher typically creates new connections.
+    # However, to simulate "pipelining" effectively vs "parallel fetching",
+    # we just need to offload this ENTIRE block to a thread.
+    # Sequential fetch inside this thread is fine for now, or we can use ThreadPool inside here too.
+    # Given the request is "Hybrid CPU-GPU", the main overlap is Fetch vs Calc.
+    # Let's keep sequential fetch inside this function for simplicity and safety,
+    # relying on the pipeline to overlap this whole function with GPU work.
+
+    for sym in symbols:
+        try:
+            df, exchange = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                sym, limit=fetch_len, timeframe=atc_config.timeframe, check_freshness=True
+            )
+
+            if df is None or df.empty:
+                skipped_count += 1
+                skipped_symbols.append(sym)
+                continue
+
+            source_col = atc_config.calculation_source.lower()
+            if source_col not in df.columns:
+                source_col = "close"
+
+            closes = df[source_col].values
+
+            if len(closes) < target_len:
+                skipped_count += 1
+                skipped_symbols.append(sym)
+                continue
+
+            batch_slice = closes[-target_len:]
+            batch_data.append(batch_slice)
+            valid_symbols_meta.append((sym, df.iloc[-1]["close"], exchange))
+
+        except Exception as e:
+            error_count += 1
+            skipped_symbols.append(sym)
+            log_debug(f"Error fetching {sym}: {e}")
+
+    return batch_data, valid_symbols_meta, skipped_count, error_count, skipped_symbols
 
 
 def _scan_gpu_batch(
@@ -87,55 +158,57 @@ def _scan_gpu_batch(
     ]
 
     # Process in batches
-    for batch_start in range(0, total, batch_size):
-        batch_end = min(batch_start + batch_size, total)
-        current_batch_symbols = symbols[batch_start:batch_end]
+    # Create batches
+    batches = []
+    for i in range(0, total, batch_size):
+        batches.append(symbols[i : min(i + batch_size, total)])
 
-        # 1. Fetch Data (Sequential Fetch for simplicity, optimize IO later)
-        batch_data = []
-        valid_symbols_meta = []  # (symbol, price, exchange)
+    if not batches:
+        return results, 0, 0, []
 
-        target_len = atc_config.limit
+    target_len = atc_config.limit
 
-        # Calculate max loop length needed for diflen
-        # Max offset is roughly length + 7 for 'Wide' or 'Medium'
-        max_base_len = max(cfg[1] for cfg in ma_setup)
-        fetch_len = target_len + max_base_len + 50  # enough buffer
+    # ThreadPool for pipelining
+    # We only need 1 worker to fetch the NEXT batch while we process CURRENT
+    pipeline_executor = ThreadPoolExecutor(max_workers=1)
 
-        for sym in current_batch_symbols:
-            try:
-                df, exchange = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                    sym, limit=fetch_len, timeframe=atc_config.timeframe, check_freshness=True
+    # Submit first batch
+    future_next_batch = pipeline_executor.submit(_fetch_batch_data, batches[0], data_fetcher, atc_config)
+
+    for i, current_batch_symbols in enumerate(batches):
+        batch_start_idx = i * batch_size
+        batch_end_idx = batch_start_idx + len(current_batch_symbols)
+
+        # Wait for current batch data
+        try:
+            batch_data, valid_symbols_meta, s_cnt, e_cnt, s_syms = future_next_batch.result()
+
+            # Aggregate stats
+            skipped_count += s_cnt
+            error_count += e_cnt
+            skipped_symbols.extend(s_syms)
+
+            # Identify if there is a next batch and submit it immediately
+            next_batch_idx = i + 1
+            if next_batch_idx < len(batches):
+                future_next_batch = pipeline_executor.submit(
+                    _fetch_batch_data, batches[next_batch_idx], data_fetcher, atc_config
                 )
+            else:
+                future_next_batch = None
 
-                if df is None or df.empty:
-                    skipped_count += 1
-                    skipped_symbols.append(sym)
-                    continue
-
-                source_col = atc_config.calculation_source.lower()
-                if source_col not in df.columns:
-                    source_col = "close"
-
-                closes = df[source_col].values
-
-                # We need exactly `target_len` bars for the batch tensor?
-                # Actually, GPU handles (B, T). T can vary per batch, but within batch must be uniform.
-                # So we slice to `target_len` aligned at the end.
-
-                if len(closes) < target_len:
-                    skipped_count += 1
-                    skipped_symbols.append(sym)
-                    continue
-
-                batch_slice = closes[-target_len:]
-                batch_data.append(batch_slice)
-                valid_symbols_meta.append((sym, df.iloc[-1]["close"], exchange))
-
-            except Exception as e:
-                error_count += 1
-                skipped_symbols.append(sym)
-                logger.debug(f"Error fetching {sym}: {e}")
+        except Exception as e:
+            log_error(f"Error fetching batch {i}: {e}")
+            error_count += len(current_batch_symbols)
+            skipped_symbols.extend(current_batch_symbols)
+            # Try to continue to next batch if possible?
+            # If fetch failed, we can't process this batch.
+            # Assuming logic handles next submission:
+            if i + 1 < len(batches):
+                future_next_batch = pipeline_executor.submit(
+                    _fetch_batch_data, batches[i + 1], data_fetcher, atc_config
+                )
+            continue
 
         if not batch_data:
             continue
@@ -342,10 +415,12 @@ def _scan_gpu_batch(
                     )
 
         except Exception as e:
-            logger.error(f"GPU Batch failed: {e}", exc_info=True)  # exc_info for details
+            log_error(f"GPU Batch failed: {e}")  # Traceback will be shown by Python
             error_count += num_valid
             skipped_symbols.extend([s[0] for s in valid_symbols_meta])
 
-        log_progress(f"GPU Processed batch {batch_start}-{batch_end}")
+        log_progress(f"GPU Processed batch {batch_start_idx}-{batch_end_idx}")
+
+    pipeline_executor.shutdown(wait=True)
 
     return results, skipped_count, error_count, skipped_symbols

@@ -29,8 +29,8 @@ def calculate_average_signal(
     prices: pd.Series,
     long_threshold: float,
     short_threshold: float,
-    cutout: int,
     strategy_mode: bool = False,
+    precision: str = "float64",
 ) -> pd.Series:
     """Calculate the final Average_Signal from Layer 1 signals and Layer 2 equities.
 
@@ -52,42 +52,32 @@ def calculate_average_signal(
     """
     log_debug("Computing Average_Signal (vectorized)...")
 
-    n_bars = len(prices)
     index = prices.index
 
-    # Initialize accumulators
-    nom_array = np.zeros(n_bars, dtype=np.float64)
-    den_array = np.zeros(n_bars, dtype=np.float64)
+    # Initialize accumulators (Task 8.5: Vectorized version)
+    dtype = np.float32 if precision == "float32" else np.float64
 
-    # Pre-calculated thresholds for speed
-    # Note: Using strict inequality (> and <) as per original Pine Script logic
+    # Filter valid configs
+    valid_configs = [
+        (ma, length, weight) for ma, length, weight in ma_configs if ma in layer1_signals and ma in layer2_equities
+    ]
 
-    for ma_type, _, _ in ma_configs:
-        # Get underlying numpy arrays (faster than Series access)
-        signal_vals = layer1_signals[ma_type].values
-        equity_vals = layer2_equities[ma_type].values
+    if not valid_configs:
+        return pd.Series(0.0, index=index, dtype=dtype)
 
-        # Vectorized cut_signal logic (inlined for performance)
-        # Equivalent to: c = x > long ? 1 : x < short ? -1 : 0
-        # NaNs will naturally result in 0 (False for both comparisons)
+    # Convert to 2D matrices for broadcasting (Task 8.5)
+    # Shape: (n_mas, n_bars)
+    S = np.stack([layer1_signals[m].values for m, _, _ in valid_configs])
+    E = np.stack([layer2_equities[m].values for m, _, _ in valid_configs])
 
-        # Determine signals
-        # Use np.select or nested np.where. Nested np.where is often faster for 2 conditions.
-        # c = 1 where sig > L, -1 where sig < S, else 0
+    # Vectorized discretization (Task 8.5)
+    with np.errstate(invalid="ignore"):
+        C = np.where(S > long_threshold, 1.0, np.where(S < short_threshold, -1.0, 0.0))
 
-        # We handle NaN implicitly: NaN > L is False, NaN < S is False -> 0
-        with np.errstate(invalid="ignore"):
-            cut_vals = np.where(signal_vals > long_threshold, 1.0, np.where(signal_vals < short_threshold, -1.0, 0.0))
-
-        # Apply cutout
-        if cutout > 0 and cutout < n_bars:
-            cut_vals[:cutout] = 0.0
-
-        # Accumulate
-        # nom += signal * equity
-        # den += equity
-        nom_array += cut_vals * equity_vals
-        den_array += equity_vals
+    # Parallel calculation across components
+    # nom = sum(signal_discrete * equity_weight), den = sum(equity_weight)
+    nom_array = np.sum(C * E, axis=0)
+    den_array = np.sum(E, axis=0)
 
     # Calculate final average
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -95,7 +85,7 @@ def calculate_average_signal(
         # Handle division by zero or NaN results
         avg_signal_array = np.where(np.isfinite(avg_signal_array), avg_signal_array, 0.0)
 
-    Average_Signal = pd.Series(avg_signal_array, index=index, dtype="float64")
+    Average_Signal = pd.Series(avg_signal_array, index=index, dtype=dtype)
 
     if strategy_mode:
         Average_Signal = Average_Signal.shift(1).fillna(0)

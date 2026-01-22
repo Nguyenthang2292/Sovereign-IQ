@@ -8,7 +8,6 @@ Author: Crypto Probability Team
 """
 
 import gc
-import logging
 import tracemalloc
 import weakref
 from contextlib import contextmanager
@@ -19,6 +18,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import pandas as pd
 
 from modules.common.system.detection import SystemInfo
+from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 try:
     import cupy as cp
@@ -26,9 +26,6 @@ try:
     CUPY_AVAILABLE = True
 except ImportError:
     CUPY_AVAILABLE = False
-
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -84,9 +81,9 @@ class MemoryManager:
 
         if enable_tracemalloc and not tracemalloc.is_tracing():
             tracemalloc.start()
-            logger.info("tracemalloc enabled for detailed memory tracking")
+            log_info("tracemalloc enabled for detailed memory tracking")
 
-        logger.info("Memory Manager initialized")
+        log_info("Memory Manager initialized")
 
     def get_current_usage(self) -> MemorySnapshot:
         """
@@ -111,7 +108,7 @@ class MemoryManager:
                 mempool = cp.get_default_memory_pool()
                 snapshot.gpu_used_gb = mempool.used_bytes() / (1024**3)
             except Exception as e:
-                logger.debug(f"GPU memory check failed: {e}")
+                log_debug(f"GPU memory check failed: {e}")
 
         # tracemalloc
         if self.enable_tracemalloc and tracemalloc.is_tracing():
@@ -140,7 +137,7 @@ class MemoryManager:
 
         # Auto-cleanup if threshold exceeded
         if snapshot.ram_percent >= self.auto_cleanup_threshold:
-            logger.warning(f"Auto-cleanup triggered: RAM at {snapshot.ram_percent:.1f}%")
+            log_warn(f"Auto-cleanup triggered: RAM at {snapshot.ram_percent:.1f}%")
             self.cleanup(aggressive=True)
             # Re-check after cleanup
             snapshot = self.get_current_usage()
@@ -154,14 +151,14 @@ class MemoryManager:
         Args:
             aggressive: If True, perform more aggressive cleanup
         """
-        logger.debug(f"Memory cleanup started (aggressive={aggressive})")
+        log_debug(f"Memory cleanup started (aggressive={aggressive})")
 
         # Run registered cleanup callbacks
         for callback in self._cleanup_callbacks:
             try:
                 callback()
             except Exception as e:
-                logger.error(f"Cleanup callback failed: {e}")
+                log_error(f"Cleanup callback failed: {e}")
 
         # Clear weak references to dead objects
         self._weakrefs = [ref for ref in self._weakrefs if ref() is not None]
@@ -178,13 +175,13 @@ class MemoryManager:
                 try:
                     mempool = cp.get_default_memory_pool()
                     mempool.free_all_blocks()
-                    logger.debug("GPU memory pool cleared")
+                    log_debug("GPU memory pool cleared")
                 except Exception as e:
-                    logger.debug(f"GPU memory cleanup failed: {e}")
+                    log_debug(f"GPU memory cleanup failed: {e}")
 
         # Log result
         snapshot = self.get_current_usage()
-        logger.debug(f"Cleanup complete: RAM at {snapshot.ram_percent:.1f}%")
+        log_debug(f"Cleanup complete: RAM at {snapshot.ram_percent:.1f}%")
 
     def register_cleanup_callback(self, callback: Callable):
         """
@@ -255,7 +252,7 @@ class MemoryManager:
         ram_increase_mb = ram_increase_gb * 1024
 
         if ram_increase_mb > threshold_mb:
-            logger.warning(f"Potential memory leak detected: {ram_increase_mb:.2f}MB increase")
+            log_warn(f"Potential memory leak detected: {ram_increase_mb:.2f}MB increase")
             return True
 
         return False
@@ -275,7 +272,7 @@ class MemoryManager:
         """
         # Before
         before = self.get_current_usage()
-        logger.debug(f"[{operation_name}] Starting - RAM: {before.ram_percent:.1f}%")
+        log_debug(f"[{operation_name}] Starting - RAM: {before.ram_percent:.1f}%")
 
         try:
             yield
@@ -284,13 +281,14 @@ class MemoryManager:
             after = self.get_current_usage()
             ram_change = after.ram_used_gb - before.ram_used_gb
 
-            log_msg = f"[{operation_name}] Completed - RAM: {after.ram_percent:.1f}% (Δ{ram_change:+.3f}GB)"
+            # Use "delta" instead of Δ symbol for Windows console compatibility
+            log_msg = f"[{operation_name}] Completed - RAM: {after.ram_percent:.1f}% (delta{ram_change:+.3f}GB)"
 
             if CUPY_AVAILABLE and before.gpu_used_gb is not None and after.gpu_used_gb is not None:
                 gpu_change = after.gpu_used_gb - before.gpu_used_gb
-                log_msg += f", GPU: {after.gpu_used_gb:.2f}GB (Δ{gpu_change:+.3f}GB)"
+                log_msg += f", GPU: {after.gpu_used_gb:.2f}GB (delta{gpu_change:+.3f}GB)"
 
-            logger.debug(log_msg)
+            log_debug(log_msg)
 
             # Auto-cleanup if needed
             if after.ram_percent >= self.auto_cleanup_threshold:
@@ -313,7 +311,7 @@ class MemoryManager:
         status, snapshot = self.check_memory_status()
 
         if status == "critical":
-            logger.warning(f"[{operation_name}] Starting with critical memory: {snapshot.ram_percent:.1f}%")
+            log_warn(f"[{operation_name}] Starting with critical memory: {snapshot.ram_percent:.1f}%")
             self.cleanup(aggressive=True)
 
         try:
@@ -357,7 +355,7 @@ class MemoryManager:
     def log_memory_stats(self):
         """Log current memory statistics"""
         stats = self.get_memory_stats()
-        logger.info(
+        log_info(
             f"Memory Stats: RAM {stats['current_ram_gb']:.2f}GB "
             f"({stats['current_ram_percent']:.1f}%), "
             f"Snapshots: {stats['snapshots_count']}, "
@@ -373,7 +371,7 @@ class MemoryManager:
         if self.enable_tracemalloc and tracemalloc.is_tracing():
             tracemalloc.clear_traces()
 
-        logger.info("Memory Manager reset")
+        log_info("Memory Manager reset")
 
     @contextmanager
     def temp_series_scope(self):
@@ -401,6 +399,69 @@ def temp_series(func: Callable):
             manager.cleanup(aggressive=False)
 
     return wrapper
+
+
+def profile_memory(
+    threshold_mb: float = 10.0,
+    trace_key_count: int = 5,
+    enable: bool = True,
+):
+    """
+    Decorator to profile memory usage of a function using tracemalloc.
+
+    Args:
+        threshold_mb: Log warning if peak allocation exceeds this (MB).
+        trace_key_count: Number of top allocators to log in detailed view.
+        enable: Master switch to enable/disable profiling.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if not enable:
+                return func(*args, **kwargs)
+
+            # Check if tracemalloc is running, start if not
+            was_tracing = tracemalloc.is_tracing()
+            if not was_tracing:
+                tracemalloc.start()
+
+            # Reset peak
+            tracemalloc.clear_traces()
+
+            snapshot_before = tracemalloc.take_snapshot()
+
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                snapshot_after = tracemalloc.take_snapshot()
+
+                # Compare
+                stats = snapshot_after.compare_to(snapshot_before, "lineno")
+
+                # Check for large allocations
+                current, peak = tracemalloc.get_traced_memory()
+                peak_mb = peak / (1024 * 1024)
+
+                log_msg = f"[{func.__name__}] Memory Profile: Peak {peak_mb:.2f}MB"
+
+                if peak_mb > threshold_mb:
+                    log_warn(f"{log_msg} (Exceeded {threshold_mb}MB threshold!)")
+                    # Log top allocators
+                    log_info(f"Top {trace_key_count} allocators for {func.__name__}:")
+                    for s in stats[:trace_key_count]:
+                        log_info(str(s))
+                else:
+                    log_debug(log_msg)
+
+                if not was_tracing:
+                    tracemalloc.stop()
+
+            return result
+
+        return wrapper
+
+    return decorator
 
 
 def cleanup_series(*series_list: Union[pd.Series, pd.DataFrame]):
@@ -435,6 +496,7 @@ from modules.common.system.utils.singleton import SingletonMeta
 
 class MemoryManagerSingleton(MemoryManager, metaclass=SingletonMeta):
     """MemoryManager with singleton pattern."""
+
     pass
 
 
@@ -454,6 +516,7 @@ def get_memory_manager(enable_tracemalloc: bool = False) -> MemoryManager:
     if enable_tracemalloc and not instance.enable_tracemalloc:
         # Reset and recreate with tracemalloc if needed
         from modules.common.system.utils.singleton import reset_singleton
+
         reset_singleton(MemoryManagerSingleton)
         instance = MemoryManager(enable_tracemalloc=enable_tracemalloc)
         # Manually set the singleton instance
@@ -464,6 +527,7 @@ def get_memory_manager(enable_tracemalloc: bool = False) -> MemoryManager:
 def reset_memory_manager():
     """Reset global MemoryManager (useful for testing)"""
     from modules.common.system.utils.singleton import reset_singleton
+
     instance = SingletonMeta._instances.get(MemoryManagerSingleton)
     if instance is not None:
         instance.reset()

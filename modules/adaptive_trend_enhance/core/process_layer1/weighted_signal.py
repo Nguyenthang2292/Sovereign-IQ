@@ -64,26 +64,14 @@ def weighted_signal(
                 log_warn(f"weights[{i}] has different index, aligning...")
                 weights[i] = wgt.reindex(first_index)
 
-        # Convert to NumPy for performance
-        n_bars = len(first_index)
+        # Convert matching series to a 2D matrix for vectorized math (Task 8.5)
+        # Shape: (n_components, n_bars)
+        s_matrix = np.stack([sig.values for sig in signals])
+        w_matrix = np.stack([wgt.values for wgt in weights])
 
-        # Pre-allocate NumPy arrays (Task 7)
-        num_arr = np.zeros(n_bars, dtype=np.float64)
-        den_arr = np.zeros(n_bars, dtype=np.float64)
-
-        # Use GPU if available and workload is large enough (Part of Task 2/3)
-        # However, for this specific operation (sum of products),
-        # CPU NumPy is usually faster unless data is very large.
-        # We'll stick to NumPy for now but ensure it's efficient.
-
-        for sig, wgt in zip(signals, weights):
-            # Task 6: Convert Pandas operations to NumPy operations
-            s_val = sig.values
-            w_val = wgt.values
-
-            # Use NumPy vectorization
-            num_arr += s_val * w_val
-            den_arr += w_val
+        # num = sum(s * w), den = sum(w)
+        num_arr = np.sum(s_matrix * w_matrix, axis=0)
+        den_arr = np.sum(w_matrix, axis=0)
 
         # Handle division by zero
         with np.errstate(divide="ignore", invalid="ignore"):

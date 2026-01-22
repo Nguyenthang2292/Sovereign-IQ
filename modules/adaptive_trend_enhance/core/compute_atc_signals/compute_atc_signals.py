@@ -31,13 +31,21 @@ except ImportError:
 from modules.adaptive_trend_enhance.core.compute_moving_averages import set_of_moving_averages
 from modules.adaptive_trend_enhance.core.process_layer1 import _layer1_signal_for_ma
 from modules.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
-from modules.common.system import cleanup_series, get_memory_manager, get_series_pool, temp_series
+from modules.common.system import (
+    cleanup_series,
+    get_hardware_manager,
+    get_memory_manager,
+    get_series_pool,
+    profile_memory,
+    temp_series,
+)
 
 from .average_signal import calculate_average_signal
 from .calculate_layer2_equities import calculate_layer2_equities
 from .validation import validate_atc_inputs
 
 
+@profile_memory(threshold_mb=100.0, enable=False)  # Disabled by default to save overhead, enable for debugging
 @temp_series
 def compute_atc_signals(
     prices: pd.Series,
@@ -62,6 +70,9 @@ def compute_atc_signals(
     long_threshold: float = 0.1,
     short_threshold: float = -0.1,
     strategy_mode: bool = False,
+    parallel_l1: Optional[bool] = None,
+    parallel_l2: Optional[bool] = True,
+    precision: str = "float64",
 ) -> dict[str, pd.Series]:
     """Compute Adaptive Trend Classification (ATC) signals.
 
@@ -136,26 +147,68 @@ def compute_atc_signals(
             ma_tuples[ma_type] = ma_tuple
     log_debug(f"Computed {len(ma_tuples)} MA types")
 
+    # GLOBAL SLICING: Eliminate NaNs early by slicing all series by cutout
+    if cutout > 0:
+        log_debug(f"Applying global slice for cutout={cutout}")
+        prices = prices.iloc[cutout:].reset_index(drop=True)
+        if src is not prices:
+            src = src.iloc[cutout:].reset_index(drop=True)
+
+        # Slice each MA Series in the tuples
+        for ma_type in ma_tuples:
+            ma_tuples[ma_type] = tuple(s.iloc[cutout:].reset_index(drop=True) for s in ma_tuples[ma_type])
+
     # MAIN CALCULATIONS - Adaptability Layer 1
     log_debug("Computing rate_of_change (reused for Layer 1 and Layer 2)...")
     R = rate_of_change(prices)
 
     log_debug("Computing Layer 1 signals...")
     layer1_signals: Dict[str, pd.Series] = {}
+
     with mem_manager.track_memory("layer1_signals_all"):
         series_pool = get_series_pool()
-        for ma_type, _, _ in ma_configs:
-            signal, signals_tuple, equity_tuple = _layer1_signal_for_ma(
-                prices, ma_tuples[ma_type], L=La_scaled, De=De_scaled, cutout=cutout, R=R
-            )
-            layer1_signals[ma_type] = signal
 
-            # Release intermediate component signals and equities back to pool
-            # These are the 9 variants (s, s1...) and (E, E1...) which are not needed individually anymore
-            for s in signals_tuple:
-                series_pool.release(s)
-            for e in equity_tuple:
-                series_pool.release(e)
+        # Level 2 Parallelism (Intra-symbol)
+        # Check if we are already in a multiprocessing environment (e.g., from scanner ProcessPool)
+        import multiprocessing as mp
+
+        is_child_process = mp.current_process().daemon or mp.current_process().name != "MainProcess"
+
+        # Level 1 Parallel Architecture (Symbol Components)
+        # Only use parallel if we have more than 500 bars to justify overhead
+        # and we are NOT already in a child process (to avoid nested ProcessPool)
+        if parallel_l1 is None:
+            hw_manager = get_hardware_manager()
+            use_parallel_l1 = hw_manager.should_use_intra_symbol_parallelism(
+                data_length=len(prices), is_nested=is_child_process
+            )
+        else:
+            use_parallel_l1 = parallel_l1
+
+        if use_parallel_l1:
+            from modules.adaptive_trend_enhance.core.process_layer1 import _layer1_parallel_atc_signals
+
+            layer1_signals = _layer1_parallel_atc_signals(
+                prices=prices,
+                ma_tuples=ma_tuples,
+                ma_configs=ma_configs,
+                R=R,
+                L=La_scaled,
+                De=De_scaled,
+            )
+        else:
+            # Sequential fallback
+            for ma_type, _, _ in ma_configs:
+                signal, signals_tuple, equity_tuple = _layer1_signal_for_ma(
+                    prices, ma_tuples[ma_type], L=La_scaled, De=De_scaled, R=R
+                )
+                layer1_signals[ma_type] = signal
+
+                # Release intermediate component signals and equities back to pool
+                for s in signals_tuple:
+                    series_pool.release(s)
+                for e in equity_tuple:
+                    series_pool.release(e)
 
     log_debug("Completed Layer 1 signals")
 
@@ -166,7 +219,8 @@ def compute_atc_signals(
         R=R,
         L=La_scaled,
         De=De_scaled,
-        cutout=cutout,
+        parallel=parallel_l2,
+        precision=precision,
     )
 
     # FINAL CALCULATIONS - Average Signal
@@ -177,8 +231,8 @@ def compute_atc_signals(
         prices=prices,
         long_threshold=long_threshold,
         short_threshold=short_threshold,
-        cutout=cutout,
         strategy_mode=strategy_mode,
+        precision=precision,
     )
 
     # Build result dictionary

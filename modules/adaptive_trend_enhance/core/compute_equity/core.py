@@ -10,9 +10,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from .utils import njit
+from .utils import njit, prange
 
-__all__ = ["_calculate_equity_core", "_calculate_equity_vectorized"]
+__all__ = [
+    "_calculate_equity_core",
+    "_calculate_equity_vectorized",
+    "_calculate_equities_parallel",
+]
 
 
 def _calculate_equity_vectorized(
@@ -45,15 +49,19 @@ def _calculate_equity_vectorized(
         if out.shape != (n_signals, n_bars):
             raise ValueError(f"out array must have shape ({n_signals}, {n_bars})")
         e_values = out
+        if not e_values.flags.writeable:
+            e_values = e_values.copy()
         # We need to explicitly clear previous/garbage data if reusing dirty array?
         # The logic sets each column completely?
         # Logic sets e_values[:, i]. Yes, it writes every index.
         # But if reusing, ensure we don't assume zeros anywhere.
     else:
-        e_values = np.full((n_signals, n_bars), np.nan, dtype=np.float64)
+        # Determine dtype from input
+        dtype = starting_equities.dtype
+        e_values = np.full((n_signals, n_bars), np.nan, dtype=dtype)
 
     # Initialize previous equity values
-    prev_e = np.full(n_signals, np.nan, dtype=np.float64)
+    prev_e = np.full(n_signals, np.nan, dtype=e_values.dtype)
 
     for i in range(n_bars):
         if i < cutout:
@@ -66,7 +74,7 @@ def _calculate_equity_vectorized(
         # Calculate 'a' for all signals at once (vectorized)
         # Handle NaN: treat as 0
         valid_mask = ~(np.isnan(sig_prev) | np.isnan(r_i))
-        a = np.zeros(n_signals, dtype=np.float64)
+        a = np.zeros(n_signals, dtype=e_values.dtype)
 
         # Long positions: a = r
         long_mask = valid_mask & (sig_prev > 0)
@@ -89,6 +97,78 @@ def _calculate_equity_vectorized(
         e_values[:, i] = e_curr
 
     return e_values
+
+
+@njit(parallel=True, cache=True)
+def _calculate_equities_parallel_impl(
+    starting_equities: np.ndarray,
+    sig_prev_values: np.ndarray,
+    r_values: np.ndarray,
+    decay_multiplier: float,
+    cutout: int,
+    out: np.ndarray,
+) -> np.ndarray:
+    """Numba-parallel equity calculation for multiple signals.
+
+    Parallelizes the calculation across the 'signals' dimension.
+    """
+    n_signals, n_bars = sig_prev_values.shape
+
+    for s in prange(n_signals):
+        prev_e = np.nan
+        for i in range(n_bars):
+            if i < cutout:
+                out[s, i] = np.nan
+                continue
+
+            r_i = r_values[i]
+            sig_prev = sig_prev_values[s, i]
+
+            # Handle NaN in signal or return
+            if np.isnan(sig_prev) or np.isnan(r_i):
+                a = 0.0
+            elif sig_prev == 0:
+                a = 0.0
+            elif sig_prev > 0:
+                a = r_i
+            else:  # sig_prev < 0
+                a = -r_i
+
+            # Calculate current equity
+            if np.isnan(prev_e):
+                e_curr = starting_equities[s]
+            else:
+                e_curr = (prev_e * decay_multiplier) * (1.0 + a)
+
+            # Apply floor
+            if e_curr < 0.25:
+                e_curr = 0.25
+
+            out[s, i] = e_curr
+            prev_e = e_curr
+
+    return out
+
+
+def _calculate_equities_parallel(
+    starting_equities: np.ndarray,
+    sig_prev_values: np.ndarray,
+    r_values: np.ndarray,
+    decay_multiplier: float,
+    cutout: int,
+    out: np.ndarray = None,
+) -> np.ndarray:
+    """Parallel equity calculation for multiple signals optimized with Numba."""
+    n_signals, n_bars = sig_prev_values.shape
+    if out is None:
+        # Match input dtype
+        out = np.full((n_signals, n_bars), np.nan, dtype=starting_equities.dtype)
+    elif not out.flags.writeable:
+        out = out.copy()
+
+    return _calculate_equities_parallel_impl(
+        starting_equities, sig_prev_values, r_values, decay_multiplier, cutout, out
+    )
 
 
 @njit(cache=True)
@@ -156,5 +236,7 @@ def _calculate_equity_core(
     if out is None:
         n = len(r_values)
         out = np.full(n, np.nan, dtype=np.float64)
+    elif not out.flags.writeable:
+        out = out.copy()
 
     return _calculate_equity_core_impl(r_values, sig_prev_values, starting_equity, decay_multiplier, cutout, out)

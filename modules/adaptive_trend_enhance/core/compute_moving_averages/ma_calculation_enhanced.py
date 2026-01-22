@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import Optional
 
 import pandas as pd
@@ -8,13 +7,11 @@ import pandas_ta as ta
 
 from modules.adaptive_trend_enhance.utils.cache_manager import get_cached_ma
 from modules.common.system import get_hardware_manager, track_memory
-from modules.common.utils import log_error, log_warn
+from modules.common.ui.logging import log_debug, log_error, log_warn
 
 from ._gpu import _calculate_ma_gpu
 from ._numba_cores import _calculate_dema_core, _calculate_lsma_core, _calculate_wma_core
 from .calculate_kama_atc import calculate_kama_atc
-
-logger = logging.getLogger(__name__)
 
 
 def ma_calculation_enhanced(
@@ -49,13 +46,15 @@ def ma_calculation_enhanced(
         def calculate(p_data=None, p_length=None):
             # p_data and p_length are provided by get_cached_ma, we use local source/length
             with track_memory(f"{ma}_calculation"):
-                # Try GPU first if preferred
-                if prefer_gpu and ma in ["WMA", "DEMA", "EMA"]:
+                # Try GPU first if preferred and data is large enough to justify overhead
+                # Benchmarks show GPU is often faster than Numba/CPU even for small series (>= 500 bars)
+                MIN_GPU_SIZE = 500
+                if prefer_gpu and len(source) >= MIN_GPU_SIZE and ma in ["WMA", "DEMA", "EMA", "HMA", "LSMA"]:
                     hw_mgr = get_hardware_manager()
                     if hw_mgr.get_resources().gpu_available:
                         result_array = _calculate_ma_gpu(source.values, length, ma)
                         if result_array is not None:
-                            logger.debug(f"GPU calculation succeeded for {ma}")
+                            log_debug(f"GPU calculation succeeded for {ma}")
                             return pd.Series(result_array, index=source.index)
 
                 # CPU calculation (Numba JIT or pandas_ta)

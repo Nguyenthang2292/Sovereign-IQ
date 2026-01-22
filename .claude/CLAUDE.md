@@ -373,6 +373,84 @@ See `web/docs/ADDING_NEW_APP.md` for detailed instructions.
   - Extract ref values before accessing for cleaner null checks
 - **Documentation**: Add docstrings to all public functions and classes
 
+### Documentation Organization
+
+This project follows specific conventions for organizing documentation files:
+
+#### Directory Structure
+
+- **Simple modules**: Keep `README.md` in the module root directory
+  - Example: `modules/adaptive_trend/README.md`
+  - Use for modules with single documentation file
+
+- **Complex modules**: Use a `docs/` subdirectory for multiple or multi-language documentation
+  - Example: `modules/common/core/docs/`
+  - Use when module has:
+    - Multiple documentation files (architecture, guides, API docs, etc.)
+    - Multi-language documentation (English, Vietnamese, etc.)
+    - Extensive documentation that would clutter the module directory
+
+#### Multi-Language Documentation Pattern
+
+For modules with multi-language documentation:
+
+1. **Create a `docs/` subdirectory** in the module
+   ```
+   modules/your_module/
+   ├── docs/
+   │   ├── YourDoc.md          # Index/language selector
+   │   ├── YourDoc-en.md       # English version
+   │   └── YourDoc-vi.md       # Vietnamese version
+   └── your_module.py
+   ```
+
+2. **Create an index file** (e.g., `YourDoc.md`) with language switcher
+   ```markdown
+   # Your Documentation Title
+
+   > **Language / Ngôn ngữ**: [English](YourDoc-en.md) | [Tiếng Việt](YourDoc-vi.md)
+
+   This is the main documentation index. Please select your preferred language:
+
+   - **[English Documentation](YourDoc-en.md)** - Complete documentation in English
+   - **[Vietnamese Documentation](YourDoc-vi.md)** - Tài liệu đầy đủ bằng tiếng Việt
+   ```
+
+3. **Create language-specific files** with consistent suffixes
+   - `-en.md` for English
+   - `-vi.md` for Vietnamese (Tiếng Việt)
+   - Add other languages as needed (e.g., `-zh.md`, `-ja.md`)
+
+4. **Maintain consistency** between language versions
+   - Same section structure and ordering
+   - Synchronized updates across all language versions
+   - Consider adding version numbers or last-updated timestamps
+
+#### Current Documentation Examples
+
+**Simple modules** (README in root):
+- `modules/adaptive_trend/README.md`
+- `modules/decision_matrix/README.md`
+- `modules/hmm/README.md`
+- `modules/xgboost/README.md`
+
+**Complex modules** (docs/ subdirectory):
+- `modules/common/core/docs/ExchangeManager*.md` - Multi-language documentation
+- `modules/deeplearning/` - Multiple specialized docs (data pipeline, model, training, etc.)
+
+**Web applications**:
+- `web/docs/` - Centralized documentation for all web apps
+- `web/docs/ARCHITECTURE.md`, `web/docs/ADDING_NEW_APP.md`
+
+#### Best Practices
+
+1. **Keep documentation close to code**: Place docs in the module they document
+2. **Use descriptive filenames**: Clearly indicate the topic (e.g., `ExchangeManager.md`, not `docs.md`)
+3. **Provide navigation**: Index files should link to all available documentation
+4. **Version tracking**: Consider adding version or date in multi-language docs to track synchronization
+5. **Reference from README**: Main project README should link to module-specific documentation
+6. **Update CLAUDE.md**: When adding new multi-language docs, update this file's "Multi-Language Documentation" section
+
 ## Security Best Practices
 
 ### Cursor Rules
@@ -456,6 +534,20 @@ See `core/README.md` for detailed comparison and decision tree.
 - `docs/API_DOCUMENTATION.md`: REST API documentation
 - `docs/openapi.yaml`: OpenAPI specification
 - `tests/TEST_MEMORY_USAGE_GUIDE.md`: Test memory optimization guide
+
+### Multi-Language Documentation
+
+Some documentation files are available in multiple languages:
+
+- **ExchangeManager**: `modules/common/core/docs/ExchangeManager.md` (index)
+  - English: `modules/common/core/docs/ExchangeManager-en.md`
+  - Vietnamese: `modules/common/core/docs/ExchangeManager-vi.md`
+  
+When working with multi-language documentation:
+
+- The main file (without language suffix) serves as an index/entry point
+- Language-specific files use `-en.md` (English) and `-vi.md` (Vietnamese) suffixes
+- Always maintain consistency between language versions when updating documentation
 
 ## Platform Notes
 

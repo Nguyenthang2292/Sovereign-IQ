@@ -21,7 +21,7 @@ except ImportError:
     SHARED_MEMORY_AVAILABLE = False
 
 
-def setup_shared_memory_for_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
+def setup_shared_memory_for_dataframe(df: pd.DataFrame, columns_to_share: list[str] = None) -> Dict[str, Any]:
     """
     Create shared memory for DataFrame arrays.
 
@@ -30,6 +30,7 @@ def setup_shared_memory_for_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
 
     Args:
         df: DataFrame to share
+        columns_to_share: List of column names to share. If None, shares all columns.
 
     Returns:
         Dictionary containing:
@@ -37,6 +38,7 @@ def setup_shared_memory_for_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
         - 'index_info': Pickled index information
         - 'columns': List of column names
         - 'dtypes': Dict mapping column name to dtype string
+        - 'shm_refs': Keep references to prevent garbage collection on Windows
     """
     if not SHARED_MEMORY_AVAILABLE:
         raise RuntimeError("Shared memory is not available (requires Python 3.8+)")
@@ -49,16 +51,19 @@ def setup_shared_memory_for_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
     # Convert index to pickle bytes (index is typically small)
     index_info = pickle.dumps(df.index, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # Process each numeric column
-    for col in df.columns:
-        if col not in ["open", "high", "low", "close", "volume"]:
-            continue  # Skip non-OHLCV columns
+    # Determine columns to process
+    if columns_to_share is None:
+        cols_to_process = df.columns
+    else:
+        cols_to_process = [c for c in columns_to_share if c in df.columns]
 
+    # Process each column
+    for col in cols_to_process:
         # Convert to numpy array
         arr = df[col].values
 
-        # Skip if empty
-        if arr.size == 0:
+        # Skip if empty or not numeric (for now, shared memory is best for numeric arrays)
+        if arr.size == 0 or not np.issubdtype(arr.dtype, np.number):
             continue
 
         # Ensure contiguous array
@@ -69,9 +74,8 @@ def setup_shared_memory_for_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
         shm_name = f"shm_{col}_{unique_id}"
         try:
             shm = shared_memory.SharedMemory(create=True, size=arr.nbytes, name=shm_name)
-        except FileExistsError:
-            # Handle case where shared memory with same name exists
-            # Try with different name
+        except Exception:
+            # Handle case where shared memory with same name exists or other creation error
             shm_name = f"shm_{col}_{unique_id}_{uuid.uuid4().hex[:8]}"
             shm = shared_memory.SharedMemory(create=True, size=arr.nbytes, name=shm_name)
 
@@ -89,16 +93,45 @@ def setup_shared_memory_for_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
         }
         dtypes[col] = str(arr.dtype)
 
-        # IMPORTANT: Don't close the shared memory here - it needs to remain available
-        # We keep the reference in shm_refs to prevent garbage collection on Windows
-
     return {
         "shm_objects": shm_objects,
         "shm_refs": shm_refs,  # Keep references to prevent garbage collection on Windows
         "index_info": index_info,
-        "columns": list(df.columns),
+        "columns": list(cols_to_process),
         "dtypes": dtypes,
     }
+
+
+def setup_shared_memory_for_series(series: pd.Series) -> Dict[str, Any]:
+    """
+    Create shared memory for a single pandas Series.
+
+    Args:
+        series: Series to share
+
+    Returns:
+        Dictionary containing shared memory information.
+    """
+    # Create a single-column DataFrame to reuse the existing logic
+    name = series.name if series.name is not None else "series"
+    df = pd.DataFrame({name: series})
+    return setup_shared_memory_for_dataframe(df, columns_to_share=[name])
+
+
+def reconstruct_series_from_shared_memory(shm_info: Dict[str, Any]) -> pd.Series:
+    """
+    Reconstruct a pandas Series from shared memory.
+
+    Args:
+        shm_info: Dictionary returned by setup_shared_memory_for_series()
+
+    Returns:
+        Reconstructed Series
+    """
+    df = reconstruct_dataframe_from_shared_memory(shm_info)
+    if not df.empty:
+        return df.iloc[:, 0]
+    return pd.Series(dtype=float)
 
 
 def reconstruct_dataframe_from_shared_memory(shm_info: Dict[str, Any]) -> pd.DataFrame:
@@ -139,7 +172,6 @@ def reconstruct_dataframe_from_shared_memory(shm_info: Dict[str, Any]) -> pd.Dat
             shm.close()
         except FileNotFoundError:
             # Shared memory was already deleted/unlinked
-            # Skip this column or use NaN
             data[col] = np.full(info["shape"], np.nan, dtype=info["dtype"])
 
     # Create DataFrame
@@ -166,27 +198,23 @@ def cleanup_shared_memory(shm_info: Dict[str, Any]) -> None:
     shm_refs = shm_info.get("shm_refs", {})
 
     # First, close all SharedMemory references if they exist
-    for col, shm in shm_refs.items():
+    for col, shm in list(shm_refs.items()):
         try:
             shm.close()
+            # On some platforms/versions, we should unlink from the creator side
+            try:
+                shm.unlink()
+            except Exception:
+                pass
         except (FileNotFoundError, ValueError):
             pass
 
-    # Then unlink all shared memory objects
+    # Then attempt to unlink based on names in shm_objects (safety double check)
     for col, info in shm_objects.items():
-        try:
-            # Try to attach to unlink (in case reference is not available)
-            shm = shared_memory.SharedMemory(name=info["shm_name"])
-            shm.close()
-            shm.unlink()  # Delete the shared memory
-        except FileNotFoundError:
-            # Shared memory already deleted/unlinked (expected on Windows when worker processes finish)
-            # This is normal behavior - worker processes may have already cleaned up
-            # Silently ignore this expected case
-            pass
-        except ValueError:
-            # Unexpected ValueError - ignore it
-            pass
-        except Exception:
-            # Unexpected error - ignore it
-            pass
+        if col not in shm_refs:
+            try:
+                shm = shared_memory.SharedMemory(name=info["shm_name"])
+                shm.close()
+                shm.unlink()
+            except Exception:
+                pass

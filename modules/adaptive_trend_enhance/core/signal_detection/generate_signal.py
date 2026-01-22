@@ -13,6 +13,9 @@ from modules.adaptive_trend_enhance.core.compute_equity.utils import njit
 from modules.common.system import get_series_pool
 from modules.common.utils import log_error, log_warn
 
+from .crossover import crossover
+from .crossunder import crossunder
+
 
 @njit(cache=True)
 def _apply_signal_persistence(up: np.ndarray, down: np.ndarray, out: np.ndarray) -> None:
@@ -127,7 +130,12 @@ def generate_signal_from_ma(
             down_vals = down
 
         # Run Numba kernel directly into pooled buffer
-        _apply_signal_persistence(up_vals, down_vals, sig_series.values)
+        sig_vals = sig_series.values
+        # Ensure it's not read-only (some Pandas versions/states might return read-only views)
+        if not sig_vals.flags.writeable:
+            sig_vals = sig_vals.copy()
+
+        _apply_signal_persistence(up_vals, down_vals, sig_vals)
 
         return sig_series
 

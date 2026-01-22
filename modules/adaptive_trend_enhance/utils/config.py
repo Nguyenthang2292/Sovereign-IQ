@@ -54,6 +54,7 @@ class ATCConfig:
 
     # Performance optimization parameters
     batch_size: int = 100  # Number of symbols to process in each batch before forcing GC
+    precision: str = "float64"  # "float64" or "float32"
 
 
 def create_atc_config_from_dict(
@@ -94,4 +95,5 @@ def create_atc_config_from_dict(
         calculation_source=params.get("calculation_source", "close"),
         strategy_mode=params.get("strategy_mode", False),
         batch_size=params.get("batch_size", 100),
+        precision=params.get("precision", "float64"),
     )
