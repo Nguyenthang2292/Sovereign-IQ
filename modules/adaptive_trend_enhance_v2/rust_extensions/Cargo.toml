@@ -1,6 +1,6 @@
 [package]
 name = "atc_rust"
-version = "0.1.0"
+version = "0.1.5"
 edition = "2021"
 
 [lib]
@@ -12,6 +12,14 @@ pyo3 = { version = "0.23", features = ["extension-module"] }
 numpy = "0.23"
 ndarray = "0.15"
 rayon = "1.8"  # For parallel processing
+
+[profile.release]
+# Enable optimizations for SIMD auto-vectorization
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+# Use native CPU features for SIMD
+# Note: Users can override with: RUSTFLAGS="-C target-cpu=native" cargo build --release
 
 [dev-dependencies]
 criterion = "0.5"

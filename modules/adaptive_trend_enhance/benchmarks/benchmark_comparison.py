@@ -9,7 +9,7 @@ This script loads 500 symbols via ExchangeManager/DataFetcher and compares:
 
 Usage:
     python benchmark_comparison.py --symbols 1000 --bars 1000
-    Or from project root: python -m modules.adaptive_trend_enhance.docs.benchmarks.benchmark_comparison
+    Or from project root: python -m modules.adaptive_trend_enhance.benchmarks.benchmark_comparison
 """
 
 import argparse
@@ -21,9 +21,9 @@ from typing import Dict, Tuple
 
 # Add project root to sys.path for imports
 # This ensures the script can be run from any directory
-# From tests/adaptive_trend_enhance/ -> tests/ -> project root (3 levels)
+# From modules/adaptive_trend_enhance/benchmarks/ -> project root (4 levels)
 try:
-    project_root = Path(__file__).parent.parent.parent.parent.parent
+    project_root = Path(__file__).parent.parent.parent.parent
     project_root_str = str(project_root.resolve())
     if project_root_str not in sys.path:
         sys.path.insert(0, project_root_str)
@@ -244,21 +244,21 @@ def compare_signals(original_results: Dict[str, Dict], enhanced_results: Dict[st
         else:
             mismatched_symbols.append((symbol, diff))
             log_warn(f"Mismatch for {symbol}: max_diff={diff:.10e}")
-            
+
             # Find where the difference occurs
             diff_series = np.abs(orig_s - enh_s)
             max_diff_idx = diff_series.idxmax()
             max_diff_pos = diff_series.argmax()
-            
+
             log_warn(f"  Max difference at index {max_diff_idx} (position {max_diff_pos})")
             log_warn(f"  Original value: {orig_s.iloc[max_diff_pos]:.10e}")
             log_warn(f"  Enhanced value: {enh_s.iloc[max_diff_pos]:.10e}")
             log_warn(f"  Difference: {diff:.10e}")
-            
+
             # Show context around the difference
             start_idx = max(0, max_diff_pos - 2)
             end_idx = min(len(orig_s), max_diff_pos + 3)
-            log_warn(f"  Context (positions {start_idx}-{end_idx-1}):")
+            log_warn(f"  Context (positions {start_idx}-{end_idx - 1}):")
             log_warn(f"    Original: {orig_s.iloc[start_idx:end_idx].tolist()}")
             log_warn(f"    Enhanced: {enh_s.iloc[start_idx:end_idx].tolist()}")
             log_warn(f"    Diff:     {diff_series.iloc[start_idx:end_idx].tolist()}")
@@ -281,7 +281,7 @@ def compare_signals(original_results: Dict[str, Dict], enhanced_results: Dict[st
     log_info(f"Max signal difference: {max_diff:.2e}")
     log_info(f"Avg signal difference: {avg_diff:.2e}")
     log_info(f"Median signal difference: {median_diff:.2e}")
-    
+
     if mismatched_symbols:
         log_warn(f"\nFound {len(mismatched_symbols)} mismatched symbols:")
         for symbol, diff in sorted(mismatched_symbols, key=lambda x: x[1], reverse=True):
@@ -429,6 +429,7 @@ def main():
 
     # Save results to file (save in same directory as script)
     import os
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_file = os.path.join(script_dir, "benchmark_results.txt")
     with open(output_file, "w", encoding="utf-8") as f:

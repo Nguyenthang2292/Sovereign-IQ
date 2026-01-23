@@ -238,10 +238,10 @@ prices = np.frombuffer(decompressed, dtype=np.float64)
 
 ```bash
 # Collect profile data
-python -m cProfile -o profile.stats benchmark_comparison.py
+python -m cProfile -o profile.stats docs/benchmarks/benchmark_comparison.py
 
 # Use profile to guide Numba compilation
-NUMBA_ENABLE_PROFILING=1 python benchmark_comparison.py
+NUMBA_ENABLE_PROFILING=1 python docs/benchmarks/benchmark_comparison.py
 ```
 
 **Expected Gain**: **5-10%** improvement in hot paths
@@ -254,7 +254,7 @@ NUMBA_ENABLE_PROFILING=1 python benchmark_comparison.py
 import py-spy
 
 # Generate flame graph
-py-spy record -o profile.svg -- python benchmark_comparison.py
+py-spy record -o profile.svg -- python docs/benchmarks/benchmark_comparison.py
 ```
 
 **Expected Gain**: Identify unexpected bottlenecks for targeted optimization

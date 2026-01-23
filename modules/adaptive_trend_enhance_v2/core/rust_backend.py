@@ -225,7 +225,10 @@ def calculate_hma(
     if use_rust and RUST_AVAILABLE:
         return calculate_hma_rust(prices, length)
     else:
-        # Fallback to SMA (matching ma_calculation_enhanced.py behavior)
+        # Fallback to pandas_ta HMA (matching ma_calculation_enhanced.py behavior)
         series = pd.Series(prices)
-        result = ta.sma(series, length=length)
+        result = ta.hma(series, length=length)
+        if result is None:
+            # Secondary fallback to SMA if HMA fails
+            result = ta.sma(series, length=length)
         return result.values if result is not None else np.full(len(prices), np.nan)

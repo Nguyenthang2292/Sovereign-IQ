@@ -79,20 +79,27 @@ def ma_calculation_enhanced(
             if ma == "EMA":
                 return ta.ema(source, length=length)
             if ma == "HMA":
-                return ta.sma(source, length=length)  # HMA maps to SMA in this script
+                # DEVIATION FROM PINESCRIPT SOURCE:
+                # The original Pine Script source (source_pine.txt) uses ta.sma() for "HMA".
+                # This Python implementation uses TRUE Hull Moving Average (ta.hma) for correctness.
+                #
+                # PineScript source: else if ma_type == "HMA" ta.sma(source, length)
+                # Python Enhanced: ta.hma(source, length)
+                #
+                # Rationale: TRUE HMA provides better trend following and reduces lag.
+                # All Python versions (Original, Enhanced, Rust) use consistent TRUE HMA.
+                result = ta.hma(source, length=length)
+                # Fallback to SMA if HMA fails (shouldn't happen with pandas_ta >= 0.3.14)
+                if result is None:
+                    log_warn(f"HMA calculation failed, falling back to SMA for length={length}")
+                    result = ta.sma(source, length=length)
+                return result
             if ma == "WMA":
                 return ta.wma(source, length=length)
             if ma == "DEMA":
                 return ta.dema(source, length=length)
             if ma == "LSMA":
                 return ta.linreg(source, length=length)
-            if ma == "KAMA":
-                return calculate_kama_atc(source, length=length)
-
-            if ma == "HMA":
-                # Note: Uses SMA for Pine Script compatibility
-                return ta.sma(source, length=length)
-
             if ma == "KAMA":
                 return calculate_kama_atc(source, length=length)
 

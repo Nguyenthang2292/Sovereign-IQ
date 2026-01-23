@@ -1,0 +1,37 @@
+Testing MA consistency between Rust and Python/Pandas_TA...
+
+--- EMA ---
+Max Diff: 0.00e+00
+Rust (sample): [99.71348426 99.34397453 98.95845122]
+Py   (sample): [99.71348426 99.34397453 98.95845122]
+EMA MATCHED ✅
+
+--- HMA ---
+Max Diff: 7.11e-14
+Rust (sample): [99.87985003 99.66546229 99.40645329]
+Py   (sample): [99.87985003 99.66546229 99.40645329]
+HMA MATCHED ✅
+
+--- WMA ---
+Max Diff: 8.53e-14
+Rust (sample): [98.35993279 97.97894955 97.57125467]
+Py   (sample): [98.35993279 97.97894955 97.57125467]
+WMA MATCHED ✅
+
+--- DEMA ---
+Max Diff: 0.00e+00
+Rust (sample): [99.36409134 98.67465137 97.97635278]
+Py   (sample): [99.36409134 98.67465137 97.97635278]
+DEMA MATCHED ✅
+
+--- LSMA ---
+Max Diff: 2.27e-13
+Rust (sample): [95.32009831 94.60592409 93.90085744]
+Py   (sample): [95.32009831 94.60592409 93.90085744]
+LSMA MATCHED ✅
+
+--- KAMA ---
+Max Diff: 0.00e+00
+Rust (sample): [100.18533741  99.86650638  99.42202531]
+Py   (sample): [100.18533741  99.86650638  99.42202531]
+KAMA MATCHED ✅

@@ -29,9 +29,9 @@ except ImportError:
         print(f"[ERROR] {msg}")
 
 
-from modules.adaptive_trend_enhance.core.compute_moving_averages import set_of_moving_averages
 from modules.adaptive_trend_enhance.core.process_layer1 import _layer1_signal_for_ma
 from modules.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
+from modules.adaptive_trend_enhance_v2.core.compute_moving_averages import set_of_moving_averages
 from modules.common.system import (
     cleanup_series,
     get_hardware_manager,
@@ -144,8 +144,10 @@ def compute_atc_signals(
 
     with context_ma:
         for ma_type, length, _ in ma_configs:
+            # For v2, prefer_gpu=True means use Rust backend
+            # set_of_moving_averages_rust accepts use_rust parameter
             ma_tuple = set_of_moving_averages(
-                length, source=src, ma_type=ma_type, robustness=robustness, use_cache=use_cache, prefer_gpu=prefer_gpu
+                length, source=src, ma_type=ma_type, robustness=robustness, use_cache=use_cache, use_rust=prefer_gpu
             )
             if ma_tuple is None:
                 log_error(f"Cannot compute {ma_type} with length={length}")
