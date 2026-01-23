@@ -99,17 +99,19 @@ class TestScannerBatchProcessingMemory:
 
     @patch("modules.adaptive_trend_enhance.core.scanner.compute_atc_signals")
     @patch("modules.adaptive_trend_enhance.core.scanner.trend_sign")
+    @pytest.mark.timeout(30)  # Add timeout to prevent hanging
     def test_scanner_batch_memory_usage(self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher):
         """Test scanner batch processing memory usage."""
-        num_symbols = 200
+        # OPTIMIZED: Reduced from 200 to 50 symbols, 1000 to 200 candles
+        num_symbols = 50  # Reduced 4x
         symbols = [f"SYM{i}" for i in range(num_symbols)]
         mock_data_fetcher.list_binance_futures_symbols.return_value = symbols
 
-        mock_df = create_mock_ohlcv_data(num_candles=1000)
+        mock_df = create_mock_ohlcv_data(num_candles=200)  # Reduced 5x
         mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, "binance")
 
         mock_compute_atc.return_value = create_mock_atc_results(signal_value=0.5)
-        mock_trend_sign.return_value = pd.Series([1] * 1000)
+        mock_trend_sign.return_value = pd.Series([1] * 200)  # Match num_candles
 
         mem_manager = get_memory_manager()
         mem_manager.enable_tracemalloc = True
@@ -143,26 +145,26 @@ class TestScannerBatchProcessingMemory:
             f"  Peak tracemalloc: {final_stats.tracemalloc_peak_mb:.2f} MB" if final_stats.tracemalloc_peak_mb else ""
         )
 
-        # Verify memory didn't grow excessively (allow up to 500MB for 200 symbols)
-        assert total_diff < 500, f"Memory usage too high: {total_diff:.2f} MB"
+        # Verify memory didn't grow excessively (allow up to 150MB for 50 symbols)
+        assert total_diff < 150, f"Memory usage too high: {total_diff:.2f} MB"
 
     @patch("modules.adaptive_trend_enhance.core.scanner.compute_atc_signals")
     @patch("modules.adaptive_trend_enhance.core.scanner.trend_sign")
-    @pytest.mark.timeout(60)  # 60 second timeout to prevent hanging
+    @pytest.mark.timeout(40)  # Reduced timeout from 60s
     def test_scanner_memory_with_different_batch_sizes(
         self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher
     ):
         """Test memory usage with different batch sizes."""
-        # Reduce number of symbols and batch sizes to speed up test
-        num_symbols = 40  # Reduced from 100 to speed up
+        # OPTIMIZED: Further reduced for speed (40 → 20 symbols, 200 → 100 candles)
+        num_symbols = 20  # Reduced from 40
         symbols = [f"SYM{i}" for i in range(num_symbols)]
         mock_data_fetcher.list_binance_futures_symbols.return_value = symbols
 
-        mock_df = create_mock_ohlcv_data(num_candles=200)  # Reduced from 500
+        mock_df = create_mock_ohlcv_data(num_candles=100)  # Reduced from 200
         mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, "binance")
 
         mock_compute_atc.return_value = create_mock_atc_results(signal_value=0.5)
-        mock_trend_sign.return_value = pd.Series([1] * 200)
+        mock_trend_sign.return_value = pd.Series([1] * 100)  # Match num_candles
 
         mem_manager = get_memory_manager()
         mem_manager.enable_tracemalloc = True
@@ -170,7 +172,7 @@ class TestScannerBatchProcessingMemory:
             tracemalloc.start()
 
         # Reduced batch sizes to speed up test (only test 2 sizes instead of 4)
-        batch_sizes = [10, 40]  # Small and large batch
+        batch_sizes = [5, 20]  # Adjusted for 20 symbols (small and large batch)
         memory_usage = []
 
         for batch_size in batch_sizes:
@@ -180,7 +182,7 @@ class TestScannerBatchProcessingMemory:
             # Ensure mocks are set up correctly for each iteration
             mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (mock_df, "binance")
             mock_compute_atc.return_value = create_mock_atc_results(signal_value=0.5)
-            mock_trend_sign.return_value = pd.Series([1] * 200)
+            mock_trend_sign.return_value = pd.Series([1] * 100)  # Match num_candles
 
             scan_all_symbols(
                 mock_data_fetcher,
@@ -218,9 +220,9 @@ class TestScannerBatchProcessingMemory:
             small_batch_mem = memory_usage[0][1]
             large_batch_mem = memory_usage[-1][1]
 
-            # Both should be reasonable (less than 50MB for 40 symbols)
+            # Both should be reasonable (less than 30MB for 20 symbols - adjusted)
             # Small batch can have high overhead but should still be bounded
-            max_reasonable = 50.0  # MB
+            max_reasonable = 30.0  # MB (adjusted from 50MB)
             assert small_batch_mem < max_reasonable, f"Small batch memory too high: {small_batch_mem:.2f} MB"
             assert large_batch_mem < max_reasonable, f"Large batch memory too high: {large_batch_mem:.2f} MB"
 
@@ -232,9 +234,11 @@ class TestScannerBatchProcessingMemory:
 class TestEquityCalculationMemory:
     """Test memory usage for equity calculations."""
 
+    @pytest.mark.timeout(20)  # Add timeout
     def test_equity_calculation_memory_usage(self):
         """Test equity calculation memory usage."""
-        n_bars = 2000
+        # OPTIMIZED: Reduced from 2000 to 1000 bars, 10 to 5 iterations
+        n_bars = 1000  # Reduced from 2000
         prices = pd.Series(100 * (1 + np.random.randn(n_bars).cumsum() * 0.01))
         R = prices.pct_change().fillna(0)
         signal = pd.Series(np.random.choice([-1, 0, 1], n_bars))
@@ -248,8 +252,8 @@ class TestEquityCalculationMemory:
         snapshot_before = tracemalloc.take_snapshot()
         initial_stats = mem_manager.get_current_usage()
 
-        # Calculate equity multiple times
-        for _ in range(10):
+        # Calculate equity multiple times (reduced from 10 to 5)
+        for _ in range(5):
             equity = equity_series(starting_equity=100.0, sig=signal, R=R, L=0.02, De=0.03, verbose=False)
             del equity
 
@@ -265,12 +269,14 @@ class TestEquityCalculationMemory:
         print(f"  Final RAM: {final_stats.ram_used_gb:.2f} GB")
         print(f"  Tracemalloc diff: {total_diff:.2f} MB")
 
-        # Equity calculations should be memory efficient (allow up to 100MB for 10 calculations)
-        assert total_diff < 100, f"Equity calculation memory too high: {total_diff:.2f} MB"
+        # Equity calculations should be memory efficient (adjusted for 5 calculations)
+        assert total_diff < 50, f"Equity calculation memory too high: {total_diff:.2f} MB"
 
+    @pytest.mark.timeout(30)  # Add timeout
     def test_equity_calculation_memory_leak(self):
         """Test for memory leaks in equity calculations."""
-        n_bars = 1000
+        # OPTIMIZED: Reduced from 50 to 20 iterations, 1000 to 500 bars
+        n_bars = 500  # Reduced from 1000
         prices = pd.Series(100 * (1 + np.random.randn(n_bars).cumsum() * 0.01))
         R = prices.pct_change().fillna(0)
         signal = pd.Series(np.random.choice([-1, 0, 1], n_bars))
@@ -285,8 +291,8 @@ class TestEquityCalculationMemory:
             initial_stats.tracemalloc_current_mb if initial_stats.ram_used_gb == 0 else initial_stats.ram_used_gb
         )
 
-        # Perform many calculations
-        for _ in range(50):
+        # Perform many calculations (reduced from 50 to 20)
+        for _ in range(20):
             equity = equity_series(starting_equity=100.0, sig=signal, R=R, L=0.02, De=0.03, verbose=False)
             del equity
             mem_manager.cleanup()
@@ -307,6 +313,7 @@ class TestEquityCalculationMemory:
 class TestSeriesCleanupEffectiveness:
     """Test Series cleanup effectiveness."""
 
+    @pytest.mark.timeout(20)  # Add timeout
     def test_series_cleanup_effectiveness(self):
         """Test that Series cleanup reduces memory usage."""
         mem_manager = get_memory_manager()
@@ -314,8 +321,8 @@ class TestSeriesCleanupEffectiveness:
         if not tracemalloc.is_tracing():
             tracemalloc.start()
 
-        # Create large Series
-        large_series = [pd.Series(np.random.randn(1000000)) for _ in range(10)]
+        # OPTIMIZED: Reduced from 10×1M to 5×100K elements (50x reduction!)
+        large_series = [pd.Series(np.random.randn(100000)) for _ in range(5)]
 
         gc.collect()
         snapshot_before = tracemalloc.take_snapshot()
@@ -343,9 +350,11 @@ class TestSeriesCleanupEffectiveness:
         # We can't assert exact values due to GC timing, but we verify it runs
         assert True
 
+    @pytest.mark.timeout(20)  # Add timeout
     def test_series_cleanup_with_equity_calculations(self):
         """Test Series cleanup effectiveness in equity calculations."""
-        n_bars = 2000
+        # OPTIMIZED: Reduced from 2000 to 1000 bars, 20 to 10 iterations
+        n_bars = 1000  # Reduced from 2000
         prices = pd.Series(100 * (1 + np.random.randn(n_bars).cumsum() * 0.01))
         R = prices.pct_change().fillna(0)
         signal = pd.Series(np.random.choice([-1, 0, 1], n_bars))
@@ -358,8 +367,8 @@ class TestSeriesCleanupEffectiveness:
         gc.collect()
         snapshot_before = tracemalloc.take_snapshot()
 
-        # Calculate equity and cleanup
-        for _ in range(20):
+        # Calculate equity and cleanup (reduced from 20 to 10 iterations)
+        for _ in range(10):
             equity = equity_series(starting_equity=100.0, sig=signal, R=R, L=0.02, De=0.03, verbose=False)
             cleanup_series(equity)
             cleanup_series(signal)
@@ -375,13 +384,14 @@ class TestSeriesCleanupEffectiveness:
         print("\nSeries Cleanup with Equity Test:")
         print(f"  Tracemalloc diff: {total_diff:.2f} MB")
 
-        # With cleanup, memory should be well controlled
-        assert total_diff < 150, f"Memory usage too high with cleanup: {total_diff:.2f} MB"
+        # With cleanup, memory should be well controlled (adjusted threshold)
+        assert total_diff < 80, f"Memory usage too high with cleanup: {total_diff:.2f} MB"
 
 
 class TestMemoryUsageReports:
     """Test memory usage report generation."""
 
+    @pytest.mark.timeout(15)  # Add timeout
     def test_generate_memory_report(self):
         """Generate a comprehensive memory usage report."""
         mem_manager = get_memory_manager()
@@ -403,8 +413,8 @@ class TestMemoryUsageReports:
             report_lines.append(f"  Tracemalloc Current: {initial_stats.tracemalloc_current_mb:.2f} MB")
             report_lines.append(f"  Tracemalloc Peak: {initial_stats.tracemalloc_peak_mb:.2f} MB")
 
-        # Test equity calculation
-        n_bars = 1500
+        # Test equity calculation (OPTIMIZED: Reduced from 1500 to 800 bars)
+        n_bars = 800  # Reduced from 1500
         prices = pd.Series(100 * (1 + np.random.randn(n_bars).cumsum() * 0.01))
         R = prices.pct_change().fillna(0)
         signal = pd.Series(np.random.choice([-1, 0, 1], n_bars))

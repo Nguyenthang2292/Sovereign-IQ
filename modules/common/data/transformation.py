@@ -17,14 +17,25 @@ def dataframe_to_close_series(df: Optional[pd.DataFrame]) -> Optional[pd.Series]
 
     Args:
         df: OHLCV DataFrame with columns ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            Alternatively, 'timestamp' can be the DatetimeIndex.
 
     Returns:
         pandas Series of closing prices indexed by timestamp, or None if input is invalid
     """
     if df is None or df.empty:
         return None
-    if "timestamp" not in df.columns or "close" not in df.columns:
+
+    if "close" not in df.columns:
         return None
+
+    # Handle case where timestamp is already the index
+    if "timestamp" not in df.columns:
+        if isinstance(df.index, pd.DatetimeIndex):
+            series = df["close"].copy()
+            series.name = "close"
+            return series
+        return None
+
     series = df.set_index("timestamp")["close"].copy()
     series.name = "close"
     return series

@@ -1,0 +1,33 @@
+[package]
+name = "atc_rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "atc_rust"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+numpy = "0.23"
+ndarray = "0.15"
+rayon = "1.8"  # For parallel processing
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "equity_benchmark"
+harness = false
+
+[[bench]]
+name = "kama_benchmark"
+harness = false
+
+[[bench]]
+name = "persistence_benchmark"
+harness = false
+
+[[bench]]
+name = "ma_benchmark"
+harness = false

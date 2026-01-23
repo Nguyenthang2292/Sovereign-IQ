@@ -1,0 +1,84 @@
+﻿cargo :    Compiling pyo3-build-config v0.23.5
+At line:1 char:109
++ ... 
+ypto-probability-\.venv\Scripts\python.exe"; 
+cargo bench 2>&1 | Out-F ...
++                                               
+   ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   
+    Compiling pyo3-build-config v0.23.5:String  
+  ) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandErro 
+   r
+ 
+   Compiling pyo3-ffi v0.23.5
+   Compiling pyo3-macros-backend v0.23.5
+   Compiling pyo3 v0.23.5
+   Compiling pyo3-macros v0.23.5
+   Compiling numpy v0.23.0
+   Compiling atc_rust v0.1.0 (D:\NGUYEN QUANG 
+THANG\Probability projects\crypto-probability-\m
+odules\adaptive_trend_enhance_v2\rust_extensions
+)
+    Finished `bench` profile [optimized] 
+target(s) in 7.52s
+     Running unittests src\lib.rs (target\releas
+e\deps\atc_rust-042e1400f77dbec2.exe)
+
+running 3 tests
+test equity::tests::test_equity_logic ... ignored
+test kama::tests::test_kama_logic ... ignored
+test signal_persistence::tests::test_persistence_logic ... ignored
+
+test result: ok. 0 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running benches\equity_benchmark.rs (target
+\release\deps\equity_benchmark-5cc55a4914e472e9.
+exe)
+Gnuplot not found, using plotters backend
+Benchmarking equity_calculation
+Benchmarking equity_calculation: Warming up for 
+3.0000 s
+Benchmarking equity_calculation: Collecting 100 
+samples in estimated 5.1068 s (162k iterations)
+Benchmarking equity_calculation: Analyzing
+equity_calculation      time:   [31.525 ┬╡s 31.739 ┬╡s 31.965 ┬╡s]
+                        change: [-1.4695% -0.2685% +1.0561%] (p = 0.70 > 0.05)
+                        No change in performance detected.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+
+     Running benches\kama_benchmark.rs (target\r
+elease\deps\kama_benchmark-72b44b19a897ed12.exe)
+Gnuplot not found, using plotters backend
+Benchmarking kama_calculation
+Benchmarking kama_calculation: Warming up for 
+3.0000 s
+Benchmarking kama_calculation: Collecting 100 
+samples in estimated 5.6180 s (40k iterations)
+Benchmarking kama_calculation: Analyzing
+kama_calculation        time:   [136.56 ┬╡s 137.41 ┬╡s 138.31 ┬╡s]
+                        change: [-10.559% -8.4458% -6.2972%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+
+     Running benches\persistence_benchmark.rs (t
+arget\release\deps\persistence_benchmark-b2b3f34
+ac6c39bec.exe)
+Gnuplot not found, using plotters backend
+Benchmarking persistence_calculation
+Benchmarking persistence_calculation: Warming 
+up for 3.0000 s
+Benchmarking persistence_calculation: 
+Collecting 100 samples in estimated 5.0239 s 
+(1.0M iterations)
+Benchmarking persistence_calculation: Analyzing
+persistence_calculation time:   [4.9607 ┬╡s 5.0303 ┬╡s 5.1123 ┬╡s]
+                        change: [-7.5171% -5.2858% -3.0628%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+
