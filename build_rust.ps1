@@ -28,7 +28,7 @@ try {
 }
 
 # Navigate to rust_extensions directory
-$rustExtDir = Join-Path $PSScriptRoot "modules\adaptive_trend_enhance_v2\rust_extensions"
+$rustExtDir = Join-Path $PSScriptRoot "modules\adaptive_trend_LTS\rust_extensions"
 if (-not (Test-Path $rustExtDir)) {
     Write-Host "[ERROR] Rust extensions directory not found: $rustExtDir" -ForegroundColor Red
     exit 1

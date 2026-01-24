@@ -9,12 +9,14 @@
 ## 📁 Files Đã Optimize
 
 ### 1. test_performance_regression.py
+
 - **Purpose**: Performance baselines, targets, regression detection
 - **Tests**: 8 tests (4 classes)
 - **Status**: ✅ Fully Optimized
- - **Details**: [implementation_summary.md](implementation_summary.md)
+- **Details**: [implementation_summary.md](implementation_summary.md)
 
 ### 2. test_performance.py
+
 - **Purpose**: Base vs Enhanced comparison, memory leak detection
 - **Tests**: 4 tests (includes 2 parametrized)
 - **Status**: ✅ Fully Optimized
@@ -38,6 +40,7 @@
 ## 📊 Performance Gains (Combined)
 
 ### Before Optimization
+
 ```
 test_performance_regression.py: 60-90s  (10-20 iterations hardcoded)
 test_performance.py:           65-130s (3-5 iterations hardcoded)
@@ -47,6 +50,7 @@ Memory:                        ~1.2GB  (no session fixtures)
 ```
 
 ### After Optimization
+
 ```
 Fast Mode (skip slow):
 test_performance_regression.py: 10-15s  (3 iterations, 4 tests)
@@ -146,6 +150,7 @@ PERF_ITERATIONS=10 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0
 | `TestCIIntegration` | 2 | ❌ | CI metrics export |
 
 **Optimization Highlights**:
+
 - Session fixtures: `sample_data_session`, `atc_config_session`
 - Cache warm-up: `warmed_up_cache` (enhanced version)
 - Parametrized: `test_meets_target_parametrized`
@@ -162,6 +167,7 @@ PERF_ITERATIONS=10 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0
 | `test_individual_performance` | ✅ 2 cases | ❌ | Individual benchmarking |
 
 **Optimization Highlights**:
+
 - Session fixtures: `large_sample_data_session`
 - Cache warm-up: `warmed_up_cache_both` (both base & enhanced)
 - Parametrized: `test_individual_performance[Base]`, `test_individual_performance[Enhanced]`
@@ -177,6 +183,7 @@ PERF_ITERATIONS=10 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0
 | `PERF_ITERATIONS_MEMORY` | 5 | test_performance.py | Memory leak test iterations |
 
 ### Examples
+
 ```bash
 # Super fast (1 iteration)
 PERF_ITERATIONS=1 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0
@@ -193,30 +200,35 @@ PERF_ITERATIONS=10 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0
 ## ✅ Verification Checklist
 
 ### 1. Environment Variables Working
+
 ```bash
 PERF_ITERATIONS=2 pytest tests/adaptive_trend_enhance/test_performance_regression.py::TestPerformanceBaseline::test_benchmark_equity_series -n 0 -v
 # Should show "Iterations: 2"
 ```
 
 ### 2. Session Fixtures Working
+
 ```bash
 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0 --setup-show
 # Should show "SETUP [session]" only ONCE per fixture
 ```
 
 ### 3. Markers Working
+
 ```bash
 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0 -m "not slow" --collect-only
 # Should skip 4 slow tests, collect 7 fast tests
 ```
 
 ### 4. Parametrize Working
+
 ```bash
 pytest tests/adaptive_trend_enhance/test_performance.py::test_individual_performance -n 0 -v
 # Should run 2 tests: [Base] and [Enhanced]
 ```
 
 ### 5. Scripts Working
+
 ```bash
 # PowerShell
 .\tests\adaptive_trend_enhance\run_perf_tests.ps1 fast all
@@ -263,16 +275,19 @@ pytest tests/adaptive_trend_enhance/test_performance.py::test_individual_perform
 ### For Developers
 
 1. **Always skip slow tests in development**:
+
    ```bash
    pytest -m "not slow" -n 0
    ```
 
 2. **Use minimal iterations for quick checks**:
+
    ```bash
    PERF_ITERATIONS=1 pytest ...
    ```
 
 3. **Run full suite before committing**:
+
    ```bash
    PERF_ITERATIONS=5 pytest -m performance -n 0
    ```
@@ -280,6 +295,7 @@ pytest tests/adaptive_trend_enhance/test_performance.py::test_individual_perform
 ### For CI/CD
 
 1. **Set environment variable in CI config**:
+
    ```yaml
    # .github/workflows/test.yml
    env:
@@ -287,12 +303,14 @@ pytest tests/adaptive_trend_enhance/test_performance.py::test_individual_perform
    ```
 
 2. **Run thorough tests in scheduled jobs**:
+
    ```yaml
    schedule:
      - cron: '0 0 * * *'  # Daily at midnight
    ```
 
 3. **Use artifacts to track performance over time**:
+
    ```yaml
    - uses: actions/upload-artifact@v2
      with:
@@ -318,11 +336,13 @@ pytest tests/adaptive_trend_enhance/test_performance.py::test_individual_perform
 ## 📞 Support & Resources
 
 ### Quick Start
+
 1. Read [quick_reference.md](quick_reference.md) for commands
 2. Run fast mode: `.\tests\adaptive_trend_enhance\run_perf_tests.ps1 fast all`
 3. Check results
 
 ### Detailed Documentation
+
 - **Regression Tests**: [implementation_summary.md](implementation_summary.md)
 - **Comparison Tests**: [test_performance_optimization.md](test_performance_optimization.md)
 - **Quick Reference**: [quick_reference.md](quick_reference.md)
@@ -332,16 +352,19 @@ pytest tests/adaptive_trend_enhance/test_performance.py::test_individual_perform
 #### Tests chạy chậm hơn expected?
 
 1. **Check if running with parallelization** (should use `-n 0`):
+
    ```bash
    pytest ... -n 0  # Force single-threaded
    ```
 
 2. **Check PERF_ITERATIONS**:
+
    ```bash
    echo $PERF_ITERATIONS  # Should be 3 for dev
    ```
 
 3. **Verify warm-up cache is being used**:
+
    ```python
    # Test should have warmed_up_cache fixture
    def test_xyz(self, sample_data, atc_config, warmed_up_cache):
@@ -351,12 +374,14 @@ pytest tests/adaptive_trend_enhance/test_performance.py::test_individual_perform
 #### Memory issues?
 
 1. **Garbage collection not working?**
+
    ```python
    import gc
    gc.collect()  # Manual collection
    ```
 
 2. **Check session fixtures are reused**:
+
    ```bash
    pytest ... -v  # Should show "SETUP" only once per session
    ```
@@ -387,16 +412,19 @@ pytest tests/adaptive_trend_enhance/test_performance.py::test_individual_perform
 ## 🎯 Recommended Commands
 
 ### Daily Development
+
 ```bash
 .\tests\adaptive_trend_enhance\run_perf_tests.ps1 fast all
 ```
 
 ### Before Commit
+
 ```bash
 .\tests\adaptive_trend_enhance\run_perf_tests.ps1 full all
 ```
 
 ### CI/CD Pipeline
+
 ```bash
 .\tests\adaptive_trend_enhance\run_perf_tests.ps1 ci all
 ```

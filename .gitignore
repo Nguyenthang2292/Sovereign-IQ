@@ -42,6 +42,10 @@ htmlcov/
 # Ruff cache
 .ruff_cache/
 
+# PyCUDA (Phase 4 GPU backend)
+**/.pycuda_cache/
+**/.pycuda_build/
+
 # Temporary files
 *.tmp
 *.bak

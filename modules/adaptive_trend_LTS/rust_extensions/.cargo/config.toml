@@ -1,0 +1,11 @@
+# Workaround for Windows CUDA paths with spaces
+# The cudarc build script doesn't properly quote paths containing spaces
+[target.x86_64-pc-windows-msvc]
+# Use short path format (8.3 names) to avoid space issues
+rustflags = [
+    "-L", "C:\\PROGRA~1\\NVIDIA~2\\CUDA\\v12.8\\lib\\x64",
+]
+
+[env]
+# Override CUDA_PATH with 8.3 short path format
+CUDA_PATH = "C:\\PROGRA~1\\NVIDIA~2\\CUDA\\v12.8"

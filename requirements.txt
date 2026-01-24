@@ -31,3 +31,8 @@ tvDatafeed>=1.0.0  # TradingView data feed fallback for forex data
 # - requirements-ml.txt  : Deep learning / TFT dependencies
 # - requirements-ocr.txt : UI + OCR helpers
 # - requirements-dev.txt : Tooling for contributors/tests
+
+# Rust extensions (optional, 2-3x speedup for adaptive_trend_LTS):
+#   cd modules/adaptive_trend_LTS/rust_extensions && maturin develop --release
+#   Or from project root: .\build_rust.bat (Windows) / .\build_rust.ps1
+#   Requires: Rust (https://rustup.rs/), maturin (pip install maturin)
