@@ -23,14 +23,17 @@ if "__file__" in globals():
 
 import time
 import traceback
+from datetime import datetime
 
 from colorama import Fore
 from colorama import init as colorama_init
 
 from config.forex_pairs import FOREX_MAJOR_PAIRS, FOREX_MINOR_PAIRS
+from modules.adaptive_trend_LTS.utils.rust_build_checker import check_rust_backend
 from modules.common.core.exchange_manager import PublicExchangeManager
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.common.utils import (
+    NavigationBack,
     color_text,
     configure_windows_stdio,
     get_error_code,
@@ -39,7 +42,16 @@ from modules.common.utils import (
     safe_input,
     setup_windows_stdin,
 )
-from modules.gemini_chart_analyzer.core.scanners.forex_market_batch_scanner import ForexMarketBatchScanner
+from modules.gemini_chart_analyzer.cli.config.display import display_loaded_configuration
+from modules.gemini_chart_analyzer.cli.config.exporter import export_configuration
+from modules.gemini_chart_analyzer.cli.config.loader import (
+    list_configuration_files,
+    load_configuration_from_file,
+)
+from modules.gemini_chart_analyzer.cli.prompts.timeframe import (
+    prompt_market_coverage,
+)
+from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner_forex import ForexMarketBatchScanner
 from modules.gemini_chart_analyzer.core.utils import DEFAULT_TIMEFRAMES, normalize_timeframes
 
 setup_windows_stdin()
@@ -164,9 +176,7 @@ def get_forex_symbols(
 
 def main_forex():
     """
-    Main entry point for Forex Batch Scanner.
-
-    Interactive menu for batch scanning forex market with Gemini.
+    Main entry point for Forex Batch Scanner with Backspace support.
     """
     colorama_init(autoreset=True)
 
@@ -180,90 +190,226 @@ def main_forex():
         log_info("Data source: TradingView scraper (OANDA:<SYMBOL_NAME>)")
         print()
 
-        # Get timeframe(s) - single or multi
-        print("\nAnalysis mode:")
-        print("  1. Single timeframe")
-        print("  2. Multi-timeframe (recommended)")
-        mode = safe_input(color_text("Select mode (1/2) [2]: ", Fore.YELLOW), default="2")
-        if not mode:
-            mode = "2"
-
-        timeframe = None
-        timeframes = None
-
-        if mode == "2":
-            # Multi-timeframe mode
-            print(f"\nDefault timeframes: {', '.join(DEFAULT_TIMEFRAMES)}")
-            print("Timeframes: 15m, 30m, 1h, 4h, 1d, 1w (comma-separated)")
-            timeframes_input = safe_input(
-                color_text(f"Enter timeframes (comma-separated) [{', '.join(DEFAULT_TIMEFRAMES)}]: ", Fore.YELLOW),
-                default="",
-            )
-            if not timeframes_input:
-                timeframes = DEFAULT_TIMEFRAMES
-            else:
-                try:
-                    timeframes_list = [tf.strip() for tf in timeframes_input.split(",") if tf.strip()]
-                    timeframes = normalize_timeframes(timeframes_list)
-                    if not timeframes:
-                        log_warn("No valid timeframes, using default")
-                        timeframes = DEFAULT_TIMEFRAMES
-                except Exception as e:
-                    log_warn(f"Error parsing timeframes: {e}, using default")
-                    timeframes = DEFAULT_TIMEFRAMES
+        # Check Rust status
+        rust_status = check_rust_backend()
+        if not rust_status["available"]:
+            print(f"\n{'=' * 60}")
+            print("⚠️  PERFORMANCE WARNING: Rust backend not found.")
+            print(f"To build: {rust_status['build_command']}")
+            print(f"{'=' * 60}\n")
         else:
-            # Single timeframe mode
-            print("\nTimeframes: 15m, 30m, 1h, 4h, 1d, 1w")
-            timeframe = safe_input(color_text("Enter timeframe [1h]: ", Fore.YELLOW), default="1h")
-            if not timeframe:
-                timeframe = "1h"
+            print(f"\n{'=' * 60}")
+            print("✅ Rust backend is ACTIVE (Optimal performance)")
+            print(f"{'=' * 60}\n")
 
-            # Normalize timeframe
-            try:
-                timeframe = normalize_timeframe(timeframe)
-            except Exception as e:
-                log_warn(f"Error parsing timeframe: {e}, using default '1h'")
-                timeframe = "1h"
+        # Configuration state
+        config = {
+            "mode": "2",
+            "timeframe": "1h",
+            "timeframes": DEFAULT_TIMEFRAMES,
+            "max_symbols": None,
+            "stage0_sample_percentage": None,
+            "cooldown": 2.5,
+            "limit": 500,
+        }
 
-        # Get max symbols (optional)
-        max_symbols_input = safe_input(
-            color_text("Max symbols to scan (press Enter for all): ", Fore.YELLOW), default=""
-        )
-        max_symbols = None
-        if max_symbols_input:
-            try:
-                max_symbols = int(max_symbols_input)
-                if max_symbols < 1:
-                    log_warn(f"max_symbols ({max_symbols}) must be >= 1, resetting to default (all symbols)")
-                    max_symbols = None
-            except ValueError:
-                log_warn("Invalid input, scanning all symbols")
+        steps = ["load_config_prompt", "mode", "timeframes", "market_coverage", "cooldown", "limit", "export_config"]
+        current_step = 0
+        config_files = list_configuration_files()
 
-        # Get cooldown
-        cooldown_input = safe_input(
-            color_text("Cooldown between batches in seconds [2.5]: ", Fore.YELLOW), default="2.5"
-        )
-        cooldown = 2.5
-        if cooldown_input:
-            try:
-                cooldown = float(cooldown_input)
-                if cooldown < 0.0:
-                    log_warn(f"cooldown ({cooldown}) must be >= 0.0, clamping to 0.0")
-                    cooldown = 0.0
-            except ValueError:
-                log_warn("Invalid input, using default 2.5s")
+        print(color_text("\n(Tip: Press Backspace or type 'b' at any prompt to go back)\n", Fore.CYAN))
 
-        # Get candles limit
-        limit_input = safe_input(color_text("Number of candles per symbol [500]: ", Fore.YELLOW), default="500")
-        limit = 500
-        if limit_input:
+        while current_step < len(steps):
+            step_name = steps[current_step]
             try:
-                limit = int(limit_input)
-                if limit < 1:
-                    log_warn(f"limit ({limit}) must be >= 1, clamping to 1")
-                    limit = 1
-            except ValueError:
-                log_warn("Invalid input, using default 500")
+                if step_name == "load_config_prompt":
+                    print("\nLoad Configuration:")
+                    if config_files:
+                        print(f"  {len(config_files)} configuration file(s) found in project root")
+                    else:
+                        print("  No configuration files found in project root")
+
+                    load_config_input = safe_input(
+                        color_text("Load configuration from file? (y/n) [n]: ", Fore.YELLOW),
+                        default="n",
+                        allow_back=False,
+                    ).lower()
+
+                    if load_config_input in ["y", "yes"]:
+                        if config_files:
+                            print("\nAvailable configuration files:")
+                            for idx, config_file in enumerate(config_files[:10], 1):
+                                try:
+                                    mtime = datetime.fromtimestamp(config_file.stat().st_mtime)
+                                    mtime_str = mtime.strftime("%Y-%m-%d %H:%M:%S")
+                                    print(f"  {idx}. {config_file.name} ({mtime_str})")
+                                except (OSError, ValueError):
+                                    print(f"  {idx}. {config_file.name}")
+
+                        file_choice = safe_input(
+                            color_text("\nSelect file number or enter full path (press Enter to skip): ", Fore.YELLOW),
+                            default="",
+                            allow_back=True,
+                        ).strip()
+
+                        if file_choice:
+                            config_path = None
+                            try:
+                                file_idx = int(file_choice)
+                                if config_files and 1 <= file_idx <= len(config_files):
+                                    config_path = config_files[file_idx - 1]
+                            except ValueError:
+                                config_path = Path(file_choice)
+
+                            if config_path:
+                                loaded_data = load_configuration_from_file(config_path)
+                                if loaded_data:
+                                    display_loaded_configuration(loaded_data)
+                                    print("\nConfiguration Options:")
+                                    print("  1. Use loaded configuration as-is")
+                                    print("  2. Use as defaults and adjust")
+                                    print("  3. Start fresh (ignore loaded config)")
+                                    use_choice = safe_input(
+                                        color_text("Select option (1/2/3) [2]: ", Fore.YELLOW),
+                                        default="2",
+                                        allow_back=True,
+                                    )
+                                    if use_choice == "1":
+                                        # Map loaded data to config
+                                        config["mode"] = loaded_data.get("analysis_mode_id", "2")
+                                        config["timeframe"] = loaded_data.get("timeframe", "1h")
+                                        config["timeframes"] = loaded_data.get("timeframes", DEFAULT_TIMEFRAMES)
+                                        config["max_symbols"] = loaded_data.get("max_symbols")
+                                        config["stage0_sample_percentage"] = loaded_data.get("stage0_sample_percentage")
+                                        config["cooldown"] = loaded_data.get("cooldown", 2.5)
+                                        config["limit"] = loaded_data.get("limit", 500)
+                                        current_step = steps.index("export_config")
+                                        continue
+                                    elif use_choice == "2":
+                                        # Use as defaults
+                                        config["mode"] = loaded_data.get("analysis_mode_id", "2")
+                                        config["timeframe"] = loaded_data.get("timeframe", "1h")
+                                        config["timeframes"] = loaded_data.get("timeframes", DEFAULT_TIMEFRAMES)
+                                        config["max_symbols"] = loaded_data.get("max_symbols")
+                                        config["stage0_sample_percentage"] = loaded_data.get("stage0_sample_percentage")
+                                        config["cooldown"] = loaded_data.get("cooldown", 2.5)
+                                        config["limit"] = loaded_data.get("limit", 500)
+                    current_step += 1
+
+                elif step_name == "mode":
+                    print("\nAnalysis mode:")
+                    print("  1. Single timeframe")
+                    print("  2. Multi-timeframe (recommended)")
+                    config["mode"] = safe_input(
+                        color_text("Select mode (1/2) [2]: ", Fore.YELLOW), default="2", allow_back=False
+                    )
+                    current_step += 1
+
+                elif step_name == "timeframes":
+                    if config["mode"] == "2":
+                        print(f"\nDefault timeframes: {', '.join(DEFAULT_TIMEFRAMES)}")
+                        print("Timeframes: 15m, 30m, 1h, 4h, 1d, 1w (comma-separated)")
+                        tfs_input = safe_input(
+                            color_text(
+                                f"Enter timeframes (comma-separated) [{', '.join(DEFAULT_TIMEFRAMES)}]: ", Fore.YELLOW
+                            ),
+                            default="",
+                            allow_back=True,
+                        )
+                        if tfs_input:
+                            try:
+                                tfs_list = [tf.strip() for tf in tfs_input.split(",") if tf.strip()]
+                                config["timeframes"] = normalize_timeframes(tfs_list)
+                            except Exception:
+                                log_warn("Invalid timeframes format, using default")
+                        current_step += 1
+                    else:
+                        print("\nTimeframes: 15m, 30m, 1h, 4h, 1d, 1w")
+                        tf = safe_input(
+                            color_text("Enter timeframe [1h]: ", Fore.YELLOW), default="1h", allow_back=True
+                        )
+                        try:
+                            config["timeframe"] = normalize_timeframe(tf)
+                        except Exception:
+                            config["timeframe"] = "1h"
+                        current_step += 1
+
+                elif step_name == "market_coverage":
+                    config["max_symbols"], config["stage0_sample_percentage"] = prompt_market_coverage(
+                        loaded_config={
+                            "max_symbols": config["max_symbols"],
+                            "stage0_sample_percentage": config["stage0_sample_percentage"],
+                        }
+                    )
+                    current_step += 1
+
+                elif step_name == "cooldown":
+                    cd = safe_input(
+                        color_text("Cooldown between batches in seconds [2.5]: ", Fore.YELLOW),
+                        default="2.5",
+                        allow_back=True,
+                    )
+                    try:
+                        config["cooldown"] = float(cd)
+                    except ValueError:
+                        config["cooldown"] = 2.5
+                    current_step += 1
+
+                elif step_name == "limit":
+                    lim = safe_input(
+                        color_text("Number of candles per symbol [500]: ", Fore.YELLOW),
+                        default=str(config["limit"]),
+                        allow_back=True,
+                    )
+                    try:
+                        config["limit"] = int(lim)
+                    except ValueError:
+                        config["limit"] = 500
+                    current_step += 1
+
+                elif step_name == "export_config":
+                    print("\nExport Configuration:")
+                    export_config_input = safe_input(
+                        color_text("Export configuration to file? (y/n) [n]: ", Fore.YELLOW),
+                        default="n",
+                        allow_back=True,
+                    ).lower()
+                    if export_config_input in ["y", "yes"]:
+                        print("\nExport Format:")
+                        print("  1. YAML (Recommended)")
+                        print("  2. JSON")
+                        format_choice = safe_input(
+                            color_text("Select format (1/2) [1]: ", Fore.YELLOW), default="1", allow_back=True
+                        )
+                        export_format = "json" if format_choice == "2" else "yaml"
+
+                        export_data = {
+                            "analysis_mode_id": config["mode"],
+                            "timeframe": config["timeframe"],
+                            "timeframes": config["timeframes"],
+                            "max_symbols": config["max_symbols"],
+                            "stage0_sample_percentage": config["stage0_sample_percentage"],
+                            "cooldown": config["cooldown"],
+                            "limit": config["limit"],
+                            "export_timestamp": datetime.now().isoformat(),
+                        }
+                        export_configuration(export_data, format=export_format)
+                    current_step += 1
+
+            except NavigationBack:
+                if current_step > 0:
+                    current_step -= 1
+                    print(color_text(f"\n[Go back to: {steps[current_step]}]", Fore.CYAN))
+                else:
+                    print(color_text("\nAlready at first step.", Fore.YELLOW))
+
+        # Common code to run scan follows
+        timeframe = config["timeframe"] if config["mode"] == "1" else None
+        timeframes = config["timeframes"] if config["mode"] == "2" else None
+        max_symbols = config["max_symbols"]
+        stage0_sample_percentage = config["stage0_sample_percentage"]
+        cooldown = config["cooldown"]
+        limit = config["limit"]
 
         # Get forex symbols
         log_info("=" * 60)
@@ -302,6 +448,7 @@ def main_forex():
                 limit=limit,
                 initial_symbols=forex_symbols,
                 skip_cleanup=False,
+                stage0_sample_percentage=stage0_sample_percentage,
             )
 
             # Display results

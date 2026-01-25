@@ -20,27 +20,90 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 
 #### 1.1 Install Rust Toolchain
 
-- [x] Download và cài đặt Rust từ https://rustup.rs/
+**Issue: Rust not recognized in venv**
 
-  ```bash
-  # Windows
-  # Download rustup-init.exe và chạy
+If you encounter the error `rustc is not installed or not in PATH` even though Rust is installed, here's how to fix it.
 
-  # Verify installation
-  rustc --version
-  cargo --version
-  ```
+**Quick Solution**:
+
+**Method 1: Use the updated script (Recommended)**
+
+The `build_rust.bat` script has been updated to automatically add Rust to PATH:
+
+```powershell
+.\build_rust.bat
+```
+
+**Method 2: Add Rust to PATH manually**
+
+**In PowerShell (for current session):**
+
+```powershell
+$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+rustc --version  # Verify
+.\build_rust.bat  # Build
+```
+
+**To make it permanent:**
+
+1. Open **System Properties** → **Environment Variables**
+2. Find the `Path` variable in **User variables**
+3. Add: `%USERPROFILE%\.cargo\bin`
+4. Restart terminal
+
+**Method 3: Use the check script**
+
+```powershell
+.\check_rust.ps1
+```
+
+This script will:
+
+- Check if Rust is installed
+- Automatically add to PATH if needed
+- Check and install Maturin if missing
+
+**Installing Rust (if not already installed)**:
+
+**Step 1: Download and install Rust**
+
+1. Visit: <https://rustup.rs/>
+2. Download `rustup-init.exe` (or <https://win.rustup.rs/x86_64>)
+3. Run the installer and select option `1` (default)
+4. Wait for installation to complete
+
+**Step 2: Restart terminal**
+
+**Important:** Close and reopen PowerShell/CMD so PATH is updated.
+
+**Step 3: Verify installation**
+
+```powershell
+rustc --version
+cargo --version
+```
+
+Expected output:
+
+```
+rustc 1.93.0 (or newer version)
+cargo 1.93.0 (or newer version)
+```
 
 #### 1.2 Install PyO3 Development Tools
 
-- [x] Cài đặt `maturin` (build tool for PyO3)
-  ```bash
-  pip install maturin
-  ```
+**Installing Maturin**:
+
+Maturin is the build tool for Rust extensions in Python:
+
+```powershell
+pip install maturin
+```
 
 #### 1.3 Setup Python Development Headers
 
 - [x] Đảm bảo Python development headers đã được cài đặt
+
   ```bash
   # Windows: Thường đã có sẵn với Python installation
   # Verify: python -m pip install --upgrade pip
@@ -49,10 +112,49 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 #### 1.4 Install Required Dependencies
 
 - [x] Cài đặt các dependencies cần thiết
+
   ```bash
   pip install numpy pytest pytest-benchmark
   cargo install cargo-criterion  # For Rust benchmarking
   ```
+
+#### 1.5 Building Rust Extensions
+
+After Rust is in PATH:
+
+```powershell
+.\build_rust.bat
+```
+
+Or manually:
+
+```powershell
+cd modules\adaptive_trend_LTS\rust_extensions
+maturin develop --release
+```
+
+#### 1.6 Verifying successful installation
+
+**Check in Python**:
+
+```python
+try:
+    from atc_rust import (
+        calculate_equity_rust,
+        calculate_kama_rust,
+        calculate_ema_rust,
+    )
+    print("✅ Rust extensions installed successfully!")
+except ImportError as e:
+    print(f"❌ Rust extensions not installed: {e}")
+```
+
+**Run tests**:
+
+```powershell
+cd modules\adaptive_trend_LTS\rust_extensions
+cargo test
+```
 
 ---
 
@@ -63,6 +165,7 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 #### 2.1 Initialize Rust Library
 
 - [x] Tạo thư mục Rust project
+
   ```bash
   cd modules/adaptive_trend_LTS
   mkdir rust_extensions
@@ -101,6 +204,7 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 #### 2.3 Setup Project Structure
 
 - [x] Tạo cấu trúc thư mục
+
   ```
   rust_extensions/
   ├── Cargo.toml
@@ -195,6 +299,7 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
   - Function: `calculate_equity` (hoặc tương tự)
 
 - [x] Implement equity calculation algorithm
+
   ```rust
   // Pseudo-code structure:
   // 1. Initialize equity array with starting_equity
@@ -396,10 +501,12 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 #### 6.2 Run Rust Tests
 
 - [x] Chạy tests
+
   ```bash
   cd modules/adaptive_trend_LTS/rust_extensions
   cargo test
   ```
+
   **Kết quả**: 32 unit tests passed (equity, kama, ma_calculations, signal_persistence).
 
 #### 6.3 Create Python Integration Tests
@@ -468,10 +575,12 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 #### 7.2 Run Rust Benchmarks
 
 - [x] Chạy benchmarks
+
   ```bash
   cd modules/adaptive_trend_LTS/rust_extensions
   cargo bench
   ```
+
   **Kết quả**: equity ~32µs, KAMA ~164µs, persistence ~8.5µs, MA (EMA ~14µs, WMA ~131µs, DEMA ~31µs, LSMA ~194µs, HMA ~232µs) cho 10k bars.
 
 #### 7.3 Create Python Benchmarks
@@ -524,6 +633,7 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 #### 8.1 Build Rust Extension
 
 - [x] Build wheel với maturin (đã có build scripts)
+
   ```bash
   cd rust_extensions
   maturin develop  # Development build
@@ -629,9 +739,7 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 - [x] Cập nhật `modules/adaptive_trend_LTS/README.md`
   - **Rust backend**: Luôn dùng khi đã build; fallback Numba. Ghi rõ equity, KAMA, MAs, persistence chạy Rust.
   - **Performance**: Bảng benchmarks (equity ~32µs, KAMA ~164µs, persistence ~8.5µs, MA…), 2–3x+ vs Numba.
-  - **Setup**: `cd rust_extensions` → `maturin develop --release`; `build_rust.bat` / `build_rust.ps1`; link tới `rust_extensions/rust_installation_guide.md`.
-
-
+  - **Setup**: `cd rust_extensions` → `maturin develop --release`; `build_rust.bat` / `build_rust.ps1`. Chi tiết xem phần [Prerequisites & Setup](#prerequisites--setup).
 
 ## Phase 3.9: Deployment
 
@@ -640,6 +748,7 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 #### 10.1 Create Build Script
 
 - [x] Tạo script `build_rust_extensions.sh` (hoặc `.bat` cho Windows) (đã có build_rust.bat và build_rust.ps1)
+
   ```bash
   #!/bin/bash
   cd rust_extensions
@@ -673,6 +782,7 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 #### 11.1 End-to-End Testing
 
 - [x] Chạy full pipeline với Rust backend (đã có benchmark_comparison.py)
+
   ```bash
   python docs/benchmarks/benchmark_comparison.py --use-rust
   ```
@@ -693,11 +803,11 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 #### 11.4 Documentation Review
 
 - [x] Review tất cả documentation
-  - Phase3, README LTS, rust_extensions/README, rust_installation_guide đã rà soát; nội dung thống nhất.
+  - Phase3, README LTS, rust_extensions/README đã rà soát; nội dung thống nhất (đã tích hợp rust installation guide vào phase3_task.md).
 - [x] Update examples
   - README LTS: thêm ghi chú có thể dùng `adaptive_trend_LTS` thay `adaptive_trend_enhance` (cùng API).
 - [x] Add troubleshooting guide
-  - README LTS: thêm mục **Troubleshooting** (Rust PATH, maturin build, import atc_rust, Numba cache); link tới rust_installation_guide.
+  - README LTS: thêm mục **Troubleshooting** (Rust PATH, maturin build, import atc_rust, Numba cache); link tới [phase3_task.md](#troubleshooting).
 
 ---
 
@@ -719,10 +829,46 @@ Triển khai Rust extensions cho các critical paths trong module `adaptive_tren
 
 ### Common Issues
 
+#### Issue: "rustc is not recognized"
+
+**Cause:** Rust is not in the current terminal's PATH.
+
+**Solution:**
+
+1. Restart terminal (after installing Rust)
+2. Or run: `$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"`
+3. Or use the updated `build_rust.bat` (automatically adds PATH)
+
+#### Issue: "linker not found" or "link.exe not found"
+
+**Cause:** Missing Visual Studio Build Tools.
+
+**Solution:**
+
+1. Install **Visual Studio Build Tools** or **Visual Studio** with C++ workload
+2. Or install **Windows SDK**
+
+#### Issue: "Python version mismatch"
+
+**Cause:** Maturin built in wrong Python environment.
+
+**Solution:**
+
+1. Activate virtual environment before building:
+
+   ```powershell
+   .\venv\Scripts\Activate.ps1
+   .\build_rust.bat
+   ```
+
 #### Issue: Maturin build fails
 
 - **Solution**: Check Python version compatibility, ensure Rust is properly installed
 - **Command**: `rustc --version`, `python --version`
+
+#### Issue: Slow first build
+
+**Normal:** First compilation may take 5-10 minutes. Subsequent builds will be faster thanks to cache.
 
 #### Issue: Numerical differences between Rust and Numba
 
@@ -751,13 +897,53 @@ After completing Rust extensions:
 
 ---
 
+## Rust Extensions Features
+
+The Rust module provides optimized functions:
+
+- `calculate_equity_rust`: Calculate equity curves
+- `calculate_kama_rust`: Kaufman Adaptive Moving Average
+- `calculate_ema_rust`: Exponential Moving Average
+- `calculate_wma_rust`: Weighted Moving Average
+- `calculate_dema_rust`: Double Exponential Moving Average
+- `calculate_lsma_rust`: Least Squares Moving Average
+- `calculate_hma_rust`: Hull Moving Average
+- `process_signal_persistence_rust`: Process signal persistence
+
+## Usage in Python
+
+The module automatically uses Rust backend if available:
+
+```python
+from modules.adaptive_trend_LTS.core.rust_backend import (
+    calculate_equity,
+    calculate_kama,
+    calculate_ema,
+)
+
+# Rust will be used automatically if installed
+equity = calculate_equity(r_values, sig_prev, starting_equity, decay_multiplier, cutout)
+```
+
 ## References
 
-- **PyO3 Documentation**: https://pyo3.rs/
-- **Maturin Guide**: https://www.maturin.rs/
-- **Rust Performance Book**: https://nnethercote.github.io/perf-book/
-- **NumPy from Rust**: https://docs.rs/numpy/latest/numpy/
-- **Criterion Benchmarking**: https://bheisler.github.io/criterion.rs/book/
+- **Rust Installation**: <https://rustup.rs/>
+- **PyO3 Documentation**: <https://pyo3.rs/>
+- **Maturin Guide**: <https://www.maturin.rs/>
+- **Rust Performance Book**: <https://nnethercote.github.io/perf-book/>
+- **NumPy from Rust**: <https://docs.rs/numpy/latest/numpy/>
+- **Criterion Benchmarking**: <https://bheisler.github.io/criterion.rs/book/>
+
+---
+
+## Phase 3.11: CPU Parallelism Optimization
+
+### CPU Parallelism (Rayon) for Rust Backend
+
+- [x] **CPU Parallelism (Rayon, ...) for Rust backend** (Completed 2026-01-24)
+  - Implemented parallel processing using Rayon for CPU-bound operations in Rust backend
+  - Optimized performance for large datasets with multi-threaded execution
+  - Integrated seamlessly with existing Rust extensions
 
 ---
 

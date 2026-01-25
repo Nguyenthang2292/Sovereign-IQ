@@ -1,11 +1,10 @@
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 
-import atc_rust
 import numpy as np
 import pandas as pd
 
-from modules.common.utils import log_error, log_info, log_warn
+from modules.common.utils import log_error, log_info
 
 # Import relative to package, assuming this file is in modules/adaptive_trend_LTS/core/compute_atc_signals/
 from .compute_atc_signals import compute_atc_signals
@@ -19,6 +18,8 @@ def process_symbols_batch_cuda(symbols_data, config, num_threads=4):
         return {}
 
     try:
+        import atc_rust
+
         # Clone and prepare config for Rust call
         params = config.copy()
 
@@ -103,5 +104,92 @@ def process_symbols_batch_cuda(symbols_data, config, num_threads=4):
                         results[sym] = res
                 except Exception as e_inner:
                     log_error(f"Exception in fallback worker for {symbol}: {e_inner}")
+
+        return results
+
+
+def process_symbols_batch_rust(symbols_data, config, num_threads=None):
+    """
+    Process symbols using Rust Rayon (CPU Multi-threaded) batch processing.
+
+    Args:
+        symbols_data: Dictionary of symbol -> price Series/ndarray
+        config: ATC configuration parameters
+        num_threads: Number of threads (optional, Rayon uses default if None)
+
+    Returns:
+        Dictionary mapping symbol -> {"Average_Signal": pd.Series}
+    """
+    if not symbols_data:
+        return {}
+
+    try:
+        import atc_rust
+
+        # Prepare params
+        params = config.copy()
+
+        la = params.get("La", params.get("la", 0.02))
+        de = params.get("De", params.get("de", 0.03))
+
+        # Scaling logic: Rust expects scaled values
+        la_scaled = la / 1000.0
+        de_scaled = de / 100.0
+
+        log_info(f"Launching Rayon CPU Batch processing for {len(symbols_data)} symbols...")
+
+        # Convert all series values to numpy arrays
+        symbols_numpy = {}
+        for s, v in symbols_data.items():
+            if v is not None:
+                if isinstance(v, pd.Series):
+                    symbols_numpy[s] = v.values.astype(np.float64)
+                elif isinstance(v, np.ndarray):
+                    symbols_numpy[s] = v.astype(np.float64)
+                else:
+                    symbols_numpy[s] = np.array(v, dtype=np.float64)
+
+        # Call the batch Rust function (CPU/Rayon version)
+        batch_results = atc_rust.compute_atc_signals_batch_cpu(
+            symbols_numpy,
+            ema_len=params.get("ema_len", 28),
+            hull_len=params.get("hull_len", 28),
+            wma_len=params.get("wma_len", 28),
+            dema_len=params.get("dema_len", 28),
+            lsma_len=params.get("lsma_len", 28),
+            kama_len=params.get("kama_len", 28),
+            robustness=params.get("robustness", "Medium"),
+            La=la_scaled,
+            De=de_scaled,
+            long_threshold=params.get("long_threshold", 0.1),
+            short_threshold=params.get("short_threshold", -0.1),
+        )
+
+        formatted_results = {}
+        for symbol, classified_array in batch_results.items():
+            orig_series = symbols_data.get(symbol)
+            if orig_series is not None and hasattr(orig_series, "index"):
+                formatted_results[symbol] = {"Average_Signal": pd.Series(classified_array, index=orig_series.index)}
+            else:
+                formatted_results[symbol] = {"Average_Signal": pd.Series(classified_array)}
+
+        log_info(f"Rayon CPU Batch completed: {len(formatted_results)} symbols processed.")
+        return formatted_results
+
+    except Exception as e:
+        log_error(f"Rayon CPU Batch failed: {e}. Falling back to sequential.")
+        import traceback
+
+        traceback.print_exc()
+
+        # Fallback to original sequential logic or ThreadPool if preferred
+        results = {}
+        for symbol, prices in symbols_data.items():
+            try:
+                result = compute_atc_signals(prices=prices, **config)
+                results[symbol] = result
+            except Exception as e_inner:
+                log_error(f"Error processing {symbol} in fallback: {e_inner}")
+                results[symbol] = None
 
         return results

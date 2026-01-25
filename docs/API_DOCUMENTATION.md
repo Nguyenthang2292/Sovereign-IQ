@@ -27,6 +27,7 @@ Mô tả ngắn gọn về các endpoint hiện có và cách dùng.
 
   - Ví dụ
     - Curl:
+
       ```bash
       curl -s "http://localhost:8000/api/logs/{session_id}?offset=0&command_type=scan"
       ```
@@ -52,6 +53,7 @@ Mô tả ngắn gọn về các endpoint hiện có và cách dùng.
 
   - Ví dụ
     - Curl:
+
       ```bash
       curl -X POST -H "Content-Type: application/json" -d '{
         "symbol": "BTC/USDT",
@@ -75,6 +77,7 @@ Mô tả ngắn gọn về các endpoint hiện có và cách dùng.
 
   - Ví dụ
     - Curl:
+
       ```bash
       curl -X POST -H "Content-Type: application/json" -d '{"symbol":"BTC/USDT","timeframes":["1h","4h"]}' http://localhost:8000/api/analyze/multi
       ```
@@ -103,6 +106,7 @@ Mô tả ngắn gọn về các endpoint hiện có và cách dùng.
 
   - Ví dụ
     - Curl:
+
       ```bash
       curl -X POST -H "Content-Type: application/json" -d '{"timeframe":"1h"}' http://localhost:8000/api/batch/scan
       ```
@@ -122,6 +126,7 @@ Mô tả ngắn gọn về các endpoint hiện có và cách dùng.
 
   - Ví dụ
     - Curl:
+
       ```bash
       curl http://localhost:8000/api/batch/results/sample.json
       ```
@@ -137,7 +142,7 @@ Mô tả ngắn gọn về các endpoint hiện có và cách dùng.
 
 - OpenAPI YAML: `docs/openapi.yaml`
 - OpenAPI JSON: `docs/openapi.json`
-- Extended docs: `docs/OPENAPI_EXTENDED.md`
+- Extended docs: `docs/openapi_extended.md`
 
 Bạn có thể dùng OpenAPI để tự động sinh tài liệu, kiểm thử, hoặc generate client SDK.
 
@@ -145,7 +150,7 @@ Bạn có thể dùng OpenAPI để tự động sinh tài liệu, kiểm thử,
 
 ## OpenAPI Extended (Schemas & Examples)
 
-- File mở rộng: `docs/OPENAPI_EXTENDED.md` chứa phần OpenAPI, schemas và ví dụ chi tiết cho từng endpoint.
+- File mở rộng: `docs/openapi_extended.md` chứa phần OpenAPI, schemas và ví dụ chi tiết cho từng endpoint.
 
 ---
 
@@ -167,7 +172,8 @@ Bạn có thể dùng OpenAPI để tự động sinh tài liệu, kiểm thử,
 ---
 
 ## Thông tin thêm
+
 - OpenAPI YAML: `docs/openapi.yaml` | JSON: `docs/openapi.json`
-- OpenAPI Extended: `docs/OPENAPI_EXTENDED.md`
+- OpenAPI Extended: `docs/openapi_extended.md`
 
 Bạn có muốn mình gom phần OpenAPIExtender này vào file OPENAPI chỉ với một khối duy nhất (như một phần bên dưới), hay vẫn giữ nguyên ở dạng mục lục như hiện tại không?

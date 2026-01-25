@@ -1,0 +1,20 @@
+
+[22m[36m============================================================[0m
+[22m[36mMARKET BATCH SCANNER[0m
+[22m[36m============================================================[0m
+
+[22m[36m
+(Tip: Press Backspace or type 'b' at any prompt to go back)
+[0m
+
+Load Configuration:
+  No configuration files found in project root
+  You can still enter a full path to a JSON or YAML file
+[22m[33mLoad configuration from file? (y/n) [n]: [0m[22m[33m
+Select file number or enter full path (press Enter to skip): [0m
+
+Analysis mode:
+  1. Single timeframe
+  2. Multi-timeframe (recommended)
+[22m[33mSelect mode (1/2) [2]: [0m[22m[33m
+Exiting...[0m

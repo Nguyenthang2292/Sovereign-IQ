@@ -1,7 +1,8 @@
 """Timeframe selection prompts for batch scanner."""
 
-from colorama import Fore
 from typing import Dict, List, Optional, Tuple
+
+from colorama import Fore
 
 from modules.common.ui.formatting import color_text
 from modules.common.ui.logging import log_error, log_warn
@@ -32,7 +33,7 @@ def prompt_analysis_mode(
     print("\nAnalysis mode:")
     print("  1. Single timeframe")
     print("  2. Multi-timeframe (recommended)")
-    mode = safe_input(color_text(f"Select mode (1/2) [{default}]: ", Fore.YELLOW), default=default)
+    mode = safe_input(color_text(f"Select mode (1/2) [{default}]: ", Fore.YELLOW), default=default, allow_back=True)
     if not mode:
         mode = default
 
@@ -46,6 +47,7 @@ def prompt_analysis_mode(
         timeframes_input = safe_input(
             color_text(f"Enter timeframes (comma-separated) [{default_tf_display}]: ", Fore.YELLOW),
             default=default_timeframes_str if default_timeframes_str else "",
+            allow_back=True,
         )
         if not timeframes_input and default_timeframes_str:
             try:
@@ -70,7 +72,9 @@ def prompt_analysis_mode(
     else:
         print("\nTimeframes: 15m, 30m,1h, 4h, 1d, 1w")
         timeframe = safe_input(
-            color_text(f"Enter timeframe [{default_timeframe}]: ", Fore.YELLOW), default=default_timeframe
+            color_text(f"Enter timeframe [{default_timeframe}]: ", Fore.YELLOW),
+            default=default_timeframe,
+            allow_back=True,
         )
         if not timeframe:
             timeframe = default_timeframe
@@ -89,30 +93,75 @@ def prompt_analysis_mode(
         return "single-timeframe", timeframe, None
 
 
-def prompt_max_symbols(default: Optional[int] = None, loaded_config: Optional[Dict] = None) -> Optional[int]:
-    """Prompt user for max symbols."""
+def prompt_market_coverage(loaded_config: Optional[Dict] = None) -> Tuple[Optional[int], Optional[float]]:
+    """Prompt user for market coverage (merging max symbols and random sampling).
+
+    Args:
+        loaded_config: Optional loaded configuration for defaults
+
+    Returns:
+        Tuple of (max_symbols, stage0_percentage)
+    """
+    default_max = None
+    default_sample = None
+
     if loaded_config:
-        default = loaded_config.get("max_symbols", None)
+        default_max = loaded_config.get("max_symbols")
+        default_sample = loaded_config.get("stage0_sample_percentage")
 
-    default_max_symbols_str = str(default) if default else ""
-    max_symbols_prompt = f"[{default_max_symbols_str}]" if default_max_symbols_str else "[all]"
-    max_symbols_input = safe_input(
-        color_text(f"Max symbols to scan (press Enter for all) {max_symbols_prompt}: ", Fore.YELLOW),
-        default=default_max_symbols_str if default_max_symbols_str else "",
+    print("\nMarket Coverage:")
+    print("  1. All symbols (Full scan)")
+    print("  2. Random Sample % (Statistically representative - RECOMMENDED for large markets)")
+    print("  3. Fixed Count (Scan only the first N symbols)")
+
+    # Determine default choice
+    default_choice = "1"
+    if default_sample:
+        default_choice = "2"
+    elif default_max:
+        default_choice = "3"
+
+    choice = safe_input(
+        color_text(f"Select option (1/2/3) [{default_choice}]: ", Fore.YELLOW),
+        default=default_choice,
+        allow_back=True,
     )
-    max_symbols = None
-    if max_symbols_input:
-        try:
-            max_symbols = int(max_symbols_input)
-            if max_symbols < 1:
-                log_warn(f"max_symbols ({max_symbols}) must be >= 1, resetting to all")
-                max_symbols = None
-        except ValueError:
-            log_warn("Invalid input, scanning all symbols")
-    elif default:
-        max_symbols = default
 
-    return max_symbols
+    if choice == "2":
+        print("\nStage 0: Random Sampling (Speed Boost):")
+        print("  Randomly select a percentage of symbols before scanning")
+        sample_prompt = f"[{default_sample}%]" if default_sample else "[10%]"
+        sample_input = safe_input(
+            color_text(f"Percentage to sample (1-100) {sample_prompt}: ", Fore.YELLOW),
+            default=str(default_sample) if default_sample else "10",
+            allow_back=True,
+        ).strip()
+
+        try:
+            if sample_input.endswith("%"):
+                sample_input = sample_input[:-1]
+            percentage = float(sample_input)
+            return None, max(1.0, min(100.0, percentage))
+        except ValueError:
+            log_warn("Invalid input, defaulting to 10%")
+            return None, 10.0
+
+    elif choice == "3":
+        default_max_str = str(default_max) if default_max else "50"
+        max_input = safe_input(
+            color_text(f"Number of symbols to scan [{default_max_str}]: ", Fore.YELLOW),
+            default=default_max_str,
+            allow_back=True,
+        ).strip()
+
+        try:
+            return int(max_input), None
+        except ValueError:
+            log_warn("Invalid input, defaulting to 50 symbols")
+            return 50, None
+
+    # Default: All symbols
+    return None, None
 
 
 def prompt_cooldown(default: float = 2.5, loaded_config: Optional[Dict] = None) -> float:
@@ -122,7 +171,9 @@ def prompt_cooldown(default: float = 2.5, loaded_config: Optional[Dict] = None) 
 
     default_cooldown_str = str(default)
     cooldown_input = safe_input(
-        color_text(f"Cooldown between batches in seconds [{default}]: ", Fore.YELLOW), default=default_cooldown_str
+        color_text(f"Cooldown between batches in seconds [{default}]: ", Fore.YELLOW),
+        default=default_cooldown_str,
+        allow_back=True,
     )
     if not cooldown_input and loaded_config:
         return default
@@ -146,7 +197,9 @@ def prompt_limit(default: int = 700, loaded_config: Optional[Dict] = None) -> in
 
     default_limit_str = str(default)
     limit_input = safe_input(
-        color_text(f"Number of candles per symbol [{default}]: ", Fore.YELLOW), default=default_limit_str
+        color_text(f"Number of candles per symbol [{default}]: ", Fore.YELLOW),
+        default=default_limit_str,
+        allow_back=True,
     )
     if not limit_input and loaded_config:
         return default

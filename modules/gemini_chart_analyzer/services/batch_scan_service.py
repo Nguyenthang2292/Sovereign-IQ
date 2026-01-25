@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from modules.common.ui.logging import log_error, log_info, log_success
+from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.gemini_chart_analyzer.core.exceptions import (
     ChartGenerationError,
     DataFetchError,
@@ -35,6 +35,9 @@ class BatchScanConfig:
     rf_model_path: Optional[str] = None
     skip_cleanup: bool = False
     output_dir: Optional[str] = None
+    stage0_sample_percentage: Optional[float] = None  # Stage 0: Random sampling before ATC
+    rf_training: Optional[Dict[str, Any]] = None  # RF model training configuration
+    atc_performance: Optional[Dict[str, Any]] = None  # ATC high-performance parameters
 
 
 def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
@@ -49,6 +52,41 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
     """
     try:
         log_info("Starting batch scan service...")
+
+        # Handle RF Training if requested in config
+        if config.rf_training and config.rf_training.get("auto_train"):
+            from modules.gemini_chart_analyzer.cli.batch_scanner.utils import init_components
+            from modules.gemini_chart_analyzer.services.model_training_service import run_rf_model_training
+
+            log_info("Initializing components for RF training...")
+            _, data_fetcher = init_components()
+
+            # Resolve symbols for training
+            training_symbols = []
+            if config.rf_training.get("training_symbols_mode") == "manual":
+                training_symbols = config.rf_training.get("manual_symbols", [])
+                log_info(f"Using {len(training_symbols)} manual symbols for training.")
+            else:
+                # Auto mode: fetch top N symbols by volume
+                count = config.rf_training.get("training_symbols_count", 10)
+                log_info(f"Fetching top {count} symbols from Binance for RF training...")
+                # Use list_binance_futures_symbols to get top symbols by volume
+                training_symbols = data_fetcher.list_binance_futures_symbols(max_candidates=count)
+
+            if training_symbols:
+                success, new_path = run_rf_model_training(
+                    data_fetcher=data_fetcher,
+                    symbols=training_symbols,
+                    timeframe=config.rf_training.get("training_timeframe", "1h"),
+                    limit=config.rf_training.get("training_limit", 1500),
+                )
+                if success:
+                    config.rf_model_path = new_path
+                    log_success(f"RF model training successful! New model: {new_path}")
+                else:
+                    log_error("RF model training failed. Proceeding with existing model if available.")
+            else:
+                log_warn("No symbols found for RF training. Skipping training.")
 
         # Initialize scanner
         scanner = MarketBatchScanner(cooldown_seconds=config.cooldown, rf_model_path=config.rf_model_path)
@@ -66,6 +104,8 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
             fast_mode=config.fast_mode,
             spc_config=config.spc_config,
             skip_cleanup=config.skip_cleanup,
+            stage0_sample_percentage=config.stage0_sample_percentage,
+            atc_performance=config.atc_performance,
         )
 
         # Generate HTML report if results were found
@@ -77,6 +117,7 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
             log_info(f"Generating HTML report in {output_dir}...")
             # Convert BatchScanResult to dict for HTML report generation
             from dataclasses import asdict
+
             results_dict = asdict(results)
             html_path = generate_html_report(analysis_data=results_dict, output_dir=output_dir, report_type="batch")
             results.html_report_path = html_path

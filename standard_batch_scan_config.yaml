@@ -1,0 +1,134 @@
+# Standard Batch Scan Configuration Template
+# This file can be used as a starting point for your custom scans.
+# Place this file in the project root to have it detected by the scanner.
+
+# ============================================================================
+# GENERAL SETTINGS
+# ============================================================================
+
+analysis_mode: multi-timeframe  # 'single-timeframe' or 'multi-timeframe'
+timeframe: 15m  # Used for single-timeframe mode
+timeframes:  # Used for multi-timeframe mode
+  - 15m
+  - 1h
+  - 4h
+
+cooldown: 2.5  # Seconds between batches (prevents API rate limiting)
+limit: 700  # Number of candles per symbol
+
+
+# ============================================================================
+# MARKET COVERAGE (Symbol Selection)
+# ============================================================================
+
+max_symbols: null  # Fixed count limit (null = all symbols)
+                  # The maximum number of symbols to include in a scan. 
+                  # If set to null, all available symbols will be scanned. 
+                  # Use this to limit the scan scope for performance or focus.
+stage0_sample_percentage: 30  # Random sample % (100 = no sampling)
+                              # The percentage of the market to randomly select in Stage 0 sampling.
+                              # 100 means sample all symbols (no sampling applied).
+                              # Reduce this to scan a random subset of symbols, useful for large universes or testing.
+
+
+
+# ============================================================================
+# PRE-FILTER CONFIGURATION
+# ============================================================================
+
+enable_pre_filter: true
+pre_filter_mode: voting  # 'voting' or 'hybrid'
+pre_filter_percentage: 30.0  # Top % to select after filtering
+
+# Fast Mode Configuration
+# Fast Mode (fast_mode: true) - RECOMMENDED:
+#   Uses 3-stage sequential filtering for optimal performance:
+#   - Stage 1: ATC scan only → keeps 100% of symbols that pass
+#   - Stage 2: ATC + Range Oscillator + SPC → voting → keeps 100% that pass
+#   - Stage 3: ATC + XGBoost + HMM + RF (ML models) → voting → keeps 100% that pass
+#   Benefits: Much faster because ML models (XGBoost, HMM, RF) are only calculated
+#             for symbols that already passed Stage 1 and 2 filtering.
+#   Use case: Large market scans, frequent updates, production environments.
+#
+# Full Mode (fast_mode: false) - SLOW:
+#   Calculates ALL indicators (ATC, Range Osc, SPC, XGBoost, HMM, RF) for ALL symbols
+#   from the start, regardless of early filtering results.
+#   Benefits: More thorough analysis, all indicators available for every symbol.
+#   Use case: Small symbol sets, detailed analysis, research/backtesting.
+#
+# Note: Even in Fast Mode, Stage 3 still calculates all ML models (ignores fast_mode flag
+#       for Stage 3) but only for symbols that passed Stage 2, making it much faster.
+fast_mode: true
+
+
+# ============================================================================
+# SPC (SIMPLIFIED PERCENTILE CLUSTERING) CONFIGURATION
+# ============================================================================
+
+spc_config:
+  preset: aggressive  # 'conservative', 'balanced', 'aggressive', or null
+  
+  # Advanced parameters (only used if preset is null)
+  volatility_adjustment: false
+  use_correlation_weights: false
+  time_decay_factor: 1.0
+  interpolation_mode: linear
+  min_flip_duration: 3
+  flip_confidence_threshold: 0.6
+  
+  # Multi-timeframe SPC alignment
+  # Enable multi-timeframe analysis for SPC signals. When enabled, the system
+  # will check signal alignment across multiple timeframes to increase confidence.
+  # This helps filter out false signals that only appear on a single timeframe.
+  enable_mtf: true
+  
+  # List of timeframes to check for signal alignment. Signals must align across
+  # these timeframes (if mtf_require_alignment is true) or show consistency
+  # across them. Common combinations: ['1h', '4h'] or ['15m', '1h', '4h']
+  mtf_timeframes:
+    - 15m
+    - 1h
+    - 4h
+  
+  # If true, signals must align across ALL specified timeframes to be considered valid.
+  # If false, signals are weighted by alignment percentage (more aligned = higher confidence).
+  # Recommended: true for conservative filtering, false for more signal opportunities.
+  mtf_require_alignment: true
+
+
+# ============================================================================
+# RANDOM FOREST CONFIGURATION
+# ============================================================================
+
+random_forest_model:
+  # Current status of the random forest model.
+  # - null: The system will automatically update this when checking the model (e.g., 'valid', 'invalid')
+  status: null  # Automatically updated by system
+
+  # Indicates whether the model has recently been retrained.
+  retrained: false
+
+rf_training:
+  # Force retraining even if model is valid
+  # If true, the scanner will force a retrain before starting the scan.
+  force_retrain: true
+  
+  auto_train_if_invalid: true
+  training_symbols_mode: 'auto'  # 'auto' or 'manual'
+  training_symbols_count: 10  # For auto mode
+  manual_symbols: []  # For manual mode
+  training_timeframe: '15m'
+  training_limit: 1500
+
+
+# ============================================================================
+# ATC (ADAPTIVE TREND COMPONENT) PERFORMANCE CONFIGURATION
+# ============================================================================
+
+atc_performance:
+  batch_processing: true  # Rust Rayon multi-threading (recommended)
+  use_cuda: true  # GPU acceleration (slower for < 500 symbols)
+  parallel_l1: true  # Parallel MA calculations
+  parallel_l2: true  # Parallel equity aggregation
+  use_cache: true  # Cache intermediate results
+  fast_mode: true  # Additional optimizations

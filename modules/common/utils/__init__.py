@@ -12,7 +12,16 @@ NOTE: New code should import directly from organized packages:
     - from modules.common.io import cleanup_old_files
 """
 
-from typing import Any, Iterable
+# Component initialization (re-exported from core, lazy import to avoid circular dependency)
+import sys
+from typing import TYPE_CHECKING, Any
+
+# Re-export from data package (DataFrame/Series utilities)
+from modules.common.data import (
+    dataframe_to_close_series,
+    fetch_ohlcv_data_dict,
+    validate_ohlcv_input,
+)
 
 # Re-export from domain package (trading domain utilities)
 from modules.common.domain import (
@@ -23,13 +32,6 @@ from modules.common.domain import (
     timeframe_to_minutes,
 )
 
-# Re-export from data package (DataFrame/Series utilities)
-from modules.common.data import (
-    dataframe_to_close_series,
-    fetch_ohlcv_data_dict,
-    validate_ohlcv_input,
-)
-
 # Re-export from io package (file operations)
 from modules.common.io import cleanup_old_files
 
@@ -37,8 +39,8 @@ from modules.common.io import cleanup_old_files
 from modules.common.system import (
     HardwareManager,
     HardwareResources,
-    WorkloadConfig,
     PyTorchGPUManager,
+    WorkloadConfig,
     configure_gpu_memory,
     configure_windows_stdio,
     detect_gpu_availability,
@@ -48,12 +50,9 @@ from modules.common.system import (
     reset_hardware_manager,
 )
 
-
-# Component initialization (re-exported from core, lazy import to avoid circular dependency)
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     from typing import Tuple
+
     from modules.common.core.data_fetcher import DataFetcher
     from modules.common.core.exchange_manager import ExchangeManager
 
@@ -61,15 +60,18 @@ if TYPE_CHECKING:
 def initialize_components() -> "Tuple[ExchangeManager, DataFetcher]":
     """
     Initialize ExchangeManager and DataFetcher components.
-    
+
     This is a lazy import wrapper to avoid circular dependencies.
     For direct access, import from modules.common.core.initialization instead.
-    
+
     Returns:
         Tuple containing (ExchangeManager, DataFetcher) instances
     """
     from modules.common.core.initialization import initialize_components as _initialize_components
+
     return _initialize_components()
+
+
 # System imports removed - now re-exported from modules.common.system above
 from .system_utils import (
     get_error_code,
@@ -77,35 +79,73 @@ from .system_utils import (
     setup_windows_stdin,
 )
 
+
+class NavigationBack(Exception):
+    """Exception raised when user wants to navigate back in CLI menus."""
+
+    pass
+
+
 _UNSET = object()
 
 
-def safe_input(prompt: str, default: Any = _UNSET) -> str:
+def _safe_input_windows_with_back(prompt: str) -> str:
+    """Read input on Windows while detecting Backspace on empty line."""
+    import msvcrt
+
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+    input_str = ""
+    while True:
+        char = msvcrt.getch()
+        if char == b"\r":  # Enter
+            sys.stdout.write("\n")
+            return input_str
+        elif char == b"\x08":  # Backspace
+            if input_str:
+                input_str = input_str[:-1]
+                sys.stdout.write("\b \b")
+                sys.stdout.flush()
+            else:
+                return "NAV_BACK"
+        elif char == b"\x03":  # Ctrl+C
+            raise KeyboardInterrupt
+        elif char in (b"\x00", b"\xe0"):  # Extended keys (arrows, etc.)
+            msvcrt.getch()  # Swallow second byte
+        else:
+            try:
+                s = char.decode("utf-8")
+                input_str += s
+                sys.stdout.write(s)
+                sys.stdout.flush()
+            except UnicodeDecodeError:
+                pass
+
+
+def safe_input(prompt: str, default: Any = _UNSET, allow_back: bool = False) -> str:
     """
     Safely read input from stdin with Windows compatibility.
-
-    Handles "I/O operation on closed file" errors on Windows by attempting
-    to reopen stdin if it's closed. This should be used for all user input
-    instead of calling input() directly.
 
     Args:
         prompt: Prompt message to display
         default: Default value to return if stdin is unavailable (optional)
-
-    Returns:
-        User input string, or default value if stdin unavailable or empty input
-
-    Raises:
-        OSError, IOError, EOFError, AttributeError, ValueError:
-            If stdin errors occur and no default value is provided
-
-    Example:
-        >>> name = safe_input("Enter your name: ", default="Anonymous")
-        >>> confirm = safe_input("Continue? (y/n): ")
+        allow_back: If True, allow 'Backspace' (on Windows) or 'b'/'back' to raise NavigationBack (optional)
     """
     try:
-        result = input(prompt)
-        result = result.strip()
+        # On Windows, try to detect Backspace key if allow_back is True
+        if allow_back and sys.platform == "win32":
+            try:
+                result = _safe_input_windows_with_back(prompt).strip()
+                if result == "NAV_BACK":
+                    raise NavigationBack()
+            except (ImportError, AttributeError):
+                # Fallback to normal input if msvcrt fails
+                result = input(prompt).strip()
+        else:
+            result = input(prompt).strip()
+
+        if allow_back and (result.lower() == "b" or result.lower() == "back"):
+            raise NavigationBack()
 
         if not result:
             if default is not _UNSET:

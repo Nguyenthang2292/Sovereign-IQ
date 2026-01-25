@@ -2,11 +2,11 @@
 ATC Service - Handles ATC signal computation and data formatting for the visualizer.
 """
 
-from typing import Dict, List, Optional, Any
-import pandas as pd
 import sys
-import os
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
 
 current_file_path = Path(__file__).resolve()
 # This file is in: web/apps/atc_visualizer/backend/services/atc_service.py
@@ -23,10 +23,10 @@ project_root_absolute = project_root.resolve()
 if str(project_root_absolute) not in sys.path:
     sys.path.insert(0, str(project_root_absolute))
 
+from modules.adaptive_trend_LTS.core.analyzer import analyze_symbol
+from modules.adaptive_trend_LTS.utils.config import ATCConfig
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
-from modules.adaptive_trend.core.analyzer import analyze_symbol
-from modules.adaptive_trend.utils.config import ATCConfig
 
 
 class ATCService:
@@ -167,7 +167,7 @@ class ATCService:
             Dictionary with all MA series
         """
         try:
-            from modules.adaptive_trend.core.compute_moving_averages import set_of_moving_averages
+            from modules.adaptive_trend_LTS.core.compute_moving_averages import set_of_moving_averages
 
             if config is None:
                 config = ATCConfig(timeframe=timeframe)

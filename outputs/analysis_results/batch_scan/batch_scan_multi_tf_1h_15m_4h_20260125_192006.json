@@ -1,0 +1,46 @@
+{
+  "timestamp": "2026-01-25T19:20:06.168380",
+  "timeframe": "1h",
+  "timeframes": [
+    "1h",
+    "15m",
+    "4h"
+  ],
+  "summary": {
+    "total_symbols": 2,
+    "scanned_symbols": 2,
+    "long_count": 2,
+    "short_count": 0,
+    "none_count": 0,
+    "long_percentage": 100.0,
+    "short_percentage": 0.0,
+    "avg_long_confidence": 0.8500000000000001,
+    "avg_short_confidence": 0.0
+  },
+  "long_symbols": [
+    "MIRA/USDT",
+    "ROSE/USDT"
+  ],
+  "short_symbols": [],
+  "long_symbols_with_confidence": [
+    [
+      "MIRA/USDT",
+      0.91
+    ],
+    [
+      "ROSE/USDT",
+      0.79
+    ]
+  ],
+  "short_symbols_with_confidence": [],
+  "all_results": {
+    "ROSE/USDT": {
+      "signal": "LONG",
+      "confidence": 0.79
+    },
+    "MIRA/USDT": {
+      "signal": "LONG",
+      "confidence": 0.91
+    }
+  }
+}

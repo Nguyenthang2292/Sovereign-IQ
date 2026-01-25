@@ -39,7 +39,7 @@ def prompt_model_action(rf_model_status: Dict[str, Any]) -> str:
         print("\nRandom Forest Model Options:")
         print("  1. Retrain model now")
         print("  2. Skip (continue without model / use default if available)")
-        rf_option_input = safe_input(color_text("Select option (1/2) [1]: ", Fore.YELLOW), default="1")
+        rf_option_input = safe_input(color_text("Select option (1/2) [1]: ", Fore.YELLOW), default="1", allow_back=True)
         if not rf_option_input:
             rf_option_input = "1"
 
@@ -53,7 +53,9 @@ def prompt_model_action(rf_model_status: Dict[str, Any]) -> str:
         print("  1. Continue with current model")
         print("  2. Retrain model now (optional)")
         print("  3. Skip")
-        rf_option_input = safe_input(color_text("Select option (1/2/3) [1]: ", Fore.YELLOW), default="1")
+        rf_option_input = safe_input(
+            color_text("Select option (1/2/3) [1]: ", Fore.YELLOW), default="1", allow_back=True
+        )
         if not rf_option_input:
             rf_option_input = "1"
 
@@ -72,7 +74,9 @@ def prompt_training_symbols(default: Optional[List[str]] = None) -> List[str]:
     print("\nTraining Symbols:")
     print("  Enter comma-separated list of symbols (e.g., BTC/USDT,ETH/USDT,BNB/USDT)")
     print("  Or leave empty to use top symbols by volume (default: top 10)")
-    training_symbols_input = safe_input(color_text("Training symbols [auto - top 10]: ", Fore.YELLOW), default="")
+    training_symbols_input = safe_input(
+        color_text("Training symbols [auto - top 10]: ", Fore.YELLOW), default="", allow_back=True
+    )
 
     training_symbols = []
     if training_symbols_input and training_symbols_input.strip():
@@ -101,7 +105,9 @@ def prompt_training_timeframe(default: str = "1h") -> str:
     """
     Prompt user to enter training timeframe.
     """
-    training_timeframe_input = safe_input(color_text("Training timeframe [1h]: ", Fore.YELLOW), default="1h")
+    training_timeframe_input = safe_input(
+        color_text("Training timeframe [1h]: ", Fore.YELLOW), default="1h", allow_back=True
+    )
     training_timeframe = training_timeframe_input.strip() if training_timeframe_input.strip() else "1h"
     try:
         training_timeframe = normalize_timeframe(training_timeframe)
@@ -117,7 +123,7 @@ def prompt_training_limit(default: int = 1500) -> int:
     Prompt user to enter training limit.
     """
     training_limit_input = safe_input(
-        color_text("Number of candles per symbol for training [1500]: ", Fore.YELLOW), default="1500"
+        color_text("Number of candles per symbol for training [1500]: ", Fore.YELLOW), default="1500", allow_back=True
     )
     try:
         training_limit = int(training_limit_input) if training_limit_input.strip() else 1500
@@ -139,7 +145,9 @@ def confirm_training(symbols: List[str], timeframe: str, limit: int) -> bool:
     print(f"  Symbols: {', '.join(symbols[:5])}{'...' if len(symbols) > 5 else ''} ({len(symbols)} symbols)")
     print(f"  Timeframe: {timeframe}")
     print(f"  Candles per symbol: {limit}")
-    confirm_training = safe_input(color_text("Start model training? (y/n) [y]: ", Fore.YELLOW), default="y").lower()
+    confirm_training = safe_input(
+        color_text("Start model training? (y/n) [y]: ", Fore.YELLOW), default="y", allow_back=True
+    ).lower()
     if confirm_training in ["y", "yes", ""]:
         return True
     return False

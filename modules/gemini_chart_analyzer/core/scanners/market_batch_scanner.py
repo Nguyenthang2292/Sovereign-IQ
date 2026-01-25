@@ -38,7 +38,7 @@ from modules.gemini_chart_analyzer.core.exceptions import (
     ScanConfigurationError,
 )
 from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
-from modules.gemini_chart_analyzer.core.prefilter_worker import run_prefilter_worker
+from modules.gemini_chart_analyzer.core.prefilter.workflow import run_prefilter_worker
 from modules.gemini_chart_analyzer.core.scanner_types import BatchScanResult, SignalResult, SymbolScanResult
 from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
 
@@ -227,6 +227,8 @@ class MarketBatchScanner:
         fast_mode: bool = True,
         spc_config: Optional[Dict[str, Any]] = None,
         skip_cleanup: bool = False,
+        stage0_sample_percentage: Optional[float] = None,
+        atc_performance: Optional[Dict[str, Any]] = None,
     ) -> BatchScanResult:
         """
         Scan entire market and return LONG/SHORT signals.
@@ -335,6 +337,8 @@ class MarketBatchScanner:
                     mode=pre_filter_mode,
                     fast_mode=fast_mode,
                     spc_config=spc_config,
+                    stage0_sample_percentage=stage0_sample_percentage,
+                    atc_performance=atc_performance,
                 )
                 if pre_filtered:
                     log_success(f"Internal pre-filter selected {len(pre_filtered)}/{len(all_symbols)} symbols")
@@ -775,6 +779,8 @@ class MarketBatchScanner:
         mode: str = "voting",
         fast_mode: bool = True,
         spc_config: Optional[Dict[str, Any]] = None,
+        stage0_sample_percentage: Optional[float] = None,
+        atc_performance: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
         """
         Run internal pre-filter using 3-stage sequential filtering workflow.
@@ -808,6 +814,8 @@ class MarketBatchScanner:
                 fast_mode=fast_mode,
                 spc_config=spc_config,
                 rf_model_path=self.rf_model_path,
+                stage0_sample_percentage=stage0_sample_percentage,
+                atc_performance=atc_performance,
             )
 
             log_success(f"Pre-filter completed: Selected {len(filtered_symbols)}/{len(symbols)} symbols")

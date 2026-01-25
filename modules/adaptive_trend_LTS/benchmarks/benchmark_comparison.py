@@ -43,10 +43,6 @@ import pandas as pd
 from tabulate import tabulate
 
 # Import all three modules
-from modules.adaptive_trend.core import compute_atc_signals as compute_atc_original
-from modules.adaptive_trend_enhance.core import compute_atc_signals as compute_atc_enhanced
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
-from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_cuda
 from modules.common.core import DataFetcher, ExchangeManager
 from modules.common.utils import log_error, log_info, log_success, log_warn
 
@@ -104,7 +100,7 @@ def ensure_cuda_extensions_built():
         if result.returncode == 0:
             log_success("CUDA extensions built successfully")
         else:
-            log_warn(f"CUDA build completed with warnings or errors")
+            log_warn("CUDA build completed with warnings or errors")
             log_warn(f"Stdout: {result.stdout}")
             log_warn(f"Stderr: {result.stderr}")
 
@@ -177,6 +173,7 @@ def run_original_module(prices_data: Dict[str, pd.Series], config: dict) -> Tupl
         Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
     """
     log_info("Running original adaptive_trend module...")
+    from modules.adaptive_trend.core import compute_atc_signals as compute_atc_original
 
     results = {}
     start_time = time.time()
@@ -223,6 +220,7 @@ def run_enhanced_module(prices_data: Dict[str, pd.Series], config: dict) -> Tupl
         Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
     """
     log_info("Running enhanced adaptive_trend_enhance module...")
+    from modules.adaptive_trend_enhance.core import compute_atc_signals as compute_atc_enhanced
 
     results = {}
     start_time = time.time()
@@ -269,6 +267,7 @@ def run_rust_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Di
         Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
     """
     log_info("Running Rust-accelerated adaptive_trend_LTS module...")
+    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
 
     results = {}
     start_time = time.time()
@@ -315,6 +314,7 @@ def run_cuda_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Di
         Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
     """
     log_info("Running CUDA-accelerated adaptive_trend_LTS module (Concurrent Batch)...")
+    from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_cuda
 
     start_time = time.time()
 
@@ -348,10 +348,55 @@ def run_cuda_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Di
     return results, execution_time, peak_memory
 
 
+def run_rust_batch_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
+    """Run Rust-accelerated adaptive_trend_LTS module using Rayon batch processing.
+
+    Args:
+        prices_data: Dictionary of symbol -> price Series
+        config: ATC configuration parameters
+
+    Returns:
+        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
+    """
+    log_info("Running Rust-accelerated adaptive_trend_LTS module (Rayon Batch)...")
+    from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
+
+    start_time = time.time()
+
+    # Track memory (approximate)
+    import psutil
+
+    process = psutil.Process()
+    mem_before = process.memory_info().rss / 1024 / 1024  # MB
+
+    try:
+        # Use Rayon batch processor
+        results = process_symbols_batch_rust(prices_data, config)
+
+        log_info(f"Rust (Rayon): Processed {len(results)}/{len(prices_data)} symbols")
+
+    except Exception as e:
+        import traceback
+
+        log_error(f"Rust Rayon batch processing failed: {e}")
+        traceback.print_exc()
+        results = {}
+
+    end_time = time.time()
+    mem_after = process.memory_info().rss / 1024 / 1024  # MB
+
+    execution_time = end_time - start_time
+    peak_memory = mem_after - mem_before
+
+    log_success(f"Rust Rayon module completed in {execution_time:.2f}s")
+    return results, execution_time, peak_memory
+
+
 def compare_signals(
     original_results: Dict[str, Dict],
     enhanced_results: Dict[str, Dict],
     rust_results: Dict[str, Dict],
+    rust_rayon_results: Dict[str, Dict],
     cuda_results: Dict[str, Dict],
 ) -> Dict[str, any]:
     """Compare signal outputs between original, enhanced, Rust, and CUDA modules.
@@ -360,6 +405,7 @@ def compare_signals(
         original_results: Results from original module
         enhanced_results: Results from enhanced module
         rust_results: Results from Rust module
+        rust_rayon_results: Results from Rust Rayon module
         cuda_results: Results from CUDA module
 
     Returns:
@@ -369,7 +415,7 @@ def compare_signals(
 
     # DEBUG: Print result dict sizes and sample keys
     log_info(
-        f"Result dict sizes: orig={len(original_results)}, enh={len(enhanced_results)}, rust={len(rust_results)}, cuda={len(cuda_results)}"
+        f"Result dict sizes: orig={len(original_results)}, enh={len(enhanced_results)}, rust={len(rust_results)}, rust_rayon={len(rust_rayon_results)}, cuda={len(cuda_results)}"
     )
     if original_results:
         sample_key = list(original_results.keys())[0]
@@ -409,16 +455,22 @@ def compare_signals(
     rust_cuda_mismatched = []
 
     for symbol in original_results.keys():
-        if symbol not in enhanced_results or symbol not in rust_results or symbol not in cuda_results:
+        if (
+            symbol not in enhanced_results
+            or symbol not in rust_results
+            or symbol not in rust_rayon_results
+            or symbol not in cuda_results
+        ):
             log_warn(f"Symbol {symbol} missing in results")
             continue
 
         orig = original_results[symbol]
         enh = enhanced_results[symbol]
         rust = rust_results[symbol]
+        rust_rayon = rust_rayon_results[symbol]
         cuda = cuda_results[symbol]
 
-        if orig is None or enh is None or rust is None or cuda is None:
+        if orig is None or enh is None or rust is None or rust_rayon is None or cuda is None:
             log_warn(f"Symbol {symbol} has None result")
             continue
 
@@ -426,24 +478,30 @@ def compare_signals(
         orig_s = orig.get("Average_Signal")
         enh_s = enh.get("Average_Signal")
         rust_s = rust.get("Average_Signal")
+        rust_r_s = rust_rayon.get("Average_Signal")
         cuda_s = cuda.get("Average_Signal")
 
-        if orig_s is None or enh_s is None or rust_s is None or cuda_s is None:
+        if orig_s is None or enh_s is None or rust_s is None or rust_r_s is None or cuda_s is None:
             log_warn(f"Symbol {symbol} missing Average_Signal")
             continue
 
-        # Find common index across all four series
-        # The previous sequential alignment logic was buggy and caused index desynchronization
-        common_index = orig_s.index.intersection(enh_s.index).intersection(rust_s.index).intersection(cuda_s.index)
+        # Find common index across all versions
+        common_index = (
+            orig_s.index.intersection(enh_s.index)
+            .intersection(rust_s.index)
+            .intersection(rust_r_s.index)
+            .intersection(cuda_s.index)
+        )
 
         if len(common_index) == 0:
             log_warn(f"No common index after alignment for {symbol}")
             continue
 
-        # Reindex all series to common index - this ensures all four have identical indices
+        # Reindex all series to common index
         orig_s = orig_s.loc[common_index]
         enh_s = enh_s.loc[common_index]
         rust_s = rust_s.loc[common_index]
+        rust_r_s = rust_r_s.loc[common_index]
         cuda_s = cuda_s.loc[common_index]
 
         # Original vs Enhanced
@@ -485,6 +543,11 @@ def compare_signals(
             rust_cuda_matching += 1
         else:
             rust_cuda_mismatched.append((symbol, diff_rc))
+
+        # Original vs Rust Rayon
+        diff_orr = np.abs(orig_s - rust_r_s).max()
+        if diff_orr > 1e-6:
+            log_warn(f"Rust Rayon mismatch for {symbol}: {diff_orr}")
 
         # Increment processed counter
         processed_symbols += 1
@@ -558,23 +621,27 @@ def generate_comparison_table(
     original_time: float,
     enhanced_time: float,
     rust_time: float,
+    rust_rayon_time: float,
     cuda_time: float,
     original_memory: float,
     enhanced_memory: float,
     rust_memory: float,
+    rust_rayon_memory: float,
     cuda_memory: float,
     signal_comparison: Dict,
 ) -> str:
-    """Generate formatted comparison table for four versions.
+    """Generate formatted comparison table for five versions.
 
     Args:
         original_time: Execution time for original module (seconds)
         enhanced_time: Execution time for enhanced module (seconds)
         rust_time: Execution time for Rust module (seconds)
+        rust_rayon_time: Execution time for Rust Rayon module (seconds)
         cuda_time: Execution time for CUDA module (seconds)
         original_memory: Peak memory for original module (MB)
         enhanced_memory: Peak memory for enhanced module (MB)
         rust_memory: Peak memory for Rust module (MB)
+        rust_rayon_memory: Peak memory for Rust Rayon module (MB)
         cuda_memory: Peak memory for CUDA module (MB)
         signal_comparison: Signal comparison metrics
 
@@ -583,11 +650,15 @@ def generate_comparison_table(
     """
     speedup_enh = original_time / enhanced_time if enhanced_time > 0 else 0
     speedup_rust = original_time / rust_time if rust_time > 0 else 0
+    speedup_rust_rayon = original_time / rust_rayon_time if rust_rayon_time > 0 else 0
     speedup_cuda = original_time / cuda_time if cuda_time > 0 else 0
     speedup_cuda_vs_rust = rust_time / cuda_time if cuda_time > 0 else 0
 
     memory_reduction_enh = ((original_memory - enhanced_memory) / original_memory) * 100 if original_memory > 0 else 0
     memory_reduction_rust = ((original_memory - rust_memory) / original_memory) * 100 if original_memory > 0 else 0
+    memory_reduction_rust_rayon = (
+        ((original_memory - rust_rayon_memory) / original_memory) * 100 if original_memory > 0 else 0
+    )
     memory_reduction_cuda = ((original_memory - cuda_memory) / original_memory) * 100 if original_memory > 0 else 0
 
     # Performance table
@@ -596,12 +667,13 @@ def generate_comparison_table(
             "Metric",
             "Original",
             "Enhanced",
-            "Rust (v2)",
+            "Rust (Seq)",
+            "Rust (Rayon)",
             "CUDA",
-            "Enh vs Orig",
-            "Rust vs Orig",
+            "Rust Seq vs Orig",
+            "Rust Rayon vs Orig",
             "CUDA vs Orig",
-            "CUDA vs Rust",
+            "CUDA vs Rust Rayon",
         ],
         ["─" * 15, "─" * 12, "─" * 12, "─" * 12, "─" * 12, "─" * 15, "─" * 15, "─" * 15, "─" * 15],
         [
@@ -609,9 +681,10 @@ def generate_comparison_table(
             f"{original_time:.2f}s",
             f"{enhanced_time:.2f}s",
             f"{rust_time:.2f}s",
+            f"{rust_rayon_time:.2f}s",
             f"{cuda_time:.2f}s",
-            f"{speedup_enh:.2f}x",
             f"{speedup_rust:.2f}x",
+            f"{speedup_rust_rayon:.2f}x",
             f"{speedup_cuda:.2f}x",
             f"{speedup_cuda_vs_rust:.2f}x",
         ],
@@ -620,11 +693,12 @@ def generate_comparison_table(
             f"{original_memory:.1f} MB",
             f"{enhanced_memory:.1f} MB",
             f"{rust_memory:.1f} MB",
+            f"{rust_rayon_memory:.1f} MB",
             f"{cuda_memory:.1f} MB",
-            f"{memory_reduction_enh:.1f}%",
             f"{memory_reduction_rust:.1f}%",
+            f"{memory_reduction_rust_rayon:.1f}%",
             f"{memory_reduction_cuda:.1f}%",
-            (f"{(rust_memory - cuda_memory) / rust_memory * 100:.1f}%" if rust_memory > 0 else "-"),
+            (f"{(rust_rayon_memory - cuda_memory) / rust_rayon_memory * 100:.1f}%" if rust_rayon_memory > 0 else "-"),
         ],
     ]
 
@@ -692,7 +766,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Benchmark adaptive_trend vs adaptive_trend_enhance vs adaptive_trend_LTS (Rust)"
     )  # noqa: E501
-    parser.add_argument("--symbols", type=int, default=1000, help="Number of symbols to test (default: 1000)")
+    parser.add_argument("--symbols", type=int, default=200, help="Number of symbols to test (default: 1000)")
     parser.add_argument("--bars", type=int, default=1500, help="Number of bars per symbol (default: 1000)")
     parser.add_argument("--timeframe", type=str, default="1h", help="Timeframe (default: 1h)")
     parser.add_argument(
@@ -752,7 +826,7 @@ def main():
             "parallel_l1": False,
             "parallel_l2": False,
             "precision": "float64",
-            "prefer_gpu": False,
+            "use_rust_backend": False,
         }
     )
 
@@ -762,7 +836,7 @@ def main():
             "parallel_l1": False,
             "parallel_l2": True,
             "precision": "float64",
-            "prefer_gpu": True,  # Rust backend will use Rust for MAs
+            "use_rust_backend": True,  # Rust backend will use Rust for MAs
             "use_cache": True,
             "fast_mode": True,
         }
@@ -774,7 +848,7 @@ def main():
             "parallel_l1": False,
             "parallel_l2": True,
             "precision": "float64",
-            "prefer_gpu": True,
+            "use_rust_backend": True,
             "use_cache": True,
             "fast_mode": True,
             "use_cuda": True,  # Enable CUDA kernels
@@ -804,22 +878,30 @@ def main():
     gc.collect()  # Clean memory before benchmark
     rust_results, rust_time, rust_memory = run_rust_module(prices_data, rust_config)
 
-    # Step 5: Run CUDA module
+    # Step 5: Run Rust Rayon module
+    gc.collect()  # Clean memory before benchmark
+    rust_rayon_results, rust_rayon_time, rust_rayon_memory = run_rust_batch_module(prices_data, rust_config)
+
+    # Step 6: Run CUDA module
     gc.collect()  # Clean memory before benchmark
     cuda_results, cuda_time, cuda_memory = run_cuda_module(prices_data, cuda_config)
 
-    # Step 6: Compare signals
-    signal_comparison = compare_signals(original_results, enhanced_results, rust_results, cuda_results)
+    # Step 7: Compare signals
+    signal_comparison = compare_signals(
+        original_results, enhanced_results, rust_results, rust_rayon_results, cuda_results
+    )
 
-    # Step 7: Generate comparison table
+    # Step 8: Generate comparison table
     table = generate_comparison_table(
         original_time,
         enhanced_time,
         rust_time,
+        rust_rayon_time,
         cuda_time,
         original_memory,
         enhanced_memory,
         rust_memory,
+        rust_rayon_memory,
         cuda_memory,
         signal_comparison,
     )

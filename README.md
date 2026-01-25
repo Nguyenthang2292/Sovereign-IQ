@@ -213,7 +213,7 @@ crypto-probability/
 │   └── export_openapi.py                   # OpenAPI schema export
 │
 ├── docs/                                     # Documentation
-│   ├── API_DOCUMENTATION.md                # API documentation
+│   ├── api_documentation.md                # API documentation
 │   ├── openapi.yaml                        # OpenAPI specification
 │   └── setup_tradingview_credentials.md    # TradingView setup
 │
@@ -657,12 +657,14 @@ pytest -k "signal and (hybrid or voting)"
 ### 🛠️ Test Infrastructure
 
 **Configuration Files:**
+
 - `pytest.ini`: Default configuration with parallel processing (xdist)
 - `pytest_memory.ini`: Memory-optimized configuration with profiling
 - `conftest.py`: Shared fixtures and test configuration
 - `conftest_optimized.py`: Memory-optimized test fixtures
 
 **Helper Scripts:**
+
 - `run_tests.py`: Python helper script for optimized test execution
 - `run_tests.bat`: Windows batch script
 - `.vscode/settings.json`: VSCode integration with memory profiling
@@ -670,6 +672,7 @@ pytest -k "signal and (hybrid or voting)"
 ### 🔧 Troubleshooting
 
 **VSCode Issues:**
+
 ```bash
 # If VSCode doesn't use default settings
 # 1. Restart VSCode
@@ -678,12 +681,14 @@ pytest -k "signal and (hybrid or voting)"
 ```
 
 **Memory Profiling Too Verbose:**
+
 ```bash
 # Disable memory profiling
 pytest tests/ --memory-profile=no
 ```
 
 **Parallel Processing Issues:**
+
 ```bash
 # Check xdist installation
 pip install pytest-xdist
@@ -692,7 +697,7 @@ pip install pytest-xdist
 pytest tests/ -n 0
 ```
 
-See `tests/TEST_MEMORY_USAGE_GUIDE.md` for detailed memory optimization documentation.
+See `tests/docs/test_memory_usage_guide.md` for detailed memory optimization documentation.
 
 ## 📚 Documentation
 
@@ -743,15 +748,15 @@ See `tests/TEST_MEMORY_USAGE_GUIDE.md` for detailed memory optimization document
 
 ### API Documentation
 
-- **docs/API_DOCUMENTATION.md**: REST API documentation
-- **docs/OPENAPI_EXTENDED.md**: Extended OpenAPI documentation
+- **docs/api_documentation.md**: REST API documentation
+- **docs/openapi_extended.md**: Extended OpenAPI documentation
 - **docs/openapi.yaml**: OpenAPI specification (YAML)
 - **docs/openapi.json**: OpenAPI specification (JSON)
 - **docs/setup_tradingview_credentials.md**: TradingView integration setup
 
 ### Test Documentation
 
-- **tests/TEST_MEMORY_USAGE_GUIDE.md**: Memory optimization for tests
+- **tests/docs/test_memory_usage_guide.md**: Memory optimization for tests
 
 ## 🏗️ Architecture
 
@@ -1351,7 +1356,7 @@ Contributions are welcome! Please follow these guidelines:
 - Use Hybrid Analyzer for better performance
 - Reduce symbol pool size
 - Disable unnecessary indicators
-- Check `tests/TEST_MEMORY_USAGE_GUIDE.md` for optimization tips
+- Check `tests/docs/test_memory_usage_guide.md` for optimization tips
 
 **Data Fetching Issues:**
 

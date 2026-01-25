@@ -6,7 +6,7 @@ and volume, ensuring consistent styling and performance across different generat
 """
 
 import itertools
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Tuple
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -14,8 +14,6 @@ import numpy as np
 import pandas as pd
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import Rectangle
-
-from modules.common.ui.logging import log_warn
 
 # Constants
 CANDLE_WIDTH_RATIO = 0.8

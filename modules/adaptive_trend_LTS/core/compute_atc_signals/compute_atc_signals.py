@@ -70,7 +70,7 @@ def compute_atc_signals(
     parallel_l1: Optional[bool] = None,
     parallel_l2: Optional[bool] = True,
     precision: str = "float64",
-    prefer_gpu: bool = True,
+    use_rust_backend: bool = True,
     use_cache: bool = True,
     fast_mode: bool = True,
     use_cuda: bool = False,
@@ -145,15 +145,15 @@ def compute_atc_signals(
 
     with context_ma:
         for ma_type, length, _ in ma_configs:
-            # For v2, prefer_gpu=True means use Rust backend
-            # set_of_moving_averages_rust accepts use_rust parameter
+            # use_rust_backend=True enables Rust backend
+            # set_of_moving_averages accepts use_rust parameter
             ma_tuple = set_of_moving_averages(
                 length,
                 source=src,
                 ma_type=ma_type,
                 robustness=robustness,
                 use_cache=use_cache,
-                use_rust=prefer_gpu,
+                use_rust=use_rust_backend,
                 use_cuda=use_cuda,
             )
             if ma_tuple is None:

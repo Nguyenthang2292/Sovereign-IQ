@@ -26,7 +26,9 @@ def prompt_enable_pre_filter(default: bool = False, loaded_config: Optional[Dict
     print("  Filter symbols using VotingAnalyzer or HybridAnalyzer before Gemini scan")
     print("  (Selects all symbols with signals)")
     pre_filter_input = safe_input(
-        color_text(f"Enable pre-filter? (y/n) [{default_pre_filter}]: ", Fore.YELLOW), default=default_pre_filter
+        color_text(f"Enable pre-filter? (y/n) [{default_pre_filter}]: ", Fore.YELLOW),
+        default=default_pre_filter,
+        allow_back=True,
     ).lower()
     if not pre_filter_input:
         pre_filter_input = default_pre_filter
@@ -54,7 +56,9 @@ def prompt_pre_filter_mode(default: str = "voting", loaded_config: Optional[Dict
     print("  2. Hybrid (Sequential filtering: ATC → Range Oscillator → SPC → Decision Matrix)")
     default_mode_num = "1" if default == "voting" else "2"
     mode_input = safe_input(
-        color_text(f"Select pre-filter mode (1/2) [{default_mode_num}]: ", Fore.YELLOW), default=default_mode_num
+        color_text(f"Select pre-filter mode (1/2) [{default_mode_num}]: ", Fore.YELLOW),
+        default=default_mode_num,
+        allow_back=True,
     )
     if not mode_input:
         mode_input = default_mode_num
@@ -86,13 +90,66 @@ def prompt_fast_mode(default: bool = True, loaded_config: Optional[Dict] = None)
     print("     Note: Stage 3 runs ML models for symbols that passed Stage 2")
     print("  2. Full (All indicators including ML models - SLOW!)")
     fast_mode_input = safe_input(
-        color_text(f"Select mode (1/2) [{default_fast_mode}]: ", Fore.YELLOW), default=default_fast_mode
+        color_text(f"Select mode (1/2) [{default_fast_mode}]: ", Fore.YELLOW),
+        default=default_fast_mode,
+        allow_back=True,
     )
     if not fast_mode_input:
         fast_mode_input = default_fast_mode
     fast_mode = fast_mode_input != "2"  # True if not "2", False if "2"
 
     return fast_mode
+
+
+def prompt_stage0_random_sample(
+    default: Optional[float] = None, total_symbols: Optional[int] = None, loaded_config: Optional[Dict] = None
+) -> Optional[float]:
+    """
+    Prompt user to enable Stage 0 random sampling via percentage.
+
+    Args:
+        default: Default percentage to sample (None = disabled)
+        total_symbols: Total number of available symbols (if known)
+        loaded_config: Optional loaded configuration to use for defaults
+
+    Returns:
+        Percentage of symbols to randomly sample (1-100), or None to disable sampling
+    """
+    if loaded_config:
+        default = loaded_config.get("stage0_sample_percentage", loaded_config.get("stage0_random_sample", None))
+
+    print("\nStage 0: Random Sampling (Optional Speed Boost):")
+    print("  Randomly select a percentage of symbols before running ATC scan")
+    print("  This significantly speeds up the pre-filter process for large markets")
+    if total_symbols:
+        print(f"  Total available symbols: {total_symbols}")
+    print("  Enter percentage to sample (1-100) (press Enter to skip)")
+
+    while True:
+        sample_input = safe_input(
+            color_text(f"Percentage of symbols to sample [{default or 'disabled'}]: ", Fore.YELLOW),
+            default=str(default) if default else "",
+            allow_back=True,
+        ).strip()
+
+        if not sample_input:
+            # Use default or disable
+            return default
+
+        try:
+            # Handle possible % sign
+            if sample_input.endswith("%"):
+                sample_input = sample_input[:-1]
+
+            percentage = float(sample_input)
+            if percentage <= 0 or percentage > 100:
+                print(color_text("  Invalid: Percentage must be between 1 and 100", Fore.RED))
+                continue
+
+            return percentage
+        except ValueError:
+            print(color_text("  Invalid: Please enter a number between 1 and 100", Fore.RED))
+            continue
 
 
 def prompt_pre_filter_percentage(
@@ -122,8 +179,9 @@ def prompt_pre_filter_percentage(
 
     while True:
         percentage_input = safe_input(
-            color_text(f"Pre-filter percentage (1-100) [10.0]: ", Fore.YELLOW),
+            color_text("Pre-filter percentage (1-100) [10.0]: ", Fore.YELLOW),
             default=str(default) if default else "10.0",
+            allow_back=True,
         ).strip()
 
         if not percentage_input:
@@ -135,8 +193,8 @@ def prompt_pre_filter_percentage(
             if 1.0 <= percentage <= 100.0:
                 return percentage
             else:
-                print(color_text(f"  Invalid: Percentage must be between 1.0 and 100.0", Fore.RED))
+                print(color_text("  Invalid: Percentage must be between 1.0 and 100.0", Fore.RED))
                 continue
         except ValueError:
-            print(color_text(f"  Invalid: Please enter a number between 1.0 and 100.0", Fore.RED))
+            print(color_text("  Invalid: Please enter a number between 1.0 and 100.0", Fore.RED))
             continue

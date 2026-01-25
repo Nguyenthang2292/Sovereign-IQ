@@ -333,7 +333,7 @@ The test suite includes 3-phase memory optimization achieving 80-90% RAM reducti
 - Phase 2: Session fixtures + parallel processing (30-40% additional)
 - Phase 3: Lazy loading + monitoring (10-20% additional)
 
-See `tests/TEST_MEMORY_USAGE_GUIDE.md` for details.
+See `tests/docs/test_memory_usage_guide.md` for details.
 
 ## Module Development Guidelines
 
@@ -395,7 +395,8 @@ This project follows specific conventions for organizing documentation files:
 For modules with multi-language documentation:
 
 1. **Create a `docs/` subdirectory** in the module
-   ```
+
+```tree
    modules/your_module/
    ├── docs/
    │   ├── YourDoc.md          # Index/language selector
@@ -404,7 +405,8 @@ For modules with multi-language documentation:
    └── your_module.py
    ```
 
-2. **Create an index file** (e.g., `YourDoc.md`) with language switcher
+1. **Create an index file** (e.g., `YourDoc.md`) with language switcher
+
    ```markdown
    # Your Documentation Title
 
@@ -416,7 +418,7 @@ For modules with multi-language documentation:
    - **[Vietnamese Documentation](YourDoc-vi.md)** - Tài liệu đầy đủ bằng tiếng Việt
    ```
 
-3. **Create language-specific files** with consistent suffixes
+2. **Create language-specific files** with consistent suffixes
    - `-en.md` for English
    - `-vi.md` for Vietnamese (Tiếng Việt)
    - Add other languages as needed (e.g., `-zh.md`, `-ja.md`)
@@ -429,16 +431,19 @@ For modules with multi-language documentation:
 #### Current Documentation Examples
 
 **Simple modules** (README in root):
+
 - `modules/adaptive_trend/README.md`
 - `modules/decision_matrix/README.md`
 - `modules/hmm/README.md`
 - `modules/xgboost/README.md`
 
 **Complex modules** (docs/ subdirectory):
+
 - `modules/common/core/docs/ExchangeManager*.md` - Multi-language documentation
 - `modules/deeplearning/` - Multiple specialized docs (data pipeline, model, training, etc.)
 
 **Web applications**:
+
 - `web/docs/` - Centralized documentation for all web apps
 - `web/docs/ARCHITECTURE.md`, `web/docs/ADDING_NEW_APP.md`
 
@@ -531,9 +536,9 @@ See `core/README.md` for detailed comparison and decision tree.
 - `core/README.md`: Hybrid vs Voting analyzer comparison
 - `modules/*/README.md`: Module-specific documentation
 - `web/docs/ARCHITECTURE.md`: Web architecture details
-- `docs/API_DOCUMENTATION.md`: REST API documentation
+- `docs/api_documentation.md`: REST API documentation
 - `docs/openapi.yaml`: OpenAPI specification
-- `tests/TEST_MEMORY_USAGE_GUIDE.md`: Test memory optimization guide
+- `tests/docs/test_memory_usage_guide.md`: Test memory optimization guide
 
 ### Multi-Language Documentation
 

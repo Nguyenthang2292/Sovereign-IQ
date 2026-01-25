@@ -66,7 +66,7 @@ if __name__ == "__main__":
         print("\n✓ OpenAPI export completed successfully")
         print("\nNext steps:")
         print("  - Review: docs/openapi.yaml and docs/openapi.json")
-        print("  - Update docs/API_DOCUMENTATION.md if needed")
+        print("  - Update docs/api_documentation.md if needed")
         print("  - Commit the updated files")
         sys.exit(0)
     else:

@@ -60,21 +60,102 @@ Replace CuPy high-level operations with custom CUDA kernels optimized for ATC-sp
 
 #### 📋 Task 2.1.1: Setup CUDA Development Environment
 
-- [x] **Install CUDA Toolkit**
-  - Download and install CUDA Toolkit 12.x from NVIDIA
-  - Verify: `nvcc --version`
-  - Set env vars: `CUDA_HOME` / `CUDA_PATH`, `PATH`, `LD_LIBRARY_PATH` (Linux)
+##### 1. Install CUDA Toolkit
 
-- [x] **Install Development Tools**
-  - `pip install pycuda`
-  - `pip install cupy-cuda12x` (or cupy-cuda11x); verify: `python -c "import cupy; print(cupy.__version__)"`
-  - CUDA samples optional (for reference)
+1. Download **CUDA Toolkit 12.x** from [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads).
+2. Run the installer. On Windows, use the exe; on Linux, follow distro-specific steps.
+3. **Verify**:
 
-- [x] **Verify GPU Compatibility**
-  - `nvidia-smi`; compute capability >= 6.0 recommended
-  - Run `python scripts/verify_cuda_env.py` from project root
+   ```bash
+   nvcc --version
+   ```
 
-**Deliverable**: Working CUDA dev environment. See [phase4_cuda_setup.md](phase4_cuda_setup.md) and `scripts/verify_cuda_env.py`.
+4. **Environment variables** (set by installer on many systems; adjust if needed):
+   - **Windows**: `CUDA_PATH` = e.g. `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.x`
+   - **Linux**: `CUDA_HOME` or `LD_LIBRARY_PATH` include CUDA lib; `PATH` includes `$CUDA_HOME/bin`
+
+##### 2. Install Development Tools
+
+**PyCUDA**:
+
+```bash
+pip install pycuda
+```
+
+**CuPy**:
+Match your CUDA version:
+
+- CUDA 12.x: `pip install cupy-cuda12x`
+- CUDA 11.x: `pip install cupy-cuda11x`
+
+Verify:
+
+```bash
+python -c "import cupy; print(cupy.__version__)"
+```
+
+**Optional: CUDA samples**:
+Use for reference only. Install from [NVIDIA CUDA Samples](https://github.com/NVIDIA/cuda-samples) or via Toolkit installer.
+
+##### 3. Verify GPU Compatibility
+
+1. **Check GPU and driver**:
+
+   ```bash
+   nvidia-smi
+   ```
+
+2. **Compute capability**: Phase 4 recommends **>= 6.0** (e.g. GTX 1060+). Check `nvidia-smi` or vendor specs.
+3. **Test compilation**: Run the project verification script from **project root**:
+
+   ```bash
+   python scripts/verify_cuda_env.py
+   ```
+
+##### 4. Rust CUDA Setup
+
+Task 2.1.2 uses **Rust** for CUDA orchestration via the `cudarc` crate.
+
+**Installation**:
+No extra pip install needed besides `maturin`. The dependencies are handled by `Cargo.toml`.
+
+**Windows Linker Fix (Critical)**:
+On Windows, the Rust linker may fail to find `cuda.lib` even if `CUDA_PATH` is set. Use `RUSTFLAGS` to point to the library directory:
+
+```powershell
+# In PowerShell before building
+$env:RUSTFLAGS="-L 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\lib\x64'"
+
+# Then build
+cd modules/adaptive_trend_LTS/rust_extensions
+maturin develop --release
+```
+
+##### 5. Quick Verification Checklist
+
+| Check           | Command / Action                                         |
+| --------------- | -------------------------------------------------------- |
+| NVIDIA driver   | `nvidia-smi`                                             |
+| CUDA Toolkit    | `nvcc --version`                                         |
+| CuPy            | `python -c "import cupy; print(cupy.__version__)"`       |
+| PyCUDA          | `python -c "import pycuda.driver; pycuda.driver.init()"` |
+| **Rust CUDA**   | `cargo check` in `rust_extensions/`                      |
+| Full env verify | `python scripts/verify_cuda_env.py`                      |
+
+##### 6. Troubleshooting
+
+- **nvcc not found**: Add `CUDA_PATH/bin` (Windows) or `$CUDA_HOME/bin` (Linux) to `PATH`.
+- **Rust cudarc build fail**: Ensure `RUSTFLAGS` is set correctly for Windows as shown above.
+- **PyCUDA build fails**: Ensure CUDA Toolkit and `nvcc` are installed and in `PATH`.
+- **CuPy import error**: Install the matching `cupy-cuda12x` variant.
+
+##### 7. References
+
+- [cudarc Docs](https://docs.rs/cudarc/latest/cudarc/)
+- [PyCUDA](https://documen.tician.de/pycuda/)
+- [CuPy Install Guide](https://docs.cupy.dev/en/stable/install.html)
+
+**Deliverable**: Working CUDA dev environment. See `scripts/verify_cuda_env.py`.
 
 ---
 
@@ -84,13 +165,78 @@ Analyze current CuPy operations and design custom kernels for:
 
 ##### A. Equity Calculation Kernel
 
-- [x] **Review Current Implementation**
-  - Equity: [rust_extensions/src/equity.rs](../../rust_extensions/src/equity.rs), [compute_equity/core.py](../core/compute_equity/core.py)
-  - Algorithm and data flow: [phase4_equity_kernel_design.md](phase4_equity_kernel_design.md)
-  - Parallelization: single-curve sequential recurrence; batch = multiple curves in parallel (not yet implemented).
+###### 1. Review of Current Implementation
 
-- [x] **Design CUDA Kernel Specification**
-  - `equity_kernel(r_values, sig_prev, equity, starting_equity, decay_multiplier, cutout, n)` (double). Block=(1,1,1), grid=(1,1) (single-thread loop).
+**Locations**:
+
+- **Rust**: `modules/adaptive_trend_LTS/rust_extensions/src/equity.rs`
+  - `calculate_equity_internal`, `calculate_equity_rust`
+- **Python**: `modules/adaptive_trend_LTS/core/compute_equity/core.py`
+  - `_calculate_equity_core_impl`, `_calculate_equity_core` (Numba JIT)
+
+**Algorithm and Data Flow**:
+
+1. **Inputs**
+   - `r_values`: array of returns `r[i]`, length `n`
+   - `sig_prev`: array of previous signals `sig[i]` ∈ {−1, 0, +1} (or NaN)
+   - `starting_equity`: initial equity
+   - `decay_multiplier`: decay factor (1 − De)
+   - `cutout`: number of leading bars to skip
+
+2. **Output**
+   - `equity[0..n)`:
+     - `equity[i] = NaN` for `i < cutout`
+     - for `i ≥ cutout`, `equity[i]` = equity at bar `i`
+
+3. **Recurrence (single curve)**
+   - For `i = cutout .. n-1`:
+     - `a = 0` if `NaN(sig[i])` or `NaN(r[i])` or `sig[i] == 0`
+     - else `a = r[i]` if `sig[i] > 0`, else `a = -r[i]`
+   - `e_curr = starting_equity` if `prev_e` uninitialized, else  
+     `e_curr = (prev_e * decay_multiplier) * (1 + a)`
+   - `e_curr = max(e_curr, 0.25)`
+   - `equity[i] = e_curr`, `prev_e = e_curr`
+
+4. **Data flow**
+   - Single sequence: `r`, `sig` → scalar `prev_e` updated sequentially → `equity`.
+
+**Parallelization**:
+
+- **Within one curve**: the recurrence is strictly sequential (`e[i]` depends on `e[i-1]`). No fine‑grained parallelism over `i` for a single equity curve.
+- **Across curves**: multiple symbols (multiple equity curves) can be processed in parallel (e.g. one thread per curve) when batching. The current CUDA kernel implements **one curve per launch** (single-thread loop).
+
+###### 2. CUDA Kernel Specification
+
+**Signature**:
+
+```cuda
+__global__ void equity_kernel(
+    const double* r_values,
+    const double* sig_prev,
+    double* equity,
+    double starting_equity,
+    double decay_multiplier,
+    int cutout,
+    int n
+);
+```
+
+**Launch**:
+
+- **Block/grid**: `block=(1,1,1)`, `grid=(1,1)` (one thread).
+- **Memory**:
+  - `r_values`, `sig_prev`: read-only, contiguous.
+  - `equity`: write-only, contiguous.
+  - No shared memory.
+
+**Edge Cases**:
+
+- `cutout = 0`: no leading NaNs; loop starts at `i = 0`.
+- `cutout > 0`: `equity[0..cutout]` set to NaN; loop `i = cutout .. n-1`.
+- `n = 0`: kernel no-op.
+- NaN in `r` or `sig`: `a = 0` as above.
+
+###### 3. Implementation
 
 - [x] **Write Kernel Implementation**
   - [gpu_backend/equity_kernel.cu](../core/gpu_backend/equity_kernel.cu): cutout NaN fill, sequential loop, floor 0.25, bounds safe.
@@ -98,6 +244,9 @@ Analyze current CuPy operations and design custom kernels for:
 - [x] **Write Python/Rust Wrapper**
   - [gpu_backend/equity_cuda.py](../core/gpu_backend/equity_cuda.py): `calculate_equity_cuda(...)` (PyCUDA fallback).
   - [rust_extensions/src/equity_cuda.rs](../../rust_extensions/src/equity_cuda.rs): High-performance Rust wrapper using `cudarc` for orchestration.
+    - Compiles `.cu` via NVRTC at runtime.
+    - Manages H2D/D2H transfers with Rust type safety.
+    - Transparently integrated via `atc_rust` Python module.
   - [rust_backend.py](../core/rust_backend.py): Integrated logic with preference for Rust CUDA.
 
 **Deliverable**: `equity_kernel.cu`, `equity_cuda.py`, and `equity_cuda.rs` integration.
@@ -460,7 +609,222 @@ python modules/adaptive_trend_LTS/benchmarks/benchmark_comparison.py --symbols 1
 
 ---
 
-### 3.4 Phase 4 Completion Checklist
+### 3.4 Debugging with Nsight Copilot
+
+This section covers debugging CUDA kernels using Nsight Copilot in VS Code.
+
+#### 3.4.1 Environment Setup
+
+**Check Nsight Copilot Installation**:
+
+- Open VS Code Extensions (Ctrl+Shift+X)
+- Search for "NVIDIA Nsight" or "Nsight Copilot"
+- Ensure the extension is enabled
+
+**Verify CUDA Toolkit**:
+
+```powershell
+nvcc --version
+```
+
+Must have CUDA 12.8 or compatible.
+
+**Launch Configuration**:
+File `.vscode/launch.json` should have 2 configurations:
+
+1. **"CUDA Debug: Python Test"** - Launch Python script with CUDA debugging
+2. **"CUDA Attach: Python Process"** - Attach to running Python process
+
+#### 3.4.2 Setting Breakpoints in CUDA Kernels
+
+**Open CUDA kernel file**:
+
+```
+modules/adaptive_trend_LTS/core/gpu_backend/batch_signal_kernels.cu
+```
+
+**Set breakpoints at important lines**:
+
+- **Line 65**: Before calculating crossover/crossunder
+- **Line 68**: After updating current_sig
+- **Line 72**: When assigning signals[i]
+
+**How to set breakpoint**:
+
+- Click on the left margin next to the line number
+- Or place cursor at the line and press F9
+- Breakpoint will show as a red dot
+
+**Conditional Breakpoint**:
+To stop only at bar 31 of symbol 0:
+
+- Right-click the red breakpoint
+- Select "Edit Breakpoint..."
+- Enter condition: `symbol_idx == 0 && i == 31`
+
+#### 3.4.3 Running Debug Session
+
+**Method 1: Launch Mode (Recommended for first time)**
+
+1. **Open test file**:
+
+   ```
+   modules/adaptive_trend_LTS/benchmarks/simple_cuda_test.py
+   ```
+
+2. **Start debugging**:
+   - Press F5 or
+   - Go to menu "Run" → "Start Debugging" or
+   - Click "Run and Debug" button in left sidebar
+
+3. **Select configuration**:
+   - Choose "CUDA Debug: Python Test"
+
+4. **Wait for breakpoint to trigger**:
+   - Program will run Python
+   - When CUDA kernel is called, it will stop at breakpoint
+   - VS Code will highlight the current line
+
+**Method 2: Attach Mode (Advanced)**
+
+1. **Run Python script in separate terminal**:
+
+   ```powershell
+   $env:CUDA_LAUNCH_BLOCKING = "1"
+   python modules/adaptive_trend_LTS/benchmarks/simple_cuda_test.py
+   ```
+
+2. **Attach debugger**:
+   - Press F5
+   - Select "CUDA Attach: Python Process"
+   - Choose `python.exe` process from the list
+
+#### 3.4.4 Stepping Through Code
+
+When debugger stops at breakpoint, you can:
+
+**View variable values**:
+
+- **Variables panel** (left side): Shows all local variables
+- **Watch panel**: Add variables to monitor
+- **Hover**: Hover over variable to see its value
+
+**Important variables to check**:
+
+- `symbol_idx`: Index of symbol (should be 0 for TEST)
+- `i`: Bar index (28-35 is the freeze region)
+- `p_curr`, `p_prev`: Current and previous price values
+- `m_curr`, `m_prev`: Current and previous MA values
+- `crossover`, `crossunder`: Boolean flags
+- `current_sig`: Current signal (-1.0, 0.0, or 1.0)
+
+**Control execution**:
+
+- **F10 (Step Over)**: Execute current line, don't enter sub-functions
+- **F11 (Step Into)**: Enter inside called function
+- **Shift+F11 (Step Out)**: Exit current function
+- **F5 (Continue)**: Run to next breakpoint
+- **Shift+F5 (Stop)**: Stop debug session
+
+**Debug Console**:
+
+- Open Debug Console (Ctrl+Shift+Y)
+- Type GDB commands directly:
+
+  ```gdb
+  print current_sig
+  print crossover
+  print p_curr - m_curr
+  ```
+
+#### 3.4.5 Analyzing Freeze Issues
+
+**Debug scenario for bar 31**:
+
+1. **Set conditional breakpoint**:
+
+   ```
+   symbol_idx == 0 && i == 31
+   ```
+
+2. **When stopped at bar 31, check**:
+   - `p_curr` vs `m_curr`: Does price cross MA?
+   - `p_prev` vs `m_prev`: Where was previous price?
+   - `crossover`: Should it be true?
+   - `crossunder`: Should it be true?
+   - `current_sig` before and after if-else
+
+3. **If crossover/crossunder = false**:
+   - Check logic: `(p_prev <= m_prev) && (p_curr > m_curr)`
+   - Print: `p_prev - m_prev` and `p_curr - m_curr`
+   - Check if it's a floating point precision issue
+
+4. **If current_sig doesn't update**:
+   - Check if it enters `if (crossover)` or `if (crossunder)`
+   - Could be logic error or NaN issue
+
+#### 3.4.6 Saving Debug Results
+
+**Screenshot**:
+
+- Variables panel with values at bar 31
+- Code highlight at freeze line
+
+**Log file**:
+Create `debug_findings.txt`:
+
+```
+Bar 31 Debug Results:
+- p_curr = 98.xxxx
+- m_curr = 99.xxxx
+- p_prev = 97.xxxx
+- m_prev = 100.xxxx
+- crossover = false (expected: true?)
+- crossunder = false
+- current_sig = -1.0 (stuck from bar 30)
+```
+
+#### 3.4.7 Troubleshooting
+
+**Issue 1: Breakpoint doesn't trigger**
+**Cause**: CUDA kernel is compiled at runtime, VS Code doesn't recognize source.
+
+**Solution**:
+
+1. Ensure `.cu` file is saved
+2. Rebuild Rust extensions: `build_cuda.ps1`
+3. Restart VS Code
+4. Try attach mode instead of launch mode
+
+**Issue 2: "No symbol table" error**
+**Cause**: Missing debug symbols.
+
+**Solution**:
+
+- Cudarc 0.19 doesn't support compile options
+- Need to upgrade to cudarc 0.20+ or use Nsight Compute
+
+**Issue 3: Debugger too slow**
+**Cause**: CUDA_LAUNCH_BLOCKING = 1 slows execution.
+
+**Solution**:
+
+- Only use for debugging, not for production
+- Reduce number of test symbols (1 instead of 10)
+- Reduce number of bars (50 instead of 500)
+
+**Conclusion**:
+After debugging with Nsight Copilot, you will know exactly:
+
+1. Values of all variables at bar 31
+2. Why crossover/crossunder doesn't trigger
+3. Which logic in kernel is wrong
+
+From there, you can fix the freeze bug completely!
+
+---
+
+### 3.5 Phase 4 Completion Checklist
 
 - [x] **Custom CUDA Kernels (2.1)**  
   - All kernels implemented and optimized  
@@ -504,7 +868,7 @@ python modules/adaptive_trend_LTS/benchmarks/benchmark_comparison.py --symbols 1
 - Tensor Core / mixed precision (RTX)  
 - Multi-GPU for very large batches  
 - Persistent kernels, CUDA Graph API  
-- Accuracy work: 100% signal match, rounding alignment  
+- Accuracy work: 100% signal match, rounding alignment
 
 ---
 

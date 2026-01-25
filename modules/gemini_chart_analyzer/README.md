@@ -24,6 +24,7 @@ AI-powered cryptocurrency chart analysis using Google Gemini with a modern servi
 The Gemini Chart Analyzer is a comprehensive module for analyzing cryptocurrency charts using Google's Gemini AI models. It features a clean service-oriented architecture with clear separation between business logic, CLI interfaces, and core functionality.
 
 **Key Highlights:**
+
 - 🏗️ **Service Layer Architecture**: Clean separation of concerns with dedicated service layer
 - 🔧 **Modular CLI**: Organized prompts, runners, and configuration management
 - 📊 **Type-Safe**: Full typing with dataclasses and enums
@@ -39,7 +40,7 @@ The Gemini Chart Analyzer is a comprehensive module for analyzing cryptocurrency
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │                      CLI Layer                               │
-│  cli/                                                         │
+│  cli/                                                        │
 │  ├── config/       (Configuration management)                │
 │  ├── exchange/     (Symbol fetching)                         │
 │  ├── models/       (ML model management)                     │
@@ -47,15 +48,15 @@ The Gemini Chart Analyzer is a comprehensive module for analyzing cryptocurrency
 │  └── runners/      (Execution orchestration)                 │
 └──────────────────────┬───────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│                    Service Layer                             │
-│  services/                                                    │
+│                    Service Layer                            │
+│  services/                                                  │
 │  ├── batch_scan_service.py     (Batch market scanning)      │
 │  ├── chart_analysis_service.py (Individual analysis)        │
 │  └── model_training_service.py (ML model training)          │
 └──────────────────────┬───────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│                     Core Layer                               │
-│  core/                                                        │
+│                     Core Layer                              │
+│  core/                                                      │
 │  ├── analyzers/    (Gemini integration)                     │
 │  ├── generators/   (Chart creation)                         │
 │  ├── scanners/     (Market batch scanner)                   │
@@ -149,6 +150,7 @@ python modules/gemini_chart_analyzer/cli/batch_scanner_main.py --quick
 ```
 
 **Features:**
+
 - Single or multi-timeframe analysis
 - Pre-filter mode (Voting/Hybrid)
 - SPC enhancements (volatility adjustment, correlation weights, MTF)
@@ -380,6 +382,7 @@ pytest tests/gemini_chart_analyzer/ --cov=modules.gemini_chart_analyzer --cov-re
 ```
 
 **Test Coverage:**
+
 - ✅ 42 tests passing
 - Core components: GeminiModelType, image validation, token estimation
 - Batch scanner: initialization, symbol fetching, batch processing
@@ -482,6 +485,7 @@ def run_chart_analysis(config: SingleAnalysisConfig, data_fetcher: DataFetcher) 
 ### Summary
 
 This module underwent a major refactoring that:
+
 - **Reduced codebase by 83%** (3,726 lines removed, 618 added)
 - Introduced **service layer** architecture
 - Consolidated configuration into typed dataclasses
@@ -505,6 +509,7 @@ This module underwent a major refactoring that:
 If you were using the old module structure:
 
 **Old imports:**
+
 ```python
 from modules.gemini_chart_analyzer.core.analyzers.components.helpers import select_best_model
 from modules.gemini_chart_analyzer.core.analyzers.components.model_config import GeminiModelType
@@ -512,6 +517,7 @@ from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import Sym
 ```
 
 **New imports:**
+
 ```python
 from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import select_best_model
 from modules.gemini_chart_analyzer.core.analyzers.components.analyzer_config import GeminiModelType
@@ -519,6 +525,7 @@ from modules.gemini_chart_analyzer.core.exceptions import DataFetchError  # repl
 ```
 
 **Old batch scanning:**
+
 ```python
 from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
 
@@ -528,6 +535,7 @@ results = scanner.scan_market(timeframe="1h", max_symbols=50)
 ```
 
 **New batch scanning:**
+
 ```python
 from modules.gemini_chart_analyzer.services.batch_scan_service import BatchScanConfig, run_batch_scan
 
@@ -537,6 +545,7 @@ results = run_batch_scan(config)
 ```
 
 **Benefits:**
+
 - ✅ Type-safe results with IDE autocomplete
 - ✅ Clear service layer API
 - ✅ Better error messages with custom exceptions
@@ -554,15 +563,18 @@ These files were consolidated into new, more focused modules:
 ### New Files Created
 
 Service layer:
+
 - `services/batch_scan_service.py` - Batch scanning business logic
 - `services/chart_analysis_service.py` - Chart analysis business logic
 - `services/model_training_service.py` - Model training business logic
 
 Type system:
+
 - `core/types.py` - Typed dataclasses for results
 - `core/exceptions.py` - Custom exception hierarchy
 
 CLI modularization:
+
 - `cli/config/display.py` - Display configuration
 - `cli/config/loader.py` - Configuration loading
 - `cli/config/exporter.py` - Configuration export
@@ -591,6 +603,7 @@ Part of the Sovereign-IQ (crypto-probability) project. See project root for lice
 ---
 
 **For more information, see:**
+
 - Project README: [../../README.md](../../README.md)
 - Claude Coding Guidelines: [../../.claude/CLAUDE.md](../../.claude/CLAUDE.md)
-- Testing Guide: [../../tests/TEST_MEMORY_USAGE_GUIDE.md](../../tests/TEST_MEMORY_USAGE_GUIDE.md)
+- Testing Guide: [../../tests/docs/test_memory_usage_guide.md](../../tests/docs/test_memory_usage_guide.md)

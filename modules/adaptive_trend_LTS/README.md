@@ -3,6 +3,7 @@
 **Long-term support version with Rust-accelerated backend, GPU/CPU optimization, and automatic memory management**
 
 Module Adaptive Trend Classification LTS là phiên bản ổn định của ATC với:
+
 - **Rust backend**: Equity, KAMA, MAs (EMA/WMA/DEMA/LSMA/HMA), signal persistence chạy trên Rust khi đã build; fallback Numba nếu chưa build.
 - **Parallel computing**: Multi-processing + multi-threading với auto-detection CPU/RAM
 - **GPU acceleration**: Tự động detect và sử dụng GPU (CUDA/OpenCL) nếu có
@@ -18,7 +19,7 @@ Module cung cấp hệ thống phân tích xu hướng thích ứng sử dụng 
 ATC là một hệ thống phân loại xu hướng thích ứng sử dụng:
 
 - **6 loại Moving Averages**: EMA, HMA, WMA, DEMA, LSMA, KAMA
-- **2-layer architecture**: 
+- **2-layer architecture**:
   - Layer 1: Tính signals cho từng MA type dựa trên equity curves
   - Layer 2: Tính weights và kết hợp tất cả để tạo Average_Signal
 - **Adaptive weighting**: Sử dụng equity curves để tự động điều chỉnh trọng số của từng MA
@@ -41,8 +42,11 @@ adaptive_trend_LTS/
 │   └── ...
 ├── rust_extensions/         # Rust crate (PyO3); xem rust_extensions/README.md
 ├── cli/                     # CLI (argument_parser, display, main, ...)
+├── docs/                    # Tài liệu chi tiết (setting_guides, phase tasks, ...)
 └── utils/                   # config, cache_manager, rate_of_change, ...
 ```
+
+**Tài liệu:** Tham khảo đầy đủ parameters, presets và troubleshooting: [docs/setting_guides.md](docs/setting_guides.md).
 
 ## Cách hoạt động
 
@@ -63,6 +67,7 @@ Với mỗi loại MA (EMA, HMA, WMA, DEMA, LSMA, KAMA):
 ### Equity Curves
 
 Equity curves mô phỏng performance của trading strategy:
+
 - Sử dụng exponential growth factor (La) và decay rate (De)
 - Equity cao hơn → weight cao hơn → MA đó có ảnh hưởng lớn hơn
 - Adaptive: Tự động điều chỉnh weights dựa trên performance
@@ -78,7 +83,7 @@ maturin develop --release
 
 Hoặc từ thư mục gốc project: `.\build_rust.bat` (Windows) / `.\build_rust.ps1`.
 
-**Yêu cầu:** [Rust](https://rustup.rs/), [maturin](https://www.maturin.rs/) (`pip install maturin`). Chi tiết và xử lý lỗi: [rust_extensions/rust_installation_guide.md](rust_extensions/rust_installation_guide.md).
+**Yêu cầu:** [Rust](https://rustup.rs/), [maturin](https://www.maturin.rs/) (`pip install maturin`). Chi tiết và xử lý lỗi: [docs/phase3_task.md#prerequisites--setup](docs/phase3_task.md#prerequisites--setup).
 
 ## Sử dụng
 
@@ -316,12 +321,12 @@ growth = exp_growth(La=0.02, period=1)
    - Timeframe ngắn (1m, 5m): Có thể cần giảm lengths
    - Timeframe dài (4h, 1d): Có thể cần tăng lengths
 
-3. **Robustness**: 
+3. **Robustness**:
    - "Narrow" cho thị trường trending mạnh
    - "Medium" cho thị trường cân bằng
    - "Wide" cho thị trường volatile
 
-4. **Lambda và Decay**: 
+4. **Lambda và Decay**:
    - Lambda cao → equity tăng nhanh → weights thay đổi nhanh
    - Decay cao → equity giảm nhanh → weights giảm nhanh
 
@@ -388,7 +393,7 @@ combined_signal = (
 
 ## Troubleshooting
 
-- **Rust không nhận / `rustc` not in PATH**: Thêm `%USERPROFILE%\.cargo\bin` vào PATH, hoặc chạy `.\build_rust.bat` / `.\build_rust.ps1` (tự thêm PATH). Chi tiết: [rust_extensions/rust_installation_guide.md](rust_extensions/rust_installation_guide.md).
+- **Rust không nhận / `rustc` not in PATH**: Thêm `%USERPROFILE%\.cargo\bin` vào PATH, hoặc chạy `.\build_rust.bat` / `.\build_rust.ps1` (tự thêm PATH). Chi tiết: [docs/phase3_task.md#troubleshooting](docs/phase3_task.md#troubleshooting).
 - **Maturin build lỗi**: Kiểm tra `rustc --version`, `python --version`; kích hoạt venv trước khi build.
 - **Import `atc_rust` lỗi**: Chạy `maturin develop --release` trong `rust_extensions/`; xác nhận bằng `pip show atc-rust`.
 - **Numba cache sau đổi tên module**: Xóa `__pycache__` chứa `*.nbc` / `*.nbi` trong `core/signal_detection/` nếu gặp `ModuleNotFoundError` với đường dẫn module cũ.
@@ -398,4 +403,3 @@ combined_signal = (
 - Port từ Pine Script indicator "Adaptive Trend Classification"
 - Sử dụng multiple Moving Averages với adaptive weighting
 - Equity-based weighting để tự động điều chỉnh trọng số
-

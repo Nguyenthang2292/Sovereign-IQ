@@ -9,21 +9,13 @@ Workflow:
 5. Upload the image for Google Gemini to analyze the chart image (LONG/SHORT - TP/SL)
 """
 
-import base64
-import fnmatch
-import glob
-import html
 import os
-import re
 import sys
-import urllib.parse
 import warnings
 import webbrowser
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-
-import markdown
 
 # Add project root to sys.path to ensure modules can be imported
 if "__file__" in globals():
@@ -39,7 +31,7 @@ configure_windows_stdio()
 
 import json
 
-from colorama import Fore, Style
+from colorama import Fore
 from colorama import init as colorama_init
 
 from modules.common.core.data_fetcher import DataFetcher
@@ -47,23 +39,18 @@ from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (
     cleanup_old_files,
     color_text,
-    initialize_components,
     log_error,
     log_info,
     log_success,
     log_warn,
     normalize_timeframe,
-    safe_input,
 )
 from modules.gemini_chart_analyzer.cli.argument_parser import parse_args
 from modules.gemini_chart_analyzer.cli.interactive_menu import interactive_config_menu
-from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
-from modules.gemini_chart_analyzer.core.analyzers.multi_timeframe_coordinator import MultiTimeframeCoordinator
-from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
 from modules.gemini_chart_analyzer.core.reporting.html_report_generator import (
     generate_html_report as centralized_generate_html_report,
 )
-from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir, get_charts_dir
+from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
 from modules.gemini_chart_analyzer.services.chart_analysis_service import SingleAnalysisConfig, run_chart_analysis
 
 # Suppress specific warnings from third-party libraries

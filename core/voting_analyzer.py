@@ -39,8 +39,10 @@ from core.signal_calculators import (
     get_spc_signal,
     get_xgboost_signal,
 )
-from modules.adaptive_trend.cli import prompt_timeframe
-from modules.adaptive_trend.cli.main import ATCAnalyzer
+from modules.adaptive_trend_LTS.cli import (
+    ATCAnalyzer,
+    prompt_timeframe,
+)
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (
@@ -132,18 +134,18 @@ class VotingAnalyzer:
         # Import enhancement parameters
         try:
             from config.spc_enhancements import (
+                SPC_ENABLE_MTF,
                 SPC_FLIP_CONFIDENCE_THRESHOLD,
                 SPC_INTERPOLATION_MODE,
                 SPC_MIN_FLIP_DURATION,
+                SPC_MTF_REQUIRE_ALIGNMENT,
+                SPC_MTF_TIMEFRAMES,
+                SPC_PRESET_AGGRESSIVE,
+                SPC_PRESET_BALANCED,
+                SPC_PRESET_CONSERVATIVE,
                 SPC_TIME_DECAY_FACTOR,
                 SPC_USE_CORRELATION_WEIGHTS,
                 SPC_VOLATILITY_ADJUSTMENT,
-                SPC_ENABLE_MTF,
-                SPC_MTF_TIMEFRAMES,
-                SPC_MTF_REQUIRE_ALIGNMENT,
-                SPC_PRESET_CONSERVATIVE,
-                SPC_PRESET_BALANCED,
-                SPC_PRESET_AGGRESSIVE,
             )
         except ImportError:
             # Fallback to defaults if spc_enhancements module not available
@@ -171,7 +173,7 @@ class VotingAnalyzer:
                 preset_config = SPC_PRESET_AGGRESSIVE
             else:
                 preset_config = {}
-            
+
             # Use preset values as defaults, but allow CLI overrides
             volatility_adjustment = preset_config.get("volatility_adjustment", SPC_VOLATILITY_ADJUSTMENT)
             use_correlation_weights = preset_config.get("use_correlation_weights", SPC_USE_CORRELATION_WEIGHTS)
@@ -363,7 +365,11 @@ class VotingAnalyzer:
                 results["osc_confidence"] = 0.0
 
             # SPC signals from all 3 strategies (if enabled)
-            if (indicators_to_calculate is None or "spc" in indicators_to_calculate) and self.args.enable_spc and spc_params:
+            if (
+                (indicators_to_calculate is None or "spc" in indicators_to_calculate)
+                and self.args.enable_spc
+                and spc_params
+            ):
                 feature_config = FeatureConfig()
                 clustering_config = ClusteringConfig(
                     k=spc_params["k"],
@@ -434,7 +440,11 @@ class VotingAnalyzer:
                     results["spc_mean_reversion_strength"] = 0.0
 
             # XGBoost prediction (if enabled)
-            if (indicators_to_calculate is None or "xgboost" in indicators_to_calculate) and hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
+            if (
+                (indicators_to_calculate is None or "xgboost" in indicators_to_calculate)
+                and hasattr(self.args, "enable_xgboost")
+                and self.args.enable_xgboost
+            ):
                 xgb_result = get_xgboost_signal(
                     data_fetcher=data_fetcher,
                     symbol=symbol,
@@ -453,7 +463,11 @@ class VotingAnalyzer:
                     results["xgboost_confidence"] = 0.0
 
             # HMM signal (if enabled)
-            if (indicators_to_calculate is None or "hmm" in indicators_to_calculate) and hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
+            if (
+                (indicators_to_calculate is None or "hmm" in indicators_to_calculate)
+                and hasattr(self.args, "enable_hmm")
+                and self.args.enable_hmm
+            ):
                 try:
                     hmm_result = get_hmm_signal(
                         data_fetcher=data_fetcher,
@@ -486,7 +500,11 @@ class VotingAnalyzer:
                     results["hmm_confidence"] = 0.0
 
             # Random Forest prediction (if enabled)
-            if (indicators_to_calculate is None or "random_forest" in indicators_to_calculate) and hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+            if (
+                (indicators_to_calculate is None or "random_forest" in indicators_to_calculate)
+                and hasattr(self.args, "enable_random_forest")
+                and self.args.enable_random_forest
+            ):
                 try:
                     rf_result = get_random_forest_signal(
                         data_fetcher=data_fetcher,
@@ -568,11 +586,19 @@ class VotingAnalyzer:
                 indicators_list.append("Range Oscillator")
             if "spc" in indicators_to_calculate and self.args.enable_spc:
                 indicators_list.append("SPC")
-            if "xgboost" in indicators_to_calculate and hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
+            if (
+                "xgboost" in indicators_to_calculate
+                and hasattr(self.args, "enable_xgboost")
+                and self.args.enable_xgboost
+            ):
                 indicators_list.append("XGBoost")
             if "hmm" in indicators_to_calculate and hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
                 indicators_list.append("HMM")
-            if "random_forest" in indicators_to_calculate and hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+            if (
+                "random_forest" in indicators_to_calculate
+                and hasattr(self.args, "enable_random_forest")
+                and self.args.enable_random_forest
+            ):
                 indicators_list.append("Random Forest")
 
         log_progress(
@@ -788,29 +814,57 @@ class VotingAnalyzer:
         results = []
 
         for _, row in signals_df.iterrows():
-            classifier = DecisionMatrixClassifier(indicators=indicators)
+            # Build dynamic indicators list based on actual vote data availability
+            # This prevents errors when an indicator is in the list but has no vote data
+            available_indicators = []
 
-            # Get votes from all indicators (only include those in indicators list)
-            if "atc" in indicators:
+            # Check which indicators actually have vote data for this row
+            if "atc" in indicators and row.get("atc_vote") is not None:
+                available_indicators.append("atc")
+            if "oscillator" in indicators and row.get("osc_vote") is not None:
+                available_indicators.append("oscillator")
+            if "spc" in indicators and (
+                row.get("spc_cluster_transition_signal") is not None
+                or row.get("spc_regime_following_signal") is not None
+                or row.get("spc_mean_reversion_signal") is not None
+            ):
+                available_indicators.append("spc")
+            if "xgboost" in indicators and row.get("xgboost_vote") is not None:
+                available_indicators.append("xgboost")
+            if "hmm" in indicators and row.get("hmm_vote") is not None:
+                available_indicators.append("hmm")
+            if "random_forest" in indicators and row.get("random_forest_vote") is not None:
+                available_indicators.append("random_forest")
+
+            # Skip this row if no indicators have vote data
+            if not available_indicators:
+                continue
+
+            classifier = DecisionMatrixClassifier(indicators=available_indicators)
+
+            # Get votes from all indicators (only include those in available_indicators list)
+            if "atc" in available_indicators:
                 atc_vote = row.get("atc_vote", 0)
                 atc_strength = row.get("atc_strength", 0.0)
-                classifier.add_node_vote("atc", atc_vote, atc_strength, self._get_indicator_accuracy("atc", signal_type))
+                classifier.add_node_vote(
+                    "atc", atc_vote, atc_strength, self._get_indicator_accuracy("atc", signal_type)
+                )
 
-            if "oscillator" in indicators:
+            if "oscillator" in available_indicators:
                 osc_vote = row.get("osc_vote", 0)
                 osc_strength = row.get("osc_confidence", 0.0)
                 classifier.add_node_vote(
                     "oscillator", osc_vote, osc_strength, self._get_indicator_accuracy("oscillator", signal_type)
                 )
 
-            if "spc" in indicators and self.args.enable_spc:
-                # Aggregate 3 SPC votes into 1
+            if "spc" in available_indicators:
+                # Aggregate SPC votes from 3 strategies
                 spc_vote, spc_strength = self._aggregate_spc_votes(row.to_dict(), signal_type)
                 classifier.add_node_vote(
                     "spc", spc_vote, spc_strength, self._get_indicator_accuracy("spc", signal_type)
                 )
 
-            if "xgboost" in indicators and hasattr(self.args, "enable_xgboost") and self.args.enable_xgboost:
+            if "xgboost" in available_indicators:
                 # XGBoost vote
                 xgb_vote = row.get("xgboost_vote", 0)
                 xgb_strength = row.get("xgboost_confidence", 0.0)
@@ -818,7 +872,7 @@ class VotingAnalyzer:
                     "xgboost", xgb_vote, xgb_strength, self._get_indicator_accuracy("xgboost", signal_type)
                 )
 
-            if "hmm" in indicators and hasattr(self.args, "enable_hmm") and self.args.enable_hmm:
+            if "hmm" in available_indicators:
                 # HMM vote
                 hmm_vote = row.get("hmm_vote", 0)
                 hmm_strength = row.get("hmm_confidence", 0.0)
@@ -826,7 +880,7 @@ class VotingAnalyzer:
                     "hmm", hmm_vote, hmm_strength, self._get_indicator_accuracy("hmm", signal_type)
                 )
 
-            if "random_forest" in indicators and hasattr(self.args, "enable_random_forest") and self.args.enable_random_forest:
+            if "random_forest" in available_indicators:
                 # Random Forest vote
                 rf_vote = row.get("random_forest_vote", 0)
                 rf_strength = row.get("random_forest_confidence", 0.0)

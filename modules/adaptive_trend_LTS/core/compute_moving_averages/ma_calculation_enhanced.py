@@ -45,7 +45,7 @@ def ma_calculation_enhanced(
     length: int,
     ma_type: str,
     use_cache: bool = True,
-    prefer_gpu: bool = True,
+    use_rust_backend: bool = True,
 ) -> Optional[pd.Series]:
     if not isinstance(source, pd.Series):
         raise TypeError(f"source must be a pandas Series, got {type(source)}")
@@ -80,7 +80,7 @@ def ma_calculation_enhanced(
             # Try GPU first if preferred and data is large enough to justify overhead
             # Benchmarks show GPU is often faster than Numba/CPU even for small series (>= 500 bars)
             MIN_GPU_SIZE = 500
-            if prefer_gpu and len(source) >= MIN_GPU_SIZE and ma in ["WMA", "DEMA", "EMA", "HMA", "LSMA"]:
+            if use_rust_backend and len(source) >= MIN_GPU_SIZE and ma in ["WMA", "DEMA", "EMA", "HMA", "LSMA"]:
                 # PERFORMANCE OPTIMIZATION: Use cached resources instead of calling get_resources() every time
                 resources = _get_cached_hw_resources()
 

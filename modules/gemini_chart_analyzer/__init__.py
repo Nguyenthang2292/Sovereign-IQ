@@ -19,6 +19,7 @@ from modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_g
 )
 from modules.gemini_chart_analyzer.core.generators.simple_chart_generator import SimpleChartGenerator
 from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
+from modules.gemini_chart_analyzer.services.batch_scan_service import BatchScanConfig, run_batch_scan
 
 __all__ = [
     "ChartGenerator",
@@ -30,4 +31,6 @@ __all__ = [
     "MultiTimeframeCoordinator",
     "SignalAggregator",
     "ChartMultiTimeframeBatchGenerator",
+    "BatchScanConfig",
+    "run_batch_scan",
 ]

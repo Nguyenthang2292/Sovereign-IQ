@@ -8,7 +8,7 @@ to create the adaptive bands for the trend classification.
 
 Key Features:
 - Calculates 9 MAs in parallel using ThreadPoolExecutor.
-- Supports specific GPU acceleration via `prefer_gpu` flag.
+- Supports Rust backend acceleration via `use_rust_backend` flag.
 - Integrates with HardwareManager for optimal workload distribution.
 """
 
@@ -33,7 +33,7 @@ def set_of_moving_averages_enhanced(
     robustness: str = "Medium",
     use_cache: bool = True,
     use_parallel: bool = True,
-    prefer_gpu: bool = True,
+    use_rust_backend: bool = True,
 ) -> Optional[Tuple[pd.Series, ...]]:
     """
     Calculate a set of 9 moving averages with varying lengths based on robustness.
@@ -53,7 +53,7 @@ def set_of_moving_averages_enhanced(
             Controls the spread of the varying lengths.
         use_cache: If True, uses cached results if available (default: True).
         use_parallel: If True, computes the 9 MAs in parallel threads (default: True).
-        prefer_gpu: If True, attempts to use GPU acceleration (default: True).
+        use_rust_backend: If True, attempts to use Rust backend (default: True).
 
     Returns:
         Tuple of 9 pandas Series: (MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4)
@@ -93,16 +93,18 @@ def set_of_moving_averages_enhanced(
             hw_mgr = get_hardware_manager()
             # Note: get_optimal_workload_config might still call get_resources(), but it's once per MA set (6 per symbol)
             # We could optimize this too but it's less critical than the inner logs.
-            config = hw_mgr.get_optimal_workload_config(workload_size=9, prefer_gpu=prefer_gpu)
+            config = hw_mgr.get_optimal_workload_config(workload_size=9, prefer_gpu=use_rust_backend)
 
             with ThreadPoolExecutor(max_workers=config.num_threads) as executor:
                 futures = [
-                    executor.submit(ma_calculation_enhanced, source, ma_len, ma_type, use_cache, prefer_gpu)
+                    executor.submit(ma_calculation_enhanced, source, ma_len, ma_type, use_cache, use_rust_backend)
                     for ma_len in ma_lengths
                 ]
                 mas = [f.result() for f in futures]
         else:
-            mas = [ma_calculation_enhanced(source, ma_len, ma_type, use_cache, prefer_gpu) for ma_len in ma_lengths]
+            mas = [
+                ma_calculation_enhanced(source, ma_len, ma_type, use_cache, use_rust_backend) for ma_len in ma_lengths
+            ]
 
         failed_calculations = [f"{ma_names[i]} (length={ma_lengths[i]})" for i, ma in enumerate(mas) if ma is None]
 

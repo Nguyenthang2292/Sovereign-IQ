@@ -50,7 +50,7 @@ def main():
             "parallel_l1": False,
             "parallel_l2": False,
             "precision": "float64",
-            "prefer_gpu": True,
+            "use_rust_backend": True,
             "use_cache": False,
             "fast_mode": True,
         }

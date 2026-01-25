@@ -8,6 +8,8 @@ pub mod equity_cuda;
 pub mod ma_cuda;
 pub mod signal_cuda;
 pub mod batch_processing;
+pub mod utils;
+pub mod batch_processing_cpu;
 
 #[pymodule]
 fn atc_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -34,6 +36,9 @@ fn atc_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     
     // Batch CUDA processing (True Batch - processes all symbols in one kernel)
     m.add_function(wrap_pyfunction!(batch_processing::compute_atc_signals_batch, m)?)?;
+    
+    // Batch CPU processing (Rayon)
+    m.add_function(wrap_pyfunction!(batch_processing_cpu::compute_atc_signals_batch_cpu, m)?)?;
     
     Ok(())
 }

@@ -75,7 +75,7 @@ except ImportError:
     ATCService = atc_service_module.ATCService
 from fastapi.staticfiles import StaticFiles
 
-from modules.adaptive_trend.utils.config import ATCConfig
+from modules.adaptive_trend_LTS.utils.config import ATCConfig
 from web.shared.middleware.cors import setup_cors
 
 # Initialize FastAPI app

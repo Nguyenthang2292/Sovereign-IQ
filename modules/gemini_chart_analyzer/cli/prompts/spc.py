@@ -15,14 +15,16 @@ def prompt_spc_config_mode(default: str = "3", loaded_config: Optional[Dict] = N
     if loaded_config:
         loaded_spc_config = loaded_config.get("spc_config", {})
         if loaded_spc_config:
-            default = loaded_spc_config.get("config_mode", "3")
+            loaded_spc_config.get("config_mode", "3")
 
     print("\nSPC Enhancements Configuration:")
     print("  Configure Simplified Percentile Clustering enhancements")
     print("  1. Use preset (Conservative/Balanced/Aggressive)")
     print("  2. Custom configuration")
     print("  3. Skip (use defaults from config file)")
-    spc_config_mode = safe_input(color_text("Select SPC config mode (1/2/3) [3]: ", Fore.YELLOW), default="3")
+    spc_config_mode = safe_input(
+        color_text("Select SPC config mode (1/2/3) [3]: ", Fore.YELLOW), default="3", allow_back=True
+    )
     if not spc_config_mode:
         spc_config_mode = "3"
 
@@ -37,7 +39,7 @@ def prompt_spc_preset() -> Optional[str]:
     print("  1. Conservative (Most stable - choppy markets)")
     print("  2. Balanced (Recommended - most crypto markets) ⭐")
     print("  3. Aggressive (Most responsive - trending markets)")
-    preset_input = safe_input(color_text("Select preset (1/2/3) [2]: ", Fore.YELLOW), default="2")
+    preset_input = safe_input(color_text("Select preset (1/2/3) [2]: ", Fore.YELLOW), default="2", allow_back=True)
     if not preset_input:
         preset_input = "2"
 
@@ -82,19 +84,21 @@ def prompt_spc_custom_config(loaded_config: Optional[Dict] = None) -> Dict[str, 
 
     # Volatility adjustment
     vol_adj_input = safe_input(
-        color_text("Enable volatility-adaptive percentiles? (y/n) [n]: ", Fore.YELLOW), default="n"
+        color_text("Enable volatility-adaptive percentiles? (y/n) [n]: ", Fore.YELLOW), default="n", allow_back=True
     ).lower()
     spc_volatility_adjustment = vol_adj_input in ["y", "yes"]
 
     # Correlation weights
     corr_weights_input = safe_input(
-        color_text("Enable correlation-based feature weighting? (y/n) [n]: ", Fore.YELLOW), default="n"
+        color_text("Enable correlation-based feature weighting? (y/n) [n]: ", Fore.YELLOW), default="n", allow_back=True
     ).lower()
     spc_use_correlation_weights = corr_weights_input in ["y", "yes"]
 
     # Time decay factor
     time_decay_input = safe_input(
-        color_text("Time decay factor (1.0=no decay, 0.99=light, 0.95=moderate) [1.0]: ", Fore.YELLOW), default="1.0"
+        color_text("Time decay factor (1.0=no decay, 0.99=light, 0.95=moderate) [1.0]: ", Fore.YELLOW),
+        default="1.0",
+        allow_back=True,
     )
     if time_decay_input:
         try:
@@ -111,7 +115,9 @@ def prompt_spc_custom_config(loaded_config: Optional[Dict] = None) -> Dict[str, 
     print("  1. Linear (default)")
     print("  2. Sigmoid (smooth transitions)")
     print("  3. Exponential (sticky to current cluster)")
-    interp_input = safe_input(color_text("Select interpolation mode (1/2/3) [1]: ", Fore.YELLOW), default="1")
+    interp_input = safe_input(
+        color_text("Select interpolation mode (1/2/3) [1]: ", Fore.YELLOW), default="1", allow_back=True
+    )
     if not interp_input:
         interp_input = "1"
     if interp_input == "2":
@@ -123,7 +129,7 @@ def prompt_spc_custom_config(loaded_config: Optional[Dict] = None) -> Dict[str, 
 
     # Min flip duration
     flip_dur_input = safe_input(
-        color_text("Minimum bars in cluster before flip (1-10) [3]: ", Fore.YELLOW), default="3"
+        color_text("Minimum bars in cluster before flip (1-10) [3]: ", Fore.YELLOW), default="3", allow_back=True
     )
     if flip_dur_input:
         try:
@@ -137,7 +143,7 @@ def prompt_spc_custom_config(loaded_config: Optional[Dict] = None) -> Dict[str, 
 
     # Flip confidence threshold
     conf_thresh_input = safe_input(
-        color_text("Flip confidence threshold (0.0-1.0) [0.6]: ", Fore.YELLOW), default="0.6"
+        color_text("Flip confidence threshold (0.0-1.0) [0.6]: ", Fore.YELLOW), default="0.6", allow_back=True
     )
     if conf_thresh_input:
         try:
@@ -150,11 +156,15 @@ def prompt_spc_custom_config(loaded_config: Optional[Dict] = None) -> Dict[str, 
             spc_flip_confidence_threshold = None
 
     # Multi-timeframe (optional)
-    mtf_input = safe_input(color_text("Enable multi-timeframe analysis? (y/n) [n]: ", Fore.YELLOW), default="n").lower()
+    mtf_input = safe_input(
+        color_text("Enable multi-timeframe analysis? (y/n) [n]: ", Fore.YELLOW), default="n", allow_back=True
+    ).lower()
     spc_enable_mtf = mtf_input in ["y", "yes"]
     if spc_enable_mtf:
         mtf_tf_input = safe_input(
-            color_text("MTF timeframes (comma-separated, e.g., 1h,4h,1d) [1h,4h]: ", Fore.YELLOW), default="1h,4h"
+            color_text("MTF timeframes (comma-separated, e.g., 1h,4h,1d) [1h,4h]: ", Fore.YELLOW),
+            default="1h,4h",
+            allow_back=True,
         )
         if mtf_tf_input:
             spc_mtf_timeframes = [tf.strip() for tf in mtf_tf_input.split(",") if tf.strip()]
@@ -162,7 +172,7 @@ def prompt_spc_custom_config(loaded_config: Optional[Dict] = None) -> Dict[str, 
             spc_mtf_timeframes = ["1h", "4h"]
 
         align_input = safe_input(
-            color_text("Require all timeframes to align? (y/n) [y]: ", Fore.YELLOW), default="y"
+            color_text("Require all timeframes to align? (y/n) [y]: ", Fore.YELLOW), default="y", allow_back=True
         ).lower()
         spc_mtf_require_alignment = align_input in ["y", "yes"]
 

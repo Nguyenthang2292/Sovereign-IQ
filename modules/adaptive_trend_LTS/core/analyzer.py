@@ -113,6 +113,9 @@ def analyze_symbol(
                 cutout=config.cutout,
                 long_threshold=config.long_threshold,
                 short_threshold=config.short_threshold,
+                parallel_l1=config.parallel_l1,
+                parallel_l2=config.parallel_l2,
+                use_rust_backend=config.use_rust_backend,
             )
 
             # Return results instead of displaying

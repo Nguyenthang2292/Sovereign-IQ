@@ -5,7 +5,10 @@ from typing import List, Optional
 from modules.common.ui.logging import log_info
 from modules.common.utils import log_error, log_warn
 from modules.gemini_chart_analyzer.cli.exchange.symbol_fetcher import SymbolFetchError, get_all_symbols_from_exchange
-from modules.gemini_chart_analyzer.cli.pre_filter import pre_filter_symbols_with_hybrid, pre_filter_symbols_with_voting
+from modules.gemini_chart_analyzer.core.prefilter.legacy_voting import (
+    pre_filter_symbols_with_hybrid,
+    pre_filter_symbols_with_voting,
+)
 
 
 def run_pre_filter(
