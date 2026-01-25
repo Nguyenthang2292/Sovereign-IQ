@@ -50,4 +50,22 @@ def display_configuration_summary(config: Dict[str, Any]) -> None:
     else:
         print("RF Model: None")
 
+    # ATC Performance Summary
+    atc_perf = config.get("atc_performance", {})
+    if atc_perf:
+        print("\n" + color_text("ATC Performance:", Fore.GREEN))
+        backend = "CUDA (GPU)" if atc_perf.get("use_cuda") else "Rust Rayon (CPU)"
+        print(f"  Backend: {backend}")
+        print(
+            f"  Parallel L1/L2: {'Yes' if atc_perf.get('parallel_l1') and atc_perf.get('parallel_l2') else 'Limited'}"
+        )
+
+        # Dask status
+        use_dask = atc_perf.get("use_dask", False)
+        if use_dask:
+            nparts = atc_perf.get("npartitions") or "Auto"
+            print(f"  Dask (Out-of-Core): Enabled ({nparts} partitions)")
+        else:
+            print("  Dask (Out-of-Core): Disabled")
+
     print(color_text("=" * 50, Fore.CYAN))

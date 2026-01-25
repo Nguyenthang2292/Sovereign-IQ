@@ -35,6 +35,7 @@ from modules.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.system import get_hardware_manager, get_memory_manager
 
 from .asyncio_scan import _scan_asyncio
+from .dask_scan import _scan_dask
 from .gpu_scan import _scan_gpu_batch
 from .processpool import _scan_processpool
 from .sequential import _scan_sequential
@@ -49,6 +50,7 @@ def scan_all_symbols(
     execution_mode: str = "threadpool",
     max_workers: Optional[int] = None,
     batch_size: int = 100,
+    npartitions: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Scan all futures symbols and filter those with LONG/SHORT signals.
 
@@ -60,17 +62,21 @@ def scan_all_symbols(
     - "sequential": Process symbols one by one (safest, avoids rate limits)
     - "threadpool": Use ThreadPoolExecutor for parallel data fetching (default, faster)
     - "asyncio": Use asyncio for parallel data fetching (fastest, but requires async support)
+    - "processpool": Use ProcessPoolExecutor for parallel data fetching
+    - "gpu_batch": Use GPU for batch processing (requires CUDA)
+    - "dask": Use Dask for out-of-core processing with large symbol lists
 
     Args:
         data_fetcher: DataFetcher instance for fetching market data.
         atc_config: ATCConfig object containing all ATC parameters.
         max_symbols: Maximum number of symbols to scan (None = all symbols).
         min_signal: Minimum signal strength to include (must be >= 0).
-        execution_mode: Execution mode - "sequential", "threadpool", or "asyncio" (default: "threadpool").
+        execution_mode: Execution mode - "sequential", "threadpool", "asyncio", "processpool", "gpu_batch", or "dask" (default: "threadpool").
         max_workers: Maximum number of worker threads/processes for parallel execution.
                     If None, uses default (min(32, num_symbols + 4) for threadpool).
         batch_size: Number of symbols to process in each batch before forcing GC (default: 100).
                     Larger batches use more memory but may be faster. Smaller batches use less memory.
+        npartitions: Number of Dask partitions for Dask mode (auto if None).
 
     Returns:
         Tuple of two DataFrames:
@@ -146,7 +152,7 @@ def scan_all_symbols(
         raise ValueError(f"min_signal must be a non-negative number, got {min_signal}")
 
     # Validate execution_mode
-    VALID_MODES = {"sequential", "threadpool", "asyncio", "processpool", "gpu_batch", "auto"}
+    VALID_MODES = {"sequential", "threadpool", "asyncio", "processpool", "gpu_batch", "dask", "auto"}
     if execution_mode not in VALID_MODES:
         raise ValueError(f"execution_mode must be one of {VALID_MODES}, got {execution_mode}")
 
@@ -212,6 +218,10 @@ def scan_all_symbols(
             elif execution_mode == "gpu_batch":
                 results, skipped_count, error_count, skipped_symbols = _scan_gpu_batch(
                     symbols, data_fetcher, atc_config, min_signal, batch_size
+                )
+            elif execution_mode == "dask":
+                results, skipped_count, error_count, skipped_symbols = _scan_dask(
+                    symbols, data_fetcher, atc_config, min_signal, npartitions, batch_size
                 )
             else:
                 # Fallback to sequential

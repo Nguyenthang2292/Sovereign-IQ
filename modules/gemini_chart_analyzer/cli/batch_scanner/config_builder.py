@@ -56,6 +56,7 @@ def gather_scan_configuration() -> Dict[str, Any]:
         "enable_pre_filter": True,
         "pre_filter_mode": "voting",
         "pre_filter_percentage": None,
+        "pre_filter_auto_skip_threshold": 10,
         "fast_mode": True,
         "stage0_sample_percentage": None,
         "spc_config_mode": "3",
@@ -89,6 +90,8 @@ def gather_scan_configuration() -> Dict[str, Any]:
             "parallel_l2": True,
             "use_cache": True,
             "fast_mode": True,
+            "use_dask": False,
+            "npartitions": None,
         },
         "use_loaded_config": False,
     }
@@ -188,6 +191,9 @@ def gather_scan_configuration() -> Dict[str, Any]:
                                         config["enable_pre_filter"] = loaded_data.get("enable_pre_filter", True)
                                         config["pre_filter_mode"] = loaded_data.get("pre_filter_mode", "voting")
                                         config["pre_filter_percentage"] = loaded_data.get("pre_filter_percentage")
+                                        config["pre_filter_auto_skip_threshold"] = loaded_data.get(
+                                            "pre_filter_auto_skip_threshold", 10
+                                        )
                                         config["fast_mode"] = loaded_data.get("fast_mode", True)
                                         config["stage0_sample_percentage"] = loaded_data.get("stage0_sample_percentage")
 
@@ -214,6 +220,11 @@ def gather_scan_configuration() -> Dict[str, Any]:
 
                                         if "atc_performance" in loaded_data:
                                             config["atc_performance"].update(loaded_data["atc_performance"])
+                                            # Specifically ensure Dask keys are present
+                                            if "use_dask" not in config["atc_performance"]:
+                                                config["atc_performance"]["use_dask"] = False
+                                            if "npartitions" not in config["atc_performance"]:
+                                                config["atc_performance"]["npartitions"] = None
 
                                         current_step = len(steps)
                                         continue
@@ -321,6 +332,7 @@ def gather_scan_configuration() -> Dict[str, Any]:
         "enable_pre_filter": config["enable_pre_filter"],
         "pre_filter_mode": config["pre_filter_mode"],
         "pre_filter_percentage": config["pre_filter_percentage"],
+        "pre_filter_auto_skip_threshold": config["pre_filter_auto_skip_threshold"],
         "fast_mode": config["fast_mode"],
         "stage0_sample_percentage": config["stage0_sample_percentage"],
         "spc_config": {**config["spc_config"], "preset": config["spc_preset"]},

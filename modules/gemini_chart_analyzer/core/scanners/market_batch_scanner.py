@@ -224,6 +224,7 @@ class MarketBatchScanner:
         enable_pre_filter: bool = False,
         pre_filter_mode: str = "voting",
         pre_filter_percentage: Optional[float] = None,
+        pre_filter_auto_skip_threshold: int = 10,
         fast_mode: bool = True,
         spc_config: Optional[Dict[str, Any]] = None,
         skip_cleanup: bool = False,
@@ -339,6 +340,7 @@ class MarketBatchScanner:
                     spc_config=spc_config,
                     stage0_sample_percentage=stage0_sample_percentage,
                     atc_performance=atc_performance,
+                    auto_skip_threshold=pre_filter_auto_skip_threshold,
                 )
                 if pre_filtered:
                     log_success(f"Internal pre-filter selected {len(pre_filtered)}/{len(all_symbols)} symbols")
@@ -781,6 +783,7 @@ class MarketBatchScanner:
         spc_config: Optional[Dict[str, Any]] = None,
         stage0_sample_percentage: Optional[float] = None,
         atc_performance: Optional[Dict[str, Any]] = None,
+        auto_skip_threshold: int = 10,
     ) -> List[str]:
         """
         Run internal pre-filter using 3-stage sequential filtering workflow.
@@ -816,6 +819,7 @@ class MarketBatchScanner:
                 rf_model_path=self.rf_model_path,
                 stage0_sample_percentage=stage0_sample_percentage,
                 atc_performance=atc_performance,
+                auto_skip_threshold=auto_skip_threshold,
             )
 
             log_success(f"Pre-filter completed: Selected {len(filtered_symbols)}/{len(symbols)} symbols")

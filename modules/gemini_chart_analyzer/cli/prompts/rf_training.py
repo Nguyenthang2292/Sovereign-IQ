@@ -190,6 +190,8 @@ def prompt_atc_performance(loaded_config: Optional[Dict] = None) -> Dict:
         "parallel_l2": True,
         "use_cache": True,
         "fast_mode": True,
+        "use_dask": False,
+        "npartitions": None,
     }
 
     # Load defaults from config if available
@@ -203,6 +205,8 @@ def prompt_atc_performance(loaded_config: Optional[Dict] = None) -> Dict:
                 "parallel_l2": atc_cfg.get("parallel_l2", True),
                 "use_cache": atc_cfg.get("use_cache", True),
                 "fast_mode": atc_cfg.get("fast_mode", True),
+                "use_dask": atc_cfg.get("use_dask", False),
+                "npartitions": atc_cfg.get("npartitions"),
             }
         )
 
@@ -211,10 +215,11 @@ def prompt_atc_performance(loaded_config: Optional[Dict] = None) -> Dict:
     print("\nPresets:")
     print("  1. High-Performance (Recommended) - Rust Rayon batch + all optimizations")
     print("  2. GPU Accelerated - CUDA (slower for < 500 symbols)")
-    print("  3. Custom settings")
-    print("  4. Use defaults")
+    print("  3. Out-of-Core (Dask) - For 1000+ symbols, minimal RAM usage")
+    print("  4. Custom settings")
+    print("  5. Use defaults")
 
-    preset_input = safe_input(color_text("Select preset (1/2/3/4) [1]: ", Fore.YELLOW), default="1", allow_back=True)
+    preset_input = safe_input(color_text("Select preset (1/2/3/4/5) [1]: ", Fore.YELLOW), default="1", allow_back=True)
 
     if preset_input == "2":
         # GPU preset
@@ -222,6 +227,12 @@ def prompt_atc_performance(loaded_config: Optional[Dict] = None) -> Dict:
         config["use_cuda"] = True
         print(color_text("\n✓ GPU (CUDA) preset applied", Fore.GREEN))
     elif preset_input == "3":
+        # Out-of-Core Dask preset
+        config["batch_processing"] = True
+        config["use_dask"] = True
+        config["npartitions"] = None  # Auto
+        print(color_text("\n✓ Out-of-Core (Dask) preset applied", Fore.GREEN))
+    elif preset_input == "4":
         # Custom settings
         print("\nCustom ATC Performance Settings:")
 
@@ -269,7 +280,28 @@ def prompt_atc_performance(loaded_config: Optional[Dict] = None) -> Dict:
             allow_back=True,
         ).lower()
         config["fast_mode"] = fast_mode_input in ["y", "yes", ""]
-    elif preset_input == "4":
+
+        dask_input = safe_input(
+            color_text(f"Enable Dask (Out-of-Core)? (y/n) [{'y' if config['use_dask'] else 'n'}]: ", Fore.YELLOW),
+            default="y" if config["use_dask"] else "n",
+            allow_back=True,
+        ).lower()
+        config["use_dask"] = dask_input in ["y", "yes"]
+
+        if config["use_dask"]:
+            partitions_input = safe_input(
+                color_text(f"Dask partitions [{config['npartitions'] or 'auto'}]: ", Fore.YELLOW),
+                default=str(config["npartitions"]) if config["npartitions"] else "",
+                allow_back=True,
+            )
+            if partitions_input:
+                try:
+                    config["npartitions"] = int(partitions_input)
+                except ValueError:
+                    config["npartitions"] = None
+            else:
+                config["npartitions"] = None
+    elif preset_input == "5":
         # Use defaults (already set)
         print(color_text("\n✓ Using default ATC performance settings", Fore.GREEN))
     else:

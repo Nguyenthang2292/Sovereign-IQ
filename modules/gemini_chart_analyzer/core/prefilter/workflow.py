@@ -324,6 +324,7 @@ def run_prefilter_worker(
     rf_model_path: Optional[str] = None,
     stage0_sample_percentage: Optional[float] = None,
     atc_performance: Optional[Dict[str, Any]] = None,
+    auto_skip_threshold: int = 10,
 ) -> List[str]:
     """
     Run pre-filter with 4-stage sequential filtering workflow.
@@ -344,6 +345,8 @@ def run_prefilter_worker(
         rf_model_path: Optional path to Random Forest model
         stage0_sample_percentage: Optional percentage of symbols to randomly sample before Stage 1 (1-100).
                                  If None or 100, no sampling is performed.
+        atc_performance: Optional ATC performance configuration
+        auto_skip_threshold: Auto-skip percentage filter if Stage 3 returns fewer symbols than this (default: 10)
 
     Returns:
         List of filtered symbols from Stage 3 (or percentage of final result if percentage < 100)
@@ -458,6 +461,12 @@ def run_prefilter_worker(
             args.parallel_l2 = atc_performance.get("parallel_l2", True)
             # Some analyzers might look for specific flags
             args.use_rust_backend = atc_performance.get("batch_processing", True)
+
+            # Dask settings
+            args.use_dask = atc_performance.get("use_dask", False)
+            args.npartitions = atc_performance.get("npartitions")
+            if args.use_dask:
+                args.execution_mode = "dask"
         else:
             # Default fallback if not provided
             args.parallel_l1 = True
@@ -499,19 +508,27 @@ def run_prefilter_worker(
             stage3_symbols = stage2_symbols
 
         # Apply percentage filter to final result if needed (for backward compatibility)
+        # Skip percentage filter if we already have a small number of symbols (< 10)
         filtered_symbols = stage3_symbols
         if percentage > 0.0 and percentage < 100.0:
-            target_count = int(len(stage3_symbols) * percentage / 100.0)
-            if target_count > 0 and target_count < len(stage3_symbols):
-                # Apply percentage filter with sorting by weighted score
+            # Auto-skip percentage filter if Stage 3 already returned a small set
+            if len(stage3_symbols) < auto_skip_threshold:
                 log_info(
-                    f"[Pre-filter] Applying percentage filter: selecting top {percentage}% "
-                    f"({target_count}/{len(stage3_symbols)})"
+                    f"[Pre-filter] Skipping percentage filter: Stage 3 returned only {len(stage3_symbols)} symbols "
+                    f"(threshold: {auto_skip_threshold}). Using all Stage 3 results."
                 )
+            else:
+                target_count = int(len(stage3_symbols) * percentage / 100.0)
+                if target_count > 0 and target_count < len(stage3_symbols):
+                    # Apply percentage filter with sorting by weighted score
+                    log_info(
+                        f"[Pre-filter] Applying percentage filter: selecting top {percentage}% "
+                        f"({target_count}/{len(stage3_symbols)})"
+                    )
 
-                # Sort symbols by their scores (descending)
-                sorted_symbols = sorted(stage3_symbols, key=lambda s: stage3_scores.get(s, 0.0), reverse=True)
-                filtered_symbols = sorted_symbols[:target_count]
+                    # Sort symbols by their scores (descending)
+                    sorted_symbols = sorted(stage3_symbols, key=lambda s: stage3_scores.get(s, 0.0), reverse=True)
+                    filtered_symbols = sorted_symbols[:target_count]
 
         log_success(
             f"[Pre-filter] Completed 3-stage filtering: {len(filtered_symbols)}/{total_symbols} symbols selected"

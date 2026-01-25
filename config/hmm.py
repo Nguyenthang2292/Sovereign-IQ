@@ -34,7 +34,7 @@ HMM_PROBABILITY_THRESHOLD = 0.5  # Minimum probability threshold for signal gene
 HMM_SIGNAL_PRIMARY_WEIGHT = 2  # Weight for primary signal (next_state_with_hmm_kama)
 HMM_SIGNAL_TRANSITION_WEIGHT = 1  # Weight for transition states
 HMM_SIGNAL_ARM_WEIGHT = 1  # Weight for ARM-based states
-HMM_SIGNAL_MIN_THRESHOLD = 3  # Minimum score threshold for signal generation
+HMM_SIGNAL_MIN_THRESHOLD = 0.5  # Minimum score threshold for signal generation
 
 # Confidence & Normalization Configuration
 HMM_HIGH_ORDER_MAX_SCORE = 1.0  # Max score from High-Order HMM (normalized)

@@ -100,7 +100,7 @@ with stream2:
 
 **Expected Gain**: **1.5-2x** faster for large batch processing
 
-### 2.3 Tensor Cores (RTX GPUs)
+### 2.3 Tensor Cores (RTX GPUs) ⚠️ **NOT NECESSARY**
 
 **Opportunity**: Use Tensor Cores for matrix operations (LSMA, weighted sums)
 
@@ -119,7 +119,7 @@ result = cp.matmul(a.astype(cp.float16), b.astype(cp.float16))
 
 ## 3. Distributed Computing
 
-### 3.1 Ray for Multi-Machine Scaling
+### 3.1 Ray for Multi-Machine Scaling ⚠️ **NOT NECESSARY**
 
 **Opportunity**: Distribute symbol processing across multiple machines
 
@@ -417,6 +417,7 @@ def compute_atc_specialized(prices, config):
 ### Low Priority (Variable Impact, High Effort)
 
 1. ⚠️ **Distributed computing (Ray/Dask)** (linear scaling, complex setup)
+   - ⚠️ **Ray for Multi-Machine**: NOT NECESSARY
 2. ⚠️ **TPU support** (10-50x gain, requires Google Cloud)
 3. ⚠️ **Apple Silicon MPS** (3-5x gain, Mac-only)
 
@@ -442,7 +443,7 @@ def compute_atc_specialized(prices, config):
 
 - Custom CUDA kernels
 - GPU streams
-- Tensor Core support
+- ~~Tensor Core support~~ (Not necessary)
 
 ### Phase 5 (Weeks 5-6): Incremental Updates
 

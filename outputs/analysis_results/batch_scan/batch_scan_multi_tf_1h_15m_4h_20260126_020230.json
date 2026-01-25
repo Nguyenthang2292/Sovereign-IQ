@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-01-26T02:02:30.528830",
+  "timeframe": "1h",
+  "timeframes": [
+    "1h",
+    "15m",
+    "4h"
+  ],
+  "summary": {
+    "total_symbols": 1,
+    "scanned_symbols": 1,
+    "long_count": 0,
+    "short_count": 1,
+    "none_count": 0,
+    "long_percentage": 0.0,
+    "short_percentage": 100.0,
+    "avg_long_confidence": 0.0,
+    "avg_short_confidence": 0.81
+  },
+  "long_symbols": [],
+  "short_symbols": [
+    "VIRTUAL/USDT"
+  ],
+  "long_symbols_with_confidence": [],
+  "short_symbols_with_confidence": [
+    [
+      "VIRTUAL/USDT",
+      0.81
+    ]
+  ],
+  "all_results": {
+    "VIRTUAL/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.81
+    }
+  }
+}

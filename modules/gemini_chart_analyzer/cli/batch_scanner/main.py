@@ -66,6 +66,7 @@ def execute_scan(config: Dict[str, Any]) -> BatchScanResult:
             enable_pre_filter=config["enable_pre_filter"],
             pre_filter_mode=config["pre_filter_mode"],
             pre_filter_percentage=config.get("pre_filter_percentage"),
+            pre_filter_auto_skip_threshold=config.get("pre_filter_auto_skip_threshold", 10),
             fast_mode=config["fast_mode"],
             spc_config=config["spc_config"] if config["enable_pre_filter"] else None,
             rf_model_path=config["random_forest_model"]["model_path"],

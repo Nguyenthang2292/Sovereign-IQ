@@ -29,6 +29,7 @@ class BatchScanConfig:
     enable_pre_filter: bool = False
     pre_filter_mode: str = "voting"
     pre_filter_percentage: Optional[float] = None
+    pre_filter_auto_skip_threshold: int = 10
     fast_mode: bool = True
     initial_symbols: Optional[List[str]] = None
     spc_config: Optional[Dict[str, Any]] = None
@@ -101,6 +102,7 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
             enable_pre_filter=config.enable_pre_filter,
             pre_filter_mode=config.pre_filter_mode,
             pre_filter_percentage=config.pre_filter_percentage,
+            pre_filter_auto_skip_threshold=config.pre_filter_auto_skip_threshold,
             fast_mode=config.fast_mode,
             spc_config=config.spc_config,
             skip_cleanup=config.skip_cleanup,

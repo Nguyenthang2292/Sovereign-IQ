@@ -32,6 +32,33 @@ if "__file__" in globals():
         sys.path.insert(0, project_root_str)
 
 LOG_DIR = Path(__file__).parent / "logs"
+MODEL_CLEANUP_DIR = Path(__file__).parent / "artifacts" / "models" / "random_forest"
+
+
+def _cleanup_old_models(model_dir: Path, keep_count: int = 5) -> None:
+    """Keep only the N most recent model files in the models directory."""
+    try:
+        if not model_dir.exists():
+            return
+
+        # Get all model files (joblib)
+        model_files = list(model_dir.glob("*.joblib"))
+
+        # Sort by modification time (newest last)
+        model_files.sort(key=lambda x: x.stat().st_mtime)
+
+        # If we have more than keep_count, delete the oldest ones
+        if len(model_files) > keep_count:
+            to_delete = model_files[: len(model_files) - keep_count]
+            print(f"🧹 Cleaning up {len(to_delete)} old model(s) in {model_dir.name}...")
+            for f in to_delete:
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+    except Exception:
+        # Silently fail for cleanup operations
+        pass
 
 
 def _cleanup_old_logs(log_dir: Path, keep_count: int = 5) -> None:
@@ -229,6 +256,9 @@ if not rust_status["available"]:
 from modules.gemini_chart_analyzer.cli.batch_scanner.main import main
 
 if __name__ == "__main__":
+    # Cleanup Random Forest models on startup
+    _cleanup_old_models(MODEL_CLEANUP_DIR, keep_count=5)
+
     log_file = _build_log_file_path()
     with _tee_output(log_file):
         main()

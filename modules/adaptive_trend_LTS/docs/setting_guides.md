@@ -212,10 +212,30 @@ config = {
     'parallel_l2': True,
     'use_cache': True,
     'fast_mode': True,
+    'use_dask': True,         # Enable Dask for 1000+ symbols (Out-of-Core)
+    'npartitions': 20,        # Number of parallel partitions
 }
 ```
 
-### 5. **True Batch Processing** (Best for 100+ symbols)
+### 5. **Out-of-Core Processing** (Dask Integration) ⭐ **NEW**
+
+Khi xử lý danh sách symbol cực lớn (>1000 symbols) vượt quá dung lượng RAM, hoặc khi muốn tận dụng tối đa CPU core, hãy sử dụng Dask:
+
+- **`use_dask`**: Bật chế độ xử lý song song và phân đoạn bộ nhớ (partitioning).
+- **`npartitions`**: Số lượng mảnh dữ liệu xử lý cùng lúc. Mặc định hệ thống tự tính toán dựa trên số lượng symbol.
+
+```python
+from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
+
+longs, shorts = scan_all_symbols(
+    data_fetcher,
+    atc_config,
+    execution_mode="dask",  # Chế độ tối ưu cho dữ liệu lớn
+    npartitions=10
+)
+```
+
+### 6. **True Batch Processing** (Best for 100+ symbols)
 
 Nếu bạn có danh sách nhiều symbols (ví dụ: Binance Futures), hãy dùng hàm batch thay vì loop:
 
@@ -237,10 +257,15 @@ results = process_symbols_batch_rust(symbols_data, config)
 | Original Python | 52.58s | 1.00x | 140.5 MB | 100% |
 | Enhanced Python | 22.99s | 2.29x | 125.0 MB | 100% |
 | Rust (Seq) | 13.94s | 3.77x | 25.7 MB | 100% |
-| **Rust (Rayon)** ⭐ | **8.12s** | **6.47x** | **18.2 MB** | **100%** |
+| Rust (Rayon) | 8.12s | 6.47x | 18.2 MB | 100% |
+| **Rust + Dask Hybrid** ⭐ | **9.45s** | **5.56x** | **12.5 MB** | **100%** |
 | CUDA Batch | 15.04s | 3.49x | 71.3 MB | 100% |
 
-**Recommendation**: **USE RUST (RAYON)** - Fastest batch execution with zero signal loss.
+**Note**: Rust + Dask Hybrid có tốc độ gần bằng Rayon nhưng **không giới hạn kích thước dataset** và tiêu tốn ít RAM hơn nhờ cơ chế chunking.
+
+**Recommendation**:
+- < 1000 symbols: **USE RUST (RAYON)**
+- \> 1000 symbols: **USE RUST + DASK HYBRID**
 
 ---
 

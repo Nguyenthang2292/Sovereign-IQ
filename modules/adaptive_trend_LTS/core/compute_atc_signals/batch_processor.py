@@ -1,5 +1,6 @@
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -193,3 +194,39 @@ def process_symbols_batch_rust(symbols_data, config, num_threads=None):
                 results[symbol] = None
 
         return results
+
+
+def process_symbols_batch_with_dask(
+    symbols_data: Dict[str, pd.Series], config: dict, use_dask: bool = True, npartitions: Optional[int] = None, **kwargs
+) -> Dict[str, Dict[str, pd.Series]]:
+    """Process symbols with optional Dask for out-of-core processing.
+
+    Args:
+        symbols_data: Dictionary of symbol -> price Series
+        config: ATC configuration
+        use_dask: Use Dask if data is large (default: True)
+        npartitions: Number of Dask partitions
+        **kwargs: Passed to batch processor (use_cuda, use_rust, etc.)
+
+    Returns:
+        Dictionary mapping symbol -> {"Average_Signal": pd.Series}
+    """
+    # Auto-detect if Dask is needed (e.g., >1000 symbols)
+    if use_dask and len(symbols_data) > 1000:
+        from .dask_batch_processor import process_symbols_batch_dask
+
+        return process_symbols_batch_dask(
+            symbols_data,
+            config,
+            use_rust=kwargs.get("use_rust", True),
+            use_cuda=kwargs.get("use_cuda", False),
+            npartitions=npartitions,
+            partition_size=kwargs.get("partition_size", 50),
+            use_fallback=kwargs.get("use_fallback", True),
+        )
+    else:
+        # Use existing batch processor
+        if kwargs.get("use_cuda", False):
+            return process_symbols_batch_cuda(symbols_data, config, **kwargs)
+        else:
+            return process_symbols_batch_rust(symbols_data, config, **kwargs)

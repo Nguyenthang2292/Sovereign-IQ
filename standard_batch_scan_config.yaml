@@ -25,7 +25,7 @@ max_symbols: null  # Fixed count limit (null = all symbols)
                   # The maximum number of symbols to include in a scan. 
                   # If set to null, all available symbols will be scanned. 
                   # Use this to limit the scan scope for performance or focus.
-stage0_sample_percentage: 30  # Random sample % (100 = no sampling)
+stage0_sample_percentage: 33  # Random sample % (100 = no sampling)
                               # The percentage of the market to randomly select in Stage 0 sampling.
                               # 100 means sample all symbols (no sampling applied).
                               # Reduce this to scan a random subset of symbols, useful for large universes or testing.
@@ -39,6 +39,7 @@ stage0_sample_percentage: 30  # Random sample % (100 = no sampling)
 enable_pre_filter: true
 pre_filter_mode: voting  # 'voting' or 'hybrid'
 pre_filter_percentage: 30.0  # Top % to select after filtering
+pre_filter_auto_skip_threshold: 10  # Auto-skip percentage filter if Stage 3 returns fewer symbols than this
 
 # Fast Mode Configuration
 # Fast Mode (fast_mode: true) - RECOMMENDED:
@@ -132,3 +133,9 @@ atc_performance:
   parallel_l2: true  # Parallel equity aggregation
   use_cache: true  # Cache intermediate results
   fast_mode: true  # Additional optimizations
+  
+  # Dask (Out-of-Core) Configuration
+  # Use Dask for very large market scans (>1000 symbols)
+  # This enables processing dataset larger than RAM by chunking
+  use_dask: true  # Auto-enabled by system if symbols > 1000, but can be forced here
+  npartitions: null  # Number of Dask partitions (null = auto-calculated)
