@@ -14,94 +14,94 @@
 
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. MarketBatchScanner.scan_market()                         │
-│    - Step 1.5: Apply internal pre-filter if enabled        │
-│    - Gọi: self._run_pre_filter()                           │
+│    - Step 1.5: Apply internal pre-filter if enabled         │
+│    - Gọi: self._run_pre_filter()                            │
 └──────────────────────┬──────────────────────────────────────┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 2. MarketBatchScanner._run_pre_filter()                     │
-│    File: market_batch_scanner.py (line ~769)                │
+┌───────────────────────────────────────────────────────────── ┐
+│ 2. MarketBatchScanner._run_pre_filter()                      │
+│    File: market_batch_scanner.py (line ~769)                 │
 │    - Validate percentage (default: 10%)                      │
-│    - Gọi: run_prefilter_worker()                            │
-└──────────────────────┬──────────────────────────────────────┘
+│    - Gọi: run_prefilter_worker()                             │
+└──────────────────────┬────────────────────────────────────── ┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 3. run_prefilter_worker()                                    │
-│    File: prefilter_worker.py                                │
-│    Module: modules/gemini_chart_analyzer/core/prefilter_worker.py │
-│                                                              │
-│    Bước 3.1: Validate & Setup                               │
-│    - Validate all_symbols                                   │
-│    - Tạo argparse.Namespace với config                      │
-│    - Khởi tạo: ExchangeManager, DataFetcher, VotingAnalyzer │
-└──────────────────────┬──────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────       ──┐
+│ 3. run_prefilter_worker()                                          │
+│    File: prefilter_worker.py                                       │
+│    Module: modules/gemini_chart_analyzer/core/prefilter_worker.py  │
+│                                                                    │
+│    Bước 3.1: Validate & Setup                                      │
+│    - Validate all_symbols                                          │
+│    - Tạo argparse.Namespace với config                             │
+│    - Khởi tạo: ExchangeManager, DataFetcher, VotingAnalyzer        │
+└──────────────────────┬────────────────────────────────────       ──┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│ STAGE 1: ATC Filter (Filter lần 1)                         │
-│    Function: _filter_stage_1_atc()                         │
-│                                                              │
-│    Bước 4.1: Run ATC Scan                                   │
-│    - Gọi: analyzer.run_atc_scan()                           │
-│    - Module: modules/adaptive_trend/signal_atc.py            │
-│    - Quét tất cả symbols để tìm ATC signals                 │
-│    - Kết quả:                                               │
-│      • long_signals_atc (DataFrame)                         │
-│      • short_signals_atc (DataFrame)                         │
-│                                                              │
-│    Bước 4.2: Extract Symbols                                │
-│    - Lấy 100% symbols từ long_signals_atc và short_signals_atc│
-│    - Chỉ lấy symbols có trong all_symbols                   │
-│    - Kết quả: stage1_symbols (100% của ATC results)         │
-└──────────────────────┬──────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────   ┐
+│ STAGE 1: ATC Filter (Filter lần 1)                             │
+│    Function: _filter_stage_1_atc()                             │
+│                                                                │
+│    Bước 4.1: Run ATC Scan                                      │
+│    - Gọi: analyzer.run_atc_scan()                              │
+│    - Module: modules/adaptive_trend/signal_atc.py              │
+│    - Quét tất cả symbols để tìm ATC signals                    │
+│    - Kết quả:                                                  │
+│      • long_signals_atc (DataFrame)                            │
+│      • short_signals_atc (DataFrame)                           │
+│                                                                │
+│    Bước 4.2: Extract Symbols                                   │
+│    - Lấy 100% symbols từ long_signals_atc và short_signals_atc │
+│    - Chỉ lấy symbols có trong all_symbols                      │
+│    - Kết quả: stage1_symbols (100% của ATC results)            │
+└──────────────────────┬──────────────────────────────────────   ┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│ STAGE 2: Range Oscillator + SPC Filter (Filter lần 2)      │
-│    Function: _filter_stage_2_osc_spc()                     │
+┌───────────────────────────────────────────────────────────── ┐
+│ STAGE 2: Range Oscillator + SPC Filter (Filter lần 2)        │
+│    Function: _filter_stage_2_osc_spc()                       │
 │                                                              │
-│    Bước 5.1: Get ATC Signals for Stage 1 Symbols            │
-│    - Lọc ATC signals chỉ cho symbols từ Stage 1             │
+│    Bước 5.1: Get ATC Signals for Stage 1 Symbols             │
+│    - Lọc ATC signals chỉ cho symbols từ Stage 1              │
 │                                                              │
-│    Bước 5.2: Calculate Range Oscillator + SPC Signals       │
+│    Bước 5.2: Calculate Range Oscillator + SPC Signals        │
 │    - Gọi: calculate_signals_for_all_indicators()             │
 │      với indicators_to_calculate=["oscillator", "spc"]       │
-│    - Xử lý song song (parallel) cho mỗi symbol:             │
+│    - Xử lý song song (parallel) cho mỗi symbol:              │
 │                                                              │
-│      ┌──────────────────────────────────────────┐          │
-│      │ 5.2.1: Range Oscillator                   │          │
-│      │ Module: modules/range_oscillator/         │          │
-│      │ - Tính oscillator signals                │          │
-│      │ - Kết quả: osc_signal, osc_confidence    │          │
-│      └──────────────────────────────────────────┘          │
+│      ┌──────────────────────────────────────────┐            │
+│      │ 5.2.1: Range Oscillator                  │            │
+│      │ Module: modules/range_oscillator/        │            │
+│      │ - Tính oscillator signals                │            │
+│      │ - Kết quả: osc_signal, osc_confidence    │            │
+│      └──────────────────────────────────────────┘            │
 │                                                              │
-│      ┌──────────────────────────────────────────┐          │
-│      │ 5.2.2: SPC (Simplified Percentile Clustering)│      │
-│      │ Module: modules/simplified_percentile_clustering/│   │
-│      │ - Tính SPC signals từ 3 strategies:      │          │
-│      │   • Cluster Transition                    │          │
-│      │   • Regime Following                      │          │
-│      │   • Mean Reversion                        │          │
-│      │ - Aggregator: SPCVoteAggregator           │          │
-│      │ - Kết quả: spc_vote, spc_strength        │          │
-│      └──────────────────────────────────────────┘          │
+│      ┌──────────────────────────────────────────┐            │
+│      │ 5.2.2: SPC (Simplified Percentile Clustering)│        │
+│      │ Module: modules/simplified_percentile_clustering/│    │
+│      │ - Tính SPC signals từ 3 strategies:       │           │
+│      │   • Cluster Transition                    │           │
+│      │   • Regime Following                      │           │
+│      │   • Mean Reversion                        │           │
+│      │ - Aggregator: SPCVoteAggregator           │           │
+│      │ - Kết quả: spc_vote, spc_strength         │           │
+│      └────────────────────────────────────────── ┘           │
 │                                                              │
-│    Bước 5.3: Apply Voting System                            │
-│    - Gọi: apply_voting_system()                             │
-│      với indicators_to_include=["atc", "oscillator", "spc"] │
-│    - Module: core/voting_analyzer.py                        │
-│    - Tính votes từ: ATC + Range Osc + SPC                   │
+│    Bước 5.3: Apply Voting System                             │
+│    - Gọi: apply_voting_system()                              │
+│      với indicators_to_include=["atc", "oscillator", "spc"]  │
+│    - Module: core/voting_analyzer.py                         │
+│    - Tính votes từ: ATC + Range Osc + SPC                    │
 │                                                              │
-│    Bước 5.4: Decision Matrix                                │
+│    Bước 5.4: Decision Matrix                                 │
 │    - Module: modules/decision_matrix/                        │
-│    - Tính weighted_score từ votes                           │
+│    - Tính weighted_score từ votes                            │
 │    - Filter theo voting_threshold và min_votes               │
-│    - Chỉ giữ symbols có cumulative_vote = 1                 │
-│    - Kết quả: stage2_symbols (100% của voting results)      │
+│    - Chỉ giữ symbols có cumulative_vote = 1                  │
+│    - Kết quả: stage2_symbols (100% của voting results)       │
 │                stage2_signals (DataFrames với signals)       │
-└──────────────────────┬──────────────────────────────────────┘
+└──────────────────────┬────────────────────────────────────── ┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
