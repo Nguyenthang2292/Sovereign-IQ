@@ -5,10 +5,50 @@ from typing import Dict, Optional
 import numpy as np
 import pandas as pd
 
-from modules.common.utils import log_error, log_info
+from modules.common.utils import log_error, log_info, log_warn
 
 # Import relative to package, assuming this file is in modules/adaptive_trend_LTS/core/compute_atc_signals/
 from .compute_atc_signals import compute_atc_signals
+
+
+def process_symbols_batch_with_approximate_filter(
+    symbols_data: Dict[str, pd.Series],
+    config: dict,
+    approximate_threshold: float = 0.1,  # Filter threshold
+    min_signal_candidate: float = 0.05,  # Minimum signal to be candidate
+) -> Dict[str, Dict[str, pd.Series]]:
+    """
+    Process symbols with two-stage filtering:
+    1. Approximate MAs for initial filtering
+    2. Full precision for candidates only
+    """
+    # Stage 1: Approximate filtering
+    candidates = {}
+
+    log_info(f"Starting approximate filtering for {len(symbols_data)} symbols...")
+
+    for symbol, prices in symbols_data.items():
+        try:
+            # Fast approximate calculation
+            approx_results = compute_atc_signals(prices, use_approximate=True, **config)
+
+            if "Average_Signal" in approx_results and not approx_results["Average_Signal"].empty:
+                approx_signal = approx_results["Average_Signal"].iloc[-1]
+
+                # Filter candidates
+                if abs(approx_signal) >= min_signal_candidate:
+                    candidates[symbol] = prices
+        except Exception as e:
+            log_warn(f"Approximate calculation failed for {symbol}: {e}")
+
+    log_info(f"Approximate filtering: {len(candidates)}/{len(symbols_data)} candidates")
+
+    # Stage 2: Full precision for candidates
+    if not candidates:
+        return {}
+
+    # Use existing batch processing for candidates
+    return process_symbols_batch_rust(candidates, config)
 
 
 def process_symbols_batch_cuda(symbols_data, config, num_threads=4):
@@ -56,8 +96,8 @@ def process_symbols_batch_cuda(symbols_data, config, num_threads=4):
             lsma_len=params.get("lsma_len", 28),
             kama_len=params.get("kama_len", 28),
             robustness=params.get("robustness", "Medium"),
-            La=la_scaled,
-            De=de_scaled,
+            la=la_scaled,
+            de=de_scaled,
             long_threshold=params.get("long_threshold", 0.1),
             short_threshold=params.get("short_threshold", -0.1),
         )
@@ -160,8 +200,8 @@ def process_symbols_batch_rust(symbols_data, config, num_threads=None):
             lsma_len=params.get("lsma_len", 28),
             kama_len=params.get("kama_len", 28),
             robustness=params.get("robustness", "Medium"),
-            La=la_scaled,
-            De=de_scaled,
+            la=la_scaled,
+            de=de_scaled,
             long_threshold=params.get("long_threshold", 0.1),
             short_threshold=params.get("short_threshold", -0.1),
         )

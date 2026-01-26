@@ -18,12 +18,9 @@
  * dim3 block(1);   // one thread per symbol (can be >1 if you want intra-symbol parallelism)
  */
 
-#include <cuda_runtime.h>
-#include <cmath>
+#include "gpu_common.h"
 
-constexpr double F64_NAN = __longlong_as_double(0x7ff8000000000000ULL);
-
-extern "C" __global__
+extern "C" __global__ __launch_bounds__(1)
 void equity_kernel(
     const double* __restrict__ r_values,
     const double* __restrict__ sig_prev,
@@ -32,10 +29,17 @@ void equity_kernel(
     double decay_multiplier,
     int cutout,
     int total_bars,
-    const int*   __restrict__ offsets)          // added offsets for batched layout
+    const int*   __restrict__ offsets,          // added offsets for batched layout
+    int num_symbols)                            // explicit number of symbols
 {
     const int symbol_idx = blockIdx.x;          // one block per symbol
-    if (symbol_idx >= gridDim.x) return;
+    if (symbol_idx >= num_symbols) return;
+
+    // Sanity check: ensure starting_equity is finite
+    double safe_starting_equity = starting_equity;
+    if (!isfinite(safe_starting_equity)) {
+        safe_starting_equity = 1.0;
+    }
 
     const int start = offsets[symbol_idx];
     const double* __restrict__ r = r_values + start;
@@ -72,11 +76,11 @@ void equity_kernel(
             a = (s_i > 0.0) ? r_i : -r_i;
         }
 
-        double e_curr = (prev_e < 0.0) ? starting_equity
+        double e_curr = (prev_e < 0.0) ? safe_starting_equity
                                       : (prev_e * decay_multiplier) * (1.0 + a);
 
-        // floor at 0.25
-        if (e_curr < 0.25) e_curr = 0.25;
+        // floor at DEFAULT_EQUITY_FLOOR
+        if (e_curr < DEFAULT_EQUITY_FLOOR) e_curr = DEFAULT_EQUITY_FLOOR;
 
         e[i] = e_curr;
         prev_e = e_curr;

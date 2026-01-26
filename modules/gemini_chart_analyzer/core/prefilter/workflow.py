@@ -408,6 +408,7 @@ def run_prefilter_worker(
             volumes=volumes,
             strata_count=stage0_stratified_strata_count,
             top_percentage=stage0_hybrid_top_percentage,
+            data_fetcher=temp_data_fetcher,  # Pass data_fetcher for liquidity_weighted
         )
 
         log_success(f"[Pre-filter Stage 0] Sampled {len(sampled_symbols)} symbols for processing")

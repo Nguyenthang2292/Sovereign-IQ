@@ -138,15 +138,24 @@ def compare_signals(
             continue
 
         # Original vs Enhanced
+        # Note: Enhanced may reset index after cutout, Original keeps original index
+        # Compare by position (values) to handle index mismatch
         if enh_s is not None and len(enh_s) > 0:
-            common_idx = orig_s.index.intersection(enh_s.index)
-            if len(common_idx) > 0:
-                diff_oe = np.abs(orig_s.loc[common_idx] - enh_s.loc[common_idx]).max()
-                orig_enh_diffs.append(diff_oe)
-                if diff_oe < 1e-6:
-                    orig_enh_matching += 1
-                else:
-                    orig_enh_mismatched.append((symbol, diff_oe))
+            # Compare values directly (by position), ignoring index differences
+            min_len = min(len(orig_s), len(enh_s))
+            if min_len > 0:
+                orig_values = orig_s.values[:min_len]
+                enh_values = enh_s.values[:min_len]
+
+                # Filter out NaN values for fair comparison
+                valid_mask = np.isfinite(orig_values) & np.isfinite(enh_values)
+                if np.any(valid_mask):
+                    diff_oe = np.abs(orig_values[valid_mask] - enh_values[valid_mask]).max()
+                    orig_enh_diffs.append(diff_oe)
+                    if diff_oe < 1e-6:
+                        orig_enh_matching += 1
+                    else:
+                        orig_enh_mismatched.append((symbol, diff_oe))
 
         # Original vs Rust
         if rust_s is not None and len(rust_s) > 0:

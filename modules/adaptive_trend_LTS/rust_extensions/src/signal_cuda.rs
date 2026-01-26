@@ -4,6 +4,52 @@ use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods}
 use pyo3::prelude::*;
 use std::sync::{Arc, OnceLock};
 
+// Include gpu_common.h content for NVRTC compilation
+const GPU_COMMON_H: &str = include_str!("../../core/gpu_backend/gpu_common.h");
+
+// Helper function to inline gpu_common.h into CUDA source
+// For NVRTC, we need to strip out the sections guarded by #ifndef __NVRTC__
+fn inline_gpu_common(source: &str) -> String {
+    // Strip out the #ifndef __NVRTC__ sections from gpu_common.h
+    let nvrtc_safe_header = strip_nvrtc_guards(GPU_COMMON_H);
+    source.replace("#include \"gpu_common.h\"", &nvrtc_safe_header)
+}
+
+// Remove content between #ifndef __NVRTC__ and #endif
+fn strip_nvrtc_guards(content: &str) -> String {
+    let mut result = String::new();
+    let mut skip_depth = 0;
+    let mut in_nvrtc_guard = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        // Check if this is an #ifndef __NVRTC__ line
+        if trimmed.starts_with("#ifndef") && trimmed.contains("__NVRTC__") {
+            in_nvrtc_guard = true;
+            skip_depth += 1;
+            continue;
+        }
+
+        // Check for #endif when we're in an NVRTC guard
+        if in_nvrtc_guard && trimmed.starts_with("#endif") {
+            skip_depth -= 1;
+            if skip_depth == 0 {
+                in_nvrtc_guard = false;
+            }
+            continue;
+        }
+
+        // If we're not skipping, add the line
+        if skip_depth == 0 {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+
+    result
+}
+
 /// CUDA kernel source embedded at compile time
 const SIGNAL_KERNELS_SRC: &str = include_str!("../../core/gpu_backend/signal_kernels.cu");
 
@@ -18,8 +64,10 @@ static SIGNAL_CUDA_CACHE: OnceLock<Result<SignalCudaCache, String>> = OnceLock::
 fn get_signal_cache() -> Result<&'static SignalCudaCache, PyErr> {
     let cache = SIGNAL_CUDA_CACHE.get_or_init(|| {
         let ctx = CudaContext::new(0).map_err(|e| format!("CUDA init failed: {:?}", e))?;
+        // Inline gpu_common.h into source before compilation (NVRTC needs this)
+        let source = inline_gpu_common(SIGNAL_KERNELS_SRC);
         let ptx =
-            compile_ptx(SIGNAL_KERNELS_SRC).map_err(|e| format!("PTX compile failed: {:?}", e))?;
+            compile_ptx(&source).map_err(|e| format!("PTX compile failed: {:?}", e))?;
         let module = ctx
             .load_module(ptx)
             .map_err(|e| format!("Module load failed: {:?}", e))?;
@@ -266,12 +314,13 @@ pub fn calculate_and_classify_cuda<'py>(
         ))
     })?;
 
-    let block_size = 256u32;
-    let grid_size = ((n_bars as u32) + block_size - 1) / block_size;
+    let block_size = 128u32;
+    let grid_size = n_bars as u32;
+    let shared_mem_bytes = 2 * block_size * std::mem::size_of::<f64>() as u32;
     let cfg = LaunchConfig {
         grid_dim: (grid_size, 1, 1),
         block_dim: (block_size, 1, 1),
-        shared_mem_bytes: 0,
+        shared_mem_bytes,
     };
     unsafe {
         stream

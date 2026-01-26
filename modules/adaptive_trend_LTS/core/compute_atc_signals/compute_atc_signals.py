@@ -74,6 +74,8 @@ def compute_atc_signals(
     use_cache: bool = True,
     fast_mode: bool = True,
     use_cuda: bool = False,
+    use_approximate: bool = False,
+    approximate_threshold: float = 0.05,
 ) -> dict[str, pd.Series]:
     """Compute Adaptive Trend Classification (ATC) signals.
 
@@ -99,6 +101,8 @@ def compute_atc_signals(
         long_threshold: Threshold for LONG signals (default: 0.1).
         short_threshold: Threshold for SHORT signals (default: -0.1).
         strategy_mode: If True, shift signal by 1 bar (default: False).
+        use_approximate: If True, use fast approximate MAs (for scanning).
+        approximate_threshold: Maximum error tolerance for approximate MAs.
 
     Returns:
         Dictionary containing:
@@ -144,22 +148,40 @@ def compute_atc_signals(
     context_ma = nullcontext() if fast_mode else mem_manager.track_memory("set_of_moving_averages_all")
 
     with context_ma:
-        for ma_type, length, _ in ma_configs:
-            # use_rust_backend=True enables Rust backend
-            # set_of_moving_averages accepts use_rust parameter
-            ma_tuple = set_of_moving_averages(
-                length,
-                source=src,
-                ma_type=ma_type,
-                robustness=robustness,
-                use_cache=use_cache,
-                use_rust=use_rust_backend,
-                use_cuda=use_cuda,
+        if use_approximate:
+            # Use approximate MAs for fast scanning
+            from modules.adaptive_trend_LTS.core.compute_moving_averages.approximate_mas import (
+                fast_dema_approx,
+                fast_ema_approx,
+                fast_hma_approx,
+                fast_kama_approx,
+                fast_lsma_approx,
+                fast_wma_approx,
             )
-            if ma_tuple is None:
-                log_error(f"Cannot compute {ma_type} with length={length}")
-                raise ValueError(f"Cannot compute {ma_type} with length={length}")
-            ma_tuples[ma_type] = ma_tuple
+
+            ma_tuples["EMA"] = (fast_ema_approx(prices, ema_len), None, None)
+            ma_tuples["HMA"] = (fast_hma_approx(prices, hull_len), None, None)
+            ma_tuples["WMA"] = (fast_wma_approx(prices, wma_len), None, None)
+            ma_tuples["DEMA"] = (fast_dema_approx(prices, dema_len), None, None)
+            ma_tuples["LSMA"] = (fast_lsma_approx(prices, lsma_len), None, None)
+            ma_tuples["KAMA"] = (fast_kama_approx(prices, kama_len), None, None)
+        else:
+            for ma_type, length, _ in ma_configs:
+                # use_rust_backend=True enables Rust backend
+                # set_of_moving_averages accepts use_rust parameter
+                ma_tuple = set_of_moving_averages(
+                    length,
+                    source=src,
+                    ma_type=ma_type,
+                    robustness=robustness,
+                    use_cache=use_cache,
+                    use_rust=use_rust_backend,
+                    use_cuda=use_cuda,
+                )
+                if ma_tuple is None:
+                    log_error(f"Cannot compute {ma_type} with length={length}")
+                    raise ValueError(f"Cannot compute {ma_type} with length={length}")
+                ma_tuples[ma_type] = ma_tuple
     log_debug(f"Computed {len(ma_tuples)} MA types")
 
     # MAIN CALCULATIONS - Adaptability Layer 1

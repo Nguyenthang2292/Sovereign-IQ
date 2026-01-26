@@ -73,8 +73,8 @@ def test_process_single_symbol_dask_success(atc_config, sample_price_series):
     assert "signal" in result
     assert "trend" in result
     assert "price" in result
-    assert isinstance(result["signal"], (int, float))
-    assert isinstance(result["trend"], (int, float))
+    assert isinstance(result["signal"], (int, float, np.number))
+    assert isinstance(result["trend"], (int, float, np.number))
     assert result["price"] > 0
 
 
@@ -230,7 +230,7 @@ def test_progress_callback():
     assert callback.processed == 0
 
     for i in range(1, total + 1):
-        callback._posttask("task_key", None, {}, {})
+        callback._posttask("task_key", None, {}, {}, "dummy_id")
         assert callback.processed == i
 
 
@@ -243,7 +243,7 @@ def test_progress_callback_logs():
     assert callback.processed == 0
 
     for i in range(1, total + 1):
-        callback._posttask(f"task_{i}", None, {}, {})
+        callback._posttask(f"task_{i}", None, {}, {}, "dummy_id")
         if i % 10 == 0 or i == total:
             assert callback.last_logged == i
 

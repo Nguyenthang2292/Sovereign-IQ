@@ -2,23 +2,22 @@
  * Phase 4 - True Batch CUDA Processing: Batch Equity & Signal Kernels
  */
 
-#include <cstdio>
-#include <cmath>
-#include <cuda_runtime.h>
-
-constexpr double F64_NAN = __longlong_as_double(0x7ff8000000000000ULL);
+#include "gpu_common.h"
 
 // ---------------------------------------------------------------------------
 // DEBUG flag - set to 1 for verbose output, 0 for production builds
+// Production builds MUST have DEBUG_PERSIST = 0 for performance.
 // ---------------------------------------------------------------------------
 #ifndef DEBUG_PERSIST
 #define DEBUG_PERSIST 0
 #endif
 
-// ---------------------------------------------------------------------------
-// Helper: safe floating-point comparisons with epsilon tolerance
-// ---------------------------------------------------------------------------
-constexpr double EPSILON = 1e-10;
+// Production build guard: prevent accidental debug builds
+#ifdef NDEBUG
+#if DEBUG_PERSIST != 0
+#error "DEBUG_PERSIST must be 0 for release builds"
+#endif
+#endif
 
 __device__ __forceinline__ bool safe_le(double a, double b) {
     return (a < b) || (fabs(a - b) < EPSILON);
@@ -160,42 +159,41 @@ extern "C" __global__ void batch_signal_persistence_kernel(
 // BATCH ROC WITH GROWTH KERNEL
 // ============================================================================
 
+// batch_signal_kernels.cu
 extern "C" __global__ void batch_roc_with_growth_kernel(
     const double* __restrict__ all_prices,
     const int* __restrict__ offsets,
     const int* __restrict__ lengths,
     double* __restrict__ all_roc,
     double La,
-    int num_symbols
-) {
+    int num_symbols)
+{
     int symbol_idx = blockIdx.x;
     if (symbol_idx >= num_symbols) return;
+
 #if __CUDA_ARCH__ >= 600
     int start = __ldg(&offsets[symbol_idx]);
-    int n = __ldg(&lengths[symbol_idx]);
+    int n     = __ldg(&lengths[symbol_idx]);
 #else
     int start = offsets[symbol_idx];
-    int n = lengths[symbol_idx];
+    int n     = lengths[symbol_idx];
 #endif
-    
+
     const double* prices = all_prices + start;
-    double* roc = all_roc + start;
-    
+    double*       roc    = all_roc    + start;
+
+    double growth = 1.0;                     // exp(La*0)
+    const double growth_factor = exp(La);    // constant multiplier
+
     for (int i = threadIdx.x; i < n; i += blockDim.x) {
         if (i == 0) {
             roc[i] = 0.0;
         } else {
-#if __CUDA_ARCH__ >= 600
-            double p = __ldg(&prices[i]);
-            double p_prev = __ldg(&prices[i - 1]);
-#else
-            double p = prices[i];
-            double p_prev = prices[i - 1];
-#endif
-            double r = (p_prev != 0.0 && !isnan(p) && !isnan(p_prev)) ? (p - p_prev) / p_prev : 0.0;
-            
-            // Python: bars = i == 0 ? 1 : i
-            double growth = exp(La * (double)i);
+            double p      = __ldg(&prices[i]);
+            double p_prev = __ldg(&prices[i-1]);
+            double r = (p_prev != 0.0 && !isnan(p) && !isnan(p_prev))
+                       ? (p - p_prev) / p_prev : 0.0;
+            growth *= growth_factor;          // exp(La*i)
             roc[i] = r * growth;
         }
     }
@@ -250,7 +248,7 @@ extern "C" __global__ void batch_equity_kernel(
         
         double e_curr = (prev_e < 0.0) ? starting_equity : (prev_e * decay_multiplier) * (1.0 + a);
         
-        if (e_curr < 0.25) e_curr = 0.25;
+        if (e_curr < DEFAULT_EQUITY_FLOOR) e_curr = DEFAULT_EQUITY_FLOOR;
         
         equity[i] = e_curr;
         prev_e = e_curr;
@@ -285,7 +283,7 @@ extern "C" __global__ void batch_weighted_average_l1_kernel(
         double weighted_sum = 0.0;
         double weight_sum = 0.0;
         
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < L1_SIGNAL_COUNT; i++) {
 #if __CUDA_ARCH__ >= 600
             double s = __ldg(&all_signals[i * total_bars + idx]);
             double e = __ldg(&all_equities[i * total_bars + idx]);
@@ -346,7 +344,7 @@ extern "C" __global__ void batch_final_average_signal_kernel(
         double nom = 0.0;
         double den = 0.0;
 
-        for (int i = 0; i < 6; ++i) {
+        for (int i = 0; i < L2_EQUITY_COUNT; ++i) {
 #if __CUDA_ARCH__ >= 600
             const double s = __ldg(&all_l1_signals[i * total_bars + idx]);
             const double e = __ldg(&all_l2_equities[i * total_bars + idx]);

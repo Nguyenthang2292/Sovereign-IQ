@@ -9,6 +9,52 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::sync::{Arc, OnceLock};
 
+// Include gpu_common.h content for NVRTC compilation
+const GPU_COMMON_H: &str = include_str!("../../core/gpu_backend/gpu_common.h");
+
+// Helper function to inline gpu_common.h into CUDA source
+// For NVRTC, we need to strip out the sections guarded by #ifndef __NVRTC__
+fn inline_gpu_common(source: &str) -> String {
+    // Strip out the #ifndef __NVRTC__ sections from gpu_common.h
+    let nvrtc_safe_header = strip_nvrtc_guards(GPU_COMMON_H);
+    source.replace("#include \"gpu_common.h\"", &nvrtc_safe_header)
+}
+
+// Remove content between #ifndef __NVRTC__ and #endif
+fn strip_nvrtc_guards(content: &str) -> String {
+    let mut result = String::new();
+    let mut skip_depth = 0;
+    let mut in_nvrtc_guard = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        // Check if this is an #ifndef __NVRTC__ line
+        if trimmed.starts_with("#ifndef") && trimmed.contains("__NVRTC__") {
+            in_nvrtc_guard = true;
+            skip_depth += 1;
+            continue;
+        }
+
+        // Check for #endif when we're in an NVRTC guard
+        if in_nvrtc_guard && trimmed.starts_with("#endif") {
+            skip_depth -= 1;
+            if skip_depth == 0 {
+                in_nvrtc_guard = false;
+            }
+            continue;
+        }
+
+        // If we're not skipping, add the line
+        if skip_depth == 0 {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+
+    result
+}
+
 const BATCH_MA_KERNELS_SRC: &str = include_str!("../../core/gpu_backend/batch_ma_kernels.cu");
 const BATCH_SIGNAL_KERNELS_SRC: &str =
     include_str!("../../core/gpu_backend/batch_signal_kernels.cu");
@@ -27,10 +73,13 @@ fn get_batch_cuda_cache() -> Result<&'static BatchCudaCache, PyErr> {
 
         // Enable debug symbols for Nsight debugging
 
-        let ma_ptx = compile_ptx(BATCH_MA_KERNELS_SRC).map_err(|e| format!("{:?}", e))?;
+        // Inline gpu_common.h into source before compilation (NVRTC needs this)
+        let ma_source = inline_gpu_common(BATCH_MA_KERNELS_SRC);
+        let ma_ptx = compile_ptx(&ma_source).map_err(|e| format!("{:?}", e))?;
         let ma_module = ctx.load_module(ma_ptx).map_err(|e| format!("{:?}", e))?;
 
-        let signal_ptx = compile_ptx(BATCH_SIGNAL_KERNELS_SRC).map_err(|e| format!("{:?}", e))?;
+        let signal_source = inline_gpu_common(BATCH_SIGNAL_KERNELS_SRC);
+        let signal_ptx = compile_ptx(&signal_source).map_err(|e| format!("{:?}", e))?;
         let signal_module = ctx
             .load_module(signal_ptx)
             .map_err(|e| format!("{:?}", e))?;

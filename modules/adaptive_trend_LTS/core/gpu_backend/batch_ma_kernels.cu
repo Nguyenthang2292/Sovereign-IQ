@@ -4,15 +4,12 @@
  * Double-precision (`double`) is used throughout for numerical stability.
  */
 
-#include <cmath>
-#include <cuda_runtime.h>
-
-constexpr double F64_NAN = __longlong_as_double(0x7ff8000000000000ULL);
+#include "gpu_common.h"
 
 // ---------------------------------------------------------------------------
 // EMA - SMA init (sequential recurrence, one thread per symbol)
 // ---------------------------------------------------------------------------
-extern "C" __global__
+extern "C" __global__ __launch_bounds__(1)
 void batch_ema_kernel(
     const double* __restrict__ all_prices,
     const int*    __restrict__ offsets,
@@ -72,7 +69,7 @@ void batch_ema_kernel(
 // ---------------------------------------------------------------------------
 // EMA - simple init (starts from first valid price)
 // ---------------------------------------------------------------------------
-extern "C" __global__
+extern "C" __global__ __launch_bounds__(1)
 void batch_ema_simple_kernel(
     const double* __restrict__ all_prices,
     const int*    __restrict__ offsets,
@@ -170,6 +167,60 @@ void batch_wma_kernel(
     }
 }
 
+// batch_ma_kernels.cu (optional tiled WMA)
+extern "C" __global__
+void batch_wma_tiled_kernel(
+    const double* __restrict__ all_prices,
+    const int*    __restrict__ offsets,
+    const int*    __restrict__ lengths,
+    double* __restrict__ all_results,
+    int wma_length,
+    int num_symbols)
+{
+    const int sym = blockIdx.x;
+    if (sym >= num_symbols) return;
+
+#if __CUDA_ARCH__ >= 600
+    const int start = __ldg(&offsets[sym]);
+    const int n     = __ldg(&lengths[sym]);
+#else
+    const int start = offsets[sym];
+    const int n     = lengths[sym];
+#endif
+    const double* p  = all_prices + start;
+    double*       w  = all_results + start;
+
+    const int TILE = 256;                     // must be >= wma_length
+    extern __shared__ double sdata[];         // size = TILE + wma_length
+
+    for (int base = threadIdx.x; base < n; base += blockDim.x) {
+        // Load a tile that covers [base - wma_length + 1, base]
+        int first = base - wma_length + 1;
+        if (first < 0) first = 0;
+        int load_end = min(first + TILE + wma_length - 1, n);
+
+        // cooperative loading
+        for (int i = first + threadIdx.x; i < load_end; i += blockDim.x) {
+            sdata[i - first] = __ldg(&p[i]);
+        }
+        __syncthreads();
+
+        // Compute WMA for the current index if we have a full window
+        if (base >= wma_length - 1) {
+            bool ok = true;
+            double weighted_sum = 0.0;
+            for (int j = 0; j < wma_length; ++j) {
+                double val = sdata[base - first - j];
+                if (isnan(val)) { ok = false; break; }
+                weighted_sum += val * static_cast<double>(wma_length - j);
+            }
+            w[base] = ok ? weighted_sum / ((double)wma_length * (wma_length + 1) / 2.0)
+                         : F64_NAN;
+        }
+        __syncthreads();   // ensure next tile sees correct data
+    }
+}
+
 // ---------------------------------------------------------------------------
 // KAMA - two-pass (noise + smoothing)
 // ---------------------------------------------------------------------------
@@ -216,7 +267,7 @@ void batch_kama_noise_kernel(
     }
 }
 
-extern "C" __global__
+extern "C" __global__ __launch_bounds__(1)
 void batch_kama_smooth_kernel(
     const double* __restrict__ all_prices,
     const double* __restrict__ all_noise,

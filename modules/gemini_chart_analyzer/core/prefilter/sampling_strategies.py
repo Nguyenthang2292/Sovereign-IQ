@@ -253,36 +253,283 @@ def systematic_sampling(
     return sampled
 
 
+def _calculate_volatility_and_spread(
+    symbols: List[str],
+    data_fetcher,
+    timeframe: str = "1d",
+    lookback: int = 14,
+    use_rust: bool = True,
+) -> tuple[Dict[str, float], Dict[str, float]]:
+    """
+    Calculate volatility (ATR) and spread metrics for symbols.
+
+    Volatility is measured as Average True Range (ATR) normalized by price.
+    Spread is measured as (high - low) / close percentage.
+
+    Args:
+        symbols: List of symbols to calculate metrics for
+        data_fetcher: DataFetcher instance for fetching OHLCV data
+        timeframe: Timeframe for data (default: "1d" for daily)
+        lookback: Lookback period for ATR calculation (default: 14)
+        use_rust: Whether to use Rust backend for faster computation (default: True)
+
+    Returns:
+        Tuple of (volatility_dict, spread_dict) mapping symbol to metric value
+    """
+    import numpy as np
+    from modules.common.ui.logging import log_error
+
+    volatility = {}
+    spread = {}
+
+    # Try Rust implementation first if enabled
+    if use_rust:
+        try:
+            import atc_rust
+
+            # Batch fetch all OHLCV data
+            ohlcv_data = {}
+            for symbol in symbols:
+                try:
+                    df = data_fetcher.fetch_ohlcv_data(symbol, timeframe, limit=lookback * 2)
+                    if df is not None and len(df) >= lookback:
+                        ohlcv_data[symbol] = {
+                            "high": df["high"].values.astype(np.float64),
+                            "low": df["low"].values.astype(np.float64),
+                            "close": df["close"].values.astype(np.float64),
+                        }
+                except Exception:
+                    continue
+
+            if ohlcv_data:
+                # Call Rust batch function for volatility/spread calculation
+                results = atc_rust.compute_liquidity_metrics_batch(ohlcv_data, lookback)
+                volatility = results.get("volatility", {})
+                spread = results.get("spread", {})
+
+                from modules.common.ui.logging import log_success
+
+                log_success(
+                    f"[Rust] Calculated volatility/spread for {len(volatility)} symbols (ATR lookback: {lookback})"
+                )
+                return volatility, spread
+        except ImportError:
+            from modules.common.ui.logging import log_warn
+
+            log_warn("[Liquidity Metrics] Rust backend not available, using Python implementation")
+        except Exception as e:
+            log_error(f"[Liquidity Metrics] Rust calculation failed: {e}, falling back to Python")
+
+    # Python fallback implementation
+    from modules.common.ui.logging import log_info
+
+    log_info(f"[Python] Calculating volatility/spread for {len(symbols)} symbols...")
+
+    for symbol in symbols:
+        try:
+            # Fetch OHLCV data
+            df = data_fetcher.fetch_ohlcv_data(symbol, timeframe, limit=lookback * 2)
+            if df is None or len(df) < lookback:
+                continue
+
+            # Calculate True Range: max(high-low, abs(high-close_prev), abs(low-close_prev))
+            high = df["high"].values
+            low = df["low"].values
+            close = df["close"].values
+
+            # Shift close by 1 for previous close
+            close_prev = np.roll(close, 1)
+            close_prev[0] = np.nan
+
+            tr = np.maximum(
+                high - low, np.maximum(np.abs(high - close_prev), np.abs(low - close_prev))
+            )
+
+            # Calculate ATR (Average True Range) - simple moving average of TR
+            # Skip first NaN value from rolled array
+            atr = np.nanmean(tr[-lookback:])
+
+            # Normalize ATR by current price (ATR%)
+            current_price = close[-1]
+            volatility[symbol] = (atr / current_price * 100.0) if current_price > 0 else 0.0
+
+            # Calculate average spread percentage
+            spread_pct = ((high - low) / close * 100.0)[-lookback:]
+            spread[symbol] = float(np.nanmean(spread_pct))
+
+        except Exception as e:
+            log_error(f"[Liquidity Metrics] Error calculating metrics for {symbol}: {e}")
+            continue
+
+    from modules.common.ui.logging import log_success
+
+    log_success(
+        f"[Python] Calculated volatility/spread for {len(volatility)} symbols (ATR lookback: {lookback})"
+    )
+    return volatility, spread
+
+
 def liquidity_weighted_sampling(
     symbols: List[str],
     sample_percentage: float,
     volumes: Dict[str, float],
     volatility_data: Optional[Dict[str, float]] = None,
     spread_data: Optional[Dict[str, float]] = None,
+    data_fetcher=None,
+    calculate_metrics: bool = True,
+    volatility_weight: float = 0.4,
+    spread_weight: float = 0.2,
+    volume_weight: float = 0.4,
+    prefer_low_volatility: bool = False,
+    use_rust: bool = True,
 ) -> List[str]:
     """
     Liquidity-weighted sampling - combines volume, volatility, and spread.
 
-    More sophisticated than pure volume weighting. Can incorporate spread/volatility
-    for better liquidity assessment.
+    More sophisticated than pure volume weighting. Incorporates spread/volatility
+    for better liquidity assessment. High liquidity = high volume + low spread + moderate volatility.
+
+    Liquidity Score Formula:
+        score = volume_weight * norm(volume)
+              + spread_weight * (1 - norm(spread))    [lower spread = better liquidity]
+              + volatility_weight * volatility_term   [depends on prefer_low_volatility]
 
     Args:
         symbols: List of all symbols
         sample_percentage: Percentage to sample (0-100)
         volumes: Dictionary mapping symbol to volume
-        volatility_data: Optional volatility data (not implemented yet)
-        spread_data: Optional spread data (not implemented yet)
+        volatility_data: Optional volatility data (ATR%). If None and calculate_metrics=True, will calculate
+        spread_data: Optional spread data (%). If None and calculate_metrics=True, will calculate
+        data_fetcher: DataFetcher instance (required if calculate_metrics=True and data not provided)
+        calculate_metrics: Whether to calculate volatility/spread if not provided (default: True)
+        volatility_weight: Weight for volatility in liquidity score (default: 0.4)
+        spread_weight: Weight for spread in liquidity score (default: 0.2)
+        volume_weight: Weight for volume in liquidity score (default: 0.4)
+        prefer_low_volatility: If True, prefer low volatility (stable). If False, prefer moderate volatility
+                              (trading opportunity). Default: False
+        use_rust: Whether to use Rust backend for metric calculation (default: True)
 
     Returns:
         List of liquidity-weighted sampled symbols
     """
-    # For now, use volume as primary liquidity metric
-    # TODO: Incorporate volatility and spread when available
-    if volatility_data or spread_data:
-        log_info("[Liquidity-Weighted Sampling] Volatility/spread data provided but not yet implemented")
+    import numpy as np
 
-    # Fall back to volume-weighted for now
-    return volume_weighted_sampling(symbols, sample_percentage, volumes)
+    # If no volatility/spread data provided and calculate_metrics is enabled
+    if calculate_metrics and (volatility_data is None or spread_data is None):
+        if data_fetcher is None:
+            log_info(
+                "[Liquidity-Weighted Sampling] No data_fetcher provided, cannot calculate volatility/spread. "
+                "Falling back to volume-weighted sampling."
+            )
+            return volume_weighted_sampling(symbols, sample_percentage, volumes)
+
+        log_info("[Liquidity-Weighted Sampling] Calculating volatility and spread metrics...")
+        calc_volatility, calc_spread = _calculate_volatility_and_spread(
+            symbols, data_fetcher, timeframe="1d", lookback=14, use_rust=use_rust
+        )
+
+        # Use calculated data if original was None
+        if volatility_data is None:
+            volatility_data = calc_volatility
+        if spread_data is None:
+            spread_data = calc_spread
+
+    # If still no data available, fall back to volume-weighted
+    if not volatility_data and not spread_data:
+        log_info("[Liquidity-Weighted Sampling] No volatility/spread data available, falling back to volume-weighted")
+        return volume_weighted_sampling(symbols, sample_percentage, volumes)
+
+    sample_count = max(1, int(len(symbols) * sample_percentage / 100.0))
+
+    # Filter symbols with volume data
+    symbols_with_data = []
+    for s in symbols:
+        vol = volumes.get(s, 0.0)
+        if vol > 0:
+            symbols_with_data.append(s)
+
+    if not symbols_with_data:
+        log_info("[Liquidity-Weighted Sampling] No symbols with volume data, falling back to random")
+        return random_sampling(symbols, sample_percentage, volumes)
+
+    # Calculate liquidity scores
+    liquidity_scores = {}
+
+    # Get all metric values for normalization
+    vol_values = [volumes.get(s, 0.0) for s in symbols_with_data]
+    volatility_values = [volatility_data.get(s, 0.0) for s in symbols_with_data] if volatility_data else []
+    spread_values = [spread_data.get(s, 0.0) for s in symbols_with_data] if spread_data else []
+
+    # Normalize to 0-1 range (min-max normalization)
+    def normalize(values):
+        if not values or len(values) == 0:
+            return {}
+        min_val = min(values)
+        max_val = max(values)
+        if max_val == min_val:
+            return {symbols_with_data[i]: 0.5 for i in range(len(values))}
+        return {symbols_with_data[i]: (values[i] - min_val) / (max_val - min_val) for i in range(len(values))}
+
+    norm_volume = normalize(vol_values)
+    norm_volatility = normalize(volatility_values) if volatility_values else {}
+    norm_spread = normalize(spread_values) if spread_values else {}
+
+    # Calculate composite liquidity score
+    for s in symbols_with_data:
+        score = 0.0
+
+        # Volume component (higher is better)
+        score += volume_weight * norm_volume.get(s, 0.0)
+
+        # Spread component (lower is better, so invert)
+        if norm_spread:
+            score += spread_weight * (1.0 - norm_spread.get(s, 0.0))
+
+        # Volatility component (depends on preference)
+        if norm_volatility:
+            vol_norm = norm_volatility.get(s, 0.0)
+            if prefer_low_volatility:
+                # Prefer low volatility (stable assets)
+                score += volatility_weight * (1.0 - vol_norm)
+            else:
+                # Prefer moderate volatility (trading opportunity)
+                # Use inverted parabola: 1 - 4*(x - 0.5)^2, peaks at x=0.5
+                score += volatility_weight * (1.0 - 4.0 * (vol_norm - 0.5) ** 2)
+
+        liquidity_scores[s] = max(score, 0.001)  # Ensure positive scores
+
+    # Weighted random sampling based on liquidity scores
+    total_score = sum(liquidity_scores.values())
+    if total_score == 0:
+        log_info("[Liquidity-Weighted Sampling] All scores are zero, falling back to random")
+        return random_sampling(symbols, sample_percentage, volumes)
+
+    weights = [liquidity_scores[s] / total_score for s in symbols_with_data]
+
+    # Perform weighted sampling
+    sampled = random.choices(symbols_with_data, weights=weights, k=sample_count)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_sampled = []
+    for s in sampled:
+        if s not in seen:
+            seen.add(s)
+            unique_sampled.append(s)
+
+    # Calculate average metrics for sampled symbols
+    avg_volume = np.mean([volumes.get(s, 0) for s in unique_sampled]) if unique_sampled else 0
+    avg_volatility = (
+        np.mean([volatility_data.get(s, 0) for s in unique_sampled]) if volatility_data and unique_sampled else 0
+    )
+    avg_spread = np.mean([spread_data.get(s, 0) for s in unique_sampled]) if spread_data and unique_sampled else 0
+
+    log_info(
+        f"[Liquidity-Weighted Sampling] Selected {len(unique_sampled)} symbols "
+        f"(avg volume: {avg_volume:.2f}, avg volatility: {avg_volatility:.2f}%, avg spread: {avg_spread:.2f}%)"
+    )
+
+    return unique_sampled
 
 
 def apply_sampling_strategy(
@@ -301,6 +548,12 @@ def apply_sampling_strategy(
         strategy: Sampling strategy to use
         volumes: Optional volume data (required for non-random strategies)
         **kwargs: Additional strategy-specific parameters
+            - strata_count: For stratified sampling (default: 3)
+            - top_percentage: For top_n_hybrid sampling (default: 50.0)
+            - volatility_data: For liquidity_weighted sampling (optional)
+            - spread_data: For liquidity_weighted sampling (optional)
+            - data_fetcher: For liquidity_weighted sampling (required if calculating metrics)
+            - use_rust: For liquidity_weighted sampling (default: True)
 
     Returns:
         List of sampled symbols
@@ -341,7 +594,11 @@ def apply_sampling_strategy(
     elif strategy == SamplingStrategy.LIQUIDITY_WEIGHTED:
         volatility_data = kwargs.get("volatility_data")
         spread_data = kwargs.get("spread_data")
-        return liquidity_weighted_sampling(symbols, sample_percentage, volumes, volatility_data, spread_data)
+        data_fetcher = kwargs.get("data_fetcher")
+        use_rust = kwargs.get("use_rust", True)
+        return liquidity_weighted_sampling(
+            symbols, sample_percentage, volumes, volatility_data, spread_data, data_fetcher, use_rust=use_rust
+        )
     else:
         log_info(f"[Sampling] Unknown strategy '{strategy}', falling back to random")
         return random_sampling(symbols, sample_percentage, volumes)

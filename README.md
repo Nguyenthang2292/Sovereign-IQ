@@ -21,15 +21,17 @@ A comprehensive cryptocurrency trading analysis system combining Machine Learnin
     - HMM-Swings: Swing detection-based state classification
     - HMM-KAMA: KAMA-based HMM with ARM and K-Means clustering
     - True High-Order HMM: State space expansion with automatic order optimization using BIC
-- **Trading Strategies**:
-  - **Adaptive Trend Classification (ATC)**: Multi-layer trend analysis with 6 MA types and equity-based weighting
-  - **Range Oscillator**: Advanced oscillator-based signals with 8 strategies (mean reversion, momentum, divergence, etc.)
-  - **Simplified Percentile Clustering (SPC)**: Cluster-based market regime detection with 3 strategies
-  - **Decision Matrix**: Weighted voting system combining multiple indicators with accuracy-based weights
-  - **Pairs Trading**: Mean-reversion and momentum strategies with comprehensive quantitative metrics
-  - **Portfolio Management**: Risk calculation (VaR, Beta), correlation analysis, and hedge finding
-- **AI-Powered Analysis**: Google Gemini integration for intelligent chart interpretation and batch market scanning
-- **Web Interface**: Modern Vue.js + FastAPI applications for real-time visualization and analysis
+ - **Trading Strategies**:
+   - **Adaptive Trend Classification (ATC)**: Multi-layer trend analysis with 6 MA types and equity-based weighting
+   - **Adaptive Trend LTS (ATC-LTS)**: High-performance ATC with Rust/CUDA extensions and Dask out-of-core processing
+   - **Range Oscillator**: Advanced oscillator-based signals with 8 strategies (mean reversion, momentum, divergence, etc.)
+   - **Simplified Percentile Clustering (SPC)**: Cluster-based market regime detection with 3 strategies
+   - **Decision Matrix**: Weighted voting system combining multiple indicators with accuracy-based weights
+   - **Pairs Trading**: Mean-reversion and momentum strategies with comprehensive quantitative metrics
+   - **Portfolio Management**: Risk calculation (VaR, Beta), correlation analysis, and hedge finding
+ - **AI-Powered Analysis**: Google Gemini integration for intelligent chart interpretation and batch market scanning
+ - **Web Interface**: Modern Vue.js + FastAPI applications for real-time visualization and analysis
+ - **Dask Integration**: Out-of-core processing for unlimited datasets with Rust+Dask hybrid execution (80-90% memory reduction)
 
 ## 📁 Project Structure
 
@@ -69,13 +71,25 @@ crypto-probability/
 │   │       ├── risk/                      # Sharpe, drawdown, Calmar
 │   │       └── classification/            # Prediction metrics
 │   │
-│   ├── adaptive_trend/                      # Adaptive Trend Classification (ATC)
-│   │   ├── analyzer.py                     # Main ATC analyzer
-│   │   ├── scanner.py                      # Multi-symbol scanner
-│   │   ├── compute_atc_signals.py         # Signal calculation
-│   │   ├── compute_equity.py              # Equity curve calculation
-│   │   └── signal_detection.py            # Signal detection logic
-│   │
+ │   ├── adaptive_trend/                      # Adaptive Trend Classification (ATC)
+ │   │   ├── analyzer.py                     # Main ATC analyzer
+ │   │   ├── scanner.py                      # Multi-symbol scanner
+ │   │   ├── compute_atc_signals.py         # Signal calculation
+ │   │   ├── compute_equity.py              # Equity curve calculation
+ │   │   └── signal_detection.py            # Signal detection logic
+ │   │
+ │   ├── adaptive_trend_LTS/                 # Adaptive Trend LTS (ATC-LTS)
+ │   │   ├── core/                          # Core components
+ │   │   │   ├── compute_atc_signals/       # Signal computation with Rust/CUDA
+ │   │   │   ├── scanner/                   # Dask-enabled scanner
+ │   │   │   ├── backtesting/               # Dask backtesting
+ │   │   │   ├── gpu_backend/              # CUDA kernels
+ │   │   │   └── utils/                    # Utilities & config
+ │   │   ├── rust_extensions/               # Rust extensions (PyO3)
+ │   │   ├── docs/                          # Documentation
+ │   │   │   └── dask_usage_guide.md        # Dask integration guide
+ │   │   └── benchmarks/                   # Performance benchmarks
+ │   │
 │   ├── range_oscillator/                    # Range Oscillator Strategies
 │   │   ├── oscillator_analyzer.py         # Main oscillator analyzer
 │   │   └── strategies/                    # 8 strategy implementations

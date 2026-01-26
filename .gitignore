@@ -68,3 +68,6 @@ modules/gemini_chart_analyzer/analysis_results/
 # Node.js dependencies
 web/static/vue/node_modules/
 node_modules/
+
+# Agent files
+.agent/

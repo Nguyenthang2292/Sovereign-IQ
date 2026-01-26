@@ -33,10 +33,18 @@ except ImportError:
 
 
 def _process_partition_with_rust_cpu(
-    partition_data: Dict[str, np.ndarray],
+    partition_data: Dict[str, np.ndarray | pd.Series],
     config: dict,
 ) -> Dict[str, Dict[str, pd.Series]]:
-    """Process a partition using Rust batch processing (CPU)."""
+    """Process a partition using Rust batch processing (CPU).
+
+    Args:
+        partition_data: Dictionary mapping symbol to price data (Series or ndarray)
+        config: ATC configuration parameters
+
+    Returns:
+        Dictionary mapping symbol to result dict with Average_Signal Series
+    """
     if not HAS_RUST:
         return _process_partition_python(partition_data, config)
 
@@ -68,15 +76,23 @@ def _process_partition_with_rust_cpu(
             lsma_len=params.get("lsma_len", 28),
             kama_len=params.get("kama_len", 28),
             robustness=params.get("robustness", "Medium"),
-            La=la_scaled,
-            De=de_scaled,
+            la=la_scaled,
+            de=de_scaled,
             long_threshold=params.get("long_threshold", 0.1),
             short_threshold=params.get("short_threshold", -0.1),
         )
 
         results = {}
         for symbol, signal_array in batch_results.items():
-            results[symbol] = {"Average_Signal": pd.Series(signal_array)}
+            # CRITICAL FIX: Preserve original pandas index from input data
+            # This ensures downstream comparisons work correctly by index alignment
+            orig_data = partition_data.get(symbol)
+            if orig_data is not None and hasattr(orig_data, "index"):
+                # Restore original index from pandas Series
+                results[symbol] = {"Average_Signal": pd.Series(signal_array, index=orig_data.index)}
+            else:
+                # Fallback: create Series with default index
+                results[symbol] = {"Average_Signal": pd.Series(signal_array)}
 
         gc.collect()
         return results
@@ -87,10 +103,18 @@ def _process_partition_with_rust_cpu(
 
 
 def _process_partition_with_rust_cuda(
-    partition_data: Dict[str, np.ndarray],
+    partition_data: Dict[str, np.ndarray | pd.Series],
     config: dict,
 ) -> Dict[str, Dict[str, pd.Series]]:
-    """Process a partition using Rust batch processing (CUDA)."""
+    """Process a partition using Rust batch processing (CUDA).
+
+    Args:
+        partition_data: Dictionary mapping symbol to price data (Series or ndarray)
+        config: ATC configuration parameters
+
+    Returns:
+        Dictionary mapping symbol to result dict with Average_Signal Series
+    """
     if not HAS_RUST:
         return _process_partition_python(partition_data, config)
 
@@ -122,15 +146,23 @@ def _process_partition_with_rust_cuda(
             lsma_len=params.get("lsma_len", 28),
             kama_len=params.get("kama_len", 28),
             robustness=params.get("robustness", "Medium"),
-            La=la_scaled,
-            De=de_scaled,
+            la=la_scaled,
+            de=de_scaled,
             long_threshold=params.get("long_threshold", 0.1),
             short_threshold=params.get("short_threshold", -0.1),
         )
 
         results = {}
         for symbol, signal_array in batch_results.items():
-            results[symbol] = {"Average_Signal": pd.Series(signal_array)}
+            # CRITICAL FIX: Preserve original pandas index from input data
+            # This ensures downstream comparisons work correctly by index alignment
+            orig_data = partition_data.get(symbol)
+            if orig_data is not None and hasattr(orig_data, "index"):
+                # Restore original index from pandas Series
+                results[symbol] = {"Average_Signal": pd.Series(signal_array, index=orig_data.index)}
+            else:
+                # Fallback: create Series with default index
+                results[symbol] = {"Average_Signal": pd.Series(signal_array)}
 
         gc.collect()
         return results
@@ -141,12 +173,31 @@ def _process_partition_with_rust_cuda(
 
 
 def _process_partition_python(
-    partition_data: Dict[str, np.ndarray],
+    partition_data: Dict[str, np.ndarray | pd.Series],
     config: dict,
 ) -> Dict[str, Dict[str, pd.Series]]:
-    """Process a partition using Python backend (fallback)."""
+    """Process a partition using Python backend (fallback).
+
+    Args:
+        partition_data: Dictionary mapping symbol to price data (Series or ndarray)
+        config: ATC configuration parameters
+
+    Returns:
+        Dictionary mapping symbol to result dict with Average_Signal Series
+    """
     try:
         from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
+
+        # Filter out parameters that adaptive_trend_enhance doesn't accept
+        python_config = {
+            k: v
+            for k, v in config.items()
+            if k
+            not in (
+                "use_rust_backend",
+                "use_cuda",
+            )  # These are LTS-specific, not in enhance module
+        }
 
         results = {}
         for symbol, prices in partition_data.items():
@@ -154,15 +205,24 @@ def _process_partition_python(
                 if prices is None or (isinstance(prices, pd.Series) and prices.empty):
                     continue
 
-                if isinstance(prices, np.ndarray):
+                # Preserve original index if available
+                orig_index = None
+                if isinstance(prices, pd.Series):
+                    orig_index = prices.index
+                    prices_series = prices
+                elif isinstance(prices, np.ndarray):
                     prices_series = pd.Series(prices)
                 else:
                     prices_series = prices
 
-                result = compute_atc_signals(prices=prices_series, **config)
+                result = compute_atc_signals(prices=prices_series, **python_config)
 
                 if result:
-                    results[symbol] = {"Average_Signal": result.get("Average_Signal", pd.Series())}
+                    avg_signal = result.get("Average_Signal", pd.Series())
+                    # CRITICAL FIX: Preserve original pandas index from input data
+                    if orig_index is not None and len(avg_signal) == len(orig_index):
+                        avg_signal = pd.Series(avg_signal.values, index=orig_index)
+                    results[symbol] = {"Average_Signal": avg_signal}
             except Exception as e:
                 log_error(f"Error processing {symbol} in Python fallback: {e}")
 

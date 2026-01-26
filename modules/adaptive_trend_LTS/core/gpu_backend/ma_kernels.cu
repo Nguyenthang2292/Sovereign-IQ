@@ -9,10 +9,7 @@
  * All kernels use double precision (f64) for numerical accuracy.
  */
 
-#include <cmath>
-#include <cuda_runtime.h>
-
-constexpr double F64_NAN = __longlong_as_double(0x7ff8000000000000ULL);
+#include "gpu_common.h"
 
 // ============================================================================
 // EMA Kernel
@@ -27,14 +24,14 @@ constexpr double F64_NAN = __longlong_as_double(0x7ff8000000000000ULL);
  * 
  * Launch: block=(1,1,1), grid=(1,1) - single thread sequential
  */
-extern "C" __global__ void ema_kernel(
+extern "C" __global__ __launch_bounds__(1) void ema_kernel(
     const double* __restrict__ prices,
     double* __restrict__ ema,
     int length,
     int n
 ) {
     // Grid-stride loop (though this specific logic is sequential per curve)
-    for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx == 0; idx += blockDim.x * gridDim.x) {
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
         int start_idx = 0;
         while (start_idx < n && isnan(prices[start_idx])) {
             start_idx++;
@@ -81,7 +78,7 @@ extern "C" __global__ void kama_noise_kernel(
             noise[i] = F64_NAN;
         } else {
             double sum = 0.0;
-            int start_idx = (i - length + 1) >1 ? (i - length + 1) : 1;
+            int start_idx = (i - length + 1) > 1 ? (i - length + 1) : 1;
             #pragma unroll 4
             for (int j = start_idx; j <= i; j++) {
 #if __CUDA_ARCH__ >= 600
@@ -92,19 +89,17 @@ extern "C" __global__ void kama_noise_kernel(
             }
             noise[i] = sum;
         }
-            noise[i] = sum;
-        }
     }
 }
 
-extern "C" __global__ void kama_smooth_kernel(
+extern "C" __global__ __launch_bounds__(1) void kama_smooth_kernel(
     const double* __restrict__ prices,
     const double* __restrict__ noise,
     double* __restrict__ kama,
     int length,
     int n
 ) {
-    for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx == 0; idx += blockDim.x * gridDim.x) {
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
         const double fast = 0.666;
         const double slow = 0.064;
         
@@ -148,6 +143,8 @@ extern "C" __global__ void wma_kernel(
     // Max window length we support in shared memory tile can be limited, but let's try simple tiling.
     // However, since window size 'length' can be large, we'll use a safer approach.
     
+    const double denominator = static_cast<double>(length) * (length + 1) / 2.0;
+    
     for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; i += blockDim.x * gridDim.x) {
         if (i < length - 1) {
             wma[i] = F64_NAN;
@@ -155,17 +152,13 @@ extern "C" __global__ void wma_kernel(
             double weighted_sum = 0.0;
             #pragma unroll 4
             for (int j = 0; j < length; j++) {
-                double weight = (double)(length - j);
+                double weight = static_cast<double>(length - j);
 #if __CUDA_ARCH__ >= 600
                 weighted_sum += __ldg(&prices[i - j]) * weight;
 #else
                 weighted_sum += prices[i - j] * weight;
 #endif
             }
-            double denominator = (double)(length * (length +1)) / 2.0;
-            wma[i] = weighted_sum / denominator;
-        }
-            double denominator = (double)(length * (length + 1)) / 2.0;
             wma[i] = weighted_sum / denominator;
         }
     }
@@ -177,25 +170,24 @@ extern "C" __global__ void sma_kernel(
     int length,
     int n
 ) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= n) return;
+    for (int idx = blockIdx.x * blockDim.x + threadIdx.x;
+         idx < n;
+         idx += blockDim.x * gridDim.x) {
 
-    if (idx < length - 1) {
-        sma[idx] = F64_NAN;
-    } else {
-        double sum = 0.0;
-        // Basic optimization: unroll small loops if length is known at compile time,
-        // but here length is dynamic. However, compiler can still optimize loop body.
-        for (int j = 0; j < length; j++) {
+        if (idx < length - 1) {
+            sma[idx] = F64_NAN;
+        } else {
+            double sum = 0.0;
+            #pragma unroll 4
+            for (int j = 0; j < length; ++j) {
 #if __CUDA_ARCH__ >= 600
-            sum += __ldg(&prices[idx - j]);
+                sum += __ldg(&prices[idx - j]);
 #else
-            sum += prices[idx - j];
+                sum += prices[idx - j];
 #endif
+            }
+            sma[idx] = sum / static_cast<double>(length);
         }
-        sma[idx] = sum / (double)length;
-    }
-        sma[idx] = sum / (double)length;
     }
 }
 

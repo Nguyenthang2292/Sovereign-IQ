@@ -166,7 +166,8 @@ fn process_single_symbol(
     }
 
     // Final Average Signal
-    // Average_Signal = Sum(L1_sig_i * L2_eq_i * weight_i) / Sum(L2_eq_i * weight_i)
+    // IMPORTANT: Must discretize FIRST, then weight (to match Python implementation)
+    // Average_Signal = Sum(discretize(L1_sig_i) * L2_eq_i * weight_i) / Sum(L2_eq_i * weight_i)
     let weights = [ema_w, hma_w, wma_w, dema_w, lsma_w, kama_w];
 
     let mut final_sig_num = Array1::<f64>::zeros(n);
@@ -179,7 +180,17 @@ fn process_single_symbol(
 
         for j in 0..n {
             if !s[j].is_nan() && !e[j].is_nan() {
-                final_sig_num[j] += s[j] * e[j] * w;
+                // Discretize the Layer 1 signal FIRST
+                let s_discrete = if s[j] > long_threshold {
+                    1.0
+                } else if s[j] < short_threshold {
+                    -1.0
+                } else {
+                    0.0
+                };
+
+                // Then weight the discretized signal
+                final_sig_num[j] += s_discrete * e[j] * w;
                 final_sig_den[j] += e[j] * w;
             }
         }
@@ -188,15 +199,8 @@ fn process_single_symbol(
     let mut average_signal = Array1::<f64>::from_elem(n, f64::NAN);
     for j in cutout..n {
         if final_sig_den[j] > 1e-9 {
-            let raw = final_sig_num[j] / final_sig_den[j];
-            // Classify
-            if raw > long_threshold {
-                average_signal[j] = 1.0;
-            } else if raw < short_threshold {
-                average_signal[j] = -1.0;
-            } else {
-                average_signal[j] = 0.0;
-            }
+            // The final result is already a weighted average of discretized signals
+            average_signal[j] = final_sig_num[j] / final_sig_den[j];
         } else {
             // Default neutral if no data
             average_signal[j] = 0.0;

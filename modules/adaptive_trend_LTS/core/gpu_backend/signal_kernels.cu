@@ -4,10 +4,7 @@
  * cooperate to reduce the per-MA contributions.
  */
 
-#include <cmath>
-#include <cuda_runtime.h>
-
-constexpr double F64_NAN = __longlong_as_double(0x7ff8000000000000ULL);
+#include "gpu_common.h"
 
 // ---------------------------------------------------------------------------
 // Helper: discretize a raw signal value
@@ -21,6 +18,19 @@ __device__ __forceinline__ double discretize_signal(double s, double long_thr, d
 
 // ---------------------------------------------------------------------------
 // Main kernel – weighted average + trend classification
+//
+// Launch configuration (REQUIRED):
+//   dim3 grid(n_bars);                    // One block per bar
+//   dim3 block(128);                      // 128 threads per block (must be power-of-2)
+//   size_t shmem = 2 * block.x * sizeof(double);  // Shared memory for reduction
+//
+// Note: blockDim.x should be a power-of-2 (e.g., 32, 64, 128, 256) for optimal
+//       reduction performance. The kernel handles non-power-of-2 sizes but may be slower.
+//
+// Example:
+//   weighted_average_and_classify_kernel<<<grid, block, shmem>>>(
+//       d_signals, d_equities, d_avg, d_trend,
+//       n_mas, n_bars, cutout, long_thr, short_thr);
 // ---------------------------------------------------------------------------
 extern "C" __global__
 void weighted_average_and_classify_kernel(
@@ -35,7 +45,7 @@ void weighted_average_and_classify_kernel(
     double short_threshold
 ) {
     // 1. Thread / block indexing
-    const int bar_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const int bar_idx = blockIdx.x;
     if (bar_idx >= n_bars) return;
 
     // 2. Warm-up (cutout) handling
@@ -49,6 +59,7 @@ void weighted_average_and_classify_kernel(
     double num_part = 0.0;
     double den_part = 0.0;
 
+    // Note: No #pragma unroll here - n_mas can be large, unrolling would explode code size
     for (int ma = threadIdx.x; ma < n_mas; ma += blockDim.x) {
         const int idx = ma * n_bars + bar_idx;   // row-major lookup
 
