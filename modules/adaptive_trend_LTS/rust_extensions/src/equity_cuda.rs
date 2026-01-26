@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
-use numpy::{PyArray1, PyArrayMethods, PyReadonlyArray1};
 use cudarc::driver::{CudaContext, CudaModule, LaunchConfig, PushKernelArg};
 use cudarc::nvrtc::compile_ptx;
+use numpy::{PyArray1, PyReadonlyArray1};
+use pyo3::prelude::*;
 use std::sync::{Arc, OnceLock};
 
 /// CUDA kernel source embedded at compile time for performance.
@@ -18,14 +18,17 @@ static EQUITY_CUDA_CACHE: OnceLock<Result<EquityCudaCache, String>> = OnceLock::
 fn get_equity_cache() -> Result<&'static EquityCudaCache, PyErr> {
     let cache = EQUITY_CUDA_CACHE.get_or_init(|| {
         let ctx = CudaContext::new(0).map_err(|e| format!("CUDA init failed: {:?}", e))?;
-        let ptx = compile_ptx(EQUITY_KERNEL_SRC).map_err(|e| format!("PTX compile failed: {:?}", e))?;
-        let module = ctx.load_module(ptx).map_err(|e| format!("Module load failed: {:?}", e))?;
+        let ptx =
+            compile_ptx(EQUITY_KERNEL_SRC).map_err(|e| format!("PTX compile failed: {:?}", e))?;
+        let module = ctx
+            .load_module(ptx)
+            .map_err(|e| format!("Module load failed: {:?}", e))?;
         Ok(EquityCudaCache { ctx, module })
     });
-    
-    cache.as_ref().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.clone())
-    })
+
+    cache
+        .as_ref()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.clone()))
 }
 
 /// Calculate equity values on GPU using a cached CUDA kernel.
@@ -56,20 +59,30 @@ pub fn calculate_equity_cuda<'py>(
         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("r_values not contiguous: {:?}", e))
     })?;
     let sig_data = sig_prev_values.as_slice().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("sig_prev_values not contiguous: {:?}", e))
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "sig_prev_values not contiguous: {:?}",
+            e
+        ))
     })?;
 
     let r_dev = stream.clone_htod(r_data).map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("H2D r_values failed: {:?}", e))
     })?;
     let sig_dev = stream.clone_htod(sig_data).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("H2D sig_prev_values failed: {:?}", e))
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "H2D sig_prev_values failed: {:?}",
+            e
+        ))
     })?;
     let mut eq_dev = stream.alloc_zeros::<f64>(n).map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Device alloc failed: {:?}", e))
     })?;
 
-    let cfg = LaunchConfig { grid_dim: (1, 1, 1), block_dim: (1, 1, 1), shared_mem_bytes: 0 };
+    let cfg = LaunchConfig {
+        grid_dim: (1, 1, 1),
+        block_dim: (1, 1, 1),
+        shared_mem_bytes: 0,
+    };
 
     unsafe {
         stream
@@ -82,7 +95,12 @@ pub fn calculate_equity_cuda<'py>(
             .arg(&(cutout as i32))
             .arg(&(n as i32))
             .launch(cfg)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Kernel launch failed: {:?}", e)))?;
+            .map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "Kernel launch failed: {:?}",
+                    e
+                ))
+            })?;
     }
 
     let mut eq_host = vec![0.0; n];

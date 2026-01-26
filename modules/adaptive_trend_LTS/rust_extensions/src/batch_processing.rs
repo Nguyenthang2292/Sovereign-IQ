@@ -26,14 +26,11 @@ fn get_batch_cuda_cache() -> Result<&'static BatchCudaCache, PyErr> {
         let ctx = CudaContext::new(0).map_err(|e| format!("{:?}", e))?;
 
         // Enable debug symbols for Nsight debugging
-        
 
-        let ma_ptx = compile_ptx(BATCH_MA_KERNELS_SRC)
-            .map_err(|e| format!("{:?}", e))?;
+        let ma_ptx = compile_ptx(BATCH_MA_KERNELS_SRC).map_err(|e| format!("{:?}", e))?;
         let ma_module = ctx.load_module(ma_ptx).map_err(|e| format!("{:?}", e))?;
 
-        let signal_ptx = compile_ptx(BATCH_SIGNAL_KERNELS_SRC)
-            .map_err(|e| format!("{:?}", e))?;
+        let signal_ptx = compile_ptx(BATCH_SIGNAL_KERNELS_SRC).map_err(|e| format!("{:?}", e))?;
         let signal_module = ctx
             .load_module(signal_ptx)
             .map_err(|e| format!("{:?}", e))?;
@@ -374,8 +371,8 @@ fn compute_l1_sig_dev(
     ma_type: &str,
     length: usize,
     robustness: &str,
-    _La: f64,
-    De: f64,
+    _la: f64,
+    de: f64,
     num_symbols: usize,
     total_bars: usize,
 ) -> Result<CudaSlice<f64>, String> {
@@ -450,7 +447,7 @@ fn compute_l1_sig_dev(
                 .arg(lengths_dev)
                 .arg(&mut eq)
                 .arg(&1.0)
-                .arg(&(1.0 - De))
+                .arg(&(1.0 - de))
                 .arg(&0)
                 .arg(&(num_symbols as i32))
                 .launch(LaunchConfig {
@@ -505,7 +502,7 @@ fn compute_l1_sig_dev(
 }
 
 #[pyfunction]
-#[pyo3(signature = (symbols_data, ema_len=28, hull_len=28, wma_len=28, dema_len=28, lsma_len=28, kama_len=28, ema_w=1.0, hma_w=1.0, wma_w=1.0, dema_w=1.0, lsma_w=1.0, kama_w=1.0, robustness="Medium", La=0.02, De=0.03, cutout=0, long_threshold=0.1, short_threshold=-0.1, _strategy_mode=false))]
+#[pyo3(signature = (symbols_data, ema_len=28, hull_len=28, wma_len=28, dema_len=28, lsma_len=28, kama_len=28, ema_w=1.0, hma_w=1.0, wma_w=1.0, dema_w=1.0, lsma_w=1.0, kama_w=1.0, robustness="Medium", la=0.02, de=0.03, cutout=0, long_threshold=0.1, short_threshold=-0.1, _strategy_mode=false))]
 pub fn compute_atc_signals_batch<'py>(
     py: Python<'py>,
     symbols_data: &Bound<'py, PyDict>,
@@ -522,8 +519,8 @@ pub fn compute_atc_signals_batch<'py>(
     lsma_w: f64,
     kama_w: f64,
     robustness: &str,
-    La: f64,
-    De: f64,
+    la: f64,
+    de: f64,
     cutout: i32,
     long_threshold: f64,
     short_threshold: f64,
@@ -550,7 +547,7 @@ pub fn compute_atc_signals_batch<'py>(
             .arg(&off_dev)
             .arg(&len_dev)
             .arg(&mut roc_dev)
-            .arg(&La)
+            .arg(&la)
             .arg(&(batch.num_symbols as i32))
             .launch(LaunchConfig {
                 grid_dim: (batch.num_symbols as u32, 1, 1),
@@ -585,8 +582,8 @@ pub fn compute_atc_signals_batch<'py>(
             types[i],
             lens[i],
             robustness,
-            La,
-            De,
+            la,
+            de,
             batch.num_symbols,
             total_bars,
         )
@@ -618,7 +615,7 @@ pub fn compute_atc_signals_batch<'py>(
                 .arg(&len_dev)
                 .arg(&mut eq)
                 .arg(&weights[i])
-                .arg(&(1.0 - De))
+                .arg(&(1.0 - de))
                 .arg(&0)
                 .arg(&(batch.num_symbols as i32))
                 .launch(LaunchConfig {
@@ -690,4 +687,3 @@ pub fn compute_atc_signals_batch<'py>(
     }
     Ok(res)
 }
-

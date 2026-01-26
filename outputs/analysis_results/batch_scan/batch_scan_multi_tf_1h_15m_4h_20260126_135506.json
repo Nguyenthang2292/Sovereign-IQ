@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-01-26T13:55:06.991029",
+  "timeframe": "1h",
+  "timeframes": [
+    "1h",
+    "15m",
+    "4h"
+  ],
+  "summary": {
+    "total_symbols": 3,
+    "scanned_symbols": 3,
+    "long_count": 1,
+    "short_count": 1,
+    "none_count": 1,
+    "long_percentage": 33.33333333333333,
+    "short_percentage": 33.33333333333333,
+    "avg_long_confidence": 0.87,
+    "avg_short_confidence": 0.77
+  },
+  "long_symbols": [
+    "NOM/USDT"
+  ],
+  "short_symbols": [
+    "SUSHI/USDT"
+  ],
+  "long_symbols_with_confidence": [
+    [
+      "NOM/USDT",
+      0.87
+    ]
+  ],
+  "short_symbols_with_confidence": [
+    [
+      "SUSHI/USDT",
+      0.77
+    ]
+  ],
+  "all_results": {
+    "NOM/USDT": {
+      "signal": "LONG",
+      "confidence": 0.87
+    },
+    "SUN/USDT": {
+      "signal": "NONE",
+      "confidence": 0.59
+    },
+    "SUSHI/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.77
+    }
+  }
+}

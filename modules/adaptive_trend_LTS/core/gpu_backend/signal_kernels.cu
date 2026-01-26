@@ -1,123 +1,138 @@
 /**
- * Phase 4 - Task 2.1.2C: CUDA kernels for Signal Classification.
- *
- * Implements:
- * - Weighted Average Signal: Parallel reduction for sum(signal * equity) / sum(equity)
- * - Trend Classification: Threshold-based classification (long/short/neutral)
- *
- * All kernels use double precision (f64) for numerical accuracy.
+ * Weighted-average signal + trend classification.
+ * One block processes a *single* time-bar (bar_idx).  All threads in the block
+ * cooperate to reduce the per-MA contributions.
  */
 
-#define F64_NAN __longlong_as_double(0x7ff8000000000000LL)
+#include <cmath>
+#include <cuda_runtime.h>
 
-// ============================================================================
-// Weighted Average Signal Kernel
-// ============================================================================
+constexpr double F64_NAN = __longlong_as_double(0x7ff8000000000000ULL);
 
-/**
- * Calculate weighted average signal using parallel reduction.
- * 
- * Algorithm:
- * 1. Discretize signals: S > long_threshold → 1.0, S < short_threshold → -1.0, else → 0.0
- * 2. Calculate: sum(signal_discrete * equity) / sum(equity)
- * 
- * This kernel processes one bar (time index) at a time across multiple MA components.
- * Launch: block=(256,1,1), grid=((n_bars+255)/256, 1, 1)
- * 
- * Inputs:
- *   - signals: 2D array [n_mas x n_bars] of Layer 1 signals
- *   - equities: 2D array [n_mas x n_bars] of Layer 2 equity curves
- *   - n_mas: Number of MA components
- *   - n_bars: Number of time bars
- *   - long_threshold: Threshold for LONG classification
- *   - short_threshold: Threshold for SHORT classification
- * 
- * Output:
- *   - avg_signal: 1D array [n_bars] of weighted average signals
- */
-extern "C" __global__ void weighted_average_signal_kernel(
-    const double* __restrict__ signals,      // [n_mas x n_bars] flattened
-    const double* __restrict__ equities,     // [n_mas x n_bars] flattened
-    double* __restrict__ avg_signal,         // [n_bars]
+// ---------------------------------------------------------------------------
+// Helper: discretize a raw signal value
+// ---------------------------------------------------------------------------
+__device__ __forceinline__ double discretize_signal(double s, double long_thr, double short_thr) {
+    if (isnan(s)) return 0.0;
+    if (s > long_thr)  return 1.0;
+    if (s < short_thr) return -1.0;
+    return 0.0;
+}
+
+// ---------------------------------------------------------------------------
+// Main kernel – weighted average + trend classification
+// ---------------------------------------------------------------------------
+extern "C" __global__
+void weighted_average_and_classify_kernel(
+    const double* __restrict__ signals,   // [n_mas * n_bars] row-major
+    const double* __restrict__ equities,  // same layout
+    double*       __restrict__ avg_signal, // [n_bars]
+    int*          __restrict__ trends,     // [n_bars]
     int n_mas,
     int n_bars,
     int cutout,
     double long_threshold,
     double short_threshold
 ) {
-    for (int bar_idx = blockIdx.x * blockDim.x + threadIdx.x; bar_idx < n_bars; bar_idx += blockDim.x * gridDim.x) {
-        if (bar_idx < cutout) {
-            avg_signal[bar_idx] = 0.0;
-            continue;
-        }
-        double numerator = 0.0;
-        double denominator = 0.0;
-        
-        // Accumulate across all MA components for this bar
-        #pragma unroll 4
-        for (int ma_idx = 0; ma_idx < n_mas; ma_idx++) {
-            int idx = ma_idx * n_bars + bar_idx;  // Row-major indexing
-            
-            double signal = signals[idx];
-            double equity = equities[idx];
-            
-            // Discretize signal
-            double signal_discrete = 0.0;
-            if (!isnan(signal)) {
-                if (signal > long_threshold) signal_discrete = 1.0;
-                else if (signal < short_threshold) signal_discrete = -1.0;
-            }
-            
-            // Skip if equity is NaN or zero
-            if (!isnan(equity) && equity != 0.0) {
-                numerator += signal_discrete * equity;
-                denominator += equity;
-            }
-        }
-        
-        // Calculate weighted average
-        if (denominator != 0.0 && isfinite(denominator)) {
-            avg_signal[bar_idx] = numerator / denominator;
-        } else {
-            avg_signal[bar_idx] = 0.0;
+    // 1. Thread / block indexing
+    const int bar_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (bar_idx >= n_bars) return;
+
+    // 2. Warm-up (cutout) handling
+    if (bar_idx < cutout) {
+        avg_signal[bar_idx] = 0.0;
+        trends[bar_idx]     = 0;
+        return;
+    }
+
+    // 3. Each thread processes a *chunk* of the MA components.
+    double num_part = 0.0;
+    double den_part = 0.0;
+
+    for (int ma = threadIdx.x; ma < n_mas; ma += blockDim.x) {
+        const int idx = ma * n_bars + bar_idx;   // row-major lookup
+
+#if __CUDA_ARCH__ >= 600
+        const double sig = __ldg(&signals[idx]);
+        const double eq  = __ldg(&equities[idx]);
+#else
+        const double sig = signals[idx];
+        const double eq  = equities[idx];
+#endif
+        const double sig_disc = discretize_signal(sig, long_threshold, short_threshold);
+
+        if (!isnan(eq) && eq != 0.0) {
+            num_part += sig_disc * eq;
+            den_part += eq;
         }
     }
-}
 
-extern "C" __global__ void classify_trend_kernel(
-    const double* __restrict__ signals,
-    int* __restrict__ trends,  // Output: 1 (LONG), -1 (SHORT), 0 (NEUTRAL)
-    int n,
-    double long_threshold,
-    double short_threshold
-) {
-    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; i += blockDim.x * gridDim.x) {
-        double signal = signals[i];
-        
+    // 4. Intra-block reduction (numerator & denominator)
+    extern __shared__ double shmem[];
+    double* sh_num = shmem;                     // size = blockDim.x
+    double* sh_den = shmem + blockDim.x;        // size = blockDim.x
+
+    sh_num[threadIdx.x] = num_part;
+    sh_den[threadIdx.x] = den_part;
+    __syncthreads();
+
+    // Reduce within the block
+    if (blockDim.x > 32) {
+        for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+            if (threadIdx.x < stride) {
+                sh_num[threadIdx.x] += sh_num[threadIdx.x + stride];
+                sh_den[threadIdx.x] += sh_den[threadIdx.x + stride];
+            }
+            __syncthreads();
+        }
+    } else {
+        // warp-shuffle reduction
+        double val_num = sh_num[threadIdx.x];
+        double val_den = sh_den[threadIdx.x];
+        #pragma unroll
+        for (int offset = 16; offset > 0; offset >>= 1) {
+            val_num += __shfl_down_sync(0xffffffff, val_num, offset);
+            val_den += __shfl_down_sync(0xffffffff, val_den, offset);
+        }
+        sh_num[0] = val_num;
+        sh_den[0] = val_den;
+    }
+
+    // 5. Thread 0 writes the final result for this bar
+    if (threadIdx.x == 0) {
+        double avg = 0.0;
+        const double den = sh_den[0];
+        if (den != 0.0 && isfinite(den)) {
+            avg = sh_num[0] / den;
+        }
+        avg_signal[bar_idx] = avg;
+
         int trend = 0;
-        if (!isnan(signal)) {
-            if (signal > long_threshold) trend = 1;
-            else if (signal < short_threshold) trend = -1;
-        }
-        trends[i] = trend;
+        if (avg > long_threshold)      trend = 1;
+        else if (avg < short_threshold) trend = -1;
+        trends[bar_idx] = trend;
     }
 }
 
-extern "C" __global__ void weighted_average_and_classify_kernel(
-    const double* __restrict__ signals,      // [n_mas x n_bars]
-    const double* __restrict__ equities,     // [n_mas x n_bars]
-    double* __restrict__ avg_signal,         // [n_bars]
-    int* __restrict__ trends,                // [n_bars]
+// ---------------------------------------------------------------------------
+// Standalone weighted average kernel (Legacy / Modular use)
+// ---------------------------------------------------------------------------
+extern "C" __global__ void weighted_average_signal_kernel(
+    const double* __restrict__ signals,
+    const double* __restrict__ equities,
+    double* __restrict__ avg_signal,
     int n_mas,
     int n_bars,
     int cutout,
     double long_threshold,
     double short_threshold
 ) {
+    // Reusing the optimized logic would require shared memory setup. 
+    // For now, keeping the simple strided loop for backward compatibility or simple launches.
+    
     for (int bar_idx = blockIdx.x * blockDim.x + threadIdx.x; bar_idx < n_bars; bar_idx += blockDim.x * gridDim.x) {
         if (bar_idx < cutout) {
             avg_signal[bar_idx] = 0.0;
-            trends[bar_idx] = 0;
             continue;
         }
         double numerator = 0.0;
@@ -127,14 +142,15 @@ extern "C" __global__ void weighted_average_and_classify_kernel(
         for (int ma_idx = 0; ma_idx < n_mas; ma_idx++) {
             int idx = ma_idx * n_bars + bar_idx;
             
-            double signal = signals[idx];
-            double equity = equities[idx];
+#if __CUDA_ARCH__ >= 600
+            const double signal = __ldg(&signals[idx]);
+            const double equity = __ldg(&equities[idx]);
+#else
+            const double signal = signals[idx];
+            const double equity = equities[idx];
+#endif
             
-            double signal_discrete = 0.0;
-            if (!isnan(signal)) {
-                if (signal > long_threshold) signal_discrete = 1.0;
-                else if (signal < short_threshold) signal_discrete = -1.0;
-            }
+            double signal_discrete = discretize_signal(signal, long_threshold, short_threshold);
             
             if (!isnan(equity) && equity != 0.0) {
                 numerator += signal_discrete * equity;
@@ -142,17 +158,31 @@ extern "C" __global__ void weighted_average_and_classify_kernel(
             }
         }
         
-        double avg = 0.0;
         if (denominator != 0.0 && isfinite(denominator)) {
-            avg = numerator / denominator;
+            avg_signal[bar_idx] = numerator / denominator;
+        } else {
+            avg_signal[bar_idx] = 0.0;
         }
-        
-        avg_signal[bar_idx] = avg;
-        
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Standalone classification kernel
+// ---------------------------------------------------------------------------
+extern "C" __global__ void classify_trend_kernel(
+    const double* __restrict__ signals,
+    int* __restrict__ trends,
+    int n,
+    double long_threshold,
+    double short_threshold
+) {
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; i += blockDim.x * gridDim.x) {
+        double signal = signals[i];
         int trend = 0;
-        if (avg > long_threshold) trend = 1;
-        else if (avg < short_threshold) trend = -1;
-        
-        trends[bar_idx] = trend;
+        if (!isnan(signal)) {
+            if (signal > long_threshold) trend = 1;
+            else if (signal < short_threshold) trend = -1;
+        }
+        trends[i] = trend;
     }
 }

@@ -1,6 +1,6 @@
 use cudarc::driver::{CudaContext, CudaModule, LaunchConfig, PushKernelArg};
 use cudarc::nvrtc::compile_ptx;
-use numpy::{PyArray1, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
+use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use std::sync::{Arc, OnceLock};
 

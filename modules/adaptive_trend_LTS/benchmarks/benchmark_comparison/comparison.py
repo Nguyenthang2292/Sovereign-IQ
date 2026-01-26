@@ -7,6 +7,7 @@ from tabulate import tabulate
 
 from modules.common.utils import log_info, log_success, log_warn
 
+
 def compare_signals(
     original_results: Dict[str, Dict],
     enhanced_results: Dict[str, Dict],
@@ -104,171 +105,144 @@ def compare_signals(
     orig_all_three_mismatched = []
 
     for symbol in original_results.keys():
-        if (
-            symbol not in enhanced_results
-            or symbol not in rust_results
-            or symbol not in rust_rayon_results
-            or symbol not in cuda_results
-            or symbol not in dask_results
-            or symbol not in rust_dask_results
-            or symbol not in cuda_dask_results
-            or symbol not in rust_cuda_dask_results
-        ):
-            log_warn(f"Symbol {symbol} missing in results")
+        # Get results for each module (may be None or missing)
+        orig = original_results.get(symbol)
+        enh = enhanced_results.get(symbol)
+        rust = rust_results.get(symbol)
+        rust_rayon = rust_rayon_results.get(symbol)
+        cuda = cuda_results.get(symbol)
+        dask = dask_results.get(symbol)
+        rust_dask = rust_dask_results.get(symbol)
+        cuda_dask = cuda_dask_results.get(symbol)
+        all_three = rust_cuda_dask_results.get(symbol)
+
+        # Skip if original result is None (baseline required)
+        if orig is None:
+            log_warn(f"Symbol {symbol} has None original result")
             continue
 
-        orig = original_results[symbol]
-        enh = enhanced_results[symbol]
-        rust = rust_results[symbol]
-        rust_rayon = rust_rayon_results[symbol]
-        cuda = cuda_results[symbol]
-        dask = dask_results[symbol]
-        rust_dask = rust_dask_results[symbol]
-        cuda_dask = cuda_dask_results[symbol]
-        all_three = rust_cuda_dask_results[symbol]
+        # Get Average_Signal for each module
+        orig_s = orig.get("Average_Signal") if orig else None
+        enh_s = enh.get("Average_Signal") if enh else None
+        rust_s = rust.get("Average_Signal") if rust else None
+        rust_r_s = rust_rayon.get("Average_Signal") if rust_rayon else None
+        cuda_s = cuda.get("Average_Signal") if cuda else None
+        dask_s = dask.get("Average_Signal") if dask else None
+        rust_dask_s = rust_dask.get("Average_Signal") if rust_dask else None
+        cuda_dask_s = cuda_dask.get("Average_Signal") if cuda_dask else None
+        all_three_s = all_three.get("Average_Signal") if all_three else None
 
-        if (
-            orig is None
-            or enh is None
-            or rust is None
-            or rust_rayon is None
-            or cuda is None
-            or dask is None
-            or rust_dask is None
-            or cuda_dask is None
-            or all_three is None
-        ):
-            log_warn(f"Symbol {symbol} has None result")
+        # Skip if original signal is None (baseline required)
+        if orig_s is None or len(orig_s) == 0:
+            log_warn(f"Symbol {symbol} has no original Average_Signal")
             continue
-
-        # Compare Average_Signal
-        orig_s = orig.get("Average_Signal")
-        enh_s = enh.get("Average_Signal")
-        rust_s = rust.get("Average_Signal")
-        rust_r_s = rust_rayon.get("Average_Signal")
-        cuda_s = cuda.get("Average_Signal")
-        dask_s = dask.get("Average_Signal")
-        rust_dask_s = rust_dask.get("Average_Signal")
-        cuda_dask_s = cuda_dask.get("Average_Signal")
-        all_three_s = all_three.get("Average_Signal")
-
-        if (
-            orig_s is None
-            or enh_s is None
-            or rust_s is None
-            or rust_r_s is None
-            or cuda_s is None
-            or dask_s is None
-            or rust_dask_s is None
-            or cuda_dask_s is None
-            or all_three_s is None
-        ):
-            log_warn(f"Symbol {symbol} missing Average_Signal")
-            continue
-
-        # Find common index across all versions
-        common_index = (
-            orig_s.index.intersection(enh_s.index)
-            .intersection(rust_s.index)
-            .intersection(rust_r_s.index)
-            .intersection(cuda_s.index)
-            .intersection(dask_s.index)
-            .intersection(rust_dask_s.index)
-            .intersection(cuda_dask_s.index)
-            .intersection(all_three_s.index)
-        )
-
-        if len(common_index) == 0:
-            log_warn(f"No common index after alignment for {symbol}")
-            continue
-
-        # Reindex all series to common index
-        orig_s = orig_s.loc[common_index]
-        enh_s = enh_s.loc[common_index]
-        rust_s = rust_s.loc[common_index]
-        rust_r_s = rust_r_s.loc[common_index]
-        cuda_s = cuda_s.loc[common_index]
-        dask_s = dask_s.loc[common_index]
-        rust_dask_s = rust_dask_s.loc[common_index]
-        cuda_dask_s = cuda_dask_s.loc[common_index]
-        all_three_s = all_three_s.loc[common_index]
 
         # Original vs Enhanced
-        diff_oe = np.abs(orig_s - enh_s).max()
-        orig_enh_diffs.append(diff_oe)
-        if diff_oe < 1e-6:
-            orig_enh_matching += 1
-        else:
-            orig_enh_mismatched.append((symbol, diff_oe))
+        if enh_s is not None and len(enh_s) > 0:
+            common_idx = orig_s.index.intersection(enh_s.index)
+            if len(common_idx) > 0:
+                diff_oe = np.abs(orig_s.loc[common_idx] - enh_s.loc[common_idx]).max()
+                orig_enh_diffs.append(diff_oe)
+                if diff_oe < 1e-6:
+                    orig_enh_matching += 1
+                else:
+                    orig_enh_mismatched.append((symbol, diff_oe))
 
         # Original vs Rust
-        diff_or = np.abs(orig_s - rust_s).max()
-        orig_rust_diffs.append(diff_or)
-        if diff_or < 1e-6:
-            orig_rust_matching += 1
-        else:
-            orig_rust_mismatched.append((symbol, diff_or))
+        if rust_s is not None and len(rust_s) > 0:
+            common_idx = orig_s.index.intersection(rust_s.index)
+            if len(common_idx) > 0:
+                diff_or = np.abs(orig_s.loc[common_idx] - rust_s.loc[common_idx]).max()
+                orig_rust_diffs.append(diff_or)
+                if diff_or < 1e-6:
+                    orig_rust_matching += 1
+                else:
+                    orig_rust_mismatched.append((symbol, diff_or))
 
         # Original vs CUDA
-        diff_oc = np.abs(orig_s - cuda_s).max()
-        orig_cuda_diffs.append(diff_oc)
-        if diff_oc < 1e-6:
-            orig_cuda_matching += 1
-        else:
-            orig_cuda_mismatched.append((symbol, diff_oc))
+        if cuda_s is not None and len(cuda_s) > 0:
+            common_idx = orig_s.index.intersection(cuda_s.index)
+            if len(common_idx) > 0:
+                diff_oc = np.abs(orig_s.loc[common_idx] - cuda_s.loc[common_idx]).max()
+                orig_cuda_diffs.append(diff_oc)
+                if diff_oc < 1e-6:
+                    orig_cuda_matching += 1
+                else:
+                    orig_cuda_mismatched.append((symbol, diff_oc))
 
         # Enhanced vs Rust
-        diff_er = np.abs(enh_s - rust_s).max()
-        enh_rust_diffs.append(diff_er)
-        if diff_er < 1e-6:
-            enh_rust_matching += 1
-        else:
-            enh_rust_mismatched.append((symbol, diff_er))
+        if enh_s is not None and rust_s is not None and len(enh_s) > 0 and len(rust_s) > 0:
+            common_idx = enh_s.index.intersection(rust_s.index)
+            if len(common_idx) > 0:
+                diff_er = np.abs(enh_s.loc[common_idx] - rust_s.loc[common_idx]).max()
+                enh_rust_diffs.append(diff_er)
+                if diff_er < 1e-6:
+                    enh_rust_matching += 1
+                else:
+                    enh_rust_mismatched.append((symbol, diff_er))
 
         # Rust vs CUDA
-        diff_rc = np.abs(rust_s - cuda_s).max()
-        rust_cuda_diffs.append(diff_rc)
-        if diff_rc < 1e-6:
-            rust_cuda_matching += 1
-        else:
-            rust_cuda_mismatched.append((symbol, diff_rc))
+        if rust_s is not None and cuda_s is not None and len(rust_s) > 0 and len(cuda_s) > 0:
+            common_idx = rust_s.index.intersection(cuda_s.index)
+            if len(common_idx) > 0:
+                diff_rc = np.abs(rust_s.loc[common_idx] - cuda_s.loc[common_idx]).max()
+                rust_cuda_diffs.append(diff_rc)
+                if diff_rc < 1e-6:
+                    rust_cuda_matching += 1
+                else:
+                    rust_cuda_mismatched.append((symbol, diff_rc))
 
         # Original vs Dask
-        diff_od = np.abs(orig_s - dask_s).max()
-        orig_dask_diffs.append(diff_od)
-        if diff_od < 1e-6:
-            orig_dask_matching += 1
-        else:
-            orig_dask_mismatched.append((symbol, diff_od))
+        if dask_s is not None and len(dask_s) > 0:
+            common_idx = orig_s.index.intersection(dask_s.index)
+            if len(common_idx) > 0:
+                diff_od = np.abs(orig_s.loc[common_idx] - dask_s.loc[common_idx]).max()
+                orig_dask_diffs.append(diff_od)
+                if diff_od < 1e-6:
+                    orig_dask_matching += 1
+                else:
+                    orig_dask_mismatched.append((symbol, diff_od))
 
         # Original vs Rust+Dask
-        diff_ord = np.abs(orig_s - rust_dask_s).max()
-        orig_rust_dask_diffs.append(diff_ord)
-        if diff_ord < 1e-6:
-            orig_rust_dask_matching += 1
-        else:
-            orig_rust_dask_mismatched.append((symbol, diff_ord))
+        if rust_dask_s is not None and len(rust_dask_s) > 0:
+            common_idx = orig_s.index.intersection(rust_dask_s.index)
+            if len(common_idx) > 0:
+                diff_ord = np.abs(orig_s.loc[common_idx] - rust_dask_s.loc[common_idx]).max()
+                orig_rust_dask_diffs.append(diff_ord)
+                if diff_ord < 1e-6:
+                    orig_rust_dask_matching += 1
+                else:
+                    orig_rust_dask_mismatched.append((symbol, diff_ord))
 
         # Original vs CUDA+Dask
-        diff_ocd = np.abs(orig_s - cuda_dask_s).max()
-        orig_cuda_dask_diffs.append(diff_ocd)
-        if diff_ocd < 1e-6:
-            orig_cuda_dask_matching += 1
-        else:
-            orig_cuda_dask_mismatched.append((symbol, diff_ocd))
+        if cuda_dask_s is not None and len(cuda_dask_s) > 0:
+            common_idx = orig_s.index.intersection(cuda_dask_s.index)
+            if len(common_idx) > 0:
+                diff_ocd = np.abs(orig_s.loc[common_idx] - cuda_dask_s.loc[common_idx]).max()
+                orig_cuda_dask_diffs.append(diff_ocd)
+                if diff_ocd < 1e-6:
+                    orig_cuda_dask_matching += 1
+                else:
+                    orig_cuda_dask_mismatched.append((symbol, diff_ocd))
 
         # Original vs Rust+CUDA+Dask
-        diff_oall = np.abs(orig_s - all_three_s).max()
-        orig_all_three_diffs.append(diff_oall)
-        if diff_oall < 1e-6:
-            orig_all_three_matching += 1
-        else:
-            orig_all_three_mismatched.append((symbol, diff_oall))
+        if all_three_s is not None and len(all_three_s) > 0:
+            common_idx = orig_s.index.intersection(all_three_s.index)
+            if len(common_idx) > 0:
+                diff_oall = np.abs(orig_s.loc[common_idx] - all_three_s.loc[common_idx]).max()
+                orig_all_three_diffs.append(diff_oall)
+                if diff_oall < 1e-6:
+                    orig_all_three_matching += 1
+                else:
+                    orig_all_three_mismatched.append((symbol, diff_oall))
 
         # Original vs Rust Rayon
-        diff_orr = np.abs(orig_s - rust_r_s).max()
-        if diff_orr > 1e-6:
-            log_warn(f"Rust Rayon mismatch for {symbol}: {diff_orr}")
+        if rust_r_s is not None and len(rust_r_s) > 0:
+            common_idx = orig_s.index.intersection(rust_r_s.index)
+            if len(common_idx) > 0:
+                diff_orr = np.abs(orig_s.loc[common_idx] - rust_r_s.loc[common_idx]).max()
+                if diff_orr > 1e-6:
+                    log_warn(f"Rust Rayon mismatch for {symbol}: {diff_orr}")
 
         # Increment processed counter
         processed_symbols += 1
@@ -432,18 +406,12 @@ def generate_comparison_table(
     speedup_cuda_dask = original_time / cuda_dask_time if cuda_dask_time > 0 else 0
     speedup_all_three = original_time / all_three_time if all_three_time > 0 else 0
 
-    memory_reduction_enh = (
-        ((original_memory - enhanced_memory) / original_memory) * 100 if original_memory > 0 else 0
-    )
+    memory_reduction_enh = ((original_memory - enhanced_memory) / original_memory) * 100 if original_memory > 0 else 0
     memory_reduction_rust_rayon = (
         ((original_memory - rust_rayon_memory) / original_memory) * 100 if original_memory > 0 else 0
     )
-    memory_reduction_cuda = (
-        ((original_memory - cuda_memory) / original_memory) * 100 if original_memory > 0 else 0
-    )
-    memory_reduction_dask = (
-        ((original_memory - dask_memory) / original_memory) * 100 if original_memory > 0 else 0
-    )
+    memory_reduction_cuda = ((original_memory - cuda_memory) / original_memory) * 100 if original_memory > 0 else 0
+    memory_reduction_dask = ((original_memory - dask_memory) / original_memory) * 100 if original_memory > 0 else 0
     memory_reduction_rust_dask = (
         ((original_memory - rust_dask_memory) / original_memory) * 100 if original_memory > 0 else 0
     )
@@ -583,5 +551,3 @@ def generate_comparison_table(
     signal_table = tabulate(signal_data, headers="firstrow", tablefmt="grid")
 
     return f"\n{perf_table}\n\n{signal_table}\n"
-
-

@@ -1,54 +1,84 @@
 /**
- * Phase 4 - Task 2.1.2: Custom CUDA kernel for equity calculation.
+ * Equity kernel – one thread processes a whole time-series.
  *
- * Algorithm (matches Rust eq. and compute_equity/core.py):
- * - For i in [cutout, n): a = r[i] * sign(sig[i]) or 0; NaN/0 -> 0.
- * - e[i] = prev * decay * (1 + a), prev init = starting_equity; floor 0.25.
- * - Sequential recurrence → single-thread kernel.
+ * Parameters
+ * ----------
+ * r_values          : per-symbol returns (size = total_bars * num_symbols)
+ * sig_prev          : per-symbol signal values (same layout as r_values)
+ * equity            : output buffer (same layout)
+ * starting_equity   : equity value before the first valid bar
+ * decay_multiplier  : multiplicative decay applied each step
+ * cutout            : number of warm-up bars to set to NaN
+ * total_bars        : length of each series (n)
+ * offsets           : start index of each symbol inside the flat arrays
  *
- * Block/grid: (1, 1), 1 thread.
+ * Launch configuration
+ * --------------------
+ * dim3 grid(num_symbols);
+ * dim3 block(1);   // one thread per symbol (can be >1 if you want intra-symbol parallelism)
  */
 
-#define F64_NAN __longlong_as_double(0x7ff8000000000000LL)
+#include <cuda_runtime.h>
+#include <cmath>
 
-extern "C" __global__ void equity_kernel(
+constexpr double F64_NAN = __longlong_as_double(0x7ff8000000000000ULL);
+
+extern "C" __global__
+void equity_kernel(
     const double* __restrict__ r_values,
     const double* __restrict__ sig_prev,
-    double* __restrict__ equity,
+    double*       __restrict__ equity,
     double starting_equity,
     double decay_multiplier,
     int cutout,
-    int n
-) {
-    double prev_e = -1.0;
+    int total_bars,
+    const int*   __restrict__ offsets)          // added offsets for batched layout
+{
+    const int symbol_idx = blockIdx.x;          // one block per symbol
+    if (symbol_idx >= gridDim.x) return;
 
-    if (cutout > 0 && cutout <= n) {
-        for (int i = 0; i < cutout; i++)
-            equity[i] = F64_NAN;
+    const int start = offsets[symbol_idx];
+    const double* __restrict__ r = r_values + start;
+    const double* __restrict__ s = sig_prev   + start;
+    double*       __restrict__ e = equity      + start;
+
+    // --------------------------------------------------------------------
+    // Warm‑up period → NaN
+    // --------------------------------------------------------------------
+    int cut = cutout;
+    if (cut < 0) cut = 0;
+    if (cut > total_bars) cut = total_bars;
+
+    for (int i = 0; i < cut; ++i) {
+        e[i] = F64_NAN;
     }
 
-    for (int i = cutout; i < n; i++) {
-        double r_i = r_values[i];
-        double s_prev = sig_prev[i];
+    // --------------------------------------------------------------------
+    // Serial recurrence (still per‑symbol, but now many symbols run in parallel)
+    // --------------------------------------------------------------------
+    double prev_e = -1.0;               // sentinel for “first valid bar”
 
+    for (int i = cut; i < total_bars; ++i) {
+#if __CUDA_ARCH__ >= 600
+        const double r_i = __ldg(&r[i]);
+        const double s_i = __ldg(&s[i]);
+#else
+        const double r_i = r[i];
+        const double s_i = s[i];
+#endif
+        // a = r_i * sign(s_i)  (0 if NaN or s_i == 0)
         double a = 0.0;
-        if (!isnan(s_prev) && !isnan(r_i) && s_prev != 0.0) {
-            if (s_prev > 0.0)
-                a = r_i;
-            else
-                a = -r_i;
+        if (!isnan(r_i) && !isnan(s_i) && s_i != 0.0) {
+            a = (s_i > 0.0) ? r_i : -r_i;
         }
 
-        double e_curr;
-        if (prev_e < 0.0)
-            e_curr = starting_equity;
-        else
-            e_curr = (prev_e * decay_multiplier) * (1.0 + a);
+        double e_curr = (prev_e < 0.0) ? starting_equity
+                                      : (prev_e * decay_multiplier) * (1.0 + a);
 
-        if (e_curr < 0.25)
-            e_curr = 0.25;
+        // floor at 0.25
+        if (e_curr < 0.25) e_curr = 0.25;
 
-        equity[i] = e_curr;
+        e[i] = e_curr;
         prev_e = e_curr;
     }
 }

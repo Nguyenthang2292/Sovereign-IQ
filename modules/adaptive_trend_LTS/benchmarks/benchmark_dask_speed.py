@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 
 try:
-    from modules.adaptive_trend_LTS.core.compute_atc_signals.dask_batch_processor import (
-        process_symbols_batch_dask,
-    )
     from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import (
         process_symbols_batch_rust,
+    )
+    from modules.adaptive_trend_LTS.core.compute_atc_signals.dask_batch_processor import (
+        process_symbols_batch_dask,
     )
     from modules.adaptive_trend_LTS.core.compute_atc_signals.rust_dask_bridge import (
         process_symbols_rust_dask,
@@ -134,7 +134,7 @@ def benchmark_speed(
         print(f"    Symbols: {dask_count}")
         print(f"    Throughput: {dask_throughput:.1f} symbols/s")
 
-        print(f"  Benchmarking Rust...")
+        print("  Benchmarking Rust...")
         try:
             rust_time, rust_count = benchmark_rust(symbols_data, config)
             rust_throughput = rust_count / rust_time if rust_time > 0 else 0
@@ -145,7 +145,7 @@ def benchmark_speed(
             print(f"    Rust not available: {e}")
             rust_time, rust_count = None, 0
 
-        print(f"  Benchmarking Rust-Dask Hybrid...")
+        print("  Benchmarking Rust-Dask Hybrid...")
         try:
             hybrid_time, hybrid_count = benchmark_rust_dask_hybrid(symbols_data, config, npartitions)
             hybrid_throughput = hybrid_count / hybrid_time if hybrid_time > 0 else 0
@@ -244,18 +244,18 @@ def benchmark_speed_quick(
     for run in range(1, n_runs + 1):
         print(f"\nRun {run}/{n_runs}:")
 
-        print(f"  Dask...")
+        print("  Dask...")
         dask_time, _ = benchmark_dask(symbols_data, config, npartitions)
         print(f"    Time: {dask_time:.2f}s")
 
-        print(f"  Rust...")
+        print("  Rust...")
         try:
             rust_time, _ = benchmark_rust(symbols_data, config)
             print(f"    Time: {rust_time:.2f}s")
         except Exception:
             rust_time = None
 
-        print(f"  Hybrid...")
+        print("  Hybrid...")
         try:
             hybrid_time, _ = benchmark_rust_dask_hybrid(symbols_data, config, npartitions)
             print(f"    Time: {hybrid_time:.2f}s")

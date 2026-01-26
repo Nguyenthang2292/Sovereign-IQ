@@ -1,6 +1,6 @@
-use pyo3::prelude::*;
-use numpy::{PyArray1, PyReadonlyArray1};
 use ndarray::{Array1, ArrayView1};
+use numpy::{PyArray1, PyReadonlyArray1};
+use pyo3::prelude::*;
 
 /// Signal state representation for type safety and clarity.
 ///
@@ -18,6 +18,7 @@ enum SignalState {
 
 impl SignalState {
     /// Convert i8 value to SignalState.
+    #[allow(dead_code)]
     #[inline(always)]
     fn from_i8(value: i8) -> Self {
         match value {
@@ -26,7 +27,7 @@ impl SignalState {
             _ => SignalState::Neutral,
         }
     }
-    
+
     /// Convert SignalState to i8 value.
     #[inline(always)]
     fn as_i8(self) -> i8 {
@@ -76,7 +77,7 @@ pub fn process_signal_persistence_internal(
     let n = up_arr.len();
     let mut out = Array1::<i8>::zeros(n);
     let mut current_state = SignalState::Neutral;
-    
+
     // Use iterator-based approach for better LLVM optimization
     for (i, (&up, &down)) in up_arr.iter().zip(down_arr.iter()).enumerate() {
         current_state = update_signal_state(current_state, up, down);
@@ -135,12 +136,12 @@ mod tests {
         assert_eq!(SignalState::Neutral.as_i8(), 0);
         assert_eq!(SignalState::Bullish.as_i8(), 1);
         assert_eq!(SignalState::Bearish.as_i8(), -1);
-        
+
         // Test i8 to enum conversion
         assert_eq!(SignalState::from_i8(0), SignalState::Neutral);
         assert_eq!(SignalState::from_i8(1), SignalState::Bullish);
         assert_eq!(SignalState::from_i8(-1), SignalState::Bearish);
-        
+
         // Test invalid values default to Neutral
         assert_eq!(SignalState::from_i8(99), SignalState::Neutral);
         assert_eq!(SignalState::from_i8(-99), SignalState::Neutral);
@@ -149,23 +150,44 @@ mod tests {
     #[test]
     fn test_state_transitions() {
         let neutral = SignalState::Neutral;
-        
+
         // Bullish transition
-        assert_eq!(update_signal_state(neutral, true, false), SignalState::Bullish);
-        
+        assert_eq!(
+            update_signal_state(neutral, true, false),
+            SignalState::Bullish
+        );
+
         // Bearish transition
-        assert_eq!(update_signal_state(neutral, false, true), SignalState::Bearish);
-        
+        assert_eq!(
+            update_signal_state(neutral, false, true),
+            SignalState::Bearish
+        );
+
         // Persistence (no change)
-        assert_eq!(update_signal_state(SignalState::Bullish, false, false), SignalState::Bullish);
-        assert_eq!(update_signal_state(SignalState::Bearish, false, false), SignalState::Bearish);
-        
+        assert_eq!(
+            update_signal_state(SignalState::Bullish, false, false),
+            SignalState::Bullish
+        );
+        assert_eq!(
+            update_signal_state(SignalState::Bearish, false, false),
+            SignalState::Bearish
+        );
+
         // Override: bullish overrides bearish
-        assert_eq!(update_signal_state(SignalState::Bearish, true, false), SignalState::Bullish);
-        assert_eq!(update_signal_state(SignalState::Bullish, false, true), SignalState::Bearish);
-        
+        assert_eq!(
+            update_signal_state(SignalState::Bearish, true, false),
+            SignalState::Bullish
+        );
+        assert_eq!(
+            update_signal_state(SignalState::Bullish, false, true),
+            SignalState::Bearish
+        );
+
         // Simultaneous up and down (up takes precedence)
-        assert_eq!(update_signal_state(neutral, true, true), SignalState::Bullish);
+        assert_eq!(
+            update_signal_state(neutral, true, true),
+            SignalState::Bullish
+        );
     }
 
     #[test]
@@ -173,11 +195,11 @@ mod tests {
         let up = array![true, false, false, false];
         let down = array![false, false, true, false];
         let out = process_signal_persistence_internal(up.view(), down.view());
-        
-        assert_eq!(out[0], 1);   // Bullish signal
-        assert_eq!(out[1], 1);   // Persists
-        assert_eq!(out[2], -1);  // Bearish signal
-        assert_eq!(out[3], -1);  // Persists
+
+        assert_eq!(out[0], 1); // Bullish signal
+        assert_eq!(out[1], 1); // Persists
+        assert_eq!(out[2], -1); // Bearish signal
+        assert_eq!(out[3], -1); // Persists
     }
 
     #[test]
@@ -186,7 +208,7 @@ mod tests {
         let up = array![true, false, false, false];
         let down = array![false, false, true, false];
         let out = process_signal_persistence_internal(up.view(), down.view());
-        
+
         assert_eq!(out[0], SignalState::Bullish.as_i8());
         assert_eq!(out[1], SignalState::Bullish.as_i8());
         assert_eq!(out[2], SignalState::Bearish.as_i8());
@@ -200,25 +222,25 @@ mod tests {
         let down = array![];
         let out = process_signal_persistence_internal(up.view(), down.view());
         assert_eq!(out.len(), 0);
-        
+
         // Single element - bullish
         let up = array![true];
         let down = array![false];
         let out = process_signal_persistence_internal(up.view(), down.view());
         assert_eq!(out[0], 1);
-        
+
         // Single element - bearish
         let up = array![false];
         let down = array![true];
         let out = process_signal_persistence_internal(up.view(), down.view());
         assert_eq!(out[0], -1);
-        
+
         // Single element - neutral
         let up = array![false];
         let down = array![false];
         let out = process_signal_persistence_internal(up.view(), down.view());
         assert_eq!(out[0], 0);
-        
+
         // Simultaneous up and down (up takes precedence)
         let up = array![true];
         let down = array![true];
@@ -232,12 +254,12 @@ mod tests {
         let up = array![true, false, false, true, false];
         let down = array![false, true, false, false, true];
         let out = process_signal_persistence_internal(up.view(), down.view());
-        
-        assert_eq!(out[0], 1);   // Bullish
-        assert_eq!(out[1], -1);  // Bearish
-        assert_eq!(out[2], -1);  // Persists
-        assert_eq!(out[3], 1);   // Bullish
-        assert_eq!(out[4], -1);  // Bearish
+
+        assert_eq!(out[0], 1); // Bullish
+        assert_eq!(out[1], -1); // Bearish
+        assert_eq!(out[2], -1); // Persists
+        assert_eq!(out[3], 1); // Bullish
+        assert_eq!(out[4], -1); // Bearish
     }
 
     #[test]
@@ -246,7 +268,7 @@ mod tests {
         let n = 10000;
         let up = Array1::<bool>::from_elem(n, false);
         let down = Array1::<bool>::from_elem(n, false);
-        
+
         let out = process_signal_persistence_internal(up.view(), down.view());
         assert_eq!(out.len(), n);
         assert!(out.iter().all(|&x| x == 0));
@@ -258,19 +280,19 @@ mod tests {
         let n = 1000;
         let mut up = Array1::<bool>::from_elem(n, false);
         let mut down = Array1::<bool>::from_elem(n, false);
-        
+
         // Single bullish signal at start
         up[0] = true;
-        
+
         let out = process_signal_persistence_internal(up.view(), down.view());
-        
+
         // All values should be 1 (bullish persists)
         assert!(out.iter().all(|&x| x == 1));
-        
+
         // Now add bearish signal in middle
         down[500] = true;
         let out = process_signal_persistence_internal(up.view(), down.view());
-        
+
         // First half bullish, second half bearish
         assert!(out.slice(ndarray::s![0..500]).iter().all(|&x| x == 1));
         assert!(out.slice(ndarray::s![500..]).iter().all(|&x| x == -1));

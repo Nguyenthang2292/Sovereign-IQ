@@ -6,58 +6,58 @@
 # GENERAL SETTINGS
 # ============================================================================
 
-analysis_mode: multi-timeframe  # 'single-timeframe' or 'multi-timeframe'
-timeframe: 15m  # Used for single-timeframe mode
-timeframes:  # Used for multi-timeframe mode
+analysis_mode: multi-timeframe # 'single-timeframe' or 'multi-timeframe'
+timeframe: 15m # Used for single-timeframe mode
+timeframes: # Used for multi-timeframe mode
   - 15m
   - 1h
   - 4h
 
-cooldown: 2.5  # Seconds between batches (prevents API rate limiting)
-limit: 700  # Number of candles per symbol
-
+cooldown: 2.5 # Seconds between batches (prevents API rate limiting)
+limit: 700 # Number of candles per symbol
 
 # ============================================================================
 # MARKET COVERAGE (Symbol Selection)
 # ============================================================================
 
-max_symbols: null  # Fixed count limit (null = all symbols)
-                  # The maximum number of symbols to include in a scan. 
-                  # If set to null, all available symbols will be scanned. 
-                  # Use this to limit the scan scope for performance or focus.
+max_symbols:
+  null # Fixed count limit (null = all symbols)
+  # The maximum number of symbols to include in a scan.
+  # If set to null, all available symbols will be scanned.
+  # Use this to limit the scan scope for performance or focus.
 
 # ============================================================================
 # STAGE 0 SAMPLING CONFIGURATION
 # ============================================================================
 
-stage0_sample_percentage: 33  # Sample % (100 = no sampling)
-                              # The percentage of the market to select in Stage 0 sampling.
-                              # 100 means sample all symbols (no sampling applied).
-                              # Reduce this to scan a subset of symbols.
+stage0_sample_percentage:
+  33 # Sample % (100 = no sampling)
+  # The percentage of the market to select in Stage 0 sampling.
+  # 100 means sample all symbols (no sampling applied).
+  # Reduce this to scan a subset of symbols.
 
-stage0_sampling_strategy: stratified  # Sampling strategy to use
-                                      # Available strategies:
-                                      # - 'random': Pure random sampling (uniform probability)
-                                      # - 'volume_weighted': Higher volume symbols have higher probability
-                                      # - 'stratified': Divide into volume tiers, sample evenly from each (RECOMMENDED)
-                                      # - 'top_n_hybrid': Top N% by volume + random for rest
-                                      # - 'systematic': Every n-th symbol from volume-sorted list
-                                      # - 'liquidity_weighted': Combines volume/volatility/spread (advanced)
+stage0_sampling_strategy:
+  liquidity_weighted # Sampling strategy to use
+  # Available strategies:
+  # - 'random': Pure random sampling (uniform probability)
+  # - 'volume_weighted': Higher volume symbols have higher probability
+  # - 'stratified': Divide into volume tiers, sample evenly from each (RECOMMENDED)
+  # - 'top_n_hybrid': Top N% by volume + random for rest
+  # - 'systematic': Every n-th symbol from volume-sorted list
+  # - 'liquidity_weighted': Combines volume/volatility/spread (advanced)
 
 # Strategy-specific parameters (only used by certain strategies)
-stage0_stratified_strata_count: 3  # Number of strata for stratified sampling (default: 3 for top/mid/low)
-stage0_hybrid_top_percentage: 50.0  # For top_n_hybrid: % of sample from top volume (default: 50%)
-
-
+stage0_stratified_strata_count: 3 # Number of strata for stratified sampling (default: 3 for top/mid/low)
+stage0_hybrid_top_percentage: 50.0 # For top_n_hybrid: % of sample from top volume (default: 50%)
 
 # ============================================================================
 # PRE-FILTER CONFIGURATION
 # ============================================================================
 
 enable_pre_filter: true
-pre_filter_mode: voting  # 'voting' or 'hybrid'
-pre_filter_percentage: 30.0  # Top % to select after filtering
-pre_filter_auto_skip_threshold: 10  # Auto-skip percentage filter if Stage 3 returns fewer symbols than this
+pre_filter_mode: voting # 'voting' or 'hybrid'
+pre_filter_percentage: 30.0 # Top % to select after filtering
+pre_filter_auto_skip_threshold: 10 # Auto-skip percentage filter if Stage 3 returns fewer symbols than this
 
 # Fast Mode Configuration
 # Fast Mode (fast_mode: true) - RECOMMENDED:
@@ -79,14 +79,13 @@ pre_filter_auto_skip_threshold: 10  # Auto-skip percentage filter if Stage 3 ret
 #       for Stage 3) but only for symbols that passed Stage 2, making it much faster.
 fast_mode: true
 
-
 # ============================================================================
 # SPC (SIMPLIFIED PERCENTILE CLUSTERING) CONFIGURATION
 # ============================================================================
 
 spc_config:
-  preset: aggressive  # 'conservative', 'balanced', 'aggressive', or null
-  
+  preset: aggressive # 'conservative', 'balanced', 'aggressive', or null
+
   # Advanced parameters (only used if preset is null)
   volatility_adjustment: false
   use_correlation_weights: false
@@ -94,13 +93,13 @@ spc_config:
   interpolation_mode: linear
   min_flip_duration: 3
   flip_confidence_threshold: 0.6
-  
+
   # Multi-timeframe SPC alignment
   # Enable multi-timeframe analysis for SPC signals. When enabled, the system
   # will check signal alignment across multiple timeframes to increase confidence.
   # This helps filter out false signals that only appear on a single timeframe.
   enable_mtf: true
-  
+
   # List of timeframes to check for signal alignment. Signals must align across
   # these timeframes (if mtf_require_alignment is true) or show consistency
   # across them. Common combinations: ['1h', '4h'] or ['15m', '1h', '4h']
@@ -108,12 +107,11 @@ spc_config:
     - 15m
     - 1h
     - 4h
-  
+
   # If true, signals must align across ALL specified timeframes to be considered valid.
   # If false, signals are weighted by alignment percentage (more aligned = higher confidence).
   # Recommended: true for conservative filtering, false for more signal opportunities.
   mtf_require_alignment: true
-
 
 # ============================================================================
 # RANDOM FOREST CONFIGURATION
@@ -125,29 +123,28 @@ rf_training:
   # Force retraining even if model is valid
   # If true, the scanner will force a retrain before starting the scan.
   force_retrain: true
-  
-  auto_train_if_invalid: true
-  training_symbols_mode: 'auto'  # 'auto' or 'manual'
-  training_symbols_count: 10  # For auto mode
-  manual_symbols: []  # For manual mode
-  training_timeframe: '15m'
-  training_limit: 1500
 
+  auto_train_if_invalid: true
+  training_symbols_mode: "auto" # 'auto' or 'manual'
+  training_symbols_count: 10 # For auto mode
+  manual_symbols: [] # For manual mode
+  training_timeframe: "15m"
+  training_limit: 1500
 
 # ============================================================================
 # ATC (ADAPTIVE TREND COMPONENT) PERFORMANCE CONFIGURATION
 # ============================================================================
 
 atc_performance:
-  batch_processing: true  # Rust Rayon multi-threading (recommended)
-  use_cuda: true  # GPU acceleration (slower for < 500 symbols)
-  parallel_l1: true  # Parallel MA calculations
-  parallel_l2: true  # Parallel equity aggregation
-  use_cache: true  # Cache intermediate results
-  fast_mode: true  # Additional optimizations
-  
+  batch_processing: true # Rust Rayon multi-threading (recommended)
+  use_cuda: false # GPU acceleration (slower for < 500 symbols)
+  parallel_l1: true # Parallel MA calculations
+  parallel_l2: true # Parallel equity aggregation
+  use_cache: true # Cache intermediate results
+  fast_mode: true # Additional optimizations
+
   # Dask (Out-of-Core) Configuration
   # Use Dask for very large market scans (>1000 symbols)
   # This enables processing dataset larger than RAM by chunking
-  use_dask: true  # Auto-enabled by system if symbols > 1000, but can be forced here
-  npartitions: null  # Number of Dask partitions (null = auto-calculated)
+  use_dask: true # Auto-enabled by system if symbols > 1000, but can be forced here
+  npartitions: null # Number of Dask partitions (null = auto-calculated)

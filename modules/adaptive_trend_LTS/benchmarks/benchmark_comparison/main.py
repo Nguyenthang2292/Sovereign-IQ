@@ -2,13 +2,26 @@
 
 import argparse
 import gc
+import sys
+from pathlib import Path
 
-from modules.common.utils import log_error, log_info, log_success, log_warn
+# Add project root to sys.path to allow absolute imports when run directly
+if __file__:
+    project_root = Path(__file__).parent.parent.parent.parent.parent
+    project_root_str = str(project_root)
+    if project_root_str not in sys.path:
+        sys.path.insert(0, project_root_str)
 
-from .build import ensure_cuda_extensions_built, ensure_rust_extensions_built
-from .comparison import compare_signals, generate_comparison_table
-from .data import fetch_symbols_data
-from .runners import (
+from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.build import (
+    ensure_cuda_extensions_built,
+    ensure_rust_extensions_built,
+)
+from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.comparison import (
+    compare_signals,
+    generate_comparison_table,
+)
+from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.data import fetch_symbols_data
+from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.runners import (
     run_cuda_dask_module,
     run_cuda_module,
     run_dask_module,
@@ -19,6 +32,7 @@ from .runners import (
     run_rust_dask_module,
     run_rust_module,
 )
+from modules.common.utils import log_error, log_info, log_success, log_warn
 
 
 def main():
@@ -26,7 +40,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Benchmark adaptive_trend vs adaptive_trend_enhance vs adaptive_trend_LTS (Rust)"
     )  # noqa: E501
-    parser.add_argument("--symbols", type=int, default=200, help="Number of symbols to test (default: 1000)")
+    parser.add_argument("--symbols", type=int, default=50, help="Number of symbols to test (default: 1000)")
     parser.add_argument("--bars", type=int, default=1500, help="Number of bars per symbol (default: 1000)")
     parser.add_argument("--timeframe", type=str, default="1h", help="Timeframe (default: 1h)")
     parser.add_argument(
@@ -45,7 +59,6 @@ def main():
     if args.clear_cache:
         log_info("Clearing MA cache...")
         import shutil
-        from pathlib import Path
 
         cache_dir = Path(".cache/atc")
         if cache_dir.exists():
@@ -80,15 +93,8 @@ def main():
         "strategy_mode": False,
     }
 
+    # Enhanced uses same config as Original (no special params needed)
     enhanced_config = common_config.copy()
-    enhanced_config.update(
-        {
-            "parallel_l1": False,
-            "parallel_l2": False,
-            "precision": "float64",
-            "use_rust_backend": False,
-        }
-    )
 
     rust_config = common_config.copy()
     rust_config.update(

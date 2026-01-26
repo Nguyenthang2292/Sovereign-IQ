@@ -9,7 +9,10 @@
  * All kernels use double precision (f64) for numerical accuracy.
  */
 
-#define F64_NAN __longlong_as_double(0x7ff8000000000000LL)
+#include <cmath>
+#include <cuda_runtime.h>
+
+constexpr double F64_NAN = __longlong_as_double(0x7ff8000000000000ULL);
 
 // ============================================================================
 // EMA Kernel
@@ -43,16 +46,26 @@ extern "C" __global__ void ema_kernel(
         }
         
         for (int i = 0; i < start_idx + length - 1; i++) ema[i] = F64_NAN;
-        
+
         double sum = 0.0;
-        for (int i = 0; i < length; i++) sum += prices[start_idx + i];
+        for (int i = 0; i < length; i++) {
+#if __CUDA_ARCH__ >= 600
+            sum += __ldg(&prices[start_idx + i]);
+#else
+            sum += prices[start_idx + i];
+#endif
+        }
         ema[start_idx + length - 1] = sum / (double)length;
-        
+
         double alpha = 2.0 / ((double)length + 1.0);
         double one_minus_alpha = 1.0 - alpha;
-        
+
         for (int i = start_idx + length; i < n; i++) {
+#if __CUDA_ARCH__ >= 600
+            ema[i] = alpha * __ldg(&prices[i]) + one_minus_alpha * ema[i - 1];
+#else
             ema[i] = alpha * prices[i] + one_minus_alpha * ema[i - 1];
+#endif
         }
     }
 }
@@ -68,11 +81,17 @@ extern "C" __global__ void kama_noise_kernel(
             noise[i] = F64_NAN;
         } else {
             double sum = 0.0;
-            int start_idx = (i - length + 1) > 1 ? (i - length + 1) : 1;
+            int start_idx = (i - length + 1) >1 ? (i - length + 1) : 1;
             #pragma unroll 4
             for (int j = start_idx; j <= i; j++) {
+#if __CUDA_ARCH__ >= 600
+                sum += fabs(__ldg(&prices[j]) - __ldg(&prices[j - 1]));
+#else
                 sum += fabs(prices[j] - prices[j - 1]);
+#endif
             }
+            noise[i] = sum;
+        }
             noise[i] = sum;
         }
     }
@@ -97,14 +116,23 @@ extern "C" __global__ void kama_smooth_kernel(
                 kama[i] = kama[i - 1];
                 continue;
             }
-            
+
+#if __CUDA_ARCH__ >= 600
+            double signal = fabs(__ldg(&prices[i]) - __ldg(&prices[i - length]));
+            double ratio = (noise[i] == 0.0) ? 0.0 : signal / noise[i];
+#else
             double signal = fabs(prices[i] - prices[i - length]);
             double ratio = (noise[i] == 0.0) ? 0.0 : signal / noise[i];
+#endif
             double smooth = (ratio * (fast - slow) + slow);
             smooth *= smooth;
-            
+
             double prev_kama = isnan(kama[i - 1]) ? prices[i] : kama[i - 1];
+#if __CUDA_ARCH__ >= 600
+            kama[i] = prev_kama + smooth * (__ldg(&prices[i]) - prev_kama);
+#else
             kama[i] = prev_kama + smooth * (prices[i] - prev_kama);
+#endif
         }
     }
 }
@@ -128,8 +156,15 @@ extern "C" __global__ void wma_kernel(
             #pragma unroll 4
             for (int j = 0; j < length; j++) {
                 double weight = (double)(length - j);
+#if __CUDA_ARCH__ >= 600
+                weighted_sum += __ldg(&prices[i - j]) * weight;
+#else
                 weighted_sum += prices[i - j] * weight;
+#endif
             }
+            double denominator = (double)(length * (length +1)) / 2.0;
+            wma[i] = weighted_sum / denominator;
+        }
             double denominator = (double)(length * (length + 1)) / 2.0;
             wma[i] = weighted_sum / denominator;
         }
@@ -149,11 +184,17 @@ extern "C" __global__ void sma_kernel(
         sma[idx] = F64_NAN;
     } else {
         double sum = 0.0;
-        // Basic optimization: unroll small loops if length is known at compile time, 
-        // but here length is dynamic. However, the compiler can still optimize the loop body.
+        // Basic optimization: unroll small loops if length is known at compile time,
+        // but here length is dynamic. However, compiler can still optimize loop body.
         for (int j = 0; j < length; j++) {
+#if __CUDA_ARCH__ >= 600
+            sum += __ldg(&prices[idx - j]);
+#else
             sum += prices[idx - j];
+#endif
         }
+        sma[idx] = sum / (double)length;
+    }
         sma[idx] = sum / (double)length;
     }
 }
@@ -167,8 +208,13 @@ extern "C" __global__ void hma_diff_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < n) {
         // HMA intermediate step: 2 * WMA(n/2) - WMA(n)
+#if __CUDA_ARCH__ >= 600
+        double val_half = __ldg(&wma_half[idx]);
+        double val_full = __ldg(&wma_full[idx]);
+#else
         double val_half = wma_half[idx];
         double val_full = wma_full[idx];
+#endif
         if (isnan(val_half) || isnan(val_full)) {
             diff[idx] = F64_NAN;
         } else {

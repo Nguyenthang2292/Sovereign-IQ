@@ -24,9 +24,10 @@ def display_configuration_summary(config: Dict[str, Any]) -> None:
     print(f"Limit: {config.get('limit', 'N/A')}")
 
     if config.get("enable_pre_filter"):
-        stage0_sample = config.get("stage0_random_sample")
+        stage0_sample = config.get("stage0_sample_percentage")
+        stage0_strategy = config.get("stage0_sampling_strategy", "random")
         if stage0_sample:
-            print(f"Stage 0 Random Sampling: {stage0_sample} symbols")
+             print(f"Stage 0 Random Sampling: {stage0_sample}% ({stage0_strategy})")
         else:
             print("Stage 0 Random Sampling: Disabled")
         print(f"Pre-filter Mode: {config.get('pre_filter_mode', 'N/A')}")

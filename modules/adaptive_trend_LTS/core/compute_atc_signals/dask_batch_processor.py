@@ -6,7 +6,6 @@ import gc
 from typing import Dict, Optional
 
 import dask.bag as db
-import numpy as np
 import pandas as pd
 
 from .batch_processor import process_symbols_batch_cuda, process_symbols_batch_rust
