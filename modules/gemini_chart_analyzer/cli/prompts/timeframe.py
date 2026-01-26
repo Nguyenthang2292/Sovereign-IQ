@@ -93,25 +93,33 @@ def prompt_analysis_mode(
         return "single-timeframe", timeframe, None
 
 
-def prompt_market_coverage(loaded_config: Optional[Dict] = None) -> Tuple[Optional[int], Optional[float]]:
-    """Prompt user for market coverage (merging max symbols and random sampling).
+def prompt_market_coverage(
+    loaded_config: Optional[Dict] = None,
+) -> Tuple[Optional[int], Optional[float], str, int, float]:
+    """Prompt user for market coverage (merging max symbols and sampling).
 
     Args:
         loaded_config: Optional loaded configuration for defaults
 
     Returns:
-        Tuple of (max_symbols, stage0_percentage)
+        Tuple of (max_symbols, stage0_percentage, strategy, strata_count, hybrid_top_percentage)
     """
     default_max = None
     default_sample = None
+    default_strategy = "stratified"
+    default_strata_count = 3
+    default_hybrid_top = 50.0
 
     if loaded_config:
         default_max = loaded_config.get("max_symbols")
         default_sample = loaded_config.get("stage0_sample_percentage")
+        default_strategy = loaded_config.get("stage0_sampling_strategy", "stratified")
+        default_strata_count = loaded_config.get("stage0_stratified_strata_count", 3)
+        default_hybrid_top = loaded_config.get("stage0_hybrid_top_percentage", 50.0)
 
     print("\nMarket Coverage:")
     print("  1. All symbols (Full scan)")
-    print("  2. Random Sample % (Statistically representative - RECOMMENDED for large markets)")
+    print("  2. Sample % (Smart sampling - RECOMMENDED for large markets)")
     print("  3. Fixed Count (Scan only the first N symbols)")
 
     # Determine default choice
@@ -128,12 +136,12 @@ def prompt_market_coverage(loaded_config: Optional[Dict] = None) -> Tuple[Option
     )
 
     if choice == "2":
-        print("\nStage 0: Random Sampling (Speed Boost):")
-        print("  Randomly select a percentage of symbols before scanning")
-        sample_prompt = f"[{default_sample}%]" if default_sample else "[10%]"
+        print("\nStage 0: Smart Sampling (Strategic Coverage):")
+        print("  Select a percentage of symbols using a specific strategy")
+        sample_prompt = f"[{default_sample}%]" if default_sample else "[33%]"
         sample_input = safe_input(
             color_text(f"Percentage to sample (1-100) {sample_prompt}: ", Fore.YELLOW),
-            default=str(default_sample) if default_sample else "10",
+            default=str(default_sample) if default_sample else "33",
             allow_back=True,
         ).strip()
 
@@ -141,10 +149,65 @@ def prompt_market_coverage(loaded_config: Optional[Dict] = None) -> Tuple[Option
             if sample_input.endswith("%"):
                 sample_input = sample_input[:-1]
             percentage = float(sample_input)
-            return None, max(1.0, min(100.0, percentage))
+            percentage = max(1.0, min(100.0, percentage))
         except ValueError:
-            log_warn("Invalid input, defaulting to 10%")
-            return None, 10.0
+            log_warn("Invalid input, defaulting to 33%")
+            percentage = 33.0
+
+        print("\nSampling Strategy:")
+        print("  1. Stratified (RECOMMENDED): Sample evenly from volume tiers (Top/Mid/Low)")
+        print("  2. Volume-weighted: High volume symbols have higher chance")
+        print("  3. Top-N Hybrid: Top N% by volume, rest random")
+        print("  4. Systematic: Every n-th symbol from volume-sorted list")
+        print("  5. Liquidity-weighted: Combines volume/volatility/spread")
+        print("  6. Pure Random: Uniform probability for all symbols")
+
+        # Map display order to internal names
+        strategy_map = {
+            "1": "stratified",
+            "2": "volume_weighted",
+            "3": "top_n_hybrid",
+            "4": "systematic",
+            "5": "liquidity_weighted",
+            "6": "random",
+        }
+
+        # Reverse map for default
+        reverse_strategy_map = {v: k for k, v in strategy_map.items()}
+        default_strategy_choice = reverse_strategy_map.get(default_strategy, "1")
+
+        strat_choice = safe_input(
+            color_text(f"Select strategy (1-6) [{default_strategy_choice}]: ", Fore.YELLOW),
+            default=default_strategy_choice,
+            allow_back=True,
+        )
+
+        strategy = strategy_map.get(strat_choice, "stratified")
+        strata_count = default_strata_count
+        hybrid_top_percentage = default_hybrid_top
+
+        if strategy == "stratified":
+            count_input = safe_input(
+                color_text(f"Number of volume tiers (strata) [{default_strata_count}]: ", Fore.YELLOW),
+                default=str(default_strata_count),
+                allow_back=True,
+            )
+            try:
+                strata_count = int(count_input)
+            except ValueError:
+                strata_count = 3
+        elif strategy == "top_n_hybrid":
+            top_input = safe_input(
+                color_text(f"Percentage of sample to take from top volume [{default_hybrid_top}%]: ", Fore.YELLOW),
+                default=str(default_hybrid_top),
+                allow_back=True,
+            )
+            try:
+                hybrid_top_percentage = float(top_input)
+            except ValueError:
+                hybrid_top_percentage = 50.0
+
+        return None, percentage, strategy, strata_count, hybrid_top_percentage
 
     elif choice == "3":
         default_max_str = str(default_max) if default_max else "50"
@@ -155,13 +218,13 @@ def prompt_market_coverage(loaded_config: Optional[Dict] = None) -> Tuple[Option
         ).strip()
 
         try:
-            return int(max_input), None
+            return int(max_input), None, "random", 3, 50.0
         except ValueError:
             log_warn("Invalid input, defaulting to 50 symbols")
-            return 50, None
+            return 50, None, "random", 3, 50.0
 
     # Default: All symbols
-    return None, None
+    return None, None, "random", 3, 50.0
 
 
 def prompt_cooldown(default: float = 2.5, loaded_config: Optional[Dict] = None) -> float:

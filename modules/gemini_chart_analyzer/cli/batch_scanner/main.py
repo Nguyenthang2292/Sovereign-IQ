@@ -71,6 +71,9 @@ def execute_scan(config: Dict[str, Any]) -> BatchScanResult:
             spc_config=config["spc_config"] if config["enable_pre_filter"] else None,
             rf_model_path=config["random_forest_model"]["model_path"],
             stage0_sample_percentage=config.get("stage0_sample_percentage"),
+            stage0_sampling_strategy=config.get("stage0_sampling_strategy", "random"),
+            stage0_stratified_strata_count=config.get("stage0_stratified_strata_count", 3),
+            stage0_hybrid_top_percentage=config.get("stage0_hybrid_top_percentage", 50.0),
             rf_training=config.get("rf_training"),
             atc_performance=config.get("atc_performance"),
         )

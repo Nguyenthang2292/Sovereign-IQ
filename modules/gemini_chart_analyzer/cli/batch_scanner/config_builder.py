@@ -59,6 +59,9 @@ def gather_scan_configuration() -> Dict[str, Any]:
         "pre_filter_auto_skip_threshold": 10,
         "fast_mode": True,
         "stage0_sample_percentage": None,
+        "stage0_sampling_strategy": "stratified",
+        "stage0_stratified_strata_count": 3,
+        "stage0_hybrid_top_percentage": 50.0,
         "spc_config_mode": "3",
         "spc_preset": None,
         "spc_config": {
@@ -196,6 +199,15 @@ def gather_scan_configuration() -> Dict[str, Any]:
                                         )
                                         config["fast_mode"] = loaded_data.get("fast_mode", True)
                                         config["stage0_sample_percentage"] = loaded_data.get("stage0_sample_percentage")
+                                        config["stage0_sampling_strategy"] = loaded_data.get(
+                                            "stage0_sampling_strategy", "stratified"
+                                        )
+                                        config["stage0_stratified_strata_count"] = loaded_data.get(
+                                            "stage0_stratified_strata_count", 3
+                                        )
+                                        config["stage0_hybrid_top_percentage"] = loaded_data.get(
+                                            "stage0_hybrid_top_percentage", 50.0
+                                        )
 
                                         # SPC
                                         spc_cfg = loaded_data.get("spc_config", {})
@@ -240,9 +252,13 @@ def gather_scan_configuration() -> Dict[str, Any]:
                 current_step += 1
 
             elif step_name == "market_coverage":
-                config["max_symbols"], config["stage0_sample_percentage"] = prompt_market_coverage(
-                    loaded_config=config["loaded_config"]
-                )
+                (
+                    config["max_symbols"],
+                    config["stage0_sample_percentage"],
+                    config["stage0_sampling_strategy"],
+                    config["stage0_stratified_strata_count"],
+                    config["stage0_hybrid_top_percentage"],
+                ) = prompt_market_coverage(loaded_config=config["loaded_config"])
                 current_step += 1
 
             elif step_name == "cooldown":
@@ -335,6 +351,9 @@ def gather_scan_configuration() -> Dict[str, Any]:
         "pre_filter_auto_skip_threshold": config["pre_filter_auto_skip_threshold"],
         "fast_mode": config["fast_mode"],
         "stage0_sample_percentage": config["stage0_sample_percentage"],
+        "stage0_sampling_strategy": config["stage0_sampling_strategy"],
+        "stage0_stratified_strata_count": config["stage0_stratified_strata_count"],
+        "stage0_hybrid_top_percentage": config["stage0_hybrid_top_percentage"],
         "spc_config": {**config["spc_config"], "preset": config["spc_preset"]},
         "random_forest_model": {
             "status": rf_status,

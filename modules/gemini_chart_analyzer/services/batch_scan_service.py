@@ -36,7 +36,10 @@ class BatchScanConfig:
     rf_model_path: Optional[str] = None
     skip_cleanup: bool = False
     output_dir: Optional[str] = None
-    stage0_sample_percentage: Optional[float] = None  # Stage 0: Random sampling before ATC
+    stage0_sample_percentage: Optional[float] = None  # Stage 0: Sample percentage before Stage 1
+    stage0_sampling_strategy: str = "random"  # Sampling strategy for Stage 0
+    stage0_stratified_strata_count: int = 3  # For stratified sampling
+    stage0_hybrid_top_percentage: float = 50.0  # For top_n_hybrid sampling
     rf_training: Optional[Dict[str, Any]] = None  # RF model training configuration
     atc_performance: Optional[Dict[str, Any]] = None  # ATC high-performance parameters
 
@@ -107,6 +110,9 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
             spc_config=config.spc_config,
             skip_cleanup=config.skip_cleanup,
             stage0_sample_percentage=config.stage0_sample_percentage,
+            stage0_sampling_strategy=config.stage0_sampling_strategy,
+            stage0_stratified_strata_count=config.stage0_stratified_strata_count,
+            stage0_hybrid_top_percentage=config.stage0_hybrid_top_percentage,
             atc_performance=config.atc_performance,
         )
 

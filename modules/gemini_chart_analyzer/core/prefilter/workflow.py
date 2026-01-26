@@ -41,8 +41,6 @@ from config import (
     SPC_STRATEGY_PARAMETERS,
 )
 from core.voting_analyzer import VotingAnalyzer
-from modules.common.core.data_fetcher import DataFetcher
-from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 
 
@@ -323,13 +321,16 @@ def run_prefilter_worker(
     spc_config: Optional[Dict[str, Any]] = None,
     rf_model_path: Optional[str] = None,
     stage0_sample_percentage: Optional[float] = None,
+    stage0_sampling_strategy: str = "random",
+    stage0_stratified_strata_count: int = 3,
+    stage0_hybrid_top_percentage: float = 50.0,
     atc_performance: Optional[Dict[str, Any]] = None,
     auto_skip_threshold: int = 10,
 ) -> List[str]:
     """
     Run pre-filter with 4-stage sequential filtering workflow.
 
-    Stage 0: Random sampling (optional) → select a percentage of random symbols for faster processing
+    Stage 0: Sampling (optional) → select a percentage of symbols using chosen strategy
     Stage 1: ATC scan → keep 100% of symbols that pass ATC
     Stage 2: Range Oscillator + SPC → Voting → Decision Matrix → keep 100% that pass
     Stage 3: XGBoost + HMM + RF → Voting → Decision Matrix → keep 100% that pass
@@ -343,8 +344,12 @@ def run_prefilter_worker(
         fast_mode: Whether to run in fast mode (Stage 3 still calculates all ML models)
         spc_config: Optional SPC configuration
         rf_model_path: Optional path to Random Forest model
-        stage0_sample_percentage: Optional percentage of symbols to randomly sample before Stage 1 (1-100).
+        stage0_sample_percentage: Optional percentage of symbols to sample before Stage 1 (1-100).
                                  If None or 100, no sampling is performed.
+        stage0_sampling_strategy: Sampling strategy to use ('random', 'volume_weighted', 'stratified',
+                                 'top_n_hybrid', 'systematic', 'liquidity_weighted')
+        stage0_stratified_strata_count: Number of strata for stratified sampling (default: 3)
+        stage0_hybrid_top_percentage: For top_n_hybrid: percentage of sample from top volume (default: 50%)
         atc_performance: Optional ATC performance configuration
         auto_skip_threshold: Auto-skip percentage filter if Stage 3 returns fewer symbols than this (default: 10)
 
@@ -356,18 +361,55 @@ def run_prefilter_worker(
 
     total_symbols = len(all_symbols)
 
-    # Stage 0: Random sampling (optional)
+    # Stage 0: Sampling (optional) - use configurable strategy
     if stage0_sample_percentage is not None and 0 < stage0_sample_percentage < 100.0:
-        import random
+        from modules.gemini_chart_analyzer.core.prefilter.sampling_strategies import (
+            SamplingStrategy,
+            apply_sampling_strategy,
+            get_symbol_volumes,
+        )
 
         # Calculate sample count from percentage
         sample_count = max(1, int(total_symbols * stage0_sample_percentage / 100.0))
 
         log_info(
-            f"[Pre-filter Stage 0] Random sampling {sample_count} symbols "
-            f"({stage0_sample_percentage}%) from {total_symbols}..."
+            f"[Pre-filter Stage 0] Sampling {sample_count} symbols "
+            f"({stage0_sample_percentage}%) from {total_symbols} using '{stage0_sampling_strategy}' strategy..."
         )
-        sampled_symbols = random.sample(all_symbols, sample_count)
+
+        # Get volume data if needed for the strategy
+        volumes = None
+        strategy_enum = SamplingStrategy(stage0_sampling_strategy)
+
+        # Strategies that require volume data
+        volume_required_strategies = {
+            SamplingStrategy.VOLUME_WEIGHTED,
+            SamplingStrategy.STRATIFIED,
+            SamplingStrategy.TOP_N_HYBRID,
+            SamplingStrategy.SYSTEMATIC,
+            SamplingStrategy.LIQUIDITY_WEIGHTED,
+        }
+
+        if strategy_enum in volume_required_strategies:
+            log_info("[Pre-filter Stage 0] Fetching volume data for sampling...")
+            # Create a minimal DataFetcher for volume retrieval
+            from modules.common.core.data_fetcher import DataFetcher
+            from modules.common.core.exchange_manager import ExchangeManager
+
+            temp_exchange_manager = ExchangeManager()
+            temp_data_fetcher = DataFetcher(temp_exchange_manager)
+            volumes = get_symbol_volumes(all_symbols, temp_data_fetcher)
+
+        # Apply sampling strategy
+        sampled_symbols = apply_sampling_strategy(
+            symbols=all_symbols,
+            sample_percentage=stage0_sample_percentage,
+            strategy=strategy_enum,
+            volumes=volumes,
+            strata_count=stage0_stratified_strata_count,
+            top_percentage=stage0_hybrid_top_percentage,
+        )
+
         log_success(f"[Pre-filter Stage 0] Sampled {len(sampled_symbols)} symbols for processing")
         # Use sampled symbols for the rest of the pipeline
         symbols_to_process = sampled_symbols
@@ -476,6 +518,9 @@ def run_prefilter_worker(
 
         # Create VotingAnalyzer instance
         log_info("[Pre-filter] Initializing VotingAnalyzer...")
+        from modules.common.core.data_fetcher import DataFetcher
+        from modules.common.core.exchange_manager import ExchangeManager
+
         exchange_manager = ExchangeManager()
         data_fetcher = DataFetcher(exchange_manager)
         analyzer = VotingAnalyzer(args, data_fetcher)

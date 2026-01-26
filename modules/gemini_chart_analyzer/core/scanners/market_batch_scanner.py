@@ -229,6 +229,9 @@ class MarketBatchScanner:
         spc_config: Optional[Dict[str, Any]] = None,
         skip_cleanup: bool = False,
         stage0_sample_percentage: Optional[float] = None,
+        stage0_sampling_strategy: str = "random",
+        stage0_stratified_strata_count: int = 3,
+        stage0_hybrid_top_percentage: float = 50.0,
         atc_performance: Optional[Dict[str, Any]] = None,
     ) -> BatchScanResult:
         """
@@ -339,6 +342,9 @@ class MarketBatchScanner:
                     fast_mode=fast_mode,
                     spc_config=spc_config,
                     stage0_sample_percentage=stage0_sample_percentage,
+                    stage0_sampling_strategy=stage0_sampling_strategy,
+                    stage0_stratified_strata_count=stage0_stratified_strata_count,
+                    stage0_hybrid_top_percentage=stage0_hybrid_top_percentage,
                     atc_performance=atc_performance,
                     auto_skip_threshold=pre_filter_auto_skip_threshold,
                 )
@@ -782,6 +788,9 @@ class MarketBatchScanner:
         fast_mode: bool = True,
         spc_config: Optional[Dict[str, Any]] = None,
         stage0_sample_percentage: Optional[float] = None,
+        stage0_sampling_strategy: str = "random",
+        stage0_stratified_strata_count: int = 3,
+        stage0_hybrid_top_percentage: float = 50.0,
         atc_performance: Optional[Dict[str, Any]] = None,
         auto_skip_threshold: int = 10,
     ) -> List[str]:
@@ -818,6 +827,9 @@ class MarketBatchScanner:
                 spc_config=spc_config,
                 rf_model_path=self.rf_model_path,
                 stage0_sample_percentage=stage0_sample_percentage,
+                stage0_sampling_strategy=stage0_sampling_strategy,
+                stage0_stratified_strata_count=stage0_stratified_strata_count,
+                stage0_hybrid_top_percentage=stage0_hybrid_top_percentage,
                 atc_performance=atc_performance,
                 auto_skip_threshold=auto_skip_threshold,
             )

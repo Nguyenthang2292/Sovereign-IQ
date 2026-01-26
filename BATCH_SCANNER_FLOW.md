@@ -42,18 +42,18 @@
 └──────────────────────┬────────────────────────────────────       ──┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
+┌───────────────────────────────────────────────────────────── ┐
 │ STAGE 0: Random Sampling (Optional)                          │
-│    Function: run_prefilter_worker() - Stage 0 logic         │
+│    Function: run_prefilter_worker() - Stage 0 logic          │
 │                                                              │
-│    Bước 3.2: Random Sampling (nếu stage0_sample_percentage) │
-│    - Nếu stage0_sample_percentage > 0 và < 100:            │
-│      • Tính sample_count = total_symbols * percentage / 100│
-│      • Random sample symbols từ all_symbols                │
-│      • Kết quả: symbols_to_process (sampled symbols)       │
+│    Bước 3.2: Random Sampling (nếu stage0_sample_percentage)  │
+│    - Nếu stage0_sample_percentage > 0 và < 100:              │
+│      • Tính sample_count = total_symbols * percentage / 100  │
+│      • Random sample symbols từ all_symbols                  │
+│      • Kết quả: symbols_to_process (sampled symbols)         │
 │    - Nếu không có sampling:                                  │
 │      • symbols_to_process = all_symbols                      │
-└──────────────────────┬──────────────────────────────────────┘
+└──────────────────────┬────────────────────────────────────── ┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────────   ┐
@@ -129,25 +129,25 @@
 └──────────────────────┬────────────────────────────────────── ┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│ STAGE 3: ML Models Filter (Filter lần 3)                    │
-│    Function: _filter_stage_3_ml_models()                   │
+┌─────────────────────────────────────────────────────────────  ┐
+│ STAGE 3: ML Models Filter (Filter lần 3)                      │
+│    Function: _filter_stage_3_ml_models()                      │
 │    File: workflow.py                                          │
-│    Note: Trong fast mode, Stage 3 vẫn tính tất cả ML models │
-│                                                              │
-│    Bước 6.1: Enable ML Models                               │
-│    - Lưu original flags: enable_xgboost, enable_hmm,       │
-│      enable_random_forest                                    │
-│    - Tạm thời enable: enable_xgboost=True, enable_hmm=True  │
-│    - Enable random_forest nếu có rf_model_path              │
-│                                                              │
-│    Bước 6.2: Get ATC Signals for Stage 2 Symbols            │
-│    - Lọc ATC signals chỉ cho symbols từ Stage 2             │
-│    - Combine long_signals_atc và short_signals_atc          │
-│    - Tách thành long_signals và short_signals                │
-│                                                              │
-│    Bước 6.3: Calculate ML Models Only                      │
-│    - Gọi: analyzer.calculate_signals_for_all_indicators()   │
+│    Note: Trong fast mode, Stage 3 vẫn tính tất cả ML models   │
+│                                                               │
+│    Bước 6.1: Enable ML Models                                 │
+│    - Lưu original flags: enable_xgboost, enable_hmm,          │
+│      enable_random_forest                                     │
+│    - Tạm thời enable: enable_xgboost=True, enable_hmm=True    │
+│    - Enable random_forest nếu có rf_model_path                │
+│                                                               │
+│    Bước 6.2: Get ATC Signals for Stage 2 Symbols              │
+│    - Lọc ATC signals chỉ cho symbols từ Stage 2               │
+│    - Combine long_signals_atc và short_signals_atc            │
+│    - Tách thành long_signals và short_signals                 │
+│                                                               │
+│    Bước 6.3: Calculate ML Models Only                         │
+│    - Gọi: analyzer.calculate_signals_for_all_indicators()     │
 │      với indicators_to_calculate=["xgboost", "hmm", "random_forest"]│
 │    - Xử lý riêng cho LONG và SHORT signals                 │
 │    - Chỉ tính ML models, KHÔNG tính lại Range Osc và SPC    │

@@ -25,10 +25,28 @@ max_symbols: null  # Fixed count limit (null = all symbols)
                   # The maximum number of symbols to include in a scan. 
                   # If set to null, all available symbols will be scanned. 
                   # Use this to limit the scan scope for performance or focus.
-stage0_sample_percentage: 33  # Random sample % (100 = no sampling)
-                              # The percentage of the market to randomly select in Stage 0 sampling.
+
+# ============================================================================
+# STAGE 0 SAMPLING CONFIGURATION
+# ============================================================================
+
+stage0_sample_percentage: 33  # Sample % (100 = no sampling)
+                              # The percentage of the market to select in Stage 0 sampling.
                               # 100 means sample all symbols (no sampling applied).
-                              # Reduce this to scan a random subset of symbols, useful for large universes or testing.
+                              # Reduce this to scan a subset of symbols.
+
+stage0_sampling_strategy: stratified  # Sampling strategy to use
+                                      # Available strategies:
+                                      # - 'random': Pure random sampling (uniform probability)
+                                      # - 'volume_weighted': Higher volume symbols have higher probability
+                                      # - 'stratified': Divide into volume tiers, sample evenly from each (RECOMMENDED)
+                                      # - 'top_n_hybrid': Top N% by volume + random for rest
+                                      # - 'systematic': Every n-th symbol from volume-sorted list
+                                      # - 'liquidity_weighted': Combines volume/volatility/spread (advanced)
+
+# Strategy-specific parameters (only used by certain strategies)
+stage0_stratified_strata_count: 3  # Number of strata for stratified sampling (default: 3 for top/mid/low)
+stage0_hybrid_top_percentage: 50.0  # For top_n_hybrid: % of sample from top volume (default: 50%)
 
 
 
@@ -100,14 +118,8 @@ spc_config:
 # ============================================================================
 # RANDOM FOREST CONFIGURATION
 # ============================================================================
-
-random_forest_model:
-  # Current status of the random forest model.
-  # - null: The system will automatically update this when checking the model (e.g., 'valid', 'invalid')
-  status: null  # Automatically updated by system
-
-  # Indicates whether the model has recently been retrained.
-  retrained: false
+# Note: Model status and retrained flag are managed automatically by the system
+# and do not need to be configured manually.
 
 rf_training:
   # Force retraining even if model is valid
