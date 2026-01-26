@@ -11,6 +11,7 @@
 ## Flow Diagram
 
 ```
+
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. MarketBatchScanner.scan_market()                         │
 │    - Step 1.5: Apply internal pre-filter if enabled        │
