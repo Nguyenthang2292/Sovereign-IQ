@@ -149,6 +149,102 @@ def run_rust_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Di
     return results, execution_time, peak_memory
 
 
+def run_approximate_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
+    """Run Approximate MAs adaptive_trend_LTS module.
+
+    Args:
+        prices_data: Dictionary of symbol -> price Series
+        config: ATC configuration parameters
+
+    Returns:
+        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
+    """
+    log_info("Running Approximate MAs adaptive_trend_LTS module...")
+    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
+
+    results = {}
+    start_time = time.time()
+
+    # Track memory (approximate)
+    import psutil
+
+    process = psutil.Process()
+    mem_before = process.memory_info().rss / 1024 / 1024  # MB
+
+    for idx, (symbol, prices) in enumerate(prices_data.items(), 1):
+        try:
+            result = compute_atc_rust(prices=prices, **config)
+            results[symbol] = result
+
+            if idx % 100 == 0:
+                log_info(f"Approximate: Processed {idx}/{len(prices_data)} symbols")
+
+        except Exception as e:
+            import traceback
+
+            log_error(f"Approximate failed for {symbol}: {e}")
+            traceback.print_exc()
+            results[symbol] = None
+
+    end_time = time.time()
+    mem_after = process.memory_info().rss / 1024 / 1024  # MB
+
+    execution_time = end_time - start_time
+    peak_memory = mem_after - mem_before
+
+    log_success(f"Approximate module completed in {execution_time:.2f}s")
+    return results, execution_time, peak_memory
+
+
+def run_adaptive_approximate_module(
+    prices_data: Dict[str, pd.Series], config: dict
+) -> Tuple[Dict[str, Dict], float, float]:
+    """Run Adaptive Approximate MAs adaptive_trend_LTS module.
+
+    Args:
+        prices_data: Dictionary of symbol -> price Series
+        config: ATC configuration parameters
+
+    Returns:
+        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
+    """
+    log_info("Running Adaptive Approximate MAs adaptive_trend_LTS module...")
+    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
+
+    results = {}
+    start_time = time.time()
+
+    # Track memory (approximate)
+    import psutil
+
+    process = psutil.Process()
+    mem_before = process.memory_info().rss / 1024 / 1024  # MB
+
+    for idx, (symbol, prices) in enumerate(prices_data.items(), 1):
+        try:
+            result = compute_atc_rust(prices=prices, **config)
+            results[symbol] = result
+
+            if idx % 100 == 0:
+                log_info(f"Adaptive Approx: Processed {idx}/{len(prices_data)} symbols")
+
+        except Exception as e:
+            import traceback
+
+            log_error(f"Adaptive Approx failed for {symbol}: {e}")
+            traceback.print_exc()
+            results[symbol] = None
+
+    end_time = time.time()
+    mem_after = process.memory_info().rss / 1024 / 1024  # MB
+
+    execution_time = end_time - start_time
+    peak_memory = mem_after - mem_before
+
+    log_success(f"Adaptive Approx module completed in {execution_time:.2f}s")
+    return results, execution_time, peak_memory
+
+
 def run_cuda_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
     """Run CUDA-accelerated adaptive_trend_LTS module using concurrent batch processing.
 
@@ -390,9 +486,7 @@ def run_cuda_dask_module(prices_data: Dict[str, pd.Series], config: dict) -> Tup
     return results, execution_time, peak_memory
 
 
-def run_rust_cuda_dask_module(
-    prices_data: Dict[str, pd.Series], config: dict
-) -> Tuple[Dict[str, Dict], float, float]:
+def run_rust_cuda_dask_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
     """Run Rust+CUDA+Dask hybrid adaptive_trend_LTS module (all three optimizations).
 
     Args:

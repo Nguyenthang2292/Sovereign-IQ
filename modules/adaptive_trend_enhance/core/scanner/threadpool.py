@@ -35,6 +35,7 @@ def _scan_threadpool(
     min_signal: float,
     max_workers: Optional[int],
     batch_size: int = 100,
+    ohlcv_cache: Optional[Dict[str, pd.DataFrame]] = None,
 ) -> Tuple[list, int, int, list]:
     """Scan symbols using ThreadPoolExecutor with batched processing."""
     if max_workers is None:
@@ -55,7 +56,7 @@ def _scan_threadpool(
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit batch tasks
             future_to_symbol = {
-                executor.submit(_process_symbol, symbol, data_fetcher, atc_config, min_signal): symbol
+                executor.submit(_process_symbol, symbol, data_fetcher, atc_config, min_signal, ohlcv_cache): symbol
                 for symbol in batch_symbols
             }
 

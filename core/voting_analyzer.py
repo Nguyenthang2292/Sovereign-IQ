@@ -74,11 +74,12 @@ class VotingAnalyzer:
     Option 2: Completely replace sequential filtering with a voting system.
     """
 
-    def __init__(self, args, data_fetcher: DataFetcher):
+    def __init__(self, args, data_fetcher: DataFetcher, ohlcv_cache: Optional[Dict[str, pd.DataFrame]] = None):
         """Initialize analyzer."""
         self.args = args
         self.data_fetcher = data_fetcher
-        self.atc_analyzer = ATCAnalyzer(args, data_fetcher)
+        self.ohlcv_cache = ohlcv_cache
+        self.atc_analyzer = ATCAnalyzer(args, data_fetcher, ohlcv_cache=ohlcv_cache)
         self.selected_timeframe = args.timeframe
         self.atc_analyzer.selected_timeframe = args.timeframe
 

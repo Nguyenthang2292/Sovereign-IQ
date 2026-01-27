@@ -10,6 +10,7 @@ import random
 from enum import Enum
 from typing import Dict, List, Optional
 
+import pandas as pd
 from modules.common.ui.logging import log_info, log_success
 
 
@@ -259,6 +260,7 @@ def _calculate_volatility_and_spread(
     timeframe: str = "1d",
     lookback: int = 14,
     use_rust: bool = True,
+    ohlcv_cache: Optional[Dict[str, pd.DataFrame]] = None,
 ) -> tuple[Dict[str, float], Dict[str, float]]:
     """
     Calculate volatility (ATR) and spread metrics for symbols.
@@ -272,6 +274,7 @@ def _calculate_volatility_and_spread(
         timeframe: Timeframe for data (default: "1d" for daily)
         lookback: Lookback period for ATR calculation (default: 14)
         use_rust: Whether to use Rust backend for faster computation (default: True)
+        ohlcv_cache: Optional cache of OHLCV data to avoid re-fetching
 
     Returns:
         Tuple of (volatility_dict, spread_dict) mapping symbol to metric value
@@ -282,57 +285,91 @@ def _calculate_volatility_and_spread(
     volatility = {}
     spread = {}
 
-    # Try Rust implementation first if enabled
-    if use_rust:
+    # Prepare OHLCV data
+    ohlcv_data = {}
+    symbols_to_fetch = []
+
+    # First check cache
+    if ohlcv_cache:
+        for symbol in symbols:
+            if symbol in ohlcv_cache:
+                df = ohlcv_cache[symbol]
+                if df is not None and len(df) >= lookback:
+                    ohlcv_data[symbol] = {
+                        "high": df["high"].values.astype(np.float64),
+                        "low": df["low"].values.astype(np.float64),
+                        "close": df["close"].values.astype(np.float64),
+                    }
+            else:
+                symbols_to_fetch.append(symbol)
+    else:
+        symbols_to_fetch = symbols
+
+    # Fetch remaining symbols if any
+    if symbols_to_fetch and data_fetcher:
+        # Try Rust implementation first if enabled
+        if use_rust:
+            try:
+                import atc_rust
+
+                # Batch fetch remaining OHLCV data
+                for symbol in symbols_to_fetch:
+                    try:
+                        df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                            symbol, timeframe=timeframe, limit=lookback * 2
+                        )
+                        if df is not None and len(df) >= lookback:
+                            ohlcv_data[symbol] = {
+                                "high": df["high"].values.astype(np.float64),
+                                "low": df["low"].values.astype(np.float64),
+                                "close": df["close"].values.astype(np.float64),
+                            }
+                    except Exception:
+                        continue
+            except ImportError:
+                # If rust not available, we proceed to Python fallback for remaining
+                pass
+            except Exception as e:
+                log_error(f"[Liquidity Metrics] Rust calculation failed: {e}, falling back to Python")
+
+    # If we have data (from cache or fetch), calculate metrics
+    if use_rust and ohlcv_data:
         try:
             import atc_rust
 
-            # Batch fetch all OHLCV data
-            ohlcv_data = {}
-            for symbol in symbols:
-                try:
-                    df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                        symbol, timeframe=timeframe, limit=lookback * 2
-                    )
-                    if df is not None and len(df) >= lookback:
-                        ohlcv_data[symbol] = {
-                            "high": df["high"].values.astype(np.float64),
-                            "low": df["low"].values.astype(np.float64),
-                            "close": df["close"].values.astype(np.float64),
-                        }
-                except Exception:
-                    continue
+            # Call Rust batch function for volatility/spread calculation
+            results = atc_rust.compute_liquidity_metrics_batch(ohlcv_data, lookback)
+            volatility = results.get("volatility", {})
+            spread = results.get("spread", {})
 
-            if ohlcv_data:
-                # Call Rust batch function for volatility/spread calculation
-                results = atc_rust.compute_liquidity_metrics_batch(ohlcv_data, lookback)
-                volatility = results.get("volatility", {})
-                spread = results.get("spread", {})
+            from modules.common.ui.logging import log_success
 
-                from modules.common.ui.logging import log_success
-
-                log_success(
-                    f"[Rust] Calculated volatility/spread for {len(volatility)} symbols (ATR lookback: {lookback})"
-                )
-                return volatility, spread
-        except ImportError:
-            from modules.common.ui.logging import log_warn
-
-            log_warn("[Liquidity Metrics] Rust backend not available, using Python implementation")
+            log_success(f"[Rust] Calculated volatility/spread for {len(volatility)} symbols (ATR lookback: {lookback})")
+            return volatility, spread
         except Exception as e:
             log_error(f"[Liquidity Metrics] Rust calculation failed: {e}, falling back to Python")
 
     # Python fallback implementation
+    # Note: This logic needs to handle both cached data and fetching for missing symbols if Rust failed or wasn't used
+    # But for simplicity, we'll iterate through all symbols and fetch if not in cache
+
     from modules.common.ui.logging import log_info
 
     log_info(f"[Python] Calculating volatility/spread for {len(symbols)} symbols...")
 
     for symbol in symbols:
         try:
-            # Fetch OHLCV data
-            df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                symbol, timeframe=timeframe, limit=lookback * 2
-            )
+            df = None
+            if ohlcv_cache and symbol in ohlcv_cache:
+                df = ohlcv_cache[symbol]
+
+            if df is None:
+                if data_fetcher:
+                    # Fetch OHLCV data
+                    df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                        symbol, timeframe=timeframe, limit=lookback * 2
+                    )
+
             if df is None or len(df) < lookback:
                 continue
 
@@ -345,9 +382,7 @@ def _calculate_volatility_and_spread(
             close_prev = np.roll(close, 1)
             close_prev[0] = np.nan
 
-            tr = np.maximum(
-                high - low, np.maximum(np.abs(high - close_prev), np.abs(low - close_prev))
-            )
+            tr = np.maximum(high - low, np.maximum(np.abs(high - close_prev), np.abs(low - close_prev)))
 
             # Calculate ATR (Average True Range) - simple moving average of TR
             # Skip first NaN value from rolled array
@@ -367,9 +402,7 @@ def _calculate_volatility_and_spread(
 
     from modules.common.ui.logging import log_success
 
-    log_success(
-        f"[Python] Calculated volatility/spread for {len(volatility)} symbols (ATR lookback: {lookback})"
-    )
+    log_success(f"[Python] Calculated volatility/spread for {len(volatility)} symbols (ATR lookback: {lookback})")
     return volatility, spread
 
 
@@ -386,6 +419,7 @@ def liquidity_weighted_sampling(
     volume_weight: float = 0.4,
     prefer_low_volatility: bool = False,
     use_rust: bool = True,
+    ohlcv_cache: Optional[Dict[str, pd.DataFrame]] = None,
 ) -> List[str]:
     """
     Liquidity-weighted sampling - combines volume, volatility, and spread.
@@ -429,7 +463,7 @@ def liquidity_weighted_sampling(
 
         log_info("[Liquidity-Weighted Sampling] Calculating volatility and spread metrics...")
         calc_volatility, calc_spread = _calculate_volatility_and_spread(
-            symbols, data_fetcher, timeframe="1d", lookback=14, use_rust=use_rust
+            symbols, data_fetcher, timeframe="1d", lookback=14, use_rust=use_rust, ohlcv_cache=ohlcv_cache
         )
 
         # Use calculated data if original was None
@@ -600,8 +634,16 @@ def apply_sampling_strategy(
         spread_data = kwargs.get("spread_data")
         data_fetcher = kwargs.get("data_fetcher")
         use_rust = kwargs.get("use_rust", True)
+        ohlcv_cache = kwargs.get("ohlcv_cache")
         return liquidity_weighted_sampling(
-            symbols, sample_percentage, volumes, volatility_data, spread_data, data_fetcher, use_rust=use_rust
+            symbols,
+            sample_percentage,
+            volumes,
+            volatility_data,
+            spread_data,
+            data_fetcher,
+            use_rust=use_rust,
+            ohlcv_cache=ohlcv_cache,
         )
     else:
         log_info(f"[Sampling] Unknown strategy '{strategy}', falling back to random")

@@ -76,6 +76,9 @@ def compute_atc_signals(
     use_cuda: bool = False,
     use_approximate: bool = False,
     approximate_threshold: float = 0.05,
+    use_adaptive_approximate: bool = False,
+    approximate_volatility_window: int = 20,
+    approximate_volatility_factor: float = 1.0,
 ) -> dict[str, pd.Series]:
     """Compute Adaptive Trend Classification (ATC) signals.
 
@@ -103,6 +106,9 @@ def compute_atc_signals(
         strategy_mode: If True, shift signal by 1 bar (default: False).
         use_approximate: If True, use fast approximate MAs (for scanning).
         approximate_threshold: Maximum error tolerance for approximate MAs.
+        use_adaptive_approximate: If True, use adaptive approximate MAs with volatility-based tolerance.
+        approximate_volatility_window: Window size for volatility calculation (default: 20).
+        approximate_volatility_factor: Multiplier for volatility effect on tolerance (default: 1.0).
 
     Returns:
         Dictionary containing:
@@ -148,8 +154,72 @@ def compute_atc_signals(
     context_ma = nullcontext() if fast_mode else mem_manager.track_memory("set_of_moving_averages_all")
 
     with context_ma:
-        if use_approximate:
-            # Use approximate MAs for fast scanning
+        if use_adaptive_approximate:
+            # Use adaptive approximate MAs with volatility-based tolerance
+            from modules.adaptive_trend_LTS.core.compute_moving_averages.adaptive_approximate_mas import (
+                adaptive_dema_approx,
+                adaptive_ema_approx,
+                adaptive_hma_approx,
+                adaptive_kama_approx,
+                adaptive_lsma_approx,
+                adaptive_wma_approx,
+            )
+
+            # Helper to create 9-element tuple (replicating the approximate MA)
+            # This satisfies _layer1_signal_for_ma requirement for 9 MAs
+            def make_approx_tuple(ma_series):
+                return (ma_series,) * 9
+
+            ma_tuples["EMA"] = make_approx_tuple(
+                adaptive_ema_approx(
+                    prices,
+                    ema_len,
+                    volatility_window=approximate_volatility_window,
+                    volatility_factor=approximate_volatility_factor,
+                )
+            )
+            ma_tuples["HMA"] = make_approx_tuple(
+                adaptive_hma_approx(
+                    prices,
+                    hull_len,
+                    volatility_window=approximate_volatility_window,
+                    volatility_factor=approximate_volatility_factor,
+                )
+            )
+            ma_tuples["WMA"] = make_approx_tuple(
+                adaptive_wma_approx(
+                    prices,
+                    wma_len,
+                    volatility_window=approximate_volatility_window,
+                    volatility_factor=approximate_volatility_factor,
+                )
+            )
+            ma_tuples["DEMA"] = make_approx_tuple(
+                adaptive_dema_approx(
+                    prices,
+                    dema_len,
+                    volatility_window=approximate_volatility_window,
+                    volatility_factor=approximate_volatility_factor,
+                )
+            )
+            ma_tuples["LSMA"] = make_approx_tuple(
+                adaptive_lsma_approx(
+                    prices,
+                    lsma_len,
+                    volatility_window=approximate_volatility_window,
+                    volatility_factor=approximate_volatility_factor,
+                )
+            )
+            ma_tuples["KAMA"] = make_approx_tuple(
+                adaptive_kama_approx(
+                    prices,
+                    kama_len,
+                    volatility_window=approximate_volatility_window,
+                    volatility_factor=approximate_volatility_factor,
+                )
+            )
+        elif use_approximate:
+            # Use basic approximate MAs for fast scanning
             from modules.adaptive_trend_LTS.core.compute_moving_averages.approximate_mas import (
                 fast_dema_approx,
                 fast_ema_approx,
@@ -159,12 +229,16 @@ def compute_atc_signals(
                 fast_wma_approx,
             )
 
-            ma_tuples["EMA"] = (fast_ema_approx(prices, ema_len), None, None)
-            ma_tuples["HMA"] = (fast_hma_approx(prices, hull_len), None, None)
-            ma_tuples["WMA"] = (fast_wma_approx(prices, wma_len), None, None)
-            ma_tuples["DEMA"] = (fast_dema_approx(prices, dema_len), None, None)
-            ma_tuples["LSMA"] = (fast_lsma_approx(prices, lsma_len), None, None)
-            ma_tuples["KAMA"] = (fast_kama_approx(prices, kama_len), None, None)
+            # Helper to create 9-element tuple
+            def make_approx_tuple(ma_series):
+                return (ma_series,) * 9
+
+            ma_tuples["EMA"] = make_approx_tuple(fast_ema_approx(prices, ema_len))
+            ma_tuples["HMA"] = make_approx_tuple(fast_hma_approx(prices, hull_len))
+            ma_tuples["WMA"] = make_approx_tuple(fast_wma_approx(prices, wma_len))
+            ma_tuples["DEMA"] = make_approx_tuple(fast_dema_approx(prices, dema_len))
+            ma_tuples["LSMA"] = make_approx_tuple(fast_lsma_approx(prices, lsma_len))
+            ma_tuples["KAMA"] = make_approx_tuple(fast_kama_approx(prices, kama_len))
         else:
             for ma_type, length, _ in ma_configs:
                 # use_rust_backend=True enables Rust backend

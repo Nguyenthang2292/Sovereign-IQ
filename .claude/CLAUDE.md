@@ -178,7 +178,14 @@ Two distinct analysis workflows (see `core/README.md` for detailed comparison):
 Shared utilities used across all modules:
 
 - **Data Layer**:
-  - `core/data_fetcher.py`: Multi-exchange fetching with caching and smart fallback
+  - `core/data_fetcher/`: Multi-exchange fetching with caching and smart fallback (modular design)
+    - `__init__.py`: Main DataFetcher class with composition pattern
+    - `base.py`: Core infrastructure (caching, shutdown handling)
+    - `binance_prices.py`: Binance price fetching
+    - `binance_futures.py`: Futures positions and balance operations
+    - `symbol_discovery.py`: Symbol discovery for spot and futures markets
+    - `ohlcv.py`: OHLCV data fetching with exchange fallback
+    - `exceptions.py`: Custom exceptions (SymbolFetchError)
   - `core/exchange_manager.py`: Exchange connection management
   - `core/data_fetcher_forex.py`: Forex market data
 

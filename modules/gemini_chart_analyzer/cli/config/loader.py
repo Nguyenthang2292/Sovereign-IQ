@@ -5,7 +5,8 @@ import yaml
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from modules.common.utils import log_error, log_success
+from modules.common.utils import log_error, log_success, log_debug
+from modules.common.system.managers.hardware_manager import get_hardware_manager
 
 
 def list_configuration_files() -> List[Path]:
@@ -65,6 +66,9 @@ def load_configuration_from_file(config_path: Path) -> Optional[Dict[str, Any]]:
                 log_error(f"Unsupported configuration format: {ext}")
                 return None
 
+        # Post-process configuration to auto-calculate num_threads if needed
+        config_data = _process_config_auto_values(config_data)
+
         log_success(f"Configuration loaded from: {config_path}")
         return config_data
 
@@ -74,3 +78,46 @@ def load_configuration_from_file(config_path: Path) -> Optional[Dict[str, Any]]:
     except Exception as e:
         log_error(f"Failed to load configuration: {type(e).__name__}: {e}")
         return None
+
+
+def _process_config_auto_values(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Process configuration to replace auto-calculated values.
+
+    Auto-calculates values like num_threads based on system resources.
+
+    Args:
+        config: Raw configuration dictionary
+
+    Returns:
+        Processed configuration dictionary with auto-calculated values
+    """
+    if not config:
+        return config
+
+    # Auto-calculate num_threads for approximate_ma_scanner
+    if "approximate_ma_scanner" in config:
+        ama_config = config["approximate_ma_scanner"]
+        if isinstance(ama_config, dict):
+            # Only process if feature is enabled
+            is_enabled = ama_config.get("enabled", False)
+
+            if is_enabled:
+                num_threads = ama_config.get("num_threads")
+
+                # Auto-calculate if null, "auto", or not set
+                if num_threads is None or (isinstance(num_threads, str) and num_threads.lower() == "auto"):
+                    hw_manager = get_hardware_manager()
+                    hw_manager.detect_resources()
+                    resources = hw_manager.get_resources()
+
+                    # Calculate optimal thread count:
+                    # Reserve 1-2 cores for system, use logical cores for threading
+                    optimal_threads = max(1, resources.cpu_cores - 2)
+                    ama_config["num_threads"] = optimal_threads
+
+                    log_debug(
+                        f"Auto-calculated num_threads for approximate_ma_scanner: "
+                        f"{optimal_threads} (CPU cores: {resources.cpu_cores})"
+                    )
+
+    return config

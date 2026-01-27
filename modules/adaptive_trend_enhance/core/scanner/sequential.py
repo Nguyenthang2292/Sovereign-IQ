@@ -33,6 +33,7 @@ def _process_symbols_batched(
     atc_config: ATCConfig,
     min_signal: float,
     batch_size: int = 100,
+    ohlcv_cache: Optional[Dict[str, pd.DataFrame]] = None,
 ) -> Iterator[Optional[Dict[str, Any]]]:
     """Process symbols in batches using a generator to reduce memory usage.
 
@@ -45,6 +46,7 @@ def _process_symbols_batched(
         atc_config: ATCConfig object
         min_signal: Minimum signal strength threshold
         batch_size: Number of symbols to process before forcing GC (default: 100)
+        ohlcv_cache: Optional cache of OHLCV data to avoid re-fetching
 
     Yields:
         Optional[Dict[str, Any]]: Result for each symbol, or None if skipped/error
@@ -60,7 +62,7 @@ def _process_symbols_batched(
         # Process batch
         for symbol in batch:
             try:
-                result = _process_symbol(symbol, data_fetcher, atc_config, min_signal)
+                result = _process_symbol(symbol, data_fetcher, atc_config, min_signal, ohlcv_cache)
                 processed += 1
                 yield result
             except Exception as e:
@@ -82,6 +84,7 @@ def _scan_sequential(
     atc_config: ATCConfig,
     min_signal: float,
     batch_size: int = 100,
+    ohlcv_cache: Optional[Dict[str, pd.DataFrame]] = None,
 ) -> Tuple[list, int, int, list]:
     """Scan symbols sequentially using batched generator processing."""
     results = []
@@ -92,7 +95,7 @@ def _scan_sequential(
 
     try:
         for idx, result in enumerate(
-            _process_symbols_batched(symbols, data_fetcher, atc_config, min_signal, batch_size), 1
+            _process_symbols_batched(symbols, data_fetcher, atc_config, min_signal, batch_size, ohlcv_cache), 1
         ):
             if result is None:
                 skipped_count += 1

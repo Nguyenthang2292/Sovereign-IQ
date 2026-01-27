@@ -105,7 +105,7 @@ with stream2:
 **Status**: ✅ **IMPLEMENTED** - Process all symbols in single kernel launch
 **Achieved**: **83.53x faster** than original (99 symbols × 1500 bars)
 
-### 2.4 Tensor Cores (RTX GPUs) ⚠️ **NOT NECESSARY**
+### ~~2.4 Tensor Cores (RTX GPUs)~~ ⚠️ **NOT NECESSARY**
 
 **Opportunity**: Use Tensor Cores for matrix operations (LSMA, weighted sums)
 
@@ -124,7 +124,7 @@ result = cp.matmul(a.astype(cp.float16), b.astype(cp.float16))
 
 ## 3. Distributed Computing
 
-### 3.1 Ray for Multi-Machine Scaling ⚠️ **NOT NECESSARY - Replaced by Dask**
+### ~~3.1 Ray for Multi-Machine Scaling~~ ⚠️ **NOT NECESSARY - Replaced by Dask**
 
 **Status**: ✅ **Alternative Implemented (Dask in Phase 5)**
 **Opportunity**: Distribute symbol processing across multiple machines ✅ **ACHIEVED via Dask**
@@ -278,7 +278,7 @@ py-spy record -o profile.svg -- python docs/benchmarks/benchmark_comparison.py
 
 ---
 
-## 7. Specialized Hardware
+## ~~7. Specialized Hardware~~ ⚠️ **NOT NECESSARY**
 
 ### 7.1 Apple Silicon (M1/M2/M3) Optimization
 
@@ -319,7 +319,7 @@ result = compute_atc_jax(jnp.array(prices))
 
 ## 8. Caching Improvements
 
-### 8.1 Redis for Distributed Caching
+### ~~8.1 Redis for Distributed Caching~~ ⚠️ **NOT NECESSARY**
 
 **Opportunity**: Share cache across multiple instances
 

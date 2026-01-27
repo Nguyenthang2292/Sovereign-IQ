@@ -1,0 +1,64 @@
+
+[22m[36m============================================================[0m
+[22m[36mMARKET BATCH SCANNER[0m
+[22m[36m============================================================[0m
+
+[22m[36m
+(Tip: Press Backspace or type 'b' at any prompt to go back)
+[0m
+
+Load Configuration:
+  No configuration files found in project root
+  You can still enter a full path to a JSON or YAML file
+[22m[33mLoad configuration from file? (y/n) [n]: [0m[22m[33m
+Select file number or enter full path (press Enter to skip): [0mstandard_batch_scan_config.yaml
+[22m[34mHardware Manager initialized[0m
+[22m[34mCuPy CUDA GPU detected: 1 device(s), 6.00 GB[0m
+[22m[34mXGBoost GPU available (nvidia-smi check passed)[0m
+[22m[37mnvidia-smi output: GPU 0: NVIDIA GeForce GTX 1660 SUPER (UUID: GPU-9e72f548-f113-549c-1f66-60bb813f5af7)[0m
+[22m[34mHardware detected: 12 cores, 31.90GB RAM (53.4% used), GPU: cuda[0m
+[22m[37mAuto-calculated num_threads for approximate_ma_scanner: 10 (CPU cores: 12)[0m
+[22m[32mConfiguration loaded from: standard_batch_scan_config.yaml[0m
+
+[22m[36m============================================================[0m
+[22m[36mLOADED CONFIGURATION[0m
+[22m[36m============================================================[0m
+Timeframes: 15m, 1h, 4h (Multi-timeframe mode)
+Max symbols: All
+Cooldown: 2.5s
+Candles per symbol: 700
+Pre-filter: Enabled (Voting mode, Fast (3-stage: ATC → RangeOsc+SPC → ML models))
+
+SPC Enhancements:
+  Preset: Aggressive
+
+
+Configuration Options:
+  1. Use loaded configuration as-is
+  2. Use as defaults and adjust
+  3. Start fresh (ignore loaded config)
+[22m[33mSelect option (1/2/3) [2]: [0m1
+
+[22m[36m==================================================[0m
+[22m[36mCONFIGURATION SUMMARY[0m
+[22m[36m==================================================[0m
+Analysis Mode: multi-timeframe
+Timeframe: 15m
+Timeframes: 15m, 1h, 4h
+Max Symbols: None
+Cooldown: 2.5s
+Limit: 700
+Stage 0 Random Sampling: 50% (liquidity_weighted)
+Pre-filter Mode: voting
+Pre-filter Percentage: 30.0%
+Fast Mode: True
+SPC Preset: aggressive
+RF Model: None
+
+[22m[32mATC Performance:[0m
+  Backend: Rust Rayon (CPU)
+  Parallel L1/L2: Yes
+  Dask (Out-of-Core): Disabled
+[22m[36m==================================================[0m
+[22m[33mStart batch scan? (y/n) [y]: [0m[22m[33m
+Exiting...[0m

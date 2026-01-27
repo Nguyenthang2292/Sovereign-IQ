@@ -111,6 +111,10 @@ def _process_symbol(
             long_threshold=atc_config.long_threshold,
             short_threshold=atc_config.short_threshold,
             precision=atc_config.precision,
+            use_approximate=atc_config.use_approximate,
+            use_adaptive_approximate=atc_config.use_adaptive_approximate,
+            approximate_volatility_window=atc_config.approximate_volatility_window,
+            approximate_volatility_factor=atc_config.approximate_volatility_factor,
         )
 
         average_signal = atc_results.get("Average_Signal")

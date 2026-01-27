@@ -73,19 +73,21 @@ class ATCAnalyzer:
     configuration, and execution of auto/manual analysis modes.
     """
 
-    def __init__(self, args: Namespace, data_fetcher: DataFetcher):
+    def __init__(self, args: Namespace, data_fetcher: DataFetcher, ohlcv_cache: dict = None):
         """
         Initialize ATC Analyzer.
 
         Args:
             args: Parsed command-line arguments
             data_fetcher: DataFetcher instance
+            ohlcv_cache: Optional cache of OHLCV data
         """
         self.args = args
         self.data_fetcher = data_fetcher
         self.selected_timeframe = args.timeframe
         self.mode = "manual"
         self._atc_params = None
+        self.ohlcv_cache = ohlcv_cache
 
     def determine_mode_and_timeframe(self) -> Tuple[str, str]:
         """
@@ -138,8 +140,13 @@ class ATCAnalyzer:
                 "lambda_param",
                 "decay",
                 "cutout",
+                "use_approximate",
+                "use_adaptive_approximate",
+                "approximate_volatility_window",
+                "approximate_volatility_factor",
             ]
             self._atc_params = extract_dict_from_namespace(self.args, atc_param_keys)
+
         return self._atc_params
 
     def display_auto_mode_config(self) -> None:
@@ -187,6 +194,7 @@ class ATCAnalyzer:
             max_symbols=self.args.max_symbols,
             min_signal=self.args.min_signal,
             batch_size=getattr(self.args, "batch_size", atc_config.batch_size),
+            ohlcv_cache=self.ohlcv_cache,
         )
 
         return long_signals, short_signals

@@ -31,13 +31,13 @@ max_symbols:
 # ============================================================================
 
 stage0_sample_percentage:
-  50 # Sample % (100 = no sampling)
+  100 # Sample % (100 = no sampling)
   # The percentage of the market to select in Stage 0 sampling.
   # 100 means sample all symbols (no sampling applied).
   # Reduce this to scan a subset of symbols.
 
 stage0_sampling_strategy:
-  stratified # Sampling strategy to use
+  liquidity_weighted # Sampling strategy to use
   # Available strategies:
   # - 'random': Pure random sampling (uniform probability)
   # - 'volume_weighted': Higher volume symbols have higher probability
@@ -132,8 +132,9 @@ rf_training:
   training_limit: 1500
 
 # ============================================================================
-# ATC (ADAPTIVE TREND COMPONENT) PERFORMANCE CONFIGURATION
+# ATC (ADAPTIVE TREND COMPONENT) CONFIGURATION
 # ============================================================================
+
 
 atc_performance:
   batch_processing: true # Rust Rayon multi-threading (recommended)
@@ -148,3 +149,12 @@ atc_performance:
   # This enables processing dataset larger than RAM by chunking
   use_dask: false # Auto-enabled by system if symbols > 1000, but can be forced here
   npartitions: null # Number of Dask partitions (null = auto-calculated)
+
+approximate_ma_scanner:
+  enabled: true            # Enable/disable approximate MA calculations (true = 2-3x faster, false = exact MAs)
+  use_adaptive: true       # Enable adaptive tolerance based on volatility
+  num_threads: null        # Number of threads for parallel processing (null = auto-calculate based on CPU cores)
+  volatility_window: 20    # Window size for volatility calculation
+  base_tolerance: 0.05     # Base tolerance (5%) for adaptive mode
+  volatility_factor: 1.0   # Multiplier for volatility impact on tolerance
+

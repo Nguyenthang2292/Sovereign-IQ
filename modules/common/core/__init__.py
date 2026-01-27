@@ -1,6 +1,6 @@
 """Core business components for data fetching, exchange management, and indicators."""
 
-from .data_fetcher import DataFetcher
+from .data_fetcher import DataFetcher, SymbolFetchError
 from .exchange_manager import AuthenticatedExchangeManager, ExchangeManager, PublicExchangeManager
 from .indicator_engine import CustomIndicator, IndicatorConfig, IndicatorEngine, IndicatorProfile
 
@@ -9,6 +9,7 @@ from .indicator_engine import CustomIndicator, IndicatorConfig, IndicatorEngine,
 
 __all__ = [
     "DataFetcher",
+    "SymbolFetchError",
     "ExchangeManager",
     "PublicExchangeManager",
     "AuthenticatedExchangeManager",

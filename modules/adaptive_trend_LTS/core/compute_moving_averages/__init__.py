@@ -10,6 +10,7 @@ from .ma_calculation_enhanced import ma_calculation_enhanced
 from .ma_calculation_rust import ma_calculation_rust
 from .set_of_moving_averages_enhanced import set_of_moving_averages_enhanced
 from .set_of_moving_averages_rust import set_of_moving_averages_rust
+from .batch_approximate_mas import BatchApproximateMAScanner
 
 __all__ = [
     "calculate_kama_atc",
@@ -19,6 +20,8 @@ __all__ = [
     # Rust backend versions
     "ma_calculation_rust",
     "set_of_moving_averages_rust",
+    # Approximate batch scanner
+    "BatchApproximateMAScanner",
     # Backward compatibility (default to Rust for v2)
     "ma_calculation",
     "set_of_moving_averages",

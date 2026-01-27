@@ -13,19 +13,23 @@ def compare_signals(
     enhanced_results: Dict[str, Dict],
     rust_results: Dict[str, Dict],
     rust_rayon_results: Dict[str, Dict],
+    approximate_results: Dict[str, Dict],
+    adaptive_approximate_results: Dict[str, Dict],
     cuda_results: Dict[str, Dict],
     dask_results: Dict[str, Dict],
     rust_dask_results: Dict[str, Dict],
     cuda_dask_results: Dict[str, Dict],
     rust_cuda_dask_results: Dict[str, Dict],
 ) -> Dict[str, any]:
-    """Compare signal outputs between all 8 versions: original, enhanced, rust, cuda, dask, and their combinations.
+    """Compare signal outputs between all 10 versions.
 
     Args:
         original_results: Results from original module
         enhanced_results: Results from enhanced module
         rust_results: Results from Rust module
         rust_rayon_results: Results from Rust Rayon module
+        approximate_results: Results from Approximate MAs module
+        adaptive_approximate_results: Results from Adaptive Approximate MAs module
         cuda_results: Results from CUDA module
         dask_results: Results from Dask module
         rust_dask_results: Results from Rust+Dask hybrid
@@ -35,15 +39,17 @@ def compare_signals(
     Returns:
         Dictionary of comparison metrics
     """
-    log_info("Comparing signal outputs between all 8 versions...")
+    log_info("Comparing signal outputs between all 10 versions...")
 
-    # DEBUG: Print result dict sizes and sample keys
+    # DEBUG: Print result dict sizes
     log_info(
         f"Result dict sizes: orig={len(original_results)}, enh={len(enhanced_results)}, "
-        f"rust={len(rust_results)}, rust_rayon={len(rust_rayon_results)}, cuda={len(cuda_results)}, "
-        f"dask={len(dask_results)}, rust_dask={len(rust_dask_results)}, "
+        f"rust={len(rust_results)}, rust_rayon={len(rust_rayon_results)}, "
+        f"approx={len(approximate_results)}, adaptive_approx={len(adaptive_approximate_results)}, "
+        f"cuda={len(cuda_results)}, dask={len(dask_results)}, rust_dask={len(rust_dask_results)}, "
         f"cuda_dask={len(cuda_dask_results)}, rust_cuda_dask={len(rust_cuda_dask_results)}"
     )
+
     if original_results:
         sample_key = list(original_results.keys())[0]
         log_info(f"Sample key: {sample_key}")
@@ -104,12 +110,24 @@ def compare_signals(
     orig_all_three_matching = 0
     orig_all_three_mismatched = []
 
+    # Compare Original vs Approximate
+    orig_approx_diffs = []
+    orig_approx_matching = 0
+    orig_approx_mismatched = []
+
+    # Compare Original vs Adaptive Approximate
+    orig_adaptive_approx_diffs = []
+    orig_adaptive_approx_matching = 0
+    orig_adaptive_approx_mismatched = []
+
     for symbol in original_results.keys():
         # Get results for each module (may be None or missing)
         orig = original_results.get(symbol)
         enh = enhanced_results.get(symbol)
         rust = rust_results.get(symbol)
         rust_rayon = rust_rayon_results.get(symbol)
+        approx = approximate_results.get(symbol)
+        adaptive_approx = adaptive_approximate_results.get(symbol)
         cuda = cuda_results.get(symbol)
         dask = dask_results.get(symbol)
         rust_dask = rust_dask_results.get(symbol)
@@ -126,6 +144,8 @@ def compare_signals(
         enh_s = enh.get("Average_Signal") if enh else None
         rust_s = rust.get("Average_Signal") if rust else None
         rust_r_s = rust_rayon.get("Average_Signal") if rust_rayon else None
+        approx_s = approx.get("Average_Signal") if approx else None
+        adaptive_approx_s = adaptive_approx.get("Average_Signal") if adaptive_approx else None
         cuda_s = cuda.get("Average_Signal") if cuda else None
         dask_s = dask.get("Average_Signal") if dask else None
         rust_dask_s = rust_dask.get("Average_Signal") if rust_dask else None
@@ -245,7 +265,41 @@ def compare_signals(
                 else:
                     orig_all_three_mismatched.append((symbol, diff_oall))
 
+        # Original vs Approximate
+        if approx_s is not None and len(approx_s) > 0:
+            common_idx = orig_s.index.intersection(approx_s.index)
+            if len(common_idx) > 0:
+                diff_oa = np.abs(orig_s.loc[common_idx] - approx_s.loc[common_idx]).max()
+                orig_approx_diffs.append(diff_oa)
+                # For approximate, we expect slight differences, so threshold is higher or we just log it
+                # But for matching count, we keep 1e-6 to see how "exact" it is.
+                # The task says "~95% accuracy (signals may differ slightly by design)"
+                if diff_oa < 1e-6:
+                    orig_approx_matching += 1
+                else:
+                    orig_approx_mismatched.append((symbol, diff_oa))
+        else:
+            log_warn(
+                f"Approximate signal missing or empty for {symbol}: {approx_s is None}, len={len(approx_s) if approx_s is not None else 'None'}"
+            )
+
+        # Original vs Adaptive Approximate
+        if adaptive_approx_s is not None and len(adaptive_approx_s) > 0:
+            common_idx = orig_s.index.intersection(adaptive_approx_s.index)
+            if len(common_idx) > 0:
+                diff_oaa = np.abs(orig_s.loc[common_idx] - adaptive_approx_s.loc[common_idx]).max()
+                orig_adaptive_approx_diffs.append(diff_oaa)
+                if diff_oaa < 1e-6:
+                    orig_adaptive_approx_matching += 1
+                else:
+                    orig_adaptive_approx_mismatched.append((symbol, diff_oaa))
+        else:
+            log_warn(
+                f"Adaptive Approx signal missing or empty for {symbol}: {adaptive_approx_s is None}, len={len(adaptive_approx_s) if adaptive_approx_s is not None else 'None'}"
+            )
+
         # Original vs Rust Rayon
+
         if rust_r_s is not None and len(rust_r_s) > 0:
             common_idx = orig_s.index.intersection(rust_r_s.index)
             if len(common_idx) > 0:
@@ -280,6 +334,13 @@ def compare_signals(
     log_success(f"Original vs Rust+Dask match rate: {orig_rust_dask_match_rate:.2f}%")
     log_success(f"Original vs CUDA+Dask match rate: {orig_cuda_dask_match_rate:.2f}%")
     log_success(f"Original vs Rust+CUDA+Dask match rate: {orig_all_three_match_rate:.2f}%")
+
+    orig_approx_match_rate = (orig_approx_matching / total_symbols) * 100 if total_symbols > 0 else 0
+    orig_adaptive_approx_match_rate = (orig_adaptive_approx_matching / total_symbols) * 100 if total_symbols > 0 else 0
+
+    log_success(f"Original vs Approximate match rate: {orig_approx_match_rate:.2f}%")
+    log_success(f"Original vs Adaptive Approx match rate: {orig_adaptive_approx_match_rate:.2f}%")
+
     log_success(f"Enhanced vs Rust match rate: {enh_rust_match_rate:.2f}%")
     log_success(f"Rust vs CUDA match rate: {rust_cuda_match_rate:.2f}%")
 
@@ -291,6 +352,22 @@ def compare_signals(
             "median_difference": np.median(orig_enh_diffs) if orig_enh_diffs else 0,
             "matching_symbols": orig_enh_matching,
             "mismatched_symbols": [s[0] for s in orig_enh_mismatched],
+        },
+        "orig_approx": {
+            "match_rate_percent": orig_approx_match_rate,
+            "max_difference": max(orig_approx_diffs) if orig_approx_diffs else 0,
+            "avg_difference": np.mean(orig_approx_diffs) if orig_approx_diffs else 0,
+            "median_difference": np.median(orig_approx_diffs) if orig_approx_diffs else 0,
+            "matching_symbols": orig_approx_matching,
+            "mismatched_symbols": [s[0] for s in orig_approx_mismatched],
+        },
+        "orig_adaptive_approx": {
+            "match_rate_percent": orig_adaptive_approx_match_rate,
+            "max_difference": max(orig_adaptive_approx_diffs) if orig_adaptive_approx_diffs else 0,
+            "avg_difference": np.mean(orig_adaptive_approx_diffs) if orig_adaptive_approx_diffs else 0,
+            "median_difference": np.median(orig_adaptive_approx_diffs) if orig_adaptive_approx_diffs else 0,
+            "matching_symbols": orig_adaptive_approx_matching,
+            "mismatched_symbols": [s[0] for s in orig_adaptive_approx_mismatched],
         },
         "orig_rust": {
             "match_rate_percent": orig_rust_match_rate,
@@ -365,6 +442,8 @@ def generate_comparison_table(
     enhanced_time: float,
     rust_time: float,
     rust_rayon_time: float,
+    approximate_time: float,
+    adaptive_approximate_time: float,
     cuda_time: float,
     dask_time: float,
     rust_dask_time: float,
@@ -374,6 +453,8 @@ def generate_comparison_table(
     enhanced_memory: float,
     rust_memory: float,
     rust_rayon_memory: float,
+    approximate_memory: float,
+    adaptive_approximate_memory: float,
     cuda_memory: float,
     dask_memory: float,
     rust_dask_memory: float,
@@ -381,13 +462,15 @@ def generate_comparison_table(
     all_three_memory: float,
     signal_comparison: Dict,
 ) -> str:
-    """Generate formatted comparison table for all 8 versions.
+    """Generate formatted comparison table for all 10 versions.
 
     Args:
         original_time: Execution time for original module (seconds)
         enhanced_time: Execution time for enhanced module (seconds)
         rust_time: Execution time for Rust module (seconds)
         rust_rayon_time: Execution time for Rust Rayon module (seconds)
+        approximate_time: Execution time for Approximate MAs module (seconds)
+        adaptive_approximate_time: Execution time for Adaptive Approximate MAs module (seconds)
         cuda_time: Execution time for CUDA module (seconds)
         dask_time: Execution time for Dask module (seconds)
         rust_dask_time: Execution time for Rust+Dask hybrid (seconds)
@@ -397,6 +480,8 @@ def generate_comparison_table(
         enhanced_memory: Peak memory for enhanced module (MB)
         rust_memory: Peak memory for Rust module (MB)
         rust_rayon_memory: Peak memory for Rust Rayon module (MB)
+        approximate_memory: Peak memory for Approximate MAs module (MB)
+        adaptive_approximate_memory: Peak memory for Adaptive Approximate MAs module (MB)
         cuda_memory: Peak memory for CUDA module (MB)
         dask_memory: Peak memory for Dask module (MB)
         rust_dask_memory: Peak memory for Rust+Dask hybrid (MB)
@@ -409,6 +494,8 @@ def generate_comparison_table(
     """
     speedup_enh = original_time / enhanced_time if enhanced_time > 0 else 0
     speedup_rust_rayon = original_time / rust_rayon_time if rust_rayon_time > 0 else 0
+    speedup_approx = original_time / approximate_time if approximate_time > 0 else 0
+    speedup_adaptive_approx = original_time / adaptive_approximate_time if adaptive_approximate_time > 0 else 0
     speedup_cuda = original_time / cuda_time if cuda_time > 0 else 0
     speedup_dask = original_time / dask_time if dask_time > 0 else 0
     speedup_rust_dask = original_time / rust_dask_time if rust_dask_time > 0 else 0
@@ -418,6 +505,12 @@ def generate_comparison_table(
     memory_reduction_enh = ((original_memory - enhanced_memory) / original_memory) * 100 if original_memory > 0 else 0
     memory_reduction_rust_rayon = (
         ((original_memory - rust_rayon_memory) / original_memory) * 100 if original_memory > 0 else 0
+    )
+    memory_reduction_approx = (
+        ((original_memory - approximate_memory) / original_memory) * 100 if original_memory > 0 else 0
+    )
+    memory_reduction_adaptive_approx = (
+        ((original_memory - adaptive_approximate_memory) / original_memory) * 100 if original_memory > 0 else 0
     )
     memory_reduction_cuda = ((original_memory - cuda_memory) / original_memory) * 100 if original_memory > 0 else 0
     memory_reduction_dask = ((original_memory - dask_memory) / original_memory) * 100 if original_memory > 0 else 0
@@ -431,7 +524,7 @@ def generate_comparison_table(
         ((original_memory - all_three_memory) / original_memory) * 100 if original_memory > 0 else 0
     )
 
-    # Performance table - 8 versions
+    # Performance table - 10 versions
     perf_data = [
         [
             "Metric",
@@ -439,18 +532,22 @@ def generate_comparison_table(
             "Enhanced",
             "Rust",
             "CUDA",
+            "Approx",
+            "AdaptApprox",
             "Dask",
             "Rust+Dask",
             "CUDA+Dask",
             "All Three",
         ],
-        ["─" * 12] * 8,
+        ["─" * 12] * 10,
         [
             "Execution Time",
             f"{original_time:.2f}s",
             f"{enhanced_time:.2f}s",
             f"{rust_rayon_time:.2f}s",
             f"{cuda_time:.2f}s",
+            f"{approximate_time:.2f}s",
+            f"{adaptive_approximate_time:.2f}s",
             f"{dask_time:.2f}s",
             f"{rust_dask_time:.2f}s",
             f"{cuda_dask_time:.2f}s",
@@ -462,6 +559,8 @@ def generate_comparison_table(
             f"{speedup_enh:.2f}x",
             f"{speedup_rust_rayon:.2f}x",
             f"{speedup_cuda:.2f}x",
+            f"{speedup_approx:.2f}x",
+            f"{speedup_adaptive_approx:.2f}x",
             f"{speedup_dask:.2f}x",
             f"{speedup_rust_dask:.2f}x",
             f"{speedup_cuda_dask:.2f}x",
@@ -473,6 +572,8 @@ def generate_comparison_table(
             f"{enhanced_memory:.1f} MB",
             f"{rust_rayon_memory:.1f} MB",
             f"{cuda_memory:.1f} MB",
+            f"{approximate_memory:.1f} MB",
+            f"{adaptive_approximate_memory:.1f} MB",
             f"{dask_memory:.1f} MB",
             f"{rust_dask_memory:.1f} MB",
             f"{cuda_dask_memory:.1f} MB",
@@ -484,6 +585,8 @@ def generate_comparison_table(
             f"{memory_reduction_enh:.1f}%",
             f"{memory_reduction_rust_rayon:.1f}%",
             f"{memory_reduction_cuda:.1f}%",
+            f"{memory_reduction_approx:.1f}%",
+            f"{memory_reduction_adaptive_approx:.1f}%",
             f"{memory_reduction_dask:.1f}%",
             f"{memory_reduction_rust_dask:.1f}%",
             f"{memory_reduction_cuda_dask:.1f}%",
@@ -498,17 +601,21 @@ def generate_comparison_table(
             "vs Enhanced",
             "vs Rust",
             "vs CUDA",
+            "vs Approx",
+            "vs AdaptApprox",
             "vs Dask",
             "vs Rust+Dask",
             "vs CUDA+Dask",
             "vs All Three",
         ],
-        ["─" * 20] * 8,
+        ["─" * 20] * 10,
         [
             "Match Rate",
             f"{signal_comparison['orig_enh']['match_rate_percent']:.2f}%",
             f"{signal_comparison['orig_rust']['match_rate_percent']:.2f}%",
             f"{signal_comparison['orig_cuda']['match_rate_percent']:.2f}%",
+            f"{signal_comparison['orig_approx']['match_rate_percent']:.2f}%",
+            f"{signal_comparison['orig_adaptive_approx']['match_rate_percent']:.2f}%",
             f"{signal_comparison['orig_dask']['match_rate_percent']:.2f}%",
             f"{signal_comparison['orig_rust_dask']['match_rate_percent']:.2f}%",
             f"{signal_comparison['orig_cuda_dask']['match_rate_percent']:.2f}%",
@@ -519,6 +626,8 @@ def generate_comparison_table(
             f"{signal_comparison['orig_enh']['matching_symbols']}/{signal_comparison['total_symbols']}",
             f"{signal_comparison['orig_rust']['matching_symbols']}/{signal_comparison['total_symbols']}",
             f"{signal_comparison['orig_cuda']['matching_symbols']}/{signal_comparison['total_symbols']}",
+            f"{signal_comparison['orig_approx']['matching_symbols']}/{signal_comparison['total_symbols']}",
+            f"{signal_comparison['orig_adaptive_approx']['matching_symbols']}/{signal_comparison['total_symbols']}",
             f"{signal_comparison['orig_dask']['matching_symbols']}/{signal_comparison['total_symbols']}",
             f"{signal_comparison['orig_rust_dask']['matching_symbols']}/{signal_comparison['total_symbols']}",
             f"{signal_comparison['orig_cuda_dask']['matching_symbols']}/{signal_comparison['total_symbols']}",
@@ -529,6 +638,8 @@ def generate_comparison_table(
             f"{signal_comparison['orig_enh']['max_difference']:.2e}",
             f"{signal_comparison['orig_rust']['max_difference']:.2e}",
             f"{signal_comparison['orig_cuda']['max_difference']:.2e}",
+            f"{signal_comparison['orig_approx']['max_difference']:.2e}",
+            f"{signal_comparison['orig_adaptive_approx']['max_difference']:.2e}",
             f"{signal_comparison['orig_dask']['max_difference']:.2e}",
             f"{signal_comparison['orig_rust_dask']['max_difference']:.2e}",
             f"{signal_comparison['orig_cuda_dask']['max_difference']:.2e}",
@@ -539,6 +650,8 @@ def generate_comparison_table(
             f"{signal_comparison['orig_enh']['avg_difference']:.2e}",
             f"{signal_comparison['orig_rust']['avg_difference']:.2e}",
             f"{signal_comparison['orig_cuda']['avg_difference']:.2e}",
+            f"{signal_comparison['orig_approx']['avg_difference']:.2e}",
+            f"{signal_comparison['orig_adaptive_approx']['avg_difference']:.2e}",
             f"{signal_comparison['orig_dask']['avg_difference']:.2e}",
             f"{signal_comparison['orig_rust_dask']['avg_difference']:.2e}",
             f"{signal_comparison['orig_cuda_dask']['avg_difference']:.2e}",
@@ -549,6 +662,8 @@ def generate_comparison_table(
             f"{signal_comparison['orig_enh']['median_difference']:.2e}",
             f"{signal_comparison['orig_rust']['median_difference']:.2e}",
             f"{signal_comparison['orig_cuda']['median_difference']:.2e}",
+            f"{signal_comparison['orig_approx']['median_difference']:.2e}",
+            f"{signal_comparison['orig_adaptive_approx']['median_difference']:.2e}",
             f"{signal_comparison['orig_dask']['median_difference']:.2e}",
             f"{signal_comparison['orig_rust_dask']['median_difference']:.2e}",
             f"{signal_comparison['orig_cuda_dask']['median_difference']:.2e}",

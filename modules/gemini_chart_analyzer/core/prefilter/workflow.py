@@ -325,6 +325,7 @@ def run_prefilter_worker(
     stage0_stratified_strata_count: int = 3,
     stage0_hybrid_top_percentage: float = 50.0,
     atc_performance: Optional[Dict[str, Any]] = None,
+    approximate_ma_scanner: Optional[Dict[str, Any]] = None,
     auto_skip_threshold: int = 10,
 ) -> List[str]:
     """
@@ -362,6 +363,8 @@ def run_prefilter_worker(
     total_symbols = len(all_symbols)
 
     # Stage 0: Sampling (optional) - use configurable strategy
+    data_cache = {}  # Cache for OHLCV data to avoid re-fetching
+
     if stage0_sample_percentage is not None and 0 < stage0_sample_percentage < 100.0:
         from modules.gemini_chart_analyzer.core.prefilter.sampling_strategies import (
             SamplingStrategy,
@@ -381,6 +384,9 @@ def run_prefilter_worker(
         volumes = None
         strategy_enum = SamplingStrategy(stage0_sampling_strategy)
 
+        # Initialize data fetcher if needed for volume or liquidity weighted
+        temp_data_fetcher = None
+
         # Strategies that require volume data
         volume_required_strategies = {
             SamplingStrategy.VOLUME_WEIGHTED,
@@ -391,14 +397,61 @@ def run_prefilter_worker(
         }
 
         if strategy_enum in volume_required_strategies:
-            log_info("[Pre-filter Stage 0] Fetching volume data for sampling...")
-            # Create a minimal DataFetcher for volume retrieval
             from modules.common.core.data_fetcher import DataFetcher
             from modules.common.core.exchange_manager import ExchangeManager
 
-            temp_exchange_manager = ExchangeManager()
-            temp_data_fetcher = DataFetcher(temp_exchange_manager)
+            if temp_data_fetcher is None:
+                temp_exchange_manager = ExchangeManager()
+                temp_data_fetcher = DataFetcher(temp_exchange_manager)
+
+            log_info("[Pre-filter Stage 0] Fetching volume data for sampling...")
             volumes = get_symbol_volumes(all_symbols, temp_data_fetcher)
+
+        # Task 1: Pre-load OHLCV data for Liquidity Weighted strategy
+        if strategy_enum == SamplingStrategy.LIQUIDITY_WEIGHTED:
+            log_info(
+                f"[Pre-filter Stage 0] Pre-loading OHLCV data for {len(all_symbols)} symbols (Liquidity Weighted)..."
+            )
+
+            if temp_data_fetcher is None:
+                from modules.common.core.data_fetcher import DataFetcher
+                from modules.common.core.exchange_manager import ExchangeManager
+
+                temp_exchange_manager = ExchangeManager()
+                temp_data_fetcher = DataFetcher(temp_exchange_manager)
+
+            # Use ThreadPoolExecutor for parallel fetching
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            import numpy as np
+
+            # Determine lookback for metrics (usually 14 for ATR, so fetch 28)
+            metrics_lookback = 14
+            fetch_limit = metrics_lookback * 2
+
+            def fetch_symbol_data(symbol):
+                try:
+                    df, _ = temp_data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                        symbol, timeframe="1d", limit=fetch_limit
+                    )
+                    if df is not None and len(df) >= metrics_lookback:
+                        return symbol, df
+                    return symbol, None
+                except Exception:
+                    return symbol, None
+
+            # Fetch in parallel
+            with ThreadPoolExecutor(max_workers=20) as executor:
+                future_to_symbol = {executor.submit(fetch_symbol_data, sym): sym for sym in all_symbols}
+                processed = 0
+                for future in as_completed(future_to_symbol):
+                    sym, df = future.result()
+                    if df is not None:
+                        data_cache[sym] = df
+                    processed += 1
+                    if processed % 100 == 0:
+                        log_info(f"[Pre-filter Stage 0] Cached data for {processed}/{len(all_symbols)} symbols...")
+
+            log_success(f"[Pre-filter Stage 0] Successfully cached OHLCV data for {len(data_cache)} symbols")
 
         # Apply sampling strategy
         sampled_symbols = apply_sampling_strategy(
@@ -409,6 +462,7 @@ def run_prefilter_worker(
             strata_count=stage0_stratified_strata_count,
             top_percentage=stage0_hybrid_top_percentage,
             data_fetcher=temp_data_fetcher,  # Pass data_fetcher for liquidity_weighted
+            ohlcv_cache=data_cache,  # Task 5: Pass cache
         )
 
         log_success(f"[Pre-filter Stage 0] Sampled {len(sampled_symbols)} symbols for processing")
@@ -517,14 +571,25 @@ def run_prefilter_worker(
             args.use_rust_backend = True  # Enable Rust backend for ATC (CPU parallelism)
             args.use_cuda = False
 
+        # Approximate MA Scanner settings
+        if approximate_ma_scanner and approximate_ma_scanner.get("enabled", False):
+            args.use_approximate = True
+            args.use_adaptive_approximate = approximate_ma_scanner.get("use_adaptive", False)
+            args.approximate_volatility_window = approximate_ma_scanner.get("volatility_window", 20)
+            args.approximate_volatility_factor = approximate_ma_scanner.get("volatility_factor", 1.0)
+        else:
+            args.use_approximate = False
+            args.use_adaptive_approximate = False
+
         # Create VotingAnalyzer instance
+
         log_info("[Pre-filter] Initializing VotingAnalyzer...")
         from modules.common.core.data_fetcher import DataFetcher
         from modules.common.core.exchange_manager import ExchangeManager
 
         exchange_manager = ExchangeManager()
         data_fetcher = DataFetcher(exchange_manager)
-        analyzer = VotingAnalyzer(args, data_fetcher)
+        analyzer = VotingAnalyzer(args, data_fetcher, ohlcv_cache=data_cache)
         analyzer.selected_timeframe = timeframe
         analyzer.atc_analyzer.selected_timeframe = timeframe
 

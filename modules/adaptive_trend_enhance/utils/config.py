@@ -55,6 +55,10 @@ class ATCConfig:
     # Performance optimization parameters
     batch_size: int = 100  # Number of symbols to process in each batch before forcing GC
     precision: str = "float64"  # "float64" or "float32"
+    use_approximate: bool = False  # Use fast approximate MAs for scanning (2-3x faster)
+    use_adaptive_approximate: bool = False  # Use adaptive approximate MAs (volatility-based tolerance)
+    approximate_volatility_window: int = 20  # Window for volatility calculation in adaptive mode
+    approximate_volatility_factor: float = 1.0  # Volatility multiplier for adaptive tolerance
 
 
 def create_atc_config_from_dict(
@@ -96,4 +100,8 @@ def create_atc_config_from_dict(
         strategy_mode=params.get("strategy_mode", False),
         batch_size=params.get("batch_size", 100),
         precision=params.get("precision", "float64"),
+        use_approximate=params.get("use_approximate", False),
+        use_adaptive_approximate=params.get("use_adaptive_approximate", False),
+        approximate_volatility_window=params.get("approximate_volatility_window", 20),
+        approximate_volatility_factor=params.get("approximate_volatility_factor", 1.0),
     )

@@ -84,9 +84,12 @@ def prompt_training_symbols(default: Optional[List[str]] = None) -> List[str]:
     else:
         try:
             log_info("Fetching top symbols by volume for training...")
-            from modules.gemini_chart_analyzer.cli.exchange.symbol_fetcher import get_all_symbols_from_exchange
+            from modules.common.core.data_fetcher import DataFetcher
+            from modules.common.core.exchange_manager import ExchangeManager
 
-            all_training_symbols = get_all_symbols_from_exchange(exchange_name="binance", quote_currency="USDT")
+            exchange_manager = ExchangeManager()
+            data_fetcher = DataFetcher(exchange_manager)
+            all_training_symbols = data_fetcher.get_spot_symbols(exchange_name="binance", quote_currency="USDT")
             training_symbols = all_training_symbols[:10] if all_training_symbols else []
             if training_symbols:
                 log_info(f"Using top {len(training_symbols)} symbols: {', '.join(training_symbols)}")

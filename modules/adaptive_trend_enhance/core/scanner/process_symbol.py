@@ -23,6 +23,7 @@ def _process_symbol(
     data_fetcher: "DataFetcher",
     atc_config: ATCConfig,
     min_signal: float,
+    ohlcv_cache: Optional[Dict[str, pd.DataFrame]] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Process a single symbol: fetch data and calculate ATC signals.
@@ -32,18 +33,29 @@ def _process_symbol(
         data_fetcher: DataFetcher instance
         atc_config: ATCConfig object
         min_signal: Minimum signal strength threshold
+        ohlcv_cache: Optional cache of OHLCV data to avoid re-fetching
 
     Returns:
         Dictionary with symbol data if signal found, None otherwise
     """
     try:
-        # Fetch OHLCV data
-        df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-            symbol,
-            limit=atc_config.limit,
-            timeframe=atc_config.timeframe,
-            check_freshness=True,
-        )
+        df = None
+        exchange_id = "UNKNOWN"
+
+        # Check cache first
+        if ohlcv_cache and symbol in ohlcv_cache:
+            df = ohlcv_cache[symbol]
+            exchange_id = "CACHED"
+
+        # Fetch if not in cache
+        if df is None:
+            # Fetch OHLCV data
+            df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol,
+                limit=atc_config.limit,
+                timeframe=atc_config.timeframe,
+                check_freshness=True,
+            )
 
         if df is None or df.empty:
             return None

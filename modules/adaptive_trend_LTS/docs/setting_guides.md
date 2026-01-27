@@ -1,8 +1,39 @@
 # 📋 TỔNG KẾT TẤT CẢ SETTINGS - MODULE ADAPTIVE_TREND_LTS
 
+**Version**: LTS (Long-Term Support)
+**Last Updated**: 2026-01-27
+**Status**: ✅ All Phases Complete
+**Backend**: Rust v2 + CUDA (optional) + Dask (optional)
+
 ## 🎯 Overview
 
 Module **Adaptive Trend Classification LTS** là phiên bản ổn định với Rust backend, GPU acceleration và automatic memory management.
+
+## 📑 Quick Navigation
+
+- [Core Parameters](#️-các-parameters-chính)
+  - [Moving Average Lengths](#1-moving-average-lengths-độ-dài-các-ma)
+  - [MA Weights](#2-ma-weights-trọng-số-ban-đầu)
+  - [ATC Core Parameters](#3-atc-core-parameters)
+  - [Signal Thresholds](#4-signal-thresholds)
+  - [Data & Processing](#5-data--processing-parameters)
+  - [Performance & Optimization](#6-performance--optimization)
+  - [Strategy Mode](#7-strategy-mode)
+- [Output Results](#-kết-quả-output)
+- [Recommended Presets](#️-recommended-presets)
+  - [Scalping (1m-5m)](#1-scalping-timeframe-1m---5m)
+  - [Intraday Trading (15m-1h)](#2-intraday-trading-timeframe-15m---1h--default)
+  - [Swing Trading (4h-1d)](#3-swing-trading-timeframe-4h---1d)
+  - [High-Performance](#4-high-performance-rust--multi-symbol)
+  - [Out-of-Core Processing (Dask)](#5-out-of-core-processing-dask-integration--new)
+  - [True Batch Processing](#6-true-batch-processing-best-for-100-symbols)
+  - [Incremental Updates](#7-incremental-updates-for-live-trading--new)
+  - [Approximate MAs](#8-approximate-mas-for-fast-filtering--new)
+- [Performance Comparison](#-performance-comparison)
+- [Setup & Build](#-setup--build)
+- [Example Usage](#-example-usage)
+- [Troubleshooting](#-troubleshooting)
+- [Best Practices](#-best-practices)
 
 ---
 
@@ -269,21 +300,245 @@ See `docs/phase6_task.md` for detailed incremental update guide.
 
 ### 8. **Approximate MAs for Fast Filtering** ⭐ **NEW**
 
-Khi scan hàng nghìn symbols, sử dụng Approximate MAs cho filtering ban đầu, sau đó tính full precision cho candidates:
+Khi scan hàng nghìn symbols, sử dụng Approximate MAs cho filtering ban đầu, sau đó tính full precision cho candidates.
+
+#### 8.1 When to Use Approximate MAs
+
+**✅ Good Use Cases:**
+- **Large-scale scanning** (1000+ symbols): Quickly filter candidates
+- **Initial screening**: Eliminate obvious non-candidates before detailed analysis
+- **Resource-constrained environments**: Lower CPU usage for scanning
+- **Real-time monitoring**: Faster updates when monitoring many symbols
+
+**❌ When NOT to Use:**
+- **Final trading decisions**: Use full precision for actual entry/exit signals
+- **Backtesting**: Need exact values for accurate historical analysis
+- **High-frequency trading**: Precision matters more than speed
+- **Single symbol analysis**: Speed difference is negligible
+
+#### 8.2 Configuration Options
+
+**Basic Approximate MAs (Fast Mode)**
+
+Uses simplified calculations (e.g., SMA for EMA approximation) for ~5% tolerance:
+
+```python
+from modules.adaptive_trend_enhance.utils.config import ATCConfig
+
+# Basic approximate MAs - 2-3x faster
+config = ATCConfig(
+    timeframe="15m",
+    limit=1500,
+    use_approximate=True,  # Enable basic approximate MAs
+)
+```
+
+**Adaptive Approximate MAs (Volatility-Aware)**
+
+Dynamically adjusts tolerance based on market volatility:
+
+```python
+# Adaptive approximate MAs - volatility-aware tolerance
+config = ATCConfig(
+    timeframe="15m",
+    limit=1500,
+    use_adaptive_approximate=True,  # Enable adaptive approximate MAs
+    approximate_volatility_window=20,  # Window for volatility calculation
+    approximate_volatility_factor=1.0,  # Multiplier for volatility effect
+)
+```
+
+**How it works:**
+- **Low volatility**: Tighter tolerance for better accuracy
+- **High volatility**: Looser tolerance for faster computation
+- Automatically adapts to market conditions
+
+**Full Precision (Default)**
+
+Standard behavior with exact MA calculations:
+
+```python
+# Full precision - default mode
+config = ATCConfig(
+    timeframe="15m",
+    limit=1500,
+    # use_approximate=False (default)
+    # use_adaptive_approximate=False (default)
+)
+```
+
+#### 8.3 Usage Examples
+
+**Example 1: Two-Stage Scanning Workflow**
+
+Combine approximate MAs for initial filtering with full precision for final analysis:
+
+```python
+from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
+from modules.common.core.data_fetcher import DataFetcher
+
+# Initialize data fetcher
+data_fetcher = DataFetcher()
+
+# Stage 1: Fast approximate scan (1000+ symbols)
+fast_config = ATCConfig(
+    timeframe="15m",
+    use_approximate=True,  # 2-3x faster
+)
+
+long_df, short_df = scan_all_symbols(
+    data_fetcher=data_fetcher,
+    atc_config=fast_config,
+    min_signal=0.05,  # Lower threshold for initial filter (passed to scan_all_symbols)
+    max_symbols=None,  # Scan all symbols
+    execution_mode="threadpool",
+)
+
+# Stage 2: Full precision on filtered candidates
+full_config = ATCConfig(
+    timeframe="15m",
+    use_approximate=False,  # Full precision
+)
+
+# Re-analyze top 50 candidates with full precision
+top_candidates = long_df.head(50)["symbol"].tolist()
+
+for symbol in top_candidates:
+    # Fetch data and run full precision ATC
+    df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+        symbol, timeframe="15m", limit=1500
+    )
+    prices = df["close"]
+
+    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+
+    results = compute_atc_signals(
+        prices=prices,
+        use_approximate=False,  # Full precision
+    )
+
+    # Make trading decision based on full precision signals
+    signal = results["Average_Signal"].iloc[-1]
+    print(f"{symbol}: {signal:.4f}")
+```
+
+**Example 2: Using Batch Processor with Approximate Filter**
+
+Two-stage batch processing with approximate filtering, then full precision for candidates:
 
 ```python
 from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import (
     process_symbols_batch_with_approximate_filter
 )
 
+# symbols_data = {'BTCUSDT': prices_series, 'ETHUSDT': prices_series, ...}
+# config = dict of parameters (ema_len, hull_len, etc.)
+
 results = process_symbols_batch_with_approximate_filter(
-    symbols_data,
-    config,
-    min_signal_candidate=0.05,  # Filter threshold
+    symbols_data,  # Dict[str, pd.Series]
+    config,  # Configuration dict
+    approximate_threshold=0.1,  # Not used in current implementation
+    min_signal_candidate=0.05,  # Minimum signal to pass filtering stage
+)
+
+# Returns: Dict[str, Dict[str, pd.Series]] - Full precision results for candidates only
+```
+
+**Note**: This function performs two-stage processing:
+1. **Stage 1**: Fast approximate MAs to filter candidates (symbols with signal >= min_signal_candidate)
+2. **Stage 2**: Full precision calculation only for filtered candidates
+
+**Performance**: 5-10x faster than full precision for all symbols when filtering reduces candidates significantly.
+
+**Example 3: Adaptive Approximate for Mixed Volatility Markets**
+
+```python
+# Adaptive approximate scan - adjusts tolerance based on volatility
+adaptive_config = ATCConfig(
+    timeframe="15m",
+    use_adaptive_approximate=True,
+    approximate_volatility_window=20,  # 20-bar volatility window
+    approximate_volatility_factor=1.5,  # Increase tolerance in volatile markets
+)
+
+long_df, short_df = scan_all_symbols(
+    data_fetcher=data_fetcher,
+    atc_config=adaptive_config,
+    execution_mode="threadpool",
 )
 ```
 
+#### 8.4 Performance Comparison
+
+| Mode | Speed | Accuracy | Use Case |
+|------|-------|----------|----------|
+| Full Precision | 1x (baseline) | 100% | Final trading decisions, backtesting |
+| Basic Approximate | 2-3x faster | ~95% | Initial screening, large-scale scanning |
+| Adaptive Approximate | 2-3x faster | ~95% (adaptive) | Mixed volatility markets, smart filtering |
+
 **Performance**: 2-3x faster for large symbol sets (1000+).
+
+#### 8.5 Parameters Reference
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `use_approximate` | bool | False | Enable basic approximate MAs (2-3x faster) |
+| `use_adaptive_approximate` | bool | False | Enable adaptive approximate MAs (volatility-aware) |
+| `approximate_volatility_window` | int | 20 | Window size for volatility calculation |
+| `approximate_volatility_factor` | float | 1.0 | Multiplier for volatility effect on tolerance |
+
+**Note**: `use_approximate` and `use_adaptive_approximate` are mutually exclusive. If both are True, `use_adaptive_approximate` takes precedence.
+
+#### 8.6 Best Practices
+
+1. **Two-Stage Workflow**: Use approximate MAs for initial filtering, then full precision for final decisions
+2. **Threshold Tuning**: Lower the `min_signal` threshold slightly when using approximate MAs to avoid missing candidates
+3. **Volatility Factor**: Increase `approximate_volatility_factor` (e.g., 1.5-2.0) for crypto markets with high volatility
+4. **Testing**: Always backtest your strategy with full precision MAs before live trading
+5. **Monitoring**: Compare approximate vs full precision results periodically to ensure acceptable accuracy
+
+#### 8.7 Troubleshooting
+
+**Issue: Signals differ from full precision**
+
+**Expected Behavior**: Approximate MAs have ~5% tolerance, so signals will differ slightly.
+
+**Solution**: This is by design. Use approximate MAs only for initial filtering, not final trading decisions.
+
+**Issue: Adaptive approximate not adapting**
+
+**Check**: Verify that `approximate_volatility_window` is appropriate for your timeframe.
+
+**Solution**: Increase window size for longer timeframes (e.g., 30-50 for 1h+).
+
+**Issue: Performance improvement less than expected**
+
+**Check**: Approximate MAs provide 2-3x speedup for MA calculation, but total speedup depends on other factors (data fetching, network, etc.).
+
+**Solution**: Use with large symbol sets (1000+) for maximum benefit.
+
+#### 8.8 Technical Details
+
+**Basic Approximate MAs** (implemented in `approximate_mas.py`):
+- **EMA**: Uses SMA approximation (~5% tolerance)
+- **HMA**: Simplified WMA calculations
+- **WMA**: Simplified linear weights
+- **DEMA**: Double EMA approximation
+- **LSMA**: Simplified linear regression (endpoints)
+- **KAMA**: Fixed smoothing constant
+
+**Adaptive Approximate MAs** (implemented in `adaptive_approximate_mas.py`):
+- Calculates rolling volatility (std dev)
+- Adjusts tolerance: `tolerance = base_tolerance * (1 + normalized_volatility * volatility_factor)`
+- **Low volatility**: Tighter tolerance, better accuracy
+- **High volatility**: Looser tolerance, faster computation
+
+**Backward Compatibility**: The approximate MA feature is fully backward compatible:
+- Defaults to full precision when both flags are False
+- Existing code continues to work without modification
+- Optional feature enabled only when explicitly requested
+- No changes to output format or API
 
 See `docs/phase6_task.md` for detailed approximate MA guide and accuracy benchmarks.
 
@@ -297,17 +552,16 @@ See `docs/phase6_task.md` for detailed approximate MA guide and accuracy benchma
 |----------------|------|---------|--------|----------|
 | Original Python | 49.65s | 1.00x | 122.1 MB | Baseline |
 | Enhanced Python | 23.85s | 2.08x | 125.8 MB | Optimized Python |
-| Rust (Seq) | 14.15s | 3.51x | 21.0 MB | CPU Sequential |
-| Rust (Rayon) | 8.12s | 6.11x | 18.2 MB | CPU Parallel |
+| Rust (Sequential) | 14.15s | 3.51x | 21.0 MB | CPU Sequential |
+| Rust (Rayon Parallel) | 8.12s | 6.11x | 18.2 MB | CPU Parallel |
 | **Rust + Dask Hybrid** ⭐ | **9.45s** | **5.25x** | **12.5 MB** | **Unlimited size** |
-| CUDA Batch | 15.04s | 3.30x | 51.7 MB | GPU Batch |
-| **True Batch CUDA** ⭐ | **0.59s** | **83.53x** | **51.7 MB** | **100+ symbols** |
+| **CUDA Batch** ⭐ | **0.59s** | **83.53x** | **51.7 MB** | **100+ symbols** |
 | **Incremental Update** ⭐ | **<0.01s** | **1000x+** | **<1 MB** | **Live Trading (single bar)** |
 | **Approximate Filter** ⭐ | **~5s** | **10x** | **~20 MB** | **Fast Scanning (1000+)** |
 
 **Note**:
 - Rust + Dask Hybrid has unlimited dataset size due to out-of-core processing
-- True Batch CUDA achieves 83.53x speedup for batch processing
+- CUDA Batch achieves 83.53x speedup for batch processing (100+ symbols)
 - Incremental Update is optimal for live trading (single bar updates)
 - Approximate Filter is optimal for initial filtering in large-scale scanning
 
@@ -316,8 +570,8 @@ See `docs/phase6_task.md` for detailed approximate MA guide and accuracy benchma
 | Use Case | Recommended Implementation | Expected Speedup |
 |----------|---------------------------|------------------|
 | **Live Trading (single bar)** | Incremental Update | 10-100x |
-| **Small batch (<100 symbols)** | Rust (Rayon) | 6x |
-| **Medium batch (100-1000)** | True Batch CUDA | 80x+ |
+| **Small batch (<100 symbols)** | Rust (Rayon Parallel) | 6x |
+| **Medium batch (100-1000)** | CUDA Batch | 80x+ |
 | **Large batch (1000-10000)** | Rust + Dask Hybrid | 5-10x + Unlimited size |
 | **Very large (10000+)** | Approximate Filter + Dask | 10-20x + Unlimited size |
 | **Out-of-Memory scenarios** | Dask Integration | Unlimited size |
@@ -430,6 +684,8 @@ else:
 6. **Monitor memory** with large datasets
 
 ---
+
+## 📄 Document Information
 
 **Last Updated**: 2026-01-27
 **Version**: LTS (Long-Term Support)

@@ -31,6 +31,7 @@ class TeeOutput:
         """Return True if connected to a TTY device (for colorama compatibility)."""
         return self.stdout.isatty()
 
+
 # Add project root to sys.path to allow absolute imports when run directly
 if __file__:
     project_root = Path(__file__).parent.parent.parent.parent.parent
@@ -49,6 +50,8 @@ from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.comparison impor
 from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.data import fetch_symbols_data
 from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.html_formatter import ansi_to_html
 from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.runners import (
+    run_adaptive_approximate_module,
+    run_approximate_module,
     run_cuda_dask_module,
     run_cuda_module,
     run_dask_module,
@@ -193,6 +196,20 @@ def main():
             }
         )
 
+        approximate_config = rust_config.copy()
+        approximate_config.update(
+            {
+                "use_approximate": True,
+            }
+        )
+
+        adaptive_approximate_config = rust_config.copy()
+        adaptive_approximate_config.update(
+            {
+                "use_adaptive_approximate": True,
+            }
+        )
+
         # Step 0: Ensure Rust and CUDA extensions are built
         ensure_rust_extensions_built()
         ensure_cuda_extensions_built()
@@ -220,6 +237,18 @@ def main():
         gc.collect()  # Clean memory before benchmark
         rust_rayon_results, rust_rayon_time, rust_rayon_memory = run_rust_batch_module(prices_data, rust_config)
 
+        # Step 5.5: Run Approximate module
+        gc.collect()
+        approximate_results, approximate_time, approximate_memory = run_approximate_module(
+            prices_data, approximate_config
+        )
+
+        # Step 5.6: Run Adaptive Approximate module
+        gc.collect()
+        adaptive_approximate_results, adaptive_approximate_time, adaptive_approximate_memory = (
+            run_adaptive_approximate_module(prices_data, adaptive_approximate_config)
+        )
+
         # Step 6: Run CUDA module
         gc.collect()  # Clean memory before benchmark
         cuda_results, cuda_time, cuda_memory = run_cuda_module(prices_data, cuda_config)
@@ -246,6 +275,8 @@ def main():
             enhanced_results,
             rust_results,
             rust_rayon_results,
+            approximate_results,
+            adaptive_approximate_results,
             cuda_results,
             dask_results,
             rust_dask_results,
@@ -259,6 +290,8 @@ def main():
             enhanced_time,
             rust_time,
             rust_rayon_time,
+            approximate_time,
+            adaptive_approximate_time,
             cuda_time,
             dask_time,
             rust_dask_time,
@@ -268,6 +301,8 @@ def main():
             enhanced_memory,
             rust_memory,
             rust_rayon_memory,
+            approximate_memory,
+            adaptive_approximate_memory,
             cuda_memory,
             dask_memory,
             rust_dask_memory,
@@ -315,7 +350,7 @@ def main():
             html_content = ansi_to_html(log_content)
 
             # Save HTML version
-            html_file = log_file.with_suffix('.html')
+            html_file = log_file.with_suffix(".html")
             with open(str(html_file), "w", encoding="utf-8") as f:
                 f.write(html_content)
 

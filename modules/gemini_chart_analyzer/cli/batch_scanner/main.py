@@ -76,9 +76,11 @@ def execute_scan(config: Dict[str, Any]) -> BatchScanResult:
             stage0_hybrid_top_percentage=config.get("stage0_hybrid_top_percentage", 50.0),
             rf_training=config.get("rf_training"),
             atc_performance=config.get("atc_performance"),
+            approximate_ma_scanner=config.get("approximate_ma_scanner"),
         )
 
         # Run the scan
+
         results = run_batch_scan(batch_config)
         return results
     except ScanConfigurationError as e:

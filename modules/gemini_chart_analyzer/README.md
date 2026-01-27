@@ -255,8 +255,6 @@ modules/gemini_chart_analyzer/
 │   │   ├── display.py               # Display configuration & formatting
 │   │   ├── exporter.py              # Configuration export to JSON
 │   │   └── loader.py                # Configuration loading from JSON
-│   ├── exchange/                     # Exchange operations
-│   │   └── symbol_fetcher.py        # Symbol fetching with retry logic
 │   ├── models/                       # ML model management
 │   │   └── random_forest_manager.py # RF model lifecycle management
 │   ├── prompts/                      # User interaction prompts
@@ -578,7 +576,6 @@ CLI modularization:
 - `cli/config/display.py` - Display configuration
 - `cli/config/loader.py` - Configuration loading
 - `cli/config/exporter.py` - Configuration export
-- `cli/exchange/symbol_fetcher.py` - Symbol fetching utilities
 - `cli/models/random_forest_manager.py` - RF model management
 - `cli/prompts/*.py` - User interaction prompts
 - `cli/runners/scanner_runner.py` - Execution orchestration

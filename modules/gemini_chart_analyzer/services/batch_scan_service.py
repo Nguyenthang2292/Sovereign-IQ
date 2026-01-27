@@ -42,6 +42,7 @@ class BatchScanConfig:
     stage0_hybrid_top_percentage: float = 50.0  # For top_n_hybrid sampling
     rf_training: Optional[Dict[str, Any]] = None  # RF model training configuration
     atc_performance: Optional[Dict[str, Any]] = None  # ATC high-performance parameters
+    approximate_ma_scanner: Optional[Dict[str, Any]] = None  # Approximate MA Batch Scanner configuration
 
 
 def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
@@ -114,9 +115,11 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
             stage0_stratified_strata_count=config.stage0_stratified_strata_count,
             stage0_hybrid_top_percentage=config.stage0_hybrid_top_percentage,
             atc_performance=config.atc_performance,
+            approximate_ma_scanner=config.approximate_ma_scanner,
         )
 
         # Generate HTML report if results were found
+
         # BatchScanResult is a dataclass, access attributes directly
         has_signals = results and (results.long_symbols or results.short_symbols)
         if has_signals:

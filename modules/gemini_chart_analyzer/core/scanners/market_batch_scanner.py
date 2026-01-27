@@ -233,9 +233,11 @@ class MarketBatchScanner:
         stage0_stratified_strata_count: int = 3,
         stage0_hybrid_top_percentage: float = 50.0,
         atc_performance: Optional[Dict[str, Any]] = None,
+        approximate_ma_scanner: Optional[Dict[str, Any]] = None,
     ) -> BatchScanResult:
         """
         Scan entire market and return LONG/SHORT signals.
+
 
         Args:
             timeframe: Single timeframe for charts (default: '1h', ignored if timeframes provided)
@@ -346,6 +348,7 @@ class MarketBatchScanner:
                     stage0_stratified_strata_count=stage0_stratified_strata_count,
                     stage0_hybrid_top_percentage=stage0_hybrid_top_percentage,
                     atc_performance=atc_performance,
+                    approximate_ma_scanner=approximate_ma_scanner,
                     auto_skip_threshold=pre_filter_auto_skip_threshold,
                 )
                 if pre_filtered:
@@ -792,10 +795,12 @@ class MarketBatchScanner:
         stage0_stratified_strata_count: int = 3,
         stage0_hybrid_top_percentage: float = 50.0,
         atc_performance: Optional[Dict[str, Any]] = None,
+        approximate_ma_scanner: Optional[Dict[str, Any]] = None,
         auto_skip_threshold: int = 10,
     ) -> List[str]:
         """
         Run internal pre-filter using 3-stage sequential filtering workflow.
+
 
         Stage 1: ATC scan → keep 100% of symbols that pass ATC
         Stage 2: Range Oscillator + SPC → Voting → Decision Matrix → keep 100% that pass

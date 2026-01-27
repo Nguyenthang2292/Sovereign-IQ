@@ -6,7 +6,7 @@ for scanning all symbols and finding LONG/SHORT signals.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -49,6 +49,7 @@ def scan_all_symbols(
     execution_mode: str = "threadpool",
     max_workers: Optional[int] = None,
     batch_size: int = 100,
+    ohlcv_cache: Optional[Dict[str, pd.DataFrame]] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Scan all futures symbols and filter those with LONG/SHORT signals.
 
@@ -71,6 +72,7 @@ def scan_all_symbols(
                     If None, uses default (min(32, num_symbols + 4) for threadpool).
         batch_size: Number of symbols to process in each batch before forcing GC (default: 100).
                     Larger batches use more memory but may be faster. Smaller batches use less memory.
+        ohlcv_cache: Optional cache of OHLCV data to avoid re-fetching.
 
     Returns:
         Tuple of two DataFrames:
@@ -195,28 +197,31 @@ def scan_all_symbols(
             # Route to appropriate execution method
             if execution_mode == "sequential":
                 results, skipped_count, error_count, skipped_symbols = _scan_sequential(
-                    symbols, data_fetcher, atc_config, min_signal, batch_size
+                    symbols, data_fetcher, atc_config, min_signal, batch_size, ohlcv_cache
                 )
             elif execution_mode == "threadpool":
                 results, skipped_count, error_count, skipped_symbols = _scan_threadpool(
-                    symbols, data_fetcher, atc_config, min_signal, max_workers, batch_size
+                    symbols, data_fetcher, atc_config, min_signal, max_workers, batch_size, ohlcv_cache
                 )
             elif execution_mode == "asyncio":
+                # Asyncio doesn't support cache yet
                 results, skipped_count, error_count, skipped_symbols = _scan_asyncio(
                     symbols, data_fetcher, atc_config, min_signal, max_workers, batch_size
                 )
             elif execution_mode == "processpool":
+                # Processpool needs shared memory for cache, not supported yet
                 results, skipped_count, error_count, skipped_symbols = _scan_processpool(
                     symbols, data_fetcher, atc_config, min_signal, max_workers, batch_size
                 )
             elif execution_mode == "gpu_batch":
+                # GPU batch handles data differently
                 results, skipped_count, error_count, skipped_symbols = _scan_gpu_batch(
                     symbols, data_fetcher, atc_config, min_signal, batch_size
                 )
             else:
                 # Fallback to sequential
                 results, skipped_count, error_count, skipped_symbols = _scan_sequential(
-                    symbols, data_fetcher, atc_config, min_signal, batch_size
+                    symbols, data_fetcher, atc_config, min_signal, batch_size, ohlcv_cache
                 )
 
             total = len(symbols)
