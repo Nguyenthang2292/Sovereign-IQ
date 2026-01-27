@@ -291,7 +291,9 @@ def _calculate_volatility_and_spread(
             ohlcv_data = {}
             for symbol in symbols:
                 try:
-                    df = data_fetcher.fetch_ohlcv_data(symbol, timeframe, limit=lookback * 2)
+                    df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                        symbol, timeframe=timeframe, limit=lookback * 2
+                    )
                     if df is not None and len(df) >= lookback:
                         ohlcv_data[symbol] = {
                             "high": df["high"].values.astype(np.float64),
@@ -328,7 +330,9 @@ def _calculate_volatility_and_spread(
     for symbol in symbols:
         try:
             # Fetch OHLCV data
-            df = data_fetcher.fetch_ohlcv_data(symbol, timeframe, limit=lookback * 2)
+            df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                symbol, timeframe=timeframe, limit=lookback * 2
+            )
             if df is None or len(df) < lookback:
                 continue
 

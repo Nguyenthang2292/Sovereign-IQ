@@ -31,13 +31,13 @@ max_symbols:
 # ============================================================================
 
 stage0_sample_percentage:
-  33 # Sample % (100 = no sampling)
+  50 # Sample % (100 = no sampling)
   # The percentage of the market to select in Stage 0 sampling.
   # 100 means sample all symbols (no sampling applied).
   # Reduce this to scan a subset of symbols.
 
 stage0_sampling_strategy:
-  liquidity_weighted # Sampling strategy to use
+  stratified # Sampling strategy to use
   # Available strategies:
   # - 'random': Pure random sampling (uniform probability)
   # - 'volume_weighted': Higher volume symbols have higher probability
@@ -146,5 +146,5 @@ atc_performance:
   # Dask (Out-of-Core) Configuration
   # Use Dask for very large market scans (>1000 symbols)
   # This enables processing dataset larger than RAM by chunking
-  use_dask: true # Auto-enabled by system if symbols > 1000, but can be forced here
+  use_dask: false # Auto-enabled by system if symbols > 1000, but can be forced here
   npartitions: null # Number of Dask partitions (null = auto-calculated)

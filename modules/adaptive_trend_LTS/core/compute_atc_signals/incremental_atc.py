@@ -76,14 +76,30 @@ class IncrementalATC:
             Full ATC results (same format as compute_atc_signals)
         """
         from .compute_atc_signals import compute_atc_signals
+        from modules.adaptive_trend_LTS.core.compute_moving_averages import set_of_moving_averages
 
         log_debug("Initializing incremental ATC with full calculation")
+
+        # Compute MAs directly to get actual MA values
+        ma_tuples = {}
+        for ma_type in ["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"]:
+            length = self.ma_length[ma_type.lower()]
+            ma_tuple = set_of_moving_averages(
+                length=length,
+                source=prices,
+                ma_type=ma_type,
+                robustness="Medium",
+                use_cache=False,
+                use_rust=True,
+                use_cuda=False,
+            )
+            ma_tuples[ma_type] = ma_tuple
 
         # Full calculation to establish baseline state
         results = compute_atc_signals(prices, **self.config)
 
-        # Extract and store state from last bar
-        self._extract_state(results, prices)
+        # Extract and store state from last bar (include ma_tuples)
+        self._extract_state(results, prices, ma_tuples)
         self.state["initialized"] = True
 
         log_debug("Incremental ATC initialized successfully")
@@ -101,20 +117,26 @@ class IncrementalATC:
         if not self.state["initialized"]:
             raise RuntimeError("Must call initialize() before update()")
 
+        log_debug(f"Updating with new_price={new_price}")
+
         # Add to history
         self.state["price_history"].append(new_price)
 
         # Update MA states incrementally
         self._update_mas(new_price)
+        log_debug(f"After MAs update: {self.state['ma_values']}")
 
         # Update Layer 1 signal
         signal_l1 = self._update_layer1_signal()
+        log_debug(f"Layer 1 signal: {signal_l1}")
 
         # Update Layer 2 equity
         self._update_equity(signal_l1)
+        log_debug(f"Equity: {self.state['equity']}")
 
         # Calculate final signal
         signal = self._calculate_final_signal()
+        log_debug(f"Final signal: {signal}")
 
         self.state["signal"] = signal
         return signal
@@ -132,35 +154,46 @@ class IncrementalATC:
             "initialized": False,
         }
 
-    def _extract_state(self, results: Dict[str, pd.Series], prices: pd.Series):
+    def _extract_state(self, results: Dict[str, pd.Series], prices: pd.Series, ma_tuples: Dict[str, tuple]):
         """Extract state from full calculation results."""
-        # Get moving averages from results
-        mas = ["ema", "hma", "wma", "dema", "lsma", "kama"]
-        for ma_type in mas:
-            if ma_type in results:
-                self.state["ma_values"][ma_type] = results[ma_type].iloc[-1]
+        log_debug(f"Extracting state from results. Available keys: {list(results.keys())}")
+
+        # Extract MA values from ma_tuples (primary MA is at index 0)
+        for ma_type, ma_tuple in ma_tuples.items():
+            if ma_tuple is not None:
+                ma_values = ma_tuple[0]  # Primary MA is at index 0
+                self.state["ma_values"][ma_type.lower()] = ma_values.iloc[-1]
+                log_debug(f"Extracted {ma_type.lower()}: {self.state['ma_values'][ma_type.lower()]}")
 
         # Extract EMA2 for DEMA
-        if "dema" in results and "ema" in results:
+        ema_val = self.state["ma_values"].get("ema")
+        dema_val = self.state["ma_values"].get("dema")
+        if ema_val is not None and dema_val is not None:
             # DEMA = 2*EMA - EMA2 -> EMA2 = 2*EMA - DEMA
-            ema_val = results["ema"].iloc[-1]
-            dema_val = results["dema"].iloc[-1]
             self.state["ema2_values"]["dema"] = 2 * ema_val - dema_val
+            log_debug(f"Extracted ema2_values[dema]: {self.state['ema2_values']['dema']}")
 
-        # Get Layer 1 equities
-        if "L1_Equity_EMA" in results:
+        # Get Layer 2 equities (stored as {MA_TYPE}_S in results)
+        equity_keys = [k for k in results.keys() if k.endswith("_S")]
+        log_debug(f"Found equity keys: {equity_keys}")
+
+        if "EMA_S" in results:
             self.state["equity"] = {
-                "EMA": results["L1_Equity_EMA"].iloc[-1],
-                "HMA": results["L1_Equity_HMA"].iloc[-1],
-                "WMA": results["L1_Equity_WMA"].iloc[-1],
-                "DEMA": results["L1_Equity_DEMA"].iloc[-1],
-                "LSMA": results["L1_Equity_LSMA"].iloc[-1],
-                "KAMA": results["L1_Equity_KAMA"].iloc[-1],
+                "EMA": results["EMA_S"].iloc[-1],
+                "HMA": results["HMA_S"].iloc[-1],
+                "WMA": results["WMA_S"].iloc[-1],
+                "DEMA": results["DEMA_S"].iloc[-1],
+                "LSMA": results["LSMA_S"].iloc[-1],
+                "KAMA": results["KAMA_S"].iloc[-1],
             }
+            log_debug(f"Extracted equity: {self.state['equity']}")
+        else:
+            log_warn("EMA_S not found in results")
 
         # Populate price history
         self.state["price_history"].clear()
-        self.state["price_history"].extend(prices.values)
+        self.state["price_history"].extend(prices.tolist())
+        log_debug(f"Price history populated with {len(self.state['price_history'])} prices")
 
     def _update_mas(self, new_price: float):
         """Update all MA states incrementally."""
@@ -311,10 +344,13 @@ class IncrementalATC:
         decay = self.config.get("De", 0.03) / 100.0
         la = self.config.get("La", 0.02) / 1000.0
 
+        # Create new dictionary to ensure object identity changes
+        new_equity = {}
         for ma_type in self.state["equity"]:
             prev_equity = self.state["equity"][ma_type]
-            new_equity = prev_equity * (1 - decay) + signal_l1 * la
-            self.state["equity"][ma_type] = new_equity
+            new_equity[ma_type] = prev_equity * (1 - decay) + signal_l1 * la
+
+        self.state["equity"] = new_equity
 
     def _calculate_final_signal(self) -> float:
         """Calculate final Average_Signal."""
