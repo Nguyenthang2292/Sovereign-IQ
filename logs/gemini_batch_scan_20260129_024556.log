@@ -16799,3 +16799,295 @@ Step 1: Running ATC auto scan...[0m
 [22m[37mComputing rate_of_change (reused for Layer 1 and Layer 2)...[0m
 [22m[37mComputing Layer 1 signals...[0m
 [22m[32m[BINANCE] Data age 48.6m (fresh).[0m
+[22m[37mCompleted Layer 1 signals[0m
+[22m[37mStarting ATC signal computation for 700 bars[0m
+[22m[37mComputing Layer 2 equity weights...[0m[22m[34mParameters: robustness=Medium, La_scaled=0.0005, De_scaled=0.001, cutout=5, strategy_mode=False[0m
+
+[22m[37mComputing Moving Averages...[0m
+[22m[37m[calculate_layer2_equities] Starting - RAM: 35.1%[0m[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+
+[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37m[calculate_layer2_equities] Completed - RAM: 35.1% (delta+0.001GB), GPU: 0.00GB (delta+0.000GB)[0m[22m[37mGPU calculation succeeded for EMA[0m
+
+[22m[37mGPU calculation succeeded for EMA[0m
+
+
+
+
+
+
+
+[22m[37mCompleted Layer 2 equity weights[0m
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m[22m[37mMemory cleanup started (aggressive=False)[0m
+
+[22m[37mCleanup complete: RAM at 35.1%[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m
+[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m
+
+
+
+
+[22m[37mComputing Average_Signal (vectorized)...[0m
+
+
+
+
+[22m[37mCompleted Average_Signal[0m
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m[22m[34mCompleted ATC signal computation for 695 bars[0m
+
+[22m[37m[trend_sign] Starting - RAM: 35.1%[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m
+[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m
+[22m[37mGPU calculation succeeded for WMA[0m
+[22m[37mGPU calculation succeeded for WMA[0m
+
+
+
+
+[22m[37m[trend_sign] Completed - RAM: 35.1% (delta+0.011GB), GPU: 0.00GB (delta-0.000GB)[0m
+
+
+[22m[36mFetching 700 candles for SUN/USDT (1h)...[0m[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+
+[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m
+
+
+[22m[37mGPU calculation succeeded for DEMA[0m
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m
+[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m
+
+
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mComputed 6 MA types[0m
+[22m[37mApplying global slice for cutout=5[0m
+[22m[37mComputing rate_of_change (reused for Layer 1 and Layer 2)...[0m
+[22m[37mComputing Layer 1 signals...[0m
+[22m[32m[BINANCE] Data age 48.6m (fresh).[0m[22m[37mCompleted Layer 1 signals[0m
+
+[22m[37mStarting ATC signal computation for 700 bars[0m[22m[37mComputing Layer 2 equity weights...[0m
+
+[22m[34mParameters: robustness=Medium, La_scaled=0.0005, De_scaled=0.001, cutout=5, strategy_mode=False[0m[22m[37m[calculate_layer2_equities] Starting - RAM: 35.0%[0m
+
+[22m[37mComputing Moving Averages...[0m[22m[37m[calculate_layer2_equities] Completed - RAM: 35.1% (delta+0.003GB), GPU: 0.00GB (delta+0.000GB)[0m
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m[22m[37mCompleted Layer 2 equity weights[0m
+
+[22m[37mMemory cleanup started (aggressive=False)[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m
+
+
+
+
+
+
+
+
+[22m[37mCleanup complete: RAM at 35.1%[0m
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m[22m[37mComputing Average_Signal (vectorized)...[0m
+
+[22m[37mGPU calculation succeeded for HMA[0m[22m[37mCompleted Average_Signal[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m
+
+
+
+
+
+
+
+
+[22m[34mCompleted ATC signal computation for 695 bars[0m
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m[22m[37m[trend_sign] Starting - RAM: 35.1%[0m
+[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m
+[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m
+[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m
+[22m[37m[trend_sign] Completed - RAM: 35.1% (delta+0.000GB), GPU: 0.00GB (delta+0.000GB)[0m
+
+[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[36mFetching 700 candles for DOGS/USDT (1h)...[0m
+[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m
+
+[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m
+
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m
+[22m[37mGPU calculation succeeded for LSMA[0m
+
+
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mComputed 6 MA types[0m
+[22m[37mApplying global slice for cutout=5[0m
+[22m[37mComputing rate_of_change (reused for Layer 1 and Layer 2)...[0m
+[22m[37mComputing Layer 1 signals...[0m
+[22m[32m[BINANCE] Data age 48.6m (fresh).[0m[22m[37mCompleted Layer 1 signals[0m
+
+[22m[37mComputing Layer 2 equity weights...[0m[22m[37mStarting ATC signal computation for 700 bars[0m
+[22m[34mParameters: robustness=Medium, La_scaled=0.0005, De_scaled=0.001, cutout=5, strategy_mode=False[0m
+
+[22m[37mComputing Moving Averages...[0m
+[22m[37m[calculate_layer2_equities] Starting - RAM: 35.1%[0m[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+
+[22m[37m[calculate_layer2_equities] Completed - RAM: 35.1% (delta+0.001GB), GPU: 0.00GB (delta+0.000GB)[0m
+[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mCompleted Layer 2 equity weights[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m
+
+
+
+
+
+
+
+
+[22m[37mMemory cleanup started (aggressive=False)[0m
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mCleanup complete: RAM at 35.1%[0m
+[22m[37mComputing Average_Signal (vectorized)...[0m
+[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mCompleted Average_Signal[0m[22m[37mGPU calculation succeeded for HMA[0m
+
+
+[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m
+[22m[37mGPU calculation succeeded for HMA[0m
+
+
+[22m[34mCompleted ATC signal computation for 695 bars[0m
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37m[trend_sign] Starting - RAM: 35.2%[0m
+
+[22m[37m[trend_sign] Completed - RAM: 35.1% (delta-0.003GB), GPU: 0.00GB (delta+0.000GB)[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m
+[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m
+[22m[37mGPU calculation succeeded for WMA[0m
+
+
+
+
+
+[22m[36mFetching 700 candles for MBOX/USDT (1h)...[0m
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m
+
+
+[22m[37mGPU calculation succeeded for DEMA[0m
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m
+[22m[37mGPU calculation succeeded for LSMA[0m
+
+
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mComputed 6 MA types[0m
+[22m[37mApplying global slice for cutout=5[0m
+[22m[37mComputing rate_of_change (reused for Layer 1 and Layer 2)...[0m
+[22m[37mComputing Layer 1 signals...[0m
+[22m[32m[BINANCE] Data age 48.6m (fresh).[0m
+[22m[37mCompleted Layer 1 signals[0m[22m[37mStarting ATC signal computation for 700 bars[0m
+
+[22m[37mComputing Layer 2 equity weights...[0m[22m[34mParameters: robustness=Medium, La_scaled=0.0005, De_scaled=0.001, cutout=5, strategy_mode=False[0m
+
+[22m[37m[calculate_layer2_equities] Starting - RAM: 35.1%[0m[22m[37mComputing Moving Averages...[0m
+
+[22m[37m[calculate_layer2_equities] Completed - RAM: 35.1% (delta-0.000GB), GPU: 0.00GB (delta+0.000GB)[0m[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+
+[22m[37mCompleted Layer 2 equity weights[0m
+[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m
+[22m[37mMemory cleanup started (aggressive=False)[0m[22m[37mGPU calculation succeeded for EMA[0m
+
+
+
+
+
+
+
+
+[22m[37mCleanup complete: RAM at 35.1%[0m[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+
+[22m[37mComputing Average_Signal (vectorized)...[0m
+[22m[37mCompleted Average_Signal[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m
+[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m[22m[37mGPU calculation succeeded for HMA[0m
+[22m[37mGPU calculation succeeded for HMA[0m
+
+
+[22m[34mCompleted ATC signal computation for 695 bars[0m
+
+
+
+
+[22m[37m[trend_sign] Starting - RAM: 35.1%[0m
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+
+[22m[37m[trend_sign] Completed - RAM: 35.1% (delta+0.002GB), GPU: 0.00GB (delta+0.000GB)[0m
+[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m[22m[37mGPU calculation succeeded for WMA[0m
+
+
+[22m[36mFetching 700 candles for CHESS/USDT (1h)...[0m
+
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m[22m[37mGPU calculation succeeded for DEMA[0m
+
+
+
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m[22m[37mGPU calculation succeeded for LSMA[0m
+
+
+
+
+
+
+
+
+[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+[22m[32m[BINANCE] Data age 48.6m (fresh).[0m
+[22m[37mComputed 6 MA types[0m[22m[37mStarting ATC signal computation for 700 bars[0m
+
+[22m[37mApplying global slice for cutout=5[0m[22m[34mParameters: robustness=Medium, La_scaled=0.0005, De_scaled=0.001, cutout=5, strategy_mode=False[0m
+
+[22m[37mComputing Moving Averages...[0m
+[22m[37mComputing rate_of_change (reused for Layer 1 and Layer 2)...[0m[22m[34mWorkload config: MP=False(1), MT=True(9), GPU=cuda, batch=9, chunk=9[0m
+
+[22m[37mComputing Layer 1 signals...[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m[22m[37mGPU calculation succeeded for EMA[0m
