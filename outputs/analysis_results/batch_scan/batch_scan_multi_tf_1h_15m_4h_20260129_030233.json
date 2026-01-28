@@ -1,0 +1,57 @@
+{
+  "timestamp": "2026-01-29T03:02:33.374548",
+  "timeframe": "1h",
+  "timeframes": [
+    "1h",
+    "15m",
+    "4h"
+  ],
+  "summary": {
+    "total_symbols": 3,
+    "scanned_symbols": 3,
+    "long_count": 1,
+    "short_count": 2,
+    "none_count": 0,
+    "long_percentage": 33.33333333333333,
+    "short_percentage": 66.66666666666666,
+    "avg_long_confidence": 0.87,
+    "avg_short_confidence": 0.775
+  },
+  "long_symbols": [
+    "MIRA/USDT"
+  ],
+  "short_symbols": [
+    "ALLO/USDT",
+    "BEAMX/USDT"
+  ],
+  "long_symbols_with_confidence": [
+    [
+      "MIRA/USDT",
+      0.87
+    ]
+  ],
+  "short_symbols_with_confidence": [
+    [
+      "ALLO/USDT",
+      0.88
+    ],
+    [
+      "BEAMX/USDT",
+      0.67
+    ]
+  ],
+  "all_results": {
+    "MIRA/USDT": {
+      "signal": "LONG",
+      "confidence": 0.87
+    },
+    "BEAMX/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.67
+    },
+    "ALLO/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.88
+    }
+  }
+}
