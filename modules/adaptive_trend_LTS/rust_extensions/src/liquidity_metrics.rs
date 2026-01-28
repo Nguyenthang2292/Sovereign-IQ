@@ -4,8 +4,6 @@
 /// and spread metrics for cryptocurrency symbols using Rust + Rayon parallelism.
 ///
 /// Performance: 10-20x faster than Python/NumPy for batch processing.
-
-use ndarray::Array1;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rayon::prelude::*;
@@ -15,7 +13,7 @@ use std::collections::HashMap;
 ///
 /// TR = max(high - low, abs(high - close_prev), abs(low - close_prev))
 #[inline]
-fn calculate_true_range(high: f64, low: f64, close: f64, close_prev: f64) -> f64 {
+fn calculate_true_range(high: f64, low: f64, _close: f64, close_prev: f64) -> f64 {
     let hl = high - low;
     let hc = (high - close_prev).abs();
     let lc = (low - close_prev).abs();

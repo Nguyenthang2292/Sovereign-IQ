@@ -31,13 +31,13 @@ max_symbols:
 # ============================================================================
 
 stage0_sample_percentage:
-  100 # Sample % (100 = no sampling)
+  30 # Sample % (100 = no sampling)
   # The percentage of the market to select in Stage 0 sampling.
   # 100 means sample all symbols (no sampling applied).
   # Reduce this to scan a subset of symbols.
 
 stage0_sampling_strategy:
-  liquidity_weighted # Sampling strategy to use
+  stratified # Sampling strategy to use
   # Available strategies:
   # - 'random': Pure random sampling (uniform probability)
   # - 'volume_weighted': Higher volume symbols have higher probability

@@ -134,8 +134,8 @@ def gather_scan_configuration() -> Dict[str, Any]:
                         print("  You can still enter a full path to a JSON or YAML file")
 
                     load_config_input = safe_input(
-                        color_text("Load configuration from file? (y/n) [n]: ", Fore.YELLOW),
-                        default="n",
+                        color_text("Load configuration from file? (y/n) [y]: ", Fore.YELLOW),
+                        default="y",
                         allow_back=False,
                     ).lower()
 
@@ -174,8 +174,8 @@ def gather_scan_configuration() -> Dict[str, Any]:
                                     print("  2. Use as defaults and adjust")
                                     print("  3. Start fresh (ignore loaded config)")
                                     use_choice = safe_input(
-                                        color_text("Select option (1/2/3) [2]: ", Fore.YELLOW),
-                                        default="2",
+                                        color_text("Select option (1/2/3) [1]: ", Fore.YELLOW),
+                                        default="1",
                                         allow_back=True,
                                     )
                                     if use_choice == "1":
