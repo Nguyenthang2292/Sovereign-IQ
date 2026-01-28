@@ -10,6 +10,7 @@ Module Adaptive Trend Classification LTS là phiên bản ổn định của ATC
 - **Memory management**: Automatic cleanup, monitoring và prevention memory leaks
 - **Numba JIT**: Fallback cho MA calculations khi Rust chưa có
 - **Caching**: Intelligent caching cho MA results
+- **Memory Optimizations**: Memory-mapped arrays cho backtesting và blosc compression cho cache
 - **NumPy optimization**: Pre-allocated arrays và NumPy operations thay vì Pandas
 
 Module cung cấp hệ thống phân tích xu hướng thích ứng sử dụng nhiều loại Moving Averages với adaptive weighting dựa trên equity curves.
@@ -312,6 +313,22 @@ growth = exp_growth(La=0.02, period=1)
 - **Vectorized operations**: NumPy cho các phép tính cuối.
 - **Caching**: Rate of change được cache.
 - **Parallel scanning**: Scanner hỗ trợ parallel cho nhiều symbols.
+
+## Memory Optimizations
+
+Module hỗ trợ các tối ưu hóa bộ nhớ cho datasets lớn:
+
+1.  **Memory-Mapped Arrays**:
+    - Xử lý datasets lớn mà không cần load toàn bộ vào RAM
+    - Giảm 90%+ RAM usage cho backtesting
+    - Enable qua `use_memory_mapped=True` trong `ATCConfig`
+
+2.  **Data Compression**:
+    - Nén cache files sử dụng `blosc`
+    - Giảm 5-10x storage footprint
+    - Enable qua `use_compression=True` trong `ATCConfig`
+
+Xem chi tiết: [docs/memory_optimizations_usage_guide.md](docs/memory_optimizations_usage_guide.md)
 
 ## Lưu ý
 

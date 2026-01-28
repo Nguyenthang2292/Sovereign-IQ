@@ -64,6 +64,9 @@ class ATCConfig:
     compression_level: int = 5  # Compression level (0-9, higher = more compression)
     compression_algorithm: str = "blosclz"  # Compression algorithm name
 
+    # Memory optimization parameters
+    use_memory_mapped: bool = False  # Enable memory-mapped arrays for large datasets
+
 
 def create_atc_config_from_dict(
     params: Dict[str, Any],
@@ -110,4 +113,5 @@ def create_atc_config_from_dict(
         use_compression=params.get("use_compression", False),
         compression_level=params.get("compression_level", 5),
         compression_algorithm=params.get("compression_algorithm", "blosclz"),
+        use_memory_mapped=params.get("use_memory_mapped", False),
     )

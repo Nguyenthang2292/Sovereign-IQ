@@ -30,7 +30,7 @@ def rate_of_change(prices: pd.Series) -> pd.Series:
 
     try:
         # Check cache
-        from modules.adaptive_trend_enhance.utils.cache_manager import get_cache_manager
+        from modules.adaptive_trend_LTS.utils.cache_manager import get_cache_manager
 
         cache = get_cache_manager()
 

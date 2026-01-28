@@ -1,7 +1,7 @@
 """
 Set of Moving Averages Calculation (Rust Backend).
 
-This module provides the logic to calculate a "set" of moving averages using Rust backend,
+This module provides logic to calculate a "set" of moving averages using Rust backend,
 which consists of 9 variations of a base moving average (1 central + 4 larger + 4 smaller).
 """
 
@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 
 import pandas as pd
 
-from modules.adaptive_trend_enhance.utils import diflen
+from modules.adaptive_trend_LTS.utils.diflen import diflen
 from modules.common.system import get_hardware_manager
 from modules.common.utils import log_error, log_warn
 

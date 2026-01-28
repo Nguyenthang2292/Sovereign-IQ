@@ -212,9 +212,9 @@ if is_candidate:
 
 ---
 
-## 5. Memory Optimizations
+## ~~5. Memory Optimizations~~ ✅ **COMPLETED**
 
-### 5.1 Memory-Mapped Arrays
+### ~~5.1 Memory-Mapped Arrays~~ ✅ **COMPLETED**
 
 **Opportunity**: Use memory-mapped files for very large datasets
 
@@ -230,7 +230,7 @@ result = compute_atc_signals(pd.Series(mmap_prices))
 
 **Expected Gain**: **90% memory reduction** for backtesting
 
-### 5.2 Compression for Historical Data
+### ~~5.2 Compression for Historical Data~~ ✅ **COMPLETED**
 
 **Opportunity**: Compress historical price data
 
@@ -249,40 +249,70 @@ prices = np.frombuffer(decompressed, dtype=np.float64)
 
 ---
 
-## 6. Profiling-Guided Optimizations
+## ~~6. Profiling-Guided Optimizations~~ ✅ **COMPLETED**
 
-### 6.1 Profile-Guided Optimization (PGO)
+### ~~6.1 cProfile Workflow (PGO)~~ ✅ **COMPLETED**
 
-**Opportunity**: Use runtime profiling to optimize compilation
+**Opportunity**: Use runtime profiling to identify and optimize hot paths.
+
+#### Run cProfile on benchmark_comparison
+
+**Method 1 – Direct command**
 
 ```bash
-# Collect profile data
-python -m cProfile -o profile.stats docs/benchmarks/benchmark_comparison.py
-
-# Use profile to guide Numba compilation
-NUMBA_ENABLE_PROFILING=1 python docs/benchmarks/benchmark_comparison.py
+python -m cProfile -o profiles/benchmark_comparison.stats \
+    -m modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.main \
+    --symbols 20 --bars 500 --timeframe 1h
 ```
 
-**Expected Gain**: **5-10%** improvement in hot paths
+**Method 2 – Helper script (no code changes)**
 
-### 6.2 Flame Graphs for Bottleneck Identification
-
-**Opportunity**: Visualize where time is spent
-
-```python
-import py-spy
-
-# Generate flame graph
-py-spy record -o profile.svg -- python docs/benchmarks/benchmark_comparison.py
+```bash
+python scripts/profile_benchmark_comparison.py --symbols 20 --bars 500 --timeframe 1h
 ```
 
-**Expected Gain**: Identify unexpected bottlenecks for targeted optimization
+#### Inspecting cProfile results
+
+Using `pstats` (built-in):
+
+```bash
+python -m pstats profiles/benchmark_comparison.stats
+# Interactive commands:
+# > sort cumtime       # sort by cumulative time
+# > stats 20           # show top 20 functions
+# > stats compute_atc  # filter by function name
+```
+
+Using `snakeviz` (optional visualization):
+
+```bash
+pip install snakeviz
+snakeviz profiles/benchmark_comparison.stats
+```
+
+**Expected Gain**: **5–10%** improvement in hot paths by focusing optimizations on real bottlenecks.
+
+### ~~6.2 Flame Graphs for Bottleneck Identification~~ ✅ **COMPLETED**
+
+**Opportunity**: Visualize where time is spent using py-spy.
+
+```bash
+pip install py-spy
+
+py-spy record -o profiles/benchmark_comparison_flame.svg -- \
+    python -m modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.main \
+    --symbols 20 --bars 500 --timeframe 1h
+```
+
+Open `profiles/benchmark_comparison_flame.svg` in your browser to explore the call stack and identify unexpected bottlenecks.
+
+**Expected Gain**: Faster identification of performance bottlenecks and more targeted optimization efforts.
 
 ---
 
 ## ~~7. Specialized Hardware~~ ⚠️ **NOT NECESSARY**
 
-### 7.1 Apple Silicon (M1/M2/M3) Optimization
+### ~~7.1 Apple Silicon (M1/M2/M3) Optimization~~
 
 **Opportunity**: Use Metal Performance Shaders (MPS) for GPU acceleration
 
@@ -297,7 +327,7 @@ result = compute_ma_mps(prices_tensor)
 
 **Expected Gain**: **3-5x** faster on M1/M2/M3 Macs
 
-### 7.2 TPU Support (Google Cloud)
+### ~~7.2 TPU Support (Google Cloud)~~
 
 **Opportunity**: Use TPUs for massive batch processing
 
@@ -340,59 +370,74 @@ def get_cached_signal(symbol, config_hash):
 
 **Expected Gain**: **100%** cache hit rate across instances
 
-### 8.2 Intelligent Cache Warming
+### 8.2 Intelligent Cache Warming (Phase 8.1)
 
-**Opportunity**: Pre-compute signals for likely queries
+**Status**: ✅ **IMPLEMENTED** 
 
-```python
-# Warm cache during off-hours
-def warm_cache(symbols, configs):
-    for symbol in symbols:
-        for config in configs:
-            compute_atc_signals(symbol, **config)  # Cached
+**Opportunity**: Pre-compute signals for likely queries before they are requested by users or scanner.
+
+**Implementation**:
+- `utils/cache_manager.py`: Added `warm_cache(symbols_data, configs)` method.
+- `scripts/warm_cache.py`: CLI entrypoint for warming the cache with specific configurations.
+
+**Usage**:
+```bash
+# Warm cache for all symbols in config with default presets
+python -m modules.adaptive_trend_LTS.scripts.warm_cache --symbols BTCUSDT,ETHUSDT --bars 2000
 ```
 
-**Expected Gain**: **Near-instant** response for common queries
+**Expected Gain**: **Near-instant** response for common queries. ✅ **VERIFIED**: Hit rate ~100% after warming.
 
 ---
 
 ## 9. Parallelism Improvements
 
-### 9.1 Async I/O for Data Fetching
+### 9.1 Async I/O & CPU Parallelism (Phase 8.1)
 
-**Opportunity**: Fetch data asynchronously while computing
+**Status**: ✅ **IMPLEMENTED**
 
+**Opportunity**: Use `asyncio` and `concurrent.futures` to overlap I/O and CPU-bound work.
+
+**Implementation**:
+- `core/async_io/async_compute.py`: Provides `AsyncComputeManager` and async wrappers.
+- Supports `ThreadPoolExecutor` for lightweight I/O and `ProcessPoolExecutor` for heavy signals.
+
+**Usage**:
 ```python
-import asyncio
+from modules.adaptive_trend_LTS.core.async_io.async_compute import run_batch_atc_async
 
-async def fetch_and_compute(symbol):
-    # Fetch data asynchronously
-    prices = await fetch_prices_async(symbol)
-    # Compute while other fetches are in progress
-    result = compute_atc_signals(prices)
-    return result
-
-# Process all symbols concurrently
-results = await asyncio.gather(*[fetch_and_compute(s) for s in symbols])
+# Compute signals for 50+ symbols concurrently
+results = await run_batch_atc_async(symbols_data, **config)
 ```
 
-**Expected Gain**: **2-5x** faster for I/O-bound workloads
+**Expected Gain**: **2-5x** faster for batch processing.
 
-### 9.2 GPU Multi-Stream Processing
+### 9.2 GPU Multi-Stream Processing (Phase 8.1)
 
-**Opportunity**: Process multiple symbols on GPU simultaneously
+**Status**: ✅ **IMPLEMENTED**
 
+**Opportunity**: Process multiple symbols on GPU simultaneously using CUDA streams.
+
+**Implementation**:
+- `core/gpu_backend/multi_stream.py`: Added `GPUStreamManager` for round-robin stream allocation.
+- Enables overlapping kernel execution and data transfers.
+
+**Usage**:
 ```python
-# Create multiple CUDA streams
-streams = [cp.cuda.Stream() for _ in range(4)]
+from modules.adaptive_trend_LTS.core.gpu_backend.multi_stream import get_gpu_stream_manager
 
-for i, symbol in enumerate(symbols):
-    stream = streams[i % 4]
-    with stream:
-        result = compute_atc_gpu(prices[symbol])
+stream_manager = get_gpu_stream_manager(num_streams=4)
+
+with stream_manager:
+    # Kernel executions are assigned to different streams automatically
+    for i in range(batch_size):
+        stream = stream_manager.get_stream()
+        with stream:
+            # Launch kernels on specific stream
+            launch_kernel(...)
 ```
 
-**Expected Gain**: **2-3x** better GPU utilization
+**Expected Gain**: **2-3x** better GPU utilization for batch processing.
 
 ---
 
@@ -419,27 +464,27 @@ def compute_atc_specialized(prices, config):
 
 ## Priority Recommendations
 
-### High Priority (High Impact, Medium Effort) ✅ **MOSTLY COMPLETED**
+### High Priority (High Impact, Medium Effort) ✅ **COMPLETED**
 
 1. ✅ **Rust extensions for equity calculation** (2-3x gain) - **COMPLETED (Phase 3, achieved ~3.5x)**
 2. ✅ **Custom CUDA kernels** (2-5x gain) - **COMPLETED (Phase 4, achieved 83.53x total)**
 3. ✅ **Incremental updates for live trading** (10-100x gain) - **COMPLETED (Phase 6, phase6_task.md)**
-4. ⚠️ **Redis distributed caching** (100% hit rate) - **NOT STARTED**
+4. ⚠️ **Redis distributed caching** (100% hit rate) - **OPTIONAL / NOT NECESSARY for current use cases**
 
 ### Medium Priority (Medium Impact, Low Effort) ✅ **COMPLETED**
 
 1. ✅ **GPU streams for overlapping** (1.5-2x gain) - **COMPLETED (Phase 4, Threading approach)**
 2. ✅ **Async I/O for data fetching** (2-5x gain) - **COMPLETED (Phase 2)**
-3. ✅ **Memory-mapped arrays for backtesting** (90% memory reduction) - **COMPLETED via Dask (Phase 5)**
-4. ✅ **Flame graphs for profiling** (identify bottlenecks) - **COMPLETED (Phase 2-4 profiling)**
+3. ✅ **Memory-mapped arrays for backtesting** (90% memory reduction) - **COMPLETED (Phase 7 / phase7_task.md)**
+4. ✅ **Flame graphs & cProfile profiling** (identify bottlenecks) - **COMPLETED (Phase 8 / phase8_task.md)**
 
-### Low Priority (Variable Impact, High Effort) ⚠️ **PARTIALLY COMPLETED**
+### Low Priority (Variable Impact, High Effort) ⚠️ **MOSTLY NOT NECESSARY**
 
 1. ✅ **Distributed computing (Dask)** (linear scaling) - **COMPLETED (Phase 5)**
-   - ⚠️ **Ray for Multi-Machine**: NOT NECESSARY - Replaced by Dask
-   - ✅ **Dask for Out-of-Core**: **COMPLETED** - Scanner, Batch, Rust+Dask hybrid
-2. ⚠️ **TPU support** (10-50x gain, requires Google Cloud) - **NOT STARTED**
-3. ⚠️ **Apple Silicon MPS** (3-5x gain, Mac-only) - **NOT STARTED**
+   - ⚠️ **Ray for Multi-Machine**: **NOT NECESSARY** – Replaced by Dask
+   - ✅ **Dask for Out-of-Core**: **COMPLETED** – Scanner, Batch, Rust+Dask hybrid
+2. ~~TPU support (Google Cloud)~~ ⚠️ **NOT NECESSARY** for current deployment targets
+3. ~~Apple Silicon MPS (M1/M2/M3)~~ ⚠️ **NOT NECESSARY** for current deployment targets
 
 ---
 

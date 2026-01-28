@@ -5,7 +5,7 @@ from typing import Optional
 import pandas as pd
 import pandas_ta as ta
 
-from modules.adaptive_trend_enhance.utils.cache_manager import get_cached_ma
+from modules.adaptive_trend_LTS.utils.cache_manager import get_cached_ma
 from modules.common.system import get_hardware_manager
 from modules.common.ui.logging import log_debug, log_error, log_warn
 

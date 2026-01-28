@@ -13,7 +13,7 @@ import pickle
 import time
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from modules.common.ui.logging import log_error, log_info, log_warn
 
@@ -97,6 +97,7 @@ class CacheManager:
         self._hits_l1 = 0
         self._hits_l2 = 0
         self._misses = 0
+        self._initial_entries = 0
 
         # Check if compression is available
         if use_compression:
@@ -216,6 +217,12 @@ class CacheManager:
             self._l1_cache[key] = entry
             return entry.value
 
+        if self._misses < 5:
+            from modules.common.ui.logging import log_debug
+
+            log_debug(f"  L2 miss - key not in L2: {key[:50]}")
+            log_debug(f"  L2 has {len(self._l2_cache)} keys")
+
         self._misses += 1
         return None
 
@@ -290,7 +297,12 @@ class CacheManager:
     def get(self, ma_type: str, length: int, price_data: Any, extra_params: Optional[Dict] = None) -> Optional[Any]:
         """Get cached MA result."""
         key = self._generate_key(ma_type, length, price_data, extra_params)
-        return self._get_entry(key)
+        result = self._get_entry(key)
+        if result is None and self._misses < 30:
+            from modules.common.ui.logging import log_debug
+
+            log_debug(f"Cache MISS #{self._misses}: ma_type={ma_type}, length={length}, key={key[:50]}...")
+        return result
 
     def put(self, ma_type: str, length: int, price_data: Any, value: Any, extra_params: Optional[Dict] = None):
         """Store MA result in cache."""
@@ -388,6 +400,64 @@ class CacheManager:
             log_info(f"Loaded {len(loaded)} entries from disk")
         except Exception as e:
             log_error(f"Failed to load cache: {e}")
+
+        self._initial_entries = len(self._l2_cache)
+
+    def warm_cache(self, symbols_data: Dict[str, Any], configs: Optional[List[Dict[str, Any]]] = None):
+        """
+        Warm cache by pre-calculating signals for symbols and configs.
+
+        Args:
+            symbols_data: Dictionary mapping symbol names to price Series
+            configs: List of configuration dictionaries for compute_atc_signals
+        """
+        if not configs:
+            configs = [{}]  # Default config
+
+        total_tasks = len(symbols_data) * len(configs)
+        log_info(
+            f"Warming cache with {len(symbols_data)} symbols and {len(configs)} configs ({total_tasks} total tasks)..."
+        )
+
+        start_time = time.time()
+        # Save current stats
+        initial_stats = self.get_stats()
+
+        from modules.adaptive_trend_LTS.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
+
+        count = 0
+        for symbol, prices in symbols_data.items():
+            for config in configs:
+                try:
+                    # Run with use_cache=True (default) to populate cache
+                    # We don't store the returned results
+                    compute_atc_signals(prices, **config)
+                    count += 1
+                    if count % 10 == 0:
+                        log_info(f"Warmed {count}/{total_tasks} tasks...")
+                except Exception as e:
+                    log_warn(f"Failed to warm cache for {symbol} with config {config}: {e}")
+
+        # Update stats
+        duration = time.time() - start_time
+        final_stats = self.get_stats()
+        entries_added = final_stats["entries"] - initial_stats["entries"]
+
+        log_info(f"Cache warming complete in {duration:.2f}s. Added {entries_added} new entries.")
+        self.save_to_disk()
+
+    def log_cache_effectiveness(self):
+        """Log detailed cache effectiveness after a workflow."""
+        stats = self.get_stats()
+        log_info("\n" + "=" * 40)
+        log_info("=== Cache Effectiveness Report ===")
+        log_info(f"Entries at Start: {self._initial_entries}")
+        log_info(f"Current Entries: {stats['entries']} (L1: {stats['entries_l1']}, L2: {stats['entries_l2']})")
+        log_info(f"Total Requests: {stats['hits'] + stats['misses']}")
+        log_info(f"Total Hits: {stats['hits']} (L1: {stats['hits_l1']}, L2: {stats['hits_l2']})")
+        log_info(f"Total Misses: {stats['misses']}")
+        log_info(f"Overall Hit Rate: {stats['hit_rate_percent']:.2f}%")
+        log_info("=" * 40 + "\n")
 
     def clear(self):
         """Clear all cache levels."""

@@ -11,6 +11,7 @@ from typing import Optional
 
 import pandas as pd
 
+from modules.adaptive_trend_LTS.utils.cache_manager import get_cached_ma
 from modules.adaptive_trend_LTS.core.rust_backend import (
     RUST_AVAILABLE,
     calculate_dema,
@@ -36,10 +37,9 @@ def ma_calculation_rust(
 
     Args:
         source: Input price series.
-        length: Period for MA calculation.
+        length: Period for moving average.
         ma_type: Type of moving average ("EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA").
         use_cache: If True, uses cached results if available (default: True).
-                   Note: Caching is handled by rust_backend internally.
         use_rust: If True, attempts to use Rust backend (default: True).
 
     Returns:
@@ -64,43 +64,56 @@ def ma_calculation_rust(
 
     ma = ma_type.upper().strip()
     VALID_MA_TYPES = {"EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"}
-
     if ma not in VALID_MA_TYPES:
         log_warn(f"Invalid ma_type '{ma_type}'. Valid: {', '.join(VALID_MA_TYPES)}")
         return None
 
     try:
-        prices_np = source.values
 
-        # Route to appropriate Rust backend function
-        if ma == "EMA":
-            result = calculate_ema(prices_np, length, use_rust=use_rust, use_cuda=use_cuda)
-        elif ma == "WMA":
-            result = calculate_wma(prices_np, length, use_rust=use_rust, use_cuda=use_cuda)
-        elif ma == "DEMA":
-            result = calculate_dema(prices_np, length, use_rust=use_rust)
-        elif ma == "LSMA":
-            result = calculate_lsma(prices_np, length, use_rust=use_rust)
-        elif ma == "HMA":
-            result = calculate_hma(prices_np, length, use_rust=use_rust, use_cuda=use_cuda)
-        elif ma == "KAMA":
-            result = calculate_kama(prices_np, length, use_rust=use_rust, use_cuda=use_cuda)
+        def calculate_rust_ma(price_data=None, p_length=None):
+            """Inner function for Rust MA calculation."""
+            # Use closure variables if not provided by get_cached_ma
+            if price_data is None:
+                price_data = source.values
+            if p_length is None:
+                p_length = length
+
+            if ma == "EMA":
+                result = calculate_ema(price_data, p_length, use_rust=use_rust, use_cuda=use_cuda)
+            elif ma == "WMA":
+                result = calculate_wma(price_data, p_length, use_rust=use_rust, use_cuda=use_cuda)
+            elif ma == "DEMA":
+                result = calculate_dema(price_data, p_length, use_rust=use_rust)
+            elif ma == "LSMA":
+                result = calculate_lsma(price_data, p_length, use_rust=use_rust)
+            elif ma == "HMA":
+                result = calculate_hma(price_data, p_length, use_rust=use_rust, use_cuda=use_cuda)
+            elif ma == "KAMA":
+                result = calculate_kama(price_data, p_length, use_rust=use_rust, use_cuda=use_cuda)
+            else:
+                return None
+
+            if result is None:
+                log_warn(f"MA calculation ({ma}) returned None for length={length}")
+                return None
+
+            if use_rust and RUST_AVAILABLE:
+                log_debug(f"Rust backend used for {ma} calculation")
+            else:
+                log_debug(f"Fallback (pandas_ta/numba) used for {ma} calculation")
+
+            return pd.Series(result, index=source.index)
+
+        if use_cache:
+            result = get_cached_ma(ma, length, source, calculate_rust_ma)
         else:
-            return None
+            result = calculate_rust_ma()
 
-        if result is None:
-            log_warn(f"MA calculation ({ma}) returned None for length={length}")
-            return None
+        return result
 
-        # Convert back to pandas Series with original index
-        result_series = pd.Series(result, index=source.index)
-
-        if use_rust and RUST_AVAILABLE:
-            log_debug(f"Rust backend used for {ma} calculation")
-        else:
-            log_debug(f"Fallback (pandas_ta/numba) used for {ma} calculation")
-
-        return result_series
+    except Exception as e:
+        log_error(f"Error calculating {ma} MA with length={length}: {e}")
+        raise
 
     except Exception as e:
         log_error(f"Error calculating {ma} MA with length={length}: {e}")

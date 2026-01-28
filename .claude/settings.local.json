@@ -3,7 +3,10 @@
     "allow": [
       "Bash(python -m py_compile:*)",
       "Bash(python -m pytest:*)",
-      "Bash(python test_approximate_ma_enabled.py:*)"
+      "Bash(python test_approximate_ma_enabled.py:*)",
+      "Bash(dir /b \"D:\\\\NGUYEN QUANG THANG\\\\Probability projects\\\\crypto-probability-\\\\modules\\\\adaptive_trend_LTS\")",
+      "Bash(findstr:*)",
+      "Bash(dir /b \"D:\\\\NGUYEN QUANG THANG\\\\Probability projects\\\\crypto-probability-\\\\modules\\\\adaptive_trend_LTS\\\\benchmarks\")"
     ]
   }
 }

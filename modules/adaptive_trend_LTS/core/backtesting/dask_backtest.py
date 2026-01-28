@@ -58,9 +58,9 @@ def _create_dask_from_memmap(
 
         data_dict = {}
         for col in descriptor.columns:
-            data_dict[col] = partition_data[col]
+            data_dict[col] = np.array(partition_data[col])
 
-        return pd.DataFrame(data_dict)
+        return pd.DataFrame(data_dict, index=range(start, end))
 
     delayed_objs = [dask.delayed(read_memmap_partition)(i) for i in range(num_partitions)]
 
@@ -98,7 +98,30 @@ def _process_symbol_group(
         if prices.empty or len(prices) < atc_config.get("ema_len", 28):
             return pd.DataFrame()
 
-        result = compute_atc_signals(prices=prices, **atc_config)
+        # Map config parameters to function arguments
+        func_args = atc_config.copy()
+        if "lambda_param" in func_args:
+            func_args["La"] = func_args.pop("lambda_param")
+        if "decay" in func_args:
+            func_args["De"] = func_args.pop("decay")
+
+        # Remove parameters not accepted by compute_atc_signals
+        for param in [
+            "limit",
+            "batch_size",
+            "use_memory_mapped",
+            "use_compression",
+            "compression_level",
+            "compression_algorithm",
+            "prefer_gpu",
+            "use_rust_backend",
+            "parallel_l1",
+            "parallel_l2",
+            "precision",
+        ]:
+            func_args.pop(param, None)
+
+        result = compute_atc_signals(prices=prices, **func_args)
 
         avg_signal = result.get("Average_Signal", pd.Series())
 

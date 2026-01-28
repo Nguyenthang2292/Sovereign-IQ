@@ -74,6 +74,9 @@ modules/gemini_chart_analyzer/analysis_results/
 web/static/vue/node_modules/
 node_modules/
 
+# Profiling artifacts
+profiles/
+
 # Agent files
 .agent/
 .opencode/
