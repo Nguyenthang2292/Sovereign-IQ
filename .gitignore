@@ -39,6 +39,11 @@ htmlcov/
 .tox/
 .hypothesis/
 
+# Cache directories
+.cache/
+**/.cache/
+**/cache/
+
 # Ruff cache
 .ruff_cache/
 
@@ -71,3 +76,4 @@ node_modules/
 
 # Agent files
 .agent/
+.opencode/

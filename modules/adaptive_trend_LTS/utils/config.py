@@ -56,8 +56,13 @@ class ATCConfig:
     batch_size: int = 100  # Number of symbols to process in each batch before forcing GC
     precision: str = "float64"  # "float64" or "float32"
     parallel_l1: bool = True  # Level 1 parallelism (intra-symbol)
-    parallel_l2: bool = True  # Level 2 parallelism (intra-symbol)
+    parallel_l2: bool = True  # Level 2 parallelism (inter-symbol)
     use_rust_backend: bool = True  # Use Rust backend (CPU parallelism with Rayon)
+
+    # Cache compression parameters
+    use_compression: bool = False  # Enable blosc compression for disk cache
+    compression_level: int = 5  # Compression level (0-9, higher = more compression)
+    compression_algorithm: str = "blosclz"  # Compression algorithm name
 
 
 def create_atc_config_from_dict(
@@ -102,4 +107,7 @@ def create_atc_config_from_dict(
         parallel_l1=params.get("parallel_l1", True),
         parallel_l2=params.get("parallel_l2", True),
         use_rust_backend=params.get("use_rust_backend", params.get("prefer_gpu", True)),  # Backward compat
+        use_compression=params.get("use_compression", False),
+        compression_level=params.get("compression_level", 5),
+        compression_algorithm=params.get("compression_algorithm", "blosclz"),
     )

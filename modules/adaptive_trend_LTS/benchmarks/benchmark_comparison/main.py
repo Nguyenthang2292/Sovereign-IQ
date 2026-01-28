@@ -32,6 +32,29 @@ class TeeOutput:
         return self.stdout.isatty()
 
 
+def _keep_latest_logs(*, dir_path: Path, keep: int = 5) -> None:
+    """Keep only the newest N benchmark_log_* files in a directory."""
+    try:
+        if not dir_path.exists():
+            return
+
+        log_files = sorted(
+            [p for p in dir_path.iterdir() if p.is_file() and p.name.startswith("benchmark_log_")],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+
+        for old_file in log_files[keep:]:
+            try:
+                old_file.unlink()
+            except OSError:
+                # Best-effort cleanup: ignore file-in-use / permission issues
+                pass
+    except OSError:
+        # Best-effort cleanup: ignore directory access issues
+        return
+
+
 # Add project root to sys.path to allow absolute imports when run directly
 if __file__:
     project_root = Path(__file__).parent.parent.parent.parent.parent
@@ -81,10 +104,14 @@ def main():
 
     args = parser.parse_args()
 
-    # Setup log file
-    script_dir = Path(__file__).parent.parent
+    # Setup output directories
+    results_dir = Path(__file__).parent / "results"
+    txt_dir = results_dir / "txt"
+    html_dir = results_dir / "html"
+    txt_dir.mkdir(parents=True, exist_ok=True)
+    html_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = script_dir / f"benchmark_log_{timestamp}.txt"
+    log_file = txt_dir / f"benchmark_log_{timestamp}.txt"
 
     # Create TeeOutput to write to both console and file
     log_file_handle = open(str(log_file), "w", encoding="utf-8")
@@ -316,19 +343,28 @@ def main():
         print("=" * 60)
         print(table)
 
-        # Save results to file (save in parent benchmarks directory)
-        script_dir = Path(__file__).parent.parent
-        output_file = script_dir / "benchmark_results.txt"
+        # Save results to file (save under benchmark_comparison/results)
+        output_file = results_dir / "benchmark_results.txt"
+        results_text = (
+            "Benchmark Results\n"
+            + "=" * 60
+            + "\n"
+            + f"Symbols: {len(prices_data)}\n"
+            + f"Bars per symbol: {args.bars}\n"
+            + f"Timeframe: {args.timeframe}\n"
+            + "\n"
+            + table
+        )
         with open(str(output_file), "w", encoding="utf-8") as f:
-            f.write("Benchmark Results\n")
-            f.write("=" * 60 + "\n")
-            f.write(f"Symbols: {len(prices_data)}\n")
-            f.write(f"Bars per symbol: {args.bars}\n")
-            f.write(f"Timeframe: {args.timeframe}\n")
-            f.write("\n")
-            f.write(table)
+            f.write(results_text)
 
         log_success(f"Results saved to {output_file}")
+
+        # Save HTML version of benchmark results (table as HTML page)
+        results_html_file = results_dir / "benchmark_results.html"
+        with open(str(results_html_file), "w", encoding="utf-8") as f:
+            f.write(ansi_to_html(results_text))
+        log_success(f"HTML results saved to {results_html_file}")
 
     finally:
         # Restore original stdout before writing final message
@@ -349,8 +385,8 @@ def main():
             # Convert ANSI codes to HTML
             html_content = ansi_to_html(log_content)
 
-            # Save HTML version
-            html_file = log_file.with_suffix(".html")
+            # Save HTML version to results/html/
+            html_file = html_dir / log_file.with_suffix(".html").name
             with open(str(html_file), "w", encoding="utf-8") as f:
                 f.write(html_content)
 
@@ -359,6 +395,10 @@ def main():
         except Exception as e:
             log_warn(f"Failed to create HTML log: {e}")
             log_success(f"Logs saved to {log_file}")
+
+        # Keep only the latest logs in each folder
+        _keep_latest_logs(dir_path=txt_dir, keep=5)
+        _keep_latest_logs(dir_path=html_dir, keep=5)
 
 
 if __name__ == "__main__":

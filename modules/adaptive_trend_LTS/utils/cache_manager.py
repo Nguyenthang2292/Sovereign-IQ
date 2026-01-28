@@ -65,6 +65,9 @@ class CacheManager:
         max_size_mb_l2: float = 1000.0,
         ttl_seconds: Optional[float] = 3600.0,
         cache_dir: str = ".cache/atc",
+        use_compression: bool = False,
+        compression_level: int = 5,
+        compression_algorithm: str = "blosclz",
     ):
         """
         Initialize Enhanced Cache Manager.
@@ -75,12 +78,18 @@ class CacheManager:
             max_size_mb_l2: Max size for L2 in MB
             ttl_seconds: TTL for entries
             cache_dir: Directory for persistent cache
+            use_compression: Enable blosc compression for disk cache
+            compression_level: Compression level (0-9)
+            compression_algorithm: Compression algorithm name
         """
         self.max_entries_l1 = max_entries_l1
         self.max_entries_l2 = max_entries_l2
         self.max_size_bytes_l2 = int(max_size_mb_l2 * 1024 * 1024)
         self.ttl_seconds = ttl_seconds
         self.cache_dir = cache_dir
+        self.use_compression = use_compression
+        self.compression_level = compression_level
+        self.compression_algorithm = compression_algorithm
 
         self._l1_cache: Dict[str, CacheEntry] = {}
         self._l2_cache: Dict[str, CacheEntry] = {}
@@ -88,6 +97,20 @@ class CacheManager:
         self._hits_l1 = 0
         self._hits_l2 = 0
         self._misses = 0
+
+        # Check if compression is available
+        if use_compression:
+            from modules.adaptive_trend_LTS.utils.data_compression import (
+                is_compression_available,
+            )
+
+            if not is_compression_available():
+                log_warn(
+                    "blosc compression requested but not available. "
+                    "Falling back to uncompressed mode. "
+                    "Install with: pip install blosc"
+                )
+                self.use_compression = False
 
         if not os.path.exists(cache_dir):
             try:
@@ -298,21 +321,63 @@ class CacheManager:
         try:
             # We only save entries with hits > 1 to avoid bloating
             to_save = {k: v for k, v in self._l2_cache.items() if v.hits > 1}
-            with open(path, "wb") as f:
-                pickle.dump(to_save, f)
-            log_info(f"Saved {len(to_save)} persistent entries")
+
+            if self.use_compression:
+                # Save compressed
+                from modules.adaptive_trend_LTS.utils.data_compression import (
+                    compress_to_file,
+                )
+
+                compressed_filename = filename.replace(".pkl", ".pkl.blosc")
+                compressed_path = os.path.join(self.cache_dir, compressed_filename)
+
+                compress_to_file(
+                    to_save,
+                    compressed_path,
+                    compression_level=self.compression_level,
+                    algorithm=self.compression_algorithm,
+                )
+
+                log_info(f"Saved {len(to_save)} persistent entries (compressed)")
+            else:
+                # Save uncompressed (legacy)
+                with open(path, "wb") as f:
+                    pickle.dump(to_save, f)
+                log_info(f"Saved {len(to_save)} persistent entries")
         except Exception as e:
             log_error(f"Failed to save cache: {e}")
 
     def load_from_disk(self, filename: str = "cache_v1.pkl"):
         """Load L2 cache from disk."""
         path = os.path.join(self.cache_dir, filename)
-        if not os.path.exists(path):
+        compressed_path = path.replace(".pkl", ".pkl.blosc")
+
+        if not os.path.exists(path) and not os.path.exists(compressed_path):
             return
-        log_info(f"Loading cache from {path}...")
+
         try:
-            with open(path, "rb") as f:
-                loaded = pickle.load(f)
+            if self.use_compression and os.path.exists(compressed_path):
+                # Try loading compressed first
+                from modules.adaptive_trend_LTS.utils.data_compression import (
+                    decompress_from_file,
+                )
+
+                log_info(f"Loading cache from {compressed_path}...")
+                loaded = decompress_from_file(compressed_path)
+            elif os.path.exists(path):
+                # Fall back to uncompressed
+                log_info(f"Loading cache from {path}...")
+                with open(path, "rb") as f:
+                    loaded = pickle.load(f)
+            else:
+                # Compression enabled but compressed file doesn't exist
+                log_info(f"Compressed cache not found, checking for uncompressed: {path}")
+                if os.path.exists(path):
+                    log_info(f"Loading cache from {path}...")
+                    with open(path, "rb") as f:
+                        loaded = pickle.load(f)
+                else:
+                    return
 
             for k, v in loaded.items():
                 if k not in self._l2_cache:

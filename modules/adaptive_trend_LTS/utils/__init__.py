@@ -3,6 +3,7 @@ Utility functions for Adaptive Trend Classification Enhanced (ATC Enhanced).
 
 ENHANCED VERSION with:
 - Cache management for MA results (NEW)
+- Memory-mapped data utilities for large datasets (NEW)
 - Original utility functions preserved
 
 This package provides utility functions used throughout the ATC Enhanced system:
@@ -13,6 +14,8 @@ This package provides utility functions used throughout the ATC Enhanced system:
 - create_atc_config_from_dict: Helper to create ATCConfig from dictionary
 - CacheManager: Intelligent caching for MA results (NEW)
 - get_cached_ma: Convenience function for cached MA retrieval (NEW)
+- MemoryMappedDataManager: Memory-mapped file manager for large datasets (NEW)
+- create_memory_mapped_from_csv: Create memory-mapped files from CSV (NEW)
 """
 
 from modules.adaptive_trend_enhance.utils.config import ATCConfig, create_atc_config_from_dict
@@ -30,6 +33,15 @@ from modules.adaptive_trend_enhance.utils.cache_manager import (
     get_cached_ma,
 )
 
+# NEW: Memory-mapped data management
+from modules.adaptive_trend_LTS.utils.memory_mapped_data import (
+    MemmapDescriptor,
+    MemoryMappedDataManager,
+    create_memory_mapped_from_csv,
+    load_memory_mapped_from_csv,
+    get_manager as get_memory_mapped_manager,
+)
+
 
 __all__ = [
     # Original utilities
@@ -45,4 +57,10 @@ __all__ = [
     "reset_cache_manager",
     "cached_ma",
     "get_cached_ma",
+    # Memory-mapped data management (NEW)
+    "MemmapDescriptor",
+    "MemoryMappedDataManager",
+    "create_memory_mapped_from_csv",
+    "load_memory_mapped_from_csv",
+    "get_memory_mapped_manager",
 ]

@@ -5,7 +5,9 @@ from __future__ import annotations
 import gc
 from typing import List, Optional
 
+import dask
 import dask.dataframe as dd
+import dask.delayed
 import pandas as pd
 
 try:
@@ -20,6 +22,54 @@ except ImportError:
 
     def log_warn(message: str) -> None:
         print(f"[WARN] {message}")
+
+
+def _create_dask_from_memmap(
+    mmap_array,
+    descriptor,
+    symbol_column: str,
+    price_column: str,
+    chunksize: str = "100MB",
+) -> dd.DataFrame:
+    """Create a Dask DataFrame from memory-mapped data.
+
+    Args:
+        mmap_array: Memory-mapped numpy array
+        descriptor: MemmapDescriptor with metadata
+        symbol_column: Column name for symbol
+        price_column: Column name for price
+        chunksize: Size of each Dask partition
+
+    Returns:
+        Dask DataFrame
+    """
+    import numpy as np
+
+    total_rows = descriptor.shape[0]
+    num_partitions = max(1, int(total_rows / 100000))
+    rows_per_partition = total_rows // num_partitions
+
+    def read_memmap_partition(partition_idx):
+        start = partition_idx * rows_per_partition
+        end = start + rows_per_partition if partition_idx < num_partitions - 1 else total_rows
+        partition_slice = slice(start, end)
+
+        partition_data = mmap_array[partition_slice]
+
+        data_dict = {}
+        for col in descriptor.columns:
+            data_dict[col] = partition_data[col]
+
+        return pd.DataFrame(data_dict)
+
+    delayed_objs = [dask.delayed(read_memmap_partition)(i) for i in range(num_partitions)]
+
+    ddf = dd.from_delayed(
+        delayed_objs,
+        meta=pd.DataFrame({col: "float64" for col in descriptor.columns}),
+    )
+
+    return ddf
 
 
 def _process_symbol_group(
@@ -74,6 +124,7 @@ def backtest_with_dask(
     chunksize: str = "100MB",
     symbol_column: str = "symbol",
     price_column: str = "close",
+    use_memory_mapped: bool = False,
 ) -> pd.DataFrame:
     """Backtest ATC signals on large historical data using Dask.
 
@@ -83,6 +134,7 @@ def backtest_with_dask(
         chunksize: Size of each chunk (e.g., "100MB")
         symbol_column: Column name for symbol
         price_column: Column name for price
+        use_memory_mapped: Use memory-mapped files to reduce RAM usage
 
     Returns:
         DataFrame with backtest results
@@ -90,11 +142,27 @@ def backtest_with_dask(
     log_info(f"Loading historical data from {historical_data_path}")
 
     try:
-        ddf = dd.read_csv(
-            historical_data_path,
-            blocksize=chunksize,
-            dtype={symbol_column: "string", price_column: "float64"},
-        )
+        if use_memory_mapped:
+            from modules.adaptive_trend_LTS.utils.memory_mapped_data import (
+                load_memory_mapped_from_csv,
+                get_manager,
+            )
+
+            descriptor, mmap_array = load_memory_mapped_from_csv(historical_data_path, symbol_column, price_column)
+
+            if descriptor is None or mmap_array is None:
+                log_error("Failed to load memory-mapped data")
+                return pd.DataFrame()
+
+            log_info(f"Using memory-mapped data: {descriptor.mmap_path}")
+
+            ddf = _create_dask_from_memmap(mmap_array, descriptor, symbol_column, price_column, chunksize)
+        else:
+            ddf = dd.read_csv(
+                historical_data_path,
+                blocksize=chunksize,
+                dtype={symbol_column: "string", price_column: "float64"},
+            )
     except Exception as e:
         log_error(f"Failed to read CSV file: {e}")
         return pd.DataFrame()
@@ -224,9 +292,7 @@ def backtest_multiple_files_dask(
     for file_path in file_paths:
         log_info(f"Processing file: {file_path}")
         try:
-            result = backtest_with_dask(
-                file_path, atc_config, chunksize, symbol_column, price_column
-            )
+            result = backtest_with_dask(file_path, atc_config, chunksize, symbol_column, price_column)
             if not result.empty:
                 results_list.append(result)
         except Exception as e:
