@@ -77,6 +77,7 @@ def execute_scan(config: Dict[str, Any]) -> BatchScanResult:
             rf_training=config.get("rf_training"),
             atc_performance=config.get("atc_performance"),
             approximate_ma_scanner=config.get("approximate_ma_scanner"),
+            use_atc_performance=config.get("use_atc_performance", True),
         )
 
         # Run the scan

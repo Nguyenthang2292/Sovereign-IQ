@@ -92,7 +92,7 @@ def benchmark_memory_rust(
 def benchmark_memory_usage(
     dataset_sizes: list[int] = [100, 500, 1000, 5000],
     config: dict = None,
-) -> None:
+) -> list:
     """Compare memory usage between implementations.
 
     Args:
@@ -167,11 +167,11 @@ def benchmark_memory_usage(
         rust_mem = result["rust_memory_mb"]
         reduction = result["memory_reduction_percent"]
 
-        print(
-            f"{result['n_symbols']:>10} {dask_mem:>12.2f} "
-            f"{rust_mem:>12.2f if rust_mem else 'N/A':>12} "
-            f"{reduction:>12.1f if reduction is not None else 'N/A':>12}"
-        )
+        rust_str = f"{rust_mem:>12.2f}" if rust_mem is not None else f"{'N/A':>12}"
+        reduction_str = f"{reduction:>12.1f}" if reduction is not None else f"{'N/A':>12}"
+        print(f"{result['n_symbols']:>10} {dask_mem:>12.2f} {rust_str} {reduction_str}")
+
+    return results
 
 
 if __name__ == "__main__":

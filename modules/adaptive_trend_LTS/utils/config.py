@@ -58,6 +58,7 @@ class ATCConfig:
     parallel_l1: bool = True  # Level 1 parallelism (intra-symbol)
     parallel_l2: bool = True  # Level 2 parallelism (inter-symbol)
     use_rust_backend: bool = True  # Use Rust backend (CPU parallelism with Rayon)
+    use_cuda: bool = False  # Use CUDA GPU backend for acceleration
 
     # Cache compression parameters
     use_compression: bool = False  # Enable blosc compression for disk cache
@@ -66,6 +67,9 @@ class ATCConfig:
 
     # Memory optimization parameters
     use_memory_mapped: bool = False  # Enable memory-mapped arrays for large datasets
+
+    # Code generation / JIT specialization parameters
+    use_codegen_specialization: bool = False  # Enable JIT specialization for known hot path configs
 
 
 def create_atc_config_from_dict(
@@ -110,8 +114,10 @@ def create_atc_config_from_dict(
         parallel_l1=params.get("parallel_l1", True),
         parallel_l2=params.get("parallel_l2", True),
         use_rust_backend=params.get("use_rust_backend", params.get("prefer_gpu", True)),  # Backward compat
+        use_cuda=params.get("use_cuda", False),
         use_compression=params.get("use_compression", False),
         compression_level=params.get("compression_level", 5),
         compression_algorithm=params.get("compression_algorithm", "blosclz"),
         use_memory_mapped=params.get("use_memory_mapped", False),
+        use_codegen_specialization=params.get("use_codegen_specialization", False),
     )

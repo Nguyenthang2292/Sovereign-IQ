@@ -4,8 +4,7 @@ This module wraps BatchIncrementalATC to provide a streaming interface
 for live trading scenarios, maintaining local state without distributed complexity.
 """
 
-from typing import Dict, Optional, List
-import time
+from typing import Dict, List, Optional
 
 from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_incremental_atc import BatchIncrementalATC
 

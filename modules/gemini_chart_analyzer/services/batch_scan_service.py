@@ -43,6 +43,7 @@ class BatchScanConfig:
     rf_training: Optional[Dict[str, Any]] = None  # RF model training configuration
     atc_performance: Optional[Dict[str, Any]] = None  # ATC high-performance parameters
     approximate_ma_scanner: Optional[Dict[str, Any]] = None  # Approximate MA Batch Scanner configuration
+    use_atc_performance: bool = True  # Switch between LTS (True) and Legacy (False) ATC modules
 
 
 def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
@@ -116,6 +117,7 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
             stage0_hybrid_top_percentage=config.stage0_hybrid_top_percentage,
             atc_performance=config.atc_performance,
             approximate_ma_scanner=config.approximate_ma_scanner,
+            use_atc_performance=config.use_atc_performance,
         )
 
         # Generate HTML report if results were found

@@ -6,6 +6,7 @@ import gc
 from typing import Dict, Optional
 
 import dask.bag as db
+import numpy as np
 import pandas as pd
 
 from .batch_processor import process_symbols_batch_cuda, process_symbols_batch_rust
@@ -47,7 +48,20 @@ def _process_partition_with_backend(
     if not partition_items:
         return {}
 
-    partition_dict = dict(partition_items)
+    # Filter out invalid data before processing
+    # This prevents Rust backend panics on None or empty Series
+    filtered_items = []
+    for symbol, prices in partition_items:
+        if prices is not None:
+            if isinstance(prices, pd.Series) and not prices.empty:
+                filtered_items.append((symbol, prices))
+            elif isinstance(prices, np.ndarray) and len(prices) > 0:
+                filtered_items.append((symbol, prices))
+
+    if not filtered_items:
+        return {}
+
+    partition_dict = dict(filtered_items)
 
     try:
         if use_cuda:

@@ -13,14 +13,14 @@ try:
     from modules.common.utils import log_error, log_info, log_warn
 except ImportError:
 
-    def log_info(message: str) -> None:
-        print(f"[INFO] {message}")
+    def log_info(msg: str) -> None:
+        print(f"[INFO] {msg}")
 
-    def log_error(message: str) -> None:
-        print(f"[ERROR] {message}")
+    def log_error(msg: str) -> None:
+        print(f"[ERROR] {msg}")
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
 
 try:
@@ -61,11 +61,18 @@ def _process_partition_with_rust_cpu(
         for s, v in partition_data.items():
             if v is not None:
                 if isinstance(v, pd.Series):
+                    if v.empty:
+                        continue
                     symbols_numpy[s] = v.values.astype(np.float64)
                 elif isinstance(v, np.ndarray):
+                    if v.size == 0:
+                        continue
                     symbols_numpy[s] = v.astype(np.float64)
                 else:
                     symbols_numpy[s] = np.array(v, dtype=np.float64)
+
+        if not symbols_numpy:
+            return {}
 
         batch_results = atc_rust.compute_atc_signals_batch_cpu(
             symbols_numpy,
@@ -131,11 +138,18 @@ def _process_partition_with_rust_cuda(
         for s, v in partition_data.items():
             if v is not None:
                 if isinstance(v, pd.Series):
+                    if v.empty:
+                        continue
                     symbols_numpy[s] = v.values.astype(np.float64)
                 elif isinstance(v, np.ndarray):
+                    if v.size == 0:
+                        continue
                     symbols_numpy[s] = v.astype(np.float64)
                 else:
                     symbols_numpy[s] = np.array(v, dtype=np.float64)
+
+        if not symbols_numpy:
+            return {}
 
         batch_results = atc_rust.compute_atc_signals_batch(
             symbols_numpy,
@@ -202,8 +216,15 @@ def _process_partition_python(
         results = {}
         for symbol, prices in partition_data.items():
             try:
-                if prices is None or (isinstance(prices, pd.Series) and prices.empty):
+                if prices is None:
                     continue
+                if isinstance(prices, (pd.Series, np.ndarray)):
+                    if isinstance(prices, pd.Series):
+                        if prices.empty:
+                            continue
+                    elif isinstance(prices, np.ndarray):
+                        if prices.size == 0:
+                            continue
 
                 # Preserve original index if available
                 orig_index = None
@@ -302,8 +323,12 @@ def process_symbols_rust_dask(
             if prices is None:
                 continue
             if isinstance(prices, pd.Series):
+                if prices.empty:
+                    continue
                 partition_dict[symbol] = prices.values
             elif isinstance(prices, np.ndarray):
+                if prices.size == 0:
+                    continue
                 partition_dict[symbol] = prices
             else:
                 partition_dict[symbol] = np.array(prices, dtype=np.float64)

@@ -4,17 +4,17 @@ This module enhances approximate MA calculations by dynamically adjusting
 approximation tolerance based on market volatility.
 """
 
-import numpy as np
+from typing import Literal
+
 import pandas as pd
-from typing import Optional, Literal
 
 from modules.adaptive_trend_LTS.core.compute_moving_averages.approximate_mas import (
+    fast_dema_approx,
     fast_ema_approx,
     fast_hma_approx,
-    fast_wma_approx,
-    fast_dema_approx,
-    fast_lsma_approx,
     fast_kama_approx,
+    fast_lsma_approx,
+    fast_wma_approx,
 )
 
 

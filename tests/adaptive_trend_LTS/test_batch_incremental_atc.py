@@ -1,8 +1,8 @@
 """Tests for BatchIncrementalATC class."""
 
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
 
 from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_incremental_atc import BatchIncrementalATC
 
@@ -274,7 +274,7 @@ def test_batch_shared_state_management(batch_atc, sample_prices):
     batch_atc.add_symbol("ETHUSDT", sample_prices)
 
     # Get initial signals
-    initial_signals = batch_atc.get_all_signals()
+    _ = batch_atc.get_all_signals()
 
     # Update all symbols
     price_updates = {
@@ -284,13 +284,13 @@ def test_batch_shared_state_management(batch_atc, sample_prices):
     batch_atc.update_all(price_updates)
 
     # Get new signals
-    updated_signals = batch_atc.get_all_signals()
+    _ = batch_atc.get_all_signals()
 
     # All signals should have values
-    assert len(updated_signals) == 2
+    assert len(batch_atc.get_all_signals()) == 2
     for symbol in ["BTCUSDT", "ETHUSDT"]:
-        assert symbol in updated_signals
-        assert -1.0 <= updated_signals[symbol] <= 1.0
+        assert symbol in batch_atc.get_all_signals()
+        assert -1.0 <= batch_atc.get_all_signals()[symbol] <= 1.0
 
 
 def test_batch_symbol_count(batch_atc, sample_prices):

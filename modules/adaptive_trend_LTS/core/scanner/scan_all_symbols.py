@@ -31,7 +31,7 @@ except ImportError:
         print(f"[PROGRESS] {message}")
 
 
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.adaptive_trend_LTS.utils.config import ATCConfig
 from modules.common.system import get_hardware_manager, get_memory_manager
 
 from .asyncio_scan import _scan_asyncio
@@ -252,6 +252,16 @@ def scan_all_symbols(
                 results_df = pd.DataFrame.from_records(results)
             else:
                 results_df = pd.DataFrame()
+
+            # Fix: Guard against empty results_df before accessing columns
+            # This prevents KeyError when results_df is empty (no valid signals)
+            if results_df.empty:
+                return pd.DataFrame(), pd.DataFrame()
+
+            # Fix: Guard against empty results_df before accessing columns
+            # This prevents KeyError when results_df is empty (no valid signals)
+            if results_df.empty:
+                return pd.DataFrame(), pd.DataFrame()
 
             # Filter LONG and SHORT signals
             long_signals = results_df[results_df["trend"] > 0].copy()

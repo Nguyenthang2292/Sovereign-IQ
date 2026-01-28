@@ -1,8 +1,11 @@
-# Optimization Flow Diagram: adaptive_trend_enhance
+# Optimization Flow Diagram: adaptive_trend_LTS
 
 ## Overview
 
-This document provides visual representations of how the `adaptive_trend_enhance` module optimizes the ATC calculation pipeline through hardware-aware routing, parallel processing, and memory management.
+This document provides visual representations of how the `adaptive_trend_LTS` module optimizes the ATC calculation pipeline through Rust backend integration, CUDA GPU acceleration, approximate moving averages, memory management, and intelligent caching.
+
+**Last Updated**: 2026-01-29
+**Status**: ✅ Verified against actual implementation (Phase 2-8.2 completed)
 
 ---
 
@@ -12,23 +15,33 @@ This document provides visual representations of how the `adaptive_trend_enhance
 graph TD
     A[User/Scanner] --> B[compute_atc_signals]
     B --> C{Validate Inputs}
-    C --> D[set_of_moving_averages x6]
-    D --> E{Hardware Detection}
-    E -->|CPU| F[Numba JIT MAs]
-    E -->|GPU Available| G[CuPy GPU MAs]
+    C --> D{use_approximate?}
 
-    F --> H[Layer 1: Signal Generation]
-    G --> H
+    D -->|Yes: Adaptive| E1[adaptive_approximate_mas]
+    D -->|Yes: Basic| E2[fast_approximate_mas]
+    D -->|No| E3[set_of_moving_averages x6]
 
-    H --> I{Parallel Strategy}
-    I -->|Sequential| J[_layer1_signal_for_ma x6]
-    I -->|Parallel| K[_layer1_parallel_atc_signals]
+    E1 --> F{Backend Selection}
+    E2 --> F
+    E3 --> F
+
+    F -->|use_rust=True, use_cuda=True| G1[Rust CUDA Backend]
+    F -->|use_rust=True, use_cuda=False| G2[Rust CPU Backend]
+    F -->|use_rust=False| G3[Python/Numba Fallback]
+
+    G1 -->|With fallback| G2
+    G2 --> H[Layer 1: Signal Generation]
+    G3 --> H
+
+    H --> I{Parallel L1?}
+    I -->|Yes & len>5000 & cores>4| J[_layer1_parallel_atc_signals]
+    I -->|No| K[Sequential _layer1_signal_for_ma x6]
 
     J --> L[Layer 2: Equity Calculation]
     K --> L
 
     L --> M{Parallel L2?}
-    M -->|Yes| N[ThreadPool: 6 equities]
+    M -->|Yes| N[ThreadPool: 6 equities + CUDA support]
     M -->|No| O[Sequential equities]
 
     N --> P[calculate_average_signal]
@@ -37,424 +50,137 @@ graph TD
     P --> Q[Average_Signal Result]
 
     style B fill:#4CAF50
-    style E fill:#FF9800
+    style D fill:#9C27B0
+    style F fill:#FF9800
+    style G1 fill:#2196F3
     style I fill:#FF9800
     style M fill:#FF9800
-    style Q fill:#2196F3
+    style Q fill:#4CAF50
 ```
 
 ---
 
-## 2. Original vs Enhanced Flow Comparison
+## 2. Backend Priority & Fallback Chain
 
-### Original (adaptive_trend)
+### Rust CUDA → Rust CPU → Python/Numba Fallback
 
 ```mermaid
 graph LR
-    A[prices] --> B[set_of_moving_averages]
-    B --> C[9 MAs via pandas_ta]
-    C --> D[_layer1_signal_for_ma]
-    D --> E[equity_series x54]
-    E --> F[calculate_layer2_equities]
-    F --> G[equity_series x6]
-    G --> H[Vectorized Average_Signal]
-    H --> I[Result]
+    A[MA Calculation Request] --> B{use_rust=True?}
 
-    style A fill:#E3F2FD
-    style I fill:#E3F2FD
+    B -->|No| Z[Python/Numba Fallback]
+    B -->|Yes| C{use_cuda=True?}
+
+    C -->|No| Y[Rust CPU Backend]
+    C -->|Yes| D[Try Rust CUDA]
+
+    D -->|Success| E[CUDA Result]
+    D -->|Exception| F[Log Warning]
+    F --> Y
+
+    Y -->|Success| G[Rust CPU Result]
+    Y -->|RUST_AVAILABLE=False| Z
+
+    Z --> H[pandas_ta or Numba]
+    H --> I[Python Result]
+
+    style D fill:#2196F3
+    style Y fill:#4CAF50
+    style Z fill:#FF9800
+    style F fill:#FF5722
 ```
 
-**Characteristics:**
+**Backend Priority Chain** (from `rust_backend.py`):
+1. **Rust CUDA** (Phase 4) - 83.53x speedup for batch processing
+2. **Rust CPU** (Phase 3) - 2-3x speedup with Rayon parallelism + SIMD
+3. **Python/Numba** - Baseline fallback (pandas_ta, Numba JIT)
 
-- ❌ No caching
-- ❌ No parallelism
-- ❌ No GPU support
-- ❌ No memory pooling
-- ✅ Simple, straightforward
-
-### Enhanced (adaptive_trend_enhance)
-
-```mermaid
-graph TB
-    A[prices] --> B{Check Cache}
-    B -->|Hit| Z[Cached Result]
-    B -->|Miss| C[validate_atc_inputs]
-
-    C --> D{Global Cutout Slice}
-    D --> E[Sliced prices/src]
-
-    E --> F{Hardware Manager}
-    F -->|GPU| G[GPU Batch MAs]
-    F -->|CPU| H[Numba JIT MAs]
-
-    G --> I[SeriesPool Acquire]
-    H --> I
-
-    I --> J{Parallel L1?}
-    J -->|Yes| K[Shared Memory + ProcessPool]
-    J -->|No| L[Sequential with Pool]
-
-    K --> M[Layer 1 Signals]
-    L --> M
-
-    M --> N{Parallel L2?}
-    N -->|Yes| O[ThreadPool Equities]
-    N -->|No| P[Sequential Equities]
-
-    O --> Q[Equity Cache Check]
-    P --> Q
-
-    Q -->|Hit| R[Cached Equity]
-    Q -->|Miss| S[Calculate + Cache]
-
-    R --> T[calculate_average_signal]
-    S --> T
-
-    T --> U{Precision}
-    U -->|float32| V[50% Memory Save]
-    U -->|float64| W[Standard]
-
-    V --> X[cleanup_series]
-    W --> X
-
-    X --> Y[Result]
-    Y --> AA[Cache Result]
-
-    style F fill:#FF9800
-    style J fill:#FF9800
-    style N fill:#FF9800
-    style U fill:#FF9800
-    style AA fill:#4CAF50
-```
-
-**Characteristics:**
-
-- ✅ Multi-level caching
-- ✅ Adaptive parallelism
-- ✅ GPU acceleration
-- ✅ Memory pooling
-- ✅ Precision control
-- ✅ Automatic cleanup
+**Supported CUDA Operations**:
+- ✅ EMA, WMA, HMA, KAMA (fully tested)
+- ✅ Equity calculation (calculate_equity_cuda)
+- ⚠️ DEMA, LSMA (CPU-only, no CUDA kernels yet)
 
 ---
 
-## 3. Hardware Resource Utilization Flow
+## 3. Approximate MA Decision Flow (Phase 6)
 
 ```mermaid
 graph TD
-    A[Task Start] --> B{HardwareManager}
+    A[compute_atc_signals] --> B{use_adaptive_approximate?}
 
-    B --> C{GPU Available?}
-    C -->|Yes| D{Data Size > 500?}
-    C -->|No| E[CPU Path]
+    B -->|True| C[adaptive_approximate_mas]
+    C --> C1[Calculate volatility]
+    C1 --> C2[Dynamic tolerance = base * volatility]
+    C2 --> C3[Adaptive EMA/HMA/WMA/DEMA/LSMA/KAMA]
+    C3 --> C4[Return 9-tuple per MA]
 
-    D -->|Yes| F[GPU Batch Processing]
-    D -->|No| E
+    B -->|False| D{use_approximate?}
+    D -->|True| E[fast_approximate_mas]
+    E --> E1[Fixed tolerance threshold]
+    E1 --> E2[Fast EMA/HMA/WMA/DEMA/LSMA/KAMA]
+    E2 --> E3[Return 9-tuple per MA]
 
-    E --> G{CPU Cores}
-    G -->|1-4| H[Sequential/Thread]
-    G -->|5-8| I[ThreadPool]
-    G -->|9+| J[ProcessPool]
+    D -->|False| F[set_of_moving_averages]
+    F --> F1[Full robustness calculation]
+    F1 --> F2[9 MAs per type with Narrow/Medium/Wide]
+    F2 --> F3[Return 9-tuple per MA]
 
-    F --> K[CUDA Kernels]
-    K --> L[CuPy Arrays]
+    C4 --> G[Layer 1 Processing]
+    E3 --> G
+    F3 --> G
 
-    H --> M[Numba JIT]
-    I --> M
-    J --> N[Shared Memory]
-    N --> M
-
-    M --> O{SIMD Available?}
-    O -->|AVX2/512| P[Vectorized Ops]
-    O -->|No| Q[Standard Ops]
-
-    L --> R[GPU Memory Pool]
-    P --> S[CPU Memory Pool]
-    Q --> S
-
-    R --> T[Result]
-    S --> T
-
-    style B fill:#FF9800
-    style C fill:#FF9800
-    style D fill:#FF9800
-    style G fill:#FF9800
-    style O fill:#FF9800
+    style C fill:#9C27B0
+    style E fill:#673AB7
+    style F fill:#4CAF50
+    style C2 fill:#E91E63
 ```
+
+**Approximate MA Trade-offs**:
+- ✅ **Fast approximate**: 2-3x speedup, fixed tolerance
+- ✅ **Adaptive approximate**: 2-3x speedup, volatility-aware tolerance
+- ✅ **Full calculation**: Maximum accuracy, 9 robustness levels
+- ⚠️ **Note**: Approximate MAs provide minimal benefit when CUDA is enabled (83.53x speedup)
+
+**Recommended Use Cases**:
+- Approximate MAs: Pre-filtering, scanning, non-CUDA systems
+- Full calculation: Final analysis, CUDA-accelerated systems
 
 ---
 
-## 4. Moving Average Calculation Flow
-
-### CPU Path (Numba JIT)
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant MACalc as ma_calculation_enhanced
-    participant Cache as CacheManager
-    participant Numba as Numba JIT Core
-    participant Pool as SeriesPool
-
-    User->>MACalc: calculate_ma(prices, 28, "WMA")
-    MACalc->>Cache: get_ma(hash_key)
-
-    alt Cache Hit
-        Cache-->>MACalc: Cached MA
-        MACalc-->>User: Return cached
-    else Cache Miss
-        MACalc->>Pool: acquire(length=1000)
-        Pool-->>MACalc: Pre-allocated Series
-
-        MACalc->>Numba: _wma_numba_core(prices, 28)
-        Numba-->>MACalc: WMA array
-
-        MACalc->>Pool: Write to Series.values
-        MACalc->>Cache: put_ma(hash_key, result)
-        MACalc-->>User: Return result
-    end
-```
-
-### GPU Path (CuPy)
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant MACalc as ma_calculation_enhanced
-    participant HW as HardwareManager
-    participant GPU as GPU Module
-    participant CuPy as CuPy
-
-    User->>MACalc: calculate_ma(prices, 28, "EMA")
-    MACalc->>HW: should_use_gpu(len=2000)
-    HW-->>MACalc: True
-
-    MACalc->>GPU: _calculate_ema_gpu(prices, 28)
-    GPU->>CuPy: cp.asarray(prices)
-    Note over CuPy: Transfer to GPU memory
-
-    CuPy->>CuPy: GPU kernel execution
-    Note over CuPy: Parallel computation
-
-    CuPy-->>GPU: GPU array
-    GPU->>CuPy: cp.asnumpy(result)
-    Note over CuPy: Transfer back to CPU
-
-    GPU-->>MACalc: NumPy array
-    MACalc-->>User: pd.Series(result)
-```
-
----
-
-## 5. Layer 1 Parallel Processing Flow
+## 4. Complete Optimization Flow (All Phases Integrated)
 
 ```mermaid
 graph TB
-    A[Layer 1 Start] --> B{Parallel L1?}
+    Start[prices, ATCConfig] --> V1[validate_atc_inputs]
 
-    B -->|No| C[Sequential Processing]
-    C --> D[For each MA type]
-    D --> E[_layer1_signal_for_ma]
-    E --> F[9 signals + 9 equities]
-    F --> G[weighted_signal]
-    G --> H[MA_Signal]
-    H --> I{More MAs?}
-    I -->|Yes| D
-    I -->|No| J[All 6 MA Signals]
+    V1 --> Approx{Approximate Mode?}
+    Approx -->|Adaptive| MA1[adaptive_approximate_mas]
+    Approx -->|Fast| MA2[fast_approximate_mas]
+    Approx -->|Full| MA3[set_of_moving_averages x6]
 
-    B -->|Yes| K[Shared Memory Setup]
-    K --> L[Create shared arrays]
-    L --> M[prices_shm, R_shm]
+    MA1 --> Backend{Backend Selection}
+    MA2 --> Backend
+    MA3 --> Backend
 
-    M --> N[ProcessPoolExecutor]
-    N --> O[Worker 1: EMA]
-    N --> P[Worker 2: HMA]
-    N --> Q[Worker 3: WMA]
-    N --> R[Worker 4: DEMA]
-    N --> S[Worker 5: LSMA]
-    N --> T[Worker 6: KAMA]
+    Backend -->|Rust CUDA| RCUDA[calculate_*_cuda]
+    Backend -->|Rust CPU| RCPU[calculate_*_rust]
+    Backend -->|Fallback| PY[pandas_ta/Numba]
 
-    O --> U[Read from shared memory]
-    P --> U
-    Q --> U
-    R --> U
-    S --> U
-    T --> U
+    RCUDA -->|Exception| RCPU
+    RCPU --> Cache{use_cache?}
+    PY --> Cache
 
-    U --> V[_layer1_signal_for_ma]
-    V --> W[Return signal]
+    Cache -->|Enabled| CacheHit{Cache Hit?}
+    Cache -->|Disabled| Compute
+    CacheHit -->|Yes| CachedMA[Return cached MA]
+    CacheHit -->|No| Compute[Compute MA]
 
-    W --> X[Collect results]
-    X --> Y[Cleanup shared memory]
-    Y --> J
+    Compute --> Store[Store in cache]
+    Store --> ROC
+    CachedMA --> ROC
 
-    J --> Z[Layer 1 Complete]
-
-    style K fill:#4CAF50
-    style N fill:#4CAF50
-    style Y fill:#FF5722
-```
-
----
-
-## 6. Memory Management Flow
-
-```mermaid
-graph TD
-    A[Function Start] --> B[@temp_series decorator]
-    B --> C[MemoryManager.track_memory]
-
-    C --> D[Allocate from SeriesPool]
-    D --> E[Execute computation]
-
-    E --> F{Memory > Threshold?}
-    F -->|Yes| G[Trigger cleanup]
-    F -->|No| H[Continue]
-
-    G --> I[cleanup_series]
-    I --> J[Release to SeriesPool]
-    J --> K[gc.collect]
-
-    H --> L[Function complete]
-    K --> L
-
-    L --> M[@temp_series cleanup]
-    M --> N[Delete temp variables]
-    N --> O[Force GC if large]
-
-    O --> P[Return result]
-
-    style B fill:#4CAF50
-    style C fill:#2196F3
-    style G fill:#FF9800
-    style I fill:#FF5722
-    style M fill:#FF5722
-```
-
----
-
-## 7. Cache Hierarchy Flow
-
-```mermaid
-graph LR
-    A[Request MA/Equity] --> B{L1 Cache?}
-
-    B -->|Hit| C[Return from L1]
-    B -->|Miss| D{L2 Cache?}
-
-    D -->|Hit| E[Promote to L1]
-    E --> F[Return from L2]
-
-    D -->|Miss| G{Persistent Cache?}
-    G -->|Hit| H[Load from disk]
-    H --> I[Promote to L2]
-    I --> J[Return from disk]
-
-    G -->|Miss| K[Calculate]
-    K --> L[Store in L1]
-    L --> M{Frequently used?}
-    M -->|Yes| N[Store in L2]
-    M -->|No| O[L1 only]
-
-    N --> P{Save to disk?}
-    P -->|Yes| Q[Persist to disk]
-    P -->|No| R[Memory only]
-
-    C --> S[Result]
-    F --> S
-    J --> S
-    O --> S
-    Q --> S
-    R --> S
-
-    style B fill:#4CAF50
-    style D fill:#4CAF50
-    style G fill:#4CAF50
-    style L fill:#2196F3
-    style N fill:#2196F3
-    style Q fill:#2196F3
-```
-
-**Cache Statistics:**
-
-- L1: 128 entries, ~10ms access
-- L2: 1024 entries, ~20ms access
-- Disk: Unlimited, ~100ms access
-
----
-
-## 8. Adaptive Workload Routing
-
-```mermaid
-graph TD
-    A[Workload Request] --> B{HardwareManager}
-
-    B --> C{Symbol Count}
-    C -->|< 10| D[Sequential]
-    C -->|10-50| E[ThreadPool]
-    C -->|50-500| F[ProcessPool]
-    C -->|> 500| G{GPU Available?}
-
-    G -->|Yes| H[GPU Batch]
-    G -->|No| F
-
-    D --> I{Data Length}
-    E --> I
-    F --> I
-    H --> I
-
-    I -->|< 500| J[CPU Numba]
-    I -->|500-2000| K[CPU Parallel]
-    I -->|> 2000| L{GPU Available?}
-
-    L -->|Yes| M[GPU Accelerated]
-    L -->|No| K
-
-    J --> N[Execute]
-    K --> N
-    M --> N
-
-    N --> O{Nested Process?}
-    O -->|Yes| P[Disable L2 Parallel]
-    O -->|No| Q[Enable L2 Parallel]
-
-    P --> R[Result]
-    Q --> R
-
-    style B fill:#FF9800
-    style C fill:#FF9800
-    style G fill:#FF9800
-    style I fill:#FF9800
-    style L fill:#FF9800
-    style O fill:#FF9800
-```
-
----
-
-## 9. Complete ATC Pipeline with Optimizations
-
-```mermaid
-graph TB
-    Start[prices, config] --> V1[validate_atc_inputs]
-
-    V1 --> Slice{cutout > 0?}
-    Slice -->|Yes| S1[Global slice prices/src]
-    Slice -->|No| S2[No slicing]
-
-    S1 --> MA[set_of_moving_averages x6]
-    S2 --> MA
-
-    MA --> HW1{Hardware Check}
-    HW1 -->|GPU| GPU1[CuPy GPU MAs]
-    HW1 -->|CPU| CPU1[Numba JIT MAs]
-
-    GPU1 --> Pool1[SeriesPool]
-    CPU1 --> Pool1
-
-    Pool1 --> ROC[rate_of_change]
-
-    ROC --> L1{Parallel L1?}
-    L1 -->|Yes| PL1[ProcessPool + Shared Memory]
+    ROC[rate_of_change] --> L1{Parallel L1?}
+    L1 -->|Yes & big dataset| PL1[ProcessPool + Shared Memory]
     L1 -->|No| SL1[Sequential Layer 1]
 
     PL1 --> L1Sig[Layer 1 Signals x6]
@@ -464,83 +190,376 @@ graph TB
     L2 -->|Yes| PL2[ThreadPool Equities]
     L2 -->|No| SL2[Sequential Equities]
 
-    PL2 --> EqCache{Equity Cache?}
-    SL2 --> EqCache
+    PL2 --> GPU{use_cuda?}
+    GPU -->|Yes| GPUEq[calculate_equity_cuda]
+    GPU -->|No| CPUEq[calculate_equity_rust]
+    SL2 --> CPUEq
 
-    EqCache -->|Hit| CachedEq[Use cached]
-    EqCache -->|Miss| CalcEq[Calculate + cache]
-
-    CachedEq --> L2Eq[Layer 2 Equities x6]
-    CalcEq --> L2Eq
+    GPUEq --> L2Eq[Layer 2 Equities x6]
+    CPUEq --> L2Eq
 
     L2Eq --> Avg[calculate_average_signal]
 
-    Avg --> Prec{Precision}
-    Prec -->|float32| F32[50% memory]
-    Prec -->|float64| F64[Standard]
+    Avg --> Prec{precision?}
+    Prec -->|float32| F32[50% memory reduction]
+    Prec -->|float64| F64[Standard precision]
 
-    F32 --> Clean[cleanup_series]
-    F64 --> Clean
+    F32 --> MemOpt{Memory Optimization}
+    F64 --> MemOpt
 
-    Clean --> Strat{strategy_mode?}
-    Strat -->|Yes| Shift[shift(1)]
-    Strat -->|No| NoShift[No shift]
+    MemOpt -->|use_memory_mapped| MMap[Memory-mapped arrays - Phase 7]
+    MemOpt -->|use_compression| Comp[Blosc compression - Phase 7]
+    MemOpt -->|Standard| NoOpt[Standard arrays]
 
-    Shift --> Result[Average_Signal + all signals]
+    MMap --> Strat
+    Comp --> Strat
+    NoOpt --> Strat
+
+    Strat{strategy_mode?}
+    Strat -->|Yes| Shift[shift(1) for non-repainting]
+    Strat -->|No| NoShift[Real-time signals]
+
+    Shift --> Result[Average_Signal + all MA signals]
     NoShift --> Result
 
-    Result --> Cache[Cache result]
-    Cache --> End[Return dict]
+    Result --> Cleanup[cleanup_series + GC]
+    Cleanup --> End[Return dict]
 
-    style HW1 fill:#FF9800
+    style Backend fill:#FF9800
+    style RCUDA fill:#2196F3
     style L1 fill:#FF9800
     style L2 fill:#FF9800
-    style EqCache fill:#4CAF50
-    style Pool1 fill:#2196F3
-    style Clean fill:#FF5722
+    style GPU fill:#2196F3
     style Cache fill:#4CAF50
+    style MemOpt fill:#9C27B0
+    style Cleanup fill:#FF5722
+```
+
+**Optimization Layers Applied**:
+1. **Phase 2**: Batch processing, memory management
+2. **Phase 3**: Rust CPU backend (Rayon + SIMD)
+3. **Phase 4**: CUDA GPU acceleration (83.53x speedup)
+4. **Phase 5**: Dask integration (experimental, not in core API yet)
+5. **Phase 6**: Approximate MAs, incremental updates
+6. **Phase 7**: Memory-mapped arrays, blosc compression
+7. **Phase 8**: Profiling workflows (cProfile, py-spy)
+8. **Phase 8.1**: Cache warming, async I/O
+9. **Phase 8.2**: JIT specialization (EMA-only implemented)
+
+---
+
+## 5. Moving Average Calculation with Rust Backend
+
+### Rust CUDA Path (Phase 4)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Backend as rust_backend
+    participant RustCUDA as atc_rust (CUDA)
+    participant RustCPU as atc_rust (CPU)
+    participant Fallback as pandas_ta
+
+    User->>Backend: calculate_ema(prices, 28, use_cuda=True)
+    Backend->>RustCUDA: Try calculate_ema_cuda()
+
+    alt CUDA Success
+        RustCUDA-->>Backend: GPU-accelerated result (83.53x faster)
+        Backend-->>User: Return CUDA result
+    else CUDA Exception
+        RustCUDA-->>Backend: Exception raised
+        Backend->>Backend: Log warning
+        Backend->>RustCPU: Fallback to calculate_ema_rust()
+        RustCPU-->>Backend: CPU-parallel result (2-3x faster)
+        Backend-->>User: Return Rust CPU result
+    end
+```
+
+### Rust CPU Path (Phase 3)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Backend as rust_backend
+    participant RustCPU as atc_rust (CPU)
+    participant Fallback as pandas_ta
+
+    User->>Backend: calculate_kama(prices, 28, use_rust=True)
+
+    alt RUST_AVAILABLE=True
+        Backend->>RustCPU: calculate_kama_rust()
+        Note over RustCPU: Rayon parallelism + SIMD
+        RustCPU-->>Backend: Rust result
+        Backend-->>User: Return Rust result
+    else RUST_AVAILABLE=False
+        Backend->>Fallback: Use pandas_ta or Numba
+        Fallback-->>Backend: Python result
+        Backend-->>User: Return fallback result
+    end
 ```
 
 ---
 
-## 10. Performance Optimization Layers
+## 6. Configuration Flags & Feature Matrix
+
+### ATCConfig Parameters (Verified from config.py)
 
 ```mermaid
 graph LR
-    A[Original Code] --> B[Layer 1: Numba JIT]
-    B --> C[Layer 2: Caching]
-    C --> D[Layer 3: GPU Acceleration]
-    D --> E[Layer 4: Parallelism]
-    E --> F[Layer 5: Memory Pooling]
-    F --> G[Layer 6: SIMD Vectorization]
-    G --> H[Layer 7: Precision Control]
-    H --> I[Optimized Code]
+    Config[ATCConfig] --> Group1[MA Parameters]
+    Config --> Group2[Performance Flags]
+    Config --> Group3[Memory Optimization]
+    Config --> Group4[Backend Selection]
 
-    B -.->|2-5x| J[Speedup]
-    C -.->|3-10x on hits| J
-    D -.->|5-20x| J
-    E -.->|2-8x| J
-    F -.->|2-3x| J
-    G -.->|2-4x| J
-    H -.->|1.1-1.2x| J
+    Group1 --> G1A[ema_len, hma_len, wma_len, etc.]
+    Group1 --> G1B[ema_w, hma_w, wma_w, etc.]
+    Group1 --> G1C[robustness: Narrow/Medium/Wide]
 
-    J --> K[Total: 25-66x]
+    Group2 --> G2A[batch_size: int = 100]
+    Group2 --> G2B[precision: float64/float32]
+    Group2 --> G2C[parallel_l1: bool = True]
+    Group2 --> G2D[parallel_l2: bool = True]
+
+    Group3 --> G3A[use_compression: bool = False]
+    Group3 --> G3B[compression_level: int = 5]
+    Group3 --> G3C[use_memory_mapped: bool = False]
+
+    Group4 --> G4A[use_rust_backend: bool = True]
+    Group4 --> G4B[use_codegen_specialization: bool = False]
+    Group4 --> G4C[⚠️ use_cuda: NOT IN CONFIG YET]
+
+    style G4C fill:#FF5722
+```
+
+**Config Flags Status**:
+- ✅ `use_rust_backend` - Phase 3 implementation
+- ✅ `use_compression`, `compression_level`, `compression_algorithm` - Phase 7
+- ✅ `use_memory_mapped` - Phase 7
+- ✅ `use_codegen_specialization` - Phase 8.2 (EMA-only)
+- ⚠️ `use_cuda` - **Missing from ATCConfig** (only in compute_atc_signals parameter)
+- ⚠️ `use_dask` - **Not integrated in core API** (Phase 5 experimental)
+- ⚠️ `use_approximate`, `use_adaptive_approximate` - **Only in compute_atc_signals** (Phase 6)
+
+---
+
+## 7. Performance Optimization Layers
+
+```mermaid
+graph LR
+    A[Baseline Python] --> B[Phase 2: Batch + Memory]
+    B --> C[Phase 3: Rust CPU]
+    C --> D[Phase 4: CUDA GPU]
+    D --> E[Phase 6: Approximate MAs]
+    E --> F[Phase 7: Compression + MemMap]
+    F --> G[Phase 8.2: JIT Specialization]
+    G --> H[Fully Optimized]
+
+    B -.->|1.5-2x| SP1[Speedup]
+    C -.->|2-3x| SP1
+    D -.->|83.53x| SP1
+    E -.->|2-3x on non-CUDA| SP1
+    F -.->|5-10x storage, 90% RAM| SP1
+    G -.->|10-20% for EMA-only| SP1
+
+    SP1 --> Total[Total: Up to 83.53x + storage savings]
 
     style A fill:#E3F2FD
-    style I fill:#4CAF50
-    style K fill:#FF9800
+    style D fill:#2196F3
+    style H fill:#4CAF50
+    style Total fill:#FF9800
 ```
+
+**Cumulative Performance Gains**:
+- **Phase 2** (Batch Processing): 1.5-2x speedup
+- **Phase 3** (Rust CPU): 2-3x speedup (on top of Phase 2)
+- **Phase 4** (CUDA): **83.53x speedup** (dominates all other optimizations)
+- **Phase 6** (Approximate MAs): 2-3x speedup (but redundant with CUDA)
+- **Phase 7** (Memory): 90% RAM reduction, 5-10x storage compression
+- **Phase 8.2** (JIT): 10-20% improvement for repeated EMA-only calls
+
+---
+
+## 8. Memory Management & Cleanup Flow
+
+```mermaid
+graph TD
+    A[Function Start] --> B[Allocate Series/Arrays]
+
+    B --> C{use_memory_mapped?}
+    C -->|Yes| D[Memory-mapped arrays]
+    C -->|No| E[Standard NumPy arrays]
+
+    D --> F{precision?}
+    E --> F
+    F -->|float32| G[50% memory]
+    F -->|float64| H[Standard memory]
+
+    G --> I[Execute computation]
+    H --> I
+
+    I --> J[Result ready]
+    J --> K[cleanup_series]
+
+    K --> L[Release to SeriesPool]
+    L --> M{Memory threshold exceeded?}
+    M -->|Yes| N[Force gc.collect]
+    M -->|No| O[Skip GC]
+
+    N --> P[Return result]
+    O --> P
+
+    style C fill:#9C27B0
+    style K fill:#FF5722
+    style N fill:#FF5722
+```
+
+---
+
+## 9. Cache Hierarchy (Phase 2)
+
+```mermaid
+graph LR
+    A[Request MA] --> B{use_cache?}
+
+    B -->|No| Z[Direct compute]
+    B -->|Yes| C{Cache Hit?}
+
+    C -->|Yes| D[Return cached]
+    C -->|No| E[Compute MA]
+
+    E --> F{use_compression?}
+    F -->|Yes| G[Compress with blosc]
+    F -->|No| H[Store uncompressed]
+
+    G --> I[Cache entry]
+    H --> I
+
+    I --> J[Return result]
+
+    Z --> J
+
+    style B fill:#4CAF50
+    style C fill:#4CAF50
+    style F fill:#9C27B0
+```
+
+**Cache Features**:
+- ✅ Hash-based key generation (symbol + timeframe + config)
+- ✅ Optional blosc compression (5-10x storage reduction)
+- ✅ Configurable cache levels
+- ✅ Automatic expiration
+
+---
+
+## 10. JIT Specialization (Phase 8.2)
+
+```mermaid
+graph TD
+    A[compute_atc_specialized] --> B{use_codegen_specialization?}
+
+    B -->|No| Z[Generic path: compute_atc_signals]
+    B -->|Yes| C{Config specializable?}
+
+    C -->|No| D[Log: Not specializable]
+    D --> Z
+
+    C -->|Yes: EMA-only| E[get_specialized_compute_fn]
+    E --> F[compute_ema_only_atc_jit]
+
+    F --> G{First call?}
+    G -->|Yes| H[Numba JIT compilation]
+    G -->|No| I[Use cached JIT function]
+
+    H --> J[10-20% speedup after warmup]
+    I --> J
+
+    J --> K[Return result]
+    Z --> K
+
+    C -->|Yes: Other configs| L[⚠️ Not implemented yet]
+    L --> Z
+
+    style E fill:#9C27B0
+    style F fill:#9C27B0
+    style H fill:#FF9800
+    style L fill:#FF5722
+```
+
+**JIT Specialization Status**:
+- ✅ **EMA-only**: Production-ready, fully tested
+- ⚠️ **KAMA-only**: Low complexity, medium benefit (future consideration)
+- ⚠️ **Short-length multi-MA**: Medium complexity, medium benefit (experimental)
+- ❌ **Default config (All MAs)**: Very high complexity, skipped (use CUDA instead)
+
+---
+
+## 11. Adaptive Workload Routing
+
+```mermaid
+graph TD
+    A[Workload Request] --> B{Data Length}
+
+    B -->|< 500| C[CPU Numba]
+    B -->|500-2000| D{CPU Cores}
+    B -->|> 2000| E{use_cuda?}
+
+    D -->|<= 4| F[Sequential]
+    D -->|> 4| G[ThreadPool]
+
+    E -->|Yes| H[CUDA Batch Processing]
+    E -->|No| D
+
+    C --> I[Execute]
+    F --> I
+    G --> I
+    H --> I
+
+    I --> J{Nested Process?}
+    J -->|Yes| K[Disable parallel_l1]
+    J -->|No| L[Enable parallel_l1 if eligible]
+
+    K --> M[Result]
+    L --> M
+
+    style B fill:#FF9800
+    style E fill:#2196F3
+    style H fill:#2196F3
+```
+
+**Routing Rules** (from `compute_atc_signals.py`):
+- **Small datasets** (<500 bars): CPU Numba baseline
+- **Medium datasets** (500-2000 bars): ThreadPool if cores > 4
+- **Large datasets** (>2000 bars): CUDA if available, else ThreadPool
+- **Parallel L1**: Only for len > 5000 AND cores > 4 AND not in nested process
 
 ---
 
 ## Summary
 
-The flow diagrams illustrate how `adaptive_trend_enhance` achieves massive performance gains through:
+The `adaptive_trend_LTS` module achieves massive performance gains through a **9-phase optimization strategy**:
 
-1. **Hardware-aware routing**: Automatically selects optimal execution path
-2. **Multi-level parallelism**: Symbol-level + component-level
-3. **Intelligent caching**: L1/L2/Persistent hierarchy
-4. **Memory optimization**: Pooling + zero-copy + cleanup
-5. **Adaptive strategies**: Cost-based decision making
+### ✅ Implemented & Verified
+1. **Phase 2**: Batch processing + memory management
+2. **Phase 3**: Rust CPU backend (2-3x speedup, Rayon + SIMD)
+3. **Phase 4**: CUDA GPU acceleration (**83.53x speedup**)
+4. **Phase 6**: Approximate MAs (2-3x for non-CUDA, fully integrated)
+5. **Phase 7**: Memory-mapped arrays (90% RAM) + blosc compression (5-10x storage)
+6. **Phase 8**: Profiling workflows (cProfile, py-spy)
+7. **Phase 8.1**: Cache warming + async I/O
+8. **Phase 8.2**: JIT specialization (EMA-only production-ready)
 
-All optimizations are **transparent** to the end user - the same API, same results, just 25-66x faster.
+### ⚠️ Experimental / Partially Integrated
+9. **Phase 5**: Dask integration (experimental, not in core `compute_atc_signals` API yet)
+10. **Phase 6**: Incremental ATC (implemented but separate from main flow)
+
+### 🎯 Key Achievements
+- **Primary Performance Path**: Rust CUDA backend (83.53x speedup)
+- **Robust Fallback Chain**: CUDA → Rust CPU → Python/Numba
+- **Memory Efficiency**: 90% RAM reduction with memory-mapped arrays
+- **Storage Efficiency**: 5-10x compression with blosc
+- **Smart Approximation**: Volatility-aware approximate MAs for pre-filtering
+- **JIT Optimization**: 10-20% improvement for repeated EMA-only calls
+
+All optimizations are **transparent to the end user** - same API, same results, just significantly faster and more memory-efficient.
+
+**Note**: Some configuration flags (`use_cuda`, `use_dask`) are missing from `ATCConfig` but present as function parameters - see verification report for recommendations.

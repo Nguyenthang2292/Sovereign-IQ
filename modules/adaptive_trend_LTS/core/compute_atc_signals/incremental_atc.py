@@ -7,13 +7,13 @@ only the last bar based on stored state (MA values, equity, signals).
 from __future__ import annotations
 
 from collections import deque
-from typing import Dict, Optional, Any
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
 
 try:
-    from modules.common.utils import log_debug, log_info, log_warn, log_error
+    from modules.common.utils import log_debug, log_error, log_info, log_warn
 except ImportError:
 
     def log_debug(msg: str) -> None:
@@ -75,8 +75,9 @@ class IncrementalATC:
         Returns:
             Full ATC results (same format as compute_atc_signals)
         """
-        from .compute_atc_signals import compute_atc_signals
         from modules.adaptive_trend_LTS.core.compute_moving_averages import set_of_moving_averages
+
+        from .compute_atc_signals import compute_atc_signals
 
         log_debug("Initializing incremental ATC with full calculation")
 

@@ -11,7 +11,6 @@ from typing import Optional
 
 import pandas as pd
 
-from modules.adaptive_trend_LTS.utils.cache_manager import get_cached_ma
 from modules.adaptive_trend_LTS.core.rust_backend import (
     RUST_AVAILABLE,
     calculate_dema,
@@ -21,6 +20,7 @@ from modules.adaptive_trend_LTS.core.rust_backend import (
     calculate_lsma,
     calculate_wma,
 )
+from modules.adaptive_trend_LTS.utils.cache_manager import get_cached_ma
 from modules.common.ui.logging import log_debug, log_error, log_warn
 
 

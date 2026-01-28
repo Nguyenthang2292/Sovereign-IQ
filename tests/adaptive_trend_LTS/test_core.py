@@ -17,7 +17,7 @@ def sample_data():
     np.random.seed(42)
     n = 200
     prices = pd.Series(
-        100 * (1 + np.random.randn(n).cumsum() * 0.01), index=pd.date_range("2023-01-01", periods=n, freq="H")
+        100 * (1 + np.random.randn(n).cumsum() * 0.01), index=pd.date_range("2023-01-01", periods=n, freq="h")
     )
     return prices
 
@@ -38,7 +38,7 @@ def test_weighted_signal_basic(sample_data):
 
 def test_cut_signal(sample_data):
     """Test cut_signal discretization."""
-    s = pd.Series([0.6, 0.4, 0.0, -0.4, -0.6], index=pd.date_range("2023-01-01", periods=5, freq="H"))
+    s = pd.Series([0.6, 0.4, 0.0, -0.4, -0.6], index=pd.date_range("2023-01-01", periods=5, freq="h"))
     result = cut_signal(s, threshold=0.49)
 
     assert result.iloc[0] == 1

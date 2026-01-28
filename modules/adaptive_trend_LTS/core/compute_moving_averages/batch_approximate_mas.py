@@ -7,12 +7,12 @@ calculates approximate moving averages for multiple symbols in parallel.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, Optional, Tuple, Literal
+from typing import Dict, Optional, Tuple
 
 import pandas as pd
 
 try:
-    from modules.common.utils import log_debug, log_info, log_warn, log_error
+    from modules.common.utils import log_debug, log_error, log_info, log_warn
 except ImportError:
 
     def log_debug(msg: str) -> None:
@@ -28,16 +28,15 @@ except ImportError:
         print(f"[ERROR] {msg}")
 
 
+from .adaptive_approximate_mas import get_adaptive_ma_approx
 from .approximate_mas import (
+    fast_dema_approx,
     fast_ema_approx,
     fast_hma_approx,
-    fast_wma_approx,
-    fast_dema_approx,
-    fast_lsma_approx,
     fast_kama_approx,
+    fast_lsma_approx,
+    fast_wma_approx,
 )
-
-from .adaptive_approximate_mas import get_adaptive_ma_approx
 
 
 class BatchApproximateMAScanner:

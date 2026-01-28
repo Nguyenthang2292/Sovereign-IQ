@@ -10,8 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
 from modules.adaptive_trend_LTS.utils.cache_manager import get_cache_manager
+from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
 from modules.common.system import get_series_pool
 from modules.common.utils import log_error, log_warn
 

@@ -214,7 +214,19 @@ def _scan_dask(
     else:
         results_list = results_bag.compute()
 
+    # Line 17-23: Fix - handle empty results_list gracefully
+    # If results_list is empty or has no valid dicts, return early
+    # This prevents downstream errors when creating DataFrames from empty data
+    if not results_list:
+        # All symbols failed - count them as errors
+        skipped_symbols = list(symbols)
+        return [], 0, len(symbols), skipped_symbols
+
     results = [r for r in results_list if isinstance(r, dict) and r]
+    if not results:
+        # All symbols failed - count them as errors
+        skipped_symbols = list(symbols)
+        return [], 0, len(symbols), skipped_symbols
 
     processed = len(results)
     total_skipped_errors = len(symbols) - processed

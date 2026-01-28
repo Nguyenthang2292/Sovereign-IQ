@@ -8,8 +8,8 @@ try:
     from modules.adaptive_trend_LTS.core.backtesting.dask_backtest import (
         _process_symbol_group,
         backtest_from_dataframe,
-        backtest_with_dask,
         backtest_multiple_files_dask,
+        backtest_with_dask,
     )
 except ImportError:
     pytest.skip("Dask backtesting module not available", allow_module_level=True)

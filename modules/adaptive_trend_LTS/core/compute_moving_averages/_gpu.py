@@ -279,27 +279,29 @@ void batch_ema_kernel(const double* prices, double* output, int num_symbols, int
 
     // Compute EMA sequentially for this symbol
     // Check for NaN at start if needed, but assuming clean data or handle in loop
-    
+
     // Initialize first value
     symbol_output[0] = symbol_prices[0];
-    
+
     // Iterate through bars
     for (int i = 1; i < n_bars; i++) {
         // Equivalent to: ema = alpha * price + (1-alpha) * prev
         // Using fma (fused multiply-add) for potential precision/speed
         // symbol_output[i] = alpha * symbol_prices[i] + (1.0 - alpha) * symbol_output[i - 1];
-        
+
         double prev = symbol_output[i - 1];
         double curr = symbol_prices[i];
-        
+
         // Handle NaNs: if prev is NaN, restart from current? Or propagate?
         // Standard EMA behavior: if input is NaN, output is usually NaN unless handled.
         // If prev is NaN, we treat current as new seed if current is not NaN.
-        
+
         if (isnan(prev)) {
             symbol_output[i] = curr;
         } else if (isnan(curr)) {
-            symbol_output[i] = prev; // Hold optimization? Or NaN? Standard is often hold or NaN. Let's start with NaN to match pandas ewm.
+            // Hold optimization? Or NaN? Standard is often hold or NaN.
+            // Let's start with NaN to match pandas ewm.
+            symbol_output[i] = prev;
             // Actually pandas ewm ignores NaNs by default. 
             // Simple approach: standard formula.
              symbol_output[i] = alpha * curr + (1.0 - alpha) * prev;

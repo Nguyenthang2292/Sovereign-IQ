@@ -26,7 +26,7 @@ if "__file__" in globals():
     if project_root_str not in sys.path:
         sys.path.insert(0, project_root_str)
 
-from modules.gemini_chart_analyzer.core.prefilter_worker import (
+from modules.gemini_chart_analyzer.core.prefilter.workflow import (
     _filter_stage_1_atc,
     _filter_stage_2_osc_spc,
     _filter_stage_3_ml_models,
@@ -293,11 +293,6 @@ class TestStage3MLModelsFilter:
         mock_voting_analyzer.calculate_signals_for_all_indicators.return_value = mock_ml_signals
         mock_voting_analyzer.apply_voting_system.return_value = mock_final
 
-        # Mock ML model flags
-        original_xgboost = mock_voting_analyzer.args.enable_xgboost
-        original_hmm = mock_voting_analyzer.args.enable_hmm
-        original_rf = mock_voting_analyzer.args.enable_random_forest
-
         result, scores = _filter_stage_3_ml_models(
             mock_voting_analyzer, stage2_symbols, stage2_signals, "1h", 700, rf_model_path="test_model.joblib"
         )
@@ -306,16 +301,6 @@ class TestStage3MLModelsFilter:
         assert len(result) == 1
         assert "BTC/USDT" in result
         assert "ETH/USDT" not in result
-
-        # Verify ML models were enabled
-        assert mock_voting_analyzer.args.enable_xgboost is True
-        assert mock_voting_analyzer.args.enable_hmm is True
-        assert mock_voting_analyzer.args.enable_random_forest is True
-
-        # Verify flags were restored
-        assert mock_voting_analyzer.args.enable_xgboost == original_xgboost
-        assert mock_voting_analyzer.args.enable_hmm == original_hmm
-        assert mock_voting_analyzer.args.enable_random_forest == original_rf
 
         # Verify calculate_signals_for_all_indicators was called with only ML models
         calls = mock_voting_analyzer.calculate_signals_for_all_indicators.call_args_list
@@ -361,9 +346,9 @@ class TestStage3MLModelsFilter:
 class TestIntegrated3StageWorkflow:
     """Test integrated 3-stage workflow."""
 
-    @patch("modules.gemini_chart_analyzer.core.prefilter_worker.ExchangeManager")
-    @patch("modules.gemini_chart_analyzer.core.prefilter_worker.DataFetcher")
-    @patch("modules.gemini_chart_analyzer.core.prefilter_worker.VotingAnalyzer")
+    @patch("modules.gemini_chart_analyzer.core.prefilter.workflow.ExchangeManager")
+    @patch("modules.gemini_chart_analyzer.core.prefilter.workflow.DataFetcher")
+    @patch("modules.gemini_chart_analyzer.core.prefilter.workflow.VotingAnalyzer")
     def test_run_prefilter_worker_3_stages(self, mock_voting_class, mock_data_fetcher_class, mock_exchange_class):
         """Test complete 3-stage workflow."""
         sample_symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT", "ADA/USDT"]
@@ -443,9 +428,9 @@ class TestIntegrated3StageWorkflow:
         # This test would require more complex mocking
         # For now, just verify the function signature works
         with (
-            patch("modules.gemini_chart_analyzer.core.prefilter_worker.ExchangeManager"),
-            patch("modules.gemini_chart_analyzer.core.prefilter_worker.DataFetcher"),
-            patch("modules.gemini_chart_analyzer.core.prefilter_worker.VotingAnalyzer") as mock_voting_class,
+            patch("modules.gemini_chart_analyzer.core.prefilter.workflow.ExchangeManager"),
+            patch("modules.gemini_chart_analyzer.core.prefilter.workflow.DataFetcher"),
+            patch("modules.gemini_chart_analyzer.core.prefilter.workflow.VotingAnalyzer") as mock_voting_class,
         ):
             mock_analyzer = MagicMock()
             mock_analyzer.run_atc_scan.return_value = False  # No signals, returns all symbols

@@ -6,13 +6,12 @@ IncrementalATC instances for efficient multi-symbol live trading.
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
-import numpy as np
 import pandas as pd
 
 try:
-    from modules.common.utils import log_debug, log_info, log_warn, log_error
+    from modules.common.utils import log_debug, log_error, log_info, log_warn
 except ImportError:
 
     def log_debug(msg: str) -> None:

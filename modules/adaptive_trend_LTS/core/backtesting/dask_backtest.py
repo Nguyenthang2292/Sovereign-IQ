@@ -205,7 +205,8 @@ def backtest_with_dask(
         return result
 
     try:
-        results_ddf = grouped.apply(process_with_gc, meta=meta)
+        # Add include_groups=False to avoid FutureWarning about grouping columns
+        results_ddf = grouped.apply(process_with_gc, meta=meta, include_groups=False)
     except Exception as e:
         log_error(f"Error in Dask apply: {e}")
         return pd.DataFrame()
@@ -246,6 +247,15 @@ def backtest_from_dataframe(
         log_warn("Empty DataFrame provided")
         return pd.DataFrame()
 
+    # Validate required columns exist
+    if symbol_column not in df.columns:
+        log_error(f"Column '{symbol_column}' not found in DataFrame. Available columns: {list(df.columns)}")
+        return pd.DataFrame()
+
+    if price_column not in df.columns:
+        log_error(f"Column '{price_column}' not found in DataFrame. Available columns: {list(df.columns)}")
+        return pd.DataFrame()
+
     log_info(f"Backtesting {len(df)} records for {df[symbol_column].nunique()} symbols")
 
     import dask.dataframe as dd
@@ -267,7 +277,8 @@ def backtest_from_dataframe(
         return result
 
     try:
-        results_ddf = grouped.apply(process_with_gc, meta=meta)
+        # Add include_groups=False to avoid FutureWarning about grouping columns
+        results_ddf = grouped.apply(process_with_gc, meta=meta, include_groups=False)
     except Exception as e:
         log_error(f"Error in Dask apply: {e}")
         return pd.DataFrame()

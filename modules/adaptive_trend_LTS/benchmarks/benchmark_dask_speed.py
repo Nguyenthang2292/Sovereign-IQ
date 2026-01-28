@@ -89,7 +89,7 @@ def benchmark_rust_dask_hybrid(
 def benchmark_speed(
     dataset_sizes: list[int] = [100, 500, 1000],
     config: dict = None,
-) -> None:
+) -> list:
     """Compare processing speed between implementations.
 
     Args:
@@ -206,13 +206,13 @@ def benchmark_speed(
         hybrid_t = result["hybrid_time_s"] or 0
         hybrid_tp = result["hybrid_throughput_sps"] or 0
 
-        print(
-            f"{n:>10} {dask_t:>12.2f} {dask_tp:>12.1f} "
-            f"{rust_t:>12.2f if rust_t else 'N/A':>12} "
-            f"{rust_tp:>12.1f if rust_tp else 'N/A':>12} "
-            f"{hybrid_t:>12.2f if hybrid_t else 'N/A':>12} "
-            f"{hybrid_tp:>12.1f if hybrid_tp else 'N/A':>12}"
-        )
+        rust_t_str = f"{rust_t:>12.2f}" if rust_t else f"{'N/A':>12}"
+        rust_tp_str = f"{rust_tp:>12.1f}" if rust_tp else f"{'N/A':>12}"
+        hybrid_t_str = f"{hybrid_t:>12.2f}" if hybrid_t else f"{'N/A':>12}"
+        hybrid_tp_str = f"{hybrid_tp:>12.1f}" if hybrid_tp else f"{'N/A':>12}"
+        print(f"{n:>10} {dask_t:>12.2f} {dask_tp:>12.1f} {rust_t_str} {rust_tp_str} {hybrid_t_str} {hybrid_tp_str}")
+
+    return results
 
 
 def benchmark_speed_quick(

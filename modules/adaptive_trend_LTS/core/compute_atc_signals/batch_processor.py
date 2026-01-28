@@ -78,7 +78,6 @@ def process_symbols_batch_cuda(symbols_data, config, num_threads=4):
         symbols_numpy = {}
         for s, v in symbols_data.items():
             if v is not None:
-                # Ensure it's a numpy array of float64
                 if isinstance(v, pd.Series):
                     symbols_numpy[s] = v.values.astype(np.float64)
                 elif isinstance(v, np.ndarray):
@@ -86,7 +85,12 @@ def process_symbols_batch_cuda(symbols_data, config, num_threads=4):
                 else:
                     symbols_numpy[s] = np.array(v, dtype=np.float64)
 
-        # Call the batch Rust function
+        # If no valid symbols after filtering, return empty dict
+        if not symbols_numpy:
+            log_warn("No valid symbols found after filtering (all None or empty)")
+            return {}
+
+        # Call batch Rust function
         batch_results = atc_rust.compute_atc_signals_batch(
             symbols_numpy,
             ema_len=params.get("ema_len", 28),
@@ -190,7 +194,12 @@ def process_symbols_batch_rust(symbols_data, config, num_threads=None):
                 else:
                     symbols_numpy[s] = np.array(v, dtype=np.float64)
 
-        # Call the batch Rust function (CPU/Rayon version)
+        # If no valid symbols after filtering, return empty dict
+        if not symbols_numpy:
+            log_warn("No valid symbols found after filtering (all None or empty)")
+            return {}
+
+        # Call batch Rust function (CPU/Rayon version)
         batch_results = atc_rust.compute_atc_signals_batch_cpu(
             symbols_numpy,
             ema_len=params.get("ema_len", 28),

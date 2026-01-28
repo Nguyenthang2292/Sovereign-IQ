@@ -134,27 +134,87 @@ rf_training:
 # ============================================================================
 # ATC (ADAPTIVE TREND COMPONENT) CONFIGURATION
 # ============================================================================
+# For detailed optimization guide, see: modules/adaptive_trend_LTS/docs/SPEED_OPTIMIZATION_GUIDE.md
 
+# ATC Core Parameters (for signal calculation)
+atc_core:
+  # Moving Average lengths (default: 28 for all)
+  ema_len: 28
+  hull_len: 28
+  wma_len: 28
+  dema_len: 28
+  lsma_len: 28
+  kama_len: 28
+  
+  # Moving Average initial weights (default: 1.0 for all)
+  ema_w: 1.0
+  hma_w: 1.0
+  wma_w: 1.0
+  dema_w: 1.0
+  lsma_w: 1.0
+  kama_w: 1.0
+  
+  # ATC algorithm parameters
+  robustness: "Medium"  # "Narrow", "Medium", or "Wide" - sensitivity level
+  lambda_param: 0.02    # Growth rate (equity increase) - range: 0.01-0.05
+  decay: 0.03           # Decay rate (equity decrease) - range: 0.01-0.10
+  cutout: 0             # Number of bars to skip at beginning (for backtesting: set to 20-50 to skip warm-up period)
+  
+  # Signal thresholds
+  long_threshold: 0.1   # Threshold for LONG signal classification
+  short_threshold: -0.1 # Threshold for SHORT signal classification
+  
+  # Backtesting Configuration ⚠️ IMPORTANT FOR BACKTESTING
+  strategy_mode: false  # Set TRUE for backtesting to avoid look-ahead bias (shifts signal by 1 bar)
+                        # - false: Signal uses current bar (for live trading/scanning)
+                        # - true: Signal uses previous bar (for backtesting - prevents look-ahead)
+                        # RECOMMENDED: true for backtesting, false for live trading
+
+# Switch between ATC versions:
+# - true: use 'modules/adaptive_trend_LTS' (High Performance - Rust/CUDA/Dask)
+# - false: use 'modules/adaptive_trend' (Standard/Legacy)
+use_atc_performance: true
 
 atc_performance:
-  batch_processing: true # Rust Rayon multi-threading (recommended)
-  use_cuda: false # GPU acceleration (slower for < 500 symbols)
-  parallel_l1: true # Parallel MA calculations
-  parallel_l2: true # Parallel equity aggregation
-  use_cache: true # Cache intermediate results
-  fast_mode: true # Additional optimizations
+  # Preset 3: Medium Batch Scanning (100-1000 symbols) - GPU Accelerated
+  batch_processing: false       # CUDA handles batching (set false when using CUDA)
+  use_cuda: true                # GPU acceleration (REQUIRES CUDA Toolkit 12.x)
+  parallel_l1: false            # CUDA handles parallelism (set false when using CUDA)
+  parallel_l2: false            # CUDA handles parallelism (set false when using CUDA)
+  prefer_gpu: true              # Auto-select GPU if available
+  use_cache: true               # Cache intermediate results
+  fast_mode: true               # Additional optimizations
+  precision: "float32"           # Use float32 for speed (vs float64 for accuracy)
+                                # RECOMMENDED FOR BACKTESTING: "float64" for accuracy
+                                # Use "float32" for scanning (faster, ~5% tolerance acceptable)
 
   # Dask (Out-of-Core) Configuration
-  # Use Dask for very large market scans (>1000 symbols)
-  # This enables processing dataset larger than RAM by chunking
-  use_dask: false # Auto-enabled by system if symbols > 1000, but can be forced here
-  npartitions: null # Number of Dask partitions (null = auto-calculated)
+  use_dask: false               # Auto-enabled by system if symbols > 1000
+  npartitions: null             # Number of Dask partitions (null = auto-calculated)
+  
+  # Incremental Updates (for live trading - NOT for backtesting)
+  use_incremental: false        # Set true for live trading (10-100x faster for single bar updates)
+                                 # ⚠️ NOT RECOMMENDED FOR BACKTESTING: Use full recalculation for accuracy
+  
+  # Memory Optimizations (for backtesting large datasets)
+  use_memory_mapped: false      # Set true for very large backtesting datasets (>10GB)
+                                 # Enables 90% memory reduction by using memory-mapped files
+                                 # RECOMMENDED FOR BACKTESTING: true when dataset exceeds RAM
+  use_compression: false        # Set true to reduce cache storage (5-10x smaller cache files)
+                                 # RECOMMENDED FOR BACKTESTING: true to save disk space
+  compression_level: 5          # Compression level (1-9, default: 5)
+                                 # Higher = better compression but slower (use 5-7 for balance)
+  
+  # Advanced Settings
+  warm_cache: false             # Pre-warm cache for repeated patterns
+  use_codegen_specialization: false  # Enable JIT for hot path configs
 
 approximate_ma_scanner:
   enabled: true            # Enable/disable approximate MA calculations (true = 2-3x faster, false = exact MAs)
+                           # ⚠️ FOR BACKTESTING: Set false for full precision (exact MAs required for accurate results)
+                           # Use true for scanning/filtering (2-3x faster, ~95% accuracy acceptable)
   use_adaptive: true       # Enable adaptive tolerance based on volatility
   num_threads: null        # Number of threads for parallel processing (null = auto-calculate based on CPU cores)
   volatility_window: 20    # Window size for volatility calculation
   base_tolerance: 0.05     # Base tolerance (5%) for adaptive mode
   volatility_factor: 1.0   # Multiplier for volatility impact on tolerance
-

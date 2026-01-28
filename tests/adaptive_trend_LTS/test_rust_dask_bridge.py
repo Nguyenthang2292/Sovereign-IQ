@@ -103,7 +103,7 @@ def test_process_partition_python_empty(sample_config):
     assert results == {}
 
 
-def test_process_partition_python_with_none(sample_config):
+def test_process_partition_python_with_none(sample_config, sample_price_series):
     """Test processing partition with None values."""
     partition_data = {
         "BTCUSDT": None,

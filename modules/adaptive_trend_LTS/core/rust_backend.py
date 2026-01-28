@@ -34,6 +34,13 @@ except ImportError:
     RUST_AVAILABLE = False
 
 
+def _ensure_numpy_array(data):
+    """Convert pandas Series to numpy array if needed."""
+    if isinstance(data, pd.Series):
+        return data.to_numpy()
+    return data
+
+
 def calculate_equity(
     r_values: np.ndarray,
     sig_prev: np.ndarray,
@@ -58,6 +65,10 @@ def calculate_equity(
     Returns:
         np.ndarray: Array of equity values.
     """
+    # Convert to numpy arrays if needed
+    r_values = _ensure_numpy_array(r_values)
+    sig_prev = _ensure_numpy_array(sig_prev)
+
     if use_rust and RUST_AVAILABLE:
         if use_cuda:
             try:
@@ -90,6 +101,9 @@ def calculate_kama(
     Returns:
         np.ndarray: Array of KAMA values.
     """
+    # Convert to numpy array if needed
+    prices = _ensure_numpy_array(prices)
+
     if use_rust and RUST_AVAILABLE:
         if use_cuda:
             try:
@@ -119,6 +133,10 @@ def process_signal_persistence(
     Returns:
         np.ndarray: Array of persistent signals (1, -1, or last state).
     """
+    # Convert to numpy arrays if needed
+    up = _ensure_numpy_array(up)
+    down = _ensure_numpy_array(down)
+
     if use_rust and RUST_AVAILABLE:
         return process_signal_persistence_rust(up, down)
     else:
@@ -148,6 +166,9 @@ def calculate_ema(
     Returns:
         np.ndarray: Array of EMA values.
     """
+    # Convert to numpy array if needed
+    prices = _ensure_numpy_array(prices)
+
     if use_rust and RUST_AVAILABLE:
         if use_cuda:
             try:
@@ -179,6 +200,9 @@ def calculate_wma(
     Returns:
         np.ndarray: Array of WMA values.
     """
+    # Convert to numpy array if needed
+    prices = _ensure_numpy_array(prices)
+
     if use_rust and RUST_AVAILABLE:
         if use_cuda:
             try:
@@ -208,6 +232,9 @@ def calculate_dema(
     Returns:
         np.ndarray: Array of DEMA values.
     """
+    # Convert to numpy array if needed
+    prices = _ensure_numpy_array(prices)
+
     if use_rust and RUST_AVAILABLE:
         return calculate_dema_rust(prices, length)
     else:
@@ -232,6 +259,9 @@ def calculate_lsma(
     Returns:
         np.ndarray: Array of LSMA values.
     """
+    # Convert to numpy array if needed
+    prices = _ensure_numpy_array(prices)
+
     if use_rust and RUST_AVAILABLE:
         return calculate_lsma_rust(prices, length)
     else:
@@ -258,6 +288,9 @@ def calculate_hma(
     Returns:
         np.ndarray: Array of HMA values.
     """
+    # Convert to numpy array if needed
+    prices = _ensure_numpy_array(prices)
+
     if use_rust and RUST_AVAILABLE:
         if use_cuda:
             try:

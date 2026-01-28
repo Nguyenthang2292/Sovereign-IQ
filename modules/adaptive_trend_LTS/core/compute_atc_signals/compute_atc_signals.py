@@ -74,6 +74,7 @@ def compute_atc_signals(
     use_cache: bool = True,
     fast_mode: bool = True,
     use_cuda: bool = False,
+    prefer_gpu: Optional[bool] = None,
     use_approximate: bool = False,
     approximate_threshold: float = 0.05,
     use_adaptive_approximate: bool = False,
@@ -123,6 +124,10 @@ def compute_atc_signals(
 
     # Validate inputs
     prices, src, robustness, cutout = validate_atc_inputs(prices, src, robustness, cutout)
+
+    # Backward-compatible GPU preference (prefer_gpu=False forces CPU)
+    if prefer_gpu is False:
+        use_cuda = False
 
     # Apply PineScript scaling to Lambda and Decay
     La_scaled = La / 1000.0

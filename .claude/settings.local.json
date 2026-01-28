@@ -6,7 +6,19 @@
       "Bash(python test_approximate_ma_enabled.py:*)",
       "Bash(dir /b \"D:\\\\NGUYEN QUANG THANG\\\\Probability projects\\\\crypto-probability-\\\\modules\\\\adaptive_trend_LTS\")",
       "Bash(findstr:*)",
-      "Bash(dir /b \"D:\\\\NGUYEN QUANG THANG\\\\Probability projects\\\\crypto-probability-\\\\modules\\\\adaptive_trend_LTS\\\\benchmarks\")"
+      "Bash(dir /b \"D:\\\\NGUYEN QUANG THANG\\\\Probability projects\\\\crypto-probability-\\\\modules\\\\adaptive_trend_LTS\\\\benchmarks\")",
+      "Bash(dir:*)",
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(if [ -f \"venv/Scripts/python.exe\" ])",
+      "Bash(then venv/Scripts/python.exe -m pytest tests/adaptive_trend_LTS/test_dask_backtest.py -v --tb=short)",
+      "Bash(elif [ -f \".venv/Scripts/python.exe\" ])",
+      "Bash(then .venv/Scripts/python.exe -m pytest tests/adaptive_trend_LTS/test_dask_backtest.py -v --tb=short)",
+      "Bash(else echo \"No venv found\")",
+      "Bash(fi)",
+      "Bash(venv/Scripts/python.exe -m pytest:*)",
+      "Bash(..venvScriptspython.exe -m pytest:*)",
+      "Bash(./venv/Scripts/python.exe -m pytest:*)"
     ]
   }
 }

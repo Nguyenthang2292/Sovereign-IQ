@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 import pandas as pd
+
 from modules.common.ui.logging import log_info, log_success
 
 
@@ -280,6 +281,7 @@ def _calculate_volatility_and_spread(
         Tuple of (volatility_dict, spread_dict) mapping symbol to metric value
     """
     import numpy as np
+
     from modules.common.ui.logging import log_error
 
     volatility = {}

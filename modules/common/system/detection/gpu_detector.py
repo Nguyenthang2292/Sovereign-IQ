@@ -24,8 +24,10 @@ try:
     import cupy as cp
 
     CUPY_AVAILABLE = True
-except ImportError:
+except Exception as e:
     CUPY_AVAILABLE = False
+    cp = None
+    log_debug(f"CuPy unavailable: {e}")
 
 try:
     from numba import cuda
