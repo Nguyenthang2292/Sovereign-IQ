@@ -18,11 +18,12 @@ Internal modules:
 from .calculate_layer2_equities import calculate_layer2_equities
 from .compute_atc_signals import compute_atc_signals
 from .dask_batch_processor import process_symbols_batch_dask
-from .incremental_atc import IncrementalATC
+from .incremental_atc import IncrementalATC, MultiTimeframeIncrementalATC
 
 __all__ = [
     "compute_atc_signals",
     "calculate_layer2_equities",
     "process_symbols_batch_dask",  # Phase 5: Dask support
     "IncrementalATC",  # Phase 6: Incremental ATC
+    "MultiTimeframeIncrementalATC",  # Phase 9: Multi-Timeframe ATC
 ]

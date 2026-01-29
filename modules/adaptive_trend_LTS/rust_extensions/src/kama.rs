@@ -1,41 +1,38 @@
-use pyo3::prelude::*;
-use numpy::{PyArray1, PyReadonlyArray1};
 use ndarray::{Array1, ArrayView1};
+use numpy::{PyArray1, PyReadonlyArray1};
+use pyo3::prelude::*;
 use rayon::prelude::*;
 
 /// Calculate KAMA with SIMD-optimized noise calculation and optional parallel processing.
-/// 
+///
 /// For large arrays (n > 1000), uses parallel processing for noise calculation.
 /// The noise calculation loop is structured for SIMD auto-vectorization.
-pub fn calculate_kama_internal(
-    prices_arr: ArrayView1<f64>,
-    length: usize,
-) -> Array1<f64> {
+pub fn calculate_kama_internal(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut kama = Array1::<f64>::from_elem(n, f64::NAN);
-    
+
     if n < 1 {
         return kama;
     }
-    
+
     let fast = 0.666;
     let slow = 0.064;
-    
+
     // Threshold for parallel processing (overhead not worth it for small arrays)
     const PARALLEL_THRESHOLD: usize = 1000;
     let use_parallel = n > PARALLEL_THRESHOLD && length > 10;
-    
+
     for i in 0..n {
         if i == 0 {
             kama[i] = prices_arr[i];
             continue;
         }
-        
+
         if i < length {
             kama[i] = kama[i - 1];
             continue;
         }
-        
+
         // Calculate noise: sum of absolute differences in window
         // This can be parallelized for large windows
         let noise = if use_parallel && length > 50 {
@@ -43,7 +40,7 @@ pub fn calculate_kama_internal(
             // Create indices for the window
             let start_idx = i.saturating_sub(length) + 1;
             let end_idx = i + 1;
-            
+
             // Parallel sum of absolute differences
             // SIMD-friendly: element-wise absolute difference and sum
             (start_idx.max(1)..end_idx)
@@ -61,20 +58,20 @@ pub fn calculate_kama_internal(
             }
             noise
         };
-        
+
         // Calculate signal (SIMD-friendly)
         let signal = (prices_arr[i] - prices_arr[i - length]).abs();
         let ratio = if noise == 0.0 { 0.0 } else { signal / noise };
-        
+
         // Calculate smoothing constant (SIMD-friendly operations)
         let smooth = (ratio * (fast - slow) + slow).powi(2);
-        
+
         let prev_kama = if kama[i - 1].is_nan() {
             prices_arr[i]
         } else {
             kama[i - 1]
         };
-        
+
         // Final KAMA calculation (SIMD-friendly)
         kama[i] = prev_kama + (smooth * (prices_arr[i] - prev_kama));
     }
@@ -120,11 +117,11 @@ mod tests {
         let n = 5000;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let kama = calculate_kama_internal(prices.view(), 20);
-        
+
         // Verify all values are calculated
         assert!(!kama[n - 1].is_nan());
         assert!(kama[0] == prices[0]);
-        
+
         // Verify KAMA values are reasonable
         assert!(kama[n - 1] > 0.0);
     }
@@ -136,11 +133,11 @@ mod tests {
         let length = 50;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let kama = calculate_kama_internal(prices.view(), length);
-        
+
         // Verify parallel processing produces correct results
         assert!(!kama[n - 1].is_nan());
         assert!(kama[0] == prices[0]);
-        
+
         // Compare with sequential result (should be identical)
         // Note: This test verifies correctness, not performance
     }
@@ -151,7 +148,7 @@ mod tests {
         let prices = array![10.0, 11.0, 12.0];
         let kama = calculate_kama_internal(prices.view(), 2);
         assert!(!kama[2].is_nan());
-        
+
         // Test with empty array
         let prices_empty = Array1::<f64>::from_vec(vec![]);
         let kama_empty = calculate_kama_internal(prices_empty.view(), 2);

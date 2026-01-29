@@ -1,8 +1,7 @@
-use pyo3::prelude::*;
-use numpy::{PyArray1, PyReadonlyArray1};
 use ndarray::{Array1, ArrayView1};
+use numpy::{PyArray1, PyReadonlyArray1};
+use pyo3::prelude::*;
 use rayon::prelude::*;
-
 
 /// Calculate EMA (Exponential Moving Average) internally with SIMD optimizations.
 ///
@@ -21,10 +20,7 @@ use rayon::prelude::*;
 #[allow(dead_code)]
 /// Internal helper for EMA with Simple Initialization (init at first valid value)
 /// Used for intermediate calculations (like DEMA pass 2) to preserve data
-fn calculate_ema_simple(
-    prices_arr: ArrayView1<f64>,
-    length: usize,
-) -> Array1<f64> {
+fn calculate_ema_simple(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut ema = Array1::<f64>::from_elem(n, f64::NAN);
 
@@ -53,10 +49,7 @@ fn calculate_ema_simple(
 
 /// Calculate EMA with Standard Initialization (SMA of first N valid values)
 /// Matches pandas_ta.ema behavior for raw price data
-pub fn calculate_ema_internal(
-    prices_arr: ArrayView1<f64>,
-    length: usize,
-) -> Array1<f64> {
+pub fn calculate_ema_internal(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut ema = Array1::<f64>::from_elem(n, f64::NAN);
 
@@ -118,10 +111,7 @@ pub fn calculate_ema_rust<'py>(
 ///
 /// Array1<f64> containing calculated WMA values
 #[allow(dead_code)]
-pub fn calculate_wma_internal(
-    prices_arr: ArrayView1<f64>,
-    length: usize,
-) -> Array1<f64> {
+pub fn calculate_wma_internal(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut wma = Array1::<f64>::from_elem(n, f64::NAN);
 
@@ -131,7 +121,7 @@ pub fn calculate_wma_internal(
 
     // Pre-calculate denominator for efficiency
     let denominator = (length * (length + 1)) as f64 / 2.0;
-    
+
     // Threshold for parallel processing
     const PARALLEL_THRESHOLD: usize = 2000;
     const PARALLEL_LENGTH_THRESHOLD: usize = 20;
@@ -159,7 +149,7 @@ pub fn calculate_wma_internal(
                 })
                 .sum::<f64>()
         };
-        
+
         wma[i] = weighted_sum / denominator;
     }
 
@@ -189,13 +179,10 @@ pub fn calculate_wma_rust<'py>(
 
 /// Calculate DEMA (Double Exponential Moving Average) internally
 #[allow(dead_code)]
-pub fn calculate_dema_internal(
-    prices_arr: ArrayView1<f64>,
-    length: usize,
-) -> Array1<f64> {
+pub fn calculate_dema_internal(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     // Pass 1: Standard EMA (SMA Init)
     let ema1 = calculate_ema_internal(prices_arr, length);
-    
+
     // Pass 2: Simple EMA (Value Init) to preserve availability
     // This matches pandas_ta DEMA behavior where output is valid at same index as EMA1
     let ema2 = calculate_ema_simple(ema1.view(), length);
@@ -233,10 +220,7 @@ pub fn calculate_dema_rust<'py>(
 ///
 /// Array1<f64> containing calculated LSMA values
 #[allow(dead_code)]
-pub fn calculate_lsma_internal(
-    prices_arr: ArrayView1<f64>,
-    length: usize,
-) -> Array1<f64> {
+pub fn calculate_lsma_internal(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut lsma = Array1::<f64>::from_elem(n, f64::NAN);
 
@@ -245,7 +229,7 @@ pub fn calculate_lsma_internal(
     }
 
     let length_f64 = length as f64;
-    
+
     // Sum of x (0 to length-1) = n*(n-1)/2
     let sum_x = length_f64 * (length_f64 - 1.0) / 2.0;
     // Sum of x squared = n*(n-1)*(2n-1)/6
@@ -255,10 +239,10 @@ pub fn calculate_lsma_internal(
 
     for i in (length - 1)..n {
         let start_idx = (i + 1) - length;
-        
+
         let mut sum_y = 0.0;
         let mut sum_xy = 0.0;
-        
+
         for j in 0..length {
             let y = prices_arr[start_idx + j];
             if y.is_nan() {
@@ -279,7 +263,7 @@ pub fn calculate_lsma_internal(
         let m = (length_f64 * sum_xy - sum_x * sum_y) / divisor;
         // c (intercept) = (sum_y - m*sum_x) / n
         let c = (sum_y - m * sum_x) / length_f64;
-        
+
         // LSMA value is the value of the regression line at the LAST point (x = length - 1)
         lsma[i] = m * (length_f64 - 1.0) + c;
     }
@@ -333,10 +317,7 @@ pub fn calculate_lsma_rust<'py>(
 /// # Returns
 ///
 /// Array1<f64> containing calculated SMA values
-pub fn calculate_sma_internal(
-    prices_arr: ArrayView1<f64>,
-    length: usize,
-) -> Array1<f64> {
+pub fn calculate_sma_internal(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut sma = Array1::<f64>::from_elem(n, f64::NAN);
 
@@ -345,12 +326,12 @@ pub fn calculate_sma_internal(
     }
 
     let length_f64 = length as f64;
-    
+
     // Threshold for parallel processing
     const PARALLEL_THRESHOLD: usize = 2000;
     const PARALLEL_LENGTH_THRESHOLD: usize = 30;
     let use_parallel = n > PARALLEL_THRESHOLD && length > PARALLEL_LENGTH_THRESHOLD;
-    
+
     // Optimized nested loop: use iterators for better vectorization
     for i in (length - 1)..n {
         let sum = if use_parallel {
@@ -361,11 +342,9 @@ pub fn calculate_sma_internal(
                 .sum::<f64>()
         } else {
             // Sequential optimized: use iterator for SIMD vectorization
-            (0..length)
-                .map(|j| prices_arr[i - j])
-                .sum::<f64>()
+            (0..length).map(|j| prices_arr[i - j]).sum::<f64>()
         };
-        
+
         sma[i] = sum / length_f64;
     }
 
@@ -388,29 +367,26 @@ pub fn calculate_sma_internal(
 ///
 /// Array1<f64> containing calculated HMA values
 #[allow(dead_code)]
-pub fn calculate_hma_internal(
-    prices_arr: ArrayView1<f64>,
-    length: usize,
-) -> Array1<f64> {
+pub fn calculate_hma_internal(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
-    
+
     // HMA requires minimum data points
     let half_len = std::cmp::max(length / 2, 1);
     let sqrt_len = std::cmp::max((length as f64).sqrt() as usize, 1);
-    
+
     if n < length {
         return Array1::<f64>::from_elem(n, f64::NAN);
     }
-    
+
     // Step 1: WMA(n/2)
     let wma_half = calculate_wma_internal(prices_arr, half_len);
-    
+
     // Step 2: WMA(n)
     let wma_full = calculate_wma_internal(prices_arr, length);
-    
+
     // Step 3: raw = 2 * WMA(n/2) - WMA(n)
     let raw = 2.0 * &wma_half - &wma_full;
-    
+
     // Step 4: HMA = WMA(raw, sqrt(n))
     calculate_wma_internal(raw.view(), sqrt_len)
 }
@@ -506,7 +482,7 @@ mod tests {
         let n = 10000;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let ema = calculate_ema_internal(prices.view(), 20);
-        
+
         assert!(!ema[n - 1].is_nan());
         assert!(ema[0].is_nan()); // SMA init: first valid at index length-1
         assert!(ema[n - 1] > 0.0);
@@ -518,7 +494,7 @@ mod tests {
         let n = 10000;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let wma = calculate_wma_internal(prices.view(), 20);
-        
+
         assert!(!wma[n - 1].is_nan());
         assert!(wma[n - 1] > 0.0);
     }
@@ -530,11 +506,11 @@ mod tests {
         let length = 50;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let wma = calculate_wma_internal(prices.view(), length);
-        
+
         // Verify parallel processing produces correct results
         assert!(!wma[n - 1].is_nan());
         assert!(wma[n - 1] > 0.0);
-        
+
         // Compare with sequential result (should be identical)
         // Note: This test verifies correctness, not performance
     }
@@ -545,7 +521,7 @@ mod tests {
         let n = 10000;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let lsma = calculate_lsma_internal(prices.view(), 20);
-        
+
         assert!(!lsma[n - 1].is_nan());
         assert!(lsma[n - 1] > 0.0);
     }
@@ -556,7 +532,7 @@ mod tests {
         let n = 10000;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let dema = calculate_dema_internal(prices.view(), 20);
-        
+
         assert!(!dema[n - 1].is_nan());
         assert!(dema[n - 1] > 0.0);
     }
@@ -567,7 +543,7 @@ mod tests {
         let n = 10000;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let hma = calculate_hma_internal(prices.view(), 20);
-        
+
         assert!(!hma[n - 1].is_nan());
         assert!(hma[n - 1] > 0.0);
     }
@@ -578,7 +554,7 @@ mod tests {
         let n = 10000;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let sma = calculate_sma_internal(prices.view(), 20);
-        
+
         assert!(!sma[n - 1].is_nan());
         assert!((sma[19] - prices[19]).abs() < 1.0); // Should be close to average
     }
@@ -590,11 +566,11 @@ mod tests {
         let length = 50;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let wma = calculate_wma_internal(prices.view(), length);
-        
+
         // Verify parallel path produces correct results
         assert!(!wma[n - 1].is_nan());
         assert!(wma[n - 1] > 0.0);
-        
+
         // Verify WMA values are within reasonable range
         assert!(wma[n - 1] < prices[n - 1] * 1.1);
         assert!(wma[n - 1] > prices[n - 1] * 0.9);
@@ -607,11 +583,11 @@ mod tests {
         let length = 50;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let lsma = calculate_lsma_internal(prices.view(), length);
-        
+
         // Verify parallel path produces correct results
         assert!(!lsma[n - 1].is_nan());
         assert!(lsma[n - 1] > 0.0);
-        
+
         // Verify LSMA values are within reasonable range
         assert!(lsma[n - 1] < prices[n - 1] * 1.2);
         assert!(lsma[n - 1] > prices[n - 1] * 0.8);
@@ -624,11 +600,11 @@ mod tests {
         let length = 50;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
         let sma = calculate_sma_internal(prices.view(), length);
-        
+
         // Verify parallel path produces correct results
         assert!(!sma[n - 1].is_nan());
         assert!(sma[n - 1] > 0.0);
-        
+
         // Verify SMA values are close to average
         let expected_avg = prices[n - 1] - (length as f64 * 0.1 / 2.0);
         assert!((sma[n - 1] - expected_avg).abs() < 5.0);
@@ -641,11 +617,11 @@ mod tests {
         let n = 1000;
         let length = 20;
         let prices = Array1::from_iter((0..n).map(|i| 100.0 + (i as f64) * 0.1));
-        
+
         let wma = calculate_wma_internal(prices.view(), length);
         let lsma = calculate_lsma_internal(prices.view(), length);
         let sma = calculate_sma_internal(prices.view(), length);
-        
+
         // All should produce valid results
         assert!(!wma[n - 1].is_nan());
         assert!(!lsma[n - 1].is_nan());

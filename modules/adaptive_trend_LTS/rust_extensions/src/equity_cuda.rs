@@ -66,8 +66,7 @@ fn get_equity_cache() -> Result<&'static EquityCudaCache, PyErr> {
         let ctx = CudaContext::new(0).map_err(|e| format!("CUDA init failed: {:?}", e))?;
         // Inline gpu_common.h into source before compilation (NVRTC needs this)
         let source = inline_gpu_common(EQUITY_KERNEL_SRC);
-        let ptx =
-            compile_ptx(&source).map_err(|e| format!("PTX compile failed: {:?}", e))?;
+        let ptx = compile_ptx(&source).map_err(|e| format!("PTX compile failed: {:?}", e))?;
         let module = ctx
             .load_module(ptx)
             .map_err(|e| format!("Module load failed: {:?}", e))?;
@@ -149,7 +148,7 @@ pub fn calculate_equity_cuda<'py>(
             .arg(&(cutout as i32))
             .arg(&(n as i32))
             .arg(&offsets_dev)
-            .arg(&1i32)  // num_symbols = 1 for single series
+            .arg(&1i32) // num_symbols = 1 for single series
             .launch(cfg)
             .map_err(|e| {
                 PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(

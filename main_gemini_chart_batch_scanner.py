@@ -10,19 +10,29 @@ Behavior:
 - Adds the project root to sys.path for reliable import resolution.
 - On Windows, ensures stdin is available and encoding issues are addressed prior to further imports.
 - Calls `configure_windows_stdio` after preparing stdin.
+- If Rust backend is missing: auto-builds with `maturin develop --release` (no cargo clean),
+  then restarts so the new extension is loaded. Set GEMINI_SCANNER_SKIP_RUST_BUILD=1 to skip.
 - Imports and invokes the `main` function from the batch scanner CLI module.
 
 Usage:
+    python main_gemini_chart_batch_scanner.py [args]
+
+    # Skip automatic Rust build (e.g. in CI):
+    set GEMINI_SCANNER_SKIP_RUST_BUILD=1
     python main_gemini_chart_batch_scanner.py [args]
 
 This centralizes environment bootstrapping and dispatches the batch chart analysis job.
 """
 
 import io
+import os
 import sys
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+
+# Set to "1" to skip automatic Rust build when backend is missing (e.g. in CI)
+SKIP_AUTO_RUST_BUILD = os.environ.get("GEMINI_SCANNER_SKIP_RUST_BUILD", "").strip().lower() in ("1", "true", "yes")
 
 # Add project root to sys.path
 if "__file__" in globals():
@@ -166,91 +176,71 @@ else:
     print(f"{'=' * 60}\n")
 
 if not rust_status["available"]:
-    # Ask user if they want to auto-build Rust backend
+    # Auto-build Rust backend on startup (unless skipped via env).
+    # We use "maturin develop --release" only (no cargo clean) for fast incremental build.
+    # Do NOT use rebuild_rust.bat here: it runs cargo clean every time (full rebuild, slow).
+    import subprocess
+
+    rust_dir = Path(__file__).parent / "modules" / "adaptive_trend_LTS" / "rust_extensions"
+    _do_auto_build = not SKIP_AUTO_RUST_BUILD
+
+    def _run_rust_build() -> bool:
+        """Run maturin develop --release; return True on success."""
+        try:
+            result = subprocess.run(
+                ["maturin", "develop", "--release"],
+                cwd=str(rust_dir),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=300,
+            )
+            if result.returncode == 0:
+                return True
+            print(f"❌ Build failed (exit {result.returncode})")
+            print(result.stdout or "")
+            if result.stderr:
+                print(result.stderr)
+            return False
+        except FileNotFoundError:
+            print("❌ 'maturin' not found. Install: pip install maturin (or run .\\build_rust.bat)")
+            return False
+        except subprocess.TimeoutExpired:
+            print("❌ Build timeout (5 min)")
+            return False
+        except Exception as e:
+            print(f"❌ Build error: {e}")
+            return False
+
+    def _ask_continue() -> bool:
+        try:
+            r = input("\nContinue without Rust backend? (y/n) [y]: ").lower()
+            return not r or r in ("y", "yes")
+        except (EOFError, KeyboardInterrupt):
+            return True
+
     try:
-        response = input("Auto-build Rust backend now? (y/n) [y]: ").lower()
-        if not response or response in ["y", "yes"]:
-            print("\n🔨 Building Rust backend... (this may take 1-2 minutes)")
+        if _do_auto_build:
+            print("\n🔨 Auto-building Rust backend... (maturin develop --release, may take 1–2 min)")
             print("=" * 60)
-
-            import subprocess
-            from pathlib import Path
-
-            rust_dir = Path(__file__).parent / "modules" / "adaptive_trend_LTS" / "rust_extensions"
-
-            try:
-                # Run maturin develop --release
-                result = subprocess.run(
-                    ["maturin", "develop", "--release"],
-                    cwd=str(rust_dir),
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    timeout=300,  # 5 minutes timeout
-                )
-
-                if result.returncode == 0:
-                    print("✅ Rust backend built successfully!")
-                    print("=" * 60)
-                    print("\nRESTARTING scanner to enable Rust backend functionality...\n")
-
-                    # Real restart of the current process to load the new dynamic library
-                    import os
-
-                    os.execl(sys.executable, sys.executable, *sys.argv)
-                else:
-                    print(f"❌ Build failed with return code {result.returncode}")
-                    print("\nBuild output:")
-                    print(result.stdout)
-                    if result.stderr:
-                        print("\nErrors:")
-                        print(result.stderr)
-                    print("\n" + "=" * 60)
-
-                    cont = input("\nContinue without Rust backend? (y/n) [n]: ").lower()
-                    if cont not in ["y", "yes"]:
-                        print("Exiting. Please fix build errors and try again.")
-                        sys.exit(1)
-
-            except FileNotFoundError:
-                print("❌ Error: 'maturin' not found in PATH")
-                print("   Install with: pip install maturin")
-                print("   Or use: .\\build_rust.bat (Windows)")
-                print("=" * 60)
-
-                cont = input("\nContinue without Rust backend? (y/n) [n]: ").lower()
-                if cont not in ["y", "yes"]:
-                    print("Exiting. Please install maturin and try again.")
-                    sys.exit(1)
-
-            except subprocess.TimeoutExpired:
-                print("❌ Build timeout (exceeded 5 minutes)")
-                print("=" * 60)
-
-                cont = input("\nContinue without Rust backend? (y/n) [n]: ").lower()
-                if cont not in ["y", "yes"]:
-                    print("Exiting.")
-                    sys.exit(1)
-
-            except Exception as e:
-                print(f"❌ Unexpected error during build: {e}")
-                print("=" * 60)
-
-                cont = input("\nContinue without Rust backend? (y/n) [n]: ").lower()
-                if cont not in ["y", "yes"]:
-                    print("Exiting.")
-                    sys.exit(1)
+            if _run_rust_build():
+                print("✅ Rust backend built. Restarting to load it...\n")
+                os.execl(sys.executable, sys.executable, *sys.argv)
+            print("=" * 60)
+            if _ask_continue():
+                pass
+            else:
+                print("Exiting. Fix build (e.g. pip install maturin) or set GEMINI_SCANNER_SKIP_RUST_BUILD=1 to skip.")
+                sys.exit(1)
         else:
-            # User chose not to build
-            cont = input("\nContinue without Rust backend? (y/n) [y]: ").lower()
-            if cont and cont not in ["y", "yes", ""]:
-                print("Exiting. Please build Rust backend and try again.")
+            print("(Auto-build skipped: GEMINI_SCANNER_SKIP_RUST_BUILD is set)")
+            if _ask_continue():
+                pass
+            else:
                 sys.exit(0)
-
     except (EOFError, KeyboardInterrupt):
-        # If input fails (e.g., non-interactive), continue anyway
-        print("\nNon-interactive mode detected, continuing without Rust backend...")
+        print("\nNon-interactive: continuing without Rust backend...")
 
 # Now import and call main
 from modules.gemini_chart_analyzer.cli.batch_scanner.main import main

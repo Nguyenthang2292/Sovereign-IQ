@@ -184,9 +184,7 @@ atc_performance:
   prefer_gpu: true              # Auto-select GPU if available
   use_cache: true               # Cache intermediate results
   fast_mode: true               # Additional optimizations
-  precision: "float32"           # Use float32 for speed (vs float64 for accuracy)
-                                # RECOMMENDED FOR BACKTESTING: "float64" for accuracy
-                                # Use "float32" for scanning (faster, ~5% tolerance acceptable)
+  precision: "float32"          # Use float32 for speed (vs float64 for accuracy)
 
   # Dask (Out-of-Core) Configuration
   use_dask: false               # Auto-enabled by system if symbols > 1000

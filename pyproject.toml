@@ -72,3 +72,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 
+[tool.pyright]
+# Stub for atc_rust (Rust extension) lives in adaptive_trend_LTS
+stubPath = "modules/adaptive_trend_LTS"
+

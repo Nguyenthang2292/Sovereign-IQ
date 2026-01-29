@@ -66,8 +66,7 @@ fn get_signal_cache() -> Result<&'static SignalCudaCache, PyErr> {
         let ctx = CudaContext::new(0).map_err(|e| format!("CUDA init failed: {:?}", e))?;
         // Inline gpu_common.h into source before compilation (NVRTC needs this)
         let source = inline_gpu_common(SIGNAL_KERNELS_SRC);
-        let ptx =
-            compile_ptx(&source).map_err(|e| format!("PTX compile failed: {:?}", e))?;
+        let ptx = compile_ptx(&source).map_err(|e| format!("PTX compile failed: {:?}", e))?;
         let module = ctx
             .load_module(ptx)
             .map_err(|e| format!("Module load failed: {:?}", e))?;

@@ -69,8 +69,7 @@ fn get_cuda_cache() -> Result<&'static CudaCache, PyErr> {
         // Inline gpu_common.h into source before compilation (NVRTC needs this)
         let source = inline_gpu_common(MA_KERNELS_SRC);
         // Compile PTX once
-        let ptx =
-            compile_ptx(&source).map_err(|e| format!("PTX compile failed: {:?}", e))?;
+        let ptx = compile_ptx(&source).map_err(|e| format!("PTX compile failed: {:?}", e))?;
 
         // Load module once
         let module = ctx

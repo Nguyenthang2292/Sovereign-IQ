@@ -7,7 +7,11 @@ only the last bar based on stored state (MA values, equity, signals).
 from __future__ import annotations
 
 from collections import deque
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Union, Optional
+import json
+import msgpack
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -56,6 +60,12 @@ class IncrementalATC:
             "kama": config.get("kama_len", 28),
         }
 
+        # Use O(1) MA implementations if configured
+        self.use_o1_mas = config.get("use_o1_mas", True)
+
+        # Use Rust backend for incremental updates if configured
+        self.use_rust_incremental = config.get("use_rust_incremental", True)
+
         max_history = max(self.ma_length.values()) + 1
         self.state = {
             "ma_values": {},  # Last MA values (EMA, HMA, WMA, DEMA, LSMA, KAMA)
@@ -65,6 +75,125 @@ class IncrementalATC:
             "price_history": deque(maxlen=max_history),  # Price window
             "initialized": False,
         }
+
+        # Initialize O(1) MA objects
+        self._init_o1_mas()
+
+    def save_state(self, path: Union[str, Path]) -> None:
+        """Save current state to file (MessagePack).
+
+        Args:
+            path: File path to save state to
+        """
+        path = Path(path)
+
+        # Convert deques to lists for serialization
+        state_to_save = self.state.copy()
+        state_to_save["price_history"] = list(self.state["price_history"])
+        if "hma_input_history" in self.state:
+            state_to_save["hma_input_history"] = list(self.state["hma_input_history"])
+
+        # Collect O(1) MA states if used
+        if self.use_o1_mas:
+            state_to_save["o1_mas_state"] = {}
+            for k, v in self.o1_mas.items():
+                state_to_save["o1_mas_state"][k] = v.get_state()
+
+        payload = {
+            "version": "1.0",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "config": self.config,
+            "state": state_to_save,
+        }
+
+        with open(path, "wb") as f:
+            f.write(msgpack.packb(payload))
+
+        log_debug(f"State saved to {path}")
+
+    @classmethod
+    def load_state(cls, path: Union[str, Path]) -> "IncrementalATC":
+        """Load state from file and create restored IncrementalATC instance.
+
+        Args:
+            path: File path to load state from
+
+        Returns:
+            Restored IncrementalATC instance
+        """
+        path = Path(path)
+        with open(path, "rb") as f:
+            # raw=False ensures strings are decoded from bytes
+            payload = msgpack.unpackb(f.read(), raw=False)
+
+        # Verify version (simple check for now)
+        if "version" not in payload:
+            log_warn("State file missing version, assuming compatible")
+
+        config = payload["config"]
+        state_data = payload["state"]
+
+        # Create instance
+        instance = cls(config)
+
+        # Restore state
+        instance.state = state_data
+
+        # Convert lists back to deques
+        max_history = max(instance.ma_length.values()) + 1
+        instance.state["price_history"] = deque(state_data["price_history"], maxlen=max_history)
+
+        if "hma_input_history" in state_data:
+            sqrt_len = max(1, int(np.sqrt(instance.ma_length["hma"])))
+            instance.state["hma_input_history"] = deque(state_data["hma_input_history"], maxlen=sqrt_len)
+
+        # Restore O(1) MA internal states
+        if instance.use_o1_mas:
+            log_debug("Restoring O(1) MA internal states...")
+            if "o1_mas_state" in state_data:
+                # Direct restoration (preferred)
+                for k, v in state_data["o1_mas_state"].items():
+                    if k in instance.o1_mas:
+                        instance.o1_mas[k].set_state(v)
+                log_debug("O(1) MA states restored directly.")
+            else:
+                # Fallback to replay (legacy compatibility or if not saved)
+                log_debug("No O(1) state found, falling back to replay...")
+
+                # Reset O(1) objects to be sure
+                for ma_obj in instance.o1_mas.values():
+                    ma_obj.reset()
+
+                # Replay history
+                for price in instance.state["price_history"]:
+                    for ma_obj in instance.o1_mas.values():
+                        ma_obj.update(price)
+
+                log_debug("O(1) MA states restored via replay.")
+
+        instance.state["initialized"] = True
+        return instance
+
+    def _init_o1_mas(self):
+        """Initialize O(1) MA objects for WMA, HMA, LSMA, KAMA."""
+        if not self.use_o1_mas:
+            self.o1_mas = {}
+            return
+
+        try:
+            from .incremental_mas_o1 import TrueO1WMA, TrueO1HMA, TrueO1LSMA, TrueO1KAMA
+
+            self.o1_mas = {
+                "wma": TrueO1WMA(self.ma_length["wma"]),
+                "hma": TrueO1HMA(self.ma_length["hma"]),
+                "lsma": TrueO1LSMA(self.ma_length["lsma"]),
+                "kama": TrueO1KAMA(self.ma_length["kama"]),
+            }
+            log_debug("O(1) MA objects initialized")
+        except ImportError as e:
+            log_warn(f"Could not import O(1) MA implementations: {e}, falling back to legacy")
+            self.use_o1_mas = False
+            self.o1_mas = {}
 
     def initialize(self, prices: pd.Series) -> Dict[str, pd.Series]:
         """Initialize state with full calculation on historical data.
@@ -96,8 +225,11 @@ class IncrementalATC:
             )
             ma_tuples[ma_type] = ma_tuple
 
+        # Filter out incremental-specific config parameters
+        compute_config = {k: v for k, v in self.config.items() if k not in ["use_o1_mas", "use_rust_incremental"]}
+
         # Full calculation to establish baseline state
-        results = compute_atc_signals(prices, **self.config)
+        results = compute_atc_signals(prices, **compute_config)
 
         # Extract and store state from last bar (include ma_tuples)
         self._extract_state(results, prices, ma_tuples)
@@ -123,6 +255,25 @@ class IncrementalATC:
         # Add to history
         self.state["price_history"].append(new_price)
 
+        # Try Rust backend first if configured
+        if self.use_rust_incremental:
+            try:
+                from .incremental_backend import update_incremental_auto
+
+                signal, updated_state = update_incremental_auto(self.state, new_price, self.config)
+
+                # Update state from Rust response
+                self.state = updated_state
+                self.state["signal"] = signal
+                log_debug(f"Rust update complete, signal={signal}")
+                return signal
+            except ImportError:
+                log_warn("Rust backend not available, falling back to Python")
+                self.use_rust_incremental = False
+            except Exception as e:
+                log_warn(f"Rust backend failed: {e}, falling back to Python")
+                self.use_rust_incremental = False
+
         # Update MA states incrementally
         self._update_mas(new_price)
         log_debug(f"After MAs update: {self.state['ma_values']}")
@@ -142,6 +293,20 @@ class IncrementalATC:
         self.state["signal"] = signal
         return signal
 
+    def batch_update(self, new_prices: Any) -> list[float]:
+        """Update ATC signal with multiple new price bars.
+
+        Args:
+            new_prices: Sequence of new price values
+
+        Returns:
+            List of updated signal values corresponding to each price
+        """
+        signals = []
+        for price in new_prices:
+            signals.append(self.update(price))
+        return signals
+
     def reset(self):
         """Reset state (for new symbol or configuration change)."""
         log_debug("Resetting incremental ATC state")
@@ -154,6 +319,11 @@ class IncrementalATC:
             "price_history": deque(maxlen=max_history),
             "initialized": False,
         }
+
+        # Reset O(1) MA objects
+        if self.use_o1_mas:
+            for ma_key, ma_obj in self.o1_mas.items():
+                ma_obj.reset()
 
     def _extract_state(self, results: Dict[str, pd.Series], prices: pd.Series, ma_tuples: Dict[str, tuple]):
         """Extract state from full calculation results."""
@@ -214,6 +384,10 @@ class IncrementalATC:
 
     def _update_wma(self, new_price: float, length: int, ma_key: str = "wma"):
         """Update WMA incrementally."""
+        if self.use_o1_mas and ma_key == "wma" and ma_key in self.o1_mas:
+            self.state["ma_values"][ma_key] = self.o1_mas[ma_key].update(new_price)
+            return
+
         prices = list(self.state["price_history"])
         if len(prices) < length:
             self.state["ma_values"][ma_key] = new_price
@@ -226,6 +400,10 @@ class IncrementalATC:
 
     def _update_hma(self, new_price: float, length: int):
         """Update HMA incrementally."""
+        if self.use_o1_mas and "hma" in self.o1_mas:
+            self.state["ma_values"]["hma"] = self.o1_mas["hma"].update(new_price)
+            return
+
         half_len = max(1, length // 2)
         sqrt_len = max(1, int(np.sqrt(length)))
 
@@ -264,6 +442,10 @@ class IncrementalATC:
 
     def _update_lsma(self, new_price: float, length: int):
         """Update LSMA incrementally."""
+        if self.use_o1_mas and "lsma" in self.o1_mas:
+            self.state["ma_values"]["lsma"] = self.o1_mas["lsma"].update(new_price)
+            return
+
         prices = list(self.state["price_history"])
         if len(prices) < length:
             self.state["ma_values"]["lsma"] = new_price
@@ -291,6 +473,10 @@ class IncrementalATC:
 
     def _update_kama(self, new_price: float, length: int):
         """Update KAMA incrementally."""
+        if self.use_o1_mas and "kama" in self.o1_mas:
+            self.state["ma_values"]["kama"] = self.o1_mas["kama"].update(new_price)
+            return
+
         prev_kama = self.state["ma_values"].get("kama", new_price)
 
         prices = list(self.state["price_history"])
@@ -387,3 +573,213 @@ class IncrementalATC:
         if signal_l1 < short_threshold:
             return -1.0
         return 0.0
+
+
+TF_RESOLUTION_MAP = {
+    "1m": 1,
+    "5m": 5,
+    "15m": 15,
+    "30m": 30,
+    "1h": 60,
+    "4h": 240,
+    "1d": 1440,
+}
+
+
+class MultiTimeframeIncrementalATC:
+    """Multi-timeframe wrapper for IncrementalATC.
+
+    Maintains one IncrementalATC instance per timeframe and synchronizes
+    updates from a base timeframe (e.g., 1m) to higher timeframes only when
+    their bars complete.
+
+    Usage:
+        mtf = MultiTimeframeIncrementalATC(config, timeframes=["1m", "5m", "15m"])
+        mtf.initialize({"1m": prices_1m, "5m": prices_5m, "15m": prices_15m})
+        signals = mtf.update(new_price, timeframe="1m")
+    """
+
+    def __init__(self, config: Dict[str, Any], timeframes: list[str] | None = None):
+        """Initialize multi-timeframe ATC.
+
+        Args:
+            config: ATC configuration parameters (same as IncrementalATC)
+            timeframes: List of timeframe strings, ordered from base to highest
+                       (default: ["1m", "5m", "15m"])
+        """
+        if timeframes is None:
+            timeframes = ["1m", "5m", "15m"]
+
+        self.config = config
+        self.timeframes = timeframes
+        self.base_tf = timeframes[0]
+        self.higher_tfs = timeframes[1:]
+
+        log_debug(f"Initializing MTF with timeframes: {self.timeframes}, base: {self.base_tf}")
+
+        # Create one IncrementalATC per timeframe
+        self.atcs = {tf: IncrementalATC(config) for tf in timeframes}
+
+        # Bar counters for each timeframe
+        self.bar_counters = {tf: 0 for tf in timeframes}
+
+        # Track last bar prices for each higher timeframe
+        self.last_bar_prices: Dict[str, float | None] = {tf: None for tf in self.higher_tfs}
+
+    def _bars_per_tf(self, tf: str) -> int:
+        """Get number of minutes in a timeframe bar."""
+        return TF_RESOLUTION_MAP.get(tf, 1)
+
+    def _is_bar_completed(self, base_bar_index: int, target_tf: str) -> bool:
+        """Check if a higher timeframe bar has completed.
+
+        Args:
+            base_bar_index: Current bar index in base timeframe
+            target_tf: Target timeframe to check
+
+        Returns:
+            True if the target timeframe bar has completed
+        """
+        base_minutes = self._bars_per_tf(self.base_tf)
+        target_minutes = self._bars_per_tf(target_tf)
+
+        if base_minutes == 0 or target_minutes == 0:
+            return False
+
+        ratio = target_minutes // base_minutes
+        if ratio == 0:
+            return False
+
+        return (base_bar_index + 1) % ratio == 0
+
+    def initialize(self, historical_data):
+        """Initialize all timeframe ATCs with historical data.
+
+        Args:
+            historical_data: Either:
+                - Dict mapping timeframe to price series: {"1m": prices_1m, "5m": prices_5m}
+                - Single price series (will be used for all timeframes)
+
+        Returns:
+            Dict of initialization results per timeframe
+        """
+        log_debug("Initializing MTF ATC with historical data")
+
+        results = {}
+
+        if isinstance(historical_data, dict):
+            for tf, prices in historical_data.items():
+                if tf in self.atcs:
+                    log_debug(f"Initializing {tf} ATC with {len(prices)} bars")
+                    results[tf] = self.atcs[tf].initialize(prices)
+        else:
+            log_debug(f"Single dataset provided, initializing all TFs with {len(historical_data)} bars")
+            for tf in self.timeframes:
+                results[tf] = self.atcs[tf].initialize(historical_data)
+
+        # Initialize last bar prices for higher TFs with last prices from data
+        for tf in self.higher_tfs:
+            if isinstance(historical_data, dict) and tf in historical_data:
+                self.last_bar_prices[tf] = historical_data[tf].iloc[-1]
+            elif isinstance(historical_data, pd.Series):
+                self.last_bar_prices[tf] = historical_data.iloc[-1]
+
+        log_debug("MTF initialization complete")
+        return results
+
+    def update(self, new_price: float, timeframe: str | None = None) -> Dict[str, float]:
+        """Update ATC signals across all timeframes.
+
+        Args:
+            new_price: New price value
+            timeframe: Timeframe of the update (default: base_tf)
+
+        Returns:
+            Dict of signal values per timeframe
+        """
+        if timeframe is None:
+            timeframe = self.base_tf
+
+        signals = {}
+
+        if timeframe == self.base_tf:
+            signals = self._update_from_base(new_price)
+        else:
+            log_warn(f"Direct updates to non-base timeframe {timeframe} not supported")
+            return {tf: self.atcs[tf].state.get("signal", 0.0) for tf in self.timeframes}
+
+        return signals
+
+    def _update_from_base(self, new_price: float) -> Dict[str, float]:
+        """Update from base timeframe and sync to higher timeframes.
+
+        Args:
+            new_price: New price from base timeframe
+
+        Returns:
+            Dict of signal values per timeframe
+        """
+        signals = {}
+
+        # Update base TF
+        base_bar_index = self.bar_counters[self.base_tf]
+        base_signal = self.atcs[self.base_tf].update(new_price)
+        self.bar_counters[self.base_tf] += 1
+        signals[self.base_tf] = base_signal
+
+        # Store last bar price for higher TFs
+        for tf in self.higher_tfs:
+            self.last_bar_prices[tf] = new_price
+
+        # Check which higher TFs have completed bars
+        for tf in self.higher_tfs:
+            if self._is_bar_completed(base_bar_index, tf):
+                log_debug(f"Bar completed for {tf} at base bar {base_bar_index}")
+
+                # Push the last closed bar price to higher TF
+                bar_price = self.last_bar_prices[tf]
+                if bar_price is not None:
+                    self.bar_counters[tf] += 1
+                    tf_signal = self.atcs[tf].update(bar_price)
+                    signals[tf] = tf_signal
+                    log_debug(f"{tf} updated with signal {tf_signal}")
+            else:
+                # Return last known signal for this TF
+                signals[tf] = self.atcs[tf].state.get("signal", 0.0)
+
+        log_debug(f"MTF signals: {signals}")
+        return signals
+
+    def reset(self):
+        """Reset all timeframe ATCs."""
+        log_debug("Resetting MTF ATC")
+        for tf in self.timeframes:
+            self.atcs[tf].reset()
+            self.bar_counters[tf] = 0
+            self.last_bar_prices[tf] = None
+
+    def get_state(self, tf: str | None = None) -> Dict:
+        """Get state for specific timeframe or all timeframes.
+
+        Args:
+            tf: Specific timeframe to get state for (default: all)
+
+        Returns:
+            State dictionary for requested timeframe(s)
+        """
+        if tf is not None:
+            return self.atcs[tf].state
+        return {tf: self.atcs[tf].state for tf in self.timeframes}
+
+    def get_signal(self, tf: str | None = None) -> float | Dict[str, float]:
+        """Get current signal for specific timeframe or all timeframes.
+
+        Args:
+            tf: Specific timeframe to get signal for (default: all)
+
+        Returns:
+            Signal value or dict of signals per timeframe
+        """
+        if tf is not None:
+            return self.atcs[tf].state.get("signal", 0.0)
+        return {tf: self.atcs[tf].state.get("signal", 0.0) for tf in self.timeframes}

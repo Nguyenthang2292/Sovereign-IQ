@@ -19,22 +19,26 @@ pub fn calculate_roc_with_growth(prices_arr: ArrayView1<f64>, la: f64) -> Array1
 
     // Parallel processing for large arrays
     const PARALLEL_THRESHOLD: usize = 5000;
-    
+
     if n > PARALLEL_THRESHOLD {
-        roc.as_slice_mut().unwrap().par_iter_mut().enumerate().for_each(|(i, val)| {
-            if i == 0 {
-                *val = f64::NAN;
-            } else {
-                let prev = prices_arr[i - 1];
-                if prev == 0.0 {
-                    *val = 0.0;
+        roc.as_slice_mut()
+            .unwrap()
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(i, val)| {
+                if i == 0 {
+                    *val = f64::NAN;
                 } else {
-                    let r = (prices_arr[i] - prev) / prev;
-                    let growth = (la * i as f64).exp();
-                    *val = r * growth;
+                    let prev = prices_arr[i - 1];
+                    if prev == 0.0 {
+                        *val = 0.0;
+                    } else {
+                        let r = (prices_arr[i] - prev) / prev;
+                        let growth = (la * i as f64).exp();
+                        *val = r * growth;
+                    }
                 }
-            }
-        });
+            });
     } else {
         roc[0] = f64::NAN;
         for i in 1..n {
@@ -48,7 +52,7 @@ pub fn calculate_roc_with_growth(prices_arr: ArrayView1<f64>, la: f64) -> Array1
             }
         }
     }
-    
+
     roc
 }
 
@@ -75,7 +79,8 @@ pub fn get_diflen(length: usize, robustness: &str) -> Vec<usize> {
             length.saturating_sub(5),
             length.saturating_sub(7),
         ),
-        _ => ( // Medium or default
+        _ => (
+            // Medium or default
             length + 1,
             length + 2,
             length + 4,

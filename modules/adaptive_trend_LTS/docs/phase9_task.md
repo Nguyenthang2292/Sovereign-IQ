@@ -45,7 +45,7 @@ Phase 9 focuses on enhancing the Incremental ATC module implemented in Phase 6 w
 
 ### Task 1: True O(1) Updates for All MA Types
 
-**Status**: ⬜ Not Started  
+**Status**: ✅ Done  
 **Priority**: 🔴 HIGH  
 **Effort**: Medium-High  
 **Expected Gain**: 2-5x faster incremental updates
@@ -55,7 +55,7 @@ Phase 9 focuses on enhancing the Incremental ATC module implemented in Phase 6 w
 **Current Implementation**:
 
 - EMA, DEMA: Already O(1) ✅
-- WMA, HMA, LSMA, KAMA: O(length) ❌
+- WMA, HMA, LSMA, KAMA: O(1) ✅ (via `incremental_mas_o1.py`, Task 1 done)
 
 **Proposed Approach**:
 
@@ -81,14 +81,14 @@ Phase 9 focuses on enhancing the Incremental ATC module implemented in Phase 6 w
 
 **Deliverables**:
 
-- [ ] New module: `core/compute_atc_signals/incremental_mas_o1.py`
+- [x] New module: `core/compute_atc_signals/incremental_mas_o1.py`
   - `TrueO1WMA` class
   - `TrueO1HMA` class
   - `TrueO1LSMA` class
   - `TrueO1KAMA` class
-- [ ] Update `IncrementalATC` to use new O(1) implementations
-- [ ] Benchmark comparing O(length) vs O(1) implementations
-- [ ] Unit tests verifying correctness
+- [x] Update `IncrementalATC` to use new O(1) implementations
+- [x] Benchmark comparing O(length) vs O(1) implementations
+- [x] Unit tests verifying correctness
 
 **Verification**:
 
@@ -106,7 +106,7 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_o1 --itera
 
 ### Task 2: CUDA/Rust Backend for Incremental Updates
 
-**Status**: ⬜ Not Started  
+**Status**: ✅ Done  
 **Priority**: 🔴 HIGH  
 **Effort**: Medium  
 **Expected Gain**: 2-3x faster incremental updates (stacks with O(1))
@@ -115,8 +115,8 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_o1 --itera
 
 **Current Implementation**:
 
-- Incremental ATC uses pure Python/NumPy
-- No compiled backend for incremental updates
+- Incremental ATC can use Rust backend (`incremental_atc.rs` + `incremental_backend.py`) or Python fallback
+- `use_rust_incremental` config flag; fallback when Rust unavailable
 
 **Proposed Approach**:
 
@@ -133,15 +133,15 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_o1 --itera
 
 **Deliverables**:
 
-- [ ] Rust module: `rust_extensions/src/incremental_atc.rs`
+- [x] Rust module: `rust_extensions/src/incremental_atc.rs`
   - `IncrementalATCState` struct
   - `update_ema_rust()`, `update_wma_rust()`, etc.
   - `update_incremental_atc_rust()` main function
-- [ ] Python wrapper: `core/incremental_backend.py`
+- [x] Python wrapper: `core/incremental_backend.py`
   - `update_incremental_rust()` with fallback
   - Backend selection logic
-- [ ] Update `IncrementalATC` to support Rust backend
-- [ ] Benchmark Rust vs Python incremental updates
+- [x] Update `IncrementalATC` to support Rust backend
+- [x] Benchmark Rust vs Python incremental updates
 
 **Verification**:
 
@@ -163,7 +163,7 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_rust
 
 ### Task 3: Multi-Timeframe Support for Incremental ATC
 
-**Status**: ⬜ Not Started  
+**Status**: ✅ Done  
 **Priority**: 🟡 MEDIUM  
 **Effort**: Medium  
 **Expected Gain**: Enable MTF live trading without full recalculation
@@ -172,8 +172,8 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_rust
 
 **Current Implementation**:
 
-- Single timeframe only
-- No MTF coordination
+- `MultiTimeframeIncrementalATC` in `incremental_atc.py`; one `IncrementalATC` per TF, `_bars_per_tf`, bar completion logic
+- Tests in `test_incremental_mtf.py`
 
 **Proposed Approach**:
 
@@ -199,12 +199,12 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_rust
 
 **Deliverables**:
 
-- [ ] New class: `MultiTimeframeIncrementalATC` in `incremental_atc.py`
+- [x] New class: `MultiTimeframeIncrementalATC` in `incremental_atc.py`
   - State management for multiple timeframes
   - Timeframe alignment logic
   - Bar completion detection
-- [ ] Update tests for MTF scenarios
-- [ ] Documentation and usage examples
+- [x] Update tests for MTF scenarios
+- [x] Documentation and usage examples
 
 **Verification**:
 
@@ -223,7 +223,7 @@ pytest modules/adaptive_trend_LTS/tests/test_incremental_mtf.py -v
 
 ### Task 4: Batch Incremental Updates (Multiple Prices at Once)
 
-**Status**: ⬜ Not Started  
+**Status**: ✅ Done  
 **Priority**: 🟡 MEDIUM  
 **Effort**: Low  
 **Expected Gain**: Better throughput when catching up on missed bars
@@ -232,8 +232,8 @@ pytest modules/adaptive_trend_LTS/tests/test_incremental_mtf.py -v
 
 **Current Implementation**:
 
-- Can only update one price at a time
-- Requires loop for multiple bars
+- `IncrementalATC.batch_update(new_prices)` in `incremental_atc.py`; returns list of signals; state matches sequential updates
+- Tests: `test_incremental_batch.py`; benchmark: `benchmark_incremental_batch.py`
 
 **Proposed Approach**:
 
@@ -255,10 +255,10 @@ pytest modules/adaptive_trend_LTS/tests/test_incremental_mtf.py -v
 
 **Deliverables**:
 
-- [ ] Add `batch_update()` method to `IncrementalATC`
-- [ ] Vectorized batch processing logic
-- [ ] Tests comparing batch vs sequential updates
-- [ ] Benchmark batch throughput
+- [x] Add `batch_update()` method to `IncrementalATC`
+- [x] Vectorized batch processing logic
+- [x] Tests comparing batch vs sequential updates
+- [x] Benchmark batch throughput
 
 **Verification**:
 
@@ -276,7 +276,7 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_batch
 
 ### Task 5: State Serialization/Deserialization
 
-**Status**: ⬜ Not Started  
+**Status**: ✅ Done  
 **Priority**: 🟡 MEDIUM  
 **Effort**: Low  
 **Expected Gain**: Zero-warmup restarts for live trading
@@ -285,8 +285,8 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_batch
 
 **Current Implementation**:
 
-- State is in-memory only
-- Restart requires full reinitialization
+- `save_state(path)` and `load_state(path)` in `IncrementalATC`; file backend; version in payload
+- Tests: `test_incremental_serialization.py`; Redis backend optional
 
 **Proposed Approach**:
 
@@ -311,11 +311,11 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_batch
 
 **Deliverables**:
 
-- [ ] Add `save_state()` and `load_state()` methods
-- [ ] Support file backend (MessagePack)
-- [ ] Optional: Support Redis backend
-- [ ] State version compatibility checking
-- [ ] Tests for save/load roundtrip
+- [x] Add `save_state()` and `load_state()` methods
+- [x] Support file backend (MessagePack)
+- ~~[ ] Optional: Support Redis backend~~ (không dùng Redis)
+- [x] State version compatibility checking
+- [x] Tests for save/load roundtrip
 
 **Verification**:
 
@@ -339,15 +339,38 @@ pytest modules/adaptive_trend_LTS/tests/test_incremental_serialization.py -v
 
 ### Acceptance Criteria
 
-- [ ] All 5 tasks completed with tests passing
-- [ ] True O(1) updates implemented for WMA, HMA, LSMA, KAMA
-- [ ] Rust backend available with 2-3x speedup
-- [ ] Multi-timeframe support working correctly
-- [ ] Batch updates provide 1.5-2x throughput improvement
-- [ ] State serialization enables zero-warmup restarts
-- [ ] All benchmarks show expected performance gains
-- [ ] Documentation updated with usage examples
-- [ ] Backward compatibility maintained (all enhancements are opt-in)
+- [x] All 5 tasks completed with tests passing
+- [x] True O(1) updates implemented for WMA, HMA, LSMA, KAMA
+- [x] Rust backend available with 2-3x speedup
+- [x] Multi-timeframe support working correctly
+- [x] Batch updates provide 1.5-2x throughput improvement
+- [x] State serialization enables zero-warmup restarts
+- [x] All benchmarks show expected performance gains
+- [x] Documentation updated with usage examples
+- [x] Backward compatibility maintained (all enhancements are opt-in)
+
+### Verification (tests & benchmarks)
+
+| Mục | Lệnh | Kỳ vọng |
+|-----|------|---------|
+| O(1) MA | `pytest modules/adaptive_trend_LTS/tests/test_incremental_atc_o1.py -v` | Pass |
+| Rust incremental | `pytest modules/adaptive_trend_LTS/tests/test_incremental_rust.py -v` | Pass |
+| MTF | `pytest modules/adaptive_trend_LTS/tests/test_incremental_mtf.py -v` | Pass |
+| Batch update | `pytest modules/adaptive_trend_LTS/tests/test_incremental_batch.py -v` | Pass |
+| Serialization | `pytest modules/adaptive_trend_LTS/tests/test_incremental_serialization.py -v` | Pass |
+| Benchmark O(1) | `python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_o1 --iterations 1000` | 2–5x WMA/HMA/LSMA/KAMA |
+| Benchmark Rust | `python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_rust` | 2–3x vs Python |
+| Benchmark batch | `python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_batch` | 1.5–2x batch vs sequential |
+
+### Backward compatibility
+
+- **O(1) MA**: `config["use_o1_mas"]` (default `True`). Đặt `False` để dùng logic MA cũ.
+- **Rust incremental**: `config["use_rust_incremental"]` (default `True`). Đặt `False` hoặc khi không build Rust thì fallback Python.
+- **Batch / MTF / save-load**: Thêm API mới (`batch_update`, `MultiTimeframeIncrementalATC`, `save_state`/`load_state`), không đổi hành vi API cũ.
+
+### Usage examples
+
+Xem **`phase9_usage_examples.md`** trong thư mục `docs/` để có ví dụ: O(1) MA, Rust, MTF, batch update, state serialization và lệnh test/benchmark.
 
 ### Performance Targets
 
@@ -365,9 +388,10 @@ pytest modules/adaptive_trend_LTS/tests/test_incremental_serialization.py -v
 - **Phase 6**: `phase6_task.md` - Original Incremental ATC implementation
 - **Phase 6 Validation**: `phase6_incremental_atc_validation.md` - Current limitations
 - **Optimization Guide**: `optimization_suggestions2.md` - Detailed improvement proposals
+- **Phase 9 Usage**: `phase9_usage_examples.md` - Usage examples for O(1) MA, Rust, MTF, batch, save/load
 
 ---
 
-**Phase 9 Status**: ⬜ NOT STARTED  
-**Target Completion**: TBD  
+**Phase 9 Status**: ✅ COMPLETED  
+**Target Completion**: Phase 9 Done When (all acceptance criteria met)  
 **Dependencies**: Phase 6 (Completed ✅)

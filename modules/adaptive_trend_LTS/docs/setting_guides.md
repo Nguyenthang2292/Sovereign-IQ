@@ -1,26 +1,26 @@
-# 📋 TỔNG KẾT TẤT CẢ SETTINGS - MODULE ADAPTIVE_TREND_LTS
+# 📋 Settings Reference — Adaptive Trend LTS Module
 
 **Version**: LTS (Long-Term Support)
 **Last Updated**: 2026-01-29
-**Status**: ✅ All Phases Complete (Phase 2-8.2)
+**Status**: ✅ All features complete
 **Backend**: Rust v2 + CUDA (optional) + Dask (optional)
 
 ## 🎯 Overview
 
-Module **Adaptive Trend Classification LTS** là phiên bản ổn định với Rust backend, GPU acceleration và automatic memory management.
+The **Adaptive Trend Classification LTS** module is a stable build with Rust backend, GPU acceleration, and automatic memory management.
 
 ## 📑 Quick Navigation
 
-- [Core Parameters](#️-các-parameters-chính)
-  - [Moving Average Lengths](#1-moving-average-lengths-độ-dài-các-ma)
-  - [MA Weights](#2-ma-weights-trọng-số-ban-đầu)
+- [Core Parameters](#-core-parameters)
+  - [Moving Average Lengths](#1-moving-average-lengths)
+  - [MA Weights](#2-ma-weights)
   - [ATC Core Parameters](#3-atc-core-parameters)
   - [Signal Thresholds](#4-signal-thresholds)
   - [Data & Processing](#5-data--processing-parameters)
   - [Performance & Optimization](#6-performance--optimization)
   - [Strategy Mode](#7-strategy-mode)
-- [Output Results](#-kết-quả-output)
-- [Recommended Presets](#️-recommended-presets)
+- [Output Results](#-output-results)
+- [Recommended Presets](#-recommended-presets)
   - [Scalping (1m-5m)](#1-scalping-timeframe-1m---5m)
   - [Intraday Trading (15m-1h)](#2-intraday-trading-timeframe-15m---1h--default)
   - [Swing Trading (4h-1d)](#3-swing-trading-timeframe-4h---1d)
@@ -29,6 +29,7 @@ Module **Adaptive Trend Classification LTS** là phiên bản ổn định với
   - [True Batch Processing](#6-true-batch-processing-best-for-100-symbols)
   - [Incremental Updates](#7-incremental-updates-for-live-trading--new)
   - [Approximate MAs](#8-approximate-mas-for-fast-filtering--new)
+  - [Advanced Usage Examples](#-advanced-usage-examples) *(O(1) MA, Rust, MTF, batch, save/load)*
 - [Performance Comparison](#-performance-comparison)
 - [Setup & Build](#-setup--build)
 - [Example Usage](#-example-usage)
@@ -37,82 +38,82 @@ Module **Adaptive Trend Classification LTS** là phiên bản ổn định với
 
 ---
 
-## ⚙️ CÁC PARAMETERS CHÍNH
+## ⚙️ Core Parameters
 
-### 1. **Moving Average Lengths** (Độ dài các MA)
+### 1. **Moving Average Lengths**
 
-| Parameter | Type | Default | Mô tả |
-|-----------|------|---------|-------|
-| `ema_len` | int | 28 | Độ dài EMA (Exponential Moving Average) |
-| `hull_len` | int | 28 | Độ dài HMA (Hull Moving Average) |
-| `wma_len` | int | 28 | Độ dài WMA (Weighted Moving Average) |
-| `dema_len` | int | 28 | Độ dài DEMA (Double Exponential MA) |
-| `lsma_len` | int | 28 | Độ dài LSMA (Least Squares MA) |
-| `kama_len` | int | 28 | Độ dài KAMA (Kaufman Adaptive MA) |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `ema_len` | int | 28 | EMA period (Exponential Moving Average) |
+| `hull_len` | int | 28 | HMA period (Hull Moving Average) |
+| `wma_len` | int | 28 | WMA period (Weighted Moving Average) |
+| `dema_len` | int | 28 | DEMA period (Double Exponential MA) |
+| `lsma_len` | int | 28 | LSMA period (Least Squares MA) |
+| `kama_len` | int | 28 | KAMA period (Kaufman Adaptive MA) |
 
-**Lưu ý**:
+**Note**:
 
-- Giá trị thấp (10-20): Nhạy hơn, phù hợp timeframe ngắn
-- Giá trị cao (30-50): Ổn định hơn, phù hợp timeframe dài
+- Lower values (10–20): More responsive; suited to shorter timeframes
+- Higher values (30–50): Smoother; suited to longer timeframes
 
 ---
 
-### 2. **MA Weights** (Trọng số ban đầu)
+### 2. **MA Weights**
 
-| Parameter | Type | Default | Mô tả |
-|-----------|------|---------|-------|
-| `ema_w` | float | 1.0 | Trọng số ban đầu cho EMA |
-| `hma_w` | float | 1.0 | Trọng số ban đầu cho HMA |
-| `wma_w` | float | 1.0 | Trọng số ban đầu cho WMA |
-| `dema_w` | float | 1.0 | Trọng số ban đầu cho DEMA |
-| `lsma_w` | float | 1.0 | Trọng số ban đầu cho LSMA |
-| `kama_w` | float | 1.0 | Trọng số ban đầu cho KAMA |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `ema_w` | float | 1.0 | Initial weight for EMA |
+| `hma_w` | float | 1.0 | Initial weight for HMA |
+| `wma_w` | float | 1.0 | Initial weight for WMA |
+| `dema_w` | float | 1.0 | Initial weight for DEMA |
+| `lsma_w` | float | 1.0 | Initial weight for LSMA |
+| `kama_w` | float | 1.0 | Initial weight for KAMA |
 
-**Lưu ý**: Trọng số sẽ tự động điều chỉnh dựa trên equity curves
+**Note**: Weights are adjusted automatically from equity curves.
 
 ---
 
 ### 3. **ATC Core Parameters**
 
-| Parameter | Type | Default | Range | Mô tả |
-|-----------|------|---------|-------|-------|
-| `robustness` | str | "Medium" | "Narrow", "Medium", "Wide" | Độ nhạy của signal |
-| `La` | float | 0.02 | 0.01-0.05 | Lambda - Growth rate (equity tăng) |
-| `De` | float | 0.03 | 0.01-0.10 | Decay - Tỷ lệ giảm equity |
-| `cutout` | int | 0 | 0-100 | Số bars bỏ qua ở đầu |
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `robustness` | str | "Medium" | "Narrow", "Medium", "Wide" | Signal sensitivity |
+| `La` | float | 0.02 | 0.01-0.05 | Lambda — equity growth rate |
+| `De` | float | 0.03 | 0.01-0.10 | Decay — equity decay rate |
+| `cutout` | int | 0 | 0-100 | Number of bars to skip at start |
 
 **Robustness Modes**:
 
 - **"Narrow"**:
-  - Offset nhỏ (length ± 1-3 steps)
-  - Nhạy cảm hơn với price changes
-  - Phù hợp: Trending markets
+  - Small offset (length ± 1–3 steps)
+  - More sensitive to price changes
+  - Suited to: Trending markets
   
 - **"Medium"** ✅ **RECOMMENDED**:
-  - Offset trung bình (length ± 4 steps)
-  - Cân bằng giữa sensitivity và stability
-  - Phù hợp: Most market conditions
+  - Medium offset (length ± 4 steps)
+  - Balance of sensitivity and stability
+  - Suited to: Most market conditions
   
 - **"Wide"**:
-  - Offset lớn (length ± 9 steps)
-  - Ổn định, ít nhiễu
-  - Phù hợp: Volatile/choppy markets
+  - Large offset (length ± 9 steps)
+  - Stable, less noise
+  - Suited to: Volatile/choppy markets
 
 **Lambda & Decay**:
 
-- **La cao** (0.03-0.05): Equity tăng nhanh → trọng số thay đổi nhanh
-- **La thấp** (0.01-0.02): Equity tăng chậm → trọng số ổn định
-- **De cao** (0.05-0.10): Equity giảm nhanh khi sai → nhanh loại bỏ bad MAs
-- **De thấp** (0.01-0.03): Equity giảm chậm → cho phép recovery
+- **Higher La** (0.03–0.05): Equity rises faster → weights change faster
+- **Lower La** (0.01–0.02): Equity rises slowly → more stable weights
+- **Higher De** (0.05–0.10): Equity drops faster when wrong → quicker removal of bad MAs
+- **Lower De** (0.01–0.03): Equity drops slowly → allows recovery
 
 ---
 
 ### 4. **Signal Thresholds**
 
-| Parameter | Type | Default | Mô tả |
-|-----------|------|---------|-------|
-| `long_threshold` | float | 0.1 | Ngưỡng để classify LONG signal |
-| `short_threshold` | float | -0.1 | Ngưỡng để classify SHORT signal |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `long_threshold` | float | 0.1 | Threshold for LONG signal classification |
+| `short_threshold` | float | -0.1 | Threshold for SHORT signal classification |
 
 **Signal Classification**:
 
@@ -124,27 +125,27 @@ Module **Adaptive Trend Classification LTS** là phiên bản ổn định với
 
 ### 5. **Data & Processing Parameters**
 
-| Parameter | Type | Default | Mô tả |
-|-----------|------|---------|-------|
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
 | `prices` | pd.Series | **Required** | Price data (close prices) |
 | `src` | pd.Series | None | Custom source (optional, defaults to prices) |
-| `limit` | int | 1500 | Số bars để fetch |
+| `limit` | int | 1500 | Number of bars to fetch |
 | `timeframe` | str | "15m" | Timeframe (1m, 5m, 15m, 1h, 4h, 1d...) |
 
 ---
 
 ### 6. **Performance & Optimization**
 
-| Parameter | Type | Default | Mô tả |
-|-----------|------|---------|-------|
-| `use_cuda` | bool | False | Sử dụng CUDA batch processing |
-| `batch_processing` | bool | True | Sử dụng Rayon multi-threaded CPU batch |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `use_cuda` | bool | False | Use CUDA batch processing |
+| `batch_processing` | bool | True | Use Rayon multi-threaded CPU batch |
 | `parallel_l1` | bool | None | Parallel processing Layer 1 (auto-detect) |
 | `parallel_l2` | bool | True | Parallel processing Layer 2 |
-| `prefer_gpu` | bool | True | Ưu tiên GPU nếu có |
+| `prefer_gpu` | bool | True | Prefer GPU when available |
 | `use_cache` | bool | True | Cache MA results |
 | `fast_mode` | bool | True | Optimization mode |
-| `precision` | str | "float64" | "float32" hoặc "float64" |
+| `precision` | str | "float64" | "float32" or "float64" |
 
 **Backend Priority**:
 
@@ -158,19 +159,19 @@ Module **Adaptive Trend Classification LTS** là phiên bản ổn định với
 
 ### 7. **Strategy Mode**
 
-| Parameter | Type | Default | Mô tả |
-|-----------|------|---------|-------|
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
 | `strategy_mode` | bool | False | Shift signal 1 bar (for backtesting) |
 
-**Lưu ý**: Set `True` nếu dùng cho backtesting để tránh look-ahead bias
+**Note**: Set to `True` for backtesting to avoid look-ahead bias.
 
 ---
 
-## 📊 KẾT QUẢ OUTPUT
+## 📊 Output Results
 
-`compute_atc_signals()` trả về **dictionary** chứa:
+`compute_atc_signals()` returns a **dictionary** containing:
 
-### Layer 1 Signals (cho từng MA type)
+### Layer 1 Signals (per MA type)
 
 - `EMA_Signal`, `HMA_Signal`, `WMA_Signal`
 - `DEMA_Signal`, `LSMA_Signal`, `KAMA_Signal`
@@ -250,10 +251,10 @@ config = {
 
 ### 5. **Out-of-Core Processing** (Dask Integration) ⭐ **NEW**
 
-Khi xử lý danh sách symbol cực lớn (>1000 symbols) vượt quá dung lượng RAM, hoặc khi muốn tận dụng tối đa CPU core, hãy sử dụng Dask:
+For very large symbol lists (>1000 symbols) that exceed RAM, or to maximize CPU utilization, use Dask:
 
-- **`use_dask`**: Bật chế độ xử lý song song và phân đoạn bộ nhớ (partitioning).
-- **`npartitions`**: Số lượng mảnh dữ liệu xử lý cùng lúc. Mặc định hệ thống tự tính toán dựa trên số lượng symbol.
+- **`use_dask`**: Enable parallel, partitioned (out-of-core) processing.
+- **`npartitions`**: Number of data partitions processed in parallel. Default is derived from symbol count.
 
 ```python
 from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
@@ -261,7 +262,7 @@ from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_sy
 longs, shorts = scan_all_symbols(
     data_fetcher,
     atc_config,
-    execution_mode="dask",  # Chế độ tối ưu cho dữ liệu lớn
+    execution_mode="dask",  # Optimized for large datasets
     npartitions=10
 )
 ```
@@ -270,7 +271,7 @@ See `docs/phase5_task.md` for detailed Dask integration guide and benchmarks.
 
 ### 6. **True Batch Processing** (Best for 100+ symbols)
 
-Nếu bạn có danh sách nhiều symbols (ví dụ: Binance Futures), hãy dùng hàm batch thay vì loop:
+For many symbols (e.g. Binance Futures), use the batch API instead of a loop:
 
 ```python
 from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
@@ -281,7 +282,7 @@ results = process_symbols_batch_rust(symbols_data, config)
 
 ### 7. **Incremental Updates** (For Live Trading) ⭐ **NEW**
 
-Khi cần cập nhật signal cho single bar mới (live trading), sử dụng `IncrementalATC` để tránh tính lại toàn bộ series:
+For single-bar updates (live trading), use `IncrementalATC` to avoid full series recalculation:
 
 ```python
 from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_atc import IncrementalATC
@@ -300,7 +301,7 @@ See `docs/phase6_task.md` for detailed incremental update guide.
 
 ### 8. **Approximate MAs for Fast Filtering** ⭐ **NEW**
 
-Khi scan hàng nghìn symbols, sử dụng Approximate MAs cho filtering ban đầu, sau đó tính full precision cho candidates.
+For scanning thousands of symbols, use Approximate MAs for initial filtering, then full precision for candidates.
 
 #### 8.1 When to Use Approximate MAs
 
@@ -551,6 +552,108 @@ See `docs/phase6_task.md` for detailed approximate MA guide and accuracy benchma
 
 ---
 
+## 💡 Advanced Usage Examples
+
+Examples for O(1) MA, Rust incremental backend, multi-timeframe (MTF), batch update, and state serialization.
+
+*Section 8 (Approximate MAs) uses 8.1–8.8; this section uses 9.1–9.6 — structure differs by purpose.*
+
+### 9.1 Incremental ATC with O(1) MA and Rust (default)
+
+```python
+from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC
+import pandas as pd
+
+config = {
+    "ema_len": 28,
+    "hull_len": 28,
+    "wma_len": 28,
+    "dema_len": 28,
+    "lsma_len": 28,
+    "kama_len": 28,
+    "use_o1_mas": True,   # O(1) WMA/HMA/LSMA/KAMA (default True)
+    "use_rust_incremental": True,  # Rust backend when available (default True)
+}
+atc = IncrementalATC(config)
+prices = pd.Series([100.0, 101.0, 102.0, 103.0, 104.0] + [104.0 + i * 0.5 for i in range(100)])
+atc.initialize(prices)
+signal = atc.update(110.0)
+```
+
+### 9.2 Legacy mode (disable O(1) and Rust)
+
+```python
+config_legacy = {
+    **config,
+    "use_o1_mas": False,
+    "use_rust_incremental": False,
+}
+atc_legacy = IncrementalATC(config_legacy)
+atc_legacy.initialize(prices)
+signal_legacy = atc_legacy.update(110.0)
+```
+
+### 9.3 Batch update (multiple bars at once)
+
+```python
+atc = IncrementalATC(config)
+atc.initialize(prices)
+new_prices = [110.0, 111.0, 112.0, 113.0, 114.0]
+signals = atc.batch_update(new_prices)  # list[float], one signal per price
+assert len(signals) == len(new_prices)
+```
+
+### 9.4 Multi-Timeframe (MTF)
+
+```python
+from modules.adaptive_trend_LTS.core.compute_atc_signals import MultiTimeframeIncrementalATC
+
+mtf = MultiTimeframeIncrementalATC(config, timeframes=["1m", "5m", "15m"])
+# Initialize: dict per TF or single series for base TF
+historical_1m = prices  # pd.Series
+mtf.initialize({"1m": historical_1m})  # or provide 5m, 15m if available
+
+# Call update on each 1m bar; 5m/15m advance when their bar completes
+signals = mtf.update(110.0, timeframe="1m")  # dict {"1m": float, "5m": float, "15m": float}
+```
+
+### 9.5 State serialization (zero-warmup restart)
+
+```python
+from pathlib import Path
+
+atc = IncrementalATC(config)
+atc.initialize(prices)
+atc.update(108.0)
+atc.update(109.0)
+
+path = Path("states/BTCUSDT_1h.msgpack")
+path.parent.mkdir(parents=True, exist_ok=True)
+atc.save_state(path)
+
+# Restart: load and continue
+atc2 = IncrementalATC.load_state(path)
+next_signal = atc2.update(110.0)  # no need to initialize again
+```
+
+### 9.6 Running tests and benchmarks
+
+```bash
+# Incremental & advanced-feature tests
+pytest modules/adaptive_trend_LTS/tests/test_incremental_atc_o1.py -v
+pytest modules/adaptive_trend_LTS/tests/test_incremental_rust.py -v
+pytest modules/adaptive_trend_LTS/tests/test_incremental_mtf.py -v
+pytest modules/adaptive_trend_LTS/tests/test_incremental_batch.py -v
+pytest modules/adaptive_trend_LTS/tests/test_incremental_serialization.py -v
+
+# Benchmarks
+python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_o1 --iterations 1000
+python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_rust
+python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_batch
+```
+
+---
+
 ## 🚀 PERFORMANCE COMPARISON
 
 **Benchmark** (99 symbols × 1500 bars):
@@ -584,17 +687,17 @@ See `docs/phase6_task.md` for detailed approximate MA guide and accuracy benchma
 | **Very large (10000+)** | Approximate Filter + Dask | 10-20x + Unlimited size |
 | **Out-of-Memory scenarios** | Dask Integration | Unlimited size |
 
-**Performance by Phase**:
+**Performance by feature**:
 
-| Phase | Feature | Speedup | Status |
-|-------|---------|---------|--------|
-| Phase 1 | Core Optimizations | 2.29x | ✅ Complete |
-| Phase 2 | Advanced Memory Opts | 1.5-2x | ✅ Complete |
-| Phase 3 | Rust Extensions | 2-3x | ✅ Complete |
-| Phase 4 | CUDA Kernels | 3-80x | ✅ Complete |
-| Phase 5 | Dask Integration | Unlimited size | ✅ Complete |
-| Phase 6 | Algorithmic Improvements | 10-100x (incremental) | ✅ Complete |
-| **Total** | **All Combined** | **Up to 1000x+** | ✅ **Production Ready** |
+| Feature | Speedup | Status |
+|---------|---------|--------|
+| Core optimizations | 2.29x | ✅ Complete |
+| Advanced memory | 1.5–2x | ✅ Complete |
+| Rust extensions | 2–3x | ✅ Complete |
+| CUDA kernels | 3–80x | ✅ Complete |
+| Dask integration | Unlimited size | ✅ Complete |
+| Algorithmic (incremental) | 10–100x | ✅ Complete |
+| **All combined** | **Up to 1000x+** | ✅ **Production ready** |
 
 ---
 
@@ -700,28 +803,30 @@ else:
 **Version**: LTS (Long-Term Support)
 **Backend**: Rust v2 + CUDA (optional) + Dask (optional)
 
-**Phase Completion Status**:
+**Feature completion**:
 
-- Phase 1 (Core Optimizations): ✅ Complete
-- Phase 2 (Advanced Memory): ✅ Complete
-- Phase 3 (Rust Extensions): ✅ Complete
-- Phase 4 (CUDA Kernels): ✅ Complete
-- Phase 5 (Dask Integration): ✅ Complete
-- Phase 6 (Algorithmic Improvements): ✅ Complete
-- Phase 7 (Memory Optimizations): ✅ Complete
-- Phase 8 (Profiling-Guided Optimizations): ✅ Complete
-- Phase 8.1 (Cache Warming & Parallelism): ✅ Complete
-- Phase 8.2 (Code Generation & JIT Specialization): ✅ Complete
+- Core optimizations: ✅ Complete
+- Advanced memory: ✅ Complete
+- Rust extensions: ✅ Complete
+- CUDA kernels: ✅ Complete
+- Dask integration: ✅ Complete
+- Algorithmic improvements (incremental): ✅ Complete
+- Memory optimizations: ✅ Complete
+- Profiling-guided optimizations: ✅ Complete
+- Cache warming & parallelism: ✅ Complete
+- Code generation & JIT specialization: ✅ Complete
+- Advanced incremental (O(1) MA, Rust, MTF, batch, save/load): ✅ Complete
 
-**Documentation References**:
+**Documentation references**:
 
-- Phase 2 (Core & Advanced): `docs/phase2_task.md`
-- Phase 3 (Rust): `docs/phase3_task.md`
-- Phase 4 (CUDA): `docs/phase4_task.md`
-- Phase 5 (Dask): `docs/phase5_task.md`
-- Phase 6 (Incremental/Approximate): `docs/phase6_task.md`
-- Phase 7 (Memory Optimizations): `docs/phase7_task.md`
-- Phase 8 (Profiling): `docs/phase8_task.md`
-- Phase 8.1 (Cache & Parallelism): `docs/phase8.1_task.md`
-- Phase 8.2 (JIT Specialization): `docs/phase8.2_task.md`
-- **Features Summary**: `docs/features_summary.md`
+- Core & advanced: `docs/phase2_task.md`
+- Rust: `docs/phase3_task.md`
+- CUDA: `docs/phase4_task.md`
+- Dask: `docs/phase5_task.md`
+- Incremental / approximate: `docs/phase6_task.md`
+- Memory optimizations: `docs/phase7_task.md`
+- Profiling: `docs/phase8_task.md`
+- Cache & parallelism: `docs/phase8.1_task.md`
+- JIT specialization: `docs/phase8.2_task.md`
+- Advanced usage (O(1) MA, Rust, MTF, batch, serialization): `docs/phase9_task.md`, `docs/phase9_usage_examples.md`
+- Features summary: `docs/features_summary.md`
