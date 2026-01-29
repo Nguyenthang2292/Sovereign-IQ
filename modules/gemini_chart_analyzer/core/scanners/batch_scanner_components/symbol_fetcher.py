@@ -56,8 +56,15 @@ class SymbolFetcher:
                 # Use public exchange manager (no credentials needed for load_markets)
                 exchange = self.public_exchange_manager.connect_to_exchange_with_no_credentials(self.exchange_name)
 
-                # Load markets
-                markets = exchange.load_markets()
+                # Binance load_markets() hits spot + fapi + dapi; dapi can be slow. Use longer timeout.
+                original_timeout = getattr(exchange, "timeout", None)
+                if self.exchange_name == "binance":
+                    exchange.timeout = 30000  # 30s for load_markets (dapi.binance.com often slow)
+                try:
+                    # Load markets
+                    markets = exchange.load_markets()
+                finally:
+                    exchange.timeout = original_timeout if original_timeout is not None else 10000
 
                 # Filter by quote currency and active status
                 symbols = []
@@ -78,16 +85,14 @@ class SymbolFetcher:
             except Exception as e:
                 last_exception = e
                 error_message = str(e)
+                # Include cause chain (e.g. RequestTimeout wraps ReadTimeoutError with "timed out")
+                cause_msg = str(e.__cause__).lower() if e.__cause__ else ""
 
                 # Determine if error is retryable (network errors, rate limits, temporary unavailability)
-                error_code = None
-                if hasattr(e, "status_code"):
-                    error_code = e.status_code
-                elif hasattr(e, "code"):
-                    error_code = e.code
-                elif "503" in error_message or "UNAVAILABLE" in error_message.upper():
+                error_code = getattr(e, "status_code", None) or getattr(e, "code", None)
+                if error_code is None and ("503" in error_message or "UNAVAILABLE" in error_message.upper()):
                     error_code = 503
-                elif "429" in error_message or "RATE_LIMIT" in error_message.upper():
+                if error_code is None and ("429" in error_message or "RATE_LIMIT" in error_message.upper()):
                     error_code = 429
 
                 is_retryable = (
@@ -96,6 +101,10 @@ class SymbolFetcher:
                     or "rate limit" in error_message.lower()
                     or "unavailable" in error_message.lower()
                     or "timeout" in error_message.lower()
+                    or "timed out" in error_message.lower()
+                    or "timeout" in cause_msg
+                    or "timed out" in cause_msg
+                    or type(e).__name__ == "RequestTimeout"
                     or "connection" in error_message.lower()
                     or "network" in error_message.lower()
                 )
@@ -126,13 +135,15 @@ class SymbolFetcher:
             raise DataFetchError(
                 f"Failed to fetch symbols after {max_retries} attempts: {last_exception}"
             ) from last_exception
+        return []  # unreachable; satisfies return type
 
     def cleanup(self):
         """Cleanup exchange connections and resources."""
         try:
             if hasattr(self.public_exchange_manager, "cleanup_unused_exchanges"):
                 self.public_exchange_manager.cleanup_unused_exchanges()
-            if hasattr(self.public_exchange_manager, "clear"):
-                self.public_exchange_manager.clear()
+            clear_fn = getattr(self.public_exchange_manager, "clear", None)
+            if callable(clear_fn):
+                clear_fn()
         except Exception as e:
             log_warn(f"Error cleaning up public exchange manager: {e}")

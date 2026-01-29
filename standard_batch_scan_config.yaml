@@ -31,7 +31,7 @@ max_symbols:
 # ============================================================================
 
 stage0_sample_percentage:
-  30 # Sample % (100 = no sampling)
+  33 # Sample % (100 = no sampling)
   # The percentage of the market to select in Stage 0 sampling.
   # 100 means sample all symbols (no sampling applied).
   # Reduce this to scan a subset of symbols.
