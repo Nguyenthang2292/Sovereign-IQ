@@ -15,8 +15,7 @@ MODEL_RANDOM_STATE = 42  # Random state for reproducibility
 MODEL_TEST_SIZE = 0.2  # Test set size ratio (20%)
 
 # Model Storage
-# Note: Model file is stored directly in artifacts/models/ (not in subfolder)
-MODELS_DIR = _PROJECT_ROOT / "artifacts" / "models"  # Directory to save models
+MODELS_DIR = _PROJECT_ROOT / "artifacts" / "models" / "random_forest"  # Directory to save RF models
 RANDOM_FOREST_MODEL_FILENAME = "rf_v1_20260120_112819.joblib"  # Default model filename
 
 # Target Prediction Configuration

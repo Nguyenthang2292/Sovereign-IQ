@@ -1,0 +1,57 @@
+{
+  "timestamp": "2026-01-30T06:42:07.064692",
+  "timeframe": "1h",
+  "timeframes": [
+    "1h",
+    "15m",
+    "4h"
+  ],
+  "summary": {
+    "total_symbols": 3,
+    "scanned_symbols": 3,
+    "long_count": 2,
+    "short_count": 1,
+    "none_count": 0,
+    "long_percentage": 66.66666666666666,
+    "short_percentage": 33.33333333333333,
+    "avg_long_confidence": 0.7,
+    "avg_short_confidence": 0.77
+  },
+  "long_symbols": [
+    "SCRT/USDT",
+    "PUMP/USDT"
+  ],
+  "short_symbols": [
+    "BEAMX/USDT"
+  ],
+  "long_symbols_with_confidence": [
+    [
+      "SCRT/USDT",
+      0.76
+    ],
+    [
+      "PUMP/USDT",
+      0.64
+    ]
+  ],
+  "short_symbols_with_confidence": [
+    [
+      "BEAMX/USDT",
+      0.77
+    ]
+  ],
+  "all_results": {
+    "PUMP/USDT": {
+      "signal": "LONG",
+      "confidence": 0.64
+    },
+    "BEAMX/USDT": {
+      "signal": "SHORT",
+      "confidence": 0.77
+    },
+    "SCRT/USDT": {
+      "signal": "LONG",
+      "confidence": 0.76
+    }
+  }
+}

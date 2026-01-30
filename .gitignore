@@ -80,3 +80,10 @@ profiles/
 # Agent files
 .agent/
 .opencode/
+
+# Logs
+logs/
+
+# Model artifacts
+artifacts/models/random_forest/
+artifacts/models/lstm/
