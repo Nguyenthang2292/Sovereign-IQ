@@ -59,7 +59,7 @@ class VotingAnalyzer(
 
             log_info("Using Standard ATC (Legacy) module")
 
-        self.atc_analyzer = ATCAnalyzer(args, data_fetcher, ohlcv_cache=ohlcv_cache)
+        self.atc_analyzer = ATCAnalyzer(args, data_fetcher)
         self.selected_timeframe = args.timeframe
         self.atc_analyzer.selected_timeframe = args.timeframe
 

@@ -58,11 +58,24 @@ def calculate_average_signal(
         short_threshold: Threshold for SHORT signals.
         cutout: Number of bars to skip at beginning. Values before cutout are set to NaN
             (not 0.0) to be consistent with equity calculations and indicate "no valid data".
+            Must be >= 0 and < len(prices). If cutout >= len(prices), a warning is issued
+            and the entire series is returned as NaN.
         strategy_mode: If True, shift signal by 1 bar (default: False).
 
     Returns:
         Series containing the Average_Signal. Cutout period contains NaN values.
+
+    Raises:
+        ValueError: If cutout is negative.
     """
+    # Validate cutout parameter
+    n_bars = len(prices)
+    if cutout < 0:
+        raise ValueError(f"cutout must be >= 0, got {cutout}")
+    if cutout >= n_bars:
+        log_warn(f"cutout={cutout} >= n_bars={n_bars}. All bars will be set to NaN.")
+        # Return NaN series
+        return pd.Series(np.nan, index=prices.index, dtype=np.float32 if precision == "float32" else np.float64)
     log_debug("Computing Average_Signal (vectorized)...")
 
     index = prices.index
@@ -190,15 +203,24 @@ def calculate_average_signal(
         # Any shifts in Layer 1/2 equity calculations are INTERNAL only and do not
         # affect the signals passed to this function. There is NO "double shift" bug.
         # PRESERVE NaN VALUES: Cutout period should remain NaN (not 0.0)
+
+        # FIX: Do not fillna(0) for indices where result_series was NaN (data missing)
+        # only fillna(0) for the very first bar created by shift() if it's not in cutout
         shifted = result_series.shift(1)
-        # Only fill NaN with 0 for non-cutout periods (where we have valid data)
-        # Keep NaN for cutout period to indicate "no valid data"
+
+        # Identify where we had valid data but shift() created a NaN (the first valid bar)
+        valid_mask = result_series.notna()
+        shifted_nan_mask = shifted.isna()
+
+        # Bars that were valid but now NaN after shift and NOT in cutout
+        to_fill_mask = valid_mask & shifted_nan_mask
         if cutout > 0:
-            # Fill NaN with 0, then restore NaN for cutout period
-            result_series = shifted.fillna(0)
-            result_series.iloc[:cutout] = np.nan
-        else:
-            result_series = shifted.fillna(0)
+            # exclude cutout range from filling
+            cutout_indices = index[:cutout]
+            to_fill_mask.loc[cutout_indices] = False
+
+        result_series = shifted.copy()
+        result_series.loc[to_fill_mask] = 0.0
 
     log_debug("Completed Average_Signal")
     return cast(pd.Series, result_series)

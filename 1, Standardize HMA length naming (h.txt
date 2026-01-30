@@ -1,6 +1,0 @@
-1, Standardize HMA length naming (hma_len) và KHÔNG cần backward-compatible alias
-2. Do nothing nhưng ghi rõ docstring 
-3.  document the intended difference.
-
-Tạo giả thuyết và kiểm tra toàn diện modul modules\xgboost_LTS xem có lỗi logic và lỗi tiềm ẩn nào không?
-Tạo giả thuyết và kiểm tra toàn diện modules\adaptive_trend_LTS xem có lỗi logic và lỗi tiềm ẩn nào không?

@@ -244,17 +244,17 @@ def compare_signals(original_results: Dict[str, Dict], enhanced_results: Dict[st
         else:
             mismatched_symbols.append((symbol, diff))
             log_warn(f"Mismatch for {symbol}: max_diff={diff:.10e}")
-            
+
             # Find where the difference occurs
             diff_series = np.abs(orig_s - enh_s)
             max_diff_idx = diff_series.idxmax()
             max_diff_pos = diff_series.argmax()
-            
+
             log_warn(f"  Max difference at index {max_diff_idx} (position {max_diff_pos})")
             log_warn(f"  Original value: {orig_s.iloc[max_diff_pos]:.10e}")
             log_warn(f"  Enhanced value: {enh_s.iloc[max_diff_pos]:.10e}")
             log_warn(f"  Difference: {diff:.10e}")
-            
+
             # Show context around the difference
             start_idx = max(0, max_diff_pos - 2)
             end_idx = min(len(orig_s), max_diff_pos + 3)
@@ -281,7 +281,7 @@ def compare_signals(original_results: Dict[str, Dict], enhanced_results: Dict[st
     log_info(f"Max signal difference: {max_diff:.2e}")
     log_info(f"Avg signal difference: {avg_diff:.2e}")
     log_info(f"Median signal difference: {median_diff:.2e}")
-    
+
     if mismatched_symbols:
         log_warn(f"\nFound {len(mismatched_symbols)} mismatched symbols:")
         for symbol, diff in sorted(mismatched_symbols, key=lambda x: x[1], reverse=True):
@@ -371,7 +371,7 @@ def main():
     # Common configuration (matching defaults)
     common_config = {
         "ema_len": 28,
-        "hull_len": 28,
+        "hma_len": 28,
         "wma_len": 28,
         "dema_len": 28,
         "lsma_len": 28,
@@ -429,6 +429,7 @@ def main():
 
     # Save results to file (save in same directory as script)
     import os
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_file = os.path.join(script_dir, "benchmark_results.txt")
     with open(output_file, "w", encoding="utf-8") as f:

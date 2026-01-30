@@ -51,7 +51,7 @@ def atc_config_to_kwargs(config: ATCConfig) -> Dict:
     """Convert ATCConfig to keyword arguments for compute_atc_signals."""
     return {
         "ema_len": config.ema_len,
-        "hull_len": config.hma_len,
+        "hma_len": config.hma_len,
         "wma_len": config.wma_len,
         "dema_len": config.dema_len,
         "lsma_len": config.lsma_len,
@@ -351,9 +351,9 @@ class TestPerformanceTargets:
         max_time_target = target.get("max_time_seconds", float("inf"))
         print(f"  Target: {max_time_target * 1000:.2f} ms")
 
-        assert avg_time <= max_time_target, (
-            f"Performance target not met: {avg_time * 1000:.2f} ms > {max_time_target * 1000:.2f} ms"
-        )
+        assert (
+            avg_time <= max_time_target
+        ), f"Performance target not met: {avg_time * 1000:.2f} ms > {max_time_target * 1000:.2f} ms"
 
 
 class TestAutomatedPerformanceTests:
@@ -436,9 +436,9 @@ class TestAutomatedPerformanceTests:
             )
 
         # On same machine: require we meet or get close to speedup target
-        assert actual_speedup >= speedup_target * 0.9, (
-            f"Speedup target not met: {actual_speedup:.2f}x < {speedup_target:.2f}x"
-        )
+        assert (
+            actual_speedup >= speedup_target * 0.9
+        ), f"Speedup target not met: {actual_speedup:.2f}x < {speedup_target:.2f}x"
 
 
 class TestCIIntegration:

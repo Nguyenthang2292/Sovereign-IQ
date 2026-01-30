@@ -78,7 +78,7 @@ def test_full_atc_pipeline_integration(sample_prices):
     # Use a smaller dataset for integration test
     prices = sample_prices.iloc[:600]  # > 500 to trigger parallel
 
-    result = compute_atc_signals(prices, ema_len=20, hull_len=20)
+    result = compute_atc_signals(prices, ema_len=20, hma_len=20)
 
     assert "Average_Signal" in result
     assert "EMA_Signal" in result

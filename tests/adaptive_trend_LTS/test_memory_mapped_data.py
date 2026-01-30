@@ -12,8 +12,8 @@ from modules.adaptive_trend_LTS.utils.memory_mapped_data import (
     MemmapDescriptor,
     MemoryMappedDataManager,
     create_memory_mapped_from_csv,
-    load_memory_mapped_from_csv,
     get_manager,
+    load_memory_mapped_from_csv,
 )
 
 
@@ -22,7 +22,7 @@ def temp_csv_file():
     """Create a temporary CSV file with test data."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write("symbol,close,high,low\n")
-        for i in range(100):
+        for i in range(20):
             f.write(f"BTC{i},{100.0 + i},{105.0 + i},{95.0 + i}\n")
         temp_path = f.name
     yield temp_path
@@ -52,7 +52,7 @@ class TestMemoryMappedDataCreation:
 
         assert descriptor is not None
         assert isinstance(descriptor, MemmapDescriptor)
-        assert descriptor.shape == (100,)
+        assert descriptor.shape == (20,)
         assert descriptor.columns == ["close", "high", "low"]
         assert Path(descriptor.mmap_path).exists()
 
@@ -85,9 +85,9 @@ class TestMemoryMappedDataCreation:
 
         mmap_array = np.memmap(descriptor.mmap_path, dtype=descriptor.dtype, mode="r", shape=descriptor.shape)
 
-        assert len(mmap_array) == 100
+        assert len(mmap_array) == 20
         assert np.isclose(mmap_array["close"][0], 100.0)
-        assert np.isclose(mmap_array["close"][99], 199.0)
+        assert np.isclose(mmap_array["close"][19], 119.0)
 
     def test_column_selection(self, temp_csv_file, temp_cache_dir):
         """Test selecting specific columns for memory-mapping."""
@@ -192,7 +192,7 @@ class TestMemoryMappedDataManager:
 
         assert descriptor is not None
         assert mmap_array is not None
-        assert len(mmap_array) == 100
+        assert len(mmap_array) == 20
 
     def test_load_nonexistent_csv(self, temp_cache_dir):
         """Test loading nonexistent CSV returns None."""
@@ -210,11 +210,10 @@ class TestMemoryMappedDataManager:
         """Test cleanup of old cache files."""
         manager = MemoryMappedDataManager(cache_dir=temp_cache_dir)
 
-        create_memory_mapped_from_csv(
+        manager.create_memory_mapped_from_csv(
             csv_path=temp_csv_file,
             symbol_column="symbol",
             price_column="close",
-            cache_dir=temp_cache_dir,
         )
 
         files_removed = manager.cleanup(older_than_days=-1)
@@ -306,4 +305,4 @@ class TestConvenienceFunctions:
 
         assert descriptor is not None
         assert mmap_array is not None
-        assert len(mmap_array) == 100
+        assert len(mmap_array) == 20

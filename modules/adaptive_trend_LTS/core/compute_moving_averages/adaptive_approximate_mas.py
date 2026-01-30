@@ -62,8 +62,11 @@ def adaptive_ema_approx(
     # Adaptive tolerance increases with volatility
     adaptive_tolerance = base_tolerance * (1 + norm_vol * volatility_factor)
 
-    # Use fast approximation
-    ema_approx = fast_ema_approx(prices, length)
+    # Use fast approximation with adaptive tolerance
+    # FIX #2: Unused Tolerance
+    # Now we explicitly pass tolerance to the fast_X_approx functions
+    # which can use it to switch between exact and approximate algorithms.
+    ema_approx = fast_ema_approx(prices, length, tolerance=adaptive_tolerance.mean())
 
     # For now, return the approximation
     # In a full implementation, we would adjust calculation precision based on tolerance
@@ -84,7 +87,8 @@ def adaptive_hma_approx(
     norm_vol = volatility / max_vol if max_vol > 0 else volatility
     adaptive_tolerance = base_tolerance * (1 + norm_vol * volatility_factor)
 
-    hma_approx = fast_hma_approx(prices, length)
+    # Pass mean tolerance
+    hma_approx = fast_hma_approx(prices, length, tolerance=adaptive_tolerance.mean())
 
     return hma_approx
 
@@ -103,7 +107,7 @@ def adaptive_wma_approx(
     norm_vol = volatility / max_vol if max_vol > 0 else volatility
     adaptive_tolerance = base_tolerance * (1 + norm_vol * volatility_factor)
 
-    wma_approx = fast_wma_approx(prices, length)
+    wma_approx = fast_wma_approx(prices, length, tolerance=adaptive_tolerance.mean())
 
     return wma_approx
 
@@ -122,7 +126,7 @@ def adaptive_dema_approx(
     norm_vol = volatility / max_vol if max_vol > 0 else volatility
     adaptive_tolerance = base_tolerance * (1 + norm_vol * volatility_factor)
 
-    dema_approx = fast_dema_approx(prices, length)
+    dema_approx = fast_dema_approx(prices, length, tolerance=adaptive_tolerance.mean())
 
     return dema_approx
 
@@ -141,7 +145,7 @@ def adaptive_lsma_approx(
     norm_vol = volatility / max_vol if max_vol > 0 else volatility
     adaptive_tolerance = base_tolerance * (1 + norm_vol * volatility_factor)
 
-    lsma_approx = fast_lsma_approx(prices, length)
+    lsma_approx = fast_lsma_approx(prices, length, tolerance=adaptive_tolerance.mean())
 
     return lsma_approx
 
@@ -160,7 +164,7 @@ def adaptive_kama_approx(
     norm_vol = volatility / max_vol if max_vol > 0 else volatility
     adaptive_tolerance = base_tolerance * (1 + norm_vol * volatility_factor)
 
-    kama_approx = fast_kama_approx(prices, length)
+    kama_approx = fast_kama_approx(prices, length, tolerance=adaptive_tolerance.mean())
 
     return kama_approx
 

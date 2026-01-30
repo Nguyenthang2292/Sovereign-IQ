@@ -14,7 +14,7 @@ def sample_config():
     """Sample ATC configuration."""
     return {
         "ema_len": 28,
-        "hull_len": 28,
+        "hma_len": 28,
         "wma_len": 28,
         "dema_len": 28,
         "lsma_len": 28,
@@ -121,8 +121,9 @@ def test_streaming_processor_get_signal(streaming_processor, sample_prices):
 
     signal = streaming_processor.get_signal("BTCUSDT")
 
-    # Signal should be None initially (no update yet)
-    assert signal is None
+    # Signal should be available after initialization (computed from historical data)
+    assert signal is not None
+    assert -1.0 <= signal <= 1.0
 
     # Update and check again
     new_price = sample_prices.iloc[-1] * 1.01
@@ -345,9 +346,10 @@ def test_streaming_processor_multiple_updates(streaming_processor, sample_prices
     """Test multiple sequential updates maintain state correctly."""
     streaming_processor.initialize_symbol("BTCUSDT", sample_prices)
 
-    # Store initial signal
+    # Store initial signal (should be available after initialization)
     initial_signal = streaming_processor.get_signal("BTCUSDT")
-    assert initial_signal is None
+    assert initial_signal is not None
+    assert -1.0 <= initial_signal <= 1.0
 
     # Update multiple times
     signals = []

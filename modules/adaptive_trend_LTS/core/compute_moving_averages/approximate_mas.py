@@ -8,35 +8,62 @@ import numpy as np
 import pandas as pd
 
 
-def fast_ema_approx(prices: pd.Series, length: int) -> pd.Series:
-    """Fast EMA approximation using SMA (much faster).
+def fast_ema_approx(prices: pd.Series, length: int, tolerance: float = 0.01) -> pd.Series:
+    """Fast EMA approximation.
+
+    If tolerance is strict (< 0.05), use pandas EWM (exact but still reasonably fast).
+    Otherwise, use SMA approximation (fastest).
 
     Args:
         prices: Price series
-        length: EMA length
-
-    Returns:
-        Approximate EMA series (within ~5% of true EMA)
+        length: Window length
+        tolerance: Maximum error tolerance (default: 0.01 = 1%)
+                   Lower values increase accuracy but may reduce speed.
     """
-    return prices.rolling(window=length, min_periods=1).mean()
+    if len(prices) == 0:
+        return pd.Series(dtype=np.float64, index=prices.index)
+    if tolerance < 0.05:
+        # Exact calculation for low tolerance
+        return prices.ewm(span=length, adjust=False).mean()
+    else:
+        # Fast approximation using SMA
+        return prices.rolling(window=length, min_periods=1).mean()
 
 
-def fast_hma_approx(prices: pd.Series, length: int) -> pd.Series:
+def fast_hma_approx(prices: pd.Series, length: int, tolerance: float = 0.01) -> pd.Series:
     """Fast HMA approximation.
 
-    Strategy: Use simplified WMA calculations
+    Strategy: Use simplified WMA calculations.
+
+    Args:
+        prices: Price series
+        length: Window length
+        tolerance: Maximum error tolerance (default: 0.01 = 1%)
+                   Currently unused but kept for API consistency.
     """
+    if len(prices) == 0:
+        return pd.Series(dtype=np.float64, index=prices.index)
     half_len = max(1, length // 2)
     sqrt_len = max(1, int(np.sqrt(length)))
 
-    wma_half = fast_wma_approx(prices, half_len)
-    wma_full = fast_wma_approx(prices, length)
+    # Pass tolerance recursively if we implement tolerance logic in WMA later
+    wma_half = fast_wma_approx(prices, half_len, tolerance)
+    wma_full = fast_wma_approx(prices, length, tolerance)
     hma_input = 2 * wma_half - wma_full
-    return fast_wma_approx(hma_input, sqrt_len)
+    return fast_wma_approx(hma_input, sqrt_len, tolerance)
 
 
-def fast_wma_approx(prices: pd.Series, length: int) -> pd.Series:
-    """Fast WMA approximation using simplified weights."""
+def fast_wma_approx(prices: pd.Series, length: int, tolerance: float = 0.01) -> pd.Series:
+    """Fast WMA approximation using simplified weights.
+
+    Args:
+        prices: Price series
+        length: Window length
+        tolerance: Maximum error tolerance (default: 0.01 = 1%)
+                   Currently unused but kept for API consistency.
+    """
+    if len(prices) == 0:
+        return pd.Series(dtype=np.float64, index=prices.index)
     if length <= 1:
         return prices.copy()
 
@@ -54,14 +81,23 @@ def fast_wma_approx(prices: pd.Series, length: int) -> pd.Series:
     return result
 
 
-def fast_dema_approx(prices: pd.Series, length: int) -> pd.Series:
-    """Fast DEMA approximation."""
-    ema1 = fast_ema_approx(prices, length)
-    ema2 = fast_ema_approx(ema1, length)
+def fast_dema_approx(prices: pd.Series, length: int, tolerance: float = 0.01) -> pd.Series:
+    """Fast DEMA approximation.
+
+    Args:
+        prices: Price series
+        length: Window length
+        tolerance: Maximum error tolerance (default: 0.01 = 1%)
+                   Propagated to underlying EMA calculations.
+    """
+    if len(prices) == 0:
+        return pd.Series(dtype=np.float64, index=prices.index)
+    ema1 = fast_ema_approx(prices, length, tolerance)
+    ema2 = fast_ema_approx(ema1, length, tolerance)
     return 2 * ema1 - ema2
 
 
-def fast_lsma_approx(prices: pd.Series, length: int) -> pd.Series:
+def fast_lsma_approx(prices: pd.Series, length: int, tolerance: float = 0.01) -> pd.Series:
     """Fast LSMA (Least Squares Moving Average) approximation using proper linear regression.
 
     True LSMA fits a linear regression line to the window and returns the end-point projection.
@@ -69,7 +105,15 @@ def fast_lsma_approx(prices: pd.Series, length: int) -> pd.Series:
         slope = (n*sum(x*y) - sum(x)*sum(y)) / (n*sum(x^2) - sum(x)^2)
         intercept = (sum(y) - slope*sum(x)) / n
         lsma = intercept + slope * (n - 1)  # Project to end of window
+
+    Args:
+        prices: Price series
+        length: Window length
+        tolerance: Maximum error tolerance (default: 0.01 = 1%)
+                   Currently unused but kept for API consistency.
     """
+    if len(prices) == 0:
+        return pd.Series(dtype=np.float64, index=prices.index)
     if length <= 2:
         return prices.copy()
 
@@ -103,7 +147,7 @@ def fast_lsma_approx(prices: pd.Series, length: int) -> pd.Series:
     return result
 
 
-def fast_kama_approx(prices: pd.Series, length: int) -> pd.Series:
+def fast_kama_approx(prices: pd.Series, length: int, tolerance: float = 0.01) -> pd.Series:
     """Fast KAMA approximation using adaptive smoothing based on efficiency ratio.
 
     Real KAMA formula:
@@ -114,7 +158,15 @@ def fast_kama_approx(prices: pd.Series, length: int) -> pd.Series:
     - KAMA = prev_KAMA + SC * (price - prev_KAMA)
 
     Where fast_sc = 2/(2+1) and slow_sc = 2/(30+1) per Kaufman's original formula.
+
+    Args:
+        prices: Price series
+        length: Window length
+        tolerance: Maximum error tolerance (default: 0.01 = 1%)
+                   Currently unused but kept for API consistency.
     """
+    if len(prices) == 0:
+        return pd.Series(dtype=np.float64, index=prices.index)
     if length <= 1:
         return prices.copy()
 

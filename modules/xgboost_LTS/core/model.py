@@ -365,8 +365,19 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
                     log_warn(f"CV Fold {fold}: Skipped (missing classes: expected {TARGET_LABELS}, got {class_list})")
                     continue
 
+                # Prepare validation set for early stopping
+                X_train_fold = X.iloc[train_idx_filtered]
+                y_train_fold = y.iloc[train_idx_filtered]
+
+                eval_set = []
+                if len(test_idx_filtered) > 0:
+                    X_test_fold = X.iloc[test_idx_filtered]
+                    y_test_fold = y.iloc[test_idx_filtered]
+                    eval_set = [(X_test_fold, y_test_fold)]
+
                 cv_model = build_model(seed_offset=fold)
-                cv_model.fit(X.iloc[train_idx_filtered], y.iloc[train_idx_filtered])
+                cv_model.fit(X_train_fold, y_train_fold, eval_set=eval_set, verbose=False)
+
                 if len(test_idx_filtered) > 0:
                     y_test_fold = y.iloc[test_idx_filtered]
                     preds = cv_model.predict(X.iloc[test_idx_filtered])
@@ -469,7 +480,7 @@ def predict_next_move(model: Any, last_row: Union[pd.Series, pd.DataFrame]) -> n
     if len(proba) < 3:
         log_warn(f"Model trained with {len(proba)} classes, expected 3. Padding with zeros.")
         padded_proba = np.zeros(3)
-        padded_proba[:len(proba)] = proba
+        padded_proba[: len(proba)] = proba
         return padded_proba
 
     return proba

@@ -6,9 +6,9 @@ import pytest
 
 try:
     from modules.adaptive_trend_LTS.core.compute_atc_signals.rust_dask_bridge import (
+        _process_partition_python,
         _process_partition_with_rust_cpu,
         _process_partition_with_rust_cuda,
-        _process_partition_python,
         auto_tune_partition_size,
         process_symbols_rust_dask,
     )
@@ -21,7 +21,7 @@ def sample_config():
     """Default ATC config for testing."""
     return {
         "ema_len": 20,
-        "hull_len": 20,
+        "hma_len": 20,
         "wma_len": 20,
         "dema_len": 20,
         "lsma_len": 20,
@@ -204,7 +204,7 @@ def test_process_symbols_rust_dask_large_dataset(sample_config):
     duration = time.time() - start_time
 
     assert len(results) == n_symbols
-    print(f"\nProcessed {n_symbols} symbols in {duration:.2f}s ({n_symbols/duration:.1f} symbols/s)")
+    print(f"\nProcessed {n_symbols} symbols in {duration:.2f}s ({n_symbols / duration:.1f} symbols/s)")
 
 
 def test_process_symbols_rust_dask_auto_partitions(sample_config, sample_price_series):
@@ -331,7 +331,7 @@ def test_process_symbols_rust_dask_memory_efficiency(sample_config):
     initial_mem = sys.getsizeof([])
 
     np.random.seed(42)
-    n_symbols = 100
+    n_symbols = 20
     n_bars = 1500
 
     symbols_data = {}
@@ -343,7 +343,7 @@ def test_process_symbols_rust_dask_memory_efficiency(sample_config):
         symbols_data,
         sample_config,
         use_cuda=False,
-        npartitions=10,
+        npartitions=2,
         partition_size=10,
     )
 

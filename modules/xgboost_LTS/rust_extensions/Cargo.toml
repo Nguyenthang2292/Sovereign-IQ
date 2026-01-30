@@ -12,6 +12,7 @@ pyo3 = { version = "0.23", features = ["extension-module"] }
 numpy = "0.23"
 ndarray = "0.16"
 rayon = "1.8"  # For parallel processing
+ordered-float = "4.2"  # For BTreeMap with floats
 
 [profile.release]
 # Enable optimizations for SIMD auto-vectorization

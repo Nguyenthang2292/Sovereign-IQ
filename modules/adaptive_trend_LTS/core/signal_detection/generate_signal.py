@@ -25,16 +25,32 @@ def _apply_signal_persistence(up: np.ndarray, down: np.ndarray, out: np.ndarray)
     if up: sig = 1
     elif down: sig = -1
     else: sig = sig[prev]
-    """
-    n = len(out)
-    current_sig = 0  # Default to 0
 
+    DESIGN NOTE - Signal Initialization:
+    The initial signal value is 0 (neutral) at the start of the series.
+    This is CORRECT behavior matching Pine Script's 'var' keyword:
+    - First bar: sig = 0 (neutral)
+    - If up[0] is True: sig becomes 1
+    - If down[0] is True: sig becomes -1
+    - Otherwise: sig stays 0
+
+    Edge case handling:
+    - If first bar has down=True: sig becomes -1 (not 0)
+    - This is handled correctly because we check conditions every bar
+    - No special "initialization bias" - just pure signal persistence
+
+    This matches Pine Script behavior exactly:
+    var int sig = 0  # Initialized once to 0
+    if crossover: sig := 1
+    if crossunder: sig := -1
+    """
+    n = len(up)
+    current_sig = 0
     for i in range(n):
         if up[i]:
             current_sig = 1
         elif down[i]:
             current_sig = -1
-
         out[i] = current_sig
 
 

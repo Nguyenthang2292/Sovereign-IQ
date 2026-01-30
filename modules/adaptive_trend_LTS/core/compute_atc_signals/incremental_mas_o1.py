@@ -133,6 +133,19 @@ class TrueO1HMA:
     - wma_half: WMA of length n/2
     - wma_full: WMA of length n
     - wma_final: WMA of length sqrt(n) on the series (2*wma_half - wma_full)
+
+    DESIGN NOTE - Window Management:
+    This class maintains TWO separate data structures:
+    1. Three TrueO1WMA instances (wma_half, wma_full, wma_final) - each with own window
+    2. intermediate_series deque - stores intermediate values (2*wma_half - wma_full)
+
+    This is INTENTIONAL, not a bug. The HMA formula requires:
+    - First compute intermediate series: 2*WMA(n/2) - WMA(n)
+    - Then apply WMA(sqrt(n)) on that intermediate series
+    - intermediate_series deque is necessary to feed wma_final.update()
+
+    Memory overhead is minimal: O(sqrt(n)) for intermediate_series vs O(n) for full price window.
+    This is significantly more efficient than O(n) full recalculation.
     """
 
     def __init__(self, length: int):

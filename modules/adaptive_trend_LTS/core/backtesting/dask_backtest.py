@@ -168,7 +168,6 @@ def backtest_with_dask(
         if use_memory_mapped:
             from modules.adaptive_trend_LTS.utils.memory_mapped_data import (
                 load_memory_mapped_from_csv,
-                get_manager,
             )
 
             descriptor, mmap_array = load_memory_mapped_from_csv(historical_data_path, symbol_column, price_column)
@@ -313,7 +312,6 @@ def backtest_multiple_files_dask(
     Returns:
         Combined DataFrame with all results
     """
-    import dask.bag as db
 
     if not file_paths:
         log_warn("No file paths provided")

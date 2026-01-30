@@ -145,15 +145,25 @@ def benchmark_memory_usage(
             rust_memory, rust_count = None, 0
 
         if rust_memory is not None:
-            memory_reduction = (1 - dask_memory / rust_memory) * 100
-            print(f"    Memory reduction: {memory_reduction:+.1f}%")
+            if rust_memory != 0:
+                memory_reduction = (1 - dask_memory / rust_memory) * 100
+                print(f"    Memory reduction: {memory_reduction:+.1f}%")
+            else:
+                memory_reduction = 0.0
+                print(f"    Memory reduction: 0.0%")
 
         results.append(
             {
                 "n_symbols": n_symbols,
                 "dask_memory_mb": dask_memory,
                 "rust_memory_mb": rust_memory,
-                "memory_reduction_percent": ((1 - dask_memory / rust_memory) * 100 if rust_memory else None),
+                "memory_reduction_percent": (
+                    ((1 - dask_memory / rust_memory) * 100)
+                    if rust_memory and rust_memory != 0
+                    else 0.0
+                    if rust_memory == 0
+                    else None
+                ),
             }
         )
 

@@ -6,7 +6,10 @@ IncrementalATC instances for efficient multi-symbol live trading.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
+
+if TYPE_CHECKING:
+    from .incremental_atc import IncrementalATC
 
 import pandas as pd
 

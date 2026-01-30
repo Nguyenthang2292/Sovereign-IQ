@@ -4,7 +4,8 @@ Layer 2 equity calculation utilities for Adaptive Trend Classification (ATC).
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Optional
+
 
 import numpy as np
 import pandas as pd
@@ -36,6 +37,8 @@ def calculate_layer2_equities(
     parallel: bool = True,
     precision: str = "float64",
     use_cuda: bool = False,
+    use_rust_backend: bool = True,
+    floor_val: Optional[float] = None,
 ) -> Dict[str, pd.Series]:
     """
     Calculate Layer 2 equity curves based on Layer 1 signal performance.
@@ -111,6 +114,7 @@ def calculate_layer2_equities(
                 r_values=r_adjusted,
                 decay_multiplier=d,
                 cutout=cutout,
+                floor_val=floor_val,
             )
 
             # Convert back to dictionary of Series
@@ -140,15 +144,21 @@ def calculate_layer2_equities(
                 sig_shifted = sig.shift(1)  # Leave first as NaN to match Original
 
                 # Calculate equity using Rust backend (handles CPU/CUDA internally)
+                # FIX: use_rust_backend parameter was being ignored, always using Rust
                 equity_values = calculate_equity(
                     r_values=r_adjusted.values,
                     sig_prev=sig_shifted.values,
                     starting_equity=initial_weight,
                     decay_multiplier=d,
                     cutout=cutout,
-                    use_rust=True,
+                    use_rust=use_rust_backend,
                     use_cuda=use_cuda,
+                    floor_val=floor_val,
                 )
+
+                # FIX #3: Equity floor validation handled inside calculate_equity (Rust/CPU)
+                # NOTE: The 0.25 floor is an intentional design choice to prevent
+                # total bankruptcy. This logic is embedded in the Rust/CPU kernel.
 
                 equity = pd.Series(equity_values, index=R.index, dtype=np.float64)
                 layer2_equities[ma_type] = equity

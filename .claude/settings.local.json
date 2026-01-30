@@ -23,7 +23,8 @@
       "Bash(wc:*)",
       "Bash(test:*)",
       "Bash(taskkill:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(pytest:*)"
     ]
   }
 }

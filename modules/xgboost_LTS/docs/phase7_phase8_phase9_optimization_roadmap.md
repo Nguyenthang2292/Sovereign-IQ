@@ -52,6 +52,7 @@ rustflags = ["-C", "target-cpu=native"]
 ```
 
 **Alternative Build Command**:
+
 ```bash
 RUSTFLAGS="-C target-cpu=native" maturin build --release
 ```
@@ -69,6 +70,7 @@ RUSTFLAGS="-C target-cpu=native" maturin build --release
 **Location**: `labeling.rs`, `features.rs`
 
 **Example in `rolling_quantile_rust` (labeling.rs:160-180)**:
+
 ```rust
 // CURRENT (sequential)
 for i in 0..n {
@@ -101,13 +103,14 @@ let result: Vec<f64> = (0..n)
 **Implementation Time**: 1-2 hours
 
 **Affected Functions**:
+
 - `rolling_quantile_rust()` - lines 160-182
 - `rolling_mean_rust()` - lines 193-215
 - Feature engineering loops - lines 48-67, 93-117, 134-160
 
 ---
 
-#### 1.3 XGBoost Early Stopping (10-30% Training Reduction)
+#### 1.3 XGBoost Early Stopping (10-30% Training Reduction) (✅ DONE)
 
 **Current State**: Training runs full `n_estimators=200` rounds
 **Gap**: No early stopping to prevent overfitting and save time
@@ -162,7 +165,7 @@ XGBOOST_USE_PARALLEL_CV = True  # Enable 2-4x CV speedup
 
 ### Priority 2: Medium-Impact, Medium-Effort
 
-#### 2.1 Optimized Rolling Quantile Algorithm (O(n) vs O(n·w))
+#### 2.1 Optimized Rolling Quantile Algorithm (O(n) vs O(n·w)) (✅ DONE)
 
 **Current State**: Each window is fully sorted: O(n × w × log(w))
 **Gap**: Can use incremental algorithm for O(n × log(w))
@@ -475,7 +478,7 @@ study = optuna.create_study(
 | Task | Effort | Expected Gain | Priority | Time |
 |------|--------|---------------|----------|------|
 | 1.2 Rayon parallelization | Low | 2-4x Rust ops | ✅ DONE | 1-2h |
-| 2.1 O(n log w) quantile | Medium | 5-10x large windows | ⭐⭐ | 2-4h |
+| 2.1 O(n log w) quantile | Medium | 5-10x large windows | ✅ DONE | 2-4h |
 | 2.2 Batch FFI calls | Medium | 20-30% FFI | ⭐⭐ | 3-5h |
 | **Phase 8 Total** | **Medium** | **3-5x Rust path** | - | **~1 week** |
 
@@ -566,13 +569,17 @@ study = optuna.create_study(
 ## ⚠️ Important Notes and Caveats
 
 ### 1. Diminishing Returns
+
 The module is already well-optimized. Further gains require more effort per percentage improvement:
+
 - Phase 7: ~2 hours for 2-4x gain (highest ROI)
 - Phase 8: ~1 week for 2-4x gain
 - Phase 9: ~2 weeks for 2-8x gain (depending on implementation)
 
 ### 2. Benchmark Before Optimizing
+
 Always use the existing infrastructure before and after:
+
 ```bash
 # Run benchmarks
 pytest modules/xgboost_LTS/benchmarks/regression_test.py -v
@@ -584,25 +591,31 @@ python modules/xgboost_LTS/scripts/profile_xgboost.py
 ### 3. Platform-Specific Considerations
 
 **SIMD Flags (1.1)**:
+
 - `target-cpu=native` requires recompilation on deployment machine
 - Consider `target-cpu=x86-64-v3` (AVX2) for broader compatibility
 - Windows: May need `MSVC` or `GNU` toolchain flags
 
 **Rayon (1.2)**:
+
 - Adds overhead for small datasets (<1000 rows)
 - Best ROI for datasets >5000 rows
 - Consider disabling for interactive/real-time use
 
 **Early Stopping (1.3)**:
+
 - Requires validation set (already available from train/test split)
 - May need tuning `early_stopping_rounds` parameter
 
 **RAPIDS GPU (3.2)**:
+
 - Requires NVIDIA GPU with CUDA Compute Capability 3.5+
 - Installation can be complex; test in isolated environment first
 
 ### 4. Test Thoroughly
+
 Any optimization should be validated:
+
 ```bash
 # Run existing test suite
 pytest tests/xgboost_LTS/ -v
@@ -616,6 +629,7 @@ snakeviz /tmp/profile.prof
 ```
 
 ### 5. Maintain Backward Compatibility
+
 - Use config flags to enable/disable new optimizations
 - Default to proven approaches for stability
 - Provide easy rollback if issues arise
@@ -656,6 +670,7 @@ diff profile_before.prof profile_after.prof
 ## 🏁 Success Criteria
 
 ### Phase 7 Success
+
 - [x] SIMD flags configured in Cargo.toml
 - [x] Parallel CV enabled by default
 - [x] Early stopping implemented
@@ -663,13 +678,15 @@ diff profile_before.prof profile_after.prof
 - [ ] 2-4x speedup verified via benchmarks
 
 ### Phase 8 Success
+
 - [x] Rayon integrated into rolling operations
-- [ ] O(n log w) quantile algorithm implemented
+- [x] O(n log w) quantile algorithm implemented
 - [ ] Batch FFI calls working
 - [ ] 2-4x additional speedup verified
 - [ ] No regressions in accuracy/stability
 
 ### Phase 9 Success
+
 - [ ] Feature importance analysis completed
 - [ ] Lazy feature computation operational
 - [ ] Memory mapping implemented
@@ -688,6 +705,7 @@ A: Phase 7-8 are platform/implementation optimizations (no algorithm changes). P
 
 **Q: How do I know if an optimization is working?**
 A: Use the existing profiling and benchmark infrastructure:
+
 ```bash
 pytest modules/xgboost_LTS/benchmarks/regression_test.py -v
 ```

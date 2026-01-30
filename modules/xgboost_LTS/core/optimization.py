@@ -8,7 +8,10 @@ This module provides tools for automated hyperparameter tuning using Optuna, inc
 
 import json
 import os
+import random
 import re
+import sqlite3
+import time
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -472,7 +475,23 @@ class HyperparameterTuner:
             if OPTUNA_PARALLEL_TRIALS:
                 optimize_kwargs["n_jobs"] = OPTUNA_N_JOBS
 
-            study.optimize(lambda trial: self._objective(trial, X, y, n_splits=n_splits), **optimize_kwargs)
+            # Retry logic with exponential backoff for SQLite database locked errors
+            max_retries = 5
+            retry_count = 0
+            while retry_count < max_retries:
+                try:
+                    study.optimize(lambda trial: self._objective(trial, X, y, n_splits=n_splits), **optimize_kwargs)
+                    break  # Success, exit retry loop
+                except sqlite3.OperationalError as e:
+                    if "database is locked" in str(e) and retry_count < max_retries - 1:
+                        retry_count += 1
+                        wait_time = random.uniform(0.1, 0.5) * (2**retry_count)  # Exponential backoff
+                        log_warn(
+                            f"Database locked during optimization (attempt {retry_count}/{max_retries}). Retrying in {wait_time:.2f}s..."
+                        )
+                        time.sleep(wait_time)
+                    else:
+                        raise  # Re-raise if not a lock error or max retries reached
 
         # Check if optimization produced any successful trials
         if len(study.trials) == 0 or study.best_trial is None:

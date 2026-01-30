@@ -137,15 +137,20 @@ class CacheManager:
         # Convert price data to hashable format
         if PANDAS_AVAILABLE and isinstance(price_data, pd.Series):
             data_raw = price_data.values.tobytes()
+            # FIX: Include index in hash to avoid collisions when same values have different indices
+            index_raw = str(price_data.index.tolist()).encode()
         elif isinstance(price_data, np.ndarray):
             data_raw = price_data.tobytes()
+            index_raw = b""
         else:
             data_raw = str(price_data).encode()
+            index_raw = b""
 
         data_hash = hashlib.md5(data_raw).hexdigest()[:16]
+        index_hash = hashlib.md5(index_raw).hexdigest()[:8] if index_raw else "noindex"
 
         # Build key components
-        key_parts = [f"ma={ma_type}", f"len={length}", f"d={data_hash}"]
+        key_parts = [f"ma={ma_type}", f"len={length}", f"d={data_hash}", f"idx={index_hash}"]
 
         if extra_params:
             for k, v in sorted(extra_params.items()):
@@ -259,7 +264,13 @@ class CacheManager:
         with self._cache_lock:
             size_bytes = self._estimate_size(value)
             entry = CacheEntry(
-                key=key, value=value, timestamp=time.time(), hits=1, size_bytes=size_bytes, ma_type=ma_type, length=length
+                key=key,
+                value=value,
+                timestamp=time.time(),
+                hits=1,
+                size_bytes=size_bytes,
+                ma_type=ma_type,
+                length=length,
             )
 
             # L1 logic (Strict LRU if full)
@@ -270,7 +281,9 @@ class CacheManager:
             self._l1_cache[key] = entry
 
             # L2 logic (Hybrid LRU+LFU)
-            while len(self._l2_cache) >= self.max_entries_l2 or self._l2_size_bytes + size_bytes > self.max_size_bytes_l2:
+            while (
+                len(self._l2_cache) >= self.max_entries_l2 or self._l2_size_bytes + size_bytes > self.max_size_bytes_l2
+            ):
                 if not self._evict_l2():
                     break
 
@@ -594,7 +607,8 @@ def get_cached_ma(
     # Calculate
     result = calculator(price_data, length)
 
-    # Store
-    cache.put(ma_type, length, price_data, result, extra_params)
+    # FIX: Don't cache None results to avoid freezing error results
+    if result is not None:
+        cache.put(ma_type, length, price_data, result, extra_params)
 
     return result

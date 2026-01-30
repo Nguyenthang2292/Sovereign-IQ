@@ -49,6 +49,7 @@ def calculate_equity(
     cutout: int,
     use_rust: bool = True,
     use_cuda: bool = False,
+    floor_val: Optional[float] = None,
 ) -> np.ndarray:
     """
     Calculate equity with optional Rust (CPU/GPU) backend.
@@ -61,6 +62,7 @@ def calculate_equity(
         cutout: Number of bars to skip at beginning.
         use_rust: If True, attempts to use Rust CPU backend.
         use_cuda: If True, attempts to use Rust CUDA backend. Falls back to CPU if fails.
+        floor_val: Optional equity floor.
 
     Returns:
         np.ndarray: Array of equity values.
@@ -70,6 +72,8 @@ def calculate_equity(
     sig_prev = _ensure_numpy_array(sig_prev)
 
     if use_rust and RUST_AVAILABLE:
+        # NOTE: Rust backend might not support floor_val yet,
+        # it uses hardcoded 0.25 internally in most implementations
         if use_cuda:
             try:
                 return calculate_equity_cuda(r_values, sig_prev, starting_equity, decay_multiplier, cutout)
@@ -80,7 +84,9 @@ def calculate_equity(
     else:
         from .compute_equity.core import _calculate_equity_core
 
-        return _calculate_equity_core(r_values, sig_prev, starting_equity, decay_multiplier, cutout)
+        return _calculate_equity_core(
+            r_values, sig_prev, starting_equity, decay_multiplier, cutout, floor_val=floor_val
+        )
 
 
 def calculate_kama(

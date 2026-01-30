@@ -161,6 +161,10 @@ def apply_directional_labels(df: pd.DataFrame, use_cache: bool = True) -> pd.Dat
     Note:
         Rows without sufficient future data (last TARGET_HORIZON rows) will have NaN labels.
     """
+    # Store original DataFrame for caching (before any modifications)
+    # This ensures cache hash is consistent with original data
+    original_df = df.copy()
+
     # Empty DataFrame Handling
     if len(df) == 0:
         df["TargetLabel"] = pd.Series(dtype=object)
@@ -360,7 +364,8 @@ def apply_directional_labels(df: pd.DataFrame, use_cache: bool = True) -> pd.Dat
     gc.collect()
 
     # Save to cache (Task 3.2)
+    # Use original_df for cache key to ensure consistent hash
     if use_cache and cache_manager is not None and cache_config is not None:
-        cache_manager.save_labels(df, df, cache_config)
+        cache_manager.save_labels(df, original_df, cache_config)
 
     return df

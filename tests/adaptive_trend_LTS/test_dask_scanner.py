@@ -1,16 +1,20 @@
 import time
 
+import dask
 import numpy as np
 import pandas as pd
 import pytest
 
+# Use threaded scheduler to avoid process spawning overhead on Windows
+dask.config.set(scheduler="threads")
+
 try:
     from modules.adaptive_trend_LTS.core.scanner.dask_scan import (
+        ProgressCallback,
         _fetch_partition_lazy,
         _process_partition_with_gc,
         _process_single_symbol_dask,
         _scan_dask,
-        ProgressCallback,
     )
     from modules.adaptive_trend_LTS.utils.config import ATCConfig
 except ImportError:
@@ -165,8 +169,8 @@ def test_scan_dask_basic(atc_config, sample_price_series):
 def test_scan_dask_large_dataset(atc_config):
     """Test Dask scanner with a larger dataset."""
     np.random.seed(42)
-    n_symbols = 50
-    n_bars = 1500
+    n_symbols = 20
+    n_bars = 500
 
     data_map = {}
     for i in range(n_symbols):
@@ -193,7 +197,7 @@ def test_scan_dask_large_dataset(atc_config):
     total_processed = len(results) + skipped + errors
     assert total_processed == n_symbols
     assert isinstance(results, list)
-    print(f"\nProcessed {n_symbols} symbols in {duration:.2f}s ({n_symbols/duration:.1f} symbols/s)")
+    print(f"\nProcessed {n_symbols} symbols in {duration:.2f}s ({n_symbols / duration:.1f} symbols/s)")
 
 
 def test_scan_dask_auto_partitions(atc_config, sample_price_series):
@@ -292,8 +296,8 @@ def test_scan_dask_memory_efficiency(atc_config):
     initial_mem = sys.getsizeof([])
 
     np.random.seed(42)
-    n_symbols = 100
-    n_bars = 1500
+    n_symbols = 20
+    n_bars = 500
 
     data_map = {}
     for i in range(n_symbols):

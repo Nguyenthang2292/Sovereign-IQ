@@ -35,7 +35,7 @@ def test_cpu_batch_vs_python(sample_data):
 
     config = {
         "ema_len": 20,
-        "hull_len": 20,
+        "hma_len": 20,
         "wma_len": 20,
         "dema_len": 20,
         "lsma_len": 20,
@@ -72,7 +72,7 @@ def test_cpu_batch_vs_python(sample_data):
     rust_results = atc_rust.compute_atc_signals_batch_cpu(
         symbols_numpy,
         ema_len=config["ema_len"],
-        hull_len=config.get("hull_len", config["ema_len"]),
+        hull_len=config.get("hma_len", config["ema_len"]),
         wma_len=config.get("wma_len", config["ema_len"]),
         dema_len=config.get("dema_len", config["ema_len"]),
         lsma_len=config.get("lsma_len", config["ema_len"]),

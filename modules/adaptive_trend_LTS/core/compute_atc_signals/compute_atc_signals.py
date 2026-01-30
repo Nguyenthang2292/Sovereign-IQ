@@ -146,6 +146,20 @@ def compute_atc_signals(
     # Scaling is applied here to maintain compatibility with PineScript calculations
     # ⚠️ IMPORTANT: Do NOT pass ATCConfig.lambda_scaled or ATCConfig.decay_scaled here,
     #    as that would cause double-scaling. Always pass the unscaled values.
+
+    # Validate to prevent double-scaling: La should typically be in range (0.001, 1.0)
+    # If La < 0.0001, it's likely already scaled (e.g., 0.00002 instead of 0.02)
+    if La < 0.0001:
+        log_warn(
+            f"La={La} appears to be already scaled (expected unscaled value like 0.02). "
+            f"Double-scaling will produce incorrect results. Using La as-is."
+        )
+    if De < 0.0001:
+        log_warn(
+            f"De={De} appears to be already scaled (expected unscaled value like 0.03). "
+            f"Double-scaling will produce incorrect results. Using De as-is."
+        )
+
     La_scaled = La / 1000.0  # Matches ATCConfig.lambda_scaled property
     De_scaled = De / 100.0  # Matches ATCConfig.decay_scaled property
 
@@ -187,46 +201,56 @@ def compute_atc_signals(
             )
 
             # Helper to create 9-element tuple using diflen for variants
+            # FIX: Use src (or prices if src is None) instead of always using prices
+            ma_source = src if src is not None else prices
+
             def make_approx_tuple(func, length, **kwargs):
                 L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
                 lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
-                return tuple(func(prices, l, **kwargs) for l in lengths)
+                return tuple(func(ma_source, l, **kwargs) for l in lengths)
 
+            # FIX: Added base_tolerance (approximate_threshold) parameter
             ma_tuples["EMA"] = make_approx_tuple(
                 adaptive_ema_approx,
                 ema_len,
                 volatility_window=approximate_volatility_window,
                 volatility_factor=approximate_volatility_factor,
+                base_tolerance=approximate_threshold,
             )
             ma_tuples["HMA"] = make_approx_tuple(
                 adaptive_hma_approx,
                 hma_len,
                 volatility_window=approximate_volatility_window,
                 volatility_factor=approximate_volatility_factor,
+                base_tolerance=approximate_threshold,
             )
             ma_tuples["WMA"] = make_approx_tuple(
                 adaptive_wma_approx,
                 wma_len,
                 volatility_window=approximate_volatility_window,
                 volatility_factor=approximate_volatility_factor,
+                base_tolerance=approximate_threshold,
             )
             ma_tuples["DEMA"] = make_approx_tuple(
                 adaptive_dema_approx,
                 dema_len,
                 volatility_window=approximate_volatility_window,
                 volatility_factor=approximate_volatility_factor,
+                base_tolerance=approximate_threshold,
             )
             ma_tuples["LSMA"] = make_approx_tuple(
                 adaptive_lsma_approx,
                 lsma_len,
                 volatility_window=approximate_volatility_window,
                 volatility_factor=approximate_volatility_factor,
+                base_tolerance=approximate_threshold,
             )
             ma_tuples["KAMA"] = make_approx_tuple(
                 adaptive_kama_approx,
                 kama_len,
                 volatility_window=approximate_volatility_window,
                 volatility_factor=approximate_volatility_factor,
+                base_tolerance=approximate_threshold,
             )
         elif use_approximate:
             # Use basic approximate MAs for fast scanning
@@ -239,18 +263,22 @@ def compute_atc_signals(
                 fast_wma_approx,
             )
 
+            # FIX: Use src (or prices if src is None) for consistency
+            ma_source_basic = src if src is not None else prices
+
             # Helper to create 9-element tuple using diflen for variants
-            def make_approx_tuple(func, length):
+            # FIX: Added tolerance parameter support
+            def make_approx_tuple_basic(func, length):
                 L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
                 lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
-                return tuple(func(prices, l) for l in lengths)
+                return tuple(func(ma_source_basic, l, tolerance=approximate_threshold) for l in lengths)
 
-            ma_tuples["EMA"] = make_approx_tuple(fast_ema_approx, ema_len)
-            ma_tuples["HMA"] = make_approx_tuple(fast_hma_approx, hma_len)
-            ma_tuples["WMA"] = make_approx_tuple(fast_wma_approx, wma_len)
-            ma_tuples["DEMA"] = make_approx_tuple(fast_dema_approx, dema_len)
-            ma_tuples["LSMA"] = make_approx_tuple(fast_lsma_approx, lsma_len)
-            ma_tuples["KAMA"] = make_approx_tuple(fast_kama_approx, kama_len)
+            ma_tuples["EMA"] = make_approx_tuple_basic(fast_ema_approx, ema_len)
+            ma_tuples["HMA"] = make_approx_tuple_basic(fast_hma_approx, hma_len)
+            ma_tuples["WMA"] = make_approx_tuple_basic(fast_wma_approx, wma_len)
+            ma_tuples["DEMA"] = make_approx_tuple_basic(fast_dema_approx, dema_len)
+            ma_tuples["LSMA"] = make_approx_tuple_basic(fast_lsma_approx, lsma_len)
+            ma_tuples["KAMA"] = make_approx_tuple_basic(fast_kama_approx, kama_len)
         else:
             for ma_type, length, _ in ma_configs:
                 # use_rust_backend=True enables Rust backend
@@ -333,6 +361,8 @@ def compute_atc_signals(
     log_debug("Completed Layer 1 signals")
 
     # Adaptability Layer 2
+    from modules.adaptive_trend_LTS.core.compute_equity.core import get_equity_floor
+
     layer2_equities = calculate_layer2_equities(
         layer1_signals=layer1_signals,
         ma_configs=ma_configs,
@@ -343,6 +373,8 @@ def compute_atc_signals(
         parallel=parallel_l2,
         precision=precision,
         use_cuda=use_cuda,
+        use_rust_backend=use_rust_backend,
+        floor_val=get_equity_floor(),
     )
 
     # FINAL CALCULATIONS - Average Signal

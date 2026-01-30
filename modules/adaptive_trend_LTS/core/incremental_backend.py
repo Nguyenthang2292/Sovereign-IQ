@@ -65,7 +65,32 @@ def update_incremental_rust(
     log_debug(f"Updating incremental ATC with Rust backend, new_price={new_price}")
 
     try:
-        signal, updated_state = update_incremental_atc_rust(state, new_price)
+        # Scale parameters to match PineScript behavior if needed
+        # Rust backend expects unscaled values and handles scaling internally?
+        # Or does it expect scaled? ATCConfig property says lambda_scaled = La / 1000.
+        # Most of our Python code scales internally.
+
+        rust_config = {
+            "ema_len": config.get("ema_len", 28),
+            "hma_len": config.get("hma_len", 28),
+            "wma_len": config.get("wma_len", 28),
+            "dema_len": config.get("dema_len", 28),
+            "lsma_len": config.get("lsma_len", 28),
+            "kama_len": config.get("kama_len", 28),
+            "ema_w": config.get("ema_w", 1.0),
+            "hma_w": config.get("hma_w", 1.0),
+            "wma_w": config.get("wma_w", 1.0),
+            "dema_w": config.get("dema_w", 1.0),
+            "lsma_w": config.get("lsma_w", 1.0),
+            "kama_w": config.get("kama_w", 1.0),
+            "robustness": config.get("robustness", "Medium"),
+            "La": config.get("La", config.get("lambda_param", 0.02)),
+            "De": config.get("De", config.get("decay", 0.03)),
+            "long_threshold": config.get("long_threshold", 0.1),
+            "short_threshold": config.get("short_threshold", -0.1),
+        }
+
+        signal, updated_state = update_incremental_atc_rust(state, new_price, rust_config)
         log_debug(f"Rust update complete, signal={signal}")
         return signal, updated_state
     except Exception as e:

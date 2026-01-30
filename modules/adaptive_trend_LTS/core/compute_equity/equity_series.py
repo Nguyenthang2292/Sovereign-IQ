@@ -15,7 +15,8 @@ from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
 from modules.common.system import get_series_pool
 from modules.common.utils import log_error, log_warn
 
-from .core import _calculate_equity_core
+from modules.adaptive_trend_LTS.core.compute_equity.core import _calculate_equity_core, get_equity_floor
+
 
 __all__ = ["equity_series"]
 
@@ -186,6 +187,7 @@ def equity_series(
             decay_multiplier=d,
             cutout=cutout,
             out=equity.values,
+            floor_val=get_equity_floor(),
         )
 
         # If a copy was made, update the Series

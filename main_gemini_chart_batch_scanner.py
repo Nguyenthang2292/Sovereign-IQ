@@ -158,17 +158,20 @@ from modules.common.utils import configure_windows_stdio
 configure_windows_stdio()
 
 # Check Rust backends availability
-# For XGBoost, we'll check if the .pyd file exists directly or use a similar checker if available
-from pathlib import Path
+# For XGBoost, we'll check if the module can be imported
 
 from modules.adaptive_trend_LTS.utils.rust_build_checker import check_rust_backend as check_atc_rust
 
 
 def check_xgboost_rust():
-    xgb_rust_dir = Path(__file__).parent / "modules" / "xgboost_LTS" / "rust_extensions"
-    # On Windows it's .pyd, on Linux/Mac it's .so
-    has_pyd = list(xgb_rust_dir.glob("xgboost_rust*.pyd")) or list(xgb_rust_dir.glob("xgboost_rust*.so"))
-    return {"available": bool(has_pyd)}
+    try:
+        import importlib.util
+
+        if importlib.util.find_spec("xgboost_rust") is not None:
+            return {"available": True}
+    except ImportError:
+        pass
+    return {"available": False}
 
 
 def load_config_for_backend_check():

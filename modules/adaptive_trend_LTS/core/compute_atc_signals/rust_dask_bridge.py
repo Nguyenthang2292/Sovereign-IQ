@@ -353,7 +353,10 @@ def process_symbols_rust_dask(
 
     results_bag = partitions_bag.map(_process_partition)
 
-    results_list = results_bag.compute()
+    # Optimization: For small batches, avoid process spawning overhead (especially on Windows)
+    # Use threads for small batches, processes for large ones to bypass GIL
+    scheduler = "threads" if symbols_count < 200 else "processes"
+    results_list = results_bag.compute(scheduler=scheduler)
 
     final_results = {}
     for partition_results in results_list:
