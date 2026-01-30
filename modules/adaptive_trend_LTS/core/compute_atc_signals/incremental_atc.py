@@ -53,12 +53,15 @@ class IncrementalATC:
         # State variables
         self.ma_length = {
             "ema": config.get("ema_len", 28),
-            "hma": config.get("hull_len", 28),
+            "hma": config.get("hma_len", 28),
             "wma": config.get("wma_len", 28),
             "dema": config.get("dema_len", 28),
             "lsma": config.get("lsma_len", 28),
             "kama": config.get("kama_len", 28),
         }
+
+        # Robustness setting affects the 9 MA variations
+        self.robustness = config.get("robustness", "Medium")
 
         # Use O(1) MA implementations if configured
         self.use_o1_mas = config.get("use_o1_mas", True)
@@ -67,13 +70,20 @@ class IncrementalATC:
         self.use_rust_incremental = config.get("use_rust_incremental", True)
 
         max_history = max(self.ma_length.values()) + 1
+        # Track all 9 MA variations (MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4) per type
+        # to match full calculation behavior and prevent state drift
         self.state = {
-            "ma_values": {},  # Last MA values (EMA, HMA, WMA, DEMA, LSMA, KAMA)
-            "ema2_values": {},  # EMA(EMA) values for DEMA
-            "equity": None,  # Last equity value
-            "signal": None,  # Last signal value
+            "ma_values": {},  # Dict of {ma_type: [ma, ma1, ma2, ma3, ma4, ma_1, ma_2, ma_3, ma_4]}
+            "ema2_values": {},  # EMA(EMA) values for DEMA (all 9 variations)
+            "signals_l1": {},  # Dict of {ma_type: [s, s1, s2, s3, s4, s_1, s_2, s_3, s_4]}
+            "equity_l1": {},  # Dict of {ma_type: [E, E1, E2, E3, E4, E_1, E_2, E_3, E_4]}
+            "layer1_signals": {},  # Dict of {ma_type: last weighted Layer 1 signal}
+            "equity": None,  # Last Layer 2 equity values per MA type
+            "signal": None,  # Last Average_Signal value
+            "average_signal": None,
             "price_history": deque(maxlen=max_history),  # Price window
             "initialized": False,
+            "bar_index": None,
         }
 
         # Initialize O(1) MA objects
@@ -138,6 +148,15 @@ class IncrementalATC:
 
         # Restore state
         instance.state = state_data
+
+        # Ensure new keys exist for backward compatibility
+        instance.state.setdefault("signals_l1", {})
+        instance.state.setdefault("equity_l1", {})
+        instance.state.setdefault("layer1_signals", {})
+        instance.state.setdefault("equity", None)
+        instance.state.setdefault("signal", None)
+        instance.state.setdefault("average_signal", None)
+        instance.state.setdefault("bar_index", None)
 
         # Convert lists back to deques
         max_history = max(instance.ma_length.values()) + 1
@@ -218,10 +237,10 @@ class IncrementalATC:
                 length=length,
                 source=prices,
                 ma_type=ma_type,
-                robustness="Medium",
+                robustness=self.robustness,
                 use_cache=False,
-                use_rust=True,
-                use_cuda=False,
+                use_rust=self.config.get("use_rust_backend", True),
+                use_cuda=self.config.get("use_cuda", False),
             )
             ma_tuples[ma_type] = ma_tuple
 
@@ -246,48 +265,59 @@ class IncrementalATC:
 
         Returns:
             Updated signal value
+
+        Raises:
+            RuntimeError: If initialize() was not called or state is invalid
         """
         if not self.state["initialized"]:
             raise RuntimeError("Must call initialize() before update()")
 
+        # Validate price history has minimum required data
+        min_required_history = max(self.ma_length.values())
+        if len(self.state["price_history"]) < min_required_history - 1:
+            raise RuntimeError(
+                f"Insufficient price history. Need at least {min_required_history - 1} bars before update(), "
+                f"but only have {len(self.state['price_history'])}. Call initialize() with sufficient data first."
+            )
+
         log_debug(f"Updating with new_price={new_price}")
+
+        prev_price = self.state["price_history"][-1] if self.state["price_history"] else new_price
 
         # Add to history
         self.state["price_history"].append(new_price)
 
-        # Try Rust backend first if configured
+        if self.state.get("bar_index") is None:
+            self.state["bar_index"] = len(self.state["price_history"]) - 1
+        else:
+            self.state["bar_index"] += 1
+
+        # Try Rust backend first if configured and available
         if self.use_rust_incremental:
             try:
-                from .incremental_backend import update_incremental_auto
+                from .incremental_backend import check_rust_available, update_incremental_auto
 
-                signal, updated_state = update_incremental_auto(self.state, new_price, self.config)
+                if check_rust_available():
+                    signal, updated_state = update_incremental_auto(self.state, new_price, self.config)
 
-                # Update state from Rust response
-                self.state = updated_state
-                self.state["signal"] = signal
-                log_debug(f"Rust update complete, signal={signal}")
-                return signal
-            except ImportError:
+                    # Update state from Rust response
+                    self.state = updated_state
+                    self.state["signal"] = signal
+                    self.state["average_signal"] = signal
+                    log_debug(f"Rust update complete, signal={signal}")
+                    return signal
+
                 log_warn("Rust backend not available, falling back to Python")
-                self.use_rust_incremental = False
             except Exception as e:
                 log_warn(f"Rust backend failed: {e}, falling back to Python")
-                self.use_rust_incremental = False
+
+        prev_ma_values = {k: list(v) for k, v in self.state["ma_values"].items() if isinstance(v, list)}
 
         # Update MA states incrementally
-        self._update_mas(new_price)
+        self._update_mas(new_price, prev_ma_values=prev_ma_values)
         log_debug(f"After MAs update: {self.state['ma_values']}")
 
-        # Update Layer 1 signal
-        signal_l1 = self._update_layer1_signal()
-        log_debug(f"Layer 1 signal: {signal_l1}")
-
-        # Update Layer 2 equity
-        self._update_equity(signal_l1)
-        log_debug(f"Equity: {self.state['equity']}")
-
-        # Calculate final signal
-        signal = self._calculate_final_signal()
+        signal = self._update_python_incremental(prev_price=prev_price, prev_ma_values=prev_ma_values)
         log_debug(f"Final signal: {signal}")
 
         self.state["signal"] = signal
@@ -307,18 +337,179 @@ class IncrementalATC:
             signals.append(self.update(price))
         return signals
 
+    def _update_python_incremental(self, prev_price: float, prev_ma_values: Dict[str, list]) -> float:
+        """Python incremental update that matches full ATC logic for current bar.
+
+        Notes:
+            The full-batch path sets cutout bars to NaN; incremental returns 0.0
+            for bars before cutout. This is an intentional behavioral difference
+            that treats cutout as neutral signal in streaming mode.
+        """
+        if not self.state["price_history"]:
+            return 0.0
+
+        new_price = self.state["price_history"][-1]
+        bar_index = int(self.state.get("bar_index") or 0)
+
+        L_scaled, De_scaled = self._scaled_params()
+        cutout = int(self.config.get("cutout", 0))
+        long_threshold = float(self.config.get("long_threshold", 0.1))
+        short_threshold = float(self.config.get("short_threshold", -0.1))
+        strategy_mode = bool(self.config.get("strategy_mode", False))
+
+        # Rate of change and growth factor
+        if prev_price is None or prev_price == 0 or np.isnan(prev_price) or np.isnan(new_price):
+            r_raw = 0.0
+        else:
+            r_raw = (new_price - prev_price) / prev_price
+
+        growth = self._growth_factor(bar_index, cutout, L_scaled)
+        r_adj = r_raw * growth
+        d = 1.0 - De_scaled
+
+        ma_types_lower = ["ema", "hma", "wma", "dema", "lsma", "kama"]
+        layer1_signals: Dict[str, float] = {}
+
+        if self.state["equity"] is None:
+            self.state["equity"] = {}
+
+        # Update per-variation signals and Layer 1 equities
+        for ma_key in ma_types_lower:
+            ma_type = ma_key.upper()
+            curr_ma_list = self.state["ma_values"].get(ma_key)
+            if not isinstance(curr_ma_list, list) or len(curr_ma_list) != 9:
+                continue
+
+            prev_ma_list = prev_ma_values.get(ma_key)
+            prev_signals = self.state["signals_l1"].get(ma_key, [0.0] * 9)
+            prev_equities = self.state["equity_l1"].get(ma_key, [np.nan] * 9)
+
+            new_signals = []
+            new_equities = []
+            numer = 0.0
+            denom = 0.0
+
+            for i in range(9):
+                prev_ma = (
+                    prev_ma_list[i] if isinstance(prev_ma_list, list) and len(prev_ma_list) == 9 else curr_ma_list[i]
+                )
+                curr_ma = curr_ma_list[i]
+                prev_sig = prev_signals[i] if i < len(prev_signals) else 0.0
+
+                up = prev_price <= prev_ma and new_price > curr_ma
+                down = prev_price >= prev_ma and new_price < curr_ma
+                if up:
+                    sig = 1.0
+                elif down:
+                    sig = -1.0
+                else:
+                    sig = prev_sig
+
+                prev_e = prev_equities[i] if i < len(prev_equities) else np.nan
+                if np.isnan(prev_e):
+                    e_curr = 1.0
+                else:
+                    if prev_sig > 0:
+                        a = r_adj
+                    elif prev_sig < 0:
+                        a = -r_adj
+                    else:
+                        a = 0.0
+                    e_curr = (prev_e * d) * (1.0 + a)
+
+                if e_curr < 0.25:
+                    e_curr = 0.25
+
+                new_signals.append(sig)
+                new_equities.append(e_curr)
+                numer += sig * e_curr
+                denom += e_curr
+
+            self.state["signals_l1"][ma_key] = new_signals
+            self.state["equity_l1"][ma_key] = new_equities
+
+            layer1_signals[ma_type] = numer / denom if denom != 0 else 0.0
+
+        # Update Layer 2 equities (per MA type) using previous layer1 signals
+        initial_weights = self._initial_weights()
+        new_layer2 = {}
+        for ma_type in ["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"]:
+            prev_layer1 = self.state["layer1_signals"].get(ma_type, 0.0)
+            prev_eq2 = self.state["equity"].get(ma_type, np.nan) if self.state["equity"] else np.nan
+
+            if bar_index < cutout:
+                eq2 = np.nan
+            else:
+                if prev_layer1 > 0:
+                    a2 = r_adj
+                elif prev_layer1 < 0:
+                    a2 = -r_adj
+                else:
+                    a2 = 0.0
+
+                if np.isnan(prev_eq2):
+                    eq2 = initial_weights.get(ma_type, 1.0)
+                else:
+                    eq2 = (prev_eq2 * d) * (1.0 + a2)
+
+                if eq2 < 0.25:
+                    eq2 = 0.25
+
+            new_layer2[ma_type] = eq2
+
+        self.state["layer1_signals"] = layer1_signals
+        self.state["equity"] = new_layer2
+
+        # Compute final Average_Signal for current bar
+        nom = 0.0
+        den = 0.0
+        for ma_type, eq2 in new_layer2.items():
+            weight = eq2 if np.isfinite(eq2) else 0.0
+            if weight == 0.0:
+                continue
+            sig_val = layer1_signals.get(ma_type, 0.0)
+            if sig_val > long_threshold:
+                c = 1.0
+            elif sig_val < short_threshold:
+                c = -1.0
+            else:
+                c = 0.0
+            nom += c * weight
+            den += weight
+
+        avg_current = nom / den if den != 0 else 0.0
+        if bar_index < cutout:
+            avg_current = 0.0
+
+        prev_avg = self.state.get("average_signal")
+        self.state["average_signal"] = avg_current
+
+        if strategy_mode:
+            return float(prev_avg) if prev_avg is not None else 0.0
+        return avg_current
+
     def reset(self):
         """Reset state (for new symbol or configuration change)."""
         log_debug("Resetting incremental ATC state")
         max_history = max(self.ma_length.values()) + 1
         self.state = {
-            "ma_values": {},
-            "ema2_values": {},
+            "ma_values": {},  # Dict of {ma_type: [ma, ma1, ma2, ma3, ma4, ma_1, ma_2, ma_3, ma_4]}
+            "ema2_values": {},  # Dict of {ma_type: [ema2_0, ..., ema2_8]} for DEMA
+            "signals_l1": {},
+            "equity_l1": {},
+            "layer1_signals": {},
             "equity": None,
             "signal": None,
+            "average_signal": None,
             "price_history": deque(maxlen=max_history),
             "initialized": False,
+            "bar_index": None,
         }
+
+        # Clear HMA input histories for all variations
+        for key in list(self.state.keys()):
+            if key.startswith("hma_input_history_"):
+                del self.state[key]
 
         # Reset O(1) MA objects
         if self.use_o1_mas:
@@ -329,20 +520,54 @@ class IncrementalATC:
         """Extract state from full calculation results."""
         log_debug(f"Extracting state from results. Available keys: {list(results.keys())}")
 
-        # Extract MA values from ma_tuples (primary MA is at index 0)
+        # Extract MA values from ma_tuples - store ALL 9 variations (MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4)
+        # This is critical to prevent state drift between full calculation and incremental updates
         for ma_type, ma_tuple in ma_tuples.items():
-            if ma_tuple is not None:
-                ma_values = ma_tuple[0]  # Primary MA is at index 0
-                self.state["ma_values"][ma_type.lower()] = ma_values.iloc[-1]
-                log_debug(f"Extracted {ma_type.lower()}: {self.state['ma_values'][ma_type.lower()]}")
+            if ma_tuple is not None and len(ma_tuple) == 9:
+                # Store all 9 MA variations as a list: [ma, ma1, ma2, ma3, ma4, ma_1, ma_2, ma_3, ma_4]
+                self.state["ma_values"][ma_type.lower()] = [ma.iloc[-1] for ma in ma_tuple]
+                log_debug(f"Extracted {ma_type.lower()} with 9 variations: {self.state['ma_values'][ma_type.lower()]}")
+            elif ma_tuple is not None:
+                # Fallback if tuple doesn't have 9 elements
+                self.state["ma_values"][ma_type.lower()] = [ma_tuple[0].iloc[-1]] * 9
+                log_warn(f"MA tuple for {ma_type} has {len(ma_tuple)} elements, expected 9. Using primary MA for all.")
 
-        # Extract EMA2 for DEMA
-        ema_val = self.state["ma_values"].get("ema")
-        dema_val = self.state["ma_values"].get("dema")
-        if ema_val is not None and dema_val is not None:
+        # Extract EMA2 for DEMA (using primary MA at index 0)
+        ema_list = self.state["ma_values"].get("ema")
+        dema_list = self.state["ma_values"].get("dema")
+        if ema_list is not None and dema_list is not None:
             # DEMA = 2*EMA - EMA2 -> EMA2 = 2*EMA - DEMA
-            self.state["ema2_values"]["dema"] = 2 * ema_val - dema_val
-            log_debug(f"Extracted ema2_values[dema]: {self.state['ema2_values']['dema']}")
+            # Calculate EMA2 for all 9 variations
+            self.state["ema2_values"]["dema"] = [2 * ema_list[i] - dema_list[i] for i in range(9)]
+            log_debug(f"Extracted ema2_values[dema] with 9 variations: {self.state['ema2_values']['dema']}")
+
+        # Extract per-variation Layer 1 signals and equities for incremental updates
+        try:
+            from modules.adaptive_trend_LTS.core.process_layer1.layer1_signal import _layer1_signal_for_ma
+            from modules.adaptive_trend_LTS.utils.rate_of_change import rate_of_change
+
+            L_scaled, De_scaled = self._scaled_params()
+            R = rate_of_change(prices)
+
+            for ma_type, ma_tuple in ma_tuples.items():
+                if ma_tuple is None:
+                    continue
+                try:
+                    signal_series, signals_tuple, equity_tuple = _layer1_signal_for_ma(
+                        prices=prices,
+                        ma_tuple=ma_tuple,
+                        L=L_scaled,
+                        De=De_scaled,
+                        R=R,
+                    )
+                    self.state["signals_l1"][ma_type.lower()] = [float(s.iloc[-1]) for s in signals_tuple]
+                    self.state["equity_l1"][ma_type.lower()] = [float(e.iloc[-1]) for e in equity_tuple]
+                    if signal_series is not None and len(signal_series) > 0:
+                        self.state["layer1_signals"][ma_type] = float(signal_series.iloc[-1])
+                except Exception as e:
+                    log_warn(f"Failed to extract layer1 state for {ma_type}: {e}")
+        except Exception as e:
+            log_warn(f"Failed to extract per-variation layer1 state: {e}")
 
         # Get Layer 2 equities (stored as {MA_TYPE}_S in results)
         equity_keys = [k for k in results.keys() if k.endswith("_S")]
@@ -361,144 +586,303 @@ class IncrementalATC:
         else:
             log_warn("EMA_S not found in results")
 
+        if "Average_Signal" in results and len(results["Average_Signal"]) > 0:
+            self.state["average_signal"] = float(results["Average_Signal"].iloc[-1])
+            self.state["signal"] = self.state["average_signal"]
+
         # Populate price history
         self.state["price_history"].clear()
         self.state["price_history"].extend(prices.tolist())
         log_debug(f"Price history populated with {len(self.state['price_history'])} prices")
 
-    def _update_mas(self, new_price: float):
+        self.state["bar_index"] = len(prices) - 1
+
+    def _update_mas(self, new_price: float, prev_ma_values: Optional[Dict[str, list]] = None):
         """Update all MA states incrementally."""
-        self._update_ema(new_price, self.ma_length["ema"])
+        prev_emas = None
+        if prev_ma_values:
+            prev_emas = prev_ma_values.get("ema")
+
+        new_emas = self._update_ema(new_price, self.ma_length["ema"], prev_emas=prev_emas)
         self._update_hma(new_price, self.ma_length["hma"])
         self._update_wma(new_price, self.ma_length["wma"])
-        self._update_dema(new_price, self.ma_length["dema"])
+        self._update_dema(new_price, self.ma_length["dema"], prev_emas=prev_emas, new_emas=new_emas)
         self._update_lsma(new_price, self.ma_length["lsma"])
         self._update_kama(new_price, self.ma_length["kama"])
 
-    def _update_ema(self, new_price: float, length: int):
-        """Update EMA incrementally."""
-        alpha = 2.0 / (length + 1.0)
-        prev_ema = self.state["ma_values"].get("ema", new_price)
-        new_ema = alpha * new_price + (1 - alpha) * prev_ema
-        self.state["ma_values"]["ema"] = new_ema
+    def _scaled_params(self) -> tuple[float, float]:
+        """Return scaled lambda and decay parameters (PineScript-compatible)."""
+        la = self.config.get("La", self.config.get("lambda_param", 0.02))
+        de = self.config.get("De", self.config.get("decay", 0.03))
+        return la / 1000.0, de / 100.0
+
+    def _growth_factor(self, bar_index: int, cutout: int, L: float) -> float:
+        """Compute exp growth factor for a single bar index."""
+        bar_val = 1 if bar_index == 0 else bar_index
+        if bar_val < cutout:
+            return 1.0
+        try:
+            return float(np.e ** (L * (bar_val - cutout)))
+        except OverflowError:
+            return float(np.finfo(np.float64).max)
+
+    def _initial_weights(self) -> Dict[str, float]:
+        """Get initial equity weights per MA type from config."""
+        return {
+            "EMA": float(self.config.get("ema_w", 1.0)),
+            "HMA": float(self.config.get("hma_w", 1.0)),
+            "WMA": float(self.config.get("wma_w", 1.0)),
+            "DEMA": float(self.config.get("dema_w", 1.0)),
+            "LSMA": float(self.config.get("lsma_w", 1.0)),
+            "KAMA": float(self.config.get("kama_w", 1.0)),
+        }
+
+    def _update_ema(self, new_price: float, length: int, prev_emas: Optional[list] = None) -> list:
+        """Update EMA incrementally for all 9 variations."""
+        from modules.adaptive_trend_LTS.utils.diflen import diflen
+
+        # Get 8 offset lengths based on robustness
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=self.robustness)
+
+        # All 9 lengths: base + 8 offsets
+        lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
+
+        # Get previous EMAs for all 9 variations (or use new_price as initial)
+        if not isinstance(prev_emas, list) or len(prev_emas) != 9:
+            prev_emas = self.state["ma_values"].get("ema")
+        if not isinstance(prev_emas, list) or len(prev_emas) != 9:
+            prev_emas = [new_price] * 9
+
+        # Calculate new EMA for each variation
+        new_emas = []
+        for i, ln in enumerate(lengths):
+            alpha = 2.0 / (ln + 1.0)
+            new_ema = alpha * new_price + (1 - alpha) * prev_emas[i]
+            new_emas.append(new_ema)
+
+        self.state["ma_values"]["ema"] = new_emas
+        return new_emas
 
     def _update_wma(self, new_price: float, length: int, ma_key: str = "wma"):
-        """Update WMA incrementally."""
-        if self.use_o1_mas and ma_key == "wma" and ma_key in self.o1_mas:
-            self.state["ma_values"][ma_key] = self.o1_mas[ma_key].update(new_price)
-            return
+        """Update WMA incrementally for all 9 variations."""
+        from modules.adaptive_trend_LTS.utils.diflen import diflen
+
+        # If using O(1) MAs for primary wma, we still need to calculate variations separately
+        # O(1) implementation only handles the primary length
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=self.robustness)
+        lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
         prices = list(self.state["price_history"])
-        if len(prices) < length:
-            self.state["ma_values"][ma_key] = new_price
-            return
 
-        window = prices[-length:]
-        weights = np.arange(1, length + 1)
-        wma = np.dot(window, weights) / weights.sum()
-        self.state["ma_values"][ma_key] = wma
+        # Get previous WMAs for all 9 variations
+        prev_wmas = self.state["ma_values"].get(ma_key)
+        if not isinstance(prev_wmas, list) or len(prev_wmas) != 9:
+            prev_wmas = [new_price] * 9
+
+        new_wmas = []
+        for i, ln in enumerate(lengths):
+            if len(prices) < ln:
+                new_wmas.append(new_price)
+                continue
+
+            window = prices[-ln:]
+            weights = np.arange(1, ln + 1)
+            wma = np.dot(window, weights) / weights.sum()
+            new_wmas.append(wma)
+
+        self.state["ma_values"][ma_key] = new_wmas
+
+        # Update O(1) MA if configured (for primary length only)
+        if self.use_o1_mas and ma_key == "wma" and ma_key in self.o1_mas:
+            # O(1) MA update happens in parallel but we use calculated values above
+            self.o1_mas[ma_key].update(new_price)
 
     def _update_hma(self, new_price: float, length: int):
-        """Update HMA incrementally."""
-        if self.use_o1_mas and "hma" in self.o1_mas:
-            self.state["ma_values"]["hma"] = self.o1_mas["hma"].update(new_price)
-            return
+        """Update HMA incrementally for all 9 variations."""
+        from modules.adaptive_trend_LTS.utils.diflen import diflen
 
-        half_len = max(1, length // 2)
-        sqrt_len = max(1, int(np.sqrt(length)))
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=self.robustness)
+        lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
-        self._update_wma(new_price, half_len, "wma_half")
-        self._update_wma(new_price, length, "wma_full")
+        sqrt_lengths = [max(1, int(np.sqrt(ln))) for ln in lengths]
+        half_lengths = [max(1, ln // 2) for ln in lengths]
 
-        wma_half = self.state["ma_values"].get("wma_half", new_price)
-        wma_full = self.state["ma_values"].get("wma_full", new_price)
+        # Get previous HMAs
+        prev_hmas = self.state["ma_values"].get("hma")
+        if not isinstance(prev_hmas, list) or len(prev_hmas) != 9:
+            prev_hmas = [new_price] * 9
 
-        hma_input_val = 2 * wma_half - wma_full
+        new_hmas = []
+        for i, ln in enumerate(lengths):
+            half_len = half_lengths[i]
+            sqrt_len = sqrt_lengths[i]
 
-        if "hma_input_history" not in self.state:
-            self.state["hma_input_history"] = deque(maxlen=sqrt_len)
-        self.state["hma_input_history"].append(hma_input_val)
+            # Calculate WMA of half length
+            prices = list(self.state["price_history"])
+            if len(prices) < half_len:
+                wma_half = new_price
+            else:
+                window = prices[-half_len:]
+                weights = np.arange(1, half_len + 1)
+                wma_half = np.dot(window, weights) / weights.sum()
 
-        if len(self.state["hma_input_history"]) >= sqrt_len:
-            weights = np.arange(1, sqrt_len + 1)
-            hma = np.dot(list(self.state["hma_input_history"]), weights) / weights.sum()
-            self.state["ma_values"]["hma"] = hma
-        else:
-            self.state["ma_values"]["hma"] = hma_input_val
+            # Calculate WMA of full length
+            if len(prices) < ln:
+                wma_full = new_price
+            else:
+                window = prices[-ln:]
+                weights = np.arange(1, ln + 1)
+                wma_full = np.dot(window, weights) / weights.sum()
 
-    def _update_dema(self, new_price: float, length: int):
-        """Update DEMA incrementally."""
-        alpha = 2.0 / (length + 1.0)
+            hma_input_val = 2 * wma_half - wma_full
 
-        prev_ema = self.state["ma_values"].get("ema", new_price)
-        new_ema = alpha * new_price + (1 - alpha) * prev_ema
-        self.state["ma_values"]["ema"] = new_ema
+            # Store hma_input for each variation in separate history
+            hma_hist_key = f"hma_input_history_{i}"
+            if hma_hist_key not in self.state:
+                self.state[hma_hist_key] = deque(maxlen=sqrt_len)
+            self.state[hma_hist_key].append(hma_input_val)
 
-        prev_ema2 = self.state["ema2_values"].get("dema", new_ema)
-        new_ema2 = alpha * new_ema + (1 - alpha) * prev_ema2
-        self.state["ema2_values"]["dema"] = new_ema2
+            if len(self.state[hma_hist_key]) >= sqrt_len:
+                weights = np.arange(1, sqrt_len + 1)
+                hma = np.dot(list(self.state[hma_hist_key]), weights) / weights.sum()
+            else:
+                hma = hma_input_val
 
-        self.state["ma_values"]["dema"] = 2 * new_ema - new_ema2
+            new_hmas.append(hma)
+
+        self.state["ma_values"]["hma"] = new_hmas
+
+    def _update_dema(
+        self, new_price: float, length: int, prev_emas: Optional[list] = None, new_emas: Optional[list] = None
+    ):
+        """Update DEMA incrementally for all 9 variations."""
+        from modules.adaptive_trend_LTS.utils.diflen import diflen
+
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=self.robustness)
+        lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
+
+        # Get previous EMAs and EMA2s for all variations
+        if not isinstance(prev_emas, list) or len(prev_emas) != 9:
+            prev_emas = self.state["ma_values"].get("ema")
+        if not isinstance(prev_emas, list) or len(prev_emas) != 9:
+            prev_emas = [new_price] * 9
+
+        prev_ema2s = self.state["ema2_values"].get("dema")
+        if not isinstance(prev_ema2s, list) or len(prev_ema2s) != 9:
+            prev_ema2s = prev_emas.copy()
+
+        if not isinstance(new_emas, list) or len(new_emas) != 9:
+            new_emas = []
+        new_ema2s = []
+        new_demas = []
+
+        for i, ln in enumerate(lengths):
+            alpha = 2.0 / (ln + 1.0)
+
+            # Update first EMA
+            if new_emas:
+                new_ema = new_emas[i]
+            else:
+                new_ema = alpha * new_price + (1 - alpha) * prev_emas[i]
+                new_emas.append(new_ema)
+
+            # Update second EMA (EMA of EMA)
+            new_ema2 = alpha * new_ema + (1 - alpha) * prev_ema2s[i]
+            new_ema2s.append(new_ema2)
+
+            # Calculate DEMA = 2*EMA - EMA2
+            dema = 2 * new_ema - new_ema2
+            new_demas.append(dema)
+
+        self.state["ma_values"]["ema"] = new_emas
+        self.state["ema2_values"]["dema"] = new_ema2s
+        self.state["ma_values"]["dema"] = new_demas
 
     def _update_lsma(self, new_price: float, length: int):
-        """Update LSMA incrementally."""
-        if self.use_o1_mas and "lsma" in self.o1_mas:
-            self.state["ma_values"]["lsma"] = self.o1_mas["lsma"].update(new_price)
-            return
+        """Update LSMA incrementally for all 9 variations."""
+        from modules.adaptive_trend_LTS.utils.diflen import diflen
+
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=self.robustness)
+        lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
         prices = list(self.state["price_history"])
-        if len(prices) < length:
-            self.state["ma_values"]["lsma"] = new_price
-            return
 
-        window = prices[-length:]
-        x = np.arange(length)
-        y = np.array(window)
+        # Get previous LSMAs
+        prev_lsmas = self.state["ma_values"].get("lsma")
+        if not isinstance(prev_lsmas, list) or len(prev_lsmas) != 9:
+            prev_lsmas = [new_price] * 9
 
-        n = length
-        sum_x = n * (n - 1) / 2
-        sum_x2 = n * (n - 1) * (2 * n - 1) / 6
-        sum_y = np.sum(y)
-        sum_xy = np.dot(x, y)
+        new_lsmas = []
+        for i, ln in enumerate(lengths):
+            if len(prices) < ln:
+                new_lsmas.append(new_price)
+                continue
 
-        denom = n * sum_x2 - sum_x**2
-        if denom == 0:
-            self.state["ma_values"]["lsma"] = new_price
-            return
+            window = prices[-ln:]
+            x = np.arange(ln)
+            y = np.array(window)
 
-        slope = (n * sum_xy - sum_x * sum_y) / denom
-        intercept = (sum_y - slope * sum_x) / n
-        lsma = intercept + slope * (n - 1)
-        self.state["ma_values"]["lsma"] = lsma
+            n = ln
+            sum_x = n * (n - 1) / 2
+            sum_x2 = n * (n - 1) * (2 * n - 1) / 6
+            sum_y = np.sum(y)
+            sum_xy = np.dot(x, y)
+
+            denom = n * sum_x2 - sum_x**2
+            if denom == 0:
+                new_lsmas.append(new_price)
+                continue
+
+            slope = (n * sum_xy - sum_x * sum_y) / denom
+            intercept = (sum_y - slope * sum_x) / n
+            lsma = intercept + slope * (n - 1)
+            new_lsmas.append(lsma)
+
+        self.state["ma_values"]["lsma"] = new_lsmas
 
     def _update_kama(self, new_price: float, length: int):
-        """Update KAMA incrementally."""
-        if self.use_o1_mas and "kama" in self.o1_mas:
-            self.state["ma_values"]["kama"] = self.o1_mas["kama"].update(new_price)
-            return
+        """Update KAMA incrementally for all 9 variations."""
+        from modules.adaptive_trend_LTS.utils.diflen import diflen
 
-        prev_kama = self.state["ma_values"].get("kama", new_price)
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=self.robustness)
+        lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
         prices = list(self.state["price_history"])
-        if len(prices) < length + 1:
-            self.state["ma_values"]["kama"] = new_price
-            return
 
-        window = prices[-(length + 1) :]
-        change = abs(window[-1] - window[0])
-        volatility = sum(abs(window[i] - window[i - 1]) for i in range(1, len(window)))
+        # Get previous KAMAs
+        prev_kamas = self.state["ma_values"].get("kama")
+        if not isinstance(prev_kamas, list) or len(prev_kamas) != 9:
+            prev_kamas = [new_price] * 9
 
-        er = change / volatility if volatility != 0 else 0
-        fast_sc = 2 / (2.0 + 1)
-        slow_sc = 2 / (30.0 + 1)
-        sc = (er * (fast_sc - slow_sc) + slow_sc) ** 2
+        new_kamas = []
+        for i, ln in enumerate(lengths):
+            prev_kama = prev_kamas[i]
 
-        new_kama = prev_kama + sc * (new_price - prev_kama)
-        self.state["ma_values"]["kama"] = new_kama
+            if len(prices) < ln + 1:
+                new_kamas.append(new_price)
+                continue
+
+            window = prices[-(ln + 1) :]
+            change = abs(window[-1] - window[0])
+            volatility = sum(abs(window[j] - window[j - 1]) for j in range(1, len(window)))
+
+            er = change / volatility if volatility != 0 else 0
+            fast_sc = 2 / (2.0 + 1)
+            slow_sc = 2 / (30.0 + 1)
+            sc = (er * (fast_sc - slow_sc) + slow_sc) ** 2
+
+            new_kama = prev_kama + sc * (new_price - prev_kama)
+            new_kamas.append(new_kama)
+
+        self.state["ma_values"]["kama"] = new_kamas
 
     def _update_layer1_signal(self) -> float:
-        """Calculate Layer 1 signal from current MA states."""
-        from modules.adaptive_trend_enhance.core.process_layer1.layer1_signal import _layer1_signal_for_ma
+        """Calculate Layer 1 signal from current MA states using all 9 variations.
+
+        This method now properly uses all 9 MA variations (MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4)
+        to match the full calculation behavior and prevent state drift.
+        """
+        from modules.adaptive_trend_LTS.core.process_layer1.layer1_signal import _layer1_signal_for_ma
 
         ma_values = self.state["ma_values"]
         price_history = list(self.state["price_history"])
@@ -513,14 +897,21 @@ class IncrementalATC:
         signals = []
         for ma_type in ["ema", "hma", "wma", "dema", "lsma", "kama"]:
             if ma_type in ma_values:
-                ma_val = ma_values[ma_type]
-                dummy_ma_series = pd.Series([ma_val])
-                ma_tuple = tuple([dummy_ma_series] * 9)
+                ma_list = ma_values[ma_type]
+                # ma_list should be a list of 9 MA values: [ma, ma1, ma2, ma3, ma4, ma_1, ma_2, ma_3, ma_4]
+                if isinstance(ma_list, list) and len(ma_list) == 9:
+                    # Create 9 separate Series with the different MA values
+                    ma_tuple = tuple(pd.Series([val]) for val in ma_list)
+                else:
+                    # Fallback for backward compatibility - create 9 identical series
+                    ma_val = ma_list if not isinstance(ma_list, list) else ma_list[0]
+                    dummy_ma_series = pd.Series([ma_val])
+                    ma_tuple = tuple([dummy_ma_series] * 9)
 
                 signal, _, _ = _layer1_signal_for_ma(pd.Series([current_price]), ma_tuple, L=la, De=decay)
-                signals.append(signal.iloc[-1])
+                signals.append(float(signal.iloc[-1]))
 
-        return np.mean(signals) if signals else 0.0
+        return float(np.mean(signals)) if signals else 0.0
 
     def _update_equity(self, signal_l1: float):
         """Update equity incrementally."""
@@ -567,7 +958,10 @@ class IncrementalATC:
 
     def _get_layer1_signal(self, ma_val: float, price: float, long_threshold: float, short_threshold: float) -> float:
         """Get Layer 1 signal for a single MA."""
-        signal_l1 = (price - ma_val) / ma_val if ma_val != 0 else 0.0
+        # Handle NaN and near-zero values to prevent division issues
+        if np.isnan(ma_val) or np.isnan(price) or abs(ma_val) < 1e-10:
+            return 0.0
+        signal_l1 = (price - ma_val) / ma_val
         if signal_l1 > long_threshold:
             return 1.0
         if signal_l1 < short_threshold:

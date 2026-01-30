@@ -94,7 +94,7 @@ def process_symbols_batch_cuda(symbols_data, config, num_threads=4):
         batch_results = atc_rust.compute_atc_signals_batch(
             symbols_numpy,
             ema_len=params.get("ema_len", 28),
-            hull_len=params.get("hull_len", 28),
+            hma_len=params.get("hma_len", 28),
             wma_len=params.get("wma_len", 28),
             dema_len=params.get("dema_len", 28),
             lsma_len=params.get("lsma_len", 28),
@@ -203,7 +203,7 @@ def process_symbols_batch_rust(symbols_data, config, num_threads=None):
         batch_results = atc_rust.compute_atc_signals_batch_cpu(
             symbols_numpy,
             ema_len=params.get("ema_len", 28),
-            hull_len=params.get("hull_len", 28),
+            hma_len=params.get("hma_len", 28),
             wma_len=params.get("wma_len", 28),
             dema_len=params.get("dema_len", 28),
             lsma_len=params.get("lsma_len", 28),

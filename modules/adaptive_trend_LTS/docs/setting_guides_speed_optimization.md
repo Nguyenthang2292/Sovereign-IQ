@@ -97,7 +97,7 @@ from pathlib import Path
 
 # Setup configuration
 config = {
-    "ema_len": 28, "hull_len": 28, "wma_len": 28,
+    "ema_len": 28, "hma_len": 28, "wma_len": 28,
     "dema_len": 28, "lsma_len": 28, "kama_len": 28,
     "robustness": "Medium",
     "La": 0.02, "De": 0.03,
@@ -170,7 +170,7 @@ data_fetcher = DataFetcher()
 symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]  # Your symbol list (<100)
 
 config = {
-    "ema_len": 28, "hull_len": 28, "wma_len": 28,
+    "ema_len": 28, "hma_len": 28, "wma_len": 28,
     "dema_len": 28, "lsma_len": 28, "kama_len": 28,
     "robustness": "Medium",
     "La": 0.02, "De": 0.03,
@@ -250,7 +250,7 @@ data_fetcher = DataFetcher()
 symbols = data_fetcher.get_all_futures_symbols()  # 100-1000 symbols
 
 config = {
-    "ema_len": 28, "hull_len": 28, "wma_len": 28,
+    "ema_len": 28, "hma_len": 28, "wma_len": 28,
     "dema_len": 28, "lsma_len": 28, "kama_len": 28,
     "robustness": "Medium",
     "La": 0.02, "De": 0.03,
@@ -338,7 +338,7 @@ data_fetcher = DataFetcher()
 atc_config = ATCConfig(
     timeframe="15m",
     limit=1500,
-    ema_len=28, hull_len=28, wma_len=28,
+    ema_len=28, hma_len=28, wma_len=28,
     dema_len=28, lsma_len=28, kama_len=28,
     robustness="Medium",
     La=0.02, De=0.03,
@@ -424,7 +424,7 @@ print("Stage 1: Fast approximate scan...")
 fast_config = ATCConfig(
     timeframe="15m",
     limit=1500,
-    ema_len=28, hull_len=28, wma_len=28,
+    ema_len=28, hma_len=28, wma_len=28,
     dema_len=28, lsma_len=28, kama_len=28,
     robustness="Medium",
     La=0.02, De=0.03,
@@ -453,7 +453,7 @@ print("\nStage 2: Full precision on top candidates...")
 full_config = ATCConfig(
     timeframe="15m",
     limit=1500,
-    ema_len=28, hull_len=28, wma_len=28,
+    ema_len=28, hma_len=28, wma_len=28,
     dema_len=28, lsma_len=28, kama_len=28,
     robustness="Medium",
     La=0.02, De=0.03,
@@ -528,7 +528,7 @@ import pandas as pd
 
 # For live trading (single bar updates)
 atc = IncrementalATC(config={
-    'ema_len': 28, 'hull_len': 28, 'wma_len': 28,
+    'ema_len': 28, 'hma_len': 28, 'wma_len': 28,
     'dema_len': 28, 'lsma_len': 28, 'kama_len': 28,
     'robustness': 'Medium',
     'La': 0.02, 'De': 0.03,
@@ -541,7 +541,7 @@ from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import 
 
 symbols_data = {'BTCUSDT': prices_series, 'ETHUSDT': prices_series, ...}
 config = {
-    'ema_len': 28, 'hull_len': 28, 'wma_len': 28,
+    'ema_len': 28, 'hma_len': 28, 'wma_len': 28,
     'dema_len': 28, 'lsma_len': 28, 'kama_len': 28,
     'robustness': 'Medium',
     'La': 0.02, 'De': 0.03,
@@ -560,7 +560,7 @@ results = process_symbols_batch_rust(symbols_data, config)
 adaptive_trend_lts:
   # Core Parameters
   ema_len: 28
-  hull_len: 28
+  hma_len: 28
   wma_len: 28
   dema_len: 28
   lsma_len: 28
@@ -623,7 +623,7 @@ import pandas as pd
 
 config = {
     "ema_len": 28,
-    "hull_len": 28,
+    "hma_len": 28,
     "wma_len": 28,
     "dema_len": 28,
     "lsma_len": 28,

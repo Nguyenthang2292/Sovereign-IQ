@@ -13,7 +13,7 @@ timeframes: # Used for multi-timeframe mode
   - 1h
   - 4h
 
-cooldown: 2.5 # Seconds between batches (prevents API rate limiting)
+cooldown: 2.5 # Range: 0.1-60.0 seconds (recommended: 1.0-5.0 to avoid rate limits)
 limit: 700 # Number of candles per symbol
 
 # ============================================================================
@@ -21,7 +21,7 @@ limit: 700 # Number of candles per symbol
 # ============================================================================
 
 max_symbols:
-  null # Fixed count limit (null = all symbols)
+  null # null = scan ALL symbols (no limit)
   # The maximum number of symbols to include in a scan.
   # If set to null, all available symbols will be scanned.
   # Use this to limit the scan scope for performance or focus.
@@ -31,7 +31,7 @@ max_symbols:
 # ============================================================================
 
 stage0_sample_percentage:
-  33 # Sample % (100 = no sampling)
+  10 # Range: 1-100 (100 = no sampling)
   # The percentage of the market to select in Stage 0 sampling.
   # 100 means sample all symbols (no sampling applied).
   # Reduce this to scan a subset of symbols.
@@ -77,16 +77,17 @@ pre_filter_auto_skip_threshold: 10 # Auto-skip percentage filter if Stage 3 retu
 #
 # Note: Even in Fast Mode, Stage 3 still calculates all ML models (ignores fast_mode flag
 #       for Stage 3) but only for symbols that passed Stage 2, making it much faster.
-fast_mode: true
+pre_filter_fast_mode: true # Sequential 3-stage filtering
 
 # ============================================================================
 # SPC (SIMPLIFIED PERCENTILE CLUSTERING) CONFIGURATION
 # ============================================================================
 
 spc_config:
-  preset: aggressive # 'conservative', 'balanced', 'aggressive', or null
+  # preset: aggressive # 'conservative', 'balanced', 'aggressive', or null
 
-  # Advanced parameters (only used if preset is null)
+  # Advanced parameters
+  # ⚠️ WARNING: These parameters are IGNORED when preset is set. To use these, set preset: null
   volatility_adjustment: false
   use_correlation_weights: false
   time_decay_factor: 1.0
@@ -134,7 +135,7 @@ rf_training:
 # ============================================================================
 # ATC (ADAPTIVE TREND COMPONENT) CONFIGURATION
 # ============================================================================
-# For detailed optimization guide, see: modules/adaptive_trend_LTS/docs/SPEED_OPTIMIZATION_GUIDE.md
+# For detailed optimization guide, see: modules/adaptive_trend_LTS/docs/setting_guides_speed_optimization.md
 
 # ATC Core Parameters (for signal calculation)
 atc_core:
@@ -145,7 +146,7 @@ atc_core:
   dema_len: 28
   lsma_len: 28
   kama_len: 28
-  
+
   # Moving Average initial weights (default: 1.0 for all)
   ema_w: 1.0
   hma_w: 1.0
@@ -153,22 +154,23 @@ atc_core:
   dema_w: 1.0
   lsma_w: 1.0
   kama_w: 1.0
-  
+
   # ATC algorithm parameters
-  robustness: "Medium"  # "Narrow", "Medium", or "Wide" - sensitivity level
-  lambda_param: 0.02    # Growth rate (equity increase) - range: 0.01-0.05
-  decay: 0.03           # Decay rate (equity decrease) - range: 0.01-0.10
-  cutout: 0             # Number of bars to skip at beginning (for backtesting: set to 20-50 to skip warm-up period)
-  
+  robustness: "Medium" # "Narrow", "Medium", or "Wide" - sensitivity level
+  lambda_param: 0.02 # Growth rate - 0.02 = balanced (lower = conservative, higher = aggressive)
+  decay: 0.03 # Decay rate - 0.03 = balanced (lower = slower decay, higher = faster reset)
+  cutout: 0 # Number of bars to skip at beginning (for backtesting: set to 20-50 to skip warm-up period)
+
   # Signal thresholds
-  long_threshold: 0.1   # Threshold for LONG signal classification
+  long_threshold: 0.1 # Threshold for LONG signal classification
   short_threshold: -0.1 # Threshold for SHORT signal classification
-  
+
   # Backtesting Configuration ⚠️ IMPORTANT FOR BACKTESTING
-  strategy_mode: false  # Set TRUE for backtesting to avoid look-ahead bias (shifts signal by 1 bar)
-                        # - false: Signal uses current bar (for live trading/scanning)
-                        # - true: Signal uses previous bar (for backtesting - prevents look-ahead)
-                        # RECOMMENDED: true for backtesting, false for live trading
+  strategy_mode:
+    false # Set TRUE for backtesting to avoid look-ahead bias (shifts signal by 1 bar)
+    # - false: Signal uses current bar (for live trading/scanning)
+    # - true: Signal uses previous bar (for backtesting - prevents look-ahead)
+    # RECOMMENDED: true for backtesting, false for live trading
 
 # Switch between ATC versions:
 # - true: use 'modules/adaptive_trend_LTS' (High Performance - Rust/CUDA/Dask)
@@ -177,42 +179,186 @@ use_atc_performance: true
 
 atc_performance:
   # Preset 3: Medium Batch Scanning (100-1000 symbols) - GPU Accelerated
-  batch_processing: false       # CUDA handles batching (set false when using CUDA)
-  use_cuda: true                # GPU acceleration (REQUIRES CUDA Toolkit 12.x)
-  parallel_l1: false            # CUDA handles parallelism (set false when using CUDA)
-  parallel_l2: false            # CUDA handles parallelism (set false when using CUDA)
-  prefer_gpu: true              # Auto-select GPU if available
-  use_cache: true               # Cache intermediate results
-  fast_mode: true               # Additional optimizations
-  precision: "float32"          # Use float32 for speed (vs float64 for accuracy)
+  # preset: "medium_batch_gpu" # Options: "small", "medium_batch_gpu", "large_dask", "custom"
+  # If preset is not "custom", preset overrides individual settings below
+
+  batch_processing: false # CUDA handles batching (set false when using CUDA)
+  use_cuda: true
+  # NOTE: If use_cuda=true, you MUST set: batch_processing=false, parallel_l1=false, parallel_l2=false
+
+  parallel_l1: false # CUDA handles parallelism (set false when using CUDA)
+  parallel_l2: false # CUDA handles parallelism (set false when using CUDA)
+  prefer_gpu: true # Auto-select GPU if available
+  use_cache: true # Cache intermediate results
+  disable_ml_models: true # Disable XGBoost/HMM in early stages (renamed from fast_mode)
+  precision: "float32" # Options: "float32" (fast) or "float64" (accurate)
 
   # Dask (Out-of-Core) Configuration
-  use_dask: false               # Auto-enabled by system if symbols > 1000
-  npartitions: null             # Number of Dask partitions (null = auto-calculated)
-  
+  use_dask: false # Auto-enabled by system if symbols > 1000
+  npartitions: null # null = auto-calculate based on dataset size
+
   # Incremental Updates (for live trading - NOT for backtesting)
-  use_incremental: false        # Set true for live trading (10-100x faster for single bar updates)
-                                 # ⚠️ NOT RECOMMENDED FOR BACKTESTING: Use full recalculation for accuracy
-  
+  use_incremental:
+    false # Set true for live trading (10-100x faster for single bar updates)
+    # ⚠️ NOT RECOMMENDED FOR BACKTESTING: Use full recalculation for accuracy
+
   # Memory Optimizations (for backtesting large datasets)
-  use_memory_mapped: false      # Set true for very large backtesting datasets (>10GB)
-                                 # Enables 90% memory reduction by using memory-mapped files
-                                 # RECOMMENDED FOR BACKTESTING: true when dataset exceeds RAM
-  use_compression: false        # Set true to reduce cache storage (5-10x smaller cache files)
-                                 # RECOMMENDED FOR BACKTESTING: true to save disk space
-  compression_level: 5          # Compression level (1-9, default: 5)
-                                 # Higher = better compression but slower (use 5-7 for balance)
-  
+  use_memory_mapped:
+    false # Set true for very large backtesting datasets (>10GB)
+    # Enables 90% memory reduction by using memory-mapped files
+    # RECOMMENDED FOR BACKTESTING: true when dataset exceeds RAM
+  use_compression:
+    false # Set true to reduce cache storage (5-10x smaller cache files)
+    # RECOMMENDED FOR BACKTESTING: true to save disk space
+  compression_level:
+    5 # Compression level (1-9, default: 5)
+    # Higher = better compression but slower (use 5-7 for balance)
+
   # Advanced Settings
-  warm_cache: false             # Pre-warm cache for repeated patterns
-  use_codegen_specialization: false  # Enable JIT for hot path configs
+  warm_cache: false # Pre-warm cache for repeated patterns
+  use_codegen_specialization: false # Enable JIT for hot path configs
 
 approximate_ma_scanner:
-  enabled: true            # Enable/disable approximate MA calculations (true = 2-3x faster, false = exact MAs)
-                           # ⚠️ FOR BACKTESTING: Set false for full precision (exact MAs required for accurate results)
-                           # Use true for scanning/filtering (2-3x faster, ~95% accuracy acceptable)
-  use_adaptive: true       # Enable adaptive tolerance based on volatility
-  num_threads: null        # Number of threads for parallel processing (null = auto-calculate based on CPU cores)
-  volatility_window: 20    # Window size for volatility calculation
-  base_tolerance: 0.05     # Base tolerance (5%) for adaptive mode
-  volatility_factor: 1.0   # Multiplier for volatility impact on tolerance
+  enabled:
+    true # Enable/disable approximate MA calculations (true = 2-3x faster, false = exact MAs)
+    # ⚠️ FOR BACKTESTING: Set false for full precision (exact MAs required for accurate results)
+    # Use true for scanning/filtering (2-3x faster, ~95% accuracy acceptable)
+  use_adaptive: true # Enable adaptive tolerance based on volatility
+  num_threads: null # null = auto-detect CPU cores
+  volatility_window: 20 # Window size for volatility calculation
+  base_tolerance: 0.05 # Base tolerance (5%) for adaptive mode
+  volatility_factor: 1.0 # Multiplier for volatility impact on tolerance
+
+# ============================================================================
+# XGBOOST LTS CONFIGURATION
+# ============================================================================
+# For detailed optimization guide, see: modules/xgboost_LTS/docs/setting_guides_speed_optimization.md
+
+# Switch between XGBoost versions:
+# - true: use 'modules/xgboost_LTS' (High Performance - Rust/GPU/Cache/Optuna)
+# - false: use 'modules/xgboost' (Standard/Legacy)
+use_xgboost_performance: true
+
+xgboost_lts:
+  # preset: "production_gpu" # Options: "development", "production_gpu", "research", "custom"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # PRESET 5: Production Deployment (GPU + Rust + Cache + Optional Optuna)
+  # ──────────────────────────────────────────────────────────────────────────
+  # Use Case: Live trading bot, production API, real-time predictions
+  # Expected Performance:
+  #   - Model loading: <0.1s (cached)
+  #   - Live prediction: ~0.5-1s per symbol
+  #   - Optional Optuna tuning: 2-8x speedup with parallel trials
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Labeling Parameters
+  # ──────────────────────────────────────────────────────────────────────────
+  labeling:
+    TARGET_HORIZON: 12 # Bars ahead to predict (default: 12)
+    TARGET_BASE_THRESHOLD: 0.0008 # Base price change threshold (%) (default: 0.0008)
+    XGBOOST_VOLATILITY_ROLLING_WINDOW: 100 # Window for volatility calculation (default: 100)
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Model Parameters (Production-Optimized)
+  # ──────────────────────────────────────────────────────────────────────────
+  # Note: These are default parameters. For optimal performance, run Optuna
+  # hyperparameter tuning (see optuna section below) and use best_params.
+  model:
+    max_depth: 6 # Maximum tree depth (default: 6)
+    learning_rate: 0.01 # Range: 0.001-0.1 (typical: 0.01-0.05)
+    n_estimators: 200 # Number of boosting rounds (default: 200)
+    min_child_weight: 3 # Minimum sum of instance weight (default: 3)
+    gamma: 0.1 # Minimum loss reduction (default: 0.1)
+    subsample: 0.8 # Training data subsample ratio (default: 0.8)
+    colsample_bytree: 0.8 # Feature subsample ratio per tree (default: 0.8)
+    reg_alpha: 0.5 # L1 regularization (default: 0.5)
+    reg_lambda: 2.0 # L2 regularization (default: 2.0)
+    tree_method: "hist" # Tree construction algorithm (default: "hist")
+    device: "auto" # Options: "auto" (detect GPU), "cuda" (force GPU), "cpu" (force CPU)
+    early_stopping_rounds: 20 # Early stopping to prevent overfitting (default: 20)
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Cross-Validation Parameters
+  # ──────────────────────────────────────────────────────────────────────────
+  cross_validation:
+    n_splits: 5 # Number of time-series CV folds (default: 5)
+    test_size: 500 # Number of bars in test set per fold (default: 500)
+    gap: 12 # Gap between train and test to avoid leakage (default: 12, should match TARGET_HORIZON)
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Performance & Optimization
+  # ──────────────────────────────────────────────────────────────────────────
+  performance:
+    XGBOOST_USE_FLOAT32: true # Use float32 for 2x memory reduction (default: true)
+    XGBOOST_USE_PARALLEL_CV: true # Enable Parallel CV for faster batch processing (default: true)
+    use_rust: true # Enable Rust for feature/labeling (3-5x speedup) (default: true)
+    use_cache: true # Enable model & label caching (50-180x for repeated runs) (default: true)
+    cache_compression: true # Compress cached files (5-10x reduction) (default: true)
+    cache_ttl: 604800 # Cache lifetime in seconds (7 days) (default: 604800)
+
+    # Batch Processing Settings
+    batch_processing: true # Enable optimization for multiple symbols
+    max_workers: null # null = auto-detect optimal worker count based on CPU cores
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Optuna Hyperparameter Tuning (Optional - Run once before deployment)
+  # ──────────────────────────────────────────────────────────────────────────
+  # Workflow:
+  #   1. Run Optuna optimization once (when deploying or periodically)
+  #   2. Get best_params from optimization
+  #   3. Train production model with best_params
+  #   4. Cache the model for fast loading
+  #
+  # Performance: 2-8x speedup with OPTUNA_PARALLEL_TRIALS=-1 (uses all CPU cores)
+  optuna:
+    enabled:
+      false # Enable Optuna hyperparameter tuning (default: false)
+      # Set to true to run optimization before deployment
+      # After getting best_params, set to false and use those params
+
+    OPTUNA_PARALLEL_TRIALS:
+      -1 # Parallel Optuna trials (-1 = use all CPU cores) (default: -1)
+      # Expected speedup: 2-8x depending on CPU cores
+
+    n_trials:
+      50 # Number of trials for optimization (default: 50)
+      # Fewer trials for production tuning (vs 100+ for research)
+      # 50 trials usually sufficient for good params
+
+    n_splits_optuna:
+      3 # CV splits for Optuna (default: 3)
+      # Use fewer splits (3) for faster optimization
+      # Final model will use n_splits from cross_validation section
+
+    # Search space for hyperparameters (Optuna will search within these ranges)
+    search_space:
+      max_depth: [4, 5, 6, 7, 8] # Tree depth options
+      learning_rate: [0.005, 0.01, 0.02, 0.05] # Learning rate options
+      n_estimators: [100, 150, 200, 300] # Number of trees options
+      min_child_weight: [1, 3, 5] # Min child weight options
+      gamma: [0, 0.1, 0.2] # Gamma options
+      subsample: [0.7, 0.8, 0.9, 1.0] # Subsample ratio options
+      colsample_bytree: [0.7, 0.8, 0.9, 1.0] # Column subsample options
+
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Production Deployment Workflow
+  # ──────────────────────────────────────────────────────────────────────────
+  # Step 1: (Optional) Run Optuna optimization
+  #   - Set optuna.enabled = true
+  #   - Run scanner once to get best_params
+  #   - Note down best_params from output
+  #
+  # Step 2: Update model parameters with best_params
+  #   - Copy best_params to model section above
+  #   - Set optuna.enabled = false
+  #
+  # Step 3: Train production model
+  #   - Run scanner with use_cache = true
+  #   - Model will be cached for fast loading
+  #
+  # Step 4: Live trading
+  #   - Cached model loads in <0.1s
+  #   - Predictions take ~0.5-1s per symbol
+  #   - Re-run Optuna periodically (weekly/monthly) to adapt to market changes

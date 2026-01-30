@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from modules.adaptive_trend_enhance.core.process_layer1.layer1_signal import _layer1_signal_for_ma
+from modules.adaptive_trend_LTS.core.process_layer1.layer1_signal import _layer1_signal_for_ma
 from modules.common.system.shared_memory_utils import (
     cleanup_shared_memory,
     reconstruct_series_from_shared_memory,

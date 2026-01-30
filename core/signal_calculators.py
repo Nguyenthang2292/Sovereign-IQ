@@ -351,9 +351,118 @@ def get_xgboost_signal(
     timeframe: str,
     limit: int,
     df: Optional[pd.DataFrame] = None,
+    xgboost_config: Optional[dict] = None,
 ) -> Optional[Tuple[int, float]]:
     """Calculate XGBoost prediction signal for a symbol."""
     try:
+        # Check if we should use the new LTS module
+        # xgboost_config is only passed when use_xgboost_performance is True
+        if xgboost_config:
+            try:
+                from modules.xgboost_LTS.core.model import predict_next_move, train_and_predict
+                # The LTS module might need specific initialization or feature computation
+                # For now, we assume similar API or use a specific runner if necessary.
+                # However, the LTS module seems to be a library.
+                # Let's use the LTS functions.
+                # Note: LTS module functions imported above have the same names but come from new module.
+                # To avoid name collision with legacy imports at top of file, we do local import.
+            except ImportError:
+                # If module not found, fall back to legacy
+                pass
+            else:
+                # Use LTS Logic
+                # Validate numeric parameters to prevent DoS attacks
+                if not isinstance(limit, int) or limit <= 0 or limit > 10000:
+                    from modules.common.ui.logging import log_error
+
+                    log_error(f"Invalid limit parameter: {limit}. Must be positive integer <= 10000")
+                    return None
+
+                # Use provided DataFrame if available, otherwise fetch from API
+                if df is None:
+                    df, _ = data_fetcher.fetch_ohlcv_with_fallback_exchange(
+                        symbol,
+                        limit=limit,
+                        timeframe=timeframe,
+                        check_freshness=False,
+                    )
+
+                if df is None or df.empty:
+                    return None
+
+                # Fetch required columns
+                required_columns = ["high", "low", "close"]
+                missing_columns = [col for col in required_columns if col not in df.columns]
+                if missing_columns:
+                    return None
+
+                # Check data size
+                # Use constant from config or LTS module
+                from config import XGBOOST_MIN_TRAINING_SAMPLES
+
+                if len(df) < XGBOOST_MIN_TRAINING_SAMPLES:
+                    return None
+
+                # Calculate features using LTS utilities if available, or standard IndicatorEngine
+                # The LTS module's train_and_predict function expects features to be present.
+
+                # Use legacy feature generation for now as LTS "model.py" doesn't seem to have feature generation
+                # It starts from "MODEL_FEATURES".
+
+                # Initialize IndicatorEngine for XGBoost features
+                indicator_engine = IndicatorEngine(IndicatorConfig.for_profile(IndicatorProfile.XGBOOST))
+                df = indicator_engine.compute_features(df)
+
+                from modules.random_forest.utils.features import add_advanced_features
+
+                df = add_advanced_features(df)
+
+                # Prepare latest data
+                latest_data = df.iloc[-1:].copy()
+                latest_data = latest_data.ffill().bfill()
+
+                from modules.xgboost.core.labeling import apply_directional_labels
+
+                # TODO: Use LTS labeling if available and configured
+                df = apply_directional_labels(df)
+
+                from config import TARGET_BASE_THRESHOLD
+
+                latest_threshold = (
+                    df["DynamicThreshold"].iloc[-1]
+                    if len(df) > 0 and "DynamicThreshold" in df.columns
+                    else TARGET_BASE_THRESHOLD
+                )
+                df.dropna(inplace=True)
+                latest_data["DynamicThreshold"] = latest_threshold
+
+                if len(df) < XGBOOST_MIN_TRAINING_SAMPLES:
+                    return None
+
+                # Train and predict using LTS module
+                # Pass use_cache from config if available
+                use_cache = xgboost_config.get("use_cache", True)
+                model = train_and_predict(df, use_cache=use_cache)
+                proba = predict_next_move(model, latest_data)
+
+                # Get prediction: UP=1, DOWN=-1, NEUTRAL=0
+                best_idx = int(proba.argmax())
+                from config import ID_TO_LABEL
+
+                direction = ID_TO_LABEL[best_idx]
+
+                if direction == "UP":
+                    signal = 1
+                elif direction == "DOWN":
+                    signal = -1
+                else:
+                    signal = 0
+
+                confidence = float(proba[best_idx])
+                return (signal, confidence)
+
+        # Legacy XGBoost Logic (Fall back)
+
         # Validate numeric parameters to prevent DoS attacks
         if not isinstance(limit, int) or limit <= 0 or limit > 10000:
             from modules.common.ui.logging import log_error

@@ -64,5 +64,19 @@ XGBOOST_PARAMS = {
     "random_state": 42,  # Hạt giống ngẫu nhiên để tái lập kết quả.
     "objective": "multi:softprob",  # Hàm mục tiêu: phân loại đa lớp trả về xác suất.
     "eval_metric": "mlogloss",  # Thước đo đánh giá lỗi: Multi-class Log Loss.
+    "early_stopping_rounds": 20,  # Dừng sớm nếu không cải thiện trong 20 vòng.
     "n_jobs": -1,  # Sử dụng tất cả lõi CPU.
 }
+
+# Parallel Cross-Validation Configuration
+XGBOOST_USE_PARALLEL_CV = True  # Enable 2-4x CV speedup
+
+# Parallel Optuna Trials Configuration
+OPTUNA_PARALLEL_TRIALS = True  # Enable parallel trial execution
+OPTUNA_N_JOBS = -1  # Use all available CPU cores for parallel trials
+
+# Float32 Precision Configuration
+XGBOOST_USE_FLOAT32 = True  # Use float32 precision for features (50% memory reduction, faster training)
+
+# Dask Configuration (Optional)
+XGBOOST_USE_DASK = False  # Set True when using dask dataframes for out-of-core training

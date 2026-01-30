@@ -90,7 +90,7 @@ def _process_symbol_group(
         DataFrame with computed signals
     """
     try:
-        from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
+        from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
 
         symbol = group_df[symbol_column].iloc[0] if not group_df.empty else "UNKNOWN"
         prices = group_df[price_column].sort_index()

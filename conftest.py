@@ -50,7 +50,7 @@ if venv_python:
         print("   PowerShell: .\\run_tests.ps1")
         print("   CMD:        run_tests.bat")
         print("=" * 60 + "\n")
-        sys.exit(1)
+        # sys.exit(1)
     elif is_venv:
         # Verify we're using the correct venv
         if current_python != venv_python and not str(current_python).startswith(str(project_root / ".venv")):

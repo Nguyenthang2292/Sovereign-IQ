@@ -44,6 +44,16 @@ def exp_growth(
     if not isinstance(L, (int, float)) or np.isnan(L) or np.isinf(L):
         raise ValueError(f"L must be a finite number, got {L}")
 
+    # Validate L is within safe range to prevent overflow
+    # For typical use cases with bar counts up to 10000, L should be in [-1.0, 1.0]
+    # to avoid exp(L * bars) overflow (exp(700) is max for float64)
+    SAFE_L_RANGE = 1.0
+    if abs(L) > SAFE_L_RANGE:
+        log_warn(
+            f"L parameter ({L}) is outside safe range [-{SAFE_L_RANGE}, {SAFE_L_RANGE}]. "
+            f"This may cause overflow in exponential calculations. Proceeding with caution."
+        )
+
     if not isinstance(cutout, int) or cutout < 0:
         raise ValueError(f"cutout must be a non-negative integer, got {cutout}")
 

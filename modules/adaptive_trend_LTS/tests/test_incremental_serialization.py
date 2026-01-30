@@ -12,7 +12,7 @@ class TestIncrementalSerialization:
     def config(self):
         return {
             "ema_len": 10,
-            "hull_len": 10,
+            "hma_len": 10,
             "wma_len": 10,
             "dema_len": 10,
             "lsma_len": 10,

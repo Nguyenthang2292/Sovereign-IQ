@@ -121,23 +121,23 @@ def _convert_menu_to_config(config):
 
 def format_text_to_html(text: str) -> str:
     """Delegates to centralized html_report_generator."""
-    from modules.gemini_chart_analyzer.core.reporting.html_report_generator import _format_text_to_html
+    from modules.gemini_chart_analyzer.core.reporting.generators.formatters import format_text_to_html
 
-    return _format_text_to_html(text)
+    return format_text_to_html(text)
 
 
 def _sanitize_chart_path(chart_path: str, output_dir: str) -> str:
     """Delegates to centralized html_report_generator."""
-    from modules.gemini_chart_analyzer.core.reporting.html_report_generator import _sanitize_chart_path
+    from modules.gemini_chart_analyzer.core.reporting.generators.chart_utils import sanitize_chart_path
 
-    return _sanitize_chart_path(chart_path, output_dir)
+    return sanitize_chart_path(chart_path, output_dir)
 
 
 def _find_chart_paths_for_timeframes(symbol: str, timeframes: List[str], charts_dir: str) -> Dict[str, str]:
     """Delegates to centralized html_report_generator."""
-    from modules.gemini_chart_analyzer.core.reporting.html_report_generator import _find_chart_paths_for_timeframes
+    from modules.gemini_chart_analyzer.core.reporting.generators.chart_utils import find_chart_paths_for_timeframes
 
-    return _find_chart_paths_for_timeframes(symbol, timeframes, charts_dir)
+    return find_chart_paths_for_timeframes(symbol, timeframes, charts_dir)
 
 
 def generate_html_report(

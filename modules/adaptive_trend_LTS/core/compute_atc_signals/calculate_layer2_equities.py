@@ -20,7 +20,7 @@ except ImportError:
         print(f"[WARN] {msg}")
 
 
-from modules.adaptive_trend_enhance.core.compute_equity import _calculate_equities_parallel
+from modules.adaptive_trend_LTS.core.compute_equity import _calculate_equities_parallel
 from modules.adaptive_trend_LTS.core.rust_backend import calculate_equity
 from modules.common.system import get_memory_manager, get_series_pool, temp_series
 
@@ -87,16 +87,17 @@ def calculate_layer2_equities(
             for i, ma_type in enumerate(ma_types):
                 signals_matrix[i] = layer1_signals[ma_type].values
 
-            # Shift signals by 1 period (sig[1] in Pine Script)
-            # Parallel worker will handle this if we shift here or inside
-            # _calculate_equities_parallel assumes sig_prev_values is already shifted!
-            signals_prev = np.empty_like(signals_matrix)
-            signals_prev[:, 1:] = signals_matrix[:, :-1]
-            # First value is not used in equity calculation, but set to NaN to match Original
-            signals_prev[:, 0] = np.nan
+                # Shift signals by 1 period (sig[1] in Pine Script)
+                # NOTE: This shift is for INTERNAL equity calculation only
+                # The Layer 1 signals passed to calculate_average_signal are NOT shifted
+                # Parallel worker assumes sig_prev_values is already shifted!
+                signals_prev = np.empty_like(signals_matrix)
+                signals_prev[:, 1:] = signals_matrix[:, :-1]
+                # First value is not used in equity calculation, but set to NaN to match Original
+                signals_prev[:, 0] = np.nan
 
             # Get growth factor
-            from modules.adaptive_trend.utils import exp_growth
+            from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
 
             growth = exp_growth(L=L, index=R.index, cutout=cutout)
             r_adjusted = (R * growth).values
@@ -122,7 +123,7 @@ def calculate_layer2_equities(
         else:
             # Sequential processing (fallback or single MA)
             # R multiplied by e(L) (growth factor)
-            from modules.adaptive_trend.utils import exp_growth
+            from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
 
             growth = exp_growth(L=L, index=R.index, cutout=cutout)
             r_adjusted = R * growth

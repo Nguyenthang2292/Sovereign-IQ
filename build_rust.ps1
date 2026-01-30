@@ -27,33 +27,46 @@ try {
     exit 1
 }
 
-# Navigate to rust_extensions directory
-$rustExtDir = Join-Path $PSScriptRoot "modules\adaptive_trend_LTS\rust_extensions"
-if (-not (Test-Path $rustExtDir)) {
-    Write-Host "[ERROR] Rust extensions directory not found: $rustExtDir" -ForegroundColor Red
-    exit 1
+# List of Rust extension directories to build
+$rustProjectDirs = @(
+    "modules\adaptive_trend_LTS\rust_extensions",
+    "modules\xgboost_LTS\rust_extensions"
+)
+
+foreach ($relativeDir in $rustProjectDirs) {
+    $rustExtDir = Join-Path $PSScriptRoot $relativeDir
+    if (-not (Test-Path $rustExtDir)) {
+        Write-Host "[WARNING] Rust extensions directory not found: $rustExtDir" -ForegroundColor Yellow
+        continue
+    }
+
+    Write-Host "[BUILD] Building extensions in $relativeDir..." -ForegroundColor Cyan
+    Push-Location $rustExtDir
+
+    try {
+        Write-Host "[BUILD] Running maturin develop --release..." -ForegroundColor Cyan
+        
+        # Check if maturin is available
+        $maturinPath = Get-Command maturin -ErrorAction SilentlyContinue
+        if (-not $maturinPath) {
+            Write-Host "[WARNING] Maturin not found. Installing..." -ForegroundColor Yellow
+            pip install maturin
+        }
+        
+        # Build with maturin
+        & maturin develop --release
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "[ERROR] maturin build failed for $relativeDir!" -ForegroundColor Red
+            # Don't exit immediately, try other projects but record failure
+            $hasError = $true
+        } else {
+            Write-Host "[SUCCESS] Extensions in $relativeDir installed successfully!" -ForegroundColor Green
+        }
+    } finally {
+        Pop-Location
+    }
 }
 
-Push-Location $rustExtDir
-
-try {
-    Write-Host "[BUILD] Building and installing Rust extensions (maturin develop --release)..." -ForegroundColor Cyan
-    
-    # Check if maturin is available
-    $maturinPath = Get-Command maturin -ErrorAction SilentlyContinue
-    if (-not $maturinPath) {
-        Write-Host "[WARNING] Maturin not found. Installing..." -ForegroundColor Yellow
-        pip install maturin
-    }
-    
-    # Build with maturin
-    & maturin develop --release
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] maturin build failed!" -ForegroundColor Red
-        exit 1
-    }
-    
-    Write-Host "[SUCCESS] Rust extensions installed successfully!" -ForegroundColor Green
-} finally {
-    Pop-Location
+if ($hasError) {
+    exit 1
 }

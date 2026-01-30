@@ -8,8 +8,8 @@ Adaptive Trend Classification (ATC).
 import traceback
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS.utils.config import ATCConfig
 from modules.common.system import get_memory_manager
 from modules.common.utils import log_warn
 
@@ -96,7 +96,7 @@ def analyze_symbol(
                 prices=price_series,
                 src=None,  # Use selected price source
                 ema_len=config.ema_len,
-                hull_len=config.hma_len,
+                hma_len=config.hma_len,
                 wma_len=config.wma_len,
                 dema_len=config.dema_len,
                 lsma_len=config.lsma_len,

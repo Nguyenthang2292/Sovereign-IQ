@@ -173,6 +173,7 @@ from ..ui.logging import (
     log_success,
     log_system,
     log_warn,
+    log_memory,
 )
 
 __all__ = [
@@ -223,6 +224,7 @@ __all__ = [
     "log_exchange",
     "log_system",
     "log_progress",
+    "log_memory",
     # Initialization
     "initialize_components",
 ]

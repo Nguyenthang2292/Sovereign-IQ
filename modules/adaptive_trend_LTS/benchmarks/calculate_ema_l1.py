@@ -127,7 +127,7 @@ from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_sign
 
 config = {
     "ema_len": 28,
-    "hull_len": 28,
+    "hma_len": 28,
     "wma_len": 28,
     "dema_len": 28,
     "lsma_len": 28,

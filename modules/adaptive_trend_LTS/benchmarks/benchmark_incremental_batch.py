@@ -78,7 +78,7 @@ def run_benchmark():
     """Run comprehensive benchmark comparing batch vs sequential updates."""
     config = {
         "ema_len": 28,
-        "hull_len": 28,
+        "hma_len": 28,
         "wma_len": 28,
         "dema_len": 28,
         "lsma_len": 28,

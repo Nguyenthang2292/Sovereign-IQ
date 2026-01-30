@@ -67,7 +67,7 @@ def execute_scan(config: Dict[str, Any]) -> BatchScanResult:
             pre_filter_mode=config["pre_filter_mode"],
             pre_filter_percentage=config.get("pre_filter_percentage"),
             pre_filter_auto_skip_threshold=config.get("pre_filter_auto_skip_threshold", 10),
-            fast_mode=config["fast_mode"],
+            pre_filter_fast_mode=config["fast_mode"],
             spc_config=config["spc_config"] if config["enable_pre_filter"] else None,
             rf_model_path=config["random_forest_model"]["model_path"],
             stage0_sample_percentage=config.get("stage0_sample_percentage"),
@@ -78,6 +78,8 @@ def execute_scan(config: Dict[str, Any]) -> BatchScanResult:
             atc_performance=config.get("atc_performance"),
             approximate_ma_scanner=config.get("approximate_ma_scanner"),
             use_atc_performance=config.get("use_atc_performance", True),
+            xgboost_lts=config.get("xgboost_lts"),
+            use_xgboost_performance=config.get("use_xgboost_performance", True),
         )
 
         # Run the scan

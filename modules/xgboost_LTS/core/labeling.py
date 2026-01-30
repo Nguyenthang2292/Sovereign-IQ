@@ -6,6 +6,9 @@ based on future price movements, using dynamic thresholds that adapt to market
 volatility and historical price patterns.
 """
 
+import gc
+import logging
+
 import numpy as np
 import pandas as pd
 
@@ -16,11 +19,26 @@ from config import (
     DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL,
     DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL,
     DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL,
+    ID_TO_LABEL,
     LABEL_TO_ID,
     TARGET_BASE_THRESHOLD,
     TARGET_HORIZON,
     XGBOOST_VOLATILITY_ROLLING_WINDOW,
 )
+from modules.xgboost_LTS.utils.cache_manager import CacheManager
+from modules.xgboost_LTS.utils.numba_funcs import rolling_quantile_numba
+
+try:
+    from modules.xgboost_LTS.rust_extensions import (
+        apply_directional_labels_rust,
+        calculate_volatility_multiplier_rust,
+        rolling_mean_rust,
+        rolling_quantile_rust,
+    )
+
+    RUST_AVAILABLE = True
+except ImportError:
+    RUST_AVAILABLE = False
 
 
 def _calculate_lookback_weights(
@@ -90,32 +108,22 @@ def _calculate_lookback_weights(
 def _calculate_volatility_multiplier(df: pd.DataFrame) -> pd.Series:
     """
     Calculate volatility multiplier based on ATR or rolling volatility of returns.
-
-    The multiplier indicates how volatile the market is relative to recent history.
-    Higher values (up to 3.0) indicate high volatility, lower values (down to 1.5) indicate low volatility.
-    This multiplier is used to adjust lookback periods dynamically.
-
-    Args:
-        df: DataFrame with OHLCV data and technical indicators (must have "close" column)
-
-    Returns:
-        Series of volatility multipliers, clipped to range [1.5, 3.0]
     """
+    if RUST_AVAILABLE:
+        try:
+            close_vals = df["close"].values.astype(np.float64)
+            atr_vals = df["ATR_14"].values.astype(np.float64) if "ATR_14" in df.columns else None
+
+            vol_multiplier = calculate_volatility_multiplier_rust(close_vals, atr_vals)
+            return pd.Series(vol_multiplier, index=df.index)
+        except Exception as e:
+            logging.warning(f"Rust calculate_volatility_multiplier failed, falling back to Python: {e}")
+
     if "ATR_14" in df.columns:
-        # Primary Method: Use ATR (Average True Range) as volatility measure
-        # Normalize ATR relative to price to get percentage-based volatility
         atr_pct = (df["ATR_14"] / df["close"]).fillna(0.01)
-        # Compare current ATR to rolling median to get relative volatility
-        atr_median = atr_pct.rolling(window=50, min_periods=1).median()
-        # Prevent division by zero: replace zeros in atr_median before division
-        # (extremely unlikely with real data, but possible with flat synthetic data)
-        atr_median = atr_median.replace(0, 0.01)
-        volatility_multiplier = (atr_pct / atr_median).fillna(2.0)
-        # Clip to reasonable range: 1.5x (low vol) to 3.0x (high vol) of base lookback
-        volatility_multiplier = volatility_multiplier.clip(lower=1.5, upper=3.0)
+        atr_median = atr_pct.rolling(window=50, min_periods=1).median().replace(0, 0.01)
+        volatility_multiplier = (atr_pct / atr_median).fillna(2.0).clip(lower=1.5, upper=3.0)
     else:
-        # Fallback Method: Use rolling volatility of returns
-        # Calculate percentage returns and their rolling standard deviation
         returns = df["close"].pct_change(fill_method=None).fillna(0)
         rolling_vol = returns.rolling(window=20, min_periods=1).std().fillna(0.01)
         vol_median = rolling_vol.rolling(window=50, min_periods=1).median().fillna(0.01)
@@ -124,7 +132,7 @@ def _calculate_volatility_multiplier(df: pd.DataFrame) -> pd.Series:
     return volatility_multiplier
 
 
-def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
+def apply_directional_labels(df: pd.DataFrame, use_cache: bool = True) -> pd.DataFrame:
     """
     Create directional labels (UP/DOWN/NEUTRAL) based on future price movement.
 
@@ -142,6 +150,7 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     Args:
         df: DataFrame with OHLCV data and technical indicators.
             Must contain "close" column. "ATR_14" and "ATR_RATIO_14_50" are optional.
+        use_cache: Whether to use label caching (default: True)
 
     Returns:
         DataFrame with added columns:
@@ -158,6 +167,28 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
         df["Target"] = pd.Series(dtype=float)
         df["DynamicThreshold"] = pd.Series(dtype=float)
         return df
+
+    # Label Caching (Task 3.2)
+    cache_manager = None
+    cache_config = None
+    if use_cache:
+        cache_manager = CacheManager()
+        # Create a config dict that captures parameters affecting labeling
+        cache_config = {
+            "target_horizon": TARGET_HORIZON,
+            "volatility_window": XGBOOST_VOLATILITY_ROLLING_WINDOW,
+            "short_mult": DYNAMIC_LOOKBACK_SHORT_MULTIPLIER,
+            "medium_mult": DYNAMIC_LOOKBACK_MEDIUM_MULTIPLIER,
+            "long_mult": DYNAMIC_LOOKBACK_LONG_MULTIPLIER,
+            "low_vol_weights": DYNAMIC_LOOKBACK_WEIGHTS_LOW_VOL,
+            "med_vol_weights": DYNAMIC_LOOKBACK_WEIGHTS_MEDIUM_VOL,
+            "high_vol_weights": DYNAMIC_LOOKBACK_WEIGHTS_HIGH_VOL,
+            "base_threshold": TARGET_BASE_THRESHOLD,
+        }
+
+        cached_df = cache_manager.load_labels(df, cache_config)
+        if cached_df is not None:
+            return cached_df
 
     # Future Price Change Calculation
     # Shift close price forward by TARGET_HORIZON to get future price
@@ -182,8 +213,29 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     # This prevents using future information when determining current volatility regime.
     # The .rolling() method with default parameters is backward-looking by design.
     rolling_window = min(XGBOOST_VOLATILITY_ROLLING_WINDOW, len(df))
-    vol_low_rolling = volatility_multiplier.rolling(window=rolling_window, min_periods=1).quantile(0.33)
-    vol_high_rolling = volatility_multiplier.rolling(window=rolling_window, min_periods=1).quantile(0.67)
+
+    # Use Rust if available, else Numba (approx 3-5x faster)
+    try:
+        vol_values = volatility_multiplier.values.astype(np.float64)
+        if RUST_AVAILABLE:
+            vol_low_rolling = pd.Series(
+                rolling_quantile_rust(vol_values, rolling_window, 0.33), index=volatility_multiplier.index
+            )
+            vol_high_rolling = pd.Series(
+                rolling_quantile_rust(vol_values, rolling_window, 0.67), index=volatility_multiplier.index
+            )
+        else:
+            vol_low_rolling = pd.Series(
+                rolling_quantile_numba(vol_values, rolling_window, 0.33), index=volatility_multiplier.index
+            )
+            vol_high_rolling = pd.Series(
+                rolling_quantile_numba(vol_values, rolling_window, 0.67), index=volatility_multiplier.index
+            )
+    except Exception as e:
+        logging.warning(f"Optimized rolling quantile failed, falling back to pandas: {e}")
+        # Fallback to pandas if optimized versions fail
+        vol_low_rolling = volatility_multiplier.rolling(window=rolling_window, min_periods=1).quantile(0.33)
+        vol_high_rolling = volatility_multiplier.rolling(window=rolling_window, min_periods=1).quantile(0.67)
 
     # Forward fill NaN values at the beginning (appropriate for time series)
     # Propagates first valid value forward to handle initial periods
@@ -257,7 +309,9 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
     # (unlikely with real price data, but possible with synthetic data or edge cases)
     historical_ref = historical_ref.replace(0, np.nan)
     historical_pct = (df["close"] - historical_ref) / historical_ref
-    base_threshold = historical_pct.abs().fillna(TARGET_BASE_THRESHOLD).clip(lower=TARGET_BASE_THRESHOLD)
+    # Add upper bound to prevent extreme thresholds from pump/dump events
+    # Lower: TARGET_BASE_THRESHOLD (default ~1%), Upper: 10% to keep labels meaningful
+    base_threshold = historical_pct.abs().fillna(TARGET_BASE_THRESHOLD).clip(lower=TARGET_BASE_THRESHOLD, upper=0.1)
 
     # ATR Ratio Adjustment
     # Adjust threshold based on current volatility (ATR ratio)
@@ -269,17 +323,44 @@ def apply_directional_labels(df: pd.DataFrame) -> pd.DataFrame:
         .clip(lower=0.5, upper=2.0)
     )
     threshold_series = (base_threshold * atr_ratio).clip(lower=TARGET_BASE_THRESHOLD)
-    df["DynamicThreshold"] = threshold_series
+    df.loc[:, "DynamicThreshold"] = threshold_series
 
     # Label Assignment
     # Assign UP if price change >= threshold, DOWN if <= -threshold, else NEUTRAL
-    df["TargetLabel"] = np.where(
-        pct_change >= threshold_series,
-        "UP",
-        np.where(pct_change <= -threshold_series, "DOWN", "NEUTRAL"),
-    )
+    # Use inplace operations and memory efficient constants
+    # Define integer constants for direct mapping (faster than string -> map)
+    UP_LABEL = "UP"
+    DOWN_LABEL = "DOWN"
+    NEUTRAL_LABEL = "NEUTRAL"
+
+    # Pre-calculate IDs
+    up_id = LABEL_TO_ID.get(UP_LABEL, 2)
+    down_id = LABEL_TO_ID.get(DOWN_LABEL, 0)
+    neutral_id = LABEL_TO_ID.get(NEUTRAL_LABEL, 1)
+
+    # Use numpy select for direct ID assignment (avoids intermediate string series)
+    conditions = [pct_change.values >= threshold_series.values, pct_change.values <= -threshold_series.values]
+    choices = [up_id, down_id]
+
+    # Assign integer targets directly
+    df.loc[:, "Target"] = np.select(conditions, choices, default=neutral_id)
+
+    # Create string labels for display/debugging (optional, could be removed for max speed)
+    df.loc[:, "TargetLabel"] = df["Target"].map(ID_TO_LABEL)
+
     # Set NaN for rows without sufficient future data
-    df.loc[future_close.isna(), "TargetLabel"] = np.nan
-    # Convert string labels to integer IDs
-    df["Target"] = df["TargetLabel"].map(LABEL_TO_ID)
+    no_future_mask = future_close.isna()
+    if no_future_mask.any():
+        df.loc[no_future_mask, "TargetLabel"] = np.nan
+        df.loc[no_future_mask, "Target"] = np.nan
+
+    # Explicit garbage collection for large intermediates
+    del volatility_multiplier, vol_low_rolling, vol_high_rolling
+    del ref_short, ref_medium, ref_long, historical_ref
+    gc.collect()
+
+    # Save to cache (Task 3.2)
+    if use_cache and cache_manager is not None and cache_config is not None:
+        cache_manager.save_labels(df, df, cache_config)
+
     return df

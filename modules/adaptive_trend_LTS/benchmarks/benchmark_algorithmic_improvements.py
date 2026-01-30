@@ -31,7 +31,7 @@ def benchmark_incremental_vs_full(n_bars=1000, n_updates=100):
 
     config = {
         "ema_len": 28,
-        "hull_len": 28,
+        "hma_len": 28,
         "wma_len": 28,
         "dema_len": 28,
         "lsma_len": 28,
@@ -89,7 +89,7 @@ def benchmark_approximate_vs_full(n_symbols=100, n_bars=1000):
 
     config = {
         "ema_len": 28,
-        "hull_len": 28,
+        "hma_len": 28,
         "wma_len": 28,
         "dema_len": 28,
         "lsma_len": 28,
@@ -114,7 +114,7 @@ def benchmark_approximate_vs_full(n_symbols=100, n_bars=1000):
         approx_mas = set_of_approximate_moving_averages(
             prices,
             ema_len=config["ema_len"],
-            hull_len=config["hull_len"],
+            hma_len=config["hma_len"],
             wma_len=config["wma_len"],
             dema_len=config["dema_len"],
             lsma_len=config["lsma_len"],

@@ -1,0 +1,197 @@
+BÁO CÁO KIỂM TRA TOÀN DIỆN - Module adaptive_trend_LTS
+CÁC GIẢ THUYẾT VÀ LỖI TIỀM ẨN ĐÃ PHÁT HIỆN
+
+1. LỖI LOGIC NGHIÊM TRỌNG - Parameter Scaling
+File: compute_atc_signals.py:136-137
+# Apply PineScript scaling to Lambda and Decay
+La_scaled = La / 1000.0
+De_scaled = De / 100.0
+Vấn đề: Scaling này KHÔNG KHỚP với config trong ATCConfig:
+- Config định nghĩa lambda_param và decay là giá trị đã scaled
+- Property lambda_scaled và decay_scaled đã chia sẵn
+- Nhưng hàm compute_atc_signals lại nhận La=0.02 và scale lại → kết quả = 0.00002 (quá nhỏ!)
+Kiểm chứng:
+# Trong config: lambda_param=0.02 → lambda_scaled = 0.02/1000 = 0.00002
+# Trong compute_atc_signals: La=0.02 → La_scaled = 0.02/1000 = 0.00002
+# KHÔNG có double scaling trong code hiện tại
+✅ Không phải lỗi - nhưng dễ gây nhầm lẫn vì API không nhất quán
+---
+2. LỖI LOGIC NGHIÊM TRỌNG - Cutout Handling Không Nhất Quán
+Các file liên quan: 
+- core.py:95, 124 (equity calculation)
+- calculate_layer2_equities.py:93-96 (signals_prev)
+- average_signal.py:138-139 (cutout cuối cùng)
+Vấn đề: 
+1. Trong _calculate_equity_core_impl: e_values[i] = np.nan khi i < cutout
+2. Trong calculate_layer2_equities: signals_prev[:, 0] = np.nan (luôn đặt NaN ở bar đầu)
+3. Trong average_signal.py: avg_signal_array[:cutout] = 0.0 (đặt về 0, không phải NaN!)
+Mâu thuẫn: 
+- Equity trả về NaN cho cutout period
+- Average_Signal lại đặt về 0.0 
+→ Có thể gây sai lệch tín hiệu!
+🔴 Nguy cơ: Tín hiệu bị cắt đột ngột từ NaN → 0, ảnh hưởng backtest
+BÁO CÁO KIỂM TRA TOÀN DIỆN - Module adaptive_trend_LTS
+CÁC GIẢ THUYẾT VÀ LỖI TIỀM ẨN ĐÃ PHÁT HIỆN
+---
+
+---
+3. LỖI NGHIÊM TRỌNG - Shift Signal Không Nhất Quán
+File: layer1_signal.py:143-146 vs calculate_layer2_equities.py:93-96
+# layer1_signal.py (vectorized path):
+sig_prev_values[i, 1:] = vals[:-1]  # Shift 1 bar, bar đầu = NaN
+sig_prev_values[i, 0] = np.nan
+# calculate_layer2_equities.py (parallel path):
+signals_prev[:, 1:] = signals_matrix[:, :-1]
+signals_prev[:, 0] = np.nan  # Bar đầu = NaN
+Vấn đề: 
+- Layer1: Signal được tạo từ generate_signal_from_ma → sau đó mới shift
+- Layer2: Signal đã được shift 1 lần, sau đó đưa vào equity calculation
+Nhưng: Trong average_signal.py:143-144:
+if strategy_mode:
+    Average_Signal = Average_Signal.shift(1).fillna(0)
+→ Double shift nếu strategy_mode=True! Tín hiệu bị delay 2 bars thay vì 1 bar!
+🔴 Nguy cơ: Tín hiệu trong strategy mode bị trễ không chính xác
+---
+BÁO CÁO KIỂM TRA TOÀN DIỆN - Module adaptive_trend_LTS
+CÁC GIẢ THUYẾT VÀ LỖI TIỀM ẨN ĐÃ PHÁT HIỆN
+---
+4. LỖI TIỀM ẨN - Index Alignment Không Đầy Đủ
+File: weighted_signal.py:55-60
+if not sig.index.equals(first_index):
+    log_warn(f"signals[{i}] has different index, aligning...")
+    signals[i] = sig.reindex(first_index)
+Vấn đề: reindex chỉ căn chỉnh index, KHÔNG xử lý giá trị NaN mới sinh ra!
+Hệ quả:
+- Nếu MA series có index khác prices → NaN xuất hiện
+- NaN lan truyền qua weighted calculation → kết quả bị lỗi
+🟡 Cần xử lý: Thêm fill_method hoặc validation sau reindex
+---
+5. LỖI TIỀM ẨN - Memory Pool Race Condition
+File: layer1_signal.py:139-163
+sig_prev_values = pool.acquire_dirty((9, n_bars), dtype=np.float64)
+try:
+    # Fill buffer...
+    e_values_array = _calculate_equity_vectorized(...)
+finally:
+    pool.release(sig_prev_values)  # Release ngay sau khi dùng
+Vấn đề: 
+- e_values_array được trả về từ _calculate_equity_vectorized có thể là view/reference
+- pool.release ngay sau đó → buffer có thể bị thu hồi và tái sử dụng
+- Nếu e_values_array vẫn giữ reference → data corruption!
+🟡 Cần kiểm tra: _calculate_equity_vectorized có allocate array mới hay không?
+
+---
+6. LỖI LOGIC - Equity Floor Trong Vectorized vs Core
+File: core.py:98 vs core.py:148 vs core.py:219
+# Vectorized version (line 98):
+e_curr = np.maximum(e_curr, DEFAULT_EQUITY_FLOOR)
+# Parallel version (line 148):
+if e_curr < DEFAULT_EQUITY_FLOOR:
+    e_curr = DEFAULT_EQUITY_FLOOR
+# Core version (line 219):
+if e_curr < DEFAULT_EQUITY_FLOOR:
+    e_curr = DEFAULT_EQUITY_FLOOR
+Vấn đề: Logic floor KHÔNG NHẤT QUÁN giữa các phiên bản:
+- Vectorized: maximum() - đảm bảo >= floor
+- Core/Parallel: < comparison - cũng đảm bảo >= floor
+✅ Không phải lỗi - nhưng dùng np.maximum nhanh hơn if-statement
+---
+
+---
+7. LỖI TIỀM ẨN - NaN Propagation Trong Average Signal
+File: average_signal.py:122-135
+with np.errstate(invalid="ignore"):
+    C = np.where(S_np > long_threshold, 1.0, np.where(S_np < short_threshold, -1.0, 0.0))
+nom_array = np.sum(C * E_np, axis=0)
+den_array = np.sum(E_np, axis=0)
+with np.errstate(divide="ignore", invalid="ignore"):
+    avg_signal_array = np.divide(nom_array, den_array)
+    avg_signal_array = np.where(np.isfinite(avg_signal_array), avg_signal_array, 0.0)
+Vấn đề: 
+1. S_np có thể chứa NaN → C sẽ có False cả 2 điều kiện → = 0.0
+2. Nhưng NaN trong S_np không được xử lý rõ ràng
+3. E_np (equity) cũng có thể có NaN (từ cutout period)
+Hệ quả: 
+- den_array có thể = 0 nếu tất cả equities = NaN
+- np.divide trả về NaN/inf → được replace bằng 0.0
+- Nhưng logic discretization bị ảnh hưởng bởi NaN!
+🟡 Nên cải thiện: Thêm mask để xử lý NaN rõ ràng
+---
+8. LỖI TIỀM ẨN - Cache Key Collision Trong ROC
+File: rate_of_change.py:42-64
+# Use multiple statistical properties to reduce collision probability
+cache_key = f"ROC|{length}|{start_val:.12f}|{end_val:.12f}|{total_sum:.12f}|{min_val:.12f}|{max_val:.12f}|{mean_val:.12f}|{sample_hash}"
+Vấn đề: 
+- Hash dựa trên statistical properties, không phải content
+- Collision có thể xảy ra: 2 series khác nhau nhưng có cùng length, sum, min, max, mean!
+Ví dụ: 
+Series A: [1, 2, 3, 4, 5] → sum=15, mean=3, min=1, max=5
+Series B: [5, 4, 3, 2, 1] → sum=15, mean=3, min=1, max=5
+→ Cùng cache key! Nhưng ROC hoàn toàn khác nhau!
+🔴 Nguy cơ: Cache trả về kết quả sai cho series khác nhau!
+---
+9. LỖI LOGIC - MA Type Name Không Nhất Quán
+File: compute_atc_signals.py:145-152
+ma_configs = [
+    ("EMA", ema_len, ema_w),
+    ("HMA", hull_len, hma_w),  # <-- "HMA" nhưng param là "hull_len"
+    ("WMA", wma_len, wma_w),
+    ("DEMA", dema_len, dema_w),
+    ("LSMA", lsma_len, lsma_w),
+    ("KAMA", kama_len, kama_w),
+]
+Vấn đề: 
+- Config key là "HMA" nhưng function signature dùng hull_len
+- Điều này không phải lỗi logic, nhưng gây nhầm lẫn trong naming
+✅ Không phải lỗi - chỉ là naming convention không nhất quán
+---
+10. LỖI TIỀM ẨN - Use Approximate MA Không Validate Input
+File: compute_atc_signals.py:229-249
+elif use_approximate:
+    from ...approximate_mas import fast_ema_approx, ...
+    
+    def make_approx_tuple(ma_series):
+        return (ma_series,) * 9  # Trả về cùng 1 series 9 lần!
+Vấn đề: 
+- make_approx_tuple tạo tuple với cùng 1 series được reference 9 lần
+- Thay vì 9 MA variants khác nhau → dùng 1 MA cho tất cả!
+Hệ quả: 
+- Layer 1 signal chỉ dựa trên 1 MA thay vì 9 variants
+- Tín hiệu bị bias mạnh, mất tính "robustness" của ATC
+🔴 Nguy cơ: Approximate mode cho kết quả không đáng tin cậy
+---
+
+11. LỖI TIỀM ẨN - ThreadPool Trong Scanner
+File: set_of_moving_averages_enhanced.py:96-103
+config = hw_mgr.get_optimal_workload_config(workload_size=9, prefer_gpu=use_rust_backend)
+with ThreadPoolExecutor(max_workers=config.num_threads) as executor:
+    futures = [
+        executor.submit(ma_calculation_enhanced, source, ma_len, ma_type, use_cache, use_rust_backend)
+        for ma_len in ma_lengths
+    ]
+Vấn đề: 
+- Nếu scan_all_symbols chạy nhiều symbols song song (dùng ProcessPool)
+- Mỗi process con lại tạo ThreadPoolExecutor cho 9 MAs
+- Nested parallelism có thể gây resource contention và hiệu năng kém
+🟡 Nên kiểm tra: Giới hạn nested parallelism hoặc dùng sequential trong subprocess
+---
+12. LỖI TIỀM ẨN - Fallback Error Handling Quá Chung Chung
+File: layer1_signal.py:170-173
+except Exception:
+    # Fallback to sequential calculation on any error
+    log_warn("Vectorized equity calculation failed, using sequential version")
+    equities = [equity_series(1.0, sig, R, L=L, De=De) for sig in signals]
+Vấn đề: 
+- Bắt Exception quá chung chung → có thể che giấu lỗi nghiêm trọng
+- Lỗi logic có thể bị bỏ qua, fallback sang sequential nhưng kết quả vẫn sai
+🟡 Nên cải thiện: Bắt cụ thể hơn (ValueError, MemoryError, etc.)
+---
+13. LỖI TIỀM ẨN - Strategy Mode Cutout Conflict
+File: average_signal.py:143-144
+if strategy_mode:
+    Average_Signal = Average_Signal.shift(1).fillna(0)
+Vấn đề: 
+- fillna(0) sau shift → bar đầu tiên luôn = 0
+- Nhưng nếu cutout > 0, các bar đầu nên là NaN theo logic cutout
+- Conflict: Cutout đặt về 0.0, strategy mode cũng đặt về 0 → không phân biệt được!
+🟡 Cần xem xét: Strategy mode nên giữ NaN cho cutout period?

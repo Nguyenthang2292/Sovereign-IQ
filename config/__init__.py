@@ -27,6 +27,8 @@ The configuration is organized into separate modules:
 # Import order matters to avoid circular dependencies
 # Import common first as it's used by many modules
 from .common import *  # noqa: F403, F401
+from .xgboost import XGBOOST_USE_PARALLEL_CV, XGBOOST_USE_FLOAT32  # noqa: F401, F403
+from .xgboost import XGBOOST_VOLATILITY_ROLLING_WINDOW, TARGET_HORIZON  # noqa: F401, F403
 
 # Import API configuration last to avoid circular dependencies
 from .config_api import *  # noqa: F403, F401
@@ -58,3 +60,4 @@ from .spc import *  # noqa: F403, F401
 
 # Import ML model configurations (order matters: xgboost before deep_learning)
 from .xgboost import *  # noqa: F403, F401
+from .xgboost import OPTUNA_PARALLEL_TRIALS, OPTUNA_N_JOBS  # noqa: F401, F403

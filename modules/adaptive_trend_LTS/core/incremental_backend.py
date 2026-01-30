@@ -8,9 +8,12 @@ from __future__ import annotations
 
 from typing import Any, Dict, Tuple
 
+import pandas as pd
+
 # Try to import Rust backend
 try:
     from atc_rust import update_incremental_atc_rust
+
     _RUST_AVAILABLE = True
 except ImportError:
     update_incremental_atc_rust = None
@@ -40,7 +43,9 @@ def check_rust_available() -> bool:
     return _RUST_AVAILABLE
 
 
-def update_incremental_rust(state: Dict[str, Any], new_price: float, config: Dict[str, Any]) -> Tuple[float, Dict[str, Any]]:
+def update_incremental_rust(
+    state: Dict[str, Any], new_price: float, config: Dict[str, Any]
+) -> Tuple[float, Dict[str, Any]]:
     """Update incremental ATC using Rust backend.
 
     Args:
@@ -68,7 +73,9 @@ def update_incremental_rust(state: Dict[str, Any], new_price: float, config: Dic
         raise
 
 
-def update_incremental_python(state: Dict[str, Any], new_price: float, config: Dict[str, Any]) -> Tuple[float, Dict[str, Any]]:
+def update_incremental_python(
+    state: Dict[str, Any], new_price: float, config: Dict[str, Any]
+) -> Tuple[float, Dict[str, Any]]:
     """Update incremental ATC using Python backend (fallback).
 
     Args:
@@ -78,28 +85,100 @@ def update_incremental_python(state: Dict[str, Any], new_price: float, config: D
 
     Returns:
         Tuple of (signal, updated_state)
+
+    Notes:
+        The rolling window size is bounded by the maximum base MA length + 1.
+        This does not expand for robustness offsets (diflen), so results can
+        diverge from full-batch computation when offsets exceed the base length.
     """
     log_debug(f"Updating incremental ATC with Python backend, new_price={new_price}")
 
     # Import here to avoid circular imports
-    from .incremental_atc import IncrementalATC
+    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
 
-    # Create a temporary IncrementalATC to use its update methods
-    # This is a fallback when Rust is not available
-    decay = config.get("De", 0.03) / 100.0
-    la = config.get("La", 0.02) / 1000.0
-    long_threshold = config.get("long_threshold", 0.1)
-    short_threshold = config.get("short_threshold", -0.1)
+    # Maintain rolling price window
+    price_window = state.get("price_window", [])
+    if not isinstance(price_window, list):
+        price_window = list(price_window)
 
-    # This is a simplified Python fallback - in production would use full Python logic
-    # For now, just return a placeholder signal
-    signal = 0.0
+    price_window.append(float(new_price))
+
+    # Keep window size bounded by max MA length + 1
+    max_len = (
+        max(
+            config.get("ema_len", 28),
+            config.get("hma_len", 28),
+            config.get("wma_len", 28),
+            config.get("dema_len", 28),
+            config.get("lsma_len", 28),
+            config.get("kama_len", 28),
+        )
+        + 1
+    )
+
+    if len(price_window) > max_len:
+        price_window = price_window[-max_len:]
+
+    # Build compute config with compatible keys
+    compute_config = dict(config)
+    if "La" not in compute_config and "lambda_param" in compute_config:
+        compute_config["La"] = compute_config["lambda_param"]
+    if "De" not in compute_config and "decay" in compute_config:
+        compute_config["De"] = compute_config["decay"]
+
+    allowed_keys = {
+        "ema_len",
+        "hma_len",
+        "wma_len",
+        "dema_len",
+        "lsma_len",
+        "kama_len",
+        "ema_w",
+        "hma_w",
+        "wma_w",
+        "dema_w",
+        "lsma_w",
+        "kama_w",
+        "robustness",
+        "La",
+        "De",
+        "cutout",
+        "long_threshold",
+        "short_threshold",
+        "strategy_mode",
+        "parallel_l1",
+        "parallel_l2",
+        "precision",
+        "use_rust_backend",
+        "use_cache",
+        "fast_mode",
+        "use_cuda",
+        "prefer_gpu",
+        "use_approximate",
+        "approximate_threshold",
+        "use_adaptive_approximate",
+        "approximate_volatility_window",
+        "approximate_volatility_factor",
+    }
+
+    compute_kwargs = {k: v for k, v in compute_config.items() if k in allowed_keys}
+
+    prices = pd.Series(price_window, index=range(len(price_window)))
+    results = compute_atc_signals(prices, **compute_kwargs)
+
+    avg_series = results.get("Average_Signal")
+    signal = float(avg_series.iloc[-1]) if avg_series is not None and len(avg_series) > 0 else 0.0
+
+    state["price_window"] = price_window
+    state["initialized"] = True
 
     log_debug(f"Python update complete, signal={signal}")
     return signal, state
 
 
-def update_incremental_auto(state: Dict[str, Any], new_price: float, config: Dict[str, Any]) -> Tuple[float, Dict[str, Any]]:
+def update_incremental_auto(
+    state: Dict[str, Any], new_price: float, config: Dict[str, Any]
+) -> Tuple[float, Dict[str, Any]]:
     """Update incremental ATC using Rust or Python backend automatically.
 
     Args:

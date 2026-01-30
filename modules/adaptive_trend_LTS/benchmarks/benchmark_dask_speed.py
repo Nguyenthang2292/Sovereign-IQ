@@ -99,7 +99,7 @@ def benchmark_speed(
     if config is None:
         config = {
             "ema_len": 20,
-            "hull_len": 20,
+            "hma_len": 20,
             "wma_len": 20,
             "dema_len": 20,
             "lsma_len": 20,
@@ -222,7 +222,7 @@ def benchmark_speed_quick(
     """Quick speed benchmark for single dataset size with multiple runs."""
     config = {
         "ema_len": 20,
-        "hull_len": 20,
+        "hma_len": 20,
         "wma_len": 20,
         "dema_len": 20,
         "lsma_len": 20,

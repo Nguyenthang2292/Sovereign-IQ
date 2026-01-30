@@ -15,7 +15,7 @@ def list_configuration_files() -> List[Path]:
     Returns:
         List of Path objects for configuration files
     """
-    project_root = Path(__file__).parent.parent.parent.parent
+    project_root = Path(__file__).parent.parent.parent.parent.parent
     patterns = [
         "batch_scanner_config_*.json",
         "batch_scanner_config_*.yaml",

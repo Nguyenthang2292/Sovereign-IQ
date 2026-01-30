@@ -19,7 +19,7 @@ from typing import Optional, Tuple
 
 import pandas as pd
 
-from modules.adaptive_trend_enhance.utils import diflen
+from modules.adaptive_trend_LTS.utils import diflen
 from modules.common.system import get_hardware_manager
 from modules.common.utils import log_error, log_warn
 
@@ -90,17 +90,33 @@ def set_of_moving_averages_enhanced(
             raise ValueError(f"Invalid length offsets: {invalid}")
 
         if use_parallel:
-            hw_mgr = get_hardware_manager()
-            # Note: get_optimal_workload_config might still call get_resources(), but it's once per MA set (6 per symbol)
-            # We could optimize this too but it's less critical than the inner logs.
-            config = hw_mgr.get_optimal_workload_config(workload_size=9, prefer_gpu=use_rust_backend)
+            # Check if we're in a subprocess to avoid nested parallelism
+            import multiprocessing as mp
 
-            with ThreadPoolExecutor(max_workers=config.num_threads) as executor:
-                futures = [
-                    executor.submit(ma_calculation_enhanced, source, ma_len, ma_type, use_cache, use_rust_backend)
+            is_subprocess = mp.current_process().name != "MainProcess"
+
+            if is_subprocess:
+                # In subprocess: use sequential to avoid nested parallelism overhead
+                log_warn(
+                    f"Running in subprocess ({mp.current_process().name}), using sequential MA calculation to avoid nested parallelism"
+                )
+                mas = [
+                    ma_calculation_enhanced(source, ma_len, ma_type, use_cache, use_rust_backend)
                     for ma_len in ma_lengths
                 ]
-                mas = [f.result() for f in futures]
+            else:
+                # In main process: use ThreadPoolExecutor
+                hw_mgr = get_hardware_manager()
+                # Note: get_optimal_workload_config might still call get_resources(), but it's once per MA set (6 per symbol)
+                # We could optimize this too but it's less critical than the inner logs.
+                config = hw_mgr.get_optimal_workload_config(workload_size=9, prefer_gpu=use_rust_backend)
+
+                with ThreadPoolExecutor(max_workers=config.num_threads) as executor:
+                    futures = [
+                        executor.submit(ma_calculation_enhanced, source, ma_len, ma_type, use_cache, use_rust_backend)
+                        for ma_len in ma_lengths
+                    ]
+                    mas = [f.result() for f in futures]
         else:
             mas = [
                 ma_calculation_enhanced(source, ma_len, ma_type, use_cache, use_rust_backend) for ma_len in ma_lengths

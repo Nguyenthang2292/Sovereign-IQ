@@ -33,7 +33,7 @@ Phase 9 focuses on enhancing the Incremental ATC module implemented in Phase 6 w
 
 - [ ] Create `phase9_task.md` in `docs/`
 - [ ] Create `task.md` artifact for tracking
-- [ ] Update `optimization_suggestions2.md` to mark items 6-8 as NOT NECESSARY
+- [ ] Update `optimization_suggestions_v2.md` to mark items 6-8 as NOT NECESSARY
 - [ ] Create implementation plan
 
 **Verification**:
@@ -387,7 +387,7 @@ Xem **`phase9_usage_examples.md`** trong thư mục `docs/` để có ví dụ: 
 
 - **Phase 6**: `phase6_task.md` - Original Incremental ATC implementation
 - **Phase 6 Validation**: `phase6_incremental_atc_validation.md` - Current limitations
-- **Optimization Guide**: `optimization_suggestions2.md` - Detailed improvement proposals
+- **Optimization Guide**: `optimization_suggestions_v2.md` - Detailed improvement proposals
 - **Phase 9 Usage**: `phase9_usage_examples.md` - Usage examples for O(1) MA, Rust, MTF, batch, save/load
 
 ---

@@ -39,6 +39,7 @@ def diflen(length: int, robustness: str = "Medium") -> Tuple[int, int, int, int,
         raise TypeError(f"robustness must be a string, got {type(robustness)}")
 
     VALID_ROBUSTNESS = {"Narrow", "Medium", "Wide"}
+    MIN_LENGTHS = {"Narrow": 5, "Medium": 7, "Wide": 8}  # Minimum lengths to ensure all offsets > 0
     robustness_normalized = robustness.strip() if isinstance(robustness, str) else str(robustness)
 
     if robustness_normalized not in VALID_ROBUSTNESS:
@@ -46,6 +47,16 @@ def diflen(length: int, robustness: str = "Medium") -> Tuple[int, int, int, int,
             f"Invalid robustness '{robustness}'. Valid values: {', '.join(VALID_ROBUSTNESS)}. Using default 'Medium'."
         )
         robustness_normalized = "Medium"
+
+    # Proactive validation: check if length is compatible with robustness before calculation
+    min_required = MIN_LENGTHS.get(robustness_normalized, 7)
+    if length < min_required:
+        raise ValueError(
+            f"Base length={length} is too small for robustness='{robustness_normalized}'. "
+            f"Minimum required length is {min_required} to ensure all offset lengths are positive. "
+            f"With {robustness_normalized} robustness, the largest negative offset is "
+            f"±{4 if robustness_normalized == 'Narrow' else 6 if robustness_normalized == 'Medium' else 7}."
+        )
 
     try:
         if robustness_normalized == "Narrow":

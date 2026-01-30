@@ -177,11 +177,18 @@ class VotingSignalCalculationMixin:
                 and hasattr(self.args, "enable_xgboost")
                 and self.args.enable_xgboost
             ):
+                xgboost_config = getattr(self.args, "xgboost_config", None)
+                use_xgboost_performance = getattr(self.args, "use_xgboost_performance", True)
+
+                # Only pass config if performance mode is enabled
+                xgb_config_arg = xgboost_config if use_xgboost_performance else None
+
                 xgb_result = get_xgboost_signal(
                     data_fetcher=data_fetcher,
                     symbol=symbol,
                     timeframe=timeframe,
                     limit=limit,
+                    xgboost_config=xgb_config_arg,
                 )
                 if xgb_result is not None:
                     xgb_signal, xgb_confidence = xgb_result

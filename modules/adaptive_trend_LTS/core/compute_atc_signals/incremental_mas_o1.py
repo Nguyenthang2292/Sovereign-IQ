@@ -7,7 +7,7 @@ All classes maintain state that allows O(1) updates without iterating over the w
 from __future__ import annotations
 
 from collections import deque
-from typing import Deque, Dict, Any
+from typing import Any, Deque, Dict
 
 import numpy as np
 
@@ -19,7 +19,17 @@ class TrueO1WMA:
     by subtracting the contribution of the outgoing price and adding
     the contribution of the incoming price.
 
-    WMA(n) = sum(prices[i] * (i+1)) / sum(i+1) for i=0..n-1
+    WMA(n) = sum(prices[i] * weight[i]) / sum(weights)
+    where weight[i] = i + 1 for i = 0..n-1 (oldest has weight 1, newest has weight n)
+
+    Mathematical identity for O(1) update:
+    When we shift the window by 1 (remove oldest, add newest):
+    - Each existing price loses weight 1 (shifts left)
+    - New price gets weight n
+    - Oldest price is removed
+
+    weighted_sum_new = weighted_sum_old - sum_prices_old + new_price * n
+    where sum_prices_old = sum of all prices in window BEFORE adding new
     """
 
     def __init__(self, length: int):
@@ -37,6 +47,7 @@ class TrueO1WMA:
         # State for O(1) updates
         self.price_window: Deque[float] = deque(maxlen=length)
         self.weighted_sum = 0.0
+        self.sum_prices = 0.0  # Running sum of all prices in window for O(1) update
         self.current_value = 0.0
         self.is_initialized = False
 
@@ -53,24 +64,34 @@ class TrueO1WMA:
             # Initialization phase - just accumulate
             self.price_window.append(price)
             self.weighted_sum += price * len(self.price_window)
+            self.sum_prices += price
 
             if len(self.price_window) == self.length:
                 self.current_value = self.weighted_sum / self.denominator
                 self.is_initialized = True
             elif len(self.price_window) > 0:
                 # Use simple average during warmup
-                self.current_value = sum(self.price_window) / len(self.price_window)
+                self.current_value = self.sum_prices / len(self.price_window)
 
             return self.current_value
 
-        # O(1) update: all weights shift left by 1
-        # weighted_sum_new = weighted_sum_old - sum(prices) - oldest_price + new_price * n
+        # O(1) update:
+        # When window shifts: each price's weight decreases by 1, new price gets weight n
+        # weighted_sum_new = weighted_sum_old - sum_prices_old + new_price * n
+        # sum_prices_new = sum_prices_old - oldest + new_price
         oldest_price = self.price_window[0]
-        sum_y = sum(self.price_window)
 
-        self.price_window.append(price)
-        self.weighted_sum -= sum_y + oldest_price
+        # Update weighted_sum: subtract sum of current prices (weights shift down by 1)
+        # then add new price with full weight n
+        self.weighted_sum -= self.sum_prices
         self.weighted_sum += price * self.length
+
+        # Update sum_prices: remove oldest, add new
+        self.sum_prices -= oldest_price
+        self.sum_prices += price
+
+        # Add to window (this automatically removes oldest due to maxlen)
+        self.price_window.append(price)
 
         self.current_value = self.weighted_sum / self.denominator
         return self.current_value
@@ -79,6 +100,7 @@ class TrueO1WMA:
         """Reset the WMA state."""
         self.price_window.clear()
         self.weighted_sum = 0.0
+        self.sum_prices = 0.0
         self.current_value = 0.0
         self.is_initialized = False
 
@@ -87,6 +109,7 @@ class TrueO1WMA:
         return {
             "price_window": list(self.price_window),
             "weighted_sum": self.weighted_sum,
+            "sum_prices": self.sum_prices,
             "current_value": self.current_value,
             "is_initialized": self.is_initialized,
         }
@@ -95,6 +118,7 @@ class TrueO1WMA:
         """Restore state."""
         self.price_window = deque(state["price_window"], maxlen=self.length)
         self.weighted_sum = state["weighted_sum"]
+        self.sum_prices = state.get("sum_prices", sum(self.price_window))  # Backward compat
         self.current_value = state["current_value"]
         self.is_initialized = state["is_initialized"]
 
@@ -327,7 +351,7 @@ class TrueO1KAMA:
         if length <= 0:
             raise ValueError(f"length must be > 0, got {length}")
         if fast_period <= 0 or slow_period <= 0:
-            raise ValueError(f"fast_period and slow_period must be > 0")
+            raise ValueError("fast_period and slow_period must be > 0")
 
         self.length = length
         self.fast_sc = 2.0 / (fast_period + 1.0)

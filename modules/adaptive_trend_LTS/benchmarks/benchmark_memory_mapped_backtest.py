@@ -4,17 +4,11 @@ import gc
 import os
 import sys
 import tempfile
-from typing import Dict
 
 import numpy as np
-import pandas as pd
 
 try:
     from modules.adaptive_trend_LTS.core.backtesting.dask_backtest import backtest_with_dask
-    from modules.adaptive_trend_LTS.utils.memory_mapped_data import (
-        MemoryMappedDataManager,
-        cleanup as cleanup_mmap,
-    )
 except ImportError:
     print("Warning: Some modules not available")
 
@@ -103,7 +97,7 @@ def benchmark_normal_path(
     gc.collect()
     initial_memory = get_memory_usage_mb()
 
-    print(f"  Running normal path...")
+    print("  Running normal path...")
     result = backtest_with_dask(
         historical_data_path=csv_path,
         atc_config=atc_config,
@@ -143,7 +137,7 @@ def benchmark_memmap_path(
     gc.collect()
     initial_memory = get_memory_usage_mb()
 
-    print(f"  Running memory-mapped path...")
+    print("  Running memory-mapped path...")
     result = backtest_with_dask(
         historical_data_path=csv_path,
         atc_config=atc_config,
@@ -214,7 +208,7 @@ def benchmark_memory_comparison(
 
             memory_reduction = (1 - memmap_delta / normal_delta) * 100 if normal_delta > 0 else 0
 
-            print(f"\n[Comparison]")
+            print("\n[Comparison]")
             print(f"  Normal memory delta: {normal_delta:.2f} MB")
             print(f"  Memmap memory delta: {memmap_delta:.2f} MB")
             print(f"  Memory reduction: {memory_reduction:+.1f}%")

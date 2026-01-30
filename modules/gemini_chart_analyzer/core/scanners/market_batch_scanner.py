@@ -200,7 +200,7 @@ class MarketBatchScanner:
         pre_filter_mode: str = "voting",
         pre_filter_percentage: Optional[float] = None,
         pre_filter_auto_skip_threshold: int = 10,
-        fast_mode: bool = True,
+        pre_filter_fast_mode: bool = True,
         spc_config: Optional[Dict[str, Any]] = None,
         skip_cleanup: bool = False,
         stage0_sample_percentage: Optional[float] = None,
@@ -210,6 +210,8 @@ class MarketBatchScanner:
         atc_performance: Optional[Dict[str, Any]] = None,
         approximate_ma_scanner: Optional[Dict[str, Any]] = None,
         use_atc_performance: bool = True,
+        xgboost_lts: Optional[Dict[str, Any]] = None,
+        use_xgboost_performance: bool = True,
     ) -> BatchScanResult:
         """
         Scan entire market and return LONG/SHORT signals.
@@ -225,7 +227,7 @@ class MarketBatchScanner:
             pre_filter_mode: Mode for pre-filtering ('voting' or 'hybrid')
             pre_filter_percentage: Percentage of symbols to select via pre-filter (0-100)
             pre_filter_auto_skip_threshold: Auto-skip percentage filter if Stage 3 returns fewer symbols
-            fast_mode: Whether to run pre-filter in fast mode
+            pre_filter_fast_mode: Whether to run pre-filter in fast mode (3-stage sequential filtering)
             spc_config: Optional configuration for SPC analyzer
             skip_cleanup: If True, skip automatic cleanup of old results/charts
             stage0_sample_percentage: Stage 0 sampling percentage
@@ -235,6 +237,8 @@ class MarketBatchScanner:
             atc_performance: ATC high-performance parameters
             approximate_ma_scanner: Approximate MA scanner configuration
             use_atc_performance: Switch between LTS (True) and Legacy (False) ATC modules
+            xgboost_lts: XGBoost LTS configuration
+            use_xgboost_performance: Switch between LTS (True) and Legacy (False) XGBoost modules
 
         Returns:
             BatchScanResult with signals, confidence scores, and summary statistics
@@ -281,7 +285,7 @@ class MarketBatchScanner:
                 normalized_tfs=normalized_tfs,
                 limit=limit,
                 pre_filter_mode=pre_filter_mode,
-                fast_mode=fast_mode,
+                pre_filter_fast_mode=pre_filter_fast_mode,
                 spc_config=spc_config,
                 stage0_sample_percentage=stage0_sample_percentage,
                 stage0_sampling_strategy=stage0_sampling_strategy,
@@ -291,6 +295,8 @@ class MarketBatchScanner:
                 approximate_ma_scanner=approximate_ma_scanner,
                 pre_filter_auto_skip_threshold=pre_filter_auto_skip_threshold,
                 use_atc_performance=use_atc_performance,
+                xgboost_lts=xgboost_lts,
+                use_xgboost_performance=use_xgboost_performance,
             )
 
         # Apply max_symbols
@@ -368,7 +374,7 @@ class MarketBatchScanner:
         normalized_tfs: List[str],
         limit: int,
         pre_filter_mode: str,
-        fast_mode: bool,
+        pre_filter_fast_mode: bool,
         spc_config: Optional[Dict[str, Any]],
         stage0_sample_percentage: Optional[float],
         stage0_sampling_strategy: str,
@@ -378,6 +384,8 @@ class MarketBatchScanner:
         approximate_ma_scanner: Optional[Dict[str, Any]],
         pre_filter_auto_skip_threshold: int,
         use_atc_performance: bool,
+        xgboost_lts: Optional[Dict[str, Any]] = None,
+        use_xgboost_performance: bool = True,
     ) -> List[str]:
         """
         Apply internal pre-filter to symbol list.
@@ -407,8 +415,7 @@ class MarketBatchScanner:
                 percentage=pre_filter_percentage,
                 timeframe=normalized_tfs[0],
                 limit=limit,
-                mode=pre_filter_mode,
-                fast_mode=fast_mode,
+                pre_filter_fast_mode=pre_filter_fast_mode,
                 spc_config=spc_config,
                 stage0_sample_percentage=stage0_sample_percentage,
                 stage0_sampling_strategy=stage0_sampling_strategy,
@@ -418,6 +425,8 @@ class MarketBatchScanner:
                 approximate_ma_scanner=approximate_ma_scanner,
                 auto_skip_threshold=pre_filter_auto_skip_threshold,
                 use_atc_performance=use_atc_performance,
+                xgboost_lts=xgboost_lts,
+                use_xgboost_performance=use_xgboost_performance,
             )
             if pre_filtered:
                 log_success(f"Internal pre-filter selected {len(pre_filtered)}/{len(all_symbols)} symbols")
@@ -436,8 +445,7 @@ class MarketBatchScanner:
         percentage: float,
         timeframe: str,
         limit: int,
-        mode: str = "voting",
-        fast_mode: bool = True,
+        pre_filter_fast_mode: bool = True,
         spc_config: Optional[Dict[str, Any]] = None,
         stage0_sample_percentage: Optional[float] = None,
         stage0_sampling_strategy: str = "random",
@@ -447,6 +455,8 @@ class MarketBatchScanner:
         approximate_ma_scanner: Optional[Dict[str, Any]] = None,
         auto_skip_threshold: int = 10,
         use_atc_performance: bool = True,
+        xgboost_lts: Optional[Dict[str, Any]] = None,
+        use_xgboost_performance: bool = True,
     ) -> List[str]:
         """
         Run internal pre-filter using 3-stage sequential filtering workflow.
@@ -456,8 +466,7 @@ class MarketBatchScanner:
             percentage: Percentage of symbols to select (0-100)
             timeframe: Timeframe for analysis
             limit: Number of candles per symbol
-            mode: Pre-filter mode ('voting' or 'hybrid')
-            fast_mode: Whether to run in fast mode
+            pre_filter_fast_mode: Whether to run in fast mode (3-stage sequential filtering)
             spc_config: Optional SPC configuration
             (Additional stage0 and atc_performance args)
 
@@ -473,8 +482,7 @@ class MarketBatchScanner:
                 percentage=percentage,
                 timeframe=timeframe,
                 limit=limit,
-                mode=mode,
-                fast_mode=fast_mode,
+                fast_mode=pre_filter_fast_mode,
                 spc_config=spc_config,
                 rf_model_path=self.rf_model_path,
                 stage0_sample_percentage=stage0_sample_percentage,
@@ -484,6 +492,8 @@ class MarketBatchScanner:
                 atc_performance=atc_performance,
                 auto_skip_threshold=auto_skip_threshold,
                 use_atc_performance=use_atc_performance,
+                xgboost_lts=xgboost_lts,
+                use_xgboost_performance=use_xgboost_performance,
             )
 
             log_success(f"Pre-filter completed: Selected {len(filtered_symbols)}/{len(symbols)} symbols")
@@ -572,24 +582,18 @@ class MarketBatchScanner:
                             all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
 
                     valid_symbols = [s for s in batch_result.keys()]
-                    batch_results.append(
-                        {"batch_id": batch_idx, "symbols": valid_symbols, "results": batch_result}
-                    )
+                    batch_results.append({"batch_id": batch_idx, "symbols": valid_symbols, "results": batch_result})
 
                     # Handle failed symbols
                     for symbol in batch_symbols:
                         if symbol not in valid_symbols:
                             all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
                 else:
-                    batch_result = self._process_single_tf_batch(
-                        batch_symbols, normalized_tfs[0], limit, batch_idx
-                    )
+                    batch_result = self._process_single_tf_batch(batch_symbols, normalized_tfs[0], limit, batch_idx)
 
                     all_results.update(batch_result)
                     symbols_data_keys = [s for s in batch_result.keys()]
-                    batch_results.append(
-                        {"batch_id": batch_idx, "symbols": symbols_data_keys, "results": batch_result}
-                    )
+                    batch_results.append({"batch_id": batch_idx, "symbols": symbols_data_keys, "results": batch_result})
 
                     # Handle failed symbols
                     fetched_symbols = set(batch_result.keys())

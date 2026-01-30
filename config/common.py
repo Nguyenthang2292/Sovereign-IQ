@@ -4,6 +4,9 @@ Common/Shared Configuration.
 Configuration constants used across multiple components.
 """
 
+# Directories
+ARTIFACTS_DIR = "artifacts"
+
 # Exchange Settings
 DEFAULT_EXCHANGES = [
     "binance",

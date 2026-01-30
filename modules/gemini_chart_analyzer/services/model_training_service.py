@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from modules.common.core.data_fetcher import DataFetcher
-from modules.common.ui.logging import log_error, log_info, log_success, log_progress, log_warn
+from modules.common.ui.logging import log_error, log_info, log_progress, log_success, log_warn
 from modules.gemini_chart_analyzer.cli.models.random_forest_manager import (
     check_random_forest_model_status,
     delete_old_model,

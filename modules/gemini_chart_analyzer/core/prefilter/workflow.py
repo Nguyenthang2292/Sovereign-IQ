@@ -7,19 +7,29 @@ It coordinates between ATC, oscillators, SPC, and ML models to filter symbols.
 
 import json
 import sys
+import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+def _find_project_root() -> Path:
+    """
+    Find project root by looking for marker files (.git, setup.py, requirements.txt).
+    Falls back to going up 5 levels if markers not found.
+    """
+    current = Path(__file__).resolve()
+    # Look for project markers
+    for parent in [current] + list(current.parents):
+        if (parent / ".git").exists() or (parent / "setup.py").exists() or (parent / "requirements.txt").exists():
+            return parent
+    # Fallback to expected structure: prefilter -> core -> gemini_chart_analyzer -> modules -> project_root
+    return current.parent.parent.parent.parent.parent
+
+
 # Add project root to sys.path
-# File is at: modules/gemini_chart_analyzer/core/prefilter/workflow.py
-if "__file__" in globals():
-    current_file = Path(__file__).resolve()
-    # Go up 5 levels for new location:
-    # prefilter -> core -> gemini_chart_analyzer -> modules -> project_root
-    project_root = current_file.parent.parent.parent.parent.parent
-    project_root_str = str(project_root)
-    if project_root_str not in sys.path:
-        sys.path.insert(0, project_root_str)
+project_root = _find_project_root()
+project_root_str = str(project_root)
+if project_root_str not in sys.path:
+    sys.path.insert(0, project_root_str)
 
 from core.voting_analyzer import VotingAnalyzer
 from modules.common.core.data_fetcher import DataFetcher
@@ -29,7 +39,11 @@ from modules.gemini_chart_analyzer.core.prefilter.args_builder import build_voti
 from modules.gemini_chart_analyzer.core.prefilter.sampling import run_sampling_stage
 from modules.gemini_chart_analyzer.core.prefilter.stages import (
     filter_stage_1_atc as _filter_stage_1_atc,
+)
+from modules.gemini_chart_analyzer.core.prefilter.stages import (
     filter_stage_2_osc_spc as _filter_stage_2_osc_spc,
+)
+from modules.gemini_chart_analyzer.core.prefilter.stages import (
     filter_stage_3_ml_models as _filter_stage_3_ml_models,
 )
 
@@ -39,7 +53,6 @@ def run_prefilter_worker(
     percentage: float,
     timeframe: str,
     limit: int,
-    mode: str = "voting",
     fast_mode: bool = True,
     spc_config: Optional[Dict[str, Any]] = None,
     rf_model_path: Optional[str] = None,
@@ -51,6 +64,8 @@ def run_prefilter_worker(
     approximate_ma_scanner: Optional[Dict[str, Any]] = None,
     auto_skip_threshold: int = 10,
     use_atc_performance: bool = True,
+    xgboost_lts: Optional[Dict[str, Any]] = None,
+    use_xgboost_performance: bool = True,
 ) -> List[str]:
     """
     Run pre-filter with 4-stage sequential filtering workflow.
@@ -65,7 +80,6 @@ def run_prefilter_worker(
         percentage: Percentage of symbols to select (0-100) - applied to final result if needed
         timeframe: Timeframe string for analysis
         limit: Number of candles to fetch per symbol
-        mode: Pre-filter mode ('voting' or 'hybrid')
         fast_mode: Whether to run in fast mode (Stage 3 still calculates all ML models)
         spc_config: Optional SPC configuration
         rf_model_path: Optional path to Random Forest model
@@ -81,6 +95,19 @@ def run_prefilter_worker(
     Returns:
         List of filtered symbols from Stage 3 (or percentage of final result if percentage < 100)
     """
+    # Input validation
+    if not 0 <= percentage <= 100:
+        raise ValueError(f"percentage must be between 0 and 100, got {percentage}")
+
+    if limit <= 0:
+        raise ValueError(f"limit must be positive, got {limit}")
+
+    if stage0_sample_percentage is not None and not (1 <= stage0_sample_percentage <= 100):
+        raise ValueError(f"stage0_sample_percentage must be between 1 and 100 or None, got {stage0_sample_percentage}")
+
+    if auto_skip_threshold < 0:
+        raise ValueError(f"auto_skip_threshold must be non-negative, got {auto_skip_threshold}")
+
     if not all_symbols:
         return all_symbols
 
@@ -94,6 +121,10 @@ def run_prefilter_worker(
         stage0_hybrid_top_percentage=stage0_hybrid_top_percentage,
     )
 
+    if not symbols_to_process:
+        log_warn("[Pre-filter] No symbols after sampling, returning empty list")
+        return []
+
     try:
         log_info(f"[Pre-filter] Starting 3-stage pre-filter for {len(symbols_to_process)} symbols")
 
@@ -106,74 +137,86 @@ def run_prefilter_worker(
             atc_performance=atc_performance,
             approximate_ma_scanner=approximate_ma_scanner,
             use_atc_performance=use_atc_performance,
+            xgboost_lts=xgboost_lts,
+            use_xgboost_performance=use_xgboost_performance,
         )
 
         log_info("[Pre-filter] Initializing VotingAnalyzer...")
 
         exchange_manager = ExchangeManager()
         data_fetcher = DataFetcher(exchange_manager)
-        analyzer = VotingAnalyzer(args, data_fetcher, ohlcv_cache=data_cache)
-        analyzer.selected_timeframe = timeframe
-        analyzer.atc_analyzer.selected_timeframe = timeframe
 
-        stage1_symbols = _filter_stage_1_atc(analyzer, symbols_to_process)
+        try:
+            analyzer = VotingAnalyzer(args, data_fetcher, ohlcv_cache=data_cache)
+            analyzer.selected_timeframe = timeframe
+            analyzer.atc_analyzer.selected_timeframe = timeframe
 
-        if not stage1_symbols:
-            log_warn("[Pre-filter] Stage 1 returned no symbols, returning all symbols")
-            return all_symbols
+            stage1_symbols = _filter_stage_1_atc(analyzer, symbols_to_process)
 
-        stage2_symbols, stage2_signals = _filter_stage_2_osc_spc(analyzer, stage1_symbols, timeframe, limit)
+            if not stage1_symbols:
+                log_warn("[Pre-filter] Stage 1 returned no symbols, using sampled symbols")
+                stage1_symbols = symbols_to_process
 
-        if not stage2_symbols:
-            log_warn("[Pre-filter] Stage 2 returned no symbols, using Stage 1 results")
-            stage2_symbols = stage1_symbols
-            stage2_signals = {}
+            stage2_symbols, stage2_signals = _filter_stage_2_osc_spc(analyzer, stage1_symbols, timeframe, limit)
 
-        stage3_symbols, stage3_scores = _filter_stage_3_ml_models(
-            analyzer, stage2_symbols, stage2_signals, timeframe, limit, rf_model_path
-        )
+            if not stage2_symbols:
+                log_warn("[Pre-filter] Stage 2 returned no symbols, using Stage 1 results")
+                stage2_symbols = stage1_symbols
+                stage2_signals = {}
 
-        if not stage3_symbols:
-            log_warn("[Pre-filter] Stage 3 returned no symbols, using Stage 2 results")
-            stage3_symbols = stage2_symbols
+            stage3_symbols, stage3_scores = _filter_stage_3_ml_models(
+                analyzer, stage2_symbols, stage2_signals, timeframe, limit, rf_model_path
+            )
 
-        filtered_symbols = stage3_symbols
-        if percentage > 0.0 and percentage < 100.0:
-            if len(stage3_symbols) < auto_skip_threshold:
-                log_info(
-                    f"[Pre-filter] Skipping percentage filter: Stage 3 returned only {len(stage3_symbols)} symbols "
-                    f"(threshold: {auto_skip_threshold}). Using all Stage 3 results."
-                )
-            else:
-                target_count = int(len(stage3_symbols) * percentage / 100.0)
-                if target_count > 0 and target_count < len(stage3_symbols):
+            if not stage3_symbols:
+                log_warn("[Pre-filter] Stage 3 returned no symbols, using Stage 2 results")
+                stage3_symbols = stage2_symbols
+
+            # Apply percentage filtering if needed
+            filtered_symbols = stage3_symbols
+            if 0 < percentage < 100:
+                # Skip filtering if we have fewer symbols than threshold
+                if len(stage3_symbols) < auto_skip_threshold:
                     log_info(
-                        f"[Pre-filter] Applying percentage filter: selecting top {percentage}% "
-                        f"({target_count}/{len(stage3_symbols)})"
+                        f"[Pre-filter] Skipping percentage filter: Stage 3 returned only {len(stage3_symbols)} symbols "
+                        f"(threshold: {auto_skip_threshold}). Using all Stage 3 results."
                     )
+                else:
+                    # Apply percentage filter
+                    target_count = int(len(stage3_symbols) * percentage / 100.0)
+                    if target_count > 0 and target_count < len(stage3_symbols):
+                        log_info(
+                            f"[Pre-filter] Applying percentage filter: selecting top {percentage}% "
+                            f"({target_count}/{len(stage3_symbols)})"
+                        )
+                        sorted_symbols = sorted(stage3_symbols, key=lambda s: stage3_scores.get(s, 0.0), reverse=True)
+                        filtered_symbols = sorted_symbols[:target_count]
 
-                    sorted_symbols = sorted(stage3_symbols, key=lambda s: stage3_scores.get(s, 0.0), reverse=True)
-                    filtered_symbols = sorted_symbols[:target_count]
+            log_success(
+                f"[Pre-filter] Completed 3-stage filtering: {len(filtered_symbols)}/{total_symbols} symbols selected"
+            )
 
-        log_success(
-            f"[Pre-filter] Completed 3-stage filtering: {len(filtered_symbols)}/{total_symbols} symbols selected"
-        )
+            return filtered_symbols
 
-        return filtered_symbols
+        finally:
+            # Cleanup resources
+            if hasattr(exchange_manager, 'close'):
+                try:
+                    exchange_manager.close()
+                except Exception as cleanup_error:
+                    log_warn(f"[Pre-filter] Error during cleanup: {cleanup_error}")
 
     except Exception as e:
-        log_error(f"[Pre-filter] ERROR: {type(e).__name__}: {e}")
-        import traceback
-
-        traceback.print_exc()
+        log_error(f"[Pre-filter] ERROR: {type(e).__name__}: {e}\n{traceback.format_exc()}")
         return all_symbols
 
 
-def main():
+def main() -> None:
     """
     Main entry point for subprocess execution.
     Reads input from stdin (JSON) and writes output to stdout (JSON).
     """
+    all_symbols: List[str] = []  # Initialize for error handler scope
     try:
         input_lines = []
         while True:
@@ -199,7 +242,6 @@ def main():
             percentage=percentage,
             timeframe=timeframe,
             limit=limit,
-            mode=input_data.get("mode", "voting"),
             fast_mode=input_data.get("fast_mode", True),
             spc_config=input_data.get("spc_config"),
             rf_model_path=input_data.get("rf_model_path"),
@@ -210,12 +252,7 @@ def main():
         sys.stdout.flush()
 
     except Exception as e:
-        try:
-            input_data = json.load(sys.stdin)
-            all_symbols = input_data.get("all_symbols", [])
-        except Exception:
-            all_symbols = []
-
+        # Use all_symbols from outer scope (already read from stdin)
         output_data = {"filtered_symbols": all_symbols, "success": False, "error": str(e)}
         json.dump(output_data, sys.stdout)
         sys.stdout.flush()

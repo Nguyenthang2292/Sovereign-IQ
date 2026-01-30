@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import pandas as pd
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.process_layer1 import trend_sign
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS.core.process_layer1 import trend_sign
+from modules.adaptive_trend_LTS.utils.config import ATCConfig
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
@@ -93,7 +93,7 @@ def _process_symbol(
             prices=price_series,
             src=None,
             ema_len=atc_config.ema_len,
-            hull_len=atc_config.hma_len,
+            hma_len=atc_config.hma_len,
             wma_len=atc_config.wma_len,
             dema_len=atc_config.dema_len,
             lsma_len=atc_config.lsma_len,

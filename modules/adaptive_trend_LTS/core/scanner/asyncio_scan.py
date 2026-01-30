@@ -24,7 +24,7 @@ except ImportError:
         print(f"[PROGRESS] {message}")
 
 
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.adaptive_trend_LTS.utils.config import ATCConfig
 
 from .process_symbol import _process_symbol
 
@@ -137,9 +137,17 @@ def _scan_asyncio(
         return asyncio.run(_async_scan())
     except RuntimeError:
         # If we're already in an event loop, use nest_asyncio or create new loop
+        # Store the current loop before replacing it
+        old_loop = asyncio.get_event_loop()
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             return loop.run_until_complete(_async_scan())
         finally:
             loop.close()
+            # Restore the original loop to prevent state pollution
+            try:
+                asyncio.set_event_loop(old_loop)
+            except Exception:
+                # If old_loop is closed, set to None
+                asyncio.set_event_loop(None)

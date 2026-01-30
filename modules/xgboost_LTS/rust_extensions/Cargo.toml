@@ -1,0 +1,38 @@
+[package]
+name = "xgboost_rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "xgboost_rust"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+numpy = "0.23"
+ndarray = "0.16"
+rayon = "1.8"  # For parallel processing
+
+[profile.release]
+# Enable optimizations for SIMD auto-vectorization
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+# Use native CPU features for SIMD
+# Note: Users can override with: RUSTFLAGS="-C target-cpu=native" cargo build --release
+
+[profile.bench]
+# Used by criterion for cargo bench; debug = true improves flamegraph symbol resolution
+debug = true
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "labeling_benchmark"
+harness = false
+
+[[bench]]
+name = "features_benchmark"
+harness = false
+

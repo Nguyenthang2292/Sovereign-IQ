@@ -258,12 +258,7 @@ def scan_all_symbols(
             if results_df.empty:
                 return pd.DataFrame(), pd.DataFrame()
 
-            # Fix: Guard against empty results_df before accessing columns
-            # This prevents KeyError when results_df is empty (no valid signals)
-            if results_df.empty:
-                return pd.DataFrame(), pd.DataFrame()
-
-            # Filter LONG and SHORT signals
+            # Filter LONG and SHORT signals (including neutral signals with trend==0)
             long_signals = results_df[results_df["trend"] > 0].copy()
             short_signals = results_df[results_df["trend"] < 0].copy()
 

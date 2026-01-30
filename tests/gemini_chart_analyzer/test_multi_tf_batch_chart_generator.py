@@ -274,11 +274,11 @@ class TestGetChartsDir:
         charts_dir = get_charts_dir()
         assert isinstance(charts_dir, Path)
 
-    def test_get_charts_dir_relative_to_module(self):
-        """Test that charts directory is relative to module root."""
+    def test_get_charts_dir_relative_to_project_root(self):
+        """Test that charts directory is relative to project root."""
         charts_dir = get_charts_dir()
-        # Should be in modules/gemini_chart_analyzer/charts
-        assert charts_dir.parts[-3:] == ("modules", "gemini_chart_analyzer", "charts")
+        # Should be in outputs/charts
+        assert charts_dir.parts[-2:] == ("outputs", "charts")
 
 
 class TestErrorHandling:

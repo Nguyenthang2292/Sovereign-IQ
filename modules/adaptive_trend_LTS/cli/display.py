@@ -26,7 +26,7 @@ from typing import Optional
 import pandas as pd
 from colorama import Fore, Style
 
-from modules.adaptive_trend_enhance.core.process_layer1 import trend_sign
+from modules.adaptive_trend_LTS.core.process_layer1 import trend_sign
 from modules.common.utils import (
     color_text,
     format_price,

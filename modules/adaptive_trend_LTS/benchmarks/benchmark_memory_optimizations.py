@@ -1,12 +1,10 @@
 import os
 import sys
+import tempfile
 import time
-import timeit
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import shutil
-import tempfile
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -19,15 +17,13 @@ except ImportError:
     PSUTIL_AVAILABLE = False
     print("WARNING: psutil not installed. Memory measurements will be skipped.")
 
+from modules.adaptive_trend_LTS.utils.data_compression import (
+    compress_pickle,
+    decompress_pickle,
+)
 from modules.adaptive_trend_LTS.utils.memory_mapped_data import (
     create_memory_mapped_from_csv,
     load_memory_mapped_from_csv,
-)
-from modules.adaptive_trend_LTS.utils.data_compression import (
-    compress_to_file,
-    decompress_from_file,
-    compress_pickle,
-    decompress_pickle,
 )
 
 

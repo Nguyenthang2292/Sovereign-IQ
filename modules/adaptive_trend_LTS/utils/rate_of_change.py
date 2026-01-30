@@ -38,19 +38,24 @@ def rate_of_change(prices: pd.Series) -> pd.Series:
         # Full content hashing is too slow (as slow as calculation)
         # Assuming typical use case: same Series object or identical data
 
-        # Calculate fast hash using start/end values and length
-        cache_key = None
-        if hasattr(prices, "values") and len(prices) > 0:
-            # Hash based on simple properties + start/end
-            start_val = float(prices.iloc[0])
-            end_val = float(prices.iloc[-1])
-            length = len(prices)
-            # Create a key string
-            cache_key = f"ROC|{length}|{start_val:.6f}|{end_val:.6f}"
+        # Calculate robust cache key using pandas hash
+        # This is faster (single pass) and more robust against collisions than statistical properties
+        try:
+            from pandas.util import hash_pandas_object
+
+            series_hash = hash_pandas_object(prices, index=True).sum()
+            cache_key = f"ROC|{series_hash}"
 
             cached_result = cache.get("ROC", 0, cache_key)
             if cached_result is not None:
                 return cached_result
+        except ImportError:
+            # Fallback if hash_pandas_object is not available
+            log_warn("hash_pandas_object not found, skipping cache check for rate_of_change")
+            cache_key = None
+        except Exception as e:
+            log_warn(f"Error calculating cache key: {e}, skipping cache")
+            cache_key = None
 
         result = prices.pct_change(fill_method=None)
 

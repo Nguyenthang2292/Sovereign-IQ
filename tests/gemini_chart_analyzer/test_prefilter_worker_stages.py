@@ -407,7 +407,6 @@ class TestIntegrated3StageWorkflow:
             percentage=100.0,  # 100% to get all results
             timeframe="1h",
             limit=700,
-            mode="voting",
             fast_mode=True,
             spc_config=None,
             rf_model_path=None,

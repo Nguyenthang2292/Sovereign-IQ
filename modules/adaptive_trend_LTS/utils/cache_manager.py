@@ -11,6 +11,7 @@ import hashlib
 import os
 import pickle
 import time
+import threading
 from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Union
@@ -98,6 +99,10 @@ class CacheManager:
         self._hits_l2 = 0
         self._misses = 0
         self._initial_entries = 0
+
+        # Thread-safety: Use RLock to allow recursive locking (same thread can acquire multiple times)
+        # This prevents deadlocks when cache operations call other cache operations
+        self._cache_lock = threading.RLock()
 
         # Check if compression is available
         if use_compression:
@@ -197,34 +202,35 @@ class CacheManager:
         return self._get_entry(key)
 
     def _get_entry(self, key: str) -> Optional[Any]:
-        """Base get logic with multi-level promotion."""
-        # Check L1
-        entry = self._l1_cache.get(key)
-        if entry:
-            self._hits_l1 += 1
-            entry.hits += 1
-            return entry.value
+        """Base get logic with multi-level promotion. Thread-safe."""
+        with self._cache_lock:
+            # Check L1
+            entry = self._l1_cache.get(key)
+            if entry:
+                self._hits_l1 += 1
+                entry.hits += 1
+                return entry.value
 
-        # Check L2
-        entry = self._l2_cache.get(key)
-        if entry:
-            self._hits_l2 += 1
-            entry.hits += 1
-            # Promote to L1 (replace oldest if full)
-            if len(self._l1_cache) >= self.max_entries_l1:
-                oldest_key = min(self._l1_cache.keys(), key=lambda k: self._l1_cache[k].timestamp)
-                self._l1_cache.pop(oldest_key)
-            self._l1_cache[key] = entry
-            return entry.value
+            # Check L2
+            entry = self._l2_cache.get(key)
+            if entry:
+                self._hits_l2 += 1
+                entry.hits += 1
+                # Promote to L1 (replace oldest if full)
+                if len(self._l1_cache) >= self.max_entries_l1:
+                    oldest_key = min(self._l1_cache.keys(), key=lambda k: self._l1_cache[k].timestamp)
+                    self._l1_cache.pop(oldest_key)
+                self._l1_cache[key] = entry
+                return entry.value
 
-        if self._misses < 5:
-            from modules.common.ui.logging import log_debug
+            if self._misses < 5:
+                from modules.common.ui.logging import log_debug
 
-            log_debug(f"  L2 miss - key not in L2: {key[:50]}")
-            log_debug(f"  L2 has {len(self._l2_cache)} keys")
+                log_debug(f"  L2 miss - key not in L2: {key[:50]}")
+                log_debug(f"  L2 has {len(self._l2_cache)} keys")
 
-        self._misses += 1
-        return None
+            self._misses += 1
+            return None
 
     def put_equity(self, signal: Any, R: Any, L: float, De: float, starting_equity: float, equity: Any):
         """Cache equity curve (puts in L1 and L2)."""
@@ -249,27 +255,28 @@ class CacheManager:
         self._put_entry(key, equity)
 
     def _put_entry(self, key: str, value: Any, ma_type: str = None, length: int = None):
-        """Base put logic for multi-level cache."""
-        size_bytes = self._estimate_size(value)
-        entry = CacheEntry(
-            key=key, value=value, timestamp=time.time(), hits=1, size_bytes=size_bytes, ma_type=ma_type, length=length
-        )
+        """Base put logic for multi-level cache. Thread-safe."""
+        with self._cache_lock:
+            size_bytes = self._estimate_size(value)
+            entry = CacheEntry(
+                key=key, value=value, timestamp=time.time(), hits=1, size_bytes=size_bytes, ma_type=ma_type, length=length
+            )
 
-        # L1 logic (Strict LRU if full)
-        if len(self._l1_cache) >= self.max_entries_l1:
-            # Pop oldest from L1
-            oldest_key = min(self._l1_cache.keys(), key=lambda k: self._l1_cache[k].timestamp)
-            self._l1_cache.pop(oldest_key)
-        self._l1_cache[key] = entry
+            # L1 logic (Strict LRU if full)
+            if len(self._l1_cache) >= self.max_entries_l1:
+                # Pop oldest from L1
+                oldest_key = min(self._l1_cache.keys(), key=lambda k: self._l1_cache[k].timestamp)
+                self._l1_cache.pop(oldest_key)
+            self._l1_cache[key] = entry
 
-        # L2 logic (Hybrid LRU+LFU)
-        while len(self._l2_cache) >= self.max_entries_l2 or self._l2_size_bytes + size_bytes > self.max_size_bytes_l2:
-            if not self._evict_l2():
-                break
+            # L2 logic (Hybrid LRU+LFU)
+            while len(self._l2_cache) >= self.max_entries_l2 or self._l2_size_bytes + size_bytes > self.max_size_bytes_l2:
+                if not self._evict_l2():
+                    break
 
-        if len(self._l2_cache) < self.max_entries_l2 and self._l2_size_bytes + size_bytes <= self.max_size_bytes_l2:
-            self._l2_cache[key] = entry
-            self._l2_size_bytes += size_bytes
+            if len(self._l2_cache) < self.max_entries_l2 and self._l2_size_bytes + size_bytes <= self.max_size_bytes_l2:
+                self._l2_cache[key] = entry
+                self._l2_size_bytes += size_bytes
 
     def _estimate_size(self, value: Any) -> int:
         """
@@ -310,14 +317,14 @@ class CacheManager:
         self._put_entry(key, value, ma_type, length)
 
     def _remove_entry(self, key: str):
-        """Remove entry from all cache levels."""
+        """Remove entry from all cache levels. Must be called within lock."""
         self._l1_cache.pop(key, None)
         entry = self._l2_cache.pop(key, None)
         if entry:
             self._l2_size_bytes -= entry.size_bytes
 
     def _evict_l2(self) -> bool:
-        """Evict entry from L2 using Hybrid LRU+LFU."""
+        """Evict entry from L2 using Hybrid LRU+LFU. Must be called within lock."""
         if not self._l2_cache:
             return False
 
@@ -327,12 +334,13 @@ class CacheManager:
         return True
 
     def save_to_disk(self, filename: str = "cache_v1.pkl"):
-        """Save L2 cache to disk."""
+        """Save L2 cache to disk. Thread-safe."""
         path = os.path.join(self.cache_dir, filename)
         log_info(f"Saving cache to {path}...")
         try:
             # We only save entries with hits > 1 to avoid bloating
-            to_save = {k: v for k, v in self._l2_cache.items() if v.hits > 1}
+            with self._cache_lock:
+                to_save = {k: v for k, v in self._l2_cache.items() if v.hits > 1}
 
             if self.use_compression:
                 # Save compressed

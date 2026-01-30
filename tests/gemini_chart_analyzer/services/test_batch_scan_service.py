@@ -8,10 +8,10 @@ Tests cover:
 """
 
 import json
-import os
 import tempfile
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from modules.gemini_chart_analyzer.core.exceptions import ScanConfigurationError
@@ -41,7 +41,7 @@ def valid_batch_config():
         enable_pre_filter=True,
         pre_filter_mode="voting",
         pre_filter_percentage=10.0,
-        fast_mode=True,
+        pre_filter_fast_mode=True,
         spc_config={
             "preset": None,
             "volatility_adjustment": False,
@@ -164,7 +164,7 @@ def test_run_batch_scan_configuration_validation(valid_batch_config):
             cooldown=2.5,
             enable_pre_filter=False,
             pre_filter_mode=None,
-            fast_mode=True,
+            pre_filter_fast_mode=True,
             spc_config=None,
             rf_model_path=None,
         )
@@ -277,7 +277,7 @@ def test_batch_config_creation_from_dict():
         "enable_pre_filter": True,
         "pre_filter_mode": "hybrid",
         "pre_filter_percentage": 15.0,
-        "fast_mode": False,
+        "pre_filter_fast_mode": False,
         "spc_config": {
             "preset": "medium_risk",
             "volatility_adjustment": True,
@@ -303,7 +303,7 @@ def test_batch_config_creation_from_dict():
     assert config.enable_pre_filter is True
     assert config.pre_filter_mode == "hybrid"
     assert config.pre_filter_percentage == 15.0
-    assert config.fast_mode is False
+    assert config.pre_filter_fast_mode is False
     assert config.spc_config is not None
     assert config.spc_config["preset"] == "medium_risk"
     assert config.rf_model_path == "models/random_forest_model.pkl"

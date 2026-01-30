@@ -24,6 +24,8 @@ from config import (
     XGBOOST_MIN_TRAIN_FRACTION,
     XGBOOST_PARAMS,
     XGBOOST_TRAIN_TEST_SPLIT,
+    XGBOOST_USE_FLOAT32,
+    XGBOOST_USE_PARALLEL_CV,
 )
 from config.position_sizing import (
     USE_GPU,
@@ -34,7 +36,10 @@ from modules.common.utils import (
     log_success,
     log_warn,
 )
-from modules.xgboost.utils.display import print_classification_report
+from modules.xgboost_LTS.utils.cache_manager import CacheManager
+from modules.xgboost_LTS.utils.cv_parallel import run_parallel_cv
+from modules.xgboost_LTS.utils.display import print_classification_report
+from modules.xgboost_LTS.utils.gpu_utils import detect_cuda_available
 
 
 class ClassDiversityError(ValueError):
@@ -99,12 +104,12 @@ def _resolve_xgb_classifier() -> Type:
                 return super().predict_proba(X)
 
         sklearn_classifier = _GradientBoostingWrapper
-    # Cache the resolved classifier for subsequent calls
-    xgb.XGBClassifier = sklearn_classifier
+    # Return the resolved classifier without modifying global state
+    # This prevents side effects on other modules that import xgboost
     return sklearn_classifier
 
 
-def train_and_predict(df: pd.DataFrame) -> Any:
+def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
     """
     Train XGBoost model with proper time-series validation and return trained model.
 
@@ -116,6 +121,7 @@ def train_and_predict(df: pd.DataFrame) -> Any:
 
     Args:
         df: DataFrame containing features (MODEL_FEATURES) and target column ("Target")
+        use_cache: Whether to use model caching (default: True)
 
     Returns:
         Trained XGBoost classifier model ready for prediction
@@ -130,16 +136,52 @@ def train_and_predict(df: pd.DataFrame) -> Any:
         The gap between train and test sets equals TARGET_HORIZON to prevent
         using future prices when creating labels for training data.
     """
+    # Drop rows with non-finite target or features (labeling NaN for last TARGET_HORIZON rows,
+    # indicator warmup NaN, or inf from divisions). Required before .astype(int) on Target.
+    feature_cols = [c for c in MODEL_FEATURES if c in df.columns]
+    if "Target" not in df.columns:
+        raise ValueError("DataFrame must contain a 'Target' column from labeling.")
+    check_cols = feature_cols + ["Target"]
+    finite_mask = np.isfinite(df[check_cols].values).all(axis=1)
+    if not finite_mask.all():
+        n_dropped = (~finite_mask).sum()
+        df = df.loc[finite_mask].copy()
+        log_data(f"Dropped {n_dropped} rows with non-finite target or features.")
+    if df.empty:
+        raise ValueError("No rows with finite target/features. Ensure labeling and indicators produced valid data.")
+
     X = df[MODEL_FEATURES]
+
+    # Float32 Optimization (Task 2.3)
+    # Note: float32 has ~7 decimal digits of precision. For features with very large
+    # or very small values, this may cause precision loss. Use with caution.
+    if XGBOOST_USE_FLOAT32:
+        # Check for potential precision issues
+        max_abs_val = X.abs().max().max()
+        if max_abs_val > 1e6:
+            log_warn(f"Float32 conversion may lose precision for large values (max: {max_abs_val:.2e})")
+        X = X.astype(np.float32)
+
     y = df["Target"].astype(int)
 
-    def build_model():
+    # Model Caching (Task 3.1)
+    if use_cache:
+        cache_manager = CacheManager()
+        cached_model = cache_manager.load_model(df, XGBOOST_PARAMS)
+        if cached_model is not None:
+            log_model("Using cached model (skipping training)")
+            return cached_model
+
+    def build_model(seed_offset=0):
         """
         Build XGBoost classifier instance with configuration parameters.
 
         Uses parameters from config, dynamically adds num_class based on TARGET_LABELS.
         Filters parameters through whitelist if classifier has one (for fallback compatibility).
         Adds GPU support if available.
+
+        Args:
+            seed_offset: Offset to add to random_state for CV fold diversity (default: 0)
 
         Returns:
             XGBoost classifier instance (or fallback equivalent)
@@ -148,25 +190,17 @@ def train_and_predict(df: pd.DataFrame) -> Any:
         params = XGBOOST_PARAMS.copy()
         params["num_class"] = len(TARGET_LABELS)
 
-        # Add GPU support if available
-        if USE_GPU:
-            try:
-                # Check if GPU is actually available
-                # Try to detect CUDA availability
-                import subprocess
+        # Add seed offset for CV fold diversity
+        if "random_state" in params:
+            params["random_state"] = params["random_state"] + seed_offset
 
-                result = subprocess.run(["nvidia-smi"], capture_output=True, timeout=5)
-                if result.returncode == 0:
-                    # GPU is available, use GPU parameters
-                    # In XGBoost 2.0+, use 'hist' with device='cuda' instead of 'gpu_hist'
-                    params["tree_method"] = "hist"  # Changed from "gpu_hist" to "hist" for XGBoost 2.0+
-                    params["device"] = "cuda"
-                    # Remove n_jobs when using GPU (GPU handles parallelism)
-                    if "n_jobs" in params:
-                        del params["n_jobs"]
-            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
-                # GPU not available or nvidia-smi not found, fall back to CPU
-                pass
+        # Add GPU support if available
+        if USE_GPU and detect_cuda_available():
+            params["tree_method"] = "hist"
+            params["device"] = "cuda"
+            # Remove n_jobs when using GPU (GPU handles parallelism)
+            if "n_jobs" in params:
+                del params["n_jobs"]
 
         # Filter parameters through whitelist if classifier has one (for fallback compatibility)
         whitelist = getattr(classifier_cls, "XGB_PARAM_WHITELIST", None)
@@ -252,7 +286,7 @@ def train_and_predict(df: pd.DataFrame) -> Any:
 
     model = build_model()
     try:
-        model.fit(X_train, y_train)
+        model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=False)
     except ValueError as e:
         error_msg = str(e)
         # Catch XGBoost class mismatch errors
@@ -275,69 +309,79 @@ def train_and_predict(df: pd.DataFrame) -> Any:
     # Time-Series Cross-Validation with Gap Prevention
     # Uses TimeSeriesSplit to respect temporal order, with gap between train/test in each fold
     max_splits = min(5, len(df) - 1)
+
+    # Configuration for Parallel CV (imported from config)
+
     if max_splits >= 2:
         tscv = TimeSeriesSplit(n_splits=max_splits)
-        cv_scores = []
-        all_y_true = []
-        all_y_pred = []
 
-        for fold, (train_idx, test_idx) in enumerate(tscv.split(X), start=1):
-            # Apply gap to prevent data leakage: remove last TARGET_HORIZON indices from train
-            # This ensures labels for training data don't require future prices from test set
-            train_idx_array = np.array(train_idx)
-            if len(train_idx_array) > TARGET_HORIZON:
-                train_idx_filtered = train_idx_array[:-TARGET_HORIZON]
-            else:
-                log_warn(f"CV Fold {fold}: Skipped (insufficient train data for gap)")
-                continue
+        if XGBOOST_USE_PARALLEL_CV:
+            # Parallel CV execution
+            cv_scores, all_y_true, all_y_pred = run_parallel_cv(X, y, tscv, XGBOOST_PARAMS)
+        else:
+            # Sequential CV (original implementation)
+            cv_scores = []
+            all_y_true = []
+            all_y_pred = []
 
-            # Ensure test set doesn't overlap with gap
-            # Gap is sufficient when: test_start > train_end + TARGET_HORIZON
-            test_idx_array = np.array(test_idx)
-            if len(train_idx_filtered) > 0 and len(test_idx_array) > 0:
-                min_test_start = train_idx_filtered[-1] + TARGET_HORIZON + 1
-                if test_idx_array[0] < min_test_start:
-                    # Adjust test start to create proper gap
+            for fold, (train_idx, test_idx) in enumerate(tscv.split(X), start=1):
+                # Apply gap to prevent data leakage: remove last TARGET_HORIZON indices from train
+                # This ensures labels for training data don't require future prices from test set
+                train_idx_array = np.array(train_idx)
+                if len(train_idx_array) > TARGET_HORIZON:
+                    train_idx_filtered = train_idx_array[:-TARGET_HORIZON]
+                else:
+                    log_warn(f"CV Fold {fold}: Skipped (insufficient train data for gap)")
+                    continue
+
+                # Ensure test set doesn't overlap with gap
+                # Gap is sufficient when: test_start > train_end + TARGET_HORIZON
+                # Always filter test indices to prevent data leakage
+                test_idx_array = np.array(test_idx)
+                if len(train_idx_filtered) > 0 and len(test_idx_array) > 0:
+                    min_test_start = train_idx_filtered[-1] + TARGET_HORIZON + 1
+                    # Always filter, not just when first element is < min_test_start
                     test_idx_filtered = test_idx_array[test_idx_array >= min_test_start]
                     if len(test_idx_filtered) == 0:
                         log_warn(f"CV Fold {fold}: Skipped (no valid test data after gap)")
                         continue
                 else:
-                    test_idx_filtered = test_idx_array
+                    log_warn(f"CV Fold {fold}: Skipped (insufficient data)")
+                    continue
 
-            # Class Diversity Validation
-            # XGBoost requires at least 2 classes, but we need all 3 for proper multi-class prediction
-            y_train_fold = y.iloc[train_idx_filtered]
-            unique_classes = sorted(y_train_fold.unique())
+                # Class Diversity Validation
+                # XGBoost requires at least 2 classes, but we need all 3 for proper multi-class prediction
+                y_train_fold = y.iloc[train_idx_filtered]
+                unique_classes = sorted(y_train_fold.unique())
 
-            if len(unique_classes) < 2:
-                log_warn(f"CV Fold {fold}: Skipped (insufficient class diversity: {unique_classes})")
-                continue
+                if len(unique_classes) < 2:
+                    log_warn(f"CV Fold {fold}: Skipped (insufficient class diversity: {unique_classes})")
+                    continue
 
-            # Require all target classes for consistency
-            # Skipping folds with missing classes ensures consistent evaluation across folds
-            if len(unique_classes) < len(TARGET_LABELS):
-                class_list = [ID_TO_LABEL[c] for c in unique_classes]
-                log_warn(f"CV Fold {fold}: Skipped (missing classes: expected {TARGET_LABELS}, got {class_list})")
-                continue
+                # Require all target classes for consistency
+                # Skipping folds with missing classes ensures consistent evaluation across folds
+                if len(unique_classes) < len(TARGET_LABELS):
+                    class_list = [ID_TO_LABEL[c] for c in unique_classes]
+                    log_warn(f"CV Fold {fold}: Skipped (missing classes: expected {TARGET_LABELS}, got {class_list})")
+                    continue
 
-            cv_model = build_model()
-            cv_model.fit(X.iloc[train_idx_filtered], y.iloc[train_idx_filtered])
-            if len(test_idx_filtered) > 0:
-                y_test_fold = y.iloc[test_idx_filtered]
-                preds = cv_model.predict(X.iloc[test_idx_filtered])
-                acc = accuracy_score(y_test_fold, preds)
-                cv_scores.append(acc)
+                cv_model = build_model(seed_offset=fold)
+                cv_model.fit(X.iloc[train_idx_filtered], y.iloc[train_idx_filtered])
+                if len(test_idx_filtered) > 0:
+                    y_test_fold = y.iloc[test_idx_filtered]
+                    preds = cv_model.predict(X.iloc[test_idx_filtered])
+                    acc = accuracy_score(y_test_fold, preds)
+                    cv_scores.append(acc)
 
-                # Collect predictions for aggregated classification report across all folds
-                all_y_true.extend(y_test_fold.tolist())
-                all_y_pred.extend(preds.tolist())
+                    # Collect predictions for aggregated classification report across all folds
+                    all_y_true.extend(y_test_fold.tolist())
+                    all_y_pred.extend(preds.tolist())
 
-                log_model(
-                    f"CV Fold {fold} Accuracy: {acc:.4f} "
-                    f"(train: {len(train_idx_filtered)}, "
-                    f"gap: {TARGET_HORIZON}, test: {len(test_idx_array)})"
-                )
+                    log_model(
+                        f"CV Fold {fold} Accuracy: {acc:.4f} "
+                        f"(train: {len(train_idx_filtered)}, "
+                        f"gap: {TARGET_HORIZON}, test: {len(test_idx_array)})"
+                    )
 
         if len(cv_scores) > 0:
             mean_cv = sum(cv_scores) / len(cv_scores)
@@ -357,7 +401,18 @@ def train_and_predict(df: pd.DataFrame) -> Any:
 
     # Final Model Training
     # Train on all available data for production use
-    model.fit(X, y)
+    # Note: Use a small part as eval_set if we want to keep early stopping,
+    # or just use the whole set if we assume persistence of best_iteration from CV.
+    # Here we follow the roadmap to add eval_set even to final fit.
+    # For final fit on ALL data, we'll use the last 20% as eval_set.
+    final_split = int(len(X) * 0.8)
+    model.fit(X, y, eval_set=[(X.iloc[final_split:], y.iloc[final_split:])], verbose=False)
+
+    # Save model to cache (Task 3.1)
+    if use_cache:
+        cache_manager = CacheManager()
+        cache_manager.save_model(model, df, XGBOOST_PARAMS)
+
     return model
 
 
@@ -378,13 +433,43 @@ def predict_next_move(model: Any, last_row: Union[pd.Series, pd.DataFrame]) -> n
     Note:
         The probabilities sum to 1.0 and represent the model's confidence
         for each direction class.
+
+    Raises:
+        ValueError: If required features are missing or contain invalid values
     """
+    # Validate input features
+    if isinstance(last_row, pd.Series):
+        available_features = set(last_row.index)
+    else:
+        available_features = set(last_row.columns)
+
+    missing_features = set(MODEL_FEATURES) - available_features
+    if missing_features:
+        raise ValueError(f"Missing required features: {missing_features}")
+
     X_new = last_row[MODEL_FEATURES]
+
+    # Check for NaN/Inf values
+    if isinstance(X_new, pd.Series):
+        if not np.isfinite(X_new.values).all():
+            raise ValueError("Features contain NaN or Inf values")
+    else:
+        if not np.isfinite(X_new.values).all():
+            raise ValueError("Features contain NaN or Inf values")
+
     # Convert Series to DataFrame to preserve feature names and ensure proper shape
     if isinstance(X_new, pd.Series):
         X_new = X_new.to_frame().T
 
     # Get probability distribution for all classes
     proba = model.predict_proba(X_new)[0]
+
+    # Handle case where model was trained with fewer than 3 classes
+    # Pad with zeros to ensure consistent shape (3 classes expected)
+    if len(proba) < 3:
+        log_warn(f"Model trained with {len(proba)} classes, expected 3. Padding with zeros.")
+        padded_proba = np.zeros(3)
+        padded_proba[:len(proba)] = proba
+        return padded_proba
 
     return proba

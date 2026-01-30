@@ -88,6 +88,11 @@ def calculate_equity_cuda(
     mod = _get_equity_module()
     kernel = mod.get_function("equity_kernel")
 
+    # The kernel expects batched layout parameters (offsets and num_symbols)
+    # For single symbol processing, we pass offsets=[0] and num_symbols=1
+    offsets = np.array([0], dtype=np.int32)
+    num_symbols = 1
+
     kernel(
         drv.In(r),
         drv.In(s),
@@ -96,7 +101,9 @@ def calculate_equity_cuda(
         np.float64(decay_multiplier),
         np.int32(cutout),
         np.int32(n),
+        drv.In(offsets),
+        np.int32(num_symbols),
         block=(1, 1, 1),
-        grid=(1, 1),
+        grid=(1, 1, 1),
     )
     return out

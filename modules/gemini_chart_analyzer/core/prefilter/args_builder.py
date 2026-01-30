@@ -1,6 +1,7 @@
 """Argument builder for VotingAnalyzer used by prefilter workflow."""
 
 import argparse
+import os
 from typing import Any, Dict, Optional
 
 from config import (
@@ -31,14 +32,38 @@ def build_voting_analyzer_args(
     atc_performance: Optional[Dict[str, Any]],
     approximate_ma_scanner: Optional[Dict[str, Any]],
     use_atc_performance: bool,
+    xgboost_lts: Optional[Dict[str, Any]] = None,
+    use_xgboost_performance: bool = True,
 ) -> argparse.Namespace:
     """Build argparse.Namespace for VotingAnalyzer with consistent defaults."""
     args = argparse.Namespace()
     args.use_atc_performance = use_atc_performance
+    # Store XGBoost configuration in args for VotingAnalyzer to use
+    args.xgboost_config = xgboost_lts
+    args.use_xgboost_performance = use_xgboost_performance
     args.timeframe = timeframe
     args.no_menu = True
     args.limit = limit
-    args.max_workers = 10
+
+    # Determine max_workers. Priority:
+    # 1. xgboost_lts config (if set)
+    # 2. explicit default 10
+    # If config value is None, use cpu_count
+
+    config_max_workers = None
+    if use_xgboost_performance and xgboost_lts and xgboost_lts.get("performance"):
+        config_max_workers = xgboost_lts["performance"].get("max_workers")
+
+    if config_max_workers is not None:
+        args.max_workers = config_max_workers
+    elif use_xgboost_performance and xgboost_lts and "performance" in xgboost_lts:
+        # Explicitly present but None means auto-detect
+        args.max_workers = os.cpu_count() or 10
+    else:
+        args.max_workers = 10
+
+    args.fast_mode = fast_mode
+    args.indicators_to_calculate = ["xgboost", "hmm", "rf"]
     args.osc_length = RANGE_OSCILLATOR_LENGTH
     args.osc_mult = RANGE_OSCILLATOR_MULTIPLIER
     args.osc_strategies = None  # Use all strategies
@@ -114,7 +139,8 @@ def build_voting_analyzer_args(
         args.parallel_l2 = atc_performance.get("parallel_l2", True)
         args.prefer_gpu = atc_performance.get("prefer_gpu", True)
         args.use_cache = atc_performance.get("use_cache", True)
-        args.fast_mode = atc_performance.get("fast_mode", True)
+        # Renamed from "fast_mode" to "disable_ml_models" for clarity (config change 2026-01-30)
+        args.fast_mode = atc_performance.get("disable_ml_models", atc_performance.get("fast_mode", True))
         args.precision = atc_performance.get("precision", "float32")
 
         # Rust backend flag (often mapped from batch_processing)

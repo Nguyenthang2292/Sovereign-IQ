@@ -19,7 +19,7 @@ def sample_config():
     """Standard ATC configuration for testing."""
     return {
         "ema_len": 28,
-        "hull_len": 28,
+        "hma_len": 28,
         "wma_len": 28,
         "dema_len": 28,
         "lsma_len": 28,

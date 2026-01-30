@@ -30,7 +30,7 @@ class BatchScanConfig:
     pre_filter_mode: str = "voting"
     pre_filter_percentage: Optional[float] = None
     pre_filter_auto_skip_threshold: int = 10
-    fast_mode: bool = True
+    pre_filter_fast_mode: bool = True
     initial_symbols: Optional[List[str]] = None
     spc_config: Optional[Dict[str, Any]] = None
     rf_model_path: Optional[str] = None
@@ -44,6 +44,8 @@ class BatchScanConfig:
     atc_performance: Optional[Dict[str, Any]] = None  # ATC high-performance parameters
     approximate_ma_scanner: Optional[Dict[str, Any]] = None  # Approximate MA Batch Scanner configuration
     use_atc_performance: bool = True  # Switch between LTS (True) and Legacy (False) ATC modules
+    xgboost_lts: Optional[Dict[str, Any]] = None  # XGBoost LTS configuration (labeling, model, optuna, etc.)
+    use_xgboost_performance: bool = True  # Switch between LTS (True) and Legacy (False) XGBoost modules
 
 
 def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
@@ -108,7 +110,7 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
             pre_filter_mode=config.pre_filter_mode,
             pre_filter_percentage=config.pre_filter_percentage,
             pre_filter_auto_skip_threshold=config.pre_filter_auto_skip_threshold,
-            fast_mode=config.fast_mode,
+            pre_filter_fast_mode=config.pre_filter_fast_mode,
             spc_config=config.spc_config,
             skip_cleanup=config.skip_cleanup,
             stage0_sample_percentage=config.stage0_sample_percentage,
@@ -118,6 +120,8 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
             atc_performance=config.atc_performance,
             approximate_ma_scanner=config.approximate_ma_scanner,
             use_atc_performance=config.use_atc_performance,
+            xgboost_lts=config.xgboost_lts,
+            use_xgboost_performance=config.use_xgboost_performance,
         )
 
         # Generate HTML report if results were found

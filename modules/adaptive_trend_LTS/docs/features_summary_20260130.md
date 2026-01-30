@@ -154,7 +154,7 @@ Module **Adaptive Trend Classification LTS** đã hoàn thành **8 phases** tố
 
 ### ✅ Phase 9: Advanced Incremental ATC (COMPLETED)
 
-**Mục tiêu**: Tối ưu incremental cho live trading — O(1) MA, Rust backend, multi-timeframe, batch update, state serialization (theo `optimization_suggestions2.md` và `phase9_task.md`).
+**Mục tiêu**: Tối ưu incremental cho live trading — O(1) MA, Rust backend, multi-timeframe, batch update, state serialization (theo `optimization_suggestions_v2.md` và `phase9_task.md`).
 
 **Chức năng đã triển khai**:
 
@@ -244,7 +244,7 @@ Module **Adaptive Trend Classification LTS** đã hoàn thành **8 phases** tố
 - **Phase 8.1**: `docs/phase8.1_task.md` - Cache Warming & Parallelism
 - **Phase 8.2**: `docs/phase8.2_task.md` - Code Generation & JIT Specialization
 - **Phase 9**: `docs/phase9_task.md` - Advanced Incremental (O(1) MA, Rust, MTF, Batch, Serialization)
-- **Optimization status**: `docs/optimization_suggestions2.md` - Phase 9 completed items & recommendations
+- **Optimization status**: `docs/optimization_suggestions_v2.md` - Phase 9 completed items & recommendations
 
 ---
 

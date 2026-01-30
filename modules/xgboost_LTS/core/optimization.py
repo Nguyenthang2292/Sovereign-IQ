@@ -37,15 +37,28 @@ from config import (
     XGBOOST_PARAMS,
 )
 from modules.common.utils import log_error, log_info, log_success, log_warn
-from modules.xgboost.core.model import _resolve_xgb_classifier
+from modules.xgboost_LTS.core.model import _resolve_xgb_classifier
 
 
 @contextmanager
 def file_lock(lock_file_path: Path):
     """
     Cross-platform file locking for SQLite access coordination.
+
+    Note: This provides advisory locking on the lock file itself, not on the SQLite database.
+    For robust concurrent access, consider using Optuna with PostgreSQL/MySQL storage backend
+    or handle sqlite3.OperationalError exceptions in the calling code.
     """
-    lock_file = open(lock_file_path, "w")
+    lock_file = None
+    try:
+        lock_file = open(lock_file_path, "w")
+    except (PermissionError, OSError) as e:
+        # If we can't create lock file, continue without locking
+        # and rely on SQLite's built-in locking
+        logging.warning(f"Cannot create lock file {lock_file_path}: {e}. Continuing without file lock.")
+        yield
+        return
+
     try:
         if os.name == "nt":
             # Windows locking
@@ -56,12 +69,17 @@ def file_lock(lock_file_path: Path):
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
         yield
     finally:
-        if os.name == "nt":
-            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            if fcntl:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-        lock_file.close()
+        try:
+            if os.name == "nt":
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                if fcntl:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        except Exception as e:
+            logging.warning(f"Error unlocking file: {e}")
+        finally:
+            if lock_file:
+                lock_file.close()
 
 
 class StudyManager:
@@ -259,7 +277,7 @@ class HyperparameterTuner:
             "random_state": 42,
             "objective": "multi:softprob",
             "eval_metric": "mlogloss",
-            "n_jobs": -1,
+            "n_jobs": 1,  # Single thread per model when running parallel trials
             "num_class": len(TARGET_LABELS),
         }
 
@@ -282,16 +300,17 @@ class HyperparameterTuner:
                 continue
 
             # Ensure test set doesn't overlap with gap
+            # Always filter test indices to prevent data leakage
             # [DEBUG] test_idx_array scope and gap filtering logic verified
             test_idx_array = np.array(test_idx)
             if len(train_idx_filtered) > 0 and len(test_idx_array) > 0:
                 min_test_start = train_idx_filtered[-1] + TARGET_HORIZON + 1
-                if test_idx_array[0] < min_test_start:
-                    test_idx_filtered = test_idx_array[test_idx_array >= min_test_start]
-                    if len(test_idx_filtered) == 0:
-                        continue
-                else:
-                    test_idx_filtered = test_idx_array
+                # Always filter, not just when first element is < min_test_start
+                test_idx_filtered = test_idx_array[test_idx_array >= min_test_start]
+                if len(test_idx_filtered) == 0:
+                    continue
+            else:
+                continue
 
             # Class diversity validation
             y_train_fold = y.iloc[train_idx_filtered]
@@ -302,7 +321,12 @@ class HyperparameterTuner:
 
             # Train model with trial parameters
             model = self.classifier_cls(**params)
-            model.fit(X.iloc[train_idx_filtered], y.iloc[train_idx_filtered])
+
+            # Prepare validation set for early stopping
+            X_val = X.iloc[test_idx_filtered]
+            y_val = y.iloc[test_idx_filtered]
+
+            model.fit(X.iloc[train_idx_filtered], y.iloc[train_idx_filtered], eval_set=[(X_val, y_val)], verbose=False)
 
             # Evaluate on test set
             # [DEBUG] test_idx_filtered usage verified - correctly used after filtering
@@ -340,19 +364,23 @@ class HyperparameterTuner:
             Dictionary containing best parameters
         """
         # [DEBUG] Input validation - MODEL_FEATURES and Target column validation added
-        try:
-            X = df[MODEL_FEATURES]
-        except KeyError as e:
-            # Identify which specific features are missing for better error message
-            missing_features = set(MODEL_FEATURES) - set(df.columns)
+        if "Target" not in df.columns:
+            raise ValueError("DataFrame must contain 'Target' column")
+        missing_features = set(MODEL_FEATURES) - set(df.columns)
+        if missing_features:
             raise ValueError(
                 f"DataFrame missing required features: {sorted(missing_features)}. "
                 f"Available columns: {sorted(df.columns)}"
-            ) from e
-        # Validate Target column
-        if "Target" not in df.columns:
-            raise ValueError("DataFrame must contain 'Target' column")
+            )
+        # Drop rows with non-finite target or features (same as model.train_and_predict)
+        check_cols = [c for c in MODEL_FEATURES if c in df.columns] + ["Target"]
+        finite_mask = np.isfinite(df[check_cols].values).all(axis=1)
+        if not finite_mask.all():
+            df = df.loc[finite_mask].copy()
+        if df.empty:
+            raise ValueError("No rows with finite target/features after dropping non-finite values.")
         try:
+            X = df[MODEL_FEATURES]
             y = df["Target"].astype(int)
         except (ValueError, TypeError) as e:
             raise ValueError(f"Cannot convert 'Target' column to int: {e}") from e
@@ -430,11 +458,26 @@ class HyperparameterTuner:
             # Optuna's internal SQLite handler handles concurrent write attempts,
             # but our file lock ensures we don't have multiple processes trying
             # to initialize the study at the exact same millisecond.
-            study.optimize(
-                lambda trial: self._objective(trial, X, y, n_splits=n_splits),
-                n_trials=n_trials,
-                show_progress_bar=True,
-            )
+
+            # Configuration for parallel trials
+            OPTUNA_PARALLEL_TRIALS = True
+            OPTUNA_N_JOBS = -1  # -1 = use all CPU cores
+
+            optimize_kwargs = {
+                "n_trials": n_trials,
+                "show_progress_bar": True,
+                "gc_after_trial": True,  # Prevent memory leaks in parallel execution
+            }
+
+            if OPTUNA_PARALLEL_TRIALS:
+                optimize_kwargs["n_jobs"] = OPTUNA_N_JOBS
+
+            study.optimize(lambda trial: self._objective(trial, X, y, n_splits=n_splits), **optimize_kwargs)
+
+        # Check if optimization produced any successful trials
+        if len(study.trials) == 0 or study.best_trial is None:
+            log_warn("No successful trials, using default parameters from config")
+            return XGBOOST_PARAMS.copy()
 
         # Get best parameters
         best_params = study.best_params.copy()

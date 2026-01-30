@@ -6,7 +6,7 @@ weighting Layer 1 signals with Layer 2 equity curves.
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, cast
 
 import numpy as np
 import pandas as pd
@@ -56,11 +56,12 @@ def calculate_average_signal(
         prices: Price series (for index reference).
         long_threshold: Threshold for LONG signals.
         short_threshold: Threshold for SHORT signals.
-        cutout: Number of bars to skip at beginning.
+        cutout: Number of bars to skip at beginning. Values before cutout are set to NaN
+            (not 0.0) to be consistent with equity calculations and indicate "no valid data".
         strategy_mode: If True, shift signal by 1 bar (default: False).
 
     Returns:
-        Series containing the Average_Signal.
+        Series containing the Average_Signal. Cutout period contains NaN values.
     """
     log_debug("Computing Average_Signal (vectorized)...")
 
@@ -76,7 +77,11 @@ def calculate_average_signal(
     ]
 
     if not valid_configs:
-        return pd.Series(0.0, index=index, dtype=dtype)
+        result = pd.Series(0.0, index=index, dtype=dtype)
+        # Apply cutout NaN to maintain consistency with documented behavior
+        if cutout > 0 and cutout < n_bars:
+            result.iloc[:cutout] = np.nan
+        return result
 
     # Convert to 2D matrices for broadcasting using pandas for strict alignment
     # Task 8.5: Performance optimized alignment
@@ -96,54 +101,104 @@ def calculate_average_signal(
     S_np = np.stack(s_list)
     E_np = np.stack(e_list)
 
+    # Initialize result array with placeholder
+    avg_signal_array: np.ndarray = np.array([])
+    cuda_failed = False
+
+    # Check for NaN values before calculation
+    if np.any(np.isnan(S_np)):
+        nan_count = np.sum(np.isnan(S_np))
+        log_warn(f"Layer 1 signals contain {nan_count} NaN values before calculation")
+    if np.any(np.isnan(E_np)):
+        nan_count = np.sum(np.isnan(E_np))
+        log_warn(f"Layer 2 equities contain {nan_count} NaN values before calculation")
+
+    # Try CUDA path first if available
+    cuda_failed = False
     if use_cuda and calculate_average_signal_cuda is not None:
         try:
             # Calculate final average using CUDA kernel
-            avg_signal_array = calculate_average_signal_cuda(
+            # Note: CUDA kernel receives cutout parameter but may not apply it internally
+            cuda_result = calculate_average_signal_cuda(
                 S_np.astype(np.float64),
                 E_np.astype(np.float64),
                 float(long_threshold),
                 float(short_threshold),
                 int(cutout),
             )
-            # handle potential NaN/inf from CUDA if any
-            avg_signal_array = np.where(np.isfinite(avg_signal_array), avg_signal_array, 0.0)
-
-            Average_Signal = pd.Series(avg_signal_array, index=index, dtype=dtype)
-
-            if strategy_mode:
-                Average_Signal = Average_Signal.shift(1).fillna(0)
-
-            log_debug("Completed Average_Signal (CUDA)")
-            return Average_Signal
+            # Handle potential NaN/inf from CUDA - replace with 0.0 (neutral signal)
+            avg_signal_array = np.where(np.isfinite(cuda_result), cuda_result, 0.0)
         except Exception as e:
             log_warn(f"CUDA Average Signal failed, falling back to CPU: {e}")
+            cuda_failed = True
 
-    # Vectorized discretization (Task 8.5)
-    with np.errstate(invalid="ignore"):
-        C = np.where(S_np > long_threshold, 1.0, np.where(S_np < short_threshold, -1.0, 0.0))
+    # CPU fallback path (if CUDA not used or failed)
+    if not use_cuda or calculate_average_signal_cuda is None or cuda_failed:
+        # NaN detection and handling
+        # Check for NaN values in inputs that could affect calculation
+        s_nan_mask = np.isnan(S_np)
+        e_nan_mask = np.isnan(E_np)
 
-    # Parallel calculation across components
-    # nom = sum(signal_discrete * equity_weight), den = sum(equity_weight)
-    nom_array = np.sum(C * E_np, axis=0)
-    den_array = np.sum(E_np, axis=0)
+        if np.any(s_nan_mask):
+            nan_count = np.sum(s_nan_mask)
+            log_warn(f"Layer 1 signals contain {nan_count} NaN values, treating as neutral (0.0)")
 
-    # Calculate final average
-    with np.errstate(divide="ignore", invalid="ignore"):
-        avg_signal_array = np.divide(nom_array, den_array)
-        # Handle division by zero or NaN results
-        avg_signal_array = np.where(np.isfinite(avg_signal_array), avg_signal_array, 0.0)
+        if np.any(e_nan_mask):
+            nan_count = np.sum(e_nan_mask)
+            log_warn(f"Layer 2 equities contain {nan_count} NaN values, replacing with 0.0")
+            # Replace NaN equities with 0 to prevent them from affecting weighted average
+            E_np = np.where(e_nan_mask, 0.0, E_np)
 
-    # Apply cutout to average signal array before converting to Series
+        # Vectorized discretization (Task 8.5)
+        # NaN in S_np will result in False for both comparisons, giving 0.0 (neutral)
+        with np.errstate(invalid="ignore"):
+            C = np.where(S_np > long_threshold, 1.0, np.where(S_np < short_threshold, -1.0, 0.0))
+
+        # Parallel calculation across components
+        # nom = sum(signal_discrete * equity_weight), den = sum(equity_weight)
+        nom_array = np.sum(C * E_np, axis=0)
+        den_array = np.sum(E_np, axis=0)
+
+        # Handle zero denominator case (when all equity weights are zero)
+        zero_den_mask = den_array == 0
+        if np.any(zero_den_mask):
+            zero_count = np.sum(zero_den_mask)
+            log_warn(f"Sum of equity weights is zero for {zero_count} bars, returning neutral signal (0.0)")
+            # Replace zero denominators with 1.0 to avoid division by zero
+            # Since nominator is also 0 when all equities are 0, result will be 0/1 = 0 (neutral)
+            den_array = np.where(zero_den_mask, 1.0, den_array)
+
+        # Calculate final average (no special error handling needed now)
+        avg_signal_array = nom_array / den_array
+
+    # avg_signal_array is guaranteed to be assigned at this point
+    assert avg_signal_array is not None, "avg_signal_array should be assigned by CUDA or CPU path"
+
+    # Apply cutout to average signal array for both CUDA and CPU paths
+    # Use NaN (not 0.0) for cutout period to be consistent with equity calculations
+    # and to indicate "no valid data" rather than "neutral signal"
+    # Note: We apply this unconditionally as CUDA kernel may not handle cutout internally
     if cutout > 0 and cutout < n_bars:
-        avg_signal_array[:cutout] = 0.0
+        avg_signal_array[:cutout] = np.nan
 
-    Average_Signal = pd.Series(avg_signal_array, index=index, dtype=dtype)
+    # Create series from the result array
+    result_series = pd.Series(avg_signal_array, index=index, dtype=dtype)
 
     if strategy_mode:
-        Average_Signal = Average_Signal.shift(1).fillna(0)
-
-    # Optional: Log division by zero stats if needed, but it's handled above
+        # Strategy mode: Delay signal by 1 bar to avoid repainting (Pine Script behavior)
+        # NOTE: This is the ONLY shift applied to the final output signal.
+        # Any shifts in Layer 1/2 equity calculations are INTERNAL only and do not
+        # affect the signals passed to this function. There is NO "double shift" bug.
+        # PRESERVE NaN VALUES: Cutout period should remain NaN (not 0.0)
+        shifted = result_series.shift(1)
+        # Only fill NaN with 0 for non-cutout periods (where we have valid data)
+        # Keep NaN for cutout period to indicate "no valid data"
+        if cutout > 0:
+            # Fill NaN with 0, then restore NaN for cutout period
+            result_series = shifted.fillna(0)
+            result_series.iloc[:cutout] = np.nan
+        else:
+            result_series = shifted.fillna(0)
 
     log_debug("Completed Average_Signal")
-    return Average_Signal
+    return cast(pd.Series, result_series)

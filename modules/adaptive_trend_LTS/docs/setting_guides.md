@@ -45,7 +45,7 @@ The **Adaptive Trend Classification LTS** module is a stable build with Rust bac
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `ema_len` | int | 28 | EMA period (Exponential Moving Average) |
-| `hull_len` | int | 28 | HMA period (Hull Moving Average) |
+| `hma_len` | int | 28 | HMA period (Hull Moving Average) |
 | `wma_len` | int | 28 | WMA period (Weighted Moving Average) |
 | `dema_len` | int | 28 | DEMA period (Double Exponential MA) |
 | `lsma_len` | int | 28 | LSMA period (Least Squares MA) |
@@ -195,7 +195,7 @@ The **Adaptive Trend Classification LTS** module is a stable build with Rust bac
 
 ```python
 config = {
-    'ema_len': 14, 'hull_len': 14, 'wma_len': 14,
+    'ema_len': 14, 'hma_len': 14, 'wma_len': 14,
     'dema_len': 14, 'lsma_len': 14, 'kama_len': 14,
     'robustness': 'Narrow',
     'La': 0.03, 'De': 0.05,
@@ -209,7 +209,7 @@ config = {
 
 ```python
 config = {
-    'ema_len': 28, 'hull_len': 28, 'wma_len': 28,
+    'ema_len': 28, 'hma_len': 28, 'wma_len': 28,
     'dema_len': 28, 'lsma_len': 28, 'kama_len': 28,
     'robustness': 'Medium',
     'La': 0.02, 'De': 0.03,
@@ -223,7 +223,7 @@ config = {
 
 ```python
 config = {
-    'ema_len': 50, 'hull_len': 50, 'wma_len': 50,
+    'ema_len': 50, 'hma_len': 50, 'wma_len': 50,
     'dema_len': 50, 'lsma_len': 50, 'kama_len': 50,
     'robustness': 'Wide',
     'La': 0.015, 'De': 0.02,
@@ -437,7 +437,7 @@ from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import 
 )
 
 # symbols_data = {'BTCUSDT': prices_series, 'ETHUSDT': prices_series, ...}
-# config = dict of parameters (ema_len, hull_len, etc.)
+# config = dict of parameters (ema_len, hma_len, etc.)
 
 results = process_symbols_batch_with_approximate_filter(
     symbols_data,  # Dict[str, pd.Series]
@@ -566,7 +566,7 @@ import pandas as pd
 
 config = {
     "ema_len": 28,
-    "hull_len": 28,
+    "hma_len": 28,
     "wma_len": 28,
     "dema_len": 28,
     "lsma_len": 28,
@@ -747,7 +747,7 @@ prices = pd.Series([100, 101, 102, ...])
 results = compute_atc_signals(
     prices=prices,
     ema_len=28,
-    hull_len=28,
+    hma_len=28,
     wma_len=28,
     dema_len=28,
     lsma_len=28,

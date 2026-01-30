@@ -4,14 +4,12 @@ Chart Generator for creating technical analysis charts with indicators.
 Creates candlestick charts with indicators such as MA, RSI, Volume, etc.
 """
 
-import os
-import matplotlib
 import gc
-import itertools
-import traceback
+import os
 from datetime import datetime
 from typing import Dict, Optional, Tuple
 
+import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 

@@ -6,10 +6,10 @@ user-friendly instructions for building it if not.
 """
 
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
 
 
-def check_rust_backend() -> Dict[str, any]:
+def check_rust_backend() -> Dict[str, Any]:
     """
     Check Rust backend availability and provide build instructions if missing.
 

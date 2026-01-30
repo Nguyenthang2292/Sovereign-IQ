@@ -33,7 +33,7 @@ async def run_benchmark():
     bars = 2000
     config = {
         "ema_len": 28,
-        "hull_len": 28,
+        "hma_len": 28,
         "wma_len": 28,
         "dema_len": 28,
         "lsma_len": 28,

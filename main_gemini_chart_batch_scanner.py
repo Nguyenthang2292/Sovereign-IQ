@@ -157,35 +157,87 @@ from modules.common.utils import configure_windows_stdio
 
 configure_windows_stdio()
 
-# Check Rust backend availability for optimal ATC performance
-from modules.adaptive_trend_LTS.utils.rust_build_checker import check_rust_backend
+# Check Rust backends availability
+# For XGBoost, we'll check if the .pyd file exists directly or use a similar checker if available
+from pathlib import Path
 
-rust_status = check_rust_backend()
-if not rust_status["available"]:
+from modules.adaptive_trend_LTS.utils.rust_build_checker import check_rust_backend as check_atc_rust
+
+
+def check_xgboost_rust():
+    xgb_rust_dir = Path(__file__).parent / "modules" / "xgboost_LTS" / "rust_extensions"
+    # On Windows it's .pyd, on Linux/Mac it's .so
+    has_pyd = list(xgb_rust_dir.glob("xgboost_rust*.pyd")) or list(xgb_rust_dir.glob("xgboost_rust*.so"))
+    return {"available": bool(has_pyd)}
+
+
+def load_config_for_backend_check():
+    """Load config to check which performance modules are enabled."""
+    import yaml
+
+    config_path = Path(__file__).parent / "standard_batch_scan_config.yaml"
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+                return config
+        except Exception:
+            pass
+    return {}
+
+
+atc_status = check_atc_rust()
+xgb_status = check_xgboost_rust()
+
+# Load config to check if performance modules are enabled
+config = load_config_for_backend_check()
+use_atc_performance = config.get("use_atc_performance", True)
+use_xgboost_performance = config.get("use_xgboost_performance", True)
+
+backends_missing = []
+backends_disabled = []
+
+# Only warn about ATC if it's enabled in config
+if use_atc_performance and not atc_status["available"]:
+    backends_missing.append("Adaptive Trend LTS")
+elif not use_atc_performance:
+    backends_disabled.append("Adaptive Trend LTS (using legacy module)")
+
+# Only warn about XGBoost if it's enabled in config
+if use_xgboost_performance and not xgb_status["available"]:
+    backends_missing.append("XGBoost LTS")
+elif not use_xgboost_performance:
+    backends_disabled.append("XGBoost LTS (using legacy module)")
+
+if backends_missing:
     print(f"\n{'=' * 60}")
     print("⚠️  PERFORMANCE WARNING")
     print(f"{'=' * 60}")
-    print(rust_status["message"])
-    print("\nTo build Rust backend:")
-    print(f"  {rust_status['build_command']}")
-    print(f"\n{'=' * 60}\n")
+    print(f"The following Rust backends are MISSING: {', '.join(backends_missing)}")
+    print("\nTo build all backends:")
+    print("  .\\build_rust.ps1")
+    print(f"{'=' * 60}\n")
+elif backends_disabled:
+    print(f"\n{'=' * 60}")
+    print("ℹ️  Performance modules disabled in config")
+    print(f"{'=' * 60}")
+    for msg in backends_disabled:
+        print(f"  • {msg}")
+    print(f"{'=' * 60}\n")
 else:
     print(f"\n{'=' * 60}")
-    print("✅ Rust backend is ACTIVE (Optimal performance)")
-    print(f"   Tip: To rebuild, run: {rust_status.get('build_command', '.\\build_rust.bat').split('\\n')[0]}")
+    print("✅ All Rust backends are ACTIVE (Optimal performance)")
     print(f"{'=' * 60}\n")
 
-if not rust_status["available"]:
-    # Auto-build Rust backend on startup (unless skipped via env).
-    # We use "maturin develop --release" only (no cargo clean) for fast incremental build.
-    # Do NOT use rebuild_rust.bat here: it runs cargo clean every time (full rebuild, slow).
+if backends_missing and not SKIP_AUTO_RUST_BUILD:
     import subprocess
 
-    rust_dir = Path(__file__).parent / "modules" / "adaptive_trend_LTS" / "rust_extensions"
-    _do_auto_build = not SKIP_AUTO_RUST_BUILD
+    _do_auto_build = True
 
-    def _run_rust_build() -> bool:
+    def _run_rust_build(module_rel_path: str) -> bool:
         """Run maturin develop --release; return True on success."""
+        rust_dir = Path(__file__).parent / module_rel_path
+        print(f"🔨 Building {module_rel_path}...")
         try:
             result = subprocess.run(
                 ["maturin", "develop", "--release"],
@@ -198,16 +250,7 @@ if not rust_status["available"]:
             )
             if result.returncode == 0:
                 return True
-            print(f"❌ Build failed (exit {result.returncode})")
-            print(result.stdout or "")
-            if result.stderr:
-                print(result.stderr)
-            return False
-        except FileNotFoundError:
-            print("❌ 'maturin' not found. Install: pip install maturin (or run .\\build_rust.bat)")
-            return False
-        except subprocess.TimeoutExpired:
-            print("❌ Build timeout (5 min)")
+            print(f"❌ Build failed for {module_rel_path} (exit {result.returncode})")
             return False
         except Exception as e:
             print(f"❌ Build error: {e}")
@@ -215,32 +258,31 @@ if not rust_status["available"]:
 
     def _ask_continue() -> bool:
         try:
-            r = input("\nContinue without Rust backend? (y/n) [y]: ").lower()
+            r = input("\nContinue without missing Rust backends? (y/n) [y]: ").lower()
             return not r or r in ("y", "yes")
         except (EOFError, KeyboardInterrupt):
             return True
 
     try:
-        if _do_auto_build:
-            print("\n🔨 Auto-building Rust backend... (maturin develop --release, may take 1–2 min)")
-            print("=" * 60)
-            if _run_rust_build():
-                print("✅ Rust backend built. Restarting to load it...\n")
-                os.execl(sys.executable, sys.executable, *sys.argv)
-            print("=" * 60)
-            if _ask_continue():
-                pass
-            else:
-                print("Exiting. Fix build (e.g. pip install maturin) or set GEMINI_SCANNER_SKIP_RUST_BUILD=1 to skip.")
-                sys.exit(1)
-        else:
-            print("(Auto-build skipped: GEMINI_SCANNER_SKIP_RUST_BUILD is set)")
-            if _ask_continue():
-                pass
-            else:
-                sys.exit(0)
+        any_built = False
+        # Only build if enabled in config
+        if use_atc_performance and not atc_status["available"]:
+            if _run_rust_build("modules/adaptive_trend_LTS/rust_extensions"):
+                any_built = True
+
+        if use_xgboost_performance and not xgb_status["available"]:
+            if _run_rust_build("modules/xgboost_LTS/rust_extensions"):
+                any_built = True
+
+        if any_built:
+            print("✅ Rust backends built. Restarting to load them...\n")
+            os.execl(sys.executable, sys.executable, *sys.argv)
+
+        if not _ask_continue():
+            sys.exit(0)
+
     except (EOFError, KeyboardInterrupt):
-        print("\nNon-interactive: continuing without Rust backend...")
+        print("\nNon-interactive: continuing without some Rust backends...")
 
 # Now import and call main
 from modules.gemini_chart_analyzer.cli.batch_scanner.main import main

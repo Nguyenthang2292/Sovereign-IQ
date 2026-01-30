@@ -12,7 +12,7 @@ Core Components:
 - CLI: Command-line interface components
 """
 
-from modules.adaptive_trend_enhance.cli import (
+from modules.adaptive_trend_LTS.cli import (
     display_atc_signals,
     display_scan_results,
     list_futures_symbols,
@@ -20,19 +20,19 @@ from modules.adaptive_trend_enhance.cli import (
     prompt_interactive_mode,
     prompt_timeframe,
 )
-from modules.adaptive_trend_enhance.core.analyzer import analyze_symbol
-from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
+from modules.adaptive_trend_LTS.core.analyzer import analyze_symbol
+from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS.core.scanner import scan_all_symbols
 
 # Utility functions
-from modules.adaptive_trend_enhance.utils import (
+from modules.adaptive_trend_LTS.utils import (
     diflen,
     exp_growth,
     rate_of_change,
 )
 
 # Configuration
-from modules.adaptive_trend_enhance.utils.config import (
+from modules.adaptive_trend_LTS.utils.config import (
     ATCConfig,
     create_atc_config_from_dict,
 )

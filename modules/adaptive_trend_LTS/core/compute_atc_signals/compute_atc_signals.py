@@ -16,7 +16,7 @@ from typing import Dict, Optional
 import pandas as pd
 
 try:
-    from modules.common.utils import log_debug, log_error, log_info
+    from modules.common.utils import log_debug, log_error, log_info, log_warn
 except ImportError:
     # Fallback logging if common utils not available
     def log_debug(msg: str) -> None:  # pragma: no cover
@@ -28,10 +28,14 @@ except ImportError:
     def log_error(msg: str) -> None:  # pragma: no cover
         print(f"[ERROR] {msg}")
 
+    def log_warn(msg: str) -> None:  # pragma: no cover
+        print(f"[WARN] {msg}")
 
-from modules.adaptive_trend_enhance.core.process_layer1 import _layer1_signal_for_ma
-from modules.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
+
 from modules.adaptive_trend_LTS.core.compute_moving_averages import set_of_moving_averages
+from modules.adaptive_trend_LTS.core.process_layer1 import _layer1_signal_for_ma
+from modules.adaptive_trend_LTS.utils.diflen import diflen
+from modules.adaptive_trend_LTS.utils.rate_of_change import rate_of_change
 from modules.common.system import (
     cleanup_series,
     get_hardware_manager,
@@ -49,7 +53,7 @@ def compute_atc_signals(
     src: Optional[pd.Series] = None,
     *,
     ema_len: int = 28,
-    hull_len: int = 28,
+    hma_len: int = 28,
     wma_len: int = 28,
     dema_len: int = 28,
     lsma_len: int = 28,
@@ -87,7 +91,7 @@ def compute_atc_signals(
         prices: Price series for ATC calculation.
         src: Source series (optional, defaults to prices).
         ema_len: EMA length (default: 28).
-        hull_len: HMA length (default: 28).
+        hma_len: HMA length (default: 28).
         wma_len: WMA length (default: 28).
         dema_len: DEMA length (default: 28).
         lsma_len: LSMA length (default: 28).
@@ -99,8 +103,12 @@ def compute_atc_signals(
         lsma_w: LSMA initial weight (default: 1.0).
         kama_w: KAMA initial weight (default: 1.0).
         robustness: Robustness level - "Narrow", "Medium", or "Wide" (default: "Medium").
-        La: Lambda parameter (default: 0.02).
-        De: Decay parameter (default: 0.03).
+        La: Lambda (growth rate) parameter - UNSCALED value (default: 0.02).
+            This will be internally scaled by /1000 to match PineScript behavior.
+            Use same value as ATCConfig.lambda_param.
+        De: Decay factor parameter - UNSCALED value (default: 0.03).
+            This will be internally scaled by /100 to match PineScript behavior.
+            Use same value as ATCConfig.decay.
         cutout: Number of bars to skip at beginning (default: 0).
         long_threshold: Threshold for LONG signals (default: 0.1).
         short_threshold: Threshold for SHORT signals (default: -0.1).
@@ -119,6 +127,10 @@ def compute_atc_signals(
 
     Raises:
         ValueError: If inputs are invalid.
+
+    Note:
+        La and De parameters use the same unscaled values as ATCConfig.lambda_param
+        and ATCConfig.decay. The scaling (La/1000, De/100) is applied internally.
     """
     log_debug(f"Starting ATC signal computation for {len(prices)} bars")
 
@@ -130,8 +142,12 @@ def compute_atc_signals(
         use_cuda = False
 
     # Apply PineScript scaling to Lambda and Decay
-    La_scaled = La / 1000.0
-    De_scaled = De / 100.0
+    # NOTE: La and De are UNSCALED values (same as ATCConfig.lambda_param and ATCConfig.decay)
+    # Scaling is applied here to maintain compatibility with PineScript calculations
+    # ⚠️ IMPORTANT: Do NOT pass ATCConfig.lambda_scaled or ATCConfig.decay_scaled here,
+    #    as that would cause double-scaling. Always pass the unscaled values.
+    La_scaled = La / 1000.0  # Matches ATCConfig.lambda_scaled property
+    De_scaled = De / 100.0  # Matches ATCConfig.decay_scaled property
 
     log_info(
         f"Parameters: robustness={robustness}, La_scaled={La_scaled}, De_scaled={De_scaled}, "
@@ -141,7 +157,7 @@ def compute_atc_signals(
     # Define configuration for each MA type
     ma_configs = [
         ("EMA", ema_len, ema_w),
-        ("HMA", hull_len, hma_w),
+        ("HMA", hma_len, hma_w),
         ("WMA", wma_len, wma_w),
         ("DEMA", dema_len, dema_w),
         ("LSMA", lsma_len, lsma_w),
@@ -170,58 +186,47 @@ def compute_atc_signals(
                 adaptive_wma_approx,
             )
 
-            # Helper to create 9-element tuple (replicating the approximate MA)
-            # This satisfies _layer1_signal_for_ma requirement for 9 MAs
-            def make_approx_tuple(ma_series):
-                return (ma_series,) * 9
+            # Helper to create 9-element tuple using diflen for variants
+            def make_approx_tuple(func, length, **kwargs):
+                L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+                lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
+                return tuple(func(prices, l, **kwargs) for l in lengths)
 
             ma_tuples["EMA"] = make_approx_tuple(
-                adaptive_ema_approx(
-                    prices,
-                    ema_len,
-                    volatility_window=approximate_volatility_window,
-                    volatility_factor=approximate_volatility_factor,
-                )
+                adaptive_ema_approx,
+                ema_len,
+                volatility_window=approximate_volatility_window,
+                volatility_factor=approximate_volatility_factor,
             )
             ma_tuples["HMA"] = make_approx_tuple(
-                adaptive_hma_approx(
-                    prices,
-                    hull_len,
-                    volatility_window=approximate_volatility_window,
-                    volatility_factor=approximate_volatility_factor,
-                )
+                adaptive_hma_approx,
+                hma_len,
+                volatility_window=approximate_volatility_window,
+                volatility_factor=approximate_volatility_factor,
             )
             ma_tuples["WMA"] = make_approx_tuple(
-                adaptive_wma_approx(
-                    prices,
-                    wma_len,
-                    volatility_window=approximate_volatility_window,
-                    volatility_factor=approximate_volatility_factor,
-                )
+                adaptive_wma_approx,
+                wma_len,
+                volatility_window=approximate_volatility_window,
+                volatility_factor=approximate_volatility_factor,
             )
             ma_tuples["DEMA"] = make_approx_tuple(
-                adaptive_dema_approx(
-                    prices,
-                    dema_len,
-                    volatility_window=approximate_volatility_window,
-                    volatility_factor=approximate_volatility_factor,
-                )
+                adaptive_dema_approx,
+                dema_len,
+                volatility_window=approximate_volatility_window,
+                volatility_factor=approximate_volatility_factor,
             )
             ma_tuples["LSMA"] = make_approx_tuple(
-                adaptive_lsma_approx(
-                    prices,
-                    lsma_len,
-                    volatility_window=approximate_volatility_window,
-                    volatility_factor=approximate_volatility_factor,
-                )
+                adaptive_lsma_approx,
+                lsma_len,
+                volatility_window=approximate_volatility_window,
+                volatility_factor=approximate_volatility_factor,
             )
             ma_tuples["KAMA"] = make_approx_tuple(
-                adaptive_kama_approx(
-                    prices,
-                    kama_len,
-                    volatility_window=approximate_volatility_window,
-                    volatility_factor=approximate_volatility_factor,
-                )
+                adaptive_kama_approx,
+                kama_len,
+                volatility_window=approximate_volatility_window,
+                volatility_factor=approximate_volatility_factor,
             )
         elif use_approximate:
             # Use basic approximate MAs for fast scanning
@@ -234,16 +239,18 @@ def compute_atc_signals(
                 fast_wma_approx,
             )
 
-            # Helper to create 9-element tuple
-            def make_approx_tuple(ma_series):
-                return (ma_series,) * 9
+            # Helper to create 9-element tuple using diflen for variants
+            def make_approx_tuple(func, length):
+                L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+                lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
+                return tuple(func(prices, l) for l in lengths)
 
-            ma_tuples["EMA"] = make_approx_tuple(fast_ema_approx(prices, ema_len))
-            ma_tuples["HMA"] = make_approx_tuple(fast_hma_approx(prices, hull_len))
-            ma_tuples["WMA"] = make_approx_tuple(fast_wma_approx(prices, wma_len))
-            ma_tuples["DEMA"] = make_approx_tuple(fast_dema_approx(prices, dema_len))
-            ma_tuples["LSMA"] = make_approx_tuple(fast_lsma_approx(prices, lsma_len))
-            ma_tuples["KAMA"] = make_approx_tuple(fast_kama_approx(prices, kama_len))
+            ma_tuples["EMA"] = make_approx_tuple(fast_ema_approx, ema_len)
+            ma_tuples["HMA"] = make_approx_tuple(fast_hma_approx, hma_len)
+            ma_tuples["WMA"] = make_approx_tuple(fast_wma_approx, wma_len)
+            ma_tuples["DEMA"] = make_approx_tuple(fast_dema_approx, dema_len)
+            ma_tuples["LSMA"] = make_approx_tuple(fast_lsma_approx, lsma_len)
+            ma_tuples["KAMA"] = make_approx_tuple(fast_kama_approx, kama_len)
         else:
             for ma_type, length, _ in ma_configs:
                 # use_rust_backend=True enables Rust backend
@@ -295,7 +302,7 @@ def compute_atc_signals(
             use_parallel_l1 = parallel_l1
 
         if use_parallel_l1:
-            from modules.adaptive_trend_enhance.core.process_layer1 import _layer1_parallel_atc_signals
+            from modules.adaptive_trend_LTS.core.process_layer1 import _layer1_parallel_atc_signals
 
             layer1_signals = _layer1_parallel_atc_signals(
                 prices=prices,
@@ -314,10 +321,14 @@ def compute_atc_signals(
                 layer1_signals[ma_type] = signal
 
                 # Release intermediate component signals and equities back to pool
-                for s in signals_tuple:
-                    series_pool.release(s)
-                for e in equity_tuple:
-                    series_pool.release(e)
+                # Use try/finally to ensure release even if an exception occurs
+                try:
+                    for s in signals_tuple:
+                        series_pool.release(s)
+                    for e in equity_tuple:
+                        series_pool.release(e)
+                except Exception as e:
+                    log_warn(f"Error releasing series to pool for {ma_type}: {e}")
 
     log_debug("Completed Layer 1 signals")
 

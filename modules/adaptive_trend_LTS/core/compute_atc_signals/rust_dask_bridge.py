@@ -77,7 +77,7 @@ def _process_partition_with_rust_cpu(
         batch_results = atc_rust.compute_atc_signals_batch_cpu(
             symbols_numpy,
             ema_len=params.get("ema_len", 28),
-            hull_len=params.get("hull_len", 28),
+            hma_len=params.get("hma_len", 28),
             wma_len=params.get("wma_len", 28),
             dema_len=params.get("dema_len", 28),
             lsma_len=params.get("lsma_len", 28),
@@ -154,7 +154,7 @@ def _process_partition_with_rust_cuda(
         batch_results = atc_rust.compute_atc_signals_batch(
             symbols_numpy,
             ema_len=params.get("ema_len", 28),
-            hull_len=params.get("hull_len", 28),
+            hma_len=params.get("hma_len", 28),
             wma_len=params.get("wma_len", 28),
             dema_len=params.get("dema_len", 28),
             lsma_len=params.get("lsma_len", 28),
@@ -200,9 +200,9 @@ def _process_partition_python(
         Dictionary mapping symbol to result dict with Average_Signal Series
     """
     try:
-        from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
+        from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
 
-        # Filter out parameters that adaptive_trend_enhance doesn't accept
+        # Filter out parameters that are Rust/CUDA-specific
         python_config = {
             k: v
             for k, v in config.items()

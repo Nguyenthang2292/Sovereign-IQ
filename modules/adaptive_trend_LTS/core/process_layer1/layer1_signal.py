@@ -11,9 +11,9 @@ from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_enhance.core.compute_equity import _calculate_equity_vectorized, equity_series
-from modules.adaptive_trend_enhance.core.signal_detection import generate_signal_from_ma
-from modules.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
+from modules.adaptive_trend_LTS.core.compute_equity import _calculate_equity_vectorized, equity_series
+from modules.adaptive_trend_LTS.core.signal_detection import generate_signal_from_ma
+from modules.adaptive_trend_LTS.utils.rate_of_change import rate_of_change
 from modules.common.system import get_array_pool
 from modules.common.utils import log_error, log_warn
 
@@ -122,7 +122,7 @@ def _layer1_signal_for_ma(
             signal_lengths = [len(sig) for sig in signals]
             if len(set(signal_lengths)) == 1 and all(len(sig) == len(R) for sig in signals):
                 # All signals have same length, use vectorized version
-                from modules.adaptive_trend.utils import exp_growth
+                from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
 
                 # Prepare data for vectorized calculation
                 index = signals[0].index
@@ -135,11 +135,16 @@ def _layer1_signal_for_ma(
                 n_bars = len(signals[0])
                 pool = get_array_pool()
 
-                # Acquire dirty buffer (9, N)
+                # Acquire dirty buffer (9, N) - used as INPUT buffer only
+                # NOTE: This buffer is ONLY for input data. The output array is
+                # allocated separately by _calculate_equity_vectorized (out=None),
+                # so there is NO race condition when we release the buffer.
                 sig_prev_values = pool.acquire_dirty((9, n_bars), dtype=np.float64)
 
                 try:
                     # Fill buffer directly (equivalent to shift(1))
+                    # NOTE: This shift is for INTERNAL equity calculation only (to use sig[1] as per Pine Script)
+                    # The actual signal values returned to caller are NOT shifted
                     for i, sig in enumerate(signals):
                         vals = sig.values
                         sig_prev_values[i, 1:] = vals[:-1]
@@ -149,8 +154,9 @@ def _layer1_signal_for_ma(
                     starting_equities = np.ones(9, dtype=np.float64)
 
                     # Calculate all equities at once
-                    # We let _calculate_equity_vectorized allocate the result array normally
-                    # to ensure returned Series own their memory (safe ownership).
+                    # MEMORY SAFETY: _calculate_equity_vectorized allocates a NEW array when out=None,
+                    # so e_values_array is completely independent of sig_prev_values buffer.
+                    # Safe to release sig_prev_values immediately after calculation.
                     e_values_array = _calculate_equity_vectorized(
                         starting_equities=starting_equities,
                         sig_prev_values=sig_prev_values,
@@ -159,18 +165,18 @@ def _layer1_signal_for_ma(
                         cutout=0,
                     )
                 finally:
-                    # Always release buffer
+                    # Always release input buffer - safe because output is separate allocation
                     pool.release(sig_prev_values)
 
                 # Convert back to Series
                 equities = [pd.Series(e_values_array[i], index=index, dtype="float64") for i in range(9)]
             else:
                 # Fallback to sequential calculation
-                equities = [equity_series(1.0, sig, R, L=L, De=De, cutout=0) for sig in signals]
-        except Exception:
-            # Fallback to sequential calculation on any error
-            log_warn("Vectorized equity calculation failed, using sequential version")
-            equities = [equity_series(1.0, sig, R, L=L, De=De, cutout=0) for sig in signals]
+                equities = [equity_series(1.0, sig, R, L=L, De=De) for sig in signals]
+        except (ValueError, TypeError, MemoryError, RuntimeError) as e:
+            # Fallback to sequential calculation on specific recoverable errors
+            log_warn(f"Vectorized equity calculation failed ({type(e).__name__}: {e}), using sequential version")
+            equities = [equity_series(1.0, sig, R, L=L, De=De) for sig in signals]
 
         # Unpack equities for return tuple (maintaining original variable names)
         E, E1, E2, E3, E4, E_1, E_2, E_3, E_4 = equities

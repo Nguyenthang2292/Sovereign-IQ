@@ -145,7 +145,7 @@ def _process_single_symbol_dask(
         result = compute_atc_signals(
             prices,
             ema_len=atc_config.ema_len,
-            hull_len=atc_config.hma_len,
+            hma_len=atc_config.hma_len,
             # ... other params
         )
         
@@ -847,7 +847,7 @@ def process_partition_with_rust(
         batch_results = atc_rust.compute_atc_signals_batch_cpu(
             symbols_numpy,
             ema_len=params.get("ema_len", 28),
-            hull_len=params.get("hull_len", 28),
+            hma_len=params.get("hma_len", 28),
             wma_len=params.get("wma_len", 28),
             dema_len=params.get("dema_len", 28),
             lsma_len=params.get("lsma_len", 28),

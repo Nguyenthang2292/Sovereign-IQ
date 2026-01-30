@@ -6,6 +6,7 @@ delegating to the centralized html_report_generator.
 """
 
 from typing import Dict
+
 from modules.gemini_chart_analyzer.core.reporting.html_report_generator import generate_html_report
 
 

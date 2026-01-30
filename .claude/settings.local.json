@@ -18,7 +18,12 @@
       "Bash(fi)",
       "Bash(venv/Scripts/python.exe -m pytest:*)",
       "Bash(..venvScriptspython.exe -m pytest:*)",
-      "Bash(./venv/Scripts/python.exe -m pytest:*)"
+      "Bash(./venv/Scripts/python.exe -m pytest:*)",
+      "Bash(gh pr list)",
+      "Bash(wc:*)",
+      "Bash(test:*)",
+      "Bash(taskkill:*)",
+      "Bash(tree:*)"
     ]
   }
 }

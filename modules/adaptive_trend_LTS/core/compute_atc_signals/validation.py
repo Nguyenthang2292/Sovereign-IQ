@@ -22,7 +22,7 @@ except ImportError:
 
 
 def validate_atc_inputs(
-    prices: Optional[pd.Series],
+    prices: pd.Series,
     src: Optional[pd.Series],
     robustness: str,
     cutout: int,
@@ -30,7 +30,7 @@ def validate_atc_inputs(
     """Validate and normalize inputs for ATC computation.
 
     Args:
-        prices: Price series.
+        prices: Price series (required, cannot be None).
         src: Source series (optional, defaults to prices).
         robustness: Robustness level ("Narrow", "Medium", "Wide").
         cutout: Number of bars to skip at beginning.

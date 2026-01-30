@@ -8,6 +8,7 @@ from .logging import (
     log_error,
     log_exchange,
     log_info,
+    log_memory,
     log_model,
     log_progress,
     log_success,
@@ -34,4 +35,5 @@ __all__ = [
     "log_exchange",
     "log_system",
     "log_progress",
+    "log_memory",
 ]

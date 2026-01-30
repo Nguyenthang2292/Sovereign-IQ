@@ -96,9 +96,7 @@ class TestPreFilterWorker:
                     ) as mock_stage3:
                         mock_stage3.return_value = (["BTC/USDT", "ETH/USDT", "BNB/USDT"], {})
 
-                        result = run_prefilter_worker(
-                            sample_symbols, TEST_PERCENTAGE, TEST_TIMEFRAME, TEST_LIMIT, mode="voting"
-                        )
+                        result = run_prefilter_worker(sample_symbols, TEST_PERCENTAGE, TEST_TIMEFRAME, TEST_LIMIT)
 
                         # Should return symbols with signals (BTC, ETH, BNB)
                         assert len(result) == 3
@@ -117,7 +115,7 @@ class TestPreFilterWorker:
         ):
             mock_voting_class.side_effect = Exception("Test error")
 
-            result = run_prefilter_worker(sample_symbols, TEST_PERCENTAGE, TEST_TIMEFRAME, TEST_LIMIT, mode="voting")
+            result = run_prefilter_worker(sample_symbols, TEST_PERCENTAGE, TEST_TIMEFRAME, TEST_LIMIT)
 
             # Should return all symbols on error
             assert result == sample_symbols

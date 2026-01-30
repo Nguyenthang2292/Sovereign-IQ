@@ -217,7 +217,7 @@ def compute_atc_specialized(
     # Convert ATCConfig to dict
     config_dict = {
         "ema_len": config.ema_len,
-        "hull_len": config.hma_len,
+        "hma_len": config.hma_len,
         "wma_len": config.wma_len,
         "dema_len": config.dema_len,
         "lsma_len": config.lsma_len,

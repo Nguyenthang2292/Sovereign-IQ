@@ -106,8 +106,14 @@ def equity_series(
     if not isinstance(L, (int, float)) or np.isnan(L) or np.isinf(L):
         raise ValueError(f"L must be a finite number, got {L}")
 
-    # cutout is always 0 now as slicing happens early in compute_atc_signals
+    # NOTE: cutout is always 0 now as slicing happens early in compute_atc_signals
+    # If equity_series is called directly with cutout > 0, warn user
     cutout = 0
+    if verbose and cutout > 0:
+        log_warn(
+            f"cutout parameter ({cutout}) is ignored in equity_series. "
+            f"Cutout should be applied at compute_atc_signals level."
+        )
 
     # Check index compatibility
     if not sig.index.equals(R.index):
@@ -158,6 +164,8 @@ def equity_series(
         d = 1.0 - De
 
         # Shift signals by 1 period (sig[1] in Pine Script)
+        # NOTE: This shift is for INTERNAL equity calculation only
+        # The returned equity series is NOT shifted - it represents equity at current bar
         sig_shifted = sig.shift(1)
 
         # Convert to numpy arrays for Numba

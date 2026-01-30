@@ -6,7 +6,26 @@ from typing import Any, Dict
 
 @dataclass
 class ATCConfig:
-    """Configuration for Adaptive Trend Classification (ATC) analysis."""
+    """Configuration for Adaptive Trend Classification (ATC) analysis.
+
+    This class holds both unscaled and scaled parameter values for ATC calculations.
+
+    Important Parameter Notes:
+        - lambda_param (unscaled): Use same value as compute_atc_signals(La=...)
+          The scaling (divide by 1000) is applied internally by lambda_scaled property
+          or by compute_atc_signals function.
+        - decay (unscaled): Use same value as compute_atc_signals(De=...)
+          The scaling (divide by 100) is applied internally by decay_scaled property
+          or by compute_atc_signals function.
+
+    Example:
+        >>> config = ATCConfig(lambda_param=0.02, decay=0.03)
+        >>> # Use unscaled values directly with compute_atc_signals
+        >>> result = compute_atc_signals(prices, La=config.lambda_param, De=config.decay)
+        >>> # Or use scaled values for manual calculations
+        >>> scaled_lambda = config.lambda_scaled  # 0.00002
+        >>> scaled_decay = config.decay_scaled    # 0.0003
+    """
 
     # Moving Average lengths
     ema_len: int = 28
@@ -26,19 +45,27 @@ class ATCConfig:
 
     # ATC parameters
     robustness: str = "Medium"  # "Narrow", "Medium", or "Wide"
-    lambda_param: float = 0.02
-    decay: float = 0.03
+    lambda_param: float = 0.02  # UNSCALED lambda value (will be divided by 1000 internally)
+    decay: float = 0.03  # UNSCALED decay value (will be divided by 100 internally)
     cutout: int = 0
     strategy_mode: bool = False  # Set to True for shifted, non-repainting signals (Strategy View)
 
     @property
     def lambda_scaled(self) -> float:
-        """Lambda scaled for calculations (divided by 1000 to match PineScript)."""
+        """Lambda scaled for calculations (divided by 1000 to match PineScript).
+
+        Returns:
+            Scaled lambda value: lambda_param / 1000
+        """
         return self.lambda_param / 1000
 
     @property
     def decay_scaled(self) -> float:
-        """Decay scaled for calculations (divided by 100 to match PineScript)."""
+        """Decay scaled for calculations (divided by 100 to match PineScript).
+
+        Returns:
+            Scaled decay value: decay / 100
+        """
         return self.decay / 100
 
     # Signal threshold parameters

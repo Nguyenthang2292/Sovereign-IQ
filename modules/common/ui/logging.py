@@ -62,3 +62,25 @@ def log_system(msg: str) -> None:
 def log_progress(msg: str) -> None:
     """Print progress update message with yellow color."""
     print(color_text(msg, Fore.YELLOW))
+
+
+def log_memory(threshold_mb: int = 1000) -> None:
+    """
+    Log memory usage if it exceeds threshold.
+    Requires psutil.
+    """
+    try:
+        import psutil
+        import os
+
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        rss_mb = mem_info.rss / 1024 / 1024
+
+        if rss_mb > threshold_mb:
+            print(color_text(f"MEMORY WARNING: Usage {rss_mb:.2f} MB", Fore.RED, Style.BRIGHT))
+        # else:
+        #     # Optional: log normal memory usage as debug
+        #     # print(color_text(f"Memory: {rss_mb:.2f} MB", Fore.WHITE))
+    except ImportError:
+        pass

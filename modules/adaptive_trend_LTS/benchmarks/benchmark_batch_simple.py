@@ -18,7 +18,7 @@ def generate_prices(base=1000, bars=100):
 def benchmark():
     config = {
         "ema_len": 28,
-        "hull_len": 28,
+        "hma_len": 28,
         "wma_len": 28,
         "dema_len": 28,
         "lsma_len": 28,

@@ -42,7 +42,7 @@ def compute_atc_signals(
     prices: pd.Series,
     *,
     ema_len: int = 28,
-    hull_len: int = 28,
+    hma_len: int = 28,
     # ... 20+ more params
     use_rust_backend: bool = True,
     use_cache: bool = True,

@@ -43,13 +43,13 @@ def main():
     configs = []
     if args.configs == "default":
         configs = [
-            {"ema_len": 28, "hull_len": 28, "wma_len": 28, "dema_len": 28, "lsma_len": 28, "kama_len": 28},
+            {"ema_len": 28, "hma_len": 28, "wma_len": 28, "dema_len": 28, "lsma_len": 28, "kama_len": 28},
         ]
     elif args.configs == "all":
         configs = [
-            {"ema_len": 14, "hull_len": 14, "wma_len": 14, "dema_len": 14, "lsma_len": 14, "kama_len": 14},
-            {"ema_len": 28, "hull_len": 28, "wma_len": 28, "dema_len": 28, "lsma_len": 28, "kama_len": 28},
-            {"ema_len": 50, "hull_len": 50, "wma_len": 50, "dema_len": 50, "lsma_len": 50, "kama_len": 50},
+            {"ema_len": 14, "hma_len": 14, "wma_len": 14, "dema_len": 14, "lsma_len": 14, "kama_len": 14},
+            {"ema_len": 28, "hma_len": 28, "wma_len": 28, "dema_len": 28, "lsma_len": 28, "kama_len": 28},
+            {"ema_len": 50, "hma_len": 50, "wma_len": 50, "dema_len": 50, "lsma_len": 50, "kama_len": 50},
         ]
 
     cache_mgr = get_cache_manager()

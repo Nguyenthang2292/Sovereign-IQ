@@ -18,11 +18,18 @@ from modules.common.utils import validate_ohlcv_input
 
 from .base import IndicatorResult, collect_metadata
 
+try:
+    from modules.xgboost_LTS.rust_extensions import xgboost_rust
+
+    RUST_AVAILABLE = True
+except ImportError:
+    RUST_AVAILABLE = False
+
 
 class PriceDerivedIndicators:
     """
     Price-derived indicators: normalized features from OHLCV data.
-    
+
     Calculates scale-invariant features that generalize across assets:
     - returns_1: 1-period return (pct_change)
     - returns_5: 5-period return (pct_change)
@@ -50,6 +57,37 @@ class PriceDerivedIndicators:
         result = df.copy()
         before = result.columns.tolist()
 
+        if RUST_AVAILABLE:
+            try:
+                # Use Rust for batch calculation
+                rust_results = xgboost_rust.add_price_derived_features_rust(
+                    result["open"].values.astype(np.float64),
+                    result["high"].values.astype(np.float64),
+                    result["low"].values.astype(np.float64),
+                    result["close"].values.astype(np.float64),
+                    result["volume"].values.astype(np.float64),
+                )
+                for name, values in rust_results.items():
+                    result[name] = values
+
+                # Metadata collection handled at the end
+            except Exception:
+                # Fallback to Pandas
+                PriceDerivedIndicators._apply_pandas(result)
+        else:
+            PriceDerivedIndicators._apply_pandas(result)
+
+        # Fill NaN values (first rows for returns, etc.)
+        for col in ["returns_1", "returns_5", "high_low_range", "close_open_diff"]:
+            if col in result.columns:
+                result[col] = result[col].fillna(0.0)
+
+        metadata = collect_metadata(before, result.columns, PriceDerivedIndicators.CATEGORY)
+        return result, metadata
+
+    @staticmethod
+    def _apply_pandas(result: pd.DataFrame):
+        """Standard Pandas implementation for price-derived features."""
         # 1-period return: (close - close.shift(1)) / close.shift(1)
         result["returns_1"] = result["close"].pct_change(periods=1)
 
@@ -57,25 +95,13 @@ class PriceDerivedIndicators:
         result["returns_5"] = result["close"].pct_change(periods=5)
 
         # Log-normalized volume: log(volume + 1) to handle zero volumes
-        # Adding 1 prevents log(0) = -inf
         result["log_volume"] = np.log1p(result["volume"])
 
         # High-Low range normalized by close: (high - low) / close
-        # This gives the price range as a percentage of current price
         result["high_low_range"] = (result["high"] - result["low"]) / result["close"]
 
         # Close-Open difference normalized by open: (close - open) / open
-        # This gives the price change within the candle as a percentage
         result["close_open_diff"] = (result["close"] - result["open"]) / result["open"]
-
-        # Fill NaN values (first rows for returns, etc.)
-        result["returns_1"] = result["returns_1"].fillna(0.0)
-        result["returns_5"] = result["returns_5"].fillna(0.0)
-        result["high_low_range"] = result["high_low_range"].fillna(0.0)
-        result["close_open_diff"] = result["close_open_diff"].fillna(0.0)
-
-        metadata = collect_metadata(before, result.columns, PriceDerivedIndicators.CATEGORY)
-        return result, metadata
 
 
 __all__ = ["PriceDerivedIndicators"]

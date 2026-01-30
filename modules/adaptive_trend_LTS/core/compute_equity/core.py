@@ -12,10 +12,14 @@ import numpy as np
 
 from .utils import njit, prange
 
+# Default equity floor value - configurable constant for consistency
+DEFAULT_EQUITY_FLOOR = 0.25
+
 __all__ = [
     "_calculate_equity_core",
     "_calculate_equity_vectorized",
     "_calculate_equities_parallel",
+    "DEFAULT_EQUITY_FLOOR",
 ]
 
 
@@ -91,7 +95,7 @@ def _calculate_equity_vectorized(
         e_curr = np.where(nan_mask, starting_equities, (prev_e * decay_multiplier) * (1.0 + a))
 
         # Apply floor
-        e_curr = np.maximum(e_curr, 0.25)
+        e_curr = np.maximum(e_curr, DEFAULT_EQUITY_FLOOR)
 
         prev_e = e_curr.copy()
         e_values[:, i] = e_curr
@@ -141,8 +145,7 @@ def _calculate_equities_parallel_impl(
                 e_curr = (prev_e * decay_multiplier) * (1.0 + a)
 
             # Apply floor
-            if e_curr < 0.25:
-                e_curr = 0.25
+            e_curr = np.maximum(e_curr, DEFAULT_EQUITY_FLOOR)
 
             out[s, i] = e_curr
             prev_e = e_curr
@@ -212,8 +215,7 @@ def _calculate_equity_core_impl(
             e_curr = (prev_e * decay_multiplier) * (1.0 + a)
 
         # Apply floor
-        if e_curr < 0.25:
-            e_curr = 0.25
+        e_curr = np.maximum(e_curr, DEFAULT_EQUITY_FLOOR)
 
         prev_e = e_curr
         e_values[i] = e_curr

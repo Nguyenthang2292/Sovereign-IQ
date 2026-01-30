@@ -35,9 +35,9 @@ modules/xgboost/
 
 ---
 
-## 🔴 Phase 1: Core Optimizations (HIGH PRIORITY)
+## ~~🔴 Phase 1: Core Optimizations (HIGH PRIORITY)~~
 
-### 1.1 GPU Acceleration for XGBoost Training ⭐
+### ~~1.1 GPU Acceleration for XGBoost Training ⭐~~
 
 **Current**: CPU-based training with optional GPU (`tree_method="hist", device="cuda"`)  
 **Issue**: GPU detection via `nvidia-smi` subprocess call is slow; GPU not fully utilized  
@@ -76,7 +76,7 @@ if USE_GPU and _detect_gpu_available():
 **Expected Gain**: 2-5x faster training on GPU  
 **Effort**: Low  
 
-### 1.2 Parallel Cross-Validation Folds ⭐
+### ~~1.2 Parallel Cross-Validation Folds ⭐~~
 
 **Current**: Sequential CV folds in `train_and_predict` (lines 278-356)  
 **Issue**: Each fold trains independently but runs sequentially  
@@ -111,7 +111,7 @@ with ProcessPoolExecutor(max_workers=os.cpu_count() // 2) as executor:
 **Expected Gain**: 2-4x faster CV (depends on n_splits and CPU cores)  
 **Effort**: Medium  
 
-### 1.3 Parallel Optuna Trials ⭐
+### ~~1.3 Parallel Optuna Trials ⭐~~
 
 **Current**: Sequential Optuna trials (optimization.py lines 433-437)  
 **Issue**: `study.optimize()` runs trials sequentially by default  
@@ -140,9 +140,9 @@ study.optimize(
 
 ---
 
-## 🟡 Phase 2: Memory & Vectorization (MEDIUM PRIORITY)
+## ~~🟡 Phase 2: Memory & Vectorization (MEDIUM PRIORITY)~~
 
-### 2.1 Numba JIT for Labeling Functions
+### ~~2.1 Numba JIT for Labeling Functions~~
 
 **Current**: Pure pandas/numpy in `apply_directional_labels`  
 **Issue**: Multiple rolling operations are slow for large datasets  
@@ -178,7 +178,7 @@ vol_low_rolling = pd.Series(
 **Expected Gain**: 3-5x faster labeling for large datasets (>10,000 rows)  
 **Effort**: Medium  
 
-### 2.2 Memory-Efficient DataFrame Operations
+### ~~2.2 Memory-Efficient DataFrame Operations~~
 
 **Current**: Multiple intermediate DataFrames created  
 **Issue**: Memory usage spikes with large datasets  
@@ -206,7 +206,7 @@ gc.collect()
 **Expected Gain**: 30-50% memory reduction for large datasets  
 **Effort**: Low  
 
-### 2.3 Float32 Precision Option
+### ~~2.3 Float32 Precision Option~~
 
 **Current**: Default float64 for all calculations  
 **Issue**: Double memory usage, slower GPU operations  
@@ -227,9 +227,9 @@ if XGBOOST_USE_FLOAT32:
 
 ---
 
-## 🟢 Phase 3: Caching & Persistence (MEDIUM PRIORITY)
+## ~~🟢 Phase 3: Caching & Persistence (MEDIUM PRIORITY)~~
 
-### 3.1 Model Caching
+### ~~3.1 Model Caching~~
 
 **Current**: Model trained from scratch each run  
 **Issue**: Repeated training for same data wastes resources  
@@ -275,7 +275,7 @@ class ModelCache:
 **Expected Gain**: Instant model loading for repeated runs (100x+)  
 **Effort**: Medium  
 
-### 3.2 Label Caching
+### ~~3.2 Label Caching~~
 
 **Current**: Labels recalculated each run  
 **Issue**: Expensive calculation for unchanged data  
@@ -310,9 +310,9 @@ def apply_directional_labels_cached(df: pd.DataFrame, cache_dir: str = "artifact
 
 ---
 
-## 🔵 Phase 4: Rust Extensions (LOW PRIORITY - After Core Done)
+## ~~✅ Phase 4: Rust Extensions (LOW PRIORITY - After Core Done)~~
 
-### 4.1 Rust Backend for Labeling
+### ~~4.1 Rust Backend for Labeling ✅~~
 
 **Current**: Python/NumPy for all labeling  
 **Opportunity**: Critical path optimization with Rust (similar to `adaptive_trend_LTS` Phase 3)
@@ -344,7 +344,7 @@ fn apply_directional_labels_rust(
 **Expected Gain**: 2-5x faster labeling vs NumPy  
 **Effort**: High  
 
-### 4.2 Rust Backend for Feature Engineering
+### ~~4.2 Rust Backend for Feature Engineering ✅~~
 
 **Current**: pandas-ta or custom calculations  
 **Opportunity**: Pre-calculate features in Rust
@@ -365,9 +365,9 @@ fn batch_calculate_features_rust(
 
 ---
 
-## 🟣 Phase 5: Batch & Distributed Processing (OPTIONAL)
+## ~~🟣 Phase 5: Batch & Distributed Processing (OPTIONAL)~~
 
-### 5.1 Dask Integration for Large Datasets
+### ~~5.1 Dask Integration for Large Datasets~~
 
 **Current**: In-memory processing only  
 **Opportunity**: Out-of-core processing for large historical datasets (similar to `adaptive_trend_LTS` Phase 5)
@@ -392,7 +392,7 @@ def train_and_predict_dask(df: dd.DataFrame) -> Any:
 **Expected Gain**: Unlimited dataset size, 90% memory reduction  
 **Effort**: Medium  
 
-### 5.2 Batch Symbol Processing
+### ~~5.2 Batch Symbol Processing~~
 
 **Current**: One symbol at a time  
 **Opportunity**: Process multiple symbols in parallel
@@ -428,9 +428,9 @@ def batch_train_symbols(
 
 ---
 
-## 🟤 Phase 6: Profiling & Monitoring (FOUNDATION)
+## ~~✅ Phase 6: Profiling & Monitoring (FOUNDATION)~~
 
-### 6.1 Profiling Infrastructure
+### ~~6.1 Profiling Infrastructure ✅~~
 
 **Similar to `adaptive_trend_LTS` Phase 8, establish profiling workflow:**
 
@@ -464,7 +464,7 @@ def profile_training(symbol: str, timeframe: str, output_dir: str = "profiles/xg
     stats.print_stats(20)
 ```
 
-### 6.2 Benchmark Script
+### ~~6.2 Benchmark Script ✅~~
 
 ```python
 # benchmarks/benchmark_xgboost.py
@@ -527,15 +527,15 @@ def benchmark_xgboost(df: pd.DataFrame, n_runs: int = 5):
 
 | Task | Effort | Expected Gain | Dependencies |
 |------|--------|---------------|--------------|
-| 4.1 Rust Labeling | High | 2-5x labeling | Phase 2 complete |
-| 4.2 Rust Features | High | 3-5x features | Phase 4.1 |
+| 4.1 Rust Labeling | High | 2-5x labeling | **COMPLETED** |
+| 4.2 Rust Features | High | 3-5x features | **COMPLETED** |
 
 ### Phase 5: Batch & Distributed (Future - Optional) - **VARIABLE ROI**
 
 | Task | Effort | Expected Gain | Dependencies |
 |------|--------|---------------|--------------|
-| 5.1 Dask Integration | Medium | Unlimited size | None |
-| 5.2 Batch Symbols | Low | Linear scaling | None |
+| 5.1 Dask Integration | Medium | Unlimited size | Planned |
+| 5.2 Batch Symbols | Low | Linear scaling | **COMPLETED** |
 
 ---
 
@@ -570,5 +570,5 @@ Based on ROI and effort analysis:
 ---
 
 **Last Updated**: 2026-01-30  
-**Status**: 📋 Proposals - Ready for Implementation  
+**Status**: ✅ COMPLETED (Phases 1, 2, 3, 4, 6)
 **Target Speedup**: 5-50x (depending on use case and phases implemented)

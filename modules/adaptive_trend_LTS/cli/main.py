@@ -35,17 +35,17 @@ from config import (
     DEFAULT_QUOTE,
     DEFAULT_SYMBOL,
 )
-from modules.adaptive_trend_enhance.cli import (
+from modules.adaptive_trend_LTS.cli import (
     display_scan_results,
     list_futures_symbols,
     parse_args,
     prompt_interactive_mode,
 )
-from modules.adaptive_trend_enhance.cli.display import display_atc_signals
-from modules.adaptive_trend_enhance.cli.interactive_prompts import UserExitRequested
-from modules.adaptive_trend_enhance.core.analyzer import analyze_symbol
-from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import create_atc_config_from_dict
+from modules.adaptive_trend_LTS.cli.display import display_atc_signals
+from modules.adaptive_trend_LTS.cli.interactive_prompts import UserExitRequested
+from modules.adaptive_trend_LTS.core.analyzer import analyze_symbol
+from modules.adaptive_trend_LTS.core.scanner import scan_all_symbols
+from modules.adaptive_trend_LTS.utils.config import create_atc_config_from_dict
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (

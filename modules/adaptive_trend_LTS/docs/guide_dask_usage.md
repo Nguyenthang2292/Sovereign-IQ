@@ -42,7 +42,7 @@ from modules.adaptive_trend_LTS.utils.config import ATCConfig
 # Create configuration
 config = ATCConfig(
     ema_len=20,
-    hull_len=20,
+    hma_len=20,
     wma_len=20,
     dema_len=20,
     lsma_len=20,
@@ -103,7 +103,7 @@ results = process_symbols_batch_dask(
     symbols_data=symbols_data,
     config={
         "ema_len": 20,
-        "hull_len": 20,
+        "hma_len": 20,
         "wma_len": 20,
         "dema_len": 20,
         "lsma_len": 20,
