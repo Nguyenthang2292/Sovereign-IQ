@@ -1,21 +1,22 @@
 @echo off
+setlocal EnableDelayedExpansion
 REM Build script for Rust extensions on Windows
 
 REM Check if Rust is installed
-set "CARGO_BIN=%USERPROFILE%\.cargo\bin"
-if not exist "%CARGO_BIN%\rustc.exe" (
-    echo [ERROR] Rust is not installed at %CARGO_BIN%
+set "CARGO_BIN=!USERPROFILE!\.cargo\bin"
+if not exist "!CARGO_BIN!\rustc.exe" (
+    echo [ERROR] Rust is not installed at !CARGO_BIN!
     echo Please install Rust from: https://rustup.rs/
     exit /b 1
 )
 
-REM Add Rust to PATH for this session
+REM Add Rust to PATH for this session (use %PATH% at parse time to avoid special chars in expansion breaking the line)
 echo [SETUP] Adding Rust to PATH...
-set "PATH=%CARGO_BIN%;%PATH%"
+set "PATH=!CARGO_BIN!;%PATH%"
 
 REM Verify Rust is available
-"%CARGO_BIN%\rustc.exe" --version >nul 2>&1
-if errorlevel 1 (
+"!CARGO_BIN!\rustc.exe" --version >nul 2>&1
+if !errorlevel! neq 0 (
     echo [ERROR] Rust compiler (rustc) is not accessible!
     echo Please restart your terminal after installing Rust.
     exit /b 1
@@ -26,7 +27,7 @@ cd modules\adaptive_trend_LTS\rust_extensions
 
 echo [BUILD] Building and installing Rust extensions (maturin develop --release)...
 maturin develop --release
-if errorlevel 1 (
+if !errorlevel! neq 0 (
     echo [ERROR] maturin build failed!
     exit /b 1
 )

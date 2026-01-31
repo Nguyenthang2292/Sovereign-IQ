@@ -31,7 +31,7 @@ max_symbols:
 # ============================================================================
 
 stage0_sample_percentage:
-  10 # Range: 1-100 (100 = no sampling)
+  30 # Range: 1-100 (100 = no sampling)
   # The percentage of the market to select in Stage 0 sampling.
   # 100 means sample all symbols (no sampling applied).
   # Reduce this to scan a subset of symbols.
@@ -162,8 +162,8 @@ atc_core:
   cutout: 0 # Number of bars to skip at beginning (for backtesting: set to 20-50 to skip warm-up period)
 
   # Signal thresholds
-  long_threshold: 0.1 # Threshold for LONG signal classification
-  short_threshold: -0.1 # Threshold for SHORT signal classification
+  long_threshold: 0.01 # Threshold for LONG signal classification (lowered from 0.1 to capture more signals)
+  short_threshold: -0.01 # Threshold for SHORT signal classification (lowered from -0.1 to capture more signals)
 
   # Backtesting Configuration ⚠️ IMPORTANT FOR BACKTESTING
   strategy_mode:
@@ -182,19 +182,19 @@ atc_performance:
   # preset: "medium_batch_gpu" # Options: "small", "medium_batch_gpu", "large_dask", "custom"
   # If preset is not "custom", preset overrides individual settings below
 
-  batch_processing: false # CUDA handles batching (set false when using CUDA)
-  use_cuda: true
+  batch_processing: true # CUDA handles batching (set false when using CUDA)
+  use_cuda: false
   # NOTE: If use_cuda=true, you MUST set: batch_processing=false, parallel_l1=false, parallel_l2=false
 
   parallel_l1: false # CUDA handles parallelism (set false when using CUDA)
   parallel_l2: false # CUDA handles parallelism (set false when using CUDA)
-  prefer_gpu: true # Auto-select GPU if available
+  prefer_gpu: false # Auto-select GPU if available
   use_cache: true # Cache intermediate results
   disable_ml_models: true # Disable XGBoost/HMM in early stages (renamed from fast_mode)
   precision: "float32" # Options: "float32" (fast) or "float64" (accurate)
 
   # Dask (Out-of-Core) Configuration
-  use_dask: false # Auto-enabled by system if symbols > 1000
+  use_dask: true # Auto-enabled by system if symbols > 1000
   npartitions: null # null = auto-calculate based on dataset size
 
   # Incremental Updates (for live trading - NOT for backtesting)

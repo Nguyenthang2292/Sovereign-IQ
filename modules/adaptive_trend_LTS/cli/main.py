@@ -11,7 +11,7 @@ import sys
 import warnings
 from argparse import Namespace
 from pathlib import Path
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 import pandas as pd
 
@@ -138,6 +138,21 @@ class ATCAnalyzer:
                 "lambda_param",
                 "decay",
                 "cutout",
+                "long_threshold",
+                "short_threshold",
+                # Performance & Backend
+                "use_rust_backend",
+                "use_cuda",
+                "batch_processing",
+                "fast_mode",
+                "precision",
+                "use_cache",
+                # Approximate Scanning
+                "use_approximate",
+                "use_adaptive_approximate",
+                "approximate_volatility_window",
+                "approximate_volatility_factor",
+                "approximate_threshold",
             ]
             self._atc_params = extract_dict_from_namespace(self.args, atc_param_keys)
         return self._atc_params
@@ -164,12 +179,16 @@ class ATCAnalyzer:
             if self.args.max_symbols:
                 log_data(f"  Max Symbols: {self.args.max_symbols}")
 
-    def run_auto_scan(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def run_auto_scan(self, symbols: Optional[List[str]] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Run ATC auto scan and return results without displaying.
 
         This method is designed to be reusable by other analyzers that combine
         ATC with other strategies (e.g., ATC + Range Oscillator).
+
+        Args:
+            symbols: Optional list of symbols to scan. If provided (e.g. from pre-filter Stage 0),
+                     only these symbols are scanned; otherwise all exchange symbols are used.
 
         Returns:
             Tuple of (long_signals_df, short_signals_df):
@@ -180,13 +199,16 @@ class ATCAnalyzer:
         atc_params = self.get_atc_params()
         atc_config = create_atc_config_from_dict(atc_params, timeframe=self.selected_timeframe)
 
-        # Scan all symbols
+        # Scan symbols (provided list or all from exchange)
         long_signals, short_signals = scan_all_symbols(
             data_fetcher=self.data_fetcher,
             atc_config=atc_config,
             max_symbols=self.args.max_symbols,
             min_signal=self.args.min_signal,
             batch_size=getattr(self.args, "batch_size", atc_config.batch_size),
+            execution_mode=getattr(self.args, "execution_mode", "threadpool"),
+            npartitions=getattr(self.args, "npartitions", None),
+            symbols=symbols,
         )
 
         return long_signals, short_signals

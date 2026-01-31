@@ -122,7 +122,11 @@ def build_voting_analyzer_args(
     args.lambda_param = 0.5
     args.decay = 0.1
     args.cutout = 5
-    args.min_signal = 0.01
+    # Pre-filter Stage 1: use tighter thresholds so more symbols get directional ATC signal.
+    # Default 0.1/-0.1 often yields 0 signals in sideways markets (all Layer1 in neutral band).
+    args.long_threshold = 0.05
+    args.short_threshold = -0.05
+    args.min_signal = 0.005
     args.max_symbols = None
 
     # Full parallel settings for adaptive_trend_LTS
@@ -176,6 +180,7 @@ def build_voting_analyzer_args(
         args.use_adaptive_approximate = approximate_ma_scanner.get("use_adaptive", False)
         args.approximate_volatility_window = approximate_ma_scanner.get("volatility_window", 20)
         args.approximate_volatility_factor = approximate_ma_scanner.get("volatility_factor", 1.0)
+        args.approximate_threshold = approximate_ma_scanner.get("base_tolerance", 0.05)
     else:
         args.use_approximate = False
         args.use_adaptive_approximate = False

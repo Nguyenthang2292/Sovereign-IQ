@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Scan Report - 31/01/2026 20:52:33</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1e1e1e; color: #e0e0e0; line-height: 1.6; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; background: #2a2a2a; border-radius: 12px; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white; }
+        .content { padding: 30px; }
+        .summary-section { background: #333; padding: 25px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #667eea; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; }
+        .summary-card { background: #3a3a3a; padding: 20px; border-radius: 8px; text-align: center; }
+        .summary-card.long .value { color: #48bb78; }
+        .summary-card.short .value { color: #f56565; }
+        .summary-card .value { font-size: 2em; font-weight: bold; }
+        .accordion-item { background: #333; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; overflow: hidden; }
+        .accordion-checkbox { display: none; }
+        .accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 25px; background: #3a3a3a; cursor: pointer; }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s; }
+        .accordion-checkbox:checked ~ .accordion-content { max-height: 10000px; }
+        .symbols-table { width: 100%; border-collapse: collapse; background: #333; }
+        .symbols-table th { background: #3a3a3a; padding: 15px; text-align: left; color: #667eea; cursor: pointer; position: sticky; top: 0; }
+        .symbols-table td { padding: 12px 15px; border-bottom: 1px solid #444; }
+        .confidence-bar-container { display: flex; align-items: center; gap: 10px; }
+        .confidence-bar { flex: 1; height: 15px; background: #1a1a1a; border-radius: 10px; overflow: hidden; }
+        .confidence-fill { height: 100%; border-radius: 10px; }
+        .detail-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .tf-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin: 2px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal-content { background: #2a2a2a; border-radius: 12px; padding: 30px; width: 90%; max-width: 700px; }
+        .command-container { background: #1a1a1a; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .command-text { color: #48bb78; font-family: monospace; word-break: break-all; }
+    </style>
+    
+    <script>
+        const MAIN_SCRIPT_PATH = "D:\\NGUYEN QUANG THANG\\Probability projects\\crypto-probability-\\main_gemini_chart_analyzer.py";
+        function showDetailModal(symbol, timeframes, isMultiTF, primaryTF) {
+            const modal = document.getElementById('detailModal');
+            document.getElementById('modalSymbolName').textContent = symbol;
+            let command;
+            if (isMultiTF && timeframes && timeframes.length > 1) {
+                command = `python "${MAIN_SCRIPT_PATH}" --symbol "${symbol}" --timeframes "${timeframes.join(',')}"`;
+            } else {
+                command = `python "${MAIN_SCRIPT_PATH}" --symbol "${symbol}" --timeframe "${primaryTF || '1h'}"`;
+            }
+            document.getElementById('modalCommandText').textContent = command;
+            modal.classList.add('show');
+        }
+        function closeModal() { document.getElementById('detailModal').classList.remove('show'); }
+        function copyCommand() {
+            const cmd = document.getElementById('modalCommandText').textContent;
+            navigator.clipboard.writeText(cmd).then(() => alert('Copied!'));
+        }
+    </script>
+    
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Batch Scan Report</h1>
+            <div>📅 31/01/2026 20:52:33 | Timeframes: N/A</div>
+        </div>
+        <div class="content">
+            <div class="summary-section">
+                <div class="summary-grid">
+                    <div class="summary-card"><div class="label">Total</div><div class="value">57</div><div class="subvalue">Scanned: 57</div></div>
+                    <div class="summary-card long"><div class="label">LONG</div><div class="value">0</div><div class="subvalue">0.00%</div></div>
+                    <div class="summary-card short"><div class="label">SHORT</div><div class="value">53</div><div class="subvalue">92.98%</div></div>
+                    <div class="summary-card none"><div class="label">NONE</div><div class="value">4</div><div class="subvalue">7.02%</div></div>
+                </div>
+            </div>
+            <div class="accordion-container">
+                <div class="accordion-item">
+                    <input type="checkbox" id="acc-long" class="accordion-checkbox" checked>
+                    <label for="acc-long" class="accordion-header"><strong>LONG (0)</strong></label>
+                    <div class="accordion-content"><table class="symbols-table"><tbody></tbody></table></div>
+                </div>
+                <div class="accordion-item">
+                    <input type="checkbox" id="acc-short" class="accordion-checkbox" checked>
+                    <label for="acc-short" class="accordion-header"><strong>SHORT (53)</strong></label>
+                    <div class="accordion-content"><table class="symbols-table"><tbody>
+                <tr data-symbol="HOME/USDT" data-confidence="0.83">
+                    <td class="symbol-cell">HOME/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.83</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 83.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("HOME/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="OSMO/USDT" data-confidence="0.83">
+                    <td class="symbol-cell">OSMO/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.83</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 83.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("OSMO/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="BIGTIME/USDT" data-confidence="0.78">
+                    <td class="symbol-cell">BIGTIME/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.78</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 78.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("BIGTIME/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="XNO/USDT" data-confidence="0.77">
+                    <td class="symbol-cell">XNO/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.77</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 77.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("XNO/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="AVNT/USDT" data-confidence="0.76">
+                    <td class="symbol-cell">AVNT/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.76</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 76.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("AVNT/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="RLC/USDT" data-confidence="0.76">
+                    <td class="symbol-cell">RLC/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.76</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 76.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("RLC/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="CRV/USDT" data-confidence="0.75">
+                    <td class="symbol-cell">CRV/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.75</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 75.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("CRV/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="DOT/USDT" data-confidence="0.72">
+                    <td class="symbol-cell">DOT/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.72</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 72.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("DOT/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="RONIN/USDT" data-confidence="0.72">
+                    <td class="symbol-cell">RONIN/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.72</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 72.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("RONIN/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="ATOM/USDT" data-confidence="0.72">
+                    <td class="symbol-cell">ATOM/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.72</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 72.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("ATOM/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="PROM/USDT" data-confidence="0.72">
+                    <td class="symbol-cell">PROM/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.72</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 72.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("PROM/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="AVAX/USDT" data-confidence="0.71">
+                    <td class="symbol-cell">AVAX/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.71</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 71.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("AVAX/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="CETUS/USDT" data-confidence="0.71">
+                    <td class="symbol-cell">CETUS/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.71</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 71.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("CETUS/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="THETA/USDT" data-confidence="0.71">
+                    <td class="symbol-cell">THETA/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.71</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 71.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("THETA/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="ZEN/USDT" data-confidence="0.71">
+                    <td class="symbol-cell">ZEN/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.71</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 71.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("ZEN/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="ATA/USDT" data-confidence="0.71">
+                    <td class="symbol-cell">ATA/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.71</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 71.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("ATA/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="YGG/USDT" data-confidence="0.71">
+                    <td class="symbol-cell">YGG/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.71</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 71.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("YGG/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="LTC/USDT" data-confidence="0.71">
+                    <td class="symbol-cell">LTC/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.71</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 71.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("LTC/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="COOKIE/USDT" data-confidence="0.7">
+                    <td class="symbol-cell">COOKIE/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.70</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 70.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("COOKIE/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="PHB/USDT" data-confidence="0.68">
+                    <td class="symbol-cell">PHB/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.68</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 68.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("PHB/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="IQ/USDT" data-confidence="0.68">
+                    <td class="symbol-cell">IQ/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.68</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 68.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("IQ/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="GAS/USDT" data-confidence="0.68">
+                    <td class="symbol-cell">GAS/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.68</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 68.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("GAS/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="ATM/USDT" data-confidence="0.68">
+                    <td class="symbol-cell">ATM/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.68</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 68.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("ATM/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="POWR/USDT" data-confidence="0.68">
+                    <td class="symbol-cell">POWR/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.68</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 68.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("POWR/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="GALA/USDT" data-confidence="0.67">
+                    <td class="symbol-cell">GALA/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.67</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 67.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("GALA/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="BROCCOLI714/USDT" data-confidence="0.67">
+                    <td class="symbol-cell">BROCCOLI714/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.67</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 67.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("BROCCOLI714/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="NEO/USDT" data-confidence="0.67">
+                    <td class="symbol-cell">NEO/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.67</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 67.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("NEO/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="CFX/USDT" data-confidence="0.66">
+                    <td class="symbol-cell">CFX/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.66</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 66.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("CFX/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="MINA/USDT" data-confidence="0.66">
+                    <td class="symbol-cell">MINA/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.66</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 66.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("MINA/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="USUAL/USDT" data-confidence="0.66">
+                    <td class="symbol-cell">USUAL/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.66</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 66.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("USUAL/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="TURTLE/USDT" data-confidence="0.65">
+                    <td class="symbol-cell">TURTLE/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.65</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 65.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("TURTLE/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="AVA/USDT" data-confidence="0.64">
+                    <td class="symbol-cell">AVA/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.64</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 64.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("AVA/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="MET/USDT" data-confidence="0.64">
+                    <td class="symbol-cell">MET/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.64</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 64.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("MET/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="HIVE/USDT" data-confidence="0.64">
+                    <td class="symbol-cell">HIVE/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.64</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 64.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("HIVE/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="BNT/USDT" data-confidence="0.64">
+                    <td class="symbol-cell">BNT/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.64</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 64.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("BNT/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="QI/USDT" data-confidence="0.64">
+                    <td class="symbol-cell">QI/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.64</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 64.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("QI/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="WLFI/USDT" data-confidence="0.64">
+                    <td class="symbol-cell">WLFI/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.64</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 64.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("WLFI/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="DCR/USDT" data-confidence="0.63">
+                    <td class="symbol-cell">DCR/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.63</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 63.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("DCR/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="PUNDIX/USDT" data-confidence="0.63">
+                    <td class="symbol-cell">PUNDIX/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.63</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 63.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("PUNDIX/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="ARPA/USDT" data-confidence="0.63">
+                    <td class="symbol-cell">ARPA/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.63</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 63.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("ARPA/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="ASTR/USDT" data-confidence="0.62">
+                    <td class="symbol-cell">ASTR/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.62</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 62.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("ASTR/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="NEXO/USDT" data-confidence="0.62">
+                    <td class="symbol-cell">NEXO/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.62</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 62.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("NEXO/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="QNT/USDT" data-confidence="0.61">
+                    <td class="symbol-cell">QNT/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.61</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 61.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("QNT/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="AXL/USDT" data-confidence="0.6">
+                    <td class="symbol-cell">AXL/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.60</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 60.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("AXL/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="SHELL/USDT" data-confidence="0.6">
+                    <td class="symbol-cell">SHELL/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.60</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 60.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("SHELL/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="PSG/USDT" data-confidence="0.6">
+                    <td class="symbol-cell">PSG/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.60</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 60.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("PSG/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="UTK/USDT" data-confidence="0.6">
+                    <td class="symbol-cell">UTK/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.60</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 60.0%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("UTK/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="ACH/USDT" data-confidence="0.57">
+                    <td class="symbol-cell">ACH/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.57</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 56.99999999999999%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("ACH/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="WCT/USDT" data-confidence="0.57">
+                    <td class="symbol-cell">WCT/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.57</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 56.99999999999999%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("WCT/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="NEWT/USDT" data-confidence="0.56">
+                    <td class="symbol-cell">NEWT/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.56</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 56.00000000000001%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("NEWT/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="YB/USDT" data-confidence="0.56">
+                    <td class="symbol-cell">YB/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.56</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 56.00000000000001%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("YB/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="COS/USDT" data-confidence="0.55">
+                    <td class="symbol-cell">COS/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.55</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 55.00000000000001%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("COS/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="SCR/USDT" data-confidence="0.55">
+                    <td class="symbol-cell">SCR/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #f56565">SHORT</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.55</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 55.00000000000001%; background-color: #f56565"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("SCR/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr></tbody></table></div>
+                </div>
+                <div class="accordion-item">
+                    <input type="checkbox" id="acc-none" class="accordion-checkbox">
+                    <label for="acc-none" class="accordion-header"><strong>NONE (4)</strong></label>
+                    <div class="accordion-content"><table class="symbols-table"><tbody>
+                <tr data-symbol="USDE/USDT" data-confidence="0.99">
+                    <td class="symbol-cell">USDE/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #a0a0a0">NONE</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.99</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 99.0%; background-color: #a0a0a0"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("USDE/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="XUSD/USDT" data-confidence="0.9">
+                    <td class="symbol-cell">XUSD/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #a0a0a0">NONE</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.90</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 90.0%; background-color: #a0a0a0"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("XUSD/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="ALLO/USDT" data-confidence="0.52">
+                    <td class="symbol-cell">ALLO/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #a0a0a0">NONE</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.52</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 52.0%; background-color: #a0a0a0"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("ALLO/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr>
+
+                <tr data-symbol="COTI/USDT" data-confidence="0.5">
+                    <td class="symbol-cell">COTI/USDT</td>
+                    <td class="signal-cell"><span class="signal-badge" style="background-color: #a0a0a0">NONE</span></td>
+                    <td class="confidence-cell">
+                        <div class="confidence-bar-container">
+                            <span class="confidence-value">0.50</span>
+                            <div class="confidence-bar"><div class="confidence-fill" style="width: 50.0%; background-color: #a0a0a0"></div></div>
+                        </div>
+                    </td>
+                    <td class="breakdown-cell"><span class="no-breakdown">N/A</span></td>
+                    <td class="action-cell">
+                        <button class="detail-btn" onclick='showDetailModal("COTI/USDT", [], false, "1h")'>Xem chi tiết</button>
+                    </td>
+                </tr></tbody></table></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="detailModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>📊 Detail: <span id="modalSymbolName"></span></h2>
+            <div class="command-container"><p class="command-text" id="modalCommandText"></p></div>
+            <button onclick="copyCommand()">Copy</button><button onclick="closeModal()">Close</button>
+        </div>
+    </div>
+</body></html>

@@ -24,6 +24,7 @@ from config import (
     SPC_P_HIGH,
     SPC_P_LOW,
     TARGET_BASE_THRESHOLD,
+    XGBOOST_MIN_TRAINING_SAMPLES,
 )
 
 # Constants for Range Oscillator strategies
@@ -31,8 +32,7 @@ from config import (
 DEFAULT_ENABLED_STRATEGIES = [2, 3, 4, 6, 7, 8, 9]
 
 # Constants for XGBoost training
-# Minimum number of samples required for training to prevent overfitting
-XGBOOST_MIN_TRAINING_SAMPLES = 50
+
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.indicator_engine import (
     IndicatorConfig,
@@ -397,8 +397,8 @@ def get_xgboost_signal(
                     return None
 
                 # Check data size
+                # Check data size
                 # Use constant from config or LTS module
-                from config import XGBOOST_MIN_TRAINING_SAMPLES
 
                 if len(df) < XGBOOST_MIN_TRAINING_SAMPLES:
                     return None

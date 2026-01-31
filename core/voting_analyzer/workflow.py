@@ -1,5 +1,7 @@
 """Workflow helpers for VotingAnalyzer."""
 
+from typing import List, Optional
+
 from colorama import Fore, Style
 import pandas as pd
 
@@ -43,9 +45,13 @@ class VotingWorkflowMixin:
             mode="voting",
         )
 
-    def run_atc_scan(self) -> bool:
+    def run_atc_scan(self, symbols: Optional[List[str]] = None) -> bool:
         """
         Run ATC auto scan to get LONG/SHORT signals.
+
+        Args:
+            symbols: Optional list of symbols to scan (e.g. from pre-filter Stage 0).
+                     If None, scans all exchange symbols.
 
         Returns:
             True if signals found, False otherwise
@@ -53,7 +59,7 @@ class VotingWorkflowMixin:
         log_progress("\nStep 1: Running ATC auto scan...")
         log_progress("=" * 80)
 
-        self.long_signals_atc, self.short_signals_atc = self.atc_analyzer.run_auto_scan()
+        self.long_signals_atc, self.short_signals_atc = self.atc_analyzer.run_auto_scan(symbols=symbols)
 
         original_long_count = len(self.long_signals_atc)
         original_short_count = len(self.short_signals_atc)

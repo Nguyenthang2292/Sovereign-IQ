@@ -160,6 +160,7 @@ extern "C" __global__ void batch_signal_persistence_kernel(
 // ============================================================================
 
 // batch_signal_kernels.cu
+// Rebuild: 2026-01-31-16:40 - ROC kernel fix applied
 extern "C" __global__ void batch_roc_with_growth_kernel(
     const double* __restrict__ all_prices,
     const int* __restrict__ offsets,
@@ -182,9 +183,9 @@ extern "C" __global__ void batch_roc_with_growth_kernel(
     const double* prices = all_prices + start;
     double*       roc    = all_roc    + start;
 
-    double growth = 1.0;                     // exp(La*0)
-    const double growth_factor = exp(La);    // constant multiplier
-
+    // FIX: Removed incorrect strided accumulation.
+    // Growth must be calculated based on the absolute index 'i' because threads jump (stride)
+    
     for (int i = threadIdx.x; i < n; i += blockDim.x) {
         if (i == 0) {
             roc[i] = 0.0;
@@ -193,7 +194,9 @@ extern "C" __global__ void batch_roc_with_growth_kernel(
             double p_prev = __ldg(&prices[i-1]);
             double r = (p_prev != 0.0 && !isnan(p) && !isnan(p_prev))
                        ? (p - p_prev) / p_prev : 0.0;
-            growth *= growth_factor;          // exp(La*i)
+            
+            // Correct calculation: stateless exp function based on bar index
+            double growth = exp(La * static_cast<double>(i));
             roc[i] = r * growth;
         }
     }

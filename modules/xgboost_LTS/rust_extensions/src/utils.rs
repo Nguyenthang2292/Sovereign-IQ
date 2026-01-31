@@ -3,6 +3,7 @@
 use ndarray::ArrayView1;
 
 /// Calculate median of a slice (assumes sorted)
+#[allow(dead_code)]
 pub fn median(sorted_slice: &[f64]) -> f64 {
     let len = sorted_slice.len();
     if len == 0 {
@@ -17,6 +18,7 @@ pub fn median(sorted_slice: &[f64]) -> f64 {
 }
 
 /// Calculate standard deviation
+#[allow(dead_code)]
 pub fn std_dev(arr: ArrayView1<f64>) -> f64 {
     let mean = arr.mean().unwrap_or(0.0);
     let variance: f64 = arr.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / arr.len() as f64;

@@ -6,7 +6,6 @@ import gc
 from typing import Dict, Optional
 
 import dask.bag as db
-import numpy as np
 import pandas as pd
 
 from .batch_processor import process_symbols_batch_cuda, process_symbols_batch_rust
@@ -27,7 +26,7 @@ except ImportError:
 
 
 def _process_partition_with_backend(
-    partition_items: list,
+    partition_dict: Dict[str, pd.Series],
     config: dict,
     use_rust: bool,
     use_cuda: bool,
@@ -36,7 +35,7 @@ def _process_partition_with_backend(
     """Process a partition of symbols with specified backend.
 
     Args:
-        partition_items: List of (symbol, prices) tuples
+        partition_dict: Dictionary mapping symbol to price Series
         config: ATC configuration parameters
         use_rust: Use Rust backend (CPU multi-threaded)
         use_cuda: Use CUDA backend
@@ -45,23 +44,8 @@ def _process_partition_with_backend(
     Returns:
         Dictionary mapping symbol -> {"Average_Signal": pd.Series}
     """
-    if not partition_items:
+    if not partition_dict:
         return {}
-
-    # Filter out invalid data before processing
-    # This prevents Rust backend panics on None or empty Series
-    filtered_items = []
-    for symbol, prices in partition_items:
-        if prices is not None:
-            if isinstance(prices, pd.Series) and not prices.empty:
-                filtered_items.append((symbol, prices))
-            elif isinstance(prices, np.ndarray) and len(prices) > 0:
-                filtered_items.append((symbol, prices))
-
-    if not filtered_items:
-        return {}
-
-    partition_dict = dict(filtered_items)
 
     try:
         if use_cuda:
@@ -137,9 +121,17 @@ def process_symbols_batch_dask(
 
     symbols_bag = db.from_sequence(symbols_items, npartitions=npartitions)
 
-    results_bag = symbols_bag.map_partitions(
-        lambda items: [_process_partition_with_backend(items, config, use_rust, use_cuda, use_fallback)]
-    )
+    # CRITICAL FIX: map_partitions receives an iterator of (symbol, prices) tuples per partition
+    # Filter out None/empty data, convert to dict, then process
+    def _prepare_and_process(items):
+        filtered_dict = {
+            symbol: prices
+            for symbol, prices in items
+            if prices is not None and (not isinstance(prices, pd.Series) or not prices.empty)
+        }
+        return [_process_partition_with_backend(filtered_dict, config, use_rust, use_cuda, use_fallback)]
+
+    results_bag = symbols_bag.map_partitions(_prepare_and_process)
 
     # Optimization: For small batches, avoid process spawning overhead (especially on Windows)
     # Use threads for small batches, processes for large ones to bypass GIL

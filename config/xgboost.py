@@ -16,6 +16,7 @@ ID_TO_LABEL = {idx: label for label, idx in LABEL_TO_ID.items()}
 XGBOOST_TRAIN_TEST_SPLIT = 0.8  # Default train/test split ratio (80/20)
 XGBOOST_MIN_TRAIN_FRACTION = 0.5  # Minimum fraction of data required for training
 XGBOOST_MIN_OPTIMIZATION_SAMPLES = 100  # Minimum samples required for hyperparameter optimization
+XGBOOST_MIN_TRAINING_SAMPLES = 50  # Minimum number of samples required for training
 
 # Labeling Configuration
 XGBOOST_VOLATILITY_ROLLING_WINDOW = 500  # Rolling window for volatility regime classification

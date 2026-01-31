@@ -18,8 +18,8 @@ def run_original_module(prices_data: Dict[str, pd.Series], config: dict) -> Tupl
     Returns:
         Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
     """
-    log_info("Running original adaptive_trend module...")
-    from modules.adaptive_trend.core import compute_atc_signals as compute_atc_original
+    log_info("Running original adaptive_trend_LTS module...")
+    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_original
 
     results = {}
     start_time = time.time()
@@ -65,8 +65,8 @@ def run_enhanced_module(prices_data: Dict[str, pd.Series], config: dict) -> Tupl
     Returns:
         Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
     """
-    log_info("Running enhanced adaptive_trend_enhance module...")
-    from modules.adaptive_trend_enhance.core import compute_atc_signals as compute_atc_enhanced
+    log_info("Running enhanced adaptive_trend_LTS module...")
+    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_enhanced
 
     results = {}
     start_time = time.time()

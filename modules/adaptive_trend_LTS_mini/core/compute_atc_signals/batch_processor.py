@@ -1,0 +1,175 @@
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, Optional
+
+import numpy as np
+import pandas as pd
+
+from modules.common.utils import log_error, log_info, log_warn
+
+# Import relative to package, assuming this file is in modules/adaptive_trend_LTS/core/compute_atc_signals/
+from .compute_atc_signals import compute_atc_signals
+
+
+def process_symbols_batch_with_approximate_filter(
+    symbols_data: Dict[str, pd.Series],
+    config: dict,
+    approximate_threshold: float = 0.1,  # Filter threshold
+    min_signal_candidate: float = 0.05,  # Minimum signal to be candidate
+) -> Dict[str, Dict[str, pd.Series]]:
+    """
+    Process symbols with two-stage filtering:
+    1. Approximate MAs for initial filtering
+    2. Full precision for candidates only
+    """
+    # Stage 1: Approximate filtering
+    candidates = {}
+
+    log_info(f"Starting approximate filtering for {len(symbols_data)} symbols...")
+
+    for symbol, prices in symbols_data.items():
+        try:
+            # Fast approximate calculation
+            approx_results = compute_atc_signals(prices, use_approximate=True, **config)
+
+            if "Average_Signal" in approx_results and not approx_results["Average_Signal"].empty:
+                approx_signal = approx_results["Average_Signal"].iloc[-1]
+
+                # Filter candidates
+                if abs(approx_signal) >= min_signal_candidate:
+                    candidates[symbol] = prices
+        except Exception as e:
+            log_warn(f"Approximate calculation failed for {symbol}: {e}")
+
+    log_info(f"Approximate filtering: {len(candidates)}/{len(symbols_data)} candidates")
+
+    # Stage 2: Full precision for candidates
+    if not candidates:
+        return {}
+
+    # Use existing batch processing for candidates
+    return process_symbols_batch_rust(candidates, config)
+
+
+def process_symbols_batch_rust(symbols_data, config, num_threads=None):
+    """
+    Process symbols using Rust Rayon (CPU Multi-threaded) batch processing.
+
+    Args:
+        symbols_data: Dictionary of symbol -> price Series/ndarray
+        config: ATC configuration parameters
+        num_threads: Number of threads (optional, Rayon uses default if None)
+
+    Returns:
+        Dictionary mapping symbol -> {"Average_Signal": pd.Series}
+    """
+    if not symbols_data:
+        return {}
+
+    try:
+        import atc_rust
+
+        # Prepare params
+        params = config.copy()
+
+        la = params.get("La", params.get("la", 0.02))
+        de = params.get("De", params.get("de", 0.03))
+
+        # Scaling logic: Rust expects scaled values
+        la_scaled = la / 1000.0
+        de_scaled = de / 100.0
+
+        log_info(f"Launching Rayon CPU Batch processing for {len(symbols_data)} symbols...")
+
+        # Convert all series values to numpy arrays
+        symbols_numpy = {}
+        for s, v in symbols_data.items():
+            if v is not None:
+                if isinstance(v, pd.Series):
+                    symbols_numpy[s] = v.values.astype(np.float64)
+                elif isinstance(v, np.ndarray):
+                    symbols_numpy[s] = v.astype(np.float64)
+                else:
+                    symbols_numpy[s] = np.array(v, dtype=np.float64)
+
+        # If no valid symbols after filtering, return empty dict
+        if not symbols_numpy:
+            log_warn("No valid symbols found after filtering (all None or empty)")
+            return {}
+
+        # Call batch Rust function (CPU/Rayon version)
+        batch_results = atc_rust.compute_atc_signals_batch_cpu(
+            symbols_numpy,
+            ema_len=params.get("ema_len", 28),
+            hull_len=params.get("hma_len", 28),
+            wma_len=params.get("wma_len", 28),
+            dema_len=params.get("dema_len", 28),
+            lsma_len=params.get("lsma_len", 28),
+            kama_len=params.get("kama_len", 28),
+            robustness=params.get("robustness", "Medium"),
+            la=la_scaled,
+            de=de_scaled,
+            long_threshold=params.get("long_threshold", 0.1),
+            short_threshold=params.get("short_threshold", -0.1),
+        )
+
+        formatted_results = {}
+        for symbol, classified_array in batch_results.items():
+            orig_series = symbols_data.get(symbol)
+            if orig_series is not None and hasattr(orig_series, "index"):
+                formatted_results[symbol] = {"Average_Signal": pd.Series(classified_array, index=orig_series.index)}
+            else:
+                formatted_results[symbol] = {"Average_Signal": pd.Series(classified_array)}
+
+        log_info(f"Rayon CPU Batch completed: {len(formatted_results)} symbols processed.")
+        return formatted_results
+
+    except Exception as e:
+        log_error(f"Rayon CPU Batch failed: {e}. Falling back to sequential.")
+        import traceback
+
+        traceback.print_exc()
+
+        # Fallback to original sequential logic or ThreadPool if preferred
+        results = {}
+        for symbol, prices in symbols_data.items():
+            try:
+                result = compute_atc_signals(prices=prices, **config)
+                results[symbol] = result
+            except Exception as e_inner:
+                log_error(f"Error processing {symbol} in fallback: {e_inner}")
+                results[symbol] = None
+
+        return results
+
+
+def process_symbols_batch_with_dask(
+    symbols_data: Dict[str, pd.Series], config: dict, use_dask: bool = True, npartitions: Optional[int] = None, **kwargs
+) -> Dict[str, Dict[str, pd.Series]]:
+    """Process symbols with optional Dask for out-of-core processing.
+
+    Args:
+        symbols_data: Dictionary of symbol -> price Series
+        config: ATC configuration
+        use_dask: Use Dask if data is large (default: True)
+        npartitions: Number of Dask partitions
+        **kwargs: Passed to batch processor (use_rust, etc.)
+
+    Returns:
+        Dictionary mapping symbol -> {"Average_Signal": pd.Series}
+    """
+    # Auto-detect if Dask is needed (e.g., >1000 symbols)
+    if use_dask and len(symbols_data) > 1000:
+        from .dask_batch_processor import process_symbols_batch_dask
+
+        return process_symbols_batch_dask(
+            symbols_data,
+            config,
+            use_rust=kwargs.get("use_rust", True),
+            npartitions=npartitions,
+            partition_size=kwargs.get("partition_size", 50),
+            use_fallback=kwargs.get("use_fallback", True),
+        )
+    else:
+        # Use Rust CPU batch processor
+        return process_symbols_batch_rust(symbols_data, config, **kwargs)

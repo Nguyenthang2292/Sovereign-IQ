@@ -3,8 +3,6 @@ use ndarray::Array1;
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
 use rayon::prelude::*;
-use std::collections::HashMap;
-
 /// Calculate price derived features: returns, log_volume, ranges
 ///
 /// # Arguments
@@ -89,11 +87,11 @@ pub fn add_price_derived_features_rust<'py>(
         });
 
     let results = pyo3::types::PyDict::new(py);
-    results.set_item("returns_1", returns_1.into_pyarray_bound(py))?;
-    results.set_item("returns_5", returns_5.into_pyarray_bound(py))?;
-    results.set_item("log_volume", log_volume.into_pyarray_bound(py))?;
-    results.set_item("high_low_range", high_low_range.into_pyarray_bound(py))?;
-    results.set_item("close_open_diff", close_open_diff.into_pyarray_bound(py))?;
+    results.set_item("returns_1", returns_1.into_pyarray(py))?;
+    results.set_item("returns_5", returns_5.into_pyarray(py))?;
+    results.set_item("log_volume", log_volume.into_pyarray(py))?;
+    results.set_item("high_low_range", high_low_range.into_pyarray(py))?;
+    results.set_item("close_open_diff", close_open_diff.into_pyarray(py))?;
 
     Ok(results)
 }
@@ -123,7 +121,7 @@ pub fn rolling_std_rust<'py>(
         .collect();
 
     let result = Array1::from(result_vec);
-    Ok(result.into_pyarray_bound(py))
+    Ok(result.into_pyarray(py))
 }
 
 /// Calculate rolling skewness
@@ -171,7 +169,7 @@ pub fn rolling_skew_rust<'py>(
         .collect();
 
     let result = Array1::from(result_vec);
-    Ok(result.into_pyarray_bound(py))
+    Ok(result.into_pyarray(py))
 }
 
 /// Calculate percentage change
@@ -201,7 +199,7 @@ pub fn pct_change_rust<'py>(
         .collect();
 
     let result = Array1::from(result_vec);
-    Ok(result.into_pyarray_bound(py))
+    Ok(result.into_pyarray(py))
 }
 
 /// Calculate advanced features in batch
@@ -234,7 +232,7 @@ pub fn add_advanced_features_rust<'py>(
                 *val = (close[i] - close[i - period]) / close[i - period];
             }
         });
-        results.set_item(format!("roc_{}", period), roc.into_pyarray_bound(py))?;
+        results.set_item(format!("roc_{}", period), roc.into_pyarray(py))?;
     }
 
     // 2. Volatility Ratios (ATR/Close) & atr_ratio lag prep
@@ -249,7 +247,7 @@ pub fn add_advanced_features_rust<'py>(
                 *val = atr[i] / close[i];
             }
         });
-        results.set_item("atr_ratio", atr_ratio_arr.clone().into_pyarray_bound(py))?;
+        results.set_item("atr_ratio", atr_ratio_arr.clone().into_pyarray(py))?;
     }
 
     // 3. Relative Strength (Price vs SMA)
@@ -262,7 +260,7 @@ pub fn add_advanced_features_rust<'py>(
                 *val = close[i] / sma[i];
             }
         });
-        results.set_item("price_to_SMA_20", ratio.into_pyarray_bound(py))?;
+        results.set_item("price_to_SMA_20", ratio.into_pyarray(py))?;
     }
     if let Some(sma) = sma_50 {
         let sma = sma.as_array();
@@ -273,7 +271,7 @@ pub fn add_advanced_features_rust<'py>(
                 *val = close[i] / sma[i];
             }
         });
-        results.set_item("price_to_SMA_50", ratio.into_pyarray_bound(py))?;
+        results.set_item("price_to_SMA_50", ratio.into_pyarray(py))?;
     }
     if let Some(sma) = sma_200 {
         let sma = sma.as_array();
@@ -284,7 +282,7 @@ pub fn add_advanced_features_rust<'py>(
                 *val = close[i] / sma[i];
             }
         });
-        results.set_item("price_to_SMA_200", ratio.into_pyarray_bound(py))?;
+        results.set_item("price_to_SMA_200", ratio.into_pyarray(py))?;
     }
 
     // 4. Rolling Statistics on Returns
@@ -333,11 +331,11 @@ pub fn add_advanced_features_rust<'py>(
 
         results.set_item(
             format!("rolling_std_{}", window),
-            roll_std.into_pyarray_bound(py),
+            roll_std.into_pyarray(py),
         )?;
         results.set_item(
             format!("rolling_skew_{}", window),
-            roll_skew.into_pyarray_bound(py),
+            roll_skew.into_pyarray(py),
         )?;
     }
 
@@ -352,7 +350,7 @@ pub fn add_advanced_features_rust<'py>(
         });
         results.set_item(
             format!("returns_1_lag_{}", lag),
-            lag_arr.into_pyarray_bound(py),
+            lag_arr.into_pyarray(py),
         )?;
     }
 
@@ -368,7 +366,7 @@ pub fn add_advanced_features_rust<'py>(
             });
             results.set_item(
                 format!("RSI_14_lag_{}", lag),
-                lag_arr.into_pyarray_bound(py),
+                lag_arr.into_pyarray(py),
             )?;
         }
     }
@@ -391,7 +389,7 @@ pub fn add_advanced_features_rust<'py>(
         });
         results.set_item(
             format!("log_volume_lag_{}", lag),
-            lag_arr.into_pyarray_bound(py),
+            lag_arr.into_pyarray(py),
         )?;
     }
 
@@ -406,7 +404,7 @@ pub fn add_advanced_features_rust<'py>(
             });
             results.set_item(
                 format!("atr_ratio_lag_{}", lag),
-                lag_arr.into_pyarray_bound(py),
+                lag_arr.into_pyarray(py),
             )?;
         }
     }

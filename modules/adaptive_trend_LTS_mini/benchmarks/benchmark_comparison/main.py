@@ -1,0 +1,365 @@
+"""Main entry point for benchmark comparison."""
+
+import argparse
+import gc
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import TextIO
+
+
+class TeeOutput:
+    """Class to write to both console and file simultaneously."""
+
+    def __init__(self, file: TextIO):
+        self.file = file
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+
+    def write(self, text: str) -> None:
+        """Write to both console and file."""
+        self.stdout.write(text)
+        self.file.write(text)
+        self.file.flush()
+
+    def flush(self) -> None:
+        """Flush both streams."""
+        self.stdout.flush()
+        self.file.flush()
+
+    def isatty(self) -> bool:
+        """Return True if connected to a TTY device (for colorama compatibility)."""
+        return self.stdout.isatty()
+
+
+def _keep_latest_logs(*, dir_path: Path, keep: int = 5) -> None:
+    """Keep only the newest N benchmark_log_* files in a directory."""
+    try:
+        if not dir_path.exists():
+            return
+
+        log_files = sorted(
+            [p for p in dir_path.iterdir() if p.is_file() and p.name.startswith("benchmark_log_")],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+
+        for old_file in log_files[keep:]:
+            try:
+                old_file.unlink()
+            except OSError:
+                # Best-effort cleanup: ignore file-in-use / permission issues
+                pass
+    except OSError:
+        # Best-effort cleanup: ignore directory access issues
+        return
+
+
+# Add project root to sys.path to allow absolute imports when run directly
+if __file__:
+    project_root = Path(__file__).parent.parent.parent.parent.parent
+    project_root_str = str(project_root)
+    if project_root_str not in sys.path:
+        sys.path.insert(0, project_root_str)
+
+from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.build import (
+    ensure_rust_extensions_built,
+)
+from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.comparison import (
+    compare_signals,
+    generate_comparison_table,
+)
+from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.data import fetch_symbols_data
+from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.html_formatter import ansi_to_html
+from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.runners import (
+    run_adaptive_approximate_module,
+    run_approximate_module,
+    run_dask_module,
+    run_enhanced_module,
+    run_original_module,
+    run_rust_batch_module,
+    run_rust_dask_module,
+    run_rust_module,
+)
+
+from modules.common.utils import log_error, log_info, log_success, log_warn
+
+
+def main():
+    """Main benchmark execution."""
+    parser = argparse.ArgumentParser(
+        description="Benchmark adaptive_trend vs adaptive_trend_enhance vs adaptive_trend_LTS (Rust)"
+    )  # noqa: E501
+    parser.add_argument("--symbols", type=int, default=20, help="Number of symbols to test (default: 1000)")
+    parser.add_argument("--bars", type=int, default=500, help="Number of bars per symbol (default: 1000)")
+    parser.add_argument("--timeframe", type=str, default="1h", help="Timeframe (default: 1h)")
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Clear MA cache before running benchmark (recommended for accurate comparison)",
+    )
+
+    args = parser.parse_args()
+
+    # Setup output directories
+    results_dir = Path(__file__).parent / "results"
+    txt_dir = results_dir / "txt"
+    html_dir = results_dir / "html"
+    txt_dir.mkdir(parents=True, exist_ok=True)
+    html_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = txt_dir / f"benchmark_log_{timestamp}.txt"
+
+    # Create TeeOutput to write to both console and file
+    log_file_handle = open(str(log_file), "w", encoding="utf-8")
+    tee = TeeOutput(log_file_handle)
+
+    # Write header to log file
+    log_file_handle.write("=" * 60 + "\n")
+    log_file_handle.write(f"Benchmark Execution Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    log_file_handle.write("=" * 60 + "\n")
+    log_file_handle.write(f"Arguments: symbols={args.symbols}, bars={args.bars}, timeframe={args.timeframe}\n")
+    log_file_handle.write(f"Clear cache: {args.clear_cache}\n")
+    log_file_handle.write("=" * 60 + "\n\n")
+    log_file_handle.flush()
+
+    # Save original stdout before redirecting
+    original_stdout = sys.stdout
+
+    try:
+        # Redirect stdout to TeeOutput (captures print statements and log functions)
+        sys.stdout = tee
+
+        log_info("=" * 60)
+        log_info("Benchmark: 5 versions (Original, Enhanced, Rust, Dask, Rust+Dask)")
+        log_info("=" * 60)
+        log_info("")
+
+        # Rebuild Rust extensions to ensure latest code changes are included
+        log_info("=" * 60)
+        log_info("STEP 1: Rebuilding Rust Extensions")
+        log_info("=" * 60)
+        log_info("This ensures all code changes are compiled")
+        log_info("")
+
+        ensure_rust_extensions_built()
+        log_info("")
+
+        log_info("=" * 60)
+
+        log_info("STEP 2: Running Benchmarks")
+        log_info("=" * 60)
+        log_info("")
+
+        # Clear cache if requested
+        if args.clear_cache:
+            log_info("Clearing MA cache...")
+            import shutil
+
+            cache_dir = Path(".cache/atc")
+            if cache_dir.exists():
+                try:
+                    shutil.rmtree(cache_dir)
+                    log_success(f"Cache cleared: {cache_dir}")
+                except Exception as e:
+                    log_warn(f"Failed to clear cache: {e}")
+            else:
+                log_info("Cache directory does not exist, skipping")
+
+        # Common configuration (matching defaults)
+        common_config = {
+            "ema_len": 28,
+            "hma_len": 28,
+            "wma_len": 28,
+            "dema_len": 28,
+            "lsma_len": 28,
+            "kama_len": 28,
+            "ema_w": 1.0,
+            "hma_w": 1.0,
+            "wma_w": 1.0,
+            "dema_w": 1.0,
+            "lsma_w": 1.0,
+            "kama_w": 1.0,
+            "robustness": "Medium",
+            "La": 0.02,
+            "De": 0.03,
+            "cutout": 0,
+            "long_threshold": 0.1,
+            "short_threshold": -0.1,
+            "strategy_mode": False,
+        }
+
+        # Enhanced uses same config as Original (no special params needed)
+        enhanced_config = common_config.copy()
+
+        rust_config = common_config.copy()
+        rust_config.update(
+            {
+                "parallel_l1": False,
+                "parallel_l2": True,
+                "precision": "float64",
+                "use_rust_backend": True,  # Rust backend will use Rust for MAs
+                "use_cache": True,
+                "fast_mode": True,
+            }
+        )
+
+        approximate_config = rust_config.copy()
+        approximate_config.update(
+            {
+                "use_approximate": True,
+            }
+        )
+
+        adaptive_approximate_config = rust_config.copy()
+        adaptive_approximate_config.update(
+            {
+                "use_adaptive_approximate": True,
+            }
+        )
+
+        # Step 0: Ensure Rust extensions are built
+        ensure_rust_extensions_built()
+
+        # Step 1: Fetch data
+
+        prices_data = fetch_symbols_data(num_symbols=args.symbols, bars=args.bars, timeframe=args.timeframe)
+
+        if len(prices_data) == 0:
+            log_error("No data fetched, exiting")
+            return
+
+        # Step 2: Run original module
+        gc.collect()  # Clean memory before benchmark
+        original_results, original_time, original_memory = run_original_module(prices_data, common_config)
+
+        # Step 3: Run enhanced module
+        gc.collect()  # Clean memory before benchmark
+        enhanced_results, enhanced_time, enhanced_memory = run_enhanced_module(prices_data, enhanced_config)
+
+        # Step 4: Run Rust module
+        gc.collect()  # Clean memory before benchmark
+        rust_results, rust_time, rust_memory = run_rust_module(prices_data, rust_config)
+
+        # Step 5: Run Rust Rayon module
+        gc.collect()  # Clean memory before benchmark
+        rust_rayon_results, rust_rayon_time, rust_rayon_memory = run_rust_batch_module(prices_data, rust_config)
+
+        # Step 5.5: Run Approximate module
+        gc.collect()
+        approximate_results, approximate_time, approximate_memory = run_approximate_module(
+            prices_data, approximate_config
+        )
+
+        # Step 5.6: Run Adaptive Approximate module
+        gc.collect()
+        adaptive_approximate_results, adaptive_approximate_time, adaptive_approximate_memory = (
+            run_adaptive_approximate_module(prices_data, adaptive_approximate_config)
+        )
+
+        # Step 7: Run Dask module
+        gc.collect()  # Clean memory before benchmark
+        dask_results, dask_time, dask_memory = run_dask_module(prices_data, common_config)
+
+        # Step 8: Run Rust+Dask hybrid module
+        gc.collect()  # Clean memory before benchmark
+        rust_dask_results, rust_dask_time, rust_dask_memory = run_rust_dask_module(prices_data, rust_config)
+
+        # Step 11: Compare signals
+        signal_comparison = compare_signals(
+            original_results,
+            enhanced_results,
+            rust_results,
+            rust_rayon_results,
+            approximate_results,
+            adaptive_approximate_results,
+            dask_results,
+            rust_dask_results,
+        )
+
+        # Step 12: Generate comparison table
+        table = generate_comparison_table(
+            original_time,
+            enhanced_time,
+            rust_time,
+            rust_rayon_time,
+            approximate_time,
+            adaptive_approximate_time,
+            dask_time,
+            rust_dask_time,
+            original_memory,
+            enhanced_memory,
+            rust_memory,
+            rust_rayon_memory,
+            approximate_memory,
+            adaptive_approximate_memory,
+            dask_memory,
+            rust_dask_memory,
+            signal_comparison,
+        )
+
+        print("\n" + "=" * 60)
+        print("BENCHMARK RESULTS")
+        print("=" * 60)
+        print(table)
+
+        # Save results to file (save under benchmark_comparison/results)
+        output_file = results_dir / "benchmark_results.txt"
+        results_text = (
+            "Benchmark Results\n"
+            + "=" * 60
+            + "\n"
+            + f"Symbols: {len(prices_data)}\n"
+            + f"Bars per symbol: {args.bars}\n"
+            + f"Timeframe: {args.timeframe}\n"
+            + "\n"
+            + table
+        )
+        with open(str(output_file), "w", encoding="utf-8") as f:
+            f.write(results_text)
+
+        log_success(f"Results saved to {output_file}")
+
+        # Save HTML version of benchmark results (table as HTML page)
+        results_html_file = results_dir / "benchmark_results.html"
+        with open(str(results_html_file), "w", encoding="utf-8") as f:
+            f.write(ansi_to_html(results_text))
+        log_success(f"HTML results saved to {results_html_file}")
+
+    finally:
+        # Restore original stdout before writing final message
+        sys.stdout = original_stdout
+
+        # Write footer to log file
+        log_file_handle.write("\n" + "=" * 60 + "\n")
+        log_file_handle.write(f"Benchmark completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        log_file_handle.write("=" * 60 + "\n")
+        log_file_handle.close()
+
+        # Create HTML version with colors for easier debugging
+        try:
+            # Read the text log file
+            with open(str(log_file), "r", encoding="utf-8") as f:
+                log_content = f.read()
+
+            # Convert ANSI codes to HTML
+            html_content = ansi_to_html(log_content)
+
+            # Save HTML version to results/html/
+            html_file = html_dir / log_file.with_suffix(".html").name
+            with open(str(html_file), "w", encoding="utf-8") as f:
+                f.write(html_content)
+
+            log_success(f"Logs saved to {log_file}")
+            log_success(f"Colored HTML log saved to {html_file}")
+        except Exception as e:
+            log_warn(f"Failed to create HTML log: {e}")
+            log_success(f"Logs saved to {log_file}")
+
+        # Keep only the latest logs in each folder
+        _keep_latest_logs(dir_path=txt_dir, keep=5)
+        _keep_latest_logs(dir_path=html_dir, keep=5)
+
+
+if __name__ == "__main__":
+    main()

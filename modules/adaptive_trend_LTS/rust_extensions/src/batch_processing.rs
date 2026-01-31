@@ -55,6 +55,7 @@ fn strip_nvrtc_guards(content: &str) -> String {
     result
 }
 
+// Rebuild: 2026-01-31 16:40 - ROC fix + rust_dask_bridge hull_len parameter fix
 const BATCH_MA_KERNELS_SRC: &str = include_str!("../../core/gpu_backend/batch_ma_kernels.cu");
 const BATCH_SIGNAL_KERNELS_SRC: &str =
     include_str!("../../core/gpu_backend/batch_signal_kernels.cu");

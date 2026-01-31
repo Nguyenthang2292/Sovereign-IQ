@@ -97,7 +97,7 @@ pub fn calculate_volatility_multiplier_rust(
         }
     }
 
-    Ok(volatility_multiplier.into_pyarray_bound(py).unbind())
+    Ok(volatility_multiplier.into_pyarray(py).unbind())
 }
 
 /// Apply directional labels based on future price movement
@@ -143,8 +143,8 @@ pub fn apply_directional_labels_rust(
     let thresholds = Array1::<f64>::from_elem(n, base_threshold);
 
     Ok((
-        labels.into_pyarray_bound(py).unbind(),
-        thresholds.into_pyarray_bound(py).unbind(),
+        labels.into_pyarray(py).unbind(),
+        thresholds.into_pyarray(py).unbind(),
     ))
 }
 
@@ -226,7 +226,7 @@ pub fn rolling_quantile_rust(
         }
     }
 
-    Ok(result.into_pyarray_bound(py).unbind())
+    Ok(result.into_pyarray(py).unbind())
 }
 
 /// Calculate rolling mean using efficient algorithm
@@ -260,7 +260,7 @@ pub fn rolling_mean_rust(
         .collect();
 
     let result = Array1::from(result_vec);
-    Ok(result.into_pyarray_bound(py).unbind())
+    Ok(result.into_pyarray(py).unbind())
 }
 
 #[cfg(test)]

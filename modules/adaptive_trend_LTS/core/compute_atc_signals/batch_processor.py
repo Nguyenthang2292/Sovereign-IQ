@@ -67,7 +67,9 @@ def process_symbols_batch_cuda(symbols_data, config, num_threads=4):
         la = params.get("La", params.get("la", 0.02))
         de = params.get("De", params.get("de", 0.03))
 
-        # Scaling logic: Rust expects scaled values matching compute_atc_signals.py
+        # Python implementation scales La by 1000 and De by 100 internally.
+        # The Rust/CUDA implementation does NOT perform this scaling internally,
+        # so we must pass the SCALED values to match the Python behavior.
         la_scaled = la / 1000.0
         de_scaled = de / 100.0
 
@@ -94,14 +96,15 @@ def process_symbols_batch_cuda(symbols_data, config, num_threads=4):
         batch_results = atc_rust.compute_atc_signals_batch(
             symbols_numpy,
             ema_len=params.get("ema_len", 28),
-            hma_len=params.get("hma_len", 28),
+            hull_len=params.get("hma_len", 28),  # Rust CUDA uses 'hull_len', not 'hma_len'
             wma_len=params.get("wma_len", 28),
             dema_len=params.get("dema_len", 28),
             lsma_len=params.get("lsma_len", 28),
             kama_len=params.get("kama_len", 28),
             robustness=params.get("robustness", "Medium"),
-            la=la_scaled,
-            de=de_scaled,
+            # Pass SCALED values to Rust because kernels use them directly
+            La=la_scaled,
+            De=de_scaled,
             long_threshold=params.get("long_threshold", 0.1),
             short_threshold=params.get("short_threshold", -0.1),
         )

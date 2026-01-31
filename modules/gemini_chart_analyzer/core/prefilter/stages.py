@@ -22,7 +22,7 @@ def filter_stage_1_atc(
         List of symbols that passed ATC scan (100% of ATC results)
     """
     log_info("[Pre-filter Stage 1] Running ATC scan...")
-    if not analyzer.run_atc_scan():
+    if not analyzer.run_atc_scan(symbols=all_symbols):
         log_warn("[Pre-filter Stage 1] No ATC signals found, returning all symbols")
         return all_symbols
 
