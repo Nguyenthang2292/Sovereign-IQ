@@ -17,11 +17,11 @@ except ImportError:
     PSUTIL_AVAILABLE = False
     print("WARNING: psutil not installed. Memory measurements will be skipped.")
 
-from modules.adaptive_trend_LTS.utils.data_compression import (
+from modules.adaptive_trend_LTS_mini.utils.data_compression import (
     compress_pickle,
     decompress_pickle,
 )
-from modules.adaptive_trend_LTS.utils.memory_mapped_data import (
+from modules.adaptive_trend_LTS_mini.utils.memory_mapped_data import (
     create_memory_mapped_from_csv,
     load_memory_mapped_from_csv,
 )

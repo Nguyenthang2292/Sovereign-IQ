@@ -34,6 +34,9 @@ from pathlib import Path
 # Set to "1" to skip automatic Rust build when backend is missing (e.g. in CI)
 SKIP_AUTO_RUST_BUILD = os.environ.get("GEMINI_SCANNER_SKIP_RUST_BUILD", "").strip().lower() in ("1", "true", "yes")
 
+# Guard against infinite restart loop: if we already restarted after a build, do not auto-build again
+RESTARTED_AFTER_BUILD = os.environ.get("GEMINI_SCANNER_RESTARTED_AFTER_BUILD", "").strip() == "1"
+
 # Add project root to sys.path
 if "__file__" in globals():
     project_root = Path(__file__).parent
@@ -161,6 +164,7 @@ configure_windows_stdio()
 # For XGBoost, we'll check if the module can be imported
 
 from modules.adaptive_trend_LTS.utils.rust_build_checker import check_rust_backend as check_atc_rust
+from modules.adaptive_trend_LTS_mini.utils.rust_build_checker import check_rust_backend as check_atc_mini_rust
 
 
 def check_xgboost_rust():
@@ -190,20 +194,36 @@ def load_config_for_backend_check():
 
 
 atc_status = check_atc_rust()
+atc_mini_status = check_atc_mini_rust()
 xgb_status = check_xgboost_rust()
 
 # Load config to check if performance modules are enabled
 config = load_config_for_backend_check()
 use_atc_performance = config.get("use_atc_performance", True)
+use_atc_performance_mini = config.get("use_atc_performance_mini", False)
 use_xgboost_performance = config.get("use_xgboost_performance", True)
 
 backends_missing = []
 backends_disabled = []
 
-# Only warn about ATC if it's enabled in config
-if use_atc_performance and not atc_status["available"]:
-    backends_missing.append("Adaptive Trend LTS")
-elif not use_atc_performance:
+# Priority-based ATC module selection:
+# 1. Mini (CPU-only) if enabled
+# 2. Full (GPU) if enabled and mini not enabled
+# 3. Legacy if both disabled
+
+if use_atc_performance_mini:
+    # User wants CPU-only mini version
+    if not atc_mini_status["available"]:
+        backends_missing.append("Adaptive Trend LTS Mini (CPU-Only)")
+    if use_atc_performance:
+        # Both enabled - inform user that mini takes priority
+        backends_disabled.append("Adaptive Trend LTS Full (Mini version takes priority)")
+elif use_atc_performance:
+    # User wants full GPU version
+    if not atc_status["available"]:
+        backends_missing.append("Adaptive Trend LTS (Full)")
+else:
+    # User wants legacy version
     backends_disabled.append("Adaptive Trend LTS (using legacy module)")
 
 # Only warn about XGBoost if it's enabled in config
@@ -232,7 +252,7 @@ else:
     print("✅ All Rust backends are ACTIVE (Optimal performance)")
     print(f"{'=' * 60}\n")
 
-if backends_missing and not SKIP_AUTO_RUST_BUILD:
+if backends_missing and not SKIP_AUTO_RUST_BUILD and not RESTARTED_AFTER_BUILD:
     import subprocess
 
     _do_auto_build = True
@@ -269,7 +289,11 @@ if backends_missing and not SKIP_AUTO_RUST_BUILD:
     try:
         any_built = False
         # Only build if enabled in config
-        if use_atc_performance and not atc_status["available"]:
+        # Priority: Mini > Full > Legacy
+        if use_atc_performance_mini and not atc_mini_status["available"]:
+            if _run_rust_build("modules/adaptive_trend_LTS_mini/rust_extensions"):
+                any_built = True
+        elif use_atc_performance and not atc_status["available"]:
             if _run_rust_build("modules/adaptive_trend_LTS/rust_extensions"):
                 any_built = True
 
@@ -279,7 +303,9 @@ if backends_missing and not SKIP_AUTO_RUST_BUILD:
 
         if any_built:
             print("✅ Rust backends built. Restarting to load them...\n")
-            os.execl(sys.executable, sys.executable, *sys.argv)
+            env = os.environ.copy()
+            env["GEMINI_SCANNER_RESTARTED_AFTER_BUILD"] = "1"
+            os.execle(sys.executable, sys.executable, *sys.argv, env)
 
         if not _ask_continue():
             sys.exit(0)

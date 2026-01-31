@@ -147,7 +147,7 @@ def benchmark_approximate_accuracy(n_bars=1000):
     prices = pd.Series(prices)
 
     # Get full precision EMAs
-    from modules.adaptive_trend_enhance.core.calculate_hma import calculate_hma
+    from legacy.adaptive_trend_enhance.core.calculate_hma import calculate_hma
     from modules.adaptive_trend_LTS.core.compute_moving_averages import calculate_ema
 
     full_ema = calculate_ema(prices, 28)

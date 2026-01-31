@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 
 try:
-    from modules.adaptive_trend_LTS.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
-    from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_atc import IncrementalATC
-    from modules.adaptive_trend_LTS.core.compute_moving_averages.approximate_mas import (
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_atc import IncrementalATC
+    from modules.adaptive_trend_LTS_mini.core.compute_moving_averages.approximate_mas import (
         fast_ema_approx,
         set_of_approximate_moving_averages,
     )
@@ -148,7 +148,7 @@ def benchmark_approximate_accuracy(n_bars=1000):
 
     # Get full precision EMAs
     from modules.adaptive_trend_enhance.core.calculate_hma import calculate_hma
-    from modules.adaptive_trend_LTS.core.compute_moving_averages import calculate_ema
+    from modules.adaptive_trend_LTS_mini.core.compute_moving_averages import calculate_ema
 
     full_ema = calculate_ema(prices, 28)
     full_hma = calculate_hma(prices, 28)

@@ -5,7 +5,10 @@ import gc
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import TextIO
+from typing import Any, Dict, TextIO
+
+# Constants
+MAX_LOGS_TO_KEEP = 5
 
 
 class TeeOutput:
@@ -32,7 +35,7 @@ class TeeOutput:
         return self.stdout.isatty()
 
 
-def _keep_latest_logs(*, dir_path: Path, keep: int = 5) -> None:
+def _keep_latest_logs(*, dir_path: Path, keep: int = MAX_LOGS_TO_KEEP) -> None:
     """Keep only the newest N benchmark_log_* files in a directory."""
     try:
         if not dir_path.exists():
@@ -62,41 +65,51 @@ if __file__:
     if project_root_str not in sys.path:
         sys.path.insert(0, project_root_str)
 
-from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.build import (
+from typing import TextIO
+
+from modules.adaptive_trend_LTS_mini.benchmarks.benchmark_comparison.build import (
     ensure_rust_extensions_built,
 )
-from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.comparison import (
+from modules.adaptive_trend_LTS_mini.benchmarks.benchmark_comparison.comparison import (
     compare_signals,
     generate_comparison_table,
 )
-from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.data import fetch_symbols_data
-from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.html_formatter import ansi_to_html
-from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.runners import (
+from modules.adaptive_trend_LTS_mini.benchmarks.benchmark_comparison.data import fetch_symbols_data
+from modules.adaptive_trend_LTS_mini.benchmarks.benchmark_comparison.html_formatter import ansi_to_html
+from modules.adaptive_trend_LTS_mini.benchmarks.benchmark_comparison.runners import (
     run_adaptive_approximate_module,
     run_approximate_module,
     run_dask_module,
-    run_enhanced_module,
     run_original_module,
     run_rust_batch_module,
     run_rust_dask_module,
     run_rust_module,
 )
-
 from modules.common.utils import log_error, log_info, log_success, log_warn
+
+
+def build_config(base_config: Dict[str, Any], **overrides) -> Dict[str, Any]:
+    """Build configuration by merging base config with overrides."""
+    config = base_config.copy()
+    config.update(overrides)
+    return config
 
 
 def main():
     """Main benchmark execution."""
-    parser = argparse.ArgumentParser(
-        description="Benchmark adaptive_trend vs adaptive_trend_enhance vs adaptive_trend_LTS (Rust)"
-    )  # noqa: E501
-    parser.add_argument("--symbols", type=int, default=20, help="Number of symbols to test (default: 1000)")
-    parser.add_argument("--bars", type=int, default=500, help="Number of bars per symbol (default: 1000)")
+    parser = argparse.ArgumentParser(description="Benchmark adaptive_trend vs adaptive_trend_LTS (Rust)")  # noqa: E501
+    parser.add_argument("--symbols", type=int, default=20, help="Number of symbols to test (default: 20)")
+    parser.add_argument("--bars", type=int, default=500, help="Number of bars per symbol (default: 500)")
     parser.add_argument("--timeframe", type=str, default="1h", help="Timeframe (default: 1h)")
     parser.add_argument(
         "--clear-cache",
         action="store_true",
         help="Clear MA cache before running benchmark (recommended for accurate comparison)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing results without backup",
     )
 
     args = parser.parse_args()
@@ -131,7 +144,7 @@ def main():
         sys.stdout = tee
 
         log_info("=" * 60)
-        log_info("Benchmark: 5 versions (Original, Enhanced, Rust, Dask, Rust+Dask)")
+        log_info("Benchmark: 4 versions (Original, Rust, Dask, Rust+Dask)")
         log_info("=" * 60)
         log_info("")
 
@@ -189,53 +202,47 @@ def main():
             "strategy_mode": False,
         }
 
-        # Enhanced uses same config as Original (no special params needed)
-        enhanced_config = common_config.copy()
-
-        rust_config = common_config.copy()
-        rust_config.update(
-            {
-                "parallel_l1": False,
-                "parallel_l2": True,
-                "precision": "float64",
-                "use_rust_backend": True,  # Rust backend will use Rust for MAs
-                "use_cache": True,
-                "fast_mode": True,
-            }
+        rust_config = build_config(
+            common_config,
+            parallel_l1=False,
+            parallel_l2=True,
+            precision="float64",
+            use_rust_backend=True,  # Rust backend will use Rust for MAs
+            use_cache=True,
+            fast_mode=True,
         )
 
-        approximate_config = rust_config.copy()
-        approximate_config.update(
-            {
-                "use_approximate": True,
-            }
-        )
+        approximate_config = build_config(rust_config, use_approximate=True)
+        adaptive_approximate_config = build_config(rust_config, use_adaptive_approximate=True)
 
-        adaptive_approximate_config = rust_config.copy()
-        adaptive_approximate_config.update(
-            {
-                "use_adaptive_approximate": True,
-            }
-        )
-
-        # Step 0: Ensure Rust extensions are built
-        ensure_rust_extensions_built()
-
-        # Step 1: Fetch data
-
+        # Step 1: Fetch data once and reuse for all benchmarks (avoid redundant fetching)
+        log_info("Fetching market data (will be reused for all benchmarks)...")
         prices_data = fetch_symbols_data(num_symbols=args.symbols, bars=args.bars, timeframe=args.timeframe)
 
         if len(prices_data) == 0:
             log_error("No data fetched, exiting")
             return
 
+        # Step 1.5: Warm-up runs to eliminate JIT compilation overhead
+        log_info("Performing warm-up run to eliminate JIT compilation overhead...")
+        warmup_sample = {k: v for k, v in list(prices_data.items())[: min(2, len(prices_data))]}
+
+        try:
+            # Warm up original module
+            run_original_module(warmup_sample, common_config)
+            # Warm up Rust module
+            run_rust_module(warmup_sample, rust_config)
+            log_success("Warm-up completed")
+        except Exception as e:
+            log_warn(f"Warm-up failed (non-critical): {e}")
+
+        log_info("")
+        log_info("Starting actual benchmarks...")
+        log_info("")
+
         # Step 2: Run original module
         gc.collect()  # Clean memory before benchmark
         original_results, original_time, original_memory = run_original_module(prices_data, common_config)
-
-        # Step 3: Run enhanced module
-        gc.collect()  # Clean memory before benchmark
-        enhanced_results, enhanced_time, enhanced_memory = run_enhanced_module(prices_data, enhanced_config)
 
         # Step 4: Run Rust module
         gc.collect()  # Clean memory before benchmark
@@ -268,7 +275,6 @@ def main():
         # Step 11: Compare signals
         signal_comparison = compare_signals(
             original_results,
-            enhanced_results,
             rust_results,
             rust_rayon_results,
             approximate_results,
@@ -280,7 +286,6 @@ def main():
         # Step 12: Generate comparison table
         table = generate_comparison_table(
             original_time,
-            enhanced_time,
             rust_time,
             rust_rayon_time,
             approximate_time,
@@ -288,7 +293,6 @@ def main():
             dask_time,
             rust_dask_time,
             original_memory,
-            enhanced_memory,
             rust_memory,
             rust_rayon_memory,
             approximate_memory,
@@ -305,6 +309,18 @@ def main():
 
         # Save results to file (save under benchmark_comparison/results)
         output_file = results_dir / "benchmark_results.txt"
+
+        # Check for overwrite unless force flag is used (add force arg to parser first)
+        if output_file.exists() and not getattr(args, "force", False):
+            # In a non-interactive benchmark run, we might just log a warning
+            # But let's rename the old file instead of prompting
+            backup_file = output_file.with_suffix(f".bak_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            try:
+                output_file.rename(backup_file)
+                log_info(f"Existing results backed up to {backup_file.name}")
+            except OSError:
+                log_warn("Could not backup existing results file")
+
         results_text = (
             "Benchmark Results\n"
             + "=" * 60
@@ -357,8 +373,8 @@ def main():
             log_success(f"Logs saved to {log_file}")
 
         # Keep only the latest logs in each folder
-        _keep_latest_logs(dir_path=txt_dir, keep=5)
-        _keep_latest_logs(dir_path=html_dir, keep=5)
+        _keep_latest_logs(dir_path=txt_dir, keep=MAX_LOGS_TO_KEEP)
+        _keep_latest_logs(dir_path=html_dir, keep=MAX_LOGS_TO_KEEP)
 
 
 if __name__ == "__main__":

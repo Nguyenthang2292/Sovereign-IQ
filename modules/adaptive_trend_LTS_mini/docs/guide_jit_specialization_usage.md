@@ -83,6 +83,7 @@ def compute_atc_specialized(
 ```
 
 **Parameters**:
+
 - `prices`: Price series
 - `config`: ATC configuration
 - `mode`: Specialization mode ("ema_only", "default", etc.)
@@ -91,9 +92,11 @@ def compute_atc_specialized(
 - `**kwargs`: Additional parameters for generic path (if fallback used)
 
 **Returns**:
+
 - Dictionary with ATC signals and equities
 
 **Example**:
+
 ```python
 result = compute_atc_specialized(
     prices,
@@ -155,6 +158,7 @@ else:
 **Scope**: Single MA (EMA) with any length
 
 **Use Cases**:
+
 - Fast scanning and filtering
 - Real-time single MA tracking
 - Pre-screening before full ATC
@@ -177,6 +181,7 @@ result = compute_atc_specialized(
 **Scope**: All 6 MAs with standard config (length 28, Medium robustness)
 
 **Use Cases**:
+
 - Full ATC computation
 - Backtesting with standard settings
 
@@ -255,7 +260,7 @@ except ValueError as e:
 ### Expected Gains
 
 - **EMA-only**: 10-20% improvement on repeated calls (after JIT warm-up)
-- **Generic path**: No improvement (already optimized with Rust + CUDA)
+- **Generic path**: No improvement (already optimized with Rust)
 
 ### Benchmarking
 
@@ -266,6 +271,7 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_specialization
 ```
 
 Output:
+
 ```
 Benchmark: Default Length (28)
 Data size: 1000, Runs: 100, Warmup: 10
@@ -284,6 +290,7 @@ pytest modules/adaptive_trend_LTS/tests/test_specialization.py -v
 ```
 
 Tests verify:
+
 - Configs are correctly identified as specializable
 - Specialized path produces same results as generic path
 - Fallback mechanism works correctly
@@ -304,6 +311,7 @@ Tests verify:
 **Issue**: Specialization not being used
 
 **Solution**:
+
 1. Check Numba is installed: `pip install numba`
 2. Verify config has `use_codegen_specialization=True`
 3. Check mode is supported (`ema_only` only)
@@ -322,6 +330,7 @@ Tests verify:
 **Issue**: Numba compilation fails
 
 **Solution**:
+
 - Enable fallback: `fallback_to_generic=True`
 - Check Numba version: `pip install --upgrade numba`
 - Report issue if persists
@@ -338,11 +347,13 @@ Tests verify:
 ## Next Steps
 
 For developers:
+
 - Extend to other single MA types (KAMA-only, etc.)
 - Consider short-length multi-MA if business need arises
-- Continue optimizing generic paths (Rust, CUDA, Dask)
+- Continue optimizing generic paths (Rust, Dask)
 
 For users:
+
 - Use EMA-only for scanning and filtering
 - Use generic path for full ATC with all MAs
 - Benchmark to validate performance gains for your use case

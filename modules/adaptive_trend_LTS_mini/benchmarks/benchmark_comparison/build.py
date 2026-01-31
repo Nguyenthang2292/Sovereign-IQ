@@ -37,7 +37,12 @@ def ensure_rust_extensions_built(clean_build: bool = True):
             try:
                 clean_cmd = ["cargo", "clean"]
                 subprocess.run(
-                    clean_cmd, cwd=str(rust_ext_dir), capture_output=True, text=True, check=True, encoding="utf-8"
+                    clean_cmd,
+                    cwd=str(rust_ext_dir),
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    errors="replace",
                 )
                 log_success("Previous build cleaned")
             except subprocess.CalledProcessError as e:
@@ -59,7 +64,7 @@ def ensure_rust_extensions_built(clean_build: bool = True):
         cmd = [sys.executable, "-m", "maturin", "develop", "--release"]
 
         result = subprocess.run(
-            cmd, cwd=str(rust_ext_dir), capture_output=True, text=True, check=True, encoding="utf-8"
+            cmd, cwd=str(rust_ext_dir), capture_output=True, text=True, check=True, errors="replace"
         )
 
         log_success("Rust extensions built successfully!")

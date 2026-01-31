@@ -6,7 +6,7 @@ sys.path.insert(0, ".")
 import numpy as np
 
 from modules.adaptive_trend.core import compute_atc_signals as compute_orig
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_rust
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals as compute_rust
 from modules.common.core import DataFetcher, ExchangeManager
 
 

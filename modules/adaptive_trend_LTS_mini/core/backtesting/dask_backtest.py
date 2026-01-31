@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-import gc
+import inspect
+from pathlib import Path
 from typing import List, Optional
 
 import dask
@@ -22,6 +23,28 @@ except ImportError:
 
     def log_warn(message: str) -> None:
         print(f"[WARN] {message}")
+
+
+def _create_error_result(symbol: str, error_msg: str) -> pd.DataFrame:
+    """Create a standardized error result DataFrame.
+
+    Args:
+        symbol: The symbol being processed
+        error_msg: The error message
+
+    Returns:
+        DataFrame with error tracking columns
+    """
+    return pd.DataFrame(
+        {
+            "symbol": [symbol],
+            "signal": [float("nan")],
+            "price": [float("nan")],
+            "timestamp": [pd.NaT],
+            "status": ["error"],
+            "error_msg": [error_msg],
+        }
+    )
 
 
 def _create_dask_from_memmap(
@@ -46,7 +69,8 @@ def _create_dask_from_memmap(
     import numpy as np
 
     total_rows = descriptor.shape[0]
-    num_partitions = max(1, int(total_rows / 100000))
+    target_rows_per_partition = 100_000
+    num_partitions = max(1, total_rows // target_rows_per_partition)
     rows_per_partition = total_rows // num_partitions
 
     def read_memmap_partition(partition_idx):
@@ -66,7 +90,7 @@ def _create_dask_from_memmap(
 
     ddf = dd.from_delayed(
         delayed_objs,
-        meta=pd.DataFrame({col: "float64" for col in descriptor.columns}),
+        meta={col: descriptor.dtypes.get(col, "float64") for col in descriptor.columns},
     )
 
     return ddf
@@ -89,14 +113,15 @@ def _process_symbol_group(
     Returns:
         DataFrame with computed signals
     """
-    try:
-        from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+    symbol = group_df[symbol_column].iloc[0] if not group_df.empty else "UNKNOWN"
 
-        symbol = group_df[symbol_column].iloc[0] if not group_df.empty else "UNKNOWN"
+    try:
+        from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
+
         prices = group_df[price_column].sort_index()
 
         if prices.empty or len(prices) < atc_config.get("ema_len", 28):
-            return pd.DataFrame()
+            return _create_error_result(symbol, "Insufficient data: empty or below ema_len threshold")
 
         # Map config parameters to function arguments
         func_args = atc_config.copy()
@@ -105,28 +130,16 @@ def _process_symbol_group(
         if "decay" in func_args:
             func_args["De"] = func_args.pop("decay")
 
-        # Remove parameters not accepted by compute_atc_signals
-        for param in [
-            "limit",
-            "batch_size",
-            "use_memory_mapped",
-            "use_compression",
-            "compression_level",
-            "compression_algorithm",
-            "prefer_gpu",
-            "use_rust_backend",
-            "parallel_l1",
-            "parallel_l2",
-            "precision",
-        ]:
-            func_args.pop(param, None)
+        # Remove parameters not accepted by compute_atc_signals using inspect
+        valid_params = set(inspect.signature(compute_atc_signals).parameters.keys())
+        func_args = {k: v for k, v in func_args.items() if k in valid_params}
 
         result = compute_atc_signals(prices=prices, **func_args)
 
         avg_signal = result.get("Average_Signal", pd.Series())
 
         if avg_signal.empty:
-            return pd.DataFrame()
+            return _create_error_result(symbol, "No average signal computed")
 
         return pd.DataFrame(
             {
@@ -134,11 +147,103 @@ def _process_symbol_group(
                 "signal": avg_signal.values,
                 "price": prices.values,
                 "timestamp": prices.index,
+                "status": ["success"] * len(avg_signal),
+                "error_msg": [None] * len(avg_signal),
             }
         )
     except Exception as e:
         log_error(f"Error processing symbol group: {e}")
+        return _create_error_result(symbol, str(e))
+
+
+def _execute_dask_backtest(
+    ddf: dd.DataFrame,
+    atc_config: dict,
+    symbol_column: str = "symbol",
+    price_column: str = "close",
+    show_progress: bool = False,
+    scheduler: Optional[str] = None,
+) -> pd.DataFrame:
+    """Execute Dask backtesting on loaded data.
+
+    Args:
+        ddf: Dask DataFrame with historical data
+        atc_config: ATC configuration parameters
+        symbol_column: Column name for symbol
+        price_column: Column name for price
+        show_progress: Show progress bar during computation
+        scheduler: Dask scheduler to use (None, 'threads', 'processes', or address)
+
+    Returns:
+        DataFrame with backtest results
+    """
+    grouped = ddf.groupby(symbol_column)
+
+    meta = {
+        "symbol": "string",
+        "signal": "float64",
+        "price": "float64",
+        "timestamp": "datetime64[ns]",
+    }
+
+    try:
+        # Add include_groups=False to avoid FutureWarning about grouping columns
+        results_ddf = grouped.apply(
+            _process_symbol_group,
+            symbol_column=symbol_column,
+            price_column=price_column,
+            atc_config=atc_config,
+            meta=meta,
+            include_groups=False,
+        )
+    except Exception as e:
+        log_error(f"Error in Dask apply: {e}")
         return pd.DataFrame()
+
+    try:
+        if show_progress:
+            from dask.diagnostics.progress import ProgressBar
+
+            with ProgressBar():
+                results_df = results_ddf.compute(scheduler=scheduler) if scheduler else results_ddf.compute()
+        else:
+            results_df = results_ddf.compute(scheduler=scheduler) if scheduler else results_ddf.compute()
+    except Exception as e:
+        log_error(f"Error computing Dask results: {e}")
+        return pd.DataFrame()
+
+    log_info(f"Completed backtesting with {len(results_df)} records")
+
+    return results_df
+
+
+def _validate_file_path(file_path: str) -> bool:
+    """Validate that a file path exists and is accessible.
+
+    Args:
+        file_path: Path to validate
+
+    Returns:
+        True if path is valid, False otherwise
+    """
+    try:
+        path = Path(file_path)
+        if not path.exists():
+            log_error(f"File does not exist: {file_path}")
+            return False
+
+        if not path.is_file():
+            log_error(f"Path is not a file: {file_path}")
+            return False
+
+        valid_extensions = {".csv", ".parquet", ".pq"}
+        if path.suffix.lower() not in valid_extensions:
+            log_warn(f"Unexpected file extension: {path.suffix}. Expected: {valid_extensions}")
+
+        return True
+    except Exception as e:
+        log_error(f"Invalid file path {file_path}: {e}")
+        return False
 
 
 def backtest_with_dask(
@@ -164,9 +269,12 @@ def backtest_with_dask(
     """
     log_info(f"Loading historical data from {historical_data_path}")
 
+    if not _validate_file_path(historical_data_path):
+        return pd.DataFrame()
+
     try:
         if use_memory_mapped:
-            from modules.adaptive_trend_LTS.utils.memory_mapped_data import (
+            from modules.adaptive_trend_LTS_mini.utils.memory_mapped_data import (
                 load_memory_mapped_from_csv,
             )
 
@@ -189,36 +297,7 @@ def backtest_with_dask(
         log_error(f"Failed to read CSV file: {e}")
         return pd.DataFrame()
 
-    grouped = ddf.groupby(symbol_column)
-
-    meta = {
-        "symbol": "string",
-        "signal": "float64",
-        "price": "float64",
-        "timestamp": "datetime64[ns]",
-    }
-
-    def process_with_gc(group_df: pd.DataFrame) -> pd.DataFrame:
-        result = _process_symbol_group(group_df, symbol_column, price_column, atc_config)
-        gc.collect()
-        return result
-
-    try:
-        # Add include_groups=False to avoid FutureWarning about grouping columns
-        results_ddf = grouped.apply(process_with_gc, meta=meta, include_groups=False)
-    except Exception as e:
-        log_error(f"Error in Dask apply: {e}")
-        return pd.DataFrame()
-
-    try:
-        results_df = results_ddf.compute()
-    except Exception as e:
-        log_error(f"Error computing Dask results: {e}")
-        return pd.DataFrame()
-
-    log_info(f"Completed backtesting with {len(results_df)} records")
-
-    return results_df
+    return _execute_dask_backtest(ddf, atc_config, symbol_column, price_column)
 
 
 def backtest_from_dataframe(
@@ -227,7 +306,6 @@ def backtest_from_dataframe(
     symbol_column: str = "symbol",
     price_column: str = "close",
     npartitions: Optional[int] = None,
-    partition_size: int = 10,
 ) -> pd.DataFrame:
     """Backtest ATC signals on an existing DataFrame using Dask.
 
@@ -237,7 +315,6 @@ def backtest_from_dataframe(
         symbol_column: Column name for symbol
         price_column: Column name for price
         npartitions: Number of Dask partitions (auto if None)
-        partition_size: Symbols per partition
 
     Returns:
         DataFrame with backtest results
@@ -257,40 +334,9 @@ def backtest_from_dataframe(
 
     log_info(f"Backtesting {len(df)} records for {df[symbol_column].nunique()} symbols")
 
-    import dask.dataframe as dd
-
     ddf = dd.from_pandas(df, npartitions=npartitions)
 
-    grouped = ddf.groupby(symbol_column)
-
-    meta = {
-        "symbol": "string",
-        "signal": "float64",
-        "price": "float64",
-        "timestamp": "datetime64[ns]",
-    }
-
-    def process_with_gc(group_df: pd.DataFrame) -> pd.DataFrame:
-        result = _process_symbol_group(group_df, symbol_column, price_column, atc_config)
-        gc.collect()
-        return result
-
-    try:
-        # Add include_groups=False to avoid FutureWarning about grouping columns
-        results_ddf = grouped.apply(process_with_gc, meta=meta, include_groups=False)
-    except Exception as e:
-        log_error(f"Error in Dask apply: {e}")
-        return pd.DataFrame()
-
-    try:
-        results_df = results_ddf.compute()
-    except Exception as e:
-        log_error(f"Error computing Dask results: {e}")
-        return pd.DataFrame()
-
-    log_info(f"Completed backtesting with {len(results_df)} records")
-
-    return results_df
+    return _execute_dask_backtest(ddf, atc_config, symbol_column, price_column)
 
 
 def backtest_multiple_files_dask(
@@ -300,7 +346,7 @@ def backtest_multiple_files_dask(
     symbol_column: str = "symbol",
     price_column: str = "close",
 ) -> pd.DataFrame:
-    """Backtest across multiple historical data files.
+    """Backtest across multiple historical data files in parallel.
 
     Args:
         file_paths: List of file paths
@@ -317,27 +363,25 @@ def backtest_multiple_files_dask(
         log_warn("No file paths provided")
         return pd.DataFrame()
 
-    log_info(f"Backtesting {len(file_paths)} files")
+    log_info(f"Backtesting {len(file_paths)} files in parallel")
 
-    results_list = []
+    valid_paths = [fp for fp in file_paths if _validate_file_path(fp)]
 
-    for file_path in file_paths:
-        log_info(f"Processing file: {file_path}")
-        try:
-            result = backtest_with_dask(file_path, atc_config, chunksize, symbol_column, price_column)
-            if not result.empty:
-                results_list.append(result)
-        except Exception as e:
-            log_error(f"Error processing file {file_path}: {e}")
-
-    if not results_list:
-        log_warn("No results from any file")
+    if not valid_paths:
+        log_error("No valid file paths provided")
         return pd.DataFrame()
 
+    if len(valid_paths) < len(file_paths):
+        log_warn(f"Filtered {len(file_paths) - len(valid_paths)} invalid paths")
+
     try:
-        combined_df = pd.concat(results_list, ignore_index=True)
-        log_info(f"Combined results: {len(combined_df)} records")
-        return combined_df
+        ddf = dd.read_csv(
+            valid_paths,
+            blocksize=chunksize,
+            dtype={symbol_column: "string", price_column: "float64"},
+        )
+
+        return _execute_dask_backtest(ddf, atc_config, symbol_column, price_column)
     except Exception as e:
-        log_error(f"Error combining results: {e}")
+        log_error(f"Failed to read or process files: {e}")
         return pd.DataFrame()

@@ -6,6 +6,7 @@ This script traces calculations step-by-step to identify where the 17% discrepan
 
 import numpy as np
 import pandas as pd
+
 from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC, compute_atc_signals
 
 
@@ -50,12 +51,12 @@ def compare_calculations_detailed():
     atc = IncrementalATC(config)
     init_results = atc.initialize(init_prices)
 
-    print(f"\n📊 INITIALIZATION")
+    print("\n📊 INITIALIZATION")
     print(f"Init prices: {len(init_prices)} bars")
     print(f"Last init signal: {init_results['Average_Signal'].iloc[-1]:.6f}")
 
     # Update incrementally with remaining 10 prices
-    print(f"\n📈 INCREMENTAL UPDATES (last 10 bars)")
+    print("\n📈 INCREMENTAL UPDATES (last 10 bars)")
     incremental_signals = []
 
     for i, price in enumerate(sample_prices[-10:]):
@@ -85,23 +86,23 @@ def compare_calculations_detailed():
         print(f"    Avg signal: {before_state['average_signal']:.6f} → {after_state['average_signal']:.6f}")
 
         # Print Layer 1 signals
-        print(f"    Layer1 signals:")
+        print("    Layer1 signals:")
         for ma_type in ["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"]:
             before_l1 = before_state["layer1_signals"].get(ma_type, 0.0)
             after_l1 = after_state["layer1_signals"].get(ma_type, 0.0)
             print(f"      {ma_type}: {before_l1:+.6f} → {after_l1:+.6f}")
 
     # Full recalculation on all prices
-    print(f"\n🔄 FULL CALCULATION")
+    print("\n🔄 FULL CALCULATION")
     full_results = compute_atc_signals(sample_prices, **config)
     full_signals = full_results["Average_Signal"].iloc[-10:].values
 
-    print(f"Last 10 signals from full calculation:")
+    print("Last 10 signals from full calculation:")
     for i, sig in enumerate(full_signals):
         print(f"  Bar {len(sample_prices) - 10 + i}: {sig:.6f}")
 
     # Compare
-    print(f"\n⚖️  COMPARISON")
+    print("\n⚖️  COMPARISON")
     print(f"{'Bar':<6} {'Incremental':<15} {'Full':<15} {'Diff':<15} {'% Error':<10}")
     print("-" * 70)
 
@@ -119,7 +120,7 @@ def compare_calculations_detailed():
         marker = "❌" if abs(diff) > 0.001 else "✅"
         print(f"{len(init_prices) + i:<6} {inc:<15.6f} {full:<15.6f} {diff:<15.6f} {pct_error:<10.2f}% {marker}")
 
-    print(f"\n📍 MAXIMUM DIFFERENCE:")
+    print("\n📍 MAXIMUM DIFFERENCE:")
     print(f"  Bar: {len(init_prices) + max_diff_idx}")
     print(f"  Incremental: {incremental_signals[max_diff_idx]:.6f}")
     print(f"  Full: {full_signals[max_diff_idx]:.6f}")
@@ -129,31 +130,31 @@ def compare_calculations_detailed():
     print(f"\n🔍 DETAILED ANALYSIS AT BAR {len(init_prices) + max_diff_idx}")
 
     # Check full calculation state at this bar
-    print(f"\n  Full calculation Layer 2 equities:")
+    print("\n  Full calculation Layer 2 equities:")
     for ma_type in ["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"]:
         equity_key = f"{ma_type}_S"
         if equity_key in full_results:
             equity_val = full_results[equity_key].iloc[len(init_prices) + max_diff_idx]
             print(f"    {ma_type}_S: {equity_val:.6f}")
 
-    print(f"\n  Incremental Layer 2 equities (final state):")
+    print("\n  Incremental Layer 2 equities (final state):")
     if atc.state["equity"]:
         for ma_type, equity_val in atc.state["equity"].items():
             print(f"    {ma_type}: {equity_val:.6f}")
 
-    print(f"\n  Full calculation Layer 1 signals:")
+    print("\n  Full calculation Layer 1 signals:")
     for ma_type in ["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"]:
         signal_key = f"{ma_type}_Signal"
         if signal_key in full_results:
             signal_val = full_results[signal_key].iloc[len(init_prices) + max_diff_idx]
             print(f"    {ma_type}_Signal: {signal_val:+.6f}")
 
-    print(f"\n  Incremental Layer 1 signals (final state):")
+    print("\n  Incremental Layer 1 signals (final state):")
     for ma_type, signal_val in atc.state.get("layer1_signals", {}).items():
         print(f"    {ma_type}: {signal_val:+.6f}")
 
     # Analyze cut_signal thresholds
-    print(f"\n  Threshold analysis:")
+    print("\n  Threshold analysis:")
     print(f"    long_threshold: {config['long_threshold']}")
     print(f"    short_threshold: {config['short_threshold']}")
 

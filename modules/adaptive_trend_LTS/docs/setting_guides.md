@@ -326,7 +326,7 @@ For scanning thousands of symbols, use Approximate MAs for initial filtering, th
 Uses simplified calculations (e.g., SMA for EMA approximation) for ~5% tolerance:
 
 ```python
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 
 # Basic approximate MAs - 2-3x faster
 config = ATCConfig(
@@ -378,7 +378,7 @@ config = ATCConfig(
 Combine approximate MAs for initial filtering with full precision for final analysis:
 
 ```python
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
 from modules.common.core.data_fetcher import DataFetcher
 

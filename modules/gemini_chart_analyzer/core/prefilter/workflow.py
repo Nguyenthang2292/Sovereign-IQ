@@ -11,6 +11,7 @@ import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+
 def _find_project_root() -> Path:
     """
     Find project root by looking for marker files (.git, setup.py, requirements.txt).
@@ -64,6 +65,7 @@ def run_prefilter_worker(
     approximate_ma_scanner: Optional[Dict[str, Any]] = None,
     auto_skip_threshold: int = 10,
     use_atc_performance: bool = True,
+    use_atc_performance_mini: bool = False,
     xgboost_lts: Optional[Dict[str, Any]] = None,
     use_xgboost_performance: bool = True,
 ) -> List[str]:
@@ -137,6 +139,7 @@ def run_prefilter_worker(
             atc_performance=atc_performance,
             approximate_ma_scanner=approximate_ma_scanner,
             use_atc_performance=use_atc_performance,
+            use_atc_performance_mini=use_atc_performance_mini,
             xgboost_lts=xgboost_lts,
             use_xgboost_performance=use_xgboost_performance,
         )
@@ -200,7 +203,7 @@ def run_prefilter_worker(
 
         finally:
             # Cleanup resources
-            if hasattr(exchange_manager, 'close'):
+            if hasattr(exchange_manager, "close"):
                 try:
                     exchange_manager.close()
                 except Exception as cleanup_error:

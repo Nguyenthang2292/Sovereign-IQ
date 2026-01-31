@@ -11,9 +11,9 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
-from modules.adaptive_trend_LTS.core.async_io.async_compute import run_batch_atc_async
-from modules.adaptive_trend_LTS.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_LTS.utils.cache_manager import get_cache_manager, reset_cache_manager
+from modules.adaptive_trend_LTS_mini.core.async_io.async_compute import run_batch_atc_async
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.utils.cache_manager import get_cache_manager, reset_cache_manager
 from modules.common.ui.logging import log_info, log_success
 
 

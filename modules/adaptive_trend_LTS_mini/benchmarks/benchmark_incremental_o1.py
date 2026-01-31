@@ -12,7 +12,7 @@ from typing import Deque
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_mas_o1 import (
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_mas_o1 import (
     TrueO1HMA,
     TrueO1KAMA,
     TrueO1LSMA,
@@ -247,7 +247,7 @@ def benchmark_kama(iterations: int = 1000, length: int = 28) -> dict:
 
 def benchmark_incremental_atc(iterations: int = 1000) -> dict:
     """Benchmark IncrementalATC with O(1) vs legacy MAs."""
-    from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC
 
     print(f"\nBenchmarking IncrementalATC (iterations={iterations})...")
 

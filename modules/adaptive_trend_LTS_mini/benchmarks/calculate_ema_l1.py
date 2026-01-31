@@ -123,7 +123,7 @@ print(f"Weight sum: {weight_sum:.6f}")
 print(f"Average signal: {avg_signal:.6f}")
 
 # Compare with reference
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 
 config = {
     "ema_len": 28,

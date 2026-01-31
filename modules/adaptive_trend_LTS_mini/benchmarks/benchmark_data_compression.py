@@ -9,8 +9,8 @@ from pathlib import Path
 import numpy as np
 
 try:
-    from modules.adaptive_trend_LTS.utils.cache_manager import CacheManager
-    from modules.adaptive_trend_LTS.utils.data_compression import (
+    from modules.adaptive_trend_LTS_mini.utils.cache_manager import CacheManager
+    from modules.adaptive_trend_LTS_mini.utils.data_compression import (
         BLOSC_AVAILABLE,
         compress_pickle,
         decompress_pickle,

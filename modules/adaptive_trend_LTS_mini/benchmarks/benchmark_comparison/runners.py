@@ -1,391 +1,211 @@
-"""Benchmark runner functions for all 8 versions."""
-
+import threading
 import time
-from typing import Dict, Tuple
+import traceback
+from typing import Any, Callable, Dict, Tuple
 
 import pandas as pd
+import psutil
 
 from modules.common.utils import log_error, log_info, log_success
 
 
-def run_original_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
-    """Run original adaptive_trend module.
+def _measure_memory_rss_mb() -> float:
+    """Get current process RSS memory in MB."""
+    return psutil.Process().memory_info().rss / 1024 / 1024
 
-    Args:
-        prices_data: Dictionary of symbol -> price Series
-        config: ATC configuration parameters
 
-    Returns:
-        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
+class MemoryMonitor:
+    """Monitors peak memory usage in a background thread."""
+
+    def __init__(self, interval: float = 0.01):
+        self.interval = interval
+        self._stop_event = threading.Event()
+        self._peak_memory = 0.0
+        self._start_memory = 0.0
+        self._thread = None
+
+    def __enter__(self):
+        self._start_memory = _measure_memory_rss_mb()
+        self._peak_memory = self._start_memory
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._monitor)
+        self._thread.daemon = True
+        self._thread.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._stop_event.set()
+        if self._thread:
+            self._thread.join()
+
+    def _monitor(self):
+        while not self._stop_event.is_set():
+            current_mem = _measure_memory_rss_mb()
+            self._peak_memory = max(self._peak_memory, current_mem)
+            time.sleep(self.interval)
+
+    @property
+    def peak_usage(self) -> float:
+        """Returns peak memory usage (delta from start) in MB."""
+        return max(0.0, self._peak_memory - self._start_memory)
+
+    @property
+    def absolute_peak(self) -> float:
+        """Returns absolute peak memory in MB."""
+        return self._peak_memory
+
+
+def _run_serial_benchmark(
+    name: str, compute_func: Callable[..., Any], prices_data: Dict[str, pd.Series], config: Dict[str, Any]
+) -> Tuple[Dict[str, Any], float, float]:
+    """Generic runner for serial (per-symbol) execution benchmarks.
+
+    Handles timing, memory tracking, error counting, and progress logging.
     """
-    log_info("Running original adaptive_trend_LTS module...")
-    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_original
+    log_info(f"Running {name} adaptive_trend_LTS_mini module...")
+
+    results = {}
+
+    # Error tracking
+    error_count = 0
+    max_errors = max(5, int(len(prices_data) * 0.1))
+
+    # Progress logging setup
+    total_symbols = len(prices_data)
+    # Log at 10%, 20%, etc., but at least every 10 items
+    log_interval = max(10, total_symbols // 10)
+
+    start_time = time.time()
+
+    # Monitor memory during execution
+    with MemoryMonitor() as mem_mon:
+        for idx, (symbol, prices) in enumerate(prices_data.items(), 1):
+            try:
+                # Execute computation
+                result = compute_func(prices=prices, **config)
+                results[symbol] = result
+
+                # Progress logging
+                if idx % log_interval == 0 or idx == total_symbols:
+                    log_info(f"{name}: Processed {idx}/{total_symbols} symbols")
+
+            except Exception as e:
+                log_error(f"{name} failed for {symbol}: {e}")
+                traceback.print_exc()
+                results[symbol] = None
+
+                # Fail-fast check
+                error_count += 1
+                if error_count > max_errors:
+                    log_error(f"{name}: Aborting test - too many errors ({error_count})")
+                    break
+
+        total_memory_used = mem_mon.peak_usage
+
+    execution_time = time.time() - start_time
+
+    log_success(f"{name} module completed in {execution_time:.2f}s, peak memory: {total_memory_used:.1f} MB")
+    return results, execution_time, total_memory_used
+
+
+def _run_batch_benchmark(
+    name: str,
+    batch_func: Callable[..., Dict[str, Any]],
+    prices_data: Dict[str, pd.Series],
+    config: Dict[str, Any],
+    **kwargs,
+) -> Tuple[Dict[str, Any], float, float]:
+    """Generic runner for batch execution benchmarks."""
+    log_info(f"Running {name} adaptive_trend_LTS_mini module...")
 
     results = {}
     start_time = time.time()
 
-    # Track memory (approximate)
-    import psutil
+    try:
+        # Execute batch computation with memory monitoring
+        with MemoryMonitor() as mem_mon:
+            results = batch_func(prices_data, config, **kwargs)
+            total_memory_used = mem_mon.peak_usage
 
-    process = psutil.Process()
-    mem_before = process.memory_info().rss / 1024 / 1024  # MB
+        log_info(f"{name}: Processed {len(results)}/{len(prices_data)} symbols")
 
-    for idx, (symbol, prices) in enumerate(prices_data.items(), 1):
-        try:
-            result = compute_atc_original(prices=prices, **config)
-            results[symbol] = result
+    except Exception as e:
+        log_error(f"{name} processing failed: {e}")
+        traceback.print_exc()
+        results = {}
+        total_memory_used = 0.0
 
-            if idx % 100 == 0:
-                log_info(f"Original: Processed {idx}/{len(prices_data)} symbols")
+    execution_time = time.time() - start_time
 
-        except Exception as e:
-            import traceback
-
-            log_error(f"Original failed for {symbol}: {e}")
-            traceback.print_exc()
-            results[symbol] = None
-
-    end_time = time.time()
-    mem_after = process.memory_info().rss / 1024 / 1024  # MB
-
-    execution_time = end_time - start_time
-    peak_memory = mem_after - mem_before
-
-    log_success(f"Original module completed in {execution_time:.2f}s")
-    return results, execution_time, peak_memory
+    log_success(f"{name} module completed in {execution_time:.2f}s, peak memory: {total_memory_used:.1f} MB")
+    return results, execution_time, total_memory_used
 
 
-def run_enhanced_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
-    """Run enhanced adaptive_trend_enhance module.
+def run_original_module(
+    prices_data: Dict[str, pd.Series], config: Dict[str, Any]
+) -> Tuple[Dict[str, Any], float, float]:
+    """Run original adaptive_trend module."""
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals as compute_atc_original
 
-    Args:
-        prices_data: Dictionary of symbol -> price Series
-        config: ATC configuration parameters
-
-    Returns:
-        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
-    """
-    log_info("Running enhanced adaptive_trend_LTS module...")
-    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_enhanced
-
-    results = {}
-    start_time = time.time()
-
-    # Track memory (approximate)
-    import psutil
-
-    process = psutil.Process()
-    mem_before = process.memory_info().rss / 1024 / 1024  # MB
-
-    for idx, (symbol, prices) in enumerate(prices_data.items(), 1):
-        try:
-            result = compute_atc_enhanced(prices=prices, **config)
-            results[symbol] = result
-
-            if idx % 100 == 0:
-                log_info(f"Enhanced: Processed {idx}/{len(prices_data)} symbols")
-
-        except Exception as e:
-            import traceback
-
-            log_error(f"Enhanced failed for {symbol}: {e}")
-            traceback.print_exc()
-            results[symbol] = None
-
-    end_time = time.time()
-    mem_after = process.memory_info().rss / 1024 / 1024  # MB
-
-    execution_time = end_time - start_time
-    peak_memory = mem_after - mem_before
-
-    log_success(f"Enhanced module completed in {execution_time:.2f}s")
-    return results, execution_time, peak_memory
+    return _run_serial_benchmark("Original", compute_atc_original, prices_data, config)
 
 
-def run_rust_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
-    """Run Rust-accelerated adaptive_trend_LTS module.
+def run_rust_module(prices_data: Dict[str, pd.Series], config: Dict[str, Any]) -> Tuple[Dict[str, Any], float, float]:
+    """Run Rust-accelerated adaptive_trend_LTS module."""
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
 
-    Args:
-        prices_data: Dictionary of symbol -> price Series
-        config: ATC configuration parameters
-
-    Returns:
-        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
-    """
-    log_info("Running Rust-accelerated adaptive_trend_LTS module...")
-    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
-
-    results = {}
-    start_time = time.time()
-
-    # Track memory (approximate)
-    import psutil
-
-    process = psutil.Process()
-    mem_before = process.memory_info().rss / 1024 / 1024  # MB
-
-    for idx, (symbol, prices) in enumerate(prices_data.items(), 1):
-        try:
-            result = compute_atc_rust(prices=prices, **config)
-            results[symbol] = result
-
-            if idx % 100 == 0:
-                log_info(f"Rust: Processed {idx}/{len(prices_data)} symbols")
-
-        except Exception as e:
-            import traceback
-
-            log_error(f"Rust failed for {symbol}: {e}")
-            traceback.print_exc()
-            results[symbol] = None
-
-    end_time = time.time()
-    mem_after = process.memory_info().rss / 1024 / 1024  # MB
-
-    execution_time = end_time - start_time
-    peak_memory = mem_after - mem_before
-
-    log_success(f"Rust module completed in {execution_time:.2f}s")
-    return results, execution_time, peak_memory
+    return _run_serial_benchmark("Rust", compute_atc_rust, prices_data, config)
 
 
-def run_approximate_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
-    """Run Approximate MAs adaptive_trend_LTS module.
+def run_approximate_module(
+    prices_data: Dict[str, pd.Series], config: Dict[str, Any]
+) -> Tuple[Dict[str, Any], float, float]:
+    """Run Approximate MAs adaptive_trend_LTS module."""
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
 
-    Args:
-        prices_data: Dictionary of symbol -> price Series
-        config: ATC configuration parameters
-
-    Returns:
-        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
-    """
-    log_info("Running Approximate MAs adaptive_trend_LTS module...")
-    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
-
-    results = {}
-    start_time = time.time()
-
-    # Track memory (approximate)
-    import psutil
-
-    process = psutil.Process()
-    mem_before = process.memory_info().rss / 1024 / 1024  # MB
-
-    for idx, (symbol, prices) in enumerate(prices_data.items(), 1):
-        try:
-            result = compute_atc_rust(prices=prices, **config)
-            results[symbol] = result
-
-            if idx % 100 == 0:
-                log_info(f"Approximate: Processed {idx}/{len(prices_data)} symbols")
-
-        except Exception as e:
-            import traceback
-
-            log_error(f"Approximate failed for {symbol}: {e}")
-            traceback.print_exc()
-            results[symbol] = None
-
-    end_time = time.time()
-    mem_after = process.memory_info().rss / 1024 / 1024  # MB
-
-    execution_time = end_time - start_time
-    peak_memory = mem_after - mem_before
-
-    log_success(f"Approximate module completed in {execution_time:.2f}s")
-    return results, execution_time, peak_memory
+    return _run_serial_benchmark("Approximate", compute_atc_rust, prices_data, config)
 
 
 def run_adaptive_approximate_module(
-    prices_data: Dict[str, pd.Series], config: dict
-) -> Tuple[Dict[str, Dict], float, float]:
-    """Run Adaptive Approximate MAs adaptive_trend_LTS module.
+    prices_data: Dict[str, pd.Series], config: Dict[str, Any]
+) -> Tuple[Dict[str, Any], float, float]:
+    """Run Adaptive Approximate MAs adaptive_trend_LTS module."""
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
 
-    Args:
-        prices_data: Dictionary of symbol -> price Series
-        config: ATC configuration parameters
-
-    Returns:
-        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
-    """
-    log_info("Running Adaptive Approximate MAs adaptive_trend_LTS module...")
-    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals as compute_atc_rust
-
-    results = {}
-    start_time = time.time()
-
-    # Track memory (approximate)
-    import psutil
-
-    process = psutil.Process()
-    mem_before = process.memory_info().rss / 1024 / 1024  # MB
-
-    for idx, (symbol, prices) in enumerate(prices_data.items(), 1):
-        try:
-            result = compute_atc_rust(prices=prices, **config)
-            results[symbol] = result
-
-            if idx % 100 == 0:
-                log_info(f"Adaptive Approx: Processed {idx}/{len(prices_data)} symbols")
-
-        except Exception as e:
-            import traceback
-
-            log_error(f"Adaptive Approx failed for {symbol}: {e}")
-            traceback.print_exc()
-            results[symbol] = None
-
-    end_time = time.time()
-    mem_after = process.memory_info().rss / 1024 / 1024  # MB
-
-    execution_time = end_time - start_time
-    peak_memory = mem_after - mem_before
-
-    log_success(f"Adaptive Approx module completed in {execution_time:.2f}s")
-    return results, execution_time, peak_memory
+    return _run_serial_benchmark("Adaptive Approx", compute_atc_rust, prices_data, config)
 
 
-def run_rust_batch_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
-    """Run Rust-accelerated adaptive_trend_LTS module using Rayon batch processing.
+def run_rust_batch_module(
+    prices_data: Dict[str, pd.Series], config: Dict[str, Any]
+) -> Tuple[Dict[str, Any], float, float]:
+    """Run Rust-accelerated adaptive_trend_LTS module using Rayon batch processing."""
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
 
-    Args:
-        prices_data: Dictionary of symbol -> price Series
-        config: ATC configuration parameters
-
-    Returns:
-        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
-    """
-    log_info("Running Rust-accelerated adaptive_trend_LTS module (Rayon Batch)...")
-    from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
-
-    start_time = time.time()
-
-    # Track memory (approximate)
-    import psutil
-
-    process = psutil.Process()
-    mem_before = process.memory_info().rss / 1024 / 1024  # MB
-
-    try:
-        # Use Rayon batch processor
-        results = process_symbols_batch_rust(prices_data, config)
-
-        log_info(f"Rust (Rayon): Processed {len(results)}/{len(prices_data)} symbols")
-
-    except Exception as e:
-        import traceback
-
-        log_error(f"Rust Rayon batch processing failed: {e}")
-        traceback.print_exc()
-        results = {}
-
-    end_time = time.time()
-    mem_after = process.memory_info().rss / 1024 / 1024  # MB
-
-    execution_time = end_time - start_time
-    peak_memory = mem_after - mem_before
-
-    log_success(f"Rust Rayon module completed in {execution_time:.2f}s")
-    return results, execution_time, peak_memory
+    return _run_batch_benchmark("Rust (Rayon)", process_symbols_batch_rust, prices_data, config)
 
 
 def run_dask_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
-    """Run Dask-based adaptive_trend_LTS module for out-of-core processing.
-
-    Args:
-        prices_data: Dictionary of symbol -> price Series
-        config: ATC configuration parameters
-
-    Returns:
-        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
-    """
-    log_info("Running Dask-based adaptive_trend_LTS module (Out-of-Core)...")
+    """Run Dask-based adaptive_trend_LTS module for out-of-core processing."""
     try:
-        from modules.adaptive_trend_LTS.core.compute_atc_signals.dask_batch_processor import (
+        from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.dask_batch_processor import (
             process_symbols_batch_dask,
         )
     except ImportError:
         log_error("Dask batch processor not available")
         return {}, 0.0, 0.0
 
-    start_time = time.time()
-
-    # Track memory (approximate)
-    import psutil
-
-    process = psutil.Process()
-    mem_before = process.memory_info().rss / 1024 / 1024  # MB
-
-    try:
-        # Use Dask batch processor (Python fallback)
-        results = process_symbols_batch_dask(
-            prices_data, config, use_rust=False, use_cuda=False, npartitions=None, partition_size=50
-        )
-
-        log_info(f"Dask: Processed {len(results)}/{len(prices_data)} symbols")
-
-    except Exception as e:
-        import traceback
-
-        log_error(f"Dask batch processing failed: {e}")
-        traceback.print_exc()
-        results = {}
-
-    end_time = time.time()
-    mem_after = process.memory_info().rss / 1024 / 1024  # MB
-
-    execution_time = end_time - start_time
-    peak_memory = mem_after - mem_before
-
-    log_success(f"Dask module completed in {execution_time:.2f}s")
-    return results, execution_time, peak_memory
+    # CPU-only fallback for mini version defaults
+    kwargs = {"use_rust": True, "npartitions": None, "partition_size": 50}
+    return _run_batch_benchmark("Dask", process_symbols_batch_dask, prices_data, config, **kwargs)
 
 
 def run_rust_dask_module(prices_data: Dict[str, pd.Series], config: dict) -> Tuple[Dict[str, Dict], float, float]:
-    """Run Rust+Dask hybrid adaptive_trend_LTS module.
-
-    Args:
-        prices_data: Dictionary of symbol -> price Series
-        config: ATC configuration parameters
-
-    Returns:
-        Tuple of (results_dict, execution_time_seconds, peak_memory_mb)
-    """
-    log_info("Running Rust+Dask hybrid adaptive_trend_LTS module...")
+    """Run Rust+Dask hybrid adaptive_trend_LTS module."""
     try:
-        from modules.adaptive_trend_LTS.core.compute_atc_signals.rust_dask_bridge import process_symbols_rust_dask
+        from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.rust_dask_bridge import process_symbols_rust_dask
     except ImportError:
         log_error("Rust-Dask bridge not available")
         return {}, 0.0, 0.0
 
-    start_time = time.time()
-
-    # Track memory (approximate)
-    import psutil
-
-    process = psutil.Process()
-    mem_before = process.memory_info().rss / 1024 / 1024  # MB
-
-    try:
-        # Use Rust+Dask hybrid (CPU Rust with Dask partitions)
-        results = process_symbols_rust_dask(
-            prices_data, config, use_cuda=False, npartitions=None, partition_size=50, use_fallback=True
-        )
-
-        log_info(f"Rust+Dask: Processed {len(results)}/{len(prices_data)} symbols")
-
-    except Exception as e:
-        import traceback
-
-        log_error(f"Rust+Dask hybrid processing failed: {e}")
-        traceback.print_exc()
-        results = {}
-
-    end_time = time.time()
-    mem_after = process.memory_info().rss / 1024 / 1024  # MB
-
-    execution_time = end_time - start_time
-    peak_memory = mem_after - mem_before
-
-    log_success(f"Rust+Dask module completed in {execution_time:.2f}s")
-    return results, execution_time, peak_memory
+    kwargs = {"npartitions": None, "partition_size": 50, "use_fallback": True}
+    return _run_batch_benchmark("Rust+Dask", process_symbols_rust_dask, prices_data, config, **kwargs)

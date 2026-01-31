@@ -8,7 +8,7 @@ import tempfile
 import numpy as np
 
 try:
-    from modules.adaptive_trend_LTS.core.backtesting.dask_backtest import backtest_with_dask
+    from modules.adaptive_trend_LTS_mini.core.backtesting.dask_backtest import backtest_with_dask
 except ImportError:
     print("Warning: Some modules not available")
 

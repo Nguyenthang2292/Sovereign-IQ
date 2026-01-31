@@ -6,7 +6,6 @@ from .data import fetch_symbols_data
 from .main import main
 from .runners import (
     run_dask_module,
-    run_enhanced_module,
     run_original_module,
     run_rust_batch_module,
     run_rust_dask_module,
@@ -20,7 +19,6 @@ __all__ = [
     "fetch_symbols_data",
     # Runner functions
     "run_original_module",
-    "run_enhanced_module",
     "run_rust_module",
     "run_rust_batch_module",
     "run_dask_module",

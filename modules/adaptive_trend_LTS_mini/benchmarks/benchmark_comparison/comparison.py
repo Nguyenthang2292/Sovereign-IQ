@@ -1,28 +1,29 @@
 """Signal comparison and table generation utilities."""
 
-from typing import Dict
+from typing import Any, Dict
 
 import numpy as np
+
+# Constants
+SIGNAL_MATCH_TOLERANCE = 1e-6
 from tabulate import tabulate
 
 from modules.common.utils import log_info, log_success, log_warn
 
 
 def compare_signals(
-    original_results: Dict[str, Dict],
-    enhanced_results: Dict[str, Dict],
-    rust_results: Dict[str, Dict],
-    rust_rayon_results: Dict[str, Dict],
-    approximate_results: Dict[str, Dict],
-    adaptive_approximate_results: Dict[str, Dict],
-    dask_results: Dict[str, Dict],
-    rust_dask_results: Dict[str, Dict],
-) -> Dict[str, any]:
+    original_results: Dict[str, Any],
+    rust_results: Dict[str, Any],
+    rust_rayon_results: Dict[str, Any],
+    approximate_results: Dict[str, Any],
+    adaptive_approximate_results: Dict[str, Any],
+    dask_results: Dict[str, Any],
+    rust_dask_results: Dict[str, Any],
+) -> Dict[str, Any]:
     """Compare signal outputs between versions.
 
     Args:
         original_results: Results from original module
-        enhanced_results: Results from enhanced module
         rust_results: Results from Rust module
         rust_rayon_results: Results from Rust Rayon module
         approximate_results: Results from Approximate MAs module
@@ -37,7 +38,7 @@ def compare_signals(
 
     # DEBUG: Print result dict sizes
     log_info(
-        f"Result dict sizes: orig={len(original_results)}, enh={len(enhanced_results)}, "
+        f"Result dict sizes: orig={len(original_results)}, "
         f"rust={len(rust_results)}, rust_rayon={len(rust_rayon_results)}, "
         f"approx={len(approximate_results)}, adaptive_approx={len(adaptive_approximate_results)}, "
         f"dask={len(dask_results)}, rust_dask={len(rust_dask_results)}"
@@ -58,20 +59,10 @@ def compare_signals(
     total_symbols = len(original_results)
     processed_symbols = 0
 
-    # Compare Original vs Enhanced
-    orig_enh_diffs = []
-    orig_enh_matching = 0
-    orig_enh_mismatched = []
-
     # Compare Original vs Rust
     orig_rust_diffs = []
     orig_rust_matching = 0
     orig_rust_mismatched = []
-
-    # Compare Enhanced vs Rust
-    enh_rust_diffs = []
-    enh_rust_matching = 0
-    enh_rust_mismatched = []
 
     # Compare Original vs Dask
     orig_dask_diffs = []
@@ -83,18 +74,15 @@ def compare_signals(
     orig_rust_dask_matching = 0
     orig_rust_dask_mismatched = []
 
-    # Compare AdaptApprox vs AdaptApprox (self-consistency check)
+    # Signal validity checks for Approx and AdaptApprox
+    # These verify that signals are properly generated (all finite values)
+    approx_valid_diffs = []
+    approx_valid_matching = 0
+    approx_valid_mismatched = []
 
-    # Since AdaptApprox uses different MA algorithm, we compare it against itself
-    # to verify consistency across runs
-    adaptive_approx_self_diffs = []
-    adaptive_approx_self_matching = 0
-    adaptive_approx_self_mismatched = []
-
-    # Compare Approx vs Approx (self-consistency check)
-    approx_self_diffs = []
-    approx_self_matching = 0
-    approx_self_mismatched = []
+    adaptive_approx_valid_diffs = []
+    adaptive_approx_valid_matching = 0
+    adaptive_approx_valid_mismatched = []
 
     # Compare AdaptApprox vs Approx (cross-consistency check)
     # This shows how much the Adaptive mechanism changes the Approximate results
@@ -105,7 +93,6 @@ def compare_signals(
     for symbol in original_results.keys():
         # Get results for each module (may be None or missing)
         orig = original_results.get(symbol)
-        enh = enhanced_results.get(symbol)
         rust = rust_results.get(symbol)
         rust_rayon = rust_rayon_results.get(symbol)
         approx = approximate_results.get(symbol)
@@ -121,7 +108,6 @@ def compare_signals(
 
         # Get Average_Signal for each module
         orig_s = orig.get("Average_Signal") if orig else None
-        enh_s = enh.get("Average_Signal") if enh else None
         rust_s = rust.get("Average_Signal") if rust else None
         rust_r_s = rust_rayon.get("Average_Signal") if rust_rayon else None
         approx_s = approx.get("Average_Signal") if approx else None
@@ -135,47 +121,16 @@ def compare_signals(
             log_warn(f"Symbol {symbol} has no original Average_Signal")
             continue
 
-        # Original vs Enhanced
-        # Note: Enhanced may reset index after cutout, Original keeps original index
-        # Compare by position (values) to handle index mismatch
-        if enh_s is not None and len(enh_s) > 0:
-            # Compare values directly (by position), ignoring index differences
-            min_len = min(len(orig_s), len(enh_s))
-            if min_len > 0:
-                orig_values = orig_s.values[:min_len]
-                enh_values = enh_s.values[:min_len]
-
-                # Filter out NaN values for fair comparison
-                valid_mask = np.isfinite(orig_values) & np.isfinite(enh_values)
-                if np.any(valid_mask):
-                    diff_oe = np.abs(orig_values[valid_mask] - enh_values[valid_mask]).max()
-                    orig_enh_diffs.append(diff_oe)
-                    if diff_oe < 1e-6:
-                        orig_enh_matching += 1
-                    else:
-                        orig_enh_mismatched.append((symbol, diff_oe))
-
         # Original vs Rust
         if rust_s is not None and len(rust_s) > 0:
             common_idx = orig_s.index.intersection(rust_s.index)
             if len(common_idx) > 0:
                 diff_or = np.abs(orig_s.loc[common_idx] - rust_s.loc[common_idx]).max()
                 orig_rust_diffs.append(diff_or)
-                if diff_or < 1e-6:
+                if diff_or < SIGNAL_MATCH_TOLERANCE:
                     orig_rust_matching += 1
                 else:
                     orig_rust_mismatched.append((symbol, diff_or))
-
-        # Enhanced vs Rust
-        if enh_s is not None and rust_s is not None and len(enh_s) > 0 and len(rust_s) > 0:
-            common_idx = enh_s.index.intersection(rust_s.index)
-            if len(common_idx) > 0:
-                diff_er = np.abs(enh_s.loc[common_idx] - rust_s.loc[common_idx]).max()
-                enh_rust_diffs.append(diff_er)
-                if diff_er < 1e-6:
-                    enh_rust_matching += 1
-                else:
-                    enh_rust_mismatched.append((symbol, diff_er))
 
         # Original vs Dask
 
@@ -184,7 +139,7 @@ def compare_signals(
             if len(common_idx) > 0:
                 diff_od = np.abs(orig_s.loc[common_idx] - dask_s.loc[common_idx]).max()
                 orig_dask_diffs.append(diff_od)
-                if diff_od < 1e-6:
+                if diff_od < SIGNAL_MATCH_TOLERANCE:
                     orig_dask_matching += 1
                 else:
                     orig_dask_mismatched.append((symbol, diff_od))
@@ -195,38 +150,39 @@ def compare_signals(
             if len(common_idx) > 0:
                 diff_ord = np.abs(orig_s.loc[common_idx] - rust_dask_s.loc[common_idx]).max()
                 orig_rust_dask_diffs.append(diff_ord)
-                if diff_ord < 1e-6:
+                if diff_ord < SIGNAL_MATCH_TOLERANCE:
                     orig_rust_dask_matching += 1
                 else:
                     orig_rust_dask_mismatched.append((symbol, diff_ord))
 
-        # Approx Self-Consistency
-
+        # Approx Signal Validity Check
         if approx_s is not None and len(approx_s) > 0:
-            # For self-consistency, we just verify the signal exists and is valid
+            # Check if all signal values are finite (not NaN or Inf)
             if np.all(np.isfinite(approx_s.values)):
-                approx_self_matching += 1
-                approx_self_diffs.append(0.0)
+                approx_valid_matching += 1
+                approx_valid_diffs.append(0.0)
             else:
-                approx_self_mismatched.append((symbol, 0.0))
-                approx_self_diffs.append(0.0)
+                approx_valid_mismatched.append((symbol, 0.0))
+                approx_valid_diffs.append(0.0)
         else:
             log_warn(
-                f"Approximate signal missing or empty for {symbol}: {approx_s is None}, len={len(approx_s) if approx_s is not None else 'None'}"
+                f"Approximate signal missing or empty for {symbol}: {approx_s is None}, "
+                f"len={len(approx_s) if approx_s is not None else 'None'}"
             )
 
-        # AdaptApprox Self-Consistency
+        # AdaptApprox Signal Validity Check
         if adaptive_approx_s is not None and len(adaptive_approx_s) > 0:
-            # For self-consistency, we just verify the signal exists and is valid
+            # Check if all signal values are finite (not NaN or Inf)
             if np.all(np.isfinite(adaptive_approx_s.values)):
-                adaptive_approx_self_matching += 1
-                adaptive_approx_self_diffs.append(0.0)
+                adaptive_approx_valid_matching += 1
+                adaptive_approx_valid_diffs.append(0.0)
             else:
-                adaptive_approx_self_mismatched.append((symbol, 0.0))
-                adaptive_approx_self_diffs.append(0.0)
+                adaptive_approx_valid_mismatched.append((symbol, 0.0))
+                adaptive_approx_valid_diffs.append(0.0)
         else:
             log_warn(
-                f"Adaptive Approx signal missing or empty for {symbol}: {adaptive_approx_s is None}, len={len(adaptive_approx_s) if adaptive_approx_s is not None else 'None'}"
+                f"Adaptive Approx signal missing or empty for {symbol}: "
+                f"{adaptive_approx_s is None}, len={len(adaptive_approx_s) if adaptive_approx_s is not None else 'None'}"
             )
 
         # AdaptApprox vs Approx
@@ -235,7 +191,7 @@ def compare_signals(
             if len(common_idx) > 0:
                 diff_aa = np.abs(approx_s.loc[common_idx] - adaptive_approx_s.loc[common_idx]).max()
                 approx_adaptive_diffs.append(diff_aa)
-                if diff_aa < 1e-6:
+                if diff_aa < SIGNAL_MATCH_TOLERANCE:
                     approx_adaptive_matching += 1
                 else:
                     approx_adaptive_mismatched.append((symbol, diff_aa))
@@ -246,7 +202,7 @@ def compare_signals(
             common_idx = orig_s.index.intersection(rust_r_s.index)
             if len(common_idx) > 0:
                 diff_orr = np.abs(orig_s.loc[common_idx] - rust_r_s.loc[common_idx]).max()
-                if diff_orr > 1e-6:
+                if diff_orr > SIGNAL_MATCH_TOLERANCE:
                     log_warn(f"Rust Rayon mismatch for {symbol}: {diff_orr}")
 
         # Increment processed counter
@@ -257,54 +213,41 @@ def compare_signals(
 
     # Calculate metrics
     log_info(f"Processed {processed_symbols}/{total_symbols} symbols successfully")
-    orig_enh_match_rate = (orig_enh_matching / total_symbols) * 100 if total_symbols > 0 else 0
     orig_rust_match_rate = (orig_rust_matching / total_symbols) * 100 if total_symbols > 0 else 0
-    enh_rust_match_rate = (enh_rust_matching / total_symbols) * 100 if total_symbols > 0 else 0
     orig_dask_match_rate = (orig_dask_matching / total_symbols) * 100 if total_symbols > 0 else 0
     orig_rust_dask_match_rate = (orig_rust_dask_matching / total_symbols) * 100 if total_symbols > 0 else 0
 
-    log_success(f"Original vs Enhanced match rate: {orig_enh_match_rate:.2f}%")
     log_success(f"Original vs Rust match rate: {orig_rust_match_rate:.2f}%")
     log_success(f"Original vs Dask match rate: {orig_dask_match_rate:.2f}%")
     log_success(f"Original vs Rust+Dask match rate: {orig_rust_dask_match_rate:.2f}%")
 
-    # Calculate self-consistency match rates for Approx and AdaptApprox
+    # Calculate validity check rates for Approx and AdaptApprox
 
-    approx_self_match_rate = (approx_self_matching / total_symbols) * 100 if total_symbols > 0 else 0
-    adaptive_approx_self_match_rate = (adaptive_approx_self_matching / total_symbols) * 100 if total_symbols > 0 else 0
+    approx_valid_rate = (approx_valid_matching / total_symbols) * 100 if total_symbols > 0 else 0
+    adaptive_approx_valid_rate = (adaptive_approx_valid_matching / total_symbols) * 100 if total_symbols > 0 else 0
 
-    log_success(f"Approximate self-consistency rate: {approx_self_match_rate:.2f}%")
-    log_success(f"Adaptive Approx self-consistency rate: {adaptive_approx_self_match_rate:.2f}%")
+    log_success(f"Approximate validity rate: {approx_valid_rate:.2f}%")
+    log_success(f"Adaptive Approx validity rate: {adaptive_approx_valid_rate:.2f}%")
 
     approx_adaptive_match_rate = (approx_adaptive_matching / total_symbols) * 100 if total_symbols > 0 else 0
     log_success(f"AdaptApprox vs Approx match rate: {approx_adaptive_match_rate:.2f}%")
 
-    log_success(f"Enhanced vs Rust match rate: {enh_rust_match_rate:.2f}%")
-
     return {
-        "orig_enh": {
-            "match_rate_percent": orig_enh_match_rate,
-            "max_difference": max(orig_enh_diffs) if orig_enh_diffs else 0,
-            "avg_difference": np.mean(orig_enh_diffs) if orig_enh_diffs else 0,
-            "median_difference": np.median(orig_enh_diffs) if orig_enh_diffs else 0,
-            "matching_symbols": orig_enh_matching,
-            "mismatched_symbols": [s[0] for s in orig_enh_mismatched],
-        },
         "orig_approx": {
-            "match_rate_percent": approx_self_match_rate,
-            "max_difference": max(approx_self_diffs) if approx_self_diffs else 0,
-            "avg_difference": np.mean(approx_self_diffs) if approx_self_diffs else 0,
-            "median_difference": np.median(approx_self_diffs) if approx_self_diffs else 0,
-            "matching_symbols": approx_self_matching,
-            "mismatched_symbols": [s[0] for s in approx_self_mismatched],
+            "match_rate_percent": approx_valid_rate,
+            "max_difference": max(approx_valid_diffs) if approx_valid_diffs else 0,
+            "avg_difference": np.mean(approx_valid_diffs) if approx_valid_diffs else 0,
+            "median_difference": np.median(approx_valid_diffs) if approx_valid_diffs else 0,
+            "matching_symbols": approx_valid_matching,
+            "mismatched_symbols": [s[0] for s in approx_valid_mismatched],
         },
         "orig_adaptive_approx": {
-            "match_rate_percent": adaptive_approx_self_match_rate,
-            "max_difference": max(adaptive_approx_self_diffs) if adaptive_approx_self_diffs else 0,
-            "avg_difference": np.mean(adaptive_approx_self_diffs) if adaptive_approx_self_diffs else 0,
-            "median_difference": np.median(adaptive_approx_self_diffs) if adaptive_approx_self_diffs else 0,
-            "matching_symbols": adaptive_approx_self_matching,
-            "mismatched_symbols": [s[0] for s in adaptive_approx_self_mismatched],
+            "match_rate_percent": adaptive_approx_valid_rate,
+            "max_difference": max(adaptive_approx_valid_diffs) if adaptive_approx_valid_diffs else 0,
+            "avg_difference": np.mean(adaptive_approx_valid_diffs) if adaptive_approx_valid_diffs else 0,
+            "median_difference": np.median(adaptive_approx_valid_diffs) if adaptive_approx_valid_diffs else 0,
+            "matching_symbols": adaptive_approx_valid_matching,
+            "mismatched_symbols": [s[0] for s in adaptive_approx_valid_mismatched],
         },
         "approx_adaptive": {
             "match_rate_percent": approx_adaptive_match_rate,
@@ -321,14 +264,6 @@ def compare_signals(
             "median_difference": np.median(orig_rust_diffs) if orig_rust_diffs else 0,
             "matching_symbols": orig_rust_matching,
             "mismatched_symbols": [s[0] for s in orig_rust_mismatched],
-        },
-        "enh_rust": {
-            "match_rate_percent": enh_rust_match_rate,
-            "max_difference": max(enh_rust_diffs) if enh_rust_diffs else 0,
-            "avg_difference": np.mean(enh_rust_diffs) if enh_rust_diffs else 0,
-            "median_difference": np.median(enh_rust_diffs) if enh_rust_diffs else 0,
-            "matching_symbols": enh_rust_matching,
-            "mismatched_symbols": [s[0] for s in enh_rust_mismatched],
         },
         "orig_dask": {
             "match_rate_percent": orig_dask_match_rate,
@@ -352,7 +287,6 @@ def compare_signals(
 
 def generate_comparison_table(
     original_time: float,
-    enhanced_time: float,
     rust_time: float,
     rust_rayon_time: float,
     approximate_time: float,
@@ -360,7 +294,6 @@ def generate_comparison_table(
     dask_time: float,
     rust_dask_time: float,
     original_memory: float,
-    enhanced_memory: float,
     rust_memory: float,
     rust_rayon_memory: float,
     approximate_memory: float,
@@ -373,7 +306,6 @@ def generate_comparison_table(
 
     Args:
         original_time: Execution time for original module (seconds)
-        enhanced_time: Execution time for enhanced module (seconds)
         rust_time: Execution time for Rust module (seconds)
         rust_rayon_time: Execution time for Rust Rayon module (seconds)
         approximate_time: Execution time for Approximate MAs module (seconds)
@@ -381,7 +313,6 @@ def generate_comparison_table(
         dask_time: Execution time for Dask module (seconds)
         rust_dask_time: Execution time for Rust+Dask hybrid (seconds)
         original_memory: Peak memory for original module (MB)
-        enhanced_memory: Peak memory for enhanced module (MB)
         rust_memory: Peak memory for Rust module (MB)
         rust_rayon_memory: Peak memory for Rust Rayon module (MB)
         approximate_memory: Peak memory for Approximate MAs module (MB)
@@ -393,14 +324,12 @@ def generate_comparison_table(
     Returns:
         Formatted table string
     """
-    speedup_enh = original_time / enhanced_time if enhanced_time > 0 else 0
     speedup_rust_rayon = original_time / rust_rayon_time if rust_rayon_time > 0 else 0
     speedup_approx = original_time / approximate_time if approximate_time > 0 else 0
     speedup_adaptive_approx = original_time / adaptive_approximate_time if adaptive_approximate_time > 0 else 0
     speedup_dask = original_time / dask_time if dask_time > 0 else 0
     speedup_rust_dask = original_time / rust_dask_time if rust_dask_time > 0 else 0
 
-    memory_reduction_enh = ((original_memory - enhanced_memory) / original_memory) * 100 if original_memory > 0 else 0
     memory_reduction_rust_rayon = (
         ((original_memory - rust_rayon_memory) / original_memory) * 100 if original_memory > 0 else 0
     )
@@ -420,18 +349,16 @@ def generate_comparison_table(
         [
             "Metric",
             "Original",
-            "Enhanced",
             "Rust",
             "Approx",
             "AdaptApprox",
             "Dask",
             "Rust+Dask",
         ],
-        ["─" * 12] * 7,
+        ["─" * 12] * 6,
         [
             "Execution Time",
             f"{original_time:.2f}s",
-            f"{enhanced_time:.2f}s",
             f"{rust_rayon_time:.2f}s",
             f"{approximate_time:.2f}s",
             f"{adaptive_approximate_time:.2f}s",
@@ -441,7 +368,6 @@ def generate_comparison_table(
         [
             "Speedup vs Orig",
             "1.00x",
-            f"{speedup_enh:.2f}x",
             f"{speedup_rust_rayon:.2f}x",
             f"{speedup_approx:.2f}x",
             f"{speedup_adaptive_approx:.2f}x",
@@ -451,7 +377,6 @@ def generate_comparison_table(
         [
             "Peak Memory",
             f"{original_memory:.1f} MB",
-            f"{enhanced_memory:.1f} MB",
             f"{rust_rayon_memory:.1f} MB",
             f"{approximate_memory:.1f} MB",
             f"{adaptive_approximate_memory:.1f} MB",
@@ -461,7 +386,6 @@ def generate_comparison_table(
         [
             "Memory Reduction",
             "0%",
-            f"{memory_reduction_enh:.1f}%",
             f"{memory_reduction_rust_rayon:.1f}%",
             f"{memory_reduction_approx:.1f}%",
             f"{memory_reduction_adaptive_approx:.1f}%",
@@ -474,43 +398,37 @@ def generate_comparison_table(
     signal_data = [
         [
             "Signal Comparison",
-            "vs Enhanced",
             "vs Rust",
             "vs Dask",
             "vs Rust+Dask",
         ],
-        ["─" * 20] * 4,
+        ["─" * 20] * 3,
         [
             "Match Rate",
-            f"{signal_comparison['orig_enh']['match_rate_percent']:.2f}%",
             f"{signal_comparison['orig_rust']['match_rate_percent']:.2f}%",
             f"{signal_comparison['orig_dask']['match_rate_percent']:.2f}%",
             f"{signal_comparison['orig_rust_dask']['match_rate_percent']:.2f}%",
         ],
         [
             "Matching Symbols",
-            f"{signal_comparison['orig_enh']['matching_symbols']}/{signal_comparison['total_symbols']}",
             f"{signal_comparison['orig_rust']['matching_symbols']}/{signal_comparison['total_symbols']}",
             f"{signal_comparison['orig_dask']['matching_symbols']}/{signal_comparison['total_symbols']}",
             f"{signal_comparison['orig_rust_dask']['matching_symbols']}/{signal_comparison['total_symbols']}",
         ],
         [
             "Max Difference",
-            f"{signal_comparison['orig_enh']['max_difference']:.2e}",
             f"{signal_comparison['orig_rust']['max_difference']:.2e}",
             f"{signal_comparison['orig_dask']['max_difference']:.2e}",
             f"{signal_comparison['orig_rust_dask']['max_difference']:.2e}",
         ],
         [
             "Avg Difference",
-            f"{signal_comparison['orig_enh']['avg_difference']:.2e}",
             f"{signal_comparison['orig_rust']['avg_difference']:.2e}",
             f"{signal_comparison['orig_dask']['avg_difference']:.2e}",
             f"{signal_comparison['orig_rust_dask']['avg_difference']:.2e}",
         ],
         [
             "Median Difference",
-            f"{signal_comparison['orig_enh']['median_difference']:.2e}",
             f"{signal_comparison['orig_rust']['median_difference']:.2e}",
             f"{signal_comparison['orig_dask']['median_difference']:.2e}",
             f"{signal_comparison['orig_rust_dask']['median_difference']:.2e}",
@@ -521,8 +439,8 @@ def generate_comparison_table(
     approx_data = [
         [
             "Approx Comparison",
-            "Approx (Self)",
-            "AdaptApprox (Self)",
+            "Approx (Validity)",
+            "AdaptApprox (Validity)",
             "Adapt vs Approx",
         ],
         ["─" * 20] * 4,

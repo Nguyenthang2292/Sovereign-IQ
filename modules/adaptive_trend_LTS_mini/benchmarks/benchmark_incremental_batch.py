@@ -12,7 +12,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC
 
 
 def generate_price_series(base_price: float, bars: int, volatility: float = 0.01) -> pd.Series:

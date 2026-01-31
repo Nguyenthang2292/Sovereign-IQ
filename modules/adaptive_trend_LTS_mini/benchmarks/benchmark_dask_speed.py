@@ -7,13 +7,13 @@ import numpy as np
 import pandas as pd
 
 try:
-    from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import (
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_processor import (
         process_symbols_batch_rust,
     )
-    from modules.adaptive_trend_LTS.core.compute_atc_signals.dask_batch_processor import (
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.dask_batch_processor import (
         process_symbols_batch_dask,
     )
-    from modules.adaptive_trend_LTS.core.compute_atc_signals.rust_dask_bridge import (
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.rust_dask_bridge import (
         process_symbols_rust_dask,
     )
 except ImportError as e:

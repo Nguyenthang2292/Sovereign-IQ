@@ -1,5 +1,5 @@
 """
-Rust Backend Build Checker for ATC LTS.
+Rust Backend Build Checker for ATC LTS Mini (CPU-only).
 
 Provides utilities to check if Rust backend is available and give
 user-friendly instructions for building it if not.
@@ -19,16 +19,15 @@ def check_rust_backend() -> Dict[str, Any]:
         - 'message': str - User-friendly status message
         - 'build_command': str - Command to build Rust backend if not available
     """
-    # Define build command logic relative to this file
     project_root = Path(__file__).parent.parent.parent.parent
-    rust_dir = project_root / "modules" / "adaptive_trend_LTS" / "rust_extensions"
+    rust_dir = project_root / "modules" / "adaptive_trend_LTS_mini" / "rust_extensions"
     build_cmd = (
         f'cd "{rust_dir}" && maturin develop --release\n'
         f"  OR from project root: .\\build_rust.bat (Windows) / ./build_rust.ps1"
     )
 
     try:
-        from modules.adaptive_trend_LTS.core.rust_backend import RUST_AVAILABLE
+        from modules.adaptive_trend_LTS_mini.core.rust_backend import RUST_AVAILABLE
 
         if RUST_AVAILABLE:
             return {

@@ -4,15 +4,16 @@ Tests for argument_parser.py
 Comprehensive test coverage for CLI argument parsing.
 """
 
-import pytest
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from cli.argument_parser import parse_args, ATCArguments
+from cli.argument_parser import ATCArguments, parse_args
 
 
 class TestDefaultValues:
@@ -406,6 +407,7 @@ class TestConfigImportFailure:
             # But since config IS present in this environment, it uses config values.
             # To properly test this, we would need to reload the module.
             import importlib
+
             import cli.argument_parser
 
             # Temporarily remove config from sys.modules to force ImportError

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Benchmark Log</title>
+    <style>
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            margin: 0;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            background-color: #252526;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #3e3e42;
+        }
+        strong {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <pre>============================================================
+Benchmark Execution Log - 2026-02-01 01:58:34
+============================================================
+Arguments: symbols=5, bars=100, timeframe=1h
+Clear cache: False
+============================================================
+
+<span style="color: #569cd6;">============================================================</span>
+<span style="color: #569cd6;">Benchmark: 4 versions (Original, Rust, Dask, Rust+Dask)</span>
+<span style="color: #569cd6;">============================================================</span>
+<span style="color: #569cd6;"></span>
+<span style="color: #569cd6;">============================================================</span>
+<span style="color: #569cd6;">STEP 1: Rebuilding Rust Extensions</span>
+<span style="color: #569cd6;">============================================================</span>
+<span style="color: #569cd6;">This ensures all code changes are compiled</span>
+<span style="color: #569cd6;"></span>
+<span style="color: #569cd6;"></span>
+<span style="color: #569cd6;">============================================================</span>
+<span style="color: #569cd6;">STEP 2: Running Benchmarks</span>
+<span style="color: #569cd6;">============================================================</span>
+<span style="color: #569cd6;"></span>
+<span style="color: #569cd6;">Fetching market data (will be reused for all benchmarks)...</span>
+<span style="color: #569cd6;">Performing warm-up run to eliminate JIT compilation overhead...</span>
+<span style="color: #4ec9b0;">Warm-up completed</span>
+<span style="color: #569cd6;"></span>
+<span style="color: #569cd6;">Starting actual benchmarks...</span>
+<span style="color: #569cd6;"></span>
+<span style="color: #569cd6;">Comparing signal outputs between versions...</span>
+<span style="color: #569cd6;">Result dict sizes: orig=5, rust=5, rust_rayon=5, approx=5, adaptive_approx=5, dask=5, rust_dask=5</span>
+<span style="color: #569cd6;">Sample key: BTC_USDT_0</span>
+<span style="color: #569cd6;">Sample orig result type: &lt;class 'dict'&gt;</span>
+<span style="color: #569cd6;">Sample orig result keys: ['Average_Signal', 'Trend_Pulse']</span>
+<span style="color: #569cd6;">Processed 5/5 symbols successfully</span>
+<span style="color: #4ec9b0;">Original vs Rust match rate: 100.00%</span>
+<span style="color: #4ec9b0;">Original vs Dask match rate: 100.00%</span>
+<span style="color: #4ec9b0;">Original vs Rust+Dask match rate: 100.00%</span>
+<span style="color: #4ec9b0;">Approximate validity rate: 100.00%</span>
+<span style="color: #4ec9b0;">Adaptive Approx validity rate: 100.00%</span>
+<span style="color: #4ec9b0;">AdaptApprox vs Approx match rate: 100.00%</span>
+
+============================================================
+BENCHMARK RESULTS
+============================================================
+
++------------------+--------------+--------------+--------------+---------------+--------------+-------------+
+| Metric           | Original     | Rust         | Approx       | AdaptApprox   | Dask         | Rust+Dask   |
++==================+==============+==============+==============+===============+==============+=============+
+| ────────────     | ──────────── | ──────────── | ──────────── | ────────────  | ──────────── |             |
++------------------+--------------+--------------+--------------+---------------+--------------+-------------+
+| Execution Time   | 0.10s        | 0.10s        | 0.10s        | 0.10s         | 0.10s        | 0.10s       |
++------------------+--------------+--------------+--------------+---------------+--------------+-------------+
+| Speedup vs Orig  | 1.00x        | 1.00x        | 1.00x        | 1.00x         | 1.00x        | 1.00x       |
++------------------+--------------+--------------+--------------+---------------+--------------+-------------+
+| Peak Memory      | 100.0 MB     | 100.0 MB     | 100.0 MB     | 100.0 MB      | 100.0 MB     | 100.0 MB    |
++------------------+--------------+--------------+--------------+---------------+--------------+-------------+
+| Memory Reduction | 0%           | 0.0%         | 0.0%         | 0.0%          | 0.0%         | 0.0%        |
++------------------+--------------+--------------+--------------+---------------+--------------+-------------+
+
++----------------------+----------------------+----------------------+----------------+
+| Signal Comparison    | vs Rust              | vs Dask              | vs Rust+Dask   |
++======================+======================+======================+================+
+| ──────────────────── | ──────────────────── | ──────────────────── |                |
++----------------------+----------------------+----------------------+----------------+
+| Match Rate           | 100.00%              | 100.00%              | 100.00%        |
++----------------------+----------------------+----------------------+----------------+
+| Matching Symbols     | 5/5                  | 5/5                  | 5/5            |
++----------------------+----------------------+----------------------+----------------+
+| Max Difference       | 0.00e+00             | 0.00e+00             | 0.00e+00       |
++----------------------+----------------------+----------------------+----------------+
+| Avg Difference       | 0.00e+00             | 0.00e+00             | 0.00e+00       |
++----------------------+----------------------+----------------------+----------------+
+| Median Difference    | 0.00e+00             | 0.00e+00             | 0.00e+00       |
++----------------------+----------------------+----------------------+----------------+
+
++----------------------+----------------------+--------------------------+----------------------+
+| Approx Comparison    | Approx (Validity)    | AdaptApprox (Validity)   | Adapt vs Approx      |
++======================+======================+==========================+======================+
+| ──────────────────── | ──────────────────── | ────────────────────     | ──────────────────── |
++----------------------+----------------------+--------------------------+----------------------+
+| Match Rate           | 100.00%              | 100.00%                  | 100.00%              |
++----------------------+----------------------+--------------------------+----------------------+
+| Matching Symbols     | 5/5                  | 5/5                      | 5/5                  |
++----------------------+----------------------+--------------------------+----------------------+
+| Max Difference       | 0.00e+00             | 0.00e+00                 | 0.00e+00             |
++----------------------+----------------------+--------------------------+----------------------+
+| Avg Difference       | 0.00e+00             | 0.00e+00                 | 0.00e+00             |
++----------------------+----------------------+--------------------------+----------------------+
+| Median Difference    | 0.00e+00             | 0.00e+00                 | 0.00e+00             |
++----------------------+----------------------+--------------------------+----------------------+
+
+<span style="color: #4ec9b0;">Results saved to C:\Users\Admin\Desktop\i-ching\crypto-probability\modules\adaptive_trend_LTS_mini\benchmarks\benchmark_comparison\results\benchmark_results.txt</span>
+<span style="color: #4ec9b0;">HTML results saved to C:\Users\Admin\Desktop\i-ching\crypto-probability\modules\adaptive_trend_LTS_mini\benchmarks\benchmark_comparison\results\benchmark_results.html</span>
+
+============================================================
+Benchmark completed at 2026-02-01 01:58:35
+============================================================
+</pre>
+</body>
+</html>

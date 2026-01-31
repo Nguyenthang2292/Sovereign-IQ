@@ -10,11 +10,11 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_moving_averages.approximate_mas import (
+from modules.adaptive_trend_LTS_mini.core.compute_moving_averages.approximate_mas import (
     fast_ema_approx,
     fast_hma_approx,
 )
-from modules.adaptive_trend_LTS.core.compute_moving_averages.batch_approximate_mas import (
+from modules.adaptive_trend_LTS_mini.core.compute_moving_averages.batch_approximate_mas import (
     BatchApproximateMAScanner,
 )
 

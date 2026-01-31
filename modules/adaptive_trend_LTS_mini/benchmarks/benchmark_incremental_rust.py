@@ -11,8 +11,8 @@ from typing import Any, Dict
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC
-from modules.adaptive_trend_LTS.core.incremental_backend import check_rust_available
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC
+from modules.adaptive_trend_LTS_mini.core.incremental_backend import check_rust_available
 
 
 def create_sample_config(use_rust: bool = True) -> Dict[str, Any]:

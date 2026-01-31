@@ -11,7 +11,7 @@ import sys
 import warnings
 from argparse import Namespace
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TypedDict
 
 import pandas as pd
 
@@ -35,17 +35,54 @@ from config import (
     DEFAULT_QUOTE,
     DEFAULT_SYMBOL,
 )
-from modules.adaptive_trend_LTS.cli import (
+
+DEFAULT_EXECUTION_MODE = "threadpool"
+
+
+class ATCParams(TypedDict, total=False):
+    """Type definition for ATC parameters dictionary.
+
+    This provides type safety for the parameters passed to ATC analysis functions.
+    All fields are optional (total=False) to support flexible parameter extraction.
+    """
+    limit: int
+    ema_len: int
+    hma_len: int
+    wma_len: int
+    dema_len: int
+    lsma_len: int
+    kama_len: int
+    robustness: str
+    lambda_param: float
+    decay: float
+    cutout: int
+    long_threshold: float
+    short_threshold: float
+    # Performance & Backend
+    use_rust_backend: bool
+    batch_processing: bool
+    fast_mode: bool
+    precision: str
+    use_cache: bool
+    # Approximate Scanning
+    use_approximate: bool
+    use_adaptive_approximate: bool
+    approximate_volatility_window: int
+    approximate_volatility_factor: float
+    approximate_threshold: float
+
+
+from modules.adaptive_trend_LTS.core.analyzer import analyze_symbol
+from modules.adaptive_trend_LTS.core.scanner import scan_all_symbols
+from modules.adaptive_trend_LTS.utils.config import create_atc_config_from_dict
+from modules.adaptive_trend_LTS_mini.cli import (
     display_scan_results,
     list_futures_symbols,
     parse_args,
     prompt_interactive_mode,
 )
-from modules.adaptive_trend_LTS.cli.display import display_atc_signals
-from modules.adaptive_trend_LTS.cli.interactive_prompts import UserExitRequested
-from modules.adaptive_trend_LTS.core.analyzer import analyze_symbol
-from modules.adaptive_trend_LTS.core.scanner import scan_all_symbols
-from modules.adaptive_trend_LTS.utils.config import create_atc_config_from_dict
+from modules.adaptive_trend_LTS_mini.cli.display import display_atc_signals
+from modules.adaptive_trend_LTS_mini.cli.interactive_prompts import UserExitRequested
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (
@@ -94,37 +131,32 @@ class ATCAnalyzer:
         Returns:
             tuple: (mode, selected_timeframe)
         """
-        self.mode = "manual"
-        self.selected_timeframe = self.args.timeframe
-
         if self.args.auto:
             self.mode = "auto"
         elif not self.args.no_menu:
             try:
                 menu_result = prompt_interactive_mode(default_timeframe=self.args.timeframe)
-                self.mode = menu_result.get("mode", "manual")
-                # Use timeframe from menu if selected
-                if "timeframe" in menu_result:
-                    self.selected_timeframe = menu_result["timeframe"]
 
-                # If user only selected timeframe, show menu again
-                if self.mode is None:
-                    try:
-                        menu_result = prompt_interactive_mode(default_timeframe=self.selected_timeframe)
-                        self.mode = menu_result.get("mode", "manual")
-                        if "timeframe" in menu_result:
-                            self.selected_timeframe = menu_result["timeframe"]
-                    except UserExitRequested:
-                        log_warn("Exiting by user request.")
-                        sys.exit(0)
+                # If user only selected timeframe, keep default manual mode
+                if "timeframe" in menu_result and "mode" not in menu_result:
+                    self.selected_timeframe = menu_result["timeframe"]
+                    self.mode = "manual"
+                else:
+                    self.mode = menu_result.get("mode", "manual")
+                    if "timeframe" in menu_result:
+                        self.selected_timeframe = menu_result["timeframe"]
             except UserExitRequested:
                 log_warn("Exiting by user request.")
                 sys.exit(0)
 
         return self.mode, self.selected_timeframe
 
-    def get_atc_params(self) -> dict:
-        """Extract and cache ATC parameters from arguments."""
+    def get_atc_params(self) -> ATCParams:
+        """Extract and cache ATC parameters from arguments.
+
+        Returns:
+            ATCParams: Typed dictionary containing ATC configuration parameters
+        """
         if self._atc_params is None:
             atc_param_keys = [
                 "limit",
@@ -156,15 +188,16 @@ class ATCAnalyzer:
             self._atc_params = extract_dict_from_namespace(self.args, atc_param_keys)
         return self._atc_params
 
-    def display_auto_mode_config(self) -> None:
-        """Display configuration for auto mode."""
+    def _display_config_header(self, title: str, symbol: Optional[str] = None) -> None:
+        """Display common configuration header."""
         if log_analysis:
             log_analysis("=" * 80)
-            log_analysis("ADAPTIVE TREND CLASSIFICATION (ATC) - AUTO SCAN MODE")
+            log_analysis(title)
             log_analysis("=" * 80)
             log_analysis("Configuration:")
         if log_data:
-            log_data("  Mode: AUTO (scan all symbols)")
+            if symbol:
+                log_data(f"  Symbol: {symbol}")
             log_data(f"  Timeframe: {self.selected_timeframe}")
             log_data(f"  Limit: {self.args.limit} candles")
             log_data(f"  Robustness: {self.args.robustness}")
@@ -174,6 +207,12 @@ class ATCAnalyzer:
                 f"LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
             )
             log_data(f"  Lambda: {self.args.lambda_param}, Decay: {self.args.decay}, Cutout: {self.args.cutout}")
+
+    def display_auto_mode_config(self) -> None:
+        """Display configuration for auto mode."""
+        self._display_config_header("ADAPTIVE TREND CLASSIFICATION (ATC) - AUTO SCAN MODE")
+        if log_data:
+            log_data("  Mode: AUTO (scan all symbols)")
             log_data(f"  Min Signal: {self.args.min_signal}")
             if self.args.max_symbols:
                 log_data(f"  Max Symbols: {self.args.max_symbols}")
@@ -205,7 +244,7 @@ class ATCAnalyzer:
             max_symbols=self.args.max_symbols,
             min_signal=self.args.min_signal,
             batch_size=getattr(self.args, "batch_size", atc_config.batch_size),
-            execution_mode=getattr(self.args, "execution_mode", "threadpool"),
+            execution_mode=getattr(self.args, "execution_mode", DEFAULT_EXECUTION_MODE),
             npartitions=getattr(self.args, "npartitions", None),
             symbols=symbols,
         )
@@ -241,26 +280,17 @@ class ATCAnalyzer:
         if not symbol_input:
             symbol_input = DEFAULT_SYMBOL
 
+        # Security validation: Prevent injection
+        # Allow alphanumeric, slash (for pair), and hyphen
+        if not all(c.isalnum() or c in "/-" for c in symbol_input):
+            log_warn(f"Invalid characters in symbol input: {symbol_input}. Using default.")
+            symbol_input = DEFAULT_SYMBOL
+
         return normalize_symbol(symbol_input, quote)
 
     def display_manual_mode_config(self, symbol: str) -> None:
         """Display configuration for manual mode."""
-        if log_analysis:
-            log_analysis("=" * 80)
-            log_analysis("ADAPTIVE TREND CLASSIFICATION (ATC) ANALYSIS")
-            log_analysis("=" * 80)
-            log_analysis("Configuration:")
-        if log_data:
-            log_data(f"  Symbol: {symbol}")
-            log_data(f"  Timeframe: {self.selected_timeframe}")
-            log_data(f"  Limit: {self.args.limit} candles")
-            log_data(f"  Robustness: {self.args.robustness}")
-            log_data(
-                f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, "
-                f"WMA={self.args.wma_len}, DEMA={self.args.dema_len}, "
-                f"LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
-            )
-            log_data(f"  Lambda: {self.args.lambda_param}, Decay: {self.args.decay}, Cutout: {self.args.cutout}")
+        self._display_config_header("ADAPTIVE TREND CLASSIFICATION (ATC) ANALYSIS", symbol)
 
     def run_manual_mode(self) -> None:
         """Run manual mode: analyze specific symbol."""
@@ -349,17 +379,16 @@ class ATCAnalyzer:
             print(color_text("\nExiting program by user request.", Fore.YELLOW))
 
 
-def initialize_components() -> Tuple[ExchangeManager, DataFetcher]:
+def initialize_components() -> DataFetcher:
     """
-    Initialize ExchangeManager and DataFetcher components.
+    Initialize and return DataFetcher (contains ExchangeManager).
 
     Returns:
-        Tuple of (ExchangeManager, DataFetcher) instances
+        DataFetcher instance
     """
     log_progress("Initializing components...")
     exchange_manager = ExchangeManager()
-    data_fetcher = DataFetcher(exchange_manager)
-    return exchange_manager, data_fetcher
+    return DataFetcher(exchange_manager)
 
 
 def main() -> None:
@@ -377,12 +406,12 @@ def main() -> None:
 
     # List symbols if requested
     if args.list_symbols:
-        _, data_fetcher = initialize_components()
+        data_fetcher = initialize_components()
         list_futures_symbols(data_fetcher)
         return
 
     # Initialize components
-    _, data_fetcher = initialize_components()
+    data_fetcher = initialize_components()
 
     # Create analyzer instance
     analyzer = ATCAnalyzer(args, data_fetcher)

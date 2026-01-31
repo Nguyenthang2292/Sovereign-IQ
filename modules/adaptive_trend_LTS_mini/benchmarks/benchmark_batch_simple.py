@@ -5,8 +5,8 @@ import time
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_incremental_atc import BatchIncrementalATC
-from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_atc import IncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_incremental_atc import BatchIncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_atc import IncrementalATC
 
 
 def generate_prices(base=1000, bars=100):

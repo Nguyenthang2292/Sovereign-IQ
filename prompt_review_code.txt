@@ -1,2 +1,3 @@
 Tạo giả thuyết và kiểm tra toàn diện modul modules\xgboost_LTS xem có lỗi logic và lỗi tiềm ẩn nào không?
 Tạo giả thuyết và kiểm tra toàn diện modules\adaptive_trend_LTS xem có lỗi logic và lỗi tiềm ẩn nào không?
+To check that tasks have been completed, mark them as "done" at the beginning of each task.

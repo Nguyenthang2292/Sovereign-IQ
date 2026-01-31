@@ -3,11 +3,11 @@ import time
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_cuda
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
 
 
 def test_true_batch():
-    print("Testing True Batch CUDA Processing...")
+    print("Testing True Batch CPU Processing (Rust)...")
 
     # Create fake data that actually moves
     symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
@@ -27,11 +27,10 @@ def test_true_batch():
         "De": 0.03,
         "long_threshold": 0.05,
         "short_threshold": -0.05,
-        "use_cuda": True,
     }
 
     start_time = time.time()
-    results = process_symbols_batch_cuda(data, config)
+    results = process_symbols_batch_rust(data, config)
     end_time = time.time()
 
     print(f"Batch processing took {end_time - start_time:.4f}s")

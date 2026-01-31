@@ -10,14 +10,14 @@ from typing import Any, Callable, Dict
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.codegen.specialization import (
+from modules.adaptive_trend_LTS_mini.core.codegen.specialization import (
     compute_atc_specialized,
     is_config_specializable,
 )
-from modules.adaptive_trend_LTS.core.compute_atc_signals.compute_atc_signals import (
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.compute_atc_signals import (
     compute_atc_signals,
 )
-from modules.adaptive_trend_LTS.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
 
 
 def generate_test_data(n: int = 1000) -> pd.Series:

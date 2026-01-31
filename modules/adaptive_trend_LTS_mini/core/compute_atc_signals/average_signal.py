@@ -6,11 +6,10 @@ weighting Layer 1 signals with Layer 2 equity curves.
 
 from __future__ import annotations
 
-from typing import Dict, cast
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
-
 
 try:
     from modules.common.utils import log_debug, log_warn
@@ -26,7 +25,7 @@ except ImportError:
 def calculate_average_signal(
     layer1_signals: Dict[str, pd.Series],
     layer2_equities: Dict[str, pd.Series],
-    ma_configs: list,
+    ma_configs: List[Tuple[str, int, float]],
     prices: pd.Series,
     long_threshold: float,
     short_threshold: float,
@@ -51,6 +50,7 @@ def calculate_average_signal(
             Must be >= 0 and < len(prices). If cutout >= len(prices), a warning is issued
             and the entire series is returned as NaN.
         strategy_mode: If True, shift signal by 1 bar (default: False).
+        precision: Data type precision for calculations ("float32" or "float64", default: "float64").
 
     Returns:
         Series containing the Average_Signal. Cutout period contains NaN values.
@@ -69,7 +69,6 @@ def calculate_average_signal(
     log_debug("Computing Average_Signal (vectorized)...")
 
     index = prices.index
-    n_bars = len(index)
 
     # Initialize accumulators (Task 8.5: Vectorized version)
     dtype = np.float32 if precision == "float32" else np.float64
@@ -103,17 +102,6 @@ def calculate_average_signal(
     # Shape: (n_mas, n_bars)
     S_np = np.stack(s_list)
     E_np = np.stack(e_list)
-
-    # Initialize result array with placeholder
-    avg_signal_array: np.ndarray = np.array([])
-
-    # Check for NaN values before calculation
-    if np.any(np.isnan(S_np)):
-        nan_count = np.sum(np.isnan(S_np))
-        log_warn(f"Layer 1 signals contain {nan_count} NaN values before calculation")
-    if np.any(np.isnan(E_np)):
-        nan_count = np.sum(np.isnan(E_np))
-        log_warn(f"Layer 2 equities contain {nan_count} NaN values before calculation")
 
     # CPU path for calculating average signal
     # NaN detection and handling
@@ -153,9 +141,6 @@ def calculate_average_signal(
     # Calculate final average (no special error handling needed now)
     avg_signal_array = nom_array / den_array
 
-    # avg_signal_array is guaranteed to be assigned at this point
-    assert avg_signal_array is not None, "avg_signal_array should be assigned by CPU path"
-
     # Apply cutout to average signal array
     # Use NaN (not 0.0) for cutout period to be consistent with equity calculations
     # and to indicate "no valid data" rather than "neutral signal"
@@ -166,29 +151,39 @@ def calculate_average_signal(
     result_series = pd.Series(avg_signal_array, index=index, dtype=dtype)
 
     if strategy_mode:
-        # Strategy mode: Delay signal by 1 bar to avoid repainting (Pine Script behavior)
-        # NOTE: This is the ONLY shift applied to the final output signal.
-        # Any shifts in Layer 1/2 equity calculations are INTERNAL only and do not
-        # affect the signals passed to this function. There is NO "double shift" bug.
-        # PRESERVE NaN VALUES: Cutout period should remain NaN (not 0.0)
-
-        # FIX: Do not fillna(0) for indices where result_series was NaN (data missing)
-        # only fillna(0) for the very first bar created by shift() if it's not in cutout
-        shifted = result_series.shift(1)
-
-        # Identify where we had valid data but shift() created a NaN (the first valid bar)
-        valid_mask = result_series.notna()
-        shifted_nan_mask = shifted.isna()
-
-        # Bars that were valid but now NaN after shift and NOT in cutout
-        to_fill_mask = valid_mask & shifted_nan_mask
-        if cutout > 0:
-            # exclude cutout range from filling
-            cutout_indices = index[:cutout]
-            to_fill_mask.loc[cutout_indices] = False
-
-        result_series = shifted.copy()
-        result_series.loc[to_fill_mask] = 0.0
+        result_series = _apply_strategy_shift(result_series, cutout, index)
 
     log_debug("Completed Average_Signal")
-    return cast(pd.Series, result_series)
+    return result_series
+
+
+def _apply_strategy_shift(series: pd.Series, cutout: int, index: pd.Index) -> pd.Series:
+    """Apply 1-bar shift for strategy mode while preserving cutout NaN values.
+
+    Args:
+        series: The signal series to shift.
+        cutout: Number of bars to skip.
+        index: Original index for reference.
+
+    Returns:
+        Shifted series with proper NaN handling.
+    """
+    # Strategy mode: Delay signal by 1 bar to avoid repainting (Pine Script behavior)
+    # NOTE: This is the ONLY shift applied to the final output signal.
+    # PRESERVE NaN VALUES: Cutout period should remain NaN (not 0.0)
+
+    # Identify where we had valid data but shift() created a NaN (the first valid bar)
+    shifted = series.shift(1)
+    valid_mask = series.notna()
+    shifted_nan_mask = shifted.isna()
+
+    # Bars that were valid but now NaN after shift and NOT in cutout
+    to_fill_mask = valid_mask & shifted_nan_mask
+    if cutout > 0:
+        # exclude cutout range from filling
+        cutout_indices = index[:cutout]
+        to_fill_mask.loc[cutout_indices] = False
+
+    result_series = shifted.copy()
+    result_series.loc[to_fill_mask] = 0.0
+    return result_series

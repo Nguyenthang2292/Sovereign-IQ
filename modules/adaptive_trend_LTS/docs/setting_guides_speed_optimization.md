@@ -327,7 +327,7 @@ npartitions: 20                 # Adjust based on CPU cores (typically 2x cores)
 
 ```python
 from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.core.data_fetcher import DataFetcher
 import pandas as pd
 
@@ -410,7 +410,7 @@ use_adaptive_approximate: false # Or use this for volatility-aware
 **Python Implementation**:
 
 ```python
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
 from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
 from modules.common.core.data_fetcher import DataFetcher
@@ -747,7 +747,7 @@ print(f"Signal after restart: {next_signal}")
 For **large-scale scanning** (1000+ symbols) with filtering:
 
 ```python
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
 from modules.common.core.data_fetcher import DataFetcher
 

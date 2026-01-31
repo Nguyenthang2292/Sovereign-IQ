@@ -10,7 +10,7 @@ Dask integration enables processing of unlimited-sized datasets by breaking work
 
 - **Unlimited dataset size**: Process 10,000+ symbols without RAM constraints
 - **Memory efficiency**: 80-90% memory reduction through chunked processing
-- **Flexible execution**: Choose between CPU-only, GPU-accelerated, or Python fallback
+- **Flexible execution**: Choose between CPU-only or Python fallback
 - **Backward compatible**: Opt-in via `execution_mode` parameter
 
 ## Installation
@@ -116,7 +116,6 @@ results = process_symbols_batch_dask(
         "short_threshold": -0.1,
     },
     use_rust=True,  # Use Rust extensions
-    use_cuda=False,  # CUDA mode (requires GPU)
     npartitions=10,  # Number of Dask partitions
     partition_size=5,  # Symbols per partition
 )
@@ -142,15 +141,6 @@ results = process_symbols_rust_dask(
     config=config_dict,
     npartitions=None,  # Auto-determine
     partition_size=50,  # Symbols per partition
-)
-
-# Use CUDA backend for GPU acceleration
-results = process_symbols_rust_dask(
-    symbols_data=symbols_data,
-    config=config_dict,
-    npartitions=10,
-    partition_size=50,
-    use_cuda=True,  # Use GPU backend
 )
 
 # Python fallback when Rust unavailable
@@ -228,6 +218,7 @@ results = process_symbols_rust_dask(
 ```
 
 **Guidelines:**
+
 - **10-50 symbols per partition**: Good for most cases
 - **< 10 symbols**: Too many partitions, high overhead
 - **> 100 symbols**: Too few partitions, limited parallelism
@@ -239,7 +230,6 @@ Choose backend based on use case:
 | Backend | Speed | Memory | Use Case |
 |---------|-------|---------|----------|
 | Rust CPU | Fast | Low | General purpose, CPU-bound |
-| Rust CUDA | Very Fast | Low | GPU-accelerated, large datasets |
 | Python | Slow | Medium | Fallback, compatibility |
 
 ```python
@@ -248,15 +238,6 @@ results = process_symbols_batch_dask(
     symbols_data=symbols_data,
     config=config_dict,
     use_rust=True,
-    use_cuda=False,
-)
-
-# Best for GPU-accelerated workloads
-results = process_symbols_batch_dask(
-    symbols_data=symbols_data,
-    config=config_dict,
-    use_rust=False,
-    use_cuda=True,
 )
 
 # Fallback for compatibility
@@ -264,7 +245,6 @@ results = process_symbols_batch_dask(
     symbols_data=symbols_data,
     config=config_dict,
     use_rust=True,
-    use_cuda=False,
     use_fallback=True,
 )
 ```
@@ -328,7 +308,7 @@ results = process_symbols_batch_dask(
 
 ### Issue: Processing Too Slow
 
-**Solution:** Increase partitions or use Rust/CUDA
+**Solution:** Increase partitions or use Rust
 
 ```python
 # Increase parallelism
@@ -343,15 +323,6 @@ results = process_symbols_batch_dask(
     symbols_data=symbols_data,
     config=config_dict,
     use_rust=True,
-    use_cuda=False,
-)
-
-# Use CUDA backend (GPU)
-results = process_symbols_batch_dask(
-    symbols_data=symbols_data,
-    config=config_dict,
-    use_rust=False,
-    use_cuda=True,
 )
 ```
 
@@ -474,7 +445,6 @@ def process_symbols_batch_dask(
     symbols_data: Dict[str, pd.Series],
     config: Dict[str, Any],
     use_rust: bool = True,
-    use_cuda: bool = False,
     use_fallback: bool = False,
     npartitions: Optional[int] = None,
     partition_size: int = 50,
@@ -486,7 +456,6 @@ def process_symbols_batch_dask(
         symbols_data: Dict of symbol -> price Series
         config: ATC configuration dictionary
         use_rust: Use Rust extensions
-        use_cuda: Use CUDA backend
         use_fallback: Fallback to Python on errors
         npartitions: Number of Dask partitions
         partition_size: Symbols per partition
@@ -504,7 +473,6 @@ def process_symbols_rust_dask(
     config: Dict[str, Any],
     npartitions: Optional[int] = None,
     partition_size: int = 50,
-    use_cuda: bool = False,
     use_fallback: bool = False,
 ) -> Dict[str, Dict[str, pd.Series]]:
     """
@@ -515,7 +483,6 @@ def process_symbols_rust_dask(
         config: ATC configuration dictionary
         npartitions: Number of Dask partitions
         partition_size: Symbols per partition
-        use_cuda: Use CUDA backend
         use_fallback: Fallback to Python on errors
         
     Returns:
@@ -528,4 +495,3 @@ def process_symbols_rust_dask(
 - [phase5_task.md](phase5_task.md) - Phase 5 implementation details
 - [README.md](../../../README.md) - Main project README
 - [../README.md](../README.md) - Adaptive Trend LTS module README
-

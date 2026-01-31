@@ -591,7 +591,7 @@ cargo test
   import time
   import numpy as np
   from atc_rust import calculate_equity_rust
-  from modules.adaptive_trend_enhance.core.process_layer1.weighted_signal import calculate_equity
+  from legacy.adaptive_trend_enhance.core.process_layer1.weighted_signal import calculate_equity
 
   def benchmark_equity():
       # Setup test data

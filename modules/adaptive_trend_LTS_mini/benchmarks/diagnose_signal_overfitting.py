@@ -18,8 +18,8 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
-from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.data import fetch_symbols_data
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.benchmarks.benchmark_comparison.data import fetch_symbols_data
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 from modules.common.utils import log_error, log_info, log_success, log_warn
 
 

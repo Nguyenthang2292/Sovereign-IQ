@@ -173,9 +173,12 @@ atc_core:
     # RECOMMENDED: true for backtesting, false for live trading
 
 # Switch between ATC versions:
-# - true: use 'modules/adaptive_trend_LTS' (High Performance - Rust/CUDA/Dask)
-# - false: use 'modules/adaptive_trend' (Standard/Legacy)
-use_atc_performance: true
+# Priority (checked in order):
+# 1. If use_atc_performance_mini: true → use 'modules/adaptive_trend_LTS_mini' (CPU-Only - Rust/Rayon)
+# 2. Else if use_atc_performance: true → use 'modules/adaptive_trend_LTS' (Full - Rust/CUDA/Dask)
+# 3. Else → use 'modules/adaptive_trend' (Standard/Legacy)
+use_atc_performance: false # High Performance - Full version with GPU/CUDA support
+use_atc_performance_mini: true # CPU-Only - Mini version without GPU dependencies
 
 atc_performance:
   # Preset 3: Medium Batch Scanning (100-1000 symbols) - GPU Accelerated

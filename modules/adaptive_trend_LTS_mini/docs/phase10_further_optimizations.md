@@ -1,8 +1,10 @@
 # Phase 10: Further Optimization Suggestions
 
+> ⚠️ **CPU-ONLY VERSION NOTE**: This document contains references to CUDA/GPU optimizations which are **NOT APPLICABLE** to `adaptive_trend_LTS_mini`. GPU-related sections have been marked with `[NOT APPLICABLE TO LTS_mini - CPU ONLY]`.
+
 **Date**: 2026-01-29
 **Status**: Phase 9 Complete, Recommendations for Future Work
-**Current Achievement**: Up to **1000x+ speedup**, all 9 phases complete
+**Current Achievement**: Up to **1000x+ speedup**, all 9 phases complete (GPU features not in LTS_mini)
 
 ---
 
@@ -10,18 +12,18 @@
 
 The `adaptive_trend_LTS` module has achieved exceptional optimization results through **9 completed phases**:
 
-| Phase | Focus | Speedup |
-|-------|-------|---------|
-| 2 | Core & Advanced | 8-11x |
-| 3 | Rust Extensions | 2-3.5x per component |
-| 4 | CUDA Kernels | **83.53x** total |
-| 5 | Dask Integration | Unlimited size |
-| 6 | Algorithmic (Incremental + Approximate MAs) | 10-100x |
-| 7 | Memory Optimizations | 90% reduction |
-| 8 | Profiling Infrastructure | N/A |
-| 8.1 | Cache & Parallelism | 2-5x batch |
-| 8.2 | JIT Specialization | 10-20% EMA-only |
-| 9 | Advanced Incremental (O(1) MA, Rust, MTF, Batch, Serialization) | 2-5x O(1), 2-3x Rust, 1.5-2x batch |
+| Phase | Focus | Speedup | LTS_mini Status |
+|-------|-------|---------|-----------------|
+| 2 | Core & Advanced | 8-11x | ✅ Applicable |
+| 3 | Rust Extensions | 2-3.5x per component | ✅ Applicable |
+| 4 | CUDA Kernels | **83.53x** total | ❌ **NOT in LTS_mini (CPU-only)** |
+| 5 | Dask Integration | Unlimited size | ✅ Applicable |
+| 6 | Algorithmic (Incremental + Approximate MAs) | 10-100x | ✅ Applicable |
+| 7 | Memory Optimizations | 90% reduction | ✅ Applicable |
+| 8 | Profiling Infrastructure | N/A | ✅ Applicable |
+| 8.1 | Cache & Parallelism | 2-5x batch | ✅ Applicable |
+| 8.2 | JIT Specialization | 10-20% EMA-only | ✅ Applicable |
+| 9 | Advanced Incremental (O(1) MA, Rust, MTF, Batch, Serialization) | 2-5x O(1), 2-3x Rust, 1.5-2x batch | ✅ Applicable |
 
 **All high and medium priority optimizations are now complete.** This document outlines low-effort refinements and specialized improvements for edge cases.
 
@@ -317,6 +319,10 @@ python -m modules.adaptive_trend_LTS.tests.test_websocket_incremental --ticks-pe
 
 ### 5. GPU Memory Pinning for Repeated Batch Scans
 
+> ❌ **[NOT APPLICABLE TO LTS_mini - CPU ONLY]**
+>
+> This optimization is for GPU/CUDA batch processing which is not available in the CPU-only LTS_mini version.
+
 **Location**: `modules/adaptive_trend_LTS/core/gpu_backend/batch_processor.py`
 
 **Current State**: GPU batch processing uses standard CuPy arrays (pageable memory).
@@ -457,6 +463,10 @@ python -m modules.adaptive_trend_LTS.tests.test_lazy_mtf --ticks-per-minute 60 -
 ## 🔴 High-Effort, Specialized (Optional)
 
 ### 7. FPGA/ASIC Acceleration (For HFT Use Cases)
+
+> ❌ **[NOT APPLICABLE TO LTS_mini - CPU ONLY]**
+>
+> This is a specialized hardware optimization not relevant to the CPU-only LTS_mini version.
 
 **Status**: ⚠️ **SPECIALIZED** - Only for institutional HFT deployments
 
@@ -746,35 +756,35 @@ pytest modules/adaptive_trend_LTS/tests/test_performance_regression.py -v --benc
 
 ## 📊 Optimization Priority Summary
 
-| # | Suggestion | Priority | Expected Gain | Effort | ROI |
-|---|-----------|----------|---------------|--------|-----|
-| 1 | SIMD intrinsics in Rust | Low | 10-20% | Low | Very High |
-| 2 | Lock-free state updates | Low | 15-25% | Medium | High |
-| 3 | Compact serialization (FlatBuffers) | Low | 50-80% faster deser. | Low | Very High |
-| 4 | WebSocket-optimized pipeline | Medium | 20-30% | Medium | High |
-| 5 | GPU pinned memory | Medium | 10-15% | Low | Very High |
-| 6 | Lazy MTF computation | Medium | 30-50% | Low | Very High |
-| 7 | FPGA/ASIC acceleration | High | 1-10μs latency | Very High | Low (HFT only) |
-| 8 | Custom allocator (mimalloc) | High | 5-10% | Very Low | Very High |
-| 9 | Profile-Guided Optimization (PGO) | High | 5-10% | Low | Very High |
-| 10 | Benchmark regression suite | High | Early detection | Medium | Very High |
+| # | Suggestion | Priority | Expected Gain | Effort | ROI | LTS_mini Status |
+|---|-----------|----------|---------------|--------|-----|----------------|
+| 1 | SIMD intrinsics in Rust | Low | 10-20% | Low | Very High | ✅ Applicable |
+| 2 | Lock-free state updates | Low | 15-25% | Medium | High | ✅ Applicable |
+| 3 | Compact serialization (FlatBuffers) | Low | 50-80% faster deser. | Low | Very High | ✅ Applicable |
+| 4 | WebSocket-optimized pipeline | Medium | 20-30% | Medium | High | ✅ Applicable |
+| 5 | GPU pinned memory | Medium | 10-15% | Low | Very High | ❌ **NOT Applicable (CPU-only)** |
+| 6 | Lazy MTF computation | Medium | 30-50% | Low | Very High | ✅ Applicable |
+| 7 | FPGA/ASIC acceleration | High | 1-10μs latency | Very High | Low (HFT only) | ❌ **NOT Applicable (CPU-only)** |
+| 8 | Custom allocator (mimalloc) | High | 5-10% | Very Low | Very High | ✅ Applicable |
+| 9 | Profile-Guided Optimization (PGO) | High | 5-10% | Low | Very High | ✅ Applicable |
+| 10 | Benchmark regression suite | High | Early detection | Medium | Very High | ✅ Applicable |
 
 ---
 
 ## 🎯 Recommended Implementation Order
 
-For maximum ROI with minimal effort:
+For maximum ROI with minimal effort (CPU-only LTS_mini version):
 
 1. **PGO for Rust build** (Suggestion #9) - Trivial setup, 5-10% gain
 2. **Custom allocator** (Suggestion #8) - One-line change, 5-10% gain
 3. **Compact serialization** (Suggestion #3) - Optional feature, 50-80% faster restarts
 4. **SIMD intrinsics** (Suggestion #1) - Targeted optimization, 10-20% throughput
 5. **Lazy MTF computation** (Suggestion #6) - Simple caching, 30-50% CPU reduction
-6. **GPU pinned memory** (Suggestion #5) - Minor change, 10-15% for repeated scans
+6. ~~GPU pinned memory (Suggestion #5)~~ - ❌ **NOT in LTS_mini (CPU-only)**
 7. **Benchmark regression suite** (Suggestion #10) - Infrastructure investment, prevents future regressions
 8. **Lock-free updates** (Suggestion #2) - For multi-symbol scaling (10,000+)
 9. **WebSocket pipeline** (Suggestion #4) - Specialized for live trading
-10. **FPGA acceleration** (Suggestion #7) - Only if HFT <100μs latency required
+10. ~~FPGA acceleration (Suggestion #7)~~ - ❌ **NOT in LTS_mini (CPU-only)**
 
 ---
 

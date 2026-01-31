@@ -1,11 +1,13 @@
-# Optimization Flow Diagram: adaptive_trend_LTS
+# Optimization Flow Diagram: adaptive_trend_LTS_mini
+
+> ⚠️ **CPU-ONLY VERSION**: This document is for `adaptive_trend_LTS_mini`.
 
 ## Overview
 
-This document provides visual representations of how the `adaptive_trend_LTS` module optimizes the ATC calculation pipeline through Rust backend integration, CUDA GPU acceleration, approximate moving averages, memory management, and intelligent caching.
+This document provides visual representations of how the `adaptive_trend_LTS_mini` module optimizes the ATC calculation pipeline through Rust backend integration (CPU-only), approximate moving averages, memory management, and intelligent caching.
 
-**Last Updated**: 2026-01-29
-**Status**: ✅ Verified against actual implementation (Phase 2-8.2 completed)
+**Last Updated**: 2026-02-01
+**Status**: ✅ Verified for LTS_mini (CPU-only version)
 
 ---
 
@@ -25,11 +27,9 @@ graph TD
     E2 --> F
     E3 --> F
 
-    F -->|use_rust=True, use_cuda=True| G1[Rust CUDA Backend]
-    F -->|use_rust=True, use_cuda=False| G2[Rust CPU Backend]
+    F -->|use_rust=True| G2[Rust CPU Backend]
     F -->|use_rust=False| G3[Python/Numba Fallback]
 
-    G1 -->|With fallback| G2
     G2 --> H[Layer 1: Signal Generation]
     G3 --> H
 
@@ -41,7 +41,7 @@ graph TD
     K --> L
 
     L --> M{Parallel L2?}
-    M -->|Yes| N[ThreadPool: 6 equities + CUDA support]
+    M -->|Yes| N[ThreadPool: 6 equities - CPU]
     M -->|No| O[Sequential equities]
 
     N --> P[calculate_average_signal]
@@ -52,7 +52,7 @@ graph TD
     style B fill:#4CAF50
     style D fill:#9C27B0
     style F fill:#FF9800
-    style G1 fill:#2196F3
+    style G2 fill:#4CAF50
     style I fill:#FF9800
     style M fill:#FF9800
     style Q fill:#4CAF50
@@ -60,23 +60,16 @@ graph TD
 
 ---
 
-## 2. Backend Priority & Fallback Chain
+## 2. Backend Priority & Fallback Chain (CPU-Only)
 
-### Rust CUDA → Rust CPU → Python/Numba Fallback
+### Rust CPU → Python/Numba Fallback
 
 ```mermaid
 graph LR
     A[MA Calculation Request] --> B{use_rust=True?}
 
     B -->|No| Z[Python/Numba Fallback]
-    B -->|Yes| C{use_cuda=True?}
-
-    C -->|No| Y[Rust CPU Backend]
-    C -->|Yes| D[Try Rust CUDA]
-
-    D -->|Success| E[CUDA Result]
-    D -->|Exception| F[Log Warning]
-    F --> Y
+    B -->|Yes| Y[Rust CPU Backend]
 
     Y -->|Success| G[Rust CPU Result]
     Y -->|RUST_AVAILABLE=False| Z
@@ -84,21 +77,19 @@ graph LR
     Z --> H[pandas_ta or Numba]
     H --> I[Python Result]
 
-    style D fill:#2196F3
     style Y fill:#4CAF50
     style Z fill:#FF9800
-    style F fill:#FF5722
 ```
 
 **Backend Priority Chain** (from `rust_backend.py`):
-1. **Rust CUDA** (Phase 4) - 83.53x speedup for batch processing
-2. **Rust CPU** (Phase 3) - 2-3x speedup with Rayon parallelism + SIMD
-3. **Python/Numba** - Baseline fallback (pandas_ta, Numba JIT)
 
-**Supported CUDA Operations**:
-- ✅ EMA, WMA, HMA, KAMA (fully tested)
-- ✅ Equity calculation (calculate_equity_cuda)
-- ⚠️ DEMA, LSMA (CPU-only, no CUDA kernels yet)
+1. **Rust CPU** (Phase 3) - 2-3x speedup with Rayon parallelism + SIMD
+2. **Python/Numba** - Baseline fallback (pandas_ta, Numba JIT)
+
+**Supported CPU Operations**:
+
+- ✅ EMA, WMA, HMA, KAMA, DEMA, LSMA (fully tested on CPU)
+- ✅ Equity calculation (Rust CPU)
 
 ---
 
@@ -136,14 +127,15 @@ graph TD
 ```
 
 **Approximate MA Trade-offs**:
+
 - ✅ **Fast approximate**: 2-3x speedup, fixed tolerance
 - ✅ **Adaptive approximate**: 2-3x speedup, volatility-aware tolerance
 - ✅ **Full calculation**: Maximum accuracy, 9 robustness levels
-- ⚠️ **Note**: Approximate MAs provide minimal benefit when CUDA is enabled (83.53x speedup)
 
-**Recommended Use Cases**:
-- Approximate MAs: Pre-filtering, scanning, non-CUDA systems
-- Full calculation: Final analysis, CUDA-accelerated systems
+**Recommended Use Cases (CPU-Only)**:
+
+- Approximate MAs: Pre-filtering, scanning, high-volume processing
+- Full calculation: Final analysis, backtesting, production trading
 
 ---
 
@@ -162,11 +154,9 @@ graph TB
     MA2 --> Backend
     MA3 --> Backend
 
-    Backend -->|Rust CUDA| RCUDA[calculate_*_cuda]
     Backend -->|Rust CPU| RCPU[calculate_*_rust]
     Backend -->|Fallback| PY[pandas_ta/Numba]
 
-    RCUDA -->|Exception| RCPU
     RCPU --> Cache{use_cache?}
     PY --> Cache
 
@@ -187,16 +177,13 @@ graph TB
     SL1 --> L1Sig
 
     L1Sig --> L2{Parallel L2?}
-    L2 -->|Yes| PL2[ThreadPool Equities]
-    L2 -->|No| SL2[Sequential Equities]
+    L2 -->|Yes| PL2[ThreadPool Equities - CPU]
+    L2 -->|No| SL2[Sequential Equities - CPU]
 
-    PL2 --> GPU{use_cuda?}
-    GPU -->|Yes| GPUEq[calculate_equity_cuda]
-    GPU -->|No| CPUEq[calculate_equity_rust]
+    PL2 --> CPUEq[calculate_equity_rust]
     SL2 --> CPUEq
 
-    GPUEq --> L2Eq[Layer 2 Equities x6]
-    CPUEq --> L2Eq
+    CPUEq --> L2Eq[Layer 2 Equities x6]
 
     L2Eq --> Avg[calculate_average_signal]
 
@@ -226,54 +213,28 @@ graph TB
     Cleanup --> End[Return dict]
 
     style Backend fill:#FF9800
-    style RCUDA fill:#2196F3
+    style RCPU fill:#4CAF50
     style L1 fill:#FF9800
     style L2 fill:#FF9800
-    style GPU fill:#2196F3
     style Cache fill:#4CAF50
     style MemOpt fill:#9C27B0
     style Cleanup fill:#FF5722
 ```
 
-**Optimization Layers Applied**:
+**Optimization Layers Applied (CPU-Only)**:
+
 1. **Phase 2**: Batch processing, memory management
-2. **Phase 3**: Rust CPU backend (Rayon + SIMD)
-3. **Phase 4**: CUDA GPU acceleration (83.53x speedup)
-4. **Phase 5**: Dask integration (experimental, not in core API yet)
-5. **Phase 6**: Approximate MAs, incremental updates
-6. **Phase 7**: Memory-mapped arrays, blosc compression
-7. **Phase 8**: Profiling workflows (cProfile, py-spy)
-8. **Phase 8.1**: Cache warming, async I/O
-9. **Phase 8.2**: JIT specialization (EMA-only implemented)
+2. **Phase 3**: Rust CPU backend (Rayon + SIMD) - 2-3x speedup
+3. **Phase 5**: Dask integration (experimental, not in core API yet)
+4. **Phase 6**: Approximate MAs, incremental updates
+5. **Phase 7**: Memory-mapped arrays, blosc compression
+6. **Phase 8**: Profiling workflows (cProfile, py-spy)
+7. **Phase 8.1**: Cache warming, async I/O
+8. **Phase 8.2**: JIT specialization (EMA-only implemented)
 
 ---
 
-## 5. Moving Average Calculation with Rust Backend
-
-### Rust CUDA Path (Phase 4)
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Backend as rust_backend
-    participant RustCUDA as atc_rust (CUDA)
-    participant RustCPU as atc_rust (CPU)
-    participant Fallback as pandas_ta
-
-    User->>Backend: calculate_ema(prices, 28, use_cuda=True)
-    Backend->>RustCUDA: Try calculate_ema_cuda()
-
-    alt CUDA Success
-        RustCUDA-->>Backend: GPU-accelerated result (83.53x faster)
-        Backend-->>User: Return CUDA result
-    else CUDA Exception
-        RustCUDA-->>Backend: Exception raised
-        Backend->>Backend: Log warning
-        Backend->>RustCPU: Fallback to calculate_ema_rust()
-        RustCPU-->>Backend: CPU-parallel result (2-3x faster)
-        Backend-->>User: Return Rust CPU result
-    end
-```
+## 5. Moving Average Calculation with Rust Backend (CPU-Only)
 
 ### Rust CPU Path (Phase 3)
 
@@ -289,7 +250,7 @@ sequenceDiagram
     alt RUST_AVAILABLE=True
         Backend->>RustCPU: calculate_kama_rust()
         Note over RustCPU: Rayon parallelism + SIMD
-        RustCPU-->>Backend: Rust result
+        RustCPU-->>Backend: Rust result (2-3x faster)
         Backend-->>User: Return Rust result
     else RUST_AVAILABLE=False
         Backend->>Fallback: Use pandas_ta or Numba
@@ -326,56 +287,51 @@ graph LR
 
     Group4 --> G4A[use_rust_backend: bool = True]
     Group4 --> G4B[use_codegen_specialization: bool = False]
-    Group4 --> G4C[⚠️ use_cuda: NOT IN CONFIG YET]
-
-    style G4C fill:#FF5722
 ```
 
-**Config Flags Status**:
-- ✅ `use_rust_backend` - Phase 3 implementation
+**Config Flags Status (LTS_mini - CPU-Only)**:
+
+- ✅ `use_rust_backend` - Phase 3 implementation (CPU-only)
 - ✅ `use_compression`, `compression_level`, `compression_algorithm` - Phase 7
 - ✅ `use_memory_mapped` - Phase 7
 - ✅ `use_codegen_specialization` - Phase 8.2 (EMA-only)
-- ⚠️ `use_cuda` - **Missing from ATCConfig** (only in compute_atc_signals parameter)
 - ⚠️ `use_dask` - **Not integrated in core API** (Phase 5 experimental)
 - ⚠️ `use_approximate`, `use_adaptive_approximate` - **Only in compute_atc_signals** (Phase 6)
 
 ---
 
-## 7. Performance Optimization Layers
+## 7. Performance Optimization Layers (CPU-Only)
 
 ```mermaid
 graph LR
     A[Baseline Python] --> B[Phase 2: Batch + Memory]
     B --> C[Phase 3: Rust CPU]
-    C --> D[Phase 4: CUDA GPU]
-    D --> E[Phase 6: Approximate MAs]
+    C --> E[Phase 6: Approximate MAs]
     E --> F[Phase 7: Compression + MemMap]
     F --> G[Phase 8.2: JIT Specialization]
-    G --> H[Fully Optimized]
+    G --> H[Fully Optimized - CPU]
 
     B -.->|1.5-2x| SP1[Speedup]
     C -.->|2-3x| SP1
-    D -.->|83.53x| SP1
-    E -.->|2-3x on non-CUDA| SP1
+    E -.->|2-3x| SP1
     F -.->|5-10x storage, 90% RAM| SP1
     G -.->|10-20% for EMA-only| SP1
 
-    SP1 --> Total[Total: Up to 83.53x + storage savings]
+    SP1 --> Total[Total: Up to 10-15x + storage savings - CPU Only]
 
     style A fill:#E3F2FD
-    style D fill:#2196F3
     style H fill:#4CAF50
     style Total fill:#FF9800
 ```
 
-**Cumulative Performance Gains**:
+**Cumulative Performance Gains (CPU-Only)**:
+
 - **Phase 2** (Batch Processing): 1.5-2x speedup
 - **Phase 3** (Rust CPU): 2-3x speedup (on top of Phase 2)
-- **Phase 4** (CUDA): **83.53x speedup** (dominates all other optimizations)
-- **Phase 6** (Approximate MAs): 2-3x speedup (but redundant with CUDA)
+- **Phase 6** (Approximate MAs): 2-3x speedup
 - **Phase 7** (Memory): 90% RAM reduction, 5-10x storage compression
 - **Phase 8.2** (JIT): 10-20% improvement for repeated EMA-only calls
+- **Combined CPU-Only**: ~10-15x total speedup vs baseline
 
 ---
 
@@ -444,6 +400,7 @@ graph LR
 ```
 
 **Cache Features**:
+
 - ✅ Hash-based key generation (symbol + timeframe + config)
 - ✅ Optional blosc compression (5-10x storage reduction)
 - ✅ Configurable cache levels
@@ -486,10 +443,11 @@ graph TD
 ```
 
 **JIT Specialization Status**:
+
 - ✅ **EMA-only**: Production-ready, fully tested
 - ⚠️ **KAMA-only**: Low complexity, medium benefit (future consideration)
 - ⚠️ **Short-length multi-MA**: Medium complexity, medium benefit (experimental)
-- ❌ **Default config (All MAs)**: Very high complexity, skipped (use CUDA instead)
+- ❌ **Default config (All MAs)**: Very high complexity, skipped (use full calculation instead)
 
 ---
 
@@ -501,18 +459,14 @@ graph TD
 
     B -->|< 500| C[CPU Numba]
     B -->|500-2000| D{CPU Cores}
-    B -->|> 2000| E{use_cuda?}
+    B -->|> 2000| D
 
     D -->|<= 4| F[Sequential]
     D -->|> 4| G[ThreadPool]
 
-    E -->|Yes| H[CUDA Batch Processing]
-    E -->|No| D
-
     C --> I[Execute]
     F --> I
     G --> I
-    H --> I
 
     I --> J{Nested Process?}
     J -->|Yes| K[Disable parallel_l1]
@@ -522,44 +476,45 @@ graph TD
     L --> M
 
     style B fill:#FF9800
-    style E fill:#2196F3
-    style H fill:#2196F3
 ```
 
 **Routing Rules** (from `compute_atc_signals.py`):
+
 - **Small datasets** (<500 bars): CPU Numba baseline
 - **Medium datasets** (500-2000 bars): ThreadPool if cores > 4
-- **Large datasets** (>2000 bars): CUDA if available, else ThreadPool
+- **Large datasets** (>2000 bars): ThreadPool
 - **Parallel L1**: Only for len > 5000 AND cores > 4 AND not in nested process
 
 ---
 
 ## Summary
 
-The `adaptive_trend_LTS` module achieves massive performance gains through a **9-phase optimization strategy**:
+The `adaptive_trend_LTS_mini` module achieves significant performance gains through **CPU-only optimization strategies**:
 
-### ✅ Implemented & Verified
+### ✅ Implemented & Verified (CPU-Only)
+
 1. **Phase 2**: Batch processing + memory management
 2. **Phase 3**: Rust CPU backend (2-3x speedup, Rayon + SIMD)
-3. **Phase 4**: CUDA GPU acceleration (**83.53x speedup**)
-4. **Phase 6**: Approximate MAs (2-3x for non-CUDA, fully integrated)
+3. **Phase 5**: Dask integration (experimental, not in core API yet)
+4. **Phase 6**: Approximate MAs (2-3x speedup, fully integrated)
 5. **Phase 7**: Memory-mapped arrays (90% RAM) + blosc compression (5-10x storage)
 6. **Phase 8**: Profiling workflows (cProfile, py-spy)
 7. **Phase 8.1**: Cache warming + async I/O
 8. **Phase 8.2**: JIT specialization (EMA-only production-ready)
 
 ### ⚠️ Experimental / Partially Integrated
-9. **Phase 5**: Dask integration (experimental, not in core `compute_atc_signals` API yet)
-10. **Phase 6**: Incremental ATC (implemented but separate from main flow)
 
-### 🎯 Key Achievements
-- **Primary Performance Path**: Rust CUDA backend (83.53x speedup)
-- **Robust Fallback Chain**: CUDA → Rust CPU → Python/Numba
+9. **Phase 5**: Dask integration (experimental, not in core `compute_atc_signals` API yet)
+2. **Phase 6**: Incremental ATC (implemented but separate from main flow)
+
+### 🎯 Key Achievements (CPU-Only)
+
+- **Primary Performance Path**: Rust CPU backend (2-3x speedup per component)
+- **Robust Fallback Chain**: Rust CPU → Python/Numba
 - **Memory Efficiency**: 90% RAM reduction with memory-mapped arrays
 - **Storage Efficiency**: 5-10x compression with blosc
 - **Smart Approximation**: Volatility-aware approximate MAs for pre-filtering
 - **JIT Optimization**: 10-20% improvement for repeated EMA-only calls
+- **Combined CPU-Only**: ~10-15x total speedup vs baseline
 
 All optimizations are **transparent to the end user** - same API, same results, just significantly faster and more memory-efficient.
-
-**Note**: Some configuration flags (`use_cuda`, `use_dask`) are missing from `ATCConfig` but present as function parameters - see verification report for recommendations.

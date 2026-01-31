@@ -32,12 +32,14 @@ def build_voting_analyzer_args(
     atc_performance: Optional[Dict[str, Any]],
     approximate_ma_scanner: Optional[Dict[str, Any]],
     use_atc_performance: bool,
+    use_atc_performance_mini: bool = False,
     xgboost_lts: Optional[Dict[str, Any]] = None,
     use_xgboost_performance: bool = True,
 ) -> argparse.Namespace:
     """Build argparse.Namespace for VotingAnalyzer with consistent defaults."""
     args = argparse.Namespace()
     args.use_atc_performance = use_atc_performance
+    args.use_atc_performance_mini = use_atc_performance_mini
     # Store XGBoost configuration in args for VotingAnalyzer to use
     args.xgboost_config = xgboost_lts
     args.use_xgboost_performance = use_xgboost_performance

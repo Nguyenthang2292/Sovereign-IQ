@@ -78,6 +78,7 @@ def execute_scan(config: Dict[str, Any]) -> BatchScanResult:
             atc_performance=config.get("atc_performance"),
             approximate_ma_scanner=config.get("approximate_ma_scanner"),
             use_atc_performance=config.get("use_atc_performance", True),
+            use_atc_performance_mini=config.get("use_atc_performance_mini", False),
             xgboost_lts=config.get("xgboost_lts"),
             use_xgboost_performance=config.get("use_xgboost_performance", True),
         )

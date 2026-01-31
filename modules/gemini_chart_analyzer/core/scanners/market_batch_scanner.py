@@ -210,6 +210,7 @@ class MarketBatchScanner:
         atc_performance: Optional[Dict[str, Any]] = None,
         approximate_ma_scanner: Optional[Dict[str, Any]] = None,
         use_atc_performance: bool = True,
+        use_atc_performance_mini: bool = False,
         xgboost_lts: Optional[Dict[str, Any]] = None,
         use_xgboost_performance: bool = True,
     ) -> BatchScanResult:
@@ -236,7 +237,8 @@ class MarketBatchScanner:
             stage0_hybrid_top_percentage: Top percentage for hybrid sampling
             atc_performance: ATC high-performance parameters
             approximate_ma_scanner: Approximate MA scanner configuration
-            use_atc_performance: Switch between LTS (True) and Legacy (False) ATC modules
+            use_atc_performance: Switch between Full LTS (True) and Legacy (False) ATC modules
+            use_atc_performance_mini: Use CPU-only mini version (takes priority over use_atc_performance)
             xgboost_lts: XGBoost LTS configuration
             use_xgboost_performance: Switch between LTS (True) and Legacy (False) XGBoost modules
 
@@ -295,6 +297,7 @@ class MarketBatchScanner:
                 approximate_ma_scanner=approximate_ma_scanner,
                 pre_filter_auto_skip_threshold=pre_filter_auto_skip_threshold,
                 use_atc_performance=use_atc_performance,
+                use_atc_performance_mini=use_atc_performance_mini,
                 xgboost_lts=xgboost_lts,
                 use_xgboost_performance=use_xgboost_performance,
             )
@@ -384,6 +387,7 @@ class MarketBatchScanner:
         approximate_ma_scanner: Optional[Dict[str, Any]],
         pre_filter_auto_skip_threshold: int,
         use_atc_performance: bool,
+        use_atc_performance_mini: bool = False,
         xgboost_lts: Optional[Dict[str, Any]] = None,
         use_xgboost_performance: bool = True,
     ) -> List[str]:
@@ -425,6 +429,7 @@ class MarketBatchScanner:
                 approximate_ma_scanner=approximate_ma_scanner,
                 auto_skip_threshold=pre_filter_auto_skip_threshold,
                 use_atc_performance=use_atc_performance,
+                use_atc_performance_mini=use_atc_performance_mini,
                 xgboost_lts=xgboost_lts,
                 use_xgboost_performance=use_xgboost_performance,
             )
@@ -455,6 +460,7 @@ class MarketBatchScanner:
         approximate_ma_scanner: Optional[Dict[str, Any]] = None,
         auto_skip_threshold: int = 10,
         use_atc_performance: bool = True,
+        use_atc_performance_mini: bool = False,
         xgboost_lts: Optional[Dict[str, Any]] = None,
         use_xgboost_performance: bool = True,
     ) -> List[str]:
@@ -492,6 +498,7 @@ class MarketBatchScanner:
                 atc_performance=atc_performance,
                 auto_skip_threshold=auto_skip_threshold,
                 use_atc_performance=use_atc_performance,
+                use_atc_performance_mini=use_atc_performance_mini,
                 xgboost_lts=xgboost_lts,
                 use_xgboost_performance=use_xgboost_performance,
             )

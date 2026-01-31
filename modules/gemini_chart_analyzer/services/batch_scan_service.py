@@ -43,7 +43,8 @@ class BatchScanConfig:
     rf_training: Optional[Dict[str, Any]] = None  # RF model training configuration
     atc_performance: Optional[Dict[str, Any]] = None  # ATC high-performance parameters
     approximate_ma_scanner: Optional[Dict[str, Any]] = None  # Approximate MA Batch Scanner configuration
-    use_atc_performance: bool = True  # Switch between LTS (True) and Legacy (False) ATC modules
+    use_atc_performance: bool = True  # Switch between Full LTS (True) and Legacy (False) ATC modules
+    use_atc_performance_mini: bool = False  # Use CPU-only mini version (takes priority over use_atc_performance)
     xgboost_lts: Optional[Dict[str, Any]] = None  # XGBoost LTS configuration (labeling, model, optuna, etc.)
     use_xgboost_performance: bool = True  # Switch between LTS (True) and Legacy (False) XGBoost modules
 
@@ -120,6 +121,7 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
             atc_performance=config.atc_performance,
             approximate_ma_scanner=config.approximate_ma_scanner,
             use_atc_performance=config.use_atc_performance,
+            use_atc_performance_mini=config.use_atc_performance_mini,
             xgboost_lts=config.xgboost_lts,
             use_xgboost_performance=config.use_xgboost_performance,
         )
