@@ -6,6 +6,16 @@ Responsible for:
 - Filtering symbols based on configuration (whitelist, blacklist)
 - Random sampling of symbols
 - Caching symbol lists
+
+Example:
+    >>> from modules.common.core.data_fetcher import DataFetcher
+    >>> data_fetcher = DataFetcher()
+    >>> manager = SymbolManager(
+    ...     data_fetcher=data_fetcher,
+    ...     whitelist=["BTC/USDT", "ETH/USDT"],
+    ...     max_symbols=50
+    ... )
+    >>> symbols = manager.get_symbols(sample_percent=25.0)
 """
 
 import random
@@ -17,6 +27,8 @@ from modules.common.ui.logging import log_info, log_warn
 
 class SymbolManager:
     """Manages the list of trading pairs."""
+
+    _REFRESH_PROGRESS_LABEL = "Refreshing Symbols"
 
     def __init__(
         self,
@@ -47,7 +59,7 @@ class SymbolManager:
         self.blacklist = set(blacklist) if blacklist else set()
         self.max_symbols = max_symbols
         self._cached_symbols: List[str] = []  # Volume-sorted (descending)
-        self._random = random.Random(random_seed) if random_seed is not None else random
+        self._random = random.Random(random_seed)  # Always use Random instance for consistency
 
     def refresh_symbols(self) -> None:
         """Fetch fresh list of symbols from exchange."""
@@ -57,7 +69,9 @@ class SymbolManager:
         # This returns symbols sorted by volume descending
         # Note: blacklist already handled by exclude_symbols parameter
         filtered_symbols = self.data_fetcher.symbol_discovery.list_binance_futures_symbols(
-            exclude_symbols=self.blacklist, max_candidates=self.max_symbols, progress_label="Refreshing Symbols"
+            exclude_symbols=self.blacklist,
+            max_candidates=self.max_symbols,
+            progress_label=self._REFRESH_PROGRESS_LABEL,
         )
 
         # Whitelist logic: Only trade whitelisted symbols if whitelist is provided.
@@ -68,7 +82,10 @@ class SymbolManager:
             # Check for missing whitelist symbols (not in top volume list)
             missing_whitelist = self.whitelist - set(whitelist_active)
             if missing_whitelist:
-                log_warn(f"Whitelist symbols not in top {self.max_symbols} volume: {missing_whitelist}")
+                log_warn(
+                    f"Whitelist symbols not in top {self.max_symbols} volume: {missing_whitelist}. "
+                    f"Consider increasing max_symbols or removing these from whitelist."
+                )
 
             if not whitelist_active:
                 log_warn("No whitelist symbols found in active symbols. Consider increasing max_symbols.")
@@ -91,6 +108,10 @@ class SymbolManager:
 
         Raises:
             ValueError: If sample_percent is outside the 0-100 range
+
+        Note:
+            Sampling uses round() to convert percentages to counts for intuitive behavior.
+            Example: 50% of 5 symbols = 2.5 → rounds to 2 or 3 (banker's rounding).
         """
         if not self._cached_symbols:
             self.refresh_symbols()
@@ -109,8 +130,9 @@ class SymbolManager:
         if sample_percent >= 100.0:
             return self._cached_symbols.copy()
 
-        # Calculate sample size with min constraint to avoid exceeding list length
-        count = max(1, int(len(self._cached_symbols) * sample_percent / 100.0))
+        # Calculate sample size with rounding for intuitive behavior
+        # Use max(1, ...) to ensure at least 1 symbol is returned for small percentages
+        count = max(1, round(len(self._cached_symbols) * sample_percent / 100.0))
         count = min(count, len(self._cached_symbols))
 
         return self._random.sample(self._cached_symbols, count)

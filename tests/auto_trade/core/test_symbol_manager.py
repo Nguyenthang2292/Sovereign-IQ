@@ -221,6 +221,24 @@ class TestSymbolManagerGetSymbols:
         assert len(result) == 1
         assert result[0] in symbols
 
+    def test_get_symbols_rounding_behavior(self):
+        """Test and document the sampling rounding behavior with round()."""
+        symbols = ["S1", "S2", "S3", "S4", "S5"]
+        manager = self._create_manager_with_symbols(symbols, random_seed=42)
+
+        # 50% of 5 = 2.5 → round() uses banker's rounding → 2
+        result_50 = manager.get_symbols(50.0)
+        assert len(result_50) == 2
+
+        # 60% of 5 = 3.0 → round() = 3
+        result_60 = manager.get_symbols(60.0)
+        assert len(result_60) == 3
+
+        # 25% of 4 = 1.0 → round() = 1
+        manager_4 = self._create_manager_with_symbols(symbols[:4], random_seed=42)
+        result_25 = manager_4.get_symbols(25.0)
+        assert len(result_25) == 1
+
     def test_get_symbols_sampling_is_random(self):
         """Test that sampling produces different results with different seeds."""
         symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "ADA/USDT", "SOL/USDT"]

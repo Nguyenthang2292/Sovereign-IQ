@@ -69,9 +69,7 @@ class ATCScanner:
         self.min_signal: float = self.config.get("min_signal", 0.0)
 
         # Default Weights
-        self.weights: Dict[str, float] = self.config.get(
-            "weights", {"1h": 0.5, "15m": 0.3, "5m": 0.2}
-        )
+        self.weights: Dict[str, float] = self.config.get("weights", {"1h": 0.5, "15m": 0.3, "5m": 0.2})
 
         # Validate weights
         self._validate_weights()
@@ -115,15 +113,24 @@ class ATCScanner:
         """
         results_by_tf: Dict[str, Dict[str, set]] = {}
 
-        # Run scans for each timeframe sequentially
-        # scan_all_symbols handles internal parallelism
-        for tf in self.timeframes:
-            log_info(f"ATCScanner: Scanning timeframe {tf}...")
-            longs, shorts = self._run_single_scan(symbols, tf)
-            results_by_tf[tf] = {
-                "longs": set(longs["symbol"]) if not longs.empty else set(),
-                "shorts": set(shorts["symbol"]) if not shorts.empty else set(),
-            }
+        # Run scans for each timeframe in parallel
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        with ThreadPoolExecutor(max_workers=len(self.timeframes)) as executor:
+            future_to_tf = {executor.submit(self._run_single_scan, symbols, tf): tf for tf in self.timeframes}
+
+            for future in as_completed(future_to_tf):
+                tf = future_to_tf[future]
+                try:
+                    longs, shorts = future.result()
+                    log_info(f"ATCScanner: Finished scanning {tf}.")
+                    results_by_tf[tf] = {
+                        "longs": set(longs["symbol"]) if not longs.empty else set(),
+                        "shorts": set(shorts["symbol"]) if not shorts.empty else set(),
+                    }
+                except Exception as e:
+                    log_error(f"ATCScanner: Parallel scan failed for {tf}: {e}")
+                    results_by_tf[tf] = {"longs": set(), "shorts": set()}
 
         # Aggregate results using weighted voting
         final_signals: List[SignalResult] = []
@@ -132,7 +139,7 @@ class ATCScanner:
             details: Dict[str, str] = {}
 
             for tf in self.timeframes:
-                res = results_by_tf[tf]
+                res = results_by_tf.get(tf, {"longs": set(), "shorts": set()})
                 if symbol in res["longs"]:
                     score += self.weights.get(tf, 0.0)
                     details[tf] = "LONG"
@@ -163,9 +170,7 @@ class ATCScanner:
         log_info(f"ATCScanner: Found {len(final_signals)} signals exceeding threshold {self.threshold}.")
         return final_signals
 
-    def _run_single_scan(
-        self, symbols: List[str], timeframe: str
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def _run_single_scan(self, symbols: List[str], timeframe: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Run ATC scan for a single timeframe.
 
         Args:

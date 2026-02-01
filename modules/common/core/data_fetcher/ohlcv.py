@@ -1,6 +1,6 @@
 """OHLCV data fetching with exchange fallback."""
 
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 import pandas as pd
 

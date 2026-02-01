@@ -4,18 +4,18 @@ Gemini Integration for Auto Trading.
 Uses Google Gemini to analyze chart patterns and validate signals.
 """
 
+import asyncio
 import json
 import os
 import re
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
-from collections import deque
-from pathlib import Path
+import tempfile
 import time
 import uuid
-import tempfile
-import shutil
+from collections import deque
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
 
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.common.core.data_fetcher import DataFetcher
@@ -37,6 +37,21 @@ class GeminiSignal:
     reasoning: str = ""
 
 
+class MAConfig(TypedDict, total=False):
+    periods: List[int]
+
+
+class RSIConfig(TypedDict, total=False):
+    period: int
+
+
+class IndicatorConfig(TypedDict, total=False):
+    MA: MAConfig
+    RSI: RSIConfig
+    MACD: Dict[str, Any]
+    BB: Dict[str, Any]
+
+
 class GeminiIntegration:
     """Integrates Gemini Chart Analyzer into the trading pipeline."""
 
@@ -49,7 +64,8 @@ class GeminiIntegration:
         api_key: Optional[str] = None,
         analysis_timeframe: str = "1h",
         history_limit: int = 200,
-        indicators: Optional[Dict] = None,
+        indicators: Optional[Union[Dict, IndicatorConfig]] = None,
+        cache_ttl_seconds: int = 3600,
     ):
         """
         Initialize Gemini Integration.
@@ -60,6 +76,7 @@ class GeminiIntegration:
             analysis_timeframe: Timeframe for chart analysis (default: "1h").
             history_limit: Number of candles to fetch (default: 200).
             indicators: Indicator configuration (uses DEFAULT_INDICATORS if None).
+            cache_ttl_seconds: Cache Time-To-Live in seconds (default: 3600).
 
         Raises:
             ValueError: If configuration parameters are invalid.
@@ -70,9 +87,7 @@ class GeminiIntegration:
         self._api_key = api_key or os.getenv("GEMINI_API_KEY")
 
         if not self._api_key:
-            log_warn(
-                "No Gemini API key provided. " "Set GEMINI_API_KEY environment variable or pass api_key parameter."
-            )
+            log_warn("No Gemini API key provided. Set GEMINI_API_KEY environment variable or pass api_key parameter.")
 
         # Use OS temp directory for temp files
         self.temp_dir = Path(tempfile.gettempdir()) / "gemini_charts"
@@ -82,7 +97,7 @@ class GeminiIntegration:
         valid_timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"]
         self.analysis_timeframe = analysis_timeframe
         if self.analysis_timeframe not in valid_timeframes:
-            raise ValueError(f"Invalid timeframe: {self.analysis_timeframe}. " f"Must be one of {valid_timeframes}")
+            raise ValueError(f"Invalid timeframe: {self.analysis_timeframe}. Must be one of {valid_timeframes}")
 
         # Validate and set history limit
         self.history_limit = history_limit
@@ -102,7 +117,7 @@ class GeminiIntegration:
 
         # Caching
         self._cache: Dict[str, Tuple[GeminiSignal, datetime]] = {}
-        self.cache_ttl = timedelta(hours=1)  # Cache for 1 hour
+        self.cache_ttl = timedelta(seconds=cache_ttl_seconds)
 
         # Cleanup old temp files on init
         self._cleanup_old_temp_files()
@@ -127,6 +142,37 @@ class GeminiIntegration:
                 time.sleep(sleep_time)
 
         self.request_times.append(now)
+
+    async def _wait_for_rate_limit_async(self) -> None:
+        """Async version of rate limiter."""
+        now = time.time()
+
+        # Cleanup old requests
+        while self.request_times and now - self.request_times[0] > 60:
+            self.request_times.popleft()
+
+        # Check limit
+        if len(self.request_times) >= self.max_requests_per_minute:
+            sleep_time = 60 - (now - self.request_times[0])
+            if sleep_time > 0:
+                log_info(f"Rate limit reached, waiting {sleep_time:.1f}s (async)...")
+                await asyncio.sleep(sleep_time)
+
+        self.request_times.append(time.time())
+
+    def _mask_api_key(self, text: str) -> str:
+        """Mask API key in text to prevent logging leaks."""
+        if not self._api_key or not text:
+            return text
+        return text.replace(self._api_key, "********")
+
+    def _safe_log_error(self, message: str) -> None:
+        """Log error with sensitive data masked."""
+        log_error(self._mask_api_key(message))
+
+    def _safe_log_warn(self, message: str) -> None:
+        """Log warning with sensitive data masked."""
+        log_warn(self._mask_api_key(message))
 
     def clear_cache(self) -> None:
         """Clear the analysis cache."""
@@ -198,13 +244,27 @@ class GeminiIntegration:
                 indicators=self.indicators,
             )
 
-            # 3. Call Gemini
-            analysis_text = self.analyzer.analyze_chart(
-                image_path=chart_path,
-                symbol=symbol,
-                timeframe=timeframe,
-                prompt_type="detailed",  # Expects JSON output
-            )
+            # 3. Call Gemini with retry logic
+            analysis_text = ""
+            max_retries = 3
+
+            for attempt in range(max_retries):
+                try:
+                    analysis_text = self.analyzer.analyze_chart(
+                        image_path=chart_path,
+                        symbol=symbol,
+                        timeframe=timeframe,
+                        prompt_type="detailed",  # Expects JSON output
+                    )
+                    break
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise e
+                    wait_time = 2**attempt  # Exponential backoff: 1, 2, 4s
+                    self._safe_log_warn(
+                        f"Gemini API failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {wait_time}s..."
+                    )
+                    time.sleep(wait_time)
 
             # 4. Parse Result
             result = self._parse_gemini_response(analysis_text)
@@ -216,7 +276,7 @@ class GeminiIntegration:
             return result
 
         except Exception as e:
-            log_error(f"Gemini analysis failed for {symbol}: {e}")
+            self._safe_log_error(f"Gemini analysis failed for {symbol}: {e}")
             return None
         finally:
             # 5. Cleanup
@@ -226,11 +286,59 @@ class GeminiIntegration:
                 except Exception as e:
                     log_warn(f"Failed to remove temp chart {chart_path}: {e}")
 
+    async def analyze_candidate_async(self, signal: SignalResult) -> Optional[GeminiSignal]:
+        """
+        Analyze a candidate symbol asynchronously.
+
+        Args:
+            signal: The SignalResult candidate to analyze.
+
+        Returns:
+            GeminiSignal object if successful, None otherwise.
+        """
+        # Run blocking operations in thread pool
+        return await asyncio.to_thread(self.analyze_candidate, signal)
+
+    async def analyze_candidates_batch_async(
+        self, signals: List[SignalResult], max_concurrency: int = 5
+    ) -> Dict[str, Optional[GeminiSignal]]:
+        """
+        Analyze multiple candidates in parallel.
+
+        Args:
+            signals: List of SignalResult objects.
+            max_concurrency: Maximum number of concurrent analysis tasks.
+
+        Returns:
+            Dictionary mapping symbol to GeminiSignal (or None).
+        """
+        results = {}
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        async def _analyze_one(sig):
+            async with semaphore:
+                try:
+                    # We use to_thread here because the underlying analyze_candidate is synchronous
+                    # and does heavy I/O (chart generation + API call)
+                    return sig.symbol, await self.analyze_candidate_async(sig)
+                except Exception as e:
+                    self._safe_log_error(f"Async analysis failed for {sig.symbol}: {e}")
+                    return sig.symbol, None
+
+        tasks = [_analyze_one(sig) for sig in signals]
+        batch_results = await asyncio.gather(*tasks)
+
+        for symbol, result in batch_results:
+            results[symbol] = result
+
+        return results
+
     def _parse_gemini_response(self, text: str) -> Optional[GeminiSignal]:
         """Extract and parse JSON from Gemini response text."""
         try:
             # Try markdown code block first
-            match = re.search(r"```json\s*(\{[\s\S]*?\})\s*```", text)
+            pattern_markdown = r"```json\s*(\{[\s\S]*?\})\s*```"
+            match = re.search(pattern_markdown, text)
             if not match:
                 # Fallback to plain JSON (non-greedy)
                 match = re.search(r"\{[\s\S]*?\}", text)
@@ -240,6 +348,18 @@ class GeminiIntegration:
 
             json_str = match.group(1) if match.lastindex else match.group(0)
             data = json.loads(json_str)
+
+            # Validate required keys
+            required_keys = {"signal", "confidence", "trend"}
+            missing_keys = required_keys - data.keys()
+            if missing_keys:
+                log_warn(f"Gemini response missing required keys: {missing_keys}")
+                # We can either return None or try to proceed.
+                # Given strict validation recommendation, let's return None or set defaults carefully.
+                # The original code handled missing keys with defaults,
+                # but let's be more explicit about validation failure if critical.
+                if "signal" in missing_keys:
+                    return None
 
             # Normalize fields
             signal_raw = str(data.get("signal", "NONE")).upper()

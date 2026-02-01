@@ -1,10 +1,11 @@
 import json
-from unittest.mock import MagicMock, patch as mock_patch
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock
+from unittest.mock import patch as mock_patch
 
 import pandas as pd
 import pytest
-import tempfile
-from pathlib import Path
 
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.auto_trade.core.gemini_integration import GeminiIntegration, GeminiSignal
@@ -129,6 +130,31 @@ def test_cleanup_called(mock_data_fetcher, mock_chart_generator, mock_analyzer, 
         mock_remove.assert_called_once()
 
 
+def test_analyze_candidate_retry_logic(mock_data_fetcher, mock_chart_generator, mock_analyzer, sample_gemini_json):
+    """Test that analyze_candidate retries on failure."""
+    # Fail twice, then succeed
+    mock_analyzer.analyze_chart.side_effect = [
+        Exception("Fail 1"),
+        Exception("Fail 2"),
+        f"```json\n{sample_gemini_json}\n```",
+    ]
+
+    integration = GeminiIntegration(mock_data_fetcher)
+    signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+
+    with (
+        mock_patch("os.remove"),
+        mock_patch("os.path.exists", return_value=True),
+        mock_patch("time.sleep") as mock_sleep,
+    ):
+        result = integration.analyze_candidate(signal)
+
+    assert result is not None
+    assert mock_analyzer.analyze_chart.call_count == 3
+    # Should initiate sleep twice (1s and 2s)
+    assert mock_sleep.call_count == 2
+
+
 class TestGeminiIntegrationConfiguration:
     """Tests for configuration and initialization."""
 
@@ -164,14 +190,14 @@ class TestGeminiIntegrationConfiguration:
 
         assert integration.indicators == custom_indicators
 
-    def test_is_available_with_api_key(self, mock_data_fetcher, mock_patch):
+    def test_is_available_with_api_key(self, mock_data_fetcher):
         """Test is_available returns True when API key is set."""
         with mock_patch("os.getenv", return_value="test_api_key"):
             integration = GeminiIntegration(mock_data_fetcher)
 
             assert integration.is_available() is True
 
-    def test_is_available_without_api_key(self, mock_data_fetcher, mock_patch):
+    def test_is_available_without_api_key(self, mock_data_fetcher):
         """Test is_available returns False when no API key."""
         with mock_patch("os.getenv", return_value=None):
             integration = GeminiIntegration(mock_data_fetcher)
@@ -190,6 +216,11 @@ class TestGeminiIntegrationConfiguration:
 
                 # Check directory was created
                 assert expected_path.exists()
+
+    def test_init_with_custom_cache_ttl(self, mock_data_fetcher):
+        """Test initialization with custom cache TTL."""
+        integration = GeminiIntegration(mock_data_fetcher, cache_ttl_seconds=1800)
+        assert integration.cache_ttl.total_seconds() == 1800
 
 
 class TestGeminiIntegrationCaching:
@@ -214,38 +245,34 @@ class TestGeminiIntegrationCaching:
             # Analyzer should only be called once due to caching
             assert mock_analyzer.analyze_chart.call_count == 1
 
-    def test_cache_expiration(
-        self, mock_data_fetcher, mock_chart_generator, mock_analyzer, sample_gemini_json, mock_patch
-    ):
+    def test_cache_expiration(self, mock_data_fetcher, mock_chart_generator, mock_analyzer, sample_gemini_json):
         """Test that cache expires after TTL."""
-        from datetime import datetime, timedelta as dt
+        from datetime import datetime
+
+        t1 = datetime(2023, 1, 1, 10, 0, 0)
+        t2 = datetime(2023, 1, 1, 12, 0, 0)
+        t3 = datetime(2023, 1, 1, 12, 0, 1)
 
         mock_analyzer.analyze_chart.return_value = f"```json\n{sample_gemini_json}\n```"
-        mock_datetime = MagicMock()
-        mock_datetime.now.return_value = 100.0
-        mock_datetime.side_effect = lambda: 200.0
 
         with (
+            mock_patch("modules.auto_trade.core.gemini_integration.datetime") as mock_datetime,
             mock_patch("os.remove"),
             mock_patch("os.path.exists", return_value=True),
-            mock_patch("datetime.datetime", mock_datetime),
         ):
+            mock_datetime.now.side_effect = [t1, t2, t3]
+
             integration = GeminiIntegration(mock_data_fetcher)
             signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
 
-            # First call - cache at t=100
+            # First call - cache miss
             result1 = integration.analyze_candidate(signal)
             assert result1 is not None
 
-            # Simulate time passage to t=200 (past 1 hour TTL)
-            mock_datetime.side_effect = None
-            mock_datetime.now.return_value = 200.0
-
-            # Second call - cache expired, should make new API call
+            # Second call - cache expired (t2 - t1 = 2h > 1h)
             result2 = integration.analyze_candidate(signal)
             assert result2 is not None
 
-            # Should be 2 API calls (cache expired)
             assert mock_analyzer.analyze_chart.call_count == 2
 
     def test_clear_cache(self, mock_data_fetcher, mock_chart_generator, mock_analyzer, sample_gemini_json):
@@ -270,3 +297,65 @@ class TestGeminiIntegrationCaching:
 
             # Should be 2 API calls total
             assert mock_analyzer.analyze_chart.call_count == 2
+
+
+def test_analyze_candidate_async_success(mock_data_fetcher, mock_chart_generator, mock_analyzer, sample_gemini_json):
+    """Test successful async analysis."""
+    import asyncio  # Added import for asyncio.run
+
+    mock_analyzer.analyze_chart.return_value = f"```json\n{sample_gemini_json}\n```"
+
+    integration = GeminiIntegration(mock_data_fetcher)
+    signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+
+    with mock_patch("os.remove"), mock_patch("os.path.exists", return_value=True):
+        result = asyncio.run(integration.analyze_candidate_async(signal))
+
+    assert result is not None
+    assert result.signal == "LONG"
+    mock_chart_generator.create_chart.assert_called_once()
+
+
+def test_analyze_candidates_batch_async(mock_data_fetcher, mock_chart_generator, mock_analyzer, sample_gemini_json):
+    """Test batch async analysis."""
+    import asyncio  # Added import for asyncio.run
+
+    mock_analyzer.analyze_chart.return_value = f"```json\n{sample_gemini_json}\n```"
+
+    integration = GeminiIntegration(mock_data_fetcher)
+    signals = [SignalResult("BTCUSDT", 1.0, "LONG", {}), SignalResult("ETHUSDT", 0.9, "SHORT", {})]
+
+    with mock_patch("os.remove"), mock_patch("os.path.exists", return_value=True):
+        results = asyncio.run(integration.analyze_candidates_batch_async(signals))
+
+    assert len(results) == 2
+    assert "BTCUSDT" in results
+    assert "ETHUSDT" in results
+    assert results["BTCUSDT"] is not None
+    assert mock_chart_generator.create_chart.call_count == 2
+
+
+def test_mask_api_key(mock_data_fetcher):
+    """Test API key masking logic."""
+    integration = GeminiIntegration(mock_data_fetcher, api_key="secret_key_123")
+
+    masked = integration._mask_api_key("Error with key secret_key_123 here")
+    assert "secret_key_123" not in masked
+    assert "********" in masked
+
+    # Test no key
+    integration_no_key = GeminiIntegration(mock_data_fetcher)
+    original = "Some error message"
+    assert integration_no_key._mask_api_key(original) == original
+
+
+def test_safe_logging(mock_data_fetcher):
+    """Test that logging methods use masking."""
+    integration = GeminiIntegration(mock_data_fetcher, api_key="secret_key_123")
+
+    with mock_patch("modules.auto_trade.core.gemini_integration.log_error") as mock_log:
+        integration._safe_log_error("Error: secret_key_123 failed")
+        mock_log.assert_called_once()
+        args = mock_log.call_args[0][0]
+        assert "secret_key_123" not in args
+        assert "********" in args

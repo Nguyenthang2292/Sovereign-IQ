@@ -5,15 +5,34 @@ Responsible for:
 - Validating signals using a pre-trained XGBoost model.
 - Fetching historical data and computing features for candidates.
 - Filtering signals based on model confidence threshold.
+
+Usage:
+    # Initialize filter
+    filter = XGBoostFilter(
+        data_fetcher=data_fetcher,
+        model_path="models/xgboost_model.joblib",
+        config={
+            "min_confidence": 0.6,
+            "prediction_timeframe": "5m",
+            "on_error": "drop",
+            "require_model": True
+        }
+    )
+
+    # Filter signals
+    atc_signals = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
+    validated_signals = filter.filter_signals(atc_signals)
 """
 
 import hashlib
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TypedDict
+from time import time
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 import joblib
 import numpy as np
 
+from config.auto_trade import XGBOOST_FILTER_DEFAULTS
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.indicator_engine import (
@@ -35,6 +54,11 @@ class XGBoostFilterConfig(TypedDict, total=False):
     on_error: str  # Error handling policy: "drop", "pass", or "neutral"
     model_hash: str  # SHA256 hash for model integrity verification
     min_required_candles: int  # Minimum candles required for prediction
+    cache_ttl: int  # Cache time-to-live in seconds
+    require_model: bool  # Whether to fail-fast if model doesn't load
+    max_consecutive_failures: int  # Circuit breaker threshold
+    prob_sum_tolerance: float  # Tolerance for probability sum validation
+    min_confidence_delta: float  # Minimum delta between prediction classes
 
 
 class XGBoostFilter:
@@ -60,28 +84,62 @@ class XGBoostFilter:
 
         Raises:
             ValueError: If configuration parameters are invalid
+            RuntimeError: If model fails to load and require_model=True
         """
         self.data_fetcher = data_fetcher
         self.model_path = model_path
-        self.config: XGBoostFilterConfig = config or {}
 
-        # Configuration with validation
-        self.min_confidence = self.config.get("min_confidence", 0.6)
+        # Merge with defaults
+        self.config: XGBoostFilterConfig = {**XGBOOST_FILTER_DEFAULTS, **(config or {})}
+
+        # Validate and extract configuration
+        self._validate_config()
+
+        # Initialize Indicator Engine for XGBoost features
+        self.indicator_engine = IndicatorEngine(
+            IndicatorConfig.for_profile(IndicatorProfile.XGBOOST)
+        )
+
+        # Cache for predictions with timestamps (symbol -> (confidence, direction, timestamp))
+        self._prediction_cache: Dict[str, Tuple[float, str, float]] = {}
+
+        # Circuit breaker for feature computation failures
+        self._feature_failure_count: Dict[str, int] = {}
+
+        # Load Model with validation
+        self.model = self._load_model()
+
+        # Fail-fast if model is required but failed to load
+        if not self.model and self.require_model:
+            raise RuntimeError(
+                f"XGBoost model failed to load from {model_path} and require_model=True. "
+                "Cannot proceed without a valid model."
+            )
+
+    def _validate_config(self) -> None:
+        """Validate configuration parameters.
+
+        Raises:
+            ValueError: If any configuration parameter is invalid
+        """
+        # Min confidence
+        self.min_confidence = self.config.get("min_confidence", XGBOOST_FILTER_DEFAULTS["min_confidence"])
         if not 0.0 <= self.min_confidence <= 1.0:
             raise ValueError(
                 f"min_confidence must be between 0 and 1, got {self.min_confidence}"
             )
 
-        self.history_limit = self.config.get(
-            "history_limit", 1500
-        )  # Need enough for Lag-3 of SMA-200 etc.
+        # History limit
+        self.history_limit = self.config.get("history_limit", XGBOOST_FILTER_DEFAULTS["history_limit"])
         if self.history_limit <= 0:
             raise ValueError(
                 f"history_limit must be positive, got {self.history_limit}"
             )
 
-        # Configurable prediction timeframe
-        self.prediction_timeframe = self.config.get("prediction_timeframe", "5m")
+        # Prediction timeframe
+        self.prediction_timeframe = self.config.get(
+            "prediction_timeframe", XGBOOST_FILTER_DEFAULTS["prediction_timeframe"]
+        )
         valid_timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"]
         if self.prediction_timeframe not in valid_timeframes:
             raise ValueError(
@@ -90,25 +148,37 @@ class XGBoostFilter:
             )
 
         # Error handling policy
-        self.on_error = self.config.get("on_error", "drop")
+        self.on_error = self.config.get("on_error", XGBOOST_FILTER_DEFAULTS["on_error"])
         if self.on_error not in ["drop", "pass", "neutral"]:
             raise ValueError(
                 f"on_error must be 'drop', 'pass', or 'neutral', got {self.on_error}"
             )
 
-        # Minimum required candles for prediction
-        self.min_required_candles = self.config.get("min_required_candles", 250)
-
-        # Initialize Indicator Engine for XGBoost features
-        self.indicator_engine = IndicatorEngine(
-            IndicatorConfig.for_profile(IndicatorProfile.XGBOOST)
+        # Minimum required candles
+        self.min_required_candles = self.config.get(
+            "min_required_candles", XGBOOST_FILTER_DEFAULTS["min_required_candles"]
         )
 
-        # Load Model with validation
-        self.model = self._load_model()
+        # Cache TTL
+        self.cache_ttl = self.config.get("cache_ttl", XGBOOST_FILTER_DEFAULTS["cache_ttl"])
 
-        # Cache for predictions (symbol -> (confidence, direction))
-        self._prediction_cache: Dict[str, Tuple[float, str]] = {}
+        # Require model
+        self.require_model = self.config.get("require_model", XGBOOST_FILTER_DEFAULTS["require_model"])
+
+        # Max consecutive failures (circuit breaker)
+        self.max_consecutive_failures = self.config.get(
+            "max_consecutive_failures", XGBOOST_FILTER_DEFAULTS["max_consecutive_failures"]
+        )
+
+        # Probability sum tolerance
+        self.prob_sum_tolerance = self.config.get(
+            "prob_sum_tolerance", XGBOOST_FILTER_DEFAULTS["prob_sum_tolerance"]
+        )
+
+        # Minimum confidence delta
+        self.min_confidence_delta = self.config.get(
+            "min_confidence_delta", XGBOOST_FILTER_DEFAULTS["min_confidence_delta"]
+        )
 
     def _validate_model_integrity(self, path: Path) -> bool:
         """Validate model file hasn't been tampered with.
@@ -147,7 +217,7 @@ class XGBoostFilter:
             log_error(f"Error during integrity check: {e}")
             return False
 
-    def _load_model(self):
+    def _load_model(self) -> Optional[Any]:
         """Load and validate the XGBoost model from disk.
 
         Returns:
@@ -172,13 +242,15 @@ class XGBoostFilter:
                 log_error("Loaded object is not a valid classifier model")
                 return None
 
-            # Log model information
+            # CRITICAL: Validate model has 3 classes (DOWN/NEUTRAL/UP)
             if hasattr(model, "n_classes_"):
                 log_info(f"Model classes: {model.n_classes_}")
                 if model.n_classes_ != 3:
-                    log_warn(
-                        f"Model has {model.n_classes_} classes, expected 3 (DOWN/NEUTRAL/UP)"
+                    log_error(
+                        f"Model has {model.n_classes_} classes, expected 3 (DOWN/NEUTRAL/UP). "
+                        "Refusing to load incompatible model."
                     )
+                    return None
 
             if hasattr(model, "feature_names_in_"):
                 log_info(f"Model expects {len(model.feature_names_in_)} features")
@@ -200,6 +272,25 @@ class XGBoostFilter:
         self._prediction_cache.clear()
         log_debug("Prediction cache cleared")
 
+    def _get_cached_prediction(self, symbol: str) -> Optional[Tuple[float, str]]:
+        """Get cached prediction if valid.
+
+        Args:
+            symbol: Trading pair symbol
+
+        Returns:
+            Tuple of (confidence, direction) if cache is valid, None otherwise
+        """
+        if symbol in self._prediction_cache:
+            confidence, direction, timestamp = self._prediction_cache[symbol]
+            if time() - timestamp < self.cache_ttl:
+                log_debug(f"Using cached prediction for {symbol} (age: {time() - timestamp:.1f}s)")
+                return confidence, direction
+            else:
+                log_debug(f"Cache expired for {symbol} (age: {time() - timestamp:.1f}s > {self.cache_ttl}s)")
+                del self._prediction_cache[symbol]
+        return None
+
     def filter_signals(self, signals: List[SignalResult]) -> List[SignalResult]:
         """
         Filter signals based on XGBoost model confidence.
@@ -211,10 +302,18 @@ class XGBoostFilter:
 
         Returns:
             List of filtered SignalResult objects that passed validation
+
+        Raises:
+            RuntimeError: If model is not loaded and require_model=True
         """
         if not self.model:
-            log_warn("XGBoost model not loaded. Skipping filter (returning all signals).")
-            return signals
+            error_msg = "XGBoost model not loaded. Filter is non-functional."
+            if self.require_model:
+                log_error(error_msg)
+                raise RuntimeError(error_msg)
+            else:
+                log_warn(f"{error_msg} Returning all signals (require_model=False).")
+                return signals
 
         if not signals:
             log_info("No signals to filter")
@@ -226,13 +325,13 @@ class XGBoostFilter:
 
         for signal in signals:
             try:
-                # Use cached prediction if available
-                if signal.symbol in self._prediction_cache:
-                    confidence, direction = self._prediction_cache[signal.symbol]
-                    log_debug(f"Using cached prediction for {signal.symbol}")
+                # Use cached prediction if available and valid
+                cached = self._get_cached_prediction(signal.symbol)
+                if cached:
+                    confidence, direction = cached
                 else:
                     confidence, direction = self._predict_signal(signal.symbol)
-                    self._prediction_cache[signal.symbol] = (confidence, direction)
+                    self._prediction_cache[signal.symbol] = (confidence, direction, time())
 
                 # Check if model agrees with ATC signal
                 atc_type = signal.signal_type  # LONG or SHORT
@@ -252,11 +351,11 @@ class XGBoostFilter:
                     model_confirms = True
 
                 if model_confirms:
-                    # Add model confidence to details
+                    # Add model confidence to details (store as float, not string)
                     new_details = signal.details.copy()
-                    new_details["xgboost_conf"] = f"{confidence:.2f}"
+                    new_details["xgboost_conf"] = confidence  # Store as float
                     new_details["xgboost_dir"] = direction
-                    new_details["xgboost_validated"] = "true"
+                    new_details["xgboost_validated"] = True  # Store as bool
 
                     filtered_signals.append(
                         SignalResult(
@@ -338,22 +437,48 @@ class XGBoostFilter:
             )
             return 0.0, "NEUTRAL"
 
-        # 2. Compute Features
+        # 2. Compute Features with circuit breaker
         try:
             # a. Standard Indicators
             df = self.indicator_engine.compute_features(df)
             if df is None or df.empty:
-                log_error(f"Feature computation failed for {symbol}")
+                # Track failure
+                self._feature_failure_count[symbol] = self._feature_failure_count.get(symbol, 0) + 1
+
+                if self._feature_failure_count[symbol] >= self.max_consecutive_failures:
+                    log_error(
+                        f"Feature computation failed {self.max_consecutive_failures} times "
+                        f"consecutively for {symbol}. Possible data quality issue."
+                    )
+                else:
+                    log_error(f"Feature computation failed for {symbol} "
+                             f"({self._feature_failure_count[symbol]}/{self.max_consecutive_failures})")
                 return 0.0, "NEUTRAL"
 
             # b. Advanced/Rust Features
             df = add_advanced_features(df)
             if df is None or df.empty:
-                log_error(f"Advanced feature computation failed for {symbol}")
+                # Track failure
+                self._feature_failure_count[symbol] = self._feature_failure_count.get(symbol, 0) + 1
+
+                if self._feature_failure_count[symbol] >= self.max_consecutive_failures:
+                    log_error(
+                        f"Advanced feature computation failed {self.max_consecutive_failures} times "
+                        f"consecutively for {symbol}. Possible data quality issue."
+                    )
+                else:
+                    log_error(f"Advanced feature computation failed for {symbol} "
+                             f"({self._feature_failure_count[symbol]}/{self.max_consecutive_failures})")
                 return 0.0, "NEUTRAL"
 
+            # Reset failure count on success
+            self._feature_failure_count[symbol] = 0
+
         except Exception as e:
-            log_error(f"Error computing features for {symbol}: {e}")
+            # Track failure
+            self._feature_failure_count[symbol] = self._feature_failure_count.get(symbol, 0) + 1
+            log_error(f"Error computing features for {symbol}: {e} "
+                     f"({self._feature_failure_count[symbol]}/{self.max_consecutive_failures})")
             return 0.0, "NEUTRAL"
 
         # 3. Predict on last row
@@ -375,18 +500,39 @@ class XGBoostFilter:
             prob_neutral = float(probs[1])
             prob_up = float(probs[2])
 
-            # Validate probabilities
+            # Validate probabilities sum to ~1.0 (tighter tolerance)
             prob_sum = prob_down + prob_neutral + prob_up
-            if not (0.95 <= prob_sum <= 1.05):
+            tolerance = self.prob_sum_tolerance
+            if not (1.0 - tolerance <= prob_sum <= 1.0 + tolerance):
                 log_warn(
-                    f"Probabilities don't sum to ~1.0 for {symbol}: {prob_sum:.3f} "
-                    f"({prob_down:.3f}, {prob_neutral:.3f}, {prob_up:.3f})"
+                    f"Probabilities don't sum to ~1.0 for {symbol}: {prob_sum:.4f} "
+                    f"[DOWN={prob_down:.4f}, NEUTRAL={prob_neutral:.4f}, UP={prob_up:.4f}]"
                 )
+                # Normalize probabilities
+                norm_factor = 1.0 / prob_sum
+                prob_down *= norm_factor
+                prob_neutral *= norm_factor
+                prob_up *= norm_factor
+                log_debug(f"Normalized probabilities for {symbol}: "
+                         f"[DOWN={prob_down:.4f}, NEUTRAL={prob_neutral:.4f}, UP={prob_up:.4f}]")
+
+            # Determine direction with minimum confidence delta
+            max_prob = max(prob_up, prob_down, prob_neutral)
+            second_max = sorted([prob_up, prob_down, prob_neutral])[-2]
+            confidence_delta = max_prob - second_max
+
+            # If the delta is too small, it's uncertain
+            if confidence_delta < self.min_confidence_delta:
+                log_debug(
+                    f"Uncertain prediction for {symbol}: max_prob={max_prob:.4f}, "
+                    f"delta={confidence_delta:.4f} < threshold={self.min_confidence_delta}"
+                )
+                return max_prob, "NEUTRAL"
 
             # Determine direction based on highest probability
-            if prob_up > prob_down and prob_up > prob_neutral:
+            if max_prob == prob_up:
                 return prob_up, "UP"
-            elif prob_down > prob_up and prob_down > prob_neutral:
+            elif max_prob == prob_down:
                 return prob_down, "DOWN"
             else:
                 return prob_neutral, "NEUTRAL"
