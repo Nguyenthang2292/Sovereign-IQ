@@ -71,7 +71,12 @@ def _find_timeframe_index(timeframes: list[tuple[str, str]], target: str) -> int
 
 
 def _prompt_custom_timeframe(default_timeframe: str) -> str:
-    """Prompt for custom timeframe with validation."""
+    """Prompt for custom timeframe with validation.
+
+    Note:
+        Loops until valid input is provided or max attempts reached.
+        Users can exit using Ctrl+C (KeyboardInterrupt).
+    """
     attempts = 0
     while attempts < MAX_INPUT_ATTEMPTS:
         attempts += 1
@@ -115,15 +120,26 @@ def _display_timeframe_menu(timeframes: list[tuple[str, str]], default_timeframe
     print(f"{len(timeframes) + 2:2d}) Use default ({default_timeframe})")
 
 
-def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
-    """Interactive menu for selecting timeframe."""
-    timeframes: list[tuple[str, str]] = [
-        ("15m", "15 minutes"),
-        ("30m", "30 minutes"),
-        ("1h", "1 hour"),
-        ("2h", "2 hours"),
-        ("4h", "4 hours"),
-    ]
+def prompt_timeframe(
+    default_timeframe: str = DEFAULT_TIMEFRAME,
+    available_timeframes: Optional[list[tuple[str, str]]] = None,
+) -> str:
+    """Interactive menu for selecting timeframe.
+
+    Note:
+        Loops until valid selection or max attempts reached.
+        Users can exit using Ctrl+C (KeyboardInterrupt).
+    """
+    if available_timeframes is None:
+        timeframes = [
+            ("15m", "15 minutes"),
+            ("30m", "30 minutes"),
+            ("1h", "1 hour"),
+            ("2h", "2 hours"),
+            ("4h", "4 hours"),
+        ]
+    else:
+        timeframes = available_timeframes
 
     num_tf = len(timeframes)
     custom_opt = num_tf + 1
@@ -145,7 +161,7 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
 
         choice = choice.strip()
         if not choice.isdigit():
-            log_error("Enter a number.", color=ERROR_COLOR)
+            log_error("Enter a number.")
             continue
 
         c_num = int(choice)
@@ -155,7 +171,7 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
             return _prompt_custom_timeframe(default_timeframe)
         if c_num == def_opt:
             return default_timeframe
-        log_error(f"Enter 1-{def_opt}.", color=ERROR_COLOR)
+        log_error(f"Enter 1-{def_opt}.")
 
     log_warn(f"Max retries. Using default '{default_timeframe}'.")
     return default_timeframe
@@ -164,7 +180,11 @@ def prompt_timeframe(default_timeframe: str = DEFAULT_TIMEFRAME) -> str:
 def prompt_interactive_mode(
     default_tf: str = DEFAULT_TIMEFRAME,
 ) -> InteractiveModeResult:
-    """Interactive menu for selecting mode and timeframe."""
+    """Interactive menu for selecting mode and timeframe.
+
+    Raises:
+        UserExitRequested: If user selects 'Exit' or max retries reached.
+    """
     log_data("=" * PROMPT_DISPLAY_WIDTH)
     log_info("ATC - Interactive Launcher")
     log_data("=" * PROMPT_DISPLAY_WIDTH)
@@ -184,7 +204,7 @@ def prompt_interactive_mode(
         choice = choice.strip()
         if choice in {"1", "2", "3", "4"}:
             break
-        log_error("Enter 1, 2, 3, or 4.", color=ERROR_COLOR)
+        log_error("Enter 1, 2, 3, or 4.")
     else:
         log_warn("Max retries. Exiting.")
         raise UserExitRequested()

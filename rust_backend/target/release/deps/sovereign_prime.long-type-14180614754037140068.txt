@@ -1,0 +1,1 @@
+numpy::ndarray::ArrayBase<numpy::ndarray::ViewRepr<&bool>, numpy::ndarray::Dim<[usize; 1]>>

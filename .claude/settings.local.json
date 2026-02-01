@@ -24,7 +24,8 @@
       "Bash(test:*)",
       "Bash(taskkill:*)",
       "Bash(tree:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
