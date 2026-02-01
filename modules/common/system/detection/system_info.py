@@ -5,7 +5,6 @@ Single source of truth for system information queries with fallback handling.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from modules.common.ui.logging import log_warn
 

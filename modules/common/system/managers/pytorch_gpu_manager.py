@@ -12,7 +12,6 @@ Uses GPUDetector from detection layer for unified GPU detection.
 Author: Crypto Probability Team
 """
 
-import warnings
 from typing import Optional, Tuple
 
 from modules.common.system.detection import GPUDetector

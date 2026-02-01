@@ -329,10 +329,7 @@ pub fn add_advanced_features_rust<'py>(
                 }
             });
 
-        results.set_item(
-            format!("rolling_std_{}", window),
-            roll_std.into_pyarray(py),
-        )?;
+        results.set_item(format!("rolling_std_{}", window), roll_std.into_pyarray(py))?;
         results.set_item(
             format!("rolling_skew_{}", window),
             roll_skew.into_pyarray(py),
@@ -348,10 +345,7 @@ pub fn add_advanced_features_rust<'py>(
                 *val = returns_1[i - lag];
             }
         });
-        results.set_item(
-            format!("returns_1_lag_{}", lag),
-            lag_arr.into_pyarray(py),
-        )?;
+        results.set_item(format!("returns_1_lag_{}", lag), lag_arr.into_pyarray(py))?;
     }
 
     if let Some(rsi) = rsi_14 {
@@ -364,10 +358,7 @@ pub fn add_advanced_features_rust<'py>(
                     *val = rsi[i - lag];
                 }
             });
-            results.set_item(
-                format!("RSI_14_lag_{}", lag),
-                lag_arr.into_pyarray(py),
-            )?;
+            results.set_item(format!("RSI_14_lag_{}", lag), lag_arr.into_pyarray(py))?;
         }
     }
 
@@ -387,10 +378,7 @@ pub fn add_advanced_features_rust<'py>(
                 *val = log_volume[i - lag];
             }
         });
-        results.set_item(
-            format!("log_volume_lag_{}", lag),
-            lag_arr.into_pyarray(py),
-        )?;
+        results.set_item(format!("log_volume_lag_{}", lag), lag_arr.into_pyarray(py))?;
     }
 
     if atr_14.is_some() {
@@ -402,10 +390,7 @@ pub fn add_advanced_features_rust<'py>(
                     *val = atr_ratio_arr[i - lag];
                 }
             });
-            results.set_item(
-                format!("atr_ratio_lag_{}", lag),
-                lag_arr.into_pyarray(py),
-            )?;
+            results.set_item(format!("atr_ratio_lag_{}", lag), lag_arr.into_pyarray(py))?;
         }
     }
 

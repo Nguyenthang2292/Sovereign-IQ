@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 // Adaptive Trend modules
+pub mod atc_scanner_rs;
 pub mod batch_processing_cpu;
 pub mod equity;
 pub mod incremental_atc;
@@ -25,6 +26,14 @@ fn sovereign_prime(m: &Bound<'_, PyModule>) -> PyResult<()> {
         signal_persistence::process_signal_persistence_rust,
         m
     )?)?;
+
+    // ATC Scanner functions
+    m.add_function(wrap_pyfunction!(
+        atc_scanner_rs::calculate_weighted_score,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(atc_scanner_rs::aggregate_signals, m)?)?;
+    m.add_class::<atc_scanner_rs::ScanCache>()?;
 
     // MA calculations
     m.add_function(wrap_pyfunction!(ma_calculations::calculate_ema_rust, m)?)?;

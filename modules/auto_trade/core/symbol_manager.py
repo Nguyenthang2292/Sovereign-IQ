@@ -68,7 +68,7 @@ class SymbolManager:
         # Use DataFetcher's symbol discovery
         # This returns symbols sorted by volume descending
         # Note: blacklist already handled by exclude_symbols parameter
-        filtered_symbols = self.data_fetcher.symbol_discovery.list_binance_futures_symbols(
+        filtered_symbols = self.data_fetcher.list_binance_futures_symbols(
             exclude_symbols=self.blacklist,
             max_candidates=self.max_symbols,
             progress_label=self._REFRESH_PROGRESS_LABEL,

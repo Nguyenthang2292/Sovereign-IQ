@@ -78,8 +78,9 @@ node_modules/
 profiles/
 
 # Agent files
-.agent/
+.cursor/        
 .opencode/
+.claude/
 
 # Logs
 logs/

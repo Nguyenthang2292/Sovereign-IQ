@@ -148,8 +148,8 @@ pub fn apply_directional_labels_rust(
     ))
 }
 
-use std::collections::BTreeMap;
 use ordered_float::OrderedFloat;
+use std::collections::BTreeMap;
 
 /// Calculate rolling quantile using efficient algorithm
 ///
@@ -185,10 +185,10 @@ pub fn rolling_quantile_rust(
     // we use a sequential implementation which is vastly faster than O(n*w*log w) for large w.
 
     let mut result = Array1::<f64>::from_elem(n, f64::NAN);
-    
+
     // We use BTreeMap as a multiset: value -> count
     let mut window_map: BTreeMap<OrderedFloat<f64>, usize> = BTreeMap::new();
-    
+
     // Calculate target rank (0-based index)
     // Same logic as: idx = ((window_slice.len() - 1) as f64 * q) as usize;
     // For a full window of size `window`:
@@ -196,7 +196,7 @@ pub fn rolling_quantile_rust(
 
     for i in 0..n {
         let val = arr[i];
-        
+
         // Add new element to map
         // Handle NaN: OrderedFloat treats NaN as equal to itself and greater than all other floats
         *window_map.entry(OrderedFloat(val)).or_insert(0) += 1;
