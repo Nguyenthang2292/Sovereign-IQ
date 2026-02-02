@@ -62,16 +62,89 @@ class EventBus:
         self._lock = RLock()
 
     def subscribe(self, event_type: EventType, callback: Callable[[Event], None]) -> None:
-        """Subscribe to a specific event type."""
+        """
+        Subscribe to a specific event type.
+
+        Args:
+            event_type: Type of event to subscribe to
+            callback: Function to call when event is published
+
+        Raises:
+            TypeError: If callback is not callable
+        """
+        if not callable(callback):
+            raise TypeError(f"callback must be callable, got {type(callback)}")
+
         with self._lock:
+            # Prevent duplicate subscriptions
+            if event_type in self._subscribers and callback in self._subscribers[event_type]:
+                log_error(f"Callback already subscribed to {event_type}")
+                return
+
             if event_type not in self._subscribers:
                 self._subscribers[event_type] = []
             self._subscribers[event_type].append(callback)
 
-    def subscribe_all(self, callback: Callable[[Event], None]) -> None:
-        """Subscribe to all events."""
+    def unsubscribe(self, event_type: EventType, callback: Callable[[Event], None]) -> bool:
+        """
+        Unsubscribe a callback from a specific event type.
+
+        Args:
+            event_type: Type of event to unsubscribe from
+            callback: Function to remove from subscribers
+
+        Returns:
+            True if callback was found and removed, False otherwise
+        """
         with self._lock:
+            if event_type in self._subscribers:
+                try:
+                    self._subscribers[event_type].remove(callback)
+                    # Clean up empty subscriber lists
+                    if not self._subscribers[event_type]:
+                        del self._subscribers[event_type]
+                    return True
+                except ValueError:
+                    return False
+            return False
+
+    def subscribe_all(self, callback: Callable[[Event], None]) -> None:
+        """
+        Subscribe to all events.
+
+        Args:
+            callback: Function to call for all events
+
+        Raises:
+            TypeError: If callback is not callable
+        """
+        if not callable(callback):
+            raise TypeError(f"callback must be callable, got {type(callback)}")
+
+        with self._lock:
+            # Prevent duplicate subscriptions
+            if callback in self._all_subscribers:
+                log_error(f"Callback already subscribed to all events")
+                return
+
             self._all_subscribers.append(callback)
+
+    def unsubscribe_all(self, callback: Callable[[Event], None]) -> bool:
+        """
+        Unsubscribe a callback from all events.
+
+        Args:
+            callback: Function to remove from global subscribers
+
+        Returns:
+            True if callback was found and removed, False otherwise
+        """
+        with self._lock:
+            try:
+                self._all_subscribers.remove(callback)
+                return True
+            except ValueError:
+                return False
 
     def publish(self, event: Event) -> None:
         """Publish an event to all subscribers."""
@@ -90,3 +163,31 @@ class EventBus:
                     callback(event)
                 except Exception as e:
                     log_error(f"Error in global event subscriber: {e}")
+
+    def clear_subscribers(self) -> None:
+        """
+        Clear all subscribers from the event bus.
+
+        Useful for cleanup or testing. Call this method when shutting down
+        to ensure proper cleanup and prevent memory leaks.
+        """
+        with self._lock:
+            self._subscribers.clear()
+            self._all_subscribers.clear()
+
+    def get_subscriber_count(self, event_type: EventType = None) -> int:
+        """
+        Get the number of subscribers.
+
+        Args:
+            event_type: Specific event type to count, or None for total count
+
+        Returns:
+            Number of subscribers for the event type, or total if event_type is None
+        """
+        with self._lock:
+            if event_type is not None:
+                return len(self._subscribers.get(event_type, []))
+            else:
+                # Total unique subscribers across all event types + global subscribers
+                return sum(len(subs) for subs in self._subscribers.values()) + len(self._all_subscribers)

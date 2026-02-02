@@ -16,10 +16,11 @@ Usage:
 
 import argparse
 import os
+import random
 import sys
 import time
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -148,7 +149,7 @@ def check_gemini_api():
         return False
 
 
-def initialize_pipeline(test_symbols: List[str], model_path: str):
+def initialize_pipeline(model_path: str, symbols: Optional[List[str]] = None, sample_rate: float = 10.0):
     """Initialize all pipeline components."""
     print("🔧 Initializing Pipeline Components...")
     print("-" * 80)
@@ -166,10 +167,33 @@ def initialize_pipeline(test_symbols: List[str], model_path: str):
     # 2. Symbol Manager
     print("2. SymbolManager...")
     symbol_manager = SymbolManager(data_fetcher=data_fetcher)
+
+    # Determine symbols
+    test_symbols = []
+    if symbols:
+        test_symbols = symbols
+        print(f"   ✅ Using explicit list of {len(test_symbols)} symbols")
+    else:
+        print("   🔄 Fetching all symbols from DataFetcher...")
+        all_symbols = data_fetcher.list_binance_futures_symbols()
+        total_count = len(all_symbols)
+
+        if total_count == 0:
+            log_warn("   ⚠️ No symbols found from DataFetcher!")
+        else:
+            # Apply random sampling
+            sample_size = max(1, int(total_count * (sample_rate / 100.0)))
+            sample_size = min(sample_size, total_count)
+            test_symbols = random.sample(all_symbols, sample_size)
+            print(f"   🎲 Random sampling: {sample_rate}% of {total_count} = {sample_size} symbols")
+
     # Inject test symbols and disable refresh
     symbol_manager._cached_symbols = test_symbols
     symbol_manager.refresh_symbols = lambda: print("   (Skipping symbol refresh for test)")
-    print(f"   ✅ Using {len(test_symbols)} test symbols: {', '.join(test_symbols)}")
+    print(
+        f"   ✅ Using {len(test_symbols)} test symbols: {', '.join(test_symbols[:5])}"
+        + ("..." if len(test_symbols) > 5 else "")
+    )
 
     # 3. ATC Scanner
     print("3. ATCScanner...")
@@ -285,8 +309,14 @@ def main():
     parser.add_argument(
         "--symbols",
         nargs="+",
-        default=["BTC/USDT", "ETH/USDT", "BNB/USDT"],
-        help="Symbols to test (default: BTC/USDT ETH/USDT BNB/USDT)",
+        default=None,
+        help="Symbols to test (if not provided, fetches all symbols from DataFetcher)",
+    )
+    parser.add_argument(
+        "--sample-rate",
+        type=float,
+        default=10.0,
+        help="Percentage of symbols to sample when fetching all (default: 10.0%%)",
     )
     parser.add_argument("--skip-checks", action="store_true", help="Skip component checks")
     parser.add_argument("--model", help="Path to XGBoost model (optional)")
@@ -318,7 +348,7 @@ def main():
 
     # Initialize pipeline
     try:
-        pipeline = initialize_pipeline(args.symbols, model_path)
+        pipeline = initialize_pipeline(model_path=model_path, symbols=args.symbols, sample_rate=args.sample_rate)
 
         if args.force_signal:
             print("🧪 --force-signal enabled: Patching ATCScanner to return mock signal")
