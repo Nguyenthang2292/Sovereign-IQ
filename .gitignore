@@ -88,3 +88,6 @@ logs/
 # Model artifacts
 artifacts/models/random_forest/
 artifacts/models/lstm/
+
+# Rust backend build artifacts
+rust_backend/target/
