@@ -10,6 +10,11 @@ from typing import Any, Dict, Optional, Tuple
 class Cache:
     """
     A simple thread-safe in-memory cache with Time-To-Live (TTL).
+
+    Security Note:
+    - Data Storage: Data is stored in-memory in plain text. Do not store sensitive information (keys, passwords) without encryption.
+    - Capacity: This simple cache does not enforce a maximum size. Susceptible to cache filling attacks if keys are user-controlled.
+      For unbounded inputs, use a cache with eviction policies (LRU) like configured in ATCScanner.
     """
 
     def __init__(self) -> None:
@@ -63,3 +68,12 @@ class Cache:
             keys_to_remove = [k for k, (_, expiry) in self._cache.items() if now > expiry]
             for k in keys_to_remove:
                 del self._cache[k]
+
+    def __len__(self) -> int:
+        """Return the number of items in the cache."""
+        with self._lock:
+            return len(self._cache)
+
+    def __contains__(self, key: str) -> bool:
+        """Check if a key is in the cache (and not expired)."""
+        return self.get(key) is not None

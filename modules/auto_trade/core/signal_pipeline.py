@@ -27,11 +27,10 @@ import time
 from typing import Dict, Optional, TypedDict
 
 from modules.auto_trade.core.atc_scanner import ATCScanner
-from modules.auto_trade.core.caching import Cache
 from modules.auto_trade.core.circuit_breaker import CircuitBreaker, CircuitState
 from modules.auto_trade.core.gemini_integration import GeminiIntegration, GeminiSignal
 from modules.auto_trade.core.health import HealthRegistry, HealthStatus
-from modules.auto_trade.core.persistence import SignalPersistence
+from modules.auto_trade.core.persistence_sqlite import SignalPersistenceSQLite
 from modules.auto_trade.core.signal_selector import FinalSignal, SignalSelector
 from modules.auto_trade.core.symbol_manager import SymbolManager
 from modules.auto_trade.core.xgboost_filter import XGBoostFilter
@@ -56,6 +55,7 @@ class PipelineConfig(TypedDict, total=False):
     max_symbols_to_scan: int
     pipeline_timeout: int
     monitoring_enabled: bool
+    max_ai_candidates: int
 
 
 class SignalPipeline:
@@ -73,6 +73,7 @@ class SignalPipeline:
         signal_persistence: Optional signal storage
         config: Pipeline configuration
         max_symbols: Maximum symbols to scan (default: 20)
+        max_ai_candidates: Maximum candidates for AI analysis (default: 5)
         pipeline_timeout: Timeout in seconds (default: 300)
         cache: Cache for ATC results
         circuit_breaker: Circuit breaker for external APIs
@@ -86,7 +87,7 @@ class SignalPipeline:
         xgboost_filter: XGBoostFilter,
         gemini_integration: GeminiIntegration,
         signal_selector: SignalSelector,
-        signal_persistence: Optional[SignalPersistence] = None,
+        signal_persistence: Optional[SignalPersistenceSQLite] = None,
         config: Optional[PipelineConfig] = None,
     ) -> None:
         self.symbol_manager = symbol_manager
@@ -104,12 +105,15 @@ class SignalPipeline:
         if self.max_symbols <= 0:
             raise ValueError(f"max_symbols_to_scan must be positive, got {self.max_symbols}")
 
+        self.max_ai_candidates = self.config.get("max_ai_candidates", 5)
+        if self.max_ai_candidates <= 0:
+            raise ValueError(f"max_ai_candidates must be positive, got {self.max_ai_candidates}")
+
         self.pipeline_timeout = self.config.get("pipeline_timeout", 300)
         if self.pipeline_timeout <= 0:
             raise ValueError(f"pipeline_timeout must be positive, got {self.pipeline_timeout}")
 
-        # Optimization components
-        self.cache = Cache()
+        # Optimization components (Cache removed - use ATCScanner's Rust cache)
         self.circuit_breaker = CircuitBreaker(name="GeminiAPI", failure_threshold=3, recovery_timeout=300)
         self.health_registry = HealthRegistry()
 
@@ -188,27 +192,9 @@ class SignalPipeline:
                 logger.warning("Pipeline timeout before scanning.")
                 return None
 
-            # 2. ATC Scan
+            # 2. ATC Scan (uses internal Rust cache)
             logger.info("Step 2: Scanners (ATC)...")
-
-            # Use Cache for ATC results
-            # Key based on number of symbols and timestamp rounded to 5 mins
-            # This is a basic key; ideally hash the symbols list.
-            # But for simplicity, we assume the list of top symbols is stable enough or we just cache based on time.
-            # Wait, if symbols change, we want fresh results.
-            # Let's rely on the fact that refresh_symbols() might update the list.
-            # The cache key should definitely include the symbols to be safe, or just cache "last_scan_result" and expiry handles it.
-
-            # Simple approach: Cache the result of specific scan call if inputs match?
-            # Or just "global_atc_scan" key if we assume refresh_symbols doesn't change wildly in 5 mins.
-            cache_key = f"atc_scan_{len(symbols)}_{hash(tuple(sorted(symbols)))}"
-            atc_signals = self.cache.get(cache_key)
-
-            if atc_signals is None:
-                atc_signals = self.atc_scanner.scan_symbols(symbols)
-                self.cache.set(cache_key, atc_signals, ttl=300)  # 5 mins TTL
-            else:
-                logger.info("Using cached ATC results.")
+            atc_signals = self.atc_scanner.scan_symbols(symbols)
 
             if not atc_signals:
                 logger.info("No ATC signals found.")
@@ -234,7 +220,17 @@ class SignalPipeline:
 
             logger.info(f"XGBoost passed {len(xgboost_signals)} candidates.")
 
-            # 4. Gemini Analysis
+            # 4. Filter top candidates for AI Analysis
+            # Sort by XGBoost confidence (descending)
+            xgboost_signals.sort(key=lambda x: float(x.details.get("xgboost_conf", 0.0)), reverse=True)
+
+            if len(xgboost_signals) > self.max_ai_candidates:
+                logger.info(
+                    f"Limiting AI analysis to top {self.max_ai_candidates} candidates (from {len(xgboost_signals)})."
+                )
+                xgboost_signals = xgboost_signals[: self.max_ai_candidates]
+
+            # 5. Gemini Analysis
             logger.info(f"Step 4: AI Analysis (Gemini) for {len(xgboost_signals)} candidates...")
 
             gemini_results: Dict[str, GeminiSignal] = {}

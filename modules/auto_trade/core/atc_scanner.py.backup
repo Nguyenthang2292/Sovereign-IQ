@@ -18,24 +18,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, TypedDict, cast
 
-import polars as pl
+import pandas as pd
 
 from modules.adaptive_trend_LTS_mini.core.scanner.scan_all_symbols import scan_all_symbols
 from modules.adaptive_trend_LTS_mini.utils.config import create_atc_config_from_dict
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.system import get_hardware_manager
 from modules.common.ui.logging import log_error, log_info, log_warn
-
-try:
-    import sovereign_prime
-
-    USE_RUST_AGGREGATION = True
-except ImportError:
-    sovereign_prime = None
-    USE_RUST_AGGREGATION = False
-    log_warn("ATCScanner: sovereign_prime (Rust) not found. Using Python fallback.")
-
-from threading import RLock
 
 
 class ATCScannerConfig(TypedDict, total=False):
@@ -49,7 +38,6 @@ class ATCScannerConfig(TypedDict, total=False):
     enable_cache: bool  # Enable caching of scan results (default: True)
     cache_ttl_seconds: int  # Cache time-to-live in seconds (default: 60)
     batch_size: int  # Batch size for processing large symbol lists (default: 50)
-    use_rust_cache: bool  # Use Rust ScanCache for 10-20x performance improvement (default: True)
 
 
 # Signal Structure
@@ -67,21 +55,10 @@ class ATCScanner:
     """Scans symbols across multiple timeframes and aggregates results.
 
     Uses weighted voting across timeframes to generate unified signals.
-
-    Architecture:
-    - Data Processing: Polars DataFrames (converted from Pandas at boundary).
-    - Hot Path: Rust-optimized signal aggregation (via sovereign_prime) if available.
-    - Fallback: Pure Python implementation if Rust extension is missing.
-
-    Security Note:
-    - Data Privacy: Scan results and cache entries are stored in-memory without encryption.
-    - DoS Protection: Both Rust and Python caches implement capacity limits (1000 and 100 entries respectively)
-      with LRU eviction to prevent memory exhaustion attacks.
     """
 
     # Class constant for empty scan result
     _EMPTY_SCAN_RESULT: Dict[str, Any] = {"longs": set(), "shorts": set(), "strengths": {}}
-    _EMPTY_DF_SCHEMA = {"symbol": pl.Utf8, "signal": pl.Float64}
 
     def __init__(self, data_fetcher: DataFetcher, config: Optional[ATCScannerConfig] = None):
         """
@@ -106,26 +83,7 @@ class ATCScanner:
         # Caching configuration
         self.enable_cache: bool = self.config.get("enable_cache", True)
         self.cache_ttl_seconds: int = self.config.get("cache_ttl_seconds", 60)
-
-        # Initialize Cache Strategy (Task 11)
-        self._use_rust_cache = False
-        self._cache = {}
-        self._cache_lock = RLock()
-        self._rust_cache = None
-
-        # Check if user wants Rust cache (default: True if available)
-        use_rust_cache_config = self.config.get("use_rust_cache", True)
-
-        if self.enable_cache and use_rust_cache_config and USE_RUST_AGGREGATION and sovereign_prime:
-            try:
-                self._rust_cache = sovereign_prime.ScanCache(capacity=1000, ttl_seconds=float(self.cache_ttl_seconds))
-                self._use_rust_cache = True
-                log_info("ATCScanner: Using Rust ScanCache (thread-safe, high-performance)")
-            except Exception as e:
-                log_warn(f"ATCScanner: Rust cache initialization failed: {e}. Using Python cache.")
-                self._use_rust_cache = False
-        elif self.enable_cache and not use_rust_cache_config:
-            log_info("ATCScanner: use_rust_cache=False, using Python cache")
+        self._cache: Dict[str, Tuple[Dict[str, Dict[str, Any]], float]] = {}
 
         # Batch processing configuration
         self.batch_size: int = self.config.get("batch_size", 50)
@@ -201,14 +159,6 @@ class ATCScanner:
             >>> _calculate_weighted_score("SHORT", 0.5, -0.8)
             -0.4  # 0.5 * -0.8 = -0.4 (bearish)
         """
-        if USE_RUST_AGGREGATION and sovereign_prime:
-            try:
-                return sovereign_prime.calculate_weighted_score(
-                    signal_type, tf_weight, strength, self.use_signal_strength
-                )
-            except Exception as e:
-                log_warn(f"Rust calculate_weighted_score failed: {e}. Falling back to Python.")
-
         if signal_type == "LONG":
             if self.use_signal_strength:
                 return tf_weight * abs(strength)
@@ -265,28 +215,15 @@ class ATCScanner:
         if not self.enable_cache:
             return None
 
-        if self._use_rust_cache and self._rust_cache:
-            try:
-                result = self._rust_cache.get(cache_key)
-                if result:
-                    log_info(f"ATCScanner: Rust cache HIT for {cache_key.split('_')[-2]}")
-                    return result
-                return None
-            except Exception as e:
-                log_error(f"ATCScanner: Rust cache get failed: {e}")
-                return None
-
-        # Fallback to Python cache with lock
-        with self._cache_lock:
-            if cache_key in self._cache:
-                cached_data, timestamp = self._cache[cache_key]
-                # Check if cache is still valid
-                if time.time() - timestamp < self.cache_ttl_seconds:
-                    log_info(f"ATCScanner: Using cached result for {cache_key.split('_')[-2]}")
-                    return cached_data
-                else:
-                    # Remove expired cache entry
-                    del self._cache[cache_key]
+        if cache_key in self._cache:
+            cached_data, timestamp = self._cache[cache_key]
+            # Check if cache is still valid
+            if time.time() - timestamp < self.cache_ttl_seconds:
+                log_info(f"ATCScanner: Using cached result for {cache_key.split('_')[-2]}")
+                return cached_data
+            else:
+                # Remove expired cache entry
+                del self._cache[cache_key]
 
         return None
 
@@ -297,22 +234,7 @@ class ATCScanner:
             cache_key: Cache key generated by _get_cache_key
             data: Scan result data to cache
         """
-        if not self.enable_cache:
-            return
-
-        if self._use_rust_cache and self._rust_cache:
-            try:
-                # Extract components for Rust cache
-                longs = data.get("longs", set())
-                shorts = data.get("shorts", set())
-                strengths = data.get("strengths", {})
-                self._rust_cache.set(cache_key, longs, shorts, strengths)
-            except Exception as e:
-                log_error(f"ATCScanner: Rust cache set failed: {e}")
-            return
-
-        # Fallback to Python cache with lock
-        with self._cache_lock:
+        if self.enable_cache:
             self._cache[cache_key] = (data, time.time())
             # Clean up old cache entries (simple LRU-like approach)
             if len(self._cache) > 100:  # Keep max 100 entries
@@ -323,32 +245,8 @@ class ATCScanner:
 
     def clear_cache(self) -> None:
         """Clear all cached scan results."""
-        if self._use_rust_cache and self._rust_cache:
-            try:
-                self._rust_cache.clear()
-                log_info("ATCScanner: Rust cache cleared")
-            except Exception as e:
-                log_error(f"ATCScanner: Rust cache clear failed: {e}")
-
-        with self._cache_lock:
-            self._cache.clear()
-            log_info("ATCScanner: Python cache cleared")
-
-    def cache_stats(self) -> Dict[str, Any]:
-        """Return cache statistics."""
-        if self._use_rust_cache and self._rust_cache:
-            return {
-                "type": "rust",
-                "size": self._rust_cache.len(),
-                "capacity": self._rust_cache.capacity(),
-            }
-        else:
-            with self._cache_lock:
-                return {
-                    "type": "python",
-                    "size": len(self._cache),
-                    "capacity": 100,
-                }
+        self._cache.clear()
+        log_info("ATCScanner: Cache cleared")
 
     def scan_symbols(self, symbols: List[str]) -> List[SignalResult]:
         """
@@ -424,19 +322,19 @@ class ATCScanner:
 
                     # Extract signals with strength
                     long_signals = {}
-                    if not longs.is_empty():
+                    if not longs.empty:
                         # Provide default if 'signal' column missing (regression safety)
                         if "signal" in longs.columns:
-                            long_signals = dict(zip(longs["symbol"].to_list(), longs["signal"].to_list()))
+                            long_signals = dict(zip(longs["symbol"], longs["signal"]))
                         else:
-                            long_signals = {sym: 1.0 for sym in longs["symbol"].to_list()}
+                            long_signals = {sym: 1.0 for sym in longs["symbol"]}
 
                     short_signals = {}
-                    if not shorts.is_empty():
+                    if not shorts.empty:
                         if "signal" in shorts.columns:
-                            short_signals = dict(zip(shorts["symbol"].to_list(), shorts["signal"].to_list()))
+                            short_signals = dict(zip(shorts["symbol"], shorts["signal"]))
                         else:
-                            short_signals = {sym: -1.0 for sym in shorts["symbol"].to_list()}
+                            short_signals = {sym: -1.0 for sym in shorts["symbol"]}
 
                     results_by_tf[tf] = {
                         "longs": set(long_signals.keys()),
@@ -449,37 +347,6 @@ class ATCScanner:
 
         # Aggregate results using weighted voting
         final_signals: List[SignalResult] = []
-
-        if USE_RUST_AGGREGATION and sovereign_prime:
-            try:
-                rust_results = sovereign_prime.aggregate_signals(
-                    symbols,
-                    results_by_tf,
-                    self.weights,
-                    self.threshold,
-                    self.use_signal_strength,
-                )
-
-                # Convert Rust dictionaries to SignalResult objects
-                for res in rust_results:
-                    final_signals.append(
-                        SignalResult(
-                            symbol=res["symbol"],
-                            score=res["score"],
-                            signal_type=res["signal_type"],
-                            details=res["details"],
-                            strengths=res["strengths"],
-                        )
-                    )
-
-                log_info(
-                    f"ATCScanner: Found {len(final_signals)} signals (via Rust) exceeding threshold {self.threshold}."
-                )
-                return final_signals
-            except Exception as e:
-                log_error(f"ATCScanner: Rust aggregation failed: {e}. Falling back to Python.")
-                final_signals = []  # Reset for Python fallback
-
         for symbol in symbols:
             score = 0.0
             details: Dict[str, Any] = {}
@@ -524,7 +391,7 @@ class ATCScanner:
         log_info(f"ATCScanner: Found {len(final_signals)} signals exceeding threshold {self.threshold}.")
         return final_signals
 
-    def _run_single_scan(self, symbols: List[str], timeframe: str) -> Tuple[pl.DataFrame, pl.DataFrame]:
+    def _run_single_scan(self, symbols: List[str], timeframe: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Run ATC scan for a single timeframe (with caching support).
 
         Args:
@@ -550,19 +417,7 @@ class ATCScanner:
                 for sym, strength in cached_result.get("strengths", {}).items()
                 if sym in cached_result.get("shorts", set())
             ]
-
-            # Task 4: Reconstruct using Polars
-            if not longs_data:
-                longs_df = pl.DataFrame(schema=self._EMPTY_DF_SCHEMA)
-            else:
-                longs_df = pl.DataFrame(longs_data)
-
-            if not shorts_data:
-                shorts_df = pl.DataFrame(schema=self._EMPTY_DF_SCHEMA)
-            else:
-                shorts_df = pl.DataFrame(shorts_data)
-
-            return longs_df, shorts_df
+            return pd.DataFrame(longs_data), pd.DataFrame(shorts_data)
 
         # Filter out scanner-specific config keys
         excluded_keys = {
@@ -585,38 +440,27 @@ class ATCScanner:
             raise ValueError(f"Invalid ATC config for {timeframe}: {e}") from e
 
         try:
-            long_pd, short_pd = scan_all_symbols(
+            long_signals, short_signals = scan_all_symbols(
                 data_fetcher=self.data_fetcher,
                 atc_config=atc_config,
                 symbols=symbols,
                 min_signal=self.min_signal,
             )
 
-            # Task 5: Convert results to Polars
-            long_signals = pl.from_pandas(long_pd)
-            short_signals = pl.from_pandas(short_pd)
-
-            # Schema validation
-            expected_cols = {"symbol", "signal"}
-            if not long_signals.is_empty() and not expected_cols.issubset(long_signals.columns):
-                log_warn(f"Missing columns in longs: {expected_cols - set(long_signals.columns)}")
-
             # Cache the results
-            if not long_signals.is_empty() or not short_signals.is_empty():
+            if not long_signals.empty or not short_signals.empty:
                 # Extract data for caching
                 long_data = {}
-                if not long_signals.is_empty():
-                    if "signal" in long_signals.columns:
-                        long_data = dict(zip(long_signals["symbol"].to_list(), long_signals["signal"].to_list()))
-                    else:
-                        long_data = {sym: 1.0 for sym in long_signals["symbol"].to_list()}
+                if not long_signals.empty and "signal" in long_signals.columns:
+                    long_data = dict(zip(long_signals["symbol"], long_signals["signal"]))
+                elif not long_signals.empty:
+                    long_data = {sym: 1.0 for sym in long_signals["symbol"]}
 
                 short_data = {}
-                if not short_signals.is_empty():
-                    if "signal" in short_signals.columns:
-                        short_data = dict(zip(short_signals["symbol"].to_list(), short_signals["signal"].to_list()))
-                    else:
-                        short_data = {sym: -1.0 for sym in short_signals["symbol"].to_list()}
+                if not short_signals.empty and "signal" in short_signals.columns:
+                    short_data = dict(zip(short_signals["symbol"], short_signals["signal"]))
+                elif not short_signals.empty:
+                    short_data = {sym: -1.0 for sym in short_signals["symbol"]}
 
                 cache_data = {
                     "longs": set(long_data.keys()),
@@ -628,5 +472,5 @@ class ATCScanner:
             return long_signals, short_signals
         except Exception as e:
             log_error(f"ATCScanner: Error scanning {timeframe}: {e}")
-            # Task 6: Return empty Polars DataFrames
-            return pl.DataFrame(schema=self._EMPTY_DF_SCHEMA), pl.DataFrame(schema=self._EMPTY_DF_SCHEMA)
+            # Return empty DataFrames to allow other timeframes to complete
+            return pd.DataFrame(), pd.DataFrame()

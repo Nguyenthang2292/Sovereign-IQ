@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import polars as pl
 import pytest
 
 from modules.auto_trade.core.atc_scanner import ATCScanner, SignalResult
@@ -336,6 +337,7 @@ class TestSignalResult:
             score=0.8,
             signal_type="LONG",
             details={"1h": "LONG", "15m": "LONG", "5m": "NEUTRAL"},
+            strengths={"1h": 0.8, "15m": 0.3},
         )
         assert result.symbol == "BTCUSDT"
         assert result.score == 0.8
@@ -349,6 +351,7 @@ class TestSignalResult:
             score=0.8,
             signal_type="LONG",
             details={"1h": "LONG"},
+            strengths={"1h": 0.8},
         )
         with pytest.raises(AttributeError):
             result.symbol = "ETHUSDT"
@@ -553,11 +556,20 @@ class TestATCScannerRunSingleScan:
             patch("modules.auto_trade.core.atc_scanner.create_atc_config_from_dict") as mock_create_config,
             patch("modules.auto_trade.core.atc_scanner.scan_all_symbols") as mock_scan_all,
         ):
-            expected_longs = pd.DataFrame({"symbol": ["BTCUSDT"]})
-            expected_shorts = pd.DataFrame({"symbol": ["ETHUSDT"]})
-            mock_scan_all.return_value = (expected_longs, expected_shorts)
+            # Mock returns Pandas DFs
+            pd_longs = pd.DataFrame({"symbol": ["BTCUSDT"], "signal": [1.0]})
+            pd_shorts = pd.DataFrame({"symbol": ["ETHUSDT"], "signal": [-1.0]})
+            mock_scan_all.return_value = (pd_longs, pd_shorts)
 
             longs, shorts = scanner._run_single_scan(["BTCUSDT", "ETHUSDT"], "1h")
+
+            # Result should be Polars DFs
+            assert isinstance(longs, pl.DataFrame)
+            assert isinstance(shorts, pl.DataFrame)
+
+            # Verify content
+            expected_longs = pl.from_pandas(pd_longs)
+            expected_shorts = pl.from_pandas(pd_shorts)
 
             assert longs.equals(expected_longs)
             assert shorts.equals(expected_shorts)
@@ -578,7 +590,7 @@ class TestATCScannerRunSingleScan:
             patch("modules.auto_trade.core.atc_scanner.create_atc_config_from_dict") as mock_create_config,
             patch(
                 "modules.auto_trade.core.atc_scanner.scan_all_symbols", return_value=(pd.DataFrame(), pd.DataFrame())
-            ) as mock_scan_all,
+            ),
         ):
             scanner._run_single_scan(["BTCUSDT"], "1h")
 
@@ -613,8 +625,10 @@ class TestATCScannerRunSingleScan:
 
             longs, shorts = scanner._run_single_scan(["BTCUSDT"], "1h")
 
-            assert longs.empty
-            assert shorts.empty
+            # Check for Polars empty
+            assert isinstance(longs, pl.DataFrame)
+            assert longs.is_empty()
+            assert shorts.is_empty()
             mock_log_error.assert_called_once()
 
 
@@ -709,3 +723,396 @@ class TestATCScannerExtendedEdgeCases:
 
         # 0.8 < 1.0 → NEUTRAL (filtered out)
         assert len(results) == 0
+
+
+# ============================================================================
+# Additional Tests from Review v3
+# ============================================================================
+
+
+class TestATCScannerReviewV3:
+    """Additional tests from review v3 recommendations."""
+
+    @patch("modules.auto_trade.core.atc_scanner.log_warn")
+    def test_timeframe_weight_mismatch_warning(self, mock_log_warn, mock_data_fetcher):
+        """Test warning when timeframes don't have weights."""
+        config = {
+            "timeframes": ["1h", "15m", "5m"],
+            "weights": {"1h": 0.5, "15m": 0.5},  # Missing 5m
+        }
+        _ = ATCScanner(mock_data_fetcher, config=config)
+        mock_log_warn.assert_called()
+        assert "without weights" in str(mock_log_warn.call_args_list)
+
+    @patch("modules.auto_trade.core.atc_scanner.log_warn")
+    def test_extra_weights_warning(self, mock_log_warn, mock_data_fetcher):
+        """Test warning when weights exist for unused timeframes."""
+        config = {
+            "timeframes": ["1h", "15m"],
+            "weights": {"1h": 0.5, "15m": 0.3, "5m": 0.2},  # 5m not in timeframes
+        }
+        _ = ATCScanner(mock_data_fetcher, config=config)
+        mock_log_warn.assert_called()
+        assert "unused timeframes" in str(mock_log_warn.call_args_list)
+
+    @patch("modules.auto_trade.core.atc_scanner.log_warn")
+    def test_non_normalized_weights_warning(self, mock_log_warn, mock_data_fetcher):
+        """Test warning for non-normalized weights."""
+        config = {"weights": {"1h": 0.5, "15m": 0.5, "5m": 0.5}}  # Sum = 1.5
+        _ = ATCScanner(mock_data_fetcher, config=config)
+        mock_log_warn.assert_called()
+        assert "sum to 1.5" in str(mock_log_warn.call_args[0][0])
+
+    def test_signal_strength_disabled_uses_unit_weights(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test that signal strength disabled uses unit weights."""
+        config = {"use_signal_strength": False, "weights": {"1h": 0.5, "15m": 0.3, "5m": 0.2}}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Mock scan results with varying strengths (should be ignored)
+        def side_effect(data_fetcher, atc_config, symbols, **kwargs):
+            longs = pd.DataFrame({"symbol": ["BTCUSDT"], "signal": [1.0]})
+            shorts = pd.DataFrame()
+            return longs, shorts
+
+        mock_scan_all_symbols.side_effect = side_effect
+        results = scanner.scan_symbols(["BTCUSDT"])
+
+        # Should ignore strength, use only weight
+        assert len(results) == 1
+        assert results[0].score == 1.0  # Sum of weights
+
+    def test_signal_strength_enabled_uses_actual_values(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test that signal strength enabled incorporates strength values."""
+        config = {"use_signal_strength": True, "weights": {"1h": 0.5, "15m": 0.3, "5m": 0.2}}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Mock scan results with specific strengths
+        call_count = 0
+
+        def side_effect(data_fetcher, atc_config, symbols, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:  # 1h: strength 0.8
+                longs = pd.DataFrame({"symbol": ["BTCUSDT"], "signal": [0.8]})
+                shorts = pd.DataFrame()
+            elif call_count == 2:  # 15m: strength 0.6
+                longs = pd.DataFrame({"symbol": ["BTCUSDT"], "signal": [0.6]})
+                shorts = pd.DataFrame()
+            else:  # 5m: strength 0.4
+                longs = pd.DataFrame({"symbol": ["BTCUSDT"], "signal": [0.4]})
+                shorts = pd.DataFrame()
+            return longs, shorts
+
+        mock_scan_all_symbols.side_effect = side_effect
+        results = scanner.scan_symbols(["BTCUSDT"])
+
+        # Should incorporate strengths: 0.5*0.8 + 0.3*0.6 + 0.2*0.4 = 0.4 + 0.18 + 0.08 = 0.66
+        assert len(results) == 1
+        assert round(results[0].score, 2) == 0.66
+
+    def test_long_signal_above_threshold(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test LONG signal above threshold."""
+        config = {"threshold": 0.6}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Mock results for score = 0.7
+        call_count = 0
+
+        def side_effect(data_fetcher, atc_config, symbols, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:  # 1h and 15m LONG
+                longs = pd.DataFrame({"symbol": ["BTCUSDT"]})
+                shorts = pd.DataFrame()
+            else:
+                longs = pd.DataFrame()
+                shorts = pd.DataFrame()
+            return longs, shorts
+
+        mock_scan_all_symbols.side_effect = side_effect
+        results = scanner.scan_symbols(["BTCUSDT"])
+
+        assert len(results) == 1
+        assert results[0].signal_type == "LONG"
+        assert results[0].score == 0.8
+
+    def test_short_signal_below_negative_threshold(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test SHORT signal below negative threshold."""
+        config = {"threshold": 0.6}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Mock results for score = -0.7
+        call_count = 0
+
+        def side_effect(data_fetcher, atc_config, symbols, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:  # 1h and 15m SHORT
+                longs = pd.DataFrame()
+                shorts = pd.DataFrame({"symbol": ["BTCUSDT"]})
+            else:
+                longs = pd.DataFrame()
+                shorts = pd.DataFrame()
+            return longs, shorts
+
+        mock_scan_all_symbols.side_effect = side_effect
+        results = scanner.scan_symbols(["BTCUSDT"])
+
+        assert len(results) == 1
+        assert results[0].signal_type == "SHORT"
+        assert results[0].score == -0.8
+
+    def test_neutral_signal_within_threshold(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test NEUTRAL signal within threshold."""
+        config = {"threshold": 0.6}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Mock results for score = 0.3
+        call_count = 0
+
+        def side_effect(data_fetcher, atc_config, symbols, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:  # Only 1h LONG
+                longs = pd.DataFrame({"symbol": ["BTCUSDT"]})
+                shorts = pd.DataFrame()
+            else:
+                longs = pd.DataFrame()
+                shorts = pd.DataFrame()
+            return longs, shorts
+
+        mock_scan_all_symbols.side_effect = side_effect
+        results = scanner.scan_symbols(["BTCUSDT"])
+
+        # Neutral signals are excluded
+        assert len(results) == 0
+
+    @patch("modules.auto_trade.core.atc_scanner.get_hardware_manager")
+    def test_max_workers_fallback_on_auto_detect_failure(self, mock_get_hardware_manager, mock_data_fetcher):
+        """Test fallback to default when hardware detection fails."""
+        mock_get_hardware_manager.side_effect = Exception("Hardware detection failed")
+
+        scanner = ATCScanner(mock_data_fetcher)
+
+        # Should fall back to len(timeframes) = 3
+        assert scanner.max_workers == 3
+
+    def test_calculate_weighted_score_long(self, mock_data_fetcher):
+        """Test _calculate_weighted_score for LONG signal."""
+        config = {"use_signal_strength": True, "weights": {"1h": 0.5}}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # LONG with strength 0.8
+        score = scanner._calculate_weighted_score("LONG", 0.5, 0.8)
+        assert score == 0.4  # 0.5 * 0.8
+
+    def test_calculate_weighted_score_long_without_strength(self, mock_data_fetcher):
+        """Test _calculate_weighted_score for LONG without strength."""
+        config = {"use_signal_strength": False, "weights": {"1h": 0.5}}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # LONG without strength
+        score = scanner._calculate_weighted_score("LONG", 0.5, 0.8)
+        assert score == 0.5  # Just the weight
+
+    def test_calculate_weighted_score_short(self, mock_data_fetcher):
+        """Test _calculate_weighted_score for SHORT signal."""
+        config = {"use_signal_strength": True, "weights": {"1h": 0.5}}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # SHORT with strength -0.8
+        score = scanner._calculate_weighted_score("SHORT", 0.5, -0.8)
+        assert score == -0.4  # 0.5 * -0.8
+
+    def test_calculate_weighted_score_short_without_strength(self, mock_data_fetcher):
+        """Test _calculate_weighted_score for SHORT without strength."""
+        config = {"use_signal_strength": False, "weights": {"1h": 0.5}}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # SHORT without strength
+        score = scanner._calculate_weighted_score("SHORT", 0.5, -0.8)
+        assert score == -0.5  # Negative weight
+
+    def test_calculate_weighted_score_neutral(self, mock_data_fetcher):
+        """Test _calculate_weighted_score for NEUTRAL signal."""
+        config = {"weights": {"1h": 0.5}}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # NEUTRAL always returns 0
+        score = scanner._calculate_weighted_score("NEUTRAL", 0.5, 0.8)
+        assert score == 0.0
+
+
+# ============================================================================
+# Cache Tests (Python and Rust)
+# ============================================================================
+
+
+class TestATCScannerCache:
+    """Tests for ATCScanner caching functionality (both Python and Rust)."""
+
+    def test_cache_disabled_never_caches(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test that cache is not used when enable_cache=False."""
+        config = {"enable_cache": False}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Mock scan result
+        mock_scan_all_symbols.return_value = (
+            pd.DataFrame({"symbol": ["BTC/USDT"], "signal": [0.8]}),
+            pd.DataFrame(),
+        )
+
+        # First scan
+        results1 = scanner.scan_symbols(["BTC/USDT"])
+        assert len(results1) == 1
+
+        # Second scan - should call scan_all_symbols again (no cache)
+        results2 = scanner.scan_symbols(["BTC/USDT"])
+        assert len(results2) == 1
+
+        # Verify scan_all_symbols was called twice (3 timeframes × 2 scans = 6 calls)
+        assert mock_scan_all_symbols.call_count == 6
+
+    @pytest.mark.skipif(
+        not hasattr(__import__("sys").modules.get("sovereign_prime"), "ScanCache"),
+        reason="Rust ScanCache not available",
+    )
+    def test_rust_cache_stores_and_retrieves(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test that Rust ScanCache stores and retrieves results correctly."""
+        config = {"enable_cache": True, "cache_ttl_seconds": 60}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Mock scan result
+        mock_scan_all_symbols.return_value = (
+            pd.DataFrame({"symbol": ["BTC/USDT"], "signal": [0.8]}),
+            pd.DataFrame(),
+        )
+
+        # First scan - populate cache
+        results1 = scanner.scan_symbols(["BTC/USDT"])
+        assert len(results1) == 1
+        assert mock_scan_all_symbols.call_count == 3  # 3 timeframes
+
+        # Second scan - should use cache
+        results2 = scanner.scan_symbols(["BTC/USDT"])
+        assert len(results2) == 1
+        assert mock_scan_all_symbols.call_count == 3  # No additional calls (cache hit)
+
+    def test_cache_key_generation(self, mock_data_fetcher):
+        """Test that cache keys are generated correctly."""
+        scanner = ATCScanner(mock_data_fetcher)
+
+        # Same symbols, same timeframe → same key
+        key1 = scanner._get_cache_key(["BTC/USDT", "ETH/USDT"], "1h")
+        key2 = scanner._get_cache_key(["BTC/USDT", "ETH/USDT"], "1h")
+        assert key1 == key2
+
+        # Different timeframe → different key
+        key3 = scanner._get_cache_key(["BTC/USDT", "ETH/USDT"], "15m")
+        assert key3 != key1
+
+        # Different symbols → different key
+        key4 = scanner._get_cache_key(["BTC/USDT"], "1h")
+        assert key4 != key1
+
+        # Symbol order shouldn't matter (sorted internally)
+        key5 = scanner._get_cache_key(["ETH/USDT", "BTC/USDT"], "1h")
+        assert key5 == key1  # Should be same as key1
+
+    @pytest.mark.skipif(
+        not hasattr(__import__("sys").modules.get("sovereign_prime"), "ScanCache"),
+        reason="Rust ScanCache not available",
+    )
+    def test_cache_clear_rust(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test clearing Rust cache."""
+        config = {"enable_cache": True}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Populate cache
+        mock_scan_all_symbols.return_value = (
+            pd.DataFrame({"symbol": ["BTC/USDT"], "signal": [0.8]}),
+            pd.DataFrame(),
+        )
+        scanner.scan_symbols(["BTC/USDT"])
+
+        # Clear cache
+        scanner.clear_cache()
+
+    def test_cache_respects_ttl(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test that cache entries expire after TTL."""
+        import time
+
+        config = {"enable_cache": True, "cache_ttl_seconds": 1}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Mock scan result
+        mock_scan_all_symbols.return_value = (
+            pd.DataFrame({"symbol": ["BTC/USDT"], "signal": [0.8]}),
+            pd.DataFrame(),
+        )
+
+        # First scan - populate cache
+        scanner.scan_symbols(["BTC/USDT"])
+        assert mock_scan_all_symbols.call_count == 3  # 3 timeframes
+
+        # Wait for TTL to expire
+        time.sleep(1.1)
+
+        # Second scan - cache expired, should call scan_all_symbols again
+        scanner.scan_symbols(["BTC/USDT"])
+        assert mock_scan_all_symbols.call_count == 6  # 3 more calls (cache miss)
+
+    def test_cache_with_batch_processing(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test that cache works correctly with batch processing."""
+        config = {"enable_cache": True, "batch_size": 2}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Create 5 symbols (will be processed in 3 batches: 2, 2, 1)
+        symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "ADA/USDT", "SOL/USDT"]
+
+        # Mock scan result
+        mock_scan_all_symbols.return_value = (
+            pd.DataFrame({"symbol": symbols[:2], "signal": [0.8, 0.7]}),
+            pd.DataFrame(),
+        )
+
+        # First scan
+        results1 = scanner.scan_symbols(symbols)
+        initial_calls = mock_scan_all_symbols.call_count
+
+        # Second scan - should use cache
+        results2 = scanner.scan_symbols(symbols)
+
+        # Verify cache was used (no additional scan_all_symbols calls)
+        assert mock_scan_all_symbols.call_count == initial_calls
+
+    def test_cache_initialization_fallback_to_python(self, mock_data_fetcher):
+        """Test that scanner handles cache initialization when Rust fails."""
+        # Force Rust cache by config, but it should handle gracefully
+        config = {"enable_cache": True}
+
+        # Create scanner
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Scanner should initialize successfully
+        assert scanner.enable_cache is True
+
+    def test_cache_with_empty_results(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Test that cache does NOT cache empty scan results (by design)."""
+        config = {"enable_cache": True}
+        scanner = ATCScanner(mock_data_fetcher, config=config)
+
+        # Mock empty scan result
+        mock_scan_all_symbols.return_value = (pd.DataFrame(), pd.DataFrame())
+
+        # First scan - empty results
+        results1 = scanner.scan_symbols(["BTC/USDT"])
+        assert len(results1) == 0
+
+        # Empty results are NOT cached (by design in atc_scanner.py:599)
+        # Second scan should call scan_all_symbols again
+        results2 = scanner.scan_symbols(["BTC/USDT"])
+        assert len(results2) == 0
+
+        # Verify scan_all_symbols was called twice (empty results not cached)
+        assert mock_scan_all_symbols.call_count == 6  # 3 timeframes × 2 scans

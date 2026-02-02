@@ -427,6 +427,12 @@ class HardwareManager:
             self.detect_resources()
         return self._resources
 
+    def get_cpu_cores(self) -> int:
+        """Get number of CPU cores"""
+        if self._resources is None:
+            self.detect_resources()
+        return self._resources.cpu_cores
+
     def get_workload_config(self) -> WorkloadConfig:
         """Get workload config (calculate if not already done)"""
         if self._workload_config is None:

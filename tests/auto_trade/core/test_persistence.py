@@ -1,10 +1,11 @@
 """Tests for SignalPersistence."""
 
 import json
+import shutil
 import time
 import threading
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -244,3 +245,84 @@ class TestSignalPersistence:
         """Test storage directory validation."""
         assert persistence.storage_dir.exists()
         assert persistence.storage_dir.is_dir()
+
+    def test_disk_full_scenario(self, persistence, monkeypatch):
+        """Test handling of low disk space."""
+        signal = FinalSignal("BTC/USDT", "LONG", 50000, 49000, 52000)
+
+        mock_usage = MagicMock()
+        mock_usage.free = 50 * 1024 * 1024
+
+        monkeypatch.setattr(shutil, "disk_usage", lambda x: mock_usage)
+
+        result = persistence.save_signal(signal)
+        assert result is False
+        assert persistence.metrics["failed_writes"] > 0
+
+    def test_corrupted_line_handling(self, persistence, temp_storage):
+        """Test that corrupted JSON lines are skipped."""
+        history_file = Path(temp_storage) / "signal_history.jsonl"
+
+        with open(history_file, "w") as f:
+            f.write('{"symbol":"BTC/USDT","type":"LONG","entry":50000}\n')
+            f.write('{"invalid json line\n')
+            f.write('{"symbol":"ETH/USDT","type":"SHORT","entry":3000}\n')
+
+        signals = list(persistence.read_signals())
+        assert len(signals) == 2
+        assert signals[0]["symbol"] == "BTC/USDT"
+        assert signals[1]["symbol"] == "ETH/USDT"
+
+    def test_metrics_tracking(self, persistence):
+        """Test metrics tracking in save_signal."""
+        signal = FinalSignal("BTC/USDT", "LONG", 50000, 49000, 52000)
+
+        persistence.save_signal(signal)
+        persistence.save_signal(signal)
+
+        metrics = persistence.get_metrics()
+        assert metrics["total_writes"] == 2
+        assert metrics["failed_writes"] == 0
+        assert metrics["total_bytes_written"] > 0
+        assert metrics["avg_write_time_ms"] > 0
+
+    def test_disk_space_check_caching(self, persistence, monkeypatch):
+        """Test that disk space check is cached."""
+        call_count = [0]
+
+        mock_usage = MagicMock()
+        mock_usage.free = 1024 * 1024 * 1024
+
+        def mock_disk_usage(path):
+            call_count[0] += 1
+            return mock_usage
+
+        monkeypatch.setattr(shutil, "disk_usage", mock_disk_usage)
+
+        signal = FinalSignal("BTC/USDT", "LONG", 50000, 49000, 52000)
+
+        persistence.save_signal(signal)
+        first_calls = call_count[0]
+
+        time.sleep(0.1)
+
+        persistence.save_signal(signal)
+
+        assert call_count[0] == first_calls
+
+    def test_file_size_based_rotation(self, tmp_path, monkeypatch):
+        """Test file rotation based on size."""
+        persistence = SignalPersistence(
+            storage_dir=str(tmp_path / "test_signals"), enable_rotation=True, validate_path=False
+        )
+
+        monkeypatch.setattr(SignalPersistence, "MAX_FILE_SIZE_BYTES", 100)
+
+        signal = FinalSignal("BTC/USDT", "LONG", 50000, 49000, 52000)
+
+        persistence.save_signal(signal)
+        persistence.save_signal(signal)
+
+        storage_path = Path(tmp_path) / "test_signals"
+        files = list(storage_path.glob("signal_history_*.jsonl"))
+        assert len(files) >= 2

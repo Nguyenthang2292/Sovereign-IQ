@@ -78,8 +78,9 @@ node_modules/
 profiles/
 
 # Agent files
-.agent/
+.cursor/        
 .opencode/
+.claude/
 
 # Logs
 logs/
@@ -90,3 +91,4 @@ rust_backend/target/
 # Model artifacts
 artifacts/models/random_forest/
 artifacts/models/lstm/
+
