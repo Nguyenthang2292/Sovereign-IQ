@@ -85,9 +85,10 @@ profiles/
 # Logs
 logs/
 
+# Rust build output
+rust_backend/target/
+
 # Model artifacts
 artifacts/models/random_forest/
 artifacts/models/lstm/
 
-# Rust backend build artifacts
-rust_backend/target/
