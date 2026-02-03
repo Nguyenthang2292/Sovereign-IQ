@@ -16,7 +16,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
 from config import CONFIDENCE_THRESHOLD
-from config.model_features import MODEL_FEATURES
+from config import MODEL_FEATURES
 from modules.common.core.indicator_engine import IndicatorConfig, IndicatorEngine, IndicatorProfile
 from modules.common.ui.logging import (
     log_error,

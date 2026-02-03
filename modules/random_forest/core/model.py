@@ -16,8 +16,8 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
 from config import MAX_TRAINING_ROWS, MODEL_RANDOM_STATE, MODEL_TEST_SIZE, MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
-from config.model_features import MODEL_FEATURES
-from config.random_forest import RANDOM_FOREST_TOTAL_GAP
+from config import MODEL_FEATURES
+from config import RANDOM_FOREST_TOTAL_GAP
 from modules.common.ui.logging import (
     log_error,
     log_model,
@@ -137,7 +137,7 @@ def train_random_forest_model(
 
     # Apply feature selection if enabled
     feature_selector = None
-    from config.random_forest import (
+    from config import (
         RANDOM_FOREST_FEATURE_SELECTION_METHOD,
         RANDOM_FOREST_USE_FEATURE_SELECTION,
     )
@@ -191,7 +191,7 @@ def train_random_forest_model(
         log_error(f"An error occurred during model.fit: {e}")
         return None
     # Create ensemble if enabled
-    from config.random_forest import RANDOM_FOREST_USE_ENSEMBLE
+    from config import RANDOM_FOREST_USE_ENSEMBLE
     from modules.random_forest.core.ensemble import create_ensemble
 
     if RANDOM_FOREST_USE_ENSEMBLE:
@@ -209,7 +209,7 @@ def train_random_forest_model(
             log_error(f"Error creating ensemble: {e}. Using single RandomForest model.")
 
     # Apply probability calibration if enabled
-    from config.random_forest import (
+    from config import (
         RANDOM_FOREST_CALIBRATION_CV,
         RANDOM_FOREST_CALIBRATION_METHOD,
         RANDOM_FOREST_USE_PROBABILITY_CALIBRATION,
@@ -233,7 +233,7 @@ def train_random_forest_model(
     evaluate_model_with_confidence(model, features_test, target_test)
 
     # Apply model versioning if enabled
-    from config.random_forest import RANDOM_FOREST_MODEL_VERSIONING_ENABLED
+    from config import RANDOM_FOREST_MODEL_VERSIONING_ENABLED
     from modules.random_forest.utils.walk_forward import ModelVersionManager
 
     version_manager = ModelVersionManager(enabled=RANDOM_FOREST_MODEL_VERSIONING_ENABLED)

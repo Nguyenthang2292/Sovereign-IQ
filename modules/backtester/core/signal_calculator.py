@@ -14,7 +14,7 @@ from multiprocessing import Pool, cpu_count
 import numpy as np
 import pandas as pd
 
-from config.position_sizing import (
+from config import (
     BATCH_SIZE,
     BATCH_SIZE_OVERHEAD_FACTOR,
     HYBRID_OSC_LENGTH,

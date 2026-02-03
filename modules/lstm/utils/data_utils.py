@@ -3,7 +3,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from config.lstm import TRAIN_TEST_SPLIT, VALIDATION_SPLIT
+from config import TRAIN_TEST_SPLIT, VALIDATION_SPLIT
 from modules.common.ui.logging import log_model
 
 """

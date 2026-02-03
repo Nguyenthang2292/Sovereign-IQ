@@ -22,7 +22,7 @@ try:
 except ImportError:
     HAS_WEBDRIVER_MANAGER = False
 
-from config.iching import (
+from config import (
     CLICK_DELAY,
     ICHING_URL,
     IMAGES_DIR,

@@ -2,8 +2,8 @@
 
 from typing import List, Optional
 
-from colorama import Fore, Style
 import pandas as pd
+from colorama import Fore, Style
 
 from modules.adaptive_trend_LTS.cli import prompt_timeframe
 from modules.common.utils import (

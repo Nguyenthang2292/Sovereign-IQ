@@ -18,7 +18,7 @@ from config.common import (
     DEFAULT_TIMEFRAME,
     DEFAULT_TIMEFRAMES_FOR_TRAINING_DL,
 )
-from config.lstm import ENABLE_KALMAN_FILTER, KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE, WINDOW_SIZE_LSTM
+from config import ENABLE_KALMAN_FILTER, KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE, WINDOW_SIZE_LSTM
 from modules.common.system import PyTorchGPUManager
 from modules.common.ui.logging import log_error, log_info, log_warn
 from modules.common.utils import color_text, prompt_user_input

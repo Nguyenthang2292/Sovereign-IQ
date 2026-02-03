@@ -10,7 +10,7 @@ from typing import Dict, Optional, Tuple
 
 import pandas as pd
 
-from config.position_sizing import (
+from config import (
     DATA_CACHE_MAX_SIZE,
     INDICATOR_CACHE_MAX_SIZE,
     SIGNAL_CACHE_MAX_SIZE,

@@ -15,11 +15,14 @@ from modules.auto_trade.core.signal_selector import FinalSignal
 class OrderTicket:
     """Order ticket structure containing all order parameters."""
 
+    # Required fields (no defaults)
     symbol: str
     side: Literal["BUY", "SELL"]  # BUY = LONG, SELL = SHORT
-    order_type: Literal["MARKET"] = "MARKET"
     amount: float  # Position size in quote currency (USDT)
     leverage: int
+
+    # Optional fields (with defaults)
+    order_type: Literal["MARKET"] = "MARKET"
     entry_price: Optional[float] = None  # Will be set after execution
     take_profit_price: Optional[float] = None
     stop_loss_price: Optional[float] = None

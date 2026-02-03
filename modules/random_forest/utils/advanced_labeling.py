@@ -11,7 +11,7 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from config.random_forest import (
+from config import (
     BUY_THRESHOLD,
     RANDOM_FOREST_HORIZON_1D,
     RANDOM_FOREST_HORIZON_1H,

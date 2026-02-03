@@ -5,7 +5,8 @@ Configuration constants for deep learning models (TFT, LSTM, etc.).
 Includes data pipeline, feature selection, model architecture, and training settings.
 """
 
-from config.xgboost import TARGET_HORIZON
+# Import directly from source module to avoid circular imports
+from config.modules.xgboost import TARGET_HORIZON
 
 # Triple Barrier Method Configuration
 DEEP_TRIPLE_BARRIER_TP_THRESHOLD = 0.02  # 2% take profit threshold

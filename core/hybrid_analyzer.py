@@ -133,7 +133,7 @@ class HybridAnalyzer:
         """Extract SPC parameters from arguments for all 3 strategies."""
         # Import enhancement parameters
         try:
-            from config.spc_enhancements import (
+            from config import (
                 SPC_FLIP_CONFIDENCE_THRESHOLD,
                 SPC_INTERPOLATION_MODE,
                 SPC_MIN_FLIP_DURATION,

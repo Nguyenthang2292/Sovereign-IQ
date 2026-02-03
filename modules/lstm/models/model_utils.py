@@ -11,9 +11,9 @@ import torch
 import torch.nn as nn
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from config.evaluation import CONFIDENCE_THRESHOLD
-from config.lstm import KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE, MODELS_DIR, WINDOW_SIZE_LSTM
-from config.model_features import MODEL_FEATURES
+from config import CONFIDENCE_THRESHOLD
+from config import KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE, MODELS_DIR, WINDOW_SIZE_LSTM
+from config import MODEL_FEATURES
 from modules.common.ui.logging import (
     log_debug,
     log_error,

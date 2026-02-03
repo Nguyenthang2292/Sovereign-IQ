@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from config.random_forest import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
+from config import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
 from modules.common.ui.logging import log_info, log_progress
 from modules.common.utils import log_error, log_success, log_warn
 from modules.random_forest import train_and_save_global_rf_model

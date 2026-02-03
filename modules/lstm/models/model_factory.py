@@ -4,7 +4,7 @@ Model factory for creating CNN-LSTM-Attention models.
 
 from typing import Literal, Union
 
-from config.lstm import WINDOW_SIZE_LSTM
+from config import WINDOW_SIZE_LSTM
 from modules.common.ui.logging import log_model
 from modules.lstm.models.lstm_models import CNNLSTMAttentionModel, LSTMAttentionModel, LSTMModel
 

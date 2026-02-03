@@ -1,6 +1,6 @@
 """Parameter extraction helpers for VotingAnalyzer."""
 
-from config.spc import SPC_STRATEGY_PARAMETERS
+from config import SPC_STRATEGY_PARAMETERS
 
 
 class VotingParamsMixin:
@@ -19,7 +19,7 @@ class VotingParamsMixin:
         """Extract SPC parameters for all 3 strategies."""
         # Import enhancement parameters
         try:
-            from config.spc_enhancements import (
+            from config import (
                 SPC_ENABLE_MTF,
                 SPC_FLIP_CONFIDENCE_THRESHOLD,
                 SPC_INTERPOLATION_MODE,

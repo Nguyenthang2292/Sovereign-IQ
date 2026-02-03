@@ -26,7 +26,7 @@ from config import (
     MIN_TRAINING_SAMPLES,
     MODEL_RANDOM_STATE,
 )
-from config.random_forest import RANDOM_FOREST_TARGET_HORIZON, RANDOM_FOREST_TOTAL_GAP
+from config import RANDOM_FOREST_TARGET_HORIZON, RANDOM_FOREST_TOTAL_GAP
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.random_forest.utils.data_preparation import prepare_training_data
 from modules.random_forest.utils.training import apply_sampling

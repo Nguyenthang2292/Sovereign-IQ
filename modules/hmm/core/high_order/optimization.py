@@ -12,7 +12,7 @@ from sklearn.model_selection import TimeSeriesSplit
 if TYPE_CHECKING:
     from modules.hmm.core.high_order.model_creation import create_high_order_hmm_model, train_model
 
-from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
+from config import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
 from modules.common.utils import log_info, log_warn
 from modules.hmm.core.high_order.state_expansion import get_expanded_state_count
 

@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 import pandas as pd
 from pandas.core.frame import DataFrame
 
-from config.position_sizing import (
+from config import (
     DEFAULT_LOOKBACK_DAYS,
     DEFAULT_MAX_PORTFOLIO_EXPOSURE,
     DEFAULT_MAX_POSITION_SIZE,

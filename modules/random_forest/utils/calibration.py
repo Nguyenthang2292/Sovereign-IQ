@@ -12,7 +12,7 @@ import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 
-from config.random_forest import (
+from config import (
     RANDOM_FOREST_CALIBRATION_CV,
     RANDOM_FOREST_CALIBRATION_METHOD,
 )

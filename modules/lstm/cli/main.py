@@ -33,7 +33,7 @@ from config import (
     DEFAULT_TIMEFRAME,
     DEFAULT_TIMEFRAMES_FOR_TRAINING_DL,
 )
-from config.lstm import ENABLE_KALMAN_FILTER, KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE
+from config import ENABLE_KALMAN_FILTER, KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.system import PyTorchGPUManager

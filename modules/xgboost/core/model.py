@@ -25,7 +25,7 @@ from config import (
     XGBOOST_PARAMS,
     XGBOOST_TRAIN_TEST_SPLIT,
 )
-from config.position_sizing import (
+from config import (
     USE_GPU,
 )
 from modules.common.utils import (

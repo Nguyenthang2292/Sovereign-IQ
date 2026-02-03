@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from config.position_sizing import ENABLE_MULTITHREADING, MIN_INDICATORS_AGREEMENT
+from config import ENABLE_MULTITHREADING, MIN_INDICATORS_AGREEMENT
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.utils import (
     log_error,

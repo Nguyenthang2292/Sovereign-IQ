@@ -6,7 +6,7 @@ Functions for conflict resolution and dynamic threshold adjustment.
 
 from typing import TYPE_CHECKING, Dict, List, Literal, Tuple
 
-from config.hmm import (
+from config import (
     HMM_CONFLICT_RESOLUTION_THRESHOLD,
     HMM_FEATURES,
     HMM_VOLATILITY_CONFIG,

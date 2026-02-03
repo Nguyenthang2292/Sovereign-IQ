@@ -67,13 +67,13 @@ GradScaler = _pytorch_modules["GradScaler"]
 
 from pathlib import Path
 
-from config.lstm import (
+from config import (
     MODELS_DIR,
     TRAIN_TEST_SPLIT,
     VALIDATION_SPLIT,
     WINDOW_SIZE_LSTM,
 )
-from config.model_features import MODEL_FEATURES
+from config import MODEL_FEATURES
 from modules.common.system import configure_gpu_memory, detect_pytorch_gpu_availability
 from modules.lstm.core.focal_loss import FocalLoss
 from modules.lstm.core.threshold_optimizer import GridSearchThresholdOptimizer

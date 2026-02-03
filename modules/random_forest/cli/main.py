@@ -9,8 +9,8 @@ import time
 
 import pandas as pd
 
-from config.model_features import MODEL_FEATURES
-from config.random_forest import DEFAULT_CRYPTO_SYMBOLS
+from config import MODEL_FEATURES
+from config import DEFAULT_CRYPTO_SYMBOLS
 from modules.common.ui.logging import (
     log_error,
     log_info,

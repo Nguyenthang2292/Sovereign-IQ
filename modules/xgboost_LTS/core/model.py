@@ -27,7 +27,7 @@ from config import (
     XGBOOST_USE_FLOAT32,
     XGBOOST_USE_PARALLEL_CV,
 )
-from config.position_sizing import (
+from config import (
     USE_GPU,
 )
 from modules.common.utils import (

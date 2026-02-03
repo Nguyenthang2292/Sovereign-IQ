@@ -4,8 +4,8 @@ from contextlib import contextmanager
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
+from config import DECISION_MATRIX_INDICATOR_ACCURACIES
 
-from config.decision_matrix import DECISION_MATRIX_INDICATOR_ACCURACIES
 from modules.decision_matrix.core.classifier import DecisionMatrixClassifier
 
 

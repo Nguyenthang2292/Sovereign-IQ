@@ -8,7 +8,7 @@ from typing import List
 
 from PIL import Image, ImageDraw
 
-from config.iching import (
+from config import (
     IMAGE_HEIGHT,
     IMAGE_WIDTH,
     IMAGES_DIR,

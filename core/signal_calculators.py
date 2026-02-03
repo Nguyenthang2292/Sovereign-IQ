@@ -748,7 +748,7 @@ def get_random_forest_signal(
         # Load model
         from pathlib import Path
 
-        from config.random_forest import MODELS_DIR
+        from config import MODELS_DIR
         from modules.common.ui.logging import log_error
 
         # Validate and sanitize model_path to prevent path traversal attacks

@@ -14,7 +14,7 @@ Functions:
 
 import numpy as np
 
-from config.lstm import (
+from config import (
     FUTURE_RETURN_SHIFT,
     NEUTRAL_ZONE_LSTM,
     TARGET_THRESHOLD_LSTM,

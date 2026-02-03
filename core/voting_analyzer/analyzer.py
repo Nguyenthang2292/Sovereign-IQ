@@ -6,8 +6,7 @@ import threading
 from typing import Dict, Optional
 
 import pandas as pd
-
-from config.spc import (
+from config import (
     SPC_AGGREGATION_ADAPTIVE_PERFORMANCE_WINDOW,
     SPC_AGGREGATION_ENABLE_ADAPTIVE_WEIGHTS,
     SPC_AGGREGATION_ENABLE_SIMPLE_FALLBACK,
@@ -19,6 +18,7 @@ from config.spc import (
     SPC_AGGREGATION_WEIGHTED_MIN_DIFF,
     SPC_AGGREGATION_WEIGHTED_MIN_TOTAL,
 )
+
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.utils import log_info
 from modules.simplified_percentile_clustering.aggregation import SPCVoteAggregator

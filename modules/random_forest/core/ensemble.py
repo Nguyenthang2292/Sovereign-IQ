@@ -16,7 +16,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
 
-from config.random_forest import (
+from config import (
     RANDOM_FOREST_ENSEMBLE_FINAL_ESTIMATOR,
     RANDOM_FOREST_ENSEMBLE_INCLUDE_LSTM,
     RANDOM_FOREST_ENSEMBLE_INCLUDE_XGBOOST,
@@ -193,7 +193,7 @@ def load_xgboost_model(model_path: Optional[Path] = None) -> Optional[Any]:
 
         if model_path is None:
             # Try default XGBoost model path
-            from config.xgboost import MODELS_DIR
+            from config import MODELS_DIR
 
             model_files = list(MODELS_DIR.glob("*.joblib"))
             if not model_files:

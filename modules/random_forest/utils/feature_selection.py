@@ -12,7 +12,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectKBest, mutual_info_classif
 
-from config.random_forest import (
+from config import (
     RANDOM_FOREST_FEATURE_IMPORTANCE_THRESHOLD,
     RANDOM_FOREST_FEATURE_SELECTION_K,
     RANDOM_FOREST_FEATURE_SELECTION_METHOD,

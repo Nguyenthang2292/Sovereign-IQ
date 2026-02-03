@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from config.position_sizing import (
+from config import (
     BACKTEST_MAX_HOLD_PERIODS,
     BACKTEST_RISK_PER_TRADE,
     BACKTEST_STOP_LOSS_PCT,

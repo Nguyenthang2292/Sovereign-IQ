@@ -11,7 +11,7 @@ Intended for use with LSTM, LSTM with attention, and CNN-LSTM architectures.
 
 import torch
 
-from config.lstm import (
+from config import (
     COMPLEXITY_MULTIPLIER,
     CPU_BATCH_DIVISOR_CNN_LSTM,
     CPU_BATCH_DIVISOR_LSTM_ATTENTION,

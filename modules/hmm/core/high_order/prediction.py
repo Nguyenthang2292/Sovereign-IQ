@@ -10,7 +10,7 @@ from typing import List
 import numpy as np
 from pomegranate.hmm import DenseHMM
 
-from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
+from config import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
 from modules.hmm.core.high_order.state_expansion import map_expanded_to_base_state
 from modules.hmm.core.swings.swing_utils import safe_forward_backward
 

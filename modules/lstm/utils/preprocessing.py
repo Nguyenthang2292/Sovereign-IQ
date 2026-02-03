@@ -8,14 +8,14 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from config.lstm import (
+from config import (
     KALMAN_OBSERVATION_VARIANCE,
     KALMAN_PROCESS_VARIANCE,
     NEUTRAL_ZONE_LSTM,
     TARGET_THRESHOLD_LSTM,
     WINDOW_SIZE_LSTM,
 )
-from config.model_features import MODEL_FEATURES
+from config import MODEL_FEATURES
 from modules.common.ui.logging import log_error, log_model, log_warn
 from modules.lstm.core.create_balanced_target import create_balanced_target
 from modules.lstm.utils.indicator_features import generate_indicator_features

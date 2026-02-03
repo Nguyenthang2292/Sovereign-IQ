@@ -22,7 +22,7 @@ from typing import Literal
 import torch
 import torch.nn as nn
 
-from config.lstm import (
+from config import (
     CLASSIFIER_HIDDEN_DIM,
     DROPOUT_FINAL_LAYER,
     LSTM_ATTENTION_DIM,

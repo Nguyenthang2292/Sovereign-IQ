@@ -24,221 +24,134 @@ class ExchangeConnectionFactory:
     for a specific exchange.
     """
 
-    def connect_to_binance_with_credentials(
-        self, manager: "AuthenticatedExchangeManager"
-    ) -> ccxt.Exchange:
-        """
-        Connect to authenticated Binance exchange instance (REQUIRES credentials).
-
-        Use this for:
-        - fetch_ticker() - Get current prices
-        - load_markets() - List available symbols
-        - fetch_positions() - Get account positions
-        - Any authenticated API calls
-
-        Args:
-            manager: AuthenticatedExchangeManager instance to use for connection
-
-        Returns:
-            ccxt.Exchange: Authenticated Binance exchange instance
-
-        Raises:
-            ValueError: If API key/secret not provided
-        """
-        return manager.connect_to_exchange_with_credentials("binance")
-
-    def connect_to_kraken_with_credentials(
+    def create_authenticated_exchange(
         self,
-        manager: "AuthenticatedExchangeManager",
-        api_key: Optional[str] = None,
-        api_secret: Optional[str] = None,
-        testnet: Optional[bool] = None,
-        contract_type: Optional[str] = None,
+        exchange_id: str,
+        api_key: str,
+        api_secret: str,
+        testnet: bool = False,
+        contract_type: str = "future",
     ) -> ccxt.Exchange:
         """
-        Connect to authenticated Kraken exchange instance (REQUIRES credentials).
+        Create authenticated exchange instance with proper Futures API configuration.
 
-        Convenience method for connect_to_exchange_with_credentials('kraken').
-
-        Args:
-            manager: AuthenticatedExchangeManager instance to use for connection
-            api_key: API key for Kraken (optional, uses set credentials or default)
-            api_secret: API secret for Kraken (optional, uses set credentials or default)
-            testnet: Use testnet if True (optional, uses instance default)
-            contract_type: Contract type ('spot', 'margin', 'future') (optional, uses config default)
-
-        Returns:
-            ccxt.Exchange: Authenticated Kraken exchange instance
-
-        Raises:
-            ValueError: If API key/secret not provided
-        """
-        return manager.connect_to_exchange_with_credentials("kraken", api_key, api_secret, testnet, contract_type)
-
-    def connect_to_kucoin_with_credentials(
-        self,
-        manager: "AuthenticatedExchangeManager",
-        api_key: Optional[str] = None,
-        api_secret: Optional[str] = None,
-        testnet: Optional[bool] = None,
-        contract_type: Optional[str] = None,
-    ) -> ccxt.Exchange:
-        """
-        Connect to authenticated KuCoin exchange instance (REQUIRES credentials).
-
-        Convenience method for connect_to_exchange_with_credentials('kucoin').
+        This method ensures that all exchanges use Futures API by default.
 
         Args:
-            manager: AuthenticatedExchangeManager instance to use for connection
-            api_key: API key for KuCoin (optional, uses set credentials or default)
-            api_secret: API secret for KuCoin (optional, uses set credentials or default)
-            testnet: Use testnet if True (optional, uses instance default)
-            contract_type: Contract type ('spot', 'margin', 'future') (optional, uses config default)
+            exchange_id: Exchange name (e.g., 'binance', 'okx', 'kucoin')
+            api_key: API key for authentication
+            api_secret: API secret for authentication
+            testnet: Use testnet if True (default: False)
+            contract_type: Contract type - 'future' (default), 'spot', or 'margin'
 
         Returns:
-            ccxt.Exchange: Authenticated KuCoin exchange instance
+            ccxt.Exchange: Configured exchange instance with Futures API as default
 
         Raises:
-            ValueError: If API key/secret not provided
+            ValueError: If exchange is not supported by ccxt
+
+        Example:
+            >>> factory = ExchangeConnectionFactory()
+            >>> exchange = factory.create_authenticated_exchange(
+            ...     'binance',
+            ...     'your_api_key',
+            ...     'your_secret',
+            ...     testnet=True,
+            ...     contract_type='future'
+            ... )
         """
-        return manager.connect_to_exchange_with_credentials("kucoin", api_key, api_secret, testnet, contract_type)
+        # Validate exchange is supported
+        if not hasattr(ccxt, exchange_id):
+            raise ValueError(f"Exchange '{exchange_id}' is not supported by ccxt")
 
-    def connect_to_gate_with_credentials(
-        self,
-        manager: "AuthenticatedExchangeManager",
-        api_key: Optional[str] = None,
-        api_secret: Optional[str] = None,
-        testnet: Optional[bool] = None,
-        contract_type: Optional[str] = None,
-    ) -> ccxt.Exchange:
-        """
-        Connect to authenticated Gate.io exchange instance (REQUIRES credentials).
+        exchange_class = getattr(ccxt, exchange_id)
 
-        Convenience method for connect_to_exchange_with_credentials('gate').
+        # Build config with Futures as default
+        # CRITICAL: defaultType MUST be set to prevent Spot API usage
+        config = {
+            "apiKey": api_key,
+            "secret": api_secret,
+            "enableRateLimit": True,
+            "options": {
+                "defaultType": contract_type,  # ✅ FUTURES by default!
+                "adjustForTimeDifference": True,  # Handle time sync issues
+            },
+        }
 
-        Args:
-            manager: AuthenticatedExchangeManager instance to use for connection
-            api_key: API key for Gate.io (optional, uses set credentials or default)
-            api_secret: API secret for Gate.io (optional, uses set credentials or default)
-            testnet: Use testnet if True (optional, uses instance default)
-            contract_type: Contract type ('spot', 'margin', 'future') (optional, uses config default)
+        # Configure testnet/demo URLs if needed
+        if testnet:
+            if exchange_id == "binance":
+                # Binance Futures Demo Account (NEW - replaces old testnet)
+                # REST base URL for demo: https://demo-fapi.binance.com
+                config["urls"] = {
+                    "api": {
+                        "public": "https://demo-fapi.binance.com/fapi/v1",
+                        "private": "https://demo-fapi.binance.com/fapi/v1",
+                    }
+                }
+            elif exchange_id == "bybit":
+                # Bybit Testnet
+                config["urls"] = {
+                    "api": {
+                        "public": "https://api-testnet.bybit.com",
+                        "private": "https://api-testnet.bybit.com",
+                    }
+                }
+            # Add more testnet URLs for other exchanges as needed
 
-        Returns:
-            ccxt.Exchange: Authenticated Gate.io exchange instance
+        # Create and return exchange instance
+        return exchange_class(config)
 
-        Raises:
-            ValueError: If API key/secret not provided
-        """
-        return manager.connect_to_exchange_with_credentials("gate", api_key, api_secret, testnet, contract_type)
+    def _create_exchange_method(exchange_id: str):
+        """Factory to generate exchange connection methods dynamically."""
 
-    def connect_to_okx_with_credentials(
-        self,
-        manager: "AuthenticatedExchangeManager",
-        api_key: Optional[str] = None,
-        api_secret: Optional[str] = None,
-        testnet: Optional[bool] = None,
-        contract_type: Optional[str] = None,
-    ) -> ccxt.Exchange:
-        """
-        Connect to authenticated OKX exchange instance (REQUIRES credentials).
+        def connect(
+            self,
+            manager: "AuthenticatedExchangeManager",
+            api_key: Optional[str] = None,
+            api_secret: Optional[str] = None,
+            testnet: Optional[bool] = None,
+            contract_type: Optional[str] = None,
+        ) -> ccxt.Exchange:
+            """
+            Connect to authenticated {exchange_id} exchange instance (REQUIRES credentials).
 
-        Convenience method for connect_to_exchange_with_credentials('okx').
+            Convenience method for connect_to_exchange_with_credentials('{exchange_id}').
 
-        Args:
-            manager: AuthenticatedExchangeManager instance to use for connection
-            api_key: API key for OKX (optional, uses set credentials or default)
-            api_secret: API secret for OKX (optional, uses set credentials or default)
-            testnet: Use testnet if True (optional, uses instance default)
-            contract_type: Contract type ('spot', 'margin', 'future') (optional, uses config default)
+            Args:
+                manager: AuthenticatedExchangeManager instance to use for connection
+                api_key: API key (optional, uses set credentials or default)
+                api_secret: API secret (optional, uses set credentials or default)
+                testnet: Use testnet if True (optional, uses instance default)
+                contract_type: Contract type ('spot', 'margin', 'future') (optional)
 
-        Returns:
-            ccxt.Exchange: Authenticated OKX exchange instance
+            Returns:
+                ccxt.Exchange: Authenticated exchange instance
 
-        Raises:
-            ValueError: If API key/secret not provided
-        """
-        return manager.connect_to_exchange_with_credentials("okx", api_key, api_secret, testnet, contract_type)
+            Raises:
+                ValueError: If API key/secret not provided
+            """
+            return manager.connect_to_exchange_with_credentials(
+                exchange_id, api_key, api_secret, testnet, contract_type
+            )
 
-    def connect_to_bybit_with_credentials(
-        self,
-        manager: "AuthenticatedExchangeManager",
-        api_key: Optional[str] = None,
-        api_secret: Optional[str] = None,
-        testnet: Optional[bool] = None,
-        contract_type: Optional[str] = None,
-    ) -> ccxt.Exchange:
-        """
-        Connect to authenticated Bybit exchange instance (REQUIRES credentials).
+        connect.__name__ = f"connect_to_{exchange_id}_with_credentials"
+        connect.__doc__ = connect.__doc__.format(exchange_id=exchange_id)
+        return connect
 
-        Convenience method for connect_to_exchange_with_credentials('bybit').
+    # Dynamic generation of convenience methods
+    # This reduces code duplication while maintaining the exact same API
+    _SUPPORTED_EXCHANGES = [
+        "binance",
+        "kraken",
+        "kucoin",
+        "gate",
+        "okx",
+        "bybit",
+        "mexc",
+        "huobi",
+    ]
 
-        Args:
-            manager: AuthenticatedExchangeManager instance to use for connection
-            api_key: API key for Bybit (optional, uses set credentials or default)
-            api_secret: API secret for Bybit (optional, uses set credentials or default)
-            testnet: Use testnet if True (optional, uses instance default)
-            contract_type: Contract type ('spot', 'margin', 'future') (optional, uses config default)
-
-        Returns:
-            ccxt.Exchange: Authenticated Bybit exchange instance
-
-        Raises:
-            ValueError: If API key/secret not provided
-        """
-        return manager.connect_to_exchange_with_credentials("bybit", api_key, api_secret, testnet, contract_type)
-
-    def connect_to_mexc_with_credentials(
-        self,
-        manager: "AuthenticatedExchangeManager",
-        api_key: Optional[str] = None,
-        api_secret: Optional[str] = None,
-        testnet: Optional[bool] = None,
-        contract_type: Optional[str] = None,
-    ) -> ccxt.Exchange:
-        """
-        Connect to authenticated MEXC exchange instance (REQUIRES credentials).
-
-        Convenience method for connect_to_exchange_with_credentials('mexc').
-
-        Args:
-            manager: AuthenticatedExchangeManager instance to use for connection
-            api_key: API key for MEXC (optional, uses set credentials or default)
-            api_secret: API secret for MEXC (optional, uses set credentials or default)
-            testnet: Use testnet if True (optional, uses instance default)
-            contract_type: Contract type ('spot', 'margin', 'future') (optional, uses config default)
-
-        Returns:
-            ccxt.Exchange: Authenticated MEXC exchange instance
-
-        Raises:
-            ValueError: If API key/secret not provided
-        """
-        return manager.connect_to_exchange_with_credentials("mexc", api_key, api_secret, testnet, contract_type)
-
-    def connect_to_huobi_with_credentials(
-        self,
-        manager: "AuthenticatedExchangeManager",
-        api_key: Optional[str] = None,
-        api_secret: Optional[str] = None,
-        testnet: Optional[bool] = None,
-        contract_type: Optional[str] = None,
-    ) -> ccxt.Exchange:
-        """
-        Connect to authenticated Huobi exchange instance (REQUIRES credentials).
-
-        Convenience method for connect_to_exchange_with_credentials('huobi').
-
-        Args:
-            manager: AuthenticatedExchangeManager instance to use for connection
-            api_key: API key for Huobi (optional, uses set credentials or default)
-            api_secret: API secret for Huobi (optional, uses set credentials or default)
-            testnet: Use testnet if True (optional, uses instance default)
-            contract_type: Contract type ('spot', 'margin', 'future') (optional, uses config default)
-
-        Returns:
-            ccxt.Exchange: Authenticated Huobi exchange instance
-
-        Raises:
-            ValueError: If API key/secret not provided
-        """
-        return manager.connect_to_exchange_with_credentials("huobi", api_key, api_secret, testnet, contract_type)
+    for _exc in _SUPPORTED_EXCHANGES:
+        _method_name = f"connect_to_{_exc}_with_credentials"
+        locals()[_method_name] = _create_exchange_method(_exc)

@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 
 from scipy import stats
 
-from config.position_sizing import (
+from config import (
     DEFAULT_CONFIDENCE_LEVEL,
     DEFAULT_FRACTIONAL_KELLY,
     DEFAULT_MIN_TRADES,

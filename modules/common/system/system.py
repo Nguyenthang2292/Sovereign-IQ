@@ -139,7 +139,7 @@ def get_pytorch_env() -> dict:
     Returns:
         dict: Environment variables dictionary to apply via os.environ.update()
     """
-    from config.deep_learning import PYTORCH_DEBUG_ENV, PYTORCH_ENV
+    from config import PYTORCH_DEBUG_ENV, PYTORCH_ENV
 
     env = PYTORCH_ENV.copy()
 

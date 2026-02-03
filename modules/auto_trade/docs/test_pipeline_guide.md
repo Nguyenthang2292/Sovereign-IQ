@@ -222,6 +222,5 @@ After successful test:
 
 ## Related Files
 
-- `optimization_recommendations.md` - Full optimization analysis
-- `legacy/MIGRATION_SUMMARY.md` - Recent consolidation changes
-- `docs/core/signal_pipeline_review_v1.md` - Pipeline architecture review
+- `core/signal_pipeline_review_v1.md` - Pipeline architecture review
+- `../legacy/MIGRATION_SUMMARY.md` - Recent consolidation changes

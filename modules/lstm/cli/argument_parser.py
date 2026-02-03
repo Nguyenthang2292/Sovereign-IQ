@@ -9,7 +9,7 @@ import argparse
 from pathlib import Path
 
 from config.common import DEFAULT_SYMBOL, DEFAULT_TIMEFRAME
-from config.lstm import MODELS_DIR
+from config import MODELS_DIR
 
 
 def parse_args():

@@ -39,7 +39,8 @@ class BinanceClient:
         Args:
             api_key: Binance API key
             api_secret: Binance API secret
-            testnet: Use testnet if True
+            testnet: Use demo environment if True (uses demo-fapi.binance.com)
+                    Note: Binance now uses demo API endpoints instead of old testnet
             enable_rate_limiting: Enable CCXT rate limiting
             max_retries: Maximum retry attempts for failed requests
             retry_delay: Initial delay between retries (exponential backoff)
@@ -76,15 +77,30 @@ class BinanceClient:
         }
 
         if self.testnet:
+            # Binance Futures Demo Account (NEW - replaces old testnet)
+            # REST base URL for demo: https://demo-fapi.binance.com
+            # CRITICAL: Must override ALL futures endpoints (fapiPublic, fapiPrivate, fapiPrivateV2, etc.)
+            # because the balance/position calls use fapiPrivateV2, not just "private"
             config["urls"] = {
                 "api": {
-                    "public": "https://testnet.binancefuture.com/fapi/v1",
-                    "private": "https://testnet.binancefuture.com/fapi/v1",
+                    # Override ALL futures endpoints for demo
+                    "fapiPublic": "https://demo-fapi.binance.com/fapi/v1",
+                    "fapiPublicV2": "https://demo-fapi.binance.com/fapi/v2",
+                    "fapiPublicV3": "https://demo-fapi.binance.com/fapi/v3",
+                    "fapiPrivate": "https://demo-fapi.binance.com/fapi/v1",
+                    "fapiPrivateV2": "https://demo-fapi.binance.com/fapi/v2",
+                    "fapiPrivateV3": "https://demo-fapi.binance.com/fapi/v3",
+                    "fapiData": "https://demo-fapi.binance.com/futures/data",
                 }
             }
+            log_info("Initialized Binance Demo client (uses demo-fapi.binance.com)")
+        else:
+            # Production or Demo Account
+            # Note: Binance demo accounts use production endpoints (fapi.binance.com)
+            # with special demo API keys. No special URL configuration needed.
+            log_info("Initialized Binance Live/Demo client (uses production endpoints)")
 
         exchange = ccxt.binance(config)
-        log_info(f"Initialized Binance {'Testnet' if self.testnet else 'Live'} client")
         return exchange
 
     def set_leverage(self, symbol: str, leverage: int) -> bool:

@@ -48,7 +48,7 @@ except ImportError:
 
 from colorama import Fore, Style
 
-from config.random_forest import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
+from config import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
 from core.signal_calculators import get_random_forest_signal
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
@@ -388,7 +388,7 @@ def auto_train_model(
         log_info(f"Auto training model using {len(symbols)} symbols: {', '.join(symbols)}")
 
         # Get model path before training
-        from config.random_forest import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
+        from config import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
 
         old_model_path = MODELS_DIR / RANDOM_FOREST_MODEL_FILENAME
         old_model_exists = old_model_path.exists()
@@ -1017,7 +1017,7 @@ def main():
     args = parser.parse_args()
 
     # Import config
-    from config.random_forest import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
+    from config import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
 
     # Interactive menu mode (show menu if --menu flag is set OR if no arguments provided)
     if args.menu or show_menu_automatically:
@@ -1106,7 +1106,7 @@ def main():
             if success:
                 log_success("Auto training completed. Retrying model validation...")
                 # Model has been copied to default location, use that for validation
-                from config.random_forest import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
+                from config import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
 
                 model_path = str(MODELS_DIR / RANDOM_FOREST_MODEL_FILENAME)
                 # Re-validate

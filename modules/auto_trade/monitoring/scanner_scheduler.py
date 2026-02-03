@@ -5,7 +5,6 @@ Schedules market scans and signal generation when no positions are open.
 Triggers signal pipeline every 5 minutes and executes orders if signals are found.
 """
 
-import time
 from datetime import datetime
 from threading import Event, Thread
 from typing import Callable, Optional

@@ -10,7 +10,7 @@ from typing import Optional, Union
 
 from colorama import Fore, Style
 
-from config.lstm import MODELS_DIR
+from config import MODELS_DIR
 from modules.common.ui.logging import log_error, log_info
 from modules.common.utils import color_text, initialize_components
 from modules.common.utils.data import fetch_ohlcv_data_dict

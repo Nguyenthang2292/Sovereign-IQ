@@ -6,7 +6,7 @@ from typing import Union
 
 from PIL import ImageFont
 
-from config.iching import FONT_PATHS, FONT_SIZE, IMAGES_DIR
+from config import FONT_PATHS, FONT_SIZE, IMAGES_DIR
 
 """
 Utility functions for I Ching module.

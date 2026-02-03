@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from config.position_sizing import (
+from config import (
     HYBRID_OSC_LENGTH,
     HYBRID_OSC_MULT,
     HYBRID_OSC_STRATEGIES,

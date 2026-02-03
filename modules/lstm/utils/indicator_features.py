@@ -7,7 +7,7 @@ Uses indicator calculation functions from modules.common.indicators for consiste
 import pandas as pd
 import pandas_ta as ta
 
-from config.model_features import CANDLESTICK_PATTERN_NAMES, MODEL_FEATURES
+from config import CANDLESTICK_PATTERN_NAMES, MODEL_FEATURES
 from modules.common.indicators.momentum import (
     calculate_bollinger_bands_series,
     calculate_macd_series,

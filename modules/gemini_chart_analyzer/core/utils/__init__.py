@@ -52,7 +52,7 @@ def get_timeframe_weight(timeframe: str, weights: Optional[dict] = None) -> floa
     Returns:
         Weight value (default: 0.1 if not found)
     """
-    from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
+    from config import TIMEFRAME_WEIGHTS
 
     if weights is None:
         weights = TIMEFRAME_WEIGHTS
@@ -72,7 +72,7 @@ def sort_timeframes_by_weight(timeframes: List[str], weights: Optional[dict] = N
     Returns:
         Sorted list of timeframes
     """
-    from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
+    from config import TIMEFRAME_WEIGHTS
 
     if weights is None:
         weights = TIMEFRAME_WEIGHTS

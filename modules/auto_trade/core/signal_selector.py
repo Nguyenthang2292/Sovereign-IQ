@@ -27,7 +27,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, TypedDict
 
-from config.auto_trade import SIGNAL_SELECTOR_DEFAULTS
+# Use backward-compatible import from root config package
+from config import SIGNAL_SELECTOR_DEFAULTS
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.auto_trade.core.gemini_integration import GeminiSignal
 from modules.common.ui.logging import log_info, log_warn

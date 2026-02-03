@@ -7,8 +7,8 @@ Aggregate signals from multiple timeframes using weighted aggregation.
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
-# Import timeframe weights from config
-from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
+# Import timeframe weights from config (use backward-compatible import)
+from config import TIMEFRAME_WEIGHTS
 
 
 # ============================================================================

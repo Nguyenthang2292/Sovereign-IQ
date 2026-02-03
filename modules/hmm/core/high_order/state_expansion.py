@@ -7,7 +7,7 @@ to expanded states that represent sequences of k previous states.
 
 from typing import List, Tuple
 
-from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
+from config import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
 from modules.common.utils import log_warn
 
 

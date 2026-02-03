@@ -10,7 +10,7 @@ from typing import List, Optional
 
 from colorama import Fore, Style
 
-from config.position_sizing import (
+from config import (
     DEFAULT_LOOKBACK_DAYS,
     DEFAULT_MAX_POSITION_SIZE,
     DEFAULT_TIMEFRAME,

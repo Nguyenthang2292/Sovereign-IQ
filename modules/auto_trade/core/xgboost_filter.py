@@ -32,7 +32,7 @@ from typing import Any, Dict, List, Optional, Tuple, TypedDict
 import joblib
 import numpy as np
 
-from config.auto_trade import XGBOOST_FILTER_DEFAULTS
+from config import XGBOOST_FILTER_DEFAULTS
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.indicator_engine import (

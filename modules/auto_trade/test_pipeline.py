@@ -26,7 +26,7 @@ from typing import List, Optional
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from config.auto_trade import ATC_SCANNER_DEFAULTS, SIGNAL_SELECTOR_DEFAULTS, XGBOOST_FILTER_DEFAULTS
+from config import ATC_SCANNER_DEFAULTS, SIGNAL_SELECTOR_DEFAULTS, XGBOOST_FILTER_DEFAULTS
 from modules.auto_trade.core.atc_scanner import ATCScanner
 from modules.auto_trade.core.gemini_integration import GeminiIntegration
 from modules.auto_trade.core.persistence_sqlite import SignalPersistenceSQLite

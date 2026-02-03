@@ -32,7 +32,7 @@ configure_windows_stdio()
 from colorama import Fore, Style
 from colorama import init as colorama_init
 
-from config.position_sizing import (
+from config import (
     ENABLE_MULTITHREADING,
     ENABLE_PARALLEL_PROCESSING,
     USE_GPU,

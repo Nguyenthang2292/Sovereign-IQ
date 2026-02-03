@@ -10,7 +10,7 @@ import numpy as np
 from pomegranate.distributions import Categorical
 from pomegranate.hmm import DenseHMM
 
-from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
+from config import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
 from modules.common.utils import log_info, log_warn
 from modules.hmm.core.high_order.state_expansion import (
     expand_state_sequence,

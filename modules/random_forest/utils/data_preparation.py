@@ -9,8 +9,8 @@ from typing import Optional, Tuple, cast
 import pandas as pd
 
 from config import MIN_TRAINING_SAMPLES
-from config.model_features import MODEL_FEATURES
-from config.random_forest import RANDOM_FOREST_TARGET_HORIZON
+from config import MODEL_FEATURES
+from config import RANDOM_FOREST_TARGET_HORIZON
 from modules.common.core.indicator_engine import IndicatorConfig, IndicatorEngine, IndicatorProfile
 from modules.common.ui.logging import (
     log_error,
@@ -43,7 +43,7 @@ def prepare_training_data(df: pd.DataFrame) -> Optional[Tuple[pd.DataFrame, pd.S
 
     log_progress("Creating target variable 'target' with advanced labeling...")
     # Use advanced labeling strategy (volatility-adjusted, trend-based, multi-horizon)
-    from config.random_forest import (
+    from config import (
         RANDOM_FOREST_MULTI_HORIZON_ENABLED,
         RANDOM_FOREST_TREND_BASED_LABELING_ENABLED,
         RANDOM_FOREST_USE_VOLATILITY_ADJUSTED_THRESHOLDS,

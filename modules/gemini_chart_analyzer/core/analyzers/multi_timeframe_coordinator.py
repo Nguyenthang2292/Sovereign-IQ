@@ -7,8 +7,8 @@ Coordinates multi-timeframe analysis for both Deep Analysis and Batch Analysis m
 import os
 from typing import Any, Callable, Dict, List, Optional
 
-# Import timeframe weights from config
-from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS
+# Import timeframe weights from config (use backward-compatible import)
+from config import TIMEFRAME_WEIGHTS
 from modules.common.ui.logging import log_debug, log_error, log_info, log_success, log_warn
 from modules.gemini_chart_analyzer.core.aggregators.signal_aggregator import SignalAggregator
 from modules.gemini_chart_analyzer.core.exceptions import (

@@ -20,8 +20,8 @@ from config import (
 )
 
 # Import constants from config.hmm
-from config.hmm import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
-from config.hmm import HMM_HIGH_ORDER_N_SYMBOLS as N_SYMBOLS
+from config import HMM_HIGH_ORDER_N_BASE_STATES as N_BASE_STATES
+from config import HMM_HIGH_ORDER_N_SYMBOLS as N_SYMBOLS
 from modules.common.utils import log_error, log_warn
 from modules.hmm.core.high_order.model_creation import (
     create_high_order_hmm_model,

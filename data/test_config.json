@@ -1,0 +1,54 @@
+{
+  "scanning": {
+    "scan_interval": 300,
+    "symbol_sample_percentage": 1.0,
+    "enabled_scanners": [
+      "ATC",
+      "XGBOOST"
+    ],
+    "min_confidence": 0.7
+  },
+  "risk": {
+    "leverage": 2,
+    "position_size_percent": 0.95,
+    "stop_loss_percent": 0.5,
+    "take_profit_percent": 0.05,
+    "max_open_positions": 5,
+    "max_daily_loss": 0.1
+  },
+  "martingale": {
+    "enabled": true,
+    "max_steps": 3,
+    "multiplier": 2.0,
+    "min_recovery_profit": 0.01
+  },
+  "breakeven": {
+    "enabled": true,
+    "trigger_profit_percent": 0.02,
+    "offset_percent": 0.001
+  },
+  "database": {
+    "path": "data/auto_trade_test.db",
+    "backup_enabled": true,
+    "backup_interval": 3600,
+    "backup_retention": 7,
+    "auto_cleanup_days": 90
+  },
+  "binance": {
+    "api_key": "***REDACTED***",
+    "api_secret": "***REDACTED***",
+    "testnet": true,
+    "base_url": null
+  },
+  "logging": {
+    "level": "INFO",
+    "log_dir": "data/logs",
+    "log_file": "auto_trade.log",
+    "max_file_size": 10485760,
+    "backup_count": 5
+  },
+  "dry_run": true,
+  "enable_telegram": false,
+  "telegram_token": "",
+  "telegram_chat_id": ""
+}

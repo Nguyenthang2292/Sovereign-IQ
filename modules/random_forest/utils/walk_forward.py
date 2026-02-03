@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
-from config.random_forest import (
+from config import (
     RANDOM_FOREST_DRIFT_DETECTION_ENABLED,
     RANDOM_FOREST_DRIFT_THRESHOLD,
     RANDOM_FOREST_DRIFT_WINDOW_SIZE,

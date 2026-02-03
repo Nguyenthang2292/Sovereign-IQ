@@ -14,7 +14,7 @@ from typing import Optional, Tuple
 import pandas as pd
 import torch.nn as nn
 
-from config.lstm import DEFAULT_EPOCHS, GPU_MODEL_CONFIG, WINDOW_SIZE_LSTM
+from config import DEFAULT_EPOCHS, GPU_MODEL_CONFIG, WINDOW_SIZE_LSTM
 from modules.common.ui.logging import log_error, log_model, log_success
 from modules.lstm.models.model_factory import create_cnn_lstm_attention_model
 from modules.lstm.models.trainer.attention_mixin import AttentionFeatureMixin
