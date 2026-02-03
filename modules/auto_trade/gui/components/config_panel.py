@@ -386,50 +386,205 @@ class ConfigPanel(ctk.CTkFrame):
     def _test_connection(self):
         """Test API connection"""
         try:
-            print("Testing connection...")
-            # TODO: Implement actual connection test
-            if self.on_settings_change:
-                self.on_settings_change("connection_test")
+            from gui.utils.credential_manager import CredentialManager
+            from tkinter import messagebox
+
+            # Get credentials from UI
+            exchange = self.exchange_var.get().lower()
+            api_key = self.api_key_entry.get().strip()
+            api_secret = self.api_secret_entry.get().strip()
+
+            if not api_key or not api_secret:
+                messagebox.showwarning("Missing Credentials", "Please enter both API Key and API Secret")
+                return
+
+            # Test connection
+            manager = CredentialManager()
+            result = manager.test_connection(exchange, api_key, api_secret)
+
+            if result["success"]:
+                balance_info = result.get("balance", {})
+                balance_str = "\n".join([f"{k}: {v}" for k, v in list(balance_info.items())[:5]])
+                messagebox.showinfo(
+                    "Connection Successful",
+                    f"{result['message']}\n\nSample Balance:\n{balance_str if balance_str else 'No balance data'}"
+                )
+
+                if self.on_settings_change:
+                    self.on_settings_change("connection_test", True)
+            else:
+                messagebox.showerror("Connection Failed", result["message"])
+
+                if self.on_settings_change:
+                    self.on_settings_change("connection_test", False)
+
         except Exception as e:
-            print(f"Connection test failed: {e}")
+            from tkinter import messagebox
+            messagebox.showerror("Error", f"Connection test failed: {e}")
 
     def _save_credentials(self):
         """Save API credentials"""
         try:
-            print("Saving credentials...")
-            # TODO: Implement credential saving to .env
-            if self.on_settings_change:
-                self.on_settings_change("save_credentials")
+            from gui.utils.credential_manager import CredentialManager
+            from tkinter import messagebox
+
+            # Get credentials from UI
+            exchange = self.exchange_var.get().lower()
+            api_key = self.api_key_entry.get().strip()
+            api_secret = self.api_secret_entry.get().strip()
+
+            if not api_key or not api_secret:
+                messagebox.showwarning("Missing Credentials", "Please enter both API Key and API Secret")
+                return
+
+            # Confirm before saving
+            confirm = messagebox.askyesno(
+                "Save Credentials",
+                f"Save API credentials for {exchange}?\n\n"
+                "Credentials will be stored securely in the .env file.\n\n"
+                "⚠️ Make sure .env is in your .gitignore!"
+            )
+
+            if not confirm:
+                return
+
+            # Save credentials
+            manager = CredentialManager()
+            success = manager.save_credentials(exchange, api_key, api_secret)
+
+            if success:
+                messagebox.showinfo(
+                    "Success",
+                    f"Credentials saved successfully for {exchange}!\n\n"
+                    "They are stored in the .env file."
+                )
+
+                # Clear UI fields for security
+                self.api_key_entry.delete(0, "end")
+                self.api_secret_entry.delete(0, "end")
+
+                if self.on_settings_change:
+                    self.on_settings_change("save_credentials", True)
+            else:
+                messagebox.showerror("Error", "Failed to save credentials")
+
+                if self.on_settings_change:
+                    self.on_settings_change("save_credentials", False)
+
         except Exception as e:
-            print(f"Save credentials failed: {e}")
+            from tkinter import messagebox
+            messagebox.showerror("Error", f"Failed to save credentials: {e}")
 
     def get_settings(self) -> Dict:
-        """Get current settings"""
-        return {
-            "risk": {
-                "max_position_size": float(self.max_pos_size_entry.get()),
-                "max_open_positions": int(self.max_positions_entry.get()),
-                "max_daily_loss": float(self.max_daily_loss_entry.get()),
-                "default_leverage": self.default_leverage_var.get(),
-            },
-            "filters": {
-                "min_signal_score": self.min_score_var.get(),
-                "enable_xgboost": self.enable_xgboost_var.get(),
-                "symbol_whitelist": self.whitelist_entry.get("0.0", "end-1c"),
-                "min_volume": float(self.min_volume_entry.get()),
-            },
-            "api": {
-                "exchange": self.exchange_var.get(),
-                "api_key": self.api_key_entry.get(),
-                "api_secret": self.api_secret_entry.get(),
-            },
-            "tp_sl": {
-                "default_tp": float(self.default_tp_entry.get()),
-                "default_sl": float(self.default_sl_entry.get()),
-                "trailing_stop": self.trailing_stop_var.get(),
-                "mode": self.tp_sl_mode_var.get(),
-            },
-        }
+        """
+        Get current settings (excluding API credentials for security)
+
+        Returns:
+            Dictionary with risk, filters, and tp_sl settings
+            Note: API credentials are NOT included and must be loaded separately
+                  using CredentialManager
+        """
+        try:
+            # Validate and parse numeric values
+            try:
+                max_position_size = float(self.max_pos_size_entry.get())
+                if max_position_size <= 0:
+                    raise ValueError("Max position size must be positive")
+            except ValueError as e:
+                print(f"Invalid max position size: {e}, using default 100.00")
+                max_position_size = 100.0
+
+            try:
+                max_open_positions = int(self.max_positions_entry.get())
+                if max_open_positions <= 0:
+                    raise ValueError("Max open positions must be positive")
+            except ValueError as e:
+                print(f"Invalid max open positions: {e}, using default 3")
+                max_open_positions = 3
+
+            try:
+                max_daily_loss = float(self.max_daily_loss_entry.get())
+                if max_daily_loss <= 0:
+                    raise ValueError("Max daily loss must be positive")
+            except ValueError as e:
+                print(f"Invalid max daily loss: {e}, using default 50.00")
+                max_daily_loss = 50.0
+
+            try:
+                min_volume = float(self.min_volume_entry.get())
+                if min_volume < 0:
+                    raise ValueError("Min volume cannot be negative")
+            except ValueError as e:
+                print(f"Invalid min volume: {e}, using default 50")
+                min_volume = 50.0
+
+            try:
+                default_tp = float(self.default_tp_entry.get())
+                if default_tp <= 0 or default_tp > 100:
+                    raise ValueError("Default TP must be between 0 and 100")
+            except ValueError as e:
+                print(f"Invalid default TP: {e}, using default 5.0")
+                default_tp = 5.0
+
+            try:
+                default_sl = float(self.default_sl_entry.get())
+                if default_sl <= 0 or default_sl > 100:
+                    raise ValueError("Default SL must be between 0 and 100")
+            except ValueError as e:
+                print(f"Invalid default SL: {e}, using default 2.5")
+                default_sl = 2.5
+
+            return {
+                "risk": {
+                    "max_position_size": max_position_size,
+                    "max_open_positions": max_open_positions,
+                    "max_daily_loss": max_daily_loss,
+                    "default_leverage": self.default_leverage_var.get(),
+                },
+                "filters": {
+                    "min_signal_score": self.min_score_var.get(),
+                    "enable_xgboost": self.enable_xgboost_var.get(),
+                    "symbol_whitelist": self.whitelist_entry.get("0.0", "end-1c"),
+                    "min_volume": min_volume,
+                },
+                "api": {
+                    "exchange": self.exchange_var.get(),
+                    # SECURITY: API credentials are NOT returned here
+                    # Use CredentialManager.load_credentials() to retrieve them
+                },
+                "tp_sl": {
+                    "default_tp": default_tp,
+                    "default_sl": default_sl,
+                    "trailing_stop": self.trailing_stop_var.get(),
+                    "mode": self.tp_sl_mode_var.get(),
+                },
+            }
+        except Exception as e:
+            print(f"Error getting settings: {e}")
+            # Return safe defaults
+            return {
+                "risk": {
+                    "max_position_size": 100.0,
+                    "max_open_positions": 3,
+                    "max_daily_loss": 50.0,
+                    "default_leverage": "10x",
+                },
+                "filters": {
+                    "min_signal_score": 0.7,
+                    "enable_xgboost": True,
+                    "symbol_whitelist": "",
+                    "min_volume": 50.0,
+                },
+                "api": {
+                    "exchange": "Binance",
+                },
+                "tp_sl": {
+                    "default_tp": 5.0,
+                    "default_sl": 2.5,
+                    "trailing_stop": False,
+                    "mode": "Percentage",
+                },
+            }
 
     def load_settings(self, settings: Dict):
         """Load settings into UI"""

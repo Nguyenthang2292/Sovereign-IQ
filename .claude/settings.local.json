@@ -27,10 +27,7 @@
       "Bash(pytest:*)",
       "Bash(git checkout:*)",
       "Bash(if:*)",
-      "Bash(ls:*)",
-      "Bash(cargo build:*)",
-      "Bash(pip install:*)",
-      "Bash(grep:*)"
+      "Bash(ls:*)"
     ]
   }
 }

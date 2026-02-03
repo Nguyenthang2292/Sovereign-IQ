@@ -199,7 +199,7 @@ class BinanceClient:
             log_info(f"Calculated contract amount: {amount_contracts:.4f} contracts")
 
         except Exception as e:
-            log_error(f"Failed to fetch ticker for {symbol}: {e}", exc_info=True)
+            log_error(f"Failed to fetch ticker for {symbol}: {e}")
             return None
 
         # Step 3: Create market order
@@ -217,10 +217,8 @@ class BinanceClient:
                 break
 
             except Exception as e:
-                log_error(
-                    f"Market order failed (attempt {attempt + 1}/{self.max_retries}): {e}",
-                    exc_info=True,
-                )
+                log_error(f"Market order failed (attempt {attempt + 1}/{self.max_retries}): {e}")
+
                 if attempt < self.max_retries - 1:
                     delay = self.retry_delay * (2**attempt)
                     log_warn(f"Retrying in {delay}s...")
@@ -355,3 +353,356 @@ class BinanceClient:
         except Exception as e:
             log_error(f"Failed to verify order {order_id}: {e}")
             return None
+
+    def close_position(
+        self, symbol: str, side: str, size: float, order_type: str = "market", limit_price: Optional[float] = None
+    ) -> Optional[dict]:
+        """
+        Close a position (full or partial).
+
+        Args:
+            symbol: Trading symbol
+            side: Position side ('long' or 'short')
+            size: Amount to close
+            order_type: 'market' or 'limit'
+            limit_price: Limit price (only for limit orders)
+
+        Returns:
+            Order result dict or None if failed
+        """
+        if self.dry_run:
+            log_info(f"[DRY RUN] Would close {size} of {symbol} {side} position ({order_type})")
+            if order_type == "limit" and limit_price:
+                log_info(f"  Limit price: ${limit_price:,.2f}")
+            return {
+                "dry_run": True,
+                "symbol": symbol,
+                "side": side,
+                "size": size,
+                "type": order_type,
+            }
+
+        # Calculate order side (opposite to position side)
+        close_side = "sell" if side.lower() == "long" else "buy"
+
+        # Get current price for limit orders
+        if order_type == "limit" and not limit_price:
+            log_error("Limit price required for limit orders")
+            return None
+
+        try:
+            log_info(f"Closing {size} of {symbol} {side} position ({order_type})")
+
+            if order_type == "market":
+                # Market order
+                result = self.exchange.create_order(
+                    symbol=symbol, type="market", side=close_side, amount=size, params={"reduceOnly": True}
+                )
+            else:
+                # Limit order
+                result = self.exchange.create_order(
+                    symbol=symbol,
+                    type="limit",
+                    side=close_side,
+                    amount=size,
+                    price=limit_price,
+                    params={"reduceOnly": True},
+                )
+
+            log_info(f"✅ Position close order executed: {result.get('id')}")
+            return result
+
+        except Exception as e:
+            log_error(f"Failed to close position: {e}")
+            return None
+
+    def get_position(self, symbol: str) -> Optional[dict]:
+        """
+        Fetch current position for a symbol.
+
+        Args:
+            symbol: Trading symbol
+
+        Returns:
+            Position dict or None if not found
+        """
+        if self.dry_run:
+            return {"symbol": symbol, "contracts": 0, "side": "long", "notional": 0}
+
+        try:
+            # fetch_positions might return a list of all positions or filtered by symbols depending on exchange
+            positions = self.exchange.fetch_positions([symbol])
+            for pos in positions:
+                if pos["symbol"] == symbol:
+                    return pos
+            return None
+        except Exception as e:
+            log_error(f"Failed to fetch position for {symbol}: {e}")
+            return None
+
+    def modify_take_profit(
+        self, symbol: str, position_id: Optional[str], take_profit_price: Optional[float] = None
+    ) -> Optional[dict]:
+        """
+        Modify take profit order for a position.
+
+        Args:
+            symbol: Trading symbol
+            position_id: Position ID (if available)
+            take_profit_price: New TP price (None to cancel existing TP)
+
+        Returns:
+            Order result dict or None if failed
+        """
+        if self.dry_run:
+            if take_profit_price:
+                log_info(f"[DRY RUN] Would modify TP for {symbol} to ${take_profit_price:,.2f}")
+            else:
+                log_info(f"[DRY RUN] Would cancel TP for {symbol}")
+            return {"dry_run": True, "symbol": symbol}
+
+        try:
+            # 1. Get current position to determine side and amount
+            position = self.get_position(symbol)
+            if not position:
+                log_error(f"No open position found for {symbol}")
+                return None
+
+            amount = abs(float(position.get("contracts", 0) or position.get("info", {}).get("positionAmt", 0)))
+            if amount == 0:
+                log_warn(f"Position size is 0 for {symbol}, cannot modify TP")
+                return None
+
+            side = position.get("side")  # 'long' or 'short'
+            if not side:
+                # Fallback if CCXT doesn't normalize side
+                amt = float(position.get("info", {}).get("positionAmt", 0))
+                side = "long" if amt > 0 else "short"
+
+            tp_side = "sell" if side == "long" else "buy"
+
+            # 2. Fetch open orders to find existing TP
+            open_orders = self.exchange.fetch_open_orders(symbol)
+            cancelled_count = 0
+
+            # 3. Cancel existing TP orders
+            for order in open_orders:
+                order_type = order.get("type", "").lower()
+                # TP orders are usually TAKE_PROFIT or TAKE_PROFIT_MARKET
+                if "take_profit" in order_type:
+                    try:
+                        self.exchange.cancel_order(order["id"], symbol)
+                        cancelled_count += 1
+                        log_info(f"Cancelled existing TP order: {order['id']}")
+                    except Exception as e:
+                        log_warn(f"Failed to cancel TP order {order['id']}: {e}")
+
+            # 4. Place new TP order if price provided
+            if take_profit_price:
+                log_info(f"Setting new TP for {symbol} at ${take_profit_price:,.2f}")
+
+                tp_order = self.exchange.create_order(
+                    symbol=symbol,
+                    type="take_profit_market",
+                    side=tp_side,
+                    amount=amount,
+                    params={
+                        "stopPrice": take_profit_price,
+                        "reduceOnly": True,
+                    },
+                )
+                log_info(f"✅ Take Profit order updated at ${take_profit_price:,.2f}")
+                return tp_order
+            else:
+                log_info(f"TP cancelled for {symbol}")
+                return {"symbol": symbol, "cancelled_tp_count": cancelled_count}
+
+        except Exception as e:
+            log_error(f"Failed to modify TP: {e}")
+            return None
+
+    def modify_stop_loss(
+        self, symbol: str, position_id: Optional[str], stop_loss_price: Optional[float] = None
+    ) -> Optional[dict]:
+        """
+        Modify stop loss order for a position.
+
+        Args:
+            symbol: Trading symbol
+            position_id: Position ID (if available)
+            stop_loss_price: New SL price (None to cancel existing SL)
+
+        Returns:
+            Order result dict or None if failed
+        """
+        if self.dry_run:
+            if stop_loss_price:
+                log_info(f"[DRY RUN] Would modify SL for {symbol} to ${stop_loss_price:,.2f}")
+            else:
+                log_info(f"[DRY RUN] Would cancel SL for {symbol}")
+            return {"dry_run": True, "symbol": symbol}
+
+        try:
+            # 1. Get current position to determine side and amount
+            position = self.get_position(symbol)
+            if not position:
+                log_error(f"No open position found for {symbol}")
+                return None
+
+            amount = abs(float(position.get("contracts", 0) or position.get("info", {}).get("positionAmt", 0)))
+            if amount == 0:
+                log_warn(f"Position size is 0 for {symbol}, cannot modify SL")
+                return None
+
+            side = position.get("side")  # 'long' or 'short'
+            if not side:
+                # Fallback
+                amt = float(position.get("info", {}).get("positionAmt", 0))
+                side = "long" if amt > 0 else "short"
+
+            sl_side = "sell" if side == "long" else "buy"
+
+            # 2. Fetch open orders to find existing SL
+            open_orders = self.exchange.fetch_open_orders(symbol)
+            cancelled_count = 0
+
+            # 3. Cancel existing SL orders
+            for order in open_orders:
+                order_type = order.get("type", "").lower()
+                # SL orders are usually STOP or STOP_MARKET
+                if "stop" in order_type:
+                    try:
+                        self.exchange.cancel_order(order["id"], symbol)
+                        cancelled_count += 1
+                        log_info(f"Cancelled existing SL order: {order['id']}")
+                    except Exception as e:
+                        log_warn(f"Failed to cancel SL order {order['id']}: {e}")
+
+            # 4. Place new SL order if price provided
+            if stop_loss_price:
+                log_info(f"Setting new SL for {symbol} at ${stop_loss_price:,.2f}")
+
+                sl_order = self.exchange.create_order(
+                    symbol=symbol,
+                    type="stop_market",
+                    side=sl_side,
+                    amount=amount,
+                    params={
+                        "stopPrice": stop_loss_price,
+                        "reduceOnly": True,
+                    },
+                )
+                log_info(f"✅ Stop Loss order updated at ${stop_loss_price:,.2f}")
+                return sl_order
+            else:
+                log_info(f"SL cancelled for {symbol}")
+                return {"symbol": symbol, "cancelled_sl_count": cancelled_count}
+
+        except Exception as e:
+            log_error(f"Failed to modify SL: {e}")
+            return None
+
+    def modify_tp_sl(
+        self,
+        symbol: str,
+        position_id: Optional[str] = None,
+        take_profit_price: Optional[float] = None,
+        stop_loss_price: Optional[float] = None,
+    ) -> Optional[dict]:
+        """
+        Modify both take profit and stop loss for a position.
+
+        Args:
+            symbol: Trading symbol
+            position_id: Position ID (if available)
+            take_profit_price: New TP price (None to keep current)
+            stop_loss_price: New SL price (None to keep current)
+
+        Returns:
+            Combined result dict or None if failed
+        """
+        results = {}
+
+        if take_profit_price is not None:
+            tp_result = self.modify_take_profit(symbol, position_id, take_profit_price)
+            results["tp_result"] = tp_result
+
+        if stop_loss_price is not None:
+            sl_result = self.modify_stop_loss(symbol, position_id, stop_loss_price)
+            results["sl_result"] = sl_result
+
+        return results if results else None
+
+    def modify_margin(self, symbol: str, amount: float, type: int = 1, position_side: str = "BOTH") -> Optional[dict]:
+        """
+        Modify position margin (for Isolated Margin).
+
+        Args:
+            symbol: Trading symbol
+            amount: Amount of margin to add (or remove)
+            type: 1 = Add Position Margin, 2 = Reduce Position Margin
+            position_side: 'BOTH', 'LONG', or 'SHORT' (Default 'BOTH' for One-way Mode)
+
+        Returns:
+            Result dict or None if failed
+        """
+        if self.dry_run:
+            action = "Add" if type == 1 else "Reduce"
+            log_info(f"[DRY RUN] Would {action} margin for {symbol} by ${amount:,.2f}")
+            return {"dry_run": True, "symbol": symbol, "amount": amount, "type": type}
+
+        try:
+            log_info(f"Modifying margin for {symbol}: amount=${amount}, type={type}")
+
+            # Note: CCXT may not have a unified method for this, so we use the implicit API
+            # fapiPrivatePostPositionMargin maps to POST /fapi/v1/positionMargin
+            params = {
+                "symbol": self.exchange.market_id(symbol),
+                "amount": amount,
+                "type": type,
+                "positionSide": position_side,
+            }
+
+            response = self.exchange.fapiPrivatePostPositionMargin(params)
+            log_info(f"✅ Margin modified for {symbol}. New amount: {response.get('amount')}")
+            return response
+
+        except Exception as e:
+            log_error(f"Failed to modify margin: {e}")
+            return None
+
+    def cancel_open_orders(self, symbol: str) -> Optional[dict]:
+        """
+        Cancel all open orders for a symbol (TP, SL, limit orders).
+
+        Args:
+            symbol: Trading symbol
+
+        Returns:
+            Cancel result dict with success count
+        """
+        if self.dry_run:
+            log_info(f"[DRY RUN] Would cancel all open orders for {symbol}")
+            return {"dry_run": True, "symbol": symbol, "cancelled_count": 0}
+
+        try:
+            log_info(f"Cancelling all open orders for {symbol}")
+
+            # Get all open orders
+            open_orders = self.exchange.fetch_open_orders(symbol)
+
+            cancelled_count = 0
+            for order in open_orders:
+                try:
+                    self.exchange.cancel_order(order["id"], symbol)
+                    cancelled_count += 1
+                    log_info(f"  Cancelled order: {order['id']} ({order.get('type', 'N/A')})")
+                except Exception as e:
+                    log_warn(f"Failed to cancel order {order['id']}: {e}")
+
+            log_info(f"✅ Cancelled {cancelled_count} open orders for {symbol}")
+            return {"symbol": symbol, "cancelled_count": cancelled_count, "success": True}
+
+        except Exception as e:
+            log_error(f"Failed to cancel open orders: {e}")
+            return {"symbol": symbol, "cancelled_count": 0, "success": False}

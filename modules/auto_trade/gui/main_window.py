@@ -1,22 +1,22 @@
-import customtkinter as ctk
-from typing import Optional
 import sys
 from pathlib import Path
+
+import customtkinter as ctk
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from gui.components.account_frame import AccountFrame
-from gui.components.stats_frame import StatsFrame
-from gui.components.signals_frame import SignalsFrame
-from gui.components.positions_frame import PositionsFrame
-from gui.components.trade_form import TradeFormFrame
 from gui.components.auto_trade_control import AutoTradeControl
 from gui.components.config_panel import ConfigPanel
+from gui.components.positions_frame import PositionsFrame
 from gui.components.scanner_control import ScannerControl
-from gui.utils.data_service import DataService
-from gui.utils.threading_utils import PeriodicUpdater
+from gui.components.signals_frame import SignalsFrame
+from gui.components.stats_frame import StatsFrame
+from gui.components.trade_form import TradeFormFrame
 from gui.utils.colors import Colors
+from gui.utils.data_service import DataService
 from gui.utils.settings_manager import SettingsManager
+from gui.utils.threading_utils import PeriodicUpdater
 
 
 class AutoTradeDashboard(ctk.CTk):
@@ -92,7 +92,7 @@ class AutoTradeDashboard(ctk.CTk):
         self.signals_frame = SignalsFrame(right_panel)
         self.signals_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-        self.positions_frame = PositionsFrame(right_panel)
+        self.positions_frame = PositionsFrame(right_panel, on_action_callback=self.on_position_action)
         self.positions_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
     def _populate_trading_tab(self, parent):
@@ -150,7 +150,6 @@ class AutoTradeDashboard(ctk.CTk):
         self.last_update_label.pack(side="right", padx=10)
 
     def _setup_updaters(self):
-        from datetime import datetime
 
         def refresh_all():
             self.refresh_signals()
@@ -235,8 +234,8 @@ class AutoTradeDashboard(ctk.CTk):
         3. Execute trade if conditions met
         """
         try:
-            from modules.auto_trade.signal_selector import SignalSelector
             from modules.auto_trade.order_executor import OrderExecutor
+            from modules.auto_trade.signal_selector import SignalSelector
 
             # Get recent signals
             signals = self.data_service.get_signals(min_score=0.7)
@@ -392,6 +391,60 @@ class AutoTradeDashboard(ctk.CTk):
             self.scanner_control.update_last_scan_time()
         except Exception as e:
             print(f"Error in scanner cycle: {e}")
+
+    def on_position_action(self, action_data: dict):
+        """Handle position actions from GUI"""
+        print(f"Position action received: {action_data}")
+
+        if not self.data_service.exchange_manager:
+            print("Error: Exchange manager not initialized")
+            return {"success": False, "error": "Exchange manager unavailable"}
+
+        # Try to get the underlying BinanceClient
+        mgr = self.data_service.exchange_manager
+        target = mgr
+        if hasattr(mgr, "client") and hasattr(mgr.client, "close_position"):
+            target = mgr.client
+
+        action = action_data.get("action")
+        symbol = action_data.get("symbol")
+
+        try:
+            if action == "close_position":
+                side = action_data.get("side")
+                size = action_data.get("size")
+                close_type = action_data.get("type", "market")
+                limit_price = action_data.get("limit_price")
+                return target.close_position(symbol, side, size, close_type, limit_price)
+
+            elif action == "partial_close":
+                side = action_data.get("side")
+                size = action_data.get("size")
+                # Partial close is just a market close of a specific size
+                return target.close_position(symbol, side, size, "market")
+
+            elif action == "modify_tp_sl":
+                position_id = action_data.get("position_id")
+                tp = action_data.get("take_profit")
+                sl = action_data.get("stop_loss")
+                return target.modify_tp_sl(symbol, position_id, tp, sl)
+
+            elif action == "add_margin":
+                amount = action_data.get("amount")
+                # type 1 = add margin
+                return target.modify_margin(symbol, amount, type=1)
+
+            elif action == "cancel_orders":
+                return target.cancel_open_orders(symbol)
+
+        except AttributeError:
+            print(f"Error: Target {target} does not support action {action}")
+            return {"success": False, "error": f"Method not supported: {action}"}
+        except Exception as e:
+            print(f"Error executing {action}: {e}")
+            return {"success": False, "error": str(e)}
+
+        return {"success": False, "error": "Unknown action"}
 
     def on_closing(self):
         # Save settings before closing

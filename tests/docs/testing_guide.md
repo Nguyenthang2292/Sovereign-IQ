@@ -71,13 +71,13 @@ Script này sẽ:
 pytest
 
 # Chạy tests trong một thư mục cụ thể
-pytest tests/adaptive_trend_enhance/
+pytest legacy/tests/adaptive_trend_enhance/
 
 # Chạy một file test cụ thể
-pytest tests/adaptive_trend_enhance/test_gpu_logic.py
+pytest legacy/tests/adaptive_trend_enhance/test_gpu_logic.py
 
 # Chạy một test function cụ thể
-pytest tests/adaptive_trend_enhance/test_gpu_logic.py::test_specific_function
+pytest legacy/tests/adaptive_trend_enhance/test_gpu_logic.py::test_specific_function
 
 # Chạy với verbose output
 pytest -v

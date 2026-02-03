@@ -1,5 +1,6 @@
+from typing import Callable
+
 import customtkinter as ctk
-from typing import Callable, Optional
 
 
 class AutoTradeControl(ctk.CTkFrame):

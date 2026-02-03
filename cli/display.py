@@ -4,7 +4,7 @@ Display utilities for ATC + Range Oscillator + SPC Hybrid and Pure Voting.
 This module contains functions for displaying configuration and voting metadata.
 """
 
-from typing import Any
+from typing import Any, Callable
 
 import pandas as pd
 from colorama import Fore
@@ -20,8 +20,8 @@ from modules.range_oscillator.cli import display_configuration
 def display_config(
     selected_timeframe: str,
     args: Any,
-    get_oscillator_params: callable,
-    get_spc_params: callable = None,
+    get_oscillator_params: Callable,
+    get_spc_params: Callable | None = None,
     mode: str = "voting",
 ) -> None:
     """
@@ -39,7 +39,6 @@ def display_config(
         timeframe=selected_timeframe,
         limit=args.limit,
         min_signal=args.min_signal,
-        max_workers=osc_params["max_workers"],
         strategies=osc_params["strategies"],
         max_symbols=args.max_symbols,
     )
@@ -115,12 +114,12 @@ def display_voting_metadata(
         log_data(f"  Weighted Score: {weighted_score:.2%}")
         log_data("  Voting Breakdown:")
 
-        for indicator, vote_info in voting_breakdown.items():
+        for indicator, vote_info in (voting_breakdown or {}).items():
             vote = vote_info["vote"]
             weight = vote_info["weight"]
             contribution = vote_info["contribution"]
-            importance = feature_importance.get(indicator, 0.0)
-            impact = weighted_impact.get(indicator, 0.0)
+            importance = feature_importance.get(indicator, 0.0) if feature_importance else 0.0
+            impact = weighted_impact.get(indicator, 0.0) if weighted_impact else 0.0
 
             # Color code vote indicator: keep ✓ as default, make entire line pink/magenta for ✗
             vote_str = "✓" if vote == 1 else "✗"

@@ -1,5 +1,5 @@
 """
-Tests for core ATC LTS functionality (migrated from adaptive_trend_enhance).
+Tests for core ATC LTS functionality (migrated from legacy/tests/adaptive_trend_enhance).
 """
 
 import numpy as np
