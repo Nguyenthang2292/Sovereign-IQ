@@ -404,8 +404,8 @@ python modules/auto_trade/run_gui.py
 
 ## 📚 Related Documentation
 
-- `PHASE1_PYTHON_GUI_TASKS.md` - Dashboard implementation
-- `PHASE3_PYTHON_GUI_TASKS.md` - Configuration & Scanner Control
+- `phase1_python_gui_tasks.md` - Dashboard implementation
+- `phase3_python_gui_tasks.md` - Configuration & Scanner Control
 - `PHASE4_POSITION_MANAGEMENT_TASKS.md` - Position management
 - `GUI_ROADMAP.md` - Overall roadmap
 

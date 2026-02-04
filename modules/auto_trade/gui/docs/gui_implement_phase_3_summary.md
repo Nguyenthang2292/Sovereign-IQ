@@ -466,8 +466,8 @@ The Settings tab will be available in the main window tabview.
 
 ## 📚 Related Documentation
 
-- `PHASE1_PYTHON_GUI_TASKS.md` - Dashboard implementation
-- `PHASE2_PYTHON_GUI_TASKS.md` - Trade execution
+- `phase1_python_gui_tasks.md` - Dashboard implementation
+- `phase2_python_gui_tasks.md` - Trade execution
 - `PHASE4_POSITION_MANAGEMENT_TASKS.md` - Position management
 - `GUI_ROADMAP.md` - Overall roadmap
 

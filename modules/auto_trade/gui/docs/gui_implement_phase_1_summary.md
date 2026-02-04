@@ -30,7 +30,7 @@ Xây dựng desktop GUI app đơn giản bằng Python để hiển thị balanc
    - ✅ Cập nhật Special Features cho desktop app
 
 2. **Tạo Phase 1 Task List**
-   - ✅ File: `PHASE1_PYTHON_GUI_TASKS.md`
+   - ✅ File: `phase1_python_gui_tasks.md`
    - ✅ 100+ tasks chi tiết
    - ✅ Hướng dẫn setup, coding, testing
 
@@ -138,7 +138,7 @@ modules/auto_trade/
 ├── setup_gui.py                 # Setup script
 ├── requirements_gui.txt         # Dependencies
 ├── GUI_BASE_DESIGN.md           # Design doc
-└── PHASE1_PYTHON_GUI_TASKS.md   # This file
+└── phase1_python_gui_tasks.md   # This file
 ```
 
 ---
@@ -502,8 +502,8 @@ The Dashboard tab will be shown by default with all components.
 
 ## 📚 Related Documentation
 
-- `PHASE2_PYTHON_GUI_TASKS.md` - Trade execution
-- `PHASE3_PYTHON_GUI_TASKS.md` - Configuration & Scanner Control
+- `phase2_python_gui_tasks.md` - Trade execution
+- `phase3_python_gui_tasks.md` - Configuration & Scanner Control
 - `PHASE4_POSITION_MANAGEMENT_TASKS.md` - Position management
 - `GUI_ROADMAP.md` - Overall roadmap
 

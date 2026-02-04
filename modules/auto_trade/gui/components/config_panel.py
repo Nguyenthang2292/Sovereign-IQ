@@ -123,6 +123,36 @@ class ConfigPanel(ctk.CTkFrame):
         api_frame = ctk.CTkFrame(tab, fg_color="transparent")
         api_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
+        # Mode selector
+        label = ctk.CTkLabel(api_frame, text="Trading Mode:", font=("Arial", 12))
+        label.pack(anchor="w", pady=(5, 2))
+
+        self.mode_var = ctk.StringVar(value="DRY_RUN")
+
+        mode_frame = ctk.CTkFrame(api_frame, fg_color="transparent")
+        mode_frame.pack(anchor="w", pady=2)
+
+        self.mode_production_radio = ctk.CTkRadioButton(
+            mode_frame, text="Production", variable=self.mode_var, value="PRODUCTION", command=self._on_mode_change
+        )
+        self.mode_production_radio.pack(side="left", padx=(0, 10))
+
+        self.mode_demo_radio = ctk.CTkRadioButton(
+            mode_frame, text="Demo", variable=self.mode_var, value="DEMO", command=self._on_mode_change
+        )
+        self.mode_demo_radio.pack(side="left", padx=(0, 10))
+
+        self.mode_dry_run_radio = ctk.CTkRadioButton(
+            mode_frame, text="Dry Run", variable=self.mode_var, value="DRY_RUN", command=self._on_mode_change
+        )
+        self.mode_dry_run_radio.pack(side="left")
+
+        # Mode description
+        self.mode_description_label = ctk.CTkLabel(
+            api_frame, text="✅ Safe local simulation", font=("Arial", 10), text_color="gray"
+        )
+        self.mode_description_label.pack(anchor="w", pady=(2, 10))
+
         # Exchange selector
         label = ctk.CTkLabel(api_frame, text="Exchange:", font=("Arial", 12))
         label.pack(anchor="w", pady=(5, 2))
@@ -133,23 +163,31 @@ class ConfigPanel(ctk.CTkFrame):
         )
         exchange_dropdown.pack(anchor="w", pady=2)
 
+        # API key frame (for disabling when DRY_RUN)
+        self.api_key_frame = ctk.CTkFrame(api_frame, fg_color="transparent")
+        self.api_key_frame.pack(fill="x")
+
         # API Key
-        label = ctk.CTkLabel(api_frame, text="API Key:", font=("Arial", 12))
+        label = ctk.CTkLabel(self.api_key_frame, text="API Key:", font=("Arial", 12))
         label.pack(anchor="w", pady=(10, 2))
 
-        self.api_key_entry = ctk.CTkEntry(api_frame, placeholder_text="Enter your API key", show="•", width=300)
+        self.api_key_entry = ctk.CTkEntry(
+            self.api_key_frame, placeholder_text="Enter your API key", show="•", width=300
+        )
         self.api_key_entry.pack(anchor="w", pady=2)
 
         # API Secret
-        label = ctk.CTkLabel(api_frame, text="API Secret:", font=("Arial", 12))
+        label = ctk.CTkLabel(self.api_key_frame, text="API Secret:", font=("Arial", 12))
         label.pack(anchor="w", pady=(10, 2))
 
-        self.api_secret_entry = ctk.CTkEntry(api_frame, placeholder_text="Enter your API secret", show="•", width=300)
+        self.api_secret_entry = ctk.CTkEntry(
+            self.api_key_frame, placeholder_text="Enter your API secret", show="•", width=300
+        )
         self.api_secret_entry.pack(anchor="w", pady=2)
 
         # Test connection button
         test_btn = ctk.CTkButton(
-            api_frame,
+            self.api_key_frame,
             text="🔗 Test Connection",
             fg_color="#00ff88",
             hover_color="#00cc66",
@@ -159,7 +197,7 @@ class ConfigPanel(ctk.CTkFrame):
 
         # Save credentials button
         save_btn = ctk.CTkButton(
-            api_frame,
+            self.api_key_frame,
             text="💾 Save Credentials",
             fg_color="#4488ff",
             hover_color="#0066ff",
@@ -407,7 +445,7 @@ class ConfigPanel(ctk.CTkFrame):
                 balance_str = "\n".join([f"{k}: {v}" for k, v in list(balance_info.items())[:5]])
                 messagebox.showinfo(
                     "Connection Successful",
-                    f"{result['message']}\n\nSample Balance:\n{balance_str if balance_str else 'No balance data'}"
+                    f"{result['message']}\n\nSample Balance:\n{balance_str if balance_str else 'No balance data'}",
                 )
 
                 if self.on_settings_change:
@@ -420,6 +458,7 @@ class ConfigPanel(ctk.CTkFrame):
 
         except Exception as e:
             from tkinter import messagebox
+
             messagebox.showerror("Error", f"Connection test failed: {e}")
 
     def _save_credentials(self):
@@ -442,7 +481,7 @@ class ConfigPanel(ctk.CTkFrame):
                 "Save Credentials",
                 f"Save API credentials for {exchange}?\n\n"
                 "Credentials will be stored securely in the .env file.\n\n"
-                "⚠️ Make sure .env is in your .gitignore!"
+                "⚠️ Make sure .env is in your .gitignore!",
             )
 
             if not confirm:
@@ -454,9 +493,7 @@ class ConfigPanel(ctk.CTkFrame):
 
             if success:
                 messagebox.showinfo(
-                    "Success",
-                    f"Credentials saved successfully for {exchange}!\n\n"
-                    "They are stored in the .env file."
+                    "Success", f"Credentials saved successfully for {exchange}!\n\nThey are stored in the .env file."
                 )
 
                 # Clear UI fields for security
@@ -473,7 +510,46 @@ class ConfigPanel(ctk.CTkFrame):
 
         except Exception as e:
             from tkinter import messagebox
+
             messagebox.showerror("Error", f"Failed to save credentials: {e}")
+
+    def _on_mode_change(self):
+        """Handle mode radio button change"""
+        try:
+            from gui.utils.colors import Colors
+            from tkinter import messagebox
+
+            mode = self.mode_var.get()
+
+            mode_descriptions = {
+                "PRODUCTION": ("⚠️ Real money at risk", Colors.PRODUCTION),
+                "DEMO": ("Testnet - Requires API keys", Colors.DEMO),
+                "DRY_RUN": ("✅ Safe local simulation", Colors.DRY_RUN),
+            }
+
+            description, color = mode_descriptions.get(mode, ("✅ Safe local simulation", Colors.DRY_RUN))
+            self.mode_description_label.configure(text=description, text_color=color)
+
+            if mode == "PRODUCTION":
+                messagebox.showwarning(
+                    "Production Mode",
+                    "⚠️ WARNING: You are about to use PRODUCTION mode!\n\n"
+                    "This will execute REAL trades with REAL money.\n"
+                    "Make sure you understand the risks involved.",
+                )
+
+            elif mode == "DRY_RUN":
+                self.api_key_frame.pack_forget()
+
+            else:
+                if not self.api_key_frame.winfo_ismapped():
+                    self.api_key_frame.pack(fill="x", after=self.mode_description_label)
+
+            if self.on_settings_change:
+                self.on_settings_change("mode", mode)
+
+        except Exception as e:
+            print(f"Error handling mode change: {e}")
 
     def get_settings(self) -> Dict:
         """
@@ -549,6 +625,7 @@ class ConfigPanel(ctk.CTkFrame):
                 },
                 "api": {
                     "exchange": self.exchange_var.get(),
+                    "mode": self.mode_var.get(),
                     # SECURITY: API credentials are NOT returned here
                     # Use CredentialManager.load_credentials() to retrieve them
                 },
@@ -609,11 +686,13 @@ class ConfigPanel(ctk.CTkFrame):
 
         if "api" in settings:
             api = settings["api"]
+            self.mode_var.set(api.get("mode", "DRY_RUN"))
             self.exchange_var.set(api.get("exchange", "Binance"))
             self.api_key_entry.delete(0, "end")
             self.api_key_entry.insert(0, api.get("api_key", ""))
             self.api_secret_entry.delete(0, "end")
             self.api_secret_entry.insert(0, api.get("api_secret", ""))
+            self._on_mode_change()
 
         if "tp_sl" in settings:
             tp_sl = settings["tp_sl"]

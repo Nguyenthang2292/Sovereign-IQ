@@ -28,6 +28,11 @@ requests>=2.31.0,<3.0.0  # HTTP client for testing
 tradingview-scraper>=0.4.0  # TradingView scraper for forex data (OANDA:<SYMBOL_NAME>)
 # tvdatafeed: install from GitHub if needed: pip install "tvdatafeed @ git+https://github.com/StreamAlpha/tvdatafeed.git"  # TradingView data feed fallback for forex data
 
+# Auto Trade GUI (customtkinter, plyer for notifications)
+customtkinter>=5.0.0,<6.0.0
+plyer>=2.1.0,<3.0.0
+PyYAML>=6.0.0,<7.0.0  # Settings YAML for auto_trade GUI
+
 # Optional stacks are now split out:
 # - requirements-ml.txt  : Deep learning / TFT dependencies
 # - requirements-ocr.txt : UI + OCR helpers

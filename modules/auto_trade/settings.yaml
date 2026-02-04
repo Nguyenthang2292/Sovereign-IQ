@@ -1,0 +1,39 @@
+risk:
+  max_position_size: 100.0
+  max_open_positions: 3
+  max_daily_loss: 90.0
+  default_leverage: 2x
+filters:
+  min_signal_score: 0.7
+  enable_xgboost: true
+  symbol_whitelist: 'BTC/USDT
+
+    ETH/USDT
+
+    SOL/USDT
+
+    '
+  min_volume: 50.0
+api:
+  exchange: Demo
+  mode: DRY_RUN
+tp_sl:
+  default_tp: 5.0
+  default_sl: 2.5
+  trailing_stop: false
+  mode: Percentage
+scanner:
+  scan_interval: 5
+  timeframe: 1h
+  symbol_list: Top 20
+  auto_start: true
+  running: false
+ui:
+  theme: dark
+  font_size: 12
+  window_size:
+    width: 1200
+    height: 800
+  last_active_tab: Dashboard
+  column_visibility: {}
+  widget_order: {}

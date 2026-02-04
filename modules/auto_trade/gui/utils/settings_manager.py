@@ -1,13 +1,14 @@
 import json
-import os
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+import yaml
 
 
 class SettingsManager:
     """
-    Manage application settings persistence
-    Load/save settings from/to JSON file
+    Manage application settings persistence.
+    Load/save settings from/to YAML file (settings.yaml).
     """
 
     DEFAULT_SETTINGS = {
@@ -24,7 +25,7 @@ class SettingsManager:
             "min_volume": 50.0,
             "timeframe": "1h",
         },
-        "api": {"exchange": "Demo", "api_key": "", "api_secret": ""},
+        "api": {"exchange": "Demo", "mode": "DRY_RUN", "api_key": "", "api_secret": ""},
         "tp_sl": {"default_tp": 5.0, "default_sl": 2.5, "trailing_stop": False, "mode": "Percentage"},
         "scanner": {
             "scan_interval": 5,
@@ -43,16 +44,15 @@ class SettingsManager:
         },
     }
 
-    def __init__(self, settings_file: str = None):
+    def __init__(self, settings_file: Optional[str] = None):
         """
-        Initialize SettingsManager
+        Initialize SettingsManager.
 
         Args:
-            settings_file: Path to settings JSON file. If None, uses default path
+            settings_file: Path to settings YAML file. If None, uses settings.yaml in auto_trade dir.
         """
         if settings_file is None:
-            # Default settings file in project root
-            self.settings_file = Path(__file__).parent.parent.parent / "settings.json"
+            self.settings_file = Path(__file__).parent.parent.parent / "settings.yaml"
         else:
             self.settings_file = Path(settings_file)
 
@@ -65,49 +65,92 @@ class SettingsManager:
 
     def load(self) -> Dict:
         """
-        Load settings from file
+        Load settings from file (YAML, or JSON once for migration).
 
         Returns:
             Dictionary containing all settings
         """
         try:
             if self.settings_file.exists():
-                with open(self.settings_file, "r", encoding="utf-8") as f:
-                    loaded_settings = json.load(f)
-
-                # Merge with defaults to handle new/missing keys
-                self.settings = self._merge_settings(self.DEFAULT_SETTINGS, loaded_settings)
-
-                # Validate settings
-                self._validate_settings()
-
-                print(f"Settings loaded from {self.settings_file}")
+                loaded_settings = self._load_file(self.settings_file)
+                if loaded_settings is not None:
+                    self.settings = self._merge_settings(self.DEFAULT_SETTINGS, loaded_settings)
+                    self._validate_settings()
+                    self._normalize_whitelist()
+                    print(f"Settings loaded from {self.settings_file}")
+                else:
+                    self._use_defaults_and_save()
             else:
-                print(f"No settings file found, using defaults")
-                self.save()  # Create default settings file
+                # Migrate from settings.json if present
+                json_path = self.settings_file.with_suffix(".json")
+                if json_path.exists():
+                    loaded_settings = self._load_json(json_path)
+                    if loaded_settings:
+                        self.settings = self._merge_settings(self.DEFAULT_SETTINGS, loaded_settings)
+                        self._validate_settings()
+                        self._normalize_whitelist()
+                        self.save()
+                        print(f"Settings migrated from {json_path} to {self.settings_file}")
+                    else:
+                        self._use_defaults_and_save()
+                else:
+                    print("No settings file found, using defaults")
+                    self.save()
         except Exception as e:
             print(f"Error loading settings: {e}, using defaults")
             self.settings = self.DEFAULT_SETTINGS.copy()
 
         return self.settings
 
+    def _load_file(self, path: Path) -> Optional[Dict]:
+        """Load dict from YAML or JSON file by extension."""
+        suffix = path.suffix.lower()
+        if suffix in (".yaml", ".yml"):
+            with open(path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f) or {}
+        if suffix == ".json":
+            return self._load_json(path)
+        return None
+
+    def _load_json(self, path: Path) -> Optional[Dict]:
+        """Load dict from JSON file."""
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    def _use_defaults_and_save(self):
+        self.settings = self.DEFAULT_SETTINGS.copy()
+        self.save()
+
+    def _normalize_whitelist(self):
+        """Ensure symbol_whitelist is a string with newlines for compatibility."""
+        w = self.settings.get("filters", {}).get("symbol_whitelist")
+        if isinstance(w, str) and "\n" not in w and w.strip():
+            self.settings.setdefault("filters", {})["symbol_whitelist"] = w.replace(",", "\n").strip()
+        elif isinstance(w, list):
+            self.settings.setdefault("filters", {})["symbol_whitelist"] = "\n".join(str(s) for s in w)
+
     def save(self) -> bool:
         """
-        Save current settings to file
+        Save current settings to YAML file.
 
         Returns:
             True if save successful, False otherwise
         """
         try:
-            # Validate before saving
             self._validate_settings()
-
-            # Create backup
             self._create_backup()
 
-            # Save to file
             with open(self.settings_file, "w", encoding="utf-8") as f:
-                json.dump(self.settings, f, indent=2, ensure_ascii=False)
+                yaml.dump(
+                    self.settings,
+                    f,
+                    default_flow_style=False,
+                    allow_unicode=True,
+                    sort_keys=False,
+                )
 
             print(f"Settings saved to {self.settings_file}")
             return True
@@ -161,6 +204,11 @@ class SettingsManager:
             if self.settings["filters"]["min_volume"] < 0:
                 self.settings["filters"]["min_volume"] = 50.0
 
+            # Validate API mode
+            valid_modes = ["PRODUCTION", "DEMO", "DRY_RUN"]
+            if self.settings["api"].get("mode") not in valid_modes:
+                self.settings["api"]["mode"] = "DRY_RUN"
+
             # Validate TP/SL
             if self.settings["tp_sl"]["default_tp"] <= 0:
                 self.settings["tp_sl"]["default_tp"] = 5.0
@@ -177,10 +225,10 @@ class SettingsManager:
             self.settings = self.DEFAULT_SETTINGS.copy()
 
     def _create_backup(self):
-        """Create backup of current settings file"""
+        """Create backup of current settings file."""
         try:
             if self.settings_file.exists():
-                backup_file = self.settings_file.with_suffix(".json.backup")
+                backup_file = self.settings_file.with_suffix(self.settings_file.suffix + ".backup")
                 with open(self.settings_file, "r", encoding="utf-8") as src:
                     with open(backup_file, "w", encoding="utf-8") as dst:
                         dst.write(src.read())
@@ -238,17 +286,21 @@ class SettingsManager:
 
     def export(self, export_path: str) -> bool:
         """
-        Export settings to a file
+        Export settings to a file (YAML or JSON by extension).
 
         Args:
-            export_path: Path to export file
+            export_path: Path to export file (.yaml, .yml, or .json)
 
         Returns:
             True if successful, False otherwise
         """
         try:
-            with open(export_path, "w", encoding="utf-8") as f:
-                json.dump(self.settings, f, indent=2, ensure_ascii=False)
+            path = Path(export_path)
+            with open(path, "w", encoding="utf-8") as f:
+                if path.suffix.lower() in (".yaml", ".yml"):
+                    yaml.dump(self.settings, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+                else:
+                    json.dump(self.settings, f, indent=2, ensure_ascii=False)
             print(f"Settings exported to {export_path}")
             return True
         except Exception as e:
@@ -257,7 +309,7 @@ class SettingsManager:
 
     def import_settings(self, import_path: str) -> bool:
         """
-        Import settings from a file
+        Import settings from a file (YAML or JSON).
 
         Args:
             import_path: Path to import file
@@ -266,18 +318,20 @@ class SettingsManager:
             True if successful, False otherwise
         """
         try:
-            with open(import_path, "r", encoding="utf-8") as f:
-                imported_settings = json.load(f)
+            path = Path(import_path)
+            if not path.exists():
+                print(f"Import file not found: {import_path}")
+                return False
 
-            # Merge with defaults
-            self.settings = self._merge_settings(self.DEFAULT_SETTINGS, imported_settings)
+            loaded = self._load_file(path)
+            if loaded is None:
+                print(f"Could not parse settings from {import_path}")
+                return False
 
-            # Validate imported settings
+            self.settings = self._merge_settings(self.DEFAULT_SETTINGS, loaded)
             self._validate_settings()
-
-            # Save
+            self._normalize_whitelist()
             self.save()
-
             print(f"Settings imported from {import_path}")
             return True
         except Exception as e:

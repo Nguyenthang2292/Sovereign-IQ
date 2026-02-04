@@ -16,6 +16,7 @@ from gui.components.trade_form import TradeFormFrame
 from gui.utils.colors import Colors
 from gui.utils.data_service import DataService
 from gui.utils.settings_manager import SettingsManager
+from gui.utils.modes import TradingMode
 from gui.utils.threading_utils import PeriodicUpdater
 
 
@@ -23,16 +24,19 @@ class AutoTradeDashboard(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Auto Trade Dashboard")
+        self.settings_manager = SettingsManager()
+        self.settings_manager.load()
+
+        self.mode = self.settings_manager.get("api.mode", TradingMode.DRY_RUN)
+
+        self.data_service = DataService(mode=self.mode)
+
+        self.title(f"Auto Trade Dashboard - [{self.mode}]")
         self.geometry("1200x800")
         self.minsize(800, 600)
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
-
-        self.data_service = DataService()
-        self.settings_manager = SettingsManager()
-        self.settings_manager.load()
 
         self._create_layout()
         self._setup_updaters()
@@ -68,6 +72,7 @@ class AutoTradeDashboard(ctk.CTk):
         self._populate_settings_tab(settings_tab)
 
         self._create_status_bar()
+        self._update_mode_display()
 
     def _populate_dashboard_tab(self, parent):
         """Create dashboard interface"""
@@ -134,8 +139,19 @@ class AutoTradeDashboard(ctk.CTk):
         title_label = ctk.CTkLabel(header_frame, text="Auto Trade Dashboard", font=("Arial", 20, "bold"))
         title_label.pack(side="left", padx=20)
 
-        mode_label = ctk.CTkLabel(header_frame, text="DEMO", font=("Arial", 12), text_color=Colors.DEMO)
-        mode_label.pack(side="right", padx=20)
+        mode_colors = {
+            TradingMode.PRODUCTION: Colors.PRODUCTION,
+            TradingMode.DEMO: Colors.DEMO,
+            TradingMode.DRY_RUN: Colors.DRY_RUN,
+        }
+
+        mode_color = mode_colors.get(self.mode, Colors.DRY_RUN)
+        mode_text = self.mode.replace("_", " ")
+
+        self.header_mode_label = ctk.CTkLabel(
+            header_frame, text=f"[{mode_text}]", font=("Arial", 12), text_color=mode_color
+        )
+        self.header_mode_label.pack(side="right", padx=20)
 
     def _create_status_bar(self):
         status_frame = ctk.CTkFrame(self, height=30)
@@ -149,8 +165,28 @@ class AutoTradeDashboard(ctk.CTk):
         )
         self.last_update_label.pack(side="right", padx=10)
 
-    def _setup_updaters(self):
+    def _update_mode_display(self):
+        """Update mode indicator in stats frame and header"""
+        mode_colors = {
+            TradingMode.PRODUCTION: Colors.PRODUCTION,
+            TradingMode.DEMO: Colors.DEMO,
+            TradingMode.DRY_RUN: Colors.DRY_RUN,
+        }
 
+        mode_color = mode_colors.get(self.mode, Colors.DRY_RUN)
+        mode_text = self.mode.replace("_", " ")
+
+        if hasattr(self, "stats_frame"):
+            self.stats_frame.mode_indicator.destroy()
+            from gui.components.stats_frame import ModeIndicator
+
+            self.stats_frame.mode_indicator = ModeIndicator(self.stats_frame, self.mode)
+            self.stats_frame.mode_indicator.pack(pady=(0, 10))
+
+        if hasattr(self, "header_mode_label"):
+            self.header_mode_label.configure(text=f"[{mode_text}]", text_color=mode_color)
+
+    def _setup_updaters(self):
         def refresh_all():
             self.refresh_signals()
             self.refresh_positions()
@@ -328,6 +364,13 @@ class AutoTradeDashboard(ctk.CTk):
                 current_settings = self.config_panel.get_settings()
                 self.settings_manager.settings.update(current_settings)
                 self.settings_manager.save()
+
+                # Check if mode changed
+                new_mode = current_settings.get("api", {}).get("mode")
+                if new_mode and new_mode != self.mode:
+                    self.mode = new_mode
+                    self.title(f"Auto Trade Dashboard - [{self.mode}]")
+                    self._update_mode_display()
 
         except Exception as e:
             print(f"Error handling settings change: {e}")

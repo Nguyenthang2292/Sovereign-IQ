@@ -50,46 +50,46 @@ from typing import Optional
 
 class AutoTradeDashboard(ctk.CTk):
     """Main GUI application window"""
-    
+
     def __init__(self):
         super().__init__()
-        
+
         # Window configuration
         self.title("🚀 Auto Trade Dashboard")
         self.geometry("1200x800")
         self.minsize(800, 600)
-        
+
         # Set theme
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
-        
+
         # Create layout
         self._create_layout()
-        
+
         # Handle window close
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
-    
+
     def _create_layout(self):
         """Create main UI layout"""
         # Configure grid
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
-        
+
         # Header
         self._create_header()
-        
+
         # Content area
         self._create_content()
-        
+
         # Status bar
         self._create_statusbar()
-    
+
     def _create_header(self):
         """Create header with title and mode indicator"""
         header_frame = ctk.CTkFrame(self, height=60, fg_color="#1e1e1e")
         header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
         header_frame.grid_propagate(False)
-        
+
         # Title
         title_label = ctk.CTkLabel(
             header_frame,
@@ -97,7 +97,7 @@ class AutoTradeDashboard(ctk.CTk):
             font=("Arial", 20, "bold")
         )
         title_label.pack(side="left", padx=20)
-        
+
         # Mode indicator
         mode_label = ctk.CTkLabel(
             header_frame,
@@ -106,44 +106,43 @@ class AutoTradeDashboard(ctk.CTk):
             text_color="red"
         )
         mode_label.pack(side="right", padx=20)
-    
+
     def _create_content(self):
         """Create main content area"""
         content_frame = ctk.CTkFrame(self, fg_color="transparent")
         content_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
-        
-        # Configure grid for 2 columns
+                # Configure grid for 2 columns
         content_frame.grid_columnconfigure(0, weight=1)
         content_frame.grid_columnconfigure(1, weight=2)
         content_frame.grid_rowconfigure(0, weight=1)
-        
+
         # Left panel (Account + Stats)
         left_panel = ctk.CTkFrame(content_frame)
         left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 5), pady=0)
-        
+
         # Right panel (Signals + Positions)
         right_panel = ctk.CTkFrame(content_frame)
         right_panel.grid(row=0, column=1, sticky="nsew", padx=(5, 0), pady=0)
-        
+
         # Placeholder labels
         ctk.CTkLabel(
             left_panel,
             text="💰 Account Overview\\n\\n(Coming soon)",
             font=("Arial", 14)
         ).pack(pady=50)
-        
+
         ctk.CTkLabel(
             right_panel,
             text="🎯 Live Signals\\n\\n(Coming soon)",
             font=("Arial", 14)
         ).pack(pady=50)
-    
+
     def _create_statusbar(self):
         """Create status bar at bottom"""
         statusbar = ctk.CTkFrame(self, height=30, fg_color="#1e1e1e")
         statusbar.grid(row=2, column=0, sticky="ew", padx=0, pady=0)
         statusbar.grid_propagate(False)
-        
+
         status_label = ctk.CTkLabel(
             statusbar,
             text="Ready",
@@ -151,7 +150,7 @@ class AutoTradeDashboard(ctk.CTk):
             text_color="gray"
         )
         status_label.pack(side="left", padx=10)
-    
+
     def on_closing(self):
         """Handle window closing"""
         print("Closing application...")
@@ -249,7 +248,7 @@ def main():
     print("\n📋 Next steps:")
     print("   1. pip install -r requirements_gui.txt")
     print("   2. python run_gui.py")
-    print("\n📖 See PHASE1_PYTHON_GUI_TASKS.md for detailed implementation plan")
+    print("\n📖 See phase1_python_gui_tasks.md for detailed implementation plan")
 
 
 if __name__ == "__main__":

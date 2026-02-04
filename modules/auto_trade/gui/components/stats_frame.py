@@ -1,14 +1,22 @@
 import customtkinter as ctk
 from typing import Dict
 from gui.utils.colors import Colors
+from gui.utils.modes import TradingMode
 
 
 class ModeIndicator(ctk.CTkFrame):
     def __init__(self, parent, mode: str):
         super().__init__(parent, fg_color="transparent")
 
-        mode_text = f"PRODUCTION" if mode == "PRODUCTION" else f"DEMO"
-        mode_color = Colors.PRODUCTION if mode == "PRODUCTION" else Colors.DEMO
+        if mode == TradingMode.PRODUCTION:
+            mode_text = "PRODUCTION"
+            mode_color = Colors.PRODUCTION
+        elif mode == TradingMode.DRY_RUN:
+            mode_text = "DRY RUN"
+            mode_color = Colors.DRY_RUN
+        else:
+            mode_text = "DEMO"
+            mode_color = Colors.DEMO
 
         self.indicator = ctk.CTkLabel(self, text=f"{mode_text}", font=("Arial", 14, "bold"), text_color=mode_color)
         self.indicator.pack()

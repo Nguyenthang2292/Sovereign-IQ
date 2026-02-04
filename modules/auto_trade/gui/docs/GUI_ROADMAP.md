@@ -1,17 +1,35 @@
 # 📊 GUI Implementation Roadmap - All Phases
 
+## 🔄 Recent Updates (2026-02-04)
+
+### ✅ Critical Bug Fixes Completed
+- **Fixed DataService Integration Issues**
+  - ✅ Fixed DatabaseManager initialization (was missing required `db_path` argument)
+    - Changed from `DatabaseManager()` to `get_db_manager()` singleton pattern
+  - ✅ Fixed ExchangeManager API misuse (methods didn't exist)
+    - Replaced `ExchangeManager` with `DataFetcher` for account operations
+    - Now using correct APIs: `fetch_binance_account_balance()`, `fetch_binance_futures_positions()`
+  - ✅ Fixed import paths for shared modules
+    - Corrected ExchangeManager import: `modules.common.core.exchange_manager`
+    - Corrected DatabaseManager import: `modules.auto_trade.database.get_db_manager`
+  - ✅ All GUI components now fully functional with live data
+
+**Result:** Phase 1 & 2 are now **fully tested and operational** ✅
+
+---
+
 ## 🎯 Overall Project Status
 
 | Phase | Name | Status | Complexity | Est. Time |
 |-------|------|--------|------------|-----------|
 | Phase 1 | Dashboard (Display) | ✅ **COMPLETE** | Medium | 5-7 days |
 | Phase 2 | Trade Execution | ✅ **COMPLETE** | High | 3-5 days |
-| Phase 3 | Configuration & Control | 📋 **PLANNED** | Medium | 2-3 days |
-| Phase 4 | Position Management | 📅 **PENDING** | Medium | 2-3 days |
+| Phase 3 | Configuration & Control | ✅ **COMPLETE** | Medium | 2-3 days |
+| Phase 4 | Position Management | ✅ **COMPLETE** | Medium | 2-3 days |
 | Phase 5 | Advanced Features | 📅 **PENDING** | High | 2-3 days |
 
-**Total Estimated Time:** 14-21 days  
-**Current Progress:** Phase 1-2 Complete (40%)
+**Total Estimated Time:** 14-21 days
+**Current Progress:** Phase 1-4 Complete (80%)
 
 ---
 
@@ -31,11 +49,15 @@ Hiển thị data real-time: balance, positions, signals, stats
 - ✅ Dark theme UI
 
 ### Key Achievements
-- Real-time data display working
-- WebSocket-like updates via threading
-- Responsive, non-blocking UI
-- Error handling with fallback
-- Tested on demo account ✅
+- Real-time data display working ✅
+- WebSocket-like updates via threading ✅
+- Responsive, non-blocking UI ✅
+- Error handling with fallback ✅
+- **DataService integration fixed (2026-02-04)** ✅
+  - DatabaseManager properly initialized with singleton pattern
+  - DataFetcher API correctly used for account operations
+  - All import paths corrected
+- Tested on demo account and fully operational ✅
 
 ### Files Created
 ```
@@ -53,7 +75,7 @@ gui/
     └── colors.py
 ```
 
-**Documentation:** `PHASE1_PYTHON_GUI_TASKS.md`  
+**Documentation:** `phase1_python_gui_tasks.md`  
 **Status:** 100% Complete ✅
 
 ---
@@ -118,80 +140,114 @@ gui/
     └── risk_calculator.py      ← NEW
 ```
 
-**Documentation:** `PHASE2_PYTHON_GUI_TASKS.md`  
+**Documentation:** `phase2_python_gui_tasks.md`  
 **Status:** 100% Complete ✅
 
 ---
 
-## 📅 Phase 3: Configuration & Control - PENDING
+## ✅ Phase 3: Configuration & Control - COMPLETED
 
 ### Objective
 Configuration manager, scanner control, settings persistence
 
 ### Planned Components
-- [ ] `ConfigPanel` - Settings interface
+- [x] `ConfigPanel` - Settings interface
   - API keys management
   - Risk parameters (max size, positions, leverage)
   - Signal filters (min score, XGBoost)
   - TP/SL defaults
   - Save/load configuration
 
-- [ ] `ScannerControl` - Scanner management
+- [x] `ScannerControl` - Scanner management
   - Start/stop scanner
   - Scan interval adjustment
   - Symbol list management
   - Last scan status
   - Manual scan trigger
 
-- [ ] `ThemeSettings` - UI customization
+- [x] `ThemeSettings` - UI customization (trong tab UI Preferences của ConfigPanel)
   - Dark/Light theme toggle
-  - Color scheme selection
+  - Color scheme selection (Dark/Light)
   - Font size adjustment
 
 ### Key Features
-- Persistent configuration storage
-- Scanner real-time control
-- Settings validation
-- Import/Export config files
-- Theme customization
+- [x] Persistent configuration storage (SettingsManager + settings.yaml)
+- [x] Scanner real-time control
+- [x] Settings validation
+- [x] Import/Export config files
+- [x] Theme customization
 
+### Key Achievements
+- ConfigPanel với tabbed interface (Risk, Signal Filters, API Keys, TP/SL, UI Preferences) ✅
+- ScannerControl: Start/Stop, interval, symbol list, last scan status, manual scan ✅
+- Theme & font size trong UI Preferences ✅
+- Save/load qua SettingsManager (YAML), Export/Import JSON ✅
+
+### Files Created
+```
+gui/
+├── components/
+│   ├── config_panel.py      ← Config + Theme
+│   └── scanner_control.py   ← Scanner control
+└── utils/
+    └── settings_manager.py ← Persistence (YAML), import/export
+```
+
+**Documentation:** `phase3_python_gui_tasks.md`, `PHASE3_QUICKSTART.md`  
 **Estimated Time:** 2-3 days  
-**Status:** Not started
+**Status:** ✅ Complete
 
 ---
 
-## 📅 Phase 4: Position Management - PENDING
+## ✅ Phase 4: Position Management - COMPLETED
 
 ### Objective
 Enhanced position management with close, modify, details
 
 ### Planned Components
-- [ ] `PositionDetails` - Detailed position view
-  - Entry/current price comparison
-  - Real-time P&L graph
-  - TP/SL levels visualization
-  - Liquidation warning
+- [x] `PositionDetails` - Detailed position view
+  - Entry/current price comparison (metrics grid: entry, mark price)
+  - Real-time P&L (Unrealized P&L + ROI)
+  - TP/SL levels visualization (price bar + markers)
+  - Liquidation warning (distance %, risk level CRITICAL/HIGH/MEDIUM/LOW)
 
-- [ ] `PositionActions` - Position controls
-  - Close position button
-  - Modify TP/SL
-  - Partial close
-  - Add to position
+- [x] `PositionActions` - Position controls
+  - Close position button (market/limit)
+  - Modify TP/SL (inputs + breakeven, cancel orders)
+  - Partial close (25%/50%/75% + custom %)
+  - Add to position (Add Margin – isolated)
 
-- [ ] `CloseConfirmation` - Close position dialog
-  - Show current P&L
-  - Estimated fees
-  - Confirmation requirement
+- [x] `CloseConfirmation` - Close position dialog
+  - Show current P&L (unrealized P&L, ROI)
+  - Estimated fees (~0.1%)
+  - Confirmation requirement (multi-click, configurable)
 
 ### Key Features
-- One-click position close
-- TP/SL modification
-- Position details modal
-- Partial close support
-- Close all positions button
+- [x] One-click position close
+- [x] TP/SL modification
+- [x] Position details modal
+- [x] Partial close support
+- [ ] Close all positions button (chưa có – optional)
 
+### Key Achievements
+- PositionDetails modal: metrics, TP/SL viz, liquidation risk ✅
+- PositionActions: close (market/limit), partial close, modify TP/SL, add margin ✅
+- CloseConfirmation: P&L, fees, multi-click confirm, settings persistence ✅
+- Tích hợp trong PositionsFrame (click position → mở PositionDetails) ✅
+
+### Files Created
+```
+gui/
+├── components/
+│   ├── position_details.py   ← Modal chi tiết position
+│   └── position_actions.py   ← Close, partial, modify TP/SL, add margin
+└── dialogs/
+    └── close_confirmation.py ← Dialog xác nhận đóng (P&L, fees, confirm)
+```
+
+**Documentation:** `PHASE4_IMPLEMENTATION_SUMMARY.md`  
 **Estimated Time:** 2-3 days  
-**Status:** Not started
+**Status:** ✅ Complete
 
 ---
 
@@ -251,7 +307,7 @@ Timeline:
 │   Phase 1   │   Phase 2   │   Phase 3   │   Phase 4   │   Phase 5   │
 │  Dashboard  │   Trading   │   Config    │  Positions  │  Advanced   │
 │             │             │             │             │             │
-│ ✅ DONE     │ ✅ DONE     │ ← NOW       │             │             │
+│ ✅ DONE     │ ✅ DONE     │ ✅ DONE     │ ✅ DONE     │ ← NOW       │
 │  5-7 days   │  3-5 days   │  2-3 days   │  2-3 days   │  2-3 days   │
 └─────────────┴─────────────┴─────────────┴─────────────┴─────────────┘
      Week 1         Week 2       Week 3       Week 3-4      Week 4
@@ -269,9 +325,9 @@ Timeline:
 | **Manual Trading** | ❌ | ✅ | ✅ |
 | **Auto Trading** | ❌ | ✅ | ✅ |
 | **Risk Calculator** | ❌ | ✅ | ✅ |
-| **Configuration** | ❌ | ❌ | ✅ |
-| **Scanner Control** | ❌ | ❌ | ✅ |
-| **Close Positions** | ❌ | ❌ | ✅ |
+| **Configuration** | ❌ | ❌ | ✅ (Done) |
+| **Scanner Control** | ❌ | ❌ | ✅ (Done) |
+| **Close Positions** | ❌ | ❌ | ✅ (Done) |
 | **Trade History** | ❌ | ❌ | ✅ |
 | **Charts/Analytics** | ❌ | ❌ | ✅ |
 | **Export Data** | ❌ | ❌ | ✅ |
@@ -333,64 +389,62 @@ docker run -it auto-trade-gui
 ## 📚 Documentation Index
 
 ### Phase 1 (Complete)
-- `PHASE1_PYTHON_GUI_TASKS.md` - Detailed tasks (100+)
+- `phase1_python_gui_tasks.md` - Detailed tasks (100+)
 - `QUICKSTART_GUI.md` - Quick start guide
 - `GUI_BASE_DESIGN.md` - Overall design
 
 ### Phase 2 (Complete)
-- `PHASE2_PYTHON_GUI_TASKS.md` - Detailed tasks (100+)
+- `phase2_python_gui_tasks.md` - Detailed tasks (100+)
 - `PHASE2_QUICKSTART.md` - Quick start guide
 
-### Phase 3 (Current)
-- `PHASE3_PYTHON_GUI_TASKS.md` - Detailed tasks  
+### Phase 3 (Complete)
+- `phase3_python_gui_tasks.md` - Detailed tasks  
 - `PHASE3_QUICKSTART.md` - Quick start guide
 
-### Phase 4-5 (Future)
-- TBD - Will be created when Phase 3 completes
+### Phase 4 (Complete)
+- `PHASE4_IMPLEMENTATION_SUMMARY.md` - Implementation summary
+
+### Phase 5 (Future)
+- TBD - Will be created when Phase 5 starts
 
 ---
 
 ## ✅ Next Steps
 
-### Immediate (Phase 3)
-1. ⏭️ Review `PHASE3_PYTHON_GUI_TASKS.md`
-2. ⏭️ Create `ConfigPanel` component
-3. ⏭️ Create `ScannerControl` component
-4. ⏭️ Implement settings persistence
-5. ⏭️ Test configuration save/load
-6. ⏭️ Mark Phase 3 complete ✅
+### Immediate (Phase 5)
+1. ⏭️ Review Phase 5 tasks (Advanced Features)
+2. ⏭️ Create `TradeHistory` component
+3. ⏭️ Create `PerformanceCharts` (matplotlib)
+4. ⏭️ Implement DataExport, NotificationCenter, LogsViewer
+5. ⏭️ Test advanced features
 
 ### Future Phases
-- Phase 3: Configuration & Scanner Control
-- Phase 4: Position Management
-- Phase 5: Advanced Features (Charts, Export)
+- Phase 5: Advanced Features (Charts, Export, Notifications, Logs) (Charts, Export)
 
 ---
 
 ## 🎉 Progress Tracking
 
-**Overall Completion:** 40% (2/5 phases)
+**Overall Completion:** 80% (4/5 phases)
 
 ```
 Phase 1: ████████████████████ 100% ✅
 Phase 2: ████████████████████ 100% ✅
-Phase 3: ░░░░░░░░░░░░░░░░░░░░   0%
-Phase 4: ░░░░░░░░░░░░░░░░░░░░   0%
+Phase 3: ████████████████████ 100% ✅
+Phase 4: ████████████████████ 100% ✅
 Phase 5: ░░░░░░░░░░░░░░░░░░░░   0%
 ```
 
 ---
 
-## 🚀 Let's Build Phase 3!
+## 🚀 Next: Phase 5 - Advanced Features
 
-Ready to implement configuration and scanner control? Start here:
+Phase 4 (Position Management) đã hoàn thành. Các component đã có:
 
-1. Read `PHASE3_QUICKSTART.md`
-2. Follow `PHASE3_PYTHON_GUI_TASKS.md`
-3. Test config save/load thoroughly
-4. Mark tasks complete as you go
-5. Celebrate when done! 🎉
+- `gui/components/position_details.py` – PositionDetails (metrics, TP/SL viz, liquidation warning, P&L)
+- `gui/components/position_actions.py` – PositionActions (close, partial close, modify TP/SL, add margin)
+- `gui/dialogs/close_confirmation.py` – CloseConfirmation (P&L, estimated fees, multi-click confirm)
 
-**Current Focus:** Phase 3 - Configuration & Control  
+**Current Focus:** Phase 5 - Advanced Features (Trade History, Charts, Export, Notifications, Logs)  
 **Status:** Ready to start  
 **Let's go!** 💪
