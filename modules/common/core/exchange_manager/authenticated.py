@@ -317,6 +317,37 @@ class AuthenticatedExchangeManager:
                 else:
                     logger.debug("No unused exchanges to clean up")
 
+    def force_clear_all_exchanges(self):
+        """
+        Force clear ALL cached exchange connections, regardless of refcount.
+
+        WARNING: Use with caution! This will close all connections including those
+        that may be in use. Should only be called during shutdown or when you need
+        to completely reset the exchange connections (e.g., after fixing time sync issues).
+
+        Returns:
+            int: Number of exchanges that were cleared
+        """
+        with self._request_lock:
+            cleared_count = len(self._authenticated_exchanges)
+
+            for cache_key, wrapper in list(self._authenticated_exchanges.items()):
+                # Close exchange before removing from cache
+                if hasattr(wrapper.exchange, "close"):
+                    try:
+                        wrapper.exchange.close()
+                    except Exception as e:
+                        logger.warning(f"Error closing exchange {cache_key}: {e}")
+
+            # Clear all caches
+            self._authenticated_exchanges.clear()
+            self._exchange_timestamps.clear()
+
+            if cleared_count > 0:
+                logger.info(f"Force cleared {cleared_count} authenticated exchange connections")
+
+            return cleared_count
+
     def close_exchange(self, exchange_id: str, testnet: bool = False, contract_type: str = None):
         """
         Close and remove a specific exchange connection.

@@ -2,7 +2,7 @@ risk:
   max_position_size: 100.0
   max_open_positions: 3
   max_daily_loss: 90.0
-  default_leverage: 2x
+  default_leverage: '2'
 filters:
   min_signal_score: 0.7
   enable_xgboost: true
@@ -15,7 +15,7 @@ filters:
     '
   min_volume: 50.0
 api:
-  exchange: Demo
+  exchange: Binance
   mode: DRY_RUN
 tp_sl:
   default_tp: 5.0
@@ -28,6 +28,8 @@ scanner:
   symbol_list: Top 20
   auto_start: true
   running: false
+  sampling_strategy: stratified
+  sample_percentage: 20.0
 ui:
   theme: dark
   font_size: 12
@@ -37,3 +39,16 @@ ui:
   last_active_tab: Dashboard
   column_visibility: {}
   widget_order: {}
+trading:
+  default_position_size: 100.0
+  default_leverage: 2
+recovery:
+  enabled: false
+  initial_loss: 0.0
+  target_profit_per_trade: 5.0
+  max_recovery_trades: 20
+  margin_scaling_mode: fixed
+  leverage_scaling_mode: fixed
+  min_leverage: 2
+  max_leverage: 10
+  enable_streak_bonus: false

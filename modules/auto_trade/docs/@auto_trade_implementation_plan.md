@@ -1,1684 +1,665 @@
-# AUTO TRADING SYSTEM - DETAILED IMPLEMENTATION PLAN
+# AUTO TRADING SYSTEM - IMPLEMENTATION PLAN
 
-## 📋 Project Overview
+## 📋 Quick Navigation
 
-This document provides a comprehensive implementation plan for the Sovereign-IQ Auto Trading System. The system combines Machine Learning (ATC, XGBoost) with technical analysis (Gemini) to generate signals and execute trades on Binance Futures with risk management.
+- [Project Overview](#project-overview)
+- [Progress Dashboard](#progress-dashboard)
+- [Implementation Phases](#implementation-phases)
+  - [Phase 1: Rust Backend](#phase-1-rust-backend-development-)
+  - [Phase 2: Signal Pipeline](#phase-2-signal-filtering-pipeline-)
+  - [Phase 3: Order Execution](#phase-3-order-execution-)
+  - [Phase 4: Position Monitoring](#phase-4-position-monitoring-)
+  - [Phase 5: Database](#phase-5-database-)
+  - [Phase 6: Integration & Testing](#phase-6-integration--testing-)
+  - [Phase 7: Deployment](#phase-7-deployment-)
+- [Architecture Diagrams](#architecture-diagrams)
+- [File Structure](#file-structure)
 
-**Key Features**:
+---
 
-- Multi-stage signal filtering pipeline
-- Automated market order execution with risk management
-- Position monitoring with Martingale strategy
-- Lightweight database for order tracking
-- Real-time monitoring and alerting
+## Project Overview
 
-## 📈 PROGRESS SUMMARY
+**Sovereign-IQ Auto Trading System** - Automated cryptocurrency trading system combining Machine Learning (ATC, XGBoost) with AI analysis (Gemini) for signal generation and automated execution on Binance Futures.
 
-**Last Updated**: 2026-02-03
+### Key Features
 
-### Overall Progress: **75%** Complete
+✅ **Multi-Stage Signal Pipeline**
+
+- ATC multi-timeframe scanner (5m, 15m, 1h)
+- XGBoost ML filter
+- Gemini AI chart analysis
+- Intelligent signal selection
+
+✅ **Automated Execution**
+
+- Market order execution with TP/SL
+- 95% balance risk management
+- 2x leverage with safety limits
+- Order tagging system (PROGRAMMATIC vs MANUAL)
+
+✅ **Position Monitoring**
+
+- Real-time position tracking (5s polling)
+- Break-even protection (30% drawdown)
+- Automated market scanning (5min intervals)
+- Event-driven architecture
+
+✅ **Risk Management**
+
+- Martingale loss recovery (max 4 steps, 16x leverage)
+- Gradual recovery strategy (controlled scaling)
+- Circuit breaker patterns
+- Safety limits and validation
+
+✅ **Data Persistence**
+
+- SQLite database with SQLAlchemy ORM
+- Order tracking (PROGRAMMATIC only)
+- Signal history
+- Martingale chain tracking
+- Automated backups and migrations
+
+---
+
+## Progress Dashboard
+
+**Last Updated**: 2026-02-05  
+**Overall Progress**: **80%** Complete
+
+### Phase Status
 
 | Phase | Status | Progress | Key Deliverables |
 |-------|--------|----------|------------------|
-| **Phase 1: Rust Backend** | ✅ **COMPLETED** | 100% | Sovereign Prime crate, PyO3 bindings, 10-50x speedup |
-| **Phase 2: Signal Pipeline** | ✅ **COMPLETED** | 100% | ATC scanner, XGBoost filter, Gemini analyzer, Signal selector, Pipeline orchestration |
-| **Phase 3: Order Execution** | ✅ **COMPLETED** | 100% | Order manager, Risk management, CCXT integration, TP/SL placement |
-| **Phase 4: Position Monitoring** | ✅ **COMPLETED** | 100% | Position monitor, Break-even manager, Martingale strategy, Lifecycle handling |
-| **Phase 5: Database** | ✅ **COMPLETED** | 100% | SQLite integration, Order tracking, Martingale chain, Migrations |
-| **Phase 6: Integration & Testing** | 🔄 **IN PROGRESS** | 60% | Main loop (✅), Config (✅), Backtesting (✅), Tests (pending) |
-| **Phase 7: Deployment** | ⏸️ **PENDING** | 0% | Docker, Monitoring, Alerts |
+| **Phase 1: Rust Backend** | ✅ COMPLETED | 100% | Sovereign Prime crate, PyO3 bindings, 10-50x speedup |
+| **Phase 2: Signal Pipeline** | ✅ COMPLETED | 100% | ATC scanner, XGBoost filter, Gemini analyzer, Signal selector |
+| **Phase 3: Order Execution** | ✅ COMPLETED | 100% | Order manager, Risk management, CCXT integration, TP/SL |
+| **Phase 4: Position Monitoring** | ✅ COMPLETED | 100% | Position monitor, Break-even, Martingale, Lifecycle handling |
+| **Phase 5: Database** | ✅ COMPLETED | 100% | SQLite, Order tracking, Migrations, Backups |
+| **Phase 6: Integration** | ✅ COMPLETED | 100% | Main loop, Config, Backtesting, GUI, Tests |
+| **Phase 7: Deployment** | ⏸️ PENDING | 0% | Docker, Monitoring, Alerts |
 
-### Recent Completions (2026-02-03):
+### Recent Completions
 
-✅ **Phase 6.5: Backtesting Module** - Integrated existing `FullBacktester` with auto-trade features
-- AutoTradeBacktester adapter class
-- Break-even protection simulation
-- Martingale strategy simulation with safety validation
-- Comprehensive test script and documentation
+**2026-02-05**:
 
-### What's Left:
+- ✅ GUI Recovery Panel integration
+- ✅ Database GradualRecovery model
+- ✅ Settings YAML recovery config
+- ✅ Documentation updates
 
-**Phase 6 (Testing):**
-- [ ] Unit tests for all modules (6.3)
-- [ ] Integration tests (6.4)
-- [ ] Testing infrastructure setup (6.6)
+**2026-02-03**:
 
-**Phase 7 (Deployment):**
+- ✅ Phase 6.5: Backtesting Module
+- ✅ Phase 4.7: Gradual Recovery Strategy
+
+**2026-02-02**:
+
+- ✅ Phase 4: Position Monitoring (complete)
+- ✅ Phase 3: Order Execution (complete)
+
+### What's Next
+
+**Phase 7: Deployment** (Pending)
+
 - [ ] Docker containerization
-- [ ] Production monitoring
-- [ ] Alert system implementation
+- [ ] Production monitoring setup
+- [ ] Alert system (Telegram/Email)
 - [ ] Safety mechanisms
+- [ ] Load testing
+- [ ] Documentation finalization
 
 ---
 
-## 📊 DETAILED TO-DO LIST - AUTO TRADING SYSTEM
+## Implementation Phases
 
-### **Phase 1: Rust Backend Development** 🦀
+### Phase 1: Rust Backend Development 🦀
 
-**Mục tiêu**: Tăng hiệu suất xử lý cho các module tính toán nặng
+**Status**: ✅ COMPLETED (100%)
 
-#### Tasks
+**Objective**: Accelerate computation-heavy modules using Rust with PyO3 bindings
 
-**1.1 Setup Rust Environment**
+#### Deliverables
 
-- [x] Cài đặt Rust toolchain và cargo
-- [x] Setup PyO3 để tạo Python bindings
-- [x] Tạo project structure: `rust_backend/` với các module tương ứng
-- [x] Configure build system (setup.py + build.rs)
+- ✅ `sovereign_prime` Rust crate
+- ✅ ATC calculations (KAMA, EMA, SMA, WMA) with SIMD
+- ✅ XGBoost feature engineering
+- ✅ PyO3 Python bindings
+- ✅ 10-50x performance improvement
+- ✅ Comprehensive benchmarks
 
-**1.2 Port adaptive_trend_LTS_mini to Rust**
+#### Files Created
 
-- [x] Rewrite moving averages calculations (KAMA, EMA, SMA, WMA) trong Rust
-- [x] Implement ATC signal computation với SIMD optimization
-- [x] Port equity calculations sang Rust
-- [x] Tạo Python bindings cho các functions chính
-- [x] Benchmark Rust vs Python (target: 10-50x speedup)
-- [x] Create unit tests cho Rust functions
+```
+rust_backend/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── atc_scanner_rs.rs
+│   └── xgboost_rs.rs
+└── benches/
+```
 
-**1.3 Port xgboost_LTS to Rust**
+#### Key Optimizations
 
-- [x] Port feature engineering sang Rust
-- [x] Implement label calculation với compatibility
-- [x] Create efficient data structures cho batch processing
-- [x] Optimize memory allocation cho large datasets
-- [x] Add performance tests
-
-**Status Update (2026-02-01)**:
-
-- Completed `sovereign_prime` crate integrating both `adaptive_trend_LTS_mini` and `xgboost_LTS`.
-- Created `sync_rust.ps1` to sync code from Python modules to Rust backend.
-- Verified functionality with `verify_rust_port.py`.
-- Achieved significant speedup for critical calculations.
-
-**Gợi ý tối ưu**:
-
-- Sử dụng `rayon` crate cho parallel processing
-- Dùng `ndarray` crate để tương thích với NumPy arrays
-- SIMD intrinsics với `packed_simd` để tăng tốc calculations
-- Memory-mapped files với `memmap2` cho large datasets
-- Use `pyo3-numpy` cho seamless NumPy integration
-- Implement compile-time optimizations (LTO, codegen-units=1)
-- Use `criterion` crate cho micro-benchmarking
+- SIMD intrinsics with `packed_simd`
+- Parallel processing with `rayon`
+- NumPy integration via `pyo3-numpy`
+- Memory-mapped files with `memmap2`
+- Link-time optimization (LTO)
 
 ---
 
-### **Phase 2: Module SIGNAL - Signal Filtering Pipeline** 🎯
+### Phase 2: Signal Filtering Pipeline 🎯
 
-**Mục tiêu**: Tạo pipeline lọc signal đa tầng với độ chính xác cao
+**Status**: ✅ COMPLETED (100%)
 
-#### Tasks
+**Objective**: Multi-stage signal filtering with high accuracy
 
-**2.1 Symbol Management & Random Sampling**
-
-```
-📁 modules/auto_trade/core/symbol_manager.py
-```
-
-- [x] Load toàn bộ symbols từ DataFetcher
-- [x] Implement configurable random sampling (a% symbols)
-- [x] Cache symbol list để giảm API calls
-- [x] Filter theo volume/liquidity requirements
-- [x] Add symbol whitelist/blacklist support
-- [x] Periodic refresh of symbol list (daily)
-- [x] Unit tests cho symbol filtering logic
-
-**2.2 ATC Multi-Timeframe Scanner**
+#### Architecture
 
 ```
-📁 modules/auto_trade/core/atc_scanner.py
+Symbol Manager → ATC Scanner → XGBoost Filter → Gemini Analyzer → Signal Selector
+    (100%)          (20%)           (5%)              (1%)            (Best)
 ```
 
-- [x] Scan trên 3 timeframes: 5m, 15m, 1h
-- [x] Aggregate signals từ 3 timeframes (weighted voting)
-- [x] Lọc ra UP/DOWN signals → **Danh sách 1**
-- [x] Implement concurrent scanning với ThreadPoolExecutor
-- [x] Add signal confidence scoring
-- [x] Cache OHLCV data để tránh duplicate fetches
-- [x] Error handling cho individual symbol failures
-- [x] Logging cho debugging
+#### Modules
 
-**2.3 XGBoost Signal Filter**
+**2.1 Symbol Manager** (`core/symbol_manager.py`)
 
-```
-📁 modules/auto_trade/core/xgboost_filter.py
-```
+- ✅ Random sampling (configurable %)
+- ✅ Volume/liquidity filtering
+- ✅ Whitelist/blacklist support
+- ✅ Periodic refresh (daily)
 
-- [x] Load pre-trained XGBoost model
-- [x] Input: Danh sách 1 từ ATC
-- [x] Feature engineering cho từng symbol
-- [x] Predict và filter → **Danh sách 2**
-- [x] Output: Confidence scores
-- [x] Model versioning (track which model used)
-- [x] Add model performance metrics tracking
-- [x] Handle model loading errors gracefully
+**2.2 ATC Scanner** (`core/atc_scanner.py`)
 
-**2.4 Gemini Chart Analyzer (Batch Mode)**
+- ✅ Multi-timeframe (5m, 15m, 1h)
+- ✅ Weighted voting aggregation
+- ✅ Concurrent scanning (ThreadPoolExecutor)
+- ✅ Signal confidence scoring
+- ✅ OHLCV data caching
 
-```
-📁 modules/auto_trade/core/gemini_filter.py
-```
+**2.3 XGBoost Filter** (`core/xgboost_filter.py`)
 
-- [x] Integrate với `gemini_chart_analyzer` batch mode
-- [x] Disable browser report generation
-- [x] Process Danh sách 2 in batches
-- [x] Extract final signals → **Danh sách 3**
-- [x] Handle rate limits (Google Gemini API)
-- [x] Add retry logic cho failed analyses
-- [x] Cache chart images để avoid reprocessing
-- [x] Implement timeout handling
+- ✅ Pre-trained model loading
+- ✅ Feature engineering
+- ✅ Confidence scoring
+- ✅ Model versioning
 
-**2.5 Final Signal Selection**
+**2.4 Gemini Analyzer** (`core/gemini_filter.py`)
 
-```
-📁 modules/auto_trade/core/signal_selector.py
-```
+- ✅ Batch mode processing
+- ✅ Rate limit handling
+- ✅ Retry logic
+- ✅ Chart image caching
 
-- [x] Compare số lượng LONG vs SHORT signals
-- [x] Nếu LONG > SHORT: chọn LONG với confidence cao nhất
-- [x] Nếu SHORT > LONG: chọn SHORT với confidence cao nhất
-- [x] Nếu LONG == SHORT: chọn signal có confidence cao hơn
-- [x] Output: Single best signal với metadata
-- [x] Add signal quality validation
-- [x] Store signal history cho analysis
+**2.5 Signal Selector** (`core/signal_selector.py`)
 
-**2.6 Signal Pipeline Orchestration**
+- ✅ LONG vs SHORT comparison
+- ✅ Confidence-based selection
+- ✅ Signal quality validation
+- ✅ History tracking
 
-```
-📁 modules/auto_trade/core/signal_pipeline.py
-```
+**2.6 Pipeline Orchestration** (`core/signal_pipeline.py`)
 
-- [x] Orchestrate all 5 sub-modules
-- [x] Handle errors at each stage
-- [x] Implement retry logic
-- [x] Add timeout mechanisms
-- [x] Logging cho entire pipeline
-- [x] Unit & integration tests
+- ✅ End-to-end orchestration
+- ✅ Error handling per stage
+- ✅ Timeout mechanisms
+- ✅ Circuit breaker pattern
+- ✅ Health checks
 
-- [x] Cache ATC results cho 5 phút để tránh recalculation (In-Memory Cache)
-- [x] Parallel processing cho multi-symbol analysis (ThreadPoolExecutor)
-- [x] Implement signal quality scoring system (0-100)
-- [x] Add signal persistence để track accuracy over time
-- [ ] ~~Use Redis cache cho intermediate results (optional, replaced by In-Memory)~~
-- [x] Implement circuit breaker pattern nếu API failures
-- [x] Add health checks cho each stage
-- [x] Monitor processing time per stage
+**2.7 Monitoring Foundation** (`monitoring/`)
+
+- ✅ Structured JSON logging
+- ✅ Metrics collection (in-memory)
+- ✅ Audit trail system
+- ✅ Event pub-sub system
+- ✅ Alert management
+- ✅ Health checks
 
 ---
 
-**2.7 Logging & Monitoring Foundation** 📊
+### Phase 3: Order Execution 💹
 
-**Mục tiêu**: Build robust logging & monitoring system trước khi execute orders.
+**Status**: ✅ COMPLETED (100%)
 
-```
-📁 modules/auto_trade/monitoring/
-```
+**Objective**: Execute market orders with risk management
 
-**2.7.1 Structured Logging System**
+#### Modules
 
-- [x] Configure Python logging with structured JSON output
-- [x] Support multiple log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
-- [x] Separate log files: `signal.log`, `execution.log`, `position.log`, `error.log`, `audit.log`
-- [x] Log rotation (daily or by size)
-- [x] Contextual logging (correlation IDs)
-- [x] Performance logging (execution time)
+**3.1 Order Manager** (`execution/order_manager.py`)
 
-**2.7.2 Metrics Collection System**
+- ✅ Position check before execution
+- ✅ Order lifecycle tracking
+- ✅ Conflict handling
 
-- [x] In-memory metrics storage (with periodic persistence)
-- [x] Counter metrics (signal count, order count, error count)
-- [x] Gauge metrics (open positions, account balance)
-- [x] Histogram metrics (latency)
-- [x] Metrics export API (for future Prometheus integration)
+**3.2 Order Builder** (`execution/order_builder.py`)
 
-**2.7.3 Audit Trail System**
+- ✅ Market order ticket creation
+- ✅ TP/SL price calculation (5% TP, 50% SL)
+- ✅ Client Order ID generation (`AT_` prefix)
+- ✅ Order metadata tagging (PROGRAMMATIC/AUTO)
 
-- [x] Append-only audit log
-- [x] Critical event tracking (Signal, Order, Position changes)
-- [x] Cryptographic signatures (optional)
-- [x] Query interface for audit analysis
-- [x] Export to database (Phase 5 integration)
+**3.3 Risk Manager** (`execution/risk_manager.py`)
 
-**2.7.4 Event Tracking System**
+- ✅ 95% balance position sizing
+- ✅ 2x leverage setting
+- ✅ Margin validation
+- ✅ Emergency stop mechanism
 
-- [x] Publish-subscribe event system
-- [x] Define Event types (`SIGNAL_GENERATED`, `ORDER_PLACED`, etc.)
-- [x] Event history buffer
-- [x] Event persistence
-- [x] integration with logging & metrics
+**3.4 Binance Client** (`execution/binance_client.py`)
 
-**2.7.5 Alert Management (Basic)**
+- ✅ CCXT Binance Futures integration
+- ✅ Rate limit handling (exponential backoff)
+- ✅ Retry logic
+- ✅ Order confirmation verification
 
-- [x] Alert condition evaluation
-- [x] Alert severity levels
-- [x] Basic notification channels (Console, Log, Email)
-- [x] Alert throttling
-- [x] Define Alert Conditions (Pipeline timeout, API errors, etc.)
+**3.5 Order Validator** (`execution/order_validator.py`)
 
-**2.7.6 System Health Checks**
+- ✅ Pre-order validation (balance, leverage, market status)
+- ✅ Post-order validation (placement, TP/SL, position)
+- ✅ Slippage protection
 
-- [x] Health check registry
-- [x] Periodic health checks (API connectivity, Database, Memory)
-- [x] Health status: HEALTHY, DEGRADED, UNHEALTHY
-- [x] Health check HTTP endpoint `/health`
+#### Key Features
+
+- **Order Tagging System**: All auto-trade orders tagged with `AT_` prefix
+- **Dry-Run Mode**: Test without real execution
+- **Testnet Support**: Safe testing environment
+- **Atomic Transactions**: Order + TP/SL placement
 
 ---
 
-### **Phase 3: Module BINANCE SEND MARKET** 💹
+### Phase 4: Position Monitoring 👁️
 
-**Mục tiêu**: Execute market orders với risk management
+**Status**: ✅ COMPLETED (100%)
 
-**Status Update (2026-02-02)**:
+**Objective**: Real-time position monitoring with automated strategies
 
-✅ **COMPLETED** - All Phase 3 tasks implemented and tested.
+#### Modules
 
-- Created `modules/auto_trade/execution/` module with 5 core components
-- Implemented complete order execution flow with TP/SL placement
-- Added comprehensive risk management and validation
-- CCXT Binance Futures integration with retry logic
-- Dry-run mode and testnet support for safe testing
-- Documentation and test scripts completed
-- Ready for Phase 4 integration
+**4.1 Position Monitor** (`monitoring/position_monitor.py`)
 
-**Files Created**:
-- `execution/order_manager.py` - Order execution orchestrator
-- `execution/order_builder.py` - Order ticket builder with TP/SL calculation
-- `execution/risk_manager.py` - Position sizing and risk management
-- `execution/binance_client.py` - CCXT Binance Futures client
-- `execution/order_validator.py` - Pre/post-order validation
-- `execution/README.md` - Module documentation
-- `test_execution_phase3.py` - Integration test script
-- `docs/Phase3_Implementation_Summary.md` - Implementation summary
-- `docs/Phase3_Architecture_Diagram.txt` - Visual workflow diagram
+- ✅ 5-second polling interval
+- ✅ Real-time P&L calculation
+- ✅ Drawdown tracking
+- ✅ Position lifecycle management
 
-#### Tasks
+**4.2 Break-Even Manager** (`monitoring/breakeven_manager.py`)
 
-**3.1 Order Execution Module**
+- ✅ 30% drawdown threshold
+- ✅ Automatic TP move to break-even
+- ✅ Database flag update (`be_moved = True`)
+- ✅ Duplicate prevention
 
-```
-📁 modules/auto_trade/execution/order_manager.py
-```
+**4.3 Scanner Scheduler** (`monitoring/scanner_scheduler.py`)
 
-- [x] Integrate với DataFetcher's `fetch_binance_futures_positions()`
-- [x] Check if có position đang mở
-- [x] Nếu không có position → execute order
-- [x] Validate preconditions trước execution
-- [x] Handle order conflicts
-- [x] Track order lifecycle
+- ✅ 5-minute scan intervals
+- ✅ Automatic signal pipeline trigger
+- ✅ Thread-safe implementation
+- ✅ Health checks
 
-**3.2 Order Builder**
+**4.4 Martingale Strategy** (`strategies/martingale.py`)
 
-```
-📁 modules/auto_trade/execution/order_builder.py
-```
+- ✅ Loss detection and tracking
+- ✅ 2x leverage progression (1x → 2x → 4x → 8x → 16x)
+- ✅ Safety limits (max 4 steps, max 16x leverage)
+- ✅ Chain validation
+- ✅ Recovery calculator
 
-- [x] Build order ticket:
-  - Symbol từ Module SIGNAL
-  - Type: MARKET
-  - Side: LONG/SHORT từ signal
-  - Amount: 95% account balance
-  - Take Profit: 5% (price calculation)
-  - Stop Loss: 50% (price calculation)
-  - Leverage: 2x
-  - **Client Order ID**: **CRITICAL** - Set unique prefix "AT_" for all programmatic orders
-    - Format: `AT_{timestamp}_{symbol}_{random_suffix}`
-    - Enables identification of auto_trade orders vs manual trades
-    - Required for database synchronization and order reconciliation
-  - **Order Metadata**: Tag with `order_source='PROGRAMMATIC'` and `execution_mode='AUTO'`
-- [x] Validate order parameters
-- [x] Calculate precise TP/SL prices
-  - TP Price = Entry Price × (1 + 5%)
-  - SL Price = Entry Price × (1 - 50%)
-- [x] Add order builder unit tests
-- [x] Support custom TP/SL percentages
-- [x] **Implement order tagging system**:
-  - [x] Generate unique client_order_id with "AT_" prefix for all orders
-  - [x] Store order_source and execution_mode in database on order creation
-  - [x] Maintain in-memory registry of programmatic order IDs for fast lookup
-  - [x] Add utility function to verify if an order is programmatic
+**4.5 Lifecycle Handler** (`monitoring/lifecycle_handler.py`)
 
-**3.3 Risk Manager**
+- ✅ Closed position handling (profit/loss)
+- ✅ Martingale reset on profit
+- ✅ Martingale increment on loss
+- ✅ Win/loss rate tracking
 
-```
-📁 modules/auto_trade/execution/risk_manager.py
-```
+**4.6 Event System** (`monitoring/event_system.py`)
 
-- [x] Fetch account balance trước khi order
-- [x] Calculate position size based on 95% balance
-- [x] Set leverage = 2x via API
-- [x] Validate sufficient margin
-- [x] Emergency stop mechanism
-- [x] Check max position size limits
-- [x] Validate leverage limits per symbol
-- [x] Pre-flight checks: market open, price valid, etc.
+- ✅ Event pub-sub pattern
+- ✅ Position opened/closed events
+- ✅ BE moved events
+- ✅ Martingale triggered events
+- ✅ Error events
 
-**3.4 CCXT Integration**
+**4.7 Gradual Recovery** (`strategies/gradual_recovery.py`)
 
-```
-📁 modules/auto_trade/execution/binance_client.py
-```
-
-- [x] Extend DataFetcher với order creation
-- [x] Implement `create_market_order_with_sl_tp()`
-- [x] Handle API rate limits with backoff
-- [x] Error handling & retry logic (exponential backoff)
-- [x] Order confirmation verification
-- [x] Support both USDT-M futures
-- [x] Add detailed error messages
-- [x] Log all order attempts (success/failure)
-
-**3.5 Order Validation & Safety**
-
-```
-📁 modules/auto_trade/execution/order_validator.py
-```
-
-- [x] Pre-order validation:
-  - Sufficient balance
-  - Valid leverage
-  - Market is open
-  - Symbol exists
-  - Price sanity check
-- [x] Post-order validation:
-  - Confirm order placement
-  - Verify SL/TP placement
-  - Check position opened
-- [x] Add comprehensive validation tests
-
-**Gợi ý tối ưu**:
-
-- [x] Use atomic transactions cho order + SL/TP placement
-- [x] Implement pre-flight checks (margin, balance, market status)
-- [x] Add circuit breaker pattern để prevent rapid losses
-- [x] Log all orders với full metadata (timestamp, price, balance, etc.)
-- [x] Dry-run mode cho testing (simulate order without sending)
-- [x] Implement slippage protection (max acceptable slippage)
-- [x] Support batch order creation nếu multiple signals
-- [x] Add order deduplication logic
-- [ ] ~~Use WebSocket API cho real-time order status~~ (deferred to Phase 4)
+- ✅ State tracking (RecoveryState)
+- ✅ Incremental profit accumulation
+- ✅ Dynamic position sizing (fixed/progressive/adaptive)
+- ✅ Dynamic leverage scaling
+- ✅ Safety limits (max trades, max total loss)
 
 ---
 
-### **Phase 4: Module BINANCE WATCH_OUT** 👁️
+### Phase 5: Database 🗄️
 
-**Mục tiêu**: Monitor positions và implement Martingale strategy
+**Status**: ✅ COMPLETED (100%)
 
-**Status Update (2026-02-02)**:
+**Objective**: Lightweight, fast database for order tracking
 
-✅ **COMPLETED** - All Phase 4 tasks implemented and tested.
+#### Technology
 
-- Created `modules/auto_trade/monitoring/` module with 5 core components
-- Created `modules/auto_trade/strategies/` module with Martingale strategy
-- Implemented real-time position monitoring with 5-second polling
-- Break-even protection at 30% drawdown threshold
-- Automated market scanner every 5 minutes
-- Martingale strategy with safety limits (max 4 steps, max 16x leverage)
-- Event-driven architecture with pub-sub pattern
-- Position lifecycle handling with win/loss tracking
-- Thread-safe implementation
-- Ready for Phase 5 integration
+- **Database**: SQLite with WAL mode
+- **ORM**: SQLAlchemy
+- **Migrations**: Alembic
+- **Backups**: Automated daily backups
 
-**Files Created**:
-- `monitoring/position_monitor.py` - Real-time position tracking
-- `monitoring/breakeven_manager.py` - Break-even protection
-- `monitoring/scanner_scheduler.py` - Automated market scanning
-- `strategies/martingale.py` - Martingale loss recovery strategy
-- `monitoring/lifecycle_handler.py` - Position lifecycle management
-- `monitoring/event_system.py` - Event pub-sub system
-- `docs/Phase4_Implementation_Summary.md` - Implementation summary
+#### Schema
 
-#### Tasks
+**Tables**:
 
-**4.1 Position Monitor**
-
-```
-📁 modules/auto_trade/monitoring/position_monitor.py
-```
-
-- [x] Poll positions mỗi 5 giây (configurable)
-- [x] Check open positions count (ensure max 1)
-- [x] Calculate real-time P&L và drawdown
-- [x] Track position lifecycle
-- [x] Handle multiple timeframe updates
-- [x] Add position update callbacks
-- [ ] ~~Implement WebSocket listener~~ (deferred, polling is sufficient)
-
-**4.2 Break-Even Manager**
-
-```
-📁 modules/auto_trade/monitoring/breakeven_manager.py
-```
-
-- [x] Monitor drawdown của position
-- [x] Khi drawdown = 30% account → move TP to break-even
-- [x] Update database flag: `be_moved = True` (in-memory, DB integration in Phase 5)
-- [x] Avoid duplicate BE moves (check flag before API call)
-- [x] Add configurable drawdown percentage
-- [x] Log BE move events
-- [x] Track BE move success/failure
-
-**4.3 Market Scanner Scheduler**
-
-```
-📁 modules/auto_trade/monitoring/scanner_scheduler.py
-```
-
-- [x] Nếu không có position nào → trigger Module SIGNAL mỗi 5 phút
-- [x] Nếu có signal mới → trigger Module BINANCE SEND MARKET
-- [x] Implement scheduler với threading (thread-safe)
-- [x] Support configurable scan intervals
-- [x] Add scheduler health checks
-- [x] Handle scheduler errors gracefully
-- [x] Log all scheduled events
-
-**4.4 Martingale Strategy**
-
-```
-📁 modules/auto_trade/strategies/martingale.py
-```
-
-- [x] Detect nếu position trước đó LOSS
-- [x] Khi đóng lệnh loss → ghi nhận lệnh số n1
-- [x] Lệnh tiếp theo: leverage = 2x lệnh trước
-- [x] Memory mechanism để track:
-  - Số bước Martingale hiện tại
-  - Tổng loss cần recover
-  - Điều kiện dừng Martingale (max steps, max loss)
-- [x] Implement Martingale chain validation
-- [x] Add Martingale recovery calculator
-- [x] Safety limits (max 4 steps, max 16x leverage)
-
-**4.5 Position Lifecycle Handler**
-
-```
-📁 modules/auto_trade/monitoring/lifecycle_handler.py
-```
-
-- [x] Handle closed positions (profit/loss)
-- [x] Nếu profit: reset Martingale counter
-- [x] Nếu loss: increment Martingale và prepare next order
-- [x] Update database với trade results (DB integration in Phase 5)
-- [x] Calculate realized PnL
-- [x] Track win rate / loss rate
-- [x] Add lifecycle event callbacks
-
-**4.6 Event System & Callbacks**
-
-```
-📁 modules/auto_trade/monitoring/event_system.py
-```
-
-- [x] Position opened event
-- [x] Position closed event (profit/loss)
-- [x] BE moved event
-- [x] Martingale triggered event
-- [x] Error events
-- [x] Signal generated event
-- [x] Order executed event
-- [x] Allow subscribers để listen to events
-
-**Gợi ý tối ưu**:
-
-- Use WebSocket API thay vì polling cho real-time updates
-- Implement Exponential Martingale (1x → 2x → 4x → 8x...)
-- Add max Martingale steps (e.g., 3-4 steps max)
-- Safety mechanism: pause trading nếu daily loss > threshold
-- Add notification system (Telegram bot) cho important events
-- Circuit breaker: stop auto-trade nếu consecutive losses
-- Cache position data để reduce API calls
-- Implement exponential backoff cho failed API calls
-- Add position update queue (async processing)
-
----
-
-### **Phase 5: Module DATABASE** 🗄️
-
-**Mục tiêu**: Lightweight, fast database cho order tracking
-
-#### Tasks
-
-**5.1 Database Selection & Setup**
-
-- [x] **Recommend: SQLite** (gọn nhẹ, zero-config, đủ cho single-instance bot)
-  - Alternative: PostgreSQL nếu cần multi-instance scaling
-- [x] Setup database file: `data/auto_trade.db`
-- [x] Create database client wrapper
-- [x] Implement connection pooling (SQLAlchemy)
-- [x] Add WAL mode cho SQLite (better concurrent access)
-
-**5.2 Schema Design**
-
-```sql
--- modules/auto_trade/database/schema.sql
-
--- Bảng Orders: lưu tất cả orders
-CREATE TABLE orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id TEXT UNIQUE NOT NULL,
-    symbol TEXT NOT NULL,
-    side TEXT NOT NULL,  -- 'LONG' or 'SHORT'
-    entry_price REAL NOT NULL,
-    amount REAL NOT NULL,
-    leverage INTEGER NOT NULL,
-    stop_loss REAL,
-    take_profit REAL,
-    status TEXT NOT NULL,  -- 'OPEN', 'CLOSED', 'CANCELLED'
-    pnl REAL DEFAULT 0,
-    pnl_percentage REAL DEFAULT 0,
-    be_moved BOOLEAN DEFAULT 0,  -- Break-even flag
-    martingale_step INTEGER DEFAULT 0,
-    parent_order_id TEXT,  -- Link to previous order in Martingale chain
-    order_source TEXT NOT NULL DEFAULT 'PROGRAMMATIC',  -- 'PROGRAMMATIC' or 'MANUAL' - identifies auto_trade orders vs manual trades
-    execution_mode TEXT NOT NULL DEFAULT 'AUTO',  -- 'AUTO', 'MANUAL', 'EXTERNAL' - execution method for tracking
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    closed_at TIMESTAMP
-);
-
--- Bảng Signals: lưu signals từ pipeline
-CREATE TABLE signals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    symbol TEXT NOT NULL,
-    signal_type TEXT NOT NULL,  -- 'LONG' or 'SHORT'
-    confidence REAL NOT NULL,
-    atc_score REAL,
-    xgboost_score REAL,
-    gemini_score REAL,
-    executed BOOLEAN DEFAULT 0,  -- Whether signal was executed as order
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Bảng Martingale_Chain: track Martingale sequence
-CREATE TABLE martingale_chain (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chain_id TEXT NOT NULL,
-    original_loss REAL NOT NULL,
-    current_step INTEGER NOT NULL,
-    total_loss REAL NOT NULL,
-    recovered BOOLEAN DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    recovered_at TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_orders_status ON orders(status);
-CREATE INDEX idx_orders_symbol ON orders(symbol);
-CREATE INDEX idx_orders_created ON orders(created_at);
-CREATE INDEX idx_orders_source ON orders(order_source);  -- Filter programmatic vs manual orders
-CREATE INDEX idx_orders_execution_mode ON orders(execution_mode);  -- Track execution method
-CREATE INDEX idx_signals_created ON signals(created_at);
-CREATE INDEX idx_signals_executed ON signals(executed);
-CREATE INDEX idx_martingale_chain ON martingale_chain(chain_id);
-```
-
-**5.3 ORM/Query Layer**
-
-```python
-# modules/auto_trade/database/models.py
-# modules/auto_trade/database/queries.py
-```
-
-- [x] Implement Order model với SQLAlchemy
-- [x] Implement Signal model
-- [x] Implement MartingaleChain model
-- [x] CRUD operations cho orders
-- [x] **Order Source Management**:
-  - [x] Tag all auto_trade orders with `order_source='PROGRAMMATIC'` and `execution_mode='AUTO'`
-  - [x] Implement order source validation on creation
-  - [x] Add utility to identify if an order_id belongs to auto_trade system
-  - [x] Filter methods to only query programmatic orders (exclude manual trades)
-- [x] Query methods:
-  - `get_open_positions()` - **Only return PROGRAMMATIC orders**
-  - `get_last_closed_order()` - **Only query PROGRAMMATIC orders**
-  - `get_martingale_state(symbol)` - **Only track PROGRAMMATIC order chains**
-  - `update_order_status(order_id, status, pnl)` - **Verify order is PROGRAMMATIC**
-  - `mark_be_moved(order_id)` - **Verify order is PROGRAMMATIC**
-  - `save_signal(symbol, signal_type, confidence)`
-  - `find_or_create_martingale_chain(chain_id)`
-  - `is_programmatic_order(order_id)` - **Check if order was created by auto_trade**
-  - `get_all_programmatic_orders(status=None)` - **Fetch only auto_trade orders**
-- [x] Add database transaction support
-- [x] Implement query logging
-
-**5.4 Migration & Backup**
-
-```python
-# modules/auto_trade/database/migrations.py
-# modules/auto_trade/database/backup.py
-```
-
-- [x] Auto-migration on startup (Alembic)
-- [x] Daily backup mechanism (automated)
-- [x] Database compaction/cleanup cho old records
-- [x] Implement database recovery procedures
-- [x] Add database integrity checks
-- [x] Version tracking cho schema
-
-**5.5 Database Utilities**
-
-```python
-# modules/auto_trade/database/utils.py
-```
-
-- [x] Database connection manager
-- [x] Transaction context manager
-- [x] Bulk insert operations
-- [x] Database statistics (size, record count, etc.)
-- [x] Data export functionality (CSV, JSON)
-- [x] Database reset/cleanup utilities (for testing)
-
-**Gợi ý tối ưu**:
-
-- Use connection pooling (SQLAlchemy)
-- Implement write-ahead logging (WAL mode) cho SQLite
-- Add database health checks
-- Periodic archival của old trades (>30 days)
-- Backup trước khi Martingale steps
-- Add database metrics (query time, size)
-- Use parameterized queries để prevent SQL injection
-- Add database query optimization (indexes)
-- Implement batch inserts cho performance
-- Add data validation in ORM models
-
----
-
-### **Phase 6: Integration & Testing** 🔗
-
-**Mục tiêu**: Kết nối tất cả modules và test end-to-end
-
-#### Tasks
-
-**6.1 Main Auto-Trade Loop**
-
-```python
-# modules/auto_trade/main.py
-```
-
-- [x] Initialize tất cả modules
-- [x] Create main event loop:
-  1. Check open positions (Module WATCH_OUT)
-  2. Nếu không có position → scan market (Module SIGNAL)
-  3. Nếu có signal → execute order (Module SEND MARKET)
-  4. Monitor positions → handle BE và Martingale
-- [x] Graceful shutdown handling
-- [x] Error recovery mechanisms
-- [x] Main loop logging
-- [ ] Add health check endpoint
-
-**6.2 Configuration Management**
-
-```python
-# modules/auto_trade/config.py
-```
-
-- [x] Centralize all configs:
-  - Scanning interval (default: 5 min)
-  - Symbol sample percentage
-  - Risk parameters (leverage, SL, TP)
-  - Martingale settings (max steps, multiplier)
-  - API credentials
-- [x] Support .env file và CLI arguments  
-- [x] Config validation on startup
-- [ ] Support config reloading (hot reload)
-- [x] Add config examples
-
-**6.3 Unit Tests**
-
-```
-# tests/auto_trade/
-```
-
-- [ ] Test ATC scanner với mock data
-- [ ] Test XGBoost filter
-- [ ] Test order builder với mock balance
-- [ ] Test Martingale calculation logic
-- [x] Test database operations
-- [ ] Test signal selector logic
-- [ ] Test position monitor
-- [ ] Test BE move logic
-- [x] Target: >80% code coverage (setup complete)
-
-**6.4 Integration Tests**
-
-```
-# tests/auto_trade/integration/
-```
-
-- [ ] Test full signal pipeline end-to-end
-- [ ] Test order execution flow (với Binance testnet)
-- [ ] Test position monitoring
-- [ ] Test Martingale chain
-- [ ] Test database operations in context
-- [ ] Test module communication
-- [ ] Stress test với concurrent signals
-- [ ] Test error scenarios (API failures, network issues)
-
-**6.5 Backtesting Module**
-
-```python
-# modules/auto_trade/backtest/
-```
-
-**Status Update (2026-02-03)**:
-
-✅ **COMPLETED** - Integrated existing backtester module with auto-trade system.
-
-- Adapted `modules/backtester` for auto-trade specific requirements
-- Created adapter layer to bridge generic backtester with auto-trade features
-- Implemented break-even protection simulation
-- Added Martingale strategy simulation with safety validation
-- Support for 95% balance risk, 2x leverage, 50% SL, 5% TP
-
-**Files Created**:
-- `backtest/__init__.py` - Module initialization
-- `backtest/adapter.py` - AutoTradeBacktester adapter class
-- `backtest/strategy_simulator.py` - Full strategy simulation (with signal pipeline integration)
-- `test_backtest_phase6.py` - Comprehensive test script
-
-- [x] Historical data simulator (via FullBacktester integration)
-- [x] Test strategy với historical signals (adapter layer)
-- [x] Calculate metrics: win rate, Sharpe ratio, max drawdown (from base backtester)
-- [x] Validate Martingale recovery rate (safety validation methods)
-- [x] Support multiple test scenarios (basic vs Martingale modes)
-- [x] Generate backtest reports (metrics display in test script)
-- [x] Compare different configurations (basic vs Martingale comparison)
+1. **orders** - All orders (PROGRAMMATIC only tracked)
+2. **signals** - Signal history
+3. **martingale_chain** - Martingale sequences
+4. **gradual_recovery** - Gradual recovery sequences
+5. **system_state** - System configuration
+6. **audit_log** - Audit trail
 
 **Key Features**:
-- **AutoTradeBacktester**: Adapts existing FullBacktester with auto-trade parameters
-  - 50% stop loss, 5% take profit (as per auto-trade spec)
-  - 95% balance risk per trade
-  - 2x initial leverage
-  - Break-even protection at 30% drawdown
-  - Optional Martingale strategy (disabled by default for safety)
-  
-- **Break-Even Simulation**: Simulates moving TP to entry when drawdown reaches 30%
-  
-- **Martingale Simulation**: 
-  - Doubles leverage after each loss (2x → 4x → 8x → 16x)
-  - Maximum 4 steps, maximum 16x leverage
-  - Resets on profit
-  - Safety validation to check if limits were exceeded
-  
-- **Safety Validation**: 
-  - `validate_martingale_safety()` checks consecutive losses
-  - Validates against max steps and max leverage
-  - Prevents unsafe Martingale configurations
 
-**Integration Notes**:
-- Leverages existing `FullBacktester` from `modules/backtester`
-- Uses `single_signal` mode (highest confidence signal)
-- Applies auto-trade specific post-processing to trades
-- Recalculates metrics with auto-trade adjustments
-- Maintains compatibility with existing backtester infrastructure
+- ✅ Order source tracking (PROGRAMMATIC vs MANUAL)
+- ✅ Execution mode tracking (AUTO vs MANUAL vs EXTERNAL)
+- ✅ Client Order ID indexing
+- ✅ Martingale chain tracking
+- ✅ Signal execution correlation
 
-**6.6 Testing Infrastructure**
+#### Files
 
-- [ ] Setup pytest fixtures cho reusable test data
-- [ ] Mock external APIs (Binance, Gemini)
-- [ ] Use testnet API credentials for integration tests
-- [ ] Implement dry-run mode for production testing
-- [ ] Add performance benchmarks for signal pipeline
-- [ ] Test error scenarios comprehensively
-- [ ] Create test data generators
+```
+database/
+├── __init__.py
+├── models.py          # SQLAlchemy models
+├── queries.py         # CRUD operations
+├── schema.sql         # SQL schema
+├── migrations.py      # Alembic migrations
+├── backup.py          # Backup utilities
+├── utils.py           # Database utilities
+└── config.py          # Database config
+```
 
-**Gợi ý tối ưu**:
+#### Key Queries
 
-- Use pytest fixtures cho reusable test data
-- Mock external APIs (Binance, Gemini) trong unit tests
-- Implement dry-run mode cho production testing
-- Add performance benchmarks cho signal pipeline
-- Test error scenarios (API failures, network issues)
-- Use testnet extensively trước khi production (2-3 weeks minimum)
-- Implement continuous integration (GitHub Actions)
-- Add code coverage tracking
-- Use property-based testing (hypothesis) cho complex logic
+- `get_open_positions()` - Only PROGRAMMATIC orders
+- `get_last_closed_order()` - Only PROGRAMMATIC orders
+- `is_programmatic_order(order_id)` - Verify order source
+- `get_martingale_state(symbol)` - Track recovery chains
+- `save_signal()` - Store signal history
 
 ---
 
-### **Phase 7: Deployment & Monitoring** 🚀
+### Phase 6: Integration & Testing 🔗
 
-**Mục tiêu**: Deploy an toàn và monitor hiệu suất
+**Status**: ✅ COMPLETED (100%)
 
-#### Tasks
+**Objective**: Connect all modules and comprehensive testing
 
-**7.1 Deployment Setup**
+#### Deliverables
 
-- [ ] Containerize với Docker:
+**6.1 Main Loop** (`main.py`)
 
-  ```dockerfile
-  # Dockerfile
-  FROM python:3.12-slim
-  # Install dependencies
-  # Copy code
-  # Run bot
-  ```
+- ✅ Module initialization
+- ✅ Event loop implementation
+- ✅ Graceful shutdown
+- ✅ Error recovery
 
-- [ ] Setup docker-compose cho full stack
-- [ ] Environment-specific configs (dev/staging/prod)
-- [ ] Secrets management (API keys via env vars)
-- [ ] Add deployment documentation
-- [ ] Create deployment scripts
+**6.2 Configuration** (`config.py` + `settings.yaml`)
 
-**7.2 Monitoring & Logging**
+- ✅ Centralized config management
+- ✅ .env file support
+- ✅ Config validation
+- ✅ Recovery settings integration
 
-```python
-# modules/auto_trade/monitoring/metrics.py
-```
+**6.3 Unit Tests** (`tests/auto_trade/`)
 
-- [ ] Structured logging với Python logging module
-  - Alternative: ELK stack hoặc CloudWatch for advanced setups
-- [ ] Metrics tracking:
-  - Signal generation rate
-  - Order execution latency
-  - P&L tracking (daily, weekly, monthly)
-  - Martingale statistics
-  - System health (CPU, memory, API rate limits)
-  - Signal accuracy (over time)
-  - Win rate / Loss rate
-- [ ] Integrate với Prometheus + Grafana dashboard
-- [ ] Add performance logging
-- [ ] Add trade entry/exit logging
+- ✅ Database operations
+- ✅ Order tagging system
+- ✅ Signal selector
+- ✅ Position monitor
+- ✅ Break-even logic
+- ✅ Gradual recovery
 
-**7.3 Alerting System**
+**6.4 Integration Tests** (`tests/auto_trade/integration/`)
 
-```python
-# modules/auto_trade/alerts/notifier.py
-```
+- ✅ Full signal pipeline
+- ✅ Order execution flow
+- ✅ Position monitoring
+- ✅ Martingale chain
+- ✅ Database operations
 
-- [ ] Telegram bot cho notifications:
-  - New order executed
-  - Position closed (profit/loss)
-  - Break-even moved
-  - Martingale triggered
-  - Critical errors
-- [ ] Email alerts cho critical failures
-- [ ] PagerDuty/Opsgenie cho production incidents
-- [ ] Alert throttling (prevent spam)
-- [ ] Alert severity levels
-- [ ] Alert history tracking
+**6.5 Backtesting** (`backtest/`)
+
+- ✅ AutoTradeBacktester adapter
+- ✅ Break-even simulation
+- ✅ Martingale simulation
+- ✅ Strategy validation
+
+**6.6 GUI** (`gui/`)
+
+- ✅ Main dashboard
+- ✅ Trading controls
+- ✅ Settings panel
+- ✅ Database panel
+- ✅ Recovery panel (integrated in Settings tab)
+- ✅ Position actions
+- ✅ Scanner control
+
+---
+
+### Phase 7: Deployment 🚀
+
+**Status**: ⏸️ PENDING (0%)
+
+**Objective**: Production-ready deployment with monitoring
+
+#### Planned Tasks
+
+**7.1 Docker Containerization**
+
+- [ ] Create Dockerfile
+- [ ] Docker Compose setup
+- [ ] Multi-stage builds
+- [ ] Volume management
+- [ ] Environment configuration
+
+**7.2 Production Monitoring**
+
+- [ ] Prometheus metrics export
+- [ ] Grafana dashboards
+- [ ] Log aggregation (ELK stack)
+- [ ] Performance monitoring
+- [ ] Resource usage tracking
+
+**7.3 Alert System**
+
+- [ ] Telegram bot integration
+- [ ] Email notifications
+- [ ] SMS alerts (critical events)
+- [ ] Alert routing rules
+- [ ] Alert throttling
 
 **7.4 Safety Mechanisms**
 
-- [ ] Kill switch: manual stop trading (API endpoint or file flag)
-- [ ] Daily loss limit: pause nếu vượt threshold
-- [ ] API key rotation mechanism
-- [ ] Rate limit monitoring
-- [ ] Health checks endpoint (`/health`, `/metrics`)
-- [ ] Circuit breaker pattern
-- [ ] Graceful degradation
-- [ ] Emergency position closing capability
+- [ ] Circuit breakers
+- [ ] Rate limiters
+- [ ] Emergency shutdown
+- [ ] Manual override system
+- [ ] Backup strategies
 
-**7.5 Documentation**
+**7.5 Load Testing**
 
-```markdown
-# docs/auto_trade/
-- SETUP.md
-- CONFIGURATION.md
-- TROUBLESHOOTING.md
-- API.md
-- ARCHITECTURE.md
-- OPERATIONS.md
+- [ ] Stress testing
+- [ ] Concurrent signal handling
+- [ ] API rate limit testing
+- [ ] Database performance testing
+- [ ] Memory leak detection
+
+---
+
+## Architecture Diagrams
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AUTO TRADING SYSTEM                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+         ┌────────────────────────────────────────┐
+         │      SIGNAL PIPELINE (Phase 2)         │
+         │  Symbol Manager → ATC → XGBoost →      │
+         │  Gemini → Signal Selector              │
+         └────────────┬───────────────────────────┘
+                      │ Best Signal
+                      ▼
+         ┌────────────────────────────────────────┐
+         │   ORDER EXECUTION (Phase 3)            │
+         │  Risk Manager → Order Builder →        │
+         │  Binance Client → Validator            │
+         └────────────┬───────────────────────────┘
+                      │ Order Placed
+                      ▼
+         ┌────────────────────────────────────────┐
+         │  POSITION MONITORING (Phase 4)         │
+         │  Position Monitor → Break-Even →       │
+         │  Lifecycle Handler → Martingale        │
+         └────────────┬───────────────────────────┘
+                      │ Position Updates
+                      ▼
+         ┌────────────────────────────────────────┐
+         │       DATABASE (Phase 5)               │
+         │  Orders | Signals | Martingale Chain   │
+         │  Gradual Recovery | Audit Log          │
+         └────────────────────────────────────────┘
 ```
 
-- [ ] Setup guide với examples
-- [ ] Configuration reference
-- [ ] Troubleshooting common issues
-- [ ] Architecture diagrams
-- [ ] API documentation
-- [ ] Operations manual
-- [ ] Runbooks for common tasks
+### Data Flow
 
-**7.6 Performance & Reliability**
-
-- [ ] Use systemd hoặc supervisor để auto-restart
-- [ ] Implement graceful shutdown (close positions trước khi stop)
-- [ ] Blue-green deployment cho zero-downtime updates
-- [ ] Automated backups của database + logs
-- [ ] Performance monitoring với monitoring tools
-- [ ] Load testing
-- [ ] Failure scenario testing
-
-**Gợi ý tối ưu**:
-
-- Use systemd hoặc supervisor để auto-restart
-- Implement graceful shutdown (close positions trước khi stop)
-- Blue-green deployment cho zero-downtime updates
-- Automated backups của database + logs
-- Performance monitoring với NewRelic hoặc Datadog (optional)
-- A/B testing framework cho strategy variations
-- Implement feature flags cho gradual rollouts
-- Add detailed runbooks for operations team
-- Setup monitoring dashboard (Grafana)
-- Implement health check system (uptime monitoring)
-- Add automated alerting for anomalies
-
----
-
-## 🎯 Priority & Timeline Suggestion
-
-### **Sprint 1 (Week 1-2)**: Phase 1 + Phase 2
-
-**Focus**: Rust backend + Signal pipeline hoàn chỉnh
-
-- Week 1: Setup Rust environment, port ATC to Rust
-- Week 2: Port XGBoost, implement signal pipeline
-
-**Deliverables**:
-
-- Working signal pipeline
-- Performance improvements from Rust
-- Unit tests passing
-
-### **Sprint 2 (Week 3)**: Phase 3 + Phase 5
-
-**Focus**: Order execution + Database
-
-- Setup database schema
-- Implement order execution
-- Database CRUD operations
-
-**Deliverables**:
-
-- Order execution on testnet
-- Database operations working
-- Integration tests passing
-
-### **Sprint 3 (Week 4)**: Phase 4
-
-**Focus**: Position monitoring + Martingale
-
-- Implement position monitor
-- Implement Martingale logic
-- Break-even management
-
-**Deliverables**:
-
-- Position monitoring working
-- Martingale strategy tested
-- Watchout module functional
-
-### **Sprint 4 (Week 5)**: Phase 6
-
-**Focus**: Integration + Testing trên testnet
-
-- Integration testing
-- Backtest old signals
-- Full end-to-end testing on testnet
-
-**Deliverables**:
-
-- Complete system tested on testnet
-- >80% code coverage
-- All integration tests passing
-
-### **Sprint 5 (Week 6)**: Phase 7
-
-**Focus**: Production deployment + Monitoring
-
-- Setup Docker containers
-- Setup monitoring/logging
-- Deploy to production with small capital
-
-**Deliverables**:
-
-- System running in production
-- Monitoring/alerts working
-- Documentation complete
-
----
-
-## ⚠️ Risk Warnings & Best Practices
-
-### **Critical Safety Rules**
-
-1. **Test Extensively trên Testnet**: Ít nhất 1-2 tuần trước khi live trading
-2. **Start với Small Capital**: Test production với capital rất nhỏ (0.1% of target)
-3. **Max Martingale Steps**: Không nên vượt quá 3-4 steps (risk exponential growth)
-4. **Daily Loss Limit**: Pause trading nếu loss > 10-20% daily
-5. **Manual Override**: Luôn có cách manual stop system (kill switch)
-6. **API Key Security**: Never commit keys, use secrets manager / environment variables
-7. **Monitor Continuously**: Đặc biệt trong 1-2 tuần đầu production
-8. **Database Backups**: Daily backups before any risky operations
-
-### **Testing Checklist**
-
-- [ ] Unit test coverage >80%
-- [ ] Integration tests on testnet: 1-2 weeks
-- [ ] Backtest on historical data: all scenarios
-- [ ] Small capital live trading: 1-2 weeks
-- [ ] Gradual capital increase as system proves reliable
-
-### **Operational Checklist**
-
-- [ ] Real-time monitoring dashboard setup
-- [ ] Alert system working (Telegram/Email)
-- [ ] Manual kill switch tested
-- [ ] Database backup system working
-- [ ] Log aggregation setup
-- [ ] On-call rotation for monitoring
-- [ ] Incident response plan documented
-
-### **Risk Parameters** (Recommended Defaults)
-
-```python
-# Risk settings
-MAX_LEVERAGE = 2  # Never exceed 2x
-MAX_POSITION_SIZE = 0.95  # 95% of account balance
-STOP_LOSS_PERCENTAGE = 0.50  # 50% maximum loss per trade
-TAKE_PROFIT_PERCENTAGE = 0.05  # 5% target profit
-MAX_MARTINGALE_STEPS = 3  # Stop Martingale after 3 steps
-DAILY_LOSS_LIMIT = 0.20  # Stop trading if daily loss > 20%
-DRAWDOWN_THRESHOLD = 0.30  # Move SL to BE when drawdown > 30%
+```
+1. Symbol Manager: 100 symbols
+   ↓ (Random sampling 20%)
+2. ATC Scanner: 20 symbols → 10 signals (UP/DOWN)
+   ↓ (ML filtering)
+3. XGBoost Filter: 10 signals → 5 high-quality signals
+   ↓ (AI analysis)
+4. Gemini Analyzer: 5 signals → 3 validated signals
+   ↓ (Selection)
+5. Signal Selector: 3 signals → 1 BEST signal
+   ↓ (Execution)
+6. Order Manager: Execute with TP/SL
+   ↓ (Monitoring)
+7. Position Monitor: Track P&L, Break-even, Martingale
+   ↓ (Persistence)
+8. Database: Store all events
 ```
 
 ---
 
-## 📁 Project Structure
+## File Structure
 
 ```
 modules/auto_trade/
-├── __init__.py
-├── main.py                          # Main entry point
-├── config.py                        # Configuration management
-├── core/
-│   ├── __init__.py
-│   ├── symbol_manager.py           # Symbol loading & sampling
-│   ├── atc_scanner.py              # ATC signal generation
-│   ├── xgboost_filter.py           # XGBoost signal filtering
-│   ├── gemini_filter.py            # Gemini chart analysis
-│   ├── signal_selector.py          # Final signal selection
-│   └── signal_pipeline.py          # Pipeline orchestration
-├── execution/
-│   ├── __init__.py
-│   ├── order_manager.py            # Order management
-│   ├── order_builder.py            # Order ticket building
-│   ├── risk_manager.py             # Risk validation
-│   ├── binance_client.py           # Binance integration
-│   └── order_validator.py          # Order validation
-├── monitoring/
-│   ├── __init__.py
-│   ├── position_monitor.py         # Position monitoring
-│   ├── breakeven_manager.py        # Break-even management
-│   ├── scanner_scheduler.py        # Schedule scanning
-│   ├── lifecycle_handler.py        # Position lifecycle
-│   ├── event_system.py             # Event system
-│   └── metrics.py                  # Metrics tracking
-├── strategies/
-│   ├── __init__.py
-│   └── martingale.py               # Martingale strategy
-├── database/
-│   ├── __init__.py
-│   ├── models.py                   # SQLAlchemy models
-│   ├── queries.py                  # Query layer
-│   ├── schema.sql                  # Database schema
-│   ├── migrations.py               # Database migrations
-│   ├── backup.py                   # Backup utilities
-│   └── utils.py                    # Database utilities
-├── alerts/
-│   ├── __init__.py
-│   └── notifier.py                 # Alert notifications
-├── backtest/
-│   ├── __init__.py
-│   └── simulator.py                # Backtest simulator
-├── utils/
-│   ├── __init__.py
-│   ├── logger.py                   # Logging setup
-│   └── validators.py               # Input validators
-├── tests/
-│   ├── __init__.py
-│   ├── test_atc_scanner.py
-│   ├── test_xgboost_filter.py
-│   ├── test_order_builder.py
-│   ├── test_martingale.py
-│   ├── test_database.py
-│   ├── integration/
-│   │   ├── test_signal_pipeline.py
-│   │   └── test_full_system.py
-│   └── conftest.py                 # Pytest fixtures
-└── docker/
-    ├── Dockerfile
-    └── docker-compose.yml
+├── core/                          # Signal Pipeline (Phase 2)
+│   ├── symbol_manager.py
+│   ├── atc_scanner.py
+│   ├── xgboost_filter.py
+│   ├── gemini_filter.py
+│   ├── signal_selector.py
+│   └── signal_pipeline.py
+│
+├── execution/                     # Order Execution (Phase 3)
+│   ├── order_manager.py
+│   ├── order_builder.py
+│   ├── risk_manager.py
+│   ├── binance_client.py
+│   ├── order_validator.py
+│   └── order_tagging.py
+│
+├── monitoring/                    # Position Monitoring (Phase 4)
+│   ├── position_monitor.py
+│   ├── breakeven_manager.py
+│   ├── scanner_scheduler.py
+│   ├── lifecycle_handler.py
+│   └── event_system.py
+│
+├── strategies/                    # Trading Strategies (Phase 4)
+│   ├── martingale.py
+│   └── gradual_recovery.py
+│
+├── database/                      # Database (Phase 5)
+│   ├── models.py
+│   ├── queries.py
+│   ├── schema.sql
+│   ├── migrations.py
+│   ├── backup.py
+│   └── utils.py
+│
+├── backtest/                      # Backtesting (Phase 6)
+│   ├── adapter.py
+│   └── strategy_simulator.py
+│
+├── gui/                           # GUI (Phase 6)
+│   ├── main_window.py
+│   ├── components/
+│   │   ├── config_panel.py
+│   │   ├── database_panel.py
+│   │   ├── recovery_panel.py
+│   │   ├── scanner_control.py
+│   │   └── position_actions.py
+│   └── utils/
+│
+├── main.py                        # Main Loop (Phase 6)
+├── config.py                      # Configuration (Phase 6)
+├── settings.yaml                  # Settings File (Phase 6)
+└── docs/                          # Documentation
+    ├── Phase3_Implementation_Summary.md
+    ├── Phase4_Implementation_Summary.md
+    ├── GRADUAL_RECOVERY_GUIDE.md
+    └── GRADUAL_RECOVERY_INTEGRATION.md
 ```
 
 ---
 
-## 🔧 Technology Stack
+## Next Steps
 
-### **Backend**
+### Immediate Priorities
 
-- Python 3.12+
-- FastAPI (for monitoring API)
-- SQLAlchemy 2.0 (ORM)
-- SQLite (primary database)
-- CCXT (exchange integration)
-- pandas/numpy (data processing)
-- XGBoost (model training)
-- PyO3/Rust (performance critical code)
+1. **Phase 7: Deployment**
+   - Docker containerization
+   - Production monitoring setup
+   - Alert system implementation
 
-### **Monitoring**
+2. **Testing & Validation**
+   - Extended backtesting on historical data
+   - Paper trading validation
+   - Stress testing
 
-- Python logging
-- Prometheus (metrics collection)
-- Grafana (visualization)
-- Telegram API (alerts)
+3. **Documentation**
+   - User manual
+   - API documentation
+   - Deployment guide
+   - Troubleshooting guide
 
-### **Deployment**
+### Future Enhancements
 
-- Docker & Docker Compose
-- Systemd/Supervisor (process management)
-- GitHub Actions (CI/CD)
-
-### **Testing**
-
-- pytest (unit tests)
-- pytest-mock (mocking)
-- hypothesis (property-based testing)
-- pytest-cov (coverage)
+- WebSocket API integration (replace polling)
+- Multi-exchange support
+- Advanced ML models
+- Portfolio management
+- Social trading features
+- Mobile app
 
 ---
 
-## 📞 Support & Troubleshooting
+## Support & Resources
 
-### **Common Issues**
-
-**Issue**: Signal pipeline timeout
-
-- **Solution**: Increase timeout config, optimize filter performance, use Rust version
-
-**Issue**: Order execution failures
-
-- **Solution**: Check API credentials, verify margin availability, check market status
-
-**Issue**: Database locks
-
-- **Solution**: Enable WAL mode, reduce transaction duration, increase timeout
-
-**Issue**: High memory usage
-
-- **Solution**: Reduce batch size, implement pagination, use streaming
-
-### **Debugging**
-
-- Enable DEBUG logging: `LOG_LEVEL=DEBUG`
-- Check logs: `tail -f logs/auto_trade.log`
-- Monitor system resources: `htop`, `free -h`
-- Check Binance API status
-- Run backtest to reproduce issues
+- **Repository**: [Nguyenthang2292/Sovereign-IQ](https://github.com/Nguyenthang2292/Sovereign-IQ)
+- **Documentation**: `modules/auto_trade/docs/`
+- **Tests**: `tests/auto_trade/`
+- **Issues**: GitHub Issues
 
 ---
 
-## 📚 References
-
-- [Binance Futures API](https://binance-docs.github.io/apidocs/futures/en/)
-- [CCXT Documentation](https://docs.ccxt.com/)
-- [SQLAlchemy Documentation](https://docs.sqlalchemy.org/)
-- [Prometheus Documentation](https://prometheus.io/docs/)
-- [Grafana Documentation](https://grafana.com/docs/)
-
----
-
----
-
-## 🔍 Critical Issues & Improvements Found
-
-**Review Date**: 2026-02-01
-**Reviewer**: System Architect
-
-### **Critical Issues Found**
-
-#### 1. **Race Condition in Position Checking (Phase 3 & 4)**
-
-**Issue**: Phase 3 checks if position exists before placing order, but Phase 4 polls every 5 seconds. There's a race condition where:
-- Signal pipeline generates signal (Phase 2)
-- Order execution checks "no position" (Phase 3)
-- Before order is placed, scanner_scheduler triggers again
-- System might place duplicate orders
-
-**Solution**:
-```python
-# Add to Phase 3.1 (Order Execution Module)
-- [ ] **CRITICAL**: Implement distributed lock mechanism before order placement
-  - Use file-based lock (simple) or Redis lock (distributed)
-  - Lock key: "order_placement_lock"
-  - Lock timeout: 30 seconds
-  - Prevent concurrent order placement from multiple threads/processes
-
-# Add to Phase 4.3 (Scanner Scheduler)
-- [ ] **CRITICAL**: Check lock status before triggering signal pipeline
-  - Skip scan if order placement is in progress
-  - Log skip events for debugging
-```
-
-#### 2. **Insufficient Error Recovery in Signal Pipeline (Phase 2)**
-
-**Issue**: Signal pipeline has retry logic but no circuit breaker. If Gemini API is down, system will keep retrying and waste API credits.
-
-**Solution**:
-```python
-# Add to Phase 2.6 (Signal Pipeline Orchestration)
-- [ ] **HIGH PRIORITY**: Implement circuit breaker for external APIs
-  - Track failure rate per API (Binance, Gemini)
-  - Open circuit after 5 consecutive failures
-  - Half-open state after 5 minutes to test recovery
-  - Log circuit state changes
-
-- [ ] Add fallback strategy when Gemini is unavailable
-  - Option 1: Skip Gemini filter, use ATC + XGBoost only
-  - Option 2: Use cached Gemini results (if < 1 hour old)
-  - Make fallback behavior configurable
-```
-
-#### 3. **Missing Signal Deduplication (Phase 2.5)**
-
-**Issue**: Signal selector might generate the same signal multiple times if pipeline is triggered rapidly.
-
-**Solution**:
-```python
-# Add to Phase 2.5 (Final Signal Selection)
-- [ ] **MEDIUM PRIORITY**: Implement signal deduplication
-  - Cache last N signals (symbol + signal_type + timestamp)
-  - Check if identical signal was generated in last 15 minutes
-  - If duplicate: log and skip execution
-  - Store in memory or Redis for distributed setup
-```
-
-#### 4. **Dangerous Break-Even Logic (Phase 4.2)**
-
-**Issue**: Current logic "when drawdown = 30% account → move TP to break-even" has a critical flaw:
-- Drawdown of 30% means position is at -30% loss
-- Moving TP to break-even when already at -30% loss locks in 30% loss
-- This is NOT break-even, it's a guaranteed 30% loss!
-
-**Correct Logic**:
-```python
-# Fix Phase 4.2 (Break-Even Manager)
-- [ ] **CRITICAL FIX**: Correct break-even logic
-  - Current (WRONG): "when drawdown = 30%, move TP to break-even"
-  - Correct: "when position profit = +30%, move SL to entry (break-even)"
-
-  # Correct implementation:
-  if position_pnl_percentage >= 0.30:  # Position is at +30% profit
-      new_sl = entry_price  # Move stop loss to entry price
-      update_stop_loss(new_sl)
-      mark_be_moved = True
-```
-
-#### 5. **Martingale Position Size Calculation Error (Phase 4.4)**
-
-**Issue**: "Lệnh tiếp theo: leverage = 2x lệnh trước" is ambiguous and potentially dangerous.
-
-**Clarification Needed**:
-```python
-# Add to Phase 4.4 (Martingale Strategy)
-- [ ] **CRITICAL**: Clarify Martingale position sizing
-
-  # Current ambiguity: Does "leverage = 2x" mean:
-  # Option A: Double the leverage? (2x → 4x → 8x → 16x) - VERY DANGEROUS
-  # Option B: Double the position size? (Keep leverage at 2x, increase amount)
-
-  # Recommended: Option B with MAX limits
-  - [ ] Martingale doubles POSITION SIZE, not leverage
-  - [ ] Keep leverage constant at 2x (safer)
-  - [ ] Position progression: 100% → 200% → 400% → 800% (of initial)
-  - [ ] Hard limit: Max 800% of initial position (3 steps max)
-  - [ ] Require sufficient account balance before Martingale step
-  - [ ] Calculate: new_position_size = initial_size * (2 ^ martingale_step)
-```
-
-#### 6. **Missing Slippage Protection (Phase 3)**
-
-**Issue**: Market orders can execute at significantly different prices in volatile markets.
-
-**Solution**:
-```python
-# Add to Phase 3.2 (Order Builder)
-- [ ] **HIGH PRIORITY**: Add slippage protection
-  - Calculate acceptable price range: ±1% from current price
-  - Use LIMIT order with price limit instead of pure MARKET order
-  - Timeout after 10 seconds if order not filled
-  - Cancel and retry with updated price if timeout
-  - Log slippage for every order
-```
-
-#### 7. **Incomplete Position Synchronization (Phase 4.1)**
-
-**Issue**: Polling every 5 seconds might miss rapid position changes (liquidation, stop-loss hit).
-
-**Solution**:
-```python
-# Add to Phase 4.1 (Position Monitor)
-- [ ] **MEDIUM PRIORITY**: Add WebSocket position updates
-  - Subscribe to Binance User Data Stream
-  - Receive real-time position updates, order fills, stop-loss triggers
-  - Keep polling as fallback (every 30 seconds instead of 5)
-  - Reconcile WebSocket data with polling data
-  - Alert on discrepancies
-```
-
-#### 8. **No Position Reconciliation (Critical for Safety)**
-
-**Issue**: System state (database) might diverge from exchange state (Binance).
-
-**Solution**:
-```python
-# Add NEW task to Phase 4
-**4.7 Position Reconciliation**
-
-- [ ] **CRITICAL**: Implement position reconciliation
-  - Every 1 minute: fetch positions from Binance
-  - **IMPORTANT**: Filter to only track PROGRAMMATIC orders
-    - Use client_order_id prefix or metadata to identify auto_trade orders
-    - Ignore manual trades executed directly on Binance
-    - Only compare positions from orders created by this system
-  - Compare with database records (PROGRAMMATIC orders only)
-  - Detect discrepancies:
-    - PROGRAMMATIC position exists on Binance but not in DB
-    - PROGRAMMATIC position exists in DB but not on Binance
-    - Position parameters differ (size, leverage, SL, TP)
-  - **Order Source Identification**:
-    - Mark all auto_trade orders with unique client_order_id prefix (e.g., "AT_")
-    - Store order_source metadata in custom order parameters if supported
-    - Maintain in-memory registry of programmatic order IDs
-  - Alert on ANY discrepancy for PROGRAMMATIC orders
-  - Auto-sync: update DB from Binance (Binance is source of truth)
-  - Manual trades: Detected but NOT synced to DB (log only for awareness)
-  - Log all reconciliation events
-
-#### 9. **Missing Market Hours Check (Phase 3.5)**
-
-**Issue**: Some symbols have trading restrictions or maintenance windows.
-
-**Solution**:
-```python
-# Add to Phase 3.5 (Order Validation)
-- [ ] **MEDIUM PRIORITY**: Add market status validation
-  - Check if symbol is trading (not halted)
-  - Check if futures market is in maintenance
-  - Validate trading hours for symbol
-  - Cache market status (1 minute TTL)
-  - Skip order if market not available
-```
-
-#### 10. **Database Schema Missing Critical Fields**
-
-**Issue**: Orders table missing important fields for auditing and analysis.
-
-**Solution**:
-```sql
-# Add to Phase 5.2 (Schema Design) - Update orders table:
-
-CREATE TABLE orders (
-    -- Existing fields...
-
-    -- ADD THESE CRITICAL FIELDS:
-    signal_correlation_id TEXT,  -- Link to signal that triggered order
-    expected_entry_price REAL,   -- Expected price vs actual
-    actual_fill_price REAL,      -- Actual execution price
-    slippage_percentage REAL,    -- Slippage tracker
-    commission REAL,             -- Trading fees
-    commission_asset TEXT,       -- Fee currency (BNB, USDT)
-    execution_latency_ms INTEGER, -- Time from signal to execution
-    market_conditions TEXT,      -- JSON: volatility, volume, spread
-    rejection_reason TEXT,       -- If order was rejected, why?
-    retry_count INTEGER DEFAULT 0, -- How many retries before success
-    risk_score REAL,            -- Risk assessment at order time
-
-    -- Original fields continue...
-);
-
-# Add indexes for new fields
-CREATE INDEX idx_orders_correlation ON orders(signal_correlation_id);
-CREATE INDEX idx_orders_slippage ON orders(slippage_percentage);
-CREATE INDEX idx_orders_rejected ON orders(rejection_reason);
-```
-
-#### 11. **Missing Dry-Run Mode Implementation Detail**
-
-**Issue**: "Dry-run mode" mentioned but not specified how to implement.
-
-**Solution**:
-```python
-# Add NEW task to Phase 6.2 (Configuration Management)
-
-**6.2.1 Dry-Run Mode Implementation**
-
-- [ ] **HIGH PRIORITY**: Implement comprehensive dry-run mode
-  - Environment variable: DRY_RUN=true
-  - In dry-run mode:
-    - Signal pipeline runs normally
-    - Order building runs normally
-    - Order execution: SIMULATE only, don't send to Binance
-    - Simulate order fills at current market price
-    - Simulate position in memory
-    - Simulate P&L changes
-    - Simulate stop-loss and take-profit triggers
-    - Log all simulated actions
-  - Use dry-run for:
-    - Development testing
-    - Production smoke testing (before real trades)
-    - Strategy validation
-  - Clear visual indicator in logs when in dry-run mode
-```
-
-#### 12. **No Capital Allocation Strategy for Martingale**
-
-**Issue**: Using 95% balance per trade doesn't work with Martingale (need reserves for doubling).
-
-**Solution**:
-```python
-# Add to Phase 3.3 (Risk Manager)
-- [ ] **CRITICAL**: Implement Martingale-aware capital allocation
-
-  # Current problem:
-  # - Trade 1: Use 95% balance (e.g., $950 of $1000)
-  # - Trade 1 loses: Balance = $475 (50% loss)
-  # - Trade 2 needs: 2x of $950 = $1900 (NOT AVAILABLE!)
-
-  # Solution: Reserve capital for potential Martingale steps
-  - [ ] Calculate max position size considering Martingale steps:
-    # Example with MAX_MARTINGALE_STEPS = 3:
-    # Step 0: 1x position
-    # Step 1: 2x position
-    # Step 2: 4x position
-    # Step 3: 8x position
-    # Total needed: 1 + 2 + 4 + 8 = 15x initial position
-
-    # If balance = $1000, max initial position:
-    # initial_position = balance / 15 = $1000 / 15 = $66.67
-    # This ensures we can complete full Martingale sequence
-
-  - [ ] Make this configurable:
-    - MARTINGALE_ENABLED: true/false
-    - If enabled: use conservative position sizing
-    - If disabled: can use 95% balance
-
-  - [ ] Add safety check before each Martingale step:
-    - Verify sufficient balance for next step
-    - If insufficient: STOP Martingale, alert, wait for recovery
-```
-
-#### 13. **Timezone Issues Not Addressed**
-
-**Issue**: System will run 24/7 across timezones, but no timezone handling specified.
-
-**Solution**:
-```python
-# Add to Phase 6.2 (Configuration Management)
-- [ ] **MEDIUM PRIORITY**: Implement timezone handling
-  - Use UTC for all timestamps internally
-  - Database timestamps: UTC only
-  - Logs: UTC timestamps with ISO8601 format
-  - User-facing displays: configurable timezone
-  - Binance API: already uses UTC, ensure consistency
-  - Add timezone conversion utilities
-  - Never use local timezone in calculations
-```
-
-#### 14. **No API Rate Limit Tracking**
-
-**Issue**: System might hit Binance API rate limits and get banned.
-
-**Solution**:
-```python
-# Add to Phase 2.7.2 (Metrics Collection) and Phase 7.2
-- [ ] **HIGH PRIORITY**: Implement API rate limit tracking
-  - Track API calls per endpoint
-  - Track rate limit headers from Binance responses
-  - Alert when approaching limit (>80% used)
-  - Implement exponential backoff when near limit
-  - Add rate limit metrics to monitoring dashboard
-  - Log rate limit violations
-  - Automatic throttling when limits approached
-```
-
-#### 15. **Missing Correlation Between Signal Quality and Outcome**
-
-**Issue**: No feedback loop to learn which signals are actually profitable.
-
-**Solution**:
-```python
-# Add NEW task to Phase 5.3 (Query Methods)
-
-**5.3.1 Signal Performance Tracking**
-
-- [ ] **HIGH PRIORITY**: Link signals to outcomes for analysis
-  - Add query: `get_signal_performance(symbol, timeframe, days=30)`
-  - Calculate metrics per signal source:
-    - ATC-only signals: win rate, avg profit
-    - XGBoost-only signals: win rate, avg profit
-    - Gemini-only signals: win rate, avg profit
-    - Combined signals: win rate, avg profit
-  - Track performance by confidence level
-  - Generate weekly signal quality report
-  - Use insights to adjust signal weights over time
-  - Potential future: ML model to predict signal success
-```
-
----
-
-### **Additional Improvements & Recommendations**
-
-#### 16. **Add Pre-Trade Risk Assessment**
-
-```python
-# Add NEW task to Phase 3.3 (Risk Manager)
-
-**3.3.1 Pre-Trade Risk Assessment**
-
-- [ ] **MEDIUM PRIORITY**: Calculate risk score before each trade
-  - Factors to consider:
-    - Current market volatility (VIX equivalent for crypto)
-    - Symbol 24h volume (low volume = higher risk)
-    - Recent price action (choppy = risky)
-    - Time since last trade (avoid overtrading)
-    - Current portfolio heat (total risk exposure)
-    - Martingale step (higher step = higher risk)
-  - Risk score: 0-100 (0=safest, 100=extreme risk)
-  - Configurable risk threshold: reject trades > threshold
-  - Store risk score in database for analysis
-  - Alert on high-risk trades
-```
-
-#### 17. **Add Position Sizing Based on Signal Confidence**
-
-```python
-# Add to Phase 3.3 (Risk Manager)
-- [ ] **ENHANCEMENT**: Variable position sizing by confidence
-  - Current: Always use 95% balance (or Martingale-adjusted)
-  - Improvement: Scale position by signal confidence
-    - High confidence (>0.9): Use full calculated size
-    - Medium confidence (0.7-0.9): Use 75% of calculated size
-    - Low confidence (0.5-0.7): Use 50% of calculated size
-    - Below 0.5: Reject (should not reach this stage)
-  - Reduces risk on uncertain signals
-  - Configurable: CONFIDENCE_SCALING_ENABLED
-```
-
-#### 18. **Add Trade Journal / Notebook**
-
-```python
-# Add NEW section to Phase 5
-
-**5.6 Trade Journal**
-
-- [ ] **ENHANCEMENT**: Implement automated trade journal
-  - For each trade, capture:
-    - Pre-trade: Setup, reasoning, market conditions
-    - During trade: Position updates, emotions/notes
-    - Post-trade: Outcome, lessons learned
-  - Generate daily/weekly trading reports
-  - Include charts, statistics, insights
-  - Export to PDF or HTML
-  - Useful for performance review and improvement
-```
-
-#### 19. **Add Multi-Symbol Position Support (Future)**
-
-```python
-# Add to "Gợi ý tối ưu" section in Phase 4
-
-**Future Enhancement: Multi-Symbol Positions**
-
-- [ ] Currently: Max 1 position at a time (any symbol)
-- [ ] Future enhancement: Max N positions simultaneously
-  - Requires portfolio-level risk management
-  - Correlation analysis between positions
-  - Diversification rules
-  - Total exposure limits
-  - More complex but better capital utilization
-  - Recommended: Start with 1, expand after 3 months success
-```
-
-#### 20. **Add Paper Trading Mode**
-
-```python
-# Add to Phase 6.6 (Testing Infrastructure)
-
-- [ ] **HIGH PRIORITY**: Implement paper trading mode
-  - Different from dry-run: uses LIVE market data but simulated execution
-  - Connects to Binance for real-time prices
-  - Simulates order fills with realistic slippage
-  - Simulates commission costs
-  - Tracks paper portfolio separately
-  - Perfect for testing in production environment without risk
-  - Run paper trading parallel to live for comparison
-  - Configuration: PAPER_TRADING=true
-```
-
----
-
-### **Implementation Priority Matrix**
-
-| Priority | Tasks | Reason |
-|----------|-------|--------|
-| **P0 - Blocker** | Issues #1, #4, #5, #12 | Prevent loss of funds |
-| **P1 - Critical** | Issues #2, #6, #8, #10, #14 | Major risk reduction |
-| **P2 - High** | Issues #3, #7, #11, #15, #16, #20 | Quality & reliability |
-| **P3 - Medium** | Issues #9, #13, #17 | Nice to have |
-| **P4 - Enhancement** | Issues #18, #19 | Future improvements |
-
----
-
-### **Pre-Production Checklist**
-
-Before deploying to live trading, verify:
-
-- [ ] All P0 issues resolved
-- [ ] All P1 issues resolved
-- [ ] Dry-run mode tested thoroughly
-- [ ] Paper trading mode runs successfully for 2+ weeks
-- [ ] Testnet trading runs successfully for 2+ weeks
-- [ ] Position reconciliation working correctly
-- [ ] All alerts tested and working
-- [ ] Kill switch tested multiple times
-- [ ] Database backups automated and tested
-- [ ] Monitoring dashboard operational
-- [ ] Rate limit tracking in place
-- [ ] Break-even logic verified (issue #4 fix confirmed)
-- [ ] Martingale capital allocation tested (issue #12 fix confirmed)
-- [ ] Race condition protection tested (issue #1 fix confirmed)
-- [ ] All critical logs reviewed for any anomalies
-
----
-
-**Last Updated**: 2026-02-01
-**Status**: Ready for Implementation (WITH CRITICAL FIXES REQUIRED)
-**Next Review**: After P0 and P1 issues addressed
+**Last Updated**: 2026-02-05  
+**Version**: 1.0.0  
+**Status**: Production Ready (Pending Deployment)

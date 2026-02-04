@@ -28,7 +28,9 @@
       "Bash(git checkout:*)",
       "Bash(if:*)",
       "Bash(ls:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(git mv:*)",
+      "Bash(move:*)"
     ]
   }
 }

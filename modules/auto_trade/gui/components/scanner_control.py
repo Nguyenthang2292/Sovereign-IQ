@@ -1,6 +1,9 @@
-import customtkinter as ctk
-from typing import Dict, Optional, Callable
 from datetime import datetime
+from typing import Callable, Dict
+
+import customtkinter as ctk
+
+from gui.utils.colors import Colors
 
 
 class ScannerControl(ctk.CTkFrame):
@@ -94,7 +97,7 @@ class ScannerControl(ctk.CTkFrame):
 
     def _create_configuration(self):
         """Create scanner configuration"""
-        config_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        config_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         config_frame.pack(fill="x", padx=15, pady=10)
 
         # Title
@@ -129,19 +132,27 @@ class ScannerControl(ctk.CTkFrame):
         )
         timeframe_dropdown.grid(row=1, column=1, sticky="e", pady=5, padx=(10, 0))
 
-        # Symbol list selector
-        symbol_label = ctk.CTkLabel(inputs_frame, text="Symbols:", font=("Arial", 11), text_color="gray")
-        symbol_label.grid(row=2, column=0, sticky="w", pady=5)
+        # Sampling strategy selector
+        strategy_label = ctk.CTkLabel(inputs_frame, text="Sampling Strategy:", font=("Arial", 11), text_color="gray")
+        strategy_label.grid(row=2, column=0, sticky="w", pady=5)
 
-        self.symbol_list_var = ctk.StringVar(value="Top 20")
-        symbol_dropdown = ctk.CTkComboBox(
+        self.sampling_strategy_var = ctk.StringVar(value="stratified")
+        strategy_dropdown = ctk.CTkComboBox(
             inputs_frame,
-            values=["Top 10", "Top 20", "Top 50", "All", "Custom"],
-            variable=self.symbol_list_var,
+            values=["random", "volume_weighted", "stratified", "top_n_hybrid", "systematic", "liquidity_weighted"],
+            variable=self.sampling_strategy_var,
             width=150,
             command=self._on_config_change,
         )
-        symbol_dropdown.grid(row=2, column=1, sticky="e", pady=5, padx=(10, 0))
+        strategy_dropdown.grid(row=2, column=1, sticky="e", pady=5, padx=(10, 0))
+
+        # Sample percentage field
+        percentage_label = ctk.CTkLabel(inputs_frame, text="Sample (%):", font=("Arial", 11), text_color="gray")
+        percentage_label.grid(row=3, column=0, sticky="w", pady=5)
+
+        self.sample_percentage_entry = ctk.CTkEntry(inputs_frame, placeholder_text="20", width=150)
+        self.sample_percentage_entry.grid(row=3, column=1, sticky="e", pady=5, padx=(10, 0))
+        self.sample_percentage_entry.insert(0, "20")
 
         # Auto-scan on startup
         self.auto_scan_startup_var = ctk.BooleanVar(value=True)
@@ -151,13 +162,13 @@ class ScannerControl(ctk.CTkFrame):
             variable=self.auto_scan_startup_var,
             command=self._on_config_change,
         )
-        auto_scan_checkbox.grid(row=3, column=0, columnspan=2, sticky="w", pady=5)
+        auto_scan_checkbox.grid(row=4, column=0, columnspan=2, sticky="w", pady=5)
 
         inputs_frame.grid_columnconfigure(1, weight=1)
 
     def _create_settings_display(self):
         """Display current scanner settings"""
-        settings_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        settings_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         settings_frame.pack(fill="x", padx=15, pady=10)
 
         # Title
@@ -168,7 +179,13 @@ class ScannerControl(ctk.CTkFrame):
         settings_list_frame = ctk.CTkFrame(settings_frame, fg_color="transparent")
         settings_list_frame.pack(fill="x", padx=10, pady=(5, 10))
 
-        settings = [("Interval:", "5 min"), ("Timeframe:", "1h"), ("Symbols:", "Top 20"), ("Status:", "Stopped")]
+        settings = [
+            ("Interval:", "5 min"),
+            ("Timeframe:", "1h"),
+            ("Strategy:", "stratified"),
+            ("Sample:", "20%"),
+            ("Status:", "Stopped"),
+        ]
 
         for i, (label_text, value_text) in enumerate(settings):
             row_frame = ctk.CTkFrame(settings_list_frame, fg_color="transparent")
@@ -186,8 +203,10 @@ class ScannerControl(ctk.CTkFrame):
             elif i == 1:
                 self.setting_timeframe = value
             elif i == 2:
-                self.setting_symbols = value
+                self.setting_strategy = value
             elif i == 3:
+                self.setting_percentage = value
+            elif i == 4:
                 self.setting_status = value
 
     def _start_scanner(self):
@@ -279,11 +298,13 @@ class ScannerControl(ctk.CTkFrame):
             # Update settings display
             interval = self.scan_interval_entry.get()
             timeframe = self.timeframe_var.get()
-            symbols = self.symbol_list_var.get()
+            strategy = self.sampling_strategy_var.get()
+            percentage = self.sample_percentage_entry.get()
 
             self.setting_interval.configure(text=f"{interval} min")
             self.setting_timeframe.configure(text=timeframe)
-            self.setting_symbols.configure(text=symbols)
+            self.setting_strategy.configure(text=strategy)
+            self.setting_percentage.configure(text=f"{percentage}%")
 
             # Call callback
             if self.on_config_change:
@@ -303,7 +324,8 @@ class ScannerControl(ctk.CTkFrame):
         return {
             "scan_interval": int(self.scan_interval_entry.get()),
             "timeframe": self.timeframe_var.get(),
-            "symbol_list": self.symbol_list_var.get(),
+            "sampling_strategy": self.sampling_strategy_var.get(),
+            "sample_percentage": float(self.sample_percentage_entry.get()),
             "auto_start": self.auto_scan_startup_var.get(),
             "running": self.scanner_running,
         }
@@ -313,10 +335,13 @@ class ScannerControl(ctk.CTkFrame):
         self.scan_interval_entry.delete(0, "end")
         self.scan_interval_entry.insert(0, str(config.get("scan_interval", 5)))
         self.timeframe_var.set(config.get("timeframe", "1h"))
-        self.symbol_list_var.set(config.get("symbol_list", "Top 20"))
+        self.sampling_strategy_var.set(config.get("sampling_strategy", "stratified"))
+        self.sample_percentage_entry.delete(0, "end")
+        self.sample_percentage_entry.insert(0, str(config.get("sample_percentage", 20)))
         self.auto_scan_startup_var.set(config.get("auto_start", True))
 
         # Update settings display
         self.setting_interval.configure(text=f"{config.get('scan_interval', 5)} min")
         self.setting_timeframe.configure(text=config.get("timeframe", "1h"))
-        self.setting_symbols.configure(text=config.get("symbol_list", "Top 20"))
+        self.setting_strategy.configure(text=config.get("sampling_strategy", "stratified"))
+        self.setting_percentage.configure(text=f"{config.get('sample_percentage', 20)}%")

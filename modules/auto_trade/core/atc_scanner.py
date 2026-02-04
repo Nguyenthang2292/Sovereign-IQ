@@ -27,13 +27,13 @@ from modules.common.system import get_hardware_manager
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 try:
-    import sovereign_prime
+    import atc_rust
 
     USE_RUST_AGGREGATION = True
 except ImportError:
-    sovereign_prime = None
+    atc_rust = None
     USE_RUST_AGGREGATION = False
-    log_warn("ATCScanner: sovereign_prime (Rust) not found. Using Python fallback.")
+    log_warn("ATCScanner: atc_rust (Rust) not found. Using Python fallback.")
 
 from threading import RLock
 
@@ -70,7 +70,7 @@ class ATCScanner:
 
     Architecture:
     - Data Processing: Polars DataFrames (converted from Pandas at boundary).
-    - Hot Path: Rust-optimized signal aggregation (via sovereign_prime) if available.
+    - Hot Path: Rust-optimized signal aggregation (via atc_rust) if available.
     - Fallback: Pure Python implementation if Rust extension is missing.
 
     Security Note:
@@ -116,9 +116,9 @@ class ATCScanner:
         # Check if user wants Rust cache (default: True if available)
         use_rust_cache_config = self.config.get("use_rust_cache", True)
 
-        if self.enable_cache and use_rust_cache_config and USE_RUST_AGGREGATION and sovereign_prime:
+        if self.enable_cache and use_rust_cache_config and USE_RUST_AGGREGATION and atc_rust:
             try:
-                self._rust_cache = sovereign_prime.ScanCache(capacity=1000, ttl_seconds=float(self.cache_ttl_seconds))
+                self._rust_cache = atc_rust.ScanCache(capacity=1000, ttl_seconds=float(self.cache_ttl_seconds))
                 self._use_rust_cache = True
                 log_info("ATCScanner: Using Rust ScanCache (thread-safe, high-performance)")
             except Exception as e:
@@ -201,9 +201,9 @@ class ATCScanner:
             >>> _calculate_weighted_score("SHORT", 0.5, -0.8)
             -0.4  # 0.5 * -0.8 = -0.4 (bearish)
         """
-        if USE_RUST_AGGREGATION and sovereign_prime:
+        if USE_RUST_AGGREGATION and atc_rust:
             try:
-                return sovereign_prime.calculate_weighted_score(
+                return atc_rust.calculate_weighted_score(
                     signal_type, tf_weight, strength, self.use_signal_strength
                 )
             except Exception as e:
@@ -450,9 +450,9 @@ class ATCScanner:
         # Aggregate results using weighted voting
         final_signals: List[SignalResult] = []
 
-        if USE_RUST_AGGREGATION and sovereign_prime:
+        if USE_RUST_AGGREGATION and atc_rust:
             try:
-                rust_results = sovereign_prime.aggregate_signals(
+                rust_results = atc_rust.aggregate_signals(
                     symbols,
                     results_by_tf,
                     self.weights,

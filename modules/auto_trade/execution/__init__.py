@@ -6,6 +6,7 @@ This module handles:
 - Risk management and position sizing
 - Binance API integration for order execution
 - Pre and post-order validation
+- High-level order execution facade
 """
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "RiskManager",
     "BinanceClient",
     "OrderValidator",
+    "OrderExecutor",
 ]

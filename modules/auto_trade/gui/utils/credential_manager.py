@@ -4,8 +4,10 @@ Handles secure storage and retrieval of API credentials using environment variab
 """
 import os
 from pathlib import Path
-from typing import Dict, Optional
-from dotenv import load_dotenv, set_key, find_dotenv
+from typing import Any, Dict, Optional, cast
+
+import ccxt
+from dotenv import find_dotenv, load_dotenv, set_key
 
 
 class CredentialManager:
@@ -25,9 +27,9 @@ class CredentialManager:
             return Path(env_path)
 
         # Create new .env file in project root
-        # Navigate up from gui/utils/ to project root
+        # Navigate up from modules/auto_trade/gui/utils/ to project root
         current_file = Path(__file__).resolve()
-        project_root = current_file.parent.parent.parent
+        project_root = current_file.parent.parent.parent.parent
         env_file = project_root / ".env"
 
         if not env_file.exists():
@@ -136,7 +138,7 @@ class CredentialManager:
             print(f"Error clearing credentials: {e}")
             return False
 
-    def test_connection(self, exchange: str, api_key: str, api_secret: str) -> Dict:
+    def test_connection(self, exchange: str, api_key: str, api_secret: str) -> Dict[str, Any]:
         """
         Test API connection with provided credentials
 
@@ -149,9 +151,6 @@ class CredentialManager:
             Dictionary with 'success' (bool) and 'message' (str)
         """
         try:
-            # Import here to avoid circular imports
-            import ccxt
-
             # Map exchange names to ccxt exchange classes
             exchange_map = {
                 "binance": ccxt.binance,
@@ -166,11 +165,18 @@ class CredentialManager:
                 }
 
             # Initialize exchange with credentials
-            exchange_instance = exchange_class({
+            # adjustForTimeDifference: CCXT syncs with Binance server time to avoid -1021 timestamp errors
+            # recvWindow: Increased tolerance for timestamp difference (60 seconds instead of default 5 seconds)
+            config: Dict[str, Any] = {
                 "apiKey": api_key,
                 "secret": api_secret,
                 "enableRateLimit": True,
-            })
+                "options": {
+                    "adjustForTimeDifference": True,
+                    "recvWindow": 60000,  # 60 seconds tolerance
+                },
+            }
+            exchange_instance = exchange_class(cast(Any, config))
 
             # For demo/testnet
             if exchange.lower() == "demo":
@@ -186,18 +192,34 @@ class CredentialManager:
                 "balance": balance.get("total", {})
             }
 
-        except ccxt.AuthenticationError as e:
+        except ccxt.AuthenticationError:
             return {
                 "success": False,
-                "message": f"Authentication failed: Invalid API credentials"
+                "message": "Authentication failed: Invalid API credentials",
             }
         except ccxt.NetworkError as e:
-            return {
-                "success": False,
-                "message": f"Network error: {str(e)}"
-            }
+            msg = str(e)
+            # Binance -1021: local clock ahead/behind server; suggest syncing time
+            if "-1021" in msg or "timestamp" in msg.lower():
+                return {
+                    "success": False,
+                    "message": (
+                        "Time synchronization error (Binance -1021). "
+                        "Local clock is out of sync with server. "
+                        "Fix: Sync Windows time (Settings > Time & language > Sync now) "
+                        "or enable 'Set time automatically'."
+                    )
+                }
+            return {"success": False, "message": f"Network error: {msg}"}
         except Exception as e:
-            return {
-                "success": False,
-                "message": f"Connection test failed: {str(e)}"
-            }
+            msg = str(e)
+            if "-1021" in msg or "timestamp" in msg.lower():
+                return {
+                    "success": False,
+                    "message": (
+                        "Time synchronization error (Binance -1021). "
+                        "Sync Windows time (Settings > Time & language > Sync now) "
+                        "or enable 'Set time automatically'."
+                    )
+                }
+            return {"success": False, "message": f"Connection test failed: {msg}"}

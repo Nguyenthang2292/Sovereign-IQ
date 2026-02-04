@@ -1,14 +1,23 @@
+"""
+Risk Calculator Module
+
+Calculates trade risk metrics including position sizing, margin requirements,
+profit/loss potential, and liquidation prices.
+"""
+
 from typing import Dict, Optional
 
 
 class RiskCalculator:
     """
-    Calculate trade risk metrics:
-    - Contract size
-    - Margin required
-    - Potential profit
-    - Potential loss
-    - Liquidation price
+    Calculate comprehensive trade risk metrics.
+
+    Provides calculations for:
+    - Contract size and margin requirements
+    - Maximum profit and loss potential
+    - Take profit and stop loss prices
+    - Liquidation price estimation
+    - Risk/reward ratios
     """
 
     @staticmethod
@@ -20,21 +29,31 @@ class RiskCalculator:
         current_price: float,
         tp_percent: float,
         sl_percent: float,
-    ) -> Dict:
+    ) -> Optional[Dict[str, float]]:
         """
-        Calculate all risk metrics
+        Calculate all risk metrics for a trade.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC/USDT")
+            side: Trade side ("LONG" or "SHORT")
+            amount_usdt: Position size in USDT
+            leverage: Leverage multiplier
+            current_price: Current market price
+            tp_percent: Take profit percentage
+            sl_percent: Stop loss percentage
 
         Returns:
-            {
-                'contract_size': float,  # BTC amount
-                'margin_required': float,  # USDT
-                'max_profit': float,  # USDT
-                'max_loss': float,  # USDT
-                'tp_price': float,
-                'sl_price': float,
-                'liquidation_price': float,
-                'risk_reward_ratio': float
-            }
+            Dictionary containing:
+            - contract_size: Size in base asset
+            - margin_required: Required margin in USDT
+            - max_profit: Maximum profit potential in USDT
+            - max_loss: Maximum loss potential in USDT
+            - tp_price: Take profit price
+            - sl_price: Stop loss price
+            - liquidation_price: Estimated liquidation price
+            - risk_reward_ratio: Risk/reward ratio
+
+            Returns None if calculation fails
         """
         try:
             # Contract size (in base asset)

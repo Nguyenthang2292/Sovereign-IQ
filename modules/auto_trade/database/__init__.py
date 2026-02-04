@@ -43,7 +43,7 @@ from .config import DEFAULT_DB_PATH, DEFAULT_SCHEMA_PATH
 from .migrations import CommonMigrations, MigrationManager, get_migration_manager, initialize_database_if_needed
 
 # Import models
-from .models import AuditLog, Base, MartingaleChain, Order, Signal, SystemState
+from .models import AuditLog, Base, GradualRecovery, MartingaleChain, Order, Signal, SystemState
 
 # Import query functions
 from .queries import (
@@ -240,6 +240,7 @@ __all__ = [
     "Order",
     "Signal",
     "MartingaleChain",
+    "GradualRecovery",
     "SystemState",
     "AuditLog",
     # Order Queries

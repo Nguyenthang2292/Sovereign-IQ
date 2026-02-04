@@ -2,6 +2,8 @@ from typing import Callable
 
 import customtkinter as ctk
 
+from gui.utils.colors import Colors
+
 
 class AutoTradeControl(ctk.CTkFrame):
     """
@@ -151,7 +153,7 @@ class AutoTradeControl(ctk.CTkFrame):
 
     def _create_settings_display(self):
         """Display current auto-trade configuration"""
-        settings_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        settings_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         settings_frame.pack(fill="x", padx=15, pady=10)
 
         # Title

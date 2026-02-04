@@ -1,9 +1,45 @@
+"""
+Toast Notification Module
+
+Provides temporary popup notifications for the GUI.
+"""
+
 import customtkinter as ctk
-import time
+from typing import Literal, Optional
+
+
+ToastType = Literal["info", "success", "error", "warning"]
 
 
 class ToastNotification(ctk.CTkToplevel):
-    def __init__(self, parent, message, duration=3000, fg_color="#333333", text_color="white"):
+    """
+    Temporary notification popup that appears at the bottom of the parent window.
+
+    Features:
+    - Auto-dismiss after duration
+    - Fade-out animation
+    - Click to dismiss
+    - Color-coded by type
+    """
+
+    def __init__(
+        self,
+        parent: ctk.CTk,
+        message: str,
+        duration: int = 3000,
+        fg_color: str = "#333333",
+        text_color: str = "white",
+    ) -> None:
+        """
+        Initialize toast notification.
+
+        Args:
+            parent: Parent window
+            message: Message to display
+            duration: Duration in milliseconds before auto-dismiss (default: 3000)
+            fg_color: Background color
+            text_color: Text color
+        """
         super().__init__(parent)
         self.overrideredirect(True)
 
@@ -20,7 +56,7 @@ class ToastNotification(ctk.CTkToplevel):
             y = parent_y + parent_height - height - 50
 
             self.geometry(f"{width}x{height}+{x}+{y}")
-        except:
+        except (AttributeError, RuntimeError):
             # Fallback if parent geometry fails
             self.geometry("300x50")
 
@@ -44,22 +80,41 @@ class ToastNotification(ctk.CTkToplevel):
         self.bind("<Button-1>", lambda e: self.destroy())
         self.label.bind("<Button-1>", lambda e: self.destroy())
 
-    def _fade_out(self):
-        """Simple fade out effect"""
-        alpha = self.attributes("-alpha")
-        if alpha > 0:
-            alpha -= 0.1
-            self.attributes("-alpha", alpha)
-            self.after(50, self._fade_out)
-        else:
-            self.destroy()
+    def _fade_out(self) -> None:
+        """Fade out animation before closing."""
+        try:
+            alpha = self.attributes("-alpha")
+            if alpha > 0:
+                alpha -= 0.1
+                self.attributes("-alpha", alpha)
+                self.after(50, self._fade_out)
+            else:
+                self.destroy()
+        except RuntimeError:
+            # Window already destroyed
+            pass
 
 
-def show_toast(parent, message, type="info", duration=3000):
+def show_toast(
+    parent: ctk.CTk,
+    message: str,
+    type: ToastType = "info",
+    duration: int = 3000,
+) -> None:
     """
-    Helper to show toast
-    type: "info", "success", "error", "warning"
+    Show a toast notification.
+
+    Args:
+        parent: Parent window
+        message: Message to display
+        type: Notification type ("info", "success", "error", "warning")
+        duration: Duration in milliseconds before auto-dismiss
     """
-    colors = {"info": "#333333", "success": "#228822", "error": "#aa2222", "warning": "#aa8822"}
+    colors = {
+        "info": "#333333",
+        "success": "#228822",
+        "error": "#aa2222",
+        "warning": "#aa8822",
+    }
     color = colors.get(type, "#333333")
     ToastNotification(parent, message, duration, fg_color=color)

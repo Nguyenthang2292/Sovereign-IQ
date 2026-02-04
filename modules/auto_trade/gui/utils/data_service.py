@@ -1,26 +1,89 @@
-from typing import Dict, List, Optional
+"""
+Data Service Module
+
+Unified data access layer that abstracts exchange data fetching,
+database operations, and mock data for dry-run mode.
+"""
+
 import os
+from typing import Dict, List, Optional
+
+# Local imports
+from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
+
+# Module imports (lazy loaded)
+# from modules.common.core.data_fetcher import DataFetcher
+# from modules.common.core.exchange_manager import ExchangeManager
+# from modules.auto_trade.database import get_db_manager
 
 
 class DataService:
+    """
+    Unified data service for managing exchange and database operations.
+
+    Supports three modes:
+    - DRY_RUN: Simulated trading with mock data
+    - DEMO: Testnet trading with real API
+    - PRODUCTION: Live trading with real API
+    """
+
     def __init__(self, mode: str = "DRY_RUN"):
+        """
+        Initialize DataService.
+
+        Args:
+            mode: Operating mode ("DRY_RUN", "DEMO", or "PRODUCTION")
+        """
         self.mode = mode
         self.data_fetcher = None
         self.database_manager = None
+        self.exchange_manager = None
+
+        # Initialize MockPriceFeed (always available as fallback)
+        self.mock_price_feed = self._initialize_mock_price_feed()
+
+        # Load API credentials from environment
         self.api_key = os.getenv("BINANCE_API_KEY", "")
         self.api_secret = os.getenv("BINANCE_API_SECRET", "")
         self.testnet = os.getenv("BINANCE_TESTNET", "false").lower() == "true"
 
-        # Initialize DataFetcher for exchange operations only if not DRY_RUN
+        # Initialize exchange components only if not DRY_RUN
         if mode != "DRY_RUN":
-            try:
-                from modules.common.core.data_fetcher import DataFetcher
+            self._initialize_exchange_components()
 
-                self.data_fetcher = DataFetcher()
-            except Exception as e:
-                print(f"Warning: Could not initialize DataFetcher: {e}")
+        # Initialize database manager
+        self._initialize_database_manager()
 
-        # Initialize DatabaseManager with proper arguments
+    def _initialize_mock_price_feed(self) -> Optional[MockPriceFeed]:
+        """
+        Initialize MockPriceFeed (always available as fallback).
+
+        Returns:
+            MockPriceFeed instance or None if initialization fails
+        """
+        try:
+            return MockPriceFeed()
+        except Exception as e:
+            print(f"Warning: Could not initialize MockPriceFeed: {e}")
+            return None
+
+    def _initialize_exchange_components(self) -> None:
+        """Initialize DataFetcher and ExchangeManager for non-DRY_RUN modes."""
+        try:
+            from modules.common.core.data_fetcher import DataFetcher
+            from modules.common.core.exchange_manager import ExchangeManager
+
+            self.exchange_manager = ExchangeManager(
+                api_key=self.api_key or None,
+                api_secret=self.api_secret or None,
+                testnet=self.testnet,
+            )
+            self.data_fetcher = DataFetcher(exchange_manager=self.exchange_manager)
+        except Exception as e:
+            print(f"Warning: Could not initialize DataFetcher: {e}")
+
+    def _initialize_database_manager(self) -> None:
+        """Initialize DatabaseManager for storing signals and trades."""
         try:
             from modules.auto_trade.database import get_db_manager
 
@@ -28,6 +91,51 @@ class DataService:
             self.database_manager = get_db_manager()
         except Exception as e:
             print(f"Warning: Could not initialize DatabaseManager: {e}")
+
+    def _get_mock_price_feed(self) -> MockPriceFeed:
+        """
+        Get MockPriceFeed instance (creates if not exists).
+
+        Returns:
+            MockPriceFeed instance
+        """
+        if self.mock_price_feed is None:
+            self.mock_price_feed = MockPriceFeed()
+        return self.mock_price_feed
+
+    def get_current_price(self, symbol: str) -> float:
+        """
+        Get current price for a symbol.
+
+        In DRY_RUN mode, uses MockPriceFeed for simulated prices.
+        In other modes, fetches from exchange via DataFetcher.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC/USDT" or "BTCUSDT")
+
+        Returns:
+            Current price as float
+        """
+        try:
+            if self.mode == "DRY_RUN":
+                # Use centralized mock price feed
+                return self._get_mock_price_feed().get_current_price(symbol)
+
+            # For non-DRY_RUN modes, fetch from exchange
+            if self.data_fetcher:
+                # Normalize symbol format (BTC/USDT -> BTCUSDT for API calls)
+                normalized_symbol = symbol.replace("/", "")
+                ticker = self.data_fetcher.fetch_ticker(normalized_symbol)
+                if ticker and "last" in ticker:
+                    return float(ticker["last"])
+
+            # Fallback to mock prices if exchange fetch fails
+            return self._get_mock_price_feed().get_current_price(symbol)
+
+        except Exception as e:
+            print(f"Error fetching current price for {symbol}: {e}")
+            # Return a safe default from centralized mock prices
+            return self._get_mock_price_feed().get_current_price(symbol)
 
     def get_account_data(self) -> Optional[Dict]:
         try:
@@ -68,9 +176,6 @@ class DataService:
         except Exception as e:
             print(f"Error fetching account data: {e}")
             return self._get_demo_account_data()
-        except Exception as e:
-            print(f"Error fetching account data: {e}")
-            return self._get_demo_account_data()
 
     def _get_demo_account_data(self) -> Dict:
         return {
@@ -102,7 +207,7 @@ class DataService:
                 open_positions = len(positions) if positions else 0
             elif self.mode == "DRY_RUN":
                 try:
-                    from gui.utils.dry_run_db import DryRunDB
+                    from modules.auto_trade.gui.utils.dry_run_db import DryRunDB
 
                     db = DryRunDB()
                     positions = db.get_open_positions()
@@ -121,8 +226,9 @@ class DataService:
                     with self.database_manager.session_scope() as session:
                         daily_stats = get_daily_stats(session)
                         if daily_stats:
-                            today_trades = daily_stats.get("total_trades", 0)
-                            win_rate = daily_stats.get("win_rate", 0.0)
+                            today_stats = daily_stats[0]
+                            today_trades = today_stats.get("total_trades", 0)
+                            win_rate = today_stats.get("win_rate", 0.0)
                 except Exception as e:
                     print(f"Warning: Could not fetch database stats: {e}")
 
@@ -146,9 +252,10 @@ class DataService:
 
                     filtered = []
                     for signal in signals:
-                        score = float(signal.score)
+                        # Use final_score (or confidence if final_score is None)
+                        score = float(signal.final_score if signal.final_score is not None else signal.confidence)
                         if score >= min_score:
-                            signal_type = signal.signal.upper()
+                            signal_type = signal.signal_type.upper()
                             if signal_types is None or signal_type in signal_types:
                                 filtered.append(
                                     {
@@ -156,7 +263,7 @@ class DataService:
                                         "signal": signal_type,
                                         "score": score,
                                         "time": signal.created_at.strftime("%Y-%m-%d %H:%M")
-                                        if signal.created_at
+                                        if signal.created_at is not None
                                         else "",
                                     }
                                 )
@@ -178,11 +285,10 @@ class DataService:
         try:
             if self.mode == "DRY_RUN":
                 try:
-                    from gui.utils.dry_run_db import DryRunDB
-                    from gui.utils.mock_price_feed import MockPriceFeed
+                    from modules.auto_trade.gui.utils.dry_run_db import DryRunDB
 
                     db = DryRunDB()
-                    price_feed = MockPriceFeed()
+                    price_feed = self._get_mock_price_feed()
                     positions = db.get_open_positions()
 
                     filtered_positions = []
@@ -253,9 +359,6 @@ class DataService:
                     )
 
                 return filtered_positions
-            return []
-        except Exception as e:
-            print(f"Error fetching positions: {e}")
             return []
         except Exception as e:
             print(f"Error fetching positions: {e}")

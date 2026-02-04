@@ -1,10 +1,27 @@
+"""
+Dry Run Executor Module
+
+Simulates order execution for testing and development without
+executing real trades on an exchange.
+"""
+
 from typing import Dict, Optional
-from gui.utils.mock_price_feed import MockPriceFeed
-from gui.utils.dry_run_db import DryRunDB
+
+# Local imports
+from modules.auto_trade.gui.utils.dry_run_db import DryRunDB
+from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
 
 
 class DryRunExecutor:
-    def __init__(self):
+    """
+    Executes simulated trades for dry-run mode.
+
+    Handles order placement, position closing, and TP/SL modification
+    without connecting to a real exchange.
+    """
+
+    def __init__(self) -> None:
+        """Initialize dry run executor with mock price feed and database."""
         self.price_feed = MockPriceFeed()
         self.db = DryRunDB()
 
@@ -16,7 +33,21 @@ class DryRunExecutor:
         leverage: int,
         tp: Optional[float] = None,
         sl: Optional[float] = None,
-    ) -> Dict:
+    ) -> Dict[str, any]:
+        """
+        Place a simulated order.
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC/USDT")
+            side: Order side ("LONG" or "SHORT")
+            amount: Order size in base currency
+            leverage: Leverage multiplier
+            tp: Take profit price (optional)
+            sl: Stop loss price (optional)
+
+        Returns:
+            Dictionary with order result containing success status and details
+        """
         try:
             current_price = self.price_feed.get_current_price(symbol)
 
@@ -44,7 +75,18 @@ class DryRunExecutor:
         except Exception as e:
             return {"success": False, "error": str(e), "message": f"Failed to place order: {e}"}
 
-    def close_position(self, symbol: str, side: str, size: float) -> Dict:
+    def close_position(self, symbol: str, side: str, size: float) -> Dict[str, any]:
+        """
+        Close a simulated position.
+
+        Args:
+            symbol: Trading symbol
+            side: Position side ("LONG" or "SHORT")
+            size: Size to close
+
+        Returns:
+            Dictionary with close result containing success status and details
+        """
         try:
             current_price = self.price_feed.get_current_price(symbol)
             positions = self.db.get_open_positions_by_symbol(symbol, side)
@@ -83,7 +125,18 @@ class DryRunExecutor:
         except Exception as e:
             return {"success": False, "error": str(e), "message": f"Failed to close position: {e}"}
 
-    def modify_tp_sl(self, symbol: str, tp_price: Optional[float], sl_price: Optional[float]) -> Dict:
+    def modify_tp_sl(self, symbol: str, tp_price: Optional[float], sl_price: Optional[float]) -> Dict[str, any]:
+        """
+        Modify take profit and stop loss for simulated positions.
+
+        Args:
+            symbol: Trading symbol
+            tp_price: New take profit price (optional)
+            sl_price: New stop loss price (optional)
+
+        Returns:
+            Dictionary with modification result
+        """
         try:
             positions = self.db.get_open_positions_by_symbol(symbol)
 

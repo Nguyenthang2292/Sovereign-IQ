@@ -64,10 +64,10 @@ class StatsFrame(ctk.CTkFrame):
         self.winrate_label = ctk.CTkLabel(stats_frame, text="Win Rate: 0%", font=("Arial", 14))
         self.winrate_label.pack(anchor="w", pady=5)
 
-        mode_frame = ctk.CTkFrame(stats_frame, fg_color="gray20", corner_radius=10)
+        mode_frame = ctk.CTkFrame(stats_frame, fg_color=Colors.get_card_bg(), corner_radius=10)
         mode_frame.pack(fill="x", pady=(20, 10))
 
-        ctk.CTkLabel(mode_frame, text="Current Mode", font=("Arial", 11), text_color="gray").pack(pady=(10, 5))
+        ctk.CTkLabel(mode_frame, text="Current Mode", font=("Arial", 11), text_color=Colors.get_text_secondary()).pack(pady=(10, 5))
         self.mode_indicator = ModeIndicator(mode_frame, "DEMO")
         self.mode_indicator.pack(pady=(0, 10))
 

@@ -53,13 +53,13 @@ def check_rust_availability():
     print("-" * 80)
 
     try:
-        import sovereign_prime
+        import atc_rust
 
-        print("✅ sovereign_prime (Rust backend) - AVAILABLE")
+        print("✅ atc_rust (Rust backend) - AVAILABLE")
 
         # Test ScanCache
         try:
-            cache = sovereign_prime.ScanCache(capacity=10, ttl_seconds=60.0)
+            cache = atc_rust.ScanCache(capacity=10, ttl_seconds=60.0)
             cache.set("test", {"BTC/USDT"}, set(), {"BTC/USDT": 0.9})
             result = cache.get("test")
             if result:
@@ -71,7 +71,7 @@ def check_rust_availability():
 
         # Test calculate_weighted_score
         try:
-            score = sovereign_prime.calculate_weighted_score("LONG", 0.5, 0.8, False)
+            score = atc_rust.calculate_weighted_score("LONG", 0.5, 0.8, False)
             print(f"✅ calculate_weighted_score - WORKING (score={score})")
         except Exception as e:
             print(f"❌ calculate_weighted_score - ERROR: {e}")
@@ -79,7 +79,7 @@ def check_rust_availability():
         # Test aggregate_signals
         try:
             test_results = {"1h": {"longs": {"BTC/USDT"}, "shorts": set(), "strengths": {"BTC/USDT": 0.9}}}
-            aggregated = sovereign_prime.aggregate_signals(["BTC/USDT"], test_results, {"1h": 1.0}, 0.5, False)
+            aggregated = atc_rust.aggregate_signals(["BTC/USDT"], test_results, {"1h": 1.0}, 0.5, False)
             print(f"✅ aggregate_signals - WORKING (found {len(aggregated)} signals)")
         except Exception as e:
             print(f"❌ aggregate_signals - ERROR: {e}")
@@ -87,8 +87,10 @@ def check_rust_availability():
         print()
         return True
     except ImportError:
-        print("❌ sovereign_prime (Rust backend) - NOT AVAILABLE")
-        print("   Build Rust: cd rust_backend && cargo build --release && pip install -e .")
+        print("❌ atc_rust (Rust backend) - NOT AVAILABLE")
+        print(
+            "   Build Rust: cd modules/adaptive_trend_LTS_mini/rust_extensions && python -m maturin develop --release"
+        )
         print()
         return False
 

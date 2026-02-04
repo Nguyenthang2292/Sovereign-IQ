@@ -3,7 +3,6 @@ Feature engineering functions for XGBoost module with Rust acceleration.
 """
 
 import logging
-from typing import List, Optional
 
 import numpy as np
 import pandas as pd

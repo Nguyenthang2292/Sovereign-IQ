@@ -75,6 +75,7 @@ class ExchangeConnectionFactory:
             "options": {
                 "defaultType": contract_type,  # ✅ FUTURES by default!
                 "adjustForTimeDifference": True,  # Handle time sync issues
+                "recvWindow": 60000,  # 60 seconds tolerance for timestamp difference (default is 5000ms)
             },
         }
 
@@ -99,8 +100,18 @@ class ExchangeConnectionFactory:
                 }
             # Add more testnet URLs for other exchanges as needed
 
-        # Create and return exchange instance
-        return exchange_class(config)
+        # Create exchange instance
+        exchange_instance = exchange_class(config)
+
+        # CRITICAL: Force time synchronization with the server BEFORE any authenticated request
+        # This resolves Binance -1021 timestamp errors
+        if exchange_id == "binance":
+            try:
+                exchange_instance.load_time_difference()
+            except Exception:
+                pass  # Ignore errors - adjustForTimeDifference will handle it
+
+        return exchange_instance
 
     def _create_exchange_method(exchange_id: str):
         """Factory to generate exchange connection methods dynamically."""

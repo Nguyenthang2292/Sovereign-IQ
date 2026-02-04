@@ -195,11 +195,11 @@ class Order(Base, JSONSerializableMixin):
 
     def get_market_conditions(self) -> Optional[dict]:
         """Parse market conditions JSON using mixin."""
-        return self.get_json_field('market_conditions')
+        return self.get_json_field("market_conditions")
 
     def set_market_conditions(self, conditions: dict):
         """Set market conditions using mixin."""
-        self.set_json_field('market_conditions', conditions)
+        self.set_json_field("market_conditions", conditions)
 
 
 # ============================================================================
@@ -302,11 +302,11 @@ class Signal(Base, JSONSerializableMixin):
 
     def get_market_context(self) -> Optional[dict]:
         """Parse market context JSON using mixin."""
-        return self.get_json_field('market_context')
+        return self.get_json_field("market_context")
 
     def set_market_context(self, context: dict):
         """Set market context using mixin."""
-        self.set_json_field('market_context', context)
+        self.set_json_field("market_context", context)
 
 
 # ============================================================================
@@ -408,19 +408,110 @@ class MartingaleChain(Base, JSONSerializableMixin):
 
     def get_leverage_progression(self) -> Optional[list]:
         """Parse leverage progression JSON using mixin."""
-        return self.get_json_field('leverage_progression')
+        return self.get_json_field("leverage_progression")
 
     def set_leverage_progression(self, progression: list):
         """Set leverage progression using mixin."""
-        self.set_json_field('leverage_progression', progression)
+        self.set_json_field("leverage_progression", progression)
 
     def get_position_size_progression(self) -> Optional[list]:
         """Parse position size progression JSON using mixin."""
-        return self.get_json_field('position_size_progression')
+        return self.get_json_field("position_size_progression")
 
     def set_position_size_progression(self, progression: list):
         """Set position size progression using mixin."""
-        self.set_json_field('position_size_progression', progression)
+        self.set_json_field("position_size_progression", progression)
+
+
+# ============================================================================
+# GRADUAL RECOVERY MODEL
+# ============================================================================
+
+
+class GradualRecovery(Base, JSONSerializableMixin):
+    """
+    Represents a Gradual Recovery sequence.
+    Tracks gradual loss recovery progress using controlled scaling.
+    """
+
+    __tablename__ = "gradual_recovery"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Recovery Identification
+    recovery_id = Column(String(100), unique=True, nullable=False, index=True)
+    symbol = Column(String(20), nullable=False, index=True)
+
+    # Recovery Status
+    status = Column(String(20), nullable=False, default="ACTIVE", index=True)
+
+    # Loss Tracking
+    initial_loss = Column(Float, nullable=False)
+    remaining_loss = Column(Float, nullable=False)
+    total_profit_accumulated = Column(Float, default=0.0)
+    recovery_percentage = Column(Float, default=0.0)
+
+    # Trade Tracking
+    trades_count = Column(Integer, default=0)
+    win_streak = Column(Integer, default=0)
+    estimated_trades_remaining = Column(Integer, default=0)
+
+    # Configuration (JSON)
+    config_data = Column(Text)  # Stores RecoveryConfig as JSON
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    completed_at = Column(DateTime)
+    failed_at = Column(DateTime)
+
+    # Table constraints
+    __table_args__ = (
+        CheckConstraint("status IN ('ACTIVE', 'COMPLETE', 'FAILED', 'CANCELLED')", name="check_recovery_status"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<GradualRecovery(id={self.id}, recovery_id='{self.recovery_id}', "
+            f"symbol='{self.symbol}', progress={self.recovery_percentage:.1f}%, "
+            f"status='{self.status}')>"
+        )
+
+    def to_dict(self):
+        """Convert recovery to dictionary."""
+        return {
+            "id": self.id,
+            "recovery_id": self.recovery_id,
+            "symbol": self.symbol,
+            "status": self.status,
+            "initial_loss": self.initial_loss,
+            "remaining_loss": self.remaining_loss,
+            "total_profit_accumulated": self.total_profit_accumulated,
+            "recovery_percentage": self.recovery_percentage,
+            "trades_count": self.trades_count,
+            "win_streak": self.win_streak,
+            "estimated_trades_remaining": self.estimated_trades_remaining,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+        }
+
+    @property
+    def is_active(self) -> bool:
+        """Check if recovery is still active."""
+        return self.status == "ACTIVE"
+
+    @property
+    def is_complete(self) -> bool:
+        """Check if recovery is complete."""
+        return self.status == "COMPLETE"
+
+    def get_config(self) -> Optional[dict]:
+        """Parse config JSON using mixin."""
+        return self.get_json_field("config_data")
+
+    def set_config(self, config: dict):
+        """Set config using mixin."""
+        self.set_json_field("config_data", config)
 
 
 # ============================================================================
@@ -549,11 +640,11 @@ class AuditLog(Base, JSONSerializableMixin):
 
     def get_event_data(self) -> Optional[dict]:
         """Parse event data JSON using mixin."""
-        return self.get_json_field('event_data')
+        return self.get_json_field("event_data")
 
     def set_event_data(self, data: dict):
         """Set event data using mixin."""
-        self.set_json_field('event_data', data)
+        self.set_json_field("event_data", data)
 
 
 # ============================================================================

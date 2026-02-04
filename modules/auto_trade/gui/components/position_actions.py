@@ -1,9 +1,12 @@
-import customtkinter as ctk
-from typing import Dict, Optional, Callable
 from tkinter import messagebox
-from gui.utils.toast import show_toast
-from gui.utils.retry_utils import retry_with_exponential_backoff
+from typing import Callable, Dict, Optional
+
 import ccxt
+import customtkinter as ctk
+
+from gui.utils.colors import Colors
+from gui.utils.retry_utils import retry_with_exponential_backoff
+from gui.utils.toast import show_toast
 
 
 class PositionActions(ctk.CTkFrame):
@@ -39,7 +42,7 @@ class PositionActions(ctk.CTkFrame):
         # Assuming position has 'isolated' or similar flag
         # If unknown, show it anyway but it might fail on backend
 
-        margin_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        margin_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         margin_frame.pack(fill="x", padx=15, pady=10)
 
         title = ctk.CTkLabel(margin_frame, text="Add Margin (Isolated)", font=("Arial", 13, "bold"))
@@ -161,7 +164,7 @@ This will increase the margin for this isolated position.
 
     def _create_close_section(self):
         """Create close position controls"""
-        close_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        close_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         close_frame.pack(fill="x", padx=15, pady=(0, 10))
 
         title = ctk.CTkLabel(close_frame, text="Close Position", font=("Arial", 13, "bold"))
@@ -233,7 +236,7 @@ This will increase the margin for this isolated position.
 
     def _create_partial_close_section(self):
         """Create partial close controls"""
-        partial_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        partial_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         partial_frame.pack(fill="x", padx=15, pady=10)
 
         title = ctk.CTkLabel(partial_frame, text="Partial Close", font=("Arial", 13, "bold"))
@@ -294,7 +297,7 @@ This will increase the margin for this isolated position.
 
     def _create_modify_tp_sl_section(self):
         """Create TP/SL modification controls"""
-        modify_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        modify_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         modify_frame.pack(fill="x", padx=15, pady=10)
 
         title = ctk.CTkLabel(modify_frame, text="Modify TP/SL", font=("Arial", 13, "bold"))

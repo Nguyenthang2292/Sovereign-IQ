@@ -1,5 +1,7 @@
+import queue
 import sys
 from pathlib import Path
+from typing import Optional
 
 import customtkinter as ctk
 
@@ -9,14 +11,15 @@ from gui.components.account_frame import AccountFrame
 from gui.components.auto_trade_control import AutoTradeControl
 from gui.components.config_panel import ConfigPanel
 from gui.components.positions_frame import PositionsFrame
+from gui.components.recovery_panel import RecoveryPanel
 from gui.components.scanner_control import ScannerControl
 from gui.components.signals_frame import SignalsFrame
 from gui.components.stats_frame import StatsFrame
 from gui.components.trade_form import TradeFormFrame
 from gui.utils.colors import Colors
 from gui.utils.data_service import DataService
-from gui.utils.settings_manager import SettingsManager
 from gui.utils.modes import TradingMode
+from gui.utils.settings_manager import SettingsManager
 from gui.utils.threading_utils import PeriodicUpdater
 
 
@@ -38,6 +41,7 @@ class AutoTradeDashboard(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
+        self._update_queue = queue.Queue()
         self._create_layout()
         self._setup_updaters()
         self._apply_settings()
@@ -67,9 +71,13 @@ class AutoTradeDashboard(ctk.CTk):
         trading_tab = self.tabview.add("Trading")
         self._populate_trading_tab(trading_tab)
 
-        # Settings tab (NEW)
+        # Settings tab (includes Recovery in compact mode)
         settings_tab = self.tabview.add("Settings")
         self._populate_settings_tab(settings_tab)
+
+        # Database tab
+        database_tab = self.tabview.add("Database")
+        self._populate_database_tab(database_tab)
 
         self._create_status_bar()
         self._update_mode_display()
@@ -116,21 +124,47 @@ class AutoTradeDashboard(ctk.CTk):
         self.auto_trade_control.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
     def _populate_settings_tab(self, parent):
-        """Create settings interface"""
-        # Configure grid
-        parent.grid_columnconfigure(0, weight=1)
-        parent.grid_columnconfigure(1, weight=1)
+        """Create settings interface with Recovery panel"""
+        # Configure grid - 60/40 split
+        parent.grid_columnconfigure(0, weight=3)
+        parent.grid_columnconfigure(1, weight=2)
         parent.grid_rowconfigure(0, weight=1)
 
-        # Left: Config Panel
+        # Left: Config Panel (60%)
         self.config_panel = ConfigPanel(parent, on_settings_change=self.on_settings_change)
         self.config_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
 
-        # Right: Scanner Control
+        # Right: Scanner Control + Recovery Panel (40%)
+        right_panel = ctk.CTkFrame(parent, fg_color="transparent")
+        right_panel.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        right_panel.grid_rowconfigure(0, weight=1)
+        right_panel.grid_rowconfigure(1, weight=1)
+        right_panel.grid_columnconfigure(0, weight=1)
+
+        # Scanner Control (top)
         self.scanner_control = ScannerControl(
-            parent, on_scan_toggle=self.on_scan_toggle, on_config_change=self.on_scanner_config_change
+            right_panel, on_scan_toggle=self.on_scan_toggle, on_config_change=self.on_scanner_config_change
         )
-        self.scanner_control.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        self.scanner_control.grid(row=0, column=0, sticky="nsew", pady=(0, 5))
+
+        # Recovery Panel (bottom - compact mode)
+        self.recovery_panel = RecoveryPanel(
+            right_panel,
+            on_config_change=self.on_recovery_config_change,
+            mode=self.mode,
+            compact=True,
+        )
+        self.recovery_panel.grid(row=1, column=0, sticky="nsew", pady=(5, 0))
+
+    def _populate_database_tab(self, parent):
+        """Create database testing interface"""
+        from gui.components.database_panel import DatabasePanel
+
+        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
+
+        self.database_panel = DatabasePanel(parent, self.settings_manager)
+        self.database_panel.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
     def _create_header(self):
         header_frame = ctk.CTkFrame(self, height=60)
@@ -194,10 +228,12 @@ class AutoTradeDashboard(ctk.CTk):
             self.refresh_stats()
             self._update_timestamp()
 
-        self.signal_updater = PeriodicUpdater(self.refresh_signals, interval=30)
-        self.position_updater = PeriodicUpdater(self.refresh_positions, interval=10)
-        self.account_updater = PeriodicUpdater(self.refresh_account, interval=60)
-        self.stats_updater = PeriodicUpdater(self.refresh_stats, interval=60)
+        # PeriodicUpdater runs in a background thread; callbacks must not call self.after().
+        # They put (kind, data) in _update_queue; main thread drains via _drain_update_queue.
+        self.signal_updater = PeriodicUpdater(self._thread_refresh_signals, interval=30)
+        self.position_updater = PeriodicUpdater(self._thread_refresh_positions, interval=10)
+        self.account_updater = PeriodicUpdater(self._thread_refresh_account, interval=60)
+        self.stats_updater = PeriodicUpdater(self._thread_refresh_stats, interval=60)
 
         refresh_all()
 
@@ -205,6 +241,43 @@ class AutoTradeDashboard(ctk.CTk):
         self.position_updater.start()
         self.account_updater.start()
         self.stats_updater.start()
+        self.after(100, self._drain_update_queue)
+
+    def _drain_update_queue(self):
+        """Process UI updates from background thread (must run on main thread)."""
+        try:
+            while True:
+                kind, data = self._update_queue.get_nowait()
+                if kind == "signals":
+                    self.signals_frame.update_signals(data)
+                elif kind == "positions":
+                    self.positions_frame.update_positions(data)
+                elif kind == "account" and data:
+                    self.account_frame.update_data(data)
+                elif kind == "stats" and data:
+                    self.stats_frame.update_data(data)
+                elif kind == "scanner_done":
+                    if hasattr(self, "scanner_control"):
+                        self.scanner_control.update_last_scan_time()
+        except queue.Empty:
+            pass
+        self.after(100, self._drain_update_queue)
+
+    def _thread_refresh_signals(self):
+        signals = self.data_service.get_signals()
+        self._update_queue.put(("signals", signals))
+
+    def _thread_refresh_positions(self):
+        positions = self.data_service.get_positions()
+        self._update_queue.put(("positions", positions))
+
+    def _thread_refresh_account(self):
+        data = self.data_service.get_account_data()
+        self._update_queue.put(("account", data))
+
+    def _thread_refresh_stats(self):
+        stats = self.data_service.get_quick_stats()
+        self._update_queue.put(("stats", stats))
 
     def refresh_signals(self):
         signals = self.data_service.get_signals()
@@ -270,31 +343,61 @@ class AutoTradeDashboard(ctk.CTk):
         3. Execute trade if conditions met
         """
         try:
-            from modules.auto_trade.order_executor import OrderExecutor
-            from modules.auto_trade.signal_selector import SignalSelector
+            from modules.auto_trade.core.atc_scanner import SignalResult
+            from modules.auto_trade.core.signal_selector import SignalSelector
+            from modules.auto_trade.execution.order_executor import OrderExecutor
 
-            # Get recent signals
+            # Get recent signals (list of dicts: symbol, signal, score, time)
             signals = self.data_service.get_signals(min_score=0.7)
+            xb_signals = []
+            for s in signals:
+                sym = (s.get("symbol") or "").strip()
+                if sym and "/" not in sym:
+                    sym = f"{sym.replace('USDT', '')}/USDT"
+                if not sym:
+                    continue
+                xb_signals.append(
+                    SignalResult(
+                        symbol=sym,
+                        score=float(s.get("score", 0)),
+                        signal_type=(s.get("signal") or "LONG").upper(),
+                        details={"time": s.get("time", "")},
+                        strengths={},
+                    )
+                )
 
-            # Filter and select best signal
+            # Filter and select best signal (no Gemini data in GUI auto-trade)
             selector = SignalSelector()
-            selected_signal = selector.select_best_signal(signals)
+            selected_signal = selector.select_best_signal(xb_signals, gemini_signals={})
 
             if not selected_signal:
                 print("No qualifying signals for auto-trade")
                 return
 
-            # Check risk limits
-            if not self._check_risk_limits():
+            # Get position sizing parameters from settings
+            default_position_size = self.settings_manager.get("trading.default_position_size", 100.0)
+            default_leverage = self.settings_manager.get("trading.default_leverage", 2)
+
+            # Check risk limits with symbol, position size, and leverage
+            if not self._check_risk_limits(
+                symbol=selected_signal.symbol, position_size=default_position_size, leverage=default_leverage
+            ):
                 print("Risk limits exceeded, skipping trade")
                 return
 
-            # Execute trade
+            # Execute trade (OrderExecutor expects a dict)
+            sig_dict = {
+                "symbol": selected_signal.symbol,
+                "signal": selected_signal.signal_type,
+                "score": selected_signal.final_score
+                if hasattr(selected_signal, "final_score")
+                else selected_signal.score,
+            }
             executor = OrderExecutor()
-            result = executor.execute_from_signal(selected_signal)
+            result = executor.execute_from_signal(sig_dict)
 
             if result and result.get("success"):
-                print(f"Auto-trade executed: {selected_signal['symbol']}")
+                print(f"Auto-trade executed: {sig_dict['symbol']}")
                 # Refresh UI on main thread
                 self.after(0, self.refresh_positions)
                 self.after(0, self.refresh_account)
@@ -302,29 +405,176 @@ class AutoTradeDashboard(ctk.CTk):
         except Exception as e:
             print(f"Error in auto-trade cycle: {e}")
 
-    def _check_risk_limits(self) -> bool:
+    def _check_risk_limits(
+        self,
+        symbol: Optional[str] = None,
+        position_size: Optional[float] = None,
+        leverage: Optional[int] = None,
+    ) -> bool:
         """
         Check if trading within risk limits:
         - Max open positions
         - Max daily loss
         - Max position size
+        - Total exposure
+        - Per-symbol position limits
+        - Leverage limits
+        - Account balance
+
+        Args:
+            symbol: Trading symbol (e.g., "BTC/USDT")
+            position_size: Intended position size in USDT
+            leverage: Intended leverage
+
+        Returns:
+            True if within all risk limits, False otherwise
         """
         try:
+            # 1. Get positions and validate (Priority 3)
             positions = self.data_service.get_positions()
-
-            # Get settings
-            max_positions = self.settings_manager.get("risk.max_open_positions", 3)
-
-            # Max open positions from settings
-            if len(positions) >= max_positions:
+            if positions is None:
+                print("Warning: Could not fetch positions for risk check")
                 return False
 
-            # TODO: Check daily loss limit
-            # TODO: Check max position size
+            if not isinstance(positions, (list, tuple)):
+                print(f"Error: Invalid positions type: {type(positions)}")
+                return False
 
+            # 2. Get account data
+            account_data = self.data_service.get_account_data()
+            if not account_data:
+                print("Warning: Could not fetch account data for risk check")
+                return False
+
+            balance = account_data.get("balance", 0)
+            if balance <= 0:
+                print("Error: Invalid account balance")
+                return False
+
+            # 3. Max open positions check (Priority 1 - with logging)
+            max_positions = self.settings_manager.get("risk.max_open_positions", 3)
+
+            # Type validation (Priority 6)
+            if not isinstance(max_positions, int) or max_positions <= 0:
+                print(f"Error: Invalid max_positions setting: {max_positions}, using default 3")
+                max_positions = 3
+
+            if len(positions) >= max_positions:
+                print(f"Risk limit exceeded: Max positions reached ({len(positions)}/{max_positions})")
+                return False
+
+            # 4. Daily loss limit check (Priority 4)
+            max_daily_loss_pct = self.settings_manager.get("risk.max_daily_loss_pct", 5.0)
+
+            # Type validation (Priority 6)
+            if not isinstance(max_daily_loss_pct, (int, float)) or max_daily_loss_pct <= 0:
+                print(f"Error: Invalid max_daily_loss_pct setting: {max_daily_loss_pct}, using default 5.0")
+                max_daily_loss_pct = 5.0
+
+            daily_pnl_pct = account_data.get("daily_pnl_pct", 0)
+            if daily_pnl_pct <= -max_daily_loss_pct:
+                print(f"Risk limit exceeded: Daily loss limit hit ({daily_pnl_pct:.2f}% / -{max_daily_loss_pct}%)")
+                return False
+
+            # 5. Total exposure check (Priority 5)
+            max_exposure_pct = self.settings_manager.get("risk.max_exposure_pct", 30.0)
+
+            # Type validation (Priority 6)
+            if not isinstance(max_exposure_pct, (int, float)) or max_exposure_pct <= 0:
+                print(f"Error: Invalid max_exposure_pct setting: {max_exposure_pct}, using default 30.0")
+                max_exposure_pct = 30.0
+
+            # Calculate current total exposure
+            total_exposure = sum(abs(float(p.get("notional", 0))) for p in positions)
+
+            # Add intended position to exposure if provided
+            if position_size is not None and leverage is not None:
+                total_exposure += position_size * leverage
+
+            exposure_pct = (total_exposure / balance) * 100
+            if exposure_pct >= max_exposure_pct:
+                print(f"Risk limit exceeded: Max exposure reached ({exposure_pct:.1f}% / {max_exposure_pct}%)")
+                return False
+
+            # 6. Max position size check (Priority 7)
+            if position_size is not None:
+                max_position_size_pct = self.settings_manager.get("risk.max_position_size_pct", 10.0)
+
+                # Type validation (Priority 6)
+                if not isinstance(max_position_size_pct, (int, float)) or max_position_size_pct <= 0:
+                    print(f"Error: Invalid max_position_size_pct: {max_position_size_pct}, using default 10.0")
+                    max_position_size_pct = 10.0
+
+                max_position_size = balance * (max_position_size_pct / 100)
+                if position_size > max_position_size:
+                    print(
+                        f"Risk limit exceeded: Position size too large "
+                        f"({position_size:.2f} USDT > {max_position_size:.2f} USDT / "
+                        f"{max_position_size_pct}% of balance)"
+                    )
+                    return False
+
+            # 7. Per-symbol position limit (Priority 8)
+            if symbol is not None:
+                max_per_symbol = self.settings_manager.get("risk.max_positions_per_symbol", 1)
+
+                # Type validation (Priority 6)
+                if not isinstance(max_per_symbol, int) or max_per_symbol <= 0:
+                    print(f"Error: Invalid max_positions_per_symbol: {max_per_symbol}, using default 1")
+                    max_per_symbol = 1
+
+                # Count existing positions for this symbol
+                symbol_positions = [
+                    p
+                    for p in positions
+                    if p.get("symbol", "").replace("USDT", "/USDT") == symbol or p.get("symbol") == symbol
+                ]
+
+                if len(symbol_positions) >= max_per_symbol:
+                    print(
+                        f"Risk limit exceeded: Max positions for {symbol} reached "
+                        f"({len(symbol_positions)}/{max_per_symbol})"
+                    )
+                    return False
+
+            # 8. Leverage limit check (Priority 9)
+            if leverage is not None:
+                max_leverage = self.settings_manager.get("risk.max_leverage", 5)
+
+                # Type validation (Priority 6)
+                if not isinstance(max_leverage, int) or max_leverage <= 0:
+                    print(f"Error: Invalid max_leverage setting: {max_leverage}, using default 5")
+                    max_leverage = 5
+
+                if leverage > max_leverage:
+                    print(f"Risk limit exceeded: Leverage too high ({leverage}x > {max_leverage}x)")
+                    return False
+
+            # 9. Minimum account balance check (additional safety)
+            min_balance = self.settings_manager.get("risk.min_account_balance", 10.0)
+
+            # Type validation (Priority 6)
+            if not isinstance(min_balance, (int, float)) or min_balance < 0:
+                print(f"Error: Invalid min_account_balance: {min_balance}, using default 10.0")
+                min_balance = 10.0
+
+            if balance < min_balance:
+                print(
+                    f"Risk limit exceeded: Account balance too low "
+                    f"({balance:.2f} USDT < {min_balance:.2f} USDT minimum)"
+                )
+                return False
+
+            # All checks passed
             return True
-        except:
-            return False
+
+        except Exception as e:
+            # Priority 1 & 2: Add logging to exception handler
+            print(f"Error checking risk limits: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return False  # Fail-safe: reject trade on error
 
     def _apply_settings(self):
         """Apply loaded settings to application"""
@@ -372,17 +622,61 @@ class AutoTradeDashboard(ctk.CTk):
                     self.title(f"Auto Trade Dashboard - [{self.mode}]")
                     self._update_mode_display()
 
+                # Check if theme changed
+                new_theme = current_settings.get("ui", {}).get("theme")
+                if new_theme:
+                    self._refresh_theme_colors()
+
         except Exception as e:
             print(f"Error handling settings change: {e}")
+
+    def _refresh_theme_colors(self):
+        """Refresh all component colors when theme changes (light/dark)."""
+        from gui.utils.colors import Colors
+
+        def _update_frame_colors(widget):
+            """Recursively set card-like frames to current theme card bg."""
+            try:
+                if isinstance(widget, ctk.CTkFrame):
+                    current_fg = widget.cget("fg_color")
+                    if current_fg and current_fg != "transparent":
+                        widget.configure(fg_color=Colors.get_card_bg())
+                for child in widget.winfo_children():
+                    _update_frame_colors(child)
+            except Exception:
+                pass
+
+        try:
+            for name in [
+                "account_frame",
+                "stats_frame",
+                "positions_frame",
+                "trade_form",
+                "auto_trade_control",
+                "scanner_control",
+                "config_panel",
+            ]:
+                if hasattr(self, name):
+                    _update_frame_colors(getattr(self, name))
+
+            if hasattr(self, "signals_frame"):
+                self.signals_frame._configure_table_tags()
+
+            if hasattr(self, "recovery_panel"):
+                _update_frame_colors(self.recovery_panel)
+
+            print("Theme colors refreshed")
+        except Exception as e:
+            print(f"Error refreshing theme colors: {e}")
 
     def on_scan_toggle(self, action):
         """Handle scanner start/stop from ScannerControl"""
         try:
             print(f"Scanner action: {action}")
 
-            if action == True:
+            if action:
                 self._start_scanner()
-            elif action == False:
+            elif not action:
                 self._stop_scanner()
             elif action == "manual":
                 self._manual_scan()
@@ -401,6 +695,27 @@ class AutoTradeDashboard(ctk.CTk):
 
         except Exception as e:
             print(f"Error handling scanner config change: {e}")
+
+    def on_recovery_config_change(self, event_type: str, data):
+        """Handle recovery configuration change"""
+        try:
+            print(f"Recovery {event_type}: {data}")
+
+            if event_type == "recovery_started":
+                # Save recovery config to settings
+                self.settings_manager.set("recovery.enabled", True)
+                self.settings_manager.set("recovery.config", data)
+                self.settings_manager.save()
+            elif event_type == "recovery_reset":
+                self.settings_manager.set("recovery.enabled", False)
+                self.settings_manager.save()
+            elif event_type == "recovery_alert":
+                # Show alert notification in status bar
+                if hasattr(self, "status_label"):
+                    self.status_label.configure(text=f"Recovery: {data}")
+
+        except Exception as e:
+            print(f"Error handling recovery config change: {e}")
 
     def _start_scanner(self):
         """Start scanner loop"""
@@ -425,13 +740,14 @@ class AutoTradeDashboard(ctk.CTk):
         self.scanner_control.update_last_scan_time()
 
     def _scanner_cycle(self):
-        """Scanner cycle"""
+        """Scanner cycle (runs in background thread; enqueues UI updates)."""
         try:
             print("Running scanner cycle...")
             # TODO: Implement actual scanning logic
-            # For now, just refresh signals
-            self.refresh_signals()
-            self.scanner_control.update_last_scan_time()
+            # For now, refresh signals and notify UI via queue (no self.after from thread)
+            signals = self.data_service.get_signals()
+            self._update_queue.put(("signals", signals))
+            self._update_queue.put(("scanner_done", None))
         except Exception as e:
             print(f"Error in scanner cycle: {e}")
 
@@ -443,11 +759,13 @@ class AutoTradeDashboard(ctk.CTk):
             print("Error: Exchange manager not initialized")
             return {"success": False, "error": "Exchange manager unavailable"}
 
-        # Try to get the underlying BinanceClient
+        # Try to get the underlying trading client (e.g. BinanceClient) that supports position actions.
+        # ExchangeManager does not define "client"; use getattr for optional attribute.
         mgr = self.data_service.exchange_manager
-        target = mgr
-        if hasattr(mgr, "client") and hasattr(mgr.client, "close_position"):
-            target = mgr.client
+        client = getattr(mgr, "client", None)
+        if client is None or not hasattr(client, "close_position"):
+            return {"success": False, "error": "Position actions not available (no trading client)"}
+        target = client
 
         action = action_data.get("action")
         symbol = action_data.get("symbol")

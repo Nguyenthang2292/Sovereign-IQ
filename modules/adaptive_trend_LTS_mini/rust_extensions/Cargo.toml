@@ -12,6 +12,7 @@ pyo3 = { version = "0.23", features = ["extension-module"] }
 numpy = "0.23"
 ndarray = "0.15"
 rayon = "1.8"  # For parallel processing (CPU-only)
+lru = "0.12"   # For ScanCache LRU functionality
 
 [profile.release]
 # Enable optimizations for SIMD auto-vectorization

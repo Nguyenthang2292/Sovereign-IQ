@@ -5,9 +5,9 @@ from gui.utils.colors import Colors
 
 class StatCard(ctk.CTkFrame):
     def __init__(self, parent, label: str, value: str = "0.00", unit: str = "USDT", color: str = "white"):
-        super().__init__(parent, fg_color="gray20", corner_radius=10)
+        super().__init__(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
 
-        self.label = ctk.CTkLabel(self, text=label, font=("Arial", 12), text_color="gray")
+        self.label = ctk.CTkLabel(self, text=label, font=("Arial", 12), text_color=Colors.get_text_secondary())
         self.label.pack(pady=(10, 5))
 
         self.value_label = ctk.CTkLabel(self, text=f"{value} {unit}", font=("Arial", 18, "bold"), text_color=color)

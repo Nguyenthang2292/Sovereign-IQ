@@ -73,6 +73,7 @@ class BinanceClient:
             "options": {
                 "defaultType": "future",  # Use USDT-M futures
                 "adjustForTimeDifference": True,
+                "recvWindow": 60000,  # 60 seconds tolerance for timestamp difference
             },
         }
 
@@ -101,6 +102,14 @@ class BinanceClient:
             log_info("Initialized Binance Live/Demo client (uses production endpoints)")
 
         exchange = ccxt.binance(config)
+
+        # CRITICAL: Force time synchronization with the server BEFORE any authenticated request
+        # This resolves Binance -1021 timestamp errors
+        try:
+            exchange.load_time_difference()
+        except Exception:
+            pass  # Ignore errors - adjustForTimeDifference will handle it
+
         return exchange
 
     def set_leverage(self, symbol: str, leverage: int) -> bool:

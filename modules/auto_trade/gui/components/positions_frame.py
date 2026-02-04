@@ -8,7 +8,7 @@ from gui.components.position_details import PositionDetails
 
 class PositionCard(ctk.CTkFrame):
     def __init__(self, parent, position: Dict, on_action_callback: Optional[Callable] = None):
-        super().__init__(parent, fg_color="gray20", corner_radius=10)
+        super().__init__(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         self.position = position
         self.on_action_callback = on_action_callback
 

@@ -3,6 +3,8 @@ from typing import Dict, Optional, Callable
 from datetime import datetime
 from gui.components.position_actions import PositionActions
 
+from gui.utils.colors import Colors
+
 
 class PositionDetails(ctk.CTkToplevel):
     """
@@ -44,7 +46,7 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_header(self):
         """Create position header with symbol and side"""
-        header_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        header_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         header_frame.pack(fill="x", padx=15, pady=(15, 10))
 
         # Symbol and side
@@ -84,7 +86,7 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_metrics_grid(self, parent):
         """Create grid of position metrics"""
-        metrics_frame = ctk.CTkFrame(parent, fg_color="#2b2b2b", corner_radius=10)
+        metrics_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         metrics_frame.pack(fill="x", pady=(0, 10))
 
         title = ctk.CTkLabel(metrics_frame, text="📊 Position Metrics", font=("Arial", 14, "bold"))
@@ -165,7 +167,7 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_tp_sl_visualization(self, parent):
         """Create visual representation of TP/SL relative to entry"""
-        viz_frame = ctk.CTkFrame(parent, fg_color="#2b2b2b", corner_radius=10)
+        viz_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         viz_frame.pack(fill="x", pady=(0, 10))
 
         title = ctk.CTkLabel(viz_frame, text="🎯 TP/SL Visualization", font=("Arial", 14, "bold"))
@@ -300,7 +302,7 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_pnl_section(self):
         """Create P&L display section"""
-        pnl_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        pnl_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         pnl_frame.pack(fill="x", padx=15, pady=10)
 
         title = ctk.CTkLabel(pnl_frame, text="💰 Profit & Loss", font=("Arial", 14, "bold"))

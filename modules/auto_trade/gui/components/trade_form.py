@@ -1,5 +1,8 @@
+from typing import Callable
+
 import customtkinter as ctk
-from typing import Dict, Optional, Callable
+
+from gui.utils.colors import Colors
 
 
 class TradeFormFrame(ctk.CTkFrame):
@@ -168,8 +171,8 @@ class TradeFormFrame(ctk.CTkFrame):
     def _calculate_risk(self):
         """Calculate and display risk metrics"""
         try:
-            from gui.utils.risk_calculator import RiskCalculator
             from gui.utils.data_service import DataService
+            from gui.utils.risk_calculator import RiskCalculator
 
             # Get form values
             symbol = self.symbol_var.get()
@@ -253,7 +256,7 @@ class TradeFormFrame(ctk.CTkFrame):
 
     def _create_risk_display(self):
         """Display calculated risk metrics"""
-        risk_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        risk_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         risk_frame.pack(fill="x", padx=15, pady=10)
 
         # Title
@@ -421,8 +424,8 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
     def _execute_trade(self, dialog):
         """Execute the trade via OrderExecutor"""
         try:
-            from modules.auto_trade.order_executor import OrderExecutor
             from gui.utils.data_service import DataService
+            from modules.auto_trade.execution.order_executor import OrderExecutor
 
             # Close confirmation dialog
             dialog.destroy()

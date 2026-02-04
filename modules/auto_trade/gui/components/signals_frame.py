@@ -1,6 +1,9 @@
-import customtkinter as ctk
 from tkinter import ttk
-from typing import List, Dict
+from typing import Dict, List
+
+import customtkinter as ctk
+
+from gui.utils.colors import Colors
 
 
 class SignalsFrame(ctk.CTkFrame):
@@ -68,8 +71,14 @@ class SignalsFrame(ctk.CTkFrame):
     def _configure_table_tags(self):
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Treeview", background="#2b2b2b", foreground="white", fieldbackground="#2b2b2b")
-        style.configure("Treeview.Heading", background="#1e1e1e", foreground="white")
+
+        # Theme-aware colors
+        bg_color = Colors.get_card_bg()
+        header_bg = Colors.get_header_bg()
+        text_color = Colors.get_text_primary()
+
+        style.configure("Treeview", background=bg_color, foreground=text_color, fieldbackground=bg_color)
+        style.configure("Treeview.Heading", background=header_bg, foreground=text_color)
 
     def update_signals(self, signals: List[Dict]):
         for item in self.table.get_children():

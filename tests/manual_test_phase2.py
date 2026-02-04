@@ -172,7 +172,7 @@ print("-" * 40)
 integrations = [
     ("DataService", "gui.utils.data_service"),
     ("ThreadingUtils", "gui.utils.threading_utils"),
-    ("OrderExecutor", "modules.auto_trade.order_executor"),
+    ("OrderExecutor", "modules.auto_trade.execution.order_executor"),
     ("SignalSelector", "modules.auto_trade.signal_selector"),
 ]
 
@@ -362,7 +362,7 @@ print("-" * 40)
 integrations = [
     ("DataService", "gui.utils.data_service"),
     ("ThreadingUtils", "gui.utils.threading_utils"),
-    ("OrderExecutor", "modules.auto_trade.order_executor"),
+    ("OrderExecutor", "modules.auto_trade.execution.order_executor"),
     ("SignalSelector", "modules.auto_trade.signal_selector"),
 ]
 

@@ -5,9 +5,9 @@ Tests thread-safe LRU cache with TTL expiration.
 """
 
 import time
+
+import atc_rust
 import pytest
-from typing import Dict, Set
-import sovereign_prime
 
 
 class TestScanCache:
@@ -16,23 +16,23 @@ class TestScanCache:
     def test_cache_creation(self):
         """Test cache creation with default and custom parameters."""
         # Default parameters
-        cache = sovereign_prime.ScanCache()
+        cache = atc_rust.ScanCache()
         assert cache.capacity() == 1000
         assert cache.len() == 0
 
         # Custom parameters
-        cache = sovereign_prime.ScanCache(capacity=500, ttl_seconds=30.0)
+        cache = atc_rust.ScanCache(capacity=500, ttl_seconds=30.0)
         assert cache.capacity() == 500
         assert cache.len() == 0
 
     def test_cache_creation_invalid_capacity(self):
         """Test that zero capacity raises error."""
         with pytest.raises(ValueError, match="Capacity must be > 0"):
-            sovereign_prime.ScanCache(capacity=0)
+            atc_rust.ScanCache(capacity=0)
 
     def test_cache_set_and_get(self):
         """Test basic set and get operations."""
-        cache = sovereign_prime.ScanCache(capacity=100, ttl_seconds=60.0)
+        cache = atc_rust.ScanCache(capacity=100, ttl_seconds=60.0)
 
         # Prepare data
         longs = {"BTC/USDT", "ETH/USDT"}
@@ -60,13 +60,13 @@ class TestScanCache:
 
     def test_cache_get_nonexistent(self):
         """Test getting non-existent key returns None."""
-        cache = sovereign_prime.ScanCache()
+        cache = atc_rust.ScanCache()
         result = cache.get("nonexistent_key")
         assert result is None
 
     def test_cache_contains(self):
         """Test contains method."""
-        cache = sovereign_prime.ScanCache(ttl_seconds=60.0)
+        cache = atc_rust.ScanCache(ttl_seconds=60.0)
 
         # Initially not present
         assert not cache.contains("test_key")
@@ -82,7 +82,7 @@ class TestScanCache:
 
     def test_cache_ttl_expiration(self):
         """Test that entries expire after TTL."""
-        cache = sovereign_prime.ScanCache(ttl_seconds=1.0)  # 1 second TTL
+        cache = atc_rust.ScanCache(ttl_seconds=1.0)  # 1 second TTL
 
         # Add entry
         cache.set("test_key", {"BTC/USDT"}, set(), {"BTC/USDT": 0.8})
@@ -102,7 +102,7 @@ class TestScanCache:
 
     def test_cache_clear(self):
         """Test clearing all cache entries."""
-        cache = sovereign_prime.ScanCache()
+        cache = atc_rust.ScanCache()
 
         # Add multiple entries
         for i in range(5):
@@ -120,7 +120,7 @@ class TestScanCache:
 
     def test_cache_lru_eviction(self):
         """Test LRU eviction when capacity is exceeded."""
-        cache = sovereign_prime.ScanCache(capacity=3, ttl_seconds=60.0)
+        cache = atc_rust.ScanCache(capacity=3, ttl_seconds=60.0)
 
         # Add 3 entries (fill capacity)
         cache.set("key_1", {"SYM_1"}, set(), {"SYM_1": 0.8})
@@ -142,7 +142,7 @@ class TestScanCache:
 
     def test_cache_remove_expired(self):
         """Test manual removal of expired entries."""
-        cache = sovereign_prime.ScanCache(ttl_seconds=1.0)
+        cache = atc_rust.ScanCache(ttl_seconds=1.0)
 
         # Add entries
         cache.set("key_1", {"SYM_1"}, set(), {"SYM_1": 0.8})
@@ -160,7 +160,7 @@ class TestScanCache:
 
     def test_cache_mixed_expiration(self):
         """Test with some expired and some valid entries."""
-        cache = sovereign_prime.ScanCache(ttl_seconds=2.0)
+        cache = atc_rust.ScanCache(ttl_seconds=2.0)
 
         # Add initial entries
         cache.set("old_1", {"SYM_1"}, set(), {"SYM_1": 0.8})
@@ -191,7 +191,7 @@ class TestScanCache:
 
     def test_cache_repr(self):
         """Test string representation."""
-        cache = sovereign_prime.ScanCache(capacity=100, ttl_seconds=60.0)
+        cache = atc_rust.ScanCache(capacity=100, ttl_seconds=60.0)
         repr_str = repr(cache)
 
         assert "ScanCache" in repr_str
@@ -205,7 +205,7 @@ class TestScanCache:
 
     def test_cache_empty_collections(self):
         """Test caching with empty longs/shorts."""
-        cache = sovereign_prime.ScanCache()
+        cache = atc_rust.ScanCache()
 
         # Empty longs and shorts
         cache.set("key_1", set(), set(), {})
@@ -218,7 +218,7 @@ class TestScanCache:
 
     def test_cache_large_dataset(self):
         """Test cache with larger dataset."""
-        cache = sovereign_prime.ScanCache(capacity=1000, ttl_seconds=60.0)
+        cache = atc_rust.ScanCache(capacity=1000, ttl_seconds=60.0)
 
         # Add 100 entries
         for i in range(100):
@@ -242,7 +242,7 @@ class TestScanCache:
 
     def test_cache_update_existing_key(self):
         """Test updating an existing cache key."""
-        cache = sovereign_prime.ScanCache()
+        cache = atc_rust.ScanCache()
 
         # Initial entry
         cache.set("key_1", {"BTC/USDT"}, set(), {"BTC/USDT": 0.8})
@@ -267,7 +267,7 @@ class TestScanCacheThreadSafety:
         """Test concurrent read/write access."""
         import threading
 
-        cache = sovereign_prime.ScanCache(capacity=1000, ttl_seconds=60.0)
+        cache = atc_rust.ScanCache(capacity=1000, ttl_seconds=60.0)
         errors = []
 
         def writer(thread_id: int):

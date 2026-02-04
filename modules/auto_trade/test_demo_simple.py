@@ -46,6 +46,8 @@ def test_demo_connection():
             'enableRateLimit': True,
             'options': {
                 'defaultType': 'future',  # Sử dụng futures
+                'adjustForTimeDifference': True,  # Auto-sync time with server
+                'recvWindow': 60000,  # 60 seconds tolerance for timestamp
             }
         })
 
