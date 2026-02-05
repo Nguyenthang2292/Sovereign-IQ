@@ -197,3 +197,33 @@ class DataFetcher(DataFetcherBase):
             or (None, None) if data cannot be fetched
         """
         return self._ohlcv.fetch_ohlcv_with_fallback_exchange(symbol, limit, timeframe, check_freshness, exchanges)
+
+    def fetch_ohlcv(
+        self,
+        symbol,
+        timeframe="1h",
+        limit=1500,
+        check_freshness=False,
+        exchanges=None,
+    ):
+        """
+        Fetches OHLCV data (convenience wrapper that returns only the DataFrame).
+
+        Callers that need only the DataFrame (e.g. XGBoost filter, backtest) can use
+        this instead of fetch_ohlcv_with_fallback_exchange.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USDT')
+            timeframe: Timeframe string (e.g., '1h', '1d')
+            limit: Number of candles to fetch
+            check_freshness: If True, checks data freshness (default: False)
+            exchanges: Optional list of exchange IDs to try
+
+        Returns:
+            pd.DataFrame with OHLCV data, or None if fetch failed
+        """
+        df, _ = self.fetch_ohlcv_with_fallback_exchange(
+            symbol, limit=limit, timeframe=timeframe,
+            check_freshness=check_freshness, exchanges=exchanges
+        )
+        return df

@@ -21,14 +21,12 @@ from config import (
     MODEL_FEATURES,
     TARGET_HORIZON,
     TARGET_LABELS,
+    USE_GPU,
     XGBOOST_MIN_TRAIN_FRACTION,
     XGBOOST_PARAMS,
     XGBOOST_TRAIN_TEST_SPLIT,
     XGBOOST_USE_FLOAT32,
     XGBOOST_USE_PARALLEL_CV,
-)
-from config import (
-    USE_GPU,
 )
 from modules.common.utils import (
     log_data,
@@ -40,6 +38,36 @@ from modules.xgboost_LTS.utils.cache_manager import CacheManager
 from modules.xgboost_LTS.utils.cv_parallel import run_parallel_cv
 from modules.xgboost_LTS.utils.display import print_classification_report
 from modules.xgboost_LTS.utils.gpu_utils import detect_cuda_available
+
+# Optional CuPy for GPU prediction (avoids "input data is on cpu" warning when model is on cuda)
+try:
+    import cupy as cp  # noqa: F401
+
+    _CUPY_AVAILABLE = True
+except ImportError:
+    cp = None
+    _CUPY_AVAILABLE = False
+
+
+def _use_gpu_for_predict() -> bool:
+    """True when model may be on GPU and we should move input to GPU for predict/predict_proba."""
+    return bool(USE_GPU and detect_cuda_available() and _CUPY_AVAILABLE)
+
+
+def _to_gpu(X: Union[np.ndarray, pd.DataFrame]) -> Any:
+    """Move array/DataFrame to GPU (CuPy) when USE_GPU and CuPy available; else return X unchanged."""
+    if not _use_gpu_for_predict() or cp is None:
+        return X
+    if isinstance(X, pd.DataFrame):
+        return cp.asarray(X.values, dtype=cp.float32)
+    return cp.asarray(X, dtype=cp.float32)
+
+
+def _ensure_numpy(a: Any) -> np.ndarray:
+    """Convert CuPy array back to numpy; leave numpy/other unchanged."""
+    if cp is not None and hasattr(a, "device"):
+        return cp.asnumpy(a)  # type: ignore[union-attr]
+    return np.asarray(a)
 
 
 class ClassDiversityError(ValueError):
@@ -299,8 +327,10 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
         raise
 
     if len(X_test) > 0:
-        y_pred = model.predict(X_test)
-        score = model.score(X_test, y_test)
+        X_test_in = _to_gpu(X_test)
+        y_pred = model.predict(X_test_in)
+        y_pred = _ensure_numpy(y_pred)
+        score = float((y_pred == np.asarray(y_test)).mean())
         log_model(f"Holdout Accuracy: {score:.4f}")
         print_classification_report(y_test, y_pred, "Holdout Test Set Evaluation")
     else:
@@ -380,7 +410,9 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
 
                 if len(test_idx_filtered) > 0:
                     y_test_fold = y.iloc[test_idx_filtered]
-                    preds = cv_model.predict(X.iloc[test_idx_filtered])
+                    X_fold_test = _to_gpu(X.iloc[test_idx_filtered])
+                    preds = cv_model.predict(X_fold_test)
+                    preds = _ensure_numpy(preds)
                     acc = accuracy_score(y_test_fold, preds)
                     cv_scores.append(acc)
 
@@ -448,11 +480,11 @@ def predict_next_move(model: Any, last_row: Union[pd.Series, pd.DataFrame]) -> n
     Raises:
         ValueError: If required features are missing or contain invalid values
     """
-    # Validate input features
+    # Validate input features (ensure str for set difference; Index may be typed as int)
     if isinstance(last_row, pd.Series):
-        available_features = set(last_row.index)
+        available_features = {str(x) for x in last_row.index}
     else:
-        available_features = set(last_row.columns)
+        available_features = {str(x) for x in last_row.columns}
 
     missing_features = set(MODEL_FEATURES) - available_features
     if missing_features:
@@ -472,8 +504,10 @@ def predict_next_move(model: Any, last_row: Union[pd.Series, pd.DataFrame]) -> n
     if isinstance(X_new, pd.Series):
         X_new = X_new.to_frame().T
 
-    # Get probability distribution for all classes
-    proba = model.predict_proba(X_new)[0]
+    # Get probability distribution for all classes (move to GPU if model is on cuda)
+    X_in = _to_gpu(X_new)
+    proba = model.predict_proba(X_in)[0]
+    proba = _ensure_numpy(proba)
 
     # Handle case where model was trained with fewer than 3 classes
     # Pad with zeros to ensure consistent shape (3 classes expected)

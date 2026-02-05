@@ -63,6 +63,17 @@ class Colors:
         """Get secondary text color for current theme"""
         return cls.TEXT_SECONDARY_DARK if cls.is_dark_mode() else cls.TEXT_SECONDARY_LIGHT
 
+    @classmethod
+    def get_hover_bg(cls) -> str:
+        """Get hover/section background color for current theme"""
+        # Slightly lighter than card background for visual separation
+        return "#333333" if cls.is_dark_mode() else "#f8f8f8"
+
+    @classmethod
+    def get_accent(cls) -> str:
+        """Get accent color for headers and highlights"""
+        return "#4488ff"  # Blue accent color that works in both themes
+
     # Legacy properties for backward compatibility
     @property
     def BG_CARD(self) -> str:

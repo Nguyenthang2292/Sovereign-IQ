@@ -25,12 +25,14 @@ Usage:
 """
 
 import hashlib
+import warnings
 from pathlib import Path
 from time import time
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 import joblib
 import numpy as np
+import xgboost as xgb
 
 from config import XGBOOST_FILTER_DEFAULTS
 from modules.auto_trade.core.atc_scanner import SignalResult
@@ -219,23 +221,44 @@ class XGBoostFilter:
 
     def _load_model(self) -> Optional[Any]:
         """Load and validate the XGBoost model from disk.
+        Prefers native format (.json/.ubj); falls back to .joblib (legacy).
 
         Returns:
             Loaded XGBoost model or None if loading/validation fails
         """
         path = Path(self.model_path)
-        if not path.exists():
+        # Allow loading native format when .json exists alongside .joblib path
+        path_native = path.with_suffix(".json") if path.suffix.lower() == ".joblib" else path
+        if not path.exists() and not path_native.exists():
             log_error(f"XGBoost model not found at {path}")
             return None
 
-        # Validate model integrity
-        if not self._validate_model_integrity(path):
+        # Validate model integrity (use the path we will load from)
+        check_path = path_native if path_native.exists() else path
+        if not self._validate_model_integrity(check_path):
             log_error("Model integrity check failed - refusing to load")
             return None
 
         try:
-            log_info(f"Loading XGBoost model from {path}...")
-            model = joblib.load(path)
+            # Prefer native format (no pickle/joblib compatibility warning)
+            if path_native.exists():
+                log_info(f"Loading XGBoost model from {path_native} (native format)...")
+                model = xgb.XGBClassifier()
+                model.load_model(str(path_native))
+            else:
+                log_info(f"Loading XGBoost model from {path}...")
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=".*serialized model.*older version.*",
+                        category=UserWarning,
+                    )
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=".*Booster.save_model.*",
+                        category=UserWarning,
+                    )
+                model = joblib.load(path)
 
             # Validate it's a proper classifier model
             if not hasattr(model, "predict_proba"):
@@ -363,6 +386,7 @@ class XGBoostFilter:
                             score=signal.score,
                             signal_type=signal.signal_type,
                             details=new_details,
+                            strengths=signal.strengths,
                         )
                     )
                 else:
@@ -393,6 +417,7 @@ class XGBoostFilter:
                             score=0.0,
                             signal_type="NEUTRAL",
                             details=new_details,
+                            strengths=signal.strengths,
                         )
                     )
                 # else: "drop" - do nothing (current behavior)

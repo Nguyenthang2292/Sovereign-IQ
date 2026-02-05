@@ -5,7 +5,7 @@ import logging.handlers
 import queue
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import customtkinter as ctk
 
@@ -68,6 +68,12 @@ class AutoTradeDashboard(ctk.CTk):
         self.settings_handler = SettingsHandler(self)
         self.scanner_manager = ScannerManager(self)
         self.position_action_handler = PositionActionHandler(self)
+
+        # Layout-assigned components (declared for type checker)
+        self.config_panel: Any = None
+        self.scanner_control: Any = None
+        self.auto_trade_control: Any = None
+        self.signals_frame: Any = None
 
         # Create UI and start services
         self.layout_manager.create_layout()
@@ -231,6 +237,24 @@ class AutoTradeDashboard(ctk.CTk):
         """Refresh all component colors when theme changes."""
         self.settings_handler.refresh_theme_colors()
 
+    def _get_current_status(self):
+        """Build status dict for Current Settings (database, api_mode, api_connection)."""
+        status = {"api_mode": getattr(self, "mode", "DRY_RUN")}
+        try:
+            from modules.auto_trade.database import get_database_stats
+            get_database_stats()
+            status["database"] = "OK"
+        except Exception:
+            status["database"] = "Error"
+        ws = getattr(self, "ws_data_service", None)
+        if ws is None or status["api_mode"] == "DRY_RUN":
+            status["api_connection"] = "N/A" if status["api_mode"] == "DRY_RUN" else "—"
+        elif hasattr(ws, "is_connected") and ws.is_connected():
+            status["api_connection"] = "Connected"
+        else:
+            status["api_connection"] = "Disconnected"
+        return status
+
     def on_scan_toggle(self, action):
         """Handle scanner start/stop from ScannerControl."""
         self.scanner_manager.handle_scan_toggle(action)
@@ -238,6 +262,60 @@ class AutoTradeDashboard(ctk.CTk):
     def on_scanner_config_change(self, config: dict):
         """Handle scanner configuration change."""
         self.scanner_manager.handle_config_change(config)
+
+    def on_apply_settings(self):
+        """Overwrite settings_manager from form (risk, filters, tp_sl, api, recovery) then save and apply."""
+        try:
+            if not hasattr(self, "config_panel"):
+                return
+            current = self.config_panel.get_settings()
+            # Overwrite settings_manager with form values (ghi đè từ Apply Settings)
+            for key in ("risk", "filters", "tp_sl", "api"):
+                if key in current:
+                    self.settings_manager.settings[key] = current[key]
+            # Gradual Recovery: set current Settings panel config as default for Trading tab
+            if hasattr(self.config_panel, "recovery_panel"):
+                raw = self.config_panel.recovery_panel.get_config()
+                try:
+                    eb = raw.get("enable_streak_bonus", False)
+                    self.settings_manager.settings["recovery"] = {
+                        "initial_loss": float(raw.get("initial_loss", 500)),
+                        "target_profit_per_trade": float(raw.get("target_profit_per_trade", 5)),
+                        "max_recovery_trades": int(raw.get("max_recovery_trades", 20)),
+                        "margin_scaling_mode": str(raw.get("margin_scaling_mode", "fixed")),
+                        "leverage_scaling_mode": str(raw.get("leverage_scaling_mode", "fixed")),
+                        "min_leverage": int(raw.get("min_leverage", 2)),
+                        "max_leverage": int(raw.get("max_leverage", 10)),
+                        "enable_streak_bonus": (
+                            eb if isinstance(eb, bool) else str(eb).lower() in ("true", "1", "yes")
+                        ),
+                    }
+                except (TypeError, ValueError):
+                    pass
+            self.settings_manager.save()
+
+            # Refresh Trading tab Current Settings so they reflect applied values
+            if hasattr(self, "auto_trade_control") and hasattr(self.auto_trade_control, "update_from_settings"):
+                self.auto_trade_control.update_from_settings(
+                    self.settings_manager.settings, status=self._get_current_status()
+                )
+
+            # Scanner: reset pipeline so next scan uses new filters (atc_threshold, etc.)
+            if hasattr(self, "scanner_manager"):
+                self.scanner_manager._pipeline_initialized = False
+                self.scanner_manager.pipeline = None
+
+            if hasattr(self, "status_label"):
+                self.status_label.configure(
+                    text="Settings applied (Scanner, Trading, Gradual Recovery default)."
+                )
+            logging.info(
+                "Settings applied: Scanner, Trading, Gradual Recovery default (settings_manager overwritten)"
+            )
+        except Exception as e:
+            logging.error(f"Error applying settings: {e}")
+            if hasattr(self, "status_label"):
+                self.status_label.configure(text=f"Apply failed: {e}")
 
     def on_recovery_config_change(self, event_type: str, data):
         """Handle recovery configuration change."""

@@ -9,7 +9,7 @@ SIGNAL_SELECTOR_DEFAULTS = {
 }
 
 XGBOOST_FILTER_DEFAULTS = {
-    "min_confidence": 0.6,
+    "min_confidence": 0.3,
     "history_limit": 1500,
     "prediction_timeframe": "5m",
     "on_error": "drop",

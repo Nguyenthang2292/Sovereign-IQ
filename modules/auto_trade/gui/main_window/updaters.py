@@ -56,23 +56,42 @@ class UpdaterManager:
             pass
         self.parent.after(100, self._drain_update_queue)
 
+    MAX_LOG_LINES = 500
+
     def _drain_log_queue(self):
-        """Process log messages from log_queue and display in logs_viewer."""
+        """Process log messages from log_queue and display in logs_viewer or logs_textbox."""
         try:
-            if hasattr(self.parent, "logs_viewer") and hasattr(self.parent, "log_queue"):
-                while not self.parent.log_queue.empty():
-                    try:
-                        log_record = self.parent.log_queue.get_nowait()
-                        # Format log message
-                        log_msg = f"[{log_record.levelname}] {log_record.getMessage()}"
+            if not hasattr(self.parent, "log_queue"):
+                self.parent.after(100, self._drain_log_queue)
+                return
+            while not self.parent.log_queue.empty():
+                try:
+                    log_record = self.parent.log_queue.get_nowait()
+                    log_msg = f"[{log_record.levelname}] {log_record.getMessage()}"
+                    if hasattr(self.parent, "logs_viewer"):
                         self.parent.logs_viewer.append_log(log_msg)
-                    except queue.Empty:
-                        break
+                    elif hasattr(self.parent, "logs_textbox"):
+                        self._append_log_to_textbox(log_msg)
+                except queue.Empty:
+                    break
         except Exception as e:
             print(f"Error draining log queue: {e}")
 
-        # Schedule next check
         self.parent.after(100, self._drain_log_queue)
+
+    def _append_log_to_textbox(self, log_message: str):
+        """Append log to parent.logs_textbox (used when layout has no LogsViewer)."""
+        try:
+            tb = self.parent.logs_textbox
+            tb.configure(state="normal")
+            tb.insert("end", log_message + "\n")
+            lines = int(tb.index("end-1c").split(".")[0])
+            if lines > self.MAX_LOG_LINES:
+                tb.delete("1.0", f"{lines - self.MAX_LOG_LINES}.0")
+            tb.see("end")
+            tb.configure(state="disabled")
+        except Exception as e:
+            print(f"Error appending log to textbox: {e}")
 
     def stop_all(self):
         """Stop all periodic updaters."""

@@ -21,6 +21,7 @@ class SettingsManager:
         "filters": {
             "min_signal_score": 0.7,
             "enable_xgboost": True,
+            "atc_threshold": 0.6,
             "symbol_whitelist": "BTC/USDT\nETH/USDT\nSOL/USDT",
             "min_volume": 50.0,
             "timeframe": "1h",
@@ -32,6 +33,7 @@ class SettingsManager:
             "timeframe": "1h",
             "symbol_list": "Top 20",
             "auto_start": True,
+            "retrain_xgboost": False,
             "running": False,
         },
         "ui": {
@@ -41,6 +43,16 @@ class SettingsManager:
             "last_active_tab": "Dashboard",
             "column_visibility": {},
             "widget_order": {},
+        },
+        "recovery": {
+            "initial_loss": 500.0,
+            "target_profit_per_trade": 5.0,
+            "max_recovery_trades": 20,
+            "margin_scaling_mode": "fixed",
+            "leverage_scaling_mode": "fixed",
+            "min_leverage": 2,
+            "max_leverage": 10,
+            "enable_streak_bonus": False,
         },
     }
 

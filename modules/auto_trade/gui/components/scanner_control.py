@@ -169,6 +169,16 @@ class ScannerControl(ctk.CTkFrame):
         )
         auto_scan_checkbox.grid(row=4, column=0, columnspan=2, sticky="w", pady=5)
 
+        # Retrain XGBoost before scan
+        self.retrain_xgboost_var = ctk.BooleanVar(value=False)
+        retrain_xgboost_checkbox = ctk.CTkCheckBox(
+            inputs_frame,
+            text="Retrain XGBoost before scan",
+            variable=self.retrain_xgboost_var,
+            command=self._on_config_change,
+        )
+        retrain_xgboost_checkbox.grid(row=5, column=0, columnspan=2, sticky="w", pady=5)
+
         # Configure grid columns - column 0 for labels needs minimum width
         inputs_frame.grid_columnconfigure(0, weight=0, minsize=140)
         inputs_frame.grid_columnconfigure(1, weight=1)
@@ -333,6 +343,7 @@ class ScannerControl(ctk.CTkFrame):
             "sampling_strategy": self.sampling_strategy_var.get(),
             "sample_percentage": float(self.sample_percentage_entry.get()),
             "auto_start": self.auto_scan_startup_var.get(),
+            "retrain_xgboost": self.retrain_xgboost_var.get(),
             "running": self.scanner_running,
         }
 
@@ -345,6 +356,7 @@ class ScannerControl(ctk.CTkFrame):
         self.sample_percentage_entry.delete(0, "end")
         self.sample_percentage_entry.insert(0, str(config.get("sample_percentage", 20)))
         self.auto_scan_startup_var.set(config.get("auto_start", True))
+        self.retrain_xgboost_var.set(config.get("retrain_xgboost", False))
 
         # Update settings display
         self.setting_interval.configure(text=f"{config.get('scan_interval', 5)} min")

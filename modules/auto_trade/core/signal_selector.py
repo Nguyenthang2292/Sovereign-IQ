@@ -115,16 +115,28 @@ class SignalSelector:
         for signal in xgboost_signals:
             symbol = signal.symbol
             gemini_data = gemini_signals.get(symbol)
+            if gemini_data is None:
+                log_info(f"Signal Selector: {symbol} has no Gemini result; skipping.")
 
             # If no Gemini data, we might skip or rely solely on XGBoost based on policy.
             # Current policy: Require at least XGBoost confirmation, boost with Gemini.
 
             final_signal = self._evaluate_candidate(signal, gemini_data)
-            if final_signal and final_signal.confidence >= self.min_confidence_threshold:
-                candidates.append(final_signal)
+            if final_signal is None:
+                continue  # _evaluate_candidate already logged reason (conflict, missing levels, validation)
+            if final_signal.confidence < self.min_confidence_threshold:
+                log_info(
+                    f"Signal Selector: {symbol} rejected — confidence {final_signal.confidence:.2f} "
+                    f"below threshold {self.min_confidence_threshold}."
+                )
+                continue
+            candidates.append(final_signal)
 
         if not candidates:
-            log_info("Signal Selector: No candidates met the criteria.")
+            log_info(
+                "Signal Selector: No candidates met the criteria "
+                "(missing Gemini price levels, conflict, confidence < threshold, or validation failed)."
+            )
             return None
 
         # Sort by confidence descending
@@ -203,9 +215,10 @@ class SignalSelector:
         # Safety check for Price Levels
         # Strict Validation Phase: If levels are 0, we cannot create a valid FinalSignal.
         if entry == 0.0 or tp == 0.0 or sl == 0.0:
-            log_warn("Gemini analysis required for accurate levels.")
-            # If we allow missing Gemini levels (via config), we could theoretically calculate fallbacks here.
-            # But currently, 'require_gemini_levels' defaults to True, enforcing this check.
+            log_warn(
+                f"Signal Selector: {xb_signal.symbol} rejected — Gemini analysis required for accurate levels "
+                f"(entry={entry}, stop_loss={sl}, take_profit={tp})."
+            )
             return None
 
         try:

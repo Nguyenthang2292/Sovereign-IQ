@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 if TYPE_CHECKING:
     from .main_window import AutoTradeDashboard
@@ -79,8 +79,9 @@ class ScannerManager:
         self._manual_scan_running = True
 
         # Update UI to show scanning
-        if hasattr(self.parent, "scanner_control"):
-            self.parent.scanner_control.progress_label.configure(text="Scanning...")
+        scanner_control = getattr(self.parent, "scanner_control", None)
+        if scanner_control is not None:
+            scanner_control.progress_label.configure(text="Scanning...")
 
         # Run in background thread
         def run_scan():
@@ -91,24 +92,20 @@ class ScannerManager:
                 self._manual_scan_running = False
 
                 # Update timestamp on main thread
-                self.parent.after(
-                    0,
-                    lambda: (
-                        self.parent.scanner_control.update_last_scan_time()
-                        if hasattr(self.parent, "scanner_control")
-                        else None
-                    ),
-                )
+                def _update_ui_after_scan():
+                    ctrl = getattr(self.parent, "scanner_control", None)
+                    if ctrl is not None:
+                        ctrl.update_last_scan_time()
+
+                self.parent.after(0, _update_ui_after_scan)
 
                 # Clear progress after 2 seconds
-                self.parent.after(
-                    2000,
-                    lambda: (
-                        self.parent.scanner_control.progress_label.configure(text="")
-                        if hasattr(self.parent, "scanner_control")
-                        else None
-                    ),
-                )
+                def _clear_progress():
+                    ctrl = getattr(self.parent, "scanner_control", None)
+                    if ctrl is not None:
+                        ctrl.progress_label.configure(text="")
+
+                self.parent.after(2000, _clear_progress)
 
         scan_thread = threading.Thread(target=run_scan, daemon=True, name="ManualScan")
         scan_thread.start()
@@ -122,13 +119,13 @@ class ScannerManager:
             logger.info("Initializing SignalPipeline...")
 
             from config import ATC_SCANNER_DEFAULTS, SIGNAL_SELECTOR_DEFAULTS, XGBOOST_FILTER_DEFAULTS
-            from modules.auto_trade.core.atc_scanner import ATCScanner
+            from modules.auto_trade.core.atc_scanner import ATCScanner, ATCScannerConfig
             from modules.auto_trade.core.gemini_integration import GeminiIntegration
             from modules.auto_trade.core.persistence_sqlite import SignalPersistenceSQLite
             from modules.auto_trade.core.signal_pipeline import SignalPipeline
             from modules.auto_trade.core.signal_selector import SignalSelector
             from modules.auto_trade.core.symbol_manager import SymbolManager
-            from modules.auto_trade.core.xgboost_filter import XGBoostFilter
+            from modules.auto_trade.core.xgboost_filter import XGBoostFilter, XGBoostFilterConfig
 
             # Get scanner config from settings
             scanner_config = self.parent.settings_manager.get("scanner", {})
@@ -150,18 +147,20 @@ class ScannerManager:
             )
             logger.info(f"SymbolManager ready (sample: {sample_percentage}%, strategy: {sampling_strategy})")
 
-            # 2. ATC Scanner - adjust config based on GUI settings
+            # 2. ATC Scanner - threshold from Signal Filters tab
             atc_config = ATC_SCANNER_DEFAULTS.copy()
-            # Lower threshold for more signals during testing
-            atc_config["threshold"] = 0.1
-            atc_scanner = ATCScanner(data_fetcher=data_fetcher, config=atc_config)
+            filters = self.parent.settings_manager.get("filters", {})
+            atc_config["threshold"] = float(filters.get("atc_threshold", 0.6))
+            atc_scanner = ATCScanner(data_fetcher=data_fetcher, config=cast(ATCScannerConfig, atc_config))
             logger.info(f"ATCScanner ready (timeframes: {atc_config['timeframes']})")
 
             # 3. XGBoost Filter
             model_path = self._find_xgboost_model()
             if model_path:
                 xgboost_filter = XGBoostFilter(
-                    data_fetcher=data_fetcher, model_path=model_path, config=XGBOOST_FILTER_DEFAULTS
+                    data_fetcher=data_fetcher,
+                    model_path=model_path,
+                    config=cast(XGBoostFilterConfig, XGBOOST_FILTER_DEFAULTS),
                 )
                 logger.info(f"XGBoostFilter ready (model: {Path(model_path).name})")
             else:
@@ -189,7 +188,7 @@ class ScannerManager:
             self.pipeline = SignalPipeline(
                 symbol_manager=symbol_manager,
                 atc_scanner=atc_scanner,
-                xgboost_filter=xgboost_filter,
+                xgboost_filter=cast(XGBoostFilter, xgboost_filter),
                 gemini_integration=gemini_integration,
                 signal_selector=signal_selector,
                 signal_persistence=persistence,
@@ -215,24 +214,27 @@ class ScannerManager:
             return False
 
     def _find_xgboost_model(self) -> Optional[str]:
-        """Find the latest XGBoost model."""
-        # Check default location first
-        default_path = Path("models/xgboost_model.joblib")
-        if default_path.exists():
-            return str(default_path)
+        """Find the latest XGBoost model. Prefers native .json over legacy .joblib."""
+        # Check default locations (native first, then legacy)
+        for ext in (".json", ".joblib"):
+            default_path = Path(f"models/xgboost_model{ext}")
+            if default_path.exists():
+                return str(default_path)
 
-        # Check artifacts directory
+        # Check artifacts directory: prefer .json (native), then .joblib
         artifacts_dir = Path("artifacts/xgboost/models")
         if artifacts_dir.exists():
-            models = list(artifacts_dir.glob("*.joblib"))
-            if models:
-                latest_model = sorted(models, key=lambda p: p.stat().st_mtime, reverse=True)[0]
-                return str(latest_model)
+            for pattern in ("*.json", "*.joblib"):
+                models = list(artifacts_dir.glob(pattern))
+                if models:
+                    latest = sorted(models, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+                    return str(latest)
 
         # Check auto_trade data directory
-        auto_trade_model = Path("data/models/xgboost_model.joblib")
-        if auto_trade_model.exists():
-            return str(auto_trade_model)
+        for ext in (".json", ".joblib"):
+            auto_trade_model = Path(f"data/models/xgboost_model{ext}")
+            if auto_trade_model.exists():
+                return str(auto_trade_model)
 
         return None
 
@@ -251,6 +253,56 @@ class ScannerManager:
 
         return PassthroughXGBoostFilter()
 
+    def _run_xgboost_retrain(self):
+        """Retrain XGBoost model with fresh data, then reset pipeline so next scan uses new model."""
+        try:
+            data_fetcher = getattr(self.parent, "data_service", None)
+            if data_fetcher is None:
+                data_fetcher = self.parent.data_service
+            data_fetcher = data_fetcher.data_fetcher
+            if not data_fetcher:
+                logger.warning("Retrain XGBoost skipped: DataFetcher not available")
+                return
+
+            scanner_config = self.parent.settings_manager.get("scanner", {})
+            timeframe = scanner_config.get("timeframe", "1h")
+            limit = 600  # Enough for labeling + features
+
+            logger.info("Retraining XGBoost model (fetching data for BTC/USDT)...")
+            df = data_fetcher.fetch_ohlcv("BTC/USDT", timeframe=timeframe, limit=limit)
+            if df is None or df.empty or len(df) < 100:
+                logger.warning("Retrain XGBoost skipped: insufficient OHLCV data")
+                return
+
+            from modules.common.core.indicator_engine import (
+                IndicatorConfig,
+                IndicatorEngine,
+                IndicatorProfile,
+            )
+            from modules.xgboost_LTS.core.labeling import apply_directional_labels
+            from modules.xgboost_LTS.core.model import train_and_predict
+            from modules.xgboost_LTS.utils.features import add_advanced_features
+
+            indicator_engine = IndicatorEngine(
+                IndicatorConfig.for_profile(IndicatorProfile.XGBOOST)
+            )
+            result = indicator_engine.compute_features(df)
+            df = result[0] if isinstance(result, tuple) else result
+            df = add_advanced_features(df)
+            df = apply_directional_labels(df, use_cache=False)
+            df = df.dropna(subset=["Target"])
+            if df.empty or len(df) < 50:
+                logger.warning("Retrain XGBoost skipped: insufficient labeled samples")
+                return
+
+            train_and_predict(df, use_cache=False)
+            logger.info("XGBoost retrain completed; pipeline will load new model on next run")
+            self._pipeline_initialized = False
+            self.pipeline = None
+        except Exception as e:
+            logger.error(f"XGBoost retrain failed: {e}", exc_info=True)
+            # Do not reset pipeline so scan can still use existing model
+
     def _scanner_cycle(self):
         """Scanner cycle (runs in background thread)."""
         try:
@@ -264,6 +316,10 @@ class ScannerManager:
 
             # In PRODUCTION/DEMO mode, run the full SignalPipeline
             if self.parent.mode in ["PRODUCTION", "DEMO"]:
+                # Optionally retrain XGBoost before scan (then pipeline will load new model)
+                scanner_config = self.parent.settings_manager.get("scanner", {})
+                if scanner_config.get("retrain_xgboost", False):
+                    self._run_xgboost_retrain()
                 logger.info("Scanning market for new signals...")
                 new_signal = self._run_signal_scan()
                 if new_signal:
@@ -283,9 +339,8 @@ class ScannerManager:
             if signals:
                 logger.info("Top signals:")
                 for i, sig in enumerate(signals[:3]):
-                    logger.info(
-                        f"  {i + 1}. {sig.get('symbol', 'N/A')} - {sig.get('signal', 'N/A')} ({sig.get('score', 0):.2f})"
-                    )
+                    sym, sgn, sc = sig.get("symbol", "N/A"), sig.get("signal", "N/A"), sig.get("score", 0)
+                    logger.info(f"  {i + 1}. {sym} - {sgn} ({sc:.2f})")
             else:
                 logger.info("No signals found in database")
 
@@ -312,6 +367,7 @@ class ScannerManager:
                 logger.warning("Pipeline not available, reading from database only")
                 return None
 
+            assert self.pipeline is not None  # guaranteed after _initialize_pipeline() returns True
             # Run the pipeline
             logger.info("Running SignalPipeline...")
             final_signal = self.pipeline.run_pipeline()
@@ -332,28 +388,25 @@ class ScannerManager:
     def _save_signal_to_gui_db(self, signal):
         """Save signal to main GUI database for display."""
         try:
+            import uuid
+
             from modules.auto_trade.database import get_db_manager, save_signal
-            from datetime import datetime
 
             db_manager = get_db_manager()
             with db_manager.session_scope() as session:
-                # Convert FinalSignal to GUI database format
-                signal_data = {
-                    "symbol": signal.symbol,
-                    "signal_type": signal.signal_type,
-                    "confidence": signal.confidence,
-                    "atc_score": signal.sources.get("atc_score"),
-                    "xgboost_score": signal.sources.get("xgboost_score"),
-                    "gemini_score": signal.sources.get("gemini_score"),
-                    "final_score": signal.score / 100.0,  # Convert 0-100 to 0-1
-                    "entry_price": signal.entry_price,
-                    "stop_loss": signal.stop_loss,
-                    "take_profit": signal.take_profit,
-                    "leverage": signal.leverage,
-                    "market_context": signal.sources,
-                }
-
-                save_signal(session, signal_data)
+                correlation_id = f"scan-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
+                save_signal(
+                    session,
+                    correlation_id=correlation_id,
+                    symbol=signal.symbol,
+                    signal_type=signal.signal_type,
+                    confidence=signal.confidence,
+                    atc_score=signal.sources.get("atc_score"),
+                    xgboost_score=signal.sources.get("xgboost_score"),
+                    gemini_score=signal.sources.get("gemini_score"),
+                    final_score=signal.score / 100.0,
+                    market_context=str(signal.sources) if signal.sources else None,
+                )
                 logger.info("Signal saved to GUI database")
 
         except Exception as e:

@@ -23,21 +23,71 @@ class LogsViewer(ctk.CTkFrame):
             parent: Parent widget
             log_file_path: Path to log file
         """
-        super().__init__(parent)
+        super().__init__(parent, fg_color="transparent")
 
         self.log_file_path = Path(log_file_path)
 
         self._create_ui()
 
     def _create_ui(self):
-        """Create simple UI."""
-        # Title
-        title = ctk.CTkLabel(self, text="System Logs", font=("Arial", 16, "bold"))
-        title.pack(pady=(20, 10))
+        """
+        Create simple UI layout.
 
-        # Info text
+        Live Stream left = Scanner Configuration width (1/2),
+        System Logs right = Current Settings (1/2).
+        """
+        from gui.utils.colors import Colors
+
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        # Add padding wrapper to match ScannerControl's layout
+        wrapper = ctk.CTkFrame(self, fg_color="transparent")
+        wrapper.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=15, pady=10)
+        wrapper.grid_columnconfigure(0, weight=1)
+        wrapper.grid_columnconfigure(1, weight=1)
+        wrapper.grid_rowconfigure(0, weight=1)
+
+        # Left: Live Stream Logs (square box area)
+        left_frame = ctk.CTkFrame(wrapper, fg_color="transparent")
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        left_frame.grid_columnconfigure(0, weight=1)
+        left_frame.grid_rowconfigure(1, weight=1)
+
+        logs_label = ctk.CTkLabel(
+            left_frame,
+            text="📡 Live Stream Logs:",
+            font=("Arial", 12, "bold"),
+            anchor="w",
+        )
+        logs_label.grid(row=0, column=0, sticky="w", pady=(0, 5))
+
+        self.logs_textbox = ctk.CTkTextbox(
+            left_frame,
+            font=("Consolas", 10),
+            wrap="word",
+        )
+        self.logs_textbox.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
+
+        # Right: System Logs block (~1/3, aligned with Current Settings)
+        system_logs_box = ctk.CTkFrame(
+            wrapper,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=10,
+            border_width=1,
+            border_color="#404040",
+        )
+        system_logs_box.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+
+        inner = ctk.CTkFrame(system_logs_box, fg_color="transparent")
+        inner.pack(fill="x", padx=15, pady=15)
+
+        title = ctk.CTkLabel(inner, text="System Logs", font=("Arial", 16, "bold"))
+        title.pack(pady=(0, 10))
+
         info = ctk.CTkLabel(
-            self,
+            inner,
             text=f"Logs are saved to:\n{self.log_file_path}",
             font=("Arial", 11),
             text_color="gray",
@@ -45,67 +95,45 @@ class LogsViewer(ctk.CTkFrame):
         )
         info.pack(pady=10)
 
-        # Button frame
-        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        # Stack buttons vertically for compact layout
+        btn_frame = ctk.CTkFrame(inner, fg_color="transparent")
         btn_frame.pack(pady=20)
 
-        # Open log file button
         open_btn = ctk.CTkButton(
             btn_frame,
             text="Open Log File",
-            width=150,
+            width=160,
             command=self._open_log_file,
         )
-        open_btn.pack(side="left", padx=5)
+        open_btn.pack(pady=(0, 8))
 
-        # Open folder button
         folder_btn = ctk.CTkButton(
             btn_frame,
             text="Open Folder",
-            width=150,
+            width=160,
             fg_color="#555555",
             hover_color="#666666",
             command=self._open_log_folder,
         )
-        folder_btn.pack(side="left", padx=5)
+        folder_btn.pack(pady=8)
 
-        # Clear logs button
         clear_btn = ctk.CTkButton(
             btn_frame,
             text="🗑️ Clear Logs",
-            width=150,
+            width=160,
             fg_color="#ff6644",
             hover_color="#cc4422",
             command=self.clear_logs,
         )
-        clear_btn.pack(side="left", padx=5)
+        clear_btn.pack(pady=(8, 0))
 
-        # Status label
         self.status_label = ctk.CTkLabel(
-            self,
+            inner,
             text="Click 'Open Log File' to view logs in your text editor",
             font=("Arial", 10),
             text_color="gray",
         )
         self.status_label.pack(pady=10)
-
-        # Live Logs Display
-        logs_label = ctk.CTkLabel(
-            self,
-            text="📡 Live Stream Logs:",
-            font=("Arial", 12, "bold"),
-            anchor="w",
-        )
-        logs_label.pack(fill="x", padx=20, pady=(10, 5))
-
-        # Scrollable text area for logs
-        self.logs_textbox = ctk.CTkTextbox(
-            self,
-            height=200,
-            font=("Consolas", 10),
-            wrap="word",
-        )
-        self.logs_textbox.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
         # Insert initial message
         self.logs_textbox.insert("1.0", "🟢 Log stream ready. Waiting for logs...\n")

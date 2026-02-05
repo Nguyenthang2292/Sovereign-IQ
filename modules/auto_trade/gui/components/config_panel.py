@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 import customtkinter as ctk
 
@@ -12,9 +12,9 @@ class ConfigPanel(ctk.CTkFrame):
     def __init__(
         self,
         parent,
-        on_settings_change: Callable = None,
+        on_settings_change: Optional[Callable] = None,
         mode: str = "DRY_RUN",
-        on_recovery_config_change: Callable = None,
+        on_recovery_config_change: Optional[Callable] = None,
     ):
         super().__init__(parent)
 
@@ -65,24 +65,24 @@ class ConfigPanel(ctk.CTkFrame):
         label = ctk.CTkLabel(risk_frame, text="Max Position Size ($):", font=("Arial", 12))
         label.pack(anchor="w", pady=(5, 2))
 
-        self.max_pos_size_entry = ctk.CTkEntry(risk_frame, placeholder_text="100.00", width=220)
-        self.max_pos_size_entry.pack(anchor="w", pady=(2, 8))
+        self.max_pos_size_entry = ctk.CTkEntry(risk_frame, placeholder_text="100.00")
+        self.max_pos_size_entry.pack(fill="x", pady=(2, 8))
         self.max_pos_size_entry.insert(0, "100.00")
 
         # Max open positions
         label = ctk.CTkLabel(risk_frame, text="Max Open Positions:", font=("Arial", 12))
         label.pack(anchor="w", pady=(5, 2))
 
-        self.max_positions_entry = ctk.CTkEntry(risk_frame, placeholder_text="3", width=220)
-        self.max_positions_entry.pack(anchor="w", pady=(2, 8))
+        self.max_positions_entry = ctk.CTkEntry(risk_frame, placeholder_text="3")
+        self.max_positions_entry.pack(fill="x", pady=(2, 8))
         self.max_positions_entry.insert(0, "3")
 
         # Max daily loss
         label = ctk.CTkLabel(risk_frame, text="Max Daily Loss ($):", font=("Arial", 12))
         label.pack(anchor="w", pady=(5, 2))
 
-        self.max_daily_loss_entry = ctk.CTkEntry(risk_frame, placeholder_text="50.00", width=220)
-        self.max_daily_loss_entry.pack(anchor="w", pady=(2, 8))
+        self.max_daily_loss_entry = ctk.CTkEntry(risk_frame, placeholder_text="50.00")
+        self.max_daily_loss_entry.pack(fill="x", pady=(2, 8))
         self.max_daily_loss_entry.insert(0, "50.00")
 
         # Default leverage
@@ -94,9 +94,8 @@ class ConfigPanel(ctk.CTkFrame):
             risk_frame,
             values=["1x", "2x", "3x", "5x", "10x", "20x", "50x", "100x"],
             variable=self.default_leverage_var,
-            width=220,
         )
-        leverage_dropdown.pack(anchor="w", pady=(2, 8))
+        leverage_dropdown.pack(fill="x", pady=(2, 8))
 
         # ================== COLUMN 2: TP/SL Settings ==================
         # Boxed frame for TP/SL (visible background)
@@ -115,16 +114,16 @@ class ConfigPanel(ctk.CTkFrame):
         label = ctk.CTkLabel(tp_sl_inner, text="Default Take Profit (%):", font=("Arial", 12))
         label.pack(anchor="w", pady=(5, 2))
 
-        self.default_tp_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="5.0", width=220)
-        self.default_tp_entry.pack(anchor="w", pady=(2, 8))
+        self.default_tp_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="5.0")
+        self.default_tp_entry.pack(fill="x", pady=(2, 8))
         self.default_tp_entry.insert(0, "5.0")
 
         # Default SL percentage
         label = ctk.CTkLabel(tp_sl_inner, text="Default Stop Loss (%):", font=("Arial", 12))
         label.pack(anchor="w", pady=(5, 2))
 
-        self.default_sl_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="2.5", width=220)
-        self.default_sl_entry.pack(anchor="w", pady=(2, 8))
+        self.default_sl_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="2.5")
+        self.default_sl_entry.pack(fill="x", pady=(2, 8))
         self.default_sl_entry.insert(0, "2.5")
 
         # TP/SL mode selector
@@ -133,9 +132,9 @@ class ConfigPanel(ctk.CTkFrame):
 
         self.tp_sl_mode_var = ctk.StringVar(value="Percentage")
         mode_dropdown = ctk.CTkComboBox(
-            tp_sl_inner, values=["Percentage", "Price", "ATR"], variable=self.tp_sl_mode_var, width=220
+            tp_sl_inner, values=["Percentage", "Price", "ATR"], variable=self.tp_sl_mode_var
         )
-        mode_dropdown.pack(anchor="w", pady=(2, 8))
+        mode_dropdown.pack(fill="x", pady=(2, 8))
 
         # Trailing stop checkbox
         self.trailing_stop_var = ctk.BooleanVar(value=False)
@@ -167,17 +166,52 @@ class ConfigPanel(ctk.CTkFrame):
 
         self.min_score_var = ctk.DoubleVar(value=0.7)
         score_slider = ctk.CTkSlider(
-            filters_frame, from_=0.0, to=1.0, number_of_steps=100, variable=self.min_score_var, width=300
+            filters_frame, from_=0, to=1, number_of_steps=100, variable=self.min_score_var, width=300
         )
         score_slider.pack(anchor="w", pady=2)
 
-        score_label = ctk.CTkLabel(filters_frame, text=f"Current: {self.min_score_var.get():.2f}", font=("Arial", 10))
-        score_label.pack(anchor="w", pady=2)
+        self.min_score_label = ctk.CTkLabel(
+            filters_frame, text=f"Current: {self.min_score_var.get():.2f}", font=("Arial", 10)
+        )
+        self.min_score_label.pack(anchor="w", pady=2)
 
-        # XGBoost checkbox
+        def _on_min_score_change(*args):
+            try:
+                v = self.min_score_var.get()
+                self.min_score_label.configure(text=f"Current: {v:.2f}")
+            except Exception:
+                pass
+
+        self.min_score_var.trace_add("write", _on_min_score_change)
+
+        # XGBoost checkbox and ATC threshold (same row concept: XGBoost + threshold)
         self.enable_xgboost_var = ctk.BooleanVar(value=True)
         xgboost_checkbox = ctk.CTkCheckBox(filters_frame, text="Enable XGBoost Model", variable=self.enable_xgboost_var)
         xgboost_checkbox.pack(anchor="w", pady=(10, 2))
+
+        # ATC threshold (for ATC scanner: higher = fewer, stronger signals)
+        label_atc = ctk.CTkLabel(filters_frame, text="ATC Threshold:", font=("Arial", 12))
+        label_atc.pack(anchor="w", pady=(8, 2))
+
+        self.atc_threshold_var = ctk.DoubleVar(value=0.6)
+        atc_slider = ctk.CTkSlider(
+            filters_frame, from_=0, to=1, number_of_steps=100, variable=self.atc_threshold_var, width=300
+        )
+        atc_slider.pack(anchor="w", pady=2)
+
+        self.atc_threshold_label = ctk.CTkLabel(
+            filters_frame, text=f"Current: {self.atc_threshold_var.get():.2f}", font=("Arial", 10)
+        )
+        self.atc_threshold_label.pack(anchor="w", pady=2)
+
+        def _on_atc_threshold_change(*args):
+            try:
+                v = self.atc_threshold_var.get()
+                self.atc_threshold_label.configure(text=f"Current: {v:.2f}")
+            except Exception:
+                pass
+
+        self.atc_threshold_var.trace_add("write", _on_atc_threshold_change)
 
         # Symbol whitelist
         label = ctk.CTkLabel(filters_frame, text="Symbol Whitelist (comma-separated):", font=("Arial", 12))
@@ -672,6 +706,7 @@ class ConfigPanel(ctk.CTkFrame):
                 "filters": {
                     "min_signal_score": self.min_score_var.get(),
                     "enable_xgboost": self.enable_xgboost_var.get(),
+                    "atc_threshold": self.atc_threshold_var.get(),
                     "symbol_whitelist": self.whitelist_entry.get("0.0", "end-1c"),
                     "min_volume": min_volume,
                 },
@@ -701,6 +736,7 @@ class ConfigPanel(ctk.CTkFrame):
                 "filters": {
                     "min_signal_score": 0.7,
                     "enable_xgboost": True,
+                    "atc_threshold": 0.6,
                     "symbol_whitelist": "",
                     "min_volume": 50.0,
                 },
@@ -731,6 +767,9 @@ class ConfigPanel(ctk.CTkFrame):
             filters = settings["filters"]
             self.min_score_var.set(filters.get("min_signal_score", 0.7))
             self.enable_xgboost_var.set(filters.get("enable_xgboost", True))
+            self.atc_threshold_var.set(filters.get("atc_threshold", 0.6))
+            if hasattr(self, "atc_threshold_label"):
+                self.atc_threshold_label.configure(text=f"Current: {self.atc_threshold_var.get():.2f}")
             self.whitelist_entry.delete("0.0", "end")
             self.whitelist_entry.insert("0.0", filters.get("symbol_whitelist", ""))
             self.min_volume_entry.delete(0, "end")
@@ -754,3 +793,6 @@ class ConfigPanel(ctk.CTkFrame):
             self.default_sl_entry.insert(0, str(tp_sl.get("default_sl", 2.5)))
             self.trailing_stop_var.set(tp_sl.get("trailing_stop", False))
             self.tp_sl_mode_var.set(tp_sl.get("mode", "Percentage"))
+
+        if "recovery" in settings and hasattr(self, "recovery_panel"):
+            self.recovery_panel.load_config(settings["recovery"])

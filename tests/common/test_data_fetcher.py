@@ -122,6 +122,24 @@ def test_fetch_ohlcv_returns_stale_fallback_when_no_fresh_data():
     assert df is not None
 
 
+def test_fetch_ohlcv_returns_dataframe_only():
+    """fetch_ohlcv is a convenience wrapper that returns only the DataFrame."""
+    now = pd.Timestamp.now(tz="UTC")
+    last_ts = int(now.timestamp() * 1000)
+    responses = {"binance": _build_ohlcv(last_ts)}
+    public = DummyPublic(["binance"], responses)
+    exchange_manager = SimpleNamespace(public=public)
+    fetcher = DataFetcher(exchange_manager)
+
+    df = fetcher.fetch_ohlcv("btc/usdt", timeframe="1h", limit=3)
+
+    assert df is not None
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 3
+    df_tuple, _ = fetcher.fetch_ohlcv_with_fallback_exchange("btc/usdt", limit=3, timeframe="1h")
+    assert df.equals(df_tuple)
+
+
 def test_dataframe_to_close_series_converts_dataframe():
     now = pd.Timestamp.now(tz="UTC")
     data = pd.DataFrame(

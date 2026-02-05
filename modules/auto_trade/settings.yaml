@@ -2,10 +2,11 @@ risk:
   max_position_size: 100.0
   max_open_positions: 3
   max_daily_loss: 90.0
-  default_leverage: '2'
+  default_leverage: 3x
 filters:
-  min_signal_score: 0.7
+  min_signal_score: 0.18999999999999995
   enable_xgboost: true
+  atc_threshold: 0.21999999999999997
   symbol_whitelist: 'BTC/USDT
 
     ETH/USDT
@@ -27,9 +28,10 @@ scanner:
   timeframe: 15m
   symbol_list: Top 20
   auto_start: true
+  retrain_xgboost: true
   running: false
-  sampling_strategy: stratified
-  sample_percentage: 20.0
+  sampling_strategy: volume_weighted
+  sample_percentage: 50
 ui:
   theme: dark
   font_size: 12
@@ -39,16 +41,15 @@ ui:
   last_active_tab: Dashboard
   column_visibility: {}
   widget_order: {}
+recovery:
+  initial_loss: 0.0
+  target_profit_per_trade: 8.0
+  max_recovery_trades: 13
+  margin_scaling_mode: adaptive
+  leverage_scaling_mode: adaptive
+  min_leverage: 5
+  max_leverage: 15
+  enable_streak_bonus: true
 trading:
   default_position_size: 100.0
   default_leverage: 2
-recovery:
-  enabled: false
-  initial_loss: 0.0
-  target_profit_per_trade: 5.0
-  max_recovery_trades: 20
-  margin_scaling_mode: fixed
-  leverage_scaling_mode: fixed
-  min_leverage: 2
-  max_leverage: 10
-  enable_streak_bonus: false

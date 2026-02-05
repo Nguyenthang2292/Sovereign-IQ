@@ -88,11 +88,22 @@ def _train_cv_fold(
 
         model.fit(X_train, y_train, eval_set=[(X_test, y_test_fold)], verbose=False)
 
-        # Evaluate
+        # Evaluate (move X_test to GPU when model is on cuda to avoid device mismatch warning)
         X_test = pd.DataFrame(X_values[test_idx_filtered], columns=feature_names)
         y_test_fold = y_values[test_idx_filtered]
+        try:
+            import cupy as _cp
 
-        preds = model.predict(X_test)
+            _use_gpu = params.get("device") == "cuda"
+        except ImportError:
+            _cp = None
+            _use_gpu = False
+        if _use_gpu and _cp is not None:
+            X_test_in = _cp.asarray(X_test.values, dtype=_cp.float32)
+            preds = model.predict(X_test_in)
+            preds = _cp.asnumpy(preds) if hasattr(preds, "device") else np.asarray(preds)
+        else:
+            preds = model.predict(X_test)
         acc = accuracy_score(y_test_fold, preds)
 
         message = f"Accuracy: {acc:.4f} (train: {len(train_idx_filtered)}, gap: {TARGET_HORIZON}, test: {len(test_idx_filtered)})"

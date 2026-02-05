@@ -31,12 +31,25 @@ class SettingsHandler:
 
             all_settings = self.parent.settings_manager.get_all()
 
-            if hasattr(self.parent, "config_panel"):
-                self.parent.config_panel.load_settings(all_settings)
+            config_panel = getattr(self.parent, "config_panel", None)
+            if config_panel is not None:
+                config_panel.load_settings(all_settings)
 
-            if hasattr(self.parent, "scanner_control"):
+            scanner_control = getattr(self.parent, "scanner_control", None)
+            if scanner_control is not None:
                 scanner_settings = all_settings.get("scanner", {})
-                self.parent.scanner_control.load_config(scanner_settings)
+                scanner_control.load_config(scanner_settings)
+
+            auto_trade_control = getattr(self.parent, "auto_trade_control", None)
+            if auto_trade_control is not None and hasattr(auto_trade_control, "update_from_settings"):
+                status = (
+                    self.parent._get_current_status()
+                    if hasattr(self.parent, "_get_current_status")
+                    else None
+                )
+                auto_trade_control.update_from_settings(
+                    self.parent.settings_manager.settings, status=status
+                )
 
         except Exception as e:
             print(f"Error applying settings: {e}")
@@ -46,8 +59,9 @@ class SettingsHandler:
         try:
             print(f"Settings changed: {setting_type} = {value}")
 
-            if hasattr(self.parent, "config_panel"):
-                current_settings = self.parent.config_panel.get_settings()
+            config_panel = getattr(self.parent, "config_panel", None)
+            if config_panel is not None:
+                current_settings = config_panel.get_settings()
                 self.parent.settings_manager.settings.update(current_settings)
                 self.parent.settings_manager.save()
 
@@ -94,14 +108,17 @@ class SettingsHandler:
                 "scanner_control",
                 "config_panel",
             ]:
-                if hasattr(self.parent, name):
-                    _update_frame_colors(getattr(self.parent, name))
+                widget = getattr(self.parent, name, None)
+                if widget is not None:
+                    _update_frame_colors(widget)
 
-            if hasattr(self.parent, "signals_frame"):
-                self.parent.signals_frame._configure_table_tags()
+            signals_frame = getattr(self.parent, "signals_frame", None)
+            if signals_frame is not None:
+                signals_frame._configure_table_tags()
 
-            if hasattr(self.parent, "config_panel") and hasattr(self.parent.config_panel, "recovery_panel"):
-                _update_frame_colors(self.parent.config_panel.recovery_panel)
+            config_panel = getattr(self.parent, "config_panel", None)
+            if config_panel is not None and hasattr(config_panel, "recovery_panel"):
+                _update_frame_colors(config_panel.recovery_panel)
 
             print("Theme colors refreshed")
         except Exception as e:

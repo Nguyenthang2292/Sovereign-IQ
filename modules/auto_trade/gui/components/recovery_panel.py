@@ -67,7 +67,7 @@ class RecoveryPanel(ctk.CTkFrame):
         modal = ctk.CTkToplevel(self)
         modal.title("Gradual Recovery - Full View")
         modal.geometry("500x700")
-        modal.transient(self)
+        modal.transient(self.winfo_toplevel())
         modal.grab_set()
 
         # Create a full RecoveryPanel in the modal (non-compact)
@@ -119,14 +119,18 @@ class RecoveryPanel(ctk.CTkFrame):
         )
         self.remaining_loss_label.pack(anchor="w", pady=(5, 2))
 
-        # Progress Bar
+        # Progress Bar (widget + percentage label on one row, no floating)
         progress_frame = ctk.CTkFrame(status_frame, fg_color="transparent")
-        progress_frame.pack(fill="x", pady=(15, 5))
+        progress_frame.pack(fill="x", pady=(15, 5), expand=False)
+
+        self.progress_bar_widget = ctk.CTkProgressBar(progress_frame, height=10)
+        self.progress_bar_widget.set(0)
+        self.progress_bar_widget.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         self.progress_bar_label = ctk.CTkLabel(
-            progress_frame, text="░░░░░░░░░░ 0%", font=("Consolas", 12), text_color="#888"
+            progress_frame, text="0%", font=("Arial", 11), text_color="#888", width=36
         )
-        self.progress_bar_label.pack(anchor="w")
+        self.progress_bar_label.pack(side="left", anchor="w")
 
         # Recovery Percentage
         self.recovery_pct_label = ctk.CTkLabel(status_frame, text="Recovery: 0.0%", font=("Arial", 12))
@@ -691,6 +695,10 @@ class RecoveryPanel(ctk.CTkFrame):
             sequence = [-15.0, -20.0, 10.0, -25.0, -30.0, 5.0, -35.0, -40.0, -45.0, -50.0]
             self._test_log("Running failed recovery scenario...")
 
+        else:
+            self._test_log(f"Unknown preset: {preset}", "ERROR")
+            return
+
         initial_state = self.recovery_strategy.get_state()
 
         for i, amount in enumerate(sequence):
@@ -877,8 +885,10 @@ class RecoveryPanel(ctk.CTkFrame):
         # Update labels
         self.initial_loss_label.configure(text=f"Initial Loss: ${state.initial_loss:.2f}")
         self.remaining_loss_label.configure(text=f"Remaining Loss: ${state.remaining_loss:.2f}")
+        pct = state.recovery_percentage / 100.0
+        self.progress_bar_widget.set(min(1.0, max(0.0, pct)))
         self.progress_bar_label.configure(
-            text=self.recovery_strategy.progress_bar,
+            text=f"{state.recovery_percentage:.0f}%",
             text_color="#00ff88" if state.recovery_percentage >= 50 else "#ffaa00",
         )
         self.recovery_pct_label.configure(text=f"Recovery: {state.recovery_percentage:.1f}%")
@@ -967,3 +977,35 @@ class RecoveryPanel(ctk.CTkFrame):
             "max_leverage": self.max_leverage_entry.get(),
             "enable_streak_bonus": self.streak_bonus_var.get(),
         }
+
+    def load_config(self, config: Dict):
+        """Load configuration from dict (e.g. default from settings for Trading tab)."""
+        if not config:
+            return
+        try:
+            if "initial_loss" in config:
+                self.initial_loss_entry.delete(0, "end")
+                self.initial_loss_entry.insert(0, str(config["initial_loss"]))
+            if "target_profit_per_trade" in config:
+                self.target_profit_entry.delete(0, "end")
+                self.target_profit_entry.insert(0, str(config["target_profit_per_trade"]))
+            if "max_recovery_trades" in config:
+                self.max_trades_entry.delete(0, "end")
+                self.max_trades_entry.insert(0, str(config["max_recovery_trades"]))
+            if "margin_scaling_mode" in config:
+                self.margin_mode_var.set(str(config["margin_scaling_mode"]))
+            if "leverage_scaling_mode" in config:
+                self.leverage_mode_var.set(str(config["leverage_scaling_mode"]))
+            if "min_leverage" in config:
+                self.min_leverage_entry.delete(0, "end")
+                self.min_leverage_entry.insert(0, str(config["min_leverage"]))
+            if "max_leverage" in config:
+                self.max_leverage_entry.delete(0, "end")
+                self.max_leverage_entry.insert(0, str(config["max_leverage"]))
+            if "enable_streak_bonus" in config:
+                v = config["enable_streak_bonus"]
+                self.streak_bonus_var.set(
+                    v if isinstance(v, bool) else str(v).lower() in ("true", "1", "yes")
+                )
+        except Exception as e:
+            print(f"Error loading recovery config: {e}")
