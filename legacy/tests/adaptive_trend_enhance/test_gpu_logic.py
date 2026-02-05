@@ -14,8 +14,8 @@ try:
 except ImportError:
     _HAS_CUPY = False
 
-from modules.adaptive_trend_enhance.core.process_layer1._gpu_equity import calculate_equity_gpu
-from modules.adaptive_trend_enhance.core.process_layer1._gpu_signals import (
+from legacy.adaptive_trend_enhance.core.process_layer1._gpu_equity import calculate_equity_gpu
+from legacy.adaptive_trend_enhance.core.process_layer1._gpu_signals import (
     generate_signal_from_ma_gpu,
     rate_of_change_gpu,
 )

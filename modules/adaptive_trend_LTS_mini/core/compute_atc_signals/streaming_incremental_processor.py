@@ -6,7 +6,7 @@ for live trading scenarios, maintaining local state without distributed complexi
 
 from typing import Dict, List, Optional
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_incremental_atc import BatchIncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_incremental_atc import BatchIncrementalATC
 
 
 class StreamingIncrementalProcessor:

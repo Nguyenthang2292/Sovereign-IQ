@@ -1,5 +1,5 @@
 """
-Tests for scanner batch processing in modules.adaptive_trend_enhance.
+Tests for scanner batch processing in legacy.adaptive_trend_enhance.
 """
 
 import sys
@@ -13,8 +13,8 @@ import pytest
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.scanner import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 
 
 @pytest.fixture
@@ -81,7 +81,7 @@ def _make_mock_process():
 
 
 @pytest.mark.timeout(30)  # 30 second timeout
-@patch("modules.adaptive_trend_enhance.core.scanner.sequential._process_symbol")
+@patch("legacy.adaptive_trend_enhance.core.scanner.sequential._process_symbol")
 def test_scanner_edge_case_batch_sizes(mock_process_symbol, base_config, mock_data_fetcher):
     """Test with very small and very large batch sizes."""
     symbols = [f"SYM{i}" for i in range(5)]
@@ -103,8 +103,8 @@ def test_scanner_edge_case_batch_sizes(mock_process_symbol, base_config, mock_da
 
 
 @pytest.mark.timeout(25)  # 25 second timeout
-@patch("modules.adaptive_trend_enhance.core.scanner.asyncio_scan._process_symbol")
-@patch("modules.adaptive_trend_enhance.core.scanner.threadpool._process_symbol")
+@patch("legacy.adaptive_trend_enhance.core.scanner.asyncio_scan._process_symbol")
+@patch("legacy.adaptive_trend_enhance.core.scanner.threadpool._process_symbol")
 @pytest.mark.parametrize("mode", ["threadpool", "asyncio"])
 def test_parallel_batching(mock_tp, mock_asyncio, base_config, mock_data_fetcher, mode):
     """Verify batching works correctly in parallel modes."""

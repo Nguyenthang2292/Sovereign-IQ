@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from modules.adaptive_trend.utils import exp_growth
-from modules.adaptive_trend_enhance.utils.cache_manager import get_cache_manager
+from legacy.adaptive_trend_enhance.utils.cache_manager import get_cache_manager
 from modules.common.system import get_series_pool
 from modules.common.utils import log_error, log_warn
 

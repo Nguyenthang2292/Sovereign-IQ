@@ -20,7 +20,7 @@ except ImportError:
         print(f"[WARN] {msg}")
 
 
-from modules.adaptive_trend_enhance.core.compute_equity import _calculate_equities_parallel, equity_series
+from legacy.adaptive_trend_enhance.core.compute_equity import _calculate_equities_parallel, equity_series
 from modules.common.system import get_memory_manager, get_series_pool, temp_series
 
 

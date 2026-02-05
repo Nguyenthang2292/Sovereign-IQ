@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.compute_equity.core import _calculate_equity_vectorized
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
+from legacy.adaptive_trend_enhance.core.compute_equity.core import _calculate_equity_vectorized
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.system import get_memory_manager
 
 
@@ -51,7 +51,7 @@ def test_float32_precision_effect():
         pass
 
 
-@patch("modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.set_of_moving_averages")
+@patch("legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.set_of_moving_averages")
 def test_compute_atc_signals_precision_flag(mock_set_mas):
     """Test that atomic functions receive the correct precision flag."""
 

@@ -13,9 +13,9 @@ import pytest
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals.calculate_layer2_equities import calculate_layer2_equities
-from modules.adaptive_trend_enhance.core.compute_equity import equity_series
-from modules.adaptive_trend_enhance.utils.cache_manager import get_cache_manager, reset_cache_manager
+from legacy.adaptive_trend_enhance.core.compute_atc_signals.calculate_layer2_equities import calculate_layer2_equities
+from legacy.adaptive_trend_enhance.core.compute_equity import equity_series
+from legacy.adaptive_trend_enhance.utils.cache_manager import get_cache_manager, reset_cache_manager
 
 
 @pytest.fixture(autouse=True)

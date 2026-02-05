@@ -37,6 +37,8 @@ class SymbolManager:
         blacklist: Optional[List[str]] = None,
         max_symbols: int = 100,  # Default limit for top volume symbols
         random_seed: Optional[int] = None,  # For reproducible sampling in tests
+        sample_percentage: float = 100.0,  # Percentage of symbols to sample
+        sampling_strategy: str = "random",  # Sampling strategy: random, stratified, volume_weighted, etc.
     ):
         """
         Initialize SymbolManager.
@@ -47,6 +49,8 @@ class SymbolManager:
             blacklist: Optional list of symbols to exclude
             max_symbols: Maximum number of symbols to fetch from exchange (sorted by volume, must be > 0)
             random_seed: Optional random seed for reproducible sampling (useful for testing)
+            sample_percentage: Percentage of symbols to sample (0.0 to 100.0)
+            sampling_strategy: Sampling strategy - random, stratified, volume_weighted, top_n_hybrid, systematic, liquidity_weighted
         """
         # Input validation
         if max_symbols <= 0:
@@ -60,6 +64,10 @@ class SymbolManager:
         self.max_symbols = max_symbols
         self._cached_symbols: List[str] = []  # Volume-sorted (descending)
         self._random = random.Random(random_seed)  # Always use Random instance for consistency
+
+        # Sampling configuration
+        self.sample_percentage = sample_percentage
+        self.sampling_strategy = sampling_strategy
 
     def refresh_symbols(self) -> None:
         """Fetch fresh list of symbols from exchange."""
@@ -96,22 +104,19 @@ class SymbolManager:
 
         log_info(f"SymbolManager: Loaded {len(self._cached_symbols)} symbols.")
 
-    def get_symbols(self, sample_percent: float = 100.0) -> List[str]:
+    def get_symbols(self, sample_percent: float = None) -> List[str]:
         """
-        Get a list of symbols, optionally sampled randomly.
+        Get a list of symbols, optionally sampled using configured strategy.
 
         Args:
-            sample_percent: Percentage of symbols to return (0.0 to 100.0)
+            sample_percent: Percentage of symbols to return (0.0 to 100.0).
+                          If None, uses self.sample_percentage.
 
         Returns:
             List of symbol strings.
 
         Raises:
             ValueError: If sample_percent is outside the 0-100 range
-
-        Note:
-            Sampling uses round() to convert percentages to counts for intuitive behavior.
-            Example: 50% of 5 symbols = 2.5 → rounds to 2 or 3 (banker's rounding).
         """
         if not self._cached_symbols:
             self.refresh_symbols()
@@ -119,6 +124,10 @@ class SymbolManager:
         if not self._cached_symbols:
             log_warn("SymbolManager: No symbols available.")
             return []
+
+        # Use provided sample_percent or fall back to instance config
+        if sample_percent is None:
+            sample_percent = self.sample_percentage
 
         # Validate sample_percent range
         if not 0.0 <= sample_percent <= 100.0:
@@ -130,11 +139,24 @@ class SymbolManager:
         if sample_percent >= 100.0:
             return self._cached_symbols.copy()
 
-        # Calculate sample size with rounding for intuitive behavior
-        # Use max(1, ...) to ensure at least 1 symbol is returned for small percentages
+        # Use configured sampling strategy
+        if self.sampling_strategy and self.sampling_strategy != "random":
+            try:
+                from modules.auto_trade.core.scanner_sampling import sample_symbols
+
+                return sample_symbols(
+                    all_symbols=self._cached_symbols,
+                    sample_percentage=sample_percent,
+                    strategy=self.sampling_strategy,
+                    data_fetcher=self.data_fetcher,
+                )
+            except Exception as e:
+                log_warn(f"Sampling strategy '{self.sampling_strategy}' failed: {e}. Falling back to random.")
+                # Fall through to random sampling
+
+        # Default: random sampling
         count = max(1, round(len(self._cached_symbols) * sample_percent / 100.0))
         count = min(count, len(self._cached_symbols))
-
         return self._random.sample(self._cached_symbols, count)
 
     def get_all_cached_symbols(self) -> List[str]:

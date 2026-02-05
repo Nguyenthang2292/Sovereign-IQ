@@ -13,8 +13,8 @@ The code has been **significantly improved** with most critical issues addressed
 ### ✅ Fixed Issues (from previous review)
 
 1. **Import path corrected** (Line 20)
-   - Changed from broken `adaptive_trend_LTS.core.scanner`
-   - Now uses `adaptive_trend_LTS_mini.core.scanner.scan_all_symbols`
+   - Replaced deprecated `adaptive_trend_LTS` with `adaptive_trend_LTS_mini`
+   - Uses `adaptive_trend_LTS_mini.core.scanner.scan_all_symbols`
    - ✅ Module will now import successfully
 
 2. **Type hints added** (Lines 16, 26-32)

@@ -19,9 +19,9 @@ import pytest
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.adaptive_trend_enhance.cli.argument_parser import parse_args
-from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.cli.argument_parser import parse_args
+from legacy.adaptive_trend_enhance.core.scanner import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.system.detection import SystemInfo
 
 
@@ -89,8 +89,8 @@ def create_mock_atc_results(signal_value: float = 0.05, trend: int = 1) -> dict:
 class TestEnhancedScannerWithRealMarketData:
     """Test enhanced scanner with realistic market data."""
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def test_scanner_with_realistic_data(self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher):
         """Test scanner with realistic market data patterns."""
         symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "ADAUSDT"]
@@ -118,8 +118,8 @@ class TestEnhancedScannerWithRealMarketData:
         assert len(long_df) == 5, f"Expected 5 results, got {len(long_df)}"
         assert "BTCUSDT" in long_df["symbol"].values, "BTCUSDT should be in results"
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def test_scanner_with_varying_data_quality(self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher):
         """Test scanner handles varying data quality."""
         symbols = ["GOOD_SYMBOL", "SHORT_SYMBOL", "NOISY_SYMBOL"]
@@ -158,8 +158,8 @@ class TestEnhancedScannerWithRealMarketData:
 class TestDifferentExecutionModes:
     """Test different execution modes."""
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     @pytest.mark.parametrize(
         "execution_mode",
         ["sequential", "threadpool", "asyncio", "processpool"],
@@ -203,8 +203,8 @@ class TestDifferentExecutionModes:
             else:
                 raise
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def test_execution_mode_consistency(self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher):
         """Test that different execution modes produce consistent results."""
         symbols = [f"SYM{i}" for i in range(10)]
@@ -282,7 +282,7 @@ class TestCLICompatibility:
     )
     def test_cli_config_integration(self):
         """Test CLI arguments integrate with ATCConfig."""
-        from modules.adaptive_trend_enhance.utils.config import create_atc_config_from_dict
+        from legacy.adaptive_trend_enhance.utils.config import create_atc_config_from_dict
 
         args = parse_args()
 
@@ -301,7 +301,7 @@ class TestCLICompatibility:
         assert config.limit == 1500
         assert config.batch_size == 100
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.scan_all_symbols")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.scan_all_symbols")
     def test_cli_scanner_integration(self, mock_scan, mock_data_fetcher):
         """Test CLI integrates with scanner correctly."""
         # Mock scanner results
@@ -370,8 +370,8 @@ class TestDifferentHardwareConfigurations:
         assert 10 <= recommended_batch_size <= 200
         assert 1 <= recommended_workers <= 16
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def test_low_memory_configuration(self, mock_trend_sign, mock_compute_atc, mock_data_fetcher):
         """Test scanner works with low memory configuration."""
         # Simulate low memory by using small batch size
@@ -397,8 +397,8 @@ class TestDifferentHardwareConfigurations:
 
         assert len(long_df) == 50
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def test_high_memory_configuration(self, mock_trend_sign, mock_compute_atc, mock_data_fetcher):
         """Test scanner works with high memory configuration."""
         # Simulate high memory by using large batch size

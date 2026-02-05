@@ -10,9 +10,17 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_LTS.core.process_layer1 import trend_sign
-from modules.adaptive_trend_LTS.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.process_layer1 import trend_sign
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
+
+try:
+    from modules.common.utils import log_warn
+except ImportError:
+
+    def log_warn(message: str) -> None:
+        print(f"[WARN] {message}")
+
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
@@ -46,6 +54,7 @@ def _process_symbol(
         )
 
         if df is None or df.empty:
+            log_warn(f"[{symbol}] SKIP: No data returned (df is None or empty)")
             return None
 
         # Get price source based on calculation_source config
@@ -56,6 +65,7 @@ def _process_symbol(
             calculation_source = "close"
 
         if calculation_source not in df.columns:
+            log_warn(f"[{symbol}] SKIP: column '{calculation_source}' not in DataFrame")
             return None
 
         # Ensure Series is backed by contiguous numpy array for SIMD optimization
@@ -80,12 +90,14 @@ def _process_symbol(
 
         # Validate we have enough data
         if len(price_series) < atc_config.limit:
+            log_warn(f"[{symbol}] SKIP: Insufficient data ({len(price_series)} < {atc_config.limit} required)")
             return None
 
         current_price = price_series.iloc[-1]
 
         # Validate price is valid
         if pd.isna(current_price) or current_price <= 0:
+            log_warn(f"[{symbol}] SKIP: Invalid price ({current_price})")
             return None
 
         # Calculate ATC signals
@@ -119,12 +131,14 @@ def _process_symbol(
 
         average_signal = atc_results.get("Average_Signal")
         if average_signal is None or average_signal.empty:
+            log_warn(f"[{symbol}] SKIP: ATC returned no Average_Signal")
             return None
 
         latest_signal = average_signal.iloc[-1]
 
         # Validate signal is not NaN
         if pd.isna(latest_signal):
+            log_warn(f"[{symbol}] SKIP: Signal is NaN")
             return None
 
         latest_trend = trend_sign(average_signal)
@@ -132,6 +146,7 @@ def _process_symbol(
 
         # Only include signals above threshold
         if abs(latest_signal) < min_signal:
+            log_warn(f"[{symbol}] SKIP: Signal {latest_signal:.4f} below threshold {min_signal}")
             return None
 
         return {
@@ -141,6 +156,7 @@ def _process_symbol(
             "price": current_price,
             "exchange": exchange_id or "UNKNOWN",
         }
-    except Exception:
-        # Return None on any error - errors are logged in the calling function
+    except Exception as e:
+        # Log error details for debugging
+        log_warn(f"[{symbol}] SKIP: Exception - {type(e).__name__}: {e}")
         return None

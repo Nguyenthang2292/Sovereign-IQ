@@ -10,8 +10,8 @@ project_root = Path(__file__).parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_cuda
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_processor import process_symbols_batch_cuda
 
 
 def generate_dummy_data(rows=1000):

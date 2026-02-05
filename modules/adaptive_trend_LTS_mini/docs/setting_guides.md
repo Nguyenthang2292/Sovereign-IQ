@@ -257,7 +257,7 @@ For very large symbol lists (>1000 symbols) that exceed RAM, or to maximize CPU 
 - **`npartitions`**: Number of data partitions processed in parallel. Default is derived from symbol count.
 
 ```python
-from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
+from modules.adaptive_trend_LTS_mini.core.scanner.scan_all_symbols import scan_all_symbols
 
 longs, shorts = scan_all_symbols(
     data_fetcher,
@@ -274,7 +274,7 @@ See `docs/phase5_task.md` for detailed Dask integration guide and benchmarks.
 For many symbols (e.g. Binance Futures), use the batch API instead of a loop:
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
 
 # symbols_data = {'BTCUSDT': prices_series, 'ETHUSDT': series, ...}
 results = process_symbols_batch_rust(symbols_data, config)
@@ -285,7 +285,7 @@ results = process_symbols_batch_rust(symbols_data, config)
 For single-bar updates (live trading), use `IncrementalATC` to avoid full series recalculation:
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_atc import IncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_atc import IncrementalATC
 
 # Initialize once with historical data
 atc = IncrementalATC(config)
@@ -326,7 +326,7 @@ For scanning thousands of symbols, use Approximate MAs for initial filtering, th
 Uses simplified calculations (e.g., SMA for EMA approximation) for ~5% tolerance:
 
 ```python
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 
 # Basic approximate MAs - 2-3x faster
 config = ATCConfig(
@@ -378,8 +378,8 @@ config = ATCConfig(
 Combine approximate MAs for initial filtering with full precision for final analysis:
 
 ```python
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
-from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.core.scanner.scan_all_symbols import scan_all_symbols
 from modules.common.core.data_fetcher import DataFetcher
 
 # Initialize data fetcher
@@ -415,7 +415,7 @@ for symbol in top_candidates:
     )
     prices = df["close"]
 
-    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 
     results = compute_atc_signals(
         prices=prices,
@@ -432,7 +432,7 @@ for symbol in top_candidates:
 Two-stage batch processing with approximate filtering, then full precision for candidates:
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import (
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_processor import (
     process_symbols_batch_with_approximate_filter
 )
 
@@ -561,7 +561,7 @@ Examples for O(1) MA, Rust incremental backend, multi-timeframe (MTF), batch upd
 ### 9.1 Incremental ATC with O(1) MA and Rust (default)
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC
 import pandas as pd
 
 config = {
@@ -606,7 +606,7 @@ assert len(signals) == len(new_prices)
 ### 9.4 Multi-Timeframe (MTF)
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals import MultiTimeframeIncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import MultiTimeframeIncrementalATC
 
 mtf = MultiTimeframeIncrementalATC(config, timeframes=["1m", "5m", "15m"])
 # Initialize: dict per TF or single series for base TF
@@ -640,16 +640,16 @@ next_signal = atc2.update(110.0)  # no need to initialize again
 
 ```bash
 # Incremental & advanced-feature tests
-pytest modules/adaptive_trend_LTS/tests/test_incremental_atc_o1.py -v
-pytest modules/adaptive_trend_LTS/tests/test_incremental_rust.py -v
-pytest modules/adaptive_trend_LTS/tests/test_incremental_mtf.py -v
-pytest modules/adaptive_trend_LTS/tests/test_incremental_batch.py -v
-pytest modules/adaptive_trend_LTS/tests/test_incremental_serialization.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_atc_o1.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_rust.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_mtf.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_batch.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_serialization.py -v
 
 # Benchmarks
-python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_o1 --iterations 1000
-python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_rust
-python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_batch
+python -m modules.adaptive_trend_LTS_mini.benchmarks.benchmark_incremental_o1 --iterations 1000
+python -m modules.adaptive_trend_LTS_mini.benchmarks.benchmark_incremental_rust
+python -m modules.adaptive_trend_LTS_mini.benchmarks.benchmark_incremental_batch
 ```
 
 ---
@@ -706,7 +706,7 @@ python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_batch
 ### Rust Backend (Recommended)
 
 ```bash
-cd modules/adaptive_trend_LTS/rust_extensions
+cd modules/adaptive_trend_LTS_mini/rust_extensions
 maturin develop --release
 ```
 
@@ -722,7 +722,7 @@ See `docs/phase3_task.md` for detailed Rust installation instructions.
 ### CUDA Backend (Optional)
 
 ```bash
-cd modules/adaptive_trend_LTS/rust_extensions
+cd modules/adaptive_trend_LTS_mini/rust_extensions
 powershell -ExecutionPolicy Bypass -File build_cuda.ps1
 ```
 
@@ -737,7 +737,7 @@ powershell -ExecutionPolicy Bypass -File build_cuda.ps1
 ## 📝 EXAMPLE USAGE
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 import pandas as pd
 
 # Prepare data

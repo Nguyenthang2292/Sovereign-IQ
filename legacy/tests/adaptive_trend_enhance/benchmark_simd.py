@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import numpy as np
 
-from modules.adaptive_trend_enhance.core.compute_moving_averages._numba_cores import (
+from legacy.adaptive_trend_enhance.core.compute_moving_averages._numba_cores import (
     _calculate_lsma_core,
     _calculate_wma_core,
 )

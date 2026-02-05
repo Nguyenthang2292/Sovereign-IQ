@@ -11,9 +11,9 @@ from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_enhance.core.compute_equity import _calculate_equity_vectorized, equity_series
-from modules.adaptive_trend_enhance.core.signal_detection import generate_signal_from_ma
-from modules.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
+from legacy.adaptive_trend_enhance.core.compute_equity import _calculate_equity_vectorized, equity_series
+from legacy.adaptive_trend_enhance.core.signal_detection import generate_signal_from_ma
+from legacy.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
 from modules.common.system import get_array_pool
 from modules.common.utils import log_error, log_warn
 

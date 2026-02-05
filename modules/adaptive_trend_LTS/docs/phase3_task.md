@@ -295,7 +295,7 @@ cargo test
 #### 3.3 Port Numba Logic to Rust
 
 - [x] Đọc và phân tích code Numba hiện tại từ Python
-  - File: `modules/adaptive_trend_enhance/core/process_layer1/weighted_signal.py`
+  - File: `legacy/adaptive_trend_enhance/core/process_layer1/weighted_signal.py`
   - Function: `calculate_equity` (hoặc tương tự)
 
 - [x] Implement equity calculation algorithm
@@ -351,7 +351,7 @@ cargo test
 #### 4.1 Analyze Current KAMA Implementation
 
 - [x] Đọc code Python hiện tại
-  - File: `modules/adaptive_trend_enhance/core/compute_moving_averages/calculate_kama_atc.py`
+  - File: `legacy/adaptive_trend_enhance/core/compute_moving_averages/calculate_kama_atc.py`
   - Hiểu rõ logic: efficiency ratio, smoothing constant, adaptive calculation
 
 #### 4.2 Implement KAMA Core Logic
@@ -421,7 +421,7 @@ cargo test
 #### 5.1 Analyze Signal Persistence Requirements
 
 - [x] Đọc code Python hiện tại
-  - File: `modules/adaptive_trend_enhance/core/signal_detection/generate_signal.py`
+  - File: `legacy/adaptive_trend_enhance/core/signal_detection/generate_signal.py`
   - Hiểu logic: signal filtering, persistence checking, state management
 
 #### 5.2 Implement Core Logic

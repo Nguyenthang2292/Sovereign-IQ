@@ -31,7 +31,7 @@ except ImportError:
         print(f"[PROGRESS] {message}")
 
 
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.system import get_hardware_manager, get_memory_manager
 
 from .asyncio_scan import _scan_asyncio

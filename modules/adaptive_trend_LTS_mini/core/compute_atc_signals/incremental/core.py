@@ -113,7 +113,7 @@ class IncrementalATC:
 
     def initialize(self, prices: pd.Series) -> Dict[str, pd.Series]:
         """Initialize state with full calculation on historical data."""
-        from modules.adaptive_trend_LTS.core.compute_moving_averages import (
+        from modules.adaptive_trend_LTS_mini.core.compute_moving_averages import (
             set_of_moving_averages,
         )
         from ..compute_atc_signals import compute_atc_signals
@@ -200,7 +200,7 @@ class IncrementalATC:
             # Try Rust backend first if configured
             if self.use_rust_incremental:
                 try:
-                    from modules.adaptive_trend_LTS.core.incremental_backend import (
+                    from modules.adaptive_trend_LTS_mini.core.incremental_backend import (
                         check_rust_available,
                         update_incremental_auto,
                     )

@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.process_layer1 import cut_signal, trend_sign, weighted_signal
+from legacy.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
+from legacy.adaptive_trend_enhance.core.process_layer1 import cut_signal, trend_sign, weighted_signal
 from modules.common.system import get_hardware_manager, get_memory_manager
 
 

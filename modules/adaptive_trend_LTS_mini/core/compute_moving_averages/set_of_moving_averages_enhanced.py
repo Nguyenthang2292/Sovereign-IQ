@@ -19,7 +19,7 @@ from typing import Optional, Tuple
 
 import pandas as pd
 
-from modules.adaptive_trend_LTS.utils import diflen
+from modules.adaptive_trend_LTS_mini.utils import diflen
 from modules.common.system import get_hardware_manager
 from modules.common.utils import log_error, log_warn
 

@@ -10,9 +10,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
-from modules.adaptive_trend_LTS.core.backtesting.dask_backtest import backtest_with_dask
-from modules.adaptive_trend_LTS.utils.cache_manager import CacheManager, CacheEntry
-from modules.adaptive_trend_LTS.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.core.backtesting.dask_backtest import backtest_with_dask
+from modules.adaptive_trend_LTS_mini.utils.cache_manager import CacheManager, CacheEntry
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
 
 
 class TestMemoryOptimizations(unittest.TestCase):

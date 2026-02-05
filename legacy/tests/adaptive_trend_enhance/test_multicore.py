@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.compute_equity import _calculate_equities_parallel, _calculate_equity_core
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
+from legacy.adaptive_trend_enhance.core.compute_equity import _calculate_equities_parallel, _calculate_equity_core
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.system import get_series_pool
 
 

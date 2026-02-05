@@ -5,7 +5,7 @@ This script pre-calculates ATC signals for a set of symbols and configurations
  to populate the cache, improving performance for subsequent runs.
 
 Usage:
-    python -m modules.adaptive_trend_LTS.scripts.warm_cache --symbols BTC,ETH --bars 1000
+    python -m modules.adaptive_trend_LTS_mini.scripts.warm_cache --symbols BTC,ETH --bars 1000
 """
 
 import argparse
@@ -14,7 +14,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.utils.cache_manager import get_cache_manager
+from modules.adaptive_trend_LTS_mini.utils.cache_manager import get_cache_manager
 from modules.common.ui.logging import log_info, log_success
 
 

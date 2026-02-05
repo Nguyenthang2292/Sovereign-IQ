@@ -17,11 +17,11 @@ import psutil
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals.calculate_layer2_equities import calculate_layer2_equities
-from modules.adaptive_trend_enhance.core.compute_equity import equity_series
-from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.cache_manager import get_cache_manager, reset_cache_manager
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.compute_atc_signals.calculate_layer2_equities import calculate_layer2_equities
+from legacy.adaptive_trend_enhance.core.compute_equity import equity_series
+from legacy.adaptive_trend_enhance.core.scanner import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.cache_manager import get_cache_manager, reset_cache_manager
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.system import get_memory_manager
 
 
@@ -143,8 +143,8 @@ def benchmark_cleanup_effectiveness():
     mock_fetcher.fetch_ohlcv_with_fallback_exchange.side_effect = fetch_side_effect
 
     # Mock compute_atc_signals to return small dict but allocate some temp data inside (simulated)
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def run_scan(mock_trend_sign, mock_compute_atc, use_cleanup=True):
         mock_compute_atc.return_value = {"Average_Signal": pd.Series([0.5] * 50000)}
         mock_trend_sign.return_value = pd.Series([1] * 50000)

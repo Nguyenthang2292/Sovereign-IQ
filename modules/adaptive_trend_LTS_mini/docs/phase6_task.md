@@ -55,7 +55,7 @@ python -c "import atc_rust; print('✅ Rust extensions available')"
 - [core/compute_atc_signals/compute_atc_signals.py](../core/compute_atc_signals/compute_atc_signals.py) – Main ATC computation
 - [core/compute_moving_averages/](../core/compute_moving_averages/) – MA calculation implementations
 - [core/calculate_layer2_equities.py](../core/compute_atc_signals/calculate_layer2_equities.py) – Equity calculation
-- [core/process_layer1.py](../../adaptive_trend_enhance/core/process_layer1.py) – Layer 1 signal calculation
+- [core/process_layer1.py](../../../legacy/adaptive_trend_enhance/core/process_layer1.py) – Layer 1 signal calculation
 
 ### 2.4 Timeline Estimate
 
@@ -90,7 +90,7 @@ Thay vì tính lại toàn bộ signal mỗi khi có bar mới, chỉ cập nh�
 
 **Implementation Details:**
 
-- File location: `modules/adaptive_trend_LTS/core/compute_atc_signals/incremental_atc.py`
+- File location: `modules/adaptive_trend_LTS_mini/core/compute_atc_signals/incremental_atc.py`
 - Key methods implemented:
   - `__init__()` - Initialize with config and state variables
   - `initialize()` - Full calculation for initial state
@@ -183,7 +183,7 @@ Thay vì tính lại toàn bộ signal mỗi khi có bar mới, chỉ cập nh�
 
 **Implementation Details:**
 
-- File location: `tests/adaptive_trend_LTS/test_incremental_atc.py`
+- File location: `tests/adaptive_trend_LTS_mini/test_incremental_atc.py`
 - Test fixtures: `sample_prices`, `sample_config`
 
 **Test Coverage:**
@@ -246,7 +246,7 @@ Sử dụng các phép tính gần đúng MA để loại bỏ nhanh các cặp 
   - Generic `get_adaptive_ma_approx()` for all MA types
 
 - ✅ **Test Coverage**: Comprehensive test suite (12/12 tests passing)
-  - File: `tests/adaptive_trend_LTS/test_adaptive_approximate_mas.py`
+  - File: `tests/adaptive_trend_LTS_mini/test_adaptive_approximate_mas.py`
   - Tests for all MA types (EMA, HMA, WMA, DEMA, LSMA, KAMA)
   - Parameter variation tests (volatility factor, base tolerance, window)
 
@@ -324,7 +324,7 @@ Integrate incremental ATC vào pipeline ATC hiện tại và đảm bảo tính 
 
 **Implementation Details:**
 
-- All tests in `tests/adaptive_trend_LTS/test_incremental_atc.py` passing
+- All tests in `tests/adaptive_trend_LTS_mini/test_incremental_atc.py` passing
 - Validates initialization, updates, state preservation, error handling
 - Covers edge cases (short series, multiple updates, reset)
 
@@ -386,7 +386,7 @@ Create benchmark script to measure incremental updates vs full calculation acros
 
 **Implementation Details:**
 
-- File: `modules/adaptive_trend_LTS/benchmarks/benchmark_algorithmic_improvements.py`
+- File: `modules/adaptive_trend_LTS_mini/benchmarks/benchmark_algorithmic_improvements.py`
 - Benchmarks:
   - Single bar update vs full recalculation
   - Multiple sequential updates
@@ -415,7 +415,7 @@ Tạo tài liệu hướng dẫn cho người dùng về cách sử dụng tính
 
 **Output:**
 
-- Document location: `modules/adaptive_trend_LTS/docs/incremental_atc_usage_guide.md`
+- Document location: `modules/adaptive_trend_LTS_mini/docs/incremental_atc_usage_guide.md`
 - Sections:
   - When to use incremental ATC
   - How to initialize and update
@@ -606,13 +606,13 @@ Cập nhật documentation code để phản ánh các cải tiến thuật toá
 
 **Test Results**:
 
-- Created test file: `tests/adaptive_trend_LTS/test_batch_incremental_atc.py`
+- Created test file: `tests/adaptive_trend_LTS_mini/test_batch_incremental_atc.py`
 - All 22 tests passed
 - Test coverage: initialization, add/remove symbols, single/batch updates, signal retrieval, state management
 
 **Benchmark Results**:
 
-- Created benchmark script: `modules/adaptive_trend_LTS/benchmarks/benchmark_batch_incremental_atc.py`
+- Created benchmark script: `modules/adaptive_trend_LTS_mini/benchmarks/benchmark_batch_incremental_atc.py`
 - Tested with 10 symbols, 50 updates
 - Measured Speedup: **1.21x**
 - Time Saved: 17.2%
@@ -655,7 +655,7 @@ Cập nhật documentation code để phản ánh các cải tiến thuật toá
 
 **Test Results**:
 
-- Created test file: `tests/adaptive_trend_LTS/test_adaptive_approximate_mas.py`
+- Created test file: `tests/adaptive_trend_LTS_mini/test_adaptive_approximate_mas.py`
 - All 12 tests passed
 - Test coverage: volatility calculation, all adaptive MA types, parameter variations (volatility factor, base tolerance, volatility window)
 
@@ -752,7 +752,7 @@ Cập nhật documentation code để phản ánh các cải tiến thuật toá
 
 **Test Results**:
 
-- Created test file: `tests/adaptive_trend_LTS/test_streaming_incremental_processor.py`
+- Created test file: `tests/adaptive_trend_LTS_mini/test_streaming_incremental_processor.py`
 - All 22 tests passed
 - Test coverage: initialization, single/batch bar processing, signal retrieval, symbol management, state queries, processed count tracking
 

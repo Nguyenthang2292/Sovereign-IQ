@@ -5,7 +5,7 @@ Tests for consistency between Rust and Python/Numba implementations.
 import numpy as np
 import pandas as pd
 import pytest
-from modules.adaptive_trend_LTS.core import rust_backend
+from modules.adaptive_trend_LTS_mini.core import rust_backend
 
 
 # Helper to generate test data

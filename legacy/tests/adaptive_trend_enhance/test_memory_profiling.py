@@ -33,9 +33,9 @@ except AttributeError:
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.adaptive_trend_enhance.core.compute_equity import equity_series
-from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.compute_equity import equity_series
+from legacy.adaptive_trend_enhance.core.scanner import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.system import cleanup_series, get_memory_manager
 
 
@@ -97,8 +97,8 @@ def create_mock_atc_results(signal_value: float = 0.05) -> dict:
 class TestScannerBatchProcessingMemory:
     """Test memory usage for scanner batch processing."""
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.trend_sign")
     @pytest.mark.timeout(30)  # Add timeout to prevent hanging
     def test_scanner_batch_memory_usage(self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher):
         """Test scanner batch processing memory usage."""
@@ -148,8 +148,8 @@ class TestScannerBatchProcessingMemory:
         # Verify memory didn't grow excessively (allow up to 150MB for 50 symbols)
         assert total_diff < 150, f"Memory usage too high: {total_diff:.2f} MB"
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.trend_sign")
     @pytest.mark.timeout(40)  # Reduced timeout from 60s
     def test_scanner_memory_with_different_batch_sizes(
         self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher

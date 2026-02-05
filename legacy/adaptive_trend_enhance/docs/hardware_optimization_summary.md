@@ -237,7 +237,7 @@ def vectorized_calc(arr):
 ### Multi-Level Cache Hierarchy
 
 ```python
-from modules.adaptive_trend_enhance.utils.cache_manager import get_cache_manager
+from legacy.adaptive_trend_enhance.utils.cache_manager import get_cache_manager
 
 cache = get_cache_manager()
 

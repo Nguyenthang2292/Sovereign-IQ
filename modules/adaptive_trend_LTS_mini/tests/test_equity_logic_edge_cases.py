@@ -6,8 +6,8 @@ import os
 import numpy as np
 import pandas as pd
 import pytest
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_LTS.core.compute_equity.core import set_equity_floor, get_equity_floor
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.compute_equity.core import set_equity_floor, get_equity_floor
 
 
 @pytest.fixture
@@ -121,9 +121,9 @@ def test_atc_equity_floor_dynamic_change(sample_data, standard_config):
     set_equity_floor(0.25)
 
     # In the crash region, low floor should result in lower equity values
-    assert (
-        ema_s_low.iloc[-1] < ema_s_default.iloc[-1]
-    ), f"Lower floor should allow lower equity: {ema_s_low.iloc[-1]} vs {ema_s_default.iloc[-1]}"
+    assert ema_s_low.iloc[-1] < ema_s_default.iloc[-1], (
+        f"Lower floor should allow lower equity: {ema_s_low.iloc[-1]} vs {ema_s_default.iloc[-1]}"
+    )
     assert (ema_s_low.iloc[-10:] < 0.2).any(), "Low floor should allow equity to drop below 0.25"
 
 

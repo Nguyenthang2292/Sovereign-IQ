@@ -33,14 +33,14 @@ The `ATCScanner` class provides a multi-timeframe scanning capability that:
 ### 1. **Import Path Mismatch** (Line 15) - HIGH PRIORITY
 
 ```python
-from modules.adaptive_trend_LTS.core.scanner import scan_all_symbols
+from modules.adaptive_trend_LTS_mini.core.scanner import scan_all_symbols
 ```
 
 **Issue**: This imports from a non-existent module path.
 
 **Actual structure**:
 ```
-modules/adaptive_trend_LTS/core/scanner/
+modules/adaptive_trend_LTS_mini/core/scanner/
 ├── scan_all_symbols.py      # Contains scan_all_symbols function
 ├── asyncio_scan.py
 ├── dask_scan.py
@@ -50,7 +50,7 @@ modules/adaptive_trend_LTS/core/scanner/
 
 **Fix**:
 ```python
-from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
+from modules.adaptive_trend_LTS_mini.core.scanner.scan_all_symbols import scan_all_symbols
 ```
 
 **Impact**: Code will fail at import time, making the module completely non-functional.

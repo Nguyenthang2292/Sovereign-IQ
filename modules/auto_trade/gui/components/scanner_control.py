@@ -29,11 +29,8 @@ class ScannerControl(ctk.CTkFrame):
         # Control buttons
         self._create_controls()
 
-        # Scanner configuration
+        # Scanner configuration (includes settings display)
         self._create_configuration()
-
-        # Settings display
-        self._create_settings_display()
 
     def _create_status_indicator(self):
         """Create scanner status indicator"""
@@ -70,7 +67,7 @@ class ScannerControl(ctk.CTkFrame):
             hover_color="#00cc66",
             command=self._start_scanner,
         )
-        self.start_button.pack(fill="x", pady=5)
+        self.start_button.pack(fill="x", pady=(0, 8))
 
         # Stop button (hidden initially)
         self.stop_button = ctk.CTkButton(
@@ -81,7 +78,7 @@ class ScannerControl(ctk.CTkFrame):
             hover_color="#cc0000",
             command=self._stop_scanner,
         )
-        self.stop_button.pack(fill="x", pady=5)
+        self.stop_button.pack(fill="x", pady=(0, 8))
         self.stop_button.pack_forget()  # Hide initially
 
         # Manual scan button
@@ -93,12 +90,20 @@ class ScannerControl(ctk.CTkFrame):
             hover_color="#0066ff",
             command=self._manual_scan,
         )
-        self.manual_scan_button.pack(fill="x", pady=5)
+        self.manual_scan_button.pack(fill="x", pady=(0, 5))
 
     def _create_configuration(self):
-        """Create scanner configuration"""
-        config_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
-        config_frame.pack(fill="x", padx=15, pady=10)
+        """Create scanner configuration and settings display side-by-side"""
+        # Container frame for 2-column layout
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=15, pady=10)
+
+        container.grid_columnconfigure(0, weight=1)
+        container.grid_columnconfigure(1, weight=1)
+
+        # ===== LEFT: Scanner Configuration =====
+        config_frame = ctk.CTkFrame(container, fg_color=Colors.get_card_bg(), corner_radius=10)
+        config_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
 
         # Title
         config_title = ctk.CTkLabel(config_frame, text="⚙️ Scanner Configuration", font=("Arial", 12, "bold"))
@@ -164,12 +169,13 @@ class ScannerControl(ctk.CTkFrame):
         )
         auto_scan_checkbox.grid(row=4, column=0, columnspan=2, sticky="w", pady=5)
 
+        # Configure grid columns - column 0 for labels needs minimum width
+        inputs_frame.grid_columnconfigure(0, weight=0, minsize=140)
         inputs_frame.grid_columnconfigure(1, weight=1)
 
-    def _create_settings_display(self):
-        """Display current scanner settings"""
-        settings_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
-        settings_frame.pack(fill="x", padx=15, pady=10)
+        # ===== RIGHT: Current Settings =====
+        settings_frame = ctk.CTkFrame(container, fg_color=Colors.get_card_bg(), corner_radius=10)
+        settings_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
         # Title
         settings_title = ctk.CTkLabel(settings_frame, text="📊 Current Settings", font=("Arial", 12, "bold"))
@@ -219,7 +225,7 @@ class ScannerControl(ctk.CTkFrame):
 
             # Update UI
             self.start_button.pack_forget()
-            self.stop_button.pack(fill="x", pady=5)
+            self.stop_button.pack(fill="x", pady=(0, 8))
             self._update_status_indicator(True)
 
             # Call callback
@@ -242,7 +248,7 @@ class ScannerControl(ctk.CTkFrame):
 
             # Update UI
             self.stop_button.pack_forget()
-            self.start_button.pack(fill="x", pady=5)
+            self.start_button.pack(fill="x", pady=(0, 8))
             self._update_status_indicator(False)
 
             # Call callback

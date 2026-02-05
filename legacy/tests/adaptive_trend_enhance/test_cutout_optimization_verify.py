@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
+from legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
 
 
 def test_cutout_slicing_consistency():

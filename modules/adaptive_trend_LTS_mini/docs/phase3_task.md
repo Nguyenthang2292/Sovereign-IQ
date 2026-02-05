@@ -129,7 +129,7 @@ After Rust is in PATH:
 Or manually:
 
 ```powershell
-cd modules\adaptive_trend_LTS\rust_extensions
+cd modules\adaptive_trend_LTS_mini\rust_extensions
 maturin develop --release
 ```
 
@@ -152,7 +152,7 @@ except ImportError as e:
 **Run tests**:
 
 ```powershell
-cd modules\adaptive_trend_LTS\rust_extensions
+cd modules\adaptive_trend_LTS_mini\rust_extensions
 cargo test
 ```
 
@@ -167,7 +167,7 @@ cargo test
 - [x] Tạo thư mục Rust project
 
   ```bash
-  cd modules/adaptive_trend_LTS
+  cd modules/adaptive_trend_LTS_mini
   mkdir rust_extensions
   cd rust_extensions
   maturin init
@@ -295,7 +295,7 @@ cargo test
 #### 3.3 Port Numba Logic to Rust
 
 - [x] Đọc và phân tích code Numba hiện tại từ Python
-  - File: `modules/adaptive_trend_enhance/core/process_layer1/weighted_signal.py`
+  - File: `legacy/adaptive_trend_enhance/core/process_layer1/weighted_signal.py`
   - Function: `calculate_equity` (hoặc tương tự)
 
 - [x] Implement equity calculation algorithm
@@ -351,7 +351,7 @@ cargo test
 #### 4.1 Analyze Current KAMA Implementation
 
 - [x] Đọc code Python hiện tại
-  - File: `modules/adaptive_trend_enhance/core/compute_moving_averages/calculate_kama_atc.py`
+  - File: `legacy/adaptive_trend_enhance/core/compute_moving_averages/calculate_kama_atc.py`
   - Hiểu rõ logic: efficiency ratio, smoothing constant, adaptive calculation
 
 #### 4.2 Implement KAMA Core Logic
@@ -421,7 +421,7 @@ cargo test
 #### 5.1 Analyze Signal Persistence Requirements
 
 - [x] Đọc code Python hiện tại
-  - File: `modules/adaptive_trend_enhance/core/signal_detection/generate_signal.py`
+  - File: `legacy/adaptive_trend_enhance/core/signal_detection/generate_signal.py`
   - Hiểu logic: signal filtering, persistence checking, state management
 
 #### 5.2 Implement Core Logic
@@ -503,7 +503,7 @@ cargo test
 - [x] Chạy tests
 
   ```bash
-  cd modules/adaptive_trend_LTS/rust_extensions
+  cd modules/adaptive_trend_LTS_mini/rust_extensions
   cargo test
   ```
 
@@ -577,7 +577,7 @@ cargo test
 - [x] Chạy benchmarks
 
   ```bash
-  cd modules/adaptive_trend_LTS/rust_extensions
+  cd modules/adaptive_trend_LTS_mini/rust_extensions
   cargo bench
   ```
 
@@ -591,7 +591,7 @@ cargo test
   import time
   import numpy as np
   from atc_rust import calculate_equity_rust
-  from modules.adaptive_trend_enhance.core.process_layer1.weighted_signal import calculate_equity
+  from legacy.adaptive_trend_enhance.core.process_layer1.weighted_signal import calculate_equity
 
   def benchmark_equity():
       # Setup test data
@@ -614,7 +614,7 @@ cargo test
 - [x] Sử dụng profiling tools
 
   ```bash
-  cd modules/adaptive_trend_LTS/rust_extensions
+  cd modules/adaptive_trend_LTS_mini/rust_extensions
   cargo bench   # Criterion timing (baseline)
   # Optional: cargo install flamegraph && cargo flamegraph --bench equity_benchmark -- --bench
   ```
@@ -642,7 +642,7 @@ cargo test
 
 #### 8.2 Create Python Wrapper Module
 
-- [x] Tạo file `modules/adaptive_trend_LTS/core/rust_backend.py`
+- [x] Tạo file `modules/adaptive_trend_LTS_mini/core/rust_backend.py`
 
   ```python
   """
@@ -736,7 +736,7 @@ cargo test
 
 #### 9.3 Update Main Module Documentation
 
-- [x] Cập nhật `modules/adaptive_trend_LTS/README.md`
+- [x] Cập nhật `modules/adaptive_trend_LTS_mini/README.md`
   - **Rust backend**: Luôn dùng khi đã build; fallback Numba. Ghi rõ equity, KAMA, MAs, persistence chạy Rust.
   - **Performance**: Bảng benchmarks (equity ~32µs, KAMA ~164µs, persistence ~8.5µs, MA…), 2–3x+ vs Numba.
   - **Setup**: `cd rust_extensions` → `maturin develop --release`; `build_rust.bat` / `build_rust.ps1`. Chi tiết xem phần [Prerequisites & Setup](#prerequisites--setup).
@@ -805,7 +805,7 @@ cargo test
 - [x] Review tất cả documentation
   - Phase3, README LTS, rust_extensions/README đã rà soát; nội dung thống nhất (đã tích hợp rust installation guide vào phase3_task.md).
 - [x] Update examples
-  - README LTS: thêm ghi chú có thể dùng `adaptive_trend_LTS` thay `adaptive_trend_enhance` (cùng API).
+  - README LTS_mini: thêm ghi chú có thể dùng `adaptive_trend_LTS_mini` thay `adaptive_trend_enhance` (cùng API).
 - [x] Add troubleshooting guide
   - README LTS: thêm mục **Troubleshooting** (Rust PATH, maturin build, import atc_rust, Numba cache); link tới [phase3_task.md](#troubleshooting).
 
@@ -915,7 +915,7 @@ The Rust module provides optimized functions:
 The module automatically uses Rust backend if available:
 
 ```python
-from modules.adaptive_trend_LTS.core.rust_backend import (
+from modules.adaptive_trend_LTS_mini.core.rust_backend import (
     calculate_equity,
     calculate_kama,
     calculate_ema,

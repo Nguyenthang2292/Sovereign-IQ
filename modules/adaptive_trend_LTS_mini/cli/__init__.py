@@ -11,18 +11,18 @@ Exports:
     - main, ATCAnalyzer: Main entrypoint and core analyzer for CLI operation.
 """
 
-from modules.adaptive_trend_LTS.cli.argument_parser import parse_args
-from modules.adaptive_trend_LTS.cli.display import (
+from modules.adaptive_trend_LTS_mini.cli.argument_parser import parse_args
+from modules.adaptive_trend_LTS_mini.cli.display import (
     display_atc_signals,
     display_scan_results,
     list_futures_symbols,
 )
-from modules.adaptive_trend_LTS.cli.interactive_prompts import (
+from modules.adaptive_trend_LTS_mini.cli.interactive_prompts import (
     UserExitRequested,
     prompt_interactive_mode,
     prompt_timeframe,
 )
-from modules.adaptive_trend_LTS.cli.main import ATCAnalyzer, main
+from modules.adaptive_trend_LTS_mini.cli.main import ATCAnalyzer, main
 
 __all__ = [
     # Argument parsing

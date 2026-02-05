@@ -1,18 +1,25 @@
 """
-Position Monitor Module
+Position Monitor Module (WebSocket Version)
 
-Monitors open positions in real-time, tracking P&L, drawdown, and position lifecycle.
-Polls Binance Futures positions every 5 seconds (configurable).
+Monitors open positions in real-time using WebSocket, tracking P&L, drawdown, and position lifecycle.
+Replaces polling with real-time User Data Stream from Binance Futures.
+
+Key improvements over REST polling:
+- Real-time position updates (<100ms vs 5s polling)
+- Instant P&L tracking
+- Immediate position close detection
+- Lower API rate limit usage
 """
 
-import time
+import asyncio
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-from threading import Event, Thread
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
-from modules.common.core.data_fetcher import DataFetcher
-from modules.common.ui.logging import log_error, log_info, log_warn
+from modules.auto_trade.websocket.client import BinanceWebSocketClient
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -20,7 +27,7 @@ class PositionSnapshot:
     """Snapshot of a position at a point in time."""
 
     symbol: str
-    side: str  # "LONG" or "SHORT"
+    side: str  # "long" or "short"
     position_amt: float
     entry_price: float
     mark_price: float
@@ -46,48 +53,42 @@ class PositionSnapshot:
 
 class PositionMonitor:
     """
-    Monitors open positions in real-time.
+    Monitors open positions in real-time using WebSocket.
+
+    Replaces REST polling with WebSocket User Data Stream for:
+    - Instant position updates
+    - Real-time P&L tracking
+    - Immediate position close detection
 
     Example:
-        >>> monitor = PositionMonitor(data_fetcher, api_key, api_secret)
+        >>> monitor = PositionMonitor(ws_client, max_positions=1)
         >>> monitor.add_callback(on_position_update)
-        >>> monitor.start()
+        >>> await monitor.start()
     """
 
     def __init__(
         self,
-        data_fetcher: DataFetcher,
-        api_key: str,
-        api_secret: str,
-        testnet: bool = False,
-        poll_interval: float = 5.0,
+        ws_client: BinanceWebSocketClient,
         max_positions: int = 1,
+        min_pnl_change_percent: float = 1.0,
     ):
         """
         Initialize PositionMonitor.
 
         Args:
-            data_fetcher: DataFetcher instance
-            api_key: Binance API key
-            api_secret: Binance API secret
-            testnet: Use testnet if True
-            poll_interval: Polling interval in seconds (default: 5.0)
+            ws_client: WebSocket client instance
             max_positions: Maximum allowed open positions (default: 1)
+            min_pnl_change_percent: Minimum P&L change to log (default: 1.0%)
         """
-        self.data_fetcher = data_fetcher
-        self.api_key = api_key
-        self.api_secret = api_secret
-        self.testnet = testnet
-        self.poll_interval = poll_interval
+        self.ws_client = ws_client
         self.max_positions = max_positions
+        self.min_pnl_change_percent = min_pnl_change_percent
 
         self._running = False
-        self._stop_event = Event()
-        self._monitor_thread: Optional[Thread] = None
         self._callbacks: List[Callable[[PositionSnapshot], None]] = []
-        self._last_position: Optional[PositionSnapshot] = None
+        self._last_positions: Dict[str, PositionSnapshot] = {}  # symbol -> last snapshot
 
-        log_info(f"PositionMonitor initialized (poll_interval={poll_interval}s)")
+        logger.info(f"PositionMonitor initialized (max_positions={max_positions}, WebSocket mode)")
 
     def add_callback(self, callback: Callable[[PositionSnapshot], None]):
         """
@@ -97,164 +98,219 @@ class PositionMonitor:
             callback: Function that takes PositionSnapshot as argument
         """
         self._callbacks.append(callback)
-        log_info(f"Added position callback: {callback.__name__}")
+        logger.info(f"Added position callback: {callback.__name__}")
 
-    def start(self):
-        """Start monitoring positions."""
+    async def start(self):
+        """
+        Start monitoring positions via WebSocket.
+        """
         if self._running:
-            log_warn("PositionMonitor is already running")
+            logger.warning("PositionMonitor is already running")
             return
 
         self._running = True
-        self._stop_event.clear()
-        self._monitor_thread = Thread(target=self._monitor_loop, daemon=True)
-        self._monitor_thread.start()
-        log_info("✅ PositionMonitor started")
 
-    def stop(self):
+        # Fetch initial positions via REST
+        initial_positions = await self.ws_client.get_initial_positions()
+
+        if initial_positions:
+            logger.info(f"Loaded {len(initial_positions)} initial positions")
+            self._process_positions_update(initial_positions)
+
+        # Register WebSocket callback
+        self.ws_client.on_position_update(self._handle_ws_position_update)
+
+        logger.info("✅ PositionMonitor started (WebSocket mode)")
+
+    async def stop(self):
         """Stop monitoring positions."""
         if not self._running:
             return
 
         self._running = False
-        self._stop_event.set()
-        if self._monitor_thread:
-            self._monitor_thread.join(timeout=10)
-        log_info("⏹️ PositionMonitor stopped")
+        logger.info("⏹️  PositionMonitor stopped")
 
-    def _monitor_loop(self):
-        """Main monitoring loop."""
-        log_info("Position monitoring loop started")
-
-        while self._running and not self._stop_event.is_set():
-            try:
-                positions = self.fetch_positions()
-
-                if positions:
-                    # Check max positions limit
-                    if len(positions) > self.max_positions:
-                        log_error(f"⚠️ Too many positions! Found {len(positions)}, max allowed: {self.max_positions}")
-
-                    # Process each position
-                    for position in positions:
-                        self._process_position(position)
-                else:
-                    # No positions open
-                    if self._last_position:
-                        log_info("No open positions (position closed)")
-                        self._last_position = None
-
-            except Exception as e:
-                log_error(f"Error in position monitoring loop: {e}", exc_info=True)
-
-            # Wait for next poll interval
-            self._stop_event.wait(timeout=self.poll_interval)
-
-        log_info("Position monitoring loop stopped")
-
-    def fetch_positions(self) -> List[dict]:
+    def _handle_ws_position_update(self, positions: List[dict]):
         """
-        Fetch current open positions from Binance.
+        Handle WebSocket position update.
 
-        Returns:
-            List of position dicts, empty list if no positions
-        """
-        try:
-            positions = self.data_fetcher.fetch_binance_futures_positions(
-                api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
-            )
-
-            if not positions:
-                return []
-
-            # Filter for non-zero positions
-            open_positions = [p for p in positions if float(p.get("positionAmt", 0)) != 0]
-
-            return open_positions
-
-        except Exception as e:
-            log_error(f"Failed to fetch positions: {e}", exc_info=True)
-            return []
-
-    def _process_position(self, position_data: dict):
-        """
-        Process a position update.
+        This is called by WebSocket client when positions change.
 
         Args:
-            position_data: Position data from Binance API
+            positions: List of position dicts from ccxt.pro
         """
+        if not self._running:
+            return
+
         try:
-            # Parse position data
-            snapshot = self._parse_position(position_data)
-
-            # Calculate P&L percentage
-            entry_price = snapshot.entry_price
-            mark_price = snapshot.mark_price
-            position_amt = snapshot.position_amt
-
-            if entry_price > 0:
-                if position_amt > 0:  # LONG
-                    pnl_percent = ((mark_price - entry_price) / entry_price) * 100
-                else:  # SHORT
-                    pnl_percent = ((entry_price - mark_price) / entry_price) * 100
-
-                snapshot.unrealized_pnl_percent = pnl_percent
-
-            # Log if position changed significantly
-            if self._has_significant_change(snapshot):
-                log_info(
-                    f"📊 {snapshot.symbol} {snapshot.side}: "
-                    f"PnL=${snapshot.unrealized_pnl:.2f} ({snapshot.unrealized_pnl_percent:+.2f}%), "
-                    f"Entry=${snapshot.entry_price:.2f}, Mark=${snapshot.mark_price:.2f}"
-                )
-
-            # Update last position
-            self._last_position = snapshot
-
-            # Trigger callbacks
-            for callback in self._callbacks:
-                try:
-                    callback(snapshot)
-                except Exception as e:
-                    log_error(f"Error in position callback {callback.__name__}: {e}")
-
+            self._process_positions_update(positions)
         except Exception as e:
-            log_error(f"Error processing position: {e}", exc_info=True)
+            logger.error(f"Error handling WebSocket position update: {e}", exc_info=True)
+
+    def _process_positions_update(self, positions: List[dict]):
+        """
+        Process position updates.
+
+        Args:
+            positions: List of position dicts from ccxt.pro
+        """
+        # Check max positions limit
+        if len(positions) > self.max_positions:
+            logger.error(f"⚠️  Too many positions! Found {len(positions)}, max allowed: {self.max_positions}")
+
+        # Track current symbols
+        current_symbols = set()
+
+        # Process each position
+        for position_data in positions:
+            try:
+                snapshot = self._parse_position(position_data)
+                current_symbols.add(snapshot.symbol)
+
+                # Calculate P&L percentage
+                snapshot.unrealized_pnl_percent = self._calculate_pnl_percent(snapshot)
+
+                # Log if position changed significantly
+                if self._has_significant_change(snapshot):
+                    logger.info(
+                        f"📊 {snapshot.symbol} {snapshot.side.upper()}: "
+                        f"PnL=${snapshot.unrealized_pnl:.2f} ({snapshot.unrealized_pnl_percent:+.2f}%), "
+                        f"Entry=${snapshot.entry_price:.2f}, Mark=${snapshot.mark_price:.2f}"
+                    )
+
+                # Update last position
+                self._last_positions[snapshot.symbol] = snapshot
+
+                # Trigger callbacks
+                for callback in self._callbacks:
+                    try:
+                        if asyncio.iscoroutinefunction(callback):
+                            asyncio.create_task(callback(snapshot))
+                        else:
+                            callback(snapshot)
+                    except Exception as e:
+                        logger.error(f"Error in position callback {callback.__name__}: {e}")
+
+            except Exception as e:
+                logger.error(f"Error processing position: {e}", exc_info=True)
+
+        # Check for closed positions
+        closed_symbols = set(self._last_positions.keys()) - current_symbols
+        for symbol in closed_symbols:
+            logger.info(f"Position closed: {symbol}")
+            del self._last_positions[symbol]
 
     def _parse_position(self, data: dict) -> PositionSnapshot:
-        """Parse position data from Binance API."""
-        position_amt = float(data.get("positionAmt", 0))
-        side = "LONG" if position_amt > 0 else "SHORT"
+        """
+        Parse position data from ccxt.pro.
+
+        ccxt.pro normalizes position data into unified format:
+        {
+            'symbol': 'BTC/USDT',
+            'contracts': 0.001,
+            'contractSize': 1,
+            'side': 'long',  # or 'short'
+            'notional': 34.5,
+            'leverage': 10,
+            'unrealizedPnl': -0.5,
+            'collateral': 3.5,
+            'marginType': 'isolated',  # or 'cross'
+            'entryPrice': 35000,
+            'markPrice': 34500,
+            'liquidationPrice': 31500,
+            'percentage': -1.43,  # P&L percentage
+            'timestamp': 1623456789000,
+            'info': {...}  # Raw exchange data
+        }
+        """
+        symbol = data.get("symbol", "")
+        contracts = float(data.get("contracts", 0))
+        side = data.get("side", "long").lower()
+        entry_price = float(data.get("entryPrice", 0))
+        mark_price = float(data.get("markPrice", 0))
+        liquidation_price = data.get("liquidationPrice")
+        unrealized_pnl = float(data.get("unrealizedPnl", 0))
+        margin_type = data.get("marginType", "cross").lower()
+        leverage = int(data.get("leverage", 1))
 
         return PositionSnapshot(
-            symbol=data.get("symbol", ""),
+            symbol=symbol,
             side=side,
-            position_amt=abs(position_amt),
-            entry_price=float(data.get("entryPrice", 0)),
-            mark_price=float(data.get("markPrice", 0)),
-            liquidation_price=float(data.get("liquidationPrice", 0)) or None,
-            unrealized_pnl=float(data.get("unRealizedProfit", 0)),
-            unrealized_pnl_percent=0.0,  # Calculated in _process_position
-            margin_type=data.get("marginType", "cross"),
-            leverage=int(data.get("leverage", 1)),
+            position_amt=abs(contracts),
+            entry_price=entry_price,
+            mark_price=mark_price,
+            liquidation_price=float(liquidation_price) if liquidation_price else None,
+            unrealized_pnl=unrealized_pnl,
+            unrealized_pnl_percent=0.0,  # Calculated below
+            margin_type=margin_type,
+            leverage=leverage,
             timestamp=datetime.now(),
         )
 
-    def _has_significant_change(self, snapshot: PositionSnapshot) -> bool:
-        """Check if position has changed significantly since last update."""
-        if not self._last_position:
-            return True
+    def _calculate_pnl_percent(self, snapshot: PositionSnapshot) -> float:
+        """
+        Calculate P&L percentage.
 
-        # Check if PnL changed by more than 1%
-        pnl_diff = abs(snapshot.unrealized_pnl_percent - self._last_position.unrealized_pnl_percent)
-        return pnl_diff > 1.0
+        Args:
+            snapshot: Position snapshot
+
+        Returns:
+            P&L percentage
+        """
+        if snapshot.entry_price <= 0:
+            return 0.0
+
+        if snapshot.side == "long":
+            return ((snapshot.mark_price - snapshot.entry_price) / snapshot.entry_price) * 100
+        else:  # short
+            return ((snapshot.entry_price - snapshot.mark_price) / snapshot.entry_price) * 100
+
+    def _has_significant_change(self, snapshot: PositionSnapshot) -> bool:
+        """
+        Check if position has changed significantly since last update.
+
+        Args:
+            snapshot: Current position snapshot
+
+        Returns:
+            True if significant change detected
+        """
+        last = self._last_positions.get(snapshot.symbol)
+
+        if not last:
+            return True  # New position
+
+        # Check if P&L changed by threshold
+        pnl_diff = abs(snapshot.unrealized_pnl_percent - last.unrealized_pnl_percent)
+        return pnl_diff >= self.min_pnl_change_percent
+
+    def get_open_positions(self) -> List[PositionSnapshot]:
+        """
+        Get current open positions.
+
+        Returns:
+            List of position snapshots
+        """
+        return list(self._last_positions.values())
+
+    def get_position(self, symbol: str) -> Optional[PositionSnapshot]:
+        """
+        Get position for a specific symbol.
+
+        Args:
+            symbol: Trading symbol
+
+        Returns:
+            Position snapshot or None if not found
+        """
+        return self._last_positions.get(symbol)
+
+    @property
+    def position_count(self) -> int:
+        """Get number of open positions."""
+        return len(self._last_positions)
 
     @property
     def is_running(self) -> bool:
         """Check if monitor is running."""
         return self._running
-
-    @property
-    def current_position(self) -> Optional[PositionSnapshot]:
-        """Get current position snapshot."""
-        return self._last_position

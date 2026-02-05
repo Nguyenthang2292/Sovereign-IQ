@@ -9,9 +9,9 @@ import dask.bag as db
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_LTS.core.process_layer1 import trend_sign
-from modules.adaptive_trend_LTS.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.process_layer1 import trend_sign
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher

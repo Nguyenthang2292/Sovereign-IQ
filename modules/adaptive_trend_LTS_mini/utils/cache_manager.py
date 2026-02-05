@@ -106,7 +106,7 @@ class CacheManager:
 
         # Check if compression is available
         if use_compression:
-            from modules.adaptive_trend_LTS.utils.data_compression import (
+            from modules.adaptive_trend_LTS_mini.utils.data_compression import (
                 is_compression_available,
             )
 
@@ -357,7 +357,7 @@ class CacheManager:
 
             if self.use_compression:
                 # Save compressed
-                from modules.adaptive_trend_LTS.utils.data_compression import (
+                from modules.adaptive_trend_LTS_mini.utils.data_compression import (
                     compress_to_file,
                 )
 
@@ -391,7 +391,7 @@ class CacheManager:
         try:
             if self.use_compression and os.path.exists(compressed_path):
                 # Try loading compressed first
-                from modules.adaptive_trend_LTS.utils.data_compression import (
+                from modules.adaptive_trend_LTS_mini.utils.data_compression import (
                     decompress_from_file,
                 )
 
@@ -444,7 +444,7 @@ class CacheManager:
         # Save current stats
         initial_stats = self.get_stats()
 
-        from modules.adaptive_trend_LTS.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
+        from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
 
         count = 0
         for symbol, prices in symbols_data.items():

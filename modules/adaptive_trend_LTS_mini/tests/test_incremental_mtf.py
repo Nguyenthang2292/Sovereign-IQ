@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals import (
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import (
     IncrementalATC,
     MultiTimeframeIncrementalATC,
 )
@@ -75,7 +75,7 @@ class TestTFResolutionLogic:
 
     def test_tf_resolution_map(self):
         """Test that TF resolution mapping is correct."""
-        from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_atc import (
+        from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_atc import (
             TF_RESOLUTION_MAP,
         )
 

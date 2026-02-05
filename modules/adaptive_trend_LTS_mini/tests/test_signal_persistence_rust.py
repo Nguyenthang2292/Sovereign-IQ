@@ -18,7 +18,7 @@ except ImportError:
     RUST_AVAILABLE = False
     pytest.skip("Rust extensions not available", allow_module_level=True)
 
-from modules.adaptive_trend_LTS.core.signal_detection.generate_signal import _apply_signal_persistence
+from modules.adaptive_trend_LTS_mini.core.signal_detection.generate_signal import _apply_signal_persistence
 
 
 class TestSignalPersistenceCorrectness:

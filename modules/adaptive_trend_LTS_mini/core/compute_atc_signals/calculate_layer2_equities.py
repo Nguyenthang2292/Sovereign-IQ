@@ -21,8 +21,8 @@ except ImportError:
         print(f"[WARN] {msg}")
 
 
-from modules.adaptive_trend_LTS.core.compute_equity import _calculate_equities_parallel
-from modules.adaptive_trend_LTS.core.rust_backend import calculate_equity
+from modules.adaptive_trend_LTS_mini.core.compute_equity import _calculate_equities_parallel
+from modules.adaptive_trend_LTS_mini.core.rust_backend import calculate_equity
 from modules.common.system import get_memory_manager, get_series_pool, temp_series
 
 
@@ -99,7 +99,7 @@ def calculate_layer2_equities(
                 signals_prev[:, 0] = np.nan
 
             # Get growth factor
-            from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
+            from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
 
             growth = exp_growth(L=L, index=R.index, cutout=cutout)
             r_adjusted = (R * growth).values
@@ -126,7 +126,7 @@ def calculate_layer2_equities(
         else:
             # Sequential processing (fallback or single MA)
             # R multiplied by e(L) (growth factor)
-            from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
+            from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
 
             growth = exp_growth(L=L, index=R.index, cutout=cutout)
             r_adjusted = R * growth

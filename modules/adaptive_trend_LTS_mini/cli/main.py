@@ -45,6 +45,7 @@ class ATCParams(TypedDict, total=False):
     This provides type safety for the parameters passed to ATC analysis functions.
     All fields are optional (total=False) to support flexible parameter extraction.
     """
+
     limit: int
     ema_len: int
     hma_len: int
@@ -72,9 +73,9 @@ class ATCParams(TypedDict, total=False):
     approximate_threshold: float
 
 
-from modules.adaptive_trend_LTS.core.analyzer import analyze_symbol
-from modules.adaptive_trend_LTS.core.scanner import scan_all_symbols
-from modules.adaptive_trend_LTS.utils.config import create_atc_config_from_dict
+from modules.adaptive_trend_LTS_mini.core.analyzer import analyze_symbol
+from modules.adaptive_trend_LTS_mini.core.scanner import scan_all_symbols
+from modules.adaptive_trend_LTS_mini.utils.config import create_atc_config_from_dict
 from modules.adaptive_trend_LTS_mini.cli import (
     display_scan_results,
     list_futures_symbols,

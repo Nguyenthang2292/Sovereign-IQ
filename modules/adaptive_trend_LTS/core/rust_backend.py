@@ -10,28 +10,40 @@ import numpy as np
 import pandas as pd
 import pandas_ta as ta
 
+# CPU (Rust) symbols are required; CUDA symbols are optional (e.g. when using LTS_mini CPU-only build).
+RUST_AVAILABLE = False
+CUDA_AVAILABLE = False
+calculate_ema_cuda = None
+calculate_wma_cuda = None
+calculate_hma_cuda = None
+calculate_kama_cuda = None
+calculate_equity_cuda = None
+
 try:
     from atc_rust import (
         calculate_dema_rust,
-        # CUDA functions
-        calculate_ema_cuda,
         calculate_ema_rust,
-        calculate_equity_cuda,
         calculate_equity_rust,
-        calculate_hma_cuda,
         calculate_hma_rust,
-        calculate_kama_cuda,
         calculate_kama_rust,
         calculate_lsma_rust,
-        calculate_wma_cuda,
         calculate_wma_rust,
         process_signal_persistence_rust,
     )
-
     RUST_AVAILABLE = True
+    try:
+        from atc_rust import (
+            calculate_ema_cuda,
+            calculate_equity_cuda,
+            calculate_hma_cuda,
+            calculate_kama_cuda,
+            calculate_wma_cuda,
+        )
+        CUDA_AVAILABLE = True
+    except ImportError:
+        pass  # CPU-only atc_rust (e.g. from LTS_mini build); Rust MA still used
 except ImportError:
     warnings.warn("Rust extensions not available, falling back to Numba")
-    RUST_AVAILABLE = False
 
 
 def _ensure_numpy_array(data):
@@ -74,7 +86,7 @@ def calculate_equity(
     if use_rust and RUST_AVAILABLE:
         # NOTE: Rust backend might not support floor_val yet,
         # it uses hardcoded 0.25 internally in most implementations
-        if use_cuda:
+        if use_cuda and CUDA_AVAILABLE and calculate_equity_cuda is not None:
             try:
                 return calculate_equity_cuda(r_values, sig_prev, starting_equity, decay_multiplier, cutout)
             except Exception as e:
@@ -111,7 +123,7 @@ def calculate_kama(
     prices = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
-        if use_cuda:
+        if use_cuda and CUDA_AVAILABLE and calculate_kama_cuda is not None:
             try:
                 return calculate_kama_cuda(prices, length)
             except Exception as e:
@@ -176,7 +188,7 @@ def calculate_ema(
     prices = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
-        if use_cuda:
+        if use_cuda and CUDA_AVAILABLE and calculate_ema_cuda is not None:
             try:
                 return calculate_ema_cuda(prices, length)
             except Exception as e:
@@ -210,7 +222,7 @@ def calculate_wma(
     prices = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
-        if use_cuda:
+        if use_cuda and CUDA_AVAILABLE and calculate_wma_cuda is not None:
             try:
                 return calculate_wma_cuda(prices, length)
             except Exception as e:
@@ -298,7 +310,7 @@ def calculate_hma(
     prices = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
-        if use_cuda:
+        if use_cuda and CUDA_AVAILABLE and calculate_hma_cuda is not None:
             try:
                 return calculate_hma_cuda(prices, length)
             except Exception as e:

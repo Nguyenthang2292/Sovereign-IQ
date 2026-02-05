@@ -7,7 +7,7 @@ This script traces calculations step-by-step to identify where the 17% discrepan
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC, compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC, compute_atc_signals
 
 
 def compare_calculations_detailed():
@@ -163,9 +163,9 @@ def compare_calculations_detailed():
         inc_l1 = atc.state.get("layer1_signals", {}).get(ma_type, 0.0)
 
         # Apply same discretization as full calculation
-        if inc_l1 > config['long_threshold']:
+        if inc_l1 > config["long_threshold"]:
             c_inc = 1.0
-        elif inc_l1 < config['short_threshold']:
+        elif inc_l1 < config["short_threshold"]:
             c_inc = -1.0
         else:
             c_inc = 0.0
@@ -211,7 +211,7 @@ def analyze_ma_values():
     print("=" * 80)
 
     # Get full calculation MAs
-    from modules.adaptive_trend_LTS.core.compute_moving_averages import set_of_moving_averages
+    from modules.adaptive_trend_LTS_mini.core.compute_moving_averages import set_of_moving_averages
 
     full_mas = {}
     for ma_type in ["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"]:
@@ -237,7 +237,7 @@ def analyze_ma_values():
     atc.update(last_price)
 
     # Compare MA values
-    print(f"\nComparing MA values at last bar (bar {len(sample_prices)-1}):")
+    print(f"\nComparing MA values at last bar (bar {len(sample_prices) - 1}):")
 
     for ma_type in ["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"]:
         print(f"\n  {ma_type}:")
@@ -256,7 +256,9 @@ def analyze_ma_values():
                     pct_diff = abs(diff / full_val * 100) if full_val != 0 else 0
 
                     status = "✅" if diff < 1e-6 else "❌"
-                    print(f"    Var {i}: Full={full_val:.6f}, Inc={inc_val:.6f}, Diff={diff:.6e} ({pct_diff:.4f}%) {status}")
+                    print(
+                        f"    Var {i}: Full={full_val:.6f}, Inc={inc_val:.6f}, Diff={diff:.6e} ({pct_diff:.4f}%) {status}"
+                    )
 
 
 if __name__ == "__main__":

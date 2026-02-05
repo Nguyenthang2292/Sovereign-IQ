@@ -21,19 +21,19 @@ def test_should_use_intra_symbol_parallelism():
     assert hm.should_use_intra_symbol_parallelism(data_length=5000, is_nested=False) == True
 
 
-@patch("modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.get_hardware_manager")
-@patch("modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.rate_of_change")
-@patch("modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.set_of_moving_averages")
-@patch("modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.validate_atc_inputs")
-@patch("modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.get_series_pool")
-@patch("modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.get_memory_manager")
+@patch("legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.get_hardware_manager")
+@patch("legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.rate_of_change")
+@patch("legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.set_of_moving_averages")
+@patch("legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.validate_atc_inputs")
+@patch("legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.get_series_pool")
+@patch("legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals.get_memory_manager")
 def test_compute_atc_signals_adaptive_logic(
     mock_mem_mgr, mock_pool, mock_validate, mock_set_ma, mock_roc, mock_hw_getter
 ):
     import numpy as np
     import pandas as pd
 
-    from modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
+    from legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
 
     # Setup mocks
     mock_hw = MagicMock()
@@ -60,7 +60,7 @@ def test_compute_atc_signals_adaptive_logic(
     # We must patch the functions *inside* the function if we want to confirm branch execution,
     # or rely on side-effects.
     # The import happens inside the function:
-    # from modules.adaptive_trend_enhance.core.process_layer1 import _layer1_parallel_atc_signals
+    # from legacy.adaptive_trend_enhance.core.process_layer1 import _layer1_parallel_atc_signals
 
     # Let's just run it and check mock_hw call
     try:

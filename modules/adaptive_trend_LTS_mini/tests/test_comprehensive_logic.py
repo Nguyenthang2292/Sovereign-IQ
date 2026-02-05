@@ -14,14 +14,14 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import modules to test
-from modules.adaptive_trend_LTS.utils.config import ATCConfig, create_atc_config_from_dict
-from modules.adaptive_trend_LTS.utils.diflen import diflen
-from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
-from modules.adaptive_trend_LTS.utils.rate_of_change import rate_of_change
-from modules.adaptive_trend_LTS.core.process_layer1.weighted_signal import weighted_signal
-from modules.adaptive_trend_LTS.core.signal_detection.crossover import crossover
-from modules.adaptive_trend_LTS.core.signal_detection.crossunder import crossunder
-from modules.adaptive_trend_LTS.core.signal_detection.generate_signal import generate_signal_from_ma
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig, create_atc_config_from_dict
+from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
+from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
+from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
+from modules.adaptive_trend_LTS_mini.core.process_layer1.weighted_signal import weighted_signal
+from modules.adaptive_trend_LTS_mini.core.signal_detection.crossover import crossover
+from modules.adaptive_trend_LTS_mini.core.signal_detection.crossunder import crossunder
+from modules.adaptive_trend_LTS_mini.core.signal_detection.generate_signal import generate_signal_from_ma
 
 
 class TestParameterScaling:

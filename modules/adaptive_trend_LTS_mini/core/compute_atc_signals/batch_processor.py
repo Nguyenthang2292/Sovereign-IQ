@@ -7,7 +7,7 @@ import pandas as pd
 
 from modules.common.utils import log_error, log_info, log_warn
 
-# Import relative to package, assuming this file is in modules/adaptive_trend_LTS/core/compute_atc_signals/
+# Import relative to package, assuming this file is in modules/adaptive_trend_LTS_mini/core/compute_atc_signals/
 from .compute_atc_signals import compute_atc_signals
 
 

@@ -31,7 +31,7 @@ import pandas as pd
 import pytest
 
 from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals as compute_base
-from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals as compute_enhanced
+from legacy.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals as compute_enhanced
 from modules.common.system import get_memory_manager
 
 # Optimization #1: Environment variable to control iterations

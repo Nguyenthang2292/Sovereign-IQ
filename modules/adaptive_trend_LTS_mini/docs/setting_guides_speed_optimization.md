@@ -1,6 +1,6 @@
 # ⚡ RECOMMENDED SETTINGS FOR MAXIMUM PROCESSING SPEED
 
-**Purpose**: Bộ cấu hình tối ưu hóa tốc độ xử lý cho `adaptive_trend_LTS` module  
+**Purpose**: Bộ cấu hình tối ưu hóa tốc độ xử lý cho `adaptive_trend_LTS_mini` module  
 **Use Case**: Batch scanning, multi-symbol processing, production deployment  
 **Last Updated**: 2026-01-29
 
@@ -91,7 +91,7 @@ precision: "float32"
 **Python Implementation**:
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC
 import pandas as pd
 from pathlib import Path
 
@@ -161,7 +161,7 @@ use_dask: false
 **Python Implementation**:
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
 from modules.common.core.data_fetcher import DataFetcher
 import pandas as pd
 
@@ -241,7 +241,7 @@ use_dask: false
 **Python Implementation**:
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 from modules.common.core.data_fetcher import DataFetcher
 import pandas as pd
 
@@ -326,8 +326,8 @@ npartitions: 20                 # Adjust based on CPU cores (typically 2x cores)
 **Python Implementation**:
 
 ```python
-from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.core.scanner.scan_all_symbols import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.core.data_fetcher import DataFetcher
 import pandas as pd
 
@@ -410,9 +410,9 @@ use_adaptive_approximate: false # Or use this for volatility-aware
 **Python Implementation**:
 
 ```python
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
-from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.core.scanner.scan_all_symbols import scan_all_symbols
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 from modules.common.core.data_fetcher import DataFetcher
 import pandas as pd
 
@@ -522,8 +522,8 @@ final_shorts.to_csv("final_shorts.csv", index=False)
 ### Example 1: Python Script Integration
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_atc import IncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_atc import IncrementalATC
 import pandas as pd
 
 # For live trading (single bar updates)
@@ -537,7 +537,7 @@ atc.initialize(historical_prices)
 new_signal = atc.update(new_price)  # O(1) operation
 
 # For batch scanning (100+ symbols)
-from modules.adaptive_trend_LTS.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_processor import process_symbols_batch_rust
 
 symbols_data = {'BTCUSDT': prices_series, 'ETHUSDT': prices_series, ...}
 config = {
@@ -618,7 +618,7 @@ Detailed examples for O(1) MA, Rust incremental backend, multi-timeframe (MTF), 
 For **live trading** with real-time single-bar updates:
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC
 import pandas as pd
 
 config = {
@@ -689,7 +689,7 @@ for i, signal in enumerate(signals):
 For **simultaneous analysis** across multiple timeframes:
 
 ```python
-from modules.adaptive_trend_LTS.core.compute_atc_signals import MultiTimeframeIncrementalATC
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import MultiTimeframeIncrementalATC
 
 mtf = MultiTimeframeIncrementalATC(config, timeframes=["1m", "5m", "15m"])
 
@@ -747,8 +747,8 @@ print(f"Signal after restart: {next_signal}")
 For **large-scale scanning** (1000+ symbols) with filtering:
 
 ```python
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
-from modules.adaptive_trend_LTS.core.scanner.scan_all_symbols import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.core.scanner.scan_all_symbols import scan_all_symbols
 from modules.common.core.data_fetcher import DataFetcher
 
 data_fetcher = DataFetcher()
@@ -782,7 +782,7 @@ for symbol in top_candidates:
     )
     prices = df["close"]
     
-    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
     
     results = compute_atc_signals(
         prices=prices,
@@ -803,16 +803,16 @@ To **verify** your setup and **measure** performance:
 
 ```bash
 # Incremental & advanced-feature tests
-pytest modules/adaptive_trend_LTS/tests/test_incremental_atc_o1.py -v
-pytest modules/adaptive_trend_LTS/tests/test_incremental_rust.py -v
-pytest modules/adaptive_trend_LTS/tests/test_incremental_mtf.py -v
-pytest modules/adaptive_trend_LTS/tests/test_incremental_batch.py -v
-pytest modules/adaptive_trend_LTS/tests/test_incremental_serialization.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_atc_o1.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_rust.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_mtf.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_batch.py -v
+pytest modules/adaptive_trend_LTS_mini/tests/test_incremental_serialization.py -v
 
 # Benchmarks
-python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_o1 --iterations 1000
-python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_rust
-python -m modules.adaptive_trend_LTS.benchmarks.benchmark_incremental_batch
+python -m modules.adaptive_trend_LTS_mini.benchmarks.benchmark_incremental_o1 --iterations 1000
+python -m modules.adaptive_trend_LTS_mini.benchmarks.benchmark_incremental_rust
+python -m modules.adaptive_trend_LTS_mini.benchmarks.benchmark_incremental_batch
 ```
 
 ---
@@ -923,8 +923,8 @@ START
 
 ## 📄 References
 
-- **Full Settings Guide**: `modules/adaptive_trend_LTS/docs/setting_guides.md`
-- **Features Summary**: `modules/adaptive_trend_LTS/docs/features_summary.md`
+- **Full Settings Guide**: `modules/adaptive_trend_LTS_mini/docs/setting_guides.md`
+- **Features Summary**: `modules/adaptive_trend_LTS_mini/docs/features_summary.md`
 - **Phase Documentation**:
   - Phase 3 (Rust): `docs/phase3_task.md`
   - Phase 4 (CUDA): `docs/phase4_task.md`

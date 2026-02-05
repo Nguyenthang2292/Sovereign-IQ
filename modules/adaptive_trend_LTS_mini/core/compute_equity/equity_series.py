@@ -10,13 +10,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.utils.cache_manager import get_cache_manager
-from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
+from modules.adaptive_trend_LTS_mini.core.compute_equity.core import _calculate_equity_core, get_equity_floor
+from modules.adaptive_trend_LTS_mini.utils.cache_manager import get_cache_manager
+from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
 from modules.common.system import get_series_pool
 from modules.common.utils import log_error, log_warn
-
-from modules.adaptive_trend_LTS.core.compute_equity.core import _calculate_equity_core, get_equity_floor
-
 
 __all__ = ["equity_series"]
 
@@ -169,16 +167,17 @@ def equity_series(
         # The returned equity series is NOT shifted - it represents equity at current bar
         sig_shifted = sig.shift(1)
 
-        # Convert to numpy arrays for Numba
-        r_values = r.values
-        sig_prev_values = sig_shifted.values
+        # Convert to numpy arrays for Numba (ensure ndarray, not ExtensionArray)
+        r_values = np.asarray(r.values, dtype=np.float64)
+        sig_prev_values = np.asarray(sig_shifted.values, dtype=np.float64)
 
         # Use SeriesPool to reduce allocation overhead
         # We acquire a series of the correct length and index
         # Then calculate directly into its underlying array
         equity = get_series_pool().acquire(len(index), dtype=np.float64, index=index)
+        out_arr: np.ndarray = np.asarray(equity.values, dtype=np.float64)
 
-        # Calculate equity using optimized Numba function, writing directly to equity.values
+        # Calculate equity using optimized Numba function, writing directly to out_arr
         # Note: _calculate_equity_core may return a copy if the input array wasn't writable
         result_array = _calculate_equity_core(
             r_values=r_values,
@@ -186,13 +185,15 @@ def equity_series(
             starting_equity=starting_equity,
             decay_multiplier=d,
             cutout=cutout,
-            out=equity.values,
+            out=out_arr,
             floor_val=get_equity_floor(),
         )
 
-        # If a copy was made, update the Series
-        if result_array is not equity.values:
+        # If a copy was made, or we wrote to a buffer other than equity.values, use result
+        if result_array is not out_arr:
             equity = pd.Series(result_array, index=index, dtype=np.float64)
+        elif out_arr is not equity.values:
+            equity = pd.Series(out_arr, index=index, dtype=np.float64)
 
         # Cache the result
         cache.put_equity(signal=sig, R=R, L=L, De=De, starting_equity=starting_equity, equity=equity)

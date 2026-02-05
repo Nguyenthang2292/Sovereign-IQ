@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 from unittest.mock import Mock, patch
-from modules.adaptive_trend_enhance.core.scanner.scan_all_symbols import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.scanner.scan_all_symbols import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 
 
 class TestScannerCaching:
@@ -73,7 +73,7 @@ class TestScannerCaching:
         ohlcv_cache = {"BTC/USDT": cached_df}
 
         # Patch dependencies to isolate scanner logic
-        with patch("modules.adaptive_trend_enhance.core.scanner.threadpool._process_symbol") as mock_process:
+        with patch("legacy.adaptive_trend_enhance.core.scanner.threadpool._process_symbol") as mock_process:
             # Configure mock_process to verify it receives the cache
             mock_process.return_value = {
                 "symbol": "BTC/USDT",
@@ -110,7 +110,7 @@ class TestScannerCaching:
         )
         ohlcv_cache = {"BTC/USDT": cached_df}
 
-        with patch("modules.adaptive_trend_enhance.core.scanner.sequential._process_symbol") as mock_process:
+        with patch("legacy.adaptive_trend_enhance.core.scanner.sequential._process_symbol") as mock_process:
             mock_process.return_value = {
                 "symbol": "BTC/USDT",
                 "signal": 1.0,

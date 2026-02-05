@@ -156,12 +156,13 @@ def ensure_maturin_installed() -> bool:
         return False
 
 
-def auto_build_with_checks(verbose: bool = False) -> bool:
+def auto_build_with_checks(verbose: bool = False, clear_cache: bool = True) -> bool:
     """
     Build Rust extensions with prerequisite checks.
 
     Args:
         verbose: Print detailed output
+        clear_cache: Clear Python bytecode cache after building (default: True)
 
     Returns:
         True if build succeeded or not needed, False if failed
@@ -188,7 +189,23 @@ def auto_build_with_checks(verbose: bool = False) -> bool:
             return False
 
     # Build all extensions
-    return build_all_rust_extensions(verbose=verbose)
+    build_success = build_all_rust_extensions(verbose=verbose)
+
+    # Clear Python cache after successful build
+    if build_success and clear_cache:
+        print("\nClearing Python bytecode cache...")
+        try:
+            from modules.auto_trade.utils.cache_cleaner import clear_module_cache
+
+            clear_module_cache(
+                module_names=["adaptive_trend_LTS_mini", "xgboost_LTS"],
+                verbose=verbose,
+            )
+        except Exception as e:
+            print(f"  Warning: Failed to clear cache: {e}")
+            print("  You may need to manually restart Python to use new extensions.\n")
+
+    return build_success
 
 
 if __name__ == "__main__":
@@ -197,7 +214,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Build Rust extensions for auto-trade")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+    parser.add_argument(
+        "--no-cache-clear",
+        action="store_true",
+        help="Skip clearing Python bytecode cache after build",
+    )
     args = parser.parse_args()
 
-    success = auto_build_with_checks(verbose=args.verbose)
+    success = auto_build_with_checks(verbose=args.verbose, clear_cache=not args.no_cache_clear)
     sys.exit(0 if success else 1)

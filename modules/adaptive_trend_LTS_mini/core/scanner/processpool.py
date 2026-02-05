@@ -28,7 +28,7 @@ except ImportError:
         print(f"[DEBUG] {message}")
 
 
-from modules.adaptive_trend_LTS.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
 
 from .process_symbol import _process_symbol
 

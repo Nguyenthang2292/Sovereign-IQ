@@ -24,10 +24,10 @@ import pytest
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.adaptive_trend_enhance.core.compute_equity import equity_series
-from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.cache_manager import get_cache_manager
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.compute_equity import equity_series
+from legacy.adaptive_trend_enhance.core.scanner import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.cache_manager import get_cache_manager
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.system import get_memory_manager
 
 
@@ -90,8 +90,8 @@ class TestLargeScaleSymbols:
     """Test with large number of symbols (optimized for faster execution)."""
 
     @pytest.mark.slow
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def test_5000_symbols_processing(self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher):
         """Test processing large number of symbols (optimized: reduced from 5000 to 500 for faster execution)."""
         # Reduced from 5000 to 500 symbols for faster test execution while still testing batching
@@ -141,8 +141,8 @@ class TestLargeScaleSymbols:
         )
 
     @pytest.mark.slow
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def test_large_scale_memory_stability(self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher):
         """Test memory stability with large scale processing (optimized: reduced from 2000 to 200 symbols)."""
         # Reduced from 2000 to 200 symbols for faster test execution
@@ -203,8 +203,8 @@ class TestLargeScaleSymbols:
 class TestLimitedMemoryScenarios:
     """Test behavior with limited memory scenarios."""
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def test_small_batch_size_under_memory_pressure(
         self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher
     ):
@@ -297,8 +297,8 @@ class TestParallelProcessingUnderLoad:
     """Test parallel processing under load."""
 
     @pytest.mark.slow
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     @pytest.mark.parametrize("execution_mode", ["threadpool", "asyncio"])
     def test_parallel_processing_under_load(
         self, mock_trend_sign, mock_compute_atc, base_config, mock_data_fetcher, execution_mode
@@ -346,8 +346,8 @@ class TestParallelProcessingUnderLoad:
         memory_growth = final_stats.ram_used_gb - initial_stats.ram_used_gb
         assert memory_growth < 2.0, f"Memory growth too high: {memory_growth:.2f} GB"
 
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
-    @patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals")
+    @patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.trend_sign")
     def test_concurrent_equity_calculations(self, mock_trend_sign, mock_compute_atc):
         """Test concurrent equity calculations (optimized: reduced iterations)."""
         from concurrent.futures import ThreadPoolExecutor

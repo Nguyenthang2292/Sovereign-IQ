@@ -37,9 +37,9 @@ import pytest
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.compute_equity import equity_series
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
+from legacy.adaptive_trend_enhance.core.compute_equity import equity_series
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 
 # Optimization #1: Environment variable to control iterations
 # Default: 3 for fast development, CI can set to 10 for thorough testing

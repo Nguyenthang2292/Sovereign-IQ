@@ -29,9 +29,9 @@ except ImportError:
         print(f"[ERROR] {msg}")
 
 
-from modules.adaptive_trend_enhance.core.compute_moving_averages import set_of_moving_averages
-from modules.adaptive_trend_enhance.core.process_layer1 import _layer1_signal_for_ma
-from modules.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
+from legacy.adaptive_trend_enhance.core.compute_moving_averages import set_of_moving_averages
+from legacy.adaptive_trend_enhance.core.process_layer1 import _layer1_signal_for_ma
+from legacy.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
 from modules.common.system import (
     cleanup_series,
     get_hardware_manager,
@@ -196,7 +196,7 @@ def compute_atc_signals(
             use_parallel_l1 = parallel_l1
 
         if use_parallel_l1:
-            from modules.adaptive_trend_enhance.core.process_layer1 import _layer1_parallel_atc_signals
+            from legacy.adaptive_trend_enhance.core.process_layer1 import _layer1_parallel_atc_signals
 
             layer1_signals = _layer1_parallel_atc_signals(
                 prices=prices,

@@ -2,10 +2,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals.average_signal import calculate_average_signal
-from modules.adaptive_trend_enhance.core.process_layer1.cut_signal import cut_signal
-from modules.adaptive_trend_enhance.core.process_layer1.trend_sign import trend_sign
-from modules.adaptive_trend_enhance.core.process_layer1.weighted_signal import weighted_signal
+from legacy.adaptive_trend_enhance.core.compute_atc_signals.average_signal import calculate_average_signal
+from legacy.adaptive_trend_enhance.core.process_layer1.cut_signal import cut_signal
+from legacy.adaptive_trend_enhance.core.process_layer1.trend_sign import trend_sign
+from legacy.adaptive_trend_enhance.core.process_layer1.weighted_signal import weighted_signal
 
 
 def test_weighted_signal_consistency():

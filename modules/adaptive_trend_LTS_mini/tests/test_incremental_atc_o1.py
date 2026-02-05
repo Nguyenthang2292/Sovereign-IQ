@@ -11,7 +11,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_mas_o1 import TrueO1WMA, TrueO1HMA, TrueO1LSMA, TrueO1KAMA
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_mas_o1 import (
+    TrueO1WMA,
+    TrueO1HMA,
+    TrueO1LSMA,
+    TrueO1KAMA,
+)
 
 
 class TestTrueO1WMA:
@@ -78,7 +83,9 @@ class TestTrueO1WMA:
 
         # Compare after warmup
         for i in range(length, len(prices)):
-            assert abs(wma_values[i] - ref_values[i]) < 1e-6, f"Mismatch at index {i}: {wma_values[i]} vs {ref_values[i]}"
+            assert abs(wma_values[i] - ref_values[i]) < 1e-6, (
+                f"Mismatch at index {i}: {wma_values[i]} vs {ref_values[i]}"
+            )
 
     def test_reset_functionality(self):
         """Test reset clears state."""
@@ -172,7 +179,9 @@ class TestTrueO1HMA:
         # Compare after warmup (need enough data for all nested WMAs)
         warmup = length + int(np.sqrt(length))
         for i in range(warmup, len(prices)):
-            assert abs(hma_values[i] - ref_values[i]) < 1e-5, f"Mismatch at index {i}: {hma_values[i]} vs {ref_values[i]}"
+            assert abs(hma_values[i] - ref_values[i]) < 1e-5, (
+                f"Mismatch at index {i}: {hma_values[i]} vs {ref_values[i]}"
+            )
 
     def test_reset_functionality(self):
         """Test reset clears state."""
@@ -263,7 +272,9 @@ class TestTrueO1LSMA:
 
         # Compare after warmup
         for i in range(length, len(prices)):
-            assert abs(lsma_values[i] - ref_values[i]) < 1e-6, f"Mismatch at index {i}: {lsma_values[i]} vs {ref_values[i]}"
+            assert abs(lsma_values[i] - ref_values[i]) < 1e-6, (
+                f"Mismatch at index {i}: {lsma_values[i]} vs {ref_values[i]}"
+            )
 
     def test_reset_functionality(self):
         """Test reset clears state."""
@@ -346,7 +357,9 @@ class TestTrueO1KAMA:
 
         # Compare after warmup
         for i in range(length + 1, len(prices)):
-            assert abs(kama_values[i] - ref_values[i]) < 1e-6, f"Mismatch at index {i}: {kama_values[i]} vs {ref_values[i]}"
+            assert abs(kama_values[i] - ref_values[i]) < 1e-6, (
+                f"Mismatch at index {i}: {kama_values[i]} vs {ref_values[i]}"
+            )
 
     def test_reset_functionality(self):
         """Test reset clears state."""
@@ -366,7 +379,7 @@ class TestIncrementalATCWithO1:
 
     def test_o1_vs_legacy_atc(self):
         """Test that O(1) and legacy implementations produce identical results."""
-        from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC
+        from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC
 
         config = {
             "ema_len": 20,
@@ -407,7 +420,7 @@ class TestIncrementalATCWithO1:
 
     def test_buffer_rollover(self):
         """Test that O(1) MAs handle buffer rollover correctly."""
-        from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC
+        from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC
 
         config = {
             "ema_len": 10,

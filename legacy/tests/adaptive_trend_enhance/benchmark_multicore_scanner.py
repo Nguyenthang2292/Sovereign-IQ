@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_enhance.core.scanner.scan_all_symbols import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.scanner.scan_all_symbols import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 from modules.common.core.data_fetcher import DataFetcher
 
 

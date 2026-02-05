@@ -1,0 +1,9 @@
+# WebSocket Dependencies for Auto Trade Module
+
+# Required for WebSocket support
+# Install with: pip install 'ccxt[pro]'
+ccxt[pro]>=4.0.0
+
+# Or separately:
+# ccxt>=4.0.0
+# ccxt-pro>=4.0.0

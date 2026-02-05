@@ -9,7 +9,7 @@ This script loads 500 symbols via ExchangeManager/DataFetcher and compares:
 
 Usage:
     python benchmark_comparison.py --symbols 1000 --bars 1000
-    Or from project root: python -m modules.adaptive_trend_enhance.benchmarks.benchmark_comparison
+    Or from project root: python -m legacy.adaptive_trend_enhance.benchmarks.benchmark_comparison
 """
 
 import argparse
@@ -21,7 +21,7 @@ from typing import Dict, Tuple
 
 # Add project root to sys.path for imports
 # This ensures the script can be run from any directory
-# From modules/adaptive_trend_enhance/benchmarks/ -> project root (4 levels)
+# From legacy/adaptive_trend_enhance/benchmarks/ -> project root (4 levels)
 try:
     project_root = Path(__file__).parent.parent.parent.parent
     project_root_str = str(project_root.resolve())
@@ -37,7 +37,7 @@ from tabulate import tabulate
 
 # Import both modules
 from modules.adaptive_trend.core import compute_atc_signals as compute_atc_original
-from modules.adaptive_trend_enhance.core import compute_atc_signals as compute_atc_enhanced
+from legacy.adaptive_trend_enhance.core import compute_atc_signals as compute_atc_enhanced
 from modules.common.core import DataFetcher, ExchangeManager
 from modules.common.utils import log_error, log_info, log_success, log_warn
 

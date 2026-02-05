@@ -311,7 +311,7 @@ class BatchApproximateMAScanner:
             Dictionary mapping symbol to tuple of 9 MAs, or None if calculation fails
         """
         try:
-            from modules.adaptive_trend_LTS.utils import diflen
+            from modules.adaptive_trend_LTS_mini.utils import diflen
 
             L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(base_length, robustness=robustness)
             ma_lengths = [base_length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]

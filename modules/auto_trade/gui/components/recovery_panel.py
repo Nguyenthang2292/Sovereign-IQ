@@ -1,7 +1,9 @@
-import customtkinter as ctk
-from typing import Optional, Dict, List
-from datetime import datetime
 import random
+from datetime import datetime
+from typing import Dict, List, Optional
+
+import customtkinter as ctk
+
 from modules.auto_trade.strategies.gradual_recovery import (
     GradualRecoveryStrategy,
     RecoveryConfig,
@@ -188,84 +190,88 @@ class RecoveryPanel(ctk.CTkFrame):
         config_frame = ctk.CTkFrame(tab, fg_color="transparent")
         config_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Initial Loss Input
-        label = ctk.CTkLabel(config_frame, text="Initial Loss ($):", font=("Arial", 12))
-        label.pack(anchor="w", pady=(5, 2))
+        # Configure grid for 2 columns
+        config_frame.grid_columnconfigure(0, weight=1)
+        config_frame.grid_columnconfigure(1, weight=1)
 
-        self.initial_loss_entry = ctk.CTkEntry(config_frame, placeholder_text="500.00", width=200)
-        self.initial_loss_entry.pack(anchor="w", pady=2)
+        # Row 0-1: Initial Loss | Target Profit Per Trade
+        # Left: Initial Loss
+        label = ctk.CTkLabel(config_frame, text="Initial Loss ($):", font=("Arial", 11))
+        label.grid(row=0, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
+
+        self.initial_loss_entry = ctk.CTkEntry(config_frame, placeholder_text="500.00")
+        self.initial_loss_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
         self.initial_loss_entry.insert(0, "500.00")
 
-        # Target Profit Per Trade
-        label = ctk.CTkLabel(config_frame, text="Target Profit Per Trade (%):", font=("Arial", 12))
-        label.pack(anchor="w", pady=(10, 2))
+        # Right: Target Profit Per Trade
+        label = ctk.CTkLabel(config_frame, text="Target Profit Per Trade (%):", font=("Arial", 11))
+        label.grid(row=0, column=1, sticky="w", padx=(5, 0), pady=(5, 2))
 
-        self.target_profit_entry = ctk.CTkEntry(config_frame, placeholder_text="5.0", width=200)
-        self.target_profit_entry.pack(anchor="w", pady=2)
+        self.target_profit_entry = ctk.CTkEntry(config_frame, placeholder_text="5.0")
+        self.target_profit_entry.grid(row=1, column=1, sticky="ew", padx=(5, 0), pady=(2, 10))
         self.target_profit_entry.insert(0, "5.0")
 
-        # Max Recovery Trades
-        label = ctk.CTkLabel(config_frame, text="Max Recovery Trades:", font=("Arial", 12))
-        label.pack(anchor="w", pady=(10, 2))
+        # Row 2-3: Max Recovery Trades
+        label = ctk.CTkLabel(config_frame, text="Max Recovery Trades:", font=("Arial", 11))
+        label.grid(row=2, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
 
-        self.max_trades_entry = ctk.CTkEntry(config_frame, placeholder_text="20", width=200)
-        self.max_trades_entry.pack(anchor="w", pady=2)
+        self.max_trades_entry = ctk.CTkEntry(config_frame, placeholder_text="20")
+        self.max_trades_entry.grid(row=3, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
         self.max_trades_entry.insert(0, "20")
 
-        # Margin Scaling Mode
-        label = ctk.CTkLabel(config_frame, text="Margin Scaling Mode:", font=("Arial", 12))
-        label.pack(anchor="w", pady=(10, 2))
+        # Row 4-5: Margin Scaling Mode | Leverage Scaling Mode
+        # Left: Margin Scaling Mode
+        label = ctk.CTkLabel(config_frame, text="Margin Scaling Mode:", font=("Arial", 11))
+        label.grid(row=4, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
 
         self.margin_mode_var = ctk.StringVar(value="fixed")
         margin_mode_dropdown = ctk.CTkComboBox(
             config_frame,
             values=["fixed", "progressive", "adaptive"],
             variable=self.margin_mode_var,
-            width=200,
         )
-        margin_mode_dropdown.pack(anchor="w", pady=2)
+        margin_mode_dropdown.grid(row=5, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
 
-        # Leverage Scaling Mode
-        label = ctk.CTkLabel(config_frame, text="Leverage Scaling Mode:", font=("Arial", 12))
-        label.pack(anchor="w", pady=(10, 2))
+        # Right: Leverage Scaling Mode
+        label = ctk.CTkLabel(config_frame, text="Leverage Scaling Mode:", font=("Arial", 11))
+        label.grid(row=4, column=1, sticky="w", padx=(5, 0), pady=(5, 2))
 
         self.leverage_mode_var = ctk.StringVar(value="fixed")
         leverage_mode_dropdown = ctk.CTkComboBox(
             config_frame,
             values=["fixed", "progressive", "adaptive"],
             variable=self.leverage_mode_var,
-            width=200,
         )
-        leverage_mode_dropdown.pack(anchor="w", pady=2)
+        leverage_mode_dropdown.grid(row=5, column=1, sticky="ew", padx=(5, 0), pady=(2, 10))
 
-        # Leverage Range
+        # Row 6: Leverage Range (Min/Max on same row, spans both columns)
         leverage_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
-        leverage_frame.pack(anchor="w", pady=(10, 2))
+        leverage_frame.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(5, 10))
 
         label = ctk.CTkLabel(leverage_frame, text="Min:", font=("Arial", 11), text_color="gray")
         label.pack(side="left")
 
-        self.min_leverage_entry = ctk.CTkEntry(leverage_frame, placeholder_text="2", width=60)
-        self.min_leverage_entry.pack(side="left", padx=(5, 10))
+        self.min_leverage_entry = ctk.CTkEntry(leverage_frame, placeholder_text="2", width=80)
+        self.min_leverage_entry.pack(side="left", padx=(5, 15))
         self.min_leverage_entry.insert(0, "2")
 
         label = ctk.CTkLabel(leverage_frame, text="Max:", font=("Arial", 11), text_color="gray")
         label.pack(side="left")
 
-        self.max_leverage_entry = ctk.CTkEntry(leverage_frame, placeholder_text="10", width=60)
+        self.max_leverage_entry = ctk.CTkEntry(leverage_frame, placeholder_text="10", width=80)
         self.max_leverage_entry.pack(side="left", padx=(5, 0))
         self.max_leverage_entry.insert(0, "10")
 
-        # Enable Streak Bonus
+        # Row 7: Enable Streak Bonus (spans both columns)
         self.streak_bonus_var = ctk.BooleanVar(value=False)
         streak_bonus_checkbox = ctk.CTkCheckBox(
             config_frame, text="Enable Streak Bonus", variable=self.streak_bonus_var
         )
-        streak_bonus_checkbox.pack(anchor="w", pady=(10, 2))
+        streak_bonus_checkbox.grid(row=7, column=0, columnspan=2, sticky="w", pady=(5, 10))
 
-        # Presets
+        # Row 8-9: Presets (spans both columns)
         preset_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
-        preset_frame.pack(fill="x", pady=(20, 5))
+        preset_frame.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(15, 5))
 
         preset_label = ctk.CTkLabel(preset_frame, text="Presets:", font=("Arial", 11, "bold"))
         preset_label.pack(anchor="w", pady=(0, 5))
@@ -303,7 +309,7 @@ class RecoveryPanel(ctk.CTkFrame):
         )
         aggressive_btn.pack(side="left", padx=5)
 
-        # Start Recovery Button
+        # Row 10: Start Recovery Button (spans both columns)
         start_btn = ctk.CTkButton(
             config_frame,
             text="🚀 Start Recovery",
@@ -311,11 +317,11 @@ class RecoveryPanel(ctk.CTkFrame):
             hover_color="#00cc66",
             command=self._on_start_recovery,
         )
-        start_btn.pack(fill="x", pady=(20, 10))
+        start_btn.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(15, 10))
 
-        # Recovery Plan Preview
+        # Row 11: Recovery Plan Preview (spans both columns)
         plan_frame = ctk.CTkFrame(config_frame, fg_color="#2a2a2a")
-        plan_frame.pack(fill="x", pady=(5, 10))
+        plan_frame.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(5, 10))
 
         plan_title = ctk.CTkLabel(plan_frame, text="Recovery Plan Preview", font=("Arial", 11, "bold"))
         plan_title.pack(anchor="w", pady=(10, 5), padx=10)
@@ -333,7 +339,7 @@ class RecoveryPanel(ctk.CTkFrame):
             hover_color="#666666",
             command=self._update_plan_preview,
         )
-        preview_btn.pack(fill="x", pady=(0, 10))
+        preview_btn.grid(row=12, column=0, columnspan=2, sticky="ew", pady=(0, 10))
 
     def _create_history_tab(self):
         """Create History tab showing recovery progress over time"""
@@ -579,7 +585,9 @@ class RecoveryPanel(ctk.CTkFrame):
 
             self._test_log(f"PROFIT +${amount:.2f}", "SUCCESS")
             self._test_log(f"  Remaining: ${state_before.remaining_loss:.2f} -> ${state_after.remaining_loss:.2f}")
-            self._test_log(f"  Progress: {state_before.recovery_percentage:.1f}% -> {state_after.recovery_percentage:.1f}%")
+            self._test_log(
+                f"  Progress: {state_before.recovery_percentage:.1f}% -> {state_after.recovery_percentage:.1f}%"
+            )
             self._test_log(f"  Margin: ${margin_before:.2f} -> ${margin_after:.2f}")
             self._test_log(f"  Leverage: {leverage_before}x -> {leverage_after}x")
             self._test_log(f"  Win Streak: {state_after.win_streak}")
@@ -625,33 +633,35 @@ class RecoveryPanel(ctk.CTkFrame):
             avg_profit = float(self.test_avg_profit_entry.get())
             avg_loss = float(self.test_avg_loss_entry.get())
 
-            self._test_log(f"=== Random Sequence: {num_trades} trades, {win_rate*100:.0f}% win rate ===")
+            self._test_log(f"=== Random Sequence: {num_trades} trades, {win_rate * 100:.0f}% win rate ===")
 
             initial_state = self.recovery_strategy.get_state()
 
             for i in range(num_trades):
                 if self.recovery_strategy.get_state().is_complete:
-                    self._test_log(f"Recovery COMPLETE at trade {i+1}!", "SUCCESS")
+                    self._test_log(f"Recovery COMPLETE at trade {i + 1}!", "SUCCESS")
                     break
 
                 if self.recovery_strategy.should_stop():
-                    self._test_log(f"Recovery STOPPED at trade {i+1} - limit reached", "WARN")
+                    self._test_log(f"Recovery STOPPED at trade {i + 1} - limit reached", "WARN")
                     break
 
                 is_win = random.random() < win_rate
                 if is_win:
                     amount = avg_profit * (0.8 + random.random() * 0.4)  # +/- 20%
                     self.record_trade(amount)
-                    self._test_log(f"Trade {i+1}: WIN +${amount:.2f}")
+                    self._test_log(f"Trade {i + 1}: WIN +${amount:.2f}")
                 else:
                     amount = avg_loss * (0.8 + random.random() * 0.4)
                     self.record_trade(-amount)
-                    self._test_log(f"Trade {i+1}: LOSS -${amount:.2f}")
+                    self._test_log(f"Trade {i + 1}: LOSS -${amount:.2f}")
 
             final_state = self.recovery_strategy.get_state()
-            self._test_log(f"=== Sequence Complete ===")
+            self._test_log("=== Sequence Complete ===")
             self._test_log(f"  Total Trades: {final_state.trades_count - initial_state.trades_count}")
-            self._test_log(f"  Progress: {initial_state.recovery_percentage:.1f}% -> {final_state.recovery_percentage:.1f}%")
+            self._test_log(
+                f"  Progress: {initial_state.recovery_percentage:.1f}% -> {final_state.recovery_percentage:.1f}%"
+            )
 
             self._update_test_mode_label()
 
@@ -685,11 +695,11 @@ class RecoveryPanel(ctk.CTkFrame):
 
         for i, amount in enumerate(sequence):
             if self.recovery_strategy.get_state().is_complete:
-                self._test_log(f"Recovery COMPLETE at step {i+1}!", "SUCCESS")
+                self._test_log(f"Recovery COMPLETE at step {i + 1}!", "SUCCESS")
                 break
 
             if self.recovery_strategy.should_stop():
-                self._test_log(f"Recovery STOPPED at step {i+1} - limit reached", "WARN")
+                self._test_log(f"Recovery STOPPED at step {i + 1} - limit reached", "WARN")
                 break
 
             margin = self.recovery_strategy.calculate_next_position_size()
@@ -697,11 +707,13 @@ class RecoveryPanel(ctk.CTkFrame):
 
             self.record_trade(amount)
             trade_type = "WIN" if amount > 0 else "LOSS"
-            self._test_log(f"Step {i+1}: {trade_type} ${abs(amount):.2f} (M:${margin:.2f}, L:{leverage}x)")
+            self._test_log(f"Step {i + 1}: {trade_type} ${abs(amount):.2f} (M:${margin:.2f}, L:{leverage}x)")
 
         final_state = self.recovery_strategy.get_state()
         self._test_log(f"=== {preset.upper()} Complete ===")
-        self._test_log(f"  Progress: {initial_state.recovery_percentage:.1f}% -> {final_state.recovery_percentage:.1f}%")
+        self._test_log(
+            f"  Progress: {initial_state.recovery_percentage:.1f}% -> {final_state.recovery_percentage:.1f}%"
+        )
         self._test_log(f"  Status: {'COMPLETE' if final_state.is_complete else 'ACTIVE'}")
 
         self._update_test_mode_label()
@@ -770,7 +782,7 @@ class RecoveryPanel(ctk.CTkFrame):
 
     def _update_test_mode_label(self):
         """Update the test mode label with current modes"""
-        if hasattr(self, 'test_mode_label'):
+        if hasattr(self, "test_mode_label"):
             margin_mode = self.margin_mode_var.get()
             leverage_mode = self.leverage_mode_var.get()
             self.test_mode_label.configure(text=f"🧪 Test Mode: {margin_mode}/{leverage_mode}")

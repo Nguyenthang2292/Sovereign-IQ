@@ -16,7 +16,7 @@ filters:
   min_volume: 50.0
 api:
   exchange: Binance
-  mode: DRY_RUN
+  mode: PRODUCTION
 tp_sl:
   default_tp: 5.0
   default_sl: 2.5
@@ -24,7 +24,7 @@ tp_sl:
   mode: Percentage
 scanner:
   scan_interval: 5
-  timeframe: 1h
+  timeframe: 15m
   symbol_list: Top 20
   auto_start: true
   running: false

@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_equity.utils import njit
+from modules.adaptive_trend_LTS_mini.core.compute_equity.utils import njit
 from modules.common.system import get_series_pool
 from modules.common.utils import log_error, log_warn
 

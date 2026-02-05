@@ -5,12 +5,17 @@ from typing import Optional
 import pandas as pd
 import pandas_ta as ta
 
-from modules.adaptive_trend_LTS.utils.cache_manager import get_cached_ma
+from modules.adaptive_trend_LTS_mini.utils.cache_manager import get_cached_ma
 from modules.common.system import get_hardware_manager
 from modules.common.ui.logging import log_debug, log_error, log_warn
 
-from ._gpu import _calculate_ma_gpu
 from .calculate_kama_atc import calculate_kama_atc
+
+# LTS_mini is CPU-only: no _gpu module; GPU path is skipped
+try:
+    from ._gpu import _calculate_ma_gpu
+except ImportError:
+    _calculate_ma_gpu = None
 
 # Try to import Rust backend
 try:
@@ -84,8 +89,8 @@ def ma_calculation_enhanced(
                 # PERFORMANCE OPTIMIZATION: Use cached resources instead of calling get_resources() every time
                 resources = _get_cached_hw_resources()
 
-                # Only try GPU if available
-                if resources.gpu_available:
+                # Only try GPU if available and _gpu module exists (LTS_mini is CPU-only, no _gpu)
+                if resources.gpu_available and _calculate_ma_gpu is not None:
                     result_array = _calculate_ma_gpu(source.values, length, ma)
                     if result_array is not None:
                         log_debug(f"GPU calculation succeeded for {ma}")

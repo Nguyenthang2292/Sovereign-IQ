@@ -174,7 +174,14 @@ class SignalPipeline:
             # 1. Refresh Symbols
             logger.info("Step 1: Refreshing Symbols...")
             self.symbol_manager.refresh_symbols()
+
+            # Log sampling configuration
+            sample_pct = getattr(self.symbol_manager, "sample_percentage", 100.0)
+            strategy = getattr(self.symbol_manager, "sampling_strategy", "random")
+            logger.info(f"Sampling config: {sample_pct}% using '{strategy}' strategy")
+
             symbols = self.symbol_manager.get_symbols()
+            logger.info(f"Sampled {len(symbols)} symbols using {strategy} strategy")
 
             if len(symbols) > self.max_symbols:
                 logger.info(f"Limiting scan to top {self.max_symbols} from {len(symbols)} candidates.")

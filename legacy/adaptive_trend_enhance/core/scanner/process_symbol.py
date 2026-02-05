@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import pandas as pd
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.process_layer1 import trend_sign
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
+from legacy.adaptive_trend_enhance.core.process_layer1 import trend_sign
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher

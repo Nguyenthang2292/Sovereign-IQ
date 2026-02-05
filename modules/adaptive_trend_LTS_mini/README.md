@@ -29,7 +29,7 @@ ATC là một hệ thống phân loại xu hướng thích ứng sử dụng:
 ## Cấu trúc Module
 
 ```text
-adaptive_trend_LTS/
+adaptive_trend_LTS_mini/
 ├── __init__.py              # Module exports
 ├── README.md                # Tài liệu này
 ├── core/
@@ -280,7 +280,7 @@ Equity curves mô phỏng performance của trading strategy:
 Để bật Rust backend (khuyến nghị):
 
 ```bash
-cd modules/adaptive_trend_LTS/rust_extensions
+cd modules/adaptive_trend_LTS_mini/rust_extensions
 maturin develop --release
 ```
 
@@ -292,11 +292,11 @@ Hoặc từ thư mục gốc project: `.\build_rust.bat` (Windows) / `.\build_ru
 
 ### Ví dụ cơ bản
 
-Các ví dụ dưới dùng `modules.adaptive_trend_enhance`; có thể thay bằng `modules.adaptive_trend_LTS` (cùng API, dùng Rust backend khi đã build).
+Các ví dụ dưới dùng `legacy.adaptive_trend_enhance`; có thể thay bằng `modules.adaptive_trend_LTS_mini` (cùng API, dùng Rust backend khi đã build).
 
 ```python
 import pandas as pd
-from modules.adaptive_trend_enhance import compute_atc_signals, ATCConfig
+from legacy.adaptive_trend_enhance import compute_atc_signals, ATCConfig
 
 # Chuẩn bị dữ liệu
 prices = pd.Series([...])  # Close prices
@@ -340,7 +340,7 @@ hma_signal = results["HMA_Signal"]         # Layer 1: HMA signal
 ### Phân tích một symbol
 
 ```python
-from modules.adaptive_trend_enhance import analyze_symbol, ATCConfig
+from legacy.adaptive_trend_enhance import analyze_symbol, ATCConfig
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 
@@ -372,7 +372,7 @@ if result:
 ### Scan nhiều symbols
 
 ```python
-from modules.adaptive_trend_enhance import scan_all_symbols, ATCConfig
+from legacy.adaptive_trend_enhance import scan_all_symbols, ATCConfig
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 
@@ -403,16 +403,16 @@ for _, result in results.iterrows():
 
 ```bash
 # Phân tích một symbol
-python -m modules.adaptive_trend_enhance.cli.main BTC/USDT
+python -m legacy.adaptive_trend_enhance.cli.main BTC/USDT
 
 # Scan tất cả futures symbols
-python -m modules.adaptive_trend_enhance.cli.main --auto
+python -m legacy.adaptive_trend_enhance.cli.main --auto
 
 # Interactive mode
-python -m modules.adaptive_trend_enhance.cli.main
+python -m legacy.adaptive_trend_enhance.cli.main
 
 # Custom timeframe
-python -m modules.adaptive_trend_enhance.cli.main BTC/USDT --timeframe 1h
+python -m legacy.adaptive_trend_enhance.cli.main BTC/USDT --timeframe 1h
 ```
 
 ## Cấu hình
@@ -472,7 +472,7 @@ Tất cả đều là `pd.Series` với cùng index như input prices.
 Tính toán rate of change (tỷ lệ thay đổi) của một series:
 
 ```python
-from modules.adaptive_trend_enhance.utils import rate_of_change
+from legacy.adaptive_trend_enhance.utils import rate_of_change
 
 roc = rate_of_change(prices, period=1)
 ```
@@ -482,7 +482,7 @@ roc = rate_of_change(prices, period=1)
 Tính toán độ dài khác biệt dựa trên robustness mode:
 
 ```python
-from modules.adaptive_trend_enhance.utils import diflen
+from legacy.adaptive_trend_enhance.utils import diflen
 
 offset = diflen(robustness="Medium")  # Returns offset value
 ```
@@ -492,7 +492,7 @@ offset = diflen(robustness="Medium")  # Returns offset value
 Tính toán exponential growth factor:
 
 ```python
-from modules.adaptive_trend_enhance.utils import exp_growth
+from legacy.adaptive_trend_enhance.utils import exp_growth
 
 growth = exp_growth(La=0.02, period=1)
 ```
@@ -553,11 +553,11 @@ Xem chi tiết: [docs/memory_optimizations_usage_guide.md](docs/memory_optimizat
 
 ## CLI Commands
 
-Module cung cấp CLI interface qua `modules/adaptive_trend_enhance/cli/main.py`:
+Module cung cấp CLI interface qua `legacy/adaptive_trend_enhance/cli/main.py`:
 
 ```bash
 # Basic usage
-python -m modules.adaptive_trend_enhance.cli.main <SYMBOL>
+python -m legacy.adaptive_trend_enhance.cli.main <SYMBOL>
 
 # Options
 --timeframe TIMEFRAME    # Set timeframe (default: 15m)
@@ -572,7 +572,7 @@ python -m modules.adaptive_trend_enhance.cli.main <SYMBOL>
 ### Custom configuration từ dictionary
 
 ```python
-from modules.adaptive_trend_enhance.utils.config import create_atc_config_from_dict
+from legacy.adaptive_trend_enhance.utils.config import create_atc_config_from_dict
 
 params = {
     "ema_len": 21,
@@ -593,7 +593,7 @@ config = create_atc_config_from_dict(params, timeframe="1h")
 ### Kết hợp với các indicators khác
 
 ```python
-from modules.adaptive_trend_enhance import compute_atc_signals
+from legacy.adaptive_trend_enhance import compute_atc_signals
 from modules.common.core.indicator_engine import IndicatorEngine
 
 # Tính ATC signals

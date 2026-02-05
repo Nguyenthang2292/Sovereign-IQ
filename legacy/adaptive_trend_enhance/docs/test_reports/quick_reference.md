@@ -272,7 +272,7 @@ pytest tests/adaptive_trend_enhance/test_performance_regression.py -n 0 -m "not 
 ### Weekly/CI Testing
 ```bash
 # Full comprehensive test with coverage
-PERF_ITERATIONS=10 pytest tests/adaptive_trend_enhance/test_performance_regression.py -n 0 -m performance --cov=modules.adaptive_trend_enhance --cov-report=html
+PERF_ITERATIONS=10 pytest tests/adaptive_trend_enhance/test_performance_regression.py -n 0 -m performance --cov=legacy.adaptive_trend_enhance --cov-report=html
 ```
 
 ---

@@ -270,8 +270,8 @@ def compute_atc_signals(prices, **config):
 
 ### Existing Issues to Address
 1. **Import paths inconsistency**:
-   - Some files use `modules.adaptive_trend_enhance.*`
-   - Should standardize to `modules.adaptive_trend_LTS.*`
+   - Some files use `legacy.adaptive_trend_enhance.*`
+   - Should standardize to `modules.adaptive_trend_LTS_mini.*`
    - **Impact**: 🟡 Medium (affects all imports)
 
 2. **Cache key mismatch issue**:

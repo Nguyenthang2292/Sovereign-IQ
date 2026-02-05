@@ -12,9 +12,9 @@ import pytest
 # Add project root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals.average_signal import calculate_average_signal
-from modules.adaptive_trend_enhance.utils.cache_manager import get_cache_manager, reset_cache_manager
-from modules.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
+from legacy.adaptive_trend_enhance.core.compute_atc_signals.average_signal import calculate_average_signal
+from legacy.adaptive_trend_enhance.utils.cache_manager import get_cache_manager, reset_cache_manager
+from legacy.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
 
 
 @pytest.fixture(autouse=True)

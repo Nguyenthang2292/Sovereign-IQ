@@ -36,7 +36,7 @@ def update_ema(
     Returns:
         List of new EMA values for all 9 variations
     """
-    from modules.adaptive_trend_LTS.utils.diflen import diflen
+    from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
     # Get 8 offset lengths based on robustness
     L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
@@ -81,7 +81,7 @@ def update_wma(
         use_o1_mas: Whether to use O(1) MA implementations
         ma_key: Key for storing WMA values in state (default: "wma")
     """
-    from modules.adaptive_trend_LTS.utils.diflen import diflen
+    from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
     # If using O(1) MAs for primary wma, we still need to calculate variations separately
     # O(1) implementation only handles the primary length
@@ -123,7 +123,7 @@ def update_hma(state: Dict[str, Any], new_price: float, length: int, robustness:
         length: Base HMA length
         robustness: Robustness setting
     """
-    from modules.adaptive_trend_LTS.utils.diflen import diflen
+    from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
     L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
@@ -195,7 +195,7 @@ def update_dema(
         prev_emas: Previous EMA values for all 9 variations
         new_emas: New EMA values for all 9 variations (already calculated)
     """
-    from modules.adaptive_trend_LTS.utils.diflen import diflen
+    from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
     L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
@@ -243,7 +243,7 @@ def update_lsma(state: Dict[str, Any], new_price: float, length: int, robustness
 
     FIX #6: Improved numerical stability with epsilon-based comparison.
     """
-    from modules.adaptive_trend_LTS.utils.diflen import diflen
+    from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
     try:
         from modules.common.utils import log_warn
@@ -314,7 +314,7 @@ def update_kama(state: Dict[str, Any], new_price: float, length: int, robustness
     This is considered acceptable for trend classification but should be noted for high-precision requirements.
     Future optimization: Implement stable Kahan summation if drift becomes critical.
     """
-    from modules.adaptive_trend_LTS.utils.diflen import diflen
+    from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
     L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]

@@ -18,13 +18,13 @@ This package provides utility functions used throughout the ATC Enhanced system:
 - create_memory_mapped_from_csv: Create memory-mapped files from CSV (NEW)
 """
 
-from modules.adaptive_trend_LTS.utils.config import ATCConfig, create_atc_config_from_dict
-from modules.adaptive_trend_LTS.utils.diflen import diflen
-from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
-from modules.adaptive_trend_LTS.utils.rate_of_change import rate_of_change
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig, create_atc_config_from_dict
+from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
+from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
+from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
 
 # NEW: Cache Management
-from modules.adaptive_trend_LTS.utils.cache_manager import (
+from modules.adaptive_trend_LTS_mini.utils.cache_manager import (
     CacheManager,
     CacheEntry,
     get_cache_manager,
@@ -34,7 +34,7 @@ from modules.adaptive_trend_LTS.utils.cache_manager import (
 )
 
 # NEW: Memory-mapped data management
-from modules.adaptive_trend_LTS.utils.memory_mapped_data import (
+from modules.adaptive_trend_LTS_mini.utils.memory_mapped_data import (
     MemmapDescriptor,
     MemoryMappedDataManager,
     create_memory_mapped_from_csv,

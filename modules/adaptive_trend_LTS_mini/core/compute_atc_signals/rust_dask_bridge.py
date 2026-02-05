@@ -200,7 +200,7 @@ def _process_partition_python(
         Dictionary mapping symbol to result dict with Average_Signal Series
     """
     try:
-        from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+        from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 
         # Filter out parameters that are Rust/CUDA-specific
         python_config = {

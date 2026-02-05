@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_enhance.core.scanner.scan_all_symbols import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.scanner.scan_all_symbols import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 
 
 class MockDataFetcher:
@@ -42,7 +42,7 @@ def test_scanner_float32_integration():
     config = ATCConfig(limit=100, precision="float32")
 
     # We patch compute_atc_signals to verify it receives the correct precision
-    with patch("modules.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals") as mock_compute:
+    with patch("legacy.adaptive_trend_enhance.core.scanner.process_symbol.compute_atc_signals") as mock_compute:
         # Prepare mock return for compute_atc_signals so scanner doesn't crash on result processing
         # It needs to return a dict with Average_Signal
         avg_sig = pd.Series(np.random.randn(100), index=pd.date_range(end=pd.Timestamp.now(), periods=100, freq="15min"))

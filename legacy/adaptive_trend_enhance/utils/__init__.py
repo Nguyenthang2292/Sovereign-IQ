@@ -15,13 +15,13 @@ This package provides utility functions used throughout the ATC Enhanced system:
 - get_cached_ma: Convenience function for cached MA retrieval (NEW)
 """
 
-from modules.adaptive_trend_enhance.utils.config import ATCConfig, create_atc_config_from_dict
-from modules.adaptive_trend_enhance.utils.diflen import diflen
-from modules.adaptive_trend_enhance.utils.exp_growth import exp_growth
-from modules.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig, create_atc_config_from_dict
+from legacy.adaptive_trend_enhance.utils.diflen import diflen
+from legacy.adaptive_trend_enhance.utils.exp_growth import exp_growth
+from legacy.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
 
 # NEW: Cache Management
-from modules.adaptive_trend_enhance.utils.cache_manager import (
+from legacy.adaptive_trend_enhance.utils.cache_manager import (
     CacheManager,
     CacheEntry,
     get_cache_manager,

@@ -2,11 +2,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.compute_moving_averages import set_of_moving_averages
-from modules.adaptive_trend_enhance.core.process_layer1._parallel_layer1 import _layer1_parallel_atc_signals
-from modules.adaptive_trend_enhance.core.process_layer1.layer1_signal import _layer1_signal_for_ma
-from modules.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
+from legacy.adaptive_trend_enhance.core.compute_atc_signals.compute_atc_signals import compute_atc_signals
+from legacy.adaptive_trend_enhance.core.compute_moving_averages import set_of_moving_averages
+from legacy.adaptive_trend_enhance.core.process_layer1._parallel_layer1 import _layer1_parallel_atc_signals
+from legacy.adaptive_trend_enhance.core.process_layer1.layer1_signal import _layer1_signal_for_ma
+from legacy.adaptive_trend_enhance.utils.rate_of_change import rate_of_change
 from modules.common.system.shared_memory_utils import (
     cleanup_shared_memory,
     reconstruct_series_from_shared_memory,

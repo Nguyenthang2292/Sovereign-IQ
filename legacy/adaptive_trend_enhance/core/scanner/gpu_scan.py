@@ -13,29 +13,29 @@ try:
 
     import cupy as cp
 
-    from modules.adaptive_trend_enhance.core.compute_moving_averages._gpu import (
+    from legacy.adaptive_trend_enhance.core.compute_moving_averages._gpu import (
         _calculate_dema_gpu,
         _calculate_hma_gpu,
         _calculate_lsma_gpu_optimized,
         _calculate_wma_gpu_optimized,
         calculate_batch_ema_gpu,
     )
-    from modules.adaptive_trend_enhance.core.process_layer1._gpu_equity import (
+    from legacy.adaptive_trend_enhance.core.process_layer1._gpu_equity import (
         calculate_equity_gpu,
     )
-    from modules.adaptive_trend_enhance.core.process_layer1._gpu_signals import (
+    from legacy.adaptive_trend_enhance.core.process_layer1._gpu_signals import (
         generate_signal_from_ma_gpu,
         rate_of_change_gpu,
         trend_sign_gpu,
     )
-    from modules.adaptive_trend_enhance.utils.diflen import diflen
+    from legacy.adaptive_trend_enhance.utils.diflen import diflen
 
     _HAS_CUPY = True
 except ImportError:
     _HAS_CUPY = False
 
 if TYPE_CHECKING:
-    from modules.adaptive_trend_enhance.utils.config import ATCConfig
+    from legacy.adaptive_trend_enhance.utils.config import ATCConfig
     from modules.common.core.data_fetcher import DataFetcher
 
 from modules.common.ui.logging import log_debug, log_error

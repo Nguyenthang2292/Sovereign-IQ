@@ -146,12 +146,12 @@ def benchmark_approximate_accuracy(n_bars=1000):
     prices = 100 + np.cumsum(np.random.normal(0, 1, n_bars))
     prices = pd.Series(prices)
 
-    # Get full precision EMAs
-    from modules.adaptive_trend_enhance.core.calculate_hma import calculate_hma
+    # Get full precision EMAs (HMA from pandas_ta; legacy has no standalone calculate_hma)
+    import pandas_ta as ta
     from modules.adaptive_trend_LTS_mini.core.compute_moving_averages import calculate_ema
 
     full_ema = calculate_ema(prices, 28)
-    full_hma = calculate_hma(prices, 28)
+    full_hma = ta.hma(prices, length=28)
 
     # Get approximate EMAs
     approx_ema = fast_ema_approx(prices, 28)

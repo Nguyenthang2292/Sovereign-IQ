@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_enhance.utils.cache_manager import CacheEntry, CacheManager
+from legacy.adaptive_trend_enhance.utils.cache_manager import CacheEntry, CacheManager
 
 
 def test_l1_l2_promotion():

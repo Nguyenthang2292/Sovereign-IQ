@@ -1,12 +1,12 @@
-"""
-Database Schema for Gradual Recovery Table
-============================================
-
-SQL schema for tracking gradual recovery sequences.
-
-This migration creates the `gradual_recovery` table for tracking
-loss recovery progress using controlled scaling approach.
-"""
+-- ============================================================================
+-- Database Schema for Gradual Recovery Table
+-- ============================================================================
+--
+-- SQL schema for tracking gradual recovery sequences.
+--
+-- This migration creates the `gradual_recovery` table for tracking
+-- loss recovery progress using controlled scaling approach.
+-- ============================================================================
 
 -- ============================================================================
 -- GRADUAL RECOVERY TABLE

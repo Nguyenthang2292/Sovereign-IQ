@@ -1,8 +1,8 @@
 """
-Comprehensive Logic Bug Test Suite for adaptive_trend_LTS Module
+Comprehensive Logic Bug Test Suite for adaptive_trend_LTS_mini Module
 
 This test suite validates 15 identified potential logic errors and edge cases
-in the adaptive_trend_LTS module.
+in the adaptive_trend_LTS_mini module.
 
 Giả thuyết kiểm tra:
 1. Window size miscalculation với robustness offsets
@@ -22,24 +22,23 @@ Giả thuyết kiểm tra:
 15. KAMA O(1) efficiency ratio window calculation
 """
 
-import pytest
-import numpy as np
-import pandas as pd
+import os
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import Mock, patch
-import sys
-import os
+
+import numpy as np
+import pandas as pd
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from modules.adaptive_trend_LTS.utils.config import ATCConfig
-from modules.adaptive_trend_LTS.utils.cache_manager import CacheManager
-from modules.adaptive_trend_LTS.utils.diflen import diflen
-from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
-from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_mas_o1 import TrueO1HMA, TrueO1KAMA, TrueO1WMA
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_mas_o1 import TrueO1HMA, TrueO1KAMA, TrueO1WMA
+from modules.adaptive_trend_LTS_mini.utils.cache_manager import CacheManager
+from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
+from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
 
 
 class TestWindowSizeMiscalculation:
@@ -406,21 +405,21 @@ class TestRaceConditionCache:
         """
         cache = CacheManager(max_entries_l1=2, max_entries_l2=10)
 
-        # Thêm entries vào cache (sử dụng public API)
+        # Thêm entries vào cache (sử dụng public API: put(ma_type, length, price_data, value))
         for i in range(5):
-            cache.put(f"key_{i}", f"value_{i}", ma_type="EMA", length=20)
+            cache.put("EMA", 20, f"key_{i}", f"value_{i}")
 
         errors = []
 
-        def access_key(key):
+        def access_key(price_data: str):
             try:
-                # Concurrent access to cache
-                value = cache.get(key)
+                # Concurrent access to cache (get(ma_type, length, price_data))
+                value = cache.get("EMA", 20, price_data)
                 # Access triggers potential promotion
             except Exception as e:
                 errors.append(str(e))
 
-        # Concurrent access
+        # Concurrent access using same price_data keys as put
         keys_to_access = ["key_0", "key_1", "key_2", "key_3", "key_4"]
         threads = []
         for key in keys_to_access:
@@ -483,7 +482,6 @@ class TestParameterNameMismatch:
         Giả thuyết: exp_growth expects unscaled L, nhưng nếu gọi trực tiếp
         calculate_layer2_equities với unscaled params, kết quả sai
         """
-        from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
 
         # exp_growth validates L is finite
         # Nhưng không có documentation về expected scaling

@@ -6,7 +6,7 @@ import datetime
 import threading
 from collections import deque
 from pathlib import Path
-from typing import Dict, Any, Union, Optional
+from typing import Any, Dict, Optional, Union
 
 import msgpack
 import numpy as np
@@ -114,10 +114,11 @@ class StateManager:
                 "state": state_to_save,
             }
 
-            with open(path, "wb") as f:
-                f.write(msgpack.packb(payload))
-
-            log_debug(f"State saved to {path}")
+            packed = msgpack.packb(payload)
+            if packed is not None:
+                with open(path, "wb") as f:
+                    f.write(packed)
+                log_debug(f"State saved to {path}")
 
     def load_state(self, path: Union[str, Path], o1_mas: Optional[Dict[str, Any]] = None) -> None:
         """Load state from file."""
@@ -160,7 +161,8 @@ class StateManager:
                 # Since we don't easily know 'i' to 'length' mapping here without re-doing diflen,
                 # we will trust the list length for now or set a safe upper bound.
                 # Actually, in incremental_atc.py it used:
-                # sqrt_len = max(1, int(np.sqrt(instance.ma_length["hma"]))) -> THIS WAS WRONG/SIMPLIFIED in original code?
+                # sqrt_len = max(1, int(np.sqrt(instance.ma_length["hma"]))) -> THIS WAS WRONG/SIMPLIFIED
+                # in original code?
                 # Original code only had one 'hma_input_history' (no index).
                 # My new code uses `hma_input_history_{i}`.
                 # Let's iterate and restore.
@@ -212,10 +214,11 @@ class StateManager:
 
         # Extract per-variation Layer 1 signals and equities
         try:
-            from modules.adaptive_trend_LTS.core.process_layer1.layer1_signal import (
+            from modules.adaptive_trend_LTS_mini.core.process_layer1.layer1_signal import (
                 _layer1_signal_for_ma,
             )
-            from modules.adaptive_trend_LTS.utils.rate_of_change import rate_of_change
+            from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
+
             from .constants import get_scaled_params
 
             L_scaled, De_scaled = get_scaled_params(self.config)
@@ -267,11 +270,15 @@ class StateManager:
     def _reconstruct_hma_state(self, prices: pd.Series):
         """Reconstruct HMA internal state from price history."""
         try:
-            from modules.adaptive_trend_LTS.utils.diflen import diflen
             import pandas_ta as ta
 
+            from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
+
             length = self.ma_length["hma"]
-            L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=self.robustness)
+            diflen_result = diflen(length, robustness=self.robustness)
+            if diflen_result is None:
+                return
+            L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_result
             lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
             sqrt_lengths = [max(1, int(np.sqrt(ln))) for ln in lengths]
             half_lengths = [max(1, ln // 2) for ln in lengths]

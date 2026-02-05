@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental_backend import (
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_backend import (
     check_rust_available,
     update_incremental_rust,
     update_incremental_python,
@@ -114,7 +114,7 @@ class TestRustBackendAvailability:
         """Test that appropriate error is raised when trying to use unavailable Rust."""
         if check_rust_available():
             pytest.skip("Rust backend is available")
-        
+
         state = {"initialized": True}
         with pytest.raises(ImportError, match="Rust incremental backend is not available"):
             update_incremental_rust(state, 100.0, {})
@@ -127,42 +127,42 @@ class TestRustVsPythonConsistency:
     def test_rust_vs_python_single_update(self, sample_initial_state, sample_config):
         """Test that Rust and Python produce same results for single update."""
         new_price = 101.0
-        
+
         # Update with Rust
         state_rust = sample_initial_state.copy()
         signal_rust, state_rust = update_incremental_rust(state_rust, new_price, sample_config)
-        
+
         # Update with Python (fallback)
         state_python = sample_initial_state.copy()
         signal_python, state_python = update_incremental_python(state_python, new_price, sample_config)
-        
+
         # Signals should be the same (or very close)
-        assert abs(signal_rust - signal_python) < 1e-6, \
+        assert abs(signal_rust - signal_python) < 1e-6, (
             f"Rust signal ({signal_rust}) != Python signal ({signal_python})"
-    
+        )
+
     @pytest.mark.skipif(not check_rust_available(), reason="Rust backend not available")
     def test_rust_vs_python_sequence(self, sample_initial_state, sample_config):
         """Test that Rust and Python produce same results for a sequence of updates."""
         np.random.seed(42)
         prices = np.random.randn(100) * 10 + 100
-        
+
         state_rust = sample_initial_state.copy()
         state_python = sample_initial_state.copy()
-        
+
         signals_rust = []
         signals_python = []
-        
+
         for price in prices:
             signal_rust, state_rust = update_incremental_rust(state_rust, price, sample_config)
             signal_python, state_python = update_incremental_python(state_python, price, sample_config)
-            
+
             signals_rust.append(signal_rust)
             signals_python.append(signal_python)
-        
+
         # All signals should be very close
         for i, (sr, sp) in enumerate(zip(signals_rust, signals_python)):
-            assert abs(sr - sp) < 1e-5, \
-                f"Mismatch at index {i}: Rust={sr}, Python={sp}"
+            assert abs(sr - sp) < 1e-5, f"Mismatch at index {i}: Rust={sr}, Python={sp}"
 
 
 class TestRustBackendEdgeCases:
@@ -172,14 +172,14 @@ class TestRustBackendEdgeCases:
     def test_constant_price_series(self, sample_initial_state, sample_config):
         """Test Rust backend with constant price series."""
         state = sample_initial_state.copy()
-        
+
         signals = []
         for _ in range(50):
             signal, state = update_incremental_rust(state, 100.0, sample_config)
             signals.append(signal)
             assert not np.isnan(signal), "Signal should not be NaN"
             assert not np.isinf(signal), "Signal should not be inf"
-        
+
         # All signals should be valid
         assert all(np.isfinite(s) for s in signals)
 
@@ -187,10 +187,10 @@ class TestRustBackendEdgeCases:
     def test_extreme_price_jumps(self, sample_initial_state, sample_config):
         """Test Rust backend with extreme price movements."""
         state = sample_initial_state.copy()
-        
+
         # Simulate extreme jumps
         prices = [100.0, 200.0, 50.0, 150.0, 300.0, 20.0]
-        
+
         signals = []
         for price in prices:
             signal, state = update_incremental_rust(state, price, sample_config)
@@ -198,16 +198,16 @@ class TestRustBackendEdgeCases:
             assert not np.isnan(signal), "Signal should not be NaN"
             assert not np.isinf(signal), "Signal should not be inf"
             assert -10 < signal < 10, f"Signal {signal} should be in reasonable range"
-        
+
         assert len(signals) == len(prices)
 
     @pytest.mark.skipif(not check_rust_available(), reason="Rust backend not available")
     def test_zero_price(self, sample_initial_state, sample_config):
         """Test Rust backend with zero price."""
         state = sample_initial_state.copy()
-        
+
         signal, state = update_incremental_rust(state, 0.0, sample_config)
-        
+
         assert not np.isnan(signal), "Signal should not be NaN"
         assert not np.isinf(signal), "Signal should not be inf"
 
@@ -219,11 +219,21 @@ class TestRustStateSerialization:
     def test_state_structure(self, sample_initial_state):
         """Test that state has expected structure."""
         required_keys = [
-            "ema_value", "ema2_value", "wma_value", "hma_value", "lsma_value", "kama_value",
-            "equity_ema", "equity_hma", "equity_wma", "equity_dema", "equity_lsma", "equity_kama",
-            "initialized"
+            "ema_value",
+            "ema2_value",
+            "wma_value",
+            "hma_value",
+            "lsma_value",
+            "kama_value",
+            "equity_ema",
+            "equity_hma",
+            "equity_wma",
+            "equity_dema",
+            "equity_lsma",
+            "equity_kama",
+            "initialized",
         ]
-        
+
         for key in required_keys:
             assert key in sample_initial_state, f"State missing key: {key}"
 
@@ -232,14 +242,14 @@ class TestRustStateSerialization:
         """Test that state changes correctly across updates."""
         state = sample_initial_state.copy()
         initial_ema = state["ema_value"]
-        
+
         # Update with new price
         new_price = 101.0
         signal, state = update_incremental_rust(state, new_price, sample_config)
-        
+
         # EMA should have changed
         assert state["ema_value"] != initial_ema, "EMA should change after update"
-        
+
         # State should still be valid
         assert state["initialized"] == True
 
@@ -251,23 +261,23 @@ class TestAutoBackendSelection:
         """Test that auto uses Rust when available."""
         if not check_rust_available():
             pytest.skip("Rust backend not available")
-        
+
         config = sample_config.copy()
         config["use_rust_incremental"] = True
-        
+
         # This should use Rust backend without errors
         signal, state = update_incremental_auto(sample_initial_state.copy(), 100.0, config)
-        
+
         assert not np.isnan(signal)
 
     def test_auto_falls_back_to_python(self, sample_initial_state, sample_config):
         """Test that auto falls back to Python when Rust disabled."""
         config = sample_config.copy()
         config["use_rust_incremental"] = False
-        
+
         # This should use Python backend without errors
         signal, state = update_incremental_auto(sample_initial_state.copy(), 100.0, config)
-        
+
         assert not np.isnan(signal)
 
 

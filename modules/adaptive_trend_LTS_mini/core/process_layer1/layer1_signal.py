@@ -11,9 +11,9 @@ from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_equity import _calculate_equity_vectorized, equity_series
-from modules.adaptive_trend_LTS.core.signal_detection import generate_signal_from_ma
-from modules.adaptive_trend_LTS.utils.rate_of_change import rate_of_change
+from modules.adaptive_trend_LTS_mini.core.compute_equity import _calculate_equity_vectorized, equity_series
+from modules.adaptive_trend_LTS_mini.core.signal_detection import generate_signal_from_ma
+from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
 from modules.common.system import get_array_pool
 from modules.common.utils import log_error, log_warn
 
@@ -122,7 +122,7 @@ def _layer1_signal_for_ma(
             signal_lengths = [len(sig) for sig in signals]
             if len(set(signal_lengths)) == 1 and all(len(sig) == len(R) for sig in signals):
                 # All signals have same length, use vectorized version
-                from modules.adaptive_trend_LTS.utils.exp_growth import exp_growth
+                from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
 
                 # Prepare data for vectorized calculation
                 index = signals[0].index

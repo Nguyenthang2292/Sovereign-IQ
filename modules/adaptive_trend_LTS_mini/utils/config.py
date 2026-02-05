@@ -86,6 +86,13 @@ class ATCConfig:
     parallel_l2: bool = True  # Level 2 parallelism (inter-symbol)
     use_rust_backend: bool = True  # Use Rust backend (CPU parallelism with Rayon)
 
+    # Approximate calculation parameters
+    use_approximate: bool = False  # Use approximate calculations for faster scanning
+    approximate_threshold: float = 0.05  # Threshold for approximate calculations
+    use_adaptive_approximate: bool = False  # Enable adaptive approximation based on volatility
+    approximate_volatility_window: int = 20  # Window size for volatility calculation
+    approximate_volatility_factor: float = 1.0  # Scaling factor for volatility-based approximation
+
     # Cache compression parameters
     use_compression: bool = False  # Enable blosc compression for disk cache
     compression_level: int = 5  # Compression level (0-9, higher = more compression)
@@ -140,6 +147,11 @@ def create_atc_config_from_dict(
         parallel_l1=params.get("parallel_l1", True),
         parallel_l2=params.get("parallel_l2", True),
         use_rust_backend=params.get("use_rust_backend", params.get("prefer_gpu", True)),  # Backward compat
+        use_approximate=params.get("use_approximate", False),
+        approximate_threshold=params.get("approximate_threshold", 0.05),
+        use_adaptive_approximate=params.get("use_adaptive_approximate", False),
+        approximate_volatility_window=params.get("approximate_volatility_window", 20),
+        approximate_volatility_factor=params.get("approximate_volatility_factor", 1.0),
         use_compression=params.get("use_compression", False),
         compression_level=params.get("compression_level", 5),
         compression_algorithm=params.get("compression_algorithm", "blosclz"),

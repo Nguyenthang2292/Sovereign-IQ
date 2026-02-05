@@ -17,8 +17,8 @@ import psutil
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
-from modules.adaptive_trend_enhance.utils.config import ATCConfig
+from legacy.adaptive_trend_enhance.core.scanner import scan_all_symbols
+from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 
 
 def get_process_memory():
@@ -45,8 +45,8 @@ def create_mock_atc_results() -> dict:
     return {"Average_Signal": pd.Series([0.5] * 500)}
 
 
-@patch("modules.adaptive_trend_enhance.core.scanner.compute_atc_signals")
-@patch("modules.adaptive_trend_enhance.core.scanner.trend_sign")
+@patch("legacy.adaptive_trend_enhance.core.scanner.compute_atc_signals")
+@patch("legacy.adaptive_trend_enhance.core.scanner.trend_sign")
 def run_benchmark(mock_trend_sign, mock_compute_atc, num_symbols=200, batch_size=50):
     print(f"\n--- Benchmarking {num_symbols} symbols with batch_size={batch_size} ---")
 

@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals import IncrementalATC, compute_atc_signals
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import IncrementalATC, compute_atc_signals
 
 
 @pytest.fixture

@@ -114,7 +114,7 @@ PERF_ITERATIONS=5 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0 
 
 ```bash
 # Option 1: Direct pytest with coverage
-PERF_ITERATIONS=10 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0 -m performance --cov=modules.adaptive_trend_enhance
+PERF_ITERATIONS=10 pytest tests/adaptive_trend_enhance/test_performance*.py -n 0 -m performance --cov=legacy.adaptive_trend_enhance
 
 # Option 2: Use script
 .\tests\adaptive_trend_enhance\run_perf_tests.ps1 ci all

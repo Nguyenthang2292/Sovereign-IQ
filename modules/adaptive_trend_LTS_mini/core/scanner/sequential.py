@@ -16,14 +16,15 @@ try:
     from modules.common.utils import log_progress, log_warn
 except ImportError:
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
-    def log_progress(message: str) -> None:
-        print(f"[PROGRESS] {message}")
+    def log_progress(msg: str) -> None:
+        print(f"[PROGRESS] {msg}")
 
 
-from modules.adaptive_trend_LTS.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
+
 from .process_symbol import _process_symbol
 
 

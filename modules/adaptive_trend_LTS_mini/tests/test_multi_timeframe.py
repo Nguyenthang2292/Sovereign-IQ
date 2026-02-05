@@ -7,8 +7,10 @@ import pandas as pd
 import pytest
 from unittest.mock import Mock, patch
 
-from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental.multi_timeframe import MultiTimeframeIncrementalATC
-from modules.adaptive_trend_LTS.core.compute_atc_signals.incremental.constants import TF_RESOLUTION_MAP
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental.multi_timeframe import (
+    MultiTimeframeIncrementalATC,
+)
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental.constants import TF_RESOLUTION_MAP
 
 
 class TestMultiTimeframeATC:

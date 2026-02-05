@@ -10,6 +10,9 @@ class SignalsFrame(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
+        # Store original signals for filtering
+        self._all_signals: List[Dict] = []
+
         self._create_header()
         self._create_table()
 
@@ -40,6 +43,8 @@ class SignalsFrame(ctk.CTkFrame):
         self.min_score = ctk.CTkEntry(filters_frame, width=60)
         self.min_score.insert(0, "0.7")
         self.min_score.pack(side="left")
+        # Bind Enter key to apply filters when user changes min score
+        self.min_score.bind("<Return>", lambda e: self.apply_filters())
 
     def _create_table(self):
         table_frame = ctk.CTkFrame(self)
@@ -81,9 +86,52 @@ class SignalsFrame(ctk.CTkFrame):
         style.configure("Treeview.Heading", background=header_bg, foreground=text_color)
 
     def update_signals(self, signals: List[Dict]):
+        """Update signals display with new data."""
+        # Store all signals for filtering
+        self._all_signals = signals
+
+        # Apply current filters and display
+        self.apply_filters()
+
+    def apply_filters(self):
+        """Apply filters to signals and update display."""
+        # Get filter values
+        show_long = self.filter_long.get()
+        show_short = self.filter_short.get()
+
+        try:
+            min_score = float(self.min_score.get())
+        except ValueError:
+            min_score = 0.0
+
+        # Filter signals
+        filtered_signals = []
+        for signal in self._all_signals:
+            signal_type = signal["signal"].upper()
+            signal_score = signal.get("score", 0.0)
+
+            # Apply signal type filter
+            if signal_type == "LONG" and not show_long:
+                continue
+            if signal_type == "SHORT" and not show_short:
+                continue
+
+            # Apply score filter
+            if signal_score < min_score:
+                continue
+
+            filtered_signals.append(signal)
+
+        # Update table display
+        self._display_signals(filtered_signals)
+
+    def _display_signals(self, signals: List[Dict]):
+        """Display signals in the table."""
+        # Clear existing items
         for item in self.table.get_children():
             self.table.delete(item)
 
+        # Insert filtered signals
         for signal in signals:
             tag = signal["signal"].lower()
             self.table.insert(
@@ -93,9 +141,7 @@ class SignalsFrame(ctk.CTkFrame):
                 tags=(tag,),
             )
 
+        # Configure tag colors
         self.table.tag_configure("long", foreground="#00ff88")
         self.table.tag_configure("short", foreground="#ff4444")
         self.table.tag_configure("neutral", foreground="#888888")
-
-    def apply_filters(self):
-        pass

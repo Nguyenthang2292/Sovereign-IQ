@@ -32,10 +32,10 @@ except ImportError:
         print(f"[WARN] {msg}")
 
 
-from modules.adaptive_trend_LTS.core.compute_moving_averages import set_of_moving_averages
-from modules.adaptive_trend_LTS.core.process_layer1 import _layer1_signal_for_ma
-from modules.adaptive_trend_LTS.utils.diflen import diflen
-from modules.adaptive_trend_LTS.utils.rate_of_change import rate_of_change
+from modules.adaptive_trend_LTS_mini.core.compute_moving_averages import set_of_moving_averages
+from modules.adaptive_trend_LTS_mini.core.process_layer1 import _layer1_signal_for_ma
+from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
+from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
 from modules.common.system import (
     cleanup_series,
     get_hardware_manager,
@@ -185,7 +185,7 @@ def compute_atc_signals(
     with context_ma:
         if use_adaptive_approximate:
             # Use adaptive approximate MAs with volatility-based tolerance
-            from modules.adaptive_trend_LTS.core.compute_moving_averages.adaptive_approximate_mas import (
+            from modules.adaptive_trend_LTS_mini.core.compute_moving_averages.adaptive_approximate_mas import (
                 adaptive_dema_approx,
                 adaptive_ema_approx,
                 adaptive_hma_approx,
@@ -248,7 +248,7 @@ def compute_atc_signals(
             )
         elif use_approximate:
             # Use basic approximate MAs for fast scanning
-            from modules.adaptive_trend_LTS.core.compute_moving_averages.approximate_mas import (
+            from modules.adaptive_trend_LTS_mini.core.compute_moving_averages.approximate_mas import (
                 fast_dema_approx,
                 fast_ema_approx,
                 fast_hma_approx,
@@ -323,7 +323,7 @@ def compute_atc_signals(
             use_parallel_l1 = parallel_l1
 
         if use_parallel_l1:
-            from modules.adaptive_trend_LTS.core.process_layer1 import _layer1_parallel_atc_signals
+            from modules.adaptive_trend_LTS_mini.core.process_layer1 import _layer1_parallel_atc_signals
 
             layer1_signals = _layer1_parallel_atc_signals(
                 prices=prices,
@@ -354,7 +354,7 @@ def compute_atc_signals(
     log_debug("Completed Layer 1 signals")
 
     # Adaptability Layer 2
-    from modules.adaptive_trend_LTS.core.compute_equity.core import get_equity_floor
+    from modules.adaptive_trend_LTS_mini.core.compute_equity.core import get_equity_floor
 
     layer2_equities = calculate_layer2_equities(
         layer1_signals=layer1_signals,

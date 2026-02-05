@@ -1,5 +1,6 @@
+from typing import Callable, Dict
+
 import customtkinter as ctk
-from typing import Dict, Optional, Callable
 
 
 class ConfigPanel(ctk.CTkFrame):
@@ -8,10 +9,18 @@ class ConfigPanel(ctk.CTkFrame):
     Contains Risk Settings, Signal Filters, API Keys, and Default TP/SL
     """
 
-    def __init__(self, parent, on_settings_change: Callable = None):
+    def __init__(
+        self,
+        parent,
+        on_settings_change: Callable = None,
+        mode: str = "DRY_RUN",
+        on_recovery_config_change: Callable = None,
+    ):
         super().__init__(parent)
 
         self.on_settings_change = on_settings_change
+        self.mode = mode
+        self.on_recovery_config_change = on_recovery_config_change
 
         # Title
         title = ctk.CTkLabel(self, text="⚙️ Configuration", font=("Arial", 16, "bold"))
@@ -25,53 +34,124 @@ class ConfigPanel(ctk.CTkFrame):
         self._create_risk_settings_tab()
         self._create_signal_filters_tab()
         self._create_api_keys_tab()
-        self._create_tp_sl_tab()
         self._create_ui_preferences_tab()
 
     def _create_risk_settings_tab(self):
-        """Create Risk Settings tab"""
+        """Create Risk Settings tab (Merged with TP/SL and Recovery)"""
         tab = self.tabview.add("Risk Settings")
 
-        # Risk settings frame
-        risk_frame = ctk.CTkFrame(tab, fg_color="transparent")
-        risk_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Main container with 3 columns
+        container = ctk.CTkFrame(tab, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=5, pady=5)
+
+        container.grid_columnconfigure(0, weight=1)
+        container.grid_columnconfigure(1, weight=1)
+        container.grid_columnconfigure(2, weight=1)
+
+        # ================== COLUMN 1: Risk Management ==================
+        # Boxed frame with visible background (matching TP/SL style)
+        from gui.utils.colors import Colors
+
+        risk_box = ctk.CTkFrame(container, fg_color=Colors.get_card_bg(), corner_radius=10)
+        risk_box.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+
+        # Inner frame for padding
+        risk_frame = ctk.CTkFrame(risk_box, fg_color="transparent")
+        risk_frame.pack(fill="both", expand=True, padx=15, pady=15)
+
+        ctk.CTkLabel(risk_frame, text="Risk Management", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 15))
 
         # Max position size
         label = ctk.CTkLabel(risk_frame, text="Max Position Size ($):", font=("Arial", 12))
         label.pack(anchor="w", pady=(5, 2))
 
-        self.max_pos_size_entry = ctk.CTkEntry(risk_frame, placeholder_text="100.00", width=200)
-        self.max_pos_size_entry.pack(anchor="w", pady=2)
+        self.max_pos_size_entry = ctk.CTkEntry(risk_frame, placeholder_text="100.00", width=220)
+        self.max_pos_size_entry.pack(anchor="w", pady=(2, 8))
         self.max_pos_size_entry.insert(0, "100.00")
 
         # Max open positions
         label = ctk.CTkLabel(risk_frame, text="Max Open Positions:", font=("Arial", 12))
-        label.pack(anchor="w", pady=(10, 2))
+        label.pack(anchor="w", pady=(5, 2))
 
-        self.max_positions_entry = ctk.CTkEntry(risk_frame, placeholder_text="3", width=200)
-        self.max_positions_entry.pack(anchor="w", pady=2)
+        self.max_positions_entry = ctk.CTkEntry(risk_frame, placeholder_text="3", width=220)
+        self.max_positions_entry.pack(anchor="w", pady=(2, 8))
         self.max_positions_entry.insert(0, "3")
 
         # Max daily loss
         label = ctk.CTkLabel(risk_frame, text="Max Daily Loss ($):", font=("Arial", 12))
-        label.pack(anchor="w", pady=(10, 2))
+        label.pack(anchor="w", pady=(5, 2))
 
-        self.max_daily_loss_entry = ctk.CTkEntry(risk_frame, placeholder_text="50.00", width=200)
-        self.max_daily_loss_entry.pack(anchor="w", pady=2)
+        self.max_daily_loss_entry = ctk.CTkEntry(risk_frame, placeholder_text="50.00", width=220)
+        self.max_daily_loss_entry.pack(anchor="w", pady=(2, 8))
         self.max_daily_loss_entry.insert(0, "50.00")
 
         # Default leverage
         label = ctk.CTkLabel(risk_frame, text="Default Leverage:", font=("Arial", 12))
-        label.pack(anchor="w", pady=(10, 2))
+        label.pack(anchor="w", pady=(5, 2))
 
         self.default_leverage_var = ctk.StringVar(value="10x")
         leverage_dropdown = ctk.CTkComboBox(
             risk_frame,
             values=["1x", "2x", "3x", "5x", "10x", "20x", "50x", "100x"],
             variable=self.default_leverage_var,
-            width=200,
+            width=220,
         )
-        leverage_dropdown.pack(anchor="w", pady=2)
+        leverage_dropdown.pack(anchor="w", pady=(2, 8))
+
+        # ================== COLUMN 2: TP/SL Settings ==================
+        # Boxed frame for TP/SL (visible background)
+        from gui.utils.colors import Colors
+
+        tp_sl_box = ctk.CTkFrame(container, fg_color=Colors.get_card_bg(), corner_radius=10)
+        tp_sl_box.grid(row=0, column=1, sticky="nsew", padx=5)
+
+        # Inner frame for padding
+        tp_sl_inner = ctk.CTkFrame(tp_sl_box, fg_color="transparent")
+        tp_sl_inner.pack(fill="both", expand=True, padx=15, pady=15)
+
+        ctk.CTkLabel(tp_sl_inner, text="TP/SL Configuration", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 15))
+
+        # Default TP percentage
+        label = ctk.CTkLabel(tp_sl_inner, text="Default Take Profit (%):", font=("Arial", 12))
+        label.pack(anchor="w", pady=(5, 2))
+
+        self.default_tp_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="5.0", width=220)
+        self.default_tp_entry.pack(anchor="w", pady=(2, 8))
+        self.default_tp_entry.insert(0, "5.0")
+
+        # Default SL percentage
+        label = ctk.CTkLabel(tp_sl_inner, text="Default Stop Loss (%):", font=("Arial", 12))
+        label.pack(anchor="w", pady=(5, 2))
+
+        self.default_sl_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="2.5", width=220)
+        self.default_sl_entry.pack(anchor="w", pady=(2, 8))
+        self.default_sl_entry.insert(0, "2.5")
+
+        # TP/SL mode selector
+        label = ctk.CTkLabel(tp_sl_inner, text="TP/SL Mode:", font=("Arial", 12))
+        label.pack(anchor="w", pady=(5, 2))
+
+        self.tp_sl_mode_var = ctk.StringVar(value="Percentage")
+        mode_dropdown = ctk.CTkComboBox(
+            tp_sl_inner, values=["Percentage", "Price", "ATR"], variable=self.tp_sl_mode_var, width=220
+        )
+        mode_dropdown.pack(anchor="w", pady=(2, 8))
+
+        # Trailing stop checkbox
+        self.trailing_stop_var = ctk.BooleanVar(value=False)
+        trailing_checkbox = ctk.CTkCheckBox(tp_sl_inner, text="Enable Trailing Stop", variable=self.trailing_stop_var)
+        trailing_checkbox.pack(anchor="w", pady=(15, 2))
+
+        # ================== COLUMN 3: Gradual Recovery ==================
+        from gui.components.recovery_panel import RecoveryPanel
+
+        self.recovery_panel = RecoveryPanel(
+            container,
+            on_config_change=self.on_recovery_config_change,
+            mode=self.mode,
+            compact=True,
+        )
+        self.recovery_panel.grid(row=0, column=2, sticky="nsew", padx=(5, 0))
 
     def _create_signal_filters_tab(self):
         """Create Signal Filters tab"""
@@ -205,44 +285,8 @@ class ConfigPanel(ctk.CTkFrame):
         )
         save_btn.pack(anchor="w", pady=2)
 
-    def _create_tp_sl_tab(self):
-        """Create Default TP/SL tab"""
-        tab = self.tabview.add("TP/SL Settings")
-
-        # TP/SL frame
-        tp_sl_frame = ctk.CTkFrame(tab, fg_color="transparent")
-        tp_sl_frame.pack(fill="both", expand=True, padx=10, pady=10)
-
-        # Default TP percentage
-        label = ctk.CTkLabel(tp_sl_frame, text="Default Take Profit (%):", font=("Arial", 12))
-        label.pack(anchor="w", pady=(5, 2))
-
-        self.default_tp_entry = ctk.CTkEntry(tp_sl_frame, placeholder_text="5.0", width=200)
-        self.default_tp_entry.pack(anchor="w", pady=2)
-        self.default_tp_entry.insert(0, "5.0")
-
-        # Default SL percentage
-        label = ctk.CTkLabel(tp_sl_frame, text="Default Stop Loss (%):", font=("Arial", 12))
-        label.pack(anchor="w", pady=(10, 2))
-
-        self.default_sl_entry = ctk.CTkEntry(tp_sl_frame, placeholder_text="2.5", width=200)
-        self.default_sl_entry.pack(anchor="w", pady=2)
-        self.default_sl_entry.insert(0, "2.5")
-
-        # Trailing stop checkbox
-        self.trailing_stop_var = ctk.BooleanVar(value=False)
-        trailing_checkbox = ctk.CTkCheckBox(tp_sl_frame, text="Enable Trailing Stop", variable=self.trailing_stop_var)
-        trailing_checkbox.pack(anchor="w", pady=(10, 2))
-
-        # TP/SL mode selector
-        label = ctk.CTkLabel(tp_sl_frame, text="TP/SL Mode:", font=("Arial", 12))
-        label.pack(anchor="w", pady=(10, 2))
-
-        self.tp_sl_mode_var = ctk.StringVar(value="Percentage")
-        mode_dropdown = ctk.CTkComboBox(
-            tp_sl_frame, values=["Percentage", "Price", "ATR"], variable=self.tp_sl_mode_var, width=200
-        )
-        mode_dropdown.pack(anchor="w", pady=2)
+        # Initialize visibility based on default mode
+        self._on_mode_change()
 
     def _create_ui_preferences_tab(self):
         """Create UI Preferences tab"""
@@ -364,8 +408,9 @@ class ConfigPanel(ctk.CTkFrame):
     def _export_settings(self):
         """Export settings to file"""
         try:
-            from gui.utils.settings_manager import SettingsManager
             from tkinter import filedialog
+
+            from gui.utils.settings_manager import SettingsManager
 
             manager = SettingsManager()
             file_path = filedialog.asksaveasfilename(
@@ -383,8 +428,9 @@ class ConfigPanel(ctk.CTkFrame):
     def _import_settings(self):
         """Import settings from file"""
         try:
-            from gui.utils.settings_manager import SettingsManager
             from tkinter import filedialog
+
+            from gui.utils.settings_manager import SettingsManager
 
             manager = SettingsManager()
             file_path = filedialog.askopenfilename(
@@ -424,8 +470,9 @@ class ConfigPanel(ctk.CTkFrame):
     def _test_connection(self):
         """Test API connection"""
         try:
-            from gui.utils.credential_manager import CredentialManager
             from tkinter import messagebox
+
+            from gui.utils.credential_manager import CredentialManager
 
             # Get credentials from UI
             exchange = self.exchange_var.get().lower()
@@ -464,8 +511,9 @@ class ConfigPanel(ctk.CTkFrame):
     def _save_credentials(self):
         """Save API credentials"""
         try:
-            from gui.utils.credential_manager import CredentialManager
             from tkinter import messagebox
+
+            from gui.utils.credential_manager import CredentialManager
 
             # Get credentials from UI
             exchange = self.exchange_var.get().lower()
@@ -516,8 +564,9 @@ class ConfigPanel(ctk.CTkFrame):
     def _on_mode_change(self):
         """Handle mode radio button change"""
         try:
-            from gui.utils.colors import Colors
             from tkinter import messagebox
+
+            from gui.utils.colors import Colors
 
             mode = self.mode_var.get()
 
@@ -530,6 +579,16 @@ class ConfigPanel(ctk.CTkFrame):
             description, color = mode_descriptions.get(mode, ("✅ Safe local simulation", Colors.DRY_RUN))
             self.mode_description_label.configure(text=description, text_color=color)
 
+            # Show/hide API key fields based on mode
+            if mode == "DRY_RUN":
+                # Hide API fields for Dry Run mode
+                self.api_key_frame.pack_forget()
+            else:
+                # Show API fields for Production and Demo modes
+                if not self.api_key_frame.winfo_ismapped():
+                    self.api_key_frame.pack(fill="x", after=self.mode_description_label)
+
+            # Show warning for Production mode (after UI update)
             if mode == "PRODUCTION":
                 messagebox.showwarning(
                     "Production Mode",
@@ -537,13 +596,6 @@ class ConfigPanel(ctk.CTkFrame):
                     "This will execute REAL trades with REAL money.\n"
                     "Make sure you understand the risks involved.",
                 )
-
-            elif mode == "DRY_RUN":
-                self.api_key_frame.pack_forget()
-
-            else:
-                if not self.api_key_frame.winfo_ismapped():
-                    self.api_key_frame.pack(fill="x", after=self.mode_description_label)
 
             if self.on_settings_change:
                 self.on_settings_change("mode", mode)

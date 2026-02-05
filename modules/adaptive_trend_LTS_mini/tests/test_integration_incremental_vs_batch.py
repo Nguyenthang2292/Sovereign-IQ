@@ -18,8 +18,8 @@ import pytest
 from typing import Dict, Any
 
 # Import modules to test
-from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals, IncrementalATC
-from modules.adaptive_trend_LTS.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals, IncrementalATC
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
 
 
 class TestIncrementalVsBatchConsistency:
@@ -94,9 +94,9 @@ class TestIncrementalVsBatchConsistency:
         batch_init_signal = batch_result["Average_Signal"].iloc[init_bars - 1]
 
         # Allow small tolerance for floating point differences
-        assert (
-            abs(init_signal - batch_init_signal) < 0.01
-        ), f"Init signal mismatch: incremental={init_signal}, batch={batch_init_signal}"
+        assert abs(init_signal - batch_init_signal) < 0.01, (
+            f"Init signal mismatch: incremental={init_signal}, batch={batch_init_signal}"
+        )
 
         # Update incrementally
         incremental_signals = []
@@ -108,9 +108,9 @@ class TestIncrementalVsBatchConsistency:
         final_incremental = incremental_signals[-1]
         final_batch = batch_result["Average_Signal"].iloc[-1]
 
-        assert (
-            abs(final_incremental - final_batch) < 0.05
-        ), f"Final signal mismatch: incremental={final_incremental}, batch={final_batch}"
+        assert abs(final_incremental - final_batch) < 0.05, (
+            f"Final signal mismatch: incremental={final_incremental}, batch={final_batch}"
+        )
 
     def test_sequential_updates_vs_batch_equivalent(self):
         """Test that sequential updates are equivalent to batch."""
@@ -160,9 +160,9 @@ class TestIncrementalVsBatchConsistency:
 
         # Allow tolerance due to implementation differences (e.g. DEMA initialization, float drift)
         # 0.15 allows for small accumulated differences over 70 bars
-        assert (
-            abs(final_incremental_signal - final_batch_signal) < 0.15
-        ), f"Signal mismatch: incremental={final_incremental_signal}, batch={final_batch_signal}"
+        assert abs(final_incremental_signal - final_batch_signal) < 0.15, (
+            f"Signal mismatch: incremental={final_incremental_signal}, batch={final_batch_signal}"
+        )
 
     def test_o1_ma_consistency_with_batch(self):
         """Test O(1) MA implementations match batch calculations."""
@@ -211,9 +211,9 @@ class TestIncrementalVsBatchConsistency:
 
             # O(1) MAs should be very close to standard implementations
             # Note: Small drift is expected due to floating point and approximation
-            assert (
-                abs(signal_o1 - signal_std) < 0.2
-            ), f"O(1) deviation too large at bar {i}: O1={signal_o1}, Std={signal_std}"
+            assert abs(signal_o1 - signal_std) < 0.2, (
+                f"O(1) deviation too large at bar {i}: O1={signal_o1}, Std={signal_std}"
+            )
 
 
 if __name__ == "__main__":

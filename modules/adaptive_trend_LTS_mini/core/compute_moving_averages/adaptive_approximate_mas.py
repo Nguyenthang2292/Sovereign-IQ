@@ -8,7 +8,7 @@ from typing import Literal
 
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_moving_averages.approximate_mas import (
+from modules.adaptive_trend_LTS_mini.core.compute_moving_averages.approximate_mas import (
     fast_dema_approx,
     fast_ema_approx,
     fast_hma_approx,

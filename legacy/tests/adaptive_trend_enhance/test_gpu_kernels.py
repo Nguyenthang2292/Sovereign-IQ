@@ -15,13 +15,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 try:
     import cupy as cp
 
-    from modules.adaptive_trend_enhance.core.compute_moving_averages._gpu import (
+    from legacy.adaptive_trend_enhance.core.compute_moving_averages._gpu import (
         _HAS_CUPY,
         _calculate_lsma_gpu_optimized,
         _calculate_wma_gpu_optimized,
         calculate_batch_ema_gpu,
     )
-    from modules.adaptive_trend_enhance.core.process_layer1._gpu_signals import cut_signal_gpu, trend_sign_gpu
+    from legacy.adaptive_trend_enhance.core.process_layer1._gpu_signals import cut_signal_gpu, trend_sign_gpu
 except ImportError:
     _HAS_CUPY = False
     cp = None

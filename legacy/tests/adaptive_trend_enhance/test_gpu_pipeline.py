@@ -22,28 +22,28 @@ def test_scan_gpu_batch_pipeline_logic():
     # We will patch _HAS_CUPY and the GPU functions regardless of actual import success
 
     with (
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan._HAS_CUPY", True),
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan.cp", create=True) as mock_cp,
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan.rate_of_change_gpu", create=True) as mock_roc,
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan.calculate_batch_ema_gpu", create=True) as mock_ema,
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan._calculate_hma_gpu", create=True) as mock_hma,
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan._HAS_CUPY", True),
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan.cp", create=True) as mock_cp,
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan.rate_of_change_gpu", create=True) as mock_roc,
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan.calculate_batch_ema_gpu", create=True) as mock_ema,
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan._calculate_hma_gpu", create=True) as mock_hma,
         patch(
-            "modules.adaptive_trend_enhance.core.scanner.gpu_scan._calculate_wma_gpu_optimized", create=True
+            "legacy.adaptive_trend_enhance.core.scanner.gpu_scan._calculate_wma_gpu_optimized", create=True
         ) as mock_wma,
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan._calculate_dema_gpu", create=True) as mock_dema,
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan._calculate_dema_gpu", create=True) as mock_dema,
         patch(
-            "modules.adaptive_trend_enhance.core.scanner.gpu_scan._calculate_lsma_gpu_optimized", create=True
+            "legacy.adaptive_trend_enhance.core.scanner.gpu_scan._calculate_lsma_gpu_optimized", create=True
         ) as mock_lsma,
         patch(
-            "modules.adaptive_trend_enhance.core.scanner.gpu_scan.generate_signal_from_ma_gpu", create=True
+            "legacy.adaptive_trend_enhance.core.scanner.gpu_scan.generate_signal_from_ma_gpu", create=True
         ) as mock_gen_sig,
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan.calculate_equity_gpu", create=True) as mock_eq,
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan.trend_sign_gpu", create=True) as mock_trend,
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan._fetch_batch_data", create=True) as mock_fetch,
-        patch("modules.adaptive_trend_enhance.core.scanner.gpu_scan.diflen", create=True) as mock_diflen,
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan.calculate_equity_gpu", create=True) as mock_eq,
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan.trend_sign_gpu", create=True) as mock_trend,
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan._fetch_batch_data", create=True) as mock_fetch,
+        patch("legacy.adaptive_trend_enhance.core.scanner.gpu_scan.diflen", create=True) as mock_diflen,
     ):
-        from modules.adaptive_trend_enhance.core.scanner.gpu_scan import _scan_gpu_batch
-        from modules.adaptive_trend_enhance.utils.config import ATCConfig
+        from legacy.adaptive_trend_enhance.core.scanner.gpu_scan import _scan_gpu_batch
+        from legacy.adaptive_trend_enhance.utils.config import ATCConfig
 
         # Setup Inputs
         symbols = [f"SYM{i}" for i in range(10)]

@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-Enhance `modules/adaptive_trend_enhance` with advanced memory optimization and performance improvements focusing on batch processing, vectorization, and memory cleanup.
+Enhance `legacy/adaptive_trend_enhance` with advanced memory optimization and performance improvements focusing on batch processing, vectorization, and memory cleanup.
 
 ---
 

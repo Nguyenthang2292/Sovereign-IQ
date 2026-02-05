@@ -351,7 +351,7 @@ Xem chi tiết: [docs/memory_optimizations_usage_guide.md](docs/memory_optimizat
 
 ## CLI Commands
 
-Module cung cấp CLI interface qua `modules/adaptive_trend_enhance/cli/main.py`:
+Module cung cấp CLI interface qua `legacy/adaptive_trend_enhance/cli/main.py`:
 
 ```bash
 # Basic usage

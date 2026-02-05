@@ -17,24 +17,24 @@ This package provides core computational functions for ATC:
 - Hardware and memory management (NEW)
 """
 
-from modules.adaptive_trend_enhance.core.analyzer import analyze_symbol
-from modules.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_enhance.core.compute_equity import equity_series
-from modules.adaptive_trend_enhance.core.compute_moving_averages import (
+from legacy.adaptive_trend_enhance.core.analyzer import analyze_symbol
+from legacy.adaptive_trend_enhance.core.compute_atc_signals import compute_atc_signals
+from legacy.adaptive_trend_enhance.core.compute_equity import equity_series
+from legacy.adaptive_trend_enhance.core.compute_moving_averages import (
     calculate_kama_atc,
     ma_calculation,
     ma_calculation_enhanced,
     set_of_moving_averages,
     set_of_moving_averages_enhanced,
 )
-from modules.adaptive_trend_enhance.core.process_layer1 import (
+from legacy.adaptive_trend_enhance.core.process_layer1 import (
     _layer1_signal_for_ma,
     cut_signal,
     trend_sign,
     weighted_signal,
 )
-from modules.adaptive_trend_enhance.core.scanner import scan_all_symbols
-from modules.adaptive_trend_enhance.core.signal_detection import (
+from legacy.adaptive_trend_enhance.core.scanner import scan_all_symbols
+from legacy.adaptive_trend_enhance.core.signal_detection import (
     crossover,
     crossunder,
     generate_signal_from_ma,

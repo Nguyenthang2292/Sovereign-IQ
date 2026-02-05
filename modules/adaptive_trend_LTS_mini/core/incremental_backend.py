@@ -119,7 +119,7 @@ def update_incremental_python(
     log_debug(f"Updating incremental ATC with Python backend, new_price={new_price}")
 
     # Import here to avoid circular imports
-    from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
+    from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 
     # Maintain rolling price window
     price_window = state.get("price_window", [])
