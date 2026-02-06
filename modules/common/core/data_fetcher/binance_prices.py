@@ -40,7 +40,7 @@ class BinancePriceFetcher:
 
         try:
             # Use authenticated manager for authenticated calls
-            exchange = self.base.exchange_manager.authenticated.connect_to_binance_with_credentials()
+            exchange = self.base.exchange_manager.authenticated.connect_to_exchange_with_credentials("binance")
         except ValueError as e:
             log_error(f"Error: {e}")
             return

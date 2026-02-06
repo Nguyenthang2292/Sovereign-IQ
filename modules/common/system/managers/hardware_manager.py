@@ -15,6 +15,7 @@ Author: Crypto Probability Team
 
 import multiprocessing as mp
 from concurrent.futures import ThreadPoolExecutor
+from multiprocessing.pool import Pool
 from dataclasses import dataclass
 from typing import Any, Dict, Literal, Optional, Tuple
 
@@ -155,6 +156,7 @@ class HardwareManager:
         """
         if self._resources is None:
             self.detect_resources()
+        assert self._resources is not None
 
         res = self._resources
 
@@ -234,6 +236,7 @@ class HardwareManager:
         """
         if self._resources is None:
             self.detect_resources()
+        assert self._resources is not None
 
         # Thresholds
         SEQ_THRESHOLD = 10
@@ -248,7 +251,7 @@ class HardwareManager:
         if (
             workload_size >= GPU_THRESHOLD
             and self._resources.gpu_available
-            and (self._resources.gpu_type in ("cuda", "opencl", "pytorch"))
+            and (self._resources.gpu_type or "" in ("cuda", "opencl", "pytorch"))
         ):
             return "gpu_batch"
 
@@ -387,7 +390,7 @@ class HardwareManager:
 
         raise TimeoutError(f"Resources not available after {timeout}s")
 
-    def create_process_pool(self, num_processes: Optional[int] = None) -> mp.Pool:
+    def create_process_pool(self, num_processes: Optional[int] = None) -> Pool:
         """
         Create a multiprocessing Pool with optimal settings.
 
@@ -400,9 +403,10 @@ class HardwareManager:
         if num_processes is None:
             if self._workload_config is None:
                 self.get_optimal_workload_config(workload_size=100)
+            assert self._workload_config is not None
             num_processes = self._workload_config.num_processes
 
-        return mp.Pool(processes=num_processes)
+        return Pool(processes=num_processes)
 
     def create_thread_pool(self, num_threads: Optional[int] = None) -> ThreadPoolExecutor:
         """
@@ -417,6 +421,7 @@ class HardwareManager:
         if num_threads is None:
             if self._workload_config is None:
                 self.get_optimal_workload_config(workload_size=100)
+            assert self._workload_config is not None
             num_threads = self._workload_config.num_threads
 
         return ThreadPoolExecutor(max_workers=num_threads)
@@ -425,18 +430,21 @@ class HardwareManager:
         """Get detected resources (detect if not already done)"""
         if self._resources is None:
             self.detect_resources()
+        assert self._resources is not None
         return self._resources
 
     def get_cpu_cores(self) -> int:
         """Get number of CPU cores"""
         if self._resources is None:
             self.detect_resources()
+        assert self._resources is not None
         return self._resources.cpu_cores
 
     def get_workload_config(self) -> WorkloadConfig:
         """Get workload config (calculate if not already done)"""
         if self._workload_config is None:
             self.get_optimal_workload_config(workload_size=100)
+        assert self._workload_config is not None
         return self._workload_config
 
     def get_pytorch_gpu_manager(self) -> PyTorchGPUManager:

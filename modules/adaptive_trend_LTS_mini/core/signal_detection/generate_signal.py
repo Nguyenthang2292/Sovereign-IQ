@@ -142,7 +142,7 @@ def generate_signal_from_ma(
         sig_vals = sig_series.values
 
         # Handle non-writeable arrays (pool might return read-only buffer)
-        if not sig_vals.flags.writeable:
+        if isinstance(sig_vals, np.ndarray) and not sig_vals.flags.writeable:
             # Copy the array and create new Series (can't use pool)
             sig_vals = sig_vals.copy()
             _apply_signal_persistence(up_vals, down_vals, sig_vals)

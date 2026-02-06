@@ -25,7 +25,7 @@ Usage:
 
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, TypedDict
+from typing import Dict, List, Optional, TypedDict, cast
 
 # Use backward-compatible import from root config package
 from config import SIGNAL_SELECTOR_DEFAULTS
@@ -52,7 +52,7 @@ class FinalSignal:
     leverage: int = 2
     confidence: float = 0.0
     score: float = 0.0  # Quality score 0-100
-    sources: SignalSources = field(default_factory=dict)  # Metadata from sources
+    sources: SignalSources = field(default_factory=lambda: cast(SignalSources, {}))  # Metadata from sources
     timestamp: float = field(default_factory=time.time)
 
     def __post_init__(self):

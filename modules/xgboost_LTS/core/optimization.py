@@ -7,6 +7,7 @@ This module provides tools for automated hyperparameter tuning using Optuna, inc
 """
 
 import json
+import logging
 import os
 import random
 import re
@@ -20,17 +21,18 @@ from typing import Any, Dict, Optional
 if os.name == "nt":
     import msvcrt
 else:
+    msvcrt = None  # type: ignore[assignment]
     try:
         import fcntl
     except ImportError:
-        fcntl = None
+        fcntl = None  # type: ignore[assignment]
 
 import numpy as np
 import optuna
 import pandas as pd
 from optuna import Study
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import accuracy_score  # type: ignore[import-untyped]
+from sklearn.model_selection import TimeSeriesSplit  # type: ignore[import-untyped]
 
 from config import (
     MODEL_FEATURES,
@@ -65,19 +67,21 @@ def file_lock(lock_file_path: Path):
     try:
         if os.name == "nt":
             # Windows locking
+            assert msvcrt is not None
             msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
         else:
             # Unix locking
             if fcntl:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)  # type: ignore[union-attr,attr-defined]
         yield
     finally:
         try:
             if os.name == "nt":
+                assert msvcrt is not None
                 msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
             else:
                 if fcntl:
-                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)  # type: ignore[union-attr,attr-defined]
         except Exception as e:
             logging.warning(f"Error unlocking file: {e}")
         finally:
@@ -379,7 +383,7 @@ class HyperparameterTuner:
         check_cols = [c for c in MODEL_FEATURES if c in df.columns] + ["Target"]
         finite_mask = np.isfinite(df[check_cols].values).all(axis=1)
         if not finite_mask.all():
-            df = df.loc[finite_mask].copy()
+            df = df.iloc[np.where(finite_mask)[0]].copy()
         if df.empty:
             raise ValueError("No rows with finite target/features after dropping non-finite values.")
         try:
@@ -466,21 +470,18 @@ class HyperparameterTuner:
             OPTUNA_PARALLEL_TRIALS = True
             OPTUNA_N_JOBS = -1  # -1 = use all CPU cores
 
-            optimize_kwargs = {
-                "n_trials": n_trials,
-                "show_progress_bar": True,
-                "gc_after_trial": True,  # Prevent memory leaks in parallel execution
-            }
-
-            if OPTUNA_PARALLEL_TRIALS:
-                optimize_kwargs["n_jobs"] = OPTUNA_N_JOBS
-
             # Retry logic with exponential backoff for SQLite database locked errors
             max_retries = 5
             retry_count = 0
             while retry_count < max_retries:
                 try:
-                    study.optimize(lambda trial: self._objective(trial, X, y, n_splits=n_splits), **optimize_kwargs)
+                    study.optimize(
+                        lambda trial: self._objective(trial, X, y, n_splits=n_splits),
+                        n_trials=n_trials,
+                        show_progress_bar=True,
+                        gc_after_trial=True,
+                        n_jobs=OPTUNA_N_JOBS if OPTUNA_PARALLEL_TRIALS else 1,
+                    )
                     break  # Success, exit retry loop
                 except sqlite3.OperationalError as e:
                     if "database is locked" in str(e) and retry_count < max_retries - 1:

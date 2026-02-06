@@ -39,63 +39,22 @@ from config import (
 DEFAULT_EXECUTION_MODE = "threadpool"
 
 
-class ATCParams(TypedDict, total=False):
-    """Type definition for ATC parameters dictionary.
-
-    This provides type safety for the parameters passed to ATC analysis functions.
-    All fields are optional (total=False) to support flexible parameter extraction.
-    """
-
-    limit: int
-    ema_len: int
-    hma_len: int
-    wma_len: int
-    dema_len: int
-    lsma_len: int
-    kama_len: int
-    robustness: str
-    lambda_param: float
-    decay: float
-    cutout: int
-    long_threshold: float
-    short_threshold: float
-    # Performance & Backend
-    use_rust_backend: bool
-    batch_processing: bool
-    fast_mode: bool
-    precision: str
-    use_cache: bool
-    # Approximate Scanning
-    use_approximate: bool
-    use_adaptive_approximate: bool
-    approximate_volatility_window: int
-    approximate_volatility_factor: float
-    approximate_threshold: float
-
-
-from modules.adaptive_trend_LTS_mini.core.analyzer import analyze_symbol
-from modules.adaptive_trend_LTS_mini.core.scanner import scan_all_symbols
-from modules.adaptive_trend_LTS_mini.utils.config import create_atc_config_from_dict
-from modules.adaptive_trend_LTS_mini.cli import (
-    display_scan_results,
+from modules.adaptive_trend_LTS_mini.cli.argument_parser import parse_args
+from modules.adaptive_trend_LTS_mini.cli.auto_mode_executor import AutoModeExecutor
+from modules.adaptive_trend_LTS_mini.cli.config_manager import ConfigManager
+from modules.adaptive_trend_LTS_mini.cli.config_utils import ATCParams, get_atc_params
+from modules.adaptive_trend_LTS_mini.cli.display import (
     list_futures_symbols,
-    parse_args,
-    prompt_interactive_mode,
 )
-from modules.adaptive_trend_LTS_mini.cli.display import display_atc_signals
-from modules.adaptive_trend_LTS_mini.cli.interactive_prompts import UserExitRequested
+from modules.adaptive_trend_LTS_mini.cli.interactive_loop import InteractiveLoop
+from modules.adaptive_trend_LTS_mini.cli.manual_mode_executor import ManualModeExecutor
+from modules.adaptive_trend_LTS_mini.cli.mode_manager import ModeManager
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (
     color_text,
-    extract_dict_from_namespace,
-    log_analysis,
-    log_data,
     log_error,
     log_progress,
-    log_warn,
-    normalize_symbol,
-    prompt_user_input,
 )
 
 # Suppress warnings for cleaner output
@@ -109,6 +68,9 @@ class ATCAnalyzer:
 
     Manages the complete ATC analysis workflow including mode selection,
     configuration, and execution of auto/manual analysis modes.
+
+    This class now acts as a facade, delegating responsibilities to
+    specialized components following Single Responsibility Principle.
     """
 
     def __init__(self, args: Namespace, data_fetcher: DataFetcher):
@@ -121,263 +83,80 @@ class ATCAnalyzer:
         """
         self.args = args
         self.data_fetcher = data_fetcher
+
+        # Initialize component managers
+        self.mode_manager = ModeManager(args)
+        self.config_manager = ConfigManager(args)
+        self.auto_executor = AutoModeExecutor(args, data_fetcher, self.config_manager)
+        self.manual_executor = ManualModeExecutor(args, data_fetcher, self.config_manager)
+        self.interactive_loop = InteractiveLoop(args, data_fetcher, self.config_manager)
+
+        # Keep backward compatibility properties
         self.selected_timeframe = args.timeframe
         self.mode = "manual"
         self._atc_params = None
 
-    def determine_mode_and_timeframe(self) -> Tuple[str, str]:
-        """
-        Determine analysis mode and timeframe from arguments and interactive menu.
+    def run(self) -> None:
+        """Run the analyzer orchestrator."""
+        # Determine mode and timeframe
+        self.mode, self.selected_timeframe = self.mode_manager.determine_mode_and_timeframe()
 
-        Returns:
-            tuple: (mode, selected_timeframe)
-        """
-        if self.args.auto:
-            self.mode = "auto"
-        elif not self.args.no_menu:
-            try:
-                menu_result = prompt_interactive_mode(default_timeframe=self.args.timeframe)
-
-                # If user only selected timeframe, keep default manual mode
-                if "timeframe" in menu_result and "mode" not in menu_result:
-                    self.selected_timeframe = menu_result["timeframe"]
-                    self.mode = "manual"
-                else:
-                    self.mode = menu_result.get("mode", "manual")
-                    if "timeframe" in menu_result:
-                        self.selected_timeframe = menu_result["timeframe"]
-            except UserExitRequested:
-                log_warn("Exiting by user request.")
-                sys.exit(0)
-
-        return self.mode, self.selected_timeframe
-
-    def get_atc_params(self) -> ATCParams:
-        """Extract and cache ATC parameters from arguments.
-
-        Returns:
-            ATCParams: Typed dictionary containing ATC configuration parameters
-        """
-        if self._atc_params is None:
-            atc_param_keys = [
-                "limit",
-                "ema_len",
-                "hma_len",
-                "wma_len",
-                "dema_len",
-                "lsma_len",
-                "kama_len",
-                "robustness",
-                "lambda_param",
-                "decay",
-                "cutout",
-                "long_threshold",
-                "short_threshold",
-                # Performance & Backend
-                "use_rust_backend",
-                "batch_processing",
-                "fast_mode",
-                "precision",
-                "use_cache",
-                # Approximate Scanning
-                "use_approximate",
-                "use_adaptive_approximate",
-                "approximate_volatility_window",
-                "approximate_volatility_factor",
-                "approximate_threshold",
-            ]
-            self._atc_params = extract_dict_from_namespace(self.args, atc_param_keys)
-        return self._atc_params
-
-    def _display_config_header(self, title: str, symbol: Optional[str] = None) -> None:
-        """Display common configuration header."""
-        if log_analysis:
-            log_analysis("=" * 80)
-            log_analysis(title)
-            log_analysis("=" * 80)
-            log_analysis("Configuration:")
-        if log_data:
-            if symbol:
-                log_data(f"  Symbol: {symbol}")
-            log_data(f"  Timeframe: {self.selected_timeframe}")
-            log_data(f"  Limit: {self.args.limit} candles")
-            log_data(f"  Robustness: {self.args.robustness}")
-            log_data(
-                f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, "
-                f"WMA={self.args.wma_len}, DEMA={self.args.dema_len}, "
-                f"LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
-            )
-            log_data(f"  Lambda: {self.args.lambda_param}, Decay: {self.args.decay}, Cutout: {self.args.cutout}")
-
-    def display_auto_mode_config(self) -> None:
-        """Display configuration for auto mode."""
-        self._display_config_header("ADAPTIVE TREND CLASSIFICATION (ATC) - AUTO SCAN MODE")
-        if log_data:
-            log_data("  Mode: AUTO (scan all symbols)")
-            log_data(f"  Min Signal: {self.args.min_signal}")
-            if self.args.max_symbols:
-                log_data(f"  Max Symbols: {self.args.max_symbols}")
+        # Run appropriate mode
+        if self.mode == "auto":
+            self.run_auto_mode()
+        else:
+            self.run_manual_mode()
 
     def run_auto_scan(self, symbols: Optional[List[str]] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Run ATC auto scan and return results without displaying.
 
-        This method is designed to be reusable by other analyzers that combine
-        ATC with other strategies (e.g., ATC + Range Oscillator).
-
         Args:
-            symbols: Optional list of symbols to scan. If provided (e.g. from pre-filter Stage 0),
-                     only these symbols are scanned; otherwise all exchange symbols are used.
+            symbols: Optional list of symbols to scan.
 
         Returns:
-            Tuple of (long_signals_df, short_signals_df):
-            - long_signals_df: DataFrame with LONG signals
-            - short_signals_df: DataFrame with SHORT signals
+            Tuple of (long_signals_df, short_signals_df)
         """
-        # Get ATC parameters and create config
-        atc_params = self.get_atc_params()
-        atc_config = create_atc_config_from_dict(atc_params, timeframe=self.selected_timeframe)
-
-        # Scan symbols (provided list or all from exchange)
-        long_signals, short_signals = scan_all_symbols(
-            data_fetcher=self.data_fetcher,
-            atc_config=atc_config,
-            max_symbols=self.args.max_symbols,
-            min_signal=self.args.min_signal,
-            batch_size=getattr(self.args, "batch_size", atc_config.batch_size),
-            execution_mode=getattr(self.args, "execution_mode", DEFAULT_EXECUTION_MODE),
-            npartitions=getattr(self.args, "npartitions", None),
+        return self.auto_executor.run_scan(
+            timeframe=self.selected_timeframe,
             symbols=symbols,
         )
 
-        return long_signals, short_signals
-
     def run_auto_mode(self) -> None:
         """Run auto mode: scan all symbols for LONG/SHORT signals."""
-        self.display_auto_mode_config()
-
-        # Use run_auto_scan() for the actual scanning
-        long_signals, short_signals = self.run_auto_scan()
-
-        # Display results
-        display_scan_results(long_signals, short_signals, self.args.min_signal)
-
-    def get_symbol_input(self) -> str:
-        """
-        Get symbol input from arguments or user prompt.
-
-        Returns:
-            str: Normalized symbol
-        """
-        quote = self.args.quote.upper() if self.args.quote else DEFAULT_QUOTE
-        symbol_input = self.args.symbol
-
-        if not symbol_input and not self.args.no_prompt:
-            symbol_input = prompt_user_input(
-                f"Enter symbol pair (default: {DEFAULT_SYMBOL}): ",
-                default=DEFAULT_SYMBOL,
-            )
-
-        if not symbol_input:
-            symbol_input = DEFAULT_SYMBOL
-
-        # Security validation: Prevent injection
-        # Allow alphanumeric, slash (for pair), and hyphen
-        if not all(c.isalnum() or c in "/-" for c in symbol_input):
-            log_warn(f"Invalid characters in symbol input: {symbol_input}. Using default.")
-            symbol_input = DEFAULT_SYMBOL
-
-        return normalize_symbol(symbol_input, quote)
-
-    def display_manual_mode_config(self, symbol: str) -> None:
-        """Display configuration for manual mode."""
-        self._display_config_header("ADAPTIVE TREND CLASSIFICATION (ATC) ANALYSIS", symbol)
+        self.auto_executor.execute(self.selected_timeframe)
 
     def run_manual_mode(self) -> None:
         """Run manual mode: analyze specific symbol."""
-        symbol = self.get_symbol_input()
-        self.display_manual_mode_config(symbol)
+        # Execute manual mode and get analyzed symbol
+        symbol = self.manual_executor.execute(self.selected_timeframe)
 
-        # Get ATC parameters and create config
-        atc_params = self.get_atc_params()
-        atc_config = create_atc_config_from_dict(atc_params, timeframe=self.selected_timeframe)
-
-        # Analyze symbol
-        result = analyze_symbol(
-            symbol=symbol,
-            data_fetcher=self.data_fetcher,
-            config=atc_config,
-        )
-
-        if result is None:
-            log_error("Analysis failed")
+        if symbol is None:
             return
-
-        # Display results
-
-        display_atc_signals(
-            symbol=result["symbol"],
-            df=result["df"],
-            atc_results=result["atc_results"],
-            current_price=result["current_price"],
-            exchange_label=result["exchange_label"],
-        )
 
         # Interactive loop if prompts enabled
         if not self.args.no_prompt:
-            self.run_interactive_loop(
-                symbol=symbol,
-                quote=self.args.quote.upper() if self.args.quote else DEFAULT_QUOTE,
-                atc_params=atc_params,
+            self.interactive_loop.run(
+                initial_symbol=symbol,
+                timeframe=self.selected_timeframe,
             )
 
     def run_interactive_loop(self, symbol: str, quote: str, atc_params: dict) -> None:
         """
         Run interactive loop for analyzing multiple symbols.
 
+        DEPRECATED: This method is kept for backward compatibility.
+        Use InteractiveLoop.run() instead.
+
         Args:
             symbol: Initial symbol
-            quote: Quote currency
-            atc_params: ATC parameters dictionary
+            quote: Quote currency (not used - taken from args)
+            atc_params: ATC parameters dictionary (not used - taken from config_manager)
         """
-        try:
-            while True:
-                print(
-                    color_text(
-                        "\nPress Ctrl+C to exit. Provide a new symbol to continue.",
-                        Fore.YELLOW,
-                    )
-                )
-                symbol_input = prompt_user_input(
-                    f"Enter symbol pair (default: {symbol}): ",
-                    default=symbol,
-                )
-
-                symbol = normalize_symbol(symbol_input, quote)
-
-                # Create ATCConfig
-                atc_config = create_atc_config_from_dict(atc_params, timeframe=self.selected_timeframe)
-
-                result = analyze_symbol(
-                    symbol=symbol,
-                    data_fetcher=self.data_fetcher,
-                    config=atc_config,
-                )
-
-                if result is None:
-                    log_error("Analysis failed")
-                    continue
-
-                # Display results
-                display_atc_signals(
-                    symbol=result["symbol"],
-                    df=result["df"],
-                    atc_results=result["atc_results"],
-                    current_price=result["current_price"],
-                    exchange_label=result["exchange_label"],
-                )
-        except KeyboardInterrupt:
-            print(color_text("\nExiting program by user request.", Fore.YELLOW))
+        self.interactive_loop.run(
+            initial_symbol=symbol,
+            timeframe=self.selected_timeframe,
+        )
 
 
 def initialize_components() -> DataFetcher:
@@ -417,14 +196,8 @@ def main() -> None:
     # Create analyzer instance
     analyzer = ATCAnalyzer(args, data_fetcher)
 
-    # Determine mode and timeframe
-    mode, _ = analyzer.determine_mode_and_timeframe()
-
-    # Run appropriate mode
-    if mode == "auto":
-        analyzer.run_auto_mode()
-    else:
-        analyzer.run_manual_mode()
+    # Run analysis
+    analyzer.run()
 
 
 if __name__ == "__main__":

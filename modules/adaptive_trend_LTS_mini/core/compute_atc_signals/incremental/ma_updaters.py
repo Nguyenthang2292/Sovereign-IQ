@@ -38,8 +38,10 @@ def update_ema(
     """
     from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
-    # Get 8 offset lengths based on robustness
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    # Get 8 offset lengths based on robustness (strict_mode=True by default, so never None)
+    _d = diflen(length, robustness=robustness)
+    assert _d is not None
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _d
 
     # All 9 lengths: base + 8 offsets
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
@@ -85,7 +87,9 @@ def update_wma(
 
     # If using O(1) MAs for primary wma, we still need to calculate variations separately
     # O(1) implementation only handles the primary length
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    _d = diflen(length, robustness=robustness)
+    assert _d is not None
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _d
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     prices = list(state["price_history"])
@@ -125,7 +129,9 @@ def update_hma(state: Dict[str, Any], new_price: float, length: int, robustness:
     """
     from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    _d = diflen(length, robustness=robustness)
+    assert _d is not None
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _d
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     sqrt_lengths = [max(1, int(np.sqrt(ln))) for ln in lengths]
@@ -197,7 +203,9 @@ def update_dema(
     """
     from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    _d = diflen(length, robustness=robustness)
+    assert _d is not None
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _d
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     # Get previous EMAs and EMA2s for all variations
@@ -252,7 +260,9 @@ def update_lsma(state: Dict[str, Any], new_price: float, length: int, robustness
         def log_warn(msg: str) -> None:
             print(f"[WARN] {msg}")
 
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    _d = diflen(length, robustness=robustness)
+    assert _d is not None
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _d
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     prices = list(state["price_history"])
@@ -316,7 +326,9 @@ def update_kama(state: Dict[str, Any], new_price: float, length: int, robustness
     """
     from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    _d = diflen(length, robustness=robustness)
+    assert _d is not None
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _d
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     prices = list(state["price_history"])

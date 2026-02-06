@@ -110,12 +110,12 @@ class TestExpGrowth:
     def test_exp_growth_basic(self):
         """Test basic exp_growth calculation"""
         index = pd.RangeIndex(0, 10)
-        result = exp_growth(L=0.001, index=index, cutout=0)
+        result = exp_growth(lambda_val=0.001, index=index, cutout=0)
 
         assert len(result) == 10
         # Bar 0 in Pine Script: bars = 1 (special case when bar_index == 0)
-        # So bar 0 = e^(L * 1) = e^L when cutout=0
-        # Bar 1: bars = 1, so also e^L
+        # So bar 0 = e^(lambda_val * 1) = e^lambda_val when cutout=0
+        # Bar 1: bars = 1, so also e^lambda_val
         # Growth only increases from bar 2 onwards (bar_index >= 2)
         assert result.iloc[0] > 1.0  # e^(0.001 * 1) ≈ 1.001
         assert result.iloc[1] == result.iloc[0]  # Both bar 0 and 1 use bars=1
@@ -124,7 +124,7 @@ class TestExpGrowth:
     def test_exp_growth_with_cutout(self):
         """Test exp_growth với cutout"""
         index = pd.RangeIndex(0, 10)
-        result = exp_growth(L=0.001, index=index, cutout=3)
+        result = exp_growth(lambda_val=0.001, index=index, cutout=3)
 
         # First 3 bars should be 1.0
         assert result.iloc[0] == 1.0
@@ -137,8 +137,8 @@ class TestExpGrowth:
     def test_exp_growth_overflow_protection(self):
         """Test overflow detection - uses log_warn, not warnings module"""
         index = pd.RangeIndex(0, 1000)
-        # L too large should trigger log_warn (not pytest warnings)
-        result = exp_growth(L=1.0, index=index, cutout=0)
+        # lambda_val too large should trigger log_warn (not pytest warnings)
+        result = exp_growth(lambda_val=1.0, index=index, cutout=0)
 
         # Should not contain inf (replaced with max float)
         assert not np.isinf(result).any()
@@ -146,12 +146,12 @@ class TestExpGrowth:
         assert (result == np.finfo(np.float64).max).any() or result.max() > 1e200
 
     def test_exp_growth_invalid_L(self):
-        """Test với L không hợp lệ"""
+        """Test với lambda_val không hợp lệ"""
         index = pd.RangeIndex(0, 10)
         with pytest.raises(ValueError):
-            exp_growth(L=np.nan, index=index)
+            exp_growth(lambda_val=np.nan, index=index)
         with pytest.raises(ValueError):
-            exp_growth(L=np.inf, index=index)
+            exp_growth(lambda_val=np.inf, index=index)
 
 
 class TestCrossoverCrossunder:

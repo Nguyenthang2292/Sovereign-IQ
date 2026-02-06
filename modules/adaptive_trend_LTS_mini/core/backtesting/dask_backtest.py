@@ -3,26 +3,26 @@
 from __future__ import annotations
 
 import inspect
+import re
 from pathlib import Path
 from typing import List, Optional
 
-import dask
 import dask.dataframe as dd
-import dask.delayed
 import pandas as pd
+from dask.delayed import delayed
 
 try:
     from modules.common.utils import log_error, log_info, log_warn
 except ImportError:
 
-    def log_info(message: str) -> None:
-        print(f"[INFO] {message}")
+    def log_info(msg: str) -> None:
+        print(f"[INFO] {msg}")
 
-    def log_error(message: str) -> None:
-        print(f"[ERROR] {message}")
+    def log_error(msg: str) -> None:
+        print(f"[ERROR] {msg}")
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
 
 def _create_error_result(symbol: str, error_msg: str) -> pd.DataFrame:
@@ -68,8 +68,23 @@ def _create_dask_from_memmap(
     """
     import numpy as np
 
+    if symbol_column not in descriptor.columns:
+        raise ValueError(f"symbol_column '{symbol_column}' not in descriptor columns: {list(descriptor.columns)}")
+    if price_column not in descriptor.columns:
+        raise ValueError(f"price_column '{price_column}' not in descriptor columns: {list(descriptor.columns)}")
+
     total_rows = descriptor.shape[0]
     target_rows_per_partition = 100_000
+
+    match = re.search(r"(\d+)", str(chunksize))
+    if match:
+        n = int(match.group(1))
+        if "GB" in str(chunksize).upper():
+            target_rows_per_partition = max(1000, n * 1_000_000)
+        elif "MB" in str(chunksize).upper():
+            target_rows_per_partition = max(1000, n * 1_000)
+        else:
+            target_rows_per_partition = max(1000, n)
     num_partitions = max(1, total_rows // target_rows_per_partition)
     rows_per_partition = total_rows // num_partitions
 
@@ -86,7 +101,7 @@ def _create_dask_from_memmap(
 
         return pd.DataFrame(data_dict, index=range(start, end))
 
-    delayed_objs = [dask.delayed(read_memmap_partition)(i) for i in range(num_partitions)]
+    delayed_objs = [delayed(read_memmap_partition)(i) for i in range(num_partitions)]
 
     ddf = dd.from_delayed(
         delayed_objs,

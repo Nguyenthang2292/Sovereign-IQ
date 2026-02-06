@@ -25,9 +25,9 @@ def _layer1_worker(
     ma_type: str,
     ma_tuple: Tuple[pd.Series, ...],
     prices_shm_info: Dict,
-    r_shm_info: Dict,
-    l_val: float,
-    de_val: float,
+    rate_of_change_shm_info: Dict,
+    lambda_val: float,
+    decay_val: float,
     precision: str = "float64",
 ) -> Tuple[str, pd.Series]:
     """Worker function for parallel Layer 1 signal calculation.
@@ -36,9 +36,9 @@ def _layer1_worker(
         ma_type: Type of MA (e.g., "EMA")
         ma_tuple: Tuple of 9 MA Series
         prices_shm_info: Shared memory info for prices Series
-        r_shm_info: Shared memory info for R (rate of change) Series
-        l_val: Lambda value
-        de_val: Decay value
+        rate_of_change_shm_info: Shared memory info for rate_of_change_series (R) Series
+        lambda_val: Lambda value
+        decay_val: Decay value
         cutout: Cutout bars
 
     Returns:
@@ -46,15 +46,15 @@ def _layer1_worker(
     """
     # Reconstruct Series from shared memory
     prices = reconstruct_series_from_shared_memory(prices_shm_info)
-    r_series = reconstruct_series_from_shared_memory(r_shm_info)
+    rate_of_change_series = reconstruct_series_from_shared_memory(rate_of_change_shm_info)
 
     # Calculate Layer 1 signal
     signal, _, _ = _layer1_signal_for_ma(
         prices=prices,
         ma_tuple=ma_tuple,
-        L=l_val,
-        De=de_val,
-        R=r_series,
+        lambda_val=lambda_val,
+        decay_val=decay_val,
+        rate_of_change_series=rate_of_change_series,
     )
 
     return ma_type, signal
@@ -64,9 +64,9 @@ def _layer1_parallel_atc_signals(
     prices: pd.Series,
     ma_tuples: Dict[str, Tuple[pd.Series, ...]],
     ma_configs: List[Tuple[str, int, float]],
-    R: pd.Series,
-    L: float,
-    De: float,
+    rate_of_change_series: pd.Series,
+    lambda_val: float,
+    decay_val: float,
     max_workers: Optional[int] = None,
     precision: str = "float64",
 ) -> Dict[str, pd.Series]:
@@ -76,9 +76,9 @@ def _layer1_parallel_atc_signals(
         prices: Price Series
         ma_tuples: Dictionary of MA tuples keyed by MA type
         ma_configs: List of (ma_type, length, weight) tuples
-        R: Rate of change Series
-        L: Lambda value
-        De: Decay value
+        rate_of_change_series: Rate of change Series
+        lambda_val: Lambda value
+        decay_val: Decay value
         cutout: Cutout bars
         max_workers: Maximum number of worker processes
 
@@ -92,7 +92,7 @@ def _layer1_parallel_atc_signals(
 
     # Setup shared memory for inputs
     prices_shm = setup_shared_memory_for_series(prices)
-    r_shm = setup_shared_memory_for_series(R)
+    rate_of_change_shm = setup_shared_memory_for_series(rate_of_change_series)
 
     try:
         # Use ProcessPoolExecutor for CPU-bound parallel processing
@@ -103,9 +103,9 @@ def _layer1_parallel_atc_signals(
                     ma_type,
                     ma_tuples[ma_type],
                     prices_shm,
-                    r_shm,
-                    L,
-                    De,
+                    rate_of_change_shm,
+                    lambda_val,
+                    decay_val,
                     precision,
                 ): ma_type
                 for ma_type, _, _ in ma_configs
@@ -123,15 +123,15 @@ def _layer1_parallel_atc_signals(
                     signal, _, _ = _layer1_signal_for_ma(
                         prices=prices,
                         ma_tuple=ma_tuples[ma_type],
-                        L=L,
-                        De=De,
-                        R=R,
+                        lambda_val=lambda_val,
+                        decay_val=decay_val,
+                        rate_of_change_series=rate_of_change_series,
                     )
                     layer1_signals[ma_type] = signal
 
     finally:
         # Always cleanup shared memory
         cleanup_shared_memory(prices_shm)
-        cleanup_shared_memory(r_shm)
+        cleanup_shared_memory(rate_of_change_shm)
 
     return layer1_signals

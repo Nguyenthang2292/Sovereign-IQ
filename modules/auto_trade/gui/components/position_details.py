@@ -1,8 +1,8 @@
-import customtkinter as ctk
-from typing import Dict, Optional, Callable
-from datetime import datetime
-from gui.components.position_actions import PositionActions
+from typing import Callable, Dict, Optional
 
+import customtkinter as ctk
+
+from gui.components.position_actions import PositionActions
 from gui.utils.colors import Colors
 
 

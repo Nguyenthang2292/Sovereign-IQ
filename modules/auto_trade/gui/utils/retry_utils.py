@@ -2,9 +2,10 @@
 Retry utilities for handling transient network errors
 Implements exponential backoff strategy
 """
-import time
 import functools
-from typing import Callable, Any, Tuple, Type
+import time
+from typing import Any, Callable, Tuple, Type
+
 import ccxt
 
 
@@ -59,7 +60,9 @@ def retry_with_exponential_backoff(
 
             # If we get here, all retries failed
             print(f"All {max_retries + 1} attempts failed")
-            raise last_exception
+            if last_exception is not None:
+                raise last_exception
+            raise RuntimeError(f"All {max_retries + 1} attempts failed")
 
         return wrapper
     return decorator
@@ -112,7 +115,9 @@ def retry_async_with_exponential_backoff(
 
             # If we get here, all retries failed
             print(f"All {max_retries + 1} attempts failed")
-            raise last_exception
+            if last_exception is not None:
+                raise last_exception
+            raise RuntimeError(f"All {max_retries + 1} attempts failed")
 
         return wrapper
     return decorator

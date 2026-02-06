@@ -8,7 +8,7 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-import msgpack
+import msgpack  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 
@@ -196,7 +196,7 @@ class StateManager:
         self,
         results: Dict[str, pd.Series],
         prices: pd.Series,
-        ma_tuples: Dict[str, tuple],
+        ma_tuples: Dict[str, Optional[tuple]],
     ):
         """Extract state from full calculation results."""
         # Extract MA values
@@ -221,8 +221,8 @@ class StateManager:
 
             from .constants import get_scaled_params
 
-            L_scaled, De_scaled = get_scaled_params(self.config)
-            R = rate_of_change(prices)
+            lambda_scaled, decay_scaled = get_scaled_params(self.config)
+            rate_of_change_series = rate_of_change(prices)
 
             for ma_type, ma_tuple in ma_tuples.items():
                 if ma_tuple is None:
@@ -231,9 +231,9 @@ class StateManager:
                     signal_series, signals_tuple, equity_tuple = _layer1_signal_for_ma(
                         prices=prices,
                         ma_tuple=ma_tuple,
-                        L=L_scaled,
-                        De=De_scaled,
-                        R=R,
+                        lambda_val=lambda_scaled,
+                        decay_val=decay_scaled,
+                        rate_of_change_series=rate_of_change_series,
                     )
                     self.state["signals_l1"][ma_type.lower()] = [float(s.iloc[-1]) for s in signals_tuple]
                     self.state["equity_l1"][ma_type.lower()] = [float(e.iloc[-1]) for e in equity_tuple]

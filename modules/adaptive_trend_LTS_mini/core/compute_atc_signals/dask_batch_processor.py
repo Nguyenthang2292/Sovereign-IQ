@@ -15,14 +15,14 @@ try:
     from modules.common.utils import log_error, log_info, log_warn
 except ImportError:
 
-    def log_info(message: str) -> None:
-        print(f"[INFO] {message}")
+    def log_info(msg: str) -> None:
+        print(f"[INFO] {msg}")
 
-    def log_error(message: str) -> None:
-        print(f"[ERROR] {message}")
+    def log_error(msg: str) -> None:
+        print(f"[ERROR] {msg}")
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
 
 def _process_partition_with_backend(

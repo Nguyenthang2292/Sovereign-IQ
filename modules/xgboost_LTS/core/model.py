@@ -13,8 +13,8 @@ from typing import Any, Type, Union
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import accuracy_score  # type: ignore[import-untyped]
+from sklearn.model_selection import TimeSeriesSplit  # type: ignore[import-untyped]
 
 from config import (
     ID_TO_LABEL,
@@ -41,7 +41,7 @@ from modules.xgboost_LTS.utils.gpu_utils import detect_cuda_available
 
 # Optional CuPy for GPU prediction (avoids "input data is on cpu" warning when model is on cuda)
 try:
-    import cupy as cp  # noqa: F401
+    import cupy as cp  # type: ignore[import-untyped]  # noqa: F401
 
     _CUPY_AVAILABLE = True
 except ImportError:
@@ -105,7 +105,7 @@ def _resolve_xgb_classifier() -> Type:
         from xgboost.sklearn import XGBClassifier as sklearn_classifier
     except Exception:  # pragma: no cover - only hit when package is broken
         try:
-            from sklearn.ensemble import GradientBoostingClassifier
+            from sklearn.ensemble import GradientBoostingClassifier  # type: ignore[import-untyped]
         except Exception as sklearn_exc:  # pragma: no cover - backup missing
             raise AttributeError(
                 "XGBClassifier is not available in the installed xgboost distribution."
@@ -131,7 +131,7 @@ def _resolve_xgb_classifier() -> Type:
                 """Return probability estimates for each class."""
                 return super().predict_proba(X)
 
-        sklearn_classifier = _GradientBoostingWrapper
+        sklearn_classifier = _GradientBoostingWrapper  # type: ignore[assignment,misc]
     # Return the resolved classifier without modifying global state
     # This prevents side effects on other modules that import xgboost
     return sklearn_classifier
@@ -173,7 +173,7 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
     finite_mask = np.isfinite(df[check_cols].values).all(axis=1)
     if not finite_mask.all():
         n_dropped = (~finite_mask).sum()
-        df = df.loc[finite_mask].copy()
+        df = df.iloc[np.flatnonzero(finite_mask)].copy()
         log_data(f"Dropped {n_dropped} rows with non-finite target or features.")
     if df.empty:
         raise ValueError("No rows with finite target/features. Ensure labeling and indicators produced valid data.")

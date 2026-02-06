@@ -117,7 +117,7 @@ def calculate_johansen_test(
     price1_clean = price1_aligned[valid_mask]
     price2_clean = price2_aligned[valid_mask]
 
-    data = np.column_stack([price1_clean.values, price2_clean.values])
+    data = np.column_stack([np.asarray(price1_clean.values), np.asarray(price2_clean.values)])
 
     # Validate data shape
     if data.shape[0] < min_points or data.shape[1] != 2:

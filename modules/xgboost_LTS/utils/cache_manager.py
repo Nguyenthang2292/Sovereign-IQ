@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import joblib
+import numpy as np
 import pandas as pd
 import xgboost as xgb
 
@@ -55,7 +56,8 @@ class CacheManager:
         Returns:
             Hash string (first 16 chars of SHA256)
         """
-        return hashlib.sha256(pd.util.hash_pandas_object(df, index=True).values.tobytes()).hexdigest()[:16]
+        vals = pd.util.hash_pandas_object(df, index=True).values
+        return hashlib.sha256(np.asarray(vals).tobytes()).hexdigest()[:16]
 
     def _compute_config_hash(self, config: Dict[str, Any]) -> str:
         """

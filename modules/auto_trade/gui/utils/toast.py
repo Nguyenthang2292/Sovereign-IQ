@@ -4,9 +4,12 @@ Toast Notification Module
 Provides temporary popup notifications for the GUI.
 """
 
-import customtkinter as ctk
-from typing import Literal, Optional
+from typing import Literal, Union
 
+import customtkinter as ctk
+
+# Any CTk widget that can host a toplevel (has winfo_rootx etc.)
+ToastParent = Union[ctk.CTk, ctk.CTkFrame]
 
 ToastType = Literal["info", "success", "error", "warning"]
 
@@ -24,7 +27,7 @@ class ToastNotification(ctk.CTkToplevel):
 
     def __init__(
         self,
-        parent: ctk.CTk,
+        parent: ToastParent,
         message: str,
         duration: int = 3000,
         fg_color: str = "#333333",
@@ -96,7 +99,7 @@ class ToastNotification(ctk.CTkToplevel):
 
 
 def show_toast(
-    parent: ctk.CTk,
+    parent: ToastParent,
     message: str,
     type: ToastType = "info",
     duration: int = 3000,

@@ -98,6 +98,140 @@ def get_all_programmatic_orders(
     return query.order_by(desc(Order.created_at)).offset(offset).limit(limit).all()
 
 
+def get_orders_cursor(
+    session: Session,
+    last_id: Optional[int] = None,
+    limit: int = 50,
+    order_source: str = "PROGRAMMATIC",
+    status: Optional[str] = None,
+    symbol: Optional[str] = None,
+) -> List[Order]:
+    """
+    Fetch orders using cursor-based pagination (more performant for large datasets).
+
+    Uses Order.id < last_id for cursor pagination instead of offset.
+
+    Args:
+        session: Database session
+        last_id: Last Order.id from previous page (None for first page)
+        limit: Maximum number of orders to return
+        order_source: Order source filter (default: PROGRAMMATIC)
+        status: Optional status filter
+        symbol: Optional symbol filter
+
+    Returns:
+        List of Order objects
+    """
+    query = session.query(Order).filter(Order.order_source == order_source)
+
+    if last_id:
+        query = query.filter(Order.id < last_id)
+
+    if status:
+        query = query.filter(Order.status == status)
+
+    if symbol:
+        query = query.filter(Order.symbol == symbol)
+
+    return query.order_by(desc(Order.id)).limit(limit).all()
+
+
+def get_signals_cursor(
+    session: Session,
+    last_id: Optional[int] = None,
+    limit: int = 50,
+    symbol: Optional[str] = None,
+    executed: Optional[bool] = None,
+) -> List[Signal]:
+    """
+    Fetch signals using cursor-based pagination.
+
+    Uses Signal.id < last_id for cursor pagination instead of offset.
+
+    Args:
+        session: Database session
+        last_id: Last Signal.id from previous page (None for first page)
+        limit: Maximum number of signals to return
+        symbol: Optional symbol filter
+        executed: Optional executed filter
+
+    Returns:
+        List of Signal objects
+    """
+    query = session.query(Signal)
+
+    if last_id:
+        query = query.filter(Signal.id < last_id)
+
+    if symbol:
+        query = query.filter(Signal.symbol == symbol)
+
+    if executed is not None:
+        query = query.filter(Signal.executed == executed)
+
+    return query.order_by(desc(Signal.id)).limit(limit).all()
+
+
+def get_audit_log_cursor(
+    session: Session,
+    last_id: Optional[int] = None,
+    limit: int = 50,
+    event_type: Optional[str] = None,
+    severity: Optional[str] = None,
+) -> List[AuditLog]:
+    """
+    Fetch audit log entries using cursor-based pagination.
+
+    Uses AuditLog.id < last_id for cursor pagination instead of offset.
+
+    Args:
+        session: Database session
+        last_id: Last AuditLog.id from previous page (None for first page)
+        limit: Maximum number of entries to return
+        event_type: Optional event type filter
+        severity: Optional severity filter
+
+    Returns:
+        List of AuditLog objects
+    """
+    query = session.query(AuditLog)
+
+    if last_id:
+        query = query.filter(AuditLog.id < last_id)
+
+    if event_type:
+        query = query.filter(AuditLog.event_type == event_type)
+
+    if severity:
+        query = query.filter(AuditLog.severity == severity)
+
+    return query.order_by(desc(AuditLog.id)).limit(limit).all()
+
+
+def get_martingale_chains_cursor(
+    session: Session,
+    last_id: Optional[int] = None,
+    limit: int = 50,
+) -> List[MartingaleChain]:
+    """
+    Fetch Martingale chains using cursor-based pagination.
+
+    Uses MartingaleChain.id < last_id for cursor pagination.
+
+    Args:
+        session: Database session
+        last_id: Last MartingaleChain.id from previous page (None for first page)
+        limit: Maximum number of chains to return
+
+    Returns:
+        List of MartingaleChain objects
+    """
+    query = session.query(MartingaleChain)
+    if last_id:
+        query = query.filter(MartingaleChain.id < last_id)
+    return query.order_by(desc(MartingaleChain.id)).limit(limit).all()
+
+
 def is_programmatic_order(session: Session, order_id: str) -> bool:
     """
     Check if an order was created by the auto_trade system.
@@ -145,6 +279,46 @@ def get_order_by_client_id(session: Session, client_order_id: str) -> Optional[O
         Order object or None
     """
     return session.query(Order).filter(Order.client_order_id == client_order_id).first()
+
+
+def update_order_status_by_client_id(
+    session: Session,
+    client_order_id: str,
+    status: str,
+    closed_at: Optional[datetime] = None,
+    pnl: Optional[float] = None,
+) -> bool:
+    """
+    Update order status by client_order_id.
+
+    **Only updates if row exists and status == 'OPEN'**.
+    Sets closed_at when provided.
+
+    Args:
+        session: Database session
+        client_order_id: Client order ID to update
+        status: New status (e.g., 'CLOSED', 'CANCELLED', 'FAILED')
+        closed_at: Optional close timestamp
+        pnl: Optional P&L value
+
+    Returns:
+        True if updated, False otherwise
+    """
+    order = session.query(Order).filter(Order.client_order_id == client_order_id, Order.status == "OPEN").first()
+
+    if order:
+        order.status = status
+        if pnl is not None:
+            order.pnl = pnl
+            order.pnl_percentage = (
+                (pnl / (order.entry_price * order.amount)) * 100 if order.entry_price and order.amount else 0
+            )
+        if closed_at is not None:
+            order.closed_at = closed_at
+        session.commit()
+        return True
+
+    return False
 
 
 def update_order_status(
@@ -806,7 +980,7 @@ def get_daily_stats(session: Session, days: int = 30) -> List[Dict[str, Any]]:
 
 def get_overall_stats(session: Session) -> Dict[str, Any]:
     """
-    Get overall trading statistics (all-time).
+    Get overall trading statistics (all-time) using single aggregation query.
 
     Args:
         session: Database session
@@ -814,27 +988,56 @@ def get_overall_stats(session: Session) -> Dict[str, Any]:
     Returns:
         Dictionary with overall statistics
     """
-    # Only programmatic closed orders
-    orders = session.query(Order).filter(Order.order_source == "PROGRAMMATIC", Order.status == "CLOSED").all()
+    from sqlalchemy import case, func
 
-    if not orders:
-        return {"total_trades": 0, "total_pnl": 0.0, "win_rate": 0.0, "avg_pnl": 0.0}
+    # Single aggregation query for all statistics
+    result = (
+        session.query(
+            func.count(Order.id).label("total_trades"),
+            func.sum(case((Order.pnl > 0, 1), else_=0)).label("winning_trades"),
+            func.sum(case((Order.pnl < 0, 1), else_=0)).label("losing_trades"),
+            func.sum(Order.pnl).label("total_pnl"),
+            func.avg(Order.pnl).label("avg_pnl"),
+            func.sum(Order.commission).label("total_fees"),
+            func.max(Order.pnl).label("best_trade"),
+            func.min(Order.pnl).label("worst_trade"),
+        )
+        .filter(Order.order_source == "PROGRAMMATIC", Order.status == "CLOSED")
+        .first()
+    )
 
-    total_trades = len(orders)
-    winning_trades = sum(1 for o in orders if (o.pnl or 0) > 0)
-    total_pnl = sum(o.pnl or 0 for o in orders)
-    total_fees = sum(o.commission or 0 for o in orders)
+    if not result or result.total_trades == 0:
+        return {
+            "total_trades": 0,
+            "winning_trades": 0,
+            "losing_trades": 0,
+            "win_rate": 0.0,
+            "total_pnl": 0.0,
+            "avg_pnl": 0.0,
+            "total_fees": 0.0,
+            "best_trade": 0.0,
+            "worst_trade": 0.0,
+        }
+
+    total_trades = result.total_trades or 0
+    winning_trades = result.winning_trades or 0
+    losing_trades = result.losing_trades or 0
+    total_pnl = result.total_pnl or 0.0
+    avg_pnl = float(result.avg_pnl) if result.avg_pnl else 0.0
+    total_fees = result.total_fees or 0.0
+    best_trade = result.best_trade or 0.0
+    worst_trade = result.worst_trade or 0.0
 
     return {
         "total_trades": total_trades,
         "winning_trades": winning_trades,
-        "losing_trades": sum(1 for o in orders if (o.pnl or 0) < 0),
+        "losing_trades": losing_trades,
         "win_rate": (winning_trades / total_trades) * 100 if total_trades > 0 else 0.0,
         "total_pnl": total_pnl,
-        "avg_pnl": total_pnl / total_trades if total_trades > 0 else 0.0,
+        "avg_pnl": avg_pnl,
         "total_fees": total_fees,
-        "best_trade": max((o.pnl or 0) for o in orders) if orders else 0.0,
-        "worst_trade": min((o.pnl or 0) for o in orders) if orders else 0.0,
+        "best_trade": best_trade,
+        "worst_trade": worst_trade,
     }
 
 

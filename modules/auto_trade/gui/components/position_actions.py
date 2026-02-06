@@ -749,8 +749,3 @@ The position itself will remain open.
         finally:
             if self.winfo_exists():
                 self.cancel_btn.configure(state="normal", text="🚫 Cancel Open Orders")
-
-    def _format_pnl(self, pnl: float) -> str:
-        """Format P&L with sign and color"""
-        sign = "+" if pnl >= 0 else ""
-        return f"{sign}${pnl:,.2f}"

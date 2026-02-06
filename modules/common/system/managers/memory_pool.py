@@ -35,7 +35,7 @@ class ArrayPool:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if self._initialized:
             return
 
@@ -43,9 +43,9 @@ class ArrayPool:
         self._pool_lock = threading.Lock()
 
         # Metrics
-        self.hits = 0
-        self.misses = 0
-        self.allocations = 0
+        self.hits: int = 0
+        self.misses: int = 0
+        self.allocations: int = 0
 
         self._initialized = True
 
@@ -162,7 +162,7 @@ class SeriesPool:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if self._initialized:
             return
 
@@ -170,8 +170,8 @@ class SeriesPool:
         self._pools: Dict[Tuple[int, np.dtype], queue.Queue] = {}
         self._pool_lock = threading.Lock()
 
-        self.hits = 0
-        self.misses = 0
+        self.hits: int = 0
+        self.misses: int = 0
         self._initialized = True
 
     def acquire(self, length: int, dtype: Union[np.dtype, type, str] = np.float64, index=None, name=None) -> pd.Series:
@@ -198,8 +198,9 @@ class SeriesPool:
             s[:] = 0
 
         # Ensure the underlying array is writable (critical for in-place operations)
-        if not s.values.flags.writeable:
-            s = pd.Series(s.values.copy(), dtype=dtype)
+        vals = s.values
+        if isinstance(vals, np.ndarray) and not vals.flags.writeable:
+            s = pd.Series(np.asarray(vals).copy(), dtype=dtype)
 
         # Set attributes
         if index is not None:
@@ -230,9 +231,8 @@ class SeriesPool:
 
         with self._pool_lock:
             if key not in self._pools:
-                self._pools[key] = queue.Queue(maxsize=50)  # Cap per bucket
-
-            q = self._pools[key]
+                self._pools[key] = queue.Queue(maxsize=50)  # type: ignore[index]
+            q = self._pools[key]  # type: ignore[index]
             if not q.full():
                 q.put(s)
 

@@ -18,17 +18,17 @@ try:
     from modules.common.utils import log_error, log_progress, log_success, log_warn
 except ImportError:
 
-    def log_error(message: str) -> None:
-        print(f"[ERROR] {message}")
+    def log_error(msg: str) -> None:
+        print(f"[ERROR] {msg}")
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
-    def log_success(message: str) -> None:
-        print(f"[SUCCESS] {message}")
+    def log_success(msg: str) -> None:
+        print(f"[SUCCESS] {msg}")
 
-    def log_progress(message: str) -> None:
-        print(f"[PROGRESS] {message}")
+    def log_progress(msg: str) -> None:
+        print(f"[PROGRESS] {msg}")
 
 
 from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig

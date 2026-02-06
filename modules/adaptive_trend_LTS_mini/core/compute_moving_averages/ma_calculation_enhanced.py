@@ -13,7 +13,7 @@ from .calculate_kama_atc import calculate_kama_atc
 
 # LTS_mini is CPU-only: no _gpu module; GPU path is skipped
 try:
-    from ._gpu import _calculate_ma_gpu
+    from ._gpu import _calculate_ma_gpu  # type: ignore[import-not-found]
 except ImportError:
     _calculate_ma_gpu = None
 
@@ -31,6 +31,11 @@ try:
     RUST_MA_AVAILABLE = RUST_AVAILABLE
 except ImportError:
     RUST_MA_AVAILABLE = False
+
+    def _rust_unavailable(*args, **kwargs):  # type: ignore[misc]
+        raise RuntimeError("Rust backend not available")
+
+    calculate_dema = calculate_ema = calculate_hma = calculate_lsma = calculate_wma = _rust_unavailable
 
 # Global cache for hardware resources to avoid expensive get_resources() calls (approx 14ms per call)
 _CACHED_HW_RESOURCES = None
@@ -100,15 +105,15 @@ def ma_calculation_enhanced(
             if RUST_MA_AVAILABLE and ma in ["EMA", "WMA", "DEMA", "LSMA", "HMA"]:
                 try:
                     if ma == "EMA":
-                        result_array = calculate_ema(source.values, length, use_rust=True)
+                        result_array = calculate_ema(source, length, use_rust=True)
                     elif ma == "WMA":
-                        result_array = calculate_wma(source.values, length, use_rust=True)
+                        result_array = calculate_wma(source, length, use_rust=True)
                     elif ma == "DEMA":
-                        result_array = calculate_dema(source.values, length, use_rust=True)
+                        result_array = calculate_dema(source, length, use_rust=True)
                     elif ma == "LSMA":
-                        result_array = calculate_lsma(source.values, length, use_rust=True)
+                        result_array = calculate_lsma(source, length, use_rust=True)
                     elif ma == "HMA":
-                        result_array = calculate_hma(source.values, length, use_rust=True)
+                        result_array = calculate_hma(source, length, use_rust=True)
                     else:
                         result_array = None
 

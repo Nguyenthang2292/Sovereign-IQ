@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -20,10 +20,8 @@ except ImportError:
         print(f"[WARN] {msg}")
 
 
+from . import ma_updaters, signal_calculator
 from .state_manager import StateManager
-from . import ma_updaters
-from . import signal_calculator
-from .constants import ROBUSTNESS_OFFSETS
 
 
 class IncrementalATC:
@@ -75,7 +73,7 @@ class IncrementalATC:
         # Actually StateManager.load_state reads the file which contains config.
         # But we need an instance of IncrementalATC.
         # Let's read the file first to get config, then create instance, then load state.
-        import msgpack
+        import msgpack  # type: ignore[import-untyped]
 
         path = Path(path)
         with open(path, "rb") as f:
@@ -116,6 +114,7 @@ class IncrementalATC:
         from modules.adaptive_trend_LTS_mini.core.compute_moving_averages import (
             set_of_moving_averages,
         )
+
         from ..compute_atc_signals import compute_atc_signals
 
         log_debug("Initializing incremental ATC with full calculation")
@@ -131,7 +130,6 @@ class IncrementalATC:
                 robustness=self.robustness,
                 use_cache=False,
                 use_rust=self.config.get("use_rust_backend", True),
-                use_cuda=self.config.get("use_cuda", False),
             )
             ma_tuples[ma_type] = ma_tuple
 

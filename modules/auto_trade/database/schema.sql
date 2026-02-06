@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    -- Last update time
     
     -- Foreign Keys
-    FOREIGN KEY (parent_order_id) REFERENCES orders(order_id) ON DELETE SET NULL
+    FOREIGN KEY (parent_order_id) REFERENCES orders(id) ON DELETE SET NULL
 );
 
 -- ============================================================================
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS signals (
     outcome_at TIMESTAMP,
     
     -- Foreign Keys
-    FOREIGN KEY (execution_order_id) REFERENCES orders(order_id) ON DELETE SET NULL
+    FOREIGN KEY (execution_order_id) REFERENCES orders(id) ON DELETE SET NULL
 );
 
 -- ============================================================================
@@ -193,10 +193,53 @@ CREATE TABLE IF NOT EXISTS martingale_chain (
     failed_at TIMESTAMP,
     
     -- Foreign Keys
-    FOREIGN KEY (initial_order_id) REFERENCES orders(order_id) ON DELETE SET NULL,
-    FOREIGN KEY (latest_order_id) REFERENCES orders(order_id) ON DELETE SET NULL,
-    FOREIGN KEY (recovery_order_id) REFERENCES orders(order_id) ON DELETE SET NULL
+    FOREIGN KEY (initial_order_id) REFERENCES orders(id) ON DELETE SET NULL,
+    FOREIGN KEY (latest_order_id) REFERENCES orders(id) ON DELETE SET NULL,
+    FOREIGN KEY (recovery_order_id) REFERENCES orders(id) ON DELETE SET NULL
 );
+
+-- ============================================================================
+-- TABLE: gradual_recovery
+-- Purpose: Track Gradual Recovery sequences for controlled loss recovery
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS gradual_recovery (
+    -- Primary Key
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    -- Recovery Identification
+    recovery_id TEXT UNIQUE NOT NULL,                  -- Unique recovery identifier
+    symbol TEXT NOT NULL,                              -- Trading pair
+
+    -- Recovery Status
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'COMPLETE', 'FAILED', 'CANCELLED')),
+
+    -- Loss Tracking
+    initial_loss REAL NOT NULL,                        -- Initial loss to recover
+    remaining_loss REAL NOT NULL,                      -- Remaining loss to recover
+    total_profit_accumulated REAL DEFAULT 0.0,         -- Total profit accumulated so far
+    recovery_percentage REAL DEFAULT 0.0,              -- Recovery progress percentage
+
+    -- Trade Tracking
+    trades_count INTEGER DEFAULT 0,                    -- Number of trades in recovery
+    win_streak INTEGER DEFAULT 0,                      -- Current consecutive win count
+    estimated_trades_remaining INTEGER DEFAULT 0,      -- Estimated trades to complete recovery
+
+    -- Configuration (JSON)
+    config_data TEXT,                                  -- Stores RecoveryConfig as JSON
+
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,                            -- When recovery completed
+    failed_at TIMESTAMP                                -- When recovery failed
+);
+
+-- Gradual Recovery Indexes
+CREATE INDEX IF NOT EXISTS idx_gradual_recovery_id ON gradual_recovery(recovery_id);
+CREATE INDEX IF NOT EXISTS idx_gradual_recovery_symbol ON gradual_recovery(symbol);
+CREATE INDEX IF NOT EXISTS idx_gradual_recovery_status ON gradual_recovery(status);
+CREATE INDEX IF NOT EXISTS idx_gradual_recovery_created ON gradual_recovery(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gradual_recovery_symbol_status ON gradual_recovery(symbol, status);  -- Composite for filtering
 
 -- ============================================================================
 -- TABLE: system_state
@@ -220,6 +263,25 @@ CREATE TABLE IF NOT EXISTS system_state (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ============================================================================
+-- TABLE: migrations_applied
+-- Purpose: Track applied database migrations
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS migrations_applied (
+    -- Primary Key
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    -- Migration Tracking
+    migration_name TEXT UNIQUE NOT NULL,               -- Name of migration file
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    -- When migration was applied
+    checksum TEXT                                      -- MD5/SHA256 hash of migration content
+);
+
+-- Migrations Applied Indexes
+CREATE INDEX IF NOT EXISTS idx_migrations_applied_name ON migrations_applied(migration_name);
+CREATE INDEX IF NOT EXISTS idx_migrations_applied_at ON migrations_applied(applied_at);
 
 -- ============================================================================
 -- TABLE: audit_log
@@ -261,8 +323,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 -- ============================================================================
 
 -- Orders Table Indexes
+-- idx_orders_symbol removed: covered by idx_orders_symbol_status and idx_orders_symbol_closed
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_symbol ON orders(symbol);
 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_source ON orders(order_source);           -- Filter programmatic vs manual
 CREATE INDEX IF NOT EXISTS idx_orders_execution_mode ON orders(execution_mode); -- Track execution method
@@ -272,6 +334,11 @@ CREATE INDEX IF NOT EXISTS idx_orders_signal_correlation ON orders(signal_correl
 CREATE INDEX IF NOT EXISTS idx_orders_parent ON orders(parent_order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_symbol_status ON orders(symbol, status);  -- Composite for common queries
 CREATE INDEX IF NOT EXISTS idx_orders_trailing_step ON orders(trailing_step_index);  -- Trailing stop step index
+
+-- Additional composite/partial indexes for performance
+CREATE INDEX IF NOT EXISTS idx_orders_source_status ON orders(order_source, status);  -- Composite for filtering by source+status
+CREATE INDEX IF NOT EXISTS idx_orders_symbol_closed ON orders(symbol, closed_at DESC);  -- For recent closed orders by symbol
+CREATE INDEX IF NOT EXISTS idx_orders_open_programmatic ON orders(created_at DESC);  -- For OPEN PROGRAMMATIC orders
 
 -- Signals Table Indexes
 CREATE INDEX IF NOT EXISTS idx_signals_created ON signals(created_at DESC);

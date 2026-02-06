@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from modules.auto_trade.core.persistence import SignalPersistence
+from modules.auto_trade.legacy.persistence import SignalPersistence
 from modules.auto_trade.core.signal_selector import FinalSignal
 
 

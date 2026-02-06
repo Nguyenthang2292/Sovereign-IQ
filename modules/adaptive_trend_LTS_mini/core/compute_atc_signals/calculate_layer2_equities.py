@@ -30,9 +30,9 @@ from modules.common.system import get_memory_manager, get_series_pool, temp_seri
 def calculate_layer2_equities(
     layer1_signals: Dict[str, pd.Series],
     ma_configs: list,
-    R: pd.Series,
-    L: float,
-    De: float,
+    rate_of_change_series: pd.Series,
+    lambda_val: float,
+    decay_val: float,
     cutout: int = 0,
     parallel: bool = True,
     precision: str = "float64",
@@ -54,9 +54,9 @@ def calculate_layer2_equities(
     Args:
         layer1_signals: Dictionary of Layer 1 signals keyed by MA type (e.g., "EMA", "HMA").
         ma_configs: List of (ma_type, length, initial_weight) tuples.
-        R: Rate of change series (calculated once and reused).
-        L: Lambda (growth rate) for exponential growth factor.
-        De: Decay factor for equity calculations.
+        rate_of_change_series: Rate of change series (calculated once and reused).
+        lambda_val: Lambda (growth rate) for exponential growth factor.
+        decay_val: Decay factor for equity calculations.
         cutout: Number of bars to skip at beginning.
         parallel: If True, calculate equities in parallel (default: True).
 
@@ -82,7 +82,7 @@ def calculate_layer2_equities(
                 return {}
 
             # Stack signals into matrix (n_signals, n_bars)
-            n_bars = len(R)
+            n_bars = len(rate_of_change_series)
             n_signals = len(ma_types)
             signals_matrix = np.empty((n_signals, n_bars), dtype=dtype)
 
@@ -101,16 +101,16 @@ def calculate_layer2_equities(
             # Get growth factor
             from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
 
-            growth = exp_growth(L=L, index=R.index, cutout=cutout)
-            r_adjusted = (R * growth).values
-            d = 1.0 - De
+            growth = exp_growth(lambda_val=lambda_val, index=rate_of_change_series.index, cutout=cutout)
+            r_adjusted = (rate_of_change_series * growth).values
+            d = 1.0 - decay_val
 
             # Calculate all equities in parallel using Numba
             # Result matrix (n_signals, n_bars)
             equity_matrix = _calculate_equities_parallel(
                 starting_equities=initial_weights,
                 sig_prev_values=signals_prev,
-                r_values=r_adjusted,
+                r_values=np.asarray(r_adjusted, dtype=np.float64),
                 decay_multiplier=d,
                 cutout=cutout,
                 floor_val=floor_val,
@@ -120,17 +120,17 @@ def calculate_layer2_equities(
             series_pool = get_series_pool()
             for i, ma_type in enumerate(ma_types):
                 # Acquire from pool to be efficient
-                equity_series_obj = series_pool.acquire(n_bars, dtype=dtype, index=R.index)
+                equity_series_obj = series_pool.acquire(n_bars, dtype=dtype, index=rate_of_change_series.index)
                 equity_series_obj.iloc[:] = equity_matrix[i]
-                layer2_equities[ma_type] = equity_series_obj
+                layer2_equities[ma_type] = equity_series_obj  # type: ignore[assignment,union-attr]
         else:
             # Sequential processing (fallback or single MA)
-            # R multiplied by e(L) (growth factor)
+            # rate_of_change multiplied by e(lambda_val) (growth factor)
             from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
 
-            growth = exp_growth(L=L, index=R.index, cutout=cutout)
-            r_adjusted = R * growth
-            d = 1.0 - De
+            growth = exp_growth(lambda_val=lambda_val, index=rate_of_change_series.index, cutout=cutout)
+            r_adjusted = (rate_of_change_series * growth).values
+            d = 1.0 - decay_val
 
             for ma_type, _, initial_weight in ma_configs:
                 if ma_type not in layer1_signals:
@@ -145,8 +145,8 @@ def calculate_layer2_equities(
                 # Calculate equity using Rust backend (handles CPU/CUDA internally)
                 # FIX: use_rust_backend parameter was being ignored, always using Rust
                 equity_values = calculate_equity(
-                    r_values=r_adjusted.values,
-                    sig_prev=sig_shifted.values,
+                    r_values=np.asarray(r_adjusted, dtype=np.float64),
+                    sig_prev=np.asarray(sig_shifted, dtype=np.float64),
                     starting_equity=initial_weight,
                     decay_multiplier=d,
                     cutout=cutout,
@@ -158,8 +158,8 @@ def calculate_layer2_equities(
                 # NOTE: The 0.25 floor is an intentional design choice to prevent
                 # total bankruptcy. This logic is embedded in the Rust/CPU kernel.
 
-                equity = pd.Series(equity_values, index=R.index, dtype=np.float64)
-                layer2_equities[ma_type] = equity
+                equity = pd.Series(equity_values, index=rate_of_change_series.index, dtype=np.float64)
+                layer2_equities[ma_type] = equity  # type: ignore[assignment,union-attr]
 
     log_debug("Completed Layer 2 equity weights")
     return layer2_equities

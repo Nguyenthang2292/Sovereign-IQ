@@ -24,10 +24,11 @@ except ImportError:
 
 
 try:
-    import atc_rust
+    import atc_rust  # type: ignore[import-untyped]
 
     HAS_RUST = True
 except ImportError:
+    atc_rust = None  # type: ignore[assignment]
     HAS_RUST = False
     log_warn("Rust extensions not available, falling back to Python")
 
@@ -48,6 +49,7 @@ def _process_partition_with_rust_cpu(
     if not HAS_RUST:
         return _process_partition_python(partition_data, config)
 
+    assert atc_rust is not None  # Guaranteed when HAS_RUST is True
     try:
         params = config.copy()
 
@@ -77,7 +79,7 @@ def _process_partition_with_rust_cpu(
         batch_results = atc_rust.compute_atc_signals_batch_cpu(
             symbols_numpy,
             ema_len=params.get("ema_len", 28),
-            hma_len=params.get("hma_len", 28),
+            hull_len=params.get("hma_len", 28),
             wma_len=params.get("wma_len", 28),
             dema_len=params.get("dema_len", 28),
             lsma_len=params.get("lsma_len", 28),
@@ -94,11 +96,11 @@ def _process_partition_with_rust_cpu(
             # CRITICAL FIX: Preserve original pandas index from input data
             # This ensures downstream comparisons work correctly by index alignment
             orig_data = partition_data.get(symbol)
-            if orig_data is not None and hasattr(orig_data, "index"):
+            if isinstance(orig_data, pd.Series):
                 # Restore original index from pandas Series
                 results[symbol] = {"Average_Signal": pd.Series(signal_array, index=orig_data.index)}
             else:
-                # Fallback: create Series with default index
+                # Fallback: ndarray or None - create Series with default index
                 results[symbol] = {"Average_Signal": pd.Series(signal_array)}
 
         gc.collect()
@@ -125,6 +127,7 @@ def _process_partition_with_rust_cuda(
     if not HAS_RUST:
         return _process_partition_python(partition_data, config)
 
+    assert atc_rust is not None  # Guaranteed when HAS_RUST is True
     try:
         params = config.copy()
 
@@ -171,11 +174,11 @@ def _process_partition_with_rust_cuda(
             # CRITICAL FIX: Preserve original pandas index from input data
             # This ensures downstream comparisons work correctly by index alignment
             orig_data = partition_data.get(symbol)
-            if orig_data is not None and hasattr(orig_data, "index"):
+            if isinstance(orig_data, pd.Series):
                 # Restore original index from pandas Series
                 results[symbol] = {"Average_Signal": pd.Series(signal_array, index=orig_data.index)}
             else:
-                # Fallback: create Series with default index
+                # Fallback: ndarray or None - create Series with default index
                 results[symbol] = {"Average_Signal": pd.Series(signal_array)}
 
         gc.collect()
@@ -342,11 +345,11 @@ def process_symbols_rust_dask(
             return {}
 
         if use_cuda and HAS_RUST:
-            return _process_partition_with_rust_cuda(partition_dict, config)
+            return _process_partition_with_rust_cuda(partition_dict, config)  # type: ignore[arg-type]
         elif HAS_RUST:
-            return _process_partition_with_rust_cpu(partition_dict, config)
+            return _process_partition_with_rust_cpu(partition_dict, config)  # type: ignore[arg-type]
         else:
-            return _process_partition_python(partition_dict, config)
+            return _process_partition_python(partition_dict, config)  # type: ignore[arg-type]
 
     symbols_items = list(symbols_data.items())
 

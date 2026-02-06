@@ -1,9 +1,11 @@
-import customtkinter as ctk
 import tkinter as tk
-from typing import List, Dict, Optional, Callable
+from typing import Callable, Dict, List, Optional
+
+import customtkinter as ctk
+
+from gui.components.position_details import PositionDetails
 from gui.utils.colors import Colors
 from gui.utils.formatters import format_pnl, format_price
-from gui.components.position_details import PositionDetails
 
 
 class PositionCard(ctk.CTkFrame):

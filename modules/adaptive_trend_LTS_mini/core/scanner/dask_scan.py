@@ -20,22 +20,24 @@ try:
     from modules.common.utils import log_progress, log_warn
 except ImportError:
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
-    def log_progress(message: str) -> None:
-        print(f"[PROGRESS] {message}")
+    def log_progress(msg: str) -> None:
+        print(f"[PROGRESS] {msg}")
 
 
 try:
     from dask.callbacks import Callback
 
+    CallbackBase: type = Callback
     HAS_DASK_CALLBACKS = True
 except ImportError:
 
-    class Callback:
+    class _DaskCallbackFallback:
         pass
 
+    CallbackBase = _DaskCallbackFallback  # type: ignore[assignment,misc]
     HAS_DASK_CALLBACKS = False
 
 
@@ -67,7 +69,7 @@ def _process_single_symbol_dask(
         if raw_values.dtype != target_dtype:
             raw_values = raw_values.astype(target_dtype)
 
-        if not raw_values.flags["C_CONTIGUOUS"]:
+        if isinstance(raw_values, np.ndarray) and not raw_values.flags["C_CONTIGUOUS"]:
             raw_values = np.ascontiguousarray(raw_values)
 
         price_series = pd.Series(raw_values, index=df.index, name=calculation_source)
@@ -96,8 +98,8 @@ def _process_single_symbol_dask(
             lsma_w=atc_config.lsma_w,
             kama_w=atc_config.kama_w,
             robustness=atc_config.robustness,
-            La=atc_config.lambda_param,
-            De=atc_config.decay,
+            lambda_param=atc_config.lambda_param,
+            decay_rate=atc_config.decay,
             cutout=atc_config.cutout,
             long_threshold=atc_config.long_threshold,
             short_threshold=atc_config.short_threshold,
@@ -168,7 +170,7 @@ def _process_partition_with_gc(
     return results
 
 
-class ProgressCallback(Callback):
+class ProgressCallback(CallbackBase):
     def __init__(self, total_symbols: int):
         self.total = total_symbols
         self.processed = 0

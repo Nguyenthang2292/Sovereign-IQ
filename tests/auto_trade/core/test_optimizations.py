@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from modules.auto_trade.core.caching import Cache
+from modules.auto_trade.legacy.caching import Cache
 from modules.auto_trade.core.circuit_breaker import CircuitBreaker, CircuitState
 from modules.auto_trade.core.health import HealthRegistry, HealthStatus
 
@@ -31,7 +31,7 @@ class TestCache:
 
 class TestCircuitBreaker:
     def test_circuit_state_transitions(self):
-        cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.1)
+        cb = CircuitBreaker(failure_threshold=2, recovery_timeout=1)
 
         # Should be CLOSED initially
         assert cb.state == CircuitState.CLOSED
@@ -60,11 +60,11 @@ class TestCircuitBreaker:
         assert cb.state == CircuitState.OPEN
 
         # Test blocking
-        with pytest.raises(Exception, match="Circuit default is OPEN"):
+        with pytest.raises(Exception, match=r"Circuit .* is OPEN"):
             cb.call(success_func)
 
-        # Wait for recovery
-        time.sleep(0.2)
+        # Wait for recovery (recovery_timeout=1, so wait 1.2s)
+        time.sleep(1.2)
 
         # Should transition to HALF_OPEN on next call
         assert cb.call(success_func) == "ok"

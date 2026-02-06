@@ -135,7 +135,7 @@ def prompt_user_input_with_backspace(
 
         print(color_text(prompt, color), end="", flush=True)
 
-        result = []
+        result: list[str] = []
         while True:
             char = msvcrt.getch()
 
@@ -172,7 +172,7 @@ def prompt_user_input_with_backspace(
                     sys.stdout.flush()
                 else:
                     # Log ignored replacement characters
-                    logging.debug(f"Ignored invalid UTF-8 byte (replacement character): {char}")
+                    logging.debug("Ignored invalid UTF-8 byte (replacement character): %s", repr(char))
     else:
         # Non-Windows or msvcrt not available: Use standard input with sentinel
         # Use "-" as explicit sentinel for back navigation

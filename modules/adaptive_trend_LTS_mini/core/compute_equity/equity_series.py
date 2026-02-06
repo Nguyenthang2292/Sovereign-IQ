@@ -22,18 +22,18 @@ __all__ = ["equity_series"]
 def equity_series(
     starting_equity: float,
     sig: pd.Series,
-    R: pd.Series,
+    rate_of_change_series: pd.Series,
     *,
-    L: float,
-    De: float,
+    lambda_val: float,
+    decay_val: float,
     verbose: bool = False,
 ) -> pd.Series:
     """Calculate equity curve from trading signals and returns.
 
     Port of Pine Script function:
-        eq(starting_equity, sig, R) =>
-            r = R * e(La)  # Adjusted return with growth factor
-            d = 1 - De     # Decay multiplier
+        eq(starting_equity, sig, rate_of_change) =>
+            r = rate_of_change * e(lambda_val)  # Adjusted return with growth factor
+            d = 1 - decay_val     # Decay multiplier
             var float a = 0.0
             if (sig[1] > 0)
                 a := r      # Long position
@@ -65,9 +65,9 @@ def equity_series(
             - 1: Long position
             - -1: Short position
             - 0: No position
-        R: Rate of change series (percentage change).
-        L: Lambda (growth rate) for exponential growth factor.
-        De: Decay factor (0-1), applied each period.
+        rate_of_change_series: Rate of change series (percentage change).
+        lambda_val: Lambda (growth rate) for exponential growth factor.
+        decay_val: Decay factor (0-1), applied each period.
         cutout: Number of bars to skip at beginning (returns NaN for these bars).
             Values before cutout are set to np.nan for proper handling in
             statistical calculations and plotting (use dropna() if needed).
@@ -82,10 +82,10 @@ def equity_series(
         TypeError: If input types are incorrect.
     """
     # Input validation
-    if sig is None or R is None:
-        raise ValueError("sig and R cannot be None")
+    if sig is None or rate_of_change_series is None:
+        raise ValueError("sig and rate_of_change_series cannot be None")
 
-    if len(sig) == 0 or len(R) == 0:
+    if len(sig) == 0 or len(rate_of_change_series) == 0:
         if verbose:
             log_warn("Empty input series provided, returning empty equity series")
         return pd.Series(dtype="float64")
@@ -93,17 +93,17 @@ def equity_series(
     if not isinstance(sig, pd.Series):
         raise TypeError(f"sig must be a pandas Series, got {type(sig)}")
 
-    if not isinstance(R, pd.Series):
-        raise TypeError(f"R must be a pandas Series, got {type(R)}")
+    if not isinstance(rate_of_change_series, pd.Series):
+        raise TypeError(f"rate_of_change_series must be a pandas Series, got {type(rate_of_change_series)}")
 
     if starting_equity <= 0:
         raise ValueError(f"starting_equity must be > 0, got {starting_equity}")
 
-    if not (0 <= De <= 1):
-        raise ValueError(f"De must be between 0 and 1, got {De}")
+    if not (0 <= decay_val <= 1):
+        raise ValueError(f"decay_val must be between 0 and 1, got {decay_val}")
 
-    if not isinstance(L, (int, float)) or np.isnan(L) or np.isinf(L):
-        raise ValueError(f"L must be a finite number, got {L}")
+    if not isinstance(lambda_val, (int, float)) or np.isnan(lambda_val) or np.isinf(lambda_val):
+        raise ValueError(f"lambda_val must be a finite number, got {lambda_val}")
 
     # NOTE: cutout is always 0 now as slicing happens early in compute_atc_signals
     # If equity_series is called directly with cutout > 0, warn user
@@ -115,25 +115,25 @@ def equity_series(
         )
 
     # Check index compatibility
-    if not sig.index.equals(R.index):
+    if not sig.index.equals(rate_of_change_series.index):
         if verbose:
             log_warn(
-                f"sig and R have different indices. "
-                f"sig length: {len(sig)}, R length: {len(R)}. "
+                f"sig and rate_of_change_series have different indices. "
+                f"sig length: {len(sig)}, rate_of_change_series length: {len(rate_of_change_series)}. "
                 f"Attempting to align indices."
             )
         # Align indices by taking intersection
-        common_index = sig.index.intersection(R.index)
+        common_index = sig.index.intersection(rate_of_change_series.index)
         if len(common_index) == 0:
-            raise ValueError("sig and R have no common indices")
+            raise ValueError("sig and rate_of_change_series have no common indices")
         sig = sig.loc[common_index]
-        R = R.loc[common_index]
+        rate_of_change_series = rate_of_change_series.loc[common_index]
 
     index = sig.index
 
     # Check for excessive NaN values
     sig_nan_count = sig.isna().sum()
-    r_nan_count = R.isna().sum()
+    r_nan_count = rate_of_change_series.isna().sum()
     total_bars = len(sig)
 
     if verbose and sig_nan_count > 0:
@@ -152,15 +152,21 @@ def equity_series(
     try:
         # Try to get from cache
         cache = get_cache_manager()
-        cached_equity = cache.get_equity(signal=sig, R=R, L=L, De=De, starting_equity=starting_equity)
+        cached_equity = cache.get_equity(
+            signal=sig,
+            rate_of_change=rate_of_change_series,
+            lambda_val=lambda_val,
+            decay_val=decay_val,
+            starting_equity=starting_equity,
+        )
 
         if cached_equity is not None:
             return cached_equity
 
-        # R multiplied by e(L) (growth factor)
-        growth = exp_growth(L=L, index=index, cutout=cutout)
-        r = R * growth
-        d = 1.0 - De
+        # rate_of_change multiplied by e(lambda_val) (growth factor)
+        growth = exp_growth(lambda_val=lambda_val, index=index, cutout=cutout)
+        r = rate_of_change_series * growth
+        d = 1.0 - decay_val
 
         # Shift signals by 1 period (sig[1] in Pine Script)
         # NOTE: This shift is for INTERNAL equity calculation only
@@ -196,7 +202,14 @@ def equity_series(
             equity = pd.Series(out_arr, index=index, dtype=np.float64)
 
         # Cache the result
-        cache.put_equity(signal=sig, R=R, L=L, De=De, starting_equity=starting_equity, equity=equity)
+        cache.put_equity(
+            signal=sig,
+            rate_of_change=rate_of_change_series,
+            lambda_val=lambda_val,
+            decay_val=decay_val,
+            starting_equity=starting_equity,
+            equity=equity,
+        )
 
         # Check for floor hits (equity at minimum value)
         if verbose:

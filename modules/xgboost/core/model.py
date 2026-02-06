@@ -8,25 +8,24 @@ for cryptocurrency price direction prediction, including:
 - Prediction probability calculation for next candle movement
 """
 
+import subprocess
 from typing import Any, Type, Union
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import accuracy_score  # type: ignore[import-untyped]
+from sklearn.model_selection import TimeSeriesSplit  # type: ignore[import-untyped]
 
 from config import (
     ID_TO_LABEL,
     MODEL_FEATURES,
     TARGET_HORIZON,
     TARGET_LABELS,
+    USE_GPU,
     XGBOOST_MIN_TRAIN_FRACTION,
     XGBOOST_PARAMS,
     XGBOOST_TRAIN_TEST_SPLIT,
-)
-from config import (
-    USE_GPU,
 )
 from modules.common.utils import (
     log_data,
@@ -69,10 +68,12 @@ def _resolve_xgb_classifier() -> Type:
     if hasattr(xgb, "XGBClassifier"):
         return xgb.XGBClassifier
     try:
-        from xgboost.sklearn import XGBClassifier as sklearn_classifier
+        from xgboost.sklearn import XGBClassifier as _xgb_classifier
+
+        classifier: Type[Any] = _xgb_classifier
     except Exception:  # pragma: no cover - only hit when package is broken
         try:
-            from sklearn.ensemble import GradientBoostingClassifier
+            from sklearn.ensemble import GradientBoostingClassifier  # type: ignore[import-untyped]
         except Exception as sklearn_exc:  # pragma: no cover - backup missing
             raise AttributeError(
                 "XGBClassifier is not available in the installed xgboost distribution."
@@ -98,10 +99,10 @@ def _resolve_xgb_classifier() -> Type:
                 """Return probability estimates for each class."""
                 return super().predict_proba(X)
 
-        sklearn_classifier = _GradientBoostingWrapper
+        classifier = _GradientBoostingWrapper
     # Cache the resolved classifier for subsequent calls
-    xgb.XGBClassifier = sklearn_classifier
-    return sklearn_classifier
+    setattr(xgb, "XGBClassifier", classifier)  # type: ignore[misc]
+    return classifier
 
 
 def train_and_predict(df: pd.DataFrame) -> Any:
@@ -152,9 +153,6 @@ def train_and_predict(df: pd.DataFrame) -> Any:
         if USE_GPU:
             try:
                 # Check if GPU is actually available
-                # Try to detect CUDA availability
-                import subprocess
-
                 result = subprocess.run(["nvidia-smi"], capture_output=True, timeout=5)
                 if result.returncode == 0:
                     # GPU is available, use GPU parameters
@@ -304,6 +302,9 @@ def train_and_predict(df: pd.DataFrame) -> Any:
                         continue
                 else:
                     test_idx_filtered = test_idx_array
+            else:
+                log_warn(f"CV Fold {fold}: Skipped (insufficient train or test data)")
+                continue
 
             # Class Diversity Validation
             # XGBoost requires at least 2 classes, but we need all 3 for proper multi-class prediction

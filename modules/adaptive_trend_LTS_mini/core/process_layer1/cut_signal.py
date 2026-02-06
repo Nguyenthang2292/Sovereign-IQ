@@ -69,8 +69,10 @@ def cut_signal(
         with mem_manager.track_memory("cut_signal"):
             # Vectorize discretization (Task 8.5)
             # c = x > long ? 1 : x < short ? -1 : 0
-            v = x.values
-            c_vals = np.select([v > long_threshold, v < short_threshold], [1, -1], default=0).astype(np.int8)
+            v = np.asarray(x.values, dtype=np.float64)
+            cond_gt = v > long_threshold
+            cond_lt = v < short_threshold
+            c_vals = np.asarray(np.select([cond_gt, cond_lt], [1, -1], default=0), dtype=np.int8)
 
             c = pd.Series(c_vals, index=x.index, dtype="int8")
 

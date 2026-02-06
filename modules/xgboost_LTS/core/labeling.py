@@ -343,7 +343,9 @@ def apply_directional_labels(df: pd.DataFrame, use_cache: bool = True) -> pd.Dat
     neutral_id = LABEL_TO_ID.get(NEUTRAL_LABEL, 1)
 
     # Use numpy select for direct ID assignment (avoids intermediate string series)
-    conditions = [pct_change.values >= threshold_series.values, pct_change.values <= -threshold_series.values]
+    pct_arr = np.asarray(pct_change.values, dtype=np.float64)
+    thresh_arr = np.asarray(threshold_series.values, dtype=np.float64)
+    conditions = [pct_arr >= thresh_arr, pct_arr <= -thresh_arr]
     choices = [up_id, down_id]
 
     # Assign integer targets directly

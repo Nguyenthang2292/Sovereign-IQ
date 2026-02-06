@@ -5,7 +5,7 @@ import pickle
 from typing import Any, Optional
 
 try:
-    import blosc
+    import blosc  # type: ignore[import-untyped]
 
     BLOSC_AVAILABLE = True
 except ImportError:
@@ -15,11 +15,11 @@ try:
     from modules.common.utils import log_info, log_warn
 except ImportError:
 
-    def log_info(message: str) -> None:
-        print(f"[INFO] {message}")
+    def log_info(msg: str) -> None:
+        print(f"[INFO] {msg}")
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
 
 def compress_pickle(

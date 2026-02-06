@@ -100,8 +100,8 @@ def calculate_average_signal(
         e_list.append(e_aligned.values)
 
     # Shape: (n_mas, n_bars)
-    S_np = np.stack(s_list)
-    E_np = np.stack(e_list)
+    S_np = np.stack([np.asarray(a) for a in s_list])  # type: ignore[arg-type]
+    E_np = np.stack([np.asarray(a) for a in e_list])  # type: ignore[arg-type]
 
     # CPU path for calculating average signal
     # NaN detection and handling

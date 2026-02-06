@@ -95,8 +95,8 @@ def test_weight_zero_disables_signal(sample_data, standard_config):
 
 def test_atc_equity_floor_dynamic_change(sample_data, standard_config):
     """
-    Test 3: ATC_EQUITY_FLOOR change.
-    Verifies if changing the global equity floor is reflected in calculations.
+    Test 3: equity_floor parameter.
+    Verifies if passing different equity floor values is reflected in calculations.
     """
     prices = sample_data
 
@@ -106,19 +106,18 @@ def test_atc_equity_floor_dynamic_change(sample_data, standard_config):
     crash_prices.iloc[-10:] = crash_prices.iloc[-11] * 0.01
 
     # Default floor (0.25)
-    set_equity_floor(0.25)
-    results_default = compute_atc_signals(crash_prices, **standard_config)
+    config_default = standard_config.copy()
+    config_default["equity_floor"] = 0.25
+    results_default = compute_atc_signals(crash_prices, **config_default)
 
     # Lower floor (0.01)
-    set_equity_floor(0.01)
-    results_low = compute_atc_signals(crash_prices, **standard_config)
+    config_low = standard_config.copy()
+    config_low["equity_floor"] = 0.01
+    results_low = compute_atc_signals(crash_prices, **config_low)
 
     # Check EMA_S (Layer 2 equity)
     ema_s_default = results_default["EMA_S"]
     ema_s_low = results_low["EMA_S"]
-
-    # Reset floor for other tests
-    set_equity_floor(0.25)
 
     # In the crash region, low floor should result in lower equity values
     assert ema_s_low.iloc[-1] < ema_s_default.iloc[-1], (

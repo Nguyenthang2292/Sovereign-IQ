@@ -18,8 +18,8 @@ try:
     from modules.common.utils import log_warn
 except ImportError:
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
 
 if TYPE_CHECKING:

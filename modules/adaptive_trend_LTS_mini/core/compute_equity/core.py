@@ -42,10 +42,12 @@ try:
     from pandas.errors import PerformanceWarning
 except ImportError:
 
-    class PerformanceWarning(UserWarning):
+    class _PerformanceWarningFallback(UserWarning):
         """Warning for performance-related issues."""
 
         pass
+
+    PerformanceWarning = _PerformanceWarningFallback  # type: ignore[assignment,misc]
 
 
 # Default equity floor value - configurable via environment variable
@@ -109,26 +111,8 @@ _ZERO_EQUITY_THRESHOLD = 1e-10
 
 
 def get_equity_floor() -> float:
-    """Get current equity floor value."""
+    """Get default equity floor value (read-only)."""
     return DEFAULT_EQUITY_FLOOR
-
-
-def set_equity_floor(floor: Optional[float]) -> None:
-    """Set equity floor value globally.
-
-    Args:
-        floor: Floor value (0.0 to disable, or positive value).
-               None resets to default (_DEFAULT_FLOOR).
-
-    Note:
-        Setting floor=0.0 provides accurate risk calculation but may cause
-        numerical issues with very small equity values.
-    """
-    global DEFAULT_EQUITY_FLOOR
-    if floor is None:
-        DEFAULT_EQUITY_FLOOR = _DEFAULT_FLOOR
-    else:
-        DEFAULT_EQUITY_FLOOR = float(floor)
 
 
 __all__ = [
@@ -138,9 +122,7 @@ __all__ = [
     "_calculate_equities_parallel",
     "calculate_equity",
     # Configuration
-    "DEFAULT_EQUITY_FLOOR",
     "get_equity_floor",
-    "set_equity_floor",
     # Benchmarking
     "benchmark_strategies",
     "print_benchmark_results",
@@ -600,7 +582,7 @@ def calculate_equity(
     decay_multiplier: float,
     cutout: int,
     out: Optional[np.ndarray] = None,
-    floor_val: Optional[float] = None,
+    floor_val: float = 0.25,
     force_strategy: Optional[str] = None,
 ) -> np.ndarray:
     """Unified equity calculation interface with automatic strategy selection.
@@ -622,7 +604,7 @@ def calculate_equity(
         decay_multiplier: Decay multiplier (1.0 - decay_rate)
         cutout: Number of bars to skip at beginning
         out: Optional output array for memory efficiency
-        floor_val: Optional equity floor (default: DEFAULT_EQUITY_FLOOR)
+        floor_val: Equity floor (default: 0.25)
         force_strategy: Force specific strategy: 'core', 'vectorized', or 'parallel'
                        None (default) = automatic selection
 
@@ -685,7 +667,7 @@ def calculate_equity(
                 f"force_strategy='{force_strategy}' ignored for single signal (using 'core')", UserWarning, stacklevel=2
             )
         # Convert scalar to float if needed
-        starting_eq = float(starting_equities) if np.isscalar(starting_equities) else float(starting_equities.item())
+        starting_eq = float(starting_equities) if np.isscalar(starting_equities) else float(starting_equities.item())  # type: ignore[arg-type]
         return _calculate_equity_core(r_values, sig_prev_values, starting_eq, decay_multiplier, cutout, out, floor_val)
 
     # Multiple signals case
@@ -765,8 +747,9 @@ def benchmark_strategies(
         Results vary based on CPU cores and system load.
     """
     import time
+    from typing import Any
 
-    results = {
+    results: dict[str, Any] = {
         "n_signals": n_signals_list,
         "core_times": [],
         "vectorized_times": [],
@@ -780,23 +763,27 @@ def benchmark_strategies(
         # Generate test data
         if n_signals == 1:
             signals = np.random.choice([-1, 0, 1], size=n_bars)
-            starting_eq = 1.0
+            starting_eq_1d: float = 1.0
+            starting_eq_arr = np.ones(1, dtype=np.float64)  # placeholder, unused in n_signals==1
         else:
             signals = np.random.choice([-1, 0, 1], size=(n_signals, n_bars))
-            starting_eq = np.ones(n_signals)
+            starting_eq_1d = 1.0  # unused
+            starting_eq_arr = np.ones(n_signals, dtype=np.float64)
 
+        starting_eq = starting_eq_1d if n_signals == 1 else starting_eq_arr
         returns = np.random.randn(n_bars) * 0.01
         decay = 0.999
         cutout = 20
 
         # Warmup (JIT compilation)
-        _ = calculate_equity(starting_eq, signals, returns, decay, cutout)
+        _ = calculate_equity(starting_eq, signals, returns, decay, cutout)  # type: ignore[arg-type]
 
         # Benchmark core (only for single signal)
         if n_signals == 1:
             start = time.perf_counter()
+            st_eq_core: float = 1.0
             for _ in range(n_iterations):
-                _ = _calculate_equity_core(returns, signals, starting_eq, decay, cutout)
+                _ = _calculate_equity_core(returns, signals, st_eq_core, decay, cutout)
             elapsed = (time.perf_counter() - start) * 1000 / n_iterations
             results["core_times"].append(elapsed)
         else:
@@ -804,9 +791,10 @@ def benchmark_strategies(
 
         # Benchmark vectorized
         if n_signals > 1:
+            st_eq = np.ones(n_signals, dtype=np.float64)
             start = time.perf_counter()
             for _ in range(n_iterations):
-                _ = _calculate_equity_vectorized(starting_eq, signals, returns, decay, cutout)
+                _ = _calculate_equity_vectorized(st_eq, signals, returns, decay, cutout)
             elapsed = (time.perf_counter() - start) * 1000 / n_iterations
             results["vectorized_times"].append(elapsed)
         else:
@@ -814,9 +802,10 @@ def benchmark_strategies(
 
         # Benchmark parallel
         if n_signals > 1:
+            st_eq = np.ones(n_signals, dtype=np.float64)
             start = time.perf_counter()
             for _ in range(n_iterations):
-                _ = _calculate_equities_parallel(starting_eq, signals, returns, decay, cutout)
+                _ = _calculate_equities_parallel(st_eq, signals, returns, decay, cutout)
             elapsed = (time.perf_counter() - start) * 1000 / n_iterations
             results["parallel_times"].append(elapsed)
         else:
@@ -825,7 +814,7 @@ def benchmark_strategies(
         # Benchmark auto-selection
         start = time.perf_counter()
         for _ in range(n_iterations):
-            _ = calculate_equity(starting_eq, signals, returns, decay, cutout)
+            _ = calculate_equity(starting_eq, signals, returns, decay, cutout)  # type: ignore[arg-type]
         elapsed = (time.perf_counter() - start) * 1000 / n_iterations
         results["auto_times"].append(elapsed)
 

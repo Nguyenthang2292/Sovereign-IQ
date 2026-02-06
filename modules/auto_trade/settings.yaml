@@ -55,7 +55,16 @@ recovery:
   min_leverage: 5
   max_leverage: 15
   enable_streak_bonus: true
-  enabled: false
+  enabled: true
+  config:
+    target_profit_per_trade: 8.0
+    max_recovery_trades: 13
+    margin_scaling_mode: adaptive
+    leverage_scaling_mode: adaptive
+    min_leverage: 5
+    max_leverage: 15
+    enable_streak_bonus: true
+    max_total_loss: 0.0
 trading:
   default_position_size: 100.0
   default_leverage: 2

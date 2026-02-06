@@ -1,26 +1,27 @@
 """
-Cache Manager for Adaptive Trend Enhanced
+Cache Manager for Adaptive Trend LTS-mini-version
 
 Intelligent caching system for Moving Average results.
 Prevents redundant calculations and improves performance.
-
-Author: Adaptive Trend Enhanced Team
 """
 
 import hashlib
 import os
 import pickle
-import time
 import threading
+import time
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
 
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 try:
     import numpy as np
-    import pandas as pd
+    import pandas as pd  # type: ignore[import-untyped]
 
     PANDAS_AVAILABLE = True
 except ImportError:
@@ -100,6 +101,14 @@ class CacheManager:
         self._misses = 0
         self._initial_entries = 0
 
+        # Enhanced monitoring metrics
+        self._hit_timestamps: List[float] = []  # Track hit times for rate calculation
+        self._miss_timestamps: List[float] = []  # Track miss times for rate calculation
+        self._eviction_count = 0  # Track number of evictions
+        self._promotion_count = 0  # Track L2 -> L1 promotions
+        self._last_metrics_log_time = time.time()  # Last time metrics were logged
+        self._metrics_log_interval = 60.0  # Log metrics every 60 seconds
+
         # Thread-safety: Use RLock to allow recursive locking (same thread can acquire multiple times)
         # This prevents deadlocks when cache operations call other cache operations
         self._cache_lock = threading.RLock()
@@ -136,7 +145,7 @@ class CacheManager:
         """Generate cache key using MD5 (fast)."""
         # Convert price data to hashable format
         if PANDAS_AVAILABLE and isinstance(price_data, pd.Series):
-            data_raw = price_data.values.tobytes()
+            data_raw = np.asarray(price_data).tobytes()
             # FIX: Include index in hash to avoid collisions when same values have different indices
             index_raw = str(price_data.index.tolist()).encode()
         elif isinstance(price_data, np.ndarray):
@@ -158,15 +167,22 @@ class CacheManager:
 
         return "|".join(key_parts)
 
-    def _generate_equity_key(self, signal_hash: str, R_hash: str, L: float, De: float, starting_equity: float) -> str:
+    def _generate_equity_key(
+        self,
+        signal_hash: str,
+        rate_of_change_hash: str,
+        lambda_val: float,
+        decay_val: float,
+        starting_equity: float,
+    ) -> str:
         """
         Generate cache key for equity calculation.
 
         Args:
             signal_hash: Hash of signal series
-            R_hash: Hash of rate of change series
-            L: Lambda parameter
-            De: Decay parameter
+            rate_of_change_hash: Hash of rate of change series
+            lambda_val: Lambda parameter (growth rate)
+            decay_val: Decay parameter (depreciation rate)
             starting_equity: Starting equity value
 
         Returns:
@@ -175,18 +191,25 @@ class CacheManager:
         key_parts = [
             "equity",
             f"signal={signal_hash}",
-            f"R={R_hash}",
-            f"L={L:.6f}",
-            f"De={De:.6f}",
+            f"roc={rate_of_change_hash}",
+            f"lambda={lambda_val:.6f}",
+            f"decay={decay_val:.6f}",
             f"start={starting_equity:.6f}",
         ]
         return "|".join(key_parts)
 
-    def get_equity(self, signal: Any, R: Any, L: float, De: float, starting_equity: float) -> Optional[Any]:
+    def get_equity(
+        self,
+        signal: Any,
+        rate_of_change: Any,
+        lambda_val: float,
+        decay_val: float,
+        starting_equity: float,
+    ) -> Optional[Any]:
         """Get cached equity curve (checks L1 and L2)."""
         # Generate hashes
         if PANDAS_AVAILABLE and isinstance(signal, pd.Series):
-            s_raw = signal.values.tobytes()
+            s_raw = np.asarray(signal).tobytes()
         elif isinstance(signal, np.ndarray):
             s_raw = signal.tobytes()
         else:
@@ -194,26 +217,30 @@ class CacheManager:
 
         signal_hash = hashlib.md5(s_raw).hexdigest()[:16]
 
-        if PANDAS_AVAILABLE and isinstance(R, pd.Series):
-            r_raw = R.values.tobytes()
-        elif isinstance(R, np.ndarray):
-            r_raw = R.tobytes()
+        if PANDAS_AVAILABLE and isinstance(rate_of_change, pd.Series):
+            r_raw = np.asarray(rate_of_change).tobytes()
+        elif isinstance(rate_of_change, np.ndarray):
+            r_raw = rate_of_change.tobytes()
         else:
-            r_raw = str(R).encode()
+            r_raw = str(rate_of_change).encode()
 
-        R_hash = hashlib.md5(r_raw).hexdigest()[:16]
+        rate_of_change_hash = hashlib.md5(r_raw).hexdigest()[:16]
 
-        key = self._generate_equity_key(signal_hash, R_hash, L, De, starting_equity)
+        key = self._generate_equity_key(signal_hash, rate_of_change_hash, lambda_val, decay_val, starting_equity)
         return self._get_entry(key)
 
     def _get_entry(self, key: str) -> Optional[Any]:
         """Base get logic with multi-level promotion. Thread-safe."""
         with self._cache_lock:
+            current_time = time.time()
+
             # Check L1
             entry = self._l1_cache.get(key)
             if entry:
                 self._hits_l1 += 1
                 entry.hits += 1
+                self._hit_timestamps.append(current_time)
+                self._maybe_log_metrics()
                 return entry.value
 
             # Check L2
@@ -221,11 +248,15 @@ class CacheManager:
             if entry:
                 self._hits_l2 += 1
                 entry.hits += 1
+                self._hit_timestamps.append(current_time)
+                self._promotion_count += 1
+
                 # Promote to L1 (replace oldest if full)
                 if len(self._l1_cache) >= self.max_entries_l1:
                     oldest_key = min(self._l1_cache.keys(), key=lambda k: self._l1_cache[k].timestamp)
                     self._l1_cache.pop(oldest_key)
                 self._l1_cache[key] = entry
+                self._maybe_log_metrics()
                 return entry.value
 
             if self._misses < 5:
@@ -235,31 +266,41 @@ class CacheManager:
                 log_debug(f"  L2 has {len(self._l2_cache)} keys")
 
             self._misses += 1
+            self._miss_timestamps.append(current_time)
+            self._maybe_log_metrics()
             return None
 
-    def put_equity(self, signal: Any, R: Any, L: float, De: float, starting_equity: float, equity: Any):
+    def put_equity(
+        self,
+        signal: Any,
+        rate_of_change: Any,
+        lambda_val: float,
+        decay_val: float,
+        starting_equity: float,
+        equity: Any,
+    ):
         """Cache equity curve (puts in L1 and L2)."""
         # Generate hashes
         if PANDAS_AVAILABLE and isinstance(signal, pd.Series):
-            s_raw = signal.values.tobytes()
+            s_raw = np.asarray(signal).tobytes()
         elif isinstance(signal, np.ndarray):
             s_raw = signal.tobytes()
         else:
             s_raw = str(signal).encode()
         signal_hash = hashlib.md5(s_raw).hexdigest()[:16]
 
-        if PANDAS_AVAILABLE and isinstance(R, pd.Series):
-            r_raw = R.values.tobytes()
-        elif isinstance(R, np.ndarray):
-            r_raw = R.tobytes()
+        if PANDAS_AVAILABLE and isinstance(rate_of_change, pd.Series):
+            r_raw = np.asarray(rate_of_change).tobytes()
+        elif isinstance(rate_of_change, np.ndarray):
+            r_raw = rate_of_change.tobytes()
         else:
-            r_raw = str(R).encode()
-        R_hash = hashlib.md5(r_raw).hexdigest()[:16]
+            r_raw = str(rate_of_change).encode()
+        rate_of_change_hash = hashlib.md5(r_raw).hexdigest()[:16]
 
-        key = self._generate_equity_key(signal_hash, R_hash, L, De, starting_equity)
+        key = self._generate_equity_key(signal_hash, rate_of_change_hash, lambda_val, decay_val, starting_equity)
         self._put_entry(key, equity)
 
-    def _put_entry(self, key: str, value: Any, ma_type: str = None, length: int = None):
+    def _put_entry(self, key: str, value: Any, ma_type: Optional[str] = None, length: Optional[int] = None):
         """Base put logic for multi-level cache. Thread-safe."""
         with self._cache_lock:
             size_bytes = self._estimate_size(value)
@@ -344,6 +385,7 @@ class CacheManager:
         # Find entry with lowest score
         evict_key = min(self._l2_cache.keys(), key=lambda k: self._l2_cache[k].score())
         self._remove_entry(evict_key)
+        self._eviction_count += 1
         return True
 
     def save_to_disk(self, filename: str = "cache_v1.pkl"):
@@ -481,18 +523,48 @@ class CacheManager:
         log_info("=" * 40 + "\n")
 
     def clear(self):
-        """Clear all cache levels."""
-        self._l1_cache.clear()
-        self._l2_cache.clear()
-        self._l2_size_bytes = 0
-        log_info("Enhanced Cache cleared")
+        """Clear all cache levels and reset metrics."""
+        with self._cache_lock:
+            self._l1_cache.clear()
+            self._l2_cache.clear()
+            self._l2_size_bytes = 0
+            # Keep cumulative metrics but clear recent tracking
+            self._hit_timestamps.clear()
+            self._miss_timestamps.clear()
+            log_info("Enhanced Cache cleared")
 
-    def get_stats(self) -> Dict[str, Any]:
-        """Get enhanced cache statistics."""
+    def _maybe_log_metrics(self):
+        """Automatically log metrics at intervals if enabled. Must be called within lock."""
+        current_time = time.time()
+        if current_time - self._last_metrics_log_time >= self._metrics_log_interval:
+            self._last_metrics_log_time = current_time
+            # Log outside of this method to avoid recursive locks
+            stats = self._get_stats_internal()
+            log_info(
+                f"Cache Metrics: Hit Rate={stats['hit_rate_percent']:.1f}% "
+                f"(L1={stats['hit_rate_l1_percent']:.1f}%, L2={stats['hit_rate_l2_percent']:.1f}%), "
+                f"Requests={stats['total_requests']}, "
+                f"Entries={stats['entries']} (L1={stats['entries_l1']}, L2={stats['entries_l2']}), "
+                f"Evictions={stats['evictions']}, Promotions={stats['promotions']}"
+            )
+
+    def _get_stats_internal(self) -> Dict[str, Any]:
+        """Internal method to get stats without acquiring lock (called from within locked methods)."""
         total_hits = self._hits_l1 + self._hits_l2
         total_entries = len(self._l1_cache) + len(self._l2_cache)
         total_requests = total_hits + self._misses
         hit_rate = (total_hits / total_requests * 100) if total_requests > 0 else 0.0
+        hit_rate_l1 = (self._hits_l1 / total_requests * 100) if total_requests > 0 else 0.0
+        hit_rate_l2 = (self._hits_l2 / total_requests * 100) if total_requests > 0 else 0.0
+        miss_rate = (self._misses / total_requests * 100) if total_requests > 0 else 0.0
+
+        # Calculate recent hit/miss rates (last minute)
+        current_time = time.time()
+        recent_window = 60.0  # 1 minute
+        recent_hits = sum(1 for t in self._hit_timestamps if current_time - t <= recent_window)
+        recent_misses = sum(1 for t in self._miss_timestamps if current_time - t <= recent_window)
+        recent_total = recent_hits + recent_misses
+        recent_hit_rate = (recent_hits / recent_total * 100) if recent_total > 0 else 0.0
 
         return {
             "entries": total_entries,
@@ -503,17 +575,68 @@ class CacheManager:
             "hits_l1": self._hits_l1,
             "hits_l2": self._hits_l2,
             "misses": self._misses,
+            "total_requests": total_requests,
             "hit_rate_percent": hit_rate,
+            "hit_rate_l1_percent": hit_rate_l1,
+            "hit_rate_l2_percent": hit_rate_l2,
+            "miss_rate_percent": miss_rate,
+            "recent_hit_rate_percent": recent_hit_rate,
+            "recent_hits": recent_hits,
+            "recent_misses": recent_misses,
+            "evictions": self._eviction_count,
+            "promotions": self._promotion_count,
         }
 
+    def get_stats(self) -> Dict[str, Any]:
+        """Get enhanced cache statistics with detailed metrics."""
+        with self._cache_lock:
+            return self._get_stats_internal()
+
     def log_stats(self):
-        """Log enhanced cache statistics."""
+        """Log enhanced cache statistics with detailed metrics."""
         stats = self.get_stats()
         log_info(
             f"Cache Stats: L1={stats['entries_l1']}, L2={stats['entries_l2']}, "
             f"Size={stats['size_l2_mb']:.2f}MB, Hit Rate={stats['hit_rate_percent']:.1f}% "
-            f"(L1={stats['hits_l1']}, L2={stats['hits_l2']})"
+            f"(L1={stats['hit_rate_l1_percent']:.1f}%, L2={stats['hit_rate_l2_percent']:.1f}%), "
+            f"Recent Hit Rate={stats['recent_hit_rate_percent']:.1f}%, "
+            f"Evictions={stats['evictions']}, Promotions={stats['promotions']}"
         )
+
+    def set_metrics_log_interval(self, interval_seconds: float):
+        """
+        Set the interval for automatic metrics logging.
+
+        Args:
+            interval_seconds: Interval in seconds (0 to disable automatic logging)
+        """
+        with self._cache_lock:
+            self._metrics_log_interval = interval_seconds
+            log_info(f"Cache metrics log interval set to {interval_seconds}s")
+
+    def get_detailed_metrics(self) -> Dict[str, Any]:
+        """
+        Get detailed cache metrics including performance analytics.
+
+        Returns:
+            Dictionary with comprehensive cache metrics and analytics
+        """
+        stats = self.get_stats()
+
+        # Add performance insights
+        insights = []
+        if stats["total_requests"] > 0:
+            if stats["hit_rate_percent"] < 50:
+                insights.append("LOW_HIT_RATE: Consider warming cache or increasing cache size")
+            if stats["hit_rate_l1_percent"] < 20 and stats["hit_rate_l2_percent"] > 30:
+                insights.append("L2_HEAVY: Consider increasing L1 size for better performance")
+            if stats["evictions"] > stats["entries"]:
+                insights.append("HIGH_EVICTION: Cache thrashing detected, consider increasing cache size")
+            if stats["recent_hit_rate_percent"] < stats["hit_rate_percent"] - 10:
+                insights.append("DEGRADING_PERFORMANCE: Recent hit rate is declining")
+
+        stats["insights"] = insights
+        return stats
 
 
 # Global singleton instance

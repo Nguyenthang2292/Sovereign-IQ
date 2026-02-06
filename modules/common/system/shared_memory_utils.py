@@ -7,7 +7,7 @@ to enable efficient data sharing between processes without pickling overhead.
 
 import pickle
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -21,7 +21,9 @@ except ImportError:
     SHARED_MEMORY_AVAILABLE = False
 
 
-def setup_shared_memory_for_dataframe(df: pd.DataFrame, columns_to_share: list[str] = None) -> Dict[str, Any]:
+def setup_shared_memory_for_dataframe(
+    df: pd.DataFrame, columns_to_share: Optional[list[str]] = None
+) -> Dict[str, Any]:
     """
     Create shared memory for DataFrame arrays.
 
@@ -52,15 +54,14 @@ def setup_shared_memory_for_dataframe(df: pd.DataFrame, columns_to_share: list[s
     index_info = pickle.dumps(df.index, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Determine columns to process
-    if columns_to_share is None:
-        cols_to_process = df.columns
-    else:
-        cols_to_process = [c for c in columns_to_share if c in df.columns]
+    cols_to_process: list[str] = (
+        list(df.columns) if columns_to_share is None else [str(c) for c in columns_to_share if c in df.columns]
+    )
 
     # Process each column
     for col in cols_to_process:
         # Convert to numpy array
-        arr = df[col].values
+        arr = np.asarray(df[col].values, dtype=None)
 
         # Skip if empty or not numeric (for now, shared memory is best for numeric arrays)
         if arr.size == 0 or not np.issubdtype(arr.dtype, np.number):
@@ -97,7 +98,7 @@ def setup_shared_memory_for_dataframe(df: pd.DataFrame, columns_to_share: list[s
         "shm_objects": shm_objects,
         "shm_refs": shm_refs,  # Keep references to prevent garbage collection on Windows
         "index_info": index_info,
-        "columns": list(cols_to_process),
+        "columns": cols_to_process,
         "dtypes": dtypes,
     }
 
@@ -115,7 +116,7 @@ def setup_shared_memory_for_series(series: pd.Series) -> Dict[str, Any]:
     # Create a single-column DataFrame to reuse the existing logic
     name = series.name if series.name is not None else "series"
     df = pd.DataFrame({name: series})
-    return setup_shared_memory_for_dataframe(df, columns_to_share=[name])
+    return setup_shared_memory_for_dataframe(df, columns_to_share=[str(name)])
 
 
 def reconstruct_series_from_shared_memory(shm_info: Dict[str, Any]) -> pd.Series:

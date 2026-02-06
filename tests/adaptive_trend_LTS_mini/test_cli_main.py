@@ -17,6 +17,11 @@ import sys
 import pandas as pd
 
 from modules.adaptive_trend_LTS_mini.cli.main import ATCAnalyzer, initialize_components
+from modules.adaptive_trend_LTS_mini.cli.input_utils import (
+    determine_mode_and_timeframe,
+    get_symbol_input,
+)
+from modules.adaptive_trend_LTS_mini.cli.config_utils import get_atc_params
 from modules.adaptive_trend_LTS_mini.cli.interactive_prompts import UserExitRequested
 
 @pytest.fixture
@@ -63,63 +68,50 @@ def test_atc_analyzer_mode_determination(mock_args, mock_data_fetcher):
     """Test mode determination with different arg combinations."""
     # Case 1: Auto mode via args
     mock_args.auto = True
-    analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-    mode, timeframe = analyzer.determine_mode_and_timeframe()
+    mode, timeframe = determine_mode_and_timeframe(mock_args)
     assert mode == "auto"
     assert timeframe == "1h"
 
     # Case 2: Manual mode via no_menu
     mock_args.auto = False
     mock_args.no_menu = True
-    analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-    mode, timeframe = analyzer.determine_mode_and_timeframe()
+    mode, timeframe = determine_mode_and_timeframe(mock_args)
     assert mode == "manual"
     assert timeframe == "1h"
 
     # Case 3: Interactive mode (mocked)
     mock_args.no_menu = False
-    with patch("modules.adaptive_trend_LTS_mini.cli.main.prompt_interactive_mode") as mock_prompt:
+    with patch("modules.adaptive_trend_LTS_mini.cli.input_utils.prompt_interactive_mode") as mock_prompt:
         mock_prompt.return_value = {"mode": "auto", "timeframe": "4h"}
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        mode, timeframe = analyzer.determine_mode_and_timeframe()
+        mode, timeframe = determine_mode_and_timeframe(mock_args)
         assert mode == "auto"
         assert timeframe == "4h"
 
     # Case 4: Timeframe only change (should stay manual)
     mock_args.no_menu = False
-    with patch("modules.adaptive_trend_LTS_mini.cli.main.prompt_interactive_mode") as mock_prompt:
+    with patch("modules.adaptive_trend_LTS_mini.cli.input_utils.prompt_interactive_mode") as mock_prompt:
         mock_prompt.return_value = {"timeframe": "2h"} # No mode returned
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        mode, timeframe = analyzer.determine_mode_and_timeframe()
+        mode, timeframe = determine_mode_and_timeframe(mock_args)
         assert mode == "manual"
         assert timeframe == "2h"
 
 def test_atc_params_extraction(mock_args, mock_data_fetcher):
-    """Test parameter extraction and caching."""
-    analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-    params = analyzer.get_atc_params()
-    
+    """Test parameter extraction."""
+    params = get_atc_params(mock_args)
+
     assert params["limit"] == 100
     assert params["ema_len"] == 10
-    assert analyzer._atc_params is not None  # Should be cached
-    
-    # modify cache to verify it's used
-    analyzer._atc_params["limit"] = 999
-    params2 = analyzer.get_atc_params()
-    assert params2["limit"] == 999
 
 def test_interactive_loop_exit(mock_args, mock_data_fetcher):
     """Test graceful exit handling."""
     mock_args.auto = False
     mock_args.no_menu = False
 
-    with patch("modules.adaptive_trend_LTS_mini.cli.main.prompt_interactive_mode") as mock_prompt:
+    with patch("modules.adaptive_trend_LTS_mini.cli.input_utils.prompt_interactive_mode") as mock_prompt:
         mock_prompt.side_effect = UserExitRequested()
 
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-
         with pytest.raises(SystemExit) as excinfo:
-            analyzer.determine_mode_and_timeframe()
+            determine_mode_and_timeframe(mock_args)
         assert excinfo.value.code == 0
 
 
@@ -131,43 +123,40 @@ def test_interactive_loop_exit(mock_args, mock_data_fetcher):
 class TestErrorHandling:
     """Test error handling paths in ATCAnalyzer."""
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.normalize_symbol")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.prompt_user_input")
+    @patch("modules.adaptive_trend_LTS_mini.cli.input_utils.normalize_symbol")
+    @patch("modules.adaptive_trend_LTS_mini.cli.input_utils.prompt_user_input")
     def test_symbol_input_validation_rejects_invalid_characters(self, mock_prompt, mock_normalize, mock_args, mock_data_fetcher):
         """Test that symbol input validation rejects SQL injection attempts."""
         mock_args.symbol = None
         mock_args.no_prompt = False
         mock_prompt.return_value = "BTC/USDT; DROP TABLE users"  # SQL injection attempt
 
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        result = analyzer.get_symbol_input()
+        get_symbol_input(mock_args)
 
         # Should default to DEFAULT_SYMBOL due to invalid characters
         # The semicolon should trigger validation failure
         assert mock_normalize.called
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.normalize_symbol")
+    @patch("modules.adaptive_trend_LTS_mini.cli.input_utils.normalize_symbol")
     def test_symbol_input_validation_allows_valid_characters(self, mock_normalize, mock_args, mock_data_fetcher):
         """Test that symbol input validation allows alphanumeric, slash, and hyphen."""
         mock_args.symbol = "BTC/USDT"
 
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        analyzer.get_symbol_input()
+        get_symbol_input(mock_args)
 
         mock_normalize.assert_called_once_with("BTC/USDT", "USDT")
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.normalize_symbol")
+    @patch("modules.adaptive_trend_LTS_mini.cli.input_utils.normalize_symbol")
     def test_symbol_input_validation_allows_hyphen_for_symbols(self, mock_normalize, mock_args, mock_data_fetcher):
         """Test that hyphenated symbols are allowed (e.g., BTC-PERP)."""
         mock_args.symbol = "BTC-PERP/USDT"
 
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        analyzer.get_symbol_input()
+        get_symbol_input(mock_args)
 
         mock_normalize.assert_called_once_with("BTC-PERP/USDT", "USDT")
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.analyze_symbol")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.normalize_symbol")
+    @patch("modules.adaptive_trend_LTS_mini.cli.manual_mode_executor.analyze_symbol")
+    @patch("modules.adaptive_trend_LTS_mini.cli.input_utils.normalize_symbol")
     def test_run_manual_mode_handles_analysis_failure(self, mock_normalize, mock_analyze, mock_args, mock_data_fetcher):
         """Test that run_manual_mode handles None result from analyze_symbol."""
         mock_args.symbol = "BTC/USDT"
@@ -182,13 +171,15 @@ class TestErrorHandling:
 
         mock_analyze.assert_called_once()
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.scan_all_symbols")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.create_atc_config_from_dict")
-    def test_run_auto_scan_handles_empty_results(self, mock_create_config, mock_scan, mock_args, mock_data_fetcher):
+    @patch("modules.adaptive_trend_LTS_mini.cli.auto_mode_executor.scan_all_symbols")
+    @patch("modules.adaptive_trend_LTS_mini.cli.config_manager.create_atc_config_from_dict")
+    @patch("modules.adaptive_trend_LTS_mini.cli.config_utils.get_atc_params")
+    def test_run_auto_scan_handles_empty_results(self, mock_get_params, mock_create_config, mock_scan, mock_args, mock_data_fetcher):
         """Test that run_auto_scan handles empty DataFrames gracefully."""
         mock_config = Mock()
         mock_config.batch_size = 100
         mock_create_config.return_value = mock_config
+        mock_get_params.return_value = {}
 
         empty_df = pd.DataFrame()
         mock_scan.return_value = (empty_df, empty_df)
@@ -199,8 +190,8 @@ class TestErrorHandling:
         assert len(long_signals) == 0
         assert len(short_signals) == 0
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.analyze_symbol")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.prompt_user_input")
+    @patch("modules.adaptive_trend_LTS_mini.cli.manual_mode_executor.analyze_symbol")
+    @patch("modules.adaptive_trend_LTS_mini.cli.input_utils.prompt_user_input")
     def test_interactive_loop_handles_keyboard_interrupt(self, mock_prompt, mock_analyze, mock_args, mock_data_fetcher):
         """Test that interactive loop catches KeyboardInterrupt gracefully."""
         mock_prompt.side_effect = KeyboardInterrupt()
@@ -221,8 +212,7 @@ class TestTypeSafety:
 
     def test_get_atc_params_returns_correct_type_structure(self, mock_args, mock_data_fetcher):
         """Test that get_atc_params returns properly structured ATCParams."""
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        params = analyzer.get_atc_params()
+        params = get_atc_params(mock_args)
 
         # Verify it's a dictionary (ATCParams is TypedDict at runtime)
         assert isinstance(params, dict)
@@ -236,8 +226,7 @@ class TestTypeSafety:
 
     def test_get_atc_params_has_all_required_keys(self, mock_args, mock_data_fetcher):
         """Test that all expected parameter keys are present."""
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        params = analyzer.get_atc_params()
+        params = get_atc_params(mock_args)
 
         expected_keys = {
             "limit", "ema_len", "hma_len", "wma_len", "dema_len", "lsma_len", "kama_len",
@@ -258,12 +247,12 @@ class TestTypeSafety:
 class TestDisplayMethods:
     """Test configuration display methods."""
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.log_analysis")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.log_data")
+    @patch("modules.adaptive_trend_LTS_mini.cli.display.log_analysis")
+    @patch("modules.adaptive_trend_LTS_mini.cli.display.log_data")
     def test_display_config_header_with_symbol(self, mock_log_data, mock_log_analysis, mock_args, mock_data_fetcher):
-        """Test _display_config_header displays symbol when provided."""
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        analyzer._display_config_header("TEST ANALYSIS", symbol="BTC/USDT")
+        """Test display_config_header displays symbol when provided."""
+        from modules.adaptive_trend_LTS_mini.cli.display import display_config_header
+        display_config_header("TEST ANALYSIS", "1h", mock_args, symbol="BTC/USDT")
 
         # Verify logging was called
         assert mock_log_analysis.call_count >= 3  # Header, title, divider
@@ -272,34 +261,34 @@ class TestDisplayMethods:
         calls = [str(call) for call in mock_log_data.call_args_list]
         assert any("BTC/USDT" in str(call) for call in calls)
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.log_analysis")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.log_data")
+    @patch("modules.adaptive_trend_LTS_mini.cli.display.log_analysis")
+    @patch("modules.adaptive_trend_LTS_mini.cli.display.log_data")
     def test_display_config_header_without_symbol(self, mock_log_data, mock_log_analysis, mock_args, mock_data_fetcher):
-        """Test _display_config_header works without symbol parameter."""
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        analyzer._display_config_header("TEST ANALYSIS")
+        """Test display_config_header works without symbol parameter."""
+        from modules.adaptive_trend_LTS_mini.cli.display import display_config_header
+        display_config_header("TEST ANALYSIS", "1h", mock_args)
 
         # Should still log configuration info
         assert mock_log_analysis.call_count >= 3
         assert mock_log_data.call_count >= 1  # At least timeframe
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.log_analysis")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.log_data")
+    @patch("modules.adaptive_trend_LTS_mini.cli.display.log_analysis")
+    @patch("modules.adaptive_trend_LTS_mini.cli.display.log_data")
     def test_display_auto_mode_config_shows_mode(self, mock_log_data, mock_log_analysis, mock_args, mock_data_fetcher):
         """Test display_auto_mode_config shows AUTO mode."""
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        analyzer.display_auto_mode_config()
+        from modules.adaptive_trend_LTS_mini.cli.display import display_auto_mode_config
+        display_auto_mode_config("1h", mock_args)
 
         # Check for AUTO mode mention
         calls = [str(call) for call in mock_log_data.call_args_list]
         assert any("AUTO" in str(call).upper() for call in calls)
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.log_analysis")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.log_data")
+    @patch("modules.adaptive_trend_LTS_mini.cli.display.log_analysis")
+    @patch("modules.adaptive_trend_LTS_mini.cli.display.log_data")
     def test_display_manual_mode_config_shows_symbol(self, mock_log_data, mock_log_analysis, mock_args, mock_data_fetcher):
         """Test display_manual_mode_config shows the symbol."""
-        analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
-        analyzer.display_manual_mode_config("ETH/USDT")
+        from modules.adaptive_trend_LTS_mini.cli.display import display_manual_mode_config
+        display_manual_mode_config("ETH/USDT", "1h", mock_args)
 
         # Check for symbol mention
         calls = [str(call) for call in mock_log_data.call_args_list]
@@ -344,13 +333,15 @@ class TestComponentInitialization:
 class TestRunAutoScan:
     """Test run_auto_scan method with various scenarios."""
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.scan_all_symbols")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.create_atc_config_from_dict")
-    def test_run_auto_scan_without_symbol_filter(self, mock_create_config, mock_scan, mock_args, mock_data_fetcher):
+    @patch("modules.adaptive_trend_LTS_mini.cli.auto_mode_executor.scan_all_symbols")
+    @patch("modules.adaptive_trend_LTS_mini.cli.config_manager.create_atc_config_from_dict")
+    @patch("modules.adaptive_trend_LTS_mini.cli.config_utils.get_atc_params")
+    def test_run_auto_scan_without_symbol_filter(self, mock_get_params, mock_create_config, mock_scan, mock_args, mock_data_fetcher):
         """Test run_auto_scan scans all symbols when no filter provided."""
         mock_config = Mock()
         mock_config.batch_size = 100
         mock_create_config.return_value = mock_config
+        mock_get_params.return_value = {}
         mock_scan.return_value = (pd.DataFrame(), pd.DataFrame())
 
         analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
@@ -360,13 +351,15 @@ class TestRunAutoScan:
         call_kwargs = mock_scan.call_args[1]
         assert call_kwargs["symbols"] is None
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.scan_all_symbols")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.create_atc_config_from_dict")
-    def test_run_auto_scan_with_symbol_filter(self, mock_create_config, mock_scan, mock_args, mock_data_fetcher):
+    @patch("modules.adaptive_trend_LTS_mini.cli.auto_mode_executor.scan_all_symbols")
+    @patch("modules.adaptive_trend_LTS_mini.cli.config_manager.create_atc_config_from_dict")
+    @patch("modules.adaptive_trend_LTS_mini.cli.config_utils.get_atc_params")
+    def test_run_auto_scan_with_symbol_filter(self, mock_get_params, mock_create_config, mock_scan, mock_args, mock_data_fetcher):
         """Test run_auto_scan with pre-filtered symbols list."""
         mock_config = Mock()
         mock_config.batch_size = 100
         mock_create_config.return_value = mock_config
+        mock_get_params.return_value = {}
         mock_scan.return_value = (pd.DataFrame(), pd.DataFrame())
 
         analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
@@ -377,13 +370,15 @@ class TestRunAutoScan:
         call_kwargs = mock_scan.call_args[1]
         assert call_kwargs["symbols"] == test_symbols
 
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.scan_all_symbols")
-    @patch("modules.adaptive_trend_LTS_mini.cli.main.create_atc_config_from_dict")
-    def test_run_auto_scan_respects_execution_mode(self, mock_create_config, mock_scan, mock_args, mock_data_fetcher):
+    @patch("modules.adaptive_trend_LTS_mini.cli.auto_mode_executor.scan_all_symbols")
+    @patch("modules.adaptive_trend_LTS_mini.cli.config_manager.create_atc_config_from_dict")
+    @patch("modules.adaptive_trend_LTS_mini.cli.config_utils.get_atc_params")
+    def test_run_auto_scan_respects_execution_mode(self, mock_get_params, mock_create_config, mock_scan, mock_args, mock_data_fetcher):
         """Test run_auto_scan passes execution_mode parameter correctly."""
         mock_config = Mock()
         mock_config.batch_size = 100
         mock_create_config.return_value = mock_config
+        mock_get_params.return_value = {}
         mock_scan.return_value = (pd.DataFrame(), pd.DataFrame())
 
         mock_args.execution_mode = "dask"
@@ -413,22 +408,26 @@ class TestAnalyzerState:
         assert analyzer.mode == "manual"
         assert analyzer._atc_params is None
 
-    def test_mode_state_persists_after_determination(self, mock_args, mock_data_fetcher):
-        """Test that mode state persists in analyzer after determination."""
+    def test_mode_state_persists_after_run(self, mock_args, mock_data_fetcher):
+        """Test that mode state persists in analyzer after run."""
         mock_args.auto = True
         analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
 
-        mode, _ = analyzer.determine_mode_and_timeframe()
+        with patch("modules.adaptive_trend_LTS_mini.cli.main.determine_mode_and_timeframe") as mock_det:
+            mock_det.return_value = ("auto", "1h")
+            with patch.object(analyzer, "run_auto_mode"):
+                analyzer.run()
 
-        assert analyzer.mode == mode
         assert analyzer.mode == "auto"
 
-    def test_timeframe_state_persists_after_determination(self, mock_args, mock_data_fetcher):
+    def test_timeframe_state_persists_after_run(self, mock_args, mock_data_fetcher):
         """Test that timeframe state persists in analyzer."""
         mock_args.timeframe = "4h"
         analyzer = ATCAnalyzer(mock_args, mock_data_fetcher)
 
-        _, timeframe = analyzer.determine_mode_and_timeframe()
+        with patch("modules.adaptive_trend_LTS_mini.cli.main.determine_mode_and_timeframe") as mock_det:
+            mock_det.return_value = ("manual", "4h")
+            with patch.object(analyzer, "run_manual_mode"):
+                analyzer.run()
 
-        assert analyzer.selected_timeframe == timeframe
         assert analyzer.selected_timeframe == "4h"

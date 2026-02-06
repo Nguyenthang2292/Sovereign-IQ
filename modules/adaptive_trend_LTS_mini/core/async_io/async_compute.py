@@ -10,10 +10,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 from typing import Any, Callable, Dict, Optional, TypeVar, List
 
-try:
-    from typing import ParamSpec
-except ImportError:
-    from typing_extensions import ParamSpec
+from typing import ParamSpec
 
 import pandas as pd
 

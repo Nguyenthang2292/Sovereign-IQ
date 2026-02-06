@@ -136,6 +136,68 @@ class TestDatabasePanel(unittest.TestCase):
         mock_create_order.assert_called_once()
         self.panel._refresh_stats.assert_called_once()
 
+    @patch("sqlalchemy.or_")
+    @patch("modules.auto_trade.gui.components.database_panel.messagebox")
+    @patch("modules.auto_trade.gui.components.database_panel.get_open_positions")
+    @patch("modules.auto_trade.gui.components.database_panel.session_scope")
+    def test_remove_all_open_orders_confirmed_calls_session_and_get_positions(
+        self, mock_session_scope, mock_get_open_positions, mock_messagebox, mock_or_
+    ):
+        mock_or_.return_value = MagicMock()
+        mock_messagebox.askyesno.return_value = True
+        mock_session = MagicMock()
+        mock_session_scope.return_value.__enter__.return_value = mock_session
+        mock_session_scope.return_value.__exit__.return_value = None
+        mock_order = MagicMock()
+        mock_order.order_id = "ORD_001"
+        mock_get_open_positions.return_value = [mock_order]
+        mock_session.query.return_value.filter.return_value.update.return_value = None
+        mock_session.query.return_value.filter.return_value.all.return_value = []
+
+        self.panel._log = MagicMock()
+        self.panel._refresh_stats = MagicMock()
+
+        self.panel._remove_all_open_orders()
+
+        mock_messagebox.askyesno.assert_called_once()
+        mock_get_open_positions.assert_called_once_with(mock_session)
+        self.panel._log.assert_any_call("Removed 1 open order(s) from DB", "SUCCESS")
+        self.panel._refresh_stats.assert_called_once()
+
+    @patch("modules.auto_trade.gui.components.database_panel.messagebox")
+    @patch("modules.auto_trade.gui.components.database_panel.get_open_positions")
+    @patch("modules.auto_trade.gui.components.database_panel.session_scope")
+    def test_remove_all_open_orders_cancelled_does_nothing(
+        self, mock_session_scope, mock_get_open_positions, mock_messagebox
+    ):
+        mock_messagebox.askyesno.return_value = False
+
+        self.panel._remove_all_open_orders()
+
+        mock_messagebox.askyesno.assert_called_once()
+        mock_get_open_positions.assert_not_called()
+
+    @patch("modules.auto_trade.gui.components.database_panel.messagebox")
+    @patch("modules.auto_trade.gui.components.database_panel.get_open_positions")
+    @patch("modules.auto_trade.gui.components.database_panel.session_scope")
+    def test_remove_all_open_orders_no_orders_shows_info(
+        self, mock_session_scope, mock_get_open_positions, mock_messagebox
+    ):
+        mock_messagebox.askyesno.return_value = True
+        mock_session = MagicMock()
+        mock_session_scope.return_value.__enter__.return_value = mock_session
+        mock_session_scope.return_value.__exit__.return_value = None
+        mock_get_open_positions.return_value = []
+
+        self.panel._log = MagicMock()
+
+        self.panel._remove_all_open_orders()
+
+        mock_messagebox.showinfo.assert_called_once()
+        call_args = mock_messagebox.showinfo.call_args[0]
+        self.assertIn("No open orders", call_args[1])
+        mock_session.delete.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

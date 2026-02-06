@@ -20,14 +20,14 @@ else:
     try:
         import fcntl
     except ImportError:
-        fcntl = None
+        fcntl = None  # type: ignore[assignment]
 
 import numpy as np
 import optuna
 import pandas as pd
 from optuna import Study
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import accuracy_score  # type: ignore[import-untyped]
+from sklearn.model_selection import TimeSeriesSplit  # type: ignore[import-untyped]
 
 from config import (
     MODEL_FEATURES,
@@ -53,14 +53,14 @@ def file_lock(lock_file_path: Path):
         else:
             # Unix locking
             if fcntl:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)  # type: ignore[union-attr,attr-defined]
         yield
     finally:
         if os.name == "nt":
             msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
         else:
             if fcntl:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)  # type: ignore[union-attr,attr-defined]
         lock_file.close()
 
 

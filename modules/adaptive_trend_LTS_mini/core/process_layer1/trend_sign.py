@@ -48,7 +48,7 @@ def trend_sign(signal: pd.Series, *, strategy: bool = False) -> pd.Series:
             base = signal.shift(1) if strategy else signal
 
             # Vectorize trend sign (Task 8.5)
-            v = base.values
+            v = np.asarray(base.values, dtype=np.float64)
             res_vals = np.where(v > 0, 1, np.where(v < 0, -1, 0)).astype(np.int8)
             result = pd.Series(res_vals, index=signal.index, dtype="int8")
 

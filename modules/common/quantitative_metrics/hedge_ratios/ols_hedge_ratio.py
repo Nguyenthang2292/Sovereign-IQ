@@ -138,7 +138,7 @@ def calculate_ols_hedge_ratio(
         # The hedge ratio β minimizes: Σ(price1 - β * price2 - α)²
         # When fit_intercept=False, it minimizes: Σ(price1 - β * price2)²
         model = LinearRegression(fit_intercept=fit_intercept)
-        model.fit(price2_clean.values.reshape(-1, 1), price1_clean.values)
+        model.fit(np.asarray(price2_clean.values).reshape(-1, 1), np.asarray(price1_clean.values))
 
         # Validate model has coefficient
         if not hasattr(model, "coef_") or len(model.coef_) == 0:

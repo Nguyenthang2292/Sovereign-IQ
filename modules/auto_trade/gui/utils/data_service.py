@@ -6,7 +6,7 @@ database operations, and mock data for dry-run mode.
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, cast
 
 # Local imports
 from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
@@ -252,8 +252,9 @@ class DataService:
 
                     filtered = []
                     for signal in signals:
-                        # Use final_score (or confidence if final_score is None)
-                        score = float(signal.final_score if signal.final_score is not None else signal.confidence)
+                        # Use final_score (or confidence); cast for type checker (ORM instance yields float)
+                        raw = signal.final_score if signal.final_score is not None else signal.confidence
+                        score = float(cast(Union[float, int], raw))
                         if score >= min_score:
                             signal_type = signal.signal_type.upper()
                             if signal_types is None or signal_type in signal_types:
@@ -266,7 +267,7 @@ class DataService:
                                         "time": signal.created_at.strftime("%Y-%m-%d %H:%M")
                                         if signal.created_at is not None
                                         else "",
-                                        # Extra fields for freshness filtering (< 60s)
+                                        # Extra fields for freshness filtering (< 5 minutes)
                                         "created_at": created_at.isoformat() if created_at is not None else "",
                                         "created_at_ts": float(created_at.timestamp()) if created_at is not None else 0.0,
                                     }

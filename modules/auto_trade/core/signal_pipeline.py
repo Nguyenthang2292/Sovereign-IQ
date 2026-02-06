@@ -40,18 +40,26 @@ Example:
 
 import asyncio
 import time
-from typing import Dict, Optional, TypedDict, Union
+from typing import Dict, List, Optional, Protocol, TypedDict
 
-from modules.auto_trade.core.atc_scanner import ATCScanner
+from concurrent.futures import TimeoutError
+
+from modules.auto_trade.core.atc_scanner import ATCScanner, SignalResult
 from modules.auto_trade.core.circuit_breaker import CircuitBreaker, CircuitState
 from modules.auto_trade.core.gemini_integration import GeminiIntegration, GeminiSignal
 from modules.auto_trade.core.health import HealthRegistry, HealthStatus
 from modules.auto_trade.core.persistence_sqlite import SignalPersistenceSQLite
 from modules.auto_trade.core.signal_selector import FinalSignal, SignalSelector
 from modules.auto_trade.core.symbol_manager import SymbolManager
-from modules.auto_trade.core.xgboost_filter import XGBoostFilter
-from modules.auto_trade.core.xgboost_per_symbol import XGBoostPerSymbolFilter
 from modules.auto_trade.monitoring.alerts import AlertManager
+
+
+class XGBoostFilterLike(Protocol):
+    """Protocol for any XGBoost-style filter (including passthrough when no model is available)."""
+
+    def filter_signals(self, signals: List[SignalResult]) -> List[SignalResult]: ...
+
+
 from modules.auto_trade.monitoring.audit import AuditLogger
 from modules.auto_trade.monitoring.events import Event, EventBus, EventType
 from modules.auto_trade.monitoring.logger import get_logger, setup_logging
@@ -96,7 +104,7 @@ class SignalPipeline:
     Attributes:
         symbol_manager: Manages tradeable symbols
         atc_scanner: Multi-timeframe trend scanner
-        xgboost_filter: ML signal filter (XGBoostFilter or XGBoostPerSymbolFilter)
+        xgboost_filter: ML signal filter (XGBoostFilter, XGBoostPerSymbolFilter, or passthrough)
         gemini_integration: AI chart analyzer
         signal_selector: Final signal selector
         signal_persistence: Optional signal storage
@@ -114,7 +122,7 @@ class SignalPipeline:
         self,
         symbol_manager: SymbolManager,
         atc_scanner: ATCScanner,
-        xgboost_filter: Union[XGBoostFilter, XGBoostPerSymbolFilter],
+        xgboost_filter: XGBoostFilterLike,
         gemini_integration: GeminiIntegration,
         signal_selector: SignalSelector,
         signal_persistence: Optional[SignalPersistenceSQLite] = None,
@@ -281,11 +289,20 @@ class SignalPipeline:
                 logger.warning("Gemini API not configured. Skipping AI analysis.")
             else:
                 try:
-                    # Wrapped in Circuit Breaker
+                    # Wrapped in Circuit Breaker - handle both sync and async contexts
                     def call_gemini():
-                        return asyncio.run(
-                            self.gemini_integration.analyze_candidates_batch_async(xgboost_signals, max_concurrency=3)
+                        coro = self.gemini_integration.analyze_candidates_batch_async(
+                            xgboost_signals, max_concurrency=3
                         )
+                        try:
+                            # Check if we're already in an event loop
+                            loop = asyncio.get_running_loop()
+                            # We're in an async context, use run_coroutine_threadsafe
+                            future = asyncio.run_coroutine_threadsafe(coro, loop)
+                            return future.result(timeout=60.0)
+                        except RuntimeError:
+                            # No running loop, safe to use asyncio.run
+                            return asyncio.run(coro)
 
                     gemini_results_raw = self.circuit_breaker.call(call_gemini)
 

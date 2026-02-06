@@ -62,7 +62,7 @@ class MomentumIndicators:
             result["MACDs_12_26_9"] = 0.0
 
         # Bollinger Bands (BBP - Bollinger Band Percentage)
-        bbands = ta.bbands(result["close"], length=20, std=2.0)
+        bbands = ta.bbands(result["close"], length=20, std=2.0)  # type: ignore[arg-type]
         if bbands is not None and not bbands.empty:
             bbp_cols = [col for col in bbands.columns if col.startswith("BBP")]
             if bbp_cols:
@@ -203,7 +203,7 @@ def calculate_bollinger_bands_series(close: pd.Series, period: int = 20, std: fl
         DataFrame with columns: BB_upper, BB_middle, BB_lower.
         Returns default values based on SMA if calculation fails.
     """
-    bbands = ta.bbands(close, length=period, std=std)
+    bbands = ta.bbands(close, length=period, std=std)  # type: ignore[arg-type]
     if bbands is None or bbands.empty:
         # Return default values based on SMA
         sma = ta.sma(close, length=period)
@@ -324,9 +324,11 @@ def calculate_kama(
             .fillna(1e-10)
         )
 
-        volatility = np.where(np.logical_or(volatility == 0, np.isinf(volatility)), 1e-10, volatility)
+        volatility_safe = np.where(np.logical_or(volatility == 0, np.isinf(volatility)), 1e-10, volatility)
 
-        efficiency_ratio = np.clip((changes / volatility).fillna(0).replace([np.inf, -np.inf], 0), 0, 1)
+        efficiency_ratio: Union[pd.Series, np.ndarray] = np.clip(
+            (changes / volatility_safe).fillna(0).replace([np.inf, -np.inf], 0), 0, 1
+        )
 
         for idx in range(window, len(prices_array)):
             if not np.isfinite(prices_array[idx]):
@@ -348,9 +350,9 @@ def calculate_kama(
                 kama[idx] = kama[idx - 1]
 
     except (ValueError, TypeError, IndexError):
-        kama = pd.Series(prices).rolling(window=window, min_periods=1).mean().ffill().values
+        kama = pd.Series(prices).rolling(window=window, min_periods=1).mean().ffill().values  # type: ignore[assignment]
 
-    kama_array = np.asarray(kama, dtype=np.float64)
+    kama_array = np.asarray(kama, dtype=np.float64)  # type: ignore[assignment]
     return np.where(~np.isfinite(kama_array), initial_value, kama_array).astype(np.float64)
 
 

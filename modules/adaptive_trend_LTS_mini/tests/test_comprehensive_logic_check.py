@@ -491,18 +491,18 @@ class TestParameterNameMismatch:
 
         index = pd.RangeIndex(10)
 
-        # With unscaled L
-        growth_unscaled = exp_growth(L=L_unscaled, index=index, cutout=0)
+        # With unscaled lambda_val
+        growth_unscaled = exp_growth(lambda_val=L_unscaled, index=index, cutout=0)
 
-        # With scaled L
-        growth_scaled = exp_growth(L=L_scaled, index=index, cutout=0)
+        # With scaled lambda_val
+        growth_scaled = exp_growth(lambda_val=L_scaled, index=index, cutout=0)
 
         # Kết quả rất khác nhau!
         # growth_unscaled sẽ tăng rất nhanh
         # growth_scaled sẽ tăng chậm hơn
 
         assert not np.allclose(growth_unscaled.values, growth_scaled.values), (
-            "Unscaled và scaled L tạo ra kết quả rất khác nhau"
+            "Unscaled và scaled lambda_val tạo ra kết quả rất khác nhau"
         )
 
 

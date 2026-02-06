@@ -31,7 +31,11 @@
       "Bash(del:*)",
       "Bash(git mv:*)",
       "Bash(move:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(mypy:*)",
+      "Bash(then mkdir -p docs/reviews)",
+      "Bash(timeout:*)",
+      "Bash(set PYTHONPATH=%CD%:*)"
     ]
   }
 }

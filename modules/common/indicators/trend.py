@@ -235,8 +235,8 @@ def calculate_weighted_ma(
     delta = (close - prev_close).abs()
 
     # Handle division by zero
-    weights = np.where((prev_close != 0) & (~pd.isna(prev_close)), delta / prev_close, 0.0)
-    weights = pd.Series(weights, index=close.index)
+    weights_arr = np.where((prev_close != 0) & (~pd.isna(prev_close)), delta / prev_close, 0.0)
+    weights = pd.Series(weights_arr, index=close.index)
 
     # Weighted close prices
     weighted_close = close * weights

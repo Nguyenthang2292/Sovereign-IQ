@@ -55,7 +55,7 @@ recovery:
   min_leverage: 5
   max_leverage: 15
   enable_streak_bonus: true
-  enabled: false
+  enabled: true
 trading:
   default_position_size: 100.0
   default_leverage: 2

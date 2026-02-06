@@ -101,7 +101,8 @@ def calculate_hurst_exponent(
         # Calculate variance-based scaling for each lag
         for lag in lags_list:
             # Difference between series at lag intervals
-            diff = np.subtract(series[lag:], series[:-lag])
+            s_arr = np.asarray(series)
+            diff = np.subtract(s_arr[lag:], s_arr[:-lag])
 
             # Validate diff has enough values for meaningful std calculation
             if len(diff) < 2:

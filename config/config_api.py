@@ -25,7 +25,7 @@ _logger = logging.getLogger(__name__)
 try:
     import winreg
 except ImportError:
-    winreg = None  # winreg not available (non-Windows system or Python < 3.2)
+    winreg = None  # type: ignore[assignment]  # winreg not available (non-Windows)
 
 # Thread-safety note:
 # Direct reads of module-level constants (e.g., `BINANCE_API_KEY`) are NOT protected

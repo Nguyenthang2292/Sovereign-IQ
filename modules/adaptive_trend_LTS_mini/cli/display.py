@@ -21,7 +21,7 @@ Typical usage will involve fetching ATC results, then calling `display_atc_signa
 to present the results to the user.
 """
 
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 from colorama import Fore, Style
@@ -31,6 +31,8 @@ from modules.common.core.data_fetcher import DataFetcher
 from modules.common.utils import (
     color_text,
     format_price,
+    log_analysis,
+    log_data,
     log_error,
     log_progress,
     log_success,
@@ -115,6 +117,78 @@ def _display_equity_weights(ma_weights: list[tuple[str, pd.Series]]) -> None:
                         Fore.WHITE,
                     )
                 )
+
+
+def display_config_header(
+    title: str,
+    selected_timeframe: str,
+    args: Any,
+    symbol: Optional[str] = None,
+) -> None:
+    """Display common configuration header.
+
+    Args:
+        title: Header title
+        selected_timeframe: Selected timeframe
+        args: Command-line arguments
+        symbol: Optional symbol
+    """
+    log_analysis("=" * DISPLAY_WIDTH)
+    log_analysis(title)
+    log_analysis("=" * DISPLAY_WIDTH)
+    log_analysis("Configuration:")
+    if symbol:
+        log_data(f"  Symbol: {symbol}")
+    log_data(f"  Timeframe: {selected_timeframe}")
+    log_data(f"  Limit: {args.limit} candles")
+    log_data(f"  Robustness: {args.robustness}")
+    log_data(
+        f"  MA Lengths: EMA={args.ema_len}, HMA={args.hma_len}, "
+        f"WMA={args.wma_len}, DEMA={args.dema_len}, "
+        f"LSMA={args.lsma_len}, KAMA={args.kama_len}"
+    )
+    log_data(f"  Lambda: {args.lambda_param}, Decay: {args.decay}, Cutout: {args.cutout}")
+
+
+def display_auto_mode_config(
+    selected_timeframe: str,
+    args: Any,
+) -> None:
+    """Display configuration for auto mode.
+
+    Args:
+        selected_timeframe: Selected timeframe
+        args: Command-line arguments
+    """
+    display_config_header(
+        "ADAPTIVE TREND CLASSIFICATION (ATC) - AUTO SCAN MODE",
+        selected_timeframe,
+        args,
+    )
+    log_data("  Mode: AUTO (scan all symbols)")
+    log_data(f"  Min Signal: {args.min_signal}")
+    if args.max_symbols:
+        log_data(f"  Max Symbols: {args.max_symbols}")
+
+
+def display_manual_mode_config(
+    symbol: str,
+    selected_timeframe: str,
+    args: Any,
+) -> None:
+    """Display configuration for manual mode.
+
+    Args:
+        symbol: Symbol being analyzed
+        selected_timeframe: Selected timeframe
+        args: Command-line arguments
+    """
+    display_config_header(
+        "ADAPTIVE TREND CLASSIFICATION (ATC) ANALYSIS",
+        selected_timeframe,
+        args,
+        symbol,
+    )
 
 
 def display_atc_signals(

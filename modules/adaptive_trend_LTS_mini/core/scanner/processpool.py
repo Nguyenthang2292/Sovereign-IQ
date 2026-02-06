@@ -18,14 +18,14 @@ try:
     from modules.common.utils import log_debug, log_progress, log_warn
 except ImportError:
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
-    def log_progress(message: str) -> None:
-        print(f"[PROGRESS] {message}")
+    def log_progress(msg: str) -> None:
+        print(f"[PROGRESS] {msg}")
 
-    def log_debug(message: str) -> None:
-        print(f"[DEBUG] {message}")
+    def log_debug(msg: str) -> None:
+        print(f"[DEBUG] {msg}")
 
 
 from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
@@ -41,18 +41,10 @@ def _init_worker(api_key: Optional[str], api_secret: Optional[str], testnet: boo
     global _worker_data_fetcher
     try:
         from modules.common.core.data_fetcher import DataFetcher
-        from modules.common.core.exchange_manager import (
-            AuthenticatedExchangeManager,
-            ExchangeManager,
-            PublicExchangeManager,
-        )
+        from modules.common.core.exchange_manager import ExchangeManager
 
-        # Initialize managers
-        # We use a fresh pool of connections per process
-        public_mgr = PublicExchangeManager()
-        auth_mgr = AuthenticatedExchangeManager(api_key=api_key, api_secret=api_secret, testnet=testnet)
-        ex_mgr = ExchangeManager(auth_mgr, public_mgr)
-
+        # Initialize manager with credentials for worker process
+        ex_mgr = ExchangeManager(api_key=api_key, api_secret=api_secret, testnet=testnet)
         _worker_data_fetcher = DataFetcher(ex_mgr)
     except Exception as e:
         # We can't easily log from here if loggers aren't initialized
@@ -94,9 +86,9 @@ def _scan_processpool(
     try:
         if hasattr(data_fetcher, "exchange_manager") and data_fetcher.exchange_manager.authenticated:
             auth = data_fetcher.exchange_manager.authenticated
-            api_key = auth.default_api_key
-            api_secret = auth.default_api_secret
-            testnet = auth.testnet
+            api_key = getattr(auth, "default_api_key", None)
+            api_secret = getattr(auth, "default_api_secret", None)
+            testnet = getattr(auth, "testnet", False)
     except Exception:
         pass
 

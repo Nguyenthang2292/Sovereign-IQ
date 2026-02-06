@@ -67,7 +67,7 @@ def process_symbols_batch_rust(symbols_data, config, num_threads=None):
         return {}
 
     try:
-        import atc_rust
+        import atc_rust  # type: ignore[import-untyped]
 
         # Prepare params
         params = config.copy()

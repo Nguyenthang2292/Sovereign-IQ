@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.auto_trade.config import (
+from modules.auto_trade.auto_trade_config import (
     AutoTradeConfig,
     MartingaleConfig,
     RiskConfig,

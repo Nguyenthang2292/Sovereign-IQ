@@ -8,17 +8,18 @@ Run: pytest tests/auto_trade/test_database.py -v
 """
 
 import sys
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+import modules.auto_trade.database as db_module
 from modules.auto_trade.database import (
     create_order,
     get_all_programmatic_orders,
-    get_last_closed_order,
+    get_db_manager,
     get_open_positions,
     get_overall_stats,
     initialize_database,
@@ -33,10 +34,12 @@ from modules.auto_trade.database.models import Order, Signal
 
 
 @pytest.fixture
-def test_db(tmp_path):
-    """Create temporary test database."""
+def _test_db(tmp_path):
+    """Create temporary test database and set global manager to use it."""
     db_path = tmp_path / "test_auto_trade.db"
+    db_module._db_manager_instance = None
     initialize_database(str(db_path))
+    get_db_manager(str(db_path))
     yield str(db_path)
 
 
@@ -62,35 +65,38 @@ def sample_order_data():
 class TestDatabaseInitialization:
     """Test database initialization."""
 
-    def test_database_creation(self, test_db):
+    def test_database_creation(self, _test_db):
         """Test database file is created."""
-        assert Path(test_db).exists()
+        assert Path(_test_db).exists(), f"Expected database file at {_test_db}"
 
-    def test_tables_created(self, test_db):
+    def test_tables_created(self, _test_db):
         """Test all tables are created."""
         with session_scope() as session:
-            # Should not raise errors
-            session.execute("SELECT * FROM orders LIMIT 1")
-            session.execute("SELECT * FROM signals LIMIT 1")
-            session.execute("SELECT * FROM martingale_chain LIMIT 1")
-            session.execute("SELECT * FROM system_state LIMIT 1")
-            session.execute("SELECT * FROM audit_log LIMIT 1")
+            session.execute(text("SELECT * FROM orders LIMIT 1"))
+            session.execute(text("SELECT * FROM signals LIMIT 1"))
+            session.execute(text("SELECT * FROM martingale_chain LIMIT 1"))
+            session.execute(text("SELECT * FROM system_state LIMIT 1"))
+            session.execute(text("SELECT * FROM audit_log LIMIT 1"))
 
 
 class TestOrderOperations:
     """Test order CRUD operations."""
 
-    def test_create_order(self, test_db, sample_order_data):
+    def test_create_order(self, _test_db, sample_order_data):
         """Test creating an order."""
         with session_scope() as session:
             order = create_order(session, sample_order_data)
 
-            assert order is not None
-            assert order.order_id == "TEST_ORDER_001"
-            assert order.symbol == "BTCUSDT"
-            assert order.order_source == "PROGRAMMATIC"
+            assert order is not None, f"Expected order to be created, got None"
+            assert (
+                getattr(order, "order_id") == "TEST_ORDER_001"
+            ), f"Expected order_id 'TEST_ORDER_001', got {getattr(order, 'order_id')}"
+            assert getattr(order, "symbol") == "BTCUSDT", f"Expected symbol 'BTCUSDT', got {getattr(order, 'symbol')}"
+            assert (
+                getattr(order, "order_source") == "PROGRAMMATIC"
+            ), f"Expected order_source 'PROGRAMMATIC', got {getattr(order, 'order_source')}"
 
-    def test_get_open_positions(self, test_db, sample_order_data):
+    def test_get_open_positions(self, _test_db, sample_order_data):
         """Test getting open positions."""
         with session_scope() as session:
             # Create order
@@ -99,35 +105,41 @@ class TestOrderOperations:
             # Get open positions
             positions = get_open_positions(session)
 
-            assert len(positions) == 1
-            assert positions[0].order_id == "TEST_ORDER_001"
+            assert len(positions) == 1, f"Expected 1 position, got {len(positions)}"
+            assert (
+                getattr(positions[0], "order_id") == "TEST_ORDER_001"
+            ), f"Expected order_id 'TEST_ORDER_001', got {getattr(positions[0], 'order_id')}"
 
-    def test_update_order_status(self, test_db, sample_order_data):
+    def test_update_order_status(self, _test_db, sample_order_data):
         """Test updating order status."""
         with session_scope() as session:
-            # Create order
             create_order(session, sample_order_data)
+            ok = update_order_status(session, "TEST_ORDER_001", "CLOSED", pnl=125.50)
+            assert ok is True, "Expected update_order_status to return True"
 
-            # Update status
-            order = update_order_status(session, "TEST_ORDER_001", "CLOSED", pnl=125.50)
+            order = session.query(Order).filter(Order.order_id == "TEST_ORDER_001").first()
+            assert order is not None, "Expected to find order with order_id 'TEST_ORDER_001'"
+            assert getattr(order, "status") == "CLOSED", f"Expected status 'CLOSED', got {getattr(order, 'status')}"
+            assert getattr(order, "pnl") == pytest.approx(
+                125.50, abs=0.01
+            ), f"Expected pnl 125.50, got {getattr(order, 'pnl')}"
+            assert getattr(order, "closed_at") is not None, "Expected closed_at to be set"
 
-            assert order.status == "CLOSED"
-            assert order.pnl == 125.50
-            assert order.closed_at is not None
-
-    def test_mark_be_moved(self, test_db, sample_order_data):
+    def test_mark_be_moved(self, _test_db, sample_order_data):
         """Test marking break-even moved."""
         with session_scope() as session:
-            # Create order
             create_order(session, sample_order_data)
+            ok = mark_be_moved(session, "TEST_ORDER_001", new_stop_loss=50000.0)
+            assert ok is True, "Expected mark_be_moved to return True"
 
-            # Mark BE moved
-            order = mark_be_moved(session, "TEST_ORDER_001", new_stop_loss=50000.0)
+            order = session.query(Order).filter(Order.order_id == "TEST_ORDER_001").first()
+            assert order is not None, "Expected to find order with order_id 'TEST_ORDER_001'"
+            assert getattr(order, "be_moved") is True, "Expected be_moved to be True"
+            assert getattr(order, "stop_loss") == pytest.approx(
+                50000.0, abs=0.01
+            ), f"Expected stop_loss 50000.0, got {getattr(order, 'stop_loss')}"
 
-            assert order.be_moved is True
-            assert order.stop_loss == 50000.0
-
-    def test_programmatic_order_filtering(self, test_db, sample_order_data):
+    def test_programmatic_order_filtering(self, _test_db, sample_order_data):
         """Test that only programmatic orders are returned."""
         with session_scope() as session:
             # Create programmatic order
@@ -143,11 +155,12 @@ class TestOrderOperations:
             # Get all programmatic orders
             prog_orders = get_all_programmatic_orders(session)
 
-            # Should only return 1 (programmatic)
-            assert len(prog_orders) == 1
-            assert prog_orders[0].order_source == "PROGRAMMATIC"
+            assert len(prog_orders) == 1, f"Expected 1 programmatic order, got {len(prog_orders)}"
+            assert (
+                getattr(prog_orders[0], "order_source") == "PROGRAMMATIC"
+            ), f"Expected order_source 'PROGRAMMATIC', got {getattr(prog_orders[0], 'order_source')}"
 
-    def test_is_programmatic_order(self, test_db, sample_order_data):
+    def test_is_programmatic_order(self, _test_db, sample_order_data):
         """Test checking if order is programmatic."""
         with session_scope() as session:
             # Create programmatic order
@@ -156,13 +169,13 @@ class TestOrderOperations:
             # Check
             is_prog = is_programmatic_order(session, "TEST_ORDER_001")
 
-            assert is_prog is True
+            assert is_prog is True, f"Expected is_programmatic_order to return True, got {is_prog}"
 
 
 class TestSignalOperations:
     """Test signal operations."""
 
-    def test_save_signal(self, test_db):
+    def test_save_signal(self, _test_db):
         """Test saving a signal."""
         with session_scope() as session:
             signal = save_signal(
@@ -175,38 +188,43 @@ class TestSignalOperations:
                 xgboost_score=0.90,
             )
 
-            assert signal is not None
-            assert signal.correlation_id == "SIGNAL_001"
-            assert signal.confidence == 0.85
+            assert signal is not None, "Expected signal to be saved, got None"
+            assert (
+                getattr(signal, "correlation_id") == "SIGNAL_001"
+            ), f"Expected correlation_id 'SIGNAL_001', got {getattr(signal, 'correlation_id')}"
+            assert getattr(signal, "confidence") == pytest.approx(
+                0.85, abs=0.01
+            ), f"Expected confidence 0.85, got {getattr(signal, 'confidence')}"
 
-    def test_mark_signal_executed(self, test_db, sample_order_data):
-        """Test marking signal as executed."""
+    def test_mark_signal_executed(self, _test_db, sample_order_data):
+        """Test marking signal as executed (execution_order_id references orders.id)."""
         with session_scope() as session:
-            # Create signal
             save_signal(session, correlation_id="SIGNAL_001", symbol="BTCUSDT", signal_type="LONG", confidence=0.85)
+            order = create_order(session, sample_order_data)
 
-            # Create order
-            create_order(session, sample_order_data)
+            ok = mark_signal_executed(session, "SIGNAL_001", str(order.id))
+            assert ok is True, f"Expected mark_signal_executed to return True, got {ok}"
 
-            # Mark signal executed
-            signal = mark_signal_executed(session, "SIGNAL_001", "TEST_ORDER_001")
-
-            assert signal.executed is True
-            assert signal.order_id == "TEST_ORDER_001"
+            signal = session.query(Signal).filter(Signal.correlation_id == "SIGNAL_001").first()
+            assert signal is not None, "Expected to find signal with correlation_id 'SIGNAL_001'"
+            assert getattr(signal, "executed") is True, "Expected signal.executed to be True"
+            assert getattr(signal, "execution_order_id") == str(
+                order.id
+            ), f"Expected execution_order_id {str(order.id)}, got {getattr(signal, 'execution_order_id')}"
 
 
 class TestStatistics:
     """Test statistics calculations."""
 
-    def test_overall_stats_empty(self, test_db):
+    def test_overall_stats_empty(self, _test_db):
         """Test stats with no orders."""
         with session_scope() as session:
             stats = get_overall_stats(session)
 
-            assert stats["total_orders"] == 0
-            assert stats["win_rate"] == 0.0
+            assert stats["total_trades"] == 0, f"Expected total_trades 0, got {stats['total_trades']}"
+            assert stats["win_rate"] == pytest.approx(0.0, abs=0.01), f"Expected win_rate 0.0, got {stats['win_rate']}"
 
-    def test_overall_stats_with_data(self, test_db, sample_order_data):
+    def test_overall_stats_with_data(self, _test_db, sample_order_data):
         """Test stats with orders."""
         with session_scope() as session:
             # Create winning order
@@ -226,31 +244,27 @@ class TestStatistics:
             # Get stats
             stats = get_overall_stats(session)
 
-            assert stats["total_orders"] == 2
-            assert stats["closed_orders"] == 2
-            assert stats["winning_orders"] == 1
-            assert stats["losing_orders"] == 1
-            assert stats["win_rate"] == 50.0
-            assert stats["total_pnl"] == 75.25
+            assert stats["total_trades"] == 2, f"Expected total_trades 2, got {stats['total_trades']}"
+            assert stats["winning_trades"] == 1, f"Expected winning_trades 1, got {stats['winning_trades']}"
+            assert stats["losing_trades"] == 1, f"Expected losing_trades 1, got {stats['losing_trades']}"
+            assert stats["win_rate"] == pytest.approx(
+                50.0, abs=0.01
+            ), f"Expected win_rate 50.0, got {stats['win_rate']}"
+            assert stats["total_pnl"] == pytest.approx(
+                75.25, abs=0.01
+            ), f"Expected total_pnl 75.25, got {stats['total_pnl']}"
 
 
 class TestDataValidation:
     """Test data validation."""
 
-    def test_required_fields(self, test_db):
+    def test_required_fields(self, _test_db):
         """Test that required fields are enforced."""
         with session_scope() as session:
-            with pytest.raises(Exception):
-                # Missing required fields should fail
-                create_order(
-                    session,
-                    {
-                        "symbol": "BTCUSDT"
-                        # Missing many required fields
-                    },
-                )
+            with pytest.raises(ValueError):
+                create_order(session, {"symbol": "BTCUSDT"})
 
-    def test_side_validation(self, test_db, sample_order_data):
+    def test_side_validation(self, _test_db, sample_order_data):
         """Test that invalid side is rejected."""
         with session_scope() as session:
             invalid_data = sample_order_data.copy()

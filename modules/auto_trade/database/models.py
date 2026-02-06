@@ -107,7 +107,7 @@ class Order(Base, JSONSerializableMixin):
 
     # Martingale Chain Tracking
     martingale_step = Column(Integer, default=0)
-    parent_order_id = Column(String(100), ForeignKey("orders.order_id"), index=True)
+    parent_order_id = Column(String(100), ForeignKey("orders.id"), index=True)
     martingale_chain_id = Column(String(100), index=True)
     is_martingale_recovery = Column(Boolean, default=False)
 
@@ -137,7 +137,12 @@ class Order(Base, JSONSerializableMixin):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    parent_order = relationship("Order", remote_side=[order_id], backref="child_orders")
+    parent_order = relationship(
+        "Order",
+        foreign_keys=[parent_order_id],
+        remote_side=[id],
+        backref="child_orders",
+    )
 
     # Table constraints
     __table_args__ = (
@@ -251,7 +256,7 @@ class Signal(Base, JSONSerializableMixin):
 
     # Execution Status
     executed = Column(Boolean, default=False, index=True)
-    execution_order_id = Column(String(100), ForeignKey("orders.order_id"), index=True)
+    execution_order_id = Column(String(100), ForeignKey("orders.id"), index=True)
     rejected = Column(Boolean, default=False)
     rejection_reason = Column(Text)
 
@@ -352,9 +357,9 @@ class MartingaleChain(Base, JSONSerializableMixin):
     max_allowed_loss = Column(Float)
 
     # Order References
-    initial_order_id = Column(String(100), ForeignKey("orders.order_id"))
-    latest_order_id = Column(String(100), ForeignKey("orders.order_id"))
-    recovery_order_id = Column(String(100), ForeignKey("orders.order_id"))
+    initial_order_id = Column(String(100), ForeignKey("orders.id"))
+    latest_order_id = Column(String(100), ForeignKey("orders.id"))
+    recovery_order_id = Column(String(100), ForeignKey("orders.id"))
 
     # Chain Metadata (JSON)
     leverage_progression = Column(Text)
@@ -649,6 +654,32 @@ class AuditLog(Base, JSONSerializableMixin):
     def set_event_data(self, data: dict):
         """Set event data using mixin."""
         self.set_json_field("event_data", data)
+
+
+# ============================================================================
+# MIGRATIONS APPLIED MODEL
+# ============================================================================
+
+
+class MigrationsApplied(Base):
+    """
+    Tracks applied database migrations.
+    """
+
+    __tablename__ = "migrations_applied"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Migration Tracking
+    migration_name = Column(String(255), unique=True, nullable=False, index=True)
+    applied_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    checksum = Column(String(64))
+
+    def __repr__(self):
+        return (
+            f"<MigrationsApplied(id={self.id}, migration_name='{self.migration_name}', applied_at={self.applied_at})>"
+        )
 
 
 # ============================================================================

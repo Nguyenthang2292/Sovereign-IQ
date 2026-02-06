@@ -4,7 +4,7 @@ Display and reporting functions for xgboost_prediction_main.py
 
 import numpy as np
 from colorama import Fore
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix  # type: ignore[import-untyped]
 
 from config import TARGET_LABELS
 from modules.common.utils import log_analysis, log_info, log_model

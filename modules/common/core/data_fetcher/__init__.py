@@ -22,6 +22,7 @@ from typing import Dict, List, Optional
 from modules.common.core.exchange_manager import ExchangeManager
 
 from .base import DataFetcherBase
+from .batch_parallel import BatchParallelFetcher
 from .binance_futures import BinanceFuturesFetcher
 from .binance_prices import BinancePriceFetcher
 from .exceptions import SymbolFetchError
@@ -55,6 +56,7 @@ class DataFetcher(DataFetcherBase):
         self._binance_futures = BinanceFuturesFetcher(self)
         self._symbol_discovery = SymbolDiscovery(self)
         self._ohlcv = OHLCVFetcher(self)
+        self._batch_parallel = BatchParallelFetcher(self)
 
     # ========== Binance Prices Methods ==========
 
@@ -74,8 +76,8 @@ class DataFetcher(DataFetcherBase):
 
     def fetch_binance_futures_positions(
         self,
-        api_key: str = None,
-        api_secret: str = None,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
         testnet: bool = False,
         debug: bool = False,
     ) -> List[Dict]:
@@ -91,7 +93,7 @@ class DataFetcher(DataFetcherBase):
         Returns:
             List of dictionaries containing position information
         """
-        return self._binance_futures.fetch_binance_futures_positions(api_key, api_secret, testnet, debug)
+        return self._binance_futures.fetch_binance_futures_positions(api_key, api_secret, testnet, debug)  # type: ignore[arg-type]
 
     def fetch_binance_account_balance(
         self,
@@ -197,6 +199,83 @@ class DataFetcher(DataFetcherBase):
             or (None, None) if data cannot be fetched
         """
         return self._ohlcv.fetch_ohlcv_with_fallback_exchange(symbol, limit, timeframe, check_freshness, exchanges)
+
+    # ========== Batch Parallel Methods ==========
+
+    def fetch_ohlcv_batch_parallel(
+        self,
+        symbols: List[str],
+        limit: int = 1500,
+        timeframe: str = "1h",
+        check_freshness: bool = False,
+        exchanges: Optional[List[str]] = None,
+        max_workers: Optional[int] = None,
+    ):
+        """
+        Fetch OHLCV data for multiple symbols in parallel.
+
+        This method is significantly faster than calling fetch_ohlcv_with_fallback_exchange
+        sequentially for multiple symbols. It uses ThreadPoolExecutor to fetch data concurrently.
+
+        Args:
+            symbols: List of trading pair symbols (e.g., ['BTC/USDT', 'ETH/USDT'])
+            limit: Number of candles to fetch (default: 1500)
+            timeframe: Timeframe string (e.g., '1h', '1d')
+            check_freshness: If True, checks data freshness (default: False)
+            exchanges: Optional list of exchange IDs to try
+            max_workers: Maximum number of worker threads (default: min(32, len(symbols) + 4))
+
+        Returns:
+            Dictionary mapping symbol to (DataFrame, exchange_id) tuple.
+            Returns (None, None) for symbols where data cannot be fetched.
+
+        Example:
+            >>> results = fetcher.fetch_ohlcv_batch_parallel(['BTC/USDT', 'ETH/USDT'], limit=1000)
+            >>> btc_df, btc_exchange = results['BTC/USDT']
+        """
+        return self._batch_parallel.fetch_ohlcv_batch_parallel(
+            symbols, limit, timeframe, check_freshness, exchanges, max_workers
+        )
+
+    def prefetch_symbols_data(
+        self,
+        symbols: List[str],
+        limit: int = 1500,
+        timeframe: str = "1h",
+        check_freshness: bool = False,
+        exchanges: Optional[List[str]] = None,
+        max_workers: Optional[int] = None,
+    ) -> int:
+        """
+        Prefetch and cache OHLCV data for multiple symbols in parallel.
+
+        This method fetches data for multiple symbols in parallel and caches the results.
+        Subsequent calls to fetch_ohlcv_with_fallback_exchange for these symbols will use
+        the cached data, improving performance significantly.
+
+        Useful when you know you'll need data for multiple symbols and want to fetch them
+        all at once efficiently (e.g., before scanning or batch processing).
+
+        Args:
+            symbols: List of trading pair symbols
+            limit: Number of candles to fetch (default: 1500)
+            timeframe: Timeframe string (default: '1h')
+            check_freshness: If True, checks data freshness (default: False)
+            exchanges: Optional list of exchange IDs to try
+            max_workers: Maximum number of worker threads
+
+        Returns:
+            Number of symbols successfully fetched and cached
+
+        Example:
+            >>> # Prefetch data for all symbols you'll need
+            >>> success_count = fetcher.prefetch_symbols_data(all_symbols, limit=1000, max_workers=10)
+            >>> # Now individual fetches will use cached data
+            >>> df, exchange = fetcher.fetch_ohlcv_with_fallback_exchange('BTC/USDT', limit=1000)
+        """
+        return self._batch_parallel.prefetch_symbols_data(
+            symbols, limit, timeframe, check_freshness, exchanges, max_workers
+        )
 
     def fetch_ohlcv(
         self,

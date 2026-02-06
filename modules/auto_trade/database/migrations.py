@@ -8,6 +8,7 @@ Uses Alembic-like approach for SQLite.
 Created: 2026-02-03
 """
 
+import hashlib
 import logging
 import os
 import sqlite3
@@ -161,7 +162,15 @@ class MigrationManager:
             List of column information dictionaries
         """
         # Whitelist of allowed tables to prevent SQL injection
-        ALLOWED_TABLES = {'orders', 'signals', 'martingale_chain', 'system_state', 'audit_log'}
+        ALLOWED_TABLES = {
+            "orders",
+            "signals",
+            "martingale_chain",
+            "gradual_recovery",
+            "system_state",
+            "audit_log",
+            "migrations_applied",
+        }
 
         if table_name not in ALLOWED_TABLES:
             logger.error(f"Invalid table name: {table_name}")
@@ -221,15 +230,18 @@ class MigrationManager:
             conn.executescript(migration_sql)
             conn.commit()
 
-            # Record migration
+            # Record migration in migrations_applied table
             cursor = conn.cursor()
+            checksum = hashlib.sha256(migration_sql.encode()).hexdigest()
             cursor.execute(
                 """
-                INSERT INTO audit_log 
-                (event_type, event_category, severity, event_summary, source_module)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO migrations_applied (migration_name, applied_at, checksum)
+                VALUES (?, datetime('now'), ?)
+                ON CONFLICT(migration_name) DO UPDATE SET
+                    applied_at = excluded.applied_at,
+                    checksum = excluded.checksum
                 """,
-                ("MIGRATION_APPLIED", "SYSTEM", "INFO", f"Applied migration: {migration_name}", "migrations.py"),
+                (migration_name, checksum),
             )
             conn.commit()
             conn.close()
@@ -285,9 +297,24 @@ class MigrationManager:
         Returns:
             List of migration filenames
         """
-        # This is a simple version - in production you'd track applied migrations
+        # Get all migration files
         migration_files = sorted(self.migrations_dir.glob("*.sql"))
-        return [f.name for f in migration_files]
+        all_migrations = [f.name for f in migration_files]
+
+        # Get already applied migrations from database
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT migration_name FROM migrations_applied")
+            applied = {row[0] for row in cursor.fetchall()}
+            conn.close()
+        except sqlite3.OperationalError:
+            # Table doesn't exist yet (first run)
+            applied = set()
+
+        # Return only pending migrations
+        pending = [m for m in all_migrations if m not in applied]
+        return pending
 
     def auto_migrate(self) -> bool:
         """
@@ -366,7 +393,15 @@ class MigrationManager:
             Dictionary mapping table names to row counts
         """
         # Whitelist of allowed tables to prevent SQL injection
-        ALLOWED_TABLES = {'orders', 'signals', 'martingale_chain', 'system_state', 'audit_log'}
+        ALLOWED_TABLES = {
+            "orders",
+            "signals",
+            "martingale_chain",
+            "gradual_recovery",
+            "system_state",
+            "audit_log",
+            "migrations_applied",
+        }
 
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()

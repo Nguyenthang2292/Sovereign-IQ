@@ -1,5 +1,7 @@
-import customtkinter as ctk
 from typing import Dict
+
+import customtkinter as ctk
+
 from gui.utils.colors import Colors
 from gui.utils.modes import TradingMode
 

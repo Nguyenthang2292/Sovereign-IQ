@@ -79,8 +79,8 @@ def calculate_half_life(spread: pd.Series) -> Optional[float]:
         return None
 
     try:
-        X = spread_lag[valid].values.reshape(-1, 1)
-        y = spread_diff[valid].values
+        X = np.asarray(spread_lag[valid].values).reshape(-1, 1)
+        y = np.asarray(spread_diff[valid].values)
 
         # Validate X and y have valid values
         if len(X) == 0 or len(y) == 0:

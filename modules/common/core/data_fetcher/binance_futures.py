@@ -24,8 +24,8 @@ class BinanceFuturesFetcher:
 
     def fetch_binance_futures_positions(
         self,
-        api_key: str = None,
-        api_secret: str = None,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
         testnet: bool = False,
         debug: bool = False,
     ) -> List[Dict]:
@@ -103,11 +103,12 @@ class BinanceFuturesFetcher:
 
     def _resolve_binance_credentials(self, api_key: Optional[str], api_secret: Optional[str]) -> Tuple[str, str]:
         """Resolve Binance API credentials from multiple sources."""
+        auth = self.base.exchange_manager.authenticated
         resolved_key = (
-            api_key or os.getenv("BINANCE_API_KEY") or self.base.exchange_manager.authenticated.default_api_key
+            api_key or os.getenv("BINANCE_API_KEY") or getattr(auth, "default_api_key", None)
         )
         resolved_secret = (
-            api_secret or os.getenv("BINANCE_API_SECRET") or self.base.exchange_manager.authenticated.default_api_secret
+            api_secret or os.getenv("BINANCE_API_SECRET") or getattr(auth, "default_api_secret", None)
         )
 
         if not resolved_key or not resolved_secret:

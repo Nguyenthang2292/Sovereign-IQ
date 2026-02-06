@@ -8,6 +8,7 @@ Run: pytest tests/auto_trade/test_reconcile.py -v
 """
 
 import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
@@ -75,6 +76,8 @@ class TestReconcileFunction:
         """Create mock CCXT exchange."""
         exchange = Mock()
         exchange.close = Mock()
+        # Default empty open orders for stale order checking
+        exchange.fetch_open_orders = Mock(return_value=[])
         return exchange
 
     @pytest.fixture
@@ -462,6 +465,474 @@ class TestReconcileFunction:
                 # Clean up after test
                 session.delete(order)
                 session.commit()
+
+
+class TestCloseStaleOrders:
+    """Test closing stale OPEN orders not on Binance anymore."""
+
+    @pytest.fixture
+    def test_db(self, tmp_path):
+        """Create temporary test database."""
+        db_path = tmp_path / "test_stale.db"
+        initialize_database(str(db_path))
+        yield str(db_path)
+
+    @pytest.fixture
+    def mock_exchange(self):
+        """Create mock CCXT exchange."""
+        exchange = Mock()
+        exchange.close = Mock()
+        return exchange
+
+    def test_close_stale_open_order(self, test_db, mock_exchange):
+        """Test that stale OPEN orders are closed when not on Binance anymore."""
+        from modules.auto_trade.database import create_order, get_order_by_client_id, session_scope, get_open_positions
+
+        # Clean up any existing open orders first
+        with session_scope() as session:
+            open_orders = get_open_positions(session)
+            for order in open_orders:
+                session.delete(order)
+            session.commit()
+
+        # Create an OPEN order in DB with unique symbol and UUID to avoid conflicts
+        unique_id = str(uuid.uuid4())[:8]
+        order_id = f"ORDER_STALE_{unique_id}"
+        client_order_id = f"AT_1707043200_XYZUSDT_{unique_id}"
+        with session_scope() as session:
+            order_data = {
+                "order_id": order_id,
+                "client_order_id": client_order_id,
+                "symbol": "XYZUSDT",
+                "side": "LONG",
+                "entry_price": 50000.0,
+                "amount": 0.01,
+                "leverage": 2,
+                "status": "OPEN",
+                "order_source": "PROGRAMMATIC",
+                "execution_mode": "AUTO",
+                "created_at": datetime.now(),
+            }
+            create_order(session, order_data)
+
+        # Mock: Binance returns no open orders (order is gone) and fetch_order returns FILLED
+        mock_exchange.fetch_open_orders = Mock(return_value=[])  # No open orders on Binance
+        mock_exchange.fetch_closed_orders = Mock(return_value=[])  # No closed orders in range
+        mock_exchange.fetch_order = Mock(
+            return_value={
+                "id": order_id,
+                "clientOrderId": client_order_id,
+                "symbol": "XYZ/USDT",
+                "type": "MARKET",
+                "side": "BUY",
+                "status": "FILLED",
+                "price": 50000.0,
+                "average": 50000.0,
+                "amount": 0.01,
+                "filled": 0.01,
+                "timestamp": 1707043200000,
+                "lastTradeTimestamp": 1707043300000,
+                "info": {"realizedPnl": "25.50"},
+            }
+        )
+
+        with patch("modules.auto_trade.database.reconcile.ccxt.binance", return_value=mock_exchange):
+            result = reconcile_orders_with_binance("key", "secret", symbols=["XYZ/USDT"])
+
+            # Should have closed 1 stale order
+            assert result["closed_stale"] == 1, f"Expected closed_stale=1, got {result['closed_stale']}"
+
+            # Verify order is now CLOSED in DB
+            with session_scope() as session:
+                order = get_order_by_client_id(session, client_order_id)
+                assert order is not None
+                assert order.status == "CLOSED"
+                assert order.closed_at is not None
+                assert order.pnl == 25.50
+
+        # Cleanup
+        cleanup_test_order(client_order_id)
+
+    def test_close_stale_cancelled_order(self, test_db, mock_exchange):
+        """Test that stale OPEN orders are marked CANCELLED when cancelled on Binance."""
+        from modules.auto_trade.database import create_order, get_order_by_client_id, session_scope
+
+        # Create an OPEN order in DB
+        client_order_id = "AT_1707043200_ETHUSDT_stale002"
+        with session_scope() as session:
+            order_data = {
+                "order_id": "ORDER_STALE_002",
+                "client_order_id": client_order_id,
+                "symbol": "ETHUSDT",
+                "side": "SHORT",
+                "entry_price": 3000.0,
+                "amount": 0.1,
+                "leverage": 3,
+                "status": "OPEN",
+                "order_source": "PROGRAMMATIC",
+                "execution_mode": "AUTO",
+                "created_at": datetime.now(),
+            }
+            create_order(session, order_data)
+
+        # Mock: Order was cancelled on Binance
+        mock_exchange.fetch_open_orders = Mock(return_value=[])
+        mock_exchange.fetch_closed_orders = Mock(return_value=[])
+        mock_exchange.fetch_order = Mock(
+            return_value={
+                "id": "ORDER_STALE_002",
+                "clientOrderId": client_order_id,
+                "symbol": "ETH/USDT",
+                "type": "LIMIT",
+                "side": "SELL",
+                "status": "CANCELED",
+                "price": 3000.0,
+                "average": 0,
+                "amount": 0.1,
+                "filled": 0,
+                "timestamp": 1707043200000,
+                "lastTradeTimestamp": None,
+                "info": {},
+            }
+        )
+
+        with patch("modules.auto_trade.database.reconcile.ccxt.binance", return_value=mock_exchange):
+            result = reconcile_orders_with_binance("key", "secret", symbols=["ETH/USDT"])
+
+            assert result["closed_stale"] == 1
+
+            # Verify order is now CANCELLED in DB
+            with session_scope() as session:
+                order = get_order_by_client_id(session, client_order_id)
+                assert order is not None
+                assert order.status == "CANCELLED"
+
+        # Cleanup
+        cleanup_test_order(client_order_id)
+
+    def test_no_close_when_order_still_open(self, test_db, mock_exchange):
+        """Test that orders are NOT closed when still open on Binance."""
+        from modules.auto_trade.database import create_order, get_order_by_client_id, session_scope
+
+        # Create an OPEN order in DB
+        client_order_id = "AT_1707043200_BTCUSDT_active001"
+        with session_scope() as session:
+            order_data = {
+                "order_id": "ORDER_ACTIVE_001",
+                "client_order_id": client_order_id,
+                "symbol": "BTCUSDT",
+                "side": "LONG",
+                "entry_price": 50000.0,
+                "amount": 0.01,
+                "leverage": 2,
+                "status": "OPEN",
+                "order_source": "PROGRAMMATIC",
+                "execution_mode": "AUTO",
+                "created_at": datetime.now(),
+            }
+            create_order(session, order_data)
+
+        # Mock: Order is still open on Binance
+        mock_exchange.fetch_open_orders = Mock(
+            return_value=[
+                {
+                    "id": "ORDER_ACTIVE_001",
+                    "clientOrderId": client_order_id,
+                    "symbol": "BTC/USDT",
+                    "type": "LIMIT",
+                    "side": "BUY",
+                    "status": "OPEN",
+                    "price": 50000.0,
+                    "amount": 0.01,
+                }
+            ]
+        )
+        mock_exchange.fetch_closed_orders = Mock(return_value=[])
+
+        with patch("modules.auto_trade.database.reconcile.ccxt.binance", return_value=mock_exchange):
+            result = reconcile_orders_with_binance("key", "secret", symbols=["BTC/USDT"])
+
+            # Should not close any stale orders
+            assert result["closed_stale"] == 0
+
+            # Verify order is still OPEN in DB
+            with session_scope() as session:
+                order = get_order_by_client_id(session, client_order_id)
+                assert order is not None
+                assert order.status == "OPEN"
+
+        # Cleanup
+        cleanup_test_order(client_order_id)
+
+    def test_close_stale_api_failure(self, test_db, mock_exchange):
+        """Test that stale orders are closed even when fetch_order fails."""
+        from modules.auto_trade.database import create_order, get_order_by_client_id, session_scope
+
+        # Create an OPEN order in DB
+        client_order_id = "AT_1707043200_BTCUSDT_stale003"
+        with session_scope() as session:
+            order_data = {
+                "order_id": "ORDER_STALE_003",
+                "client_order_id": client_order_id,
+                "symbol": "BTCUSDT",
+                "side": "LONG",
+                "entry_price": 50000.0,
+                "amount": 0.01,
+                "leverage": 2,
+                "status": "OPEN",
+                "order_source": "PROGRAMMATIC",
+                "execution_mode": "AUTO",
+                "created_at": datetime.now(),
+            }
+            create_order(session, order_data)
+
+        # Mock: fetch_order fails but we should still close the stale order
+        mock_exchange.fetch_open_orders = Mock(return_value=[])
+        mock_exchange.fetch_closed_orders = Mock(return_value=[])
+        mock_exchange.fetch_order = Mock(side_effect=Exception("Order not found"))
+
+        with patch("modules.auto_trade.database.reconcile.ccxt.binance", return_value=mock_exchange):
+            result = reconcile_orders_with_binance("key", "secret", symbols=["BTC/USDT"])
+
+            assert result["closed_stale"] == 1
+
+            # Verify order is closed (even though API failed)
+            with session_scope() as session:
+                order = get_order_by_client_id(session, client_order_id)
+                assert order is not None
+                assert order.status == "CLOSED"
+                assert order.closed_at is None  # No timestamp since API failed
+
+        # Cleanup
+        cleanup_test_order(client_order_id)
+
+
+class TestWebSocketSync:
+    """Test WebSocket path updates DB when orders close."""
+
+    def test_websocket_sync_closed_order(self):
+        """Test that WebSocket order close updates DB."""
+        from datetime import datetime
+        from unittest.mock import MagicMock, patch
+
+        from modules.auto_trade.database import create_order, get_order_by_client_id, session_scope
+        from modules.auto_trade.monitoring.account_monitor import OrderSnapshot
+
+        # Create an OPEN order in DB
+        client_order_id = "AT_1707043200_BTCUSDT_ws001"
+        with session_scope() as session:
+            order_data = {
+                "order_id": "ORDER_WS_001",
+                "client_order_id": client_order_id,
+                "symbol": "BTCUSDT",
+                "side": "LONG",
+                "entry_price": 50000.0,
+                "amount": 0.01,
+                "leverage": 2,
+                "status": "OPEN",
+                "order_source": "PROGRAMMATIC",
+                "execution_mode": "AUTO",
+                "created_at": datetime.now(),
+            }
+            create_order(session, order_data)
+
+        # Create a mock OrderSnapshot (closed)
+        now = datetime.now()
+        closed_snapshot = OrderSnapshot(
+            order_id="ORDER_WS_001",
+            client_order_id=client_order_id,
+            symbol="BTC/USDT",
+            side="buy",
+            type="market",
+            status="closed",  # WebSocket status
+            price=50000.0,
+            amount=0.01,
+            filled=0.01,
+            remaining=0.0,
+            timestamp=now,
+            last_update_timestamp=now,
+        )
+
+        # Import the handler
+        from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
+
+        # Create service and call handler
+        service = WebSocketDataService(mode="DEMO")
+
+        with patch("modules.auto_trade.database.session_scope") as mock_session_scope:
+            mock_session = MagicMock()
+            mock_session_scope.return_value.__enter__ = Mock(return_value=mock_session)
+            mock_session_scope.return_value.__exit__ = Mock(return_value=False)
+
+            with patch("modules.auto_trade.database.update_order_status_by_client_id") as mock_update:
+                mock_update.return_value = True
+
+                # Call the handler
+                service._handle_order_update(closed_snapshot)
+
+                # Verify DB was called to update
+                mock_update.assert_called_once()
+                call_args = mock_update.call_args
+                assert call_args[1]["client_order_id"] == client_order_id
+                assert call_args[1]["status"] == "CLOSED"
+
+        # Cleanup
+        cleanup_test_order(client_order_id)
+
+    def test_websocket_sync_cancelled_order(self):
+        """Test that WebSocket order cancel updates DB."""
+        from datetime import datetime
+        from unittest.mock import MagicMock, patch
+
+        from modules.auto_trade.database import create_order, session_scope
+        from modules.auto_trade.monitoring.account_monitor import OrderSnapshot
+
+        # Create an OPEN order in DB
+        client_order_id = "AT_1707043200_ETHUSDT_ws002"
+        with session_scope() as session:
+            order_data = {
+                "order_id": "ORDER_WS_002",
+                "client_order_id": client_order_id,
+                "symbol": "ETHUSDT",
+                "side": "SHORT",
+                "entry_price": 3000.0,
+                "amount": 0.1,
+                "leverage": 3,
+                "status": "OPEN",
+                "order_source": "PROGRAMMATIC",
+                "execution_mode": "AUTO",
+                "created_at": datetime.now(),
+            }
+            create_order(session, order_data)
+
+        # Create a mock OrderSnapshot (cancelled)
+        now = datetime.now()
+        cancelled_snapshot = OrderSnapshot(
+            order_id="ORDER_WS_002",
+            client_order_id=client_order_id,
+            symbol="ETH/USDT",
+            side="sell",
+            type="limit",
+            status="canceled",  # WebSocket status
+            price=3000.0,
+            amount=0.1,
+            filled=0.0,
+            remaining=0.1,
+            timestamp=now,
+            last_update_timestamp=now,
+        )
+
+        from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
+
+        service = WebSocketDataService(mode="DEMO")
+
+        with patch("modules.auto_trade.database.session_scope") as mock_session_scope:
+            mock_session = MagicMock()
+            mock_session_scope.return_value.__enter__ = Mock(return_value=mock_session)
+            mock_session_scope.return_value.__exit__ = Mock(return_value=False)
+
+            with patch("modules.auto_trade.database.update_order_status_by_client_id") as mock_update:
+                mock_update.return_value = True
+
+                service._handle_order_update(cancelled_snapshot)
+
+                # Verify DB was called with CANCELLED
+                mock_update.assert_called_once()
+                call_args = mock_update.call_args
+                assert call_args[1]["status"] == "CANCELLED"
+
+        # Cleanup
+        cleanup_test_order(client_order_id)
+
+    def test_websocket_no_sync_for_open_order(self):
+        """Test that WebSocket does NOT sync when order is still open."""
+        from datetime import datetime
+        from unittest.mock import MagicMock, patch
+
+        from modules.auto_trade.database import create_order, session_scope
+        from modules.auto_trade.monitoring.account_monitor import OrderSnapshot
+
+        # Create an OPEN order in DB
+        client_order_id = "AT_1707043200_BTCUSDT_ws003"
+        with session_scope() as session:
+            order_data = {
+                "order_id": "ORDER_WS_003",
+                "client_order_id": client_order_id,
+                "symbol": "BTCUSDT",
+                "side": "LONG",
+                "entry_price": 50000.0,
+                "amount": 0.01,
+                "leverage": 2,
+                "status": "OPEN",
+                "order_source": "PROGRAMMATIC",
+                "execution_mode": "AUTO",
+                "created_at": datetime.now(),
+            }
+            create_order(session, order_data)
+
+        # Create a mock OrderSnapshot (still open)
+        now = datetime.now()
+        open_snapshot = OrderSnapshot(
+            order_id="ORDER_WS_003",
+            client_order_id=client_order_id,
+            symbol="BTC/USDT",
+            side="buy",
+            type="limit",
+            status="open",  # Still open
+            price=50000.0,
+            amount=0.01,
+            filled=0.0,
+            remaining=0.01,
+            timestamp=now,
+            last_update_timestamp=now,
+        )
+
+        from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
+
+        service = WebSocketDataService(mode="DEMO")
+
+        with patch("modules.auto_trade.database.update_order_status_by_client_id") as mock_update:
+            service._handle_order_update(open_snapshot)
+
+            # Should NOT call DB update for open orders
+            mock_update.assert_not_called()
+
+        # Cleanup
+        cleanup_test_order(client_order_id)
+
+    def test_websocket_no_sync_for_manual_order(self):
+        """Test that WebSocket does NOT sync non-AT_ orders."""
+        from datetime import datetime
+        from unittest.mock import MagicMock, patch
+
+        from modules.auto_trade.monitoring.account_monitor import OrderSnapshot
+
+        # Create a manual (non-AT_) order snapshot
+        now = datetime.now()
+        manual_snapshot = OrderSnapshot(
+            order_id="MANUAL_ORDER_001",
+            client_order_id="MANUAL_ORDER_001",  # Not AT_ prefixed
+            symbol="BTC/USDT",
+            side="buy",
+            type="market",
+            status="closed",
+            price=50000.0,
+            amount=0.01,
+            filled=0.01,
+            remaining=0.0,
+            timestamp=now,
+            last_update_timestamp=now,
+        )
+
+        from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
+
+        service = WebSocketDataService(mode="DEMO")
+
+        with patch("modules.auto_trade.database.update_order_status_by_client_id") as mock_update:
+            service._handle_order_update(manual_snapshot)
+
+            # Should NOT call DB update for manual orders
+            mock_update.assert_not_called()
 
 
 if __name__ == "__main__":

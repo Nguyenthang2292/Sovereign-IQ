@@ -128,11 +128,11 @@ def fast_lsma_approx(prices: pd.Series, length: int, tolerance: float = 0.01) ->
     denominator = n * sum_x2 - sum_x**2
 
     for i in range(length - 1, len(prices)):
-        window = prices.iloc[i - length + 1 : i + 1].values.astype(np.float64)
+        window = np.asarray(prices.iloc[i - length + 1 : i + 1].values, dtype=np.float64)
 
         if len(window) == length:
-            sum_y = window.sum()
-            sum_xy = (x * window).sum()
+            sum_y = float(window.sum())
+            sum_xy = float((x * window).sum())
 
             # Calculate slope and intercept using least squares formula
             slope = (n * sum_xy - sum_x * sum_y) / denominator

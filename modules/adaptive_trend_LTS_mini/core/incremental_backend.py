@@ -12,7 +12,7 @@ import pandas as pd
 
 # Try to import Rust backend
 try:
-    from atc_rust import update_incremental_atc_rust
+    from atc_rust import update_incremental_atc_rust  # type: ignore[import-untyped]
 
     _RUST_AVAILABLE = True
 except ImportError:

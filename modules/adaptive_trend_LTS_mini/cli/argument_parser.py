@@ -228,39 +228,39 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         "Larger batches use more memory but may be faster. Smaller batches use less memory.",
     )
 
-    args = parser.parse_args(args)
+    parsed = parser.parse_args(args)
 
     # Validate numerical arguments
-    if args.limit <= 0:
+    if parsed.limit <= 0:
         parser.error("--limit must be positive")
-    if args.limit > MAX_LIMIT:
+    if parsed.limit > MAX_LIMIT:
         parser.error(f"--limit too large (max: {MAX_LIMIT})")
 
-    if args.batch_size <= 0:
+    if parsed.batch_size <= 0:
         parser.error("--batch-size must be positive")
-    if args.batch_size > MAX_BATCH_SIZE:
+    if parsed.batch_size > MAX_BATCH_SIZE:
         parser.error(f"--batch-size too large (max: {MAX_BATCH_SIZE})")
 
-    if not (0 < args.min_signal <= 1.0):
+    if not (0 < parsed.min_signal <= 1.0):
         parser.error("--min-signal must be between 0 and 1.0")
 
     # Validate MA lengths
     ma_types = ["ema", "hma", "wma", "dema", "lsma", "kama"]
     for ma in ma_types:
-        ma_len = getattr(args, f"{ma}_len", 0)
+        ma_len = getattr(parsed, f"{ma}_len", 0)
         if ma_len <= 0:
             parser.error(f"--{ma}-len must be positive")
 
     # Validate cutout
-    if args.cutout < 0:
+    if parsed.cutout < 0:
         parser.error("--cutout must be non-negative")
 
     # Validate lambda_param
-    if args.lambda_param < 0:
+    if parsed.lambda_param < 0:
         parser.error("--lambda-param must be non-negative")
 
     # Validate decay
-    if args.decay < 0:
+    if parsed.decay < 0:
         parser.error("--decay must be non-negative")
 
-    return args
+    return parsed

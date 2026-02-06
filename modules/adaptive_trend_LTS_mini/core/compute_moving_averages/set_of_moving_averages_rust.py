@@ -69,7 +69,10 @@ def set_of_moving_averages_rust(
         robustness = "Medium"
 
     try:
-        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+        _diflen = diflen(length, robustness=robustness)
+        if _diflen is None:
+            raise ValueError("diflen returned None")
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _diflen
 
         ma_lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
         ma_names = ["MA", "MA1", "MA2", "MA3", "MA4", "MA_1", "MA_2", "MA_3", "MA_4"]
@@ -105,8 +108,8 @@ def set_of_moving_averages_rust(
             log_error(error_msg)
             raise ValueError(error_msg)
 
-        MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4 = mas
-        return MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4
+        MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4 = mas  # type: ignore[misc]
+        return MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4  # type: ignore[return-value]
     except Exception as e:
         log_error(f"Error calculating set of moving averages (Rust): {e}")
         raise

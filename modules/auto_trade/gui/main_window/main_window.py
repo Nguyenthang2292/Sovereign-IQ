@@ -25,6 +25,7 @@ from .scanner import ScannerManager
 from .settings_handler import SettingsHandler
 from .updaters import UpdaterManager
 from .websocket_handler import WebSocketHandler
+from modules.auto_trade.gui.components.status_bar import StatusBar
 
 
 class AutoTradeDashboard(ctk.CTk):
@@ -115,6 +116,13 @@ class AutoTradeDashboard(ctk.CTk):
             self.ws_data_service.start()
             logging.info(f"WebSocket service started (mode={self.mode})")
 
+        # Setup keyboard shortcuts
+        self._setup_keyboard_shortcuts()
+
+        # Create and add status bar
+        self.status_bar = StatusBar(self, mode=self.mode)
+        self.status_bar.pack(side="bottom", fill="x")
+
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def _setup_file_logging(self):
@@ -145,6 +153,46 @@ class AutoTradeDashboard(ctk.CTk):
         logging.info(f"Log file: {self.log_file_path}")
         logging.info("=" * 60)
 
+    def _setup_keyboard_shortcuts(self):
+        """Set up keyboard shortcuts for common actions."""
+        # Refresh data - Ctrl+R or F5
+        self.bind("<Control-r>", lambda e: self._handle_refresh())
+        self.bind("<F5>", lambda e: self._handle_refresh())
+
+        # Close dialogs - Escape
+        self.bind("<Escape>", lambda e: self._handle_escape())
+
+        # Save/Apply settings - Ctrl+S
+        self.bind("<Control-s>", lambda e: self._handle_save())
+
+        logging.info("Keyboard shortcuts initialized: Ctrl+R/F5 (refresh), Esc (close dialogs), Ctrl+S (apply settings)")
+
+    def _handle_refresh(self):
+        """Handle refresh keyboard shortcut."""
+        logging.info("Refresh triggered by keyboard shortcut")
+        self.refresh_signals()
+        self.refresh_positions()
+        self.refresh_account()
+        self.refresh_stats()
+        if hasattr(self, "status_bar"):
+            self.status_bar.set_last_update()
+        return "break"  # Prevent default behavior
+
+    def _handle_escape(self):
+        """Handle escape key - close any open dialogs."""
+        # Close any open toplevel windows (dialogs)
+        for widget in self.winfo_children():
+            if isinstance(widget, ctk.CTkToplevel):
+                widget.destroy()
+                logging.debug("Closed dialog via Escape key")
+                break
+        return "break"
+
+    def _handle_save(self):
+        """Handle Ctrl+S - apply and save settings."""
+        self.on_apply_settings()
+        return "break"
+
     # ==================== UI Update Methods ====================
 
     def _update_mode_display(self):
@@ -172,8 +220,12 @@ class AutoTradeDashboard(ctk.CTk):
         """Update last update timestamp."""
         from datetime import datetime
 
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        self.after(0, lambda: self.last_update_label.configure(text=f"Last update: {timestamp}"))
+        timestamp = datetime.now()
+        time_str = timestamp.strftime("%H:%M:%S")
+        self.after(0, lambda: self.last_update_label.configure(text=f"Last update: {time_str}"))
+        # Also update status bar
+        if hasattr(self, "status_bar"):
+            self.after(0, lambda: self.status_bar.set_last_update(timestamp))
 
     def _thread_refresh_signals(self):
         """Thread-safe signal refresh."""
@@ -190,15 +242,23 @@ class AutoTradeDashboard(ctk.CTk):
         stats = self.data_service.get_quick_stats()
         self._update_queue.put(("stats", stats))
 
+    def _update_connection_status(self):
+        """Update status bar connection status based on WebSocket state."""
+        if hasattr(self, "status_bar") and hasattr(self, "ws_data_service"):
+            is_connected = self.ws_data_service.is_connected()
+            self.status_bar.set_connection_status(is_connected)
+
     def refresh_signals(self):
         """Refresh signals display."""
         signals = self.data_service.get_signals()
         self.after(0, lambda: self.signals_frame.update_signals(signals))
+        self._update_connection_status()
 
     def refresh_positions(self):
         """Refresh positions display."""
         positions = self.data_service.get_positions()
         self.after(0, lambda: self.positions_frame.update_positions(positions))
+        self._update_connection_status()
 
     def refresh_account(self):
         """Refresh account display."""
@@ -266,6 +326,7 @@ class AutoTradeDashboard(ctk.CTk):
         status = {"api_mode": getattr(self, "mode", "DRY_RUN")}
         try:
             from modules.auto_trade.database import get_database_stats
+
             get_database_stats()
             status["database"] = "OK"
         except Exception:
@@ -311,7 +372,9 @@ class AutoTradeDashboard(ctk.CTk):
                     eb = raw.get("enable_streak_bonus", False)
                     enabled = raw.get("enabled", False)
                     self.settings_manager.settings["recovery"] = {
-                        "enabled": enabled if isinstance(enabled, bool) else str(enabled).lower() in ("true", "1", "yes"),
+                        "enabled": enabled
+                        if isinstance(enabled, bool)
+                        else str(enabled).lower() in ("true", "1", "yes"),
                         "initial_loss": float(raw.get("initial_loss", 500)),
                         "target_profit_per_trade": float(raw.get("target_profit_per_trade", 5)),
                         "max_recovery_trades": int(raw.get("max_recovery_trades", 20)),
@@ -344,12 +407,8 @@ class AutoTradeDashboard(ctk.CTk):
                 self.scanner_manager.pipeline = None
 
             if hasattr(self, "status_label"):
-                self.status_label.configure(
-                    text="Settings applied (Scanner, Trading, Gradual Recovery default)."
-                )
-            logging.info(
-                "Settings applied: Scanner, Trading, Gradual Recovery default (settings_manager overwritten)"
-            )
+                self.status_label.configure(text="Settings applied (Scanner, Trading, Gradual Recovery default).")
+            logging.info("Settings applied: Scanner, Trading, Gradual Recovery default (settings_manager overwritten)")
         except Exception as e:
             logging.error(f"Error applying settings: {e}")
             if hasattr(self, "status_label"):
@@ -363,9 +422,7 @@ class AutoTradeDashboard(ctk.CTk):
             if hasattr(self, "config_panel"):
                 current = self.config_panel.get_settings()
                 if hasattr(self.config_panel, "default_leverage_var"):
-                    current.setdefault("risk", {})["default_leverage"] = (
-                        self.config_panel.default_leverage_var.get()
-                    )
+                    current.setdefault("risk", {})["default_leverage"] = self.config_panel.default_leverage_var.get()
                 existing_filters = self.settings_manager.settings.get("filters", {})
                 settings_to_show = {
                     "risk": current.get("risk", {}),
@@ -381,9 +438,7 @@ class AutoTradeDashboard(ctk.CTk):
                         enabled = raw.get("enabled", False)
                         settings_to_show["recovery"] = {
                             "enabled": (
-                                enabled
-                                if isinstance(enabled, bool)
-                                else str(enabled).lower() in ("true", "1", "yes")
+                                enabled if isinstance(enabled, bool) else str(enabled).lower() in ("true", "1", "yes")
                             ),
                             "initial_loss": float(raw.get("initial_loss", 500)),
                             "target_profit_per_trade": float(raw.get("target_profit_per_trade", 5)),
@@ -393,9 +448,7 @@ class AutoTradeDashboard(ctk.CTk):
                             "min_leverage": int(raw.get("min_leverage", 2)),
                             "max_leverage": int(raw.get("max_leverage", 10)),
                             "enable_streak_bonus": (
-                                eb
-                                if isinstance(eb, bool)
-                                else str(eb).lower() in ("true", "1", "yes")
+                                eb if isinstance(eb, bool) else str(eb).lower() in ("true", "1", "yes")
                             ),
                         }
                     except (TypeError, ValueError):
@@ -405,18 +458,12 @@ class AutoTradeDashboard(ctk.CTk):
                 self.settings_manager.load()
                 settings_to_show = self.settings_manager.settings
 
-            if hasattr(self, "auto_trade_control") and hasattr(
-                self.auto_trade_control, "update_from_settings"
-            ):
-                self.auto_trade_control.update_from_settings(
-                    settings_to_show, status=self._get_current_status()
-                )
+            if hasattr(self, "auto_trade_control") and hasattr(self.auto_trade_control, "update_from_settings"):
+                self.auto_trade_control.update_from_settings(settings_to_show, status=self._get_current_status())
                 self.auto_trade_control.update_idletasks()
                 self.update_idletasks()
             if hasattr(self, "status_label"):
-                self.status_label.configure(
-                    text="Current Settings reloaded (from Settings tab form)."
-                )
+                self.status_label.configure(text="Current Settings reloaded (from Settings tab form).")
             logging.info("Current Settings force-reloaded (Trading tab)")
         except Exception as e:
             logging.warning(f"Force reload Current Settings: {e}")

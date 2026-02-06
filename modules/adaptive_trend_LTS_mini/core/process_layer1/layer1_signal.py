@@ -22,9 +22,9 @@ def _layer1_signal_for_ma(
     prices: pd.Series,
     ma_tuple: Tuple[pd.Series, ...],
     *,
-    L: float,
-    De: float,
-    R: Optional[pd.Series] = None,
+    lambda_val: float,
+    decay_val: float,
+    rate_of_change_series: Optional[pd.Series] = None,
 ) -> Tuple[pd.Series, Tuple[pd.Series, ...], Tuple[pd.Series, ...]]:
     """Calculate Layer 1 signal for a specific Moving Average type.
 
@@ -40,16 +40,16 @@ def _layer1_signal_for_ma(
     3. Weight signals by their equity curves to get final Layer 1 signal
 
     Performance optimization:
-    - Accept R (rate_of_change) as optional parameter to avoid recalculation
-    - If R is None, it will be calculated internally (for backwards compatibility)
+    - Accept rate_of_change_series (rate_of_change) as optional parameter to avoid recalculation
+    - If rate_of_change_series is None, it will be calculated internally (for backwards compatibility)
 
     Args:
         prices: Price series (typically close prices).
         ma_tuple: Tuple of 9 MA Series: (MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4).
-        L: Lambda (growth rate) for equity calculations.
-        De: Decay factor for equity calculations.
+        lambda_val: Lambda (growth rate) for equity calculations.
+        decay_val: Decay factor for equity calculations.
         cutout: Number of bars to skip at beginning.
-        R: Pre-calculated rate of change series. If None, will be calculated internally.
+        rate_of_change_series: Pre-calculated rate of change series. If None, will be calculated internally.
 
     Returns:
         Tuple containing:
@@ -83,11 +83,11 @@ def _layer1_signal_for_ma(
             raise ValueError(f"ma_tuple[{i}] cannot be empty")
 
     # Validate parameters
-    if not isinstance(L, (int, float)) or np.isnan(L) or np.isinf(L):
-        raise ValueError(f"L must be a finite number, got {L}")
+    if not isinstance(lambda_val, (int, float)) or np.isnan(lambda_val) or np.isinf(lambda_val):
+        raise ValueError(f"lambda_val must be a finite number, got {lambda_val}")
 
-    if not (0 <= De <= 1):
-        raise ValueError(f"De must be between 0 and 1, got {De}")
+    if not (0 <= decay_val <= 1):
+        raise ValueError(f"decay_val must be between 0 and 1, got {decay_val}")
 
     try:
         # REMOVED: mem_manager = get_memory_manager()
@@ -106,8 +106,8 @@ def _layer1_signal_for_ma(
             MA_4,
         ) = ma_tuple
 
-        if R is None:
-            R = rate_of_change(prices)
+        if rate_of_change_series is None:
+            rate_of_change_series = rate_of_change(prices)
 
         # Generate signals for all MAs (optimized with list comprehension)
         ma_list = [MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4]
@@ -120,15 +120,15 @@ def _layer1_signal_for_ma(
         try:
             # Check if we can use vectorized version
             signal_lengths = [len(sig) for sig in signals]
-            if len(set(signal_lengths)) == 1 and all(len(sig) == len(R) for sig in signals):
+            if len(set(signal_lengths)) == 1 and all(len(sig) == len(rate_of_change_series) for sig in signals):
                 # All signals have same length, use vectorized version
                 from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
 
                 # Prepare data for vectorized calculation
                 index = signals[0].index
-                growth = exp_growth(L=L, index=index, cutout=0)
-                r = R * growth
-                d = 1.0 - De
+                growth = exp_growth(lambda_val=lambda_val, index=index, cutout=0)
+                r = rate_of_change_series * growth
+                d = 1.0 - decay_val
 
                 # Shift all signals and vectorize
                 # Optimize: Use ArrayPool for input buffer to avoid 9 shift() allocations and 1 big array
@@ -160,7 +160,7 @@ def _layer1_signal_for_ma(
                     e_values_array = _calculate_equity_vectorized(
                         starting_equities=starting_equities,
                         sig_prev_values=sig_prev_values,
-                        r_values=r_values,
+                        r_values=np.asarray(r_values, dtype=np.float64),
                         decay_multiplier=d,
                         cutout=0,
                     )
@@ -172,11 +172,17 @@ def _layer1_signal_for_ma(
                 equities = [pd.Series(e_values_array[i], index=index, dtype="float64") for i in range(9)]
             else:
                 # Fallback to sequential calculation
-                equities = [equity_series(1.0, sig, R, L=L, De=De) for sig in signals]
+                equities = [
+                    equity_series(1.0, sig, rate_of_change_series, lambda_val=lambda_val, decay_val=decay_val)
+                    for sig in signals
+                ]
         except (ValueError, TypeError, MemoryError, RuntimeError) as e:
             # Fallback to sequential calculation on specific recoverable errors
             log_warn(f"Vectorized equity calculation failed ({type(e).__name__}: {e}), using sequential version")
-            equities = [equity_series(1.0, sig, R, L=L, De=De) for sig in signals]
+            equities = [
+                equity_series(1.0, sig, rate_of_change_series, lambda_val=lambda_val, decay_val=decay_val)
+                for sig in signals
+            ]
 
         # Unpack equities for return tuple (maintaining original variable names)
         E, E1, E2, E3, E4, E_1, E_2, E_3, E_4 = equities

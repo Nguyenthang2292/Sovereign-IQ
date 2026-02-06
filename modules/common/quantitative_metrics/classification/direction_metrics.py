@@ -129,7 +129,7 @@ def calculate_direction_metrics(
         >>> metrics = calculate_direction_metrics(small_spread)
         >>> assert metrics['classification_f1'] is None
     """
-    result = {
+    result: Dict[str, Optional[float]] = {
         "classification_f1": None,
         "classification_precision": None,
         "classification_recall": None,
@@ -181,7 +181,9 @@ def calculate_direction_metrics(
     # 0 if spread unchanged
     # Note: shift(-1) looks forward, so we're predicting next period's direction
     future_return = spread_clean.shift(-1) - spread_clean
-    actual_direction = np.sign(future_return).dropna()
+    actual_direction = pd.Series(
+        np.sign(np.asarray(future_return, dtype=np.float64)), index=future_return.index
+    ).dropna()
 
     # Validate actual_direction has enough valid values
     if actual_direction.empty or len(actual_direction) < 2:
@@ -246,8 +248,8 @@ def calculate_direction_metrics(
         short_predicted = short_mask.sum()
 
         # Calculate Long metrics
-        long_precision = None
-        long_recall = None
+        long_precision: Optional[float] = None
+        long_recall: Optional[float] = None
 
         if long_predicted > 0:
             # Long Precision: TP / (TP + FP) = correct Long predictions / all Long predictions
@@ -266,8 +268,8 @@ def calculate_direction_metrics(
             #     long_f1 = 0.0
 
         # Calculate Short metrics
-        short_precision = None
-        short_recall = None
+        short_precision: Optional[float] = None
+        short_recall: Optional[float] = None
 
         if short_predicted > 0:
             # Short Precision: TP / (TP + FP) = correct Short predictions / all Short predictions
@@ -292,8 +294,8 @@ def calculate_direction_metrics(
         precision_values = [v for v in [long_precision, short_precision] if v is not None]
         recall_values = [v for v in [long_recall, short_recall] if v is not None]
 
-        macro_precision = None
-        macro_recall = None
+        macro_precision: Optional[float] = None
+        macro_recall: Optional[float] = None
 
         if precision_values:
             macro_precision_val = np.mean(precision_values)

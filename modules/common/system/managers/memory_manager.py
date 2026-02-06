@@ -25,6 +25,7 @@ try:
 
     CUPY_AVAILABLE = True
 except ImportError:
+    cp = None  # type: ignore[assignment]
     CUPY_AVAILABLE = False
 
 
@@ -103,7 +104,7 @@ class MemoryManager:
         snapshot.ram_available_gb = memory_info.available_gb
 
         # GPU memory
-        if CUPY_AVAILABLE:
+        if CUPY_AVAILABLE and cp is not None:
             try:
                 mempool = cp.get_default_memory_pool()
                 snapshot.gpu_used_gb = mempool.used_bytes() / (1024**3)
@@ -171,7 +172,7 @@ class MemoryManager:
             gc.collect(generation=2)
 
             # GPU memory cleanup
-            if CUPY_AVAILABLE:
+            if CUPY_AVAILABLE and cp is not None:
                 try:
                     mempool = cp.get_default_memory_pool()
                     mempool.free_all_blocks()
@@ -342,8 +343,10 @@ class MemoryManager:
             stats["gpu_used_gb"] = current.gpu_used_gb
 
         if self.enable_tracemalloc and current.tracemalloc_current_mb is not None:
-            stats["tracemalloc_current_mb"] = current.tracemalloc_current_mb
-            stats["tracemalloc_peak_mb"] = current.tracemalloc_peak_mb
+            stats["tracemalloc_current_mb"] = float(current.tracemalloc_current_mb)
+            stats["tracemalloc_peak_mb"] = (
+                float(current.tracemalloc_peak_mb) if current.tracemalloc_peak_mb is not None else 0.0
+            )
 
         # Garbage collector stats
         gc_stats = gc.get_stats()
@@ -518,9 +521,10 @@ def get_memory_manager(enable_tracemalloc: bool = False) -> MemoryManager:
         from modules.common.system.utils.singleton import reset_singleton
 
         reset_singleton(MemoryManagerSingleton)
-        instance = MemoryManager(enable_tracemalloc=enable_tracemalloc)
+        new_instance = MemoryManager(enable_tracemalloc=enable_tracemalloc)
         # Manually set the singleton instance
-        SingletonMeta._instances[MemoryManagerSingleton] = instance
+        SingletonMeta._instances[MemoryManagerSingleton] = new_instance  # type: ignore[assignment]
+        instance = new_instance  # type: ignore[assignment]
     return instance
 
 
@@ -529,7 +533,7 @@ def reset_memory_manager():
     from modules.common.system.utils.singleton import reset_singleton
 
     instance = SingletonMeta._instances.get(MemoryManagerSingleton)
-    if instance is not None:
+    if isinstance(instance, MemoryManager):
         instance.reset()
     reset_singleton(MemoryManagerSingleton)
 

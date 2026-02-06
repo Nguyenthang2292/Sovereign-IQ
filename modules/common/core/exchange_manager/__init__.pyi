@@ -2,7 +2,7 @@
 
 from typing import Any, ContextManager, List, Optional
 
-import ccxt
+import ccxt  # type: ignore[import-untyped]
 
 class ExchangeWrapper:
     exchange: ccxt.Exchange

@@ -188,12 +188,23 @@ class WebSocketDataService:
             # Schedule async cleanup and wait for it to finish
             try:
                 future = asyncio.run_coroutine_threadsafe(self._async_stop(), self._loop)
-                future.result(timeout=5.0)  # Wait for cleanup with timeout
+                future.result(timeout=10.0)  # Increased timeout for cleanup
+            except TimeoutError:
+                logger.warning("WebSocket cleanup timed out after 10s, forcing close")
+                # Force close ws_client if it exists
+                if self.ws_client:
+                    try:
+                        # Try to close synchronously by scheduling and waiting briefly
+                        future = asyncio.run_coroutine_threadsafe(self.ws_client.close(), self._loop)
+                        future.result(timeout=2.0)
+                    except Exception:
+                        pass  # Already tried our best
             except Exception as e:
                 logger.error(f"Error waiting for WebSocket cleanup: {e}")
-
-            # Stop event loop
-            self._loop.call_soon_threadsafe(self._loop.stop)
+            finally:
+                # Ensure event loop is stopped
+                if self._loop and self._loop.is_running():
+                    self._loop.call_soon_threadsafe(self._loop.stop)
 
         # Join the thread
         if self._loop_thread and self._loop_thread.is_alive():
@@ -307,6 +318,31 @@ class WebSocketDataService:
                 callback(order)
             except Exception as e:
                 logger.error(f"Error in GUI order callback: {e}")
+
+        # Sync to DB if order is closed/canceled/rejected
+        if order.status in ("closed", "canceled", "rejected"):
+            try:
+                from modules.auto_trade.execution.order_tagging import OrderTagger
+
+                if OrderTagger.is_programmatic_order_id(order.client_order_id):
+                    from modules.auto_trade.database import session_scope, update_order_status_by_client_id
+
+                    # Map WebSocket status to DB status
+                    status_map = {"closed": "CLOSED", "canceled": "CANCELLED", "rejected": "FAILED"}
+                    db_status = status_map.get(order.status, "CLOSED")
+
+                    with session_scope() as session:
+                        updated = update_order_status_by_client_id(
+                            session=session,
+                            client_order_id=order.client_order_id,
+                            status=db_status,
+                            closed_at=order.last_update_timestamp,
+                            pnl=None,  # May be updated later from snapshot if available
+                        )
+                        if updated:
+                            logger.info(f"WS sync: updated order {order.client_order_id} to {db_status}")
+            except Exception as e:
+                logger.error(f"WS sync error for order {order.client_order_id}: {e}")
 
     # ==================== Synchronous API for GUI ====================
 

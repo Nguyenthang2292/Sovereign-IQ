@@ -13,14 +13,14 @@ try:
     from modules.common.utils import log_error, log_info, log_warn
 except ImportError:
 
-    def log_info(message: str) -> None:
-        print(f"[INFO] {message}")
+    def log_info(msg: str) -> None:
+        print(f"[INFO] {msg}")
 
-    def log_error(message: str) -> None:
-        print(f"[ERROR] {message}")
+    def log_error(msg: str) -> None:
+        print(f"[ERROR] {msg}")
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str) -> None:
+        print(f"[WARN] {msg}")
 
 
 @dataclass
@@ -91,12 +91,12 @@ class MemoryMappedDataManager:
             FileNotFoundError: If CSV file doesn't exist
             ValueError: If required columns are missing
         """
-        csv_path = Path(csv_path)
-        if not csv_path.exists():
+        csv_path_obj = Path(csv_path)
+        if not csv_path_obj.exists():
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
         # Generate cache key and paths
-        cache_key = self._generate_cache_key(str(csv_path), symbol_column, price_column)
+        cache_key = self._generate_cache_key(str(csv_path_obj), symbol_column, price_column)
         mmap_filename = f"{cache_key}.mmap"
         metadata_filename = f"{cache_key}.metadata"
         mmap_path = self.cache_dir / mmap_filename
@@ -107,10 +107,10 @@ class MemoryMappedDataManager:
             log_info(f"Memory-mapped file already exists: {mmap_path}")
             return self.load_descriptor(metadata_path)
 
-        log_info(f"Creating memory-mapped file from {csv_path}")
+        log_info(f"Creating memory-mapped file from {csv_path_obj}")
 
         # Read CSV with pandas
-        df = pd.read_csv(csv_path)
+        df = pd.read_csv(csv_path_obj)
 
         # Validate required columns
         if symbol_column not in df.columns:
@@ -151,9 +151,9 @@ class MemoryMappedDataManager:
             shape=mmap_data.shape,
             dtype=dtype,
             columns=columns_to_map,
-            index_name=df.index.name,
+            index_name=str(df.index.name) if df.index.name is not None else None,
             timestamp=None,
-            original_path=str(csv_path),
+            original_path=str(csv_path_obj),
         )
 
         # Save metadata

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score  # type: ignore[import-untyped]
 
 from config import ID_TO_LABEL, TARGET_HORIZON, TARGET_LABELS
 
@@ -92,7 +92,7 @@ def _train_cv_fold(
         X_test = pd.DataFrame(X_values[test_idx_filtered], columns=feature_names)
         y_test_fold = y_values[test_idx_filtered]
         try:
-            import cupy as _cp
+            import cupy as _cp  # type: ignore[import-untyped]
 
             _use_gpu = params.get("device") == "cuda"
         except ImportError:
@@ -154,9 +154,9 @@ def run_parallel_cv(
         max_workers = max(1, mp.cpu_count() // 2)
 
     # Run parallel CV
-    cv_scores = []
-    all_y_true = []
-    all_y_pred = []
+    cv_scores: list[float] = []
+    all_y_true: list[int] = []
+    all_y_pred: list[int] = []
 
     # Use ProcessPoolExecutor for true parallelism
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -167,7 +167,7 @@ def run_parallel_cv(
                 train_idx,
                 test_idx,
                 X_values,
-                y_values,
+                np.asarray(y_values),
                 feature_names,
                 params_filtered,
             ): fold_num
@@ -185,7 +185,7 @@ def run_parallel_cv(
 
         # Process results in order
         for fold_num, acc, y_true, y_pred, message in results:
-            if acc > 0 and y_true is not None:
+            if acc > 0 and y_true is not None and y_pred is not None:
                 cv_scores.append(acc)
                 all_y_true.extend(y_true)
                 all_y_pred.extend(y_pred)

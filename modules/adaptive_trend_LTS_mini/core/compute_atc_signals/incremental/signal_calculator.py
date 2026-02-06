@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any, Dict, Optional
+
 import numpy as np
-from typing import Dict, Any, Tuple
-from .constants import calculate_growth_factor, get_scaled_params, get_initial_weights
+
+from .constants import calculate_growth_factor, get_initial_weights, get_scaled_params
 
 try:
     from modules.common.utils import log_warn

@@ -160,15 +160,18 @@ class AutoTradeManager:
         try:
             from modules.auto_trade.execution.order_executor import OrderExecutor
 
+            # Signals are "fresh" if created within this many seconds (5 minutes)
+            FRESH_SIGNAL_MAX_AGE_SECONDS = 300
             signals = self.parent.data_service.get_signals(min_score=0.7)
             now = time.time()
             fresh_signals = [
                 s
                 for s in signals
-                if isinstance(s.get("created_at_ts"), (int, float)) and (now - float(s["created_at_ts"])) < 60.0
+                if isinstance(s.get("created_at_ts"), (int, float))
+                and (now - float(s["created_at_ts"])) < FRESH_SIGNAL_MAX_AGE_SECONDS
             ]
             if not fresh_signals:
-                print("No fresh signals for auto-trade (<60s)")
+                print("No fresh signals for auto-trade (<5 minutes)")
                 return
             fresh_signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)
             best = fresh_signals[0]

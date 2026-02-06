@@ -53,20 +53,24 @@ from .queries import (
     find_or_create_martingale_chain,
     get_active_martingale_chains,
     get_all_programmatic_orders,
+    get_audit_log_cursor,
     # Statistics queries
     get_daily_stats,
     get_last_closed_order,
     # Martingale queries
+    get_martingale_chains_cursor,
     get_martingale_state,
     # Order queries
     get_open_positions,
     get_order_by_client_id,
     get_order_by_id,
     get_orders_by_symbol,
+    get_orders_cursor,
     get_overall_stats,
     get_recent_audit_logs,
     get_recent_signals,
     get_signal_performance_stats,
+    get_signals_cursor,
     # System state queries
     get_system_state,
     is_programmatic_order,
@@ -77,6 +81,7 @@ from .queries import (
     set_system_state,
     update_martingale_chain,
     update_order_status,
+    update_order_status_by_client_id,
     update_signal_outcome,
 )
 
@@ -254,25 +259,30 @@ __all__ = [
     "get_order_by_id",
     "get_order_by_client_id",
     "update_order_status",
+    "update_order_status_by_client_id",
     "mark_be_moved",
     "create_order",
     "get_orders_by_symbol",
+    "get_orders_cursor",
     # Martingale Queries
     "get_martingale_state",
     "find_or_create_martingale_chain",
     "update_martingale_chain",
     "get_active_martingale_chains",
+    "get_martingale_chains_cursor",
     # Signal Queries
     "save_signal",
     "mark_signal_executed",
     "update_signal_outcome",
     "get_recent_signals",
+    "get_signals_cursor",
     "get_signal_performance_stats",
     # System State
     "get_system_state",
     "set_system_state",
     # Audit Log
     "create_audit_log",
+    "get_audit_log_cursor",
     "get_recent_audit_logs",
     # Statistics
     "get_daily_stats",

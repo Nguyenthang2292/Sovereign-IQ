@@ -89,7 +89,7 @@ def calculate_zscore_stats(
         >>> stats = calculate_zscore_stats(spread, zscore_lookback=60)
         >>> # Returns dict with mean_zscore, std_zscore, skewness, kurtosis, current_zscore
     """
-    result = {
+    result: Dict[str, Optional[float]] = {
         "mean_zscore": None,
         "std_zscore": None,
         "skewness": None,
@@ -144,26 +144,26 @@ def calculate_zscore_stats(
         std_val = zscore.std()
 
         # Validate calculated values are finite (not NaN or inf)
-        if pd.notna(mean_val) and np.isfinite(mean_val):
-            result["mean_zscore"] = float(mean_val)
+        if pd.notna(mean_val) and np.isfinite(float(mean_val)):  # type: ignore[arg-type]
+            result["mean_zscore"] = float(mean_val)  # type: ignore[arg-type]
 
-        if pd.notna(std_val) and np.isfinite(std_val):
-            result["std_zscore"] = float(std_val)
+        if pd.notna(std_val) and np.isfinite(float(std_val)):  # type: ignore[arg-type]
+            result["std_zscore"] = float(std_val)  # type: ignore[arg-type]
 
         # Skewness and kurtosis require at least 3 data points
         if len(zscore) >= 3:
             skew_val = zscore.skew()
-            if pd.notna(skew_val) and np.isfinite(skew_val):
-                result["skewness"] = float(skew_val)
+            if pd.notna(skew_val) and np.isfinite(float(skew_val)):  # type: ignore[arg-type]
+                result["skewness"] = float(skew_val)  # type: ignore[arg-type]
 
             kurt_val = zscore.kurtosis()
-            if pd.notna(kurt_val) and np.isfinite(kurt_val):
-                result["kurtosis"] = float(kurt_val)
+            if pd.notna(kurt_val) and np.isfinite(float(kurt_val)):  # type: ignore[arg-type]
+                result["kurtosis"] = float(kurt_val)  # type: ignore[arg-type]
 
         # Current z-score (most recent value)
         current_val = zscore.iloc[-1]
-        if pd.notna(current_val) and np.isfinite(current_val):
-            result["current_zscore"] = float(current_val)
+        if pd.notna(current_val) and np.isfinite(float(current_val)):  # type: ignore[arg-type]
+            result["current_zscore"] = float(current_val)  # type: ignore[arg-type]
 
     except (ValueError, TypeError, IndexError, AttributeError):
         # ValueError: Invalid values in statistical calculations (NaN, inf)

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any, Dict
+
 import numpy as np
-from typing import Dict, Any
 
 # Timeframe resolution mapping (minutes)
 TF_RESOLUTION_MAP = {
@@ -41,12 +42,12 @@ def get_initial_weights(config: Dict[str, Any]) -> Dict[str, float]:
 
 def get_scaled_params(config: Dict[str, Any]) -> tuple[float, float]:
     """Return scaled lambda and decay parameters (PineScript-compatible)."""
-    la = config.get("La", config.get("lambda_param", 0.02))
-    de = config.get("De", config.get("decay", 0.03))
-    return la / 1000.0, de / 100.0
+    lambda_param = config.get("La", config.get("lambda_param", 0.02))
+    decay_param = config.get("De", config.get("decay", 0.03))
+    return lambda_param / 1000.0, decay_param / 100.0
 
 
-def calculate_growth_factor(bar_index: int, cutout: int, L: float) -> float:
+def calculate_growth_factor(bar_index: int, cutout: int, lambda_val: float) -> float:
     """Compute exp growth factor for a single bar index.
 
     FIX #5: Improved overflow handling with reasonable upper bound.
@@ -54,7 +55,7 @@ def calculate_growth_factor(bar_index: int, cutout: int, L: float) -> float:
     Args:
         bar_index: Current bar index
         cutout: Cutout threshold
-        L: Scaled lambda parameter
+        lambda_val: Scaled lambda parameter (growth rate)
 
     Returns:
         Growth factor value
@@ -63,7 +64,7 @@ def calculate_growth_factor(bar_index: int, cutout: int, L: float) -> float:
     if bar_val < cutout:
         return 1.0
 
-    exponent = L * (bar_val - cutout)
+    exponent = lambda_val * (bar_val - cutout)
 
     # FIX #5: Prevent extreme growth factors
     # Cap exponent at 20 to prevent overflow (e^20 ≈ 4.8e8)
@@ -81,7 +82,7 @@ def calculate_growth_factor(bar_index: int, cutout: int, L: float) -> float:
 
         log_warn(
             f"Growth factor exponent {exponent:.2f} exceeds maximum {MAX_EXPONENT}. "
-            f"Capping to prevent overflow (bar_index={bar_index}, L={L})."
+            f"Capping to prevent overflow (bar_index={bar_index}, lambda_val={lambda_val})."
         )
         exponent = MAX_EXPONENT
 

@@ -156,7 +156,7 @@ def calculate_kalman_hedge_ratio(
         #   [price2_t, 1] which allows the model to estimate:
         #   price1_t = beta_t * price2_t + alpha_t
         # where beta_t is the time-varying hedge ratio and alpha_t is the intercept
-        obs_mat = np.vstack([price2_clean.values, np.ones(len(price2_clean))]).T[:, np.newaxis, :]
+        obs_mat = np.vstack([np.asarray(price2_clean.values), np.ones(len(price2_clean))]).T[:, np.newaxis, :]
 
         # Validate obs_mat doesn't contain NaN/Inf
         if np.isnan(obs_mat).any() or np.isinf(obs_mat).any():
@@ -168,7 +168,7 @@ def calculate_kalman_hedge_ratio(
             transition_covariance=trans_cov,
             observation_covariance=observation_covariance,
         )
-        state_means, _ = kf.filter(price1_clean.values)
+        state_means, _ = kf.filter(np.asarray(price1_clean.values))
 
         # Validate state_means shape and content
         if state_means is None or len(state_means) == 0:

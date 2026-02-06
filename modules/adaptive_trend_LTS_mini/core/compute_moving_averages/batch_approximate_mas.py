@@ -135,7 +135,7 @@ class BatchApproximateMAScanner:
         try:
             if self.use_adaptive:
                 result = get_adaptive_ma_approx(
-                    ma_type=ma_type,
+                    ma_type=ma_type,  # type: ignore[arg-type]
                     prices=prices,
                     length=length,
                     volatility_window=self.volatility_window,
@@ -313,7 +313,10 @@ class BatchApproximateMAScanner:
         try:
             from modules.adaptive_trend_LTS_mini.utils import diflen
 
-            L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(base_length, robustness=robustness)
+            _diflen = diflen(base_length, robustness=robustness)
+            if _diflen is None:
+                return None
+            L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _diflen
             ma_lengths = [base_length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
             ma_names = ["MA", "MA1", "MA2", "MA3", "MA4", "MA_1", "MA_2", "MA_3", "MA_4"]
 

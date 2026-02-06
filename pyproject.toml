@@ -76,3 +76,12 @@ addopts = "-v --tb=short"
 # Stub for atc_rust (Rust extension) lives in adaptive_trend_LTS
 stubPath = "modules/adaptive_trend_LTS"
 
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["ccxt", "numba", "sklearn.*", "joblib", "cupy", "pandas", "numpy"]
+ignore_missing_imports = true
+

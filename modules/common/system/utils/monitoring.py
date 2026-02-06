@@ -20,11 +20,11 @@ class RuntimeMonitor:
     identify potential issues caused by OpenMP library conflicts.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.operation_times: Dict[str, list] = {}
-        self.exception_count = 0
+        self.exception_count: int = 0
         self.memory_snapshots: list = []
-        self.is_monitoring = os.environ.get("KMP_DUPLICATE_LIB_OK") == "True"
+        self.is_monitoring: bool = os.environ.get("KMP_DUPLICATE_LIB_OK") == "True"
 
     def monitor_operation(self, operation_name: str):
         """
@@ -34,9 +34,9 @@ class RuntimeMonitor:
             operation_name: Name of the operation being monitored
         """
 
-        def decorator(func: Callable) -> Callable:
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(func)
-            def wrapper(*args, **kwargs):
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
                 if not self.is_monitoring:
                     return func(*args, **kwargs)
 
@@ -106,7 +106,7 @@ class RuntimeMonitor:
 
         return summary
 
-    def log_summary(self):
+    def log_summary(self) -> None:
         """Log a summary of monitored metrics."""
         if not self.is_monitoring:
             return

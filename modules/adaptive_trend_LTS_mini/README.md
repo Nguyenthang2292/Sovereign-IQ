@@ -1,6 +1,15 @@
 # Adaptive Trend Classification LTS (ATC LTS)
 
+> **Language / Ngôn ngữ**: [English](README-en.md) | [Tiếng Việt](README-vi.md)
+
 **Long-term support version with Rust-accelerated backend, GPU/CPU optimization, and automatic memory management**
+
+This is the main documentation index. Please select your preferred language:
+
+- **[English Documentation](README-en.md)** - Complete documentation in English
+- **[Vietnamese Documentation](README-vi.md)** - Tài liệu đầy đủ bằng tiếng Việt
+
+---
 
 Module Adaptive Trend Classification LTS là phiên bản ổn định của ATC với:
 
