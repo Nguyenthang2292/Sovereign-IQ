@@ -3,10 +3,22 @@ Signal Pipeline Orchestrator
 
 Coordinates the entire auto-trading process:
 1. Refresh Symbols
-2. Scan Market (ATC)
-3. Filter Signals (XGBoost)
+2. Scan Market (ATC) - generates LONG/SHORT signals
+3. Filter Signals (XGBoost) - trains per-symbol models to confirm ATC signals
 4. AI Analysis (Gemini)
 5. Select Final Signal
+
+Pipeline Flow:
+    ATC Scanner -> XGBoost Filter -> Gemini Analysis -> Signal Selection
+
+    - ATC scans symbols across multiple timeframes and generates directional signals
+    - XGBoost trains a fresh model for each ATC-filtered symbol
+    - XGBoost prediction must confirm ATC direction with sufficient confidence
+    - Gemini provides additional AI analysis for final selection
+
+XGBoost Modes:
+    - "per_symbol" (default): Trains a fresh XGBoost model for each symbol
+    - "pretrained": Uses a pre-trained model loaded from disk (legacy behavior)
 
 Example:
     >>> from modules.common.core.data_fetcher import DataFetcher
@@ -14,17 +26,21 @@ Example:
     >>> pipeline = SignalPipeline(
     ...     symbol_manager=symbol_manager,
     ...     atc_scanner=atc_scanner,
-    ...     xgboost_filter=xgboost_filter,
+    ...     xgboost_filter=xgboost_filter,  # Can be XGBoostFilter or XGBoostPerSymbolFilter
     ...     gemini_integration=gemini_integration,
     ...     signal_selector=signal_selector,
-    ...     config={"max_symbols_to_scan": 20, "pipeline_timeout": 300}
+    ...     config={
+    ...         "max_symbols_to_scan": 20,
+    ...         "pipeline_timeout": 300,
+    ...         "xgboost_mode": "per_symbol",  # or "pretrained"
+    ...     }
     ... )
     >>> final_signal = pipeline.run_pipeline()
 """
 
 import asyncio
 import time
-from typing import Dict, Optional, TypedDict
+from typing import Dict, Optional, TypedDict, Union
 
 from modules.auto_trade.core.atc_scanner import ATCScanner
 from modules.auto_trade.core.circuit_breaker import CircuitBreaker, CircuitState
@@ -34,6 +50,7 @@ from modules.auto_trade.core.persistence_sqlite import SignalPersistenceSQLite
 from modules.auto_trade.core.signal_selector import FinalSignal, SignalSelector
 from modules.auto_trade.core.symbol_manager import SymbolManager
 from modules.auto_trade.core.xgboost_filter import XGBoostFilter
+from modules.auto_trade.core.xgboost_per_symbol import XGBoostPerSymbolFilter
 from modules.auto_trade.monitoring.alerts import AlertManager
 from modules.auto_trade.monitoring.audit import AuditLogger
 from modules.auto_trade.monitoring.events import Event, EventBus, EventType
@@ -50,12 +67,15 @@ class PipelineConfig(TypedDict, total=False):
         max_symbols_to_scan: Maximum symbols to scan (default: 20)
         pipeline_timeout: Timeout in seconds (default: 300)
         monitoring_enabled: Whether monitoring components are enabled
+        max_ai_candidates: Maximum candidates for AI analysis (default: 5)
+        xgboost_mode: XGBoost filter mode - "per_symbol" or "pretrained" (default: "per_symbol")
     """
 
     max_symbols_to_scan: int
     pipeline_timeout: int
     monitoring_enabled: bool
     max_ai_candidates: int
+    xgboost_mode: str  # "per_symbol" (train fresh) or "pretrained" (use existing model)
 
 
 class SignalPipeline:
@@ -64,10 +84,19 @@ class SignalPipeline:
     Coordinates the complete auto-trading workflow by cascading through multiple
     analysis stages to find the single best trading opportunity.
 
+    Pipeline Flow:
+        1. Refresh Symbols - Get list of tradeable symbols
+        2. ATC Scan - Multi-timeframe trend analysis generates LONG/SHORT signals
+        3. XGBoost Filter - Confirms ATC signals with ML predictions
+           - "per_symbol" mode: Trains a fresh model for each ATC-filtered symbol
+           - "pretrained" mode: Uses a pre-trained model loaded from disk
+        4. Gemini Analysis - AI-powered chart analysis
+        5. Signal Selection - Final signal selection based on all analyses
+
     Attributes:
         symbol_manager: Manages tradeable symbols
         atc_scanner: Multi-timeframe trend scanner
-        xgboost_filter: ML signal filter
+        xgboost_filter: ML signal filter (XGBoostFilter or XGBoostPerSymbolFilter)
         gemini_integration: AI chart analyzer
         signal_selector: Final signal selector
         signal_persistence: Optional signal storage
@@ -75,6 +104,7 @@ class SignalPipeline:
         max_symbols: Maximum symbols to scan (default: 20)
         max_ai_candidates: Maximum candidates for AI analysis (default: 5)
         pipeline_timeout: Timeout in seconds (default: 300)
+        xgboost_mode: XGBoost filter mode - "per_symbol" or "pretrained"
         cache: Cache for ATC results
         circuit_breaker: Circuit breaker for external APIs
         health_registry: Registry for system health checks
@@ -84,7 +114,7 @@ class SignalPipeline:
         self,
         symbol_manager: SymbolManager,
         atc_scanner: ATCScanner,
-        xgboost_filter: XGBoostFilter,
+        xgboost_filter: Union[XGBoostFilter, XGBoostPerSymbolFilter],
         gemini_integration: GeminiIntegration,
         signal_selector: SignalSelector,
         signal_persistence: Optional[SignalPersistenceSQLite] = None,
@@ -112,6 +142,11 @@ class SignalPipeline:
         self.pipeline_timeout = self.config.get("pipeline_timeout", 300)
         if self.pipeline_timeout <= 0:
             raise ValueError(f"pipeline_timeout must be positive, got {self.pipeline_timeout}")
+
+        # XGBoost mode tracking (for logging)
+        self.xgboost_mode = self.config.get("xgboost_mode", "per_symbol")
+        if self.xgboost_mode not in ["per_symbol", "pretrained"]:
+            raise ValueError(f"xgboost_mode must be 'per_symbol' or 'pretrained', got {self.xgboost_mode}")
 
         # Optimization components (Cache removed - use ATCScanner's Rust cache)
         self.circuit_breaker = CircuitBreaker(name="GeminiAPI", failure_threshold=3, recovery_timeout=300)
@@ -216,7 +251,8 @@ class SignalPipeline:
                 return None
 
             # 3. XGBoost Filter
-            logger.info("Step 3: Filtering (XGBoost)...")
+            xgboost_mode_label = "per-symbol training" if self.xgboost_mode == "per_symbol" else "pre-trained model"
+            logger.info(f"Step 3: Filtering (XGBoost - {xgboost_mode_label})...")
             xgboost_signals = self.xgboost_filter.filter_signals(atc_signals)
 
             self.metrics.gauge("xgboost_signals_passed", len(xgboost_signals))

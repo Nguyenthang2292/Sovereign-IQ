@@ -40,12 +40,13 @@ class OrderExecutor:
         )
         self._dry_run = dry_run
 
-    def execute_from_signal(self, signal_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def execute_from_signal(self, signal_dict: Dict[str, Any], tp_sl_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Execute a trade from a signal dict (e.g. from get_signals).
 
         Args:
             signal_dict: Must have "symbol", "signal" (LONG/SHORT). Optional: "score".
+            tp_sl_settings: Optional settings dict from GUI (e.g. {"default_tp": 5.0, "default_sl": 2.5}).
 
         Returns:
             Dict with "success" (bool) and optional "error" or order details.
@@ -80,6 +81,16 @@ class OrderExecutor:
 
             tp_pct = 5.0
             sl_pct = 2.0
+            if tp_sl_settings:
+                try:
+                    tp_pct = float(tp_sl_settings.get("default_tp", tp_pct))
+                except (TypeError, ValueError):
+                    tp_pct = 5.0
+                try:
+                    sl_pct = float(tp_sl_settings.get("default_sl", sl_pct))
+                except (TypeError, ValueError):
+                    sl_pct = 2.0
+
             if signal_type == "LONG":
                 take_profit = entry * (1 + tp_pct / 100)
                 stop_loss = entry * (1 - sl_pct / 100)

@@ -28,6 +28,7 @@ class OrderTicket:
     stop_loss_price: Optional[float] = None
     take_profit_percentage: float = 5.0  # Default 5%
     stop_loss_percentage: float = 50.0  # Default 50%
+    client_order_id: Optional[str] = None  # AT_ prefix for DB sync and Binance identification
 
     def to_dict(self):
         """Convert to dictionary for logging."""

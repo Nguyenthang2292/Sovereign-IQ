@@ -219,8 +219,6 @@ class LayoutManager:
                     p.sample_percentage_entry.insert(0, str(config.get("sample_percentage", 20)))
                 if hasattr(p, "auto_scan_startup_var"):
                     p.auto_scan_startup_var.set(config.get("auto_start", True))
-                if hasattr(p, "retrain_xgboost_var"):
-                    p.retrain_xgboost_var.set(config.get("retrain_xgboost", False))
                 if hasattr(p, "settings_labels") and isinstance(p.settings_labels, dict):
                     labels = p.settings_labels
                     if "interval" in labels:
@@ -250,7 +248,6 @@ class LayoutManager:
                     "sampling_strategy": strat,
                     "sample_percentage": 20,
                     "auto_start": getattr(p, "auto_scan_startup_var", None) and p.auto_scan_startup_var.get(),
-                    "retrain_xgboost": getattr(p, "retrain_xgboost_var", None) and p.retrain_xgboost_var.get(),
                 }
                 try:
                     sample_val = (p.sample_percentage_entry.get() or "20").strip()
@@ -353,16 +350,6 @@ class LayoutManager:
             command=self._push_scanner_config,
         )
         auto_scan_cb.pack(fill="x", pady=(8, 2))
-
-        # Retrain XGBoost before scan
-        self.parent.retrain_xgboost_var = ctk.BooleanVar(value=False)
-        retrain_xgboost_cb = ctk.CTkCheckBox(
-            inputs_frame,
-            text="Retrain XGBoost before scan",
-            variable=self.parent.retrain_xgboost_var,
-            command=self._push_scanner_config,
-        )
-        retrain_xgboost_cb.pack(fill="x", pady=(2, 8))
 
         # Column 1: Current Settings
         settings_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
@@ -512,7 +499,11 @@ class LayoutManager:
         self.parent.trade_form = TradeFormFrame(parent, on_trade_callback=self.parent.on_trade_executed)
         self.parent.trade_form.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
 
-        self.parent.auto_trade_control = AutoTradeControl(parent, on_toggle_callback=self.parent.on_auto_trade_toggle)
+        self.parent.auto_trade_control = AutoTradeControl(
+            parent,
+            on_toggle_callback=self.parent.on_auto_trade_toggle,
+            on_reload_settings=self.parent.reload_current_settings,
+        )
         self.parent.auto_trade_control.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
     def _populate_settings_tab(self, parent):

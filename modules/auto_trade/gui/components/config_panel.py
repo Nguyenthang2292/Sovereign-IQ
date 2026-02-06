@@ -141,6 +141,53 @@ class ConfigPanel(ctk.CTkFrame):
         trailing_checkbox = ctk.CTkCheckBox(tp_sl_inner, text="Enable Trailing Stop", variable=self.trailing_stop_var)
         trailing_checkbox.pack(anchor="w", pady=(15, 2))
 
+        # Trailing step percentage
+        label = ctk.CTkLabel(tp_sl_inner, text="Trailing Step (%):", font=("Arial", 12))
+        label.pack(anchor="w", pady=(10, 2))
+
+        self.trailing_step_pct_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="2.0")
+        self.trailing_step_pct_entry.pack(fill="x", pady=(2, 8))
+        self.trailing_step_pct_entry.insert(0, "2.0")
+
+        # Limit trailing steps checkbox
+        self.limit_trailing_steps_var = ctk.BooleanVar(value=False)
+        limit_steps_checkbox = ctk.CTkCheckBox(
+            tp_sl_inner,
+            text="Limit trailing steps",
+            variable=self.limit_trailing_steps_var,
+            command=self._on_limit_steps_toggle,
+        )
+        limit_steps_checkbox.pack(anchor="w", pady=(5, 2))
+
+        # Max steps entry (initially hidden)
+        self.max_steps_label = ctk.CTkLabel(tp_sl_inner, text="Max Steps:", font=("Arial", 12))
+        self.max_steps_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="5")
+        self.max_steps_entry.insert(0, "5")
+
+        # ================== Negative Breakeven Section ==================
+        separator = ctk.CTkLabel(tp_sl_inner, text="─────────────────────────", text_color="gray")
+        separator.pack(anchor="w", pady=(15, 5))
+
+        # Negative breakeven checkbox
+        self.negative_be_var = ctk.BooleanVar(value=False)
+        negative_be_checkbox = ctk.CTkCheckBox(
+            tp_sl_inner,
+            text="Enable Negative Breakeven",
+            variable=self.negative_be_var,
+            command=self._on_negative_be_toggle,
+        )
+        negative_be_checkbox.pack(anchor="w", pady=(5, 2))
+
+        # Negative BE threshold
+        self.negative_be_threshold_label = ctk.CTkLabel(
+            tp_sl_inner, text="Negative BE threshold (%):", font=("Arial", 12)
+        )
+        self.negative_be_threshold_label.pack(anchor="w", pady=(10, 2))
+
+        self.negative_be_threshold_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="2.0")
+        self.negative_be_threshold_entry.pack(fill="x", pady=(2, 8))
+        self.negative_be_threshold_entry.insert(0, "2.0")
+
         # ================== COLUMN 3: Gradual Recovery ==================
         from gui.components.recovery_panel import RecoveryPanel
 
@@ -595,6 +642,30 @@ class ConfigPanel(ctk.CTkFrame):
 
             messagebox.showerror("Error", f"Failed to save credentials: {e}")
 
+    def _on_limit_steps_toggle(self):
+        """Show/hide max steps field based on checkbox"""
+        try:
+            if self.limit_trailing_steps_var.get():
+                self.max_steps_label.pack(anchor="w", pady=(5, 2))
+                self.max_steps_entry.pack(fill="x", pady=(2, 8))
+            else:
+                self.max_steps_label.pack_forget()
+                self.max_steps_entry.pack_forget()
+        except Exception as e:
+            print(f"Error toggling limit steps: {e}")
+
+    def _on_negative_be_toggle(self):
+        """Show/hide negative breakeven threshold based on checkbox"""
+        try:
+            if self.negative_be_var.get():
+                self.negative_be_threshold_label.pack(anchor="w", pady=(10, 2))
+                self.negative_be_threshold_entry.pack(fill="x", pady=(2, 8))
+            else:
+                self.negative_be_threshold_label.pack_forget()
+                self.negative_be_threshold_entry.pack_forget()
+        except Exception as e:
+            print(f"Error toggling negative breakeven: {e}")
+
     def _on_mode_change(self):
         """Handle mode radio button change"""
         try:
@@ -696,6 +767,33 @@ class ConfigPanel(ctk.CTkFrame):
                 print(f"Invalid default SL: {e}, using default 2.5")
                 default_sl = 2.5
 
+            # Trailing step percentage
+            try:
+                trailing_step_pct = float(self.trailing_step_pct_entry.get())
+                if trailing_step_pct <= 0 or trailing_step_pct > 50:
+                    raise ValueError("Trailing step must be between 0 and 50")
+            except ValueError as e:
+                print(f"Invalid trailing step: {e}, using default 2.0")
+                trailing_step_pct = 2.0
+
+            # Max steps
+            try:
+                trailing_max_steps = int(self.max_steps_entry.get())
+                if trailing_max_steps < 1:
+                    raise ValueError("Max steps must be at least 1")
+            except ValueError as e:
+                print(f"Invalid max steps: {e}, using default 5")
+                trailing_max_steps = 5
+
+            # Negative breakeven validation
+            try:
+                negative_be_threshold = float(self.negative_be_threshold_entry.get())
+                if negative_be_threshold <= 0 or negative_be_threshold > 100:
+                    raise ValueError("Negative BE threshold must be between 0 and 100")
+            except ValueError as e:
+                print(f"Invalid negative BE threshold: {e}, using default 2.0")
+                negative_be_threshold = 2.0
+
             return {
                 "risk": {
                     "max_position_size": max_position_size,
@@ -720,7 +818,12 @@ class ConfigPanel(ctk.CTkFrame):
                     "default_tp": default_tp,
                     "default_sl": default_sl,
                     "trailing_stop": self.trailing_stop_var.get(),
+                    "trailing_step_pct": trailing_step_pct,
+                    "trailing_limit_steps": self.limit_trailing_steps_var.get(),
+                    "trailing_max_steps": trailing_max_steps,
                     "mode": self.tp_sl_mode_var.get(),
+                    "negative_be_enabled": self.negative_be_var.get(),
+                    "negative_be_threshold_pct": negative_be_threshold,
                 },
             }
         except Exception as e:
@@ -747,6 +850,9 @@ class ConfigPanel(ctk.CTkFrame):
                     "default_tp": 5.0,
                     "default_sl": 2.5,
                     "trailing_stop": False,
+                    "trailing_step_pct": 2.0,
+                    "trailing_limit_steps": False,
+                    "trailing_max_steps": 5,
                     "mode": "Percentage",
                 },
             }
@@ -792,7 +898,17 @@ class ConfigPanel(ctk.CTkFrame):
             self.default_sl_entry.delete(0, "end")
             self.default_sl_entry.insert(0, str(tp_sl.get("default_sl", 2.5)))
             self.trailing_stop_var.set(tp_sl.get("trailing_stop", False))
+            self.trailing_step_pct_entry.delete(0, "end")
+            self.trailing_step_pct_entry.insert(0, str(tp_sl.get("trailing_step_pct", 2.0)))
+            self.limit_trailing_steps_var.set(tp_sl.get("trailing_limit_steps", False))
+            self.max_steps_entry.delete(0, "end")
+            self.max_steps_entry.insert(0, str(tp_sl.get("trailing_max_steps", 5)))
+            self._on_limit_steps_toggle()  # Show/hide max steps field
             self.tp_sl_mode_var.set(tp_sl.get("mode", "Percentage"))
+            # Load negative breakeven settings
+            self.negative_be_var.set(tp_sl.get("negative_be_enabled", False))
+            self.negative_be_threshold_entry.delete(0, "end")
+            self.negative_be_threshold_entry.insert(0, str(tp_sl.get("negative_be_threshold_pct", 2.0)))
 
         if "recovery" in settings and hasattr(self, "recovery_panel"):
             self.recovery_panel.load_config(settings["recovery"])

@@ -2,7 +2,8 @@
 Order Manager Module
 
 Orchestrates the complete order execution flow.
-Integrates all components: builder, validator, risk manager, and Binance client.
+Integrates all components: builder, validator, risk manager, Binance client,
+and optionally RecoveryManager for gradual recovery parameters.
 """
 
 from typing import Optional
@@ -24,11 +25,13 @@ class OrderManager:
         1. Check if any positions are open (via DataFetcher)
         2. If no positions → proceed with order execution
         3. Calculate position size (RiskManager)
-        4. Build order ticket (OrderBuilder)
-        5. Validate pre-order (OrderValidator)
-        6. Execute order (BinanceClient)
-        7. Validate post-order (OrderValidator)
-        8. Return order result
+        4. Check for recovery parameters (RecoveryManager)
+        5. Build order ticket (OrderBuilder)
+        6. Fetch current price
+        7. Pre-order validation (OrderValidator)
+        8. Execute order (BinanceClient)
+        9. Post-order validation (OrderValidator)
+        10. Return order result
 
     Example:
         >>> manager = OrderManager(data_fetcher, api_key, api_secret)
@@ -46,6 +49,7 @@ class OrderManager:
         default_leverage: int = 2,
         default_tp_pct: float = 5.0,
         default_sl_pct: float = 50.0,
+        recovery_manager=None,  # Optional RecoveryManager for gradual recovery
     ):
         """
         Initialize OrderManager.
@@ -60,12 +64,14 @@ class OrderManager:
             default_leverage: Default leverage (default: 2x)
             default_tp_pct: Default take profit percentage (default: 5%)
             default_sl_pct: Default stop loss percentage (default: 50%)
+            recovery_manager: Optional RecoveryManager for gradual recovery parameters
         """
         self.data_fetcher = data_fetcher
         self.api_key = api_key
         self.api_secret = api_secret
         self.testnet = testnet
         self.dry_run = dry_run
+        self.recovery_manager = recovery_manager
 
         # Initialize components
         self.risk_manager = RiskManager(
@@ -150,12 +156,13 @@ class OrderManager:
         Flow:
             1. Check open positions
             2. Calculate position size
-            3. Build order ticket
-            4. Fetch current price
-            5. Pre-order validation
-            6. Execute order
-            7. Post-order validation
-            8. Return result
+            3. Check for recovery parameters
+            4. Build order ticket
+            5. Fetch current price
+            6. Pre-order validation
+            7. Execute order
+            8. Post-order validation
+            9. Return result
         """
         log_info(f"🚀 Executing signal: {signal.symbol} {signal.signal_type}")
 
@@ -178,16 +185,44 @@ class OrderManager:
             log_error("Failed to calculate position size, aborting")
             return None
 
-        # Step 3: Build order ticket
+        # Step 3: Check for recovery parameters (Gradual Recovery)
+        effective_leverage = leverage_override
+        effective_position_size = position_size
+
+        if self.recovery_manager and self.recovery_manager.is_active:
+            recovery_params = self.recovery_manager.get_recovery_parameters()
+            if recovery_params.get("active"):
+                recovery_leverage = recovery_params.get("leverage")
+                recovery_position_size = recovery_params.get("position_size")
+
+                if recovery_leverage:
+                    effective_leverage = recovery_leverage
+                    log_info(f"🔄 Recovery mode: Using leverage {effective_leverage}x")
+
+                if recovery_position_size:
+                    # Use the smaller of calculated size or recovery-recommended size
+                    effective_position_size = min(position_size, recovery_position_size)
+                    log_info(f"🔄 Recovery mode: Position size ${effective_position_size:.2f}")
+
+                remaining = recovery_params.get("remaining_loss", 0)
+                pct = recovery_params.get("recovery_percentage", 0)
+                log_info(f"🔄 Recovery status: {pct:.1f}% complete, ${remaining:.2f} remaining")
+
+        # Step 4: Build order ticket
         order = self.order_builder.build_order(
             signal=signal,
-            position_size=position_size,
-            leverage=leverage_override,
+            position_size=effective_position_size,
+            leverage=effective_leverage,
         )
+        # Set client_order_id (AT_ prefix) for Binance and DB sync
+        from modules.auto_trade.execution.order_tagging import OrderTagger
+
+        symbol_ccxt = (order.symbol or "").replace("/", "")
+        order.client_order_id = OrderTagger.generate_client_order_id(symbol_ccxt)
 
         log_info(f"Built order ticket: {order.symbol} {order.side} ${order.amount:.2f} @ {order.leverage}x")
 
-        # Step 4: Fetch current price
+        # Step 5: Fetch current price
         try:
             # Use DataFetcher or directly from CCXT
             ticker = self.binance_client.exchange.fetch_ticker(signal.symbol)
@@ -197,7 +232,7 @@ class OrderManager:
             log_error(f"Failed to fetch current price: {e}", exc_info=True)
             return None
 
-        # Step 5: Pre-order validation
+        # Step 6: Pre-order validation
         balance = self.risk_manager.fetch_account_balance(
             api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
         )
@@ -210,7 +245,7 @@ class OrderManager:
             log_error("Pre-order validation failed, aborting")
             return None
 
-        # Step 6: Execute order
+        # Step 7: Execute order
         log_info(f"Executing order on Binance...")
         order_result = self.binance_client.create_market_order(order)
 
@@ -218,11 +253,49 @@ class OrderManager:
             log_error("Order execution failed")
             return None
 
-        # Step 7: Post-order validation
+        # Step 8: Post-order validation
         if not self.order_validator.validate_post_order(order_result, order):
             log_warn("Post-order validation failed, but order was executed")
 
-        # Step 8: Return result
+        # Step 8.5: Persist order to DB (sync Binance -> DB)
+        if not self.dry_run and order_result.get("market_order"):
+            try:
+                from modules.auto_trade.database import create_order, session_scope
+
+                market = order_result["market_order"]
+                order_id_binance = str(market.get("id", ""))
+                client_order_id = market.get("clientOrderId") or getattr(
+                    order, "client_order_id", None
+                ) or order.client_order_id
+                entry_price = float(
+                    order_result.get("entry_price") or order.entry_price or 0
+                )
+                ticket = order_result.get("order_ticket") or order.to_dict()
+                side_long_short = "LONG" if (order.side or "").upper() == "BUY" else "SHORT"
+                symbol_db = (order.symbol or "").replace("/", "")
+                order_data = {
+                    "order_id": order_id_binance,
+                    "client_order_id": client_order_id or order.client_order_id,
+                    "symbol": symbol_db,
+                    "side": side_long_short,
+                    "entry_price": entry_price,
+                    "amount": float(order.amount),
+                    "leverage": int(order.leverage),
+                    "stop_loss": getattr(order, "stop_loss_price", None)
+                    or ticket.get("stop_loss_price"),
+                    "take_profit": getattr(order, "take_profit_price", None)
+                    or ticket.get("take_profit_price"),
+                    "status": "OPEN",
+                    "order_source": "PROGRAMMATIC",
+                    "execution_mode": "AUTO",
+                }
+                with session_scope() as session:
+                    create_order(session, order_data)
+                log_info(f"Order {order_id_binance} persisted to DB (client_order_id={client_order_id})")
+            except Exception as db_err:
+                log_error(f"Failed to persist order to DB: {db_err}", exc_info=True)
+
+        # Step 9: Return result
         log_info(f"✅ Order executed successfully for {signal.symbol}")
         return order_result
 

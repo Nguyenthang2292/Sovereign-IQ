@@ -9,6 +9,8 @@ class WebSocketHandler:
 
     def __init__(self, parent):
         self.parent = parent
+        self._ws_trailing_handler = None
+        self._ws_negative_be_handler = None
 
     def register_callbacks(self):
         """Register callbacks for WebSocket real-time updates."""
@@ -20,6 +22,29 @@ class WebSocketHandler:
         self.parent.ws_data_service.on_position_update(self._on_position_update)
         self.parent.ws_data_service.on_balance_update(self._on_balance_update)
         self.parent.ws_data_service.on_order_update(self._on_order_update)
+
+        # WebSocket-driven trailing stop: same logic as timer job, triggered on each position update (debounced)
+        from modules.auto_trade.execution.trailing_stop_ws_handler import create_websocket_trailing_stop_handler
+
+        self._ws_trailing_handler = create_websocket_trailing_stop_handler(
+            settings_manager=self.parent.settings_manager,
+            binance_client=None,  # Optional: pass from data_service when available
+            debounce_seconds=2.0,
+        )
+        self.parent.ws_data_service.on_position_update(self._ws_trailing_handler.on_position_update)
+
+        # WebSocket-driven negative breakeven: same logic as timer job, triggered on each position update (debounced)
+        from modules.auto_trade.execution.negative_breakeven_ws_handler import (
+            create_websocket_negative_breakeven_handler,
+        )
+
+        self._ws_negative_be_handler = create_websocket_negative_breakeven_handler(
+            settings_manager=self.parent.settings_manager,
+            binance_client=None,  # Optional: pass from data_service when available
+            debounce_seconds=2.0,
+        )
+        self.parent.ws_data_service.on_position_update(self._ws_negative_be_handler.on_position_update)
+
         print("✅ WebSocket callbacks registered")
 
     def _on_position_update(self, position: PositionSnapshot):

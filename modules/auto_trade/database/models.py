@@ -102,6 +102,9 @@ class Order(Base, JSONSerializableMixin):
     be_moved_at = Column(DateTime)
     original_stop_loss = Column(Float)
 
+    # Trailing Stop Step Management
+    trailing_step_index = Column(Integer, default=0)
+
     # Martingale Chain Tracking
     martingale_step = Column(Integer, default=0)
     parent_order_id = Column(String(100), ForeignKey("orders.order_id"), index=True)
@@ -172,6 +175,7 @@ class Order(Base, JSONSerializableMixin):
             "pnl": self.pnl,
             "pnl_percentage": self.pnl_percentage,
             "be_moved": self.be_moved,
+            "trailing_step_index": self.trailing_step_index,
             "martingale_step": self.martingale_step,
             "martingale_chain_id": self.martingale_chain_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,

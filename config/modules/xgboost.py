@@ -7,7 +7,7 @@ Includes target configuration, model features, and hyperparameters.
 
 # Prediction Target Configuration
 TARGET_HORIZON = 24  # Number of candles to predict ahead
-TARGET_BASE_THRESHOLD = 0.01  # Base threshold for directional labeling (1%)
+TARGET_BASE_THRESHOLD = 0.02  # Base threshold for directional labeling (2% - increased from 1% to reduce NEUTRAL bias)
 TARGET_LABELS = ["DOWN", "NEUTRAL", "UP"]
 LABEL_TO_ID = {label: idx for idx, label in enumerate(TARGET_LABELS)}
 ID_TO_LABEL = {idx: label for label, idx in LABEL_TO_ID.items()}

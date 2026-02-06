@@ -80,6 +80,9 @@ from .queries import (
     update_signal_outcome,
 )
 
+# Import reconcile
+from .reconcile import reconcile_orders_with_binance
+
 # Import utilities
 from .utils import (
     DatabaseCleaner,
@@ -277,6 +280,7 @@ __all__ = [
     # Database Management
     "DatabaseManager",
     "get_db_manager",
+    "reconcile_orders_with_binance",
     "get_session",
     "session_scope",
     "initialize_database",

@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import Session
 
-from .models import AuditLog, MartingaleChain, Order, Signal, SystemState
+from .models import AuditLog, GradualRecovery, MartingaleChain, Order, Signal, SystemState
 
 # ============================================================================
 # ORDER QUERIES - Only Programmatic Orders
@@ -189,16 +189,24 @@ def update_order_status(
     return False
 
 
-def mark_be_moved(session: Session, order_id: str, new_stop_loss: float, verify_programmatic: bool = True) -> bool:
+def mark_be_moved(
+    session: Session,
+    order_id: str,
+    new_stop_loss: Optional[float] = None,
+    new_take_profit: Optional[float] = None,
+    verify_programmatic: bool = True,
+) -> bool:
     """
     Mark that break-even has been triggered for an order.
 
     **Verifies order is PROGRAMMATIC by default.**
+    Updates stop_loss and/or take_profit, sets be_moved flag.
 
     Args:
         session: Database session
         order_id: Order ID
-        new_stop_loss: New stop loss price (entry price)
+        new_stop_loss: New stop loss price (optional)
+        new_take_profit: New take profit price (optional)
         verify_programmatic: If True, only update programmatic orders
 
     Returns:
@@ -212,8 +220,11 @@ def mark_be_moved(session: Session, order_id: str, new_stop_loss: float, verify_
     order = query.first()
 
     if order and not order.be_moved:
-        order.original_stop_loss = order.stop_loss
-        order.stop_loss = new_stop_loss
+        if new_stop_loss is not None:
+            order.original_stop_loss = order.stop_loss
+            order.stop_loss = new_stop_loss
+        if new_take_profit is not None:
+            order.take_profit = new_take_profit
         order.be_moved = True
         order.be_moved_at = datetime.utcnow()
         session.commit()
@@ -237,26 +248,26 @@ def create_order(session: Session, order_data: Dict[str, Any]) -> Order:
         ValueError: If required fields are missing or invalid
     """
     # Validate required fields
-    required_fields = ['order_id', 'symbol', 'side', 'entry_price', 'amount']
+    required_fields = ["order_id", "symbol", "side", "entry_price", "amount"]
     missing_fields = [field for field in required_fields if field not in order_data]
 
     if missing_fields:
         raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
 
     # Validate side
-    if order_data.get('side') not in ('LONG', 'SHORT'):
+    if order_data.get("side") not in ("LONG", "SHORT"):
         raise ValueError(f"Invalid side: {order_data.get('side')}. Must be 'LONG' or 'SHORT'")
 
     # Validate numeric fields
-    if not isinstance(order_data.get('entry_price'), (int, float)) or order_data.get('entry_price') <= 0:
+    if not isinstance(order_data.get("entry_price"), (int, float)) or order_data.get("entry_price") <= 0:
         raise ValueError(f"Invalid entry_price: {order_data.get('entry_price')}")
 
-    if not isinstance(order_data.get('amount'), (int, float)) or order_data.get('amount') <= 0:
+    if not isinstance(order_data.get("amount"), (int, float)) or order_data.get("amount") <= 0:
         raise ValueError(f"Invalid amount: {order_data.get('amount')}")
 
     # Validate leverage if provided
-    if 'leverage' in order_data:
-        leverage = order_data.get('leverage')
+    if "leverage" in order_data:
+        leverage = order_data.get("leverage")
         if not isinstance(leverage, int) or leverage < 1 or leverage > 125:
             raise ValueError(f"Invalid leverage: {leverage}. Must be between 1 and 125")
 
@@ -527,9 +538,7 @@ def update_signal_outcome(
     return False
 
 
-def get_recent_signals(
-    session: Session, limit: int = 50, executed_only: bool = False, offset: int = 0
-) -> List[Signal]:
+def get_recent_signals(session: Session, limit: int = 50, executed_only: bool = False, offset: int = 0) -> List[Signal]:
     """
     Get recent signals.
 
@@ -697,7 +706,11 @@ def create_audit_log(
 
 
 def get_recent_audit_logs(
-    session: Session, limit: int = 100, severity: Optional[str] = None, event_type: Optional[str] = None, offset: int = 0
+    session: Session,
+    limit: int = 100,
+    severity: Optional[str] = None,
+    event_type: Optional[str] = None,
+    offset: int = 0,
 ) -> List[AuditLog]:
     """
     Get recent audit log entries.
@@ -746,14 +759,14 @@ def get_daily_stats(session: Session, days: int = 30) -> List[Dict[str, Any]]:
 
     results = (
         session.query(
-            func.date(Order.closed_at).label('date'),
-            func.count(Order.id).label('total_trades'),
-            func.sum(case((Order.pnl > 0, 1), else_=0)).label('winning_trades'),
-            func.sum(case((Order.pnl < 0, 1), else_=0)).label('losing_trades'),
-            func.sum(Order.pnl).label('total_pnl'),
-            func.sum(Order.commission).label('total_fees'),
-            func.max(Order.pnl).label('best_trade'),
-            func.min(Order.pnl).label('worst_trade'),
+            func.date(Order.closed_at).label("date"),
+            func.count(Order.id).label("total_trades"),
+            func.sum(case((Order.pnl > 0, 1), else_=0)).label("winning_trades"),
+            func.sum(case((Order.pnl < 0, 1), else_=0)).label("losing_trades"),
+            func.sum(Order.pnl).label("total_pnl"),
+            func.sum(Order.commission).label("total_fees"),
+            func.max(Order.pnl).label("best_trade"),
+            func.min(Order.pnl).label("worst_trade"),
         )
         .filter(Order.order_source == "PROGRAMMATIC", Order.status == "CLOSED", Order.closed_at >= start_date)
         .group_by(func.date(Order.closed_at))
@@ -823,3 +836,188 @@ def get_overall_stats(session: Session) -> Dict[str, Any]:
         "best_trade": max((o.pnl or 0) for o in orders) if orders else 0.0,
         "worst_trade": min((o.pnl or 0) for o in orders) if orders else 0.0,
     }
+
+
+# ============================================================================
+# GRADUAL RECOVERY QUERIES
+# ============================================================================
+
+
+def get_active_gradual_recovery(session: Session, symbol: Optional[str] = None) -> Optional[GradualRecovery]:
+    """
+    Get active Gradual Recovery record.
+
+    For GLOBAL recovery (symbol=None), returns the first active recovery.
+    For per-symbol recovery, returns the active recovery for that symbol.
+
+    Args:
+        session: Database session
+        symbol: Optional symbol filter (None for global recovery)
+
+    Returns:
+        Active GradualRecovery or None
+    """
+    query = session.query(GradualRecovery).filter(GradualRecovery.status == "ACTIVE")
+
+    if symbol:
+        query = query.filter(GradualRecovery.symbol == symbol)
+    else:
+        # For global recovery, use a special symbol marker
+        query = query.filter(GradualRecovery.symbol == "GLOBAL")
+
+    return query.order_by(desc(GradualRecovery.created_at)).first()
+
+
+def create_gradual_recovery(
+    session: Session,
+    recovery_id: str,
+    initial_loss: float,
+    config: Dict[str, Any],
+    symbol: Optional[str] = None,
+) -> GradualRecovery:
+    """
+    Create a new Gradual Recovery record.
+
+    Args:
+        session: Database session
+        recovery_id: Unique recovery identifier
+        initial_loss: Initial loss amount to recover
+        config: RecoveryConfig dictionary
+        symbol: Symbol for per-symbol recovery (None for global)
+
+    Returns:
+        Created GradualRecovery object
+    """
+    recovery = GradualRecovery(
+        recovery_id=recovery_id,
+        symbol=symbol or "GLOBAL",
+        status="ACTIVE",
+        initial_loss=initial_loss,
+        remaining_loss=initial_loss,
+        total_profit_accumulated=0.0,
+        recovery_percentage=0.0,
+        trades_count=0,
+        win_streak=0,
+        estimated_trades_remaining=0,
+    )
+    recovery.set_config(config)
+
+    session.add(recovery)
+    session.commit()
+    session.refresh(recovery)
+
+    return recovery
+
+
+def update_gradual_recovery(
+    session: Session,
+    recovery_id: str,
+    remaining_loss: Optional[float] = None,
+    total_profit_accumulated: Optional[float] = None,
+    recovery_percentage: Optional[float] = None,
+    trades_count: Optional[int] = None,
+    win_streak: Optional[int] = None,
+    estimated_trades_remaining: Optional[int] = None,
+    status: Optional[str] = None,
+) -> bool:
+    """
+    Update Gradual Recovery state fields.
+
+    Args:
+        session: Database session
+        recovery_id: Recovery ID to update
+        remaining_loss: Updated remaining loss
+        total_profit_accumulated: Updated total profit
+        recovery_percentage: Updated recovery percentage
+        trades_count: Updated trade count
+        win_streak: Updated win streak
+        estimated_trades_remaining: Updated estimate
+        status: Updated status
+
+    Returns:
+        True if updated, False otherwise
+    """
+    recovery = session.query(GradualRecovery).filter(GradualRecovery.recovery_id == recovery_id).first()
+
+    if not recovery:
+        return False
+
+    if remaining_loss is not None:
+        recovery.remaining_loss = remaining_loss
+    if total_profit_accumulated is not None:
+        recovery.total_profit_accumulated = total_profit_accumulated
+    if recovery_percentage is not None:
+        recovery.recovery_percentage = recovery_percentage
+    if trades_count is not None:
+        recovery.trades_count = trades_count
+    if win_streak is not None:
+        recovery.win_streak = win_streak
+    if estimated_trades_remaining is not None:
+        recovery.estimated_trades_remaining = estimated_trades_remaining
+    if status is not None:
+        recovery.status = status
+        if status == "COMPLETE":
+            recovery.completed_at = datetime.utcnow()
+        elif status == "FAILED":
+            recovery.failed_at = datetime.utcnow()
+
+    session.commit()
+    return True
+
+
+def cancel_gradual_recovery(session: Session, recovery_id: str) -> bool:
+    """
+    Cancel a Gradual Recovery record.
+
+    Args:
+        session: Database session
+        recovery_id: Recovery ID to cancel
+
+    Returns:
+        True if cancelled, False otherwise
+    """
+    recovery = session.query(GradualRecovery).filter(GradualRecovery.recovery_id == recovery_id).first()
+
+    if not recovery:
+        return False
+
+    recovery.status = "CANCELLED"
+    session.commit()
+    return True
+
+
+def get_gradual_recovery_by_id(session: Session, recovery_id: str) -> Optional[GradualRecovery]:
+    """
+    Get Gradual Recovery by ID.
+
+    Args:
+        session: Database session
+        recovery_id: Recovery ID
+
+    Returns:
+        GradualRecovery object or None
+    """
+    return session.query(GradualRecovery).filter(GradualRecovery.recovery_id == recovery_id).first()
+
+
+def get_all_gradual_recoveries(
+    session: Session, status: Optional[str] = None, limit: int = 50, offset: int = 0
+) -> List[GradualRecovery]:
+    """
+    Get all Gradual Recovery records.
+
+    Args:
+        session: Database session
+        status: Optional status filter
+        limit: Maximum results
+        offset: Number to skip
+
+    Returns:
+        List of GradualRecovery objects
+    """
+    query = session.query(GradualRecovery)
+
+    if status:
+        query = query.filter(GradualRecovery.status == status)
+
+    return query.order_by(desc(GradualRecovery.created_at)).offset(offset).limit(limit).all()

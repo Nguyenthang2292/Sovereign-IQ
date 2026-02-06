@@ -2,12 +2,13 @@
 Position Lifecycle Handler Module
 
 Handles position lifecycle events: opening, closing, profit, loss.
-Integrates with Martingale strategy and database for tracking.
+Integrates with Martingale strategy, EventBus, and database for tracking.
 """
 
 from datetime import datetime
 from typing import Optional
 
+from modules.auto_trade.monitoring.event_system import EventSystem, EventType
 from modules.auto_trade.monitoring.position_monitor import PositionSnapshot
 from modules.auto_trade.strategies.martingale import MartingaleStrategy
 from modules.common.ui.logging import log_error, log_info, log_warn
@@ -18,7 +19,7 @@ class PositionLifecycleHandler:
     Handles position lifecycle events and state transitions.
 
     Example:
-        >>> handler = PositionLifecycleHandler(martingale, database)
+        >>> handler = PositionLifecycleHandler(martingale, database, event_bus)
         >>> handler.on_position_opened(symbol, entry_price, leverage)
         >>> handler.on_position_closed(symbol, pnl, is_profit)
     """
@@ -27,6 +28,7 @@ class PositionLifecycleHandler:
         self,
         martingale: MartingaleStrategy,
         database=None,  # Optional database for tracking
+        event_bus: Optional[EventSystem] = None,  # EventBus for publishing events
     ):
         """
         Initialize PositionLifecycleHandler.
@@ -34,9 +36,11 @@ class PositionLifecycleHandler:
         Args:
             martingale: MartingaleStrategy instance
             database: Optional database for persisting lifecycle events
+            event_bus: Optional EventSystem for publishing position events
         """
         self.martingale = martingale
         self.database = database
+        self.event_bus = event_bus
 
         self._open_positions = {}  # symbol -> position data
         self._win_count = 0
@@ -168,6 +172,26 @@ class PositionLifecycleHandler:
                 )
             except Exception as e:
                 log_error(f"Failed to persist position close to database: {e}")
+
+        # Publish POSITION_CLOSED event to EventBus for RecoveryManager
+        if self.event_bus:
+            try:
+                self.event_bus.publish(
+                    EventType.POSITION_CLOSED,
+                    {
+                        "symbol": symbol,
+                        "pnl": pnl,
+                        "is_profit": is_profit,
+                        "exit_price": exit_price,
+                        "entry_price": entry_price,
+                        "leverage": leverage,
+                        "duration_seconds": duration,
+                        "is_programmatic": True,
+                    },
+                    source="PositionLifecycleHandler",
+                )
+            except Exception as e:
+                log_error(f"Failed to publish POSITION_CLOSED event: {e}")
 
         # Remove from open positions
         del self._open_positions[symbol]

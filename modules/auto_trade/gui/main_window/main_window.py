@@ -59,6 +59,24 @@ class AutoTradeDashboard(ctk.CTk):
         self.log_file_path.parent.mkdir(parents=True, exist_ok=True)
         self._setup_file_logging()
 
+        # Initialize EventSystem for position lifecycle events
+        from modules.auto_trade.monitoring.event_system import EventSystem
+
+        self.event_bus = EventSystem()
+
+        # Initialize RecoveryManager for Gradual Recovery
+        from modules.auto_trade.strategies.recovery_manager import RecoveryManager
+
+        recovery_config = self.settings_manager.get("recovery", {})
+        self.recovery_manager = RecoveryManager(
+            event_bus=self.event_bus,
+            config=recovery_config,
+            enabled=recovery_config.get("enabled", False),
+            database=True,  # Enable database persistence
+        )
+        self.recovery_manager.start()
+        logging.info(f"RecoveryManager started (enabled={recovery_config.get('enabled', False)})")
+
         # Initialize managers
         self.layout_manager = LayoutManager(self)
         self.updater_manager = UpdaterManager(self)
@@ -74,6 +92,12 @@ class AutoTradeDashboard(ctk.CTk):
         self.scanner_control: Any = None
         self.auto_trade_control: Any = None
         self.signals_frame: Any = None
+        self.stats_frame: Any = None
+        self.last_update_label: Any = None
+        self.header_mode_label: Any = None
+        self.positions_frame: Any = None
+        self.account_frame: Any = None
+        self.status_label: Any = None
 
         # Create UI and start services
         self.layout_manager.create_layout()
@@ -249,7 +273,7 @@ class AutoTradeDashboard(ctk.CTk):
         ws = getattr(self, "ws_data_service", None)
         if ws is None or status["api_mode"] == "DRY_RUN":
             status["api_connection"] = "N/A" if status["api_mode"] == "DRY_RUN" else "—"
-        elif hasattr(ws, "is_connected") and ws.is_connected():
+        elif getattr(ws, "is_connected", False):
             status["api_connection"] = "Connected"
         else:
             status["api_connection"] = "Disconnected"
@@ -269,16 +293,25 @@ class AutoTradeDashboard(ctk.CTk):
             if not hasattr(self, "config_panel"):
                 return
             current = self.config_panel.get_settings()
+            # Ensure Default Leverage always comes from form (avoid 10x when get_settings() returned defaults)
+            if hasattr(self.config_panel, "default_leverage_var"):
+                current.setdefault("risk", {})["default_leverage"] = self.config_panel.default_leverage_var.get()
             # Overwrite settings_manager with form values (ghi đè từ Apply Settings)
-            for key in ("risk", "filters", "tp_sl", "api"):
+            for key in ("risk", "tp_sl", "api"):
                 if key in current:
                     self.settings_manager.settings[key] = current[key]
+            # Merge filters so we preserve keys not in form (e.g. timeframe)
+            if "filters" in current:
+                existing = self.settings_manager.settings.get("filters", {})
+                self.settings_manager.settings["filters"] = {**existing, **current["filters"]}
             # Gradual Recovery: set current Settings panel config as default for Trading tab
             if hasattr(self.config_panel, "recovery_panel"):
                 raw = self.config_panel.recovery_panel.get_config()
                 try:
                     eb = raw.get("enable_streak_bonus", False)
+                    enabled = raw.get("enabled", False)
                     self.settings_manager.settings["recovery"] = {
+                        "enabled": enabled if isinstance(enabled, bool) else str(enabled).lower() in ("true", "1", "yes"),
                         "initial_loss": float(raw.get("initial_loss", 500)),
                         "target_profit_per_trade": float(raw.get("target_profit_per_trade", 5)),
                         "max_recovery_trades": int(raw.get("max_recovery_trades", 20)),
@@ -296,9 +329,14 @@ class AutoTradeDashboard(ctk.CTk):
 
             # Refresh Trading tab Current Settings so they reflect applied values
             if hasattr(self, "auto_trade_control") and hasattr(self.auto_trade_control, "update_from_settings"):
-                self.auto_trade_control.update_from_settings(
-                    self.settings_manager.settings, status=self._get_current_status()
-                )
+                try:
+                    self.auto_trade_control.update_from_settings(
+                        self.settings_manager.settings, status=self._get_current_status()
+                    )
+                    self.auto_trade_control.update_idletasks()
+                    self.update_idletasks()
+                except Exception as refresh_err:
+                    logging.warning(f"Trading tab Current Settings refresh: {refresh_err}")
 
             # Scanner: reset pipeline so next scan uses new filters (atc_threshold, etc.)
             if hasattr(self, "scanner_manager"):
@@ -317,6 +355,74 @@ class AutoTradeDashboard(ctk.CTk):
             if hasattr(self, "status_label"):
                 self.status_label.configure(text=f"Apply failed: {e}")
 
+    def reload_current_settings(self):
+        """Force reload Trading tab Current Settings: prefer Settings tab form, else in-memory settings."""
+        try:
+            settings_to_show = None
+            # 1) Prefer current values from Settings tab form (so "settings from Settings tab" are passed)
+            if hasattr(self, "config_panel"):
+                current = self.config_panel.get_settings()
+                if hasattr(self.config_panel, "default_leverage_var"):
+                    current.setdefault("risk", {})["default_leverage"] = (
+                        self.config_panel.default_leverage_var.get()
+                    )
+                existing_filters = self.settings_manager.settings.get("filters", {})
+                settings_to_show = {
+                    "risk": current.get("risk", {}),
+                    "filters": {**existing_filters, **current.get("filters", {})},
+                    "tp_sl": current.get("tp_sl", {}),
+                    "api": current.get("api", {}),
+                    "recovery": self.settings_manager.settings.get("recovery", {}),
+                }
+                if hasattr(self.config_panel, "recovery_panel"):
+                    raw = self.config_panel.recovery_panel.get_config()
+                    try:
+                        eb = raw.get("enable_streak_bonus", False)
+                        enabled = raw.get("enabled", False)
+                        settings_to_show["recovery"] = {
+                            "enabled": (
+                                enabled
+                                if isinstance(enabled, bool)
+                                else str(enabled).lower() in ("true", "1", "yes")
+                            ),
+                            "initial_loss": float(raw.get("initial_loss", 500)),
+                            "target_profit_per_trade": float(raw.get("target_profit_per_trade", 5)),
+                            "max_recovery_trades": int(raw.get("max_recovery_trades", 20)),
+                            "margin_scaling_mode": str(raw.get("margin_scaling_mode", "fixed")),
+                            "leverage_scaling_mode": str(raw.get("leverage_scaling_mode", "fixed")),
+                            "min_leverage": int(raw.get("min_leverage", 2)),
+                            "max_leverage": int(raw.get("max_leverage", 10)),
+                            "enable_streak_bonus": (
+                                eb
+                                if isinstance(eb, bool)
+                                else str(eb).lower() in ("true", "1", "yes")
+                            ),
+                        }
+                    except (TypeError, ValueError):
+                        pass
+            # 2) Fallback: use in-memory settings (no load() so we don't overwrite with file)
+            if settings_to_show is None:
+                self.settings_manager.load()
+                settings_to_show = self.settings_manager.settings
+
+            if hasattr(self, "auto_trade_control") and hasattr(
+                self.auto_trade_control, "update_from_settings"
+            ):
+                self.auto_trade_control.update_from_settings(
+                    settings_to_show, status=self._get_current_status()
+                )
+                self.auto_trade_control.update_idletasks()
+                self.update_idletasks()
+            if hasattr(self, "status_label"):
+                self.status_label.configure(
+                    text="Current Settings reloaded (from Settings tab form)."
+                )
+            logging.info("Current Settings force-reloaded (Trading tab)")
+        except Exception as e:
+            logging.warning(f"Force reload Current Settings: {e}")
+            if hasattr(self, "status_label"):
+                self.status_label.configure(text=f"Reload failed: {e}")
+
     def on_recovery_config_change(self, event_type: str, data):
         """Handle recovery configuration change."""
         try:
@@ -326,12 +432,33 @@ class AutoTradeDashboard(ctk.CTk):
                 self.settings_manager.set("recovery.enabled", True)
                 self.settings_manager.set("recovery.config", data)
                 self.settings_manager.save()
+
+                # Update RecoveryManager with new config
+                if hasattr(self, "recovery_manager"):
+                    self.recovery_manager.set_enabled(True)
+                    self.recovery_manager.update_config(data)
+
             elif event_type == "recovery_reset":
                 self.settings_manager.set("recovery.enabled", False)
                 self.settings_manager.save()
+
+                # Reset RecoveryManager
+                if hasattr(self, "recovery_manager"):
+                    self.recovery_manager.reset()
+
             elif event_type == "recovery_alert":
                 if hasattr(self, "status_label"):
                     self.status_label.configure(text=f"Recovery: {data}")
+
+            elif event_type == "recovery_enabled_changed":
+                # Handle enabled toggle from GUI
+                enabled = data.get("enabled", False)
+                self.settings_manager.set("recovery.enabled", enabled)
+                self.settings_manager.save()
+
+                if hasattr(self, "recovery_manager"):
+                    self.recovery_manager.set_enabled(enabled)
+                    logging.info(f"RecoveryManager enabled={enabled}")
 
         except Exception as e:
             logging.error(f"Error handling recovery config change: {e}")
@@ -354,6 +481,11 @@ class AutoTradeDashboard(ctk.CTk):
         if hasattr(self, "ws_data_service"):
             self.ws_data_service.stop()
             logging.info("WebSocket service stopped")
+
+        # Stop RecoveryManager
+        if hasattr(self, "recovery_manager"):
+            self.recovery_manager.stop()
+            logging.info("RecoveryManager stopped")
 
         self.updater_manager.stop_all()
         self.auto_trade_manager.stop()

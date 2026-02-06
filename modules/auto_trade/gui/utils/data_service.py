@@ -257,6 +257,7 @@ class DataService:
                         if score >= min_score:
                             signal_type = signal.signal_type.upper()
                             if signal_types is None or signal_type in signal_types:
+                                created_at = signal.created_at
                                 filtered.append(
                                     {
                                         "symbol": signal.symbol,
@@ -265,6 +266,9 @@ class DataService:
                                         "time": signal.created_at.strftime("%Y-%m-%d %H:%M")
                                         if signal.created_at is not None
                                         else "",
+                                        # Extra fields for freshness filtering (< 60s)
+                                        "created_at": created_at.isoformat() if created_at is not None else "",
+                                        "created_at_ts": float(created_at.timestamp()) if created_at is not None else 0.0,
                                     }
                                 )
 
@@ -276,9 +280,30 @@ class DataService:
 
     def _get_demo_signals(self) -> List[Dict]:
         return [
-            {"symbol": "BTCUSDT", "signal": "LONG", "score": 0.85, "time": "2024-01-15 10:30"},
-            {"symbol": "ETHUSDT", "signal": "SHORT", "score": 0.72, "time": "2024-01-15 10:25"},
-            {"symbol": "SOLUSDT", "signal": "NEUTRAL", "score": 0.45, "time": "2024-01-15 10:20"},
+            {
+                "symbol": "BTCUSDT",
+                "signal": "LONG",
+                "score": 0.85,
+                "time": "2024-01-15 10:30",
+                "created_at": "",
+                "created_at_ts": 0.0,
+            },
+            {
+                "symbol": "ETHUSDT",
+                "signal": "SHORT",
+                "score": 0.72,
+                "time": "2024-01-15 10:25",
+                "created_at": "",
+                "created_at_ts": 0.0,
+            },
+            {
+                "symbol": "SOLUSDT",
+                "signal": "NEUTRAL",
+                "score": 0.45,
+                "time": "2024-01-15 10:20",
+                "created_at": "",
+                "created_at_ts": 0.0,
+            },
         ]
 
     def get_positions(self) -> List[Dict]:

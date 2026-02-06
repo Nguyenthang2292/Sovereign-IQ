@@ -11,10 +11,11 @@ class AutoTradeControl(ctk.CTkFrame):
     Shows status, allows toggle, displays current settings
     """
 
-    def __init__(self, parent, on_toggle_callback: Callable = None):
+    def __init__(self, parent, on_toggle_callback: Callable = None, on_reload_settings: Callable = None):
         super().__init__(parent)
 
         self.on_toggle_callback = on_toggle_callback
+        self.on_reload_settings = on_reload_settings
         self.auto_trade_enabled = False
 
         # Title
@@ -151,14 +152,33 @@ class AutoTradeControl(ctk.CTkFrame):
 
             messagebox.showerror("Error", f"Failed to disable auto-trade: {e}")
 
+    def _on_reload_settings(self):
+        """Trigger reload of Current Settings from main window (settings_manager + status)."""
+        if self.on_reload_settings:
+            self.on_reload_settings()
+
     def _create_settings_display(self):
         """Display current auto-trade configuration"""
         settings_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
         settings_frame.pack(fill="x", padx=15, pady=10)
 
-        # Title
-        settings_title = ctk.CTkLabel(settings_frame, text="⚙️ Current Settings", font=("Arial", 12, "bold"))
-        settings_title.pack(pady=(10, 5))
+        # Title row: "Current Settings" + Force reload button
+        title_row = ctk.CTkFrame(settings_frame, fg_color="transparent")
+        title_row.pack(fill="x", padx=10, pady=(10, 2))
+        title_row.grid_columnconfigure(0, weight=1)
+        settings_title = ctk.CTkLabel(title_row, text="⚙️ Current Settings", font=("Arial", 12, "bold"))
+        settings_title.grid(row=0, column=0, sticky="w")
+        self.reload_settings_btn = ctk.CTkButton(
+            title_row,
+            text="🔄 Force reload",
+            font=("Arial", 10),
+            width=100,
+            height=28,
+            fg_color="#1f538d",
+            hover_color="#2a6bb5",
+            command=self._on_reload_settings,
+        )
+        self.reload_settings_btn.grid(row=0, column=1, padx=(8, 0), sticky="e")
 
         # Settings list (scrollable so all settings fit)
         settings_list_frame = ctk.CTkScrollableFrame(settings_frame, fg_color="transparent", height=420)
@@ -246,74 +266,55 @@ class AutoTradeControl(ctk.CTkFrame):
     def update_from_settings(self, settings: dict, status: dict | None = None):
         """Refresh Current Settings from settings (risk, filters, tp_sl, recovery, api)
         and optional status (database, api_connection)."""
-        if not getattr(self, "settings_labels", None):
+        labels = getattr(self, "settings_labels", None)
+        if labels is None:
             return
+
+        # Validate that labels contains CTkLabel widgets, not other types
+        if not isinstance(labels, dict):
+            return
+
         risk = settings.get("risk", {})
         filters = settings.get("filters", {})
         tp_sl = settings.get("tp_sl", {})
         api = settings.get("api", {})
         recovery = settings.get("recovery", {})
-        labels = self.settings_labels
+
+        def _safe_configure(key: str, text_value: str):
+            """Safely configure a label, checking it's a valid widget first."""
+            if key not in labels:
+                return
+            label = labels[key]
+            # Ensure label is a CTkLabel widget with configure method
+            if hasattr(label, "configure") and callable(label.configure):
+                label.configure(text=text_value)
+
         # Risk & filters & TP/SL
-        if "min_score" in labels:
-            v = filters.get("min_signal_score", 0.7)
-            labels["min_score"].configure(text=f"{float(v):.2f}")
-        if "max_position_size" in labels:
-            v = risk.get("max_position_size", 100.0)
-            labels["max_position_size"].configure(text=f"${float(v):.0f} USDT")
-        if "max_open_positions" in labels:
-            v = risk.get("max_open_positions", 3)
-            labels["max_open_positions"].configure(text=str(int(v)))
-        if "max_daily_loss" in labels:
-            v = risk.get("max_daily_loss", 50.0)
-            labels["max_daily_loss"].configure(text=f"${float(v):.0f} USDT")
-        if "default_leverage" in labels:
-            labels["default_leverage"].configure(text=str(risk.get("default_leverage", "10x")))
-        if "default_tp" in labels:
-            v = tp_sl.get("default_tp", 5.0)
-            labels["default_tp"].configure(text=f"{float(v):.1f}%")
-        if "default_sl" in labels:
-            v = tp_sl.get("default_sl", 2.5)
-            labels["default_sl"].configure(text=f"{float(v):.1f}%")
-        if "tp_sl_mode" in labels:
-            labels["tp_sl_mode"].configure(text=str(tp_sl.get("mode", "Percentage")))
-        if "trailing_stop" in labels:
-            labels["trailing_stop"].configure(text="On" if tp_sl.get("trailing_stop", False) else "Off")
-        if "atc_threshold" in labels:
-            v = filters.get("atc_threshold", 0.6)
-            labels["atc_threshold"].configure(text=f"{float(v):.2f}")
-        if "enable_xgboost" in labels:
-            labels["enable_xgboost"].configure(text="On" if filters.get("enable_xgboost", True) else "Off")
-        if "min_volume" in labels:
-            v = filters.get("min_volume", 50.0)
-            labels["min_volume"].configure(text=str(int(float(v))))
-        if "timeframe" in labels:
-            labels["timeframe"].configure(text=str(filters.get("timeframe", "1h")))
+        _safe_configure("min_score", f"{float(filters.get('min_signal_score', 0.7)):.2f}")
+        _safe_configure("max_position_size", f"${float(risk.get('max_position_size', 100.0)):.0f} USDT")
+        _safe_configure("max_open_positions", str(int(risk.get("max_open_positions", 3))))
+        _safe_configure("max_daily_loss", f"${float(risk.get('max_daily_loss', 50.0)):.0f} USDT")
+        _safe_configure("default_leverage", str(risk.get("default_leverage", "10x")))
+        _safe_configure("default_tp", f"{float(tp_sl.get('default_tp', 5.0)):.1f}%")
+        _safe_configure("default_sl", f"{float(tp_sl.get('default_sl', 2.5)):.1f}%")
+        _safe_configure("tp_sl_mode", str(tp_sl.get("mode", "Percentage")))
+        _safe_configure("trailing_stop", "On" if tp_sl.get("trailing_stop", False) else "Off")
+        _safe_configure("atc_threshold", f"{float(filters.get('atc_threshold', 0.6)):.2f}")
+        _safe_configure("enable_xgboost", "On" if filters.get("enable_xgboost", True) else "Off")
+        _safe_configure("min_volume", str(int(float(filters.get("min_volume", 50.0)))))
+        _safe_configure("timeframe", str(filters.get("timeframe", "1h")))
+
         # Gradual Recovery
-        if "recovery_enabled" in labels:
-            enabled = recovery.get("enabled", False)
-            labels["recovery_enabled"].configure(text="On" if enabled else "Off")
-        if "recovery_initial_loss" in labels:
-            v = recovery.get("initial_loss", 500.0)
-            labels["recovery_initial_loss"].configure(text=f"${float(v):.0f}")
-        if "recovery_target_profit" in labels:
-            v = recovery.get("target_profit_per_trade", 5.0)
-            labels["recovery_target_profit"].configure(text=f"${float(v):.1f}")
-        if "recovery_max_trades" in labels:
-            v = recovery.get("max_recovery_trades", 20)
-            labels["recovery_max_trades"].configure(text=str(int(v)))
-        if "recovery_margin_mode" in labels:
-            labels["recovery_margin_mode"].configure(text=str(recovery.get("margin_scaling_mode", "fixed")))
-        if "recovery_leverage_mode" in labels:
-            labels["recovery_leverage_mode"].configure(text=str(recovery.get("leverage_scaling_mode", "fixed")))
-        if "recovery_streak_bonus" in labels:
-            on_off = "On" if recovery.get("enable_streak_bonus", False) else "Off"
-            labels["recovery_streak_bonus"].configure(text=on_off)
+        _safe_configure("recovery_enabled", "On" if recovery.get("enabled", False) else "Off")
+        _safe_configure("recovery_initial_loss", f"${float(recovery.get('initial_loss', 500.0)):.0f}")
+        _safe_configure("recovery_target_profit", f"${float(recovery.get('target_profit_per_trade', 5.0)):.1f}")
+        _safe_configure("recovery_max_trades", str(int(recovery.get("max_recovery_trades", 20))))
+        _safe_configure("recovery_margin_mode", str(recovery.get("margin_scaling_mode", "fixed")))
+        _safe_configure("recovery_leverage_mode", str(recovery.get("leverage_scaling_mode", "fixed")))
+        _safe_configure("recovery_streak_bonus", "On" if recovery.get("enable_streak_bonus", False) else "Off")
+
         # Status (database, API) — from optional status dict
         st = status or {}
-        if "database_status" in labels:
-            labels["database_status"].configure(text=str(st.get("database", "—")))
-        if "api_mode" in labels:
-            labels["api_mode"].configure(text=str(st.get("api_mode", api.get("mode", "DRY_RUN"))))
-        if "api_connection" in labels:
-            labels["api_connection"].configure(text=str(st.get("api_connection", "—")))
+        _safe_configure("database_status", str(st.get("database", "—")))
+        _safe_configure("api_mode", str(st.get("api_mode", api.get("mode", "DRY_RUN"))))
+        _safe_configure("api_connection", str(st.get("api_connection", "—")))

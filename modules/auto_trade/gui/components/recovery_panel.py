@@ -198,35 +198,48 @@ class RecoveryPanel(ctk.CTkFrame):
         config_frame.grid_columnconfigure(0, weight=1)
         config_frame.grid_columnconfigure(1, weight=1)
 
-        # Row 0-1: Initial Loss | Target Profit Per Trade
+        # Row 0: Enable Auto-Recovery checkbox (spans both columns)
+        self.recovery_enabled_var = ctk.BooleanVar(value=False)
+        enabled_checkbox = ctk.CTkCheckBox(
+            config_frame,
+            text="Enable Auto-Recovery",
+            variable=self.recovery_enabled_var,
+            command=self._on_enabled_changed,
+            font=("Arial", 12, "bold"),
+            fg_color="#00ff88",
+            hover_color="#00cc66",
+        )
+        enabled_checkbox.grid(row=0, column=0, columnspan=2, sticky="w", pady=(5, 15))
+
+        # Row 1-2: Initial Loss | Target Profit Per Trade
         # Left: Initial Loss
         label = ctk.CTkLabel(config_frame, text="Initial Loss ($):", font=("Arial", 11))
-        label.grid(row=0, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
+        label.grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
 
         self.initial_loss_entry = ctk.CTkEntry(config_frame, placeholder_text="500.00")
-        self.initial_loss_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
+        self.initial_loss_entry.grid(row=2, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
         self.initial_loss_entry.insert(0, "500.00")
 
         # Right: Target Profit Per Trade
         label = ctk.CTkLabel(config_frame, text="Target Profit Per Trade (%):", font=("Arial", 11))
-        label.grid(row=0, column=1, sticky="w", padx=(5, 0), pady=(5, 2))
+        label.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(5, 2))
 
         self.target_profit_entry = ctk.CTkEntry(config_frame, placeholder_text="5.0")
-        self.target_profit_entry.grid(row=1, column=1, sticky="ew", padx=(5, 0), pady=(2, 10))
+        self.target_profit_entry.grid(row=2, column=1, sticky="ew", padx=(5, 0), pady=(2, 10))
         self.target_profit_entry.insert(0, "5.0")
 
-        # Row 2-3: Max Recovery Trades
+        # Row 3-4: Max Recovery Trades
         label = ctk.CTkLabel(config_frame, text="Max Recovery Trades:", font=("Arial", 11))
-        label.grid(row=2, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
+        label.grid(row=3, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
 
         self.max_trades_entry = ctk.CTkEntry(config_frame, placeholder_text="20")
-        self.max_trades_entry.grid(row=3, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
+        self.max_trades_entry.grid(row=4, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
         self.max_trades_entry.insert(0, "20")
 
-        # Row 4-5: Margin Scaling Mode | Leverage Scaling Mode
+        # Row 5-6: Margin Scaling Mode | Leverage Scaling Mode
         # Left: Margin Scaling Mode
         label = ctk.CTkLabel(config_frame, text="Margin Scaling Mode:", font=("Arial", 11))
-        label.grid(row=4, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
+        label.grid(row=5, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
 
         self.margin_mode_var = ctk.StringVar(value="fixed")
         margin_mode_dropdown = ctk.CTkComboBox(
@@ -234,11 +247,11 @@ class RecoveryPanel(ctk.CTkFrame):
             values=["fixed", "progressive", "adaptive"],
             variable=self.margin_mode_var,
         )
-        margin_mode_dropdown.grid(row=5, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
+        margin_mode_dropdown.grid(row=6, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
 
         # Right: Leverage Scaling Mode
         label = ctk.CTkLabel(config_frame, text="Leverage Scaling Mode:", font=("Arial", 11))
-        label.grid(row=4, column=1, sticky="w", padx=(5, 0), pady=(5, 2))
+        label.grid(row=5, column=1, sticky="w", padx=(5, 0), pady=(5, 2))
 
         self.leverage_mode_var = ctk.StringVar(value="fixed")
         leverage_mode_dropdown = ctk.CTkComboBox(
@@ -246,11 +259,11 @@ class RecoveryPanel(ctk.CTkFrame):
             values=["fixed", "progressive", "adaptive"],
             variable=self.leverage_mode_var,
         )
-        leverage_mode_dropdown.grid(row=5, column=1, sticky="ew", padx=(5, 0), pady=(2, 10))
+        leverage_mode_dropdown.grid(row=6, column=1, sticky="ew", padx=(5, 0), pady=(2, 10))
 
-        # Row 6: Leverage Range (Min/Max on same row, spans both columns)
+        # Row 7: Leverage Range (Min/Max on same row, spans both columns)
         leverage_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
-        leverage_frame.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(5, 10))
+        leverage_frame.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(5, 10))
 
         label = ctk.CTkLabel(leverage_frame, text="Min:", font=("Arial", 11), text_color="gray")
         label.pack(side="left")
@@ -266,16 +279,16 @@ class RecoveryPanel(ctk.CTkFrame):
         self.max_leverage_entry.pack(side="left", padx=(5, 0))
         self.max_leverage_entry.insert(0, "10")
 
-        # Row 7: Enable Streak Bonus (spans both columns)
+        # Row 8: Enable Streak Bonus (spans both columns)
         self.streak_bonus_var = ctk.BooleanVar(value=False)
         streak_bonus_checkbox = ctk.CTkCheckBox(
             config_frame, text="Enable Streak Bonus", variable=self.streak_bonus_var
         )
-        streak_bonus_checkbox.grid(row=7, column=0, columnspan=2, sticky="w", pady=(5, 10))
+        streak_bonus_checkbox.grid(row=8, column=0, columnspan=2, sticky="w", pady=(5, 10))
 
-        # Row 8-9: Presets (spans both columns)
+        # Row 9-10: Presets (spans both columns)
         preset_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
-        preset_frame.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(15, 5))
+        preset_frame.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(15, 5))
 
         preset_label = ctk.CTkLabel(preset_frame, text="Presets:", font=("Arial", 11, "bold"))
         preset_label.pack(anchor="w", pady=(0, 5))
@@ -313,7 +326,7 @@ class RecoveryPanel(ctk.CTkFrame):
         )
         aggressive_btn.pack(side="left", padx=5)
 
-        # Row 10: Start Recovery Button (spans both columns)
+        # Row 11: Start Recovery Button (spans both columns)
         start_btn = ctk.CTkButton(
             config_frame,
             text="🚀 Start Recovery",
@@ -321,11 +334,11 @@ class RecoveryPanel(ctk.CTkFrame):
             hover_color="#00cc66",
             command=self._on_start_recovery,
         )
-        start_btn.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(15, 10))
+        start_btn.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(15, 10))
 
-        # Row 11: Recovery Plan Preview (spans both columns)
+        # Row 12: Recovery Plan Preview (spans both columns)
         plan_frame = ctk.CTkFrame(config_frame, fg_color="#2a2a2a")
-        plan_frame.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(5, 10))
+        plan_frame.grid(row=12, column=0, columnspan=2, sticky="ew", pady=(5, 10))
 
         plan_title = ctk.CTkLabel(plan_frame, text="Recovery Plan Preview", font=("Arial", 11, "bold"))
         plan_title.pack(anchor="w", pady=(10, 5), padx=10)
@@ -343,7 +356,13 @@ class RecoveryPanel(ctk.CTkFrame):
             hover_color="#666666",
             command=self._update_plan_preview,
         )
-        preview_btn.grid(row=12, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        preview_btn.grid(row=13, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+
+    def _on_enabled_changed(self):
+        """Handle enabled checkbox change."""
+        enabled = self.recovery_enabled_var.get()
+        if self.on_config_change:
+            self.on_config_change("recovery_enabled_changed", {"enabled": enabled})
 
     def _create_history_tab(self):
         """Create History tab showing recovery progress over time"""
@@ -968,6 +987,7 @@ class RecoveryPanel(ctk.CTkFrame):
     def get_config(self) -> Dict:
         """Get current configuration"""
         return {
+            "enabled": self.recovery_enabled_var.get(),
             "initial_loss": self.initial_loss_entry.get(),
             "target_profit_per_trade": self.target_profit_entry.get(),
             "max_recovery_trades": self.max_trades_entry.get(),
@@ -983,6 +1003,11 @@ class RecoveryPanel(ctk.CTkFrame):
         if not config:
             return
         try:
+            if "enabled" in config:
+                v = config["enabled"]
+                self.recovery_enabled_var.set(
+                    v if isinstance(v, bool) else str(v).lower() in ("true", "1", "yes")
+                )
             if "initial_loss" in config:
                 self.initial_loss_entry.delete(0, "end")
                 self.initial_loss_entry.insert(0, str(config["initial_loss"]))

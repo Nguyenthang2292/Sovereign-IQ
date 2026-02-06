@@ -52,6 +52,18 @@ class UpdaterManager:
                 elif kind == "scanner_done":
                     if hasattr(self.parent, "scanner_control"):
                         self.parent.scanner_control.update_last_scan_time()
+                    if hasattr(self.parent, "scanner_status_label"):
+                        if data and data.get("skipped"):
+                            n = data.get("count", 1)
+                            self.parent.scanner_status_label.configure(
+                                text=f"🟢 Scanner: RUNNING (scan skipped – {n} open position)",
+                                text_color="#00ff88",
+                            )
+                        else:
+                            self.parent.scanner_status_label.configure(
+                                text="🟢 Scanner: RUNNING",
+                                text_color="#00ff88",
+                            )
         except queue.Empty:
             pass
         self.parent.after(100, self._drain_update_queue)
@@ -112,7 +124,28 @@ class UpdaterManager:
         self.updaters["scanner"] = updater
         return updater
 
+    def create_reconcile_updater(self, callback, interval=3600):
+        """Create and start Binance↔DB reconcile updater."""
+        updater = PeriodicUpdater(callback, interval=interval)
+        updater.start()
+        self.updaters["reconcile"] = updater
+        return updater
+
     def stop_updater(self, name):
         """Stop a specific updater by name."""
         if name in self.updaters:
             self.updaters[name].stop()
+
+    def create_trailing_stop_updater(self, callback, interval=30):
+        """Create and start trailing stop updater."""
+        updater = PeriodicUpdater(callback, interval=interval)
+        updater.start()
+        self.updaters["trailing_stop"] = updater
+        return updater
+
+    def create_negative_breakeven_updater(self, callback, interval=30):
+        """Create and start negative breakeven updater."""
+        updater = PeriodicUpdater(callback, interval=interval)
+        updater.start()
+        self.updaters["negative_breakeven"] = updater
+        return updater

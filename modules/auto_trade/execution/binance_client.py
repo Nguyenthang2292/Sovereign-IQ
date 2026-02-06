@@ -141,6 +141,23 @@ class BinanceClient:
         log_error(f"Failed to set leverage after {self.max_retries} attempts")
         return False
 
+    def fetch_ticker(self, symbol: str) -> Optional[dict]:
+        """
+        Fetch current ticker (last price) for a symbol.
+        Used by trailing stop and negative breakeven jobs for mark price.
+
+        Args:
+            symbol: Trading symbol (e.g. 'BTCUSDT' or 'BTC/USDT')
+
+        Returns:
+            CCXT ticker dict with 'last' and other keys, or None on error.
+        """
+        try:
+            return self.exchange.fetch_ticker(symbol)
+        except Exception as e:
+            log_error(f"Failed to fetch ticker for {symbol}: {e}")
+            return None
+
     def create_market_order(
         self, order: OrderTicket, api_key: Optional[str] = None, api_secret: Optional[str] = None
     ) -> Optional[dict]:
@@ -211,8 +228,11 @@ class BinanceClient:
             log_error(f"Failed to fetch ticker for {symbol}: {e}")
             return None
 
-        # Step 3: Create market order
+        # Step 3: Create market order (pass client_order_id so Binance returns AT_ for DB sync)
         market_order_result = None
+        params = {}
+        if getattr(order, "client_order_id", None):
+            params["newClientOrderId"] = order.client_order_id
         for attempt in range(self.max_retries):
             try:
                 market_order_result = self.exchange.create_order(
@@ -220,6 +240,7 @@ class BinanceClient:
                     type="market",
                     side=side,
                     amount=amount_contracts,
+                    params=params,
                 )
 
                 log_info(f"✅ Market order executed: {market_order_result.get('id')}")

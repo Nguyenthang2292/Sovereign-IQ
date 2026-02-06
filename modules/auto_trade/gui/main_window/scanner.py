@@ -118,7 +118,12 @@ class ScannerManager:
         try:
             logger.info("Initializing SignalPipeline...")
 
-            from config import ATC_SCANNER_DEFAULTS, SIGNAL_SELECTOR_DEFAULTS, XGBOOST_FILTER_DEFAULTS
+            from config import (
+                ATC_SCANNER_DEFAULTS,
+                SIGNAL_SELECTOR_DEFAULTS,
+                XGBOOST_FILTER_DEFAULTS,
+                XGBOOST_PER_SYMBOL_DEFAULTS,
+            )
             from modules.auto_trade.core.atc_scanner import ATCScanner, ATCScannerConfig
             from modules.auto_trade.core.gemini_integration import GeminiIntegration
             from modules.auto_trade.core.persistence_sqlite import SignalPersistenceSQLite
@@ -126,12 +131,19 @@ class ScannerManager:
             from modules.auto_trade.core.signal_selector import SignalSelector
             from modules.auto_trade.core.symbol_manager import SymbolManager
             from modules.auto_trade.core.xgboost_filter import XGBoostFilter, XGBoostFilterConfig
+            from modules.auto_trade.core.xgboost_per_symbol import (
+                XGBoostPerSymbolConfig,
+                XGBoostPerSymbolFilter,
+            )
 
             # Get scanner config from settings
             scanner_config = self.parent.settings_manager.get("scanner", {})
             timeframe = scanner_config.get("timeframe", "1h")
             sample_percentage = scanner_config.get("sample_percentage", 20)
             sampling_strategy = scanner_config.get("sampling_strategy", "stratified")
+
+            # Get XGBoost mode from settings (default: per_symbol)
+            xgboost_mode = scanner_config.get("xgboost_mode", "per_symbol")
 
             # Get or create data_fetcher from data_service
             data_fetcher = self.parent.data_service.data_fetcher
@@ -154,17 +166,32 @@ class ScannerManager:
             atc_scanner = ATCScanner(data_fetcher=data_fetcher, config=cast(ATCScannerConfig, atc_config))
             logger.info(f"ATCScanner ready (timeframes: {atc_config['timeframes']})")
 
-            # 3. XGBoost Filter
-            model_path = self._find_xgboost_model()
-            if model_path:
-                xgboost_filter = XGBoostFilter(
-                    data_fetcher=data_fetcher,
-                    model_path=model_path,
-                    config=cast(XGBoostFilterConfig, XGBOOST_FILTER_DEFAULTS),
-                )
-                logger.info(f"XGBoostFilter ready (model: {Path(model_path).name})")
+            # 3. XGBoost Filter (per-symbol or pre-trained based on config)
+            if filters.get("enable_xgboost", True):
+                if xgboost_mode == "per_symbol":
+                    # Per-symbol training mode - trains fresh XGBoost for each symbol
+                    xgboost_config = XGBOOST_PER_SYMBOL_DEFAULTS.copy()
+                    xgboost_config["training_timeframe"] = timeframe
+                    xgboost_filter = XGBoostPerSymbolFilter(
+                        data_fetcher=data_fetcher,
+                        config=cast(XGBoostPerSymbolConfig, xgboost_config),
+                    )
+                    logger.info(f"XGBoostPerSymbolFilter ready (per-symbol training, timeframe: {timeframe})")
+                else:
+                    # Pre-trained model mode (legacy behavior)
+                    model_path = self._find_xgboost_model()
+                    if model_path:
+                        xgboost_filter = XGBoostFilter(
+                            data_fetcher=data_fetcher,
+                            model_path=model_path,
+                            config=cast(XGBoostFilterConfig, XGBOOST_FILTER_DEFAULTS),
+                        )
+                        logger.info(f"XGBoostFilter ready (pre-trained model: {Path(model_path).name})")
+                    else:
+                        logger.warning("XGBoost model not found, using passthrough filter")
+                        xgboost_filter = self._create_passthrough_xgboost_filter()
             else:
-                logger.warning("XGBoost model not found, using passthrough filter")
+                logger.info("XGBoost disabled in filters, using passthrough")
                 xgboost_filter = self._create_passthrough_xgboost_filter()
 
             # 4. Gemini Integration
@@ -175,8 +202,10 @@ class ScannerManager:
                 logger.warning("GeminiIntegration (API not configured, will skip AI analysis)")
 
             # 5. Signal Selector
-            signal_selector = SignalSelector(config=SIGNAL_SELECTOR_DEFAULTS)
-            logger.info("SignalSelector ready")
+            selector_config = SIGNAL_SELECTOR_DEFAULTS.copy()
+            selector_config["min_confidence_threshold"] = float(filters.get("min_signal_score", 0.7))
+            signal_selector = SignalSelector(config=selector_config)
+            logger.info(f"SignalSelector ready (min_confidence: {selector_config['min_confidence_threshold']})")
 
             # 6. Persistence (SQLite)
             # Use separate database for SignalPipeline to avoid schema conflicts
@@ -188,7 +217,7 @@ class ScannerManager:
             self.pipeline = SignalPipeline(
                 symbol_manager=symbol_manager,
                 atc_scanner=atc_scanner,
-                xgboost_filter=cast(XGBoostFilter, xgboost_filter),
+                xgboost_filter=xgboost_filter,
                 gemini_integration=gemini_integration,
                 signal_selector=signal_selector,
                 signal_persistence=persistence,
@@ -196,9 +225,10 @@ class ScannerManager:
                     "max_symbols_to_scan": 30,
                     "max_ai_candidates": 5,
                     "pipeline_timeout": 300,
+                    "xgboost_mode": xgboost_mode,
                 },
             )
-            logger.info("SignalPipeline initialized successfully")
+            logger.info(f"SignalPipeline initialized (xgboost_mode: {xgboost_mode})")
 
             self._pipeline_initialized = True
             return True
@@ -253,56 +283,6 @@ class ScannerManager:
 
         return PassthroughXGBoostFilter()
 
-    def _run_xgboost_retrain(self):
-        """Retrain XGBoost model with fresh data, then reset pipeline so next scan uses new model."""
-        try:
-            data_fetcher = getattr(self.parent, "data_service", None)
-            if data_fetcher is None:
-                data_fetcher = self.parent.data_service
-            data_fetcher = data_fetcher.data_fetcher
-            if not data_fetcher:
-                logger.warning("Retrain XGBoost skipped: DataFetcher not available")
-                return
-
-            scanner_config = self.parent.settings_manager.get("scanner", {})
-            timeframe = scanner_config.get("timeframe", "1h")
-            limit = 600  # Enough for labeling + features
-
-            logger.info("Retraining XGBoost model (fetching data for BTC/USDT)...")
-            df = data_fetcher.fetch_ohlcv("BTC/USDT", timeframe=timeframe, limit=limit)
-            if df is None or df.empty or len(df) < 100:
-                logger.warning("Retrain XGBoost skipped: insufficient OHLCV data")
-                return
-
-            from modules.common.core.indicator_engine import (
-                IndicatorConfig,
-                IndicatorEngine,
-                IndicatorProfile,
-            )
-            from modules.xgboost_LTS.core.labeling import apply_directional_labels
-            from modules.xgboost_LTS.core.model import train_and_predict
-            from modules.xgboost_LTS.utils.features import add_advanced_features
-
-            indicator_engine = IndicatorEngine(
-                IndicatorConfig.for_profile(IndicatorProfile.XGBOOST)
-            )
-            result = indicator_engine.compute_features(df)
-            df = result[0] if isinstance(result, tuple) else result
-            df = add_advanced_features(df)
-            df = apply_directional_labels(df, use_cache=False)
-            df = df.dropna(subset=["Target"])
-            if df.empty or len(df) < 50:
-                logger.warning("Retrain XGBoost skipped: insufficient labeled samples")
-                return
-
-            train_and_predict(df, use_cache=False)
-            logger.info("XGBoost retrain completed; pipeline will load new model on next run")
-            self._pipeline_initialized = False
-            self.pipeline = None
-        except Exception as e:
-            logger.error(f"XGBoost retrain failed: {e}", exc_info=True)
-            # Do not reset pipeline so scan can still use existing model
-
     def _scanner_cycle(self):
         """Scanner cycle (runs in background thread)."""
         try:
@@ -313,13 +293,33 @@ class ScannerManager:
             logger.info("-" * 50)
 
             new_signal = None
+            scan_skipped = False
+            open_count = 0
 
-            # In PRODUCTION/DEMO mode, run the full SignalPipeline
+            # Gate: skip expensive scan (Gemini) when already at max open positions (DB)
             if self.parent.mode in ["PRODUCTION", "DEMO"]:
-                # Optionally retrain XGBoost before scan (then pipeline will load new model)
-                scanner_config = self.parent.settings_manager.get("scanner", {})
-                if scanner_config.get("retrain_xgboost", False):
-                    self._run_xgboost_retrain()
+                try:
+                    from modules.auto_trade.database import get_open_positions, session_scope
+
+                    max_open = self.parent.settings_manager.get("risk.max_open_positions", 3)
+                    if not isinstance(max_open, int) or max_open <= 0:
+                        max_open = 1
+                    with session_scope() as session:
+                        open_orders = get_open_positions(session)
+                        open_count = len(open_orders)
+                    if open_count >= max_open:
+                        scan_skipped = True
+                        logger.info(
+                            f"Scanner cycle skipped: open position(s) present ({open_count}/{max_open}), "
+                            "no Gemini call. Will run full scan again when position(s) close."
+                        )
+                except Exception as e:
+                    logger.warning(
+                        f"Could not check open positions for scanner gate: {e}. Skipping scan (no Gemini)."
+                    )
+                    scan_skipped = True
+
+            if not scan_skipped and self.parent.mode in ["PRODUCTION", "DEMO"]:
                 logger.info("Scanning market for new signals...")
                 new_signal = self._run_signal_scan()
                 if new_signal:
@@ -328,7 +328,7 @@ class ScannerManager:
                     logger.info(f"Score: {new_signal.score:.2f}/100")
                 else:
                     logger.warning("No new signals generated from scan")
-            else:
+            elif not scan_skipped:
                 logger.info("DRY_RUN mode - skipping live market scan")
 
             # Get signals from database (existing + newly generated)
@@ -345,7 +345,9 @@ class ScannerManager:
                 logger.info("No signals found in database")
 
             self.parent._update_queue.put(("signals", signals))
-            self.parent._update_queue.put(("scanner_done", None))
+            self.parent._update_queue.put(
+                ("scanner_done", {"skipped": scan_skipped, "count": open_count} if scan_skipped else None)
+            )
             logger.info("-" * 50)
             logger.info("Scanner cycle completed")
             logger.info("=" * 50)

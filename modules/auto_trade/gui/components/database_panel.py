@@ -1,3 +1,4 @@
+import os
 import customtkinter as ctk
 from typing import Optional, List, Dict, Any
 from pathlib import Path
@@ -23,6 +24,7 @@ from modules.auto_trade.database import (
     get_recent_audit_logs,
     create_database_backup,
     get_migration_manager,
+    reconcile_orders_with_binance,
 )
 from modules.auto_trade.database.models import Order, Signal, MartingaleChain, AuditLog
 from modules.auto_trade.database.config import DEFAULT_DB_PATH, DEFAULT_SCHEMA_PATH
@@ -797,6 +799,7 @@ class DatabasePanel(ctk.CTkFrame):
         actions = [
             ("💾 Create Backup", self._create_backup),
             ("🔄 Run Migrations", self._run_migrations),
+            ("🔄 Reconcile with Binance", self._reconcile_with_binance),
             ("🧹 Cleanup Old Records", self._cleanup_records),
             ("📤 Export to CSV", self._export_csv),
             ("📋 View Audit Log", self._view_audit_log),
@@ -930,3 +933,42 @@ class DatabasePanel(ctk.CTkFrame):
 
         except Exception as e:
             self._log(f"Integrity check failed: {e}", "ERROR")
+
+    def _reconcile_with_binance(self):
+        """Fetch AT_* orders from Binance and insert any missing into DB."""
+        api_key = os.getenv("BINANCE_API_KEY", "").strip()
+        api_secret = os.getenv("BINANCE_API_SECRET", "").strip()
+        if not api_key or not api_secret:
+            self._log("Reconcile skipped: BINANCE_API_KEY or BINANCE_API_SECRET not set", "WARNING")
+            messagebox.showwarning(
+                "Reconcile",
+                "Set BINANCE_API_KEY and BINANCE_API_SECRET to reconcile with Binance.",
+            )
+            return
+        testnet = bool(self.settings_manager.get("api.testnet", False))
+        symbols = self.settings_manager.get("filters.symbol_whitelist") or None
+        self._log("Reconciling with Binance (last 24h)...", "INFO")
+        try:
+            result = reconcile_orders_with_binance(
+                api_key=api_key,
+                api_secret=api_secret,
+                testnet=testnet,
+                symbols=symbols,
+                since_hours=24,
+            )
+            inserted = result.get("inserted", 0)
+            skipped = result.get("skipped", 0)
+            errors = result.get("errors", [])
+            self._log(f"Reconcile done: inserted={inserted}, skipped={skipped}", "SUCCESS")
+            for err in errors[:5]:
+                self._log(err, "ERROR")
+            if len(errors) > 5:
+                self._log(f"... and {len(errors) - 5} more errors", "ERROR")
+            self._refresh_stats()
+            messagebox.showinfo(
+                "Reconcile",
+                f"Inserted: {inserted}, Skipped (already in DB): {skipped}. Errors: {len(errors)}",
+            )
+        except Exception as e:
+            self._log(f"Reconcile failed: {e}", "ERROR")
+            messagebox.showerror("Reconcile", str(e))

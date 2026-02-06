@@ -129,6 +129,9 @@ class TestDataService:
         signals = service.get_signals(min_score=0.7)
 
         assert len(signals) > 0
+        assert "created_at" in signals[0]
+        assert "created_at_ts" in signals[0]
+        assert isinstance(signals[0]["created_at_ts"], (int, float))
 
     def test_get_signals_fallback(self):
         """Test getting signals fallback to demo data."""
@@ -140,6 +143,8 @@ class TestDataService:
         # Should return demo signals
         assert len(signals) > 0
         assert signals[0]["symbol"] == "BTCUSDT"
+        assert "created_at" in signals[0]
+        assert "created_at_ts" in signals[0]
 
     def test_get_positions_dry_run(self):
         """Test getting positions in DRY_RUN mode."""

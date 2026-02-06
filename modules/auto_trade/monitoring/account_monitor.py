@@ -139,9 +139,9 @@ class BalanceMonitor:
 
         snapshot = BalanceSnapshot(
             currency="USDT",
-            total=float(usdt_balance.get("total", 0)),
-            free=float(usdt_balance.get("free", 0)),
-            used=float(usdt_balance.get("used", 0)),
+            total=float(usdt_balance.get("total") or 0),
+            free=float(usdt_balance.get("free") or 0),
+            used=float(usdt_balance.get("used") or 0),
             timestamp=datetime.now(),
         )
 
@@ -353,7 +353,9 @@ class OrderMonitor:
             amount=float(data.get("amount", 0)),
             filled=float(data.get("filled", 0)),
             remaining=float(data.get("remaining", 0)),
-            timestamp=datetime.fromtimestamp(data.get("timestamp", 0) / 1000) if data.get("timestamp") else datetime.now(),
+            timestamp=datetime.fromtimestamp(data.get("timestamp", 0) / 1000)
+            if data.get("timestamp")
+            else datetime.now(),
             last_update_timestamp=datetime.fromtimestamp(data.get("lastUpdateTimestamp", 0) / 1000)
             if data.get("lastUpdateTimestamp")
             else datetime.now(),

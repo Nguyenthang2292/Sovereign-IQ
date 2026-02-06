@@ -27,7 +27,17 @@ class SettingsManager:
             "timeframe": "1h",
         },
         "api": {"exchange": "Demo", "mode": "DRY_RUN", "api_key": "", "api_secret": ""},
-        "tp_sl": {"default_tp": 5.0, "default_sl": 2.5, "trailing_stop": False, "mode": "Percentage"},
+        "tp_sl": {
+            "default_tp": 5.0,
+            "default_sl": 2.5,
+            "trailing_stop": False,
+            "trailing_step_pct": 2.0,
+            "trailing_limit_steps": False,
+            "trailing_max_steps": 5,
+            "mode": "Percentage",
+            "negative_be_enabled": False,
+            "negative_be_threshold_pct": 2.0,
+        },
         "scanner": {
             "scan_interval": 5,
             "timeframe": "1h",
@@ -227,6 +237,13 @@ class SettingsManager:
 
             if self.settings["tp_sl"]["default_sl"] <= 0:
                 self.settings["tp_sl"]["default_sl"] = 2.5
+
+            # Validate trailing step settings
+            if self.settings["tp_sl"].get("trailing_step_pct", 0) <= 0:
+                self.settings["tp_sl"]["trailing_step_pct"] = 2.0
+
+            if self.settings["tp_sl"].get("trailing_max_steps", 0) < 1:
+                self.settings["tp_sl"]["trailing_max_steps"] = 5
 
             # Validate scanner
             if self.settings["scanner"]["scan_interval"] < 1 or self.settings["scanner"]["scan_interval"] > 60:

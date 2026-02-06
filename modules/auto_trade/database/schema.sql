@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS orders (
     be_moved BOOLEAN DEFAULT 0,                        -- Flag: SL moved to break-even
     be_moved_at TIMESTAMP,                             -- When BE was triggered
     original_stop_loss REAL,                           -- Original SL before BE move
+
+    -- Trailing Stop Step Management
+    trailing_step_index INTEGER DEFAULT 0,             -- Current trailing stop step index
     
     -- Martingale Chain Tracking
     martingale_step INTEGER DEFAULT 0,                 -- Current Martingale step (0 = initial order)
@@ -268,6 +271,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_martingale_chain ON orders(martingale_chai
 CREATE INDEX IF NOT EXISTS idx_orders_signal_correlation ON orders(signal_correlation_id);
 CREATE INDEX IF NOT EXISTS idx_orders_parent ON orders(parent_order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_symbol_status ON orders(symbol, status);  -- Composite for common queries
+CREATE INDEX IF NOT EXISTS idx_orders_trailing_step ON orders(trailing_step_index);  -- Trailing stop step index
 
 -- Signals Table Indexes
 CREATE INDEX IF NOT EXISTS idx_signals_created ON signals(created_at DESC);
