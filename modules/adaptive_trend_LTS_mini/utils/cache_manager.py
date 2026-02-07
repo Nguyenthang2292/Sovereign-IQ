@@ -70,6 +70,8 @@ class CacheManager:
         use_compression: bool = False,
         compression_level: int = 5,
         compression_algorithm: str = "blosclz",
+        periodic_log_interval_requests: Optional[int] = None,
+        periodic_log_interval_seconds: Optional[float] = None,
     ):
         """
         Initialize Enhanced Cache Manager.
@@ -83,7 +85,14 @@ class CacheManager:
             use_compression: Enable blosc compression for disk cache
             compression_level: Compression level (0-9)
             compression_algorithm: Compression algorithm name
+            periodic_log_interval_requests: Log stats after every N requests (None to disable)
+            periodic_log_interval_seconds: Log stats every N seconds (None to use default 60s)
         """
+        if periodic_log_interval_requests is not None and periodic_log_interval_requests < 0:
+            raise ValueError("periodic_log_interval_requests must be non-negative")
+        if periodic_log_interval_seconds is not None and periodic_log_interval_seconds < 0:
+            raise ValueError("periodic_log_interval_seconds must be non-negative")
+
         self.max_entries_l1 = max_entries_l1
         self.max_entries_l2 = max_entries_l2
         self.max_size_bytes_l2 = int(max_size_mb_l2 * 1024 * 1024)
@@ -92,6 +101,7 @@ class CacheManager:
         self.use_compression = use_compression
         self.compression_level = compression_level
         self.compression_algorithm = compression_algorithm
+        self.periodic_log_interval_requests = periodic_log_interval_requests
 
         self._l1_cache: Dict[str, CacheEntry] = {}
         self._l2_cache: Dict[str, CacheEntry] = {}
@@ -108,6 +118,9 @@ class CacheManager:
         self._promotion_count = 0  # Track L2 -> L1 promotions
         self._last_metrics_log_time = time.time()  # Last time metrics were logged
         self._metrics_log_interval = 60.0  # Log metrics every 60 seconds
+
+        if periodic_log_interval_seconds is not None:
+            self._metrics_log_interval = periodic_log_interval_seconds
 
         # Thread-safety: Use RLock to allow recursive locking (same thread can acquire multiple times)
         # This prevents deadlocks when cache operations call other cache operations
@@ -535,18 +548,36 @@ class CacheManager:
 
     def _maybe_log_metrics(self):
         """Automatically log metrics at intervals if enabled. Must be called within lock."""
+        should_log = False
         current_time = time.time()
-        if current_time - self._last_metrics_log_time >= self._metrics_log_interval:
+
+        # Time-based check
+        if self._metrics_log_interval > 0 and current_time - self._last_metrics_log_time >= self._metrics_log_interval:
+            should_log = True
+
+        # Request-based check
+        if not should_log and self.periodic_log_interval_requests:
+            total_requests = self._hits_l1 + self._hits_l2 + self._misses
+            if total_requests > 0 and total_requests % self.periodic_log_interval_requests == 0:
+                should_log = True
+
+        if should_log:
             self._last_metrics_log_time = current_time
-            # Log outside of this method to avoid recursive locks
-            stats = self._get_stats_internal()
-            log_info(
-                f"Cache Metrics: Hit Rate={stats['hit_rate_percent']:.1f}% "
-                f"(L1={stats['hit_rate_l1_percent']:.1f}%, L2={stats['hit_rate_l2_percent']:.1f}%), "
-                f"Requests={stats['total_requests']}, "
-                f"Entries={stats['entries']} (L1={stats['entries_l1']}, L2={stats['entries_l2']}), "
-                f"Evictions={stats['evictions']}, Promotions={stats['promotions']}"
-            )
+            try:
+                # Log outside of this method to avoid recursive locks
+                stats = self._get_stats_internal()
+                from modules.common.ui.logging import log_info
+
+                log_info(
+                    f"Cache Metrics: Hit Rate={stats['hit_rate_percent']:.1f}% "
+                    f"(L1={stats['hit_rate_l1_percent']:.1f}%, L2={stats['hit_rate_l2_percent']:.1f}%), "
+                    f"Requests={stats['total_requests']}, "
+                    f"Entries={stats['entries']} (L1={stats['entries_l1']}, L2={stats['entries_l2']}), "
+                    f"Evictions={stats['evictions']}, Promotions={stats['promotions']}"
+                )
+            except Exception:
+                # Catch logging exceptions so cache path is unaffected
+                pass
 
     def _get_stats_internal(self) -> Dict[str, Any]:
         """Internal method to get stats without acquiring lock (called from within locked methods)."""

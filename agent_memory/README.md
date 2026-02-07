@@ -16,24 +16,24 @@ MemOS-backed workflow and project-conventions context for agents: **Cursor, Open
 - **Recall (session start)**  
   Run when starting work so the agent sees up-to-date context:
   ```bash
-  python -m modules.agent_memory recall
+  python -m agent_memory recall
   ```
   Writes `.cursor/agent_memory_context.md` with "Project conventions" and "Recent workflow" from MemOS.
 
 - **Store**
   - Store last git commit as workflow (e.g. from post-commit hook):
     ```bash
-    python -m modules.agent_memory store
+    python -m agent_memory store
     ```
   - Store a custom summary:
     ```bash
-    python -m modules.agent_memory store "Refactored auto_trade execution; added trailing stop step."
+    python -m agent_memory store "Refactored auto_trade execution; added trailing stop step."
     ```
 
 ## Cursor / IDE
 
 Add a rule or instruction: *"When starting a session, read `.cursor/agent_memory_context.md` for project conventions and recent workflow."*  
-You can run `python -m modules.agent_memory recall` manually or from a VS Code/Cursor task when opening the project.
+You can run `python -m agent_memory recall` manually or from a VS Code/Cursor task when opening the project.
 
 ## Design
 

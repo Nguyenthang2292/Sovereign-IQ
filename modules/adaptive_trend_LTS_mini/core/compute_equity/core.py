@@ -39,7 +39,7 @@ import numpy as np
 from .utils import njit, prange
 
 try:
-    from pandas.errors import PerformanceWarning
+    from pandas.errors import PerformanceWarning  # type: ignore[import-untyped]
 except ImportError:
 
     class _PerformanceWarningFallback(UserWarning):

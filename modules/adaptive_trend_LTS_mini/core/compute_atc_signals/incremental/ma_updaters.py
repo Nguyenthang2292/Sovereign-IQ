@@ -174,7 +174,9 @@ def update_hma(state: Dict[str, Any], new_price: float, length: int, robustness:
 
         if len(state[hma_hist_key]) >= sqrt_len:
             weights = np.arange(1, sqrt_len + 1)
-            hma = np.dot(list(state[hma_hist_key]), weights) / weights.sum()
+            hma_hist = list(state[hma_hist_key])
+            window = hma_hist[-sqrt_len:]  # align length with weights (e.g. after load_state)
+            hma = np.dot(window, weights) / weights.sum()
         else:
             hma = hma_input_val
 

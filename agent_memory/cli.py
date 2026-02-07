@@ -1,4 +1,4 @@
-"""CLI: python -m modules.agent_memory recall | store [summary]."""
+"""CLI: python -m agent_memory recall | store [summary]."""
 
 from __future__ import annotations
 
@@ -25,13 +25,13 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "recall":
-        from modules.agent_memory.recall import run_recall
+        from agent_memory.recall import run_recall
 
         ok = run_recall()
         return 0 if ok else 1
 
     if args.command == "store":
-        from modules.agent_memory.store import commit_summary, store_summary
+        from agent_memory.store import commit_summary, store_summary
 
         if args.summary:
             text = " ".join(args.summary)

@@ -133,14 +133,21 @@ class IncrementalATC:
             )
             ma_tuples[ma_type] = ma_tuple
 
-        # Filter out incremental-specific config parameters
-        compute_config = {k: v for k, v in self.config.items() if k not in ["use_o1_mas", "use_rust_incremental"]}
-
-        # Map ATCConfig parameter names to compute_atc_signals parameter names
-        if "lambda_param" in compute_config and "La" not in compute_config:
-            compute_config["La"] = compute_config.pop("lambda_param")
-        if "decay" in compute_config and "De" not in compute_config:
-            compute_config["De"] = compute_config.pop("decay")
+        # Only pass kwargs that compute_atc_signals() accepts (ignore incremental-only and extra keys)
+        _allowed = {
+            "ema_len", "hma_len", "wma_len", "dema_len", "lsma_len", "kama_len",
+            "ema_w", "hma_w", "wma_w", "dema_w", "lsma_w", "kama_w",
+            "robustness", "lambda_param", "decay_rate", "cutout",
+            "long_threshold", "short_threshold", "strategy_mode",
+            "parallel_l1", "parallel_l2", "precision",
+            "use_rust_backend", "use_cache", "fast_mode",
+            "use_approximate", "approximate_threshold",
+            "use_adaptive_approximate", "approximate_volatility_window", "approximate_volatility_factor",
+            "equity_floor",
+        }
+        compute_config = {k: v for k, v in self.config.items() if k in _allowed}
+        if "decay" in self.config and "decay_rate" not in compute_config:
+            compute_config["decay_rate"] = self.config["decay"]
 
         # Full calculation to establish baseline state
         results = compute_atc_signals(prices, **compute_config)

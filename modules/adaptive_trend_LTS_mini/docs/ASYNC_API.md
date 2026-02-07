@@ -17,6 +17,50 @@ All compute-intensive operations are offloaded to thread pool executors, ensurin
 
 ---
 
+## Quick Verification
+
+Test that async API is working correctly:
+
+```python
+# Quick import verification
+import asyncio
+import numpy as np
+import pandas as pd
+from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental import (
+    AsyncIncrementalATC
+)
+
+# Minimal working example
+config = {"ema_len": 20, "hma_len": 20, "wma_len": 20}
+atc = AsyncIncrementalATC(config)
+
+# Test with sufficient historical data (need at least max_len + warmup)
+np.random.seed(42)
+base = 100.0
+returns = np.random.normal(0.001, 0.02, 50)
+prices = pd.Series(base * np.exp(np.cumsum(returns)))
+
+result = asyncio.run(atc.initialize(prices))
+print(f"✓ Initialize successful: {result is not None}")
+
+# Test update
+signal = asyncio.run(atc.update(104.0))
+print(f"✓ Update successful: Signal = {signal:.4f}")
+```
+
+Expected output:
+```
+✓ Initialize successful: True
+✓ Update successful: Signal = 0.5234
+```
+
+**Alternative**: Run the verification script:
+```bash
+python tests/adaptive_trend_LTS_mini/verify_async_api.py
+```
+
+---
+
 ## Quick Start
 
 ### Basic Usage

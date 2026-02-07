@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from modules.agent_memory.client import search_memory
-from modules.agent_memory.config import (
+from agent_memory.client import search_memory
+from agent_memory.config import (
     get_context_path,
     get_conversation_id,
     get_user_id,

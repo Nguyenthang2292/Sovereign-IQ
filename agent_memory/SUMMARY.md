@@ -9,7 +9,7 @@
 
 ---
 
-## 2. Module `modules/agent_memory/`
+## 2. Module `agent_memory/`
 
 | File | Chức năng |
 |------|-----------|
@@ -18,7 +18,7 @@
 | `recall.py` | `run_recall()`: 2 query (conventions + workflow) → ghi `.cursor/agent_memory_context.md`. |
 | `store.py` | `store_summary(text)`, `commit_summary(repo_root)` cho git hook. |
 | `cli.py` | Subcommands `recall` và `store` (store không args = last commit). |
-| `__main__.py` | Entry cho `python -m modules.agent_memory`. |
+| `__main__.py` | Entry cho `python -m agent_memory`. |
 | `README.md` | Hướng dẫn setup và lệnh. |
 
 ---
@@ -33,7 +33,7 @@
 
 ## 4. Kiểm tra đã chạy
 
-- `python -m modules.agent_memory recall` chạy thành công.
+- `python -m agent_memory recall` chạy thành công.
 - File `.cursor/agent_memory_context.md` được tạo (khi chưa có `MEMOS_API_KEY` thì 2 section là "(No memories found.)").
 
 ---
@@ -42,5 +42,5 @@
 
 - Set `MEMOS_API_KEY` (và tùy chọn `MEMOS_USER_ID`, `MEMOS_CONVERSATION_ID`).
 - Cài `pip install MemoryOS` nếu cần gọi MemOS thật.
-- Khi bắt đầu làm việc: chạy `python -m modules.agent_memory recall` (hoặc task trong IDE).
-- Tùy chọn: post-commit hook gọi `python -m modules.agent_memory store` để tự lưu workflow từ commit.
+- Khi bắt đầu làm việc: chạy `python -m agent_memory recall` (hoặc task trong IDE).
+- Tùy chọn: post-commit hook gọi `python -m agent_memory store` để tự lưu workflow từ commit.

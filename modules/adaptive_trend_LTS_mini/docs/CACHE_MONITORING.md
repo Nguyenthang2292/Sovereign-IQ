@@ -12,6 +12,33 @@ The Adaptive Trend LTS Mini cache system includes comprehensive monitoring capab
 - **Performance Insights**: Automatic detection of performance issues
 - **Multiple Interfaces**: CLI dashboard, Python API, and HTTP endpoints
 
+## Periodic Logging
+
+You can configure the `CacheManager` to automatically log statistics based on time intervals or request counts. This is useful for long-running processes where you want visibility into cache performance without manual intervention.
+
+### Configuration
+
+The periodic logging can be configured during initialization:
+
+```python
+from modules.adaptive_trend_LTS_mini.utils.cache_manager import CacheManager
+
+cache = CacheManager(
+    # ... other params ...
+    periodic_log_interval_requests=1000,  # Log every 1000 requests
+    periodic_log_interval_seconds=60.0    # Log every 60 seconds (default: 60s if not specified)
+)
+```
+
+- `periodic_log_interval_requests`: Integer. Logs statistics after every N requests (hits + misses). Set to `None` to disable request-based logging.
+- `periodic_log_interval_seconds`: Float. Logs statistics if N seconds have passed since the last log. Set to `None` to use the default (60s). Set to `0` to disable time-based logging.
+
+### Example Output
+
+```text
+INFO: Cache Metrics: Hit Rate=87.5% (L1=45.2%, L2=42.3%), Requests=1000, Entries=954 (L1=128, L2=826), Evictions=0, Promotions=12
+```
+
 ## Quick Start
 
 ### View Current Cache Status

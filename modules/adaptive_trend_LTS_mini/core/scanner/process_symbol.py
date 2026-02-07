@@ -78,6 +78,10 @@ def _process_symbol(
 
         raw_values = df[calculation_source].values
 
+        # Ensure we have a numpy array, not ExtensionArray
+        if not isinstance(raw_values, np.ndarray):
+            raw_values = np.asarray(raw_values)
+
         # Cast to target precision
         target_dtype = np.float32 if atc_config.precision == "float32" else np.float64
         if raw_values.dtype != target_dtype:
@@ -117,8 +121,8 @@ def _process_symbol(
             lsma_w=atc_config.lsma_w,
             kama_w=atc_config.kama_w,
             robustness=atc_config.robustness,
-            La=atc_config.lambda_param,
-            De=atc_config.decay,
+            lambda_param=atc_config.lambda_param,
+            decay_rate=atc_config.decay,
             cutout=atc_config.cutout,
             long_threshold=atc_config.long_threshold,
             short_threshold=atc_config.short_threshold,

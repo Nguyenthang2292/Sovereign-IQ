@@ -13,7 +13,7 @@ from .calculate_kama_atc import calculate_kama_atc
 
 # LTS_mini is CPU-only: no _gpu module; GPU path is skipped
 try:
-    from ._gpu import _calculate_ma_gpu  # type: ignore[import-not-found]
+    from ._gpu import _calculate_ma_gpu  # type: ignore[import-not-found,import-untyped]
 except ImportError:
     _calculate_ma_gpu = None
 

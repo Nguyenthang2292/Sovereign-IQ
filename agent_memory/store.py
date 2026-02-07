@@ -5,8 +5,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from modules.agent_memory.client import add_message
-from modules.agent_memory.config import get_conversation_id, get_user_id
+from agent_memory.client import add_message
+from agent_memory.config import get_conversation_id, get_user_id
 
 
 def store_summary(

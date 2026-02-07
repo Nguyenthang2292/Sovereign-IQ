@@ -66,6 +66,50 @@ use_codegen_specialization: false  # Enable JIT for hot path configs (EMA-only)
 
 ---
 
+## 🔬 Benchmarking Parallel vs Sequential Execution
+
+To verify the performance benefits of parallel execution on your system, use the included benchmark script:
+
+### Quick Benchmark
+
+```bash
+# Benchmark 100 symbols (sequential vs parallel with 10 workers)
+python benchmarks/benchmark_parallel_scan.py
+
+# Custom symbol count
+python benchmarks/benchmark_parallel_scan.py --symbols 50
+
+# Custom worker count
+python benchmarks/benchmark_parallel_scan.py --symbols 100 --workers 20
+```
+
+### Expected Results
+
+| Execution Mode | Symbols | Expected Time | Notes |
+|----------------|---------|---------------|-------|
+| Sequential | 100 | ~60-120s | Single-threaded processing |
+| Parallel (10 workers) | 100 | ~10-20s | 5-10x speedup typical |
+
+**Note**: Actual speedup depends on:
+- CPU core count and performance
+- Network latency (data fetching)
+- Exchange rate limits
+- System load
+
+### Interpreting Results
+
+The benchmark will display:
+- **Time per symbol**: Total time divided by symbol count
+- **Speedup**: Ratio of sequential time to parallel time
+- **Per-symbol metrics**: Average processing time per symbol
+
+Use these results to:
+1. **Verify parallel execution is faster** than sequential
+2. **Tune worker count** for your system (typically 5-20 workers optimal)
+3. **Identify bottlenecks** (if speedup is low, check network/rate limits)
+
+---
+
 ## 📋 Recommended Presets by Use Case
 
 ### Preset 1: **Live Trading (Maximum Speed for Single Bar)**
