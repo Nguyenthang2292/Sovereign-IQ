@@ -59,7 +59,7 @@ def get_daily_stats(session: Session, days: int = 30) -> List[Dict[str, Any]]:
     )
 
     # Transform results into dictionaries
-    stats_list = []
+    stats_list: List[Dict[str, Any]] = []
     for row in results:
         if row.date is None:
             continue

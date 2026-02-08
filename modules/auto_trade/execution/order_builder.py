@@ -30,7 +30,7 @@ class OrderTicket:
     stop_loss_percentage: float = 50.0  # Default 50%
     client_order_id: Optional[str] = None  # AT_ prefix for DB sync and Binance identification
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Convert to dictionary for logging."""
         return {
             "symbol": self.symbol,
@@ -144,9 +144,11 @@ class OrderBuilder:
         if entry_price <= 0:
             raise ValueError(f"Entry price must be positive, got {entry_price}")
 
-        tp_percentage = order.take_profit_percentage
-        sl_percentage = order.stop_loss_percentage
+        tp_percentage: float = order.take_profit_percentage
+        sl_percentage: float = order.stop_loss_percentage
 
+        tp_price: float
+        sl_price: float
         if order.side == "BUY":  # LONG
             tp_price = entry_price * (1 + tp_percentage / 100.0)
             sl_price = entry_price * (1 - sl_percentage / 100.0)
@@ -175,8 +177,8 @@ class OrderBuilder:
         """
         tp_price, sl_price = self.calculate_tp_sl_prices(order, entry_price)
 
-        order.entry_price = entry_price
-        order.take_profit_price = tp_price
-        order.stop_loss_price = sl_price
+        order.entry_price = float(entry_price)
+        order.take_profit_price = float(tp_price)
+        order.stop_loss_price = float(sl_price)
 
         return order

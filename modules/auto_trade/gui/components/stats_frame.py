@@ -2,8 +2,8 @@ from typing import Dict
 
 import customtkinter as ctk
 
-from gui.utils.colors import Colors
-from gui.utils.modes import TradingMode
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.modes import TradingMode
 
 
 class ModeIndicator(ctk.CTkFrame):
@@ -69,7 +69,9 @@ class StatsFrame(ctk.CTkFrame):
         mode_frame = ctk.CTkFrame(stats_frame, fg_color=Colors.get_card_bg(), corner_radius=10)
         mode_frame.pack(fill="x", pady=(20, 10))
 
-        ctk.CTkLabel(mode_frame, text="Current Mode", font=("Arial", 11), text_color=Colors.get_text_secondary()).pack(pady=(10, 5))
+        ctk.CTkLabel(mode_frame, text="Current Mode", font=("Arial", 11), text_color=Colors.get_text_secondary()).pack(
+            pady=(10, 5)
+        )
         self.mode_indicator = ModeIndicator(mode_frame, "DEMO")
         self.mode_indicator.pack(pady=(0, 10))
 

@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import customtkinter as ctk
 
+from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.strategies.gradual_recovery import (
     GradualRecoveryStrategy,
     RecoveryConfig,
@@ -109,18 +110,32 @@ class RecoveryPanel(ctk.CTkFrame):
         status_frame = ctk.CTkFrame(tab, fg_color="transparent")
         status_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
+        # Empty State
+        self.empty_state_widget = EmptyState(
+            status_frame,
+            icon="🔄",
+            message="No active recovery",
+            hint="Configure and start a recovery session to begin.",
+            action_text="Configure Recovery",
+            action_callback=lambda: self.tabview.set("Config"),
+        )
+        self.empty_state_widget.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # Frame to hold active recovery details
+        self.active_recovery_frame = ctk.CTkFrame(status_frame, fg_color="transparent")
+
         # Initial Loss
-        self.initial_loss_label = ctk.CTkLabel(status_frame, text="Initial Loss: $0.00", font=("Arial", 12))
+        self.initial_loss_label = ctk.CTkLabel(self.active_recovery_frame, text="Initial Loss: $0.00", font=("Arial", 12))
         self.initial_loss_label.pack(anchor="w", pady=(5, 2))
 
         # Remaining Loss
         self.remaining_loss_label = ctk.CTkLabel(
-            status_frame, text="Remaining Loss: $0.00", font=("Arial", 14, "bold"), text_color="#ff6b6b"
+            self.active_recovery_frame, text="Remaining Loss: $0.00", font=("Arial", 14, "bold"), text_color="#ff6b6b"
         )
         self.remaining_loss_label.pack(anchor="w", pady=(5, 2))
 
         # Progress Bar (widget + percentage label on one row, no floating)
-        progress_frame = ctk.CTkFrame(status_frame, fg_color="transparent")
+        progress_frame = ctk.CTkFrame(self.active_recovery_frame, fg_color="transparent")
         progress_frame.pack(fill="x", pady=(15, 5), expand=False)
 
         self.progress_bar_widget = ctk.CTkProgressBar(progress_frame, height=10)
@@ -133,33 +148,33 @@ class RecoveryPanel(ctk.CTkFrame):
         self.progress_bar_label.pack(side="left", anchor="w")
 
         # Recovery Percentage
-        self.recovery_pct_label = ctk.CTkLabel(status_frame, text="Recovery: 0.0%", font=("Arial", 12))
+        self.recovery_pct_label = ctk.CTkLabel(self.active_recovery_frame, text="Recovery: 0.0%", font=("Arial", 12))
         self.recovery_pct_label.pack(anchor="w", pady=(5, 2))
 
         # Separator
-        separator = ctk.CTkFrame(status_frame, height=2, fg_color="#444")
+        separator = ctk.CTkFrame(self.active_recovery_frame, height=2, fg_color="#444")
         separator.pack(fill="x", pady=(15, 15))
 
         # Trades Count
-        self.trades_count_label = ctk.CTkLabel(status_frame, text="Trades: 0", font=("Arial", 11))
+        self.trades_count_label = ctk.CTkLabel(self.active_recovery_frame, text="Trades: 0", font=("Arial", 11))
         self.trades_count_label.pack(anchor="w", pady=2)
 
         # Win Streak
         self.win_streak_label = ctk.CTkLabel(
-            status_frame, text="Win Streak: 0", font=("Arial", 11), text_color="#00ff88"
+            self.active_recovery_frame, text="Win Streak: 0", font=("Arial", 11), text_color="#00ff88"
         )
         self.win_streak_label.pack(anchor="w", pady=2)
 
         # Estimated Trades Remaining
-        self.est_trades_label = ctk.CTkLabel(status_frame, text="Est. Remaining: 0", font=("Arial", 11))
+        self.est_trades_label = ctk.CTkLabel(self.active_recovery_frame, text="Est. Remaining: 0", font=("Arial", 11))
         self.est_trades_label.pack(anchor="w", pady=2)
 
         # Separator
-        separator2 = ctk.CTkFrame(status_frame, height=2, fg_color="#444")
+        separator2 = ctk.CTkFrame(self.active_recovery_frame, height=2, fg_color="#444")
         separator2.pack(fill="x", pady=(15, 15))
 
         # Next Trade Recommendations
-        rec_frame = ctk.CTkFrame(status_frame, fg_color="#2a2a2a")
+        rec_frame = ctk.CTkFrame(self.active_recovery_frame, fg_color="#2a2a2a")
         rec_frame.pack(fill="x", pady=(5, 10))
 
         rec_title = ctk.CTkLabel(rec_frame, text="Next Trade Recommendations", font=("Arial", 11, "bold"))
@@ -173,19 +188,29 @@ class RecoveryPanel(ctk.CTkFrame):
         self.leverage_label = ctk.CTkLabel(rec_frame, text="Leverage: 0x", font=("Arial", 11))
         self.leverage_label.pack(anchor="w", pady=(2, 10), padx=10)
 
-        # Status Message
-        self.status_label = ctk.CTkLabel(status_frame, text="No active recovery", font=("Arial", 11), text_color="gray")
+        # Status Message (this will be handled by EmptyState or updated based on recovery_strategy)
+        self.status_label = ctk.CTkLabel(self.active_recovery_frame, text="No active recovery", font=("Arial", 11), text_color="gray")
         self.status_label.pack(pady=(10, 5))
 
         # Reset Button
         reset_btn = ctk.CTkButton(
-            status_frame,
+            self.active_recovery_frame,
             text="🔄 Reset Recovery",
             fg_color="#ff6644",
             hover_color="#cc4422",
             command=self._on_reset,
         )
-        reset_btn.pack(fill="x", pady=(5, 10))
+        reset_btn.pack(fill="x", pady=(5, 5))
+
+        # Stop Button
+        stop_btn = ctk.CTkButton(
+            self.active_recovery_frame,
+            text="⏹️ Stop Recovery",
+            fg_color="#444444",
+            hover_color="#333333",
+            command=self._on_stop_recovery,
+        )
+        stop_btn.pack(fill="x", pady=(0, 10))
 
     def _create_config_tab(self):
         """Create Configuration tab for recovery settings"""
@@ -894,10 +919,24 @@ class RecoveryPanel(ctk.CTkFrame):
             if self.on_config_change:
                 self.on_config_change("recovery_reset", None)
 
+    def _on_stop_recovery(self):
+        """Stop current recovery session"""
+        self.recovery_strategy = None
+        self._update_status_display()
+        if self.on_config_change:
+            self.on_config_change("recovery_stopped", None)
+
     def _update_status_display(self):
         """Update status tab with current recovery state"""
         if not self.recovery_strategy:
+            # Show empty state, hide active details
+            self.active_recovery_frame.pack_forget()
+            self.empty_state_widget.pack(fill="both", expand=True, padx=20, pady=20)
             return
+
+        # Hide empty state, show active details
+        self.empty_state_widget.pack_forget()
+        self.active_recovery_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         state = self.recovery_strategy.get_state()
 

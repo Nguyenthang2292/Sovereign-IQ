@@ -6,7 +6,7 @@ order execution, position monitoring, and Martingale recovery.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from modules.auto_trade.core.signal_pipeline import SignalPipeline
 from modules.common.core.data_fetcher import DataFetcher
@@ -98,7 +98,7 @@ class AutoTradeStrategySimulator:
         timeframe: str,
         lookback: int,
         symbol_sample_pct: float = 0.10,  # Sample 10% of symbols
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Simulate complete auto-trade strategy over historical data.
 
@@ -156,7 +156,7 @@ class AutoTradeStrategySimulator:
 
     def _timeframe_to_minutes(self, timeframe: str) -> int:
         """Convert timeframe string to minutes."""
-        timeframe_map = {
+        timeframe_map: Dict[str, int] = {
             "1m": 1,
             "5m": 5,
             "15m": 15,
@@ -171,7 +171,7 @@ class AutoTradeStrategySimulator:
         """Check if there is currently an open position."""
         return len(self.positions) > 0
 
-    def _monitor_position(self, period_idx: int):
+    def _monitor_position(self, period_idx: int) -> None:
         """
         Monitor open position for exit conditions.
 
@@ -200,7 +200,7 @@ class AutoTradeStrategySimulator:
             if current_drawdown >= self.breakeven_threshold_pct:
                 self._move_to_breakeven(position)
 
-    def _run_signal_scan(self, timeframe: str, lookback: int, symbol_sample_pct: float) -> Optional[Dict]:
+    def _run_signal_scan(self, timeframe: str, lookback: int, symbol_sample_pct: float) -> Optional[Dict[str, Any]]:
         """
         Run signal pipeline to find trading opportunity.
 
@@ -229,7 +229,7 @@ class AutoTradeStrategySimulator:
             logger.error(f"Error scanning for signals: {e}", exc_info=True)
             return None
 
-    def _execute_order(self, signal: Dict, period_idx: int):
+    def _execute_order(self, signal: Dict[str, Any], period_idx: int) -> None:
         """
         Execute order based on signal.
 
@@ -269,7 +269,7 @@ class AutoTradeStrategySimulator:
         except Exception as e:
             logger.error(f"Error executing order: {e}", exc_info=True)
 
-    def _close_position(self, reason: str, period_idx: int):
+    def _close_position(self, reason: str, period_idx: int) -> None:
         """
         Close current position.
 
@@ -284,8 +284,8 @@ class AutoTradeStrategySimulator:
 
         # Calculate PnL (simplified)
         # In real implementation, this would use actual exit price
-        pnl = 0  # Placeholder
-        pnl_pct = 0  # Placeholder
+        pnl: float = 0.0  # Placeholder
+        pnl_pct: float = 0.0  # Placeholder
 
         # Update capital
         self.current_capital += pnl
@@ -330,7 +330,7 @@ class AutoTradeStrategySimulator:
             f"PnL=${pnl:.2f} ({pnl_pct:.2f}%), Capital=${self.current_capital:.2f}"
         )
 
-    def _move_to_breakeven(self, position: Dict):
+    def _move_to_breakeven(self, position: Dict[str, Any]) -> None:
         """
         Move position to break-even.
 
@@ -341,7 +341,7 @@ class AutoTradeStrategySimulator:
         position["take_profit"] = position.get("entry_price")  # Move TP to entry
         logger.info(f"Break-even protection applied for {position.get('symbol')}")
 
-    def _calculate_metrics(self) -> Dict:
+    def _calculate_metrics(self) -> Dict[str, Any]:
         """Calculate performance metrics."""
         if not self.trades:
             return {

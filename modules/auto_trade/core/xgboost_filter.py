@@ -71,12 +71,30 @@ class XGBoostFilter:
     adding a second layer of confirmation to reduce false positives.
     """
 
+    data_fetcher: DataFetcher
+    model_path: str
+    config: XGBoostFilterConfig
+    indicator_engine: IndicatorEngine
+    _prediction_cache: Dict[str, Tuple[float, str, float]]
+    _feature_failure_count: Dict[str, int]
+    model: Optional[Any]
+    min_confidence: float
+    history_limit: int
+    prediction_timeframe: str
+    on_error: str
+    min_required_candles: int
+    cache_ttl: float
+    require_model: bool
+    max_consecutive_failures: int
+    prob_sum_tolerance: float
+    min_confidence_delta: float
+
     def __init__(
         self,
         data_fetcher: DataFetcher,
         model_path: str,
         config: Optional[XGBoostFilterConfig] = None,
-    ):
+    ) -> None:
         """
         Initialize XGBoostFilter.
 

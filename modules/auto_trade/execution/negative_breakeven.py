@@ -8,7 +8,6 @@ No side effects - all inputs are explicit parameters.
 Created: 2026-02-06
 """
 
-from typing import Optional
 
 
 def calculate_profit_pct(entry_price: float, mark_price: float, side: str) -> float:
@@ -37,9 +36,9 @@ def calculate_profit_pct(entry_price: float, mark_price: float, side: str) -> fl
         return 0.0
 
     if side.upper() == "LONG":
-        return ((mark_price - entry_price) / entry_price) * 100
+        return float(((mark_price - entry_price) / entry_price) * 100)
     elif side.upper() == "SHORT":
-        return ((entry_price - mark_price) / entry_price) * 100
+        return float(((entry_price - mark_price) / entry_price) * 100)
     else:
         return 0.0
 
@@ -191,7 +190,7 @@ class NegativeBreakevenLogic:
         Returns:
             True if should trigger
         """
-        profit_pct = calculate_profit_pct(entry_price, mark_price, side)
+        profit_pct: float = calculate_profit_pct(entry_price, mark_price, side)
         return should_trigger_negative_be(
             profit_pct=profit_pct,
             threshold_pct=threshold_pct,

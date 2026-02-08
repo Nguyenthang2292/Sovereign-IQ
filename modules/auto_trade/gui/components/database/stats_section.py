@@ -1,14 +1,12 @@
 """Stats Section Component for Database Panel."""
 
-import customtkinter as ctk
 import logging
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, Callable
+from typing import Dict
 
-from modules.auto_trade.database import session_scope
-from modules.auto_trade.database.models import Order, Signal, MartingaleChain, AuditLog
-from modules.auto_trade.database.config import DEFAULT_BACKUP_DIR
+import customtkinter as ctk
+
+from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
+from modules.auto_trade.gui.services.database_service import DatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +24,10 @@ class StatsSection:
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="x", padx=5, pady=5)
 
-        ctk.CTkLabel(frame, text="📊 Database Stats", font=("Roboto", 14, "bold")).pack(
-            anchor="w", padx=10, pady=(10, 5)
+        ctk.CTkLabel(frame, text="📊 Database Stats", font=DatabasePanelConfig.TITLE_FONT).pack(
+            anchor="w",
+            padx=DatabasePanelConfig.PADX_MEDIUM,
+            pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
         stats_items = [
@@ -50,41 +50,26 @@ class StatsSection:
             self.stats_labels[key] = value_label
 
     def refresh(self):
-        """Refresh statistics from database."""
+        """Refresh statistics from database using DatabaseService."""
         try:
-            with session_scope() as session:
-                # Count records
-                total_orders = session.query(Order).count()
-                open_positions = session.query(Order).filter(Order.status == "OPEN").count()
-                total_signals = session.query(Signal).count()
-                active_chains = session.query(MartingaleChain).filter(MartingaleChain.status == "ACTIVE").count()
-                audit_logs = session.query(AuditLog).count()
+            # Get stats from service layer
+            stats = DatabaseService.get_stats()
 
-                # Update labels
-                if "total_orders" in self.stats_labels:
-                    self.stats_labels["total_orders"].configure(text=str(total_orders))
-                    self.stats_labels["open_positions"].configure(text=str(open_positions))
-                    self.stats_labels["total_signals"].configure(text=str(total_signals))
-                    self.stats_labels["active_chains"].configure(text=str(active_chains))
-                    self.stats_labels["audit_logs"].configure(text=str(audit_logs))
+            # Update labels
+            if stats and "total_orders" in self.stats_labels:
+                self.stats_labels["total_orders"].configure(text=str(stats.get("total_orders", 0)))
+                self.stats_labels["open_positions"].configure(text=str(stats.get("open_positions", 0)))
+                self.stats_labels["total_signals"].configure(text=str(stats.get("total_signals", 0)))
+                self.stats_labels["active_chains"].configure(text=str(stats.get("active_chains", 0)))
+                self.stats_labels["audit_logs"].configure(text=str(stats.get("audit_logs", 0)))
 
-                # Check last backup
-                try:
-                    backup_dir = Path(DEFAULT_BACKUP_DIR)
-                    if backup_dir.exists():
-                        backups = sorted(list(backup_dir.glob("*.db")), key=lambda f: f.stat().st_mtime, reverse=True)
-                        if backups and "last_backup" in self.stats_labels:
-                            last_backup_time = datetime.fromtimestamp(backups[0].stat().st_mtime).strftime(
-                                "%Y-%m-%d %H:%M"
-                            )
-                            self.stats_labels["last_backup"].configure(text=last_backup_time)
-                        elif "last_backup" in self.stats_labels:
-                            self.stats_labels["last_backup"].configure(text="None")
-                    elif "last_backup" in self.stats_labels:
-                        self.stats_labels["last_backup"].configure(text="None")
-                except Exception:
-                    if "last_backup" in self.stats_labels:
-                        self.stats_labels["last_backup"].configure(text="Error")
+            # Check last backup via service
+            last_backup = DatabaseService.get_last_backup_time()
+            if "last_backup" in self.stats_labels:
+                if last_backup:
+                    self.stats_labels["last_backup"].configure(text=last_backup)
+                else:
+                    self.stats_labels["last_backup"].configure(text="None")
 
         except Exception as e:
             logger.error(f"Failed to refresh stats: {e}")

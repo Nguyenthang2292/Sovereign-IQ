@@ -1,16 +1,18 @@
 """Signals Section Component for Database Panel."""
 
-import customtkinter as ctk
-import uuid
 import logging
+import uuid
 from typing import Callable
 
+import customtkinter as ctk
+
 from modules.auto_trade.database import (
-    session_scope,
-    save_signal,
     get_recent_signals,
     get_signal_performance_stats,
+    save_signal,
+    session_scope,
 )
+from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +31,10 @@ class SignalsSection:
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="x", padx=5, pady=5)
 
-        ctk.CTkLabel(frame, text="🎯 Signals Testing", font=("Roboto", 14, "bold")).pack(
-            anchor="w", padx=10, pady=(10, 5)
+        ctk.CTkLabel(frame, text="🎯 Signals Testing", font=DatabasePanelConfig.TITLE_FONT).pack(
+            anchor="w",
+            padx=DatabasePanelConfig.PADX_MEDIUM,
+            pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
         input_frame = ctk.CTkFrame(frame, fg_color="transparent")

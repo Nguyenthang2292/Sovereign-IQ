@@ -39,10 +39,14 @@ pytest tests/auto_trade/test_database.py::TestOrderOperations::test_create_order
 
 ### Run with Coverage
 ```bash
-pytest tests/auto_trade/ --cov=modules.auto_trade --cov-report=html
+# Report only (no fail threshold)
+pytest tests/auto_trade/ --cov=modules/auto_trade --cov-report=html
+
+# Target 90%+ (REFACTORING_RECOMMENDATIONS Day 4) — fails if coverage < 90%
+pytest tests/auto_trade/ --cov=modules/auto_trade --cov-report=term-missing --cov-fail-under=90
 ```
 
-Coverage report will be in `htmlcov/index.html`
+Coverage config: `pyproject.toml` [tool.coverage]. Report in `htmlcov/index.html` when using `--cov-report=html`.
 
 ## 📊 Test Categories
 

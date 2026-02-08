@@ -5,7 +5,7 @@ Simulates order execution for testing and development without
 executing real trades on an exchange.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 # Local imports
 from modules.auto_trade.gui.utils.dry_run_db import DryRunDB
@@ -22,8 +22,8 @@ class DryRunExecutor:
 
     def __init__(self) -> None:
         """Initialize dry run executor with mock price feed and database."""
-        self.price_feed = MockPriceFeed()
-        self.db = DryRunDB()
+        self.price_feed: MockPriceFeed = MockPriceFeed()
+        self.db: DryRunDB = DryRunDB()
 
     def place_order(
         self,
@@ -49,10 +49,10 @@ class DryRunExecutor:
             Dictionary with order result containing success status and details
         """
         try:
-            current_price = self.price_feed.get_current_price(symbol)
+            current_price: float = self.price_feed.get_current_price(symbol)
 
-            entry_price = current_price
-            position_id = self.db.insert_position(
+            entry_price: float = current_price
+            position_id: Optional[int] = self.db.insert_position(
                 symbol=symbol,
                 side=side,
                 entry_price=entry_price,
@@ -88,29 +88,30 @@ class DryRunExecutor:
             Dictionary with close result containing success status and details
         """
         try:
-            current_price = self.price_feed.get_current_price(symbol)
-            positions = self.db.get_open_positions_by_symbol(symbol, side)
+            current_price: float = self.price_feed.get_current_price(symbol)
+            positions: List[Dict[str, Any]] = self.db.get_open_positions_by_symbol(symbol, side)
 
             if not positions:
                 return {"success": False, "error": "No open positions found", "message": "No positions to close"}
 
-            total_size = sum(pos.get("size", 0) for pos in positions)
-            close_size = min(size, total_size)
+            total_size: float = sum(float(pos.get("size", 0)) for pos in positions)
+            close_size: float = min(size, total_size)
 
             for pos in positions:
-                pos_size = pos.get("size", 0)
+                pos_size: float = float(pos.get("size", 0))
                 if close_size <= 0:
                     break
 
-                close_this = min(pos_size, close_size)
-                entry_price = float(pos.get("entry_price", 0))
+                close_this: float = min(pos_size, close_size)
+                entry_price: float = float(pos.get("entry_price", 0))
 
+                pnl: float
                 if side == "LONG":
                     pnl = (current_price - entry_price) * close_this
                 else:
                     pnl = (entry_price - current_price) * close_this
 
-                pos_id = pos.get("id")
+                pos_id: Optional[Any] = pos.get("id")
                 if pos_id is not None:
                     self.db.update_position(position_id=int(pos_id), current_price=current_price, unrealized_pnl=pnl)
 
@@ -140,13 +141,13 @@ class DryRunExecutor:
             Dictionary with modification result
         """
         try:
-            positions = self.db.get_open_positions_by_symbol(symbol)
+            positions: List[Dict[str, Any]] = self.db.get_open_positions_by_symbol(symbol)
 
             if not positions:
                 return {"success": False, "error": "No open positions found", "message": "No positions to modify"}
 
             for pos in positions:
-                pos_id = pos.get("id")
+                pos_id: Optional[Any] = pos.get("id")
                 if pos_id is not None:
                     self.db.update_position(position_id=int(pos_id), take_profit=tp_price, stop_loss=sl_price)
 

@@ -11,7 +11,7 @@ import time
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, List, Optional
 
 from modules.auto_trade.core.signal_selector import FinalSignal
 from modules.common.ui.logging import log_error, log_info, log_warn
@@ -30,8 +30,14 @@ class SignalPersistenceSQLite:
     - Outcome tracking support
     """
 
-    DISK_SPACE_ERROR_THRESHOLD_MB = 100
-    DISK_SPACE_WARN_THRESHOLD_MB = 500
+    DISK_SPACE_ERROR_THRESHOLD_MB: int = 100
+    DISK_SPACE_WARN_THRESHOLD_MB: int = 500
+
+    db_path: Path
+    _lock: threading.Lock
+    _last_disk_check: float
+    _disk_check_interval: int
+    metrics: Dict[str, Any]
 
     def __init__(self, db_path: str = "data/signals/signals.db", enable_wal: bool = True) -> None:
         """

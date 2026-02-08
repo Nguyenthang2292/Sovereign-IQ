@@ -55,8 +55,8 @@ class MockPriceFeed:
         Simulates market price changes with +/- 1% fluctuations.
         """
         for symbol in self.current_prices:
-            current = self.current_prices[symbol]
-            change_percent = random.uniform(-0.01, 0.01)
+            current: float = self.current_prices[symbol]
+            change_percent: float = random.uniform(-0.01, 0.01)
             self.current_prices[symbol] = current * (1 + change_percent)
 
     def set_price(self, symbol: str, price: float) -> None:

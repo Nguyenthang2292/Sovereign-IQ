@@ -101,7 +101,7 @@ class BinanceWebSocketClient:
 
         logger.info(f"BinanceWebSocketClient initialized (testnet={testnet})")
 
-    async def connect(self):
+    async def connect(self) -> None:
         """
         Connect to WebSocket and start watching streams.
 
@@ -115,7 +115,7 @@ class BinanceWebSocketClient:
             logger.error(f"Failed to connect WebSocket client: {e}")
             raise
 
-    async def close(self):
+    async def close(self) -> None:
         """
         Close WebSocket connection and cleanup.
         """
@@ -132,7 +132,7 @@ class BinanceWebSocketClient:
 
     # ==================== Position Monitoring ====================
 
-    def on_position_update(self, callback: Callable):
+    def on_position_update(self, callback: Callable[[List[Dict[str, Any]]], Any]) -> None:
         """
         Register callback for position updates.
 
@@ -142,7 +142,7 @@ class BinanceWebSocketClient:
         self.position_callbacks.append(callback)
         logger.info(f"Registered position callback: {callback.__name__}")
 
-    async def watch_positions(self):
+    async def watch_positions(self) -> None:
         """
         Watch position updates in real-time.
 
@@ -191,7 +191,7 @@ class BinanceWebSocketClient:
 
     # ==================== Balance Monitoring ====================
 
-    def on_balance_update(self, callback: Callable):
+    def on_balance_update(self, callback: Callable[[Dict[str, Any]], Any]) -> None:
         """
         Register callback for balance updates.
 
@@ -201,7 +201,7 @@ class BinanceWebSocketClient:
         self.balance_callbacks.append(callback)
         logger.info(f"Registered balance callback: {callback.__name__}")
 
-    async def watch_balance(self):
+    async def watch_balance(self) -> None:
         """
         Watch balance updates in real-time.
 
@@ -246,7 +246,7 @@ class BinanceWebSocketClient:
 
     # ==================== Order Monitoring ====================
 
-    def on_order_update(self, callback: Callable):
+    def on_order_update(self, callback: Callable[[List[Dict[str, Any]]], Any]) -> None:
         """
         Register callback for order updates.
 
@@ -256,7 +256,7 @@ class BinanceWebSocketClient:
         self.order_callbacks.append(callback)
         logger.info(f"Registered order callback: {callback.__name__}")
 
-    async def watch_orders(self, symbol: Optional[str] = None):
+    async def watch_orders(self, symbol: Optional[str] = None) -> None:
         """
         Watch order updates in real-time.
 
@@ -305,7 +305,7 @@ class BinanceWebSocketClient:
 
     # ==================== Mark Price Monitoring ====================
 
-    def on_mark_price_update(self, symbol: str, callback: Callable):
+    def on_mark_price_update(self, symbol: str, callback: Callable[[Dict[str, Any]], Any]) -> None:
         """
         Register callback for mark price updates.
 
@@ -319,7 +319,7 @@ class BinanceWebSocketClient:
         self.mark_price_callbacks[symbol].append(callback)
         logger.info(f"Registered mark price callback for {symbol}: {callback.__name__}")
 
-    async def watch_mark_price(self, symbol: str):
+    async def watch_mark_price(self, symbol: str) -> None:
         """
         Watch mark price updates for a symbol.
 
@@ -362,7 +362,7 @@ class BinanceWebSocketClient:
 
     # ==================== Convenience Methods ====================
 
-    async def start_watching_all(self, symbols_for_mark_price: Optional[List[str]] = None):
+    async def start_watching_all(self, symbols_for_mark_price: Optional[List[str]] = None) -> None:
         """
         Start watching all streams (positions, balance, orders, mark prices).
 
@@ -397,7 +397,7 @@ class BinanceWebSocketClient:
 
         logger.info(f"✅ Started {len(self.watch_tasks)} WebSocket watchers")
 
-    async def get_initial_positions(self) -> List[dict]:
+    async def get_initial_positions(self) -> List[Dict[str, Any]]:
         """
         Fetch initial positions via REST API (for bootstrapping).
 
@@ -414,7 +414,7 @@ class BinanceWebSocketClient:
             logger.error(f"Failed to fetch initial positions: {e}")
             return []
 
-    async def get_initial_balance(self) -> dict:
+    async def get_initial_balance(self) -> Dict[str, Any]:
         """
         Fetch initial balance via REST API (for bootstrapping).
 
@@ -429,7 +429,7 @@ class BinanceWebSocketClient:
             logger.error(f"Failed to fetch initial balance: {e}")
             return {}
 
-    async def get_initial_orders(self, symbol: Optional[str] = None) -> List[dict]:
+    async def get_initial_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Fetch initial open orders via REST API (for bootstrapping).
 

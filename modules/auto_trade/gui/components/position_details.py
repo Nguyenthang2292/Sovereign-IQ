@@ -2,8 +2,8 @@ from typing import Callable, Dict, Optional
 
 import customtkinter as ctk
 
-from gui.components.position_actions import PositionActions
-from gui.utils.colors import Colors
+from modules.auto_trade.gui.components.position_actions import PositionActions
+from modules.auto_trade.gui.utils.colors import Colors
 
 
 class PositionDetails(ctk.CTkToplevel):

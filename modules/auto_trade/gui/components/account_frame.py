@@ -1,6 +1,8 @@
-import customtkinter as ctk
 from typing import Dict
-from gui.utils.colors import Colors
+
+import customtkinter as ctk
+
+from modules.auto_trade.gui.utils.colors import Colors
 
 
 class StatCard(ctk.CTkFrame):
@@ -52,7 +54,7 @@ class AccountFrame(ctk.CTkFrame):
         self.daily_pnl_percent_card.grid(row=1, column=2, padx=5, pady=5, sticky="ew")
 
     def update_data(self, account_data: Dict):
-        from gui.utils.formatters import format_pnl, format_percent
+        from modules.auto_trade.gui.utils.formatters import format_percent, format_pnl
 
         self.balance_card.update(f"{account_data.get('balance', 0):,.2f} USDT")
         self.available_card.update(f"{account_data.get('available', 0):,.2f} USDT")

@@ -5,28 +5,28 @@ class Colors:
     """Theme-aware color system for Auto Trade GUI"""
 
     # Static colors (theme-independent)
-    LONG = "#00ff88"
-    SHORT = "#ff4444"
-    NEUTRAL = "#888888"
-    PROFIT = "#00ff88"
-    LOSS = "#ff4444"
-    PRODUCTION = "#ff4444"
-    DEMO = "#ffaa00"
-    DRY_RUN = "#4488ff"
+    LONG: str = "#00ff88"
+    SHORT: str = "#ff4444"
+    NEUTRAL: str = "#888888"
+    PROFIT: str = "#00ff88"
+    LOSS: str = "#ff4444"
+    PRODUCTION: str = "#ff4444"
+    DEMO: str = "#ffaa00"
+    DRY_RUN: str = "#4488ff"
 
     # Dark theme colors
-    BG_DARK = "#1a1a1a"
-    BG_CARD_DARK = "#2b2b2b"
-    BG_HEADER_DARK = "#1e1e1e"
-    TEXT_PRIMARY_DARK = "#ffffff"
-    TEXT_SECONDARY_DARK = "#888888"
+    BG_DARK: str = "#1a1a1a"
+    BG_CARD_DARK: str = "#2b2b2b"
+    BG_HEADER_DARK: str = "#1e1e1e"
+    TEXT_PRIMARY_DARK: str = "#ffffff"
+    TEXT_SECONDARY_DARK: str = "#888888"
 
     # Light theme colors
-    BG_LIGHT = "#f0f0f0"
-    BG_CARD_LIGHT = "#ffffff"
-    BG_HEADER_LIGHT = "#e8e8e8"
-    TEXT_PRIMARY_LIGHT = "#000000"
-    TEXT_SECONDARY_LIGHT = "#666666"
+    BG_LIGHT: str = "#f0f0f0"
+    BG_CARD_LIGHT: str = "#ffffff"
+    BG_HEADER_LIGHT: str = "#e8e8e8"
+    TEXT_PRIMARY_LIGHT: str = "#000000"
+    TEXT_SECONDARY_LIGHT: str = "#666666"
 
     @staticmethod
     def get_current_theme() -> str:

@@ -56,13 +56,19 @@ class RiskCalculator:
             Returns None if calculation fails
         """
         try:
+            if current_price <= 0 or leverage <= 0:
+                return None
+
             # Contract size (in base asset)
-            contract_size = amount_usdt / current_price
+            contract_size: float = amount_usdt / current_price
 
             # Margin required (with leverage)
-            margin_required = amount_usdt / leverage
+            margin_required: float = amount_usdt / leverage
 
             # TP/SL prices
+            tp_price: float
+            sl_price: float
+            liquidation_price: float
             if side == "LONG":
                 tp_price = current_price * (1 + tp_percent / 100)
                 sl_price = current_price * (1 - sl_percent / 100)
@@ -76,11 +82,11 @@ class RiskCalculator:
                 liquidation_price = current_price * (1 + (1 / leverage))
 
             # Profit/Loss calculations (with leverage)
-            max_profit = amount_usdt * (tp_percent / 100) * leverage
-            max_loss = amount_usdt * (sl_percent / 100) * leverage
+            max_profit: float = amount_usdt * (tp_percent / 100) * leverage
+            max_loss: float = amount_usdt * (sl_percent / 100) * leverage
 
             # Risk/Reward ratio
-            risk_reward_ratio = max_profit / max_loss if max_loss > 0 else 0
+            risk_reward_ratio: float = max_profit / max_loss if max_loss > 0 else 0.0
 
             return {
                 "contract_size": contract_size,

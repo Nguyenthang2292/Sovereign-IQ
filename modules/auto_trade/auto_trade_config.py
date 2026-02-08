@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Auto Trading System - Configuration Management
 ===============================================
@@ -166,7 +168,7 @@ class AutoTradeConfig:
                 errors.append("Binance API secret is required (not in dry run)")
 
         if errors:
-            raise ValueError(f"Configuration validation failed:\n" + "\n".join(f"- {err}" for err in errors))
+            raise ValueError("Configuration validation failed:\n" + "\n".join(f"- {err}" for err in errors))
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary."""
@@ -199,7 +201,7 @@ class AutoTradeConfig:
         return json_str
 
     @classmethod
-    def from_json(cls, path: str) -> "AutoTradeConfig":
+    def from_json(cls, path: str) -> AutoTradeConfig:
         """
         Load config from JSON file.
 

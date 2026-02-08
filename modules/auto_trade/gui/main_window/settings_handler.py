@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import customtkinter as ctk
 
-from gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.colors import Colors
 
 if TYPE_CHECKING:
     from .main_window import AutoTradeDashboard
@@ -42,14 +42,8 @@ class SettingsHandler:
 
             auto_trade_control = getattr(self.parent, "auto_trade_control", None)
             if auto_trade_control is not None and hasattr(auto_trade_control, "update_from_settings"):
-                status = (
-                    self.parent._get_current_status()
-                    if hasattr(self.parent, "_get_current_status")
-                    else None
-                )
-                auto_trade_control.update_from_settings(
-                    self.parent.settings_manager.settings, status=status
-                )
+                status = self.parent._get_current_status() if hasattr(self.parent, "_get_current_status") else None
+                auto_trade_control.update_from_settings(self.parent.settings_manager.settings, status=status)
 
         except Exception as e:
             print(f"Error applying settings: {e}")

@@ -81,9 +81,25 @@ class ATCScanner:
 
     # Class constant for empty scan result
     _EMPTY_SCAN_RESULT: Dict[str, Any] = {"longs": set(), "shorts": set(), "strengths": {}}
-    _EMPTY_DF_SCHEMA = {"symbol": pl.Utf8, "signal": pl.Float64}
+    _EMPTY_DF_SCHEMA: Dict[str, Any] = {"symbol": pl.Utf8, "signal": pl.Float64}
 
-    def __init__(self, data_fetcher: DataFetcher, config: Optional[ATCScannerConfig] = None):
+    data_fetcher: DataFetcher
+    config: ATCScannerConfig
+    timeframes: List[str]
+    min_signal: float
+    enable_cache: bool
+    cache_ttl_seconds: int
+    _use_rust_cache: bool
+    _cache: Dict[str, Tuple[Dict[str, Any], float]]
+    _cache_lock: RLock
+    _rust_cache: Optional[Any]
+    batch_size: int
+    max_workers: Optional[int]
+    use_signal_strength: bool
+    weights: Dict[str, float]
+    threshold: float
+
+    def __init__(self, data_fetcher: DataFetcher, config: Optional[ATCScannerConfig] = None) -> None:
         """
         Initialize ATCScanner.
 

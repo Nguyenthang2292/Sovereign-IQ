@@ -2,7 +2,7 @@
 
 import queue
 
-from gui.utils.threading_utils import PeriodicUpdater
+from modules.auto_trade.gui.utils.threading_utils import PeriodicUpdater
 
 
 class UpdaterManager:

@@ -58,7 +58,7 @@ class PositionLifecycleHandler:
         amount: float,
         tp_price: Optional[float] = None,
         sl_price: Optional[float] = None,
-    ):
+    ) -> None:
         """
         Handle position opened event.
 
@@ -102,7 +102,7 @@ class PositionLifecycleHandler:
         exit_price: float,
         pnl: float,
         is_profit: bool,
-    ):
+    ) -> None:
         """
         Handle position closed event.
 
@@ -196,7 +196,7 @@ class PositionLifecycleHandler:
         # Remove from open positions
         del self._open_positions[symbol]
 
-    def on_position_update(self, position: PositionSnapshot):
+    def on_position_update(self, position: PositionSnapshot) -> None:
         """
         Handle position update event (from monitor).
 
@@ -262,7 +262,7 @@ class PositionLifecycleHandler:
             "martingale_step": self.martingale.current_step,
         }
 
-    def reset_stats(self):
+    def reset_stats(self) -> None:
         """Reset all statistics."""
         log_info("Resetting lifecycle statistics")
         self._win_count = 0

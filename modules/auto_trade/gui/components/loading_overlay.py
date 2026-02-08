@@ -1,7 +1,8 @@
 """Loading Overlay Component for async operations."""
 
-import customtkinter as ctk
 from typing import Optional
+
+import customtkinter as ctk
 
 
 class LoadingOverlay:

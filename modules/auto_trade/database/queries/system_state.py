@@ -62,6 +62,7 @@ def set_system_state(
     state = session.query(SystemState).filter(SystemState.key == key).first()
 
     # Convert value to string
+    value_str: str
     if value_type == "json":
         import json
 

@@ -2,7 +2,7 @@ from typing import Any, Callable, Optional
 
 import customtkinter as ctk
 
-from gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.colors import Colors
 
 
 class AutoTradeControl(ctk.CTkFrame):

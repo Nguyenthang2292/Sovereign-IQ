@@ -51,10 +51,12 @@ def test_auto_trade_picks_best_fresh_signal_by_score_and_passes_tp_sl():
 
             MockExecutor.return_value.execute_from_signal.assert_called_once()
             args, kwargs = MockExecutor.return_value.execute_from_signal.call_args
-            assert args[0]["symbol"] == "CCCUSDT"
-            assert args[0]["signal"] == "LONG"
-            assert float(args[0]["score"]) == 0.99
-            assert kwargs["tp_sl_settings"] == {"default_tp": 9.0, "default_sl": 4.0}
+            assert args[0]["symbol"] == "CCCUSDT", "Expected best signal symbol to be selected"
+            assert args[0]["signal"] == "LONG", "Expected best signal type to be used"
+            assert float(args[0]["score"]) == 0.99, "Expected highest score to be selected"
+            assert kwargs["tp_sl_settings"] == {"default_tp": 9.0, "default_sl": 4.0}, (
+                "Expected tp/sl settings to be passed through"
+            )
 
 
 def test_auto_trade_skips_when_no_fresh_signals():
@@ -86,7 +88,7 @@ def test_get_binance_client_returns_none_when_no_credentials():
     parent.mode = "DRY_RUN"
 
     manager = AutoTradeManager(parent)
-    assert manager._get_binance_client() is None
+    assert manager._get_binance_client() is None, "Expected no client when credentials are missing"
 
 
 def test_get_binance_client_returns_client_when_credentials_present():
@@ -107,7 +109,7 @@ def test_get_binance_client_returns_client_when_credentials_present():
         MockClient.return_value = MagicMock()
         manager = AutoTradeManager(parent)
         client = manager._get_binance_client()
-        assert client is not None
+        assert client is not None, "Expected BinanceClient instance when credentials are present"
         MockClient.assert_called_once_with(
             api_key="test_key",
             api_secret="test_secret",

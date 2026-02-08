@@ -70,6 +70,23 @@ class CircuitBreaker:
     the circuit when the failure threshold is reached, preventing cascading failures.
     """
 
+    failure_threshold: int
+    recovery_timeout: float
+    success_threshold: int
+    name: str
+    excluded_exceptions: Tuple[Type[Exception], ...]
+    on_open: Optional[Callable[[str], None]]
+    on_close: Optional[Callable[[str], None]]
+    sanitize_errors: bool
+    state: CircuitState
+    failure_count: int
+    success_count: int
+    last_failure_time: float
+    _lock: RLock
+    _half_open_request_in_flight: bool
+    metrics: CircuitBreakerMetrics
+    _state_enter_time: float
+
     def __init__(
         self,
         failure_threshold: int = 5,

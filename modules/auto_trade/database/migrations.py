@@ -24,7 +24,7 @@ class MigrationManager:
     Manages database schema migrations.
     """
 
-    def __init__(self, db_path: str, schema_path: str):
+    def __init__(self, db_path: str, schema_path: str) -> None:
         """
         Initialize migration manager.
 
@@ -56,7 +56,7 @@ class MigrationManager:
             # Table doesn't exist yet
             return "0.0.0"
 
-    def set_version(self, version: str):
+    def set_version(self, version: str) -> None:
         """
         Set database schema version.
 
@@ -77,7 +77,7 @@ class MigrationManager:
 
         logger.info(f"Database schema version updated to {version}")
 
-    def initialize_database(self):
+    def initialize_database(self) -> bool:
         """
         Initialize database from schema.sql if database is empty.
         """
@@ -106,7 +106,7 @@ class MigrationManager:
 
         return False
 
-    def enable_wal_mode(self):
+    def enable_wal_mode(self) -> bool:
         """
         Enable Write-Ahead Logging (WAL) mode for better concurrent access.
         """
@@ -344,7 +344,7 @@ class MigrationManager:
         logger.info("All migrations applied successfully")
         return True
 
-    def vacuum_database(self):
+    def vacuum_database(self) -> bool:
         """
         Vacuum database to reclaim space and optimize.
         """
@@ -359,7 +359,7 @@ class MigrationManager:
             logger.error(f"Error during VACUUM: {e}")
             return False
 
-    def analyze_database(self):
+    def analyze_database(self) -> bool:
         """
         Update query planner statistics for better performance.
         """

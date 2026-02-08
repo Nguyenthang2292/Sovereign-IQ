@@ -1,7 +1,8 @@
 """Helper module to integrate Gemini Chart Scanner sampling strategies into Auto Trade GUI."""
 
-from typing import Dict, List
+from typing import Any, List, Optional
 
+from modules.common.core.data_fetcher import DataFetcher
 from modules.gemini_chart_analyzer.core.prefilter.sampling import (
     SamplingStrategy,
     apply_sampling_strategy,
@@ -13,8 +14,8 @@ def sample_symbols(
     all_symbols: List[str],
     sample_percentage: float,
     strategy: str,
-    data_fetcher=None,
-    **kwargs,
+    data_fetcher: Optional[DataFetcher] = None,
+    **kwargs: Any,
 ) -> List[str]:
     """
     Sample symbols using Gemini Chart Scanner's sampling strategies.

@@ -31,8 +31,10 @@ Created: 2026-02-03
 """
 
 import threading
-from pathlib import Path
+from contextlib import AbstractContextManager
 from typing import Optional
+
+from sqlalchemy.orm import Session
 
 # Import backup
 from .backup import BackupManager, BackupScheduler, create_backup, list_all_backups, restore_latest_backup
@@ -95,7 +97,6 @@ from .utils import (
     DatabaseManager,
     DataExporter,
     export_all_data,
-    get_database_manager,
     reset_database_for_testing,
     safe_commit,
     seed_test_data,
@@ -153,7 +154,7 @@ def get_db_manager(
     return _db_manager_instance
 
 
-def get_session():
+def get_session() -> Session:
     """
     Get a new database session from global manager.
 
@@ -164,7 +165,7 @@ def get_session():
     return manager.get_session()
 
 
-def session_scope():
+def session_scope() -> AbstractContextManager[Session]:
     """
     Get session scope context manager from global manager.
 
@@ -184,7 +185,7 @@ def session_scope():
 # ============================================================================
 
 
-def initialize_database(db_path: str = DEFAULT_DB_PATH, force_recreate: bool = False):
+def initialize_database(db_path: str = DEFAULT_DB_PATH, force_recreate: bool = False) -> None:
     """
     Initialize database with schema.
 

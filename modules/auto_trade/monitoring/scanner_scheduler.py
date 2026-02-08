@@ -60,7 +60,7 @@ class ScannerScheduler:
 
         log_info(f"ScannerScheduler initialized (interval={scan_interval}s, enabled={enabled})")
 
-    def start(self):
+    def start(self) -> None:
         """Start the scheduler."""
         if self._running:
             log_warn("ScannerScheduler is already running")
@@ -72,7 +72,7 @@ class ScannerScheduler:
         self._scheduler_thread.start()
         log_info("✅ ScannerScheduler started")
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the scheduler."""
         if not self._running:
             return
@@ -83,22 +83,22 @@ class ScannerScheduler:
             self._scheduler_thread.join(timeout=10)
         log_info("⏹️ ScannerScheduler stopped")
 
-    def enable(self):
+    def enable(self) -> None:
         """Enable scheduled scans."""
         self.enabled = True
         log_info("ScannerScheduler enabled")
 
-    def disable(self):
+    def disable(self) -> None:
         """Disable scheduled scans."""
         self.enabled = False
         log_info("ScannerScheduler disabled")
 
-    def trigger_scan_now(self):
+    def trigger_scan_now(self) -> None:
         """Manually trigger a scan immediately."""
         log_info("Manual scan triggered")
         self._perform_scan()
 
-    def _schedule_loop(self):
+    def _schedule_loop(self) -> None:
         """Main scheduling loop."""
         log_info("Scheduler loop started")
 
@@ -141,7 +141,7 @@ class ScannerScheduler:
 
         return True
 
-    def _perform_scan(self):
+    def _perform_scan(self) -> None:
         """Perform a market scan and execute if signal found."""
         self._scan_count += 1
         self._last_scan_time = datetime.now()

@@ -4,9 +4,9 @@ from typing import Callable, Dict, Optional
 import ccxt
 import customtkinter as ctk
 
-from gui.utils.colors import Colors
-from gui.utils.retry_utils import retry_with_exponential_backoff
-from gui.utils.toast import show_toast
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.retry_utils import retry_with_exponential_backoff
+from modules.auto_trade.gui.utils.toast import show_toast
 
 
 class PositionActions(ctk.CTkFrame):

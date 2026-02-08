@@ -9,10 +9,10 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="lightning
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from gui.main_window import AutoTradeDashboard
+from modules.auto_trade.gui.main_window import AutoTradeDashboard
 
 
-def main():
+def main() -> None:
     # Parse command-line arguments
     import argparse
 

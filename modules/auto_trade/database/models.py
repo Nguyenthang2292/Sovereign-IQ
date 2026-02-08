@@ -15,7 +15,7 @@ Created: 2026-02-03
 import json
 import logging
 from datetime import datetime
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 from sqlalchemy import (
     Boolean,
@@ -30,8 +30,9 @@ from sqlalchemy import (
     Text,
     event,
 )
+from sqlalchemy.engine import Connection
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapper, relationship
 
 # Import mixins
 from .mixins import JSONSerializableMixin
@@ -153,14 +154,14 @@ class Order(Base, JSONSerializableMixin):  # type: ignore[valid-type, misc]
         Index("idx_orders_symbol_status", "symbol", "status"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<Order(id={self.id}, order_id='{self.order_id}', "
             f"symbol='{self.symbol}', side='{self.side}', "
             f"status='{self.status}', pnl={self.pnl})>"
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Convert order to dictionary."""
         return {
             "id": self.id,
@@ -283,14 +284,14 @@ class Signal(Base, JSONSerializableMixin):  # type: ignore[valid-type, misc]
         CheckConstraint("outcome IN ('WIN', 'LOSS', 'BREAKEVEN', 'PENDING') OR outcome IS NULL", name="check_outcome"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<Signal(id={self.id}, symbol='{self.symbol}', "
             f"type='{self.signal_type}', confidence={self.confidence:.2f}, "
             f"executed={self.executed})>"
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Convert signal to dictionary."""
         return {
             "id": self.id,
@@ -313,7 +314,7 @@ class Signal(Base, JSONSerializableMixin):  # type: ignore[valid-type, misc]
         """Parse market context JSON using mixin."""
         return cast(Optional[dict], self.get_json_field("market_context"))
 
-    def set_market_context(self, context: dict):
+    def set_market_context(self, context: dict) -> None:
         """Set market context using mixin."""
         self.set_json_field("market_context", context)
 
@@ -380,14 +381,14 @@ class MartingaleChain(Base, JSONSerializableMixin):  # type: ignore[valid-type, 
         CheckConstraint("status IN ('ACTIVE', 'RECOVERED', 'FAILED', 'CANCELLED')", name="check_chain_status"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<MartingaleChain(id={self.id}, chain_id='{self.chain_id}', "
             f"symbol='{self.symbol}', step={self.current_step}, "
             f"status='{self.status}')>"
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Convert chain to dictionary."""
         return {
             "id": self.id,
@@ -421,7 +422,7 @@ class MartingaleChain(Base, JSONSerializableMixin):  # type: ignore[valid-type, 
         """Parse leverage progression JSON using mixin."""
         return cast(Optional[list], self.get_json_field("leverage_progression"))
 
-    def set_leverage_progression(self, progression: list):
+    def set_leverage_progression(self, progression: list) -> None:
         """Set leverage progression using mixin."""
         self.set_json_field("leverage_progression", progression)
 
@@ -429,7 +430,7 @@ class MartingaleChain(Base, JSONSerializableMixin):  # type: ignore[valid-type, 
         """Parse position size progression JSON using mixin."""
         return cast(Optional[list], self.get_json_field("position_size_progression"))
 
-    def set_position_size_progression(self, progression: list):
+    def set_position_size_progression(self, progression: list) -> None:
         """Set position size progression using mixin."""
         self.set_json_field("position_size_progression", progression)
 
@@ -481,14 +482,14 @@ class GradualRecovery(Base, JSONSerializableMixin):  # type: ignore[valid-type, 
         CheckConstraint("status IN ('ACTIVE', 'COMPLETE', 'FAILED', 'CANCELLED')", name="check_recovery_status"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<GradualRecovery(id={self.id}, recovery_id='{self.recovery_id}', "
             f"symbol='{self.symbol}', progress={self.recovery_percentage:.1f}%, "
             f"status='{self.status}')>"
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Convert recovery to dictionary."""
         return {
             "id": self.id,
@@ -558,10 +559,10 @@ class SystemState(Base):  # type: ignore[valid-type, misc]
         CheckConstraint("value_type IN ('string', 'integer', 'float', 'boolean', 'json')", name="check_value_type"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<SystemState(key='{self.key}', value='{self.value}')>"
 
-    def get_typed_value(self):
+    def get_typed_value(self) -> Any:
         """Get value with correct type."""
         value_type = getattr(self, "value_type", "string")
         value = getattr(self, "value", None)
@@ -631,13 +632,13 @@ class AuditLog(Base, JSONSerializableMixin):  # type: ignore[valid-type, misc]
         CheckConstraint("severity IN ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')", name="check_severity"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<AuditLog(id={self.id}, event_type='{self.event_type}', "
             f"severity='{self.severity}', timestamp={self.timestamp})>"
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Convert audit log to dictionary."""
         return {
             "id": self.id,
@@ -680,7 +681,7 @@ class MigrationsApplied(Base):  # type: ignore[valid-type, misc]
     applied_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     checksum = Column(String(64))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<MigrationsApplied(id={self.id}, migration_name='{self.migration_name}', applied_at={self.applied_at})>"
         )
@@ -692,12 +693,12 @@ class MigrationsApplied(Base):  # type: ignore[valid-type, misc]
 
 
 @event.listens_for(Order, "before_update")
-def receive_before_update(mapper, connection, target):
+def receive_before_update(mapper: Mapper, connection: Connection, target: Order) -> None:
     """Update timestamp before any order update."""
-    target.updated_at = datetime.utcnow()
+    target.updated_at = datetime.utcnow()  # type: ignore[assignment]
 
 
 @event.listens_for(SystemState, "before_update")
-def receive_before_update_state(mapper, connection, target):
+def receive_before_update_state(mapper: Mapper, connection: Connection, target: SystemState) -> None:
     """Update timestamp before any system state update."""
-    target.updated_at = datetime.utcnow()
+    target.updated_at = datetime.utcnow()  # type: ignore[assignment]

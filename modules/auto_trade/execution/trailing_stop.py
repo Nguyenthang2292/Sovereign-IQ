@@ -109,22 +109,26 @@ def calculate_trailing_stop(
         )
 
     # Calculate profit percentage
+    profit_pct: float
     if side == "LONG":
         profit_pct = ((current_price - entry_price) / entry_price) * 100
     else:  # SHORT
         profit_pct = ((entry_price - current_price) / entry_price) * 100
 
     # Step 0 (BE): Move SL to entry when profit >= 0
+    threshold_pct: float
+    new_sl: float
     if step_index == 0:
         threshold_pct = 0.0
         new_sl = entry_price
     else:
         # Step N: Move SL to entry + N*step% when profit >= N*step%
         threshold_pct = step_index * step_pct
-        step_multiplier = step_index if side == "LONG" else -step_index
+        step_multiplier: int = step_index if side == "LONG" else -step_index
         new_sl = entry_price * (1 + (step_multiplier * step_pct / 100))
 
     # Calculate threshold price for reference
+    threshold_price: float
     if side == "LONG":
         threshold_price = entry_price * (1 + threshold_pct / 100)
     else:

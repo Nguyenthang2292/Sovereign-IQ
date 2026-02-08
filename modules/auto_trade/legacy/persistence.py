@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Signal Persistence Module
 
@@ -164,22 +166,22 @@ class SignalPersistence:
                         f.write(data)
                         f.flush()
                         os.fsync(f.fileno())
-                        self.metrics["total_bytes_written"] += len(data.encode("utf-8"))
+                        self.metrics["total_bytes_written"] = int(self.metrics.get("total_bytes_written", 0)) + len(data.encode("utf-8"))
                     finally:
                         if platform.system() != "Windows":
                             fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # type: ignore
 
-            self.metrics["total_writes"] += 1
+            self.metrics["total_writes"] = int(self.metrics.get("total_writes", 0)) + 1
             elapsed_ms = (time.time() - start_time) * 1000
             self.metrics["avg_write_time_ms"] = (
-                self.metrics["avg_write_time_ms"] * (self.metrics["total_writes"] - 1) + elapsed_ms
-            ) / self.metrics["total_writes"]
+                float(self.metrics.get("avg_write_time_ms", 0.0)) * (int(self.metrics["total_writes"]) - 1) + elapsed_ms
+            ) / int(self.metrics["total_writes"])
 
             log_info(f"Saved signal for {signal.symbol} to history.")
             return True
 
         except Exception as e:
-            self.metrics["failed_writes"] += 1
+            self.metrics["failed_writes"] = int(self.metrics.get("failed_writes", 0)) + 1
             log_error(f"Failed to save signal history: {e}")
             return False
 

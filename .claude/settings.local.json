@@ -37,7 +37,10 @@
       "Bash(timeout:*)",
       "Bash(set PYTHONPATH=%CD%:*)",
       "Bash(powershell -Command \"Get-Process | Where-Object {$_.ProcessName -eq 'python' -and $_.CommandLine -like '*pytest*'} | Select-Object -First 1 | Format-Table Id, ProcessName, CPU -AutoSize\":*)",
-      "Bash(powershell -Command \"Get-Content ''C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--NGUYEN-QUANG-THANG-Probability-projects-crypto-probability-\\\\tasks\\\\b54de78.output'' | Select-Object -Last 50\")"
+      "Bash(powershell -Command \"Get-Content ''C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--NGUYEN-QUANG-THANG-Probability-projects-crypto-probability-\\\\tasks\\\\b54de78.output'' | Select-Object -Last 50\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(\"C:\\\\Users\\\\Admin\\\\Desktop\\\\i-ching\\\\crypto-probability\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest tests/auto_trade/gui/utils/test_mask_utils.py tests/auto_trade/gui/components/test_config_panel_masking_integration.py)"
     ]
   }
 }

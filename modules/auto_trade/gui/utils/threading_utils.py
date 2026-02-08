@@ -24,9 +24,9 @@ class PeriodicUpdater:
             callback: Function to call periodically
             interval: Interval in seconds between calls (default: 30)
         """
-        self.callback = callback
-        self.interval = interval
-        self.running = False
+        self.callback: Callable[[], None] = callback
+        self.interval: int = interval
+        self.running: bool = False
         self.thread: Optional[threading.Thread] = None
 
     def start(self) -> None:

@@ -15,10 +15,10 @@ class TestATCScannerEnhancements:
             "use_signal_strength": True,
         }
         scanner = ATCScanner(mock_data_fetcher, config=config)
-        assert scanner.use_signal_strength is True
+        assert scanner.use_signal_strength is True, "Expected signal strength to be enabled"
         # max_workers should be auto-detected (not None)
-        assert scanner.max_workers is not None
-        assert scanner.max_workers > 0
+        assert scanner.max_workers is not None, "Expected max_workers to be auto-detected"
+        assert scanner.max_workers > 0, "Expected max_workers to be positive"
 
     def test_parallel_execution_auto_detect(self, mock_data_fetcher):
         """Test that max_workers is auto-detected and passed to ThreadPoolExecutor."""
@@ -75,13 +75,13 @@ class TestATCScannerEnhancements:
 
         results = scanner.scan_symbols(["BTCUSDT"])
 
-        assert len(results) == 1
+        assert len(results) == 1, "Expected one signal result"
         btc = results[0]
 
         # Verify strengths dictionary
-        assert btc.strengths["1h"] == 0.9
-        assert btc.strengths["15m"] == 0.2
-        assert btc.strengths["5m"] == -0.5
+        assert btc.strengths["1h"] == 0.9, "Expected 1h strength to match input"
+        assert btc.strengths["15m"] == 0.2, "Expected 15m strength to match input"
+        assert btc.strengths["5m"] == -0.5, "Expected 5m strength to match input"
 
     def test_weighted_signal_strength_scoring(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test scoring using signal strength weights."""
@@ -108,8 +108,8 @@ class TestATCScannerEnhancements:
 
         results = scanner.scan_symbols(["BTCUSDT"])
 
-        assert len(results) == 1
+        assert len(results) == 1, "Expected one weighted signal result"
         btc = results[0]
 
         # Expected score: 0.4 + 0.06 - 0.1 = 0.36
-        assert btc.score == 0.36
+        assert btc.score == 0.36, "Expected weighted score to match calculation"

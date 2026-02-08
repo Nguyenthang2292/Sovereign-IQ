@@ -2,7 +2,7 @@ from typing import Any, Callable, Optional
 
 import customtkinter as ctk
 
-from gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.colors import Colors
 
 
 class TradeFormFrame(ctk.CTkFrame):
@@ -156,7 +156,7 @@ class TradeFormFrame(ctk.CTkFrame):
     def _on_symbol_change(self, choice: str):
         """Update current price when symbol changes"""
         try:
-            from gui.utils.data_service import DataService
+            from modules.auto_trade.gui.utils.data_service import DataService
 
             service = DataService()
             price = service.get_current_price(choice)
@@ -171,8 +171,8 @@ class TradeFormFrame(ctk.CTkFrame):
     def _calculate_risk(self):
         """Calculate and display risk metrics"""
         try:
-            from gui.utils.data_service import DataService
-            from gui.utils.risk_calculator import RiskCalculator
+            from modules.auto_trade.gui.utils.data_service import DataService
+            from modules.auto_trade.gui.utils.risk_calculator import RiskCalculator
 
             # Get form values
             symbol = self.symbol_var.get()
@@ -424,8 +424,8 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
     def _execute_trade(self, dialog):
         """Execute the trade via OrderExecutor"""
         try:
-            from gui.utils.data_service import DataService
             from modules.auto_trade.execution.order_executor import OrderExecutor
+            from modules.auto_trade.gui.utils.data_service import DataService
 
             # Close confirmation dialog
             dialog.destroy()
@@ -491,7 +491,7 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
             from tkinter import messagebox
 
             messagebox.showinfo("Trade Success", message)
-        except:
+        except Exception:
             print(f"SUCCESS: {message}")
 
     def _show_error(self, message: str):
@@ -500,7 +500,7 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
             from tkinter import messagebox
 
             messagebox.showerror("Trade Error", message)
-        except:
+        except Exception:
             print(f"ERROR: {message}")
 
     def _reset_form(self):

@@ -32,6 +32,10 @@ class HealthRegistry:
     Registry for health checks with thread safety and timeout support.
     """
 
+    _checks: Dict[str, Callable[[], Tuple[HealthStatus, str]]]
+    _lock: RLock
+    _default_timeout: Optional[float]
+
     def __init__(self, default_timeout: Optional[float] = None) -> None:
         """
         Initialize health check registry.

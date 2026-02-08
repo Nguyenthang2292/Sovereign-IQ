@@ -140,7 +140,7 @@ class EventSystem:
         # Return most recent events up to limit
         return list(reversed(history[-limit:]))
 
-    def clear_history(self):
+    def clear_history(self) -> None:
         """Clear event history."""
         self._event_history = []
 

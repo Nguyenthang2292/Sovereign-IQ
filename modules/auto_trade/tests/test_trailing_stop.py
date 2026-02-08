@@ -8,7 +8,6 @@ Created: 2026-02-06
 """
 
 import pytest
-
 from execution.trailing_stop import (
     calculate_next_threshold,
     calculate_trailing_stop,

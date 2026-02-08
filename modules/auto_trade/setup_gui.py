@@ -8,7 +8,7 @@ Run: python setup_gui.py
 from pathlib import Path
 
 
-def create_directories():
+def create_directories() -> None:
     """Tạo cấu trúc thư mục"""
     base_path = Path(__file__).parent / "gui"
 
@@ -24,7 +24,7 @@ def create_directories():
         print(f"✅ Created: {dir_path}")
 
 
-def create_init_files():
+def create_init_files() -> None:
     """Tạo __init__.py files"""
     base_path = Path(__file__).parent / "gui"
 
@@ -39,7 +39,7 @@ def create_init_files():
         print(f"✅ Created: {init_file}")
 
 
-def create_main_window():
+def create_main_window() -> None:
     """Tạo main window template"""
     content = '''"""
 Auto Trade Dashboard - Main Window
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     print(f"✅ Created: {file_path}")
 
 
-def create_run_script():
+def create_run_script() -> None:
     """Tạo run_gui.py entry point"""
     content = '''"""
 Auto Trade GUI Dashboard Entry Point
@@ -198,7 +198,7 @@ except ImportError as e:
 def main():
     """Launch GUI application"""
     print("🚀 Starting Auto Trade Dashboard...")
-    
+
     try:
         app = AutoTradeDashboard()
         app.mainloop()
@@ -217,7 +217,7 @@ if __name__ == "__main__":
     print(f"✅ Created: {file_path}")
 
 
-def create_requirements():
+def create_requirements() -> None:
     """Tạo requirements_gui.txt"""
     content = """# Auto Trade GUI Requirements
 # Install with: pip install -r requirements_gui.txt
@@ -234,7 +234,7 @@ plyer>=2.1.0
     print(f"✅ Created: {file_path}")
 
 
-def main():
+def main() -> None:
     """Run all setup steps"""
     print("\n🎨 Setting up Auto Trade GUI...\n")
 

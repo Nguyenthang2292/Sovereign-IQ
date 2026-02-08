@@ -224,7 +224,7 @@ class OrderValidator:
 
     def _validate_slippage(self, expected_price: float, actual_price: float, max_slippage_pct: float) -> bool:
         """Validate slippage is within acceptable range."""
-        slippage_pct = abs(actual_price - expected_price) / expected_price * 100
+        slippage_pct: float = abs(actual_price - expected_price) / expected_price * 100
 
         if slippage_pct > max_slippage_pct:
             log_error(f"Slippage {slippage_pct:.2f}% exceeds maximum {max_slippage_pct:.2f}%")

@@ -26,9 +26,8 @@ Usage:
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from time import time
-from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
+from typing import Any, Dict, List, Optional, TypedDict, cast
 
-import numpy as np
 import pandas as pd
 
 from config import XGBOOST_PER_SYMBOL_DEFAULTS
@@ -87,11 +86,25 @@ class XGBoostPerSymbolFilter:
     - XGBoost must confirm the direction with sufficient confidence
     """
 
+    data_fetcher: DataFetcher
+    config: XGBoostPerSymbolConfig
+    min_confidence: float
+    training_timeframe: str
+    training_limit: int
+    min_required_candles: int
+    on_error: str
+    max_workers: int
+    use_cache: bool
+    handle_class_imbalance: bool
+    skip_if_imbalanced: bool
+    indicator_engine: IndicatorEngine
+    _stats: Dict[str, int]
+
     def __init__(
         self,
         data_fetcher: DataFetcher,
         config: Optional[XGBoostPerSymbolConfig] = None,
-    ):
+    ) -> None:
         """
         Initialize XGBoostPerSymbolFilter.
 

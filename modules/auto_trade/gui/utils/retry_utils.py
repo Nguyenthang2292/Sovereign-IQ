@@ -34,10 +34,10 @@ def retry_with_exponential_backoff(
         def fetch_data():
             return api.get_data()
     """
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            last_exception = None
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception: Optional[Exception] = None
 
             for attempt in range(max_retries + 1):
                 try:
@@ -51,7 +51,7 @@ def retry_with_exponential_backoff(
                         break
 
                     # Calculate delay with exponential backoff
-                    delay = min(base_delay * (backoff_factor ** attempt), max_delay)
+                    delay: float = min(base_delay * (backoff_factor ** attempt), max_delay)
 
                     print(f"Attempt {attempt + 1}/{max_retries + 1} failed: {str(e)}")
                     print(f"Retrying in {delay:.2f} seconds...")
@@ -74,7 +74,7 @@ def retry_async_with_exponential_backoff(
     max_delay: float = 10.0,
     backoff_factor: float = 2.0,
     exceptions: Tuple[Type[Exception], ...] = (ccxt.NetworkError, ccxt.RequestTimeout, ConnectionError)
-):
+) -> Callable:
     """
     Async version of retry decorator with exponential backoff
 
@@ -88,11 +88,11 @@ def retry_async_with_exponential_backoff(
     Returns:
         Decorated async function that retries on specified exceptions
     """
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs) -> Any:
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             import asyncio
-            last_exception = None
+            last_exception: Optional[Exception] = None
 
             for attempt in range(max_retries + 1):
                 try:
@@ -106,7 +106,7 @@ def retry_async_with_exponential_backoff(
                         break
 
                     # Calculate delay with exponential backoff
-                    delay = min(base_delay * (backoff_factor ** attempt), max_delay)
+                    delay: float = min(base_delay * (backoff_factor ** attempt), max_delay)
 
                     print(f"Attempt {attempt + 1}/{max_retries + 1} failed: {str(e)}")
                     print(f"Retrying in {delay:.2f} seconds...")
@@ -144,19 +144,19 @@ class RetryableOperation:
         base_delay: float = 1.0,
         max_delay: float = 10.0,
         backoff_factor: float = 2.0
-    ):
-        self.max_retries = max_retries
-        self.base_delay = base_delay
-        self.max_delay = max_delay
-        self.backoff_factor = backoff_factor
-        self.attempt = 0
-        self._success = False
+    ) -> None:
+        self.max_retries: int = max_retries
+        self.base_delay: float = base_delay
+        self.max_delay: float = max_delay
+        self.backoff_factor: float = backoff_factor
+        self.attempt: int = 0
+        self._success: bool = False
         self.last_exception: Optional[Exception] = None
 
-    def __iter__(self):
+    def __iter__(self) -> "RetryableOperation":
         return self
 
-    def __next__(self):
+    def __next__(self) -> int:
         if self._success:
             raise StopIteration
 
@@ -166,11 +166,11 @@ class RetryableOperation:
         self.attempt += 1
         return self.attempt
 
-    def success(self):
+    def success(self) -> None:
         """Mark operation as successful"""
         self._success = True
 
-    def failed(self, exception: Exception):
+    def failed(self, exception: Exception) -> None:
         """
         Mark operation as failed and sleep if more retries available
 
@@ -180,7 +180,7 @@ class RetryableOperation:
         self.last_exception = exception
 
         if self.attempt < self.max_retries + 1:
-            delay = min(self.base_delay * (self.backoff_factor ** (self.attempt - 1)), self.max_delay)
+            delay: float = min(self.base_delay * (self.backoff_factor ** (self.attempt - 1)), self.max_delay)
             print(f"Attempt {self.attempt}/{self.max_retries + 1} failed: {str(exception)}")
             print(f"Retrying in {delay:.2f} seconds...")
             time.sleep(delay)

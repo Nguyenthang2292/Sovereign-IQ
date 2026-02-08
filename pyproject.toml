@@ -64,6 +64,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "modules/common/ui/formatting.py" = ["F811"]  # function redefinition for backward compatibility
 "main_gemini_chart_batch_scanner_forex.py" = ["F811"]  # setup_windows_stdin redefinition
+"modules/auto_trade/**/*.py" = ["E501"]  # line length relaxed; tighten later
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -108,4 +109,23 @@ disable_error_code = ["assignment", "arg-type"]
 [[tool.mypy.overrides]]
 module = "modules.auto_trade.test_backtest_phase6"
 disable_error_code = ["import-untyped"]
+
+# Coverage for modules/auto_trade — target 90%+ (REFACTORING_RECOMMENDATIONS Day 4)
+[tool.coverage.run]
+source = ["modules/auto_trade"]
+omit = [
+    "*/tests/*",
+    "*__pycache__*",
+    "*/conftest.py",
+    "*/test_*.py",
+]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+]
 

@@ -1,23 +1,40 @@
 from tkinter import ttk
-from typing import Dict, List
+from typing import Callable, Dict, List, Optional
 
 import customtkinter as ctk
 
-from gui.utils.colors import Colors
+from modules.auto_trade.gui.components.empty_state import EmptyState
+from modules.auto_trade.gui.utils.colors import Colors
 
 
 class SignalsFrame(ctk.CTkFrame):
-    def __init__(self, parent):
+    def __init__(self, parent, on_run_scanner_callback: Optional[Callable] = None):
         super().__init__(parent)
+
+        self._on_run_scanner_callback = on_run_scanner_callback
 
         # Store original signals for filtering
         self._all_signals: List[Dict] = []
 
         self._create_header()
         self._create_table()
+        self._create_empty_state()
 
         self.refresh_label = ctk.CTkLabel(self, text="Auto-refresh: 30s", font=("Arial", 10), text_color="gray")
         self.refresh_label.pack(pady=5)
+
+    def _create_empty_state(self):
+        self.empty_state = EmptyState(
+            self,
+            icon="📡",
+            message="No signals yet",
+            hint="Run the scanner to get live signals.",
+            action_text="Run scanner",
+            action_callback=self._on_run_scanner_callback
+        )
+        self.empty_state.pack(fill="both", expand=True)
+        self.empty_state.pack_forget() # Initially hide empty state
+
 
     def _create_header(self):
         header = ctk.CTkFrame(self, fg_color="transparent")
@@ -47,15 +64,15 @@ class SignalsFrame(ctk.CTkFrame):
         self.min_score.bind("<Return>", lambda e: self.apply_filters())
 
     def _create_table(self):
-        table_frame = ctk.CTkFrame(self)
-        table_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        self.table_frame = ctk.CTkFrame(self)
+        self.table_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        scrollbar = ctk.CTkScrollbar(table_frame)
+        scrollbar = ctk.CTkScrollbar(self.table_frame)
         scrollbar.pack(side="right", fill="y")
 
         columns = ("Symbol", "Signal", "Score", "Time")
         self.table = ttk.Treeview(
-            table_frame, columns=columns, show="headings", yscrollcommand=scrollbar.set, height=10
+            self.table_frame, columns=columns, show="headings", yscrollcommand=scrollbar.set, height=10
         )
 
         self.table.heading("Symbol", text="Symbol")
@@ -127,6 +144,14 @@ class SignalsFrame(ctk.CTkFrame):
 
     def _display_signals(self, signals: List[Dict]):
         """Display signals in the table."""
+        if not signals:
+            self.table_frame.pack_forget()
+            self.empty_state.pack(fill="both", expand=True)
+            return
+
+        self.empty_state.pack_forget()
+        self.table_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
         # Clear existing items
         for item in self.table.get_children():
             self.table.delete(item)

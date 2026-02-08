@@ -28,7 +28,7 @@ class TestSignalPipelineHealth:
             result = pipeline.run_pipeline()
 
             # Pipeline should complete
-            assert result is None
+            assert result is None, "Expected pipeline to complete with no final signal"
 
     def test_pipeline_health_check_critical_stops(self, pipeline, mock_components, caplog):
         """Test pipeline stops with critical health status."""
@@ -40,7 +40,7 @@ class TestSignalPipelineHealth:
 
             # Pipeline should return None due to critical health
             # Note: Actual behavior may vary depending on implementation
-            assert result is not None or result is None
+            assert result is not None or result is None, "Pipeline should return or exit without error"
 
 
 class TestSignalPipelineCircuitBreaker:
@@ -64,7 +64,7 @@ class TestSignalPipelineCircuitBreaker:
 
             # Gemini analysis should not complete due to circuit breaker
             # Pipeline should continue with XGBoost signals only
-            assert result is None
+            assert result is None, "Expected pipeline to return None when circuit breaker is open"
 
     def test_pipeline_circuit_breaker_half_open_allows_gemini(self, pipeline, mock_components, sample_gemini_signal):
         """Test that half-open circuit breaker allows Gemini analysis."""
@@ -87,7 +87,7 @@ class TestSignalPipelineCircuitBreaker:
         # Gemini should be called in HALF_OPEN state
         mock_components["gemini_integration"].is_available.assert_called_once()
         mock_components["gemini_integration"].analyze_candidates_batch_async.assert_called_once()
-        assert result == final_sig
+        assert result == final_sig, "Expected final signal to be returned when Gemini succeeds"
 
 
 class TestSignalPipelineMetrics:
@@ -164,7 +164,7 @@ class TestSignalPipelineXGBoostMode:
         # Gemini analysis should not be called when not available
         mock_components["gemini_integration"].analyze_candidates_batch_async.assert_not_called()
         # Pipeline should complete with XGBoost-only
-        assert result == final_sig
+        assert result == final_sig, "Expected XGBoost-only final signal when Gemini unavailable"
 
 
 class TestSignalPipelineMaxCandidates:
@@ -232,8 +232,8 @@ class TestSignalPipelineMaxCandidates:
 
         # Verify only first 2 symbols were passed to scanner
         call_args = mock_components["atc_scanner"].scan_symbols.call_args[0][0]
-        assert len(call_args) == 2
-        assert call_args == ["BTC/USDT", "ETH/USDT"]
+        assert len(call_args) == 2, "Expected only two symbols to be scanned"
+        assert call_args == ["BTC/USDT", "ETH/USDT"], "Expected first two symbols to be scanned"
 
 
 class TestSignalPipelineEventBus:

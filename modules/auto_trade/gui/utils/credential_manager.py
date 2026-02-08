@@ -91,8 +91,8 @@ class CredentialManager:
         Returns:
             Dictionary with 'api_key' and 'api_secret' (may be None if not set)
         """
-        key_var = f"{exchange.upper()}_API_KEY"
-        secret_var = f"{exchange.upper()}_API_SECRET"
+        key_var: str = f"{exchange.upper()}_API_KEY"
+        secret_var: str = f"{exchange.upper()}_API_SECRET"
 
         return {
             "api_key": os.getenv(key_var),
@@ -109,7 +109,7 @@ class CredentialManager:
         Returns:
             True if both API key and secret are set
         """
-        creds = self.load_credentials(exchange)
+        creds: Dict[str, Optional[str]] = self.load_credentials(exchange)
         return bool(creds["api_key"] and creds["api_secret"])
 
     def clear_credentials(self, exchange: str) -> bool:

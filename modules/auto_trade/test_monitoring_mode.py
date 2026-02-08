@@ -28,7 +28,7 @@ _project_root = _modules_dir.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from modules.auto_trade.auto_trade_config import AutoTradeConfig, load_config
+from modules.auto_trade.auto_trade_config import AutoTradeConfig
 from modules.auto_trade.main import AutoTradeSystem
 
 

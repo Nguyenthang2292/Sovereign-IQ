@@ -11,14 +11,14 @@ import customtkinter as ctk
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
-from gui.dialogs import ShortcutsHelpDialog
-from gui.utils.colors import Colors
-from gui.utils.data_service import DataService
-from gui.utils.modes import TradingMode
-from gui.utils.settings_manager import SettingsManager
-from gui.utils.shortcuts import is_editable_focus
-from gui.utils.websocket_data_service import WebSocketDataService
 from modules.auto_trade.gui.components.status_bar import StatusBar
+from modules.auto_trade.gui.dialogs import ShortcutsHelpDialog
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.data_service import DataService
+from modules.auto_trade.gui.utils.modes import TradingMode
+from modules.auto_trade.gui.utils.settings_manager import SettingsManager
+from modules.auto_trade.gui.utils.shortcuts import is_editable_focus
+from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
 
 from .auto_trade import AutoTradeManager
 from .layout import LayoutManager
@@ -265,7 +265,7 @@ class AutoTradeDashboard(ctk.CTk):
 
         if hasattr(self, "stats_frame"):
             self.stats_frame.mode_indicator.destroy()
-            from gui.components.stats_frame import ModeIndicator
+            from modules.auto_trade.gui.components.stats_frame import ModeIndicator
 
             self.stats_frame.mode_indicator = ModeIndicator(self.stats_frame, self.mode)
             self.stats_frame.mode_indicator.pack(pady=(0, 10))

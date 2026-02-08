@@ -92,7 +92,7 @@ class AutoTradeBacktester:
         lookback: int,
         initial_capital: float = 10000.0,
         df: Optional[pd.DataFrame] = None,
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Run backtest with auto-trade strategy.
 
@@ -167,7 +167,7 @@ class AutoTradeBacktester:
 
             return empty_backtest_result()
 
-    def _apply_breakeven_simulation(self, trades: List[Dict], initial_capital: float) -> List[Dict]:
+    def _apply_breakeven_simulation(self, trades: List[Dict[str, Any]], initial_capital: float) -> List[Dict[str, Any]]:
         """
         Simulate break-even moves when drawdown reaches threshold.
 
@@ -220,7 +220,7 @@ class AutoTradeBacktester:
 
         return updated_trades
 
-    def _apply_martingale_simulation(self, trades: List[Dict], initial_capital: float) -> List[Dict]:
+    def _apply_martingale_simulation(self, trades: List[Dict[str, Any]], initial_capital: float) -> List[Dict[str, Any]]:
         """
         Simulate Martingale strategy for consecutive losses.
 
@@ -279,7 +279,7 @@ class AutoTradeBacktester:
 
         return updated_trades
 
-    def validate_martingale_safety(self, trades: List[Dict]) -> Dict[str, Any]:
+    def validate_martingale_safety(self, trades: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Validate Martingale strategy safety metrics.
 

@@ -62,7 +62,7 @@ class BalanceMonitor:
 
         logger.info("BalanceMonitor initialized (WebSocket mode)")
 
-    def add_callback(self, callback: Callable[[BalanceSnapshot], None]):
+    def add_callback(self, callback: Callable[[BalanceSnapshot], None]) -> None:
         """
         Add callback for balance updates.
 
@@ -72,7 +72,7 @@ class BalanceMonitor:
         self._callbacks.append(callback)
         logger.info(f"Added balance callback: {callback.__name__}")
 
-    async def start(self):
+    async def start(self) -> None:
         """Start monitoring balance via WebSocket."""
         if self._running:
             logger.warning("BalanceMonitor is already running")
@@ -92,7 +92,7 @@ class BalanceMonitor:
 
         logger.info("✅ BalanceMonitor started (WebSocket mode)")
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop monitoring balance."""
         if not self._running:
             return
@@ -100,7 +100,7 @@ class BalanceMonitor:
         self._running = False
         logger.info("⏹️  BalanceMonitor stopped")
 
-    def _handle_ws_balance_update(self, balance: dict):
+    def _handle_ws_balance_update(self, balance: dict) -> None:
         """
         Handle WebSocket balance update.
 
@@ -115,7 +115,7 @@ class BalanceMonitor:
         except Exception as e:
             logger.error(f"Error handling WebSocket balance update: {e}", exc_info=True)
 
-    def _process_balance_update(self, balance: dict):
+    def _process_balance_update(self, balance: dict) -> None:
         """
         Process balance update.
 
@@ -219,7 +219,7 @@ class OrderMonitor:
         >>> await monitor.start()
     """
 
-    def __init__(self, ws_client: BinanceWebSocketClient):
+    def __init__(self, ws_client: BinanceWebSocketClient) -> None:
         """
         Initialize OrderMonitor.
 
@@ -233,7 +233,7 @@ class OrderMonitor:
 
         logger.info("OrderMonitor initialized (WebSocket mode)")
 
-    def add_callback(self, callback: Callable[[OrderSnapshot], None]):
+    def add_callback(self, callback: Callable[[OrderSnapshot], None]) -> None:
         """
         Add callback for order updates.
 
@@ -243,7 +243,7 @@ class OrderMonitor:
         self._callbacks.append(callback)
         logger.info(f"Added order callback: {callback.__name__}")
 
-    async def start(self):
+    async def start(self) -> None:
         """Start monitoring orders via WebSocket."""
         if self._running:
             logger.warning("OrderMonitor is already running")
@@ -264,7 +264,7 @@ class OrderMonitor:
 
         logger.info("✅ OrderMonitor started (WebSocket mode)")
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop monitoring orders."""
         if not self._running:
             return
@@ -272,7 +272,7 @@ class OrderMonitor:
         self._running = False
         logger.info("⏹️  OrderMonitor stopped")
 
-    def _handle_ws_order_update(self, orders: List[dict]):
+    def _handle_ws_order_update(self, orders: List[dict]) -> None:
         """
         Handle WebSocket order update.
 
@@ -287,7 +287,7 @@ class OrderMonitor:
         except Exception as e:
             logger.error(f"Error handling WebSocket order update: {e}", exc_info=True)
 
-    def _process_order_update(self, orders: List[dict]):
+    def _process_order_update(self, orders: List[dict]) -> None:
         """
         Process order updates.
 
@@ -361,7 +361,7 @@ class OrderMonitor:
             else datetime.now(),
         )
 
-    def _log_order_status(self, snapshot: OrderSnapshot):
+    def _log_order_status(self, snapshot: OrderSnapshot) -> None:
         """
         Log order status changes.
 

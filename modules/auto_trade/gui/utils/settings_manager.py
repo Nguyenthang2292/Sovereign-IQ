@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -66,7 +66,7 @@ class SettingsManager:
         },
     }
 
-    def __init__(self, settings_file: Optional[str] = None):
+    def __init__(self, settings_file: Optional[str] = None) -> None:
         """
         Initialize SettingsManager.
 
@@ -74,14 +74,14 @@ class SettingsManager:
             settings_file: Path to settings YAML file. If None, uses settings.yaml in auto_trade dir.
         """
         if settings_file is None:
-            self.settings_file = Path(__file__).parent.parent.parent / "settings.yaml"
+            self.settings_file: Path = Path(__file__).parent.parent.parent / "settings.yaml"
         else:
             self.settings_file = Path(settings_file)
 
-        self.settings: Dict = self.DEFAULT_SETTINGS.copy()
+        self.settings: Dict[str, Any] = self.DEFAULT_SETTINGS.copy()
         self._ensure_settings_directory()
 
-    def _ensure_settings_directory(self):
+    def _ensure_settings_directory(self) -> None:
         """Ensure settings directory exists"""
         self.settings_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -142,13 +142,13 @@ class SettingsManager:
         except Exception:
             return None
 
-    def _use_defaults_and_save(self):
+    def _use_defaults_and_save(self) -> None:
         self.settings = self.DEFAULT_SETTINGS.copy()
         self.save()
 
-    def _normalize_whitelist(self):
+    def _normalize_whitelist(self) -> None:
         """Ensure symbol_whitelist is a string with newlines for compatibility."""
-        w = self.settings.get("filters", {}).get("symbol_whitelist")
+        w: Any = self.settings.get("filters", {}).get("symbol_whitelist")
         if isinstance(w, str) and "\n" not in w and w.strip():
             self.settings.setdefault("filters", {})["symbol_whitelist"] = w.replace(",", "\n").strip()
         elif isinstance(w, list):
@@ -206,7 +206,7 @@ class SettingsManager:
 
         return merged
 
-    def _validate_settings(self):
+    def _validate_settings(self) -> None:
         """Validate settings and fix invalid values"""
         try:
             # Validate risk settings
@@ -227,7 +227,7 @@ class SettingsManager:
                 self.settings["filters"]["min_volume"] = 50.0
 
             # Validate API mode
-            valid_modes = ["PRODUCTION", "DEMO", "DRY_RUN"]
+            valid_modes: List[str] = ["PRODUCTION", "DEMO", "DRY_RUN"]
             if self.settings["api"].get("mode") not in valid_modes:
                 self.settings["api"]["mode"] = "DRY_RUN"
 
@@ -253,11 +253,11 @@ class SettingsManager:
             print(f"Settings validation error: {e}, using defaults")
             self.settings = self.DEFAULT_SETTINGS.copy()
 
-    def _create_backup(self):
+    def _create_backup(self) -> None:
         """Create backup of current settings file."""
         try:
             if self.settings_file.exists():
-                backup_file = self.settings_file.with_suffix(self.settings_file.suffix + ".backup")
+                backup_file: Path = self.settings_file.with_suffix(self.settings_file.suffix + ".backup")
                 with open(self.settings_file, "r", encoding="utf-8") as src:
                     with open(backup_file, "w", encoding="utf-8") as dst:
                         dst.write(src.read())
@@ -276,8 +276,8 @@ class SettingsManager:
         Returns:
             Setting value or default
         """
-        keys = key.split(".")
-        value = self.settings
+        keys: List[str] = key.split(".")
+        value: Any = self.settings
 
         for k in keys:
             if isinstance(value, dict) and k in value:
@@ -299,8 +299,8 @@ class SettingsManager:
             True if successful, False otherwise
         """
         try:
-            keys = key.split(".")
-            current = self.settings
+            keys: List[str] = key.split(".")
+            current: Any = self.settings
 
             for k in keys[:-1]:
                 if k not in current:
@@ -383,6 +383,6 @@ class SettingsManager:
             print(f"Error resetting settings: {e}")
             return False
 
-    def get_all(self) -> Dict:
+    def get_all(self) -> Dict[str, Any]:
         """Get all settings"""
         return self.settings.copy()

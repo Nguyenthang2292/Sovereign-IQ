@@ -106,7 +106,7 @@ class DryRunDB:
             print(f"Error inserting position: {e}")
             return None
 
-    def get_open_positions(self) -> List[Dict]:
+    def get_open_positions(self) -> List[Dict[str, Any]]:
         """
         Get all open positions.
 
@@ -126,7 +126,7 @@ class DryRunDB:
             print(f"Error fetching open positions: {e}")
             return []
 
-    def get_open_positions_by_symbol(self, symbol: str, side: Optional[str] = None) -> List[Dict]:
+    def get_open_positions_by_symbol(self, symbol: str, side: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Get open positions for a specific symbol.
 
@@ -214,7 +214,7 @@ class DryRunDB:
 
         try:
             values.append(position_id)
-            query = f"UPDATE dry_run_positions SET {', '.join(updates)} WHERE id = ?"
+            query: str = f"UPDATE dry_run_positions SET {', '.join(updates)} WHERE id = ?"
 
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -244,7 +244,7 @@ class DryRunDB:
             status="CLOSED"
         )
 
-    def get_position_by_id(self, position_id: int) -> Optional[Dict]:
+    def get_position_by_id(self, position_id: int) -> Optional[Dict[str, Any]]:
         """
         Get a specific position by ID.
 
@@ -285,7 +285,7 @@ class DryRunDB:
             print(f"Error clearing positions: {e}")
             return False
 
-    def get_closed_positions(self, limit: int = 100) -> List[Dict]:
+    def get_closed_positions(self, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Get closed positions.
 

@@ -13,7 +13,7 @@ import sys
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, Set, Union
 
 
 class AuditEventType(str, Enum):
@@ -128,9 +128,9 @@ class AuditLogger:
             Hexadecimal checksum string
         """
         # Create a copy without checksum field to avoid circular dependency
-        record_copy = {k: v for k, v in record.items() if k != 'checksum'}
+        record_copy = {k: v for k, v in record.items() if k != "checksum"}
         record_str = json.dumps(record_copy, sort_keys=True)
-        return hashlib.sha256(record_str.encode('utf-8')).hexdigest()
+        return hashlib.sha256(record_str.encode("utf-8")).hexdigest()
 
     def _make_json_serializable(self, obj: Any) -> Any:
         """
@@ -150,7 +150,7 @@ class AuditLogger:
             return obj
         elif isinstance(obj, datetime):
             return obj.isoformat()
-        elif hasattr(obj, '__dict__'):
+        elif hasattr(obj, "__dict__"):
             # For custom objects, use their __dict__
             return str(obj)
         else:
@@ -159,10 +159,10 @@ class AuditLogger:
 
     def log_event(
         self,
-        event_type: str,
+        event_type: Union[str, AuditEventType],
         details: Dict[str, Any],
         user: str = "system",
-        add_checksum: bool = True
+        add_checksum: bool = True,
     ) -> None:
         """
         Log a critical event to the audit trail with integrity verification.
@@ -179,12 +179,15 @@ class AuditLogger:
         """
         try:
             # Validate inputs
-            if not event_type or not isinstance(event_type, str):
-                raise ValueError("event_type must be a non-empty string")
+            if not event_type or not isinstance(event_type, (str, AuditEventType)):
+                raise ValueError("event_type must be a non-empty string or AuditEventType")
             if not isinstance(details, dict):
                 raise ValueError("details must be a dictionary")
             if not user or not isinstance(user, str):
                 raise ValueError("user must be a non-empty string")
+
+            # Convert enum to string if needed
+            event_type_str = event_type.value if isinstance(event_type, AuditEventType) else event_type
 
             # Sanitize sensitive data
             sanitized_details = self._sanitize_details(details)
@@ -195,7 +198,7 @@ class AuditLogger:
             # Create audit record
             record = {
                 "timestamp": datetime.utcnow().isoformat() + "Z",
-                "event_type": event_type,
+                "event_type": event_type_str,
                 "user": user,
                 "details": serializable_details,
             }
@@ -214,10 +217,10 @@ class AuditLogger:
                 # JSON serialization failed - try with safe fallback
                 fallback_record = {
                     "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "event_type": event_type,
+                    "event_type": event_type_str,
                     "user": user,
                     "details": {"error": f"Serialization failed: {e}", "original": str(details)},
-                    "error": "JSON_SERIALIZATION_ERROR"
+                    "error": "JSON_SERIALIZATION_ERROR",
                 }
                 if add_checksum:
                     fallback_record["checksum"] = self._calculate_checksum(fallback_record)
@@ -239,13 +242,10 @@ class AuditLogger:
                     "timestamp": datetime.utcnow().isoformat() + "Z",
                     "event_type": "AUDIT_LOGGING_FAILED",
                     "user": "system",
-                    "details": {
-                        "original_event_type": str(event_type),
-                        "error": str(e)
-                    }
+                    "details": {"original_event_type": str(event_type), "error": str(e)},
                 }
                 self.logger.error(json.dumps(minimal_record))
-            except:
+            except Exception:
                 # If even minimal logging fails, raise exception
                 raise RuntimeError(f"Audit logging completely failed: {e}")
 

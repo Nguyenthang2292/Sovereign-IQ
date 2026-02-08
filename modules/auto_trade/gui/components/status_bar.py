@@ -1,8 +1,9 @@
 """Status Bar Component for Auto Trade Dashboard."""
 
-import customtkinter as ctk
 from datetime import datetime
 from typing import Optional
+
+import customtkinter as ctk
 
 
 class StatusBar(ctk.CTkFrame):

@@ -50,7 +50,7 @@ class TestSchemaCriticalFixes:
         row = cursor.fetchone()
         conn.close()
         assert row is not None, "gradual_recovery table missing from schema"
-        assert row[0] == "gradual_recovery"
+        assert row[0] == "gradual_recovery", "Expected gradual_recovery table name"
 
     def test_fresh_db_has_migrations_applied_table(self, tmp_path):
         """Fresh DB from schema.sql must have migrations_applied table."""
@@ -64,13 +64,15 @@ class TestSchemaCriticalFixes:
         row = cursor.fetchone()
         conn.close()
         assert row is not None, "migrations_applied table missing from schema"
-        assert row[0] == "migrations_applied"
+        assert row[0] == "migrations_applied", "Expected migrations_applied table name"
 
     def test_schema_fk_references_orders_id(self):
         """Schema must define parent_order_id FK as REFERENCES orders(id)."""
         schema_sql = _load_schema_sql()
         assert "REFERENCES orders(id)" in schema_sql, "FK should reference orders(id) not orders(order_id)"
-        assert "REFERENCES orders(order_id)" not in schema_sql or "orders(id)" in schema_sql
+        assert "REFERENCES orders(order_id)" not in schema_sql or "orders(id)" in schema_sql, (
+            "Schema should not reference orders(order_id) for FK"
+        )
 
     def test_fresh_db_foreign_key_list_orders_parent_order_id_refs_id(self, tmp_path):
         """PRAGMA foreign_key_list(orders) must show parent_order_id → orders(id)."""
@@ -142,8 +144,10 @@ class TestReconcileExchangeCleanup:
         with patch("modules.auto_trade.database.reconcile.ccxt.binance") as mock_binance:
             mock_binance.side_effect = ccxt.AuthenticationError("bad key")
             result = reconcile_orders_with_binance(api_key="x", api_secret="y")
-        assert "errors" in result
-        assert any("Authentication" in str(e) or "auth" in str(e).lower() for e in result["errors"])
+        assert "errors" in result, "Expected reconcile result to include errors on auth failure"
+        assert any("Authentication" in str(e) or "auth" in str(e).lower() for e in result["errors"]), (
+            "Expected auth-related error in reconcile result"
+        )
         mock_binance.assert_called_once()
 
     def test_reconcile_closes_exchange_when_created(self):
@@ -179,4 +183,4 @@ class TestMigrationTracking:
         manager = MigrationManager(str(db_path), DEFAULT_SCHEMA_PATH)
         pending = manager.get_pending_migrations()
         # Applied migration must not be in pending
-        assert "002_add_gradual_recovery.sql" not in pending
+        assert "002_add_gradual_recovery.sql" not in pending, "Applied migration should not be pending"

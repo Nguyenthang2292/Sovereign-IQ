@@ -2,7 +2,7 @@
 
 import customtkinter as ctk
 
-from gui.utils.shortcuts import SHORTCUTS_LIST
+from modules.auto_trade.gui.utils.shortcuts import SHORTCUTS_LIST
 
 
 class ShortcutsHelpDialog(ctk.CTkToplevel):

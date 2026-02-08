@@ -36,7 +36,7 @@ class LogsViewer(ctk.CTkFrame):
         Live Stream left = Scanner Configuration width (1/2),
         System Logs right = Current Settings (1/2).
         """
-        from gui.utils.colors import Colors
+        from modules.auto_trade.gui.utils.colors import Colors
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)

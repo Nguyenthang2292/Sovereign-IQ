@@ -2,14 +2,14 @@
 
 import customtkinter as ctk
 
-from gui.components.account_frame import AccountFrame
-from gui.components.auto_trade_control import AutoTradeControl
-from gui.components.config_panel import ConfigPanel
-from gui.components.positions_frame import PositionsFrame
-from gui.components.signals_frame import SignalsFrame
-from gui.components.stats_frame import StatsFrame
-from gui.components.trade_form import TradeFormFrame
-from gui.utils.colors import Colors
+from modules.auto_trade.gui.components.account_frame import AccountFrame
+from modules.auto_trade.gui.components.auto_trade_control import AutoTradeControl
+from modules.auto_trade.gui.components.config_panel import ConfigPanel
+from modules.auto_trade.gui.components.positions_frame import PositionsFrame
+from modules.auto_trade.gui.components.signals_frame import SignalsFrame
+from modules.auto_trade.gui.components.stats_frame import StatsFrame
+from modules.auto_trade.gui.components.trade_form import TradeFormFrame
+from modules.auto_trade.gui.utils.colors import Colors
 
 
 class LayoutManager:
@@ -66,7 +66,7 @@ class LayoutManager:
         title_label = ctk.CTkLabel(header_frame, text="Auto Trade Dashboard", font=("Arial", 20, "bold"))
         title_label.pack(side="left", padx=20)
 
-        from gui.utils.modes import TradingMode
+        from modules.auto_trade.gui.utils.modes import TradingMode
 
         mode_colors = {
             TradingMode.PRODUCTION: Colors.PRODUCTION,
@@ -82,7 +82,9 @@ class LayoutManager:
             text="⌨ Shortcuts",
             width=90,
             font=("Arial", 11),
-            command=lambda: self.parent._show_shortcuts_help() if hasattr(self.parent, "_show_shortcuts_help") else None,
+            command=lambda: self.parent._show_shortcuts_help()
+            if hasattr(self.parent, "_show_shortcuts_help")
+            else None,
         )
         shortcuts_btn.pack(side="right", padx=(10, 10))
 
@@ -124,10 +126,19 @@ class LayoutManager:
         right_panel.grid_rowconfigure(0, weight=1)
         right_panel.grid_rowconfigure(1, weight=1)
 
-        self.parent.signals_frame = SignalsFrame(right_panel)
+        def on_run_scanner():
+            self.parent.tabview.set("Scanner")
+            if hasattr(self.parent, "on_scan_toggle"):
+                self.parent.on_scan_toggle("manual")
+
+        self.parent.signals_frame = SignalsFrame(right_panel, on_run_scanner_callback=on_run_scanner)
         self.parent.signals_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-        self.parent.positions_frame = PositionsFrame(right_panel, on_action_callback=self.parent.on_position_action)
+        self.parent.positions_frame = PositionsFrame(
+            right_panel,
+            on_action_callback=self.parent.on_position_action,
+            on_open_trade_callback=lambda: self.parent.tabview.set("Trading"),
+        )
         self.parent.positions_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
     def _populate_scanner_tab(self, parent):
@@ -282,7 +293,7 @@ class LayoutManager:
         self._push_scanner_config = _push_scanner_config
 
         # Column 0: Scanner Configuration
-        from gui.utils.colors import Colors
+        from modules.auto_trade.gui.utils.colors import Colors
 
         config_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         config_frame.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=(0, 10))
@@ -551,7 +562,7 @@ class LayoutManager:
 
     def _populate_database_tab(self, parent):
         """Create database testing interface."""
-        from gui.components.database_panel import DatabasePanel
+        from modules.auto_trade.gui.components.database_panel import DatabasePanel
 
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)

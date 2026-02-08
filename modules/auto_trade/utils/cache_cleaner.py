@@ -8,12 +8,14 @@ Useful after:
 - Fixing import errors
 """
 
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 
-def clear_pycache_recursive(root_path: Path, verbose: bool = False) -> tuple[int, int]:
+def clear_pycache_recursive(root_path: Path, verbose: bool = False) -> Tuple[int, int]:
     """
     Recursively remove all __pycache__ directories under root_path.
 
@@ -105,7 +107,7 @@ def clear_module_cache(module_names: Optional[List[str]] = None, verbose: bool =
             if removed > 0:
                 print(f"  Removed {removed} cache directories")
             elif errors == 0:
-                print(f"  No cache found (already clean)")
+                print("  No cache found (already clean)")
 
     # Summary
     print("\n" + "=" * 60)

@@ -27,25 +27,25 @@ class DataService:
     - PRODUCTION: Live trading with real API
     """
 
-    def __init__(self, mode: str = "DRY_RUN"):
+    def __init__(self, mode: str = "DRY_RUN") -> None:
         """
         Initialize DataService.
 
         Args:
             mode: Operating mode ("DRY_RUN", "DEMO", or "PRODUCTION")
         """
-        self.mode = mode
+        self.mode: str = mode
         self.data_fetcher: Optional[Any] = None
         self.database_manager: Optional[Any] = None
         self.exchange_manager: Optional[Any] = None
 
         # Initialize MockPriceFeed (always available as fallback)
-        self.mock_price_feed = self._initialize_mock_price_feed()
+        self.mock_price_feed: Optional[MockPriceFeed] = self._initialize_mock_price_feed()
 
         # Load API credentials from environment
-        self.api_key = os.getenv("BINANCE_API_KEY", "")
-        self.api_secret = os.getenv("BINANCE_API_SECRET", "")
-        self.testnet = os.getenv("BINANCE_TESTNET", "false").lower() == "true"
+        self.api_key: str = os.getenv("BINANCE_API_KEY", "")
+        self.api_secret: str = os.getenv("BINANCE_API_SECRET", "")
+        self.testnet: bool = os.getenv("BINANCE_TESTNET", "false").lower() == "true"
 
         # Initialize exchange components only if not DRY_RUN
         if mode != "DRY_RUN":
@@ -355,7 +355,6 @@ class DataService:
                 filtered_positions = []
                 for pos in positions:
                     # DataFetcher returns positions with: symbol, size_usdt, entry_price, direction, contracts
-                    size_usdt = float(pos.get("size_usdt", 0))
                     contracts = float(pos.get("contracts", 0))
 
                     if contracts == 0:

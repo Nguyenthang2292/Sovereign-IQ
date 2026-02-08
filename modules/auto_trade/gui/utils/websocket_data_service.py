@@ -15,7 +15,7 @@ import asyncio
 import logging
 import os
 import threading
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from modules.auto_trade.gui.utils.credential_manager import CredentialManager
 from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
@@ -43,7 +43,7 @@ class WebSocketDataService:
         >>> service.on_balance_update(my_callback)
     """
 
-    def __init__(self, mode: str = "DRY_RUN", settings_manager=None):
+    def __init__(self, mode: str = "DRY_RUN", settings_manager: Optional[Any] = None) -> None:
         """
         Initialize WebSocket data service.
 
@@ -51,45 +51,45 @@ class WebSocketDataService:
             mode: Operating mode ("DRY_RUN", "DEMO", or "PRODUCTION")
             settings_manager: SettingsManager instance for loading API credentials
         """
-        self.mode = mode
+        self.mode: str = mode
         self.ws_client: Optional[BinanceWebSocketClient] = None
         self.position_monitor: Optional[PositionMonitor] = None
         self.balance_monitor: Optional[BalanceMonitor] = None
         self.order_monitor: Optional[OrderMonitor] = None
 
         # Mock data for DRY_RUN mode
-        self.mock_price_feed = MockPriceFeed()
+        self.mock_price_feed: MockPriceFeed = MockPriceFeed()
 
         # Event loop for async operations
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._loop_thread: Optional[threading.Thread] = None
-        self._running = False
+        self._running: bool = False
 
         # GUI callbacks
-        self._position_callbacks: List[Callable] = []
-        self._balance_callbacks: List[Callable] = []
-        self._order_callbacks: List[Callable] = []
-        self._price_callbacks: Dict[str, List[Callable]] = {}
+        self._position_callbacks: List[Callable[[PositionSnapshot], None]] = []
+        self._balance_callbacks: List[Callable[[BalanceSnapshot], None]] = []
+        self._order_callbacks: List[Callable[[OrderSnapshot], None]] = []
+        self._price_callbacks: Dict[str, List[Callable[[float], None]]] = {}
 
         # Load API credentials from CredentialManager (reads from .env file)
         # Note: settings_manager doesn't store API keys for security reasons
-        credential_manager = CredentialManager()
+        credential_manager: CredentialManager = CredentialManager()
 
         # Get exchange from settings (default to binance)
-        exchange = "binance"
+        exchange: str = "binance"
         if settings_manager:
             exchange = settings_manager.get("api.exchange", "binance").lower()
             # Map exchange names
             if exchange == "demo":
                 exchange = "binance"  # Demo uses binance testnet
-            self.testnet = settings_manager.get("api.testnet", False)
+            self.testnet: bool = bool(settings_manager.get("api.testnet", False))
         else:
             self.testnet = os.getenv("BINANCE_TESTNET", "false").lower() == "true"
 
         # Load credentials from .env via CredentialManager
-        creds = credential_manager.load_credentials(exchange)
-        self.api_key = creds.get("api_key") or ""
-        self.api_secret = creds.get("api_secret") or ""
+        creds: Dict[str, Optional[str]] = credential_manager.load_credentials(exchange)
+        self.api_key: str = creds.get("api_key") or ""
+        self.api_secret: str = creds.get("api_secret") or ""
 
         # Log credential status (without exposing actual keys)
         if self.api_key and self.api_secret:
@@ -99,7 +99,7 @@ class WebSocketDataService:
 
         logger.info(f"WebSocketDataService initialized (mode={mode})")
 
-    def start(self):
+    def start(self) -> None:
         """
         Start WebSocket service in background thread.
 
@@ -122,7 +122,7 @@ class WebSocketDataService:
 
         logger.info("✅ WebSocket service started in background")
 
-    def _run_event_loop(self):
+    def _run_event_loop(self) -> None:
         """Run asyncio event loop in background thread."""
         try:
             self._loop = asyncio.new_event_loop()
@@ -140,7 +140,7 @@ class WebSocketDataService:
             if self._loop:
                 self._loop.close()
 
-    async def _async_start(self):
+    async def _async_start(self) -> None:
         """Initialize WebSocket client and monitors (async)."""
         try:
             # Initialize WebSocket client
@@ -177,7 +177,7 @@ class WebSocketDataService:
             logger.error(f"Failed to start WebSocket monitors: {e}", exc_info=True)
             self._running = False
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop WebSocket service."""
         if not self._running:
             return
@@ -212,7 +212,7 @@ class WebSocketDataService:
 
         logger.info("WebSocket service stopped")
 
-    async def _async_stop(self):
+    async def _async_stop(self) -> None:
         """Stop WebSocket monitors and close connection (async)."""
         try:
             if self.position_monitor:
@@ -231,7 +231,7 @@ class WebSocketDataService:
 
     # ==================== GUI Callback Registration ====================
 
-    def on_position_update(self, callback: Callable[[PositionSnapshot], None]):
+    def on_position_update(self, callback: Callable[[PositionSnapshot], None]) -> None:
         """
         Register callback for position updates.
 
@@ -241,7 +241,7 @@ class WebSocketDataService:
         self._position_callbacks.append(callback)
         logger.debug(f"Registered position callback: {callback.__name__}")
 
-    def on_balance_update(self, callback: Callable[[BalanceSnapshot], None]):
+    def on_balance_update(self, callback: Callable[[BalanceSnapshot], None]) -> None:
         """
         Register callback for balance updates.
 
@@ -251,7 +251,7 @@ class WebSocketDataService:
         self._balance_callbacks.append(callback)
         logger.debug(f"Registered balance callback: {callback.__name__}")
 
-    def on_order_update(self, callback: Callable[[OrderSnapshot], None]):
+    def on_order_update(self, callback: Callable[[OrderSnapshot], None]) -> None:
         """
         Register callback for order updates.
 
@@ -261,7 +261,7 @@ class WebSocketDataService:
         self._order_callbacks.append(callback)
         logger.debug(f"Registered order callback: {callback.__name__}")
 
-    def on_price_update(self, symbol: str, callback: Callable[[float], None]):
+    def on_price_update(self, symbol: str, callback: Callable[[float], None]) -> None:
         """
         Register callback for price updates.
 
@@ -277,7 +277,7 @@ class WebSocketDataService:
 
     # ==================== Internal Callbacks (WebSocket -> GUI) ====================
 
-    def _handle_position_update(self, position: PositionSnapshot):
+    def _handle_position_update(self, position: PositionSnapshot) -> None:
         """
         Handle position update from WebSocket.
 
@@ -291,7 +291,7 @@ class WebSocketDataService:
             except Exception as e:
                 logger.error(f"Error in GUI position callback: {e}")
 
-    def _handle_balance_update(self, balance: BalanceSnapshot):
+    def _handle_balance_update(self, balance: BalanceSnapshot) -> None:
         """
         Handle balance update from WebSocket.
 
@@ -305,7 +305,7 @@ class WebSocketDataService:
             except Exception as e:
                 logger.error(f"Error in GUI balance callback: {e}")
 
-    def _handle_order_update(self, order: OrderSnapshot):
+    def _handle_order_update(self, order: OrderSnapshot) -> None:
         """
         Handle order update from WebSocket.
 
@@ -328,11 +328,11 @@ class WebSocketDataService:
                     from modules.auto_trade.database import session_scope, update_order_status_by_client_id
 
                     # Map WebSocket status to DB status
-                    status_map = {"closed": "CLOSED", "canceled": "CANCELLED", "rejected": "FAILED"}
-                    db_status = status_map.get(order.status, "CLOSED")
+                    status_map: Dict[str, str] = {"closed": "CLOSED", "canceled": "CANCELLED", "rejected": "FAILED"}
+                    db_status: str = status_map.get(order.status, "CLOSED")
 
                     with session_scope() as session:
-                        updated = update_order_status_by_client_id(
+                        updated: bool = update_order_status_by_client_id(
                             session=session,
                             client_order_id=order.client_order_id,
                             status=db_status,

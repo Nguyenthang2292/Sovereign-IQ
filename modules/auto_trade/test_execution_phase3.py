@@ -22,7 +22,6 @@ from modules.auto_trade.core.signal_selector import FinalSignal
 from modules.auto_trade.execution.order_manager import OrderManager
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.ui.logging import log_info
 
 
 def create_mock_signal() -> FinalSignal:

@@ -19,10 +19,10 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.auto_trade.websocket.client import BinanceWebSocketClient
-from modules.auto_trade.monitoring.position_monitor import PositionMonitor
-from modules.auto_trade.monitoring.breakeven_manager import BreakEvenMonitor
 from modules.auto_trade.monitoring.account_monitor import BalanceMonitor, OrderMonitor
+from modules.auto_trade.monitoring.breakeven_manager import BreakEvenMonitor
+from modules.auto_trade.monitoring.position_monitor import PositionMonitor
+from modules.auto_trade.websocket.client import BinanceWebSocketClient
 
 # Configure logging
 logging.basicConfig(

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Simple In-Memory Cache Module with TTL.
 """

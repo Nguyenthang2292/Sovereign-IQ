@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Auto Trading System - Main Event Loop
 ======================================
@@ -87,7 +89,7 @@ class AutoTradeSystem:
 
         logger.info("AutoTradeSystem initialized")
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize all modules and database."""
         logger.info("=" * 60)
         logger.info("Initializing Auto Trading System...")
@@ -134,7 +136,7 @@ class AutoTradeSystem:
             logger.error(f"Initialization failed: {e}")
             raise
 
-    async def main_loop(self):
+    async def main_loop(self) -> None:
         """
         Main event loop.
 
@@ -228,7 +230,7 @@ class AutoTradeSystem:
 
         logger.info("Main event loop stopped")
 
-    async def _monitor_positions(self, positions: list):
+    async def _monitor_positions(self, positions: list) -> None:
         """
         Monitor open positions for break-even and Martingale.
 
@@ -299,13 +301,13 @@ class AutoTradeSystem:
             logger.error(f"Failed to execute signal: {e}", exc_info=True)
             return False
 
-    async def _sleep_until_next_scan(self):
+    async def _sleep_until_next_scan(self) -> None:
         """Sleep until next scan interval."""
         interval = self.config.scanning.scan_interval
         logger.info(f"Sleeping for {interval}s until next scan...")
         await asyncio.sleep(interval)
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Graceful shutdown of the system."""
         logger.info("=" * 60)
         logger.info("Shutting down Auto Trading System...")
@@ -352,7 +354,7 @@ class AutoTradeSystem:
         logger.info("Shutdown complete")
         logger.info("=" * 60)
 
-    def signal_handler(self, signum, frame):
+    def signal_handler(self, signum: int, frame: Any) -> None:
         """Handle system signals for graceful shutdown."""
         logger.info(f"Received signal {signum}")
         self.shutdown_requested = True

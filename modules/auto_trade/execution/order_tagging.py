@@ -10,7 +10,6 @@ Created: 2026-02-03
 
 import secrets
 import time
-import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -92,17 +91,17 @@ class OrderTagger:
 
         try:
             # Remove prefix
-            without_prefix = client_order_id[len(CLIENT_ORDER_ID_PREFIX) :]
+            without_prefix: str = client_order_id[len(CLIENT_ORDER_ID_PREFIX) :]
 
             # Split by underscore
-            parts = without_prefix.split("_")
+            parts: list[str] = without_prefix.split("_")
 
             if len(parts) < 3:
                 return None
 
-            timestamp = int(parts[0])
-            symbol = parts[1]
-            random_suffix = parts[2]
+            timestamp: int = int(parts[0])
+            symbol: str = parts[1]
+            random_suffix: str = parts[2]
 
             return {
                 "timestamp": timestamp,

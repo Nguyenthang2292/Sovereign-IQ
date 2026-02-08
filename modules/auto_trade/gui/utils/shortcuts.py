@@ -1,6 +1,6 @@
 """Keyboard shortcuts registry and helpers for Auto Trade GUI."""
 
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 # (key_display, description, context)
 # context: "Global" | "Dashboard" | "Scanner" | "Trading" | "Settings" | "Database"
@@ -25,17 +25,17 @@ SHORTCUTS_LIST: List[Tuple[str, str, str]] = [
 ]
 
 
-def is_editable_focus(widget) -> bool:
+def is_editable_focus(widget: Any) -> bool:
     """Return True if the focused widget is an editable control (Entry, Text, etc.)."""
     if widget is None:
         return False
-    w = widget.winfo_class() if hasattr(widget, "winfo_class") else ""
+    w: str = widget.winfo_class() if hasattr(widget, "winfo_class") else ""
     # CTkEntry and CTkTextbox report as Tk entry/text or customtkinter class
     try:
-        name = (getattr(widget, "__class__", None) or type(widget)).__name__
+        name: str = (getattr(widget, "__class__", None) or type(widget)).__name__
     except Exception:
         name = ""
-    editable_classes = (
+    editable_classes: Tuple[str, ...] = (
         "Entry",
         "CTkEntry",
         "Text",

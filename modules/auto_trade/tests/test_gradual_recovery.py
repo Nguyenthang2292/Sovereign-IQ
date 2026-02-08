@@ -1,8 +1,8 @@
 import unittest
+
 from modules.auto_trade.strategies.gradual_recovery import (
     GradualRecoveryStrategy,
     RecoveryConfig,
-    RecoveryState,
     create_recovery_plan,
 )
 

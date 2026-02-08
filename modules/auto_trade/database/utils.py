@@ -11,11 +11,10 @@ Created: 2026-02-03
 import csv
 import json
 import logging
-import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Sequence
+from typing import Any, Dict, Generator, Optional, Sequence
 
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Row
@@ -37,7 +36,7 @@ class DatabaseManager:
     Manages database engine, sessions, and connections.
     """
 
-    def __init__(self, db_path: str, echo: bool = False, pool_size: int = 5, max_overflow: int = 10):
+    def __init__(self, db_path: str, echo: bool = False, pool_size: int = 5, max_overflow: int = 10) -> None:
         """
         Initialize database manager.
 
@@ -88,12 +87,12 @@ class DatabaseManager:
 
         logger.info(f"Database manager initialized: {db_path}")
 
-    def create_all_tables(self):
+    def create_all_tables(self) -> None:
         """Create all tables from models."""
         Base.metadata.create_all(bind=self.engine)
         logger.info("All database tables created")
 
-    def drop_all_tables(self):
+    def drop_all_tables(self) -> None:
         """Drop all tables (use with caution!)."""
         Base.metadata.drop_all(bind=self.engine)
         logger.warning("All database tables dropped")
@@ -198,7 +197,7 @@ class DatabaseManager:
             logger.error(f"Database connection check failed: {e}")
             return False
 
-    def optimize_database(self):
+    def optimize_database(self) -> None:
         """Run database optimization commands."""
         with self.engine.connect() as conn:
             # Analyze tables for query optimizer
@@ -221,7 +220,7 @@ class DatabaseManager:
 
 
 @contextmanager
-def transaction(session: Session):
+def transaction(session: Session) -> Generator[Session, None, None]:
     """
     Context manager for database transactions.
 
@@ -491,7 +490,7 @@ class DatabaseCleaner:
 # ============================================================================
 
 
-def reset_database_for_testing(db_manager: DatabaseManager):
+def reset_database_for_testing(db_manager: DatabaseManager) -> None:
     """
     Reset database for testing (drops all data).
 
@@ -508,7 +507,7 @@ def reset_database_for_testing(db_manager: DatabaseManager):
     logger.info("Database reset completed")
 
 
-def seed_test_data(session: Session):
+def seed_test_data(session: Session) -> None:
     """
     Seed database with test data.
 

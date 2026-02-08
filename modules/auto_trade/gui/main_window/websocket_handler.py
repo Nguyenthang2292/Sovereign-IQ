@@ -14,7 +14,7 @@ class WebSocketHandler:
 
     def register_callbacks(self):
         """Register callbacks for WebSocket real-time updates."""
-        from gui.utils.modes import TradingMode
+        from modules.auto_trade.gui.utils.modes import TradingMode
 
         if self.parent.mode == TradingMode.DRY_RUN:
             return

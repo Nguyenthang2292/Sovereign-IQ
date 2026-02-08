@@ -3,9 +3,10 @@ from typing import Callable, Dict, List, Optional
 
 import customtkinter as ctk
 
-from gui.components.position_details import PositionDetails
-from gui.utils.colors import Colors
-from gui.utils.formatters import format_pnl, format_price
+from modules.auto_trade.gui.components.empty_state import EmptyState
+from modules.auto_trade.gui.components.position_details import PositionDetails
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.formatters import format_pnl, format_price
 
 
 class PositionCard(ctk.CTkFrame):
@@ -99,9 +100,11 @@ class PositionCard(ctk.CTkFrame):
 
 
 class PositionsFrame(ctk.CTkFrame):
-    def __init__(self, parent, on_action_callback: Optional[Callable] = None):
+    def __init__(self, parent, on_action_callback: Optional[Callable] = None, on_open_trade_callback: Optional[Callable] = None):
         super().__init__(parent)
         self.on_action_callback = on_action_callback
+        self.on_open_trade_callback = on_open_trade_callback
+        self._empty_state = None
 
         title = ctk.CTkLabel(self, text="Open Positions", font=("Arial", 16, "bold"))
         title.pack(pady=(10, 15))
@@ -109,20 +112,20 @@ class PositionsFrame(ctk.CTkFrame):
         self.scroll_frame = ctk.CTkScrollableFrame(self, height=300)
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.empty_label = ctk.CTkLabel(
-            self.scroll_frame, text="No open positions", font=("Arial", 14), text_color="gray"
-        )
-        self.empty_label.pack(pady=50)
-
     def update_positions(self, positions: List[Dict]):
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 
         if not positions:
-            self.empty_label = ctk.CTkLabel(
-                self.scroll_frame, text="No open positions", font=("Arial", 14), text_color="gray"
+            self._empty_state = EmptyState(
+                self.scroll_frame,
+                icon="📭",
+                message="No open positions",
+                hint="Open a trade or wait for a signal.",
+                action_text="Open Trade" if self.on_open_trade_callback else "",
+                action_callback=self.on_open_trade_callback
             )
-            self.empty_label.pack(pady=50)
+            self._empty_state.pack(pady=50, fill="x")
             return
 
         for position in positions:

@@ -69,7 +69,7 @@ class RiskManager:
             Available USDT balance or None if error
         """
         try:
-            balance = self.data_fetcher.fetch_binance_account_balance(
+            balance: Optional[float] = self.data_fetcher.fetch_binance_account_balance(
                 api_key=api_key, api_secret=api_secret, testnet=testnet, currency="USDT"
             )
 
@@ -105,13 +105,13 @@ class RiskManager:
             return None
 
         # Fetch balance
-        balance = self.fetch_account_balance(api_key, api_secret, testnet)
+        balance: Optional[float] = self.fetch_account_balance(api_key, api_secret, testnet)
         if balance is None or balance <= 0:
             log_error(f"Invalid balance: {balance}")
             return None
 
         # Calculate position size
-        position_size = balance * self.balance_percentage
+        position_size: float = balance * self.balance_percentage
 
         # Validate minimum
         if position_size < self.min_position_size:

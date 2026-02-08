@@ -41,8 +41,8 @@ class MartingaleStrategy:
         max_steps: int = 4,
         max_leverage: int = 16,
         max_total_loss: Optional[float] = None,
-        database=None,  # Optional database for persistence
-    ):
+        database: Any = None,  # Optional database for persistence
+    ) -> None:
         """
         Initialize MartingaleStrategy.
 
@@ -56,16 +56,16 @@ class MartingaleStrategy:
         if max_steps < 1 or max_steps > 10:
             raise ValueError(f"max_steps must be 1-10, got {max_steps}")
 
-        self.initial_leverage = initial_leverage
-        self.max_steps = max_steps
-        self.max_leverage = max_leverage
-        self.max_total_loss = max_total_loss
-        self.database = database
+        self.initial_leverage: int = initial_leverage
+        self.max_steps: int = max_steps
+        self.max_leverage: int = max_leverage
+        self.max_total_loss: Optional[float] = max_total_loss
+        self.database: Any = database
 
         # State
-        self._current_step = 0
-        self._total_loss = 0.0
-        self._last_leverage = initial_leverage
+        self._current_step: int = 0
+        self._total_loss: float = 0.0
+        self._last_leverage: int = initial_leverage
         self._loss_history: list[dict[str, Any]] = []
 
         log_info(
@@ -73,7 +73,7 @@ class MartingaleStrategy:
             f"initial={initial_leverage}x, max_steps={max_steps}, max_leverage={max_leverage}x"
         )
 
-    def record_loss(self, loss_amount: float, leverage: int):
+    def record_loss(self, loss_amount: float, leverage: int) -> None:
         """
         Record a loss and update Martingale state.
 
@@ -113,7 +113,7 @@ class MartingaleStrategy:
             except Exception as e:
                 log_error(f"Failed to persist Martingale state to database: {e}")
 
-    def record_profit(self, profit_amount: float):
+    def record_profit(self, profit_amount: float) -> None:
         """
         Record a profit and reset Martingale state.
 
@@ -122,7 +122,7 @@ class MartingaleStrategy:
         """
         log_info(f"💰 Profit recorded: ${profit_amount:.2f}. Resetting Martingale counter.")
 
-        recovered_loss = min(profit_amount, self._total_loss)
+        recovered_loss: float = min(profit_amount, self._total_loss)
         log_info(f"Recovered ${recovered_loss:.2f} of ${self._total_loss:.2f} total loss")
 
         # Reset state
@@ -202,7 +202,7 @@ class MartingaleStrategy:
             max_steps_reached=self._current_step >= self.max_steps,
         )
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset Martingale state to initial."""
         log_info("Resetting Martingale strategy to initial state")
 
@@ -233,6 +233,6 @@ class MartingaleStrategy:
         return self._current_step > 0
 
     @property
-    def loss_history(self) -> list:
+    def loss_history(self) -> list[dict[str, Any]]:
         """Get loss history."""
         return self._loss_history.copy()

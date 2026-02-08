@@ -1,18 +1,20 @@
 """Orders Section Component for Database Panel."""
 
-import customtkinter as ctk
-from datetime import datetime
-import uuid
 import logging
-from typing import Callable, Any
+import uuid
+from datetime import datetime
+from typing import Callable
+
+import customtkinter as ctk
 
 from modules.auto_trade.database import (
-    session_scope,
     create_order,
+    get_daily_stats,
     get_open_positions,
     get_overall_stats,
-    get_daily_stats,
+    session_scope,
 )
+from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +35,10 @@ class OrdersSection:
         frame.pack(fill="x", padx=5, pady=5)
 
         # Title
-        ctk.CTkLabel(frame, text="📋 Orders Testing", font=("Roboto", 14, "bold")).pack(
-            anchor="w", padx=10, pady=(10, 5)
+        ctk.CTkLabel(frame, text="📋 Orders Testing", font=DatabasePanelConfig.TITLE_FONT).pack(
+            anchor="w",
+            padx=DatabasePanelConfig.PADX_MEDIUM,
+            pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
         # Inputs Frame

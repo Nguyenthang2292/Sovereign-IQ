@@ -32,9 +32,7 @@ class AlertManager:
         self.event_bus.subscribe(EventType.PIPELINE_ERROR, self._handle_error)
         self.event_bus.subscribe(EventType.HEALTH_CHECK_FAILED, self._handle_health_failure)
         self.event_bus.subscribe(EventType.CIRCUIT_OPEN, self._handle_circuit_open)
-        self.event_bus.subscribe(
-            EventType.SIGNAL_GENERATED, self._handle_signal
-        )  # Notification, not alert, but good to know
+        self.event_bus.subscribe(EventType.SIGNAL_GENERATED, self._handle_signal)
 
     def _handle_error(self, event: Event) -> None:
         """Handle pipeline error events with proper error handling."""
@@ -63,8 +61,8 @@ class AlertManager:
     def _handle_signal(self, event: Event) -> None:
         """Handle signal generation events (info notification)."""
         try:
-            symbol = self._get_event_field(event.data, 'symbol', 'UNKNOWN')
-            signal_type = self._get_event_field(event.data, 'type', 'UNKNOWN')
+            symbol = self._get_event_field(event.data, "symbol", "UNKNOWN")
+            signal_type = self._get_event_field(event.data, "type", "UNKNOWN")
             log_info(f"ALERT [INFO]: Signal Generated - {symbol} {signal_type}")
         except Exception as e:
             log_error(f"Failed to handle signal event: {e}")
@@ -72,18 +70,18 @@ class AlertManager:
     def _extract_error_message(self, data: Any) -> str:
         """Extract error message from event data safely."""
         if isinstance(data, dict):
-            return str(data.get('error', 'Unknown error'))
-        return str(data) if data else 'No error details provided'
+            return str(data.get("error", "Unknown error"))
+        return str(data) if data else "No error details provided"
 
     def _format_event_data(self, data: Any) -> str:
         """Format event data for display safely."""
         if data is None:
-            return 'No data provided'
+            return "No data provided"
         if isinstance(data, dict):
-            return ', '.join(f"{k}={v}" for k, v in data.items()) or 'Empty data'
+            return ", ".join(f"{k}={v}" for k, v in data.items()) or "Empty data"
         return str(data)
 
-    def _get_event_field(self, data: Any, field: str, default: str = 'UNKNOWN') -> str:
+    def _get_event_field(self, data: Any, field: str, default: str = "UNKNOWN") -> str:
         """Safely extract a field from event data."""
         if isinstance(data, dict):
             value = data.get(field, default)

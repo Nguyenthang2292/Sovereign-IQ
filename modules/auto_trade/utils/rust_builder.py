@@ -1,5 +1,7 @@
 """Auto-build Rust extensions for ATC and XGBoost modules."""
 
+from __future__ import annotations
+
 import subprocess
 import sys
 from pathlib import Path

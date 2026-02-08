@@ -55,10 +55,10 @@ class OrderExecutor:
             if not self._api_key or not self._api_secret:
                 return {"success": False, "error": "API credentials not set"}
 
-            symbol = signal_dict.get("symbol", "").replace("USDT", "/USDT")
+            symbol: str = signal_dict.get("symbol", "").replace("USDT", "/USDT")
             if not symbol.endswith("/USDT"):
                 symbol = f"{symbol}/USDT"
-            signal_type = (signal_dict.get("signal") or "LONG").upper()
+            signal_type: str = (signal_dict.get("signal") or "LONG").upper()
             if signal_type not in ("LONG", "SHORT"):
                 signal_type = "LONG"
 
@@ -74,13 +74,13 @@ class OrderExecutor:
                 testnet=self._testnet,
                 dry_run=self._dry_run,
             )
-            ticker = client.exchange.fetch_ticker(symbol)
-            entry = float(ticker.get("last", 0) or 0)
+            ticker: dict = client.exchange.fetch_ticker(symbol)
+            entry: float = float(ticker.get("last", 0) or 0)
             if entry <= 0:
                 return {"success": False, "error": "Could not get current price"}
 
-            tp_pct = 5.0
-            sl_pct = 2.0
+            tp_pct: float = 5.0
+            sl_pct: float = 2.0
             if tp_sl_settings:
                 try:
                     tp_pct = float(tp_sl_settings.get("default_tp", tp_pct))
@@ -92,11 +92,11 @@ class OrderExecutor:
                     sl_pct = 2.0
 
             if signal_type == "LONG":
-                take_profit = entry * (1 + tp_pct / 100)
-                stop_loss = entry * (1 - sl_pct / 100)
+                take_profit: float = entry * (1 + tp_pct / 100)
+                stop_loss: float = entry * (1 - sl_pct / 100)
             else:
-                take_profit = entry * (1 - tp_pct / 100)
-                stop_loss = entry * (1 + sl_pct / 100)
+                take_profit: float = entry * (1 - tp_pct / 100)
+                stop_loss: float = entry * (1 + sl_pct / 100)
 
             final_signal = FinalSignal(
                 symbol=symbol,
@@ -114,7 +114,7 @@ class OrderExecutor:
                 testnet=self._testnet,
                 dry_run=self._dry_run,
             )
-            result = manager.execute_signal(final_signal)
+            result: Optional[dict] = manager.execute_signal(final_signal)
             if result is None:
                 return {"success": False, "error": "Execution skipped or failed"}
             return {"success": True, **result}
@@ -148,8 +148,8 @@ class OrderExecutor:
             if not self._api_key or not self._api_secret:
                 return {"success": False, "error": "API credentials not set"}
 
-            sym = symbol.replace("USDT", "/USDT") if "/" not in symbol else symbol
-            side_lower = side.lower()
+            sym: str = symbol.replace("USDT", "/USDT") if "/" not in symbol else symbol
+            side_lower: str = side.lower()
             side_val: Literal["BUY", "SELL"] = "BUY" if side_lower in ("long", "buy") else "SELL"
 
             client = BinanceClient(
@@ -166,7 +166,7 @@ class OrderExecutor:
                 take_profit_price=take_profit,
                 stop_loss_price=stop_loss,
             )
-            result = client.create_market_order(ticket)
+            result: Optional[dict] = client.create_market_order(ticket)
             if result is None:
                 return {"success": False, "error": "Order failed"}
             return {"success": True, **result}

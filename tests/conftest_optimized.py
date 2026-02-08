@@ -106,7 +106,7 @@ def precomputed_indicators(cached_ohlcv_data):
 
 
 # ==========================================================
-# 🚀 MOCKED FIXTURES (Tránh expensive operations)
+# 🚀 MOCKED FIXTURES (Avoid expensive operations)
 # ==========================================================
 
 
@@ -149,7 +149,7 @@ def mock_api_client():
 
 
 # ==========================================================
-# 🚀 SMALL DATA FIXTURES (Giảm data size)
+# 🚀 SMALL DATA FIXTURES (Reduce data size)
 # ==========================================================
 
 
@@ -157,7 +157,7 @@ def mock_api_client():
 def small_ohlcv_data():
     """Small dataset for fast tests (100 rows vs 500+)."""
     np.random.seed(42)
-    n = 50  # Giảm từ 200 xuống 50
+    n = 50  # Reduced from 200 to 50
     dates = pd.date_range("2024-01-01", periods=n, freq="1h")
 
     base_price = 50000
@@ -202,7 +202,7 @@ def tiny_ohlcv_data():
 
 
 # ==========================================================
-# 🚀 SHARED FIXTURES (Giúp chia sẻ giữa related tests)
+# 🚀 SHARED FIXTURES (Help share between related tests)
 # ==========================================================
 
 
@@ -230,7 +230,7 @@ def common_test_parameters():
 
 
 # ==========================================================
-# 🚀 PARAMETRIZED DATA FIXTURES (Tránh lặp code)
+# 🚀 PARAMETRIZED DATA FIXTURES (Avoid repeating code)
 # ==========================================================
 
 

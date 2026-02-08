@@ -16,6 +16,7 @@ Functions:
 """
 
 from ._shared import (
+    Any,
     AuditLog,
     List,
     Optional,
@@ -26,7 +27,12 @@ from ._shared import (
 
 
 def create_audit_log(
-    session: Session, event_type: str, event_category: str, severity: str, event_summary: str, **kwargs
+    session: Session,
+    event_type: str,
+    event_category: str,
+    severity: str,
+    event_summary: str,
+    **kwargs: Any,
 ) -> AuditLog:
     """
     Create audit log entry.

@@ -16,7 +16,7 @@ from database.queries import get_open_positions
 from sqlalchemy.orm import Session
 
 from execution.binance_client import BinanceClient
-from execution.trailing_stop import calculate_trailing_stop
+from execution.trailing_stop import TrailingStopResult, calculate_trailing_stop
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +64,11 @@ class TrailingStopJob:
 
         try:
             # Get TP/SL settings
-            tp_sl_settings = self.settings_manager.get("tp_sl", {})
-            trailing_stop_enabled = tp_sl_settings.get("trailing_stop", False)
-            trailing_step_pct = tp_sl_settings.get("trailing_step_pct", 2.0)
-            trailing_limit_steps = tp_sl_settings.get("trailing_limit_steps", False)
-            trailing_max_steps = tp_sl_settings.get("trailing_max_steps", 5)
+            tp_sl_settings: dict = self.settings_manager.get("tp_sl", {})
+            trailing_stop_enabled: bool = bool(tp_sl_settings.get("trailing_stop", False))
+            trailing_step_pct: float = float(tp_sl_settings.get("trailing_step_pct", 2.0))
+            trailing_limit_steps: bool = bool(tp_sl_settings.get("trailing_limit_steps", False))
+            trailing_max_steps: int = int(tp_sl_settings.get("trailing_max_steps", 5))
 
             if not trailing_stop_enabled:
                 logger.debug("Trailing stop is disabled, skipping")
@@ -80,7 +80,7 @@ class TrailingStopJob:
 
             # Get all open programmatic orders
             with self.db_session_scope() as session:
-                open_orders = get_open_positions(session)
+                open_orders: Optional[List[Order]] = get_open_positions(session)
 
                 if not open_orders:
                     logger.debug("No open orders to check")
@@ -89,7 +89,7 @@ class TrailingStopJob:
                 # Group orders by symbol for efficient price fetching
                 orders_by_symbol: Dict[str, List[Order]] = {}
                 for order in open_orders:
-                    sym = str(getattr(order, "symbol", ""))
+                    sym: str = str(getattr(order, "symbol", ""))
                     if sym not in orders_by_symbol:
                         orders_by_symbol[sym] = []
                     orders_by_symbol[sym].append(order)
@@ -98,7 +98,7 @@ class TrailingStopJob:
                 for symbol, orders in orders_by_symbol.items():
                     try:
                         # Fetch current mark price
-                        mark_price = self._get_mark_price(symbol)
+                        mark_price: Optional[float] = self._get_mark_price(symbol)
                         if mark_price is None:
                             logger.warning(f"Could not get mark price for {symbol}")
                             continue
@@ -108,7 +108,7 @@ class TrailingStopJob:
                             results["orders_checked"] += 1
 
                             try:
-                                update_result = self._process_order(
+                                update_result: Dict[str, Any] = self._process_order(
                                     session,
                                     order,
                                     mark_price,
@@ -122,20 +122,20 @@ class TrailingStopJob:
                                     results["updates"].append(update_result)
 
                             except Exception as e:
-                                error_msg = f"Error processing order {getattr(order, 'order_id', '')}: {e}"
-                                logger.error(error_msg)
-                                results["errors"].append(error_msg)
+                                error_msg_order: str = f"Error processing order {getattr(order, 'order_id', '')}: {e}"
+                                logger.error(error_msg_order)
+                                results["errors"].append(error_msg_order)
 
                     except Exception as e:
-                        error_msg = f"Error processing symbol {symbol}: {e}"
-                        logger.error(error_msg)
-                        results["errors"].append(error_msg)
+                        error_msg_sym: str = f"Error processing symbol {symbol}: {e}"
+                        logger.error(error_msg_sym)
+                        results["errors"].append(error_msg_sym)
 
                 # Commit all changes
                 session.commit()
 
         except Exception as e:
-            error_msg = f"Error in trailing stop job: {e}"
+            error_msg: str = f"Error in trailing stop job: {e}"
             logger.error(error_msg)
             results["errors"].append(error_msg)
             return results
@@ -172,7 +172,7 @@ class TrailingStopJob:
         step_pct: float,
         limit_steps: bool,
         max_steps: int,
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Process a single order for trailing stop.
 
@@ -187,14 +187,14 @@ class TrailingStopJob:
         Returns:
             Dictionary with update result
         """
-        entry_price = float(getattr(order, "entry_price", 0.0))
-        side = str(getattr(order, "side", ""))
-        step_index = int(getattr(order, "trailing_step_index", 0))
-        stop_loss = getattr(order, "stop_loss", None)
-        current_sl = float(stop_loss) if stop_loss is not None else None
+        entry_price: float = float(getattr(order, "entry_price", 0.0))
+        side: str = str(getattr(order, "side", ""))
+        step_index: int = int(getattr(order, "trailing_step_index", 0))
+        stop_loss: Optional[float] = getattr(order, "stop_loss", None)
+        current_sl: Optional[float] = float(stop_loss) if stop_loss is not None else None
 
-        result = {
-            "order_id": getattr(order, "order_id", ""),
+        result: Dict[str, Any] = {
+            "order_id": str(getattr(order, "order_id", "")),
             "symbol": str(getattr(order, "symbol", "")),
             "updated": False,
             "message": "",
@@ -204,7 +204,7 @@ class TrailingStopJob:
         }
 
         # Check if we should step the trailing stop
-        trailing_result = calculate_trailing_stop(
+        trailing_result: TrailingStopResult = calculate_trailing_stop(
             entry_price=entry_price,
             current_price=mark_price,
             side=side,
@@ -220,20 +220,20 @@ class TrailingStopJob:
             return result
 
         # We should step - update SL on exchange first
-        new_sl = trailing_result.new_sl_price
+        new_sl: Optional[float] = trailing_result.new_sl_price
 
         if self.binance_client and new_sl:
             try:
                 # Modify stop loss on exchange
-                modify_result = self.binance_client.modify_stop_loss(
+                modify_result: Optional[dict] = self.binance_client.modify_stop_loss(
                     symbol=str(getattr(order, "symbol", "")),
                     position_id=None,
                     stop_loss_price=new_sl,
                 )
-                success = modify_result is not None and (
-                    modify_result.get("success")
-                    or modify_result.get("id")
-                    or modify_result.get("dry_run")
+                success: bool = modify_result is not None and (
+                    bool(modify_result.get("success"))
+                    or bool(modify_result.get("id"))
+                    or bool(modify_result.get("dry_run"))
                 )
                 if success:
                     # Update order in database (setattr for SQLAlchemy Column type checker)
@@ -253,7 +253,7 @@ class TrailingStopJob:
                         f"SL {stop_loss} → {new_sl} (step {trailing_result.next_step_index})"
                     )
                 else:
-                    error_msg = (modify_result or {}).get("error", "Unknown error")
+                    error_msg: str = str((modify_result or {}).get("error", "Unknown error"))
                     result["message"] = f"Failed to modify SL on exchange: {error_msg}"
                     logger.error(f"Failed to modify SL for {getattr(order, 'order_id', '')}: {error_msg}")
 
@@ -263,7 +263,7 @@ class TrailingStopJob:
         else:
             # Dry run or no client - just log what would happen
             result["message"] = f"Would step SL to {new_sl} (dry run or no client)"
-            sym_str = str(getattr(order, "symbol", ""))
+            sym_str: str = str(getattr(order, "symbol", ""))
             logger.info(f"[DRY RUN] Trailing stop would update for {sym_str}: SL {stop_loss} → {new_sl}")
 
             # Still update database in dry run mode for tracking

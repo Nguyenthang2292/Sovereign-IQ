@@ -19,7 +19,7 @@ Example:
 """
 
 import random
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.ui.logging import log_info, log_warn
@@ -28,7 +28,16 @@ from modules.common.ui.logging import log_info, log_warn
 class SymbolManager:
     """Manages the list of trading pairs."""
 
-    _REFRESH_PROGRESS_LABEL = "Refreshing Symbols"
+    _REFRESH_PROGRESS_LABEL: str = "Refreshing Symbols"
+
+    data_fetcher: DataFetcher
+    whitelist: Set[str]
+    blacklist: Set[str]
+    max_symbols: int
+    _cached_symbols: List[str]
+    _random: random.Random
+    sample_percentage: float
+    sampling_strategy: str
 
     def __init__(
         self,
@@ -39,7 +48,7 @@ class SymbolManager:
         random_seed: Optional[int] = None,  # For reproducible sampling in tests
         sample_percentage: float = 100.0,  # Percentage of symbols to sample
         sampling_strategy: str = "random",  # Sampling strategy: random, stratified, volume_weighted, etc.
-    ):
+    ) -> None:
         """
         Initialize SymbolManager.
 

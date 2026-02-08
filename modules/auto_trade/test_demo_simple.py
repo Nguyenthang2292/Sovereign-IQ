@@ -163,7 +163,7 @@ def test_demo_connection():
             print(f"   Unrealized P&L:     ${total_unrealized_profit:>12,.2f}")
             print(f"   Margin Balance:     ${total_margin_balance:>12,.2f}")
             print(f"   Available Balance:  ${available_balance:>12,.2f}")
-        except Exception as e:
+        except Exception:
             print("⚠️  Account info endpoint not available with these demo keys")
             print("   (This is expected - basic balance and positions work fine)")
 

@@ -56,7 +56,20 @@ class GeminiIntegration:
     """Integrates Gemini Chart Analyzer into the trading pipeline."""
 
     # Default indicator configuration
-    DEFAULT_INDICATORS = {"MA": {"periods": [20, 50, 200]}, "RSI": {"period": 14}, "MACD": {}, "BB": {}}
+    DEFAULT_INDICATORS: Dict[str, Any] = {"MA": {"periods": [20, 50, 200]}, "RSI": {"period": 14}, "MACD": {}, "BB": {}}
+
+    data_fetcher: DataFetcher
+    _api_key: Optional[str]
+    temp_dir: Path
+    analysis_timeframe: str
+    history_limit: int
+    indicators: Union[Dict[str, Any], IndicatorConfig]
+    chart_generator: ChartGenerator
+    analyzer: GeminiChartAnalyzer
+    request_times: deque[float]
+    max_requests_per_minute: int
+    _cache: Dict[str, Tuple[GeminiSignal, datetime]]
+    cache_ttl: timedelta
 
     def __init__(
         self,
@@ -64,9 +77,9 @@ class GeminiIntegration:
         api_key: Optional[str] = None,
         analysis_timeframe: str = "1h",
         history_limit: int = 200,
-        indicators: Optional[Union[Dict, IndicatorConfig]] = None,
+        indicators: Optional[Union[Dict[str, Any], IndicatorConfig]] = None,
         cache_ttl_seconds: int = 3600,
-    ):
+    ) -> None:
         """
         Initialize Gemini Integration.
 

@@ -135,7 +135,7 @@ class BinanceClient:
             except Exception as e:
                 log_warn(f"Failed to set leverage (attempt {attempt + 1}/{self.max_retries}): {e}")
                 if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2**attempt)
+                    delay: float = self.retry_delay * (2**attempt)
                     time.sleep(delay)
 
         log_error(f"Failed to set leverage after {self.max_retries} attempts")
@@ -184,9 +184,9 @@ class BinanceClient:
             self.exchange.apiKey = api_key
             self.exchange.secret = api_secret
 
-        symbol = order.symbol
-        side = order.side.lower()  # 'buy' or 'sell'
-        amount_usdt = order.amount
+        symbol: str = order.symbol
+        side: str = order.side.lower()  # 'buy' or 'sell'
+        amount_usdt: float = order.amount
 
         log_info(f"Creating {side.upper()} order for {symbol}: ${amount_usdt:.2f} USDT @ {order.leverage}x leverage")
 
@@ -214,13 +214,13 @@ class BinanceClient:
 
         # Step 2: Get current price to calculate contract amount
         try:
-            ticker = self.exchange.fetch_ticker(symbol)
-            current_price = ticker["last"]
+            ticker: dict = self.exchange.fetch_ticker(symbol)
+            current_price: float = ticker["last"]
             log_info(f"Current price for {symbol}: ${current_price:,.2f}")
 
             # Calculate contract amount (for futures)
             # amount_contracts = (amount_usdt × leverage) / current_price
-            amount_contracts = (amount_usdt * order.leverage) / current_price
+            amount_contracts: float = (amount_usdt * order.leverage) / current_price
 
             log_info(f"Calculated contract amount: {amount_contracts:.4f} contracts")
 
@@ -229,8 +229,8 @@ class BinanceClient:
             return None
 
         # Step 3: Create market order (pass client_order_id so Binance returns AT_ for DB sync)
-        market_order_result = None
-        params = {}
+        market_order_result: Optional[dict] = None
+        params: dict = {}
         if getattr(order, "client_order_id", None):
             params["newClientOrderId"] = order.client_order_id
         for attempt in range(self.max_retries):
@@ -243,14 +243,14 @@ class BinanceClient:
                     params=params,
                 )
 
-                log_info(f"✅ Market order executed: {market_order_result.get('id')}")
+                log_info(f"✅ Market order executed: {market_order_result.get('id') if market_order_result else 'Unknown'}")
                 break
 
             except Exception as e:
                 log_error(f"Market order failed (attempt {attempt + 1}/{self.max_retries}): {e}")
 
                 if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2**attempt)
+                    delay: float = self.retry_delay * (2**attempt)
                     log_warn(f"Retrying in {delay}s...")
                     time.sleep(delay)
                 else:
@@ -261,7 +261,7 @@ class BinanceClient:
             return None
 
         # Step 4: Get filled price
-        filled_price = market_order_result.get("average") or current_price
+        filled_price: float = market_order_result.get("average") or current_price
         log_info(f"Order filled at price: ${filled_price:,.2f}")
 
         # Update order with entry price
@@ -271,8 +271,8 @@ class BinanceClient:
         order = builder.update_order_with_entry(order, filled_price)
 
         # Step 5: Place TP/SL orders
-        tp_order_result = self._place_take_profit(order, amount_contracts)
-        sl_order_result = self._place_stop_loss(order, amount_contracts)
+        tp_order_result: Optional[dict] = self._place_take_profit(order, amount_contracts)
+        sl_order_result: Optional[dict] = self._place_stop_loss(order, amount_contracts)
 
         # Step 6: Return combined result
         return {
@@ -298,11 +298,11 @@ class BinanceClient:
             log_warn("No TP price set, skipping TP order")
             return None
 
-        tp_side = "sell" if order.side == "BUY" else "buy"  # Opposite side to close position
+        tp_side: str = "sell" if order.side == "BUY" else "buy"  # Opposite side to close position
 
         for attempt in range(self.max_retries):
             try:
-                tp_order = self.exchange.create_order(
+                tp_order: dict = self.exchange.create_order(
                     symbol=order.symbol,
                     type="take_profit_market",  # TP Market order
                     side=tp_side,
@@ -339,11 +339,11 @@ class BinanceClient:
             log_warn("No SL price set, skipping SL order")
             return None
 
-        sl_side = "sell" if order.side == "BUY" else "buy"  # Opposite side to close position
+        sl_side: str = "sell" if order.side == "BUY" else "buy"  # Opposite side to close position
 
         for attempt in range(self.max_retries):
             try:
-                sl_order = self.exchange.create_order(
+                sl_order: dict = self.exchange.create_order(
                     symbol=order.symbol,
                     type="stop_market",  # SL Market order
                     side=sl_side,
@@ -377,7 +377,7 @@ class BinanceClient:
             Order details or None if not found
         """
         try:
-            order_details = self.exchange.fetch_order(order_id, symbol)
+            order_details: dict = self.exchange.fetch_order(order_id, symbol)
             log_info(f"Order verification: {order_details.get('status')}")
             return order_details
         except Exception as e:
@@ -413,7 +413,7 @@ class BinanceClient:
             }
 
         # Calculate order side (opposite to position side)
-        close_side = "sell" if side.lower() == "long" else "buy"
+        close_side: str = "sell" if side.lower() == "long" else "buy"
 
         # Get current price for limit orders
         if order_type == "limit" and not limit_price:
@@ -423,6 +423,7 @@ class BinanceClient:
         try:
             log_info(f"Closing {size} of {symbol} {side} position ({order_type})")
 
+            result: dict
             if order_type == "market":
                 # Market order
                 result = self.exchange.create_order(
@@ -461,7 +462,7 @@ class BinanceClient:
 
         try:
             # fetch_positions might return a list of all positions or filtered by symbols depending on exchange
-            positions = self.exchange.fetch_positions([symbol])
+            positions: list = self.exchange.fetch_positions([symbol])
             for pos in positions:
                 if pos["symbol"] == symbol:
                     return pos
@@ -493,31 +494,31 @@ class BinanceClient:
 
         try:
             # 1. Get current position to determine side and amount
-            position = self.get_position(symbol)
+            position: Optional[dict] = self.get_position(symbol)
             if not position:
                 log_error(f"No open position found for {symbol}")
                 return None
 
-            amount = abs(float(position.get("contracts", 0) or position.get("info", {}).get("positionAmt", 0)))
+            amount: float = abs(float(position.get("contracts", 0) or position.get("info", {}).get("positionAmt", 0)))
             if amount == 0:
                 log_warn(f"Position size is 0 for {symbol}, cannot modify TP")
                 return None
 
-            side = position.get("side")  # 'long' or 'short'
+            side: str = str(position.get("side") or "")  # 'long' or 'short'
             if not side:
                 # Fallback if CCXT doesn't normalize side
-                amt = float(position.get("info", {}).get("positionAmt", 0))
+                amt: float = float(position.get("info", {}).get("positionAmt", 0))
                 side = "long" if amt > 0 else "short"
 
-            tp_side = "sell" if side == "long" else "buy"
+            tp_side: str = "sell" if side == "long" else "buy"
 
             # 2. Fetch open orders to find existing TP
-            open_orders = self.exchange.fetch_open_orders(symbol)
-            cancelled_count = 0
+            open_orders: list = self.exchange.fetch_open_orders(symbol)
+            cancelled_count: int = 0
 
             # 3. Cancel existing TP orders
             for order in open_orders:
-                order_type = order.get("type", "").lower()
+                order_type: str = order.get("type", "").lower()
                 # TP orders are usually TAKE_PROFIT or TAKE_PROFIT_MARKET
                 if "take_profit" in order_type:
                     try:
@@ -531,7 +532,7 @@ class BinanceClient:
             if take_profit_price:
                 log_info(f"Setting new TP for {symbol} at ${take_profit_price:,.2f}")
 
-                tp_order = self.exchange.create_order(
+                tp_order: dict = self.exchange.create_order(
                     symbol=symbol,
                     type="take_profit_market",
                     side=tp_side,
@@ -574,31 +575,31 @@ class BinanceClient:
 
         try:
             # 1. Get current position to determine side and amount
-            position = self.get_position(symbol)
+            position: Optional[dict] = self.get_position(symbol)
             if not position:
                 log_error(f"No open position found for {symbol}")
                 return None
 
-            amount = abs(float(position.get("contracts", 0) or position.get("info", {}).get("positionAmt", 0)))
+            amount: float = abs(float(position.get("contracts", 0) or position.get("info", {}).get("positionAmt", 0)))
             if amount == 0:
                 log_warn(f"Position size is 0 for {symbol}, cannot modify SL")
                 return None
 
-            side = position.get("side")  # 'long' or 'short'
+            side: str = str(position.get("side") or "")  # 'long' or 'short'
             if not side:
                 # Fallback
-                amt = float(position.get("info", {}).get("positionAmt", 0))
+                amt: float = float(position.get("info", {}).get("positionAmt", 0))
                 side = "long" if amt > 0 else "short"
 
-            sl_side = "sell" if side == "long" else "buy"
+            sl_side: str = "sell" if side == "long" else "buy"
 
             # 2. Fetch open orders to find existing SL
-            open_orders = self.exchange.fetch_open_orders(symbol)
-            cancelled_count = 0
+            open_orders: list = self.exchange.fetch_open_orders(symbol)
+            cancelled_count: int = 0
 
             # 3. Cancel existing SL orders
             for order in open_orders:
-                order_type = order.get("type", "").lower()
+                order_type: str = order.get("type", "").lower()
                 # SL orders are usually STOP or STOP_MARKET
                 if "stop" in order_type:
                     try:
@@ -612,7 +613,7 @@ class BinanceClient:
             if stop_loss_price:
                 log_info(f"Setting new SL for {symbol} at ${stop_loss_price:,.2f}")
 
-                sl_order = self.exchange.create_order(
+                sl_order: dict = self.exchange.create_order(
                     symbol=symbol,
                     type="stop_market",
                     side=sl_side,
@@ -651,14 +652,14 @@ class BinanceClient:
         Returns:
             Combined result dict or None if failed
         """
-        results = {}
+        results: dict = {}
 
         if take_profit_price is not None:
-            tp_result = self.modify_take_profit(symbol, position_id, take_profit_price)
+            tp_result: Optional[dict] = self.modify_take_profit(symbol, position_id, take_profit_price)
             results["tp_result"] = tp_result
 
         if stop_loss_price is not None:
-            sl_result = self.modify_stop_loss(symbol, position_id, stop_loss_price)
+            sl_result: Optional[dict] = self.modify_stop_loss(symbol, position_id, stop_loss_price)
             results["sl_result"] = sl_result
 
         return results if results else None
@@ -677,7 +678,7 @@ class BinanceClient:
             Result dict or None if failed
         """
         if self.dry_run:
-            action = "Add" if type == 1 else "Reduce"
+            action: str = "Add" if type == 1 else "Reduce"
             log_info(f"[DRY RUN] Would {action} margin for {symbol} by ${amount:,.2f}")
             return {"dry_run": True, "symbol": symbol, "amount": amount, "type": type}
 
@@ -686,14 +687,14 @@ class BinanceClient:
 
             # Note: CCXT may not have a unified method for this, so we use the implicit API
             # fapiPrivatePostPositionMargin maps to POST /fapi/v1/positionMargin
-            params = {
+            params: dict = {
                 "symbol": self.exchange.market_id(symbol),
                 "amount": amount,
                 "type": type,
                 "positionSide": position_side,
             }
 
-            response = self.exchange.fapiPrivatePostPositionMargin(params)
+            response: dict = self.exchange.fapiPrivatePostPositionMargin(params)
             log_info(f"✅ Margin modified for {symbol}. New amount: {response.get('amount')}")
             return response
 
@@ -719,9 +720,9 @@ class BinanceClient:
             log_info(f"Cancelling all open orders for {symbol}")
 
             # Get all open orders
-            open_orders = self.exchange.fetch_open_orders(symbol)
+            open_orders: list = self.exchange.fetch_open_orders(symbol)
 
-            cancelled_count = 0
+            cancelled_count: int = 0
             for order in open_orders:
                 try:
                     self.exchange.cancel_order(order["id"], symbol)

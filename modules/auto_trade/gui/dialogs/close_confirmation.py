@@ -1,8 +1,8 @@
-import customtkinter as ctk
-from typing import Dict, Optional, Callable
-from tkinter import messagebox
-import os
 import json
+import os
+from typing import Callable, Dict, Optional
+
+import customtkinter as ctk
 
 
 class CloseConfirmationDialog(ctk.CTkToplevel):

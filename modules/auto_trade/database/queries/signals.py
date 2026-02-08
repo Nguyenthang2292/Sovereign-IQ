@@ -40,7 +40,7 @@ def save_signal(
     atc_score: Optional[float] = None,
     xgboost_score: Optional[float] = None,
     gemini_score: Optional[float] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> Signal:
     """
     Save a new signal to the database.

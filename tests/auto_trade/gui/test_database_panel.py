@@ -99,17 +99,18 @@ class TestDatabasePanel(unittest.TestCase):
         with patch("logging.getLogger"):
             self.panel = self.DatabasePanel(self.parent, self.settings)
 
-    @patch("modules.auto_trade.gui.components.database.stats_section.session_scope")
-    def test_refresh_stats(self, mock_session_scope):
-        # Setup mock session
-        mock_session = MagicMock()
-        mock_session_scope.return_value.__enter__.return_value = mock_session
-
-        # Setup query returns
-        # The chain of calls is query().count() or query().filter().count()
-        # We need to be generic as multiple queries happen
-        mock_session.query.return_value.count.return_value = 10
-        mock_session.query.return_value.filter.return_value.count.return_value = 5
+    @patch("modules.auto_trade.gui.components.database.stats_section.DatabaseService.get_stats")
+    @patch("modules.auto_trade.gui.components.database.stats_section.DatabaseService.get_last_backup_time")
+    def test_refresh_stats(self, mock_get_last_backup, mock_get_stats):
+        # Setup mock returns
+        mock_get_stats.return_value = {
+            "total_orders": 10,
+            "open_positions": 5,
+            "total_signals": 20,
+            "active_chains": 3,
+            "audit_logs": 100,
+        }
+        mock_get_last_backup.return_value = "2024-01-01 12:00"
 
         self.panel.data_viewer_section.refresh = MagicMock()
         self.panel._refresh_stats()
@@ -254,7 +255,8 @@ class TestDatabasePanel(unittest.TestCase):
 
             self.panel.actions_section.log_callback.assert_called()
             success_calls = [
-                c for c in self.panel.actions_section.log_callback.call_args_list
+                c
+                for c in self.panel.actions_section.log_callback.call_args_list
                 if len(c[0]) >= 2 and c[0][1] == "SUCCESS"
             ]
             self.assertTrue(

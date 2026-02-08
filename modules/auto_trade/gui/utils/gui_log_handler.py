@@ -28,7 +28,7 @@ class GUILogHandler(logging.Handler):
         formatter = logging.Formatter("%(message)s")
         self.setFormatter(formatter)
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: logging.LogRecord) -> None:
         """
         Emit a log record to the queue.
 
@@ -37,7 +37,7 @@ class GUILogHandler(logging.Handler):
         """
         try:
             # Create a dictionary with the log info
-            log_dict = {
+            log_dict: dict = {
                 "level": record.levelname,
                 "message": self.format(record),
                 "timestamp": datetime.fromtimestamp(record.created),
@@ -60,7 +60,7 @@ class GUILogHandler(logging.Handler):
             self.handleError(record)
 
 
-def setup_gui_logging(log_queue: queue.Queue, logger_names: Optional[list] = None):
+def setup_gui_logging(log_queue: queue.Queue, logger_names: Optional[list] = None) -> GUILogHandler:
     """
     Set up GUI logging for specified loggers.
 
@@ -69,7 +69,7 @@ def setup_gui_logging(log_queue: queue.Queue, logger_names: Optional[list] = Non
         logger_names: List of logger names to attach handler to.
                      If None, attaches to root logger.
     """
-    handler = GUILogHandler(log_queue)
+    handler: GUILogHandler = GUILogHandler(log_queue)
 
     if logger_names is None:
         # Attach to root logger

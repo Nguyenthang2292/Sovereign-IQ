@@ -48,15 +48,15 @@ class ToastNotification(ctk.CTkToplevel):
 
         # Calculate position (center bottom of parent)
         try:
-            parent_x = parent.winfo_rootx()
-            parent_y = parent.winfo_rooty()
-            parent_width = parent.winfo_width()
-            parent_height = parent.winfo_height()
+            parent_x: int = parent.winfo_rootx()
+            parent_y: int = parent.winfo_rooty()
+            parent_width: int = parent.winfo_width()
+            parent_height: int = parent.winfo_height()
 
-            width = 300
-            height = 50
-            x = parent_x + (parent_width - width) // 2
-            y = parent_y + parent_height - height - 50
+            width: int = 300
+            height: int = 50
+            x: int = parent_x + (parent_width - width) // 2
+            y: int = parent_y + parent_height - height - 50
 
             self.geometry(f"{width}x{height}+{x}+{y}")
         except (AttributeError, RuntimeError):
@@ -67,7 +67,7 @@ class ToastNotification(ctk.CTkToplevel):
         self.configure(fg_color=fg_color)
 
         # Content
-        self.label = ctk.CTkLabel(
+        self.label: ctk.CTkLabel = ctk.CTkLabel(
             self, text=message, font=("Arial", 14, "bold"), text_color=text_color, fg_color="transparent"
         )
         self.label.pack(expand=True, fill="both", padx=20, pady=10)
@@ -86,15 +86,15 @@ class ToastNotification(ctk.CTkToplevel):
     def _fade_out(self) -> None:
         """Fade out animation before closing."""
         try:
-            alpha = self.attributes("-alpha")
+            alpha: float = float(self.attributes("-alpha"))
             if alpha > 0:
                 alpha -= 0.1
                 self.attributes("-alpha", alpha)
                 self.after(50, self._fade_out)
             else:
                 self.destroy()
-        except RuntimeError:
-            # Window already destroyed
+        except (RuntimeError, ValueError):
+            # Window already destroyed or attribute error
             pass
 
 

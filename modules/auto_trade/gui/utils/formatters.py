@@ -54,22 +54,29 @@ def format_timestamp(timestamp: str) -> str:
     Format timestamp as relative time or absolute date.
 
     Args:
-        timestamp: ISO format timestamp string
+        timestamp: ISO format timestamp string or stringified timestamp
 
     Returns:
         Human-readable time string (e.g., "just now", "5m ago", "2024-01-15 10:30")
     """
     try:
-        dt = datetime.fromisoformat(timestamp)
+        # Check if it's a numeric string (timestamp)
+        if timestamp.replace(".", "", 1).isdigit():
+            dt = datetime.fromtimestamp(float(timestamp))
+        else:
+            dt = datetime.fromisoformat(timestamp)
+
         now = datetime.now()
         diff = now - dt
-        if diff.seconds < 60:
+        seconds = int(diff.total_seconds())
+
+        if seconds < 60:
             return "just now"
-        elif diff.seconds < 3600:
-            return f"{diff.seconds // 60}m ago"
-        elif diff.seconds < 86400:
-            return f"{diff.seconds // 3600}h ago"
+        elif seconds < 3600:
+            return f"{seconds // 60}m ago"
+        elif seconds < 86400:
+            return f"{seconds // 3600}h ago"
         else:
             return dt.strftime("%Y-%m-%d %H:%M")
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, TypeError, OverflowError):
         return timestamp

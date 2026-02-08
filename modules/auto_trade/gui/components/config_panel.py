@@ -2,6 +2,8 @@ from typing import Callable, Dict, Optional
 
 import customtkinter as ctk
 
+from modules.auto_trade.gui.utils.mask_utils import mask_api_key, mask_secret
+
 
 class ConfigPanel(ctk.CTkFrame):
     """
@@ -21,6 +23,7 @@ class ConfigPanel(ctk.CTkFrame):
         self.on_settings_change = on_settings_change
         self.mode = mode
         self.on_recovery_config_change = on_recovery_config_change
+        self._editing_credentials = False
 
         # Title
         title = ctk.CTkLabel(self, text="⚙️ Configuration", font=("Arial", 16, "bold"))
@@ -50,7 +53,7 @@ class ConfigPanel(ctk.CTkFrame):
 
         # ================== COLUMN 1: Risk Management ==================
         # Boxed frame with visible background (matching TP/SL style)
-        from gui.utils.colors import Colors
+        from modules.auto_trade.gui.utils.colors import Colors
 
         risk_box = ctk.CTkFrame(container, fg_color=Colors.get_card_bg(), corner_radius=10)
         risk_box.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
@@ -99,7 +102,7 @@ class ConfigPanel(ctk.CTkFrame):
 
         # ================== COLUMN 2: TP/SL Settings ==================
         # Boxed frame for TP/SL (visible background)
-        from gui.utils.colors import Colors
+        from modules.auto_trade.gui.utils.colors import Colors
 
         tp_sl_box = ctk.CTkFrame(container, fg_color=Colors.get_card_bg(), corner_radius=10)
         tp_sl_box.grid(row=0, column=1, sticky="nsew", padx=5)
@@ -189,7 +192,7 @@ class ConfigPanel(ctk.CTkFrame):
         self.negative_be_threshold_entry.insert(0, "2.0")
 
         # ================== COLUMN 3: Gradual Recovery ==================
-        from gui.components.recovery_panel import RecoveryPanel
+        from modules.auto_trade.gui.components.recovery_panel import RecoveryPanel
 
         self.recovery_panel = RecoveryPanel(
             container,
@@ -320,7 +323,11 @@ class ConfigPanel(ctk.CTkFrame):
 
         self.exchange_var = ctk.StringVar(value="Binance")
         exchange_dropdown = ctk.CTkComboBox(
-            api_frame, values=["Binance", "Demo"], variable=self.exchange_var, width=200
+            api_frame,
+            values=["Binance", "Demo"],
+            variable=self.exchange_var,
+            width=200,
+            command=lambda _: self._refresh_credentials_display(),
         )
         exchange_dropdown.pack(anchor="w", pady=2)
 
@@ -328,43 +335,85 @@ class ConfigPanel(ctk.CTkFrame):
         self.api_key_frame = ctk.CTkFrame(api_frame, fg_color="transparent")
         self.api_key_frame.pack(fill="x")
 
+        # --- Masked block (Task 2) ---
+        self.credentials_masked_frame = ctk.CTkFrame(self.api_key_frame, fg_color="transparent")
+        # Do not pack yet, will be managed by _refresh_credentials_display()
+
+        label = ctk.CTkLabel(self.credentials_masked_frame, text="API Key:", font=("Arial", 12))
+        label.pack(anchor="w", pady=(10, 2))
+        self.api_key_masked_label = ctk.CTkLabel(self.credentials_masked_frame, text="—", font=("Arial", 12, "bold"))
+        self.api_key_masked_label.pack(anchor="w", pady=2)
+
+        label = ctk.CTkLabel(self.credentials_masked_frame, text="API Secret:", font=("Arial", 12))
+        label.pack(anchor="w", pady=(10, 2))
+        self.api_secret_masked_label = ctk.CTkLabel(self.credentials_masked_frame, text="—", font=("Arial", 12, "bold"))
+        self.api_secret_masked_label.pack(anchor="w", pady=2)
+
+        change_btn = ctk.CTkButton(
+            self.credentials_masked_frame,
+            text="✏️ Change Credentials",
+            fg_color="#ffcc00",
+            text_color="black",
+            hover_color="#e6b800",
+            command=self._on_change_credentials,
+        )
+        change_btn.pack(anchor="w", pady=(20, 5))
+
+        # --- Entry block (Task 2) ---
+        self.credentials_entry_frame = ctk.CTkFrame(self.api_key_frame, fg_color="transparent")
+        self.credentials_entry_frame.pack(fill="x") # Packed by default for backward compat
+
         # API Key
-        label = ctk.CTkLabel(self.api_key_frame, text="API Key:", font=("Arial", 12))
+        label = ctk.CTkLabel(self.credentials_entry_frame, text="API Key:", font=("Arial", 12))
         label.pack(anchor="w", pady=(10, 2))
 
         self.api_key_entry = ctk.CTkEntry(
-            self.api_key_frame, placeholder_text="Enter your API key", show="•", width=300
+            self.credentials_entry_frame, placeholder_text="Enter your API key", show="•", width=300
         )
         self.api_key_entry.pack(anchor="w", pady=2)
 
         # API Secret
-        label = ctk.CTkLabel(self.api_key_frame, text="API Secret:", font=("Arial", 12))
+        label = ctk.CTkLabel(self.credentials_entry_frame, text="API Secret:", font=("Arial", 12))
         label.pack(anchor="w", pady=(10, 2))
 
         self.api_secret_entry = ctk.CTkEntry(
-            self.api_key_frame, placeholder_text="Enter your API secret", show="•", width=300
+            self.credentials_entry_frame, placeholder_text="Enter your API secret", show="•", width=300
         )
         self.api_secret_entry.pack(anchor="w", pady=2)
 
+        # Buttons in entry frame
+        entry_buttons_frame = ctk.CTkFrame(self.credentials_entry_frame, fg_color="transparent")
+        entry_buttons_frame.pack(anchor="w", pady=(20, 5), fill="x")
+
         # Test connection button
         test_btn = ctk.CTkButton(
-            self.api_key_frame,
+            entry_buttons_frame,
             text="🔗 Test Connection",
             fg_color="#00ff88",
             hover_color="#00cc66",
             command=self._test_connection,
         )
-        test_btn.pack(anchor="w", pady=(20, 5))
+        test_btn.pack(side="left", padx=(0, 10))
 
         # Save credentials button
         save_btn = ctk.CTkButton(
-            self.api_key_frame,
+            entry_buttons_frame,
             text="💾 Save Credentials",
             fg_color="#4488ff",
             hover_color="#0066ff",
             command=self._save_credentials,
         )
-        save_btn.pack(anchor="w", pady=2)
+        save_btn.pack(side="left", padx=(0, 10))
+
+        # Cancel button (Task 4 - adding here for wiring later)
+        self.cancel_credentials_btn = ctk.CTkButton(
+            entry_buttons_frame,
+            text="✖ Cancel",
+            fg_color="#ff4444",
+            hover_color="#cc3333",
+            command=self._on_cancel_credentials,
+        )
+        # Initially hidden, Task 4 will manage visibility
 
         # Initialize visibility based on default mode
         self._on_mode_change()
@@ -491,7 +540,7 @@ class ConfigPanel(ctk.CTkFrame):
         try:
             from tkinter import filedialog
 
-            from gui.utils.settings_manager import SettingsManager
+            from modules.auto_trade.gui.utils.settings_manager import SettingsManager
 
             manager = SettingsManager()
             file_path = filedialog.asksaveasfilename(
@@ -511,7 +560,7 @@ class ConfigPanel(ctk.CTkFrame):
         try:
             from tkinter import filedialog
 
-            from gui.utils.settings_manager import SettingsManager
+            from modules.auto_trade.gui.utils.settings_manager import SettingsManager
 
             manager = SettingsManager()
             file_path = filedialog.askopenfilename(
@@ -537,7 +586,7 @@ class ConfigPanel(ctk.CTkFrame):
             )
 
             if confirm:
-                from gui.utils.settings_manager import SettingsManager
+                from modules.auto_trade.gui.utils.settings_manager import SettingsManager
 
                 manager = SettingsManager()
                 if manager.reset_to_defaults():
@@ -553,7 +602,7 @@ class ConfigPanel(ctk.CTkFrame):
         try:
             from tkinter import messagebox
 
-            from gui.utils.credential_manager import CredentialManager
+            from modules.auto_trade.gui.utils.credential_manager import CredentialManager
 
             # Get credentials from UI
             exchange = self.exchange_var.get().lower()
@@ -594,7 +643,7 @@ class ConfigPanel(ctk.CTkFrame):
         try:
             from tkinter import messagebox
 
-            from gui.utils.credential_manager import CredentialManager
+            from modules.auto_trade.gui.utils.credential_manager import CredentialManager
 
             # Get credentials from UI
             exchange = self.exchange_var.get().lower()
@@ -628,6 +677,8 @@ class ConfigPanel(ctk.CTkFrame):
                 # Clear UI fields for security
                 self.api_key_entry.delete(0, "end")
                 self.api_secret_entry.delete(0, "end")
+                self._editing_credentials = False
+                self._refresh_credentials_display()
 
                 if self.on_settings_change:
                     self.on_settings_change("save_credentials", True)
@@ -641,6 +692,55 @@ class ConfigPanel(ctk.CTkFrame):
             from tkinter import messagebox
 
             messagebox.showerror("Error", f"Failed to save credentials: {e}")
+
+    def _on_change_credentials(self):
+        """Handle Change Credentials button click"""
+        self._editing_credentials = True
+        self._refresh_credentials_display()
+
+    def _on_cancel_credentials(self):
+        """Handle Cancel Credentials button click"""
+        self._editing_credentials = False
+        self.api_key_entry.delete(0, "end")
+        self.api_secret_entry.delete(0, "end")
+        self._refresh_credentials_display()
+
+    def _refresh_credentials_display(self):
+        """Refresh credentials display (masked vs entry)"""
+        try:
+            from modules.auto_trade.gui.utils.credential_manager import CredentialManager
+
+            exchange = self.exchange_var.get().lower()
+            manager = CredentialManager()
+
+            if manager.has_credentials(exchange) and not self._editing_credentials:
+                # Show masked view
+                self.credentials_entry_frame.pack_forget()
+
+                creds = manager.load_credentials(exchange)
+                self.api_key_masked_label.configure(text=mask_api_key(creds.get("api_key", "")))
+                self.api_secret_masked_label.configure(text=mask_secret(creds.get("api_secret", "")))
+
+                self.credentials_masked_frame.pack(fill="x")
+            else:
+                # Show entry view
+                self.credentials_masked_frame.pack_forget()
+
+                # Clear entries if not in editing mode (e.g. switching exchange)
+                if not self._editing_credentials:
+                    self.api_key_entry.delete(0, "end")
+                    self.api_secret_entry.delete(0, "end")
+
+                # Show/hide Cancel button based on editing state
+                if self._editing_credentials:
+                    self.cancel_credentials_btn.pack(side="left", padx=(0, 10))
+                else:
+                    self.cancel_credentials_btn.pack_forget()
+
+                self.credentials_entry_frame.pack(fill="x")
+
+        except Exception as e:
+            print(f"Error refreshing credentials display: {e}")
 
     def _on_limit_steps_toggle(self):
         """Show/hide max steps field based on checkbox"""
@@ -671,7 +771,7 @@ class ConfigPanel(ctk.CTkFrame):
         try:
             from tkinter import messagebox
 
-            from gui.utils.colors import Colors
+            from modules.auto_trade.gui.utils.colors import Colors
 
             mode = self.mode_var.get()
 
@@ -692,6 +792,9 @@ class ConfigPanel(ctk.CTkFrame):
                 # Show API fields for Production and Demo modes
                 if not self.api_key_frame.winfo_ismapped():
                     self.api_key_frame.pack(fill="x", after=self.mode_description_label)
+
+                # Refresh credentials display when showing the frame
+                self._refresh_credentials_display()
 
             # Show warning for Production mode (after UI update)
             if mode == "PRODUCTION":
@@ -885,11 +988,12 @@ class ConfigPanel(ctk.CTkFrame):
             api = settings["api"]
             self.mode_var.set(api.get("mode", "DRY_RUN"))
             self.exchange_var.set(api.get("exchange", "Binance"))
+            # SECURITY: Remove raw key/secret insertion
             self.api_key_entry.delete(0, "end")
-            self.api_key_entry.insert(0, api.get("api_key", ""))
             self.api_secret_entry.delete(0, "end")
-            self.api_secret_entry.insert(0, api.get("api_secret", ""))
+            self._editing_credentials = False
             self._on_mode_change()
+            self._refresh_credentials_display()
 
         if "tp_sl" in settings:
             tp_sl = settings["tp_sl"]

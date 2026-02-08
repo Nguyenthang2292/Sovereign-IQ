@@ -1,13 +1,13 @@
 """Database panel components package."""
 
-from .orders_section import OrdersSection
-from .signals_section import SignalsSection
-from .martingale_section import MartingaleSection
-from .recovery_section import RecoverySection
-from .data_viewer_section import DataViewerSection
-from .stats_section import StatsSection
-from .logs_section import LogsSection
 from .actions_section import ActionsSection
+from .data_viewer_section import DataViewerSection
+from .logs_section import LogsSection
+from .martingale_section import MartingaleSection
+from .orders_section import OrdersSection
+from .recovery_section import RecoverySection
+from .signals_section import SignalsSection
+from .stats_section import StatsSection
 
 __all__ = [
     "OrdersSection",

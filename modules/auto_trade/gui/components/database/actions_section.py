@@ -1,24 +1,22 @@
 """Actions Section Component for Database Panel."""
 
-import os
-import customtkinter as ctk
-import tkinter.messagebox as messagebox
-import tkinter.filedialog as filedialog
 import logging
+import os
+import tkinter.filedialog as filedialog
+import tkinter.messagebox as messagebox
 from typing import Any, Callable, Optional
-from pathlib import Path
 
-from modules.auto_trade.database import (
-    session_scope,
-    get_open_positions,
-    create_database_backup,
-    get_migration_manager,
-    get_recent_audit_logs,
-    reconcile_orders_with_binance,
-)
-from modules.auto_trade.database.models import Order, Signal, MartingaleChain, AuditLog
-from modules.auto_trade.database.config import DEFAULT_DB_PATH, DEFAULT_SCHEMA_PATH
+import customtkinter as ctk
+
+from modules.auto_trade.database import get_open_positions, session_scope
+from modules.auto_trade.database.models import AuditLog, MartingaleChain, Order, Signal
 from modules.auto_trade.gui.components.loading_overlay import LoadingOverlay
+from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
+from modules.auto_trade.gui.services.database_service import (
+    DatabaseService,
+    ReconciliationService,
+    DataViewerService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +44,10 @@ class ActionsSection:
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="x", padx=5, pady=5)
 
-        ctk.CTkLabel(frame, text="⚡ Quick Actions", font=("Roboto", 14, "bold")).pack(
-            anchor="w", padx=10, pady=(10, 5)
+        ctk.CTkLabel(frame, text="⚡ Quick Actions", font=DatabasePanelConfig.TITLE_FONT).pack(
+            anchor="w",
+            padx=DatabasePanelConfig.PADX_MEDIUM,
+            pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
         actions = [
@@ -67,43 +67,40 @@ class ActionsSection:
     def _create_backup(self):
         """Create database backup."""
         try:
-            backup_path = create_database_backup()
-            self.log_callback(f"Backup created at: {backup_path}", "SUCCESS")
-            self.refresh_callback()
+            backup_path = DatabaseService.create_backup()
+            if backup_path:
+                self.log_callback(f"Backup created at: {backup_path}", "SUCCESS")
+                self.refresh_callback()
+            else:
+                self.log_callback("Backup failed (check logs)", "ERROR")
         except Exception as e:
             self.log_callback(f"Backup failed: {e}", "ERROR")
 
     def _run_migrations(self):
         """Run database migrations."""
         try:
-            manager = get_migration_manager(DEFAULT_DB_PATH, DEFAULT_SCHEMA_PATH)
-            if manager:
-                self.log_callback("Migration manager retrieved (Manual trigger not fully implemented)", "INFO")
-            else:
-                self.log_callback("Migration manager not available", "WARNING")
+            success, msg = DatabaseService.run_migrations()
+            level = "INFO" if success else "WARNING"
+            self.log_callback(msg, level)
         except Exception as e:
             self.log_callback(f"Migration run failed: {e}", "ERROR")
 
     def _cleanup_records(self):
         """Cleanup old records."""
-        if not messagebox.askyesno("Confirm Cleanup", "Are you sure you want to delete old records (>90 days)?"):
+        if not messagebox.askyesno(
+            "Confirm Cleanup",
+            f"Are you sure you want to delete old records (>{DatabasePanelConfig.DEFAULT_DAYS_TO_KEEP} days)?",
+        ):
             return
 
         try:
-            from modules.auto_trade.database.utils import DatabaseCleaner
-
-            with session_scope() as session:
-                deleted_orders = DatabaseCleaner.cleanup_old_records(session, Order, days_to_keep=90)
-                deleted_signals = DatabaseCleaner.cleanup_old_records(session, Signal, days_to_keep=90)
-                deleted_logs = DatabaseCleaner.cleanup_old_records(
-                    session, AuditLog, days_to_keep=90, date_column="timestamp"
-                )
-
-                msg = f"Cleanup complete. Deleted: {deleted_orders} orders, {deleted_signals} signals, {deleted_logs} logs"
+            success, msg = DatabaseService.cleanup_old_records()
+            if success:
                 self.log_callback(msg, "SUCCESS")
                 messagebox.showinfo("Cleanup Complete", msg)
                 self.refresh_callback()
-
+            else:
+                self.log_callback(f"Cleanup failed: {msg}", "ERROR")
         except Exception as e:
             self.log_callback(f"Cleanup failed: {e}", "ERROR")
 
@@ -142,16 +139,15 @@ class ActionsSection:
     def _view_audit_log(self):
         """View audit logs."""
         try:
-            with session_scope() as session:
-                logs = get_recent_audit_logs(session, limit=100)
+            logs = DataViewerService.get_audit_logs(limit=100)
 
-                output = "Recent Audit Logs:\n"
-                output += "-" * 80 + "\n"
-                for log in logs:
-                    output += f"[{log.timestamp}] [{log.severity}] {log.event_type}: {log.event_summary}\n"
+            output = "Recent Audit Logs:\n"
+            output += "-" * 80 + "\n"
+            for log in logs:
+                output += f"[{log.timestamp}] [{log.severity}] {log.event_type}: {log.event_summary}\n"
 
-                self._show_in_data_viewer(output)
-                self.log_callback("Retrieved audit logs", "INFO")
+            self._show_in_data_viewer(output)
+            self.log_callback("Retrieved audit logs", "INFO")
 
         except Exception as e:
             self.log_callback(f"Failed to view audit log: {e}", "ERROR")
@@ -159,16 +155,9 @@ class ActionsSection:
     def _check_integrity(self):
         """Check database integrity."""
         try:
-            from modules.auto_trade.database import get_db_manager
-            from sqlalchemy import text
-
-            manager = get_db_manager()
-            with manager.engine.connect() as conn:
-                result = conn.execute(text("PRAGMA integrity_check")).fetchone()
-                status = result[0] if result else "Unknown"
-
-                self.log_callback(f"Integrity Check: {status}", "INFO" if status == "ok" else "ERROR")
-                messagebox.showinfo("Integrity Check", f"Database Integrity: {status}")
+            is_ok, status = DatabaseService.check_integrity()
+            self.log_callback(f"Integrity Check: {status}", "INFO" if is_ok else "ERROR")
+            messagebox.showinfo("Integrity Check", f"Database Integrity: {status}")
 
         except Exception as e:
             self.log_callback(f"Integrity check failed: {e}", "ERROR")
@@ -196,14 +185,14 @@ class ActionsSection:
         loading = LoadingOverlay(self.parent)
         loading.show("Reconciling with Binance...")
 
-        self.log_callback("Reconciling with Binance (last 24h)...", "INFO")
+        self.log_callback(f"Reconciling with Binance (last {DatabasePanelConfig.DEFAULT_RECONCILE_HOURS}h)...", "INFO")
         try:
-            result = reconcile_orders_with_binance(
+            result = ReconciliationService.reconcile_with_binance(
                 api_key=api_key,
                 api_secret=api_secret,
                 testnet=testnet,
                 symbols=symbols,
-                since_hours=24,
+                since_hours=DatabasePanelConfig.DEFAULT_RECONCILE_HOURS,
             )
             inserted = result.get("inserted", 0)
             skipped = result.get("skipped", 0)
@@ -212,10 +201,12 @@ class ActionsSection:
             self.log_callback(
                 f"Reconcile done: inserted={inserted}, skipped={skipped}, closed_stale={closed_stale}", "SUCCESS"
             )
-            for err in errors[:5]:
+            for err in errors[: DatabasePanelConfig.MAX_RECONCILE_ERRORS_SHOWN]:
                 self.log_callback(err, "ERROR")
-            if len(errors) > 5:
-                self.log_callback(f"... and {len(errors) - 5} more errors", "ERROR")
+            if len(errors) > DatabasePanelConfig.MAX_RECONCILE_ERRORS_SHOWN:
+                self.log_callback(
+                    f"... and {len(errors) - DatabasePanelConfig.MAX_RECONCILE_ERRORS_SHOWN} more errors", "ERROR"
+                )
             self.refresh_callback()
             messagebox.showinfo(
                 "Reconcile",

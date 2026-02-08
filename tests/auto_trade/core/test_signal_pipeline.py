@@ -35,7 +35,7 @@ class TestSignalPipeline:
         result = pipeline.run_pipeline()
 
         # Verify
-        assert result == final_sig
+        assert result == final_sig, "Expected final signal on successful pipeline run"
         mock_components["symbol_manager"].refresh_symbols.assert_called_once()
         mock_components["atc_scanner"].scan_symbols.assert_called_once()
         mock_components["xgboost_filter"].filter_signals.assert_called_once()
@@ -49,7 +49,7 @@ class TestSignalPipeline:
 
         result = pipeline.run_pipeline()
 
-        assert result is None
+        assert result is None, "Expected None when no symbols are returned"
         mock_components["atc_scanner"].scan_symbols.assert_not_called()
 
     def test_run_pipeline_timeout(self, pipeline, mock_components, sample_signal_result):
@@ -69,7 +69,7 @@ class TestSignalPipeline:
         result = pipeline.run_pipeline()
 
         # Pipeline should timeout after ATC scan and return None
-        assert result is None
+        assert result is None, "Expected None when pipeline times out"
 
         # Check that Gemini analysis was skipped because timeout happened
         mock_components["gemini_integration"].is_available.assert_not_called()
@@ -83,7 +83,7 @@ class TestSignalPipeline:
 
         result = pipeline.run_pipeline()
 
-        assert result is None
+        assert result is None, "Expected None on exception"
 
     def test_run_pipeline_no_xgboost_signals(self, pipeline, mock_components, sample_signal_result):
         """Test when no signals pass XGBoost filter."""
@@ -93,7 +93,7 @@ class TestSignalPipeline:
 
         result = pipeline.run_pipeline()
 
-        assert result is None
+        assert result is None, "Expected None when XGBoost filter returns no signals"
         mock_components["gemini_integration"].analyze_candidate.assert_not_called()
 
     def test_run_pipeline_gemini_unavailable(self, pipeline, mock_components, sample_signal_result):
@@ -106,9 +106,12 @@ class TestSignalPipeline:
 
         result = pipeline.run_pipeline()
 
+        assert result is None, "Expected None when Gemini is unavailable and no final signal is selected"
         mock_components["gemini_integration"].analyze_candidate.assert_not_called()
 
-    def test_run_pipeline_persistence_success(self, pipeline, mock_components, sample_signal_result, sample_gemini_signal):
+    def test_run_pipeline_persistence_success(
+        self, pipeline, mock_components, sample_signal_result, sample_gemini_signal
+    ):
         """Test signal persistence on successful pipeline."""
         mock_persistence = MagicMock()
         pipeline.signal_persistence = mock_persistence
@@ -126,7 +129,9 @@ class TestSignalPipeline:
         assert result == final_signal
         mock_persistence.save_signal.assert_called_once_with(final_signal)
 
-    def test_run_pipeline_no_persistence_configured(self, pipeline, mock_components, sample_signal_result, sample_gemini_signal):
+    def test_run_pipeline_no_persistence_configured(
+        self, pipeline, mock_components, sample_signal_result, sample_gemini_signal
+    ):
         """Test pipeline without persistence configured."""
         pipeline.signal_persistence = None
 
@@ -168,6 +173,7 @@ class TestSignalPipeline:
 
         # Gemini batch analysis should be called
         mock_components["gemini_integration"].analyze_candidates_batch_async.assert_called_once()
+        assert result is None, "Expected None when selector returns no final signal"
 
     def test_run_pipeline_max_symbols_limiting(self, pipeline, mock_components):
         """Test that max_symbols correctly limits the scan."""
@@ -188,8 +194,8 @@ class TestSignalPipeline:
 
         # Verify only first 2 symbols were passed to scanner
         call_args = mock_components["atc_scanner"].scan_symbols.call_args[0][0]
-        assert len(call_args) == 2
-        assert call_args == ["BTC/USDT", "ETH/USDT"]
+        assert len(call_args) == 2, "Expected only two symbols to be scanned"
+        assert call_args == ["BTC/USDT", "ETH/USDT"], "Expected first two symbols to be scanned"
 
     def test_run_pipeline_config_validation(self):
         """Test that invalid config values raise ValueError."""

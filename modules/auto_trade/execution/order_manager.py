@@ -107,7 +107,7 @@ class OrderManager:
             List of open positions or None if error/no positions
         """
         try:
-            positions = self.data_fetcher.fetch_binance_futures_positions(
+            positions: Optional[list] = self.data_fetcher.fetch_binance_futures_positions(
                 api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
             )
 
@@ -116,15 +116,15 @@ class OrderManager:
                 return None
 
             # Filter for positions with non-zero amount
-            open_positions = [p for p in positions if float(p.get("positionAmt", 0)) != 0]
+            open_positions: list = [p for p in positions if float(p.get("positionAmt", 0)) != 0]
 
             if open_positions:
                 log_info(f"Found {len(open_positions)} open position(s)")
                 for pos in open_positions:
-                    symbol = pos.get("symbol")
-                    amount = pos.get("positionAmt")
-                    entry_price = pos.get("entryPrice")
-                    unrpc = pos.get("unRealizedProfit")
+                    symbol: str = str(pos.get("symbol", "Unknown"))
+                    amount: float = float(pos.get("positionAmt", 0))
+                    entry_price: float = float(pos.get("entryPrice", 0))
+                    unrpc: float = float(pos.get("unRealizedProfit", 0))
                     log_info(f"  - {symbol}: amount={amount}, entry=${entry_price}, PnL=${unrpc}")
             else:
                 log_info("No active positions (all positions have zero amount)")
@@ -177,7 +177,7 @@ class OrderManager:
             log_warn("Force execution enabled, skipping position check")
 
         # Step 2: Calculate position size
-        position_size = self.risk_manager.calculate_position_size(
+        position_size: Optional[float] = self.risk_manager.calculate_position_size(
             api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
         )
 
@@ -186,14 +186,14 @@ class OrderManager:
             return None
 
         # Step 3: Check for recovery parameters (Gradual Recovery)
-        effective_leverage = leverage_override
-        effective_position_size = position_size
+        effective_leverage: Optional[int] = leverage_override
+        effective_position_size: float = position_size
 
         if self.recovery_manager and self.recovery_manager.is_active:
-            recovery_params = self.recovery_manager.get_recovery_parameters()
+            recovery_params: dict = self.recovery_manager.get_recovery_parameters()
             if recovery_params.get("active"):
-                recovery_leverage = recovery_params.get("leverage")
-                recovery_position_size = recovery_params.get("position_size")
+                recovery_leverage: Optional[int] = recovery_params.get("leverage")
+                recovery_position_size: Optional[float] = recovery_params.get("position_size")
 
                 if recovery_leverage:
                     effective_leverage = recovery_leverage
@@ -204,12 +204,12 @@ class OrderManager:
                     effective_position_size = min(position_size, recovery_position_size)
                     log_info(f"🔄 Recovery mode: Position size ${effective_position_size:.2f}")
 
-                remaining = recovery_params.get("remaining_loss", 0)
-                pct = recovery_params.get("recovery_percentage", 0)
+                remaining: float = recovery_params.get("remaining_loss", 0)
+                pct: float = recovery_params.get("recovery_percentage", 0)
                 log_info(f"🔄 Recovery status: {pct:.1f}% complete, ${remaining:.2f} remaining")
 
         # Step 4: Build order ticket
-        order = self.order_builder.build_order(
+        order: OrderTicket = self.order_builder.build_order(
             signal=signal,
             position_size=effective_position_size,
             leverage=effective_leverage,
@@ -225,15 +225,15 @@ class OrderManager:
         # Step 5: Fetch current price
         try:
             # Use DataFetcher or directly from CCXT
-            ticker = self.binance_client.exchange.fetch_ticker(signal.symbol)
-            current_price = ticker["last"]
+            ticker: dict = self.binance_client.exchange.fetch_ticker(signal.symbol)
+            current_price: float = ticker["last"]
             log_info(f"Current price for {signal.symbol}: ${current_price:,.2f}")
         except Exception as e:
             log_error(f"Failed to fetch current price: {e}", exc_info=True)
             return None
 
         # Step 6: Pre-order validation
-        balance = self.risk_manager.fetch_account_balance(
+        balance: Optional[float] = self.risk_manager.fetch_account_balance(
             api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
         )
 
@@ -246,8 +246,8 @@ class OrderManager:
             return None
 
         # Step 7: Execute order
-        log_info(f"Executing order on Binance...")
-        order_result = self.binance_client.create_market_order(order)
+        log_info("Executing order on Binance...")
+        order_result: Optional[dict] = self.binance_client.create_market_order(order)
 
         if not order_result:
             log_error("Order execution failed")
@@ -262,20 +262,20 @@ class OrderManager:
             try:
                 from modules.auto_trade.database import create_order, session_scope
 
-                market = order_result["market_order"]
-                order_id_binance = str(market.get("id", ""))
-                client_order_id = market.get("clientOrderId") or getattr(
+                market: dict = order_result["market_order"]
+                order_id_binance: str = str(market.get("id", ""))
+                client_order_id: Optional[str] = market.get("clientOrderId") or getattr(
                     order, "client_order_id", None
-                ) or order.client_order_id
-                entry_price = float(
+                ) or (order.client_order_id if hasattr(order, "client_order_id") else None)
+                entry_price: float = float(
                     order_result.get("entry_price") or order.entry_price or 0
                 )
-                ticket = order_result.get("order_ticket") or order.to_dict()
-                side_long_short = "LONG" if (order.side or "").upper() == "BUY" else "SHORT"
-                symbol_db = (order.symbol or "").replace("/", "")
-                order_data = {
+                ticket: dict = order_result.get("order_ticket") or order.to_dict()
+                side_long_short: str = "LONG" if (order.side or "").upper() == "BUY" else "SHORT"
+                symbol_db: str = (order.symbol or "").replace("/", "")
+                order_data: dict = {
                     "order_id": order_id_binance,
-                    "client_order_id": client_order_id or order.client_order_id,
+                    "client_order_id": client_order_id or (order.client_order_id if hasattr(order, "client_order_id") else None),
                     "symbol": symbol_db,
                     "side": side_long_short,
                     "entry_price": entry_price,

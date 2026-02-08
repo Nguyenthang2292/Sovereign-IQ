@@ -124,7 +124,7 @@ class EventBus:
         with self._lock:
             # Prevent duplicate subscriptions
             if callback in self._all_subscribers:
-                log_error(f"Callback already subscribed to all events")
+                log_error("Callback already subscribed to all events")
                 return
 
             self._all_subscribers.append(callback)

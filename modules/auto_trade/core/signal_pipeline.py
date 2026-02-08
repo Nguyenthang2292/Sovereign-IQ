@@ -42,8 +42,6 @@ import asyncio
 import time
 from typing import Dict, List, Optional, Protocol, TypedDict
 
-from concurrent.futures import TimeoutError
-
 from modules.auto_trade.core.atc_scanner import ATCScanner, SignalResult
 from modules.auto_trade.core.circuit_breaker import CircuitBreaker, CircuitState
 from modules.auto_trade.core.gemini_integration import GeminiIntegration, GeminiSignal
@@ -113,10 +111,27 @@ class SignalPipeline:
         max_ai_candidates: Maximum candidates for AI analysis (default: 5)
         pipeline_timeout: Timeout in seconds (default: 300)
         xgboost_mode: XGBoost filter mode - "per_symbol" or "pretrained"
-        cache: Cache for ATC results
         circuit_breaker: Circuit breaker for external APIs
         health_registry: Registry for system health checks
     """
+
+    symbol_manager: SymbolManager
+    atc_scanner: ATCScanner
+    xgboost_filter: XGBoostFilterLike
+    gemini_integration: GeminiIntegration
+    signal_selector: SignalSelector
+    signal_persistence: Optional[SignalPersistenceSQLite]
+    config: PipelineConfig
+    max_symbols: int
+    max_ai_candidates: int
+    pipeline_timeout: int
+    xgboost_mode: str
+    circuit_breaker: CircuitBreaker
+    health_registry: HealthRegistry
+    event_bus: EventBus
+    metrics: MetricsCollector
+    audit: AuditLogger
+    alerts: AlertManager
 
     def __init__(
         self,

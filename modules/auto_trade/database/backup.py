@@ -24,7 +24,9 @@ class BackupManager:
     Manages database backups and recovery.
     """
 
-    def __init__(self, db_path: str, backup_dir: str = "data/backups", max_backups: int = 30, compress: bool = True):
+    def __init__(
+        self, db_path: str, backup_dir: str = "data/backups", max_backups: int = 30, compress: bool = True
+    ) -> None:
         """
         Initialize backup manager.
 
@@ -254,7 +256,7 @@ class BackupManager:
                 try:
                     with open(metadata_file, "r") as f:
                         backup_info["metadata"] = json.load(f)
-                except:
+                except Exception:
                     pass
 
             backups.append(backup_info)
@@ -404,7 +406,7 @@ class BackupScheduler:
     Handles scheduled automatic backups.
     """
 
-    def __init__(self, backup_manager: BackupManager):
+    def __init__(self, backup_manager: BackupManager) -> None:
         """
         Initialize backup scheduler.
 

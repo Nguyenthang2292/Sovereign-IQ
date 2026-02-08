@@ -12,7 +12,7 @@ Key improvements over REST polling:
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Any
 
 from modules.auto_trade.monitoring.position_monitor import PositionSnapshot
 from modules.auto_trade.websocket.client import BinanceWebSocketClient
@@ -38,8 +38,8 @@ class BreakEvenManager:
         self,
         ws_client: BinanceWebSocketClient,
         drawdown_threshold_percent: float = 30.0,
-        database=None,  # Optional database for tracking
-    ):
+        database: Any = None,  # Optional database for tracking
+    ) -> None:
         """
         Initialize BreakEvenManager.
 
@@ -192,7 +192,7 @@ class BreakEvenManager:
             logger.error(f"Error canceling TP orders: {e}")
             return False
 
-    def reset_position(self, symbol: str):
+    def reset_position(self, symbol: str) -> None:
         """
         Reset BE moved flag for a symbol (e.g., when position closes).
 
@@ -228,11 +228,11 @@ class BreakEvenMonitor:
     def __init__(
         self,
         ws_client: BinanceWebSocketClient,
-        position_monitor,  # PositionMonitor instance
+        position_monitor: Any,  # PositionMonitor instance
         account_balance: float,
         drawdown_threshold_percent: float = 30.0,
         dry_run: bool = False,
-    ):
+    ) -> None:
         """
         Initialize BreakEvenMonitor.
 
@@ -255,7 +255,7 @@ class BreakEvenMonitor:
 
         logger.info(f"BreakEvenMonitor initialized (threshold={drawdown_threshold_percent}%)")
 
-    async def start(self):
+    async def start(self) -> None:
         """Start monitoring for break-even conditions."""
         if self._running:
             logger.warning("BreakEvenMonitor is already running")
@@ -271,12 +271,12 @@ class BreakEvenMonitor:
 
         logger.info("✅ BreakEvenMonitor started (WebSocket mode)")
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop monitoring."""
         self._running = False
         logger.info("⏹️  BreakEvenMonitor stopped")
 
-    def _handle_position_update(self, position: PositionSnapshot):
+    def _handle_position_update(self, position: PositionSnapshot) -> None:
         """
         Handle position update from position monitor.
 
@@ -289,7 +289,7 @@ class BreakEvenMonitor:
         # Check break-even condition asynchronously
         asyncio.create_task(self._check_breakeven(position))
 
-    async def _check_breakeven(self, position: PositionSnapshot):
+    async def _check_breakeven(self, position: PositionSnapshot) -> None:
         """
         Check and trigger break-even if needed.
 
@@ -301,7 +301,7 @@ class BreakEvenMonitor:
         except Exception as e:
             logger.error(f"Error checking break-even for {position.symbol}: {e}")
 
-    def _handle_balance_update(self, balance: dict):
+    def _handle_balance_update(self, balance: dict) -> None:
         """
         Handle balance update from WebSocket.
 

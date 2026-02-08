@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 """Number coercion utilities for auto trade."""
 
-from typing import Any, Union
+from typing import Any
 
 
 def coerce_float(value: Any, default: float = 0.0) -> float:

@@ -239,10 +239,10 @@ def update_order_status_by_client_id(
         setattr(order, "status", status)
         if pnl is not None:
             setattr(order, "pnl", pnl)
-            ep = getattr(order, "entry_price", None)
-            am = getattr(order, "amount", None)
-            base = (ep or 0) * (am or 0)
-            setattr(order, "pnl_percentage", (pnl / base) * 100 if base else 0)
+            ep = cast(Optional[float], getattr(order, "entry_price", None))
+            am = cast(Optional[float], getattr(order, "amount", None))
+            base = (ep or 0.0) * (am or 0.0)
+            setattr(order, "pnl_percentage", (pnl / base) * 100 if base else 0.0)
         if closed_at is not None:
             setattr(order, "closed_at", closed_at)
         session.commit()
@@ -280,10 +280,10 @@ def update_order_status(
         setattr(order, "status", status)
         if pnl is not None:
             setattr(order, "pnl", pnl)
-            ep = getattr(order, "entry_price", None)
-            am = getattr(order, "amount", None)
-            base = (ep or 0) * (am or 0)
-            setattr(order, "pnl_percentage", (pnl / base) * 100 if base else 0)
+            ep = cast(Optional[float], getattr(order, "entry_price", None))
+            am = cast(Optional[float], getattr(order, "amount", None))
+            base = (ep or 0.0) * (am or 0.0)
+            setattr(order, "pnl_percentage", (pnl / base) * 100 if base else 0.0)
 
         if status == "CLOSED":
             setattr(order, "closed_at", datetime.utcnow())

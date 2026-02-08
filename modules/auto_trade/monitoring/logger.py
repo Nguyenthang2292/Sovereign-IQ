@@ -57,7 +57,7 @@ class JSONFormatter(logging.Formatter):
         # Add extra fields if passed via logging.info(..., extra={})
         # Extra fields are merged directly into record.__dict__
         for key, value in record.__dict__.items():
-            if key not in self.STANDARD_ATTRS and not key.startswith('_'):
+            if key not in self.STANDARD_ATTRS and not key.startswith("_"):
                 log_record[key] = value
 
         return json.dumps(log_record)

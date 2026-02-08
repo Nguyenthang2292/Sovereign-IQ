@@ -6,8 +6,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional, cast
 
 if TYPE_CHECKING:
-    from .main_window import AutoTradeDashboard
     from modules.auto_trade.core.signal_pipeline import SignalPipeline
+
+    from .main_window import AutoTradeDashboard
 
 # Create logger for scanner - this will be captured by GUI log handler
 logger = logging.getLogger("auto_trade.scanner")

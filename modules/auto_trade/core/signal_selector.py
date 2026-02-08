@@ -25,7 +25,7 @@ Usage:
 
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, TypedDict, cast
+from typing import Any, Dict, List, Optional, TypedDict, cast
 
 # Use backward-compatible import from root config package
 from config import SIGNAL_SELECTOR_DEFAULTS
@@ -86,7 +86,13 @@ class FinalSignal:
 class SignalSelector:
     """Aggregates and selects the best trading signal."""
 
-    def __init__(self, config: Optional[Dict] = None):
+    config: Dict[str, Any]
+    weight_xgboost: float
+    weight_gemini: float
+    min_confidence_threshold: float
+    require_gemini_levels: bool
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         self.config = config or {}
         # Weights for scoring (total should be ~1.0 generally, but used relatively here)
         self.weight_xgboost = self.config.get("weight_xgboost", SIGNAL_SELECTOR_DEFAULTS["weight_xgboost"])

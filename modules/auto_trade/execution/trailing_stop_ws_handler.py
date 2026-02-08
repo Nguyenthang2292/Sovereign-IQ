@@ -10,11 +10,12 @@ Created: 2026-02-06
 
 import logging
 import time
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from database import get_open_positions, session_scope
+
 from execution.binance_client import BinanceClient
-from execution.trailing_stop import calculate_trailing_stop
+from execution.trailing_stop import TrailingStopResult, calculate_trailing_stop
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class WebSocketTrailingStopHandler:
         self.debounce_seconds = debounce_seconds
         self._last_update_times: Dict[str, float] = {}  # symbol -> timestamp
 
-    def on_position_update(self, position_snapshot):
+    def on_position_update(self, position_snapshot: Any) -> None:
         """
         Handle position update from WebSocket.
 
@@ -56,19 +57,19 @@ class WebSocketTrailingStopHandler:
         """
         try:
             # Check debounce
-            symbol = position_snapshot.symbol
-            now = time.time()
-            last_update = self._last_update_times.get(symbol, 0)
+            symbol: str = str(position_snapshot.symbol)
+            now: float = time.time()
+            last_update: float = self._last_update_times.get(symbol, 0.0)
 
             if now - last_update < self.debounce_seconds:
                 return  # Skip if too soon
 
             # Get TP/SL settings
-            tp_sl_settings = self.settings_manager.get("tp_sl", {})
-            trailing_stop_enabled = tp_sl_settings.get("trailing_stop", False)
-            trailing_step_pct = tp_sl_settings.get("trailing_step_pct", 2.0)
-            trailing_limit_steps = tp_sl_settings.get("trailing_limit_steps", False)
-            trailing_max_steps = tp_sl_settings.get("trailing_max_steps", 5)
+            tp_sl_settings: dict = self.settings_manager.get("tp_sl", {})
+            trailing_stop_enabled: bool = bool(tp_sl_settings.get("trailing_stop", False))
+            trailing_step_pct: float = float(tp_sl_settings.get("trailing_step_pct", 2.0))
+            trailing_limit_steps: bool = bool(tp_sl_settings.get("trailing_limit_steps", False))
+            trailing_max_steps: int = int(tp_sl_settings.get("trailing_max_steps", 5))
 
             if not trailing_stop_enabled:
                 return
@@ -77,14 +78,14 @@ class WebSocketTrailingStopHandler:
                 return
 
             # Get mark price from position snapshot
-            mark_price = position_snapshot.mark_price
+            mark_price: float = float(position_snapshot.mark_price)
             if not mark_price or mark_price <= 0:
                 logger.warning(f"Invalid mark price for {symbol}: {mark_price}")
                 return
 
             # Find open orders for this symbol
             with session_scope() as session:
-                open_orders = get_open_positions(session, symbol=symbol.replace("/", ""))
+                open_orders: Optional[List[Any]] = get_open_positions(session, symbol=symbol.replace("/", ""))
 
                 if not open_orders:
                     return
@@ -92,13 +93,13 @@ class WebSocketTrailingStopHandler:
                 for order in open_orders:
                     try:
                         # Calculate trailing stop
-                        trailing_result = calculate_trailing_stop(
-                            entry_price=order.entry_price,
+                        trailing_result: TrailingStopResult = calculate_trailing_stop(
+                            entry_price=float(getattr(order, "entry_price", 0.0)),
                             current_price=mark_price,
-                            side=order.side,
-                            step_index=order.trailing_step_index,
+                            side=str(getattr(order, "side", "")),
+                            step_index=int(getattr(order, "trailing_step_index", 0)),
                             step_pct=trailing_step_pct,
-                            current_sl=order.stop_loss,
+                            current_sl=float(getattr(order, "stop_loss", 0.0)) if getattr(order, "stop_loss", None) is not None else None,
                             limit_steps=trailing_limit_steps,
                             max_steps=trailing_max_steps,
                         )
@@ -107,52 +108,52 @@ class WebSocketTrailingStopHandler:
                             continue
 
                         # We should step - update SL
-                        new_sl = trailing_result.new_sl_price
+                        new_sl: Optional[float] = trailing_result.new_sl_price
 
                         if self.binance_client and new_sl:
                             try:
                                 # Modify stop loss on exchange
-                                modify_result = self.binance_client.modify_stop_loss(
-                                    symbol=str(order.symbol),
+                                modify_result: Optional[dict] = self.binance_client.modify_stop_loss(
+                                    symbol=str(getattr(order, "symbol", "")),
                                     position_id=None,
                                     stop_loss_price=new_sl,
                                 )
-                                success = modify_result is not None and (
-                                    modify_result.get("success")
-                                    or modify_result.get("id")
-                                    or modify_result.get("dry_run")
+                                success: bool = modify_result is not None and (
+                                    bool(modify_result.get("success"))
+                                    or bool(modify_result.get("id"))
+                                    or bool(modify_result.get("dry_run"))
                                 )
                                 if success:
                                     # Update order in database
-                                    old_sl = order.stop_loss
-                                    order.stop_loss = new_sl
-                                    order.trailing_step_index = trailing_result.next_step_index
+                                    old_sl: Optional[float] = getattr(order, "stop_loss", None)
+                                    setattr(order, "stop_loss", new_sl)
+                                    setattr(order, "trailing_step_index", trailing_result.next_step_index)
 
                                     self._last_update_times[symbol] = now
 
                                     logger.info(
-                                        f"[WS] Trailing stop updated for {order.symbol} {order.side}: "
-                                        f"SL {old_sl} → {new_sl} (step {order.trailing_step_index})"
+                                        f"[WS] Trailing stop updated for {getattr(order, 'symbol', '')} {getattr(order, 'side', '')}: "
+                                        f"SL {old_sl} → {new_sl} (step {getattr(order, 'trailing_step_index', 0)})"
                                     )
                                 else:
-                                    error_msg = (modify_result or {}).get("error", "Unknown error")
-                                    logger.error(f"[WS] Failed to modify SL for {order.order_id}: {error_msg}")
+                                    error_msg: str = str((modify_result or {}).get("error", "Unknown error"))
+                                    logger.error(f"[WS] Failed to modify SL for {getattr(order, 'order_id', '')}: {error_msg}")
 
                             except Exception as e:
-                                logger.error(f"[WS] Error modifying SL for {order.order_id}: {e}")
+                                logger.error(f"[WS] Error modifying SL for {getattr(order, 'order_id', '')}: {e}")
                         else:
                             # Dry run - just log
                             logger.info(
-                                f"[WS] Trailing stop would update for {order.symbol}: SL {order.stop_loss} → {new_sl}"
+                                f"[WS] Trailing stop would update for {getattr(order, 'symbol', '')}: SL {getattr(order, 'stop_loss', None)} → {new_sl}"
                             )
 
                             # Still update database in dry run mode
-                            order.stop_loss = new_sl
-                            order.trailing_step_index = trailing_result.next_step_index
+                            setattr(order, "stop_loss", new_sl)
+                            setattr(order, "trailing_step_index", trailing_result.next_step_index)
                             self._last_update_times[symbol] = now
 
                     except Exception as e:
-                        logger.error(f"[WS] Error processing order {order.order_id}: {e}")
+                        logger.error(f"[WS] Error processing order {getattr(order, 'order_id', '')}: {e}")
 
                 # Commit all changes
                 session.commit()
