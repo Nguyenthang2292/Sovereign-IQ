@@ -5,7 +5,7 @@ Subscribes to system events and dispatches notifications for critical conditions
 """
 
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict
 
 from modules.auto_trade.monitoring.events import Event, EventBus, EventType
 from modules.common.ui.logging import log_error, log_info, log_warn
@@ -97,7 +97,7 @@ class AlertManager:
         """
         alert_msg = f"ALERT [{level.value}]: {message}"
 
-        log_methods = {
+        log_methods: Dict[AlertLevel, Callable[[str], None]] = {
             AlertLevel.CRITICAL: log_error,
             AlertLevel.WARNING: log_warn,
             AlertLevel.INFO: log_info,

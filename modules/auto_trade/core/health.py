@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from enum import Enum
 from threading import RLock
-from typing import Callable, Dict, Literal, Optional, Tuple, TypedDict
+from typing import Callable, Dict, Literal, Optional, Tuple, TypedDict, cast
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ class HealthRegistry:
             Dictionary mapping check names to their results
         """
         timeout = timeout or self._default_timeout
-        results = {}
+        results: Dict[str, HealthCheckResult] = {}
 
         with self._lock:
             checks_snapshot = dict(self._checks)
@@ -127,11 +127,10 @@ class HealthRegistry:
                     try:
                         status, details = future.result(timeout=timeout)
 
-                        results[name] = {
-                            "status": status.value,
-                            "details": details,
-                            "timestamp": time.time(),
-                        }
+                        results[name] = cast(
+                            HealthCheckResult,
+                            {"status": status.value, "details": details, "timestamp": time.time()},
+                        )
 
                         if status == HealthStatus.UNHEALTHY:
                             logger.warning(f"Health check '{name}' is UNHEALTHY: {details}")
@@ -139,30 +138,35 @@ class HealthRegistry:
                             logger.info(f"Health check '{name}' is DEGRADED: {details}")
 
                     except FutureTimeoutError:
-                        results[name] = {
-                            "status": HealthStatus.UNHEALTHY.value,
-                            "details": f"Check timed out after {timeout}s",
-                            "timestamp": time.time(),
-                        }
+                        results[name] = cast(
+                            HealthCheckResult,
+                            {
+                                "status": HealthStatus.UNHEALTHY.value,
+                                "details": f"Check timed out after {timeout}s",
+                                "timestamp": time.time(),
+                            },
+                        )
                         logger.error(f"Health check '{name}' timed out after {timeout}s")
 
                     except Exception as e:
                         logger.error(f"Health check '{name}' failed with exception: {e}", exc_info=True)
-                        results[name] = {
-                            "status": HealthStatus.UNHEALTHY.value,
-                            "details": f"Check failed: {e}",
-                            "timestamp": time.time(),
-                        }
+                        results[name] = cast(
+                            HealthCheckResult,
+                            {
+                                "status": HealthStatus.UNHEALTHY.value,
+                                "details": f"Check failed: {e}",
+                                "timestamp": time.time(),
+                            },
+                        )
         else:
             for name, check_func in checks_snapshot.items():
                 try:
                     status, details = check_func()
 
-                    results[name] = {
-                        "status": status.value,
-                        "details": details,
-                        "timestamp": time.time(),
-                    }
+                    results[name] = cast(
+                        HealthCheckResult,
+                        {"status": status.value, "details": details, "timestamp": time.time()},
+                    )
 
                     if status == HealthStatus.UNHEALTHY:
                         logger.warning(f"Health check '{name}' is UNHEALTHY: {details}")
@@ -171,11 +175,14 @@ class HealthRegistry:
 
                 except Exception as e:
                     logger.error(f"Health check '{name}' failed with exception: {e}", exc_info=True)
-                    results[name] = {
-                        "status": HealthStatus.UNHEALTHY.value,
-                        "details": f"Check failed: {e}",
-                        "timestamp": time.time(),
-                    }
+                    results[name] = cast(
+                        HealthCheckResult,
+                        {
+                            "status": HealthStatus.UNHEALTHY.value,
+                            "details": f"Check failed: {e}",
+                            "timestamp": time.time(),
+                        },
+                    )
 
         return results
 

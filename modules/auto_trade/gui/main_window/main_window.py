@@ -5,17 +5,20 @@ import logging.handlers
 import queue
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import customtkinter as ctk
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
+from gui.dialogs import ShortcutsHelpDialog
 from gui.utils.colors import Colors
 from gui.utils.data_service import DataService
 from gui.utils.modes import TradingMode
 from gui.utils.settings_manager import SettingsManager
+from gui.utils.shortcuts import is_editable_focus
 from gui.utils.websocket_data_service import WebSocketDataService
+from modules.auto_trade.gui.components.status_bar import StatusBar
 
 from .auto_trade import AutoTradeManager
 from .layout import LayoutManager
@@ -25,7 +28,6 @@ from .scanner import ScannerManager
 from .settings_handler import SettingsHandler
 from .updaters import UpdaterManager
 from .websocket_handler import WebSocketHandler
-from modules.auto_trade.gui.components.status_bar import StatusBar
 
 
 class AutoTradeDashboard(ctk.CTk):
@@ -50,10 +52,10 @@ class AutoTradeDashboard(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
-        self._update_queue = queue.Queue()
+        self._update_queue: queue.Queue = queue.Queue()
 
         # Create log queue for GUI logging (stream to textbox)
-        self.log_queue = queue.Queue(maxsize=500)
+        self.log_queue: queue.Queue = queue.Queue(maxsize=500)
 
         # Set up file-based logging for GUI (use absolute path)
         self.log_file_path = Path("logs/auto_trade_gui.log").absolute()
@@ -99,6 +101,9 @@ class AutoTradeDashboard(ctk.CTk):
         self.positions_frame: Any = None
         self.account_frame: Any = None
         self.status_label: Any = None
+        self.tabview: Any = None
+        self.trade_form: Any = None
+        self.database_panel: Any = None
 
         # Create UI and start services
         self.layout_manager.create_layout()
@@ -154,18 +159,28 @@ class AutoTradeDashboard(ctk.CTk):
         logging.info("=" * 60)
 
     def _setup_keyboard_shortcuts(self):
-        """Set up keyboard shortcuts for common actions."""
-        # Refresh data - Ctrl+R or F5
-        self.bind("<Control-r>", lambda e: self._handle_refresh())
-        self.bind("<F5>", lambda e: self._handle_refresh())
+        """Set up keyboard shortcuts (bind_all so they work regardless of focus)."""
+        # Global
+        self.bind_all("<F1>", lambda e: self._show_shortcuts_help())
+        self.bind_all("<Control-r>", lambda e: self._handle_refresh())
+        self.bind_all("<F5>", lambda e: self._handle_refresh())
+        self.bind_all("<Escape>", lambda e: self._handle_escape())
+        self.bind_all("<Control-s>", lambda e: self._handle_save())
+        # Tab switching
+        self.bind_all("<Control-Key-1>", lambda e: self._handle_tab_switch(0))
+        self.bind_all("<Control-Key-2>", lambda e: self._handle_tab_switch(1))
+        self.bind_all("<Control-Key-3>", lambda e: self._handle_tab_switch(2))
+        self.bind_all("<Control-Key-4>", lambda e: self._handle_tab_switch(3))
+        self.bind_all("<Control-Key-5>", lambda e: self._handle_tab_switch(4))
+        # Context-aware (only when focus not in editable)
+        self.bind_all("<Control-m>", lambda e: self._handle_manual_scan(e))
+        self.bind_all("<Control-Return>", lambda e: self._handle_confirm_trade(e))
+        self.bind_all("<Control-c>", lambda e: self._handle_copy_selection(e))
 
-        # Close dialogs - Escape
-        self.bind("<Escape>", lambda e: self._handle_escape())
-
-        # Save/Apply settings - Ctrl+S
-        self.bind("<Control-s>", lambda e: self._handle_save())
-
-        logging.info("Keyboard shortcuts initialized: Ctrl+R/F5 (refresh), Esc (close dialogs), Ctrl+S (apply settings)")
+        logging.info(
+            "Keyboard shortcuts: F1 (shortcuts help), Ctrl+R/F5, Esc, Ctrl+S, "
+            "Ctrl+1..5 (tabs), Ctrl+M (scan), Ctrl+Enter (trade), Ctrl+C (copy in DB)"
+        )
 
     def _handle_refresh(self):
         """Handle refresh keyboard shortcut."""
@@ -191,6 +206,48 @@ class AutoTradeDashboard(ctk.CTk):
     def _handle_save(self):
         """Handle Ctrl+S - apply and save settings."""
         self.on_apply_settings()
+        return "break"
+
+    def _show_shortcuts_help(self):
+        """Open keyboard shortcuts help dialog. Called by F1 or header button."""
+        ShortcutsHelpDialog(self)
+        return "break"
+
+    def _handle_tab_switch(self, index: int):
+        """Switch to tab by index (0=Dashboard, 1=Scanner, 2=Trading, 3=Settings, 4=Database)."""
+        tabs = ["Dashboard", "Scanner", "Trading", "Settings", "Database"]
+        if 0 <= index < len(tabs) and hasattr(self, "tabview"):
+            self.tabview.set(tabs[index])
+        return "break"
+
+    def _handle_manual_scan(self, event):
+        """Trigger manual scan when Scanner tab is active and focus not in editable."""
+        if is_editable_focus(self.focus_get()):
+            return
+        if hasattr(self, "tabview") and self.tabview.get() == "Scanner":
+            self.on_scan_toggle("manual")
+        return "break"
+
+    def _handle_confirm_trade(self, event):
+        """Open confirm trade dialog when Trading tab is active and focus not in editable."""
+        if is_editable_focus(self.focus_get()):
+            return
+        if hasattr(self, "tabview") and self.tabview.get() == "Trading" and hasattr(self, "trade_form"):
+            try:
+                self.trade_form._confirm_trade()
+            except Exception:
+                pass
+        return "break"
+
+    def _handle_copy_selection(self, event):
+        """Copy Data Viewer selection when Database tab is active and focus not in editable."""
+        if is_editable_focus(self.focus_get()):
+            return
+        if hasattr(self, "tabview") and self.tabview.get() == "Database" and hasattr(self, "database_panel"):
+            try:
+                self.database_panel.copy_selection_to_clipboard()
+            except Exception:
+                pass
         return "break"
 
     # ==================== UI Update Methods ====================
@@ -245,7 +302,7 @@ class AutoTradeDashboard(ctk.CTk):
     def _update_connection_status(self):
         """Update status bar connection status based on WebSocket state."""
         if hasattr(self, "status_bar") and hasattr(self, "ws_data_service"):
-            is_connected = self.ws_data_service.is_connected()
+            is_connected = self.ws_data_service.is_connected
             self.status_bar.set_connection_status(is_connected)
 
     def refresh_signals(self):

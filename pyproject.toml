@@ -83,7 +83,7 @@ warn_unused_configs = true
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["ccxt", "numba", "sklearn.*", "joblib", "cupy", "pandas", "numpy", "customtkinter", "yaml", "atc_rust"]
+module = ["ccxt", "ccxt.pro", "numba", "sklearn.*", "joblib", "cupy", "pandas", "numpy", "customtkinter", "yaml", "atc_rust", "colorama", "psutil"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -98,4 +98,14 @@ module = [
     "execution.*",
 ]
 ignore_missing_imports = true
+
+# ORM instance attribute assignment: mypy treats model.attr = value as assigning to Column, not instance
+[[tool.mypy.overrides]]
+module = ["modules.auto_trade.database.queries.signals", "modules.auto_trade.database.queries.martingale", "modules.auto_trade.database.queries.gradual_recovery"]
+disable_error_code = ["assignment", "arg-type"]
+
+# Script imports colorama; suppress missing-stubs error (or install types-colorama)
+[[tool.mypy.overrides]]
+module = "modules.auto_trade.test_backtest_phase6"
+disable_error_code = ["import-untyped"]
 

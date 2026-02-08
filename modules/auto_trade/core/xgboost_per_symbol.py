@@ -26,7 +26,7 @@ Usage:
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from time import time
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
 
 import numpy as np
 import pandas as pd
@@ -104,7 +104,8 @@ class XGBoostPerSymbolFilter:
         """
         self.data_fetcher = data_fetcher
         # Merge with defaults from config
-        self.config: XGBoostPerSymbolConfig = {**XGBOOST_PER_SYMBOL_DEFAULTS, **(config or {})}
+        merged: Dict[str, Any] = {**dict(XGBOOST_PER_SYMBOL_DEFAULTS), **(config or {})}
+        self.config = cast(XGBoostPerSymbolConfig, merged)
 
         # Validate and extract configuration
         self._validate_config()
@@ -216,7 +217,7 @@ class XGBoostPerSymbolFilter:
 
             # 2. Compute features
             df = self.indicator_engine.compute_features(df)
-            if df is None or df.empty:
+            if df is None or (isinstance(df, pd.DataFrame) and df.empty):
                 return TrainingResult(
                     symbol=symbol,
                     success=False,
@@ -228,7 +229,7 @@ class XGBoostPerSymbolFilter:
 
             # 3. Add advanced features
             df = add_advanced_features(df)
-            if df is None or df.empty:
+            if df is None or (isinstance(df, pd.DataFrame) and df.empty):
                 return TrainingResult(
                     symbol=symbol,
                     success=False,
@@ -278,7 +279,7 @@ class XGBoostPerSymbolFilter:
                 # Check for extreme class imbalance (>80% in one class)
                 max_class_pct = max(class_dist.values()) / total_samples
                 if max_class_pct > 0.8:
-                    dominant_class = max(class_dist, key=class_dist.get)
+                    dominant_class = max(class_dist, key=lambda k: class_dist[k])
                     log_warn(
                         f"{symbol}: Severe class imbalance - {dominant_class} dominates with "
                         f"{max_class_pct*100:.1f}% of samples"
@@ -418,18 +419,18 @@ class XGBoostPerSymbolFilter:
 
         # Validate signals against training results
         for signal in signals:
-            result = training_results.get(signal.symbol)
-            if result is None:
+            training_result = training_results.get(signal.symbol)
+            if training_result is None:
                 continue
 
             atc_type = signal.signal_type  # LONG or SHORT
 
             # Check if XGBoost confirms ATC direction
             confirmed = False
-            if result.success and result.confidence >= self.min_confidence:
-                if atc_type == "LONG" and result.direction == "UP":
+            if training_result.success and training_result.confidence >= self.min_confidence:
+                if atc_type == "LONG" and training_result.direction == "UP":
                     confirmed = True
-                elif atc_type == "SHORT" and result.direction == "DOWN":
+                elif atc_type == "SHORT" and training_result.direction == "DOWN":
                     confirmed = True
 
             if confirmed:
@@ -437,10 +438,10 @@ class XGBoostPerSymbolFilter:
 
                 # Add XGBoost details to signal
                 new_details = signal.details.copy()
-                new_details["xgboost_conf"] = result.confidence
-                new_details["xgboost_dir"] = result.direction
+                new_details["xgboost_conf"] = training_result.confidence
+                new_details["xgboost_dir"] = training_result.direction
                 new_details["xgboost_validated"] = True
-                new_details["xgboost_training_time"] = result.training_time
+                new_details["xgboost_training_time"] = training_result.training_time
 
                 filtered_signals.append(
                     SignalResult(
@@ -453,14 +454,14 @@ class XGBoostPerSymbolFilter:
                 )
                 log_debug(
                     f"XGBoost CONFIRMED {signal.symbol} ({atc_type}): "
-                    f"Model predicted {result.direction} ({result.confidence:.2%})"
+                    f"Model predicted {training_result.direction} ({training_result.confidence:.2%})"
                 )
             else:
                 self._stats["rejected"] += 1
-                reason = "training failed" if not result.success else (
-                    f"direction mismatch ({result.direction})"
-                    if result.confidence >= self.min_confidence
-                    else f"low confidence ({result.confidence:.2%})"
+                reason = "training failed" if not training_result.success else (
+                    f"direction mismatch ({training_result.direction})"
+                    if training_result.confidence >= self.min_confidence
+                    else f"low confidence ({training_result.confidence:.2%})"
                 )
 
                 log_debug(
@@ -468,7 +469,7 @@ class XGBoostPerSymbolFilter:
                 )
 
                 # Handle error policy
-                if self.on_error == "pass" and not result.success:
+                if self.on_error == "pass" and not training_result.success:
                     filtered_signals.append(signal)
 
         log_info(

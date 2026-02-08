@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from threading import RLock
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from modules.common.ui.logging import log_error
 
@@ -175,7 +175,7 @@ class EventBus:
             self._subscribers.clear()
             self._all_subscribers.clear()
 
-    def get_subscriber_count(self, event_type: EventType = None) -> int:
+    def get_subscriber_count(self, event_type: Optional[EventType] = None) -> int:
         """
         Get the number of subscribers.
 

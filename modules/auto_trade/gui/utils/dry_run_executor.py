@@ -5,7 +5,7 @@ Simulates order execution for testing and development without
 executing real trades on an exchange.
 """
 
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 # Local imports
 from modules.auto_trade.gui.utils.dry_run_db import DryRunDB
@@ -33,7 +33,7 @@ class DryRunExecutor:
         leverage: int,
         tp: Optional[float] = None,
         sl: Optional[float] = None,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Place a simulated order.
 
@@ -70,12 +70,12 @@ class DryRunExecutor:
                 "side": side,
                 "entry_price": entry_price,
                 "size": amount,
-                "message": f"Order placed successfully in DRY_RUN mode",
+                "message": "Order placed successfully in DRY_RUN mode",
             }
         except Exception as e:
             return {"success": False, "error": str(e), "message": f"Failed to place order: {e}"}
 
-    def close_position(self, symbol: str, side: str, size: float) -> Dict[str, any]:
+    def close_position(self, symbol: str, side: str, size: float) -> Dict[str, Any]:
         """
         Close a simulated position.
 
@@ -110,7 +110,9 @@ class DryRunExecutor:
                 else:
                     pnl = (entry_price - current_price) * close_this
 
-                self.db.update_position(position_id=pos.get("id"), current_price=current_price, unrealized_pnl=pnl)
+                pos_id = pos.get("id")
+                if pos_id is not None:
+                    self.db.update_position(position_id=int(pos_id), current_price=current_price, unrealized_pnl=pnl)
 
                 close_size -= close_this
 
@@ -120,12 +122,12 @@ class DryRunExecutor:
                 "side": side,
                 "size": size,
                 "current_price": current_price,
-                "message": f"Position closed successfully in DRY_RUN mode",
+                "message": "Position closed successfully in DRY_RUN mode",
             }
         except Exception as e:
             return {"success": False, "error": str(e), "message": f"Failed to close position: {e}"}
 
-    def modify_tp_sl(self, symbol: str, tp_price: Optional[float], sl_price: Optional[float]) -> Dict[str, any]:
+    def modify_tp_sl(self, symbol: str, tp_price: Optional[float], sl_price: Optional[float]) -> Dict[str, Any]:
         """
         Modify take profit and stop loss for simulated positions.
 
@@ -144,14 +146,16 @@ class DryRunExecutor:
                 return {"success": False, "error": "No open positions found", "message": "No positions to modify"}
 
             for pos in positions:
-                self.db.update_position(position_id=pos.get("id"), take_profit=tp_price, stop_loss=sl_price)
+                pos_id = pos.get("id")
+                if pos_id is not None:
+                    self.db.update_position(position_id=int(pos_id), take_profit=tp_price, stop_loss=sl_price)
 
             return {
                 "success": True,
                 "symbol": symbol,
                 "take_profit": tp_price,
                 "stop_loss": sl_price,
-                "message": f"TP/SL modified successfully in DRY_RUN mode",
+                "message": "TP/SL modified successfully in DRY_RUN mode",
             }
         except Exception as e:
             return {"success": False, "error": str(e), "message": f"Failed to modify TP/SL: {e}"}

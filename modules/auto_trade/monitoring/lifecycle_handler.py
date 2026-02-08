@@ -6,7 +6,7 @@ Integrates with Martingale strategy, EventBus, and database for tracking.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from modules.auto_trade.monitoring.event_system import EventSystem, EventType
 from modules.auto_trade.monitoring.position_monitor import PositionSnapshot
@@ -42,7 +42,7 @@ class PositionLifecycleHandler:
         self.database = database
         self.event_bus = event_bus
 
-        self._open_positions = {}  # symbol -> position data
+        self._open_positions: Dict[str, Any] = {}  # symbol -> position data
         self._win_count = 0
         self._loss_count = 0
         self._total_profit = 0.0

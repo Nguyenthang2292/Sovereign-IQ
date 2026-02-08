@@ -51,7 +51,7 @@ class BreakEvenManager:
         self.ws_client = ws_client
         self.drawdown_threshold = drawdown_threshold_percent
         self.database = database
-        self._be_moved_positions = set()  # Track symbols where BE was moved
+        self._be_moved_positions: set[str] = set()  # Track symbols where BE was moved
 
         logger.info(f"BreakEvenManager initialized (threshold={drawdown_threshold_percent}%, WebSocket mode)")
 

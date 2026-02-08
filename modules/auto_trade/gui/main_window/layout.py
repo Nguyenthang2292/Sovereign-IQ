@@ -77,6 +77,15 @@ class LayoutManager:
         mode_color = mode_colors.get(self.parent.mode, Colors.DRY_RUN)
         mode_text = self.parent.mode.replace("_", " ")
 
+        shortcuts_btn = ctk.CTkButton(
+            header_frame,
+            text="⌨ Shortcuts",
+            width=90,
+            font=("Arial", 11),
+            command=lambda: self.parent._show_shortcuts_help() if hasattr(self.parent, "_show_shortcuts_help") else None,
+        )
+        shortcuts_btn.pack(side="right", padx=(10, 10))
+
         self.parent.header_mode_label = ctk.CTkLabel(
             header_frame, text=f"[{mode_text}]", font=("Arial", 12), text_color=mode_color
         )

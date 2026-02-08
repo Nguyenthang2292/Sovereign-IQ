@@ -30,6 +30,7 @@ ENV/
 # IDEs
 .vscode/
 .idea/
+.kilocode/
 
 # Testing
 .pytest_cache/

@@ -99,3 +99,22 @@ class DatabasePanel(ctk.CTkFrame):
     def _load_initial_stats(self):
         """Load initial statistics on startup."""
         self._refresh_stats()
+
+    def copy_selection_to_clipboard(self):
+        """Copy selected text from the Data Viewer to clipboard. No-op if no selection."""
+        try:
+            tv = self.data_viewer_section.data_viewer
+            try:
+                sel = tv.get("sel.first", "sel.last")
+            except Exception:
+                return
+            if not sel or not sel.strip():
+                return
+            root = self.winfo_toplevel()
+            root.clipboard_clear()
+            root.clipboard_append(sel.strip())
+            if logger:
+                logger.debug("Copied selection to clipboard")
+        except Exception as e:
+            if logger:
+                logger.debug("Copy selection failed: %s", e)

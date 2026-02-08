@@ -6,7 +6,7 @@ Doubles leverage after each loss to recover previous losses.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from modules.common.ui.logging import log_error, log_info, log_warn
 
@@ -66,7 +66,7 @@ class MartingaleStrategy:
         self._current_step = 0
         self._total_loss = 0.0
         self._last_leverage = initial_leverage
-        self._loss_history = []
+        self._loss_history: list[dict[str, Any]] = []
 
         log_info(
             f"MartingaleStrategy initialized: "

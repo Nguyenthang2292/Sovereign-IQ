@@ -6,7 +6,7 @@ database operations, and mock data for dry-run mode.
 """
 
 import os
-from typing import Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 # Local imports
 from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
@@ -35,9 +35,9 @@ class DataService:
             mode: Operating mode ("DRY_RUN", "DEMO", or "PRODUCTION")
         """
         self.mode = mode
-        self.data_fetcher = None
-        self.database_manager = None
-        self.exchange_manager = None
+        self.data_fetcher: Optional[Any] = None
+        self.database_manager: Optional[Any] = None
+        self.exchange_manager: Optional[Any] = None
 
         # Initialize MockPriceFeed (always available as fallback)
         self.mock_price_feed = self._initialize_mock_price_feed()
@@ -73,12 +73,13 @@ class DataService:
             from modules.common.core.data_fetcher import DataFetcher
             from modules.common.core.exchange_manager import ExchangeManager
 
-            self.exchange_manager = ExchangeManager(
+            exchange_manager = ExchangeManager(
                 api_key=self.api_key or None,
                 api_secret=self.api_secret or None,
                 testnet=self.testnet,
             )
-            self.data_fetcher = DataFetcher(exchange_manager=self.exchange_manager)
+            self.exchange_manager = exchange_manager
+            self.data_fetcher = DataFetcher(exchange_manager=exchange_manager)
         except Exception as e:
             print(f"Warning: Could not initialize DataFetcher: {e}")
 

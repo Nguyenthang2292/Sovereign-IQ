@@ -18,12 +18,12 @@ from ._shared import (
     Any,
     Dict,
     List,
-    datetime,
-    timedelta,
-    case,
-    func,
-    Session,
     Order,
+    Session,
+    case,
+    datetime,
+    func,
+    timedelta,
 )
 
 

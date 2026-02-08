@@ -8,10 +8,9 @@ Created: 2026-02-03
 """
 
 import json
-import logging
-from typing import Optional
+from typing import Any, Optional, Union
 
-logger = logging.getLogger(__name__)
+from modules.common.ui.logging import log_error, log_warn
 
 
 class JSONSerializableMixin:
@@ -20,7 +19,7 @@ class JSONSerializableMixin:
     Provides common methods for parsing and setting JSON data.
     """
 
-    def get_json_field(self, field_name: str) -> Optional[dict]:
+    def get_json_field(self, field_name: str) -> Optional[Union[dict, list, Any]]:
         """
         Parse a JSON field safely.
 
@@ -40,15 +39,16 @@ class JSONSerializableMixin:
             try:
                 return json.loads(field_value)
             except (json.JSONDecodeError, TypeError) as e:
-                logger.warning(
-                    f"Failed to parse JSON field '{field_name}' in {self.__class__.__name__}: {e}",
-                    extra={"model": self.__class__.__name__, "field": field_name, "value_preview": str(field_value)[:100]},
+                preview = str(field_value)[:100]
+                log_warn(
+                    f"Failed to parse JSON field '{field_name}' in {self.__class__.__name__}: {e} "
+                    f"(value_preview={preview!r})"
                 )
                 return None
 
         return None
 
-    def set_json_field(self, field_name: str, value: dict):
+    def set_json_field(self, field_name: str, value: Union[dict, list, Any]) -> None:
         """
         Set a JSON field with proper serialization.
 
@@ -63,9 +63,9 @@ class JSONSerializableMixin:
         try:
             setattr(self, field_name, json.dumps(value))
         except (TypeError, ValueError) as e:
-            logger.error(
-                f"Failed to serialize JSON for field '{field_name}' in {self.__class__.__name__}: {e}",
-                extra={"model": self.__class__.__name__, "field": field_name, "value_type": type(value).__name__},
+            log_error(
+                f"Failed to serialize JSON for field '{field_name}' in {self.__class__.__name__}: {e} "
+                f"(value_type={type(value).__name__})"
             )
             raise
 
@@ -84,10 +84,11 @@ class TimestampMixin:
         Returns:
             Age in seconds or None if created_at is not set
         """
-        if hasattr(self, "created_at") and self.created_at:
+        created_at = getattr(self, "created_at", None)
+        if created_at:
             from datetime import datetime
 
-            return (datetime.utcnow() - self.created_at).total_seconds()
+            return (datetime.utcnow() - created_at).total_seconds()
         return None
 
     @property
@@ -124,8 +125,9 @@ class StatusMixin:
         Example:
             >>> order.is_status('OPEN', 'PENDING')
         """
-        if hasattr(self, "status"):
-            return self.status in statuses
+        status = getattr(self, "status", None)
+        if status is not None:
+            return status in statuses
         return False
 
     @property
@@ -136,8 +138,9 @@ class StatusMixin:
         Returns:
             Formatted status string
         """
-        if hasattr(self, "status"):
-            return self.status.replace("_", " ").title()
+        status = getattr(self, "status", None)
+        if status is not None:
+            return str(status).replace("_", " ").title()
         return "Unknown"
 
 

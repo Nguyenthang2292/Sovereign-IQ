@@ -9,12 +9,12 @@ Created: 2026-02-06
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
-
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 
 from database.models import Order
 from database.queries import get_open_positions
+from sqlalchemy.orm import Session
+
 from execution.binance_client import BinanceClient
 from execution.trailing_stop import calculate_trailing_stop
 
@@ -48,14 +48,14 @@ class TrailingStopJob:
         self.binance_client = binance_client
         self._last_update_times: Dict[str, float] = {}  # Symbol -> last update timestamp
 
-    def run(self) -> Dict[str, any]:
+    def run(self) -> Dict[str, Any]:
         """
         Execute trailing stop check for all open orders.
 
         Returns:
             Dictionary with results summary
         """
-        results = {
+        results: Dict[str, Any] = {
             "orders_checked": 0,
             "orders_updated": 0,
             "errors": [],
@@ -89,9 +89,10 @@ class TrailingStopJob:
                 # Group orders by symbol for efficient price fetching
                 orders_by_symbol: Dict[str, List[Order]] = {}
                 for order in open_orders:
-                    if order.symbol not in orders_by_symbol:
-                        orders_by_symbol[order.symbol] = []
-                    orders_by_symbol[order.symbol].append(order)
+                    sym = str(getattr(order, "symbol", ""))
+                    if sym not in orders_by_symbol:
+                        orders_by_symbol[sym] = []
+                    orders_by_symbol[sym].append(order)
 
                 # Process each symbol
                 for symbol, orders in orders_by_symbol.items():
@@ -121,7 +122,7 @@ class TrailingStopJob:
                                     results["updates"].append(update_result)
 
                             except Exception as e:
-                                error_msg = f"Error processing order {order.order_id}: {e}"
+                                error_msg = f"Error processing order {getattr(order, 'order_id', '')}: {e}"
                                 logger.error(error_msg)
                                 results["errors"].append(error_msg)
 
@@ -137,6 +138,7 @@ class TrailingStopJob:
             error_msg = f"Error in trailing stop job: {e}"
             logger.error(error_msg)
             results["errors"].append(error_msg)
+            return results
 
         return results
 
@@ -151,14 +153,13 @@ class TrailingStopJob:
             Current mark price or None if unavailable
         """
         try:
-            if self.binance_client:
-                # Use Binance client to fetch ticker
-                ticker = self.binance_client.fetch_ticker(symbol)
-                if ticker and "last" in ticker:
-                    return float(ticker["last"])
-            else:
+            if not self.binance_client:
                 logger.warning("No Binance client available for fetching mark price")
                 return None
+            ticker = self.binance_client.fetch_ticker(symbol)
+            if ticker and "last" in ticker:
+                return float(ticker["last"])
+            return None
         except Exception as e:
             logger.error(f"Error fetching mark price for {symbol}: {e}")
             return None
@@ -186,24 +187,30 @@ class TrailingStopJob:
         Returns:
             Dictionary with update result
         """
+        entry_price = float(getattr(order, "entry_price", 0.0))
+        side = str(getattr(order, "side", ""))
+        step_index = int(getattr(order, "trailing_step_index", 0))
+        stop_loss = getattr(order, "stop_loss", None)
+        current_sl = float(stop_loss) if stop_loss is not None else None
+
         result = {
-            "order_id": order.order_id,
-            "symbol": order.symbol,
+            "order_id": getattr(order, "order_id", ""),
+            "symbol": str(getattr(order, "symbol", "")),
             "updated": False,
             "message": "",
-            "old_sl": order.stop_loss,
+            "old_sl": stop_loss,
             "new_sl": None,
-            "step_index": order.trailing_step_index,
+            "step_index": step_index,
         }
 
         # Check if we should step the trailing stop
         trailing_result = calculate_trailing_stop(
-            entry_price=order.entry_price,
+            entry_price=entry_price,
             current_price=mark_price,
-            side=order.side,
-            step_index=order.trailing_step_index,
+            side=side,
+            step_index=step_index,
             step_pct=step_pct,
-            current_sl=order.stop_loss,
+            current_sl=current_sl,
             limit_steps=limit_steps,
             max_steps=max_steps,
         )
@@ -219,7 +226,7 @@ class TrailingStopJob:
             try:
                 # Modify stop loss on exchange
                 modify_result = self.binance_client.modify_stop_loss(
-                    symbol=str(order.symbol),
+                    symbol=str(getattr(order, "symbol", "")),
                     position_id=None,
                     stop_loss_price=new_sl,
                 )
@@ -230,7 +237,6 @@ class TrailingStopJob:
                 )
                 if success:
                     # Update order in database (setattr for SQLAlchemy Column type checker)
-                    old_sl = order.stop_loss
                     setattr(order, "stop_loss", new_sl)
                     setattr(order, "trailing_step_index", trailing_result.next_step_index)
 
@@ -238,26 +244,27 @@ class TrailingStopJob:
                     result["new_sl"] = new_sl
                     result["step_index"] = trailing_result.next_step_index
                     result["message"] = (
-                        f"Trailing stop stepped from {old_sl} to {new_sl} "
-                        f"(step {order.trailing_step_index - 1} → {order.trailing_step_index})"
+                        f"Trailing stop stepped from {stop_loss} to {new_sl} "
+                        f"(step {step_index - 1} → {trailing_result.next_step_index})"
                     )
 
                     logger.info(
-                        f"Trailing stop updated for {order.symbol} {order.side}: "
-                        f"SL {old_sl} → {new_sl} (step {order.trailing_step_index})"
+                        f"Trailing stop updated for {str(getattr(order, 'symbol', ''))} {side}: "
+                        f"SL {stop_loss} → {new_sl} (step {trailing_result.next_step_index})"
                     )
                 else:
                     error_msg = (modify_result or {}).get("error", "Unknown error")
                     result["message"] = f"Failed to modify SL on exchange: {error_msg}"
-                    logger.error(f"Failed to modify SL for {order.order_id}: {error_msg}")
+                    logger.error(f"Failed to modify SL for {getattr(order, 'order_id', '')}: {error_msg}")
 
             except Exception as e:
                 result["message"] = f"Error modifying SL: {e}"
-                logger.error(f"Error modifying SL for {order.order_id}: {e}")
+                logger.error(f"Error modifying SL for {getattr(order, 'order_id', '')}: {e}")
         else:
             # Dry run or no client - just log what would happen
             result["message"] = f"Would step SL to {new_sl} (dry run or no client)"
-            logger.info(f"[DRY RUN] Trailing stop would update for {order.symbol}: SL {order.stop_loss} → {new_sl}")
+            sym_str = str(getattr(order, "symbol", ""))
+            logger.info(f"[DRY RUN] Trailing stop would update for {sym_str}: SL {stop_loss} → {new_sl}")
 
             # Still update database in dry run mode for tracking
             if not self.binance_client:

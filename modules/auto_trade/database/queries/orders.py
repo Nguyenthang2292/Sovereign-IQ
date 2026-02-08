@@ -24,17 +24,15 @@ Functions:
 
 from ._shared import (
     Any,
+    DateTime,
     Dict,
     List,
     Optional,
+    Order,
+    Session,
     cast,
     datetime,
     desc,
-    Session,
-    DateTime,
-    Order,
-    DEFAULT_ORDER_SOURCE,
-    DEFAULT_EXECUTION_MODE,
 )
 
 

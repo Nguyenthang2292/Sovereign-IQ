@@ -128,7 +128,10 @@ def reconcile_orders_with_binance(
 
     if exchange_creation_error:
         result["errors"].append(exchange_creation_error)
+    elif exchange is None:
+        result["errors"].append("Failed to create exchange (no connection)")
     else:
+        assert exchange is not None  # for type checker
         try:
             for symbol in symbols:
                 try:
@@ -298,7 +301,7 @@ def reconcile_orders_with_binance(
                         db_orders_by_symbol: Dict[str, List[Any]] = {}
 
                         for order in open_orders:
-                            db_symbol = order.symbol  # e.g., BTCUSDT
+                            db_symbol = str(getattr(order, "symbol", ""))  # e.g., BTCUSDT
                             ccxt_symbol = _normalize_symbol(db_symbol)  # e.g., BTC/USDT
                             symbol_map[db_symbol] = ccxt_symbol
                             if ccxt_symbol not in db_orders_by_symbol:

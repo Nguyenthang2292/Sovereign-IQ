@@ -4,7 +4,7 @@ Implements exponential backoff strategy
 """
 import functools
 import time
-from typing import Any, Callable, Tuple, Type
+from typing import Any, Callable, Optional, Tuple, Type
 
 import ccxt
 
@@ -151,7 +151,7 @@ class RetryableOperation:
         self.backoff_factor = backoff_factor
         self.attempt = 0
         self._success = False
-        self.last_exception = None
+        self.last_exception: Optional[Exception] = None
 
     def __iter__(self):
         return self

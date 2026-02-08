@@ -32,6 +32,7 @@ Created: 2026-02-03
 
 import threading
 from pathlib import Path
+from typing import Optional
 
 # Import backup
 from .backup import BackupManager, BackupScheduler, create_backup, list_all_backups, restore_latest_backup
@@ -199,7 +200,7 @@ def initialize_database(db_path: str = DEFAULT_DB_PATH, force_recreate: bool = F
         initialize_database_if_needed(db_path=db_path, schema_path=DEFAULT_SCHEMA_PATH, auto_migrate=True)
 
 
-def create_database_backup(compress: bool = True) -> str:
+def create_database_backup(compress: bool = True) -> Optional[str]:
     """
     Create a backup of the database.
 
@@ -207,7 +208,7 @@ def create_database_backup(compress: bool = True) -> str:
         compress: Whether to compress backup
 
     Returns:
-        Path to backup file
+        Path to backup file, or None if backup failed
     """
     return create_backup(db_path=DEFAULT_DB_PATH, backup_dir="data/backups", compress=compress)
 

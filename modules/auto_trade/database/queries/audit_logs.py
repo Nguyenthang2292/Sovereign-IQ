@@ -16,12 +16,12 @@ Functions:
 """
 
 from ._shared import (
+    AuditLog,
     List,
     Optional,
+    Session,
     datetime,
     desc,
-    Session,
-    AuditLog,
 )
 
 

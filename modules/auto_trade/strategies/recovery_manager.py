@@ -18,7 +18,7 @@ Created: 2026-02-06
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from modules.auto_trade.monitoring.event_system import Event, EventSystem, EventType
 from modules.auto_trade.strategies.gradual_recovery import (
@@ -125,7 +125,7 @@ class RecoveryManager:
 
         # If strategy exists, update it with new config
         if self._strategy and config:
-            self._strategy.config = self._strategy._validate_config(config)
+            self._strategy.config = self._strategy._validate_config(cast(RecoveryConfig, config))
 
     def get_recovery_parameters(self) -> Dict[str, Any]:
         """
@@ -383,7 +383,7 @@ class RecoveryManager:
             with get_session() as session:
                 recovery = get_active_gradual_recovery(session, symbol=None)  # GLOBAL
                 if recovery:
-                    self._recovery_id = recovery.recovery_id
+                    self._recovery_id = str(getattr(recovery, "recovery_id", "")) or None
                     config = recovery.get_config() or {}
 
                     recovery_config: RecoveryConfig = {
@@ -396,8 +396,9 @@ class RecoveryManager:
                         "enable_streak_bonus": config.get("enable_streak_bonus", False),
                     }
 
+                    initial_loss_val = float(getattr(recovery, "initial_loss", 0.0))
                     self._strategy = GradualRecoveryStrategy(
-                        initial_loss=recovery.initial_loss,
+                        initial_loss=initial_loss_val,
                         config=recovery_config,
                     )
 

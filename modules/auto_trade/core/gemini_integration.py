@@ -15,7 +15,7 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union, cast
 
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.common.core.data_fetcher import DataFetcher
@@ -112,7 +112,7 @@ class GeminiIntegration:
         self.analyzer = GeminiChartAnalyzer(api_key=self._api_key)
 
         # Rate limiting
-        self.request_times = deque(maxlen=60)  # Track last 60 requests
+        self.request_times: deque[float] = deque(maxlen=60)  # Track last 60 requests
         self.max_requests_per_minute = 60  # Gemini's typical limit
 
         # Caching
@@ -241,7 +241,7 @@ class GeminiIntegration:
                 timeframe=timeframe,
                 output_path=temp_filename,
                 show_volume=True,
-                indicators=self.indicators,
+                indicators=cast(Optional[Dict[str, Dict[str, Any]]], self.indicators),
             )
 
             # 3. Call Gemini with retry logic

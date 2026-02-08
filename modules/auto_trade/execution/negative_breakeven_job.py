@@ -10,12 +10,12 @@ Created: 2026-02-06
 """
 
 import logging
-from typing import Dict, List, Optional
-
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 
 from database.models import Order
 from database.queries import get_open_positions, mark_be_moved
+from sqlalchemy.orm import Session
+
 from execution.binance_client import BinanceClient
 from execution.negative_breakeven import NegativeBreakevenLogic
 
@@ -48,14 +48,14 @@ class NegativeBreakevenJob:
         self.db_session_scope = db_session_scope
         self.binance_client = binance_client
 
-    def run(self) -> Dict[str, any]:
+    def run(self) -> Dict[str, Any]:
         """
         Execute negative breakeven check for all open orders.
 
         Returns:
             Dictionary with results summary
         """
-        results = {
+        results: Dict[str, Any] = {
             "orders_checked": 0,
             "orders_updated": 0,
             "errors": [],
@@ -87,9 +87,10 @@ class NegativeBreakevenJob:
                 # Group orders by symbol for efficient price fetching
                 orders_by_symbol: Dict[str, List[Order]] = {}
                 for order in open_orders:
-                    if order.symbol not in orders_by_symbol:
-                        orders_by_symbol[order.symbol] = []
-                    orders_by_symbol[order.symbol].append(order)
+                    sym = str(getattr(order, "symbol", ""))
+                    if sym not in orders_by_symbol:
+                        orders_by_symbol[sym] = []
+                    orders_by_symbol[sym].append(order)
 
                 # Process each symbol
                 for symbol, orders in orders_by_symbol.items():
@@ -117,7 +118,7 @@ class NegativeBreakevenJob:
                                     results["updates"].append(update_result)
 
                             except Exception as e:
-                                error_msg = f"Error processing order {order.order_id}: {e}"
+                                error_msg = f"Error processing order {getattr(order, 'order_id', '')}: {e}"
                                 logger.error(error_msg)
                                 results["errors"].append(error_msg)
 
@@ -133,6 +134,7 @@ class NegativeBreakevenJob:
             error_msg = f"Error in negative breakeven job: {e}"
             logger.error(error_msg)
             results["errors"].append(error_msg)
+            return results
 
         return results
 
@@ -146,18 +148,16 @@ class NegativeBreakevenJob:
         Returns:
             Current mark price or None if unavailable
         """
+        if not self.binance_client:
+            logger.warning("No Binance client available for fetching mark price")
+            return None
         try:
-            if self.binance_client:
-                # Use Binance client to fetch ticker
-                ticker = self.binance_client.fetch_ticker(symbol)
-                if ticker and "last" in ticker:
-                    return float(ticker["last"])
-            else:
-                logger.warning("No Binance client available for fetching mark price")
-                return None
+            ticker = self.binance_client.fetch_ticker(symbol)
+            if ticker and "last" in ticker:
+                return float(ticker["last"])
         except Exception as e:
             logger.error(f"Error fetching mark price for {symbol}: {e}")
-            return None
+        return None
 
     def _process_order(
         self,
@@ -178,47 +178,53 @@ class NegativeBreakevenJob:
         Returns:
             Dictionary with update result
         """
+        entry_price = float(getattr(order, "entry_price", 0.0))
+        side = str(getattr(order, "side", ""))
+        stop_loss = float(getattr(order, "stop_loss", 0.0))
+        be_moved = bool(getattr(order, "be_moved", False))
+        order_id_str = str(getattr(order, "order_id", ""))
+
         result = {
-            "order_id": order.order_id,
-            "symbol": order.symbol,
+            "order_id": order_id_str,
+            "symbol": str(getattr(order, "symbol", "")),
             "updated": False,
             "message": "",
-            "old_tp": order.take_profit,
+            "old_tp": getattr(order, "take_profit", None),
             "new_tp": None,
         }
 
         # Skip if breakeven already moved
-        if order.be_moved:
+        if be_moved:
             result["message"] = "Breakeven already moved, skipping"
             return result
 
         # Check if we should trigger negative breakeven
         should_trigger = NegativeBreakevenLogic.should_trigger(
-            entry_price=order.entry_price,
+            entry_price=entry_price,
             mark_price=mark_price,
-            stop_loss=order.stop_loss,
-            side=order.side,
+            stop_loss=stop_loss,
+            side=side,
             threshold_pct=threshold_pct,
-            be_moved=order.be_moved,
+            be_moved=be_moved,
         )
 
         if not should_trigger:
             profit_pct = NegativeBreakevenLogic.calculate_profit_pct(
-                entry_price=order.entry_price,
+                entry_price=entry_price,
                 mark_price=mark_price,
-                side=order.side,
+                side=side,
             )
             result["message"] = f"Conditions not met (profit: {profit_pct:.2f}%)"
             return result
 
         # Should trigger - calculate new TP (entry price)
-        new_tp = NegativeBreakevenLogic.get_new_take_profit(order.entry_price)
+        new_tp = NegativeBreakevenLogic.get_new_take_profit(entry_price)
 
         # Update TP on exchange first
         if self.binance_client:
             try:
                 modify_result = self.binance_client.modify_take_profit(
-                    symbol=str(order.symbol),
+                    symbol=str(getattr(order, "symbol", "")),
                     position_id=None,
                     take_profit_price=new_tp,
                 )
@@ -229,12 +235,12 @@ class NegativeBreakevenJob:
                 )
                 if success:
                     # Update order in database
-                    old_tp = order.take_profit
+                    old_tp = getattr(order, "take_profit", None)
 
                     # Use mark_be_moved to update DB
                     mark_be_moved(
                         session=session,
-                        order_id=order.order_id,
+                        order_id=order_id_str,
                         new_take_profit=new_tp,
                         verify_programmatic=True,
                     )
@@ -245,26 +251,28 @@ class NegativeBreakevenJob:
                         f"Negative breakeven triggered: TP moved from {old_tp} to {new_tp} (entry price)"
                     )
 
-                    logger.info(f"Negative breakeven triggered for {order.symbol} {order.side}: TP {old_tp} → {new_tp}")
+                    sym_str = str(getattr(order, "symbol", ""))
+                    logger.info(f"Negative breakeven triggered for {sym_str} {side}: TP {old_tp} → {new_tp}")
                 else:
                     error_msg = (modify_result or {}).get("error", "Unknown error")
                     result["message"] = f"Failed to modify TP on exchange: {error_msg}"
-                    logger.error(f"Failed to modify TP for {order.order_id}: {error_msg}")
+                    logger.error(f"Failed to modify TP for {order_id_str}: {error_msg}")
 
             except Exception as e:
                 result["message"] = f"Error modifying TP: {e}"
-                logger.error(f"Error modifying TP for {order.order_id}: {e}")
+                logger.error(f"Error modifying TP for {order_id_str}: {e}")
         else:
             # Dry run or no client - just log what would happen
-            old_tp = order.take_profit
+            old_tp = getattr(order, "take_profit", None)
             result["message"] = f"Would move TP to {new_tp} (dry run or no client)"
-            logger.info(f"[DRY RUN] Negative breakeven would trigger for {order.symbol}: TP {old_tp} → {new_tp}")
+            sym_str = str(getattr(order, "symbol", ""))
+            logger.info(f"[DRY RUN] Negative breakeven would trigger for {sym_str}: TP {old_tp} → {new_tp}")
 
             # Still update database in dry run mode for tracking
             if not self.binance_client:
                 mark_be_moved(
                     session=session,
-                    order_id=order.order_id,
+                    order_id=order_id_str,
                     new_take_profit=new_tp,
                     verify_programmatic=True,
                 )

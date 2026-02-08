@@ -17,11 +17,11 @@ Functions:
 
 from ._shared import (
     List,
+    MartingaleChain,
     Optional,
+    Session,
     datetime,
     desc,
-    Session,
-    MartingaleChain,
 )
 
 

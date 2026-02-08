@@ -28,10 +28,11 @@ import hashlib
 import warnings
 from pathlib import Path
 from time import time
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union, cast
 
 import joblib
 import numpy as np
+import pandas as pd
 import xgboost as xgb
 
 from config import XGBOOST_FILTER_DEFAULTS
@@ -92,7 +93,8 @@ class XGBoostFilter:
         self.model_path = model_path
 
         # Merge with defaults
-        self.config: XGBoostFilterConfig = {**XGBOOST_FILTER_DEFAULTS, **(config or {})}
+        merged: Dict[str, Any] = {**dict(XGBOOST_FILTER_DEFAULTS), **(config or {})}
+        self.config = cast(XGBoostFilterConfig, merged)
 
         # Validate and extract configuration
         self._validate_config()
@@ -125,14 +127,22 @@ class XGBoostFilter:
             ValueError: If any configuration parameter is invalid
         """
         # Min confidence
-        self.min_confidence = self.config.get("min_confidence", XGBOOST_FILTER_DEFAULTS["min_confidence"])
+        _min_conf: Union[float, int, str] = cast(
+            Union[float, int, str],
+            self.config.get("min_confidence", XGBOOST_FILTER_DEFAULTS["min_confidence"]),
+        )
+        self.min_confidence = float(_min_conf)
         if not 0.0 <= self.min_confidence <= 1.0:
             raise ValueError(
                 f"min_confidence must be between 0 and 1, got {self.min_confidence}"
             )
 
         # History limit
-        self.history_limit = self.config.get("history_limit", XGBOOST_FILTER_DEFAULTS["history_limit"])
+        _hist: Union[float, int, str] = cast(
+            Union[float, int, str],
+            self.config.get("history_limit", XGBOOST_FILTER_DEFAULTS["history_limit"]),
+        )
+        self.history_limit = int(_hist)
         if self.history_limit <= 0:
             raise ValueError(
                 f"history_limit must be positive, got {self.history_limit}"
@@ -157,30 +167,55 @@ class XGBoostFilter:
             )
 
         # Minimum required candles
-        self.min_required_candles = self.config.get(
-            "min_required_candles", XGBOOST_FILTER_DEFAULTS["min_required_candles"]
+        _min_candles: Union[float, int, str] = cast(
+            Union[float, int, str],
+            self.config.get(
+                "min_required_candles",
+                XGBOOST_FILTER_DEFAULTS["min_required_candles"],
+            ),
         )
+        self.min_required_candles = int(_min_candles)
 
         # Cache TTL
-        self.cache_ttl = self.config.get("cache_ttl", XGBOOST_FILTER_DEFAULTS["cache_ttl"])
+        _ttl: Union[float, int, str] = cast(
+            Union[float, int, str],
+            self.config.get("cache_ttl", XGBOOST_FILTER_DEFAULTS["cache_ttl"]),
+        )
+        self.cache_ttl = float(_ttl)
 
         # Require model
-        self.require_model = self.config.get("require_model", XGBOOST_FILTER_DEFAULTS["require_model"])
+        self.require_model = bool(
+            cast(Any, self.config.get("require_model", XGBOOST_FILTER_DEFAULTS["require_model"]))
+        )
 
         # Max consecutive failures (circuit breaker)
-        self.max_consecutive_failures = self.config.get(
-            "max_consecutive_failures", XGBOOST_FILTER_DEFAULTS["max_consecutive_failures"]
+        _max_fail: Union[float, int, str] = cast(
+            Union[float, int, str],
+            self.config.get(
+                "max_consecutive_failures",
+                XGBOOST_FILTER_DEFAULTS["max_consecutive_failures"],
+            ),
         )
+        self.max_consecutive_failures = int(_max_fail)
 
         # Probability sum tolerance
-        self.prob_sum_tolerance = self.config.get(
-            "prob_sum_tolerance", XGBOOST_FILTER_DEFAULTS["prob_sum_tolerance"]
+        _tol: Union[float, int, str] = cast(
+            Union[float, int, str],
+            self.config.get(
+                "prob_sum_tolerance", XGBOOST_FILTER_DEFAULTS["prob_sum_tolerance"]
+            ),
         )
+        self.prob_sum_tolerance = float(_tol)
 
         # Minimum confidence delta
-        self.min_confidence_delta = self.config.get(
-            "min_confidence_delta", XGBOOST_FILTER_DEFAULTS["min_confidence_delta"]
+        _delta: Union[float, int, str] = cast(
+            Union[float, int, str],
+            self.config.get(
+                "min_confidence_delta",
+                XGBOOST_FILTER_DEFAULTS["min_confidence_delta"],
+            ),
         )
+        self.min_confidence_delta = float(_delta)
 
     def _validate_model_integrity(self, path: Path) -> bool:
         """Validate model file hasn't been tampered with.
@@ -450,7 +485,7 @@ class XGBoostFilter:
             limit=self.history_limit,
         )
 
-        if df is None or df.empty:
+        if df is None or (isinstance(df, pd.DataFrame) and df.empty):
             log_warn(f"No data available for {symbol}")
             return 0.0, "NEUTRAL"
 
@@ -465,8 +500,9 @@ class XGBoostFilter:
         # 2. Compute Features with circuit breaker
         try:
             # a. Standard Indicators
-            df = self.indicator_engine.compute_features(df)
-            if df is None or df.empty:
+            _computed = self.indicator_engine.compute_features(df)
+            df = _computed[0] if isinstance(_computed, tuple) else _computed
+            if df is None or (isinstance(df, pd.DataFrame) and df.empty):
                 # Track failure
                 self._feature_failure_count[symbol] = self._feature_failure_count.get(symbol, 0) + 1
 
@@ -482,7 +518,7 @@ class XGBoostFilter:
 
             # b. Advanced/Rust Features
             df = add_advanced_features(df)
-            if df is None or df.empty:
+            if df is None or (isinstance(df, pd.DataFrame) and df.empty):
                 # Track failure
                 self._feature_failure_count[symbol] = self._feature_failure_count.get(symbol, 0) + 1
 

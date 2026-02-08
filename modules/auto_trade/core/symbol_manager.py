@@ -104,7 +104,7 @@ class SymbolManager:
 
         log_info(f"SymbolManager: Loaded {len(self._cached_symbols)} symbols.")
 
-    def get_symbols(self, sample_percent: float = None) -> List[str]:
+    def get_symbols(self, sample_percent: Optional[float] = None) -> List[str]:
         """
         Get a list of symbols, optionally sampled using configured strategy.
 

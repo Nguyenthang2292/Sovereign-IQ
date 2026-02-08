@@ -1,9 +1,10 @@
 """Recovery Section Component for Database Panel."""
 
-import customtkinter as ctk
-import tkinter.messagebox as messagebox
 import logging
-from typing import Callable, Optional
+import tkinter.messagebox as messagebox
+from typing import Callable, cast
+
+import customtkinter as ctk
 
 from modules.auto_trade.database import session_scope
 
@@ -107,7 +108,9 @@ class RecoverySection:
                 "enable_streak_bonus": mode == "adaptive",
             }
 
-            strategy = GradualRecoveryStrategy(initial_loss=initial_loss, config=config)
+            strategy = GradualRecoveryStrategy(
+                initial_loss=initial_loss, config=cast(RecoveryConfig, config)
+            )
 
             # Run sequence and collect results
             output = f"Recovery Test - Mode: {mode}, Sequence: {sequence_type}\n"
@@ -165,11 +168,11 @@ class RecoverySection:
     def _view_recovery_stats(self):
         """View recovery statistics from database."""
         try:
-            from modules.auto_trade.database.models import RecoverySession
+            from modules.auto_trade.database.models import GradualRecovery
 
             with session_scope() as session:
                 # Query recovery sessions
-                recoveries = session.query(RecoverySession).order_by(RecoverySession.created_at.desc()).limit(20).all()
+                recoveries = session.query(GradualRecovery).order_by(GradualRecovery.created_at.desc()).limit(20).all()
 
                 output = "Recovery Sessions:\n"
                 output += "=" * 70 + "\n"
@@ -189,7 +192,7 @@ class RecoverySection:
                 self.log_callback("Retrieved recovery stats", "INFO")
 
         except ImportError:
-            self.log_callback("RecoverySession model not found in database", "WARNING")
+            self.log_callback("GradualRecovery model not found in database", "WARNING")
             self.data_viewer.delete("1.0", "end")
             self.data_viewer.insert(
                 "1.0", "Recovery model not available in database.\nUse the Recovery tab for live testing."
@@ -203,13 +206,13 @@ class RecoverySection:
             return
 
         try:
-            from modules.auto_trade.database.models import RecoverySession
+            from modules.auto_trade.database.models import GradualRecovery
 
             with session_scope() as session:
-                deleted = session.query(RecoverySession).delete()
+                deleted = session.query(GradualRecovery).delete()
                 self.log_callback(f"Cleared {deleted} recovery sessions", "SUCCESS")
 
         except ImportError:
-            self.log_callback("RecoverySession model not found - nothing to clear", "INFO")
+            self.log_callback("GradualRecovery model not found - nothing to clear", "INFO")
         except Exception as e:
             self.log_callback(f"Failed to clear recovery data: {e}", "ERROR")

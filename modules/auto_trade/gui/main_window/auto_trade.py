@@ -46,11 +46,12 @@ class AutoTradeManager:
         """Start auto-trading loop, periodic Binance reconcile, and updaters."""
         from .updaters import UpdaterManager
 
-        self.updater = UpdaterManager(self.parent)
-        self.updater.create_auto_trade_updater(self._auto_trade_cycle, interval=60)
-        self.updater.create_reconcile_updater(self._reconcile_cycle, interval=3600)
-        self.updater.create_trailing_stop_updater(self._trailing_stop_cycle, interval=30)
-        self.updater.create_negative_breakeven_updater(self._negative_breakeven_cycle, interval=30)
+        updater = UpdaterManager(self.parent)
+        self.updater = updater
+        updater.create_auto_trade_updater(self._auto_trade_cycle, interval=60)
+        updater.create_reconcile_updater(self._reconcile_cycle, interval=3600)
+        updater.create_trailing_stop_updater(self._trailing_stop_cycle, interval=30)
+        updater.create_negative_breakeven_updater(self._negative_breakeven_cycle, interval=30)
         print("Auto-trading started (with trailing stop and negative breakeven)")
 
     def stop(self):

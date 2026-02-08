@@ -14,43 +14,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-import modules.auto_trade.database as db_module
 from modules.auto_trade.database import (
     create_order,
-    get_db_manager,
     get_overall_stats,
-    initialize_database,
     session_scope,
 )
-
-
-@pytest.fixture
-def test_db(tmp_path):
-    """Create temporary test database and set global manager to use it."""
-    db_path = tmp_path / "test_stats.db"
-    db_module._db_manager_instance = None
-    initialize_database(str(db_path))
-    get_db_manager(str(db_path))
-    yield str(db_path)
-
-
-@pytest.fixture
-def sample_order_data():
-    """Sample order data for testing."""
-    return {
-        "order_id": "TEST_ORDER_001",
-        "client_order_id": "AT_001_BTCUSDT_abc123",
-        "symbol": "BTCUSDT",
-        "side": "LONG",
-        "entry_price": 50000.0,
-        "amount": 0.01,
-        "leverage": 2,
-        "stop_loss": 45000.0,
-        "take_profit": 52500.0,
-        "status": "CLOSED",
-        "order_source": "PROGRAMMATIC",
-        "execution_mode": "AUTO",
-    }
 
 
 class TestGetOverallStatsEmptyDB:
@@ -86,9 +54,7 @@ class TestGetOverallStatsSingleOrder:
     def test_single_winning_order(self, test_db, sample_order_data):
         """Test stats with one winning order."""
         with session_scope() as session:
-            data = sample_order_data.copy()
-            data["pnl"] = 150.0
-            data["commission"] = 2.5
+            data = sample_order_data(pnl=150.0, commission=2.5)
             create_order(session, data)
 
         with session_scope() as session:
@@ -117,9 +83,7 @@ class TestGetOverallStatsSingleOrder:
     def test_single_losing_order(self, test_db, sample_order_data):
         """Test stats with one losing order."""
         with session_scope() as session:
-            data = sample_order_data.copy()
-            data["pnl"] = -75.0
-            data["commission"] = 2.5
+            data = sample_order_data(pnl=-75.0, commission=2.5)
             create_order(session, data)
 
         with session_scope() as session:
@@ -143,8 +107,7 @@ class TestGetOverallStatsSingleOrder:
     def test_single_breakeven_order(self, test_db, sample_order_data):
         """Test stats with one breakeven order (pnl=0)."""
         with session_scope() as session:
-            data = sample_order_data.copy()
-            data["pnl"] = 0.0
+            data = sample_order_data(pnl=0.0)
             create_order(session, data)
 
         with session_scope() as session:
@@ -172,20 +135,22 @@ class TestGetOverallStatsMultipleOrders:
         with session_scope() as session:
             # Create 3 winning orders
             for i in range(3):
-                data = sample_order_data.copy()
-                data["order_id"] = f"WIN_{i}"
-                data["client_order_id"] = f"AT_WIN_{i}_BTCUSDT"
-                data["pnl"] = 100.0 + (i * 50)  # 100, 150, 200
-                data["commission"] = 2.0
+                data = sample_order_data(
+                    order_id=f"WIN_{i}",
+                    client_order_id=f"AT_WIN_{i}_BTCUSDT",
+                    pnl=100.0 + (i * 50),  # 100, 150, 200
+                    commission=2.0,
+                )
                 create_order(session, data)
 
             # Create 2 losing orders
             for i in range(2):
-                data = sample_order_data.copy()
-                data["order_id"] = f"LOSS_{i}"
-                data["client_order_id"] = f"AT_LOSS_{i}_BTCUSDT"
-                data["pnl"] = -50.0 - (i * 25)  # -50, -75
-                data["commission"] = 2.0
+                data = sample_order_data(
+                    order_id=f"LOSS_{i}",
+                    client_order_id=f"AT_LOSS_{i}_BTCUSDT",
+                    pnl=-50.0 - (i * 25),  # -50, -75
+                    commission=2.0,
+                )
                 create_order(session, data)
 
         with session_scope() as session:
@@ -228,10 +193,11 @@ class TestGetOverallStatsMultipleOrders:
         """Test stats with all winning orders (100% win rate)."""
         with session_scope() as session:
             for i in range(5):
-                data = sample_order_data.copy()
-                data["order_id"] = f"WIN_{i}"
-                data["client_order_id"] = f"AT_WIN_{i}_BTCUSDT"
-                data["pnl"] = 50.0
+                data = sample_order_data(
+                    order_id=f"WIN_{i}",
+                    client_order_id=f"AT_WIN_{i}_BTCUSDT",
+                    pnl=50.0,
+                )
                 create_order(session, data)
 
         with session_scope() as session:
@@ -248,10 +214,11 @@ class TestGetOverallStatsMultipleOrders:
         """Test stats with all losing orders (0% win rate)."""
         with session_scope() as session:
             for i in range(5):
-                data = sample_order_data.copy()
-                data["order_id"] = f"LOSS_{i}"
-                data["client_order_id"] = f"AT_LOSS_{i}_BTCUSDT"
-                data["pnl"] = -50.0
+                data = sample_order_data(
+                    order_id=f"LOSS_{i}",
+                    client_order_id=f"AT_LOSS_{i}_BTCUSDT",
+                    pnl=-50.0,
+                )
                 create_order(session, data)
 
         with session_scope() as session:
@@ -270,16 +237,16 @@ class TestGetOverallStatsFilters:
         """Test that only PROGRAMMATIC orders are included in stats."""
         with session_scope() as session:
             # Create programmatic order
-            data = sample_order_data.copy()
-            data["pnl"] = 100.0
+            data = sample_order_data(pnl=100.0)
             create_order(session, data)
 
             # Create manual order
-            manual_data = sample_order_data.copy()
-            manual_data["order_id"] = "MANUAL_001"
-            manual_data["client_order_id"] = "MANUAL_001_CLIENT"
-            manual_data["order_source"] = "MANUAL"
-            manual_data["pnl"] = 200.0
+            manual_data = sample_order_data(
+                order_id="MANUAL_001",
+                client_order_id="MANUAL_001_CLIENT",
+                order_source="MANUAL",
+                pnl=200.0,
+            )
             create_order(session, manual_data)
 
         with session_scope() as session:
@@ -297,18 +264,20 @@ class TestGetOverallStatsFilters:
         """Test that only CLOSED orders are included in stats."""
         with session_scope() as session:
             # Create closed order
-            data = sample_order_data.copy()
-            data["order_id"] = "CLOSED_001"
-            data["client_order_id"] = "AT_CLOSED_001"
-            data["status"] = "CLOSED"
-            data["pnl"] = 100.0
+            data = sample_order_data(
+                order_id="CLOSED_001",
+                client_order_id="AT_CLOSED_001",
+                status="CLOSED",
+                pnl=100.0,
+            )
             create_order(session, data)
 
             # Create open order
-            open_data = sample_order_data.copy()
-            open_data["order_id"] = "OPEN_001"
-            open_data["client_order_id"] = "AT_OPEN_001"
-            open_data["status"] = "OPEN"
+            open_data = sample_order_data(
+                order_id="OPEN_001",
+                client_order_id="AT_OPEN_001",
+                status="OPEN",
+            )
             create_order(session, open_data)
 
         with session_scope() as session:
@@ -327,9 +296,7 @@ class TestGetOverallStatsEdgeCases:
     def test_very_large_pnl_values(self, test_db, sample_order_data):
         """Test stats with very large PnL values."""
         with session_scope() as session:
-            data = sample_order_data.copy()
-            data["pnl"] = 999999.99
-            data["commission"] = 999.99
+            data = sample_order_data(pnl=999999.99, commission=999.99)
             create_order(session, data)
 
         with session_scope() as session:
@@ -345,9 +312,7 @@ class TestGetOverallStatsEdgeCases:
     def test_very_small_pnl_values(self, test_db, sample_order_data):
         """Test stats with very small PnL values."""
         with session_scope() as session:
-            data = sample_order_data.copy()
-            data["pnl"] = 0.01
-            data["commission"] = 0.001
+            data = sample_order_data(pnl=0.01, commission=0.001)
             create_order(session, data)
 
         with session_scope() as session:
@@ -362,11 +327,12 @@ class TestGetOverallStatsEdgeCases:
         with session_scope() as session:
             # Create orders for different symbols
             for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
-                data = sample_order_data.copy()
-                data["order_id"] = f"{symbol}_001"
-                data["client_order_id"] = f"AT_{symbol}_001"
-                data["symbol"] = symbol
-                data["pnl"] = 100.0
+                data = sample_order_data(
+                    order_id=f"{symbol}_001",
+                    client_order_id=f"AT_{symbol}_001",
+                    symbol=symbol,
+                    pnl=100.0,
+                )
                 create_order(session, data)
 
         with session_scope() as session:

@@ -15,9 +15,10 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List, Optional, Sequence
 
 from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Row
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -130,7 +131,7 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def execute_raw_sql(self, sql: str, params: tuple = ()) -> List[Any]:
+    def execute_raw_sql(self, sql: str, params: tuple = ()) -> Sequence[Row[Any]]:
         """
         Execute raw SQL query.
 
@@ -139,7 +140,7 @@ class DatabaseManager:
             params: Query parameters
 
         Returns:
-            List of query results
+            Sequence of query result rows
         """
         with self.engine.connect() as conn:
             result = conn.execute(text(sql), params)
@@ -152,7 +153,7 @@ class DatabaseManager:
         Returns:
             Dictionary with database statistics
         """
-        stats = {}
+        stats: Dict[str, Any] = {}
 
         with self.session_scope() as session:
             # Get table counts
@@ -178,7 +179,7 @@ class DatabaseManager:
 
             if os.path.exists(self.db_path):
                 size_bytes = os.path.getsize(self.db_path)
-                stats["database_size_mb"] = round(size_bytes / (1024 * 1024), 2)
+                stats["database_size_mb"] = float(round(size_bytes / (1024 * 1024), 2))
 
         return stats
 

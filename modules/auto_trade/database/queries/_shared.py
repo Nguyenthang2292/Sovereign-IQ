@@ -4,7 +4,7 @@ Shared types and imports for query modules.
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, cast
 
-from sqlalchemy import desc, case, func
+from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 from sqlalchemy.types import DateTime, Integer
 

@@ -1,6 +1,6 @@
 import random
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import customtkinter as ctk
 
@@ -759,7 +759,7 @@ class RecoveryPanel(ctk.CTkFrame):
         # Test sequence
         test_sequence = [10.0, 12.0, 15.0, -8.0, 18.0, 20.0, -5.0, 25.0]
 
-        results = {}
+        results: Dict[str, Dict[str, Any]] = {}
 
         for mode in ["fixed", "progressive", "adaptive"]:
             config: RecoveryConfig = {

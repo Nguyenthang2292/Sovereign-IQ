@@ -30,7 +30,6 @@ from modules.auto_trade.database import (
     create_database_backup,
     get_db_manager,
     get_open_positions,
-    initialize_database,
     session_scope,
 )
 
@@ -77,8 +76,14 @@ class AutoTradeSystem:
         self.order_executor = None
         self.position_monitor = None
 
-        # Statistics
-        self.stats = {"loops_completed": 0, "signals_found": 0, "orders_executed": 0, "errors": 0, "start_time": None}
+        # Statistics (start_time is datetime; counters are int)
+        self.stats: Dict[str, Any] = {
+            "loops_completed": 0,
+            "signals_found": 0,
+            "orders_executed": 0,
+            "errors": 0,
+            "start_time": None,
+        }
 
         logger.info("AutoTradeSystem initialized")
 
@@ -166,7 +171,7 @@ class AutoTradeSystem:
 
                     if signals:
                         logger.info(f"Found {len(signals)} potential signals")
-                        self.stats["signals_found"] += len(signals)
+                        self.stats["signals_found"] = (self.stats.get("signals_found") or 0) + len(signals)
 
                         # Execute orders for valid signals
                         for signal in signals:
@@ -177,7 +182,7 @@ class AutoTradeSystem:
                             success = await self._execute_signal(signal)
                             if success:
                                 position_count += 1
-                                self.stats["orders_executed"] += 1
+                                self.stats["orders_executed"] = (self.stats.get("orders_executed") or 0) + 1
 
                 # Step 4: Periodic database backup
                 if time.time() - last_backup > self.config.database.backup_interval:
@@ -186,7 +191,7 @@ class AutoTradeSystem:
                     last_backup = time.time()
 
                 # Update stats
-                self.stats["loops_completed"] += 1
+                self.stats["loops_completed"] = (self.stats.get("loops_completed") or 0) + 1
 
                 # Log loop completion
                 loop_time = time.time() - loop_start
@@ -203,7 +208,7 @@ class AutoTradeSystem:
 
             except Exception as e:
                 logger.error(f"Error in main loop: {e}", exc_info=True)
-                self.stats["errors"] += 1
+                self.stats["errors"] = (self.stats.get("errors") or 0) + 1
 
                 # Log error to database
                 try:
@@ -331,9 +336,10 @@ class AutoTradeSystem:
             logger.error(f"Failed to log shutdown: {e}")
 
         # Print final stats
-        if self.stats["start_time"]:
-            runtime = datetime.now(timezone.utc) - self.stats["start_time"]
-            logger.info(f"Final Statistics:")
+        start_time = self.stats.get("start_time")
+        if start_time is not None:
+            runtime = datetime.now(timezone.utc) - start_time
+            logger.info("Final Statistics:")
             logger.info(f"  Runtime: {runtime}")
             logger.info(f"  Loops completed: {self.stats['loops_completed']}")
             logger.info(f"  Signals found: {self.stats['signals_found']}")

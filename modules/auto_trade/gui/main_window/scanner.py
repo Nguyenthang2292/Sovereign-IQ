@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional, cast
 
 if TYPE_CHECKING:
     from .main_window import AutoTradeDashboard
+    from modules.auto_trade.core.signal_pipeline import SignalPipeline
 
 # Create logger for scanner - this will be captured by GUI log handler
 logger = logging.getLogger("auto_trade.scanner")
@@ -19,7 +20,7 @@ class ScannerManager:
     def __init__(self, parent: "AutoTradeDashboard"):
         self.parent = parent
         self.updater = None
-        self.pipeline = None
+        self.pipeline: Optional[SignalPipeline] = None
         self._pipeline_initialized = False
         self._manual_scan_running = False
 
@@ -127,7 +128,7 @@ class ScannerManager:
             from modules.auto_trade.core.atc_scanner import ATCScanner, ATCScannerConfig
             from modules.auto_trade.core.gemini_integration import GeminiIntegration
             from modules.auto_trade.core.persistence_sqlite import SignalPersistenceSQLite
-            from modules.auto_trade.core.signal_pipeline import SignalPipeline
+            from modules.auto_trade.core.signal_pipeline import SignalPipeline, XGBoostFilterLike
             from modules.auto_trade.core.signal_selector import SignalSelector
             from modules.auto_trade.core.symbol_manager import SymbolManager
             from modules.auto_trade.core.xgboost_filter import XGBoostFilter, XGBoostFilterConfig
@@ -167,6 +168,7 @@ class ScannerManager:
             logger.info(f"ATCScanner ready (timeframes: {atc_config['timeframes']})")
 
             # 3. XGBoost Filter (per-symbol or pre-trained based on config)
+            xgboost_filter: XGBoostFilterLike = self._create_passthrough_xgboost_filter()
             if filters.get("enable_xgboost", True):
                 if xgboost_mode == "per_symbol":
                     # Per-symbol training mode - trains fresh XGBoost for each symbol
@@ -192,7 +194,6 @@ class ScannerManager:
                         xgboost_filter = self._create_passthrough_xgboost_filter()
             else:
                 logger.info("XGBoost disabled in filters, using passthrough")
-                xgboost_filter = self._create_passthrough_xgboost_filter()
 
             # 4. Gemini Integration
             gemini_integration = GeminiIntegration(data_fetcher=data_fetcher, analysis_timeframe=timeframe)
