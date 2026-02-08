@@ -165,9 +165,11 @@ class CircuitBreaker:
 
                 if self.state == CircuitState.HALF_OPEN:
                     self.success_count += 1
+                    # Request completed, clear in-flight flag
+                    self._half_open_request_in_flight = False
+
                     if self.success_count >= self.success_threshold:
                         self._transition_to_closed()
-                        self._half_open_request_in_flight = False
                         self.success_count = 0
                 else:
                     self._reset_failure_count()
@@ -181,6 +183,7 @@ class CircuitBreaker:
 
         except Exception as e:
             with self._lock:
+                # print(f"DEBUG: Caught exception {type(e)} in call")
                 self.metrics.failed_calls += 1
 
                 if self.state == CircuitState.HALF_OPEN:
@@ -201,6 +204,7 @@ class CircuitBreaker:
         """
         self.failure_count += 1
         self.last_failure_time = time.time()
+        # print(f"DEBUG: handle_failure count={self.failure_count} thresh={self.failure_threshold} state={self.state}")
 
         if self.sanitize_errors:
             msg = f"Circuit {self.name} failure ({self.failure_count}/{self.failure_threshold})"
@@ -312,20 +316,17 @@ class CircuitBreaker:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        _exc_type: Optional[Type[BaseException]],
         exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> bool:
+        _exc_tb: Optional[TracebackType],
+    ) -> None:
         """
         Context manager exit.
 
         Args:
-            exc_type: Exception type if exception was raised.
+            _exc_type: Exception type if exception was raised.
             exc_val: Exception value if exception was raised.
-            exc_tb: Exception traceback if exception was raised.
-
-        Returns:
-            False to not suppress any exceptions.
+            _exc_tb: Exception traceback if exception was raised.
         """
         if exc_val is not None and not isinstance(exc_val, self.excluded_exceptions):
             with self._lock:
@@ -337,7 +338,6 @@ class CircuitBreaker:
                     self.last_failure_time = time.time()
                     if self.failure_count >= self.failure_threshold:
                         self._transition_to_open()
-        return False
 
 
 def circuit_breaker(breaker: CircuitBreaker) -> Callable[[F], F]:

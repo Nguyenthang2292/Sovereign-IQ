@@ -32,6 +32,7 @@ except ImportError:
 
 
 from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
+from modules.common.domain.symbol_validation import filter_valid_symbols
 from modules.common.system import get_hardware_manager, get_memory_manager
 
 from .asyncio_scan import _scan_asyncio
@@ -172,6 +173,10 @@ def scan_all_symbols(
             if not symbols:
                 log_error("symbols list is empty")
                 return pd.DataFrame(), pd.DataFrame()
+            symbols = filter_valid_symbols(symbols)
+            if not symbols:
+                log_error("No valid symbols after format validation (2–30 alphanumeric chars)")
+                return pd.DataFrame(), pd.DataFrame()
             log_success(f"Scanning {len(symbols)} symbols from pre-filter Stage 0")
         else:
             log_progress("Fetching futures symbols from Binance...")
@@ -184,12 +189,16 @@ def scan_all_symbols(
                 log_error("No symbols found")
                 return pd.DataFrame(), pd.DataFrame()
 
+            symbols = filter_valid_symbols(all_symbols)
+            dropped = len(all_symbols) - len(symbols)
+            if dropped:
+                log_warn(f"Dropped {dropped} symbol(s) with invalid format")
+
             # Limit symbols if max_symbols specified
             if max_symbols and max_symbols > 0:
-                symbols = all_symbols[:max_symbols]
+                symbols = symbols[:max_symbols]
                 log_success(f"Found {len(all_symbols)} futures symbols, scanning first {len(symbols)} symbols")
             else:
-                symbols = all_symbols
                 log_success(f"Found {len(symbols)} futures symbols")
 
         # Use hardware manager to determine optimal execution mode if auto

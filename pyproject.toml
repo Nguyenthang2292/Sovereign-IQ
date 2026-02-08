@@ -80,8 +80,22 @@ stubPath = "modules/adaptive_trend_LTS"
 python_version = "3.12"
 warn_return_any = false
 warn_unused_configs = true
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["ccxt", "numba", "sklearn.*", "joblib", "cupy", "pandas", "numpy"]
+module = ["ccxt", "numba", "sklearn.*", "joblib", "cupy", "pandas", "numpy", "customtkinter", "yaml", "atc_rust"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "gui",
+    "gui.*",
+    "utils",
+    "utils.*",
+    "database",
+    "database.*",
+    "execution",
+    "execution.*",
+]
 ignore_missing_imports = true
 

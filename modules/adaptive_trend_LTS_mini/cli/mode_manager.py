@@ -9,6 +9,7 @@ from argparse import Namespace
 from typing import Tuple
 
 from modules.adaptive_trend_LTS_mini.cli.input_utils import determine_mode_and_timeframe
+from modules.adaptive_trend_LTS_mini.cli.interactive_prompts import prompt_timeframe
 
 __all__ = ["ModeManager"]
 

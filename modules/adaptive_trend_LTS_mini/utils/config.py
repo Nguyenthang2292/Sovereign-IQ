@@ -3,6 +3,8 @@ from typing import Any, Dict
 
 """Configuration for Adaptive Trend Classification (ATC) analysis."""
 
+VALID_ROBUSTNESS = frozenset({"Narrow", "Medium", "Wide"})
+
 
 @dataclass
 class ATCConfig:
@@ -14,14 +16,14 @@ class ATCConfig:
         - lambda_param (unscaled): Use same value as compute_atc_signals(lambda_param=...)
           The scaling (divide by 1000) is applied internally by lambda_scaled property
           or by compute_atc_signals function.
-        - decay (unscaled): Use same value as compute_atc_signals(decay_rate=...)
+        - decay (unscaled): Use same value as compute_atc_signals(decay=...)
           The scaling (divide by 100) is applied internally by decay_scaled property
           or by compute_atc_signals function.
 
     Example:
         >>> config = ATCConfig(lambda_param=0.02, decay=0.03)
         >>> # Use unscaled values directly with compute_atc_signals
-        >>> result = compute_atc_signals(prices, lambda_param=config.lambda_param, decay_rate=config.decay)
+        >>> result = compute_atc_signals(prices, lambda_param=config.lambda_param, decay=config.decay)
         >>> # Or use scaled values for manual calculations
         >>> scaled_lambda = config.lambda_scaled  # 0.00002
         >>> scaled_decay = config.decay_scaled    # 0.0003
@@ -162,10 +164,28 @@ def create_atc_config_from_dict(
 
     Returns:
         ATCConfig instance with parameters from dict
+
+    Raises:
+        ValueError: If robustness is not one of "Narrow", "Medium", "Wide",
+            or if numeric parameters are out of valid range.
     """
+    robustness = params.get("robustness", "Medium")
+    if robustness not in VALID_ROBUSTNESS:
+        raise ValueError(
+            f"robustness must be one of {sorted(VALID_ROBUSTNESS)}, got {robustness!r}"
+        )
+
+    limit = params.get("limit", 1500)
+    if not isinstance(limit, int) or limit < 1:
+        raise ValueError(f"limit must be a positive integer, got {limit!r}")
+
+    equity_floor = params.get("equity_floor", 0.25)
+    if not isinstance(equity_floor, (int, float)) or equity_floor < 0:
+        raise ValueError(f"equity_floor must be a non-negative number, got {equity_floor!r}")
+
     return ATCConfig(
         timeframe=timeframe,
-        limit=params.get("limit", 1500),
+        limit=limit,
         ema_len=params.get("ema_len", 28),
         hma_len=params.get("hma_len", 28),
         wma_len=params.get("wma_len", 28),
@@ -178,12 +198,13 @@ def create_atc_config_from_dict(
         dema_w=params.get("dema_w", 1.0),
         lsma_w=params.get("lsma_w", 1.0),
         kama_w=params.get("kama_w", 1.0),
-        robustness=params.get("robustness", "Medium"),
+        robustness=robustness,
         lambda_param=params.get("lambda_param", 0.02),
         decay=params.get("decay", 0.03),
         cutout=params.get("cutout", 0),
         long_threshold=params.get("long_threshold", 0.1),
         short_threshold=params.get("short_threshold", -0.1),
+        equity_floor=equity_floor,
         calculation_source=params.get("calculation_source", "close"),
         strategy_mode=params.get("strategy_mode", False),
         batch_size=params.get("batch_size", 100),

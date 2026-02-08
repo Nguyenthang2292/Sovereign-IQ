@@ -71,9 +71,10 @@ def ma_calculation_rust(
 
         def calculate_rust_ma(price_data=None, p_length=None):
             """Inner function for Rust MA calculation."""
-            # Use closure variables if not provided by get_cached_ma
+            # Use closure variables if not provided by get_cached_ma.
+            # Pass Series (not .values) so type is ndarray | Series for rust_backend.
             if price_data is None:
-                price_data = source.values
+                price_data = source
             if p_length is None:
                 p_length = length
 

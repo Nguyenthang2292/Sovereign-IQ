@@ -173,7 +173,9 @@ class ValidationMixin:
 
         return True
 
-    def validate_numeric_range(self, field_name: str, min_value: float = None, max_value: float = None) -> bool:
+    def validate_numeric_range(
+        self, field_name: str, min_value: Optional[float] = None, max_value: Optional[float] = None
+    ) -> bool:
         """
         Validate that a numeric field is within a specified range.
 

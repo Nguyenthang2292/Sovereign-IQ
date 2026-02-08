@@ -7,6 +7,7 @@ Custom logging handler that sends log records to a queue for GUI display.
 import logging
 import queue
 from datetime import datetime
+from typing import Optional
 
 
 class GUILogHandler(logging.Handler):
@@ -59,7 +60,7 @@ class GUILogHandler(logging.Handler):
             self.handleError(record)
 
 
-def setup_gui_logging(log_queue: queue.Queue, logger_names: list = None):
+def setup_gui_logging(log_queue: queue.Queue, logger_names: Optional[list] = None):
     """
     Set up GUI logging for specified loggers.
 

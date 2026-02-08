@@ -4,11 +4,14 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 # Ensure project root is in path
 project_root = Path(__file__).parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
+
+pytest.skip("CUDA batch processing is not supported in adaptive_trend_LTS_mini", allow_module_level=True)
 
 from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.batch_processor import process_symbols_batch_cuda

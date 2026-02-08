@@ -18,8 +18,11 @@ def log_success(msg: str) -> None:
     print(color_text(msg, Fore.GREEN))
 
 
-def log_error(msg: str) -> None:
+def log_error(msg: str, exc_info: bool = False) -> None:
     """Print error message with red color and bright style."""
+    if exc_info:
+        import traceback
+        traceback.print_exc()
     print(color_text(msg, Fore.RED, Style.BRIGHT))
 
 

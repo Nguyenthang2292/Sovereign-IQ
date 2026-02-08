@@ -7,22 +7,6 @@ import pytest
 from modules.auto_trade.core.atc_scanner import ATCScanner, SignalResult
 
 # ============================================================================
-# Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def mock_data_fetcher():
-    return MagicMock()
-
-
-@pytest.fixture
-def mock_scan_all_symbols():
-    with patch("modules.auto_trade.core.atc_scanner.scan_all_symbols") as mock:
-        yield mock
-
-
-# ============================================================================
 # Initialization Tests
 # ============================================================================
 

@@ -56,7 +56,7 @@ def test_analyze_candidate_success(mock_data_fetcher, mock_chart_generator, mock
     mock_analyzer.analyze_chart.return_value = f"```json\n{sample_gemini_json}\n```"
 
     integration = GeminiIntegration(mock_data_fetcher)
-    signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+    signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
     with mock_patch("os.remove"), mock_patch("os.path.exists", return_value=True):
         result = integration.analyze_candidate(signal)
@@ -82,7 +82,7 @@ def test_analyze_candidate_parsing_error(mock_data_fetcher, mock_chart_generator
     mock_analyzer.analyze_chart.return_value = "I think it is a LONG but I won't give JSON."
 
     integration = GeminiIntegration(mock_data_fetcher)
-    signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+    signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
     with mock_patch("os.remove"), mock_patch("os.path.exists", return_value=True):
         result = integration.analyze_candidate(signal)
@@ -95,7 +95,7 @@ def test_no_data_abort(mock_data_fetcher, mock_chart_generator, mock_analyzer):
     mock_data_fetcher.fetch_ohlcv_with_fallback_exchange.return_value = (None, None)
 
     integration = GeminiIntegration(mock_data_fetcher)
-    signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+    signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
     result = integration.analyze_candidate(signal)
 
@@ -108,7 +108,7 @@ def test_chart_generation_failure(mock_data_fetcher, mock_chart_generator, mock_
     mock_chart_generator.create_chart.side_effect = Exception("Matplotlib error")
 
     integration = GeminiIntegration(mock_data_fetcher)
-    signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+    signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
     result = integration.analyze_candidate(signal)
 
@@ -120,11 +120,11 @@ def test_cleanup_called(mock_data_fetcher, mock_chart_generator, mock_analyzer, 
     mock_analyzer.analyze_chart.return_value = f"```json\n{sample_gemini_json}\n```"
 
     integration = GeminiIntegration(mock_data_fetcher)
-    signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+    signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
     with mock_patch("os.remove") as mock_remove, mock_patch("os.path.exists", return_value=True):
         integration = GeminiIntegration(mock_data_fetcher)
-        signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+        signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
         mock_analyzer.analyze_chart.return_value = sample_gemini_json
         integration.analyze_candidate(signal)
         mock_remove.assert_called_once()
@@ -140,7 +140,7 @@ def test_analyze_candidate_retry_logic(mock_data_fetcher, mock_chart_generator, 
     ]
 
     integration = GeminiIntegration(mock_data_fetcher)
-    signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+    signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
     with (
         mock_patch("os.remove"),
@@ -232,7 +232,7 @@ class TestGeminiIntegrationCaching:
 
         with mock_patch("os.remove"), mock_patch("os.path.exists", return_value=True):
             integration = GeminiIntegration(mock_data_fetcher)
-            signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+            signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
             # First call - cache miss
             result1 = integration.analyze_candidate(signal)
@@ -263,7 +263,7 @@ class TestGeminiIntegrationCaching:
             mock_datetime.now.side_effect = [t1, t2, t3]
 
             integration = GeminiIntegration(mock_data_fetcher)
-            signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+            signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
             # First call - cache miss
             result1 = integration.analyze_candidate(signal)
@@ -281,7 +281,7 @@ class TestGeminiIntegrationCaching:
 
         with mock_patch("os.remove"), mock_patch("os.path.exists", return_value=True):
             integration = GeminiIntegration(mock_data_fetcher)
-            signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+            signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
             # First call - populates cache
             result1 = integration.analyze_candidate(signal)
@@ -306,7 +306,7 @@ def test_analyze_candidate_async_success(mock_data_fetcher, mock_chart_generator
     mock_analyzer.analyze_chart.return_value = f"```json\n{sample_gemini_json}\n```"
 
     integration = GeminiIntegration(mock_data_fetcher)
-    signal = SignalResult("BTCUSDT", 1.0, "LONG", {})
+    signal = SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={})
 
     with mock_patch("os.remove"), mock_patch("os.path.exists", return_value=True):
         result = asyncio.run(integration.analyze_candidate_async(signal))
@@ -323,7 +323,7 @@ def test_analyze_candidates_batch_async(mock_data_fetcher, mock_chart_generator,
     mock_analyzer.analyze_chart.return_value = f"```json\n{sample_gemini_json}\n```"
 
     integration = GeminiIntegration(mock_data_fetcher)
-    signals = [SignalResult("BTCUSDT", 1.0, "LONG", {}), SignalResult("ETHUSDT", 0.9, "SHORT", {})]
+    signals = [SignalResult("BTCUSDT", 1.0, "LONG", {}, strengths={}), SignalResult("ETHUSDT", 0.9, "SHORT", {}, strengths={})]
 
     with mock_patch("os.remove"), mock_patch("os.path.exists", return_value=True):
         results = asyncio.run(integration.analyze_candidates_batch_async(signals))

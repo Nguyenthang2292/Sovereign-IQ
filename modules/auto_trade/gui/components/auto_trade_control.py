@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Any, Callable, Optional
 
 import customtkinter as ctk
 
@@ -11,7 +11,12 @@ class AutoTradeControl(ctk.CTkFrame):
     Shows status, allows toggle, displays current settings
     """
 
-    def __init__(self, parent, on_toggle_callback: Callable = None, on_reload_settings: Callable = None):
+    def __init__(
+        self,
+        parent: Any,
+        on_toggle_callback: Optional[Callable[..., Any]] = None,
+        on_reload_settings: Optional[Callable[..., Any]] = None,
+    ):
         super().__init__(parent)
 
         self.on_toggle_callback = on_toggle_callback

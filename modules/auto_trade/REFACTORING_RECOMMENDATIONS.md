@@ -48,7 +48,7 @@ However, several areas require attention before scaling:
 
 ## Critical Issues
 
-### 1. Missing Database Table ⚠️
+### ~~1. Missing Database Table ⚠️~~
 
 **Severity**: CRITICAL
 **Found by**: Database Agent
@@ -90,7 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_gradual_recovery_created ON gradual_recovery(crea
 
 ---
 
-### 2. Broken Foreign Key Constraint ⚠️
+### ~~2. Broken Foreign Key Constraint ⚠️~~
 
 **Severity**: CRITICAL
 **Found by**: Database Agent
@@ -115,7 +115,7 @@ parent_order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
 
 ---
 
-### 3. No Migration Tracking Table ⚠️
+### ~~3. No Migration Tracking Table ⚠️~~
 
 **Severity**: CRITICAL
 **Found by**: Database Agent
@@ -171,7 +171,7 @@ def apply_migration(session, migration_file: str):
 
 ---
 
-### 4. Resource Leak in Reconcile ⚠️
+### ~~4. Resource Leak in Reconcile ⚠️~~
 
 **Severity**: CRITICAL
 **Found by**: Code Review Agent
@@ -214,7 +214,7 @@ return result
 
 ---
 
-### 5. Async Event Loop Bug ⚠️
+### ~~5. Async Event Loop Bug ⚠️~~
 
 **Severity**: CRITICAL
 **Found by**: Code Review Agent
@@ -259,7 +259,7 @@ def call_gemini():
 
 ---
 
-### 6. WebSocket Race Condition ⚠️
+### ~~6. WebSocket Race Condition ⚠️~~
 
 **Severity**: CRITICAL
 **Found by**: Code Review Agent
@@ -303,7 +303,7 @@ if self._loop and self._loop.is_running():
 
 ## High Priority Performance Issues
 
-### 1. N+1 Query Problem in Statistics
+### ~~1. N+1 Query Problem in Statistics~~
 
 **Severity**: HIGH
 **Found by**: Database Agent
@@ -350,7 +350,7 @@ return {
 
 ---
 
-### 2. Missing Composite Indexes
+### ~~2. Missing Composite Indexes~~
 
 **Severity**: HIGH
 **Found by**: Database Agent
@@ -391,7 +391,7 @@ CREATE INDEX IF NOT EXISTS idx_gradual_recovery_symbol_status
 
 ---
 
-### 3. Inefficient Pagination Pattern
+### ~~3. Inefficient Pagination Pattern~~
 
 **Severity**: HIGH
 **Found by**: Database Agent
@@ -438,7 +438,7 @@ def get_orders_cursor(session, last_id: Optional[int] = None,
 
 ---
 
-### 4. Large Component Size
+### ~~4. Large Component Size~~
 
 **Severity**: HIGH
 **Found by**: UI Agent
@@ -906,7 +906,7 @@ def test_something(sample_signal_result, sample_gemini_signal):
 
 ### Recommended Enhancements
 
-#### 1. Loading Indicators (HIGH PRIORITY)
+#### ~~1. Loading Indicators (HIGH PRIORITY)~~
 
 **Issue**: No visual feedback during async operations
 **Impact**: Users unsure if app is working or frozen
@@ -1006,7 +1006,7 @@ def _setup_keyboard_shortcuts(self):
 
 ---
 
-#### 3. Status Bar (MEDIUM PRIORITY)
+#### ~~3. Status Bar (MEDIUM PRIORITY)~~
 
 **Issue**: No connection status or last update time visible
 **Impact**: Users unsure if data is current
@@ -1216,7 +1216,7 @@ self.api_key_display.configure(
 
 ## Implementation Roadmap
 
-### Week 1: Critical Fixes (4-5 days)
+### ~~Week 1: Critical Fixes (4-5 days)~~
 
 **Priority**: Fix critical issues before production
 
@@ -1403,7 +1403,7 @@ self.api_key_display.configure(
 
 These can be implemented quickly with high impact:
 
-### 1. Add `gradual_recovery` Table (30 minutes)
+### ~~1. Add `gradual_recovery` Table (30 minutes)~~
 
 **File**: `modules/auto_trade/database/schema.sql`
 **Location**: After line 199
@@ -1435,7 +1435,7 @@ CREATE INDEX IF NOT EXISTS idx_gradual_recovery_created ON gradual_recovery(crea
 
 ---
 
-### 2. Fix Foreign Key Constraint (15 minutes)
+### ~~2. Fix Foreign Key Constraint (15 minutes)~~
 
 **File**: `modules/auto_trade/database/schema.sql`
 **Location**: Line 91
@@ -1450,7 +1450,7 @@ parent_order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
 
 ---
 
-### 3. Add Loading Indicator (4 hours)
+### ~~3. Add Loading Indicator (4 hours)~~
 
 Create `loading_overlay.py` and add to long-running operations (see code example in UI/UX section).
 

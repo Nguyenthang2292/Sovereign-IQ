@@ -120,20 +120,20 @@ class BackupManager:
             True if backup is valid
         """
         try:
-            backup_path = Path(backup_path)
+            path = Path(backup_path)
 
-            if not backup_path.exists():
+            if not path.exists():
                 return False
 
             # Check file size
-            if backup_path.stat().st_size == 0:
+            if path.stat().st_size == 0:
                 logger.error("Backup file is empty")
                 return False
 
             # For compressed files, try to decompress and check
-            if backup_path.suffix == ".gz":
+            if path.suffix == ".gz":
                 try:
-                    with gzip.open(backup_path, "rb") as f:
+                    with gzip.open(path, "rb") as f:
                         # Read first few bytes to verify it's valid gzip
                         f.read(100)
                     return True
@@ -145,7 +145,7 @@ class BackupManager:
                 try:
                     import sqlite3
 
-                    conn = sqlite3.connect(f"file:{backup_path}?mode=ro", uri=True)
+                    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
                     cursor = conn.cursor()
                     cursor.execute("SELECT name FROM sqlite_master LIMIT 1")
                     conn.close()
@@ -172,10 +172,10 @@ class BackupManager:
         if not target_path:
             target_path = self.db_path
 
-        backup_path = Path(backup_path)
+        path = Path(backup_path)
 
-        if not backup_path.exists():
-            logger.error(f"Backup file not found: {backup_path}")
+        if not path.exists():
+            logger.error(f"Backup file not found: {path}")
             return False
 
         try:
@@ -183,21 +183,21 @@ class BackupManager:
             if os.path.exists(target_path):
                 pre_restore_backup = self.create_backup(
                     backup_name=f"pre_restore_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                    metadata={"restore_source": str(backup_path)},
+                    metadata={"restore_source": str(path)},
                 )
                 logger.info(f"Created pre-restore backup: {pre_restore_backup}")
 
-            logger.info(f"Restoring from backup: {backup_path}")
+            logger.info(f"Restoring from backup: {path}")
 
             # Restore
-            if backup_path.suffix == ".gz":
+            if path.suffix == ".gz":
                 # Decompress
-                with gzip.open(backup_path, "rb") as f_in:
+                with gzip.open(path, "rb") as f_in:
                     with open(target_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
             else:
                 # Direct copy
-                shutil.copy2(backup_path, target_path)
+                shutil.copy2(path, target_path)
 
             # Verify restored database
             import sqlite3
@@ -412,7 +412,7 @@ class BackupScheduler:
             backup_manager: BackupManager instance
         """
         self.backup_manager = backup_manager
-        self.last_backup_time = None
+        self.last_backup_time: Optional[datetime.datetime] = None
 
     def should_backup(self, interval_hours: int = 24) -> bool:
         """

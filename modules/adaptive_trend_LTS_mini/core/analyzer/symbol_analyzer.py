@@ -146,7 +146,7 @@ class SymbolAnalyzer:
             kama_w=config.kama_w,
             robustness=config.robustness,
             lambda_param=config.lambda_param,
-            decay_rate=config.decay,
+            decay=config.decay,
             cutout=config.cutout,
             long_threshold=config.long_threshold,
             short_threshold=config.short_threshold,

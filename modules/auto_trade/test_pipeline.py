@@ -191,7 +191,7 @@ def initialize_pipeline(model_path: str, symbols: Optional[List[str]] = None, sa
 
     # Inject test symbols and disable refresh
     symbol_manager._cached_symbols = test_symbols
-    symbol_manager.refresh_symbols = lambda: print("   (Skipping symbol refresh for test)")
+    symbol_manager.refresh_symbols = lambda: print("   (Skipping symbol refresh for test)")  # type: ignore[method-assign]
     print(
         f"   ✅ Using {len(test_symbols)} test symbols: {', '.join(test_symbols[:5])}"
         + ("..." if len(test_symbols) > 5 else "")
@@ -204,13 +204,13 @@ def initialize_pipeline(model_path: str, symbols: Optional[List[str]] = None, sa
     test_config["threshold"] = 0.01
     test_config["use_rust_cache"] = True
 
-    atc_scanner = ATCScanner(data_fetcher=data_fetcher, config=test_config)
+    atc_scanner = ATCScanner(data_fetcher=data_fetcher, config=test_config)  # type: ignore[arg-type]
     print(f"   ✅ Configured: {ATC_SCANNER_DEFAULTS['timeframes']} timeframes")
     print(f"   ✅ Rust cache: {ATC_SCANNER_DEFAULTS['use_rust_cache']}")
 
     # 4. XGBoost Filter
     print("4. XGBoostFilter...")
-    xgboost_filter = XGBoostFilter(data_fetcher=data_fetcher, model_path=model_path, config=XGBOOST_FILTER_DEFAULTS)
+    xgboost_filter = XGBoostFilter(data_fetcher=data_fetcher, model_path=model_path, config=XGBOOST_FILTER_DEFAULTS)  # type: ignore[arg-type]
     print(f"   ✅ Model: {model_path}")
     print(f"   ✅ Min confidence: {XGBOOST_FILTER_DEFAULTS['min_confidence']}")
 

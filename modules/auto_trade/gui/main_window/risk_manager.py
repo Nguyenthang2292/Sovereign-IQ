@@ -48,19 +48,19 @@ class RiskManager:
                 print("Error: Invalid account balance")
                 return False
 
-            if not self._check_max_positions(positions):
+            if not self._check_max_positions(list(positions)):
                 return False
 
             if not self._check_daily_loss(account_data):
                 return False
 
-            if not self._check_exposure(positions, balance, position_size, leverage):
+            if not self._check_exposure(list(positions), balance, position_size, leverage):
                 return False
 
             if position_size is not None and not self._check_position_size(balance, position_size):
                 return False
 
-            if symbol is not None and not self._check_symbol_limit(positions, symbol):
+            if symbol is not None and not self._check_symbol_limit(list(positions), symbol):
                 return False
 
             if leverage is not None and not self._check_leverage(leverage):

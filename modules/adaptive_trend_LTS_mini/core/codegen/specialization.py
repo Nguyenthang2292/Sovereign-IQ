@@ -203,7 +203,7 @@ def get_specialized_compute_fn(
         # Return EMA-only specialized function
         def _ema_only_specialized(prices: pd.Series) -> dict[str, pd.Series]:
             # Convert to numpy array (avoid unnecessary copy if already float64)
-            prices_arr = prices.values
+            prices_arr: np.ndarray = np.asarray(prices.values)
             if prices_arr.dtype != np.float64:
                 prices_arr = prices_arr.astype(np.float64)
 

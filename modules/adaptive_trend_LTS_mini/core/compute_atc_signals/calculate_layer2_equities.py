@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-
 import numpy as np
 import pandas as pd
 
@@ -87,16 +86,15 @@ def calculate_layer2_equities(
             signals_matrix = np.empty((n_signals, n_bars), dtype=dtype)
 
             for i, ma_type in enumerate(ma_types):
-                signals_matrix[i] = layer1_signals[ma_type].values
+                signals_matrix[i] = np.asarray(layer1_signals[ma_type].values, dtype=dtype)
 
-                # Shift signals by 1 period (sig[1] in Pine Script)
-                # NOTE: This shift is for INTERNAL equity calculation only
-                # The Layer 1 signals passed to calculate_average_signal are NOT shifted
-                # Parallel worker assumes sig_prev_values is already shifted!
-                signals_prev = np.empty_like(signals_matrix)
-                signals_prev[:, 1:] = signals_matrix[:, :-1]
-                # First value is not used in equity calculation, but set to NaN to match Original
-                signals_prev[:, 0] = np.nan
+            # Shift signals by 1 period (sig[1] in Pine Script)
+            # NOTE: This shift is for INTERNAL equity calculation only
+            # The Layer 1 signals passed to calculate_average_signal are NOT shifted
+            # Parallel worker assumes sig_prev_values is already shifted!
+            signals_prev = np.empty_like(signals_matrix)
+            signals_prev[:, 1:] = signals_matrix[:, :-1]
+            signals_prev[:, 0] = np.nan
 
             # Get growth factor
             from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth

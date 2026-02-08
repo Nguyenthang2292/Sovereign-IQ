@@ -19,7 +19,7 @@ class TestBenchmarkComparison(unittest.TestCase):
     def test_compare_signals_perfect_match(self):
         """Test signal comparison with identical data."""
         # Create dummy data
-        dates = pd.date_range("2023-01-01", periods=100, freq="H")
+        dates = pd.date_range("2023-01-01", periods=100, freq="h")
         signal = pd.Series(np.random.randn(100), index=dates)
         equity = pd.Series(np.random.randn(100), index=dates)
 
@@ -35,7 +35,7 @@ class TestBenchmarkComparison(unittest.TestCase):
 
     def test_compare_signals_edge_cases(self):
         """Test comparison with edge cases: empty data, NaN values, different lengths."""
-        dates = pd.date_range("2023-01-01", periods=10, freq="H")
+        dates = pd.date_range("2023-01-01", periods=10, freq="h")
 
         # Case 1: NaN values
         res_nan = {

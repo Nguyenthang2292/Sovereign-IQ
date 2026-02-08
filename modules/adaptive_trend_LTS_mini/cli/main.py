@@ -11,17 +11,18 @@ import sys
 import warnings
 from argparse import Namespace
 from pathlib import Path
-from typing import List, Optional, Tuple, TypedDict
+from typing import List, Optional, Tuple
 
 import pandas as pd
 
-# Add project root to sys.path to ensure modules can be imported
-# This is needed when running the file directly from subdirectories
+# Ensure project root is on sys.path when running this file directly (e.g. python -m cli.main)
+# Prefer installing the package (pip install -e .) so imports work without path manipulation.
 if "__file__" in globals():
-    project_root = Path(__file__).parent.parent.parent.parent
-    project_root_str = str(project_root)
-    if project_root_str not in sys.path:
-        sys.path.insert(0, project_root_str)
+    _cli_dir = Path(__file__).resolve().parent
+    _project_root = _cli_dir.parent.parent.parent
+    _root_str = str(_project_root)
+    if _root_str not in sys.path:
+        sys.path.insert(0, _root_str)
 
 from modules.common.utils import configure_windows_stdio
 
@@ -57,8 +58,8 @@ from modules.common.utils import (
     log_progress,
 )
 
-# Suppress warnings for cleaner output
-warnings.filterwarnings("ignore")
+# Suppress only FutureWarning for cleaner CLI output; DeprecationWarning and others remain visible
+warnings.filterwarnings("ignore", category=FutureWarning)
 colorama_init(autoreset=True)
 
 
@@ -146,13 +147,18 @@ class ATCAnalyzer:
         Run interactive loop for analyzing multiple symbols.
 
         DEPRECATED: This method is kept for backward compatibility.
-        Use InteractiveLoop.run() instead.
+        Use InteractiveLoop.run() instead. Will be removed in a future release.
 
         Args:
             symbol: Initial symbol
             quote: Quote currency (not used - taken from args)
             atc_params: ATC parameters dictionary (not used - taken from config_manager)
         """
+        warnings.warn(
+            "run_interactive_loop is deprecated; use InteractiveLoop.run() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.interactive_loop.run(
             initial_symbol=symbol,
             timeframe=self.selected_timeframe,

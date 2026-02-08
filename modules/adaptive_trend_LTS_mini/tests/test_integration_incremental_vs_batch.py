@@ -66,7 +66,7 @@ class TestIncrementalVsBatchConsistency:
             lsma_len=28,
             kama_len=28,
             lambda_param=0.02,
-            decay_rate=0.03,
+            decay=0.03,
             robustness="Medium",
             use_rust_backend=False,  # Ensure consistent backend
         )
@@ -126,7 +126,7 @@ class TestIncrementalVsBatchConsistency:
             "lsma_len": 20,
             "kama_len": 20,
             "lambda_param": 0.02,
-            "decay_rate": 0.03,
+            "decay": 0.03,
             "robustness": "Narrow",
             "use_rust_backend": False,
         }

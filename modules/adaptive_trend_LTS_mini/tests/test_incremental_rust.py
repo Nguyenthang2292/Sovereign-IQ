@@ -7,14 +7,13 @@ This module verifies correctness of Rust incremental backend by:
 """
 
 import numpy as np
-import pandas as pd
 import pytest
 
-from modules.adaptive_trend_LTS_mini.core.compute_atc_signals.incremental_backend import (
+from modules.adaptive_trend_LTS_mini.core.incremental_backend import (
     check_rust_available,
-    update_incremental_rust,
-    update_incremental_python,
     update_incremental_auto,
+    update_incremental_python,
+    update_incremental_rust,
 )
 
 

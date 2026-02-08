@@ -13,6 +13,7 @@ import pandas as pd
 from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
 from modules.adaptive_trend_LTS_mini.core.process_layer1 import trend_sign
 from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
+from modules.common.domain.symbol_validation import require_valid_symbol
 
 try:
     from modules.common.utils import log_warn
@@ -44,6 +45,7 @@ def _process_symbol(
     Returns:
         Dictionary with symbol data if signal found, None otherwise
     """
+    require_valid_symbol(symbol)
     try:
         # Fetch OHLCV data
         df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
@@ -122,7 +124,7 @@ def _process_symbol(
             kama_w=atc_config.kama_w,
             robustness=atc_config.robustness,
             lambda_param=atc_config.lambda_param,
-            decay_rate=atc_config.decay,
+            decay=atc_config.decay,
             cutout=atc_config.cutout,
             long_threshold=atc_config.long_threshold,
             short_threshold=atc_config.short_threshold,

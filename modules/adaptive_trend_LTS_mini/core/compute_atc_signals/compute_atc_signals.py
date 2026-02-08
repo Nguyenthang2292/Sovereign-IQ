@@ -10,11 +10,11 @@ This module orchestrates the full ATC pipeline:
 
 from __future__ import annotations
 
+import warnings
 from contextlib import nullcontext
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
-import numpy as np
 
 try:
     from modules.common.utils import log_debug, log_error, log_info, log_warn
@@ -55,7 +55,7 @@ def _validate_and_scale_params(
     robustness: str,
     cutout: int,
     lambda_param: float,
-    decay_rate: float,
+    decay: float,
 ) -> Tuple[pd.Series, pd.Series, str, int, float, float]:
     """Validate and scale parameters for ATC computation."""
     prices, src, robustness, cutout = validate_atc_inputs(prices, src, robustness, cutout)
@@ -66,14 +66,14 @@ def _validate_and_scale_params(
             f"lambda_param={lambda_param} appears to be already scaled (expected unscaled value like 0.02). "
             f"Double-scaling will produce incorrect results. Using lambda_param as-is."
         )
-    if decay_rate < 0.0001:
+    if decay < 0.0001:
         log_warn(
-            f"decay_rate={decay_rate} appears to be already scaled (expected unscaled value like 0.03). "
-            f"Double-scaling will produce incorrect results. Using decay_rate as-is."
+            f"decay={decay} appears to be already scaled (expected unscaled value like 0.03). "
+            f"Double-scaling will produce incorrect results. Using decay as-is."
         )
 
     lambda_scaled = lambda_param / 1000.0
-    decay_scaled = decay_rate / 100.0
+    decay_scaled = decay / 100.0
 
     return prices, src, robustness, cutout, lambda_scaled, decay_scaled
 
@@ -95,6 +95,7 @@ def _compute_ma_tuples(
     """Compute Moving Average tuples for all configured types."""
     ma_tuples: Dict[str, tuple] = {}
     mem_manager = get_memory_manager()
+    # Avoid tracking overhead in performance-critical path when fast_mode is True
     context_ma = nullcontext() if fast_mode else mem_manager.track_memory("set_of_moving_averages_all")
 
     with context_ma:
@@ -111,9 +112,12 @@ def _compute_ma_tuples(
             ma_source = src if src is not None else prices
 
             def make_approx_tuple(func, length, **kwargs):
-                L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+                _diflen = diflen(length, robustness=robustness)
+                if _diflen is None:
+                    raise ValueError(f"diflen returned None for length={length}")
+                L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _diflen
                 lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
-                return tuple(func(ma_source, l, **kwargs) for l in lengths)
+                return tuple(func(ma_source, ln, **kwargs) for ln in lengths)
 
             ma_tuples["EMA"] = make_approx_tuple(
                 adaptive_ema_approx,
@@ -175,7 +179,7 @@ def _compute_ma_tuples(
                     raise ValueError(f"diflen returned None for length={length}")
                 L1, L2, L3, L4, L_1, L_2, L_3, L_4 = _diflen
                 lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
-                return tuple(func(ma_source_basic, l, tolerance=approximate_threshold) for l in lengths)
+                return tuple(func(ma_source_basic, leng, tolerance=approximate_threshold) for leng in lengths)
 
             ma_tuples["EMA"] = make_approx_tuple_basic(fast_ema_approx, ma_configs[0][1])
             ma_tuples["HMA"] = make_approx_tuple_basic(fast_hma_approx, ma_configs[1][1])
@@ -202,6 +206,11 @@ def _compute_ma_tuples(
     return ma_tuples
 
 
+# Default thresholds for auto-enabling Layer 1 parallel processing (when parallel_l1 is None)
+DEFAULT_MIN_BARS_PARALLEL_L1 = 500
+DEFAULT_MIN_CORES_PARALLEL_L1 = 4
+
+
 def _compute_layer1(
     prices: pd.Series,
     ma_tuples: Dict[str, tuple],
@@ -211,6 +220,8 @@ def _compute_layer1(
     decay_scaled: float,
     parallel_l1: Optional[bool],
     fast_mode: bool,
+    min_bars_parallel_l1: int = DEFAULT_MIN_BARS_PARALLEL_L1,
+    min_cores_parallel_l1: int = DEFAULT_MIN_CORES_PARALLEL_L1,
 ) -> Dict[str, pd.Series]:
     """Compute Layer 1 signals."""
     layer1_signals: Dict[str, pd.Series] = {}
@@ -225,8 +236,12 @@ def _compute_layer1(
 
         if parallel_l1 is None:
             hw_manager = get_hardware_manager()
+            n_bars = len(prices)
+            n_cores = hw_manager.get_resources().cpu_cores
             use_parallel_l1 = (
-                len(prices) > 5000 and not is_child_process and hw_manager.get_resources().cpu_cores > 4
+                n_bars >= min_bars_parallel_l1
+                and not is_child_process
+                and n_cores >= min_cores_parallel_l1
             )
         else:
             use_parallel_l1 = parallel_l1
@@ -243,9 +258,14 @@ def _compute_layer1(
                 decay_val=decay_scaled,
             )
         else:
+            pool_release_failures = 0
             for ma_type, _, _ in ma_configs:
                 signal, signals_tuple, equity_tuple = _layer1_signal_for_ma(
-                    prices, ma_tuples[ma_type], lambda_val=lambda_scaled, decay_val=decay_scaled, rate_of_change_series=rate_of_change_series
+                    prices,
+                    ma_tuples[ma_type],
+                    lambda_val=lambda_scaled,
+                    decay_val=decay_scaled,
+                    rate_of_change_series=rate_of_change_series,
                 )
                 layer1_signals[ma_type] = signal
 
@@ -255,7 +275,13 @@ def _compute_layer1(
                     for e in equity_tuple:
                         series_pool.release(e)
                 except Exception as e:
+                    pool_release_failures += 1
                     log_warn(f"Error releasing series to pool for {ma_type}: {e}")
+            if pool_release_failures > 0:
+                log_warn(
+                    f"Series pool release failures: {pool_release_failures} "
+                    "(may indicate memory pressure or pool errors)"
+                )
 
     return layer1_signals
 
@@ -361,12 +387,15 @@ def compute_atc_signals(
     kama_w: float = 1.0,
     robustness: str = "Medium",
     lambda_param: float = 0.02,
-    decay_rate: float = 0.03,
+    decay: float = 0.03,
+    decay_rate: Optional[float] = None,  # Deprecated: use decay=
     cutout: int = 0,
     long_threshold: float = 0.1,
     short_threshold: float = -0.1,
     strategy_mode: bool = False,
     parallel_l1: Optional[bool] = None,
+    min_bars_parallel_l1: Optional[int] = None,
+    min_cores_parallel_l1: Optional[int] = None,
     parallel_l2: Optional[bool] = True,
     precision: str = "float64",
     use_rust_backend: bool = True,
@@ -380,9 +409,16 @@ def compute_atc_signals(
     equity_floor: float = 0.25,
 ) -> dict[str, pd.Series]:
     """Compute Adaptive Trend Classification (ATC) signals."""
+    if decay_rate is not None:
+        warnings.warn(
+            "decay_rate= is deprecated, use decay= instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        decay = decay_rate
     log_debug(f"Starting ATC signal computation for {len(prices)} bars")
     prices, src, robustness, cutout, lambda_scaled, decay_scaled = _validate_and_scale_params(
-        prices, src, robustness, cutout, lambda_param, decay_rate
+        prices, src, robustness, cutout, lambda_param, decay
     )
     log_info(
         f"Parameters: robustness={robustness}, lambda_scaled={lambda_scaled}, decay_scaled={decay_scaled}, "
@@ -402,9 +438,13 @@ def compute_atc_signals(
     log_debug(f"Computed {len(ma_tuples)} MA types")
 
     rate_of_change_series = rate_of_change(prices)
+    min_bars = min_bars_parallel_l1 if min_bars_parallel_l1 is not None else DEFAULT_MIN_BARS_PARALLEL_L1
+    min_cores = min_cores_parallel_l1 if min_cores_parallel_l1 is not None else DEFAULT_MIN_CORES_PARALLEL_L1
     layer1_signals = _compute_layer1(
         prices, ma_tuples, ma_configs, rate_of_change_series,
         lambda_scaled, decay_scaled, parallel_l1, fast_mode,
+        min_bars_parallel_l1=min_bars,
+        min_cores_parallel_l1=min_cores,
     )
     log_debug("Completed Layer 1 signals")
 

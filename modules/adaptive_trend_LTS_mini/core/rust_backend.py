@@ -27,6 +27,14 @@ try:
 except ImportError:
     warnings.warn("Rust extensions not available, falling back to Numba")
     RUST_AVAILABLE = False
+    calculate_dema_rust = None  # type: ignore[misc]
+    calculate_ema_rust = None  # type: ignore[misc]
+    calculate_equity_rust = None  # type: ignore[misc]
+    calculate_hma_rust = None  # type: ignore[misc]
+    calculate_kama_rust = None  # type: ignore[misc]
+    calculate_lsma_rust = None  # type: ignore[misc]
+    calculate_wma_rust = None  # type: ignore[misc]
+    process_signal_persistence_rust = None  # type: ignore[misc]
 
 
 def _ensure_numpy_array(data: Union[pd.Series, np.ndarray]) -> np.ndarray:
@@ -64,9 +72,14 @@ def calculate_equity(
     r_vals = _ensure_numpy_array(r_values)
     sig_p = _ensure_numpy_array(sig_prev)
 
-    if use_rust and RUST_AVAILABLE:
-        # NOTE: Rust backend might not support floor_val yet,
-        # it uses hardcoded 0.25 internally in most implementations
+    # Rust backend uses a hardcoded equity floor of 0.25; configurable floor_val
+    # is only applied in the Python path. Use Python path when a custom floor is requested.
+    rust_ok = use_rust and RUST_AVAILABLE
+    if rust_ok and floor_val is not None and floor_val != 0.25:
+        rust_ok = False  # Fall back to Python so equity_floor is respected
+
+    if rust_ok:
+        assert calculate_equity_rust is not None  # narrow type after RUST_AVAILABLE check
         return calculate_equity_rust(r_vals, sig_p, starting_equity, decay_multiplier, cutout)
     else:
         from .compute_equity.core import _calculate_equity_core
@@ -96,6 +109,7 @@ def calculate_kama(
     prices_arr = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
+        assert calculate_kama_rust is not None
         return calculate_kama_rust(prices_arr, length)
     else:
         from .compute_moving_averages._numba_cores import _calculate_kama_atc_core
@@ -124,6 +138,7 @@ def process_signal_persistence(
     down_arr = _ensure_numpy_array(down)
 
     if use_rust and RUST_AVAILABLE:
+        assert process_signal_persistence_rust is not None
         return process_signal_persistence_rust(up_arr, down_arr)
     else:
         # Fallback to local numba kernel if needed or existing one
@@ -154,6 +169,7 @@ def calculate_ema(
     prices_arr = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
+        assert calculate_ema_rust is not None
         return calculate_ema_rust(prices_arr, length)
     else:
         series = pd.Series(prices_arr)
@@ -181,6 +197,7 @@ def calculate_wma(
     prices_arr = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
+        assert calculate_wma_rust is not None
         return calculate_wma_rust(prices_arr, length)
     else:
         series = pd.Series(prices_arr)
@@ -208,6 +225,7 @@ def calculate_dema(
     prices_arr = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
+        assert calculate_dema_rust is not None
         return calculate_dema_rust(prices_arr, length)
     else:
         series = pd.Series(prices_arr)
@@ -235,6 +253,7 @@ def calculate_lsma(
     prices_arr = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
+        assert calculate_lsma_rust is not None
         return calculate_lsma_rust(prices_arr, length)
     else:
         series = pd.Series(prices_arr)
@@ -262,6 +281,7 @@ def calculate_hma(
     prices_arr = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
+        assert calculate_hma_rust is not None
         return calculate_hma_rust(prices_arr, length)
     else:
         # Fallback to pandas_ta HMA (matching ma_calculation_enhanced.py behavior)

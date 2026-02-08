@@ -88,15 +88,16 @@ class RuntimeMonitor:
         Returns:
             Dictionary with performance statistics
         """
-        summary = {
+        operation_stats: Dict[str, Dict[str, float]] = {}
+        summary: Dict[str, Any] = {
             "total_exceptions": self.exception_count,
             "monitored_operations": len(self.operation_times),
-            "operation_stats": {},
+            "operation_stats": operation_stats,
         }
 
         for op_name, times in self.operation_times.items():
             if times:
-                summary["operation_stats"][op_name] = {
+                operation_stats[op_name] = {
                     "count": len(times),
                     "avg_time": sum(times) / len(times),
                     "min_time": min(times),

@@ -3,25 +3,25 @@ Comprehensive Test Suite for Adaptive Trend LTS Module
 Tests for logic errors, edge cases, and potential bugs
 """
 
-import pytest
+import os
+import sys
+
 import numpy as np
 import pandas as pd
-from unittest.mock import Mock, patch
-import sys
-import os
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import modules to test
-from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig, create_atc_config_from_dict
-from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
-from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
-from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
 from modules.adaptive_trend_LTS_mini.core.process_layer1.weighted_signal import weighted_signal
 from modules.adaptive_trend_LTS_mini.core.signal_detection.crossover import crossover
 from modules.adaptive_trend_LTS_mini.core.signal_detection.crossunder import crossunder
 from modules.adaptive_trend_LTS_mini.core.signal_detection.generate_signal import generate_signal_from_ma
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig, create_atc_config_from_dict
+from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
+from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
+from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
 
 
 class TestParameterScaling:
@@ -65,7 +65,9 @@ class TestDiflenFunction:
 
     def test_diflen_narrow(self):
         """Test Narrow robustness"""
-        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(10, "Narrow")
+        result = diflen(10, "Narrow")
+        assert result is not None
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = result
         assert L1 == 11 and L_1 == 9
         assert L2 == 12 and L_2 == 8
         assert L3 == 13 and L_3 == 7
@@ -74,7 +76,9 @@ class TestDiflenFunction:
 
     def test_diflen_medium(self):
         """Test Medium robustness"""
-        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(10, "Medium")
+        result = diflen(10, "Medium")
+        assert result is not None
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = result
         assert L1 == 11 and L_1 == 9
         assert L2 == 12 and L_2 == 8
         assert L3 == 14 and L_3 == 6
@@ -83,7 +87,9 @@ class TestDiflenFunction:
 
     def test_diflen_wide(self):
         """Test Wide robustness"""
-        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(10, "Wide")
+        result = diflen(10, "Wide")
+        assert result is not None
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = result
         assert L1 == 11 and L_1 == 9
         assert L2 == 13 and L_2 == 7
         assert L3 == 15 and L_3 == 5
@@ -99,7 +105,7 @@ class TestDiflenFunction:
         """Test với robustness không hợp lệ"""
         # Nên fallback về Medium
         result = diflen(10, "Invalid")
-        # Should use Medium offsets
+        assert result is not None  # fallback to Medium returns tuple
         L1, L2, L3, L4, L_1, L_2, L_3, L_4 = result
         assert L4 == 16 and L_4 == 4  # Medium pattern
 
@@ -371,7 +377,29 @@ class TestConfigFromDict:
         config = create_atc_config_from_dict(params)
 
         # prefer_gpu should map to use_rust_backend
-        assert config.use_rust_backend == True
+        assert config.use_rust_backend
+
+    def test_create_from_dict_invalid_robustness_raises(self):
+        """create_atc_config_from_dict raises ValueError for invalid robustness."""
+        with pytest.raises(ValueError, match="robustness must be one of"):
+            create_atc_config_from_dict({"robustness": "Invalid"})
+
+    def test_create_from_dict_invalid_limit_raises(self):
+        """create_atc_config_from_dict raises ValueError for invalid limit."""
+        with pytest.raises(ValueError, match="limit must be a positive integer"):
+            create_atc_config_from_dict({"limit": 0})
+        with pytest.raises(ValueError, match="limit must be a positive integer"):
+            create_atc_config_from_dict({"limit": -1})
+
+    def test_create_from_dict_invalid_equity_floor_raises(self):
+        """create_atc_config_from_dict raises ValueError for negative equity_floor."""
+        with pytest.raises(ValueError, match="equity_floor must be a non-negative number"):
+            create_atc_config_from_dict({"equity_floor": -0.1})
+
+    def test_create_from_dict_equity_floor_passed(self):
+        """create_atc_config_from_dict passes equity_floor into ATCConfig."""
+        config = create_atc_config_from_dict({"equity_floor": 0.5})
+        assert config.equity_floor == 0.5
 
 
 class TestRateOfChange:

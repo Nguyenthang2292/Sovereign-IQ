@@ -65,7 +65,7 @@ class SignalPersistence:
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.enable_rotation = enable_rotation
         self._lock = threading.Lock()
-        self._last_disk_check = 0
+        self._last_disk_check: float = 0.0
         self._disk_check_interval = self.DISK_CHECK_INTERVAL_SECONDS
         self.metrics = {
             "total_writes": 0,

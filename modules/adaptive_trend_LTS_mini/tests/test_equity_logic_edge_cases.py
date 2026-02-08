@@ -2,12 +2,11 @@
 Edge case and logic tests for Adaptive Trend Classification (ATC).
 """
 
-import os
 import numpy as np
 import pandas as pd
 import pytest
+
 from modules.adaptive_trend_LTS_mini.core.compute_atc_signals import compute_atc_signals
-from modules.adaptive_trend_LTS_mini.core.compute_equity.core import set_equity_floor, get_equity_floor
 
 
 @pytest.fixture

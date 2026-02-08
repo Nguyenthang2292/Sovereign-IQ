@@ -12,7 +12,7 @@ Option 1: Combine sequential filtering and voting system.
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 
 import ccxt
 import pandas as pd
@@ -81,7 +81,7 @@ class HybridAnalyzer:
 
         # Initialize SPC Vote Aggregator
         aggregation_config = SPCAggregationConfig(
-            mode=SPC_AGGREGATION_MODE,
+            mode=SPC_AGGREGATION_MODE,  # type: ignore[arg-type]
             threshold=SPC_AGGREGATION_THRESHOLD,
             weighted_min_total=SPC_AGGREGATION_WEIGHTED_MIN_TOTAL,
             weighted_min_diff=SPC_AGGREGATION_WEIGHTED_MIN_DIFF,
@@ -598,7 +598,9 @@ class HybridAnalyzer:
 
         exchange_manager = self.data_fetcher.exchange_manager
 
-        symbol_data_list = [row.to_dict() for _, row in signals_df.iterrows()]
+        symbol_data_list = [
+            cast(Dict[str, Any], row.to_dict()) for _, row in signals_df.iterrows()
+        ]
 
         progress_lock = threading.Lock()
         checked_count = [0]
@@ -648,7 +650,9 @@ class HybridAnalyzer:
 
         exchange_manager = self.data_fetcher.exchange_manager
 
-        symbol_data_list = [row.to_dict() for _, row in signals_df.iterrows()]
+        symbol_data_list = [
+            cast(Dict[str, Any], row.to_dict()) for _, row in signals_df.iterrows()
+        ]
 
         progress_lock = threading.Lock()
         checked_count = [0]
@@ -965,7 +969,9 @@ class HybridAnalyzer:
         for _, row in signals_df.iterrows():
             classifier = DecisionMatrixClassifier(indicators=indicators)
 
-            votes = self.calculate_indicator_votes(row.to_dict(), signal_type)
+            votes = self.calculate_indicator_votes(
+                cast(Dict[str, Any], row.to_dict()), signal_type
+            )
 
             for indicator, (vote, strength) in votes.items():
                 accuracy = self._get_indicator_accuracy(indicator, signal_type)

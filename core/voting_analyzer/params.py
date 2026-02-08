@@ -1,10 +1,14 @@
 """Parameter extraction helpers for VotingAnalyzer."""
 
+from typing import Any
+
 from config import SPC_STRATEGY_PARAMETERS
 
 
 class VotingParamsMixin:
     """Mixin for extracting oscillator and SPC parameters."""
+
+    args: Any  # Provided by subclass (argparse.Namespace or similar)
 
     def get_oscillator_params(self) -> dict:
         """Extract Range Oscillator parameters."""

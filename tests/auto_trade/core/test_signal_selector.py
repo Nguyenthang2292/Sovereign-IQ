@@ -10,13 +10,9 @@ from modules.auto_trade.core.signal_selector import SignalSelector
 
 
 class TestSignalSelector:
-    @pytest.fixture
-    def selector(self):
-        return SignalSelector(config={"weight_xgboost": 0.4, "weight_gemini": 0.6, "min_confidence_threshold": 0.5})
-
-    def test_select_best_signal_simple(self, selector):
+    def test_select_best_signal_simple(self, selector, sample_signal_result):
         """Test selection with a single valid signal."""
-        xb_signals = [SignalResult("BTC/USDT", 0.9, "LONG", {"xgboost_conf": "0.8"})]
+        xb_signals = [sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG", details={"xgboost_conf": "0.8"})]
         gemini_signals = {
             "BTC/USDT": GeminiSignal(
                 trend="UP", signal="LONG", confidence=0.9, entry=50000, stop_loss=49000, take_profit=52000
@@ -32,9 +28,9 @@ class TestSignalSelector:
         assert final.confidence == pytest.approx(0.86)
         assert final.entry_price == 50000
 
-    def test_select_conflict_resolution(self, selector):
+    def test_select_conflict_resolution(self, selector, sample_signal_result):
         """Test that conflicting signals are rejected."""
-        xb_signals = [SignalResult("BTC/USDT", 0.9, "LONG", {"xgboost_conf": "0.8"})]
+        xb_signals = [sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG", details={"xgboost_conf": "0.8"})]
         gemini_signals = {
             "BTC/USDT": GeminiSignal(
                 trend="DOWN", signal="SHORT", confidence=0.9, entry=50000, stop_loss=51000, take_profit=48000
@@ -44,11 +40,11 @@ class TestSignalSelector:
         final = selector.select_best_signal(xb_signals, gemini_signals)
         assert final is None
 
-    def test_select_ranking(self, selector):
+    def test_select_ranking(self, selector, sample_signal_result):
         """Test that the best signal is selected."""
         xb_signals = [
-            SignalResult("BTC/USDT", 0.8, "LONG", {"xgboost_conf": "0.7"}),
-            SignalResult("ETH/USDT", 0.9, "LONG", {"xgboost_conf": "0.8"}),
+            sample_signal_result(symbol="BTC/USDT", score=0.8, signal_type="LONG", details={"xgboost_conf": "0.7"}),
+            sample_signal_result(symbol="ETH/USDT", score=0.9, signal_type="LONG", details={"xgboost_conf": "0.8"}),
         ]
         gemini_signals = {
             "BTC/USDT": GeminiSignal("UP", "LONG", 0.7, 50000, 49000, 52000),  # 0.7*0.4 + 0.7*0.6 = 0.70
@@ -61,9 +57,9 @@ class TestSignalSelector:
         assert final.symbol == "ETH/USDT"
         assert final.confidence == pytest.approx(0.86)
 
-    def test_select_without_gemini(self, selector):
+    def test_select_without_gemini(self, selector, sample_signal_result):
         """Test selection when Gemini data is missing (should return None due to missing prices)."""
-        xb_signals = [SignalResult("BTC/USDT", 0.9, "LONG", {"xgboost_conf": "0.8"})]
+        xb_signals = [sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG", details={"xgboost_conf": "0.8"})]
         gemini_signals = {}
 
         # New strict validation requires price levels, which are missing here
@@ -71,9 +67,9 @@ class TestSignalSelector:
 
         assert final is None
 
-    def test_reject_zero_prices(self, selector):
+    def test_reject_zero_prices(self, selector, sample_signal_result):
         """Test that signals with zero prices are rejected."""
-        xb_signals = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
+        xb_signals = [sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG", details={})]
         gemini_signals = {
             "BTC/USDT": GeminiSignal(trend="UP", signal="LONG", confidence=0.9, entry=0, stop_loss=0, take_profit=0)
         }
@@ -81,9 +77,9 @@ class TestSignalSelector:
         final = selector.select_best_signal(xb_signals, gemini_signals)
         assert final is None
 
-    def test_reject_invalid_long_prices(self, selector):
+    def test_reject_invalid_long_prices(self, selector, sample_signal_result):
         """Test that invalid LONG price structure is rejected."""
-        xb_signals = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
+        xb_signals = [sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG", details={})]
         gemini_signals = {
             "BTC/USDT": GeminiSignal(
                 trend="UP",
@@ -104,10 +100,10 @@ class TestSignalSelector:
         final = selector.select_best_signal([], {})
         assert final is None
 
-    def test_all_below_threshold(self, selector):
+    def test_all_below_threshold(self, selector, sample_signal_result):
         """Test that signals below confidence threshold are rejected."""
         # Config has threshold 0.5. Let's make a signal with confidence 0.4
-        xb_signals = [SignalResult("BTC/USDT", 0.9, "LONG", {"xgboost_conf": "0.3"})]  # 0.3*0.4 = 0.12
+        xb_signals = [sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG", details={"xgboost_conf": "0.3"})]  # 0.3*0.4 = 0.12
         gemini_signals = {
             "BTC/USDT": GeminiSignal(
                 trend="UP", signal="LONG", confidence=0.4, entry=500, stop_loss=490, take_profit=520
@@ -117,12 +113,12 @@ class TestSignalSelector:
         final = selector.select_best_signal(xb_signals, gemini_signals)
         assert final is None
 
-    def test_custom_weights(self):
+    def test_custom_weights(self, sample_signal_result):
         """Test configuration with custom weights."""
         # 100% XGBoost weight
         selector = SignalSelector(config={"weight_xgboost": 1.0, "weight_gemini": 0.0, "min_confidence_threshold": 0.5})
 
-        xb_signals = [SignalResult("BTC/USDT", 0.9, "LONG", {"xgboost_conf": "0.8"})]
+        xb_signals = [sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG", details={"xgboost_conf": "0.8"})]
         gemini_signals = {
             "BTC/USDT": GeminiSignal(
                 trend="UP", signal="LONG", confidence=0.2, entry=500, stop_loss=490, take_profit=520
@@ -134,10 +130,10 @@ class TestSignalSelector:
         assert final is not None
         assert final.confidence == 0.8  # Normalized: (0.8*1.0 + 0.2*0.0) / 1.0 = 0.8
 
-    def test_confidence_normalization_cap(self, selector):
+    def test_confidence_normalization_cap(self, selector, sample_signal_result):
         """Test that confidence is capped at 1.0 even if inputs are higher."""
         # Case 1: XGBoost > 1.0 (without Gemini)
-        xb_signals = [SignalResult("BTC/USDT", 1.5, "LONG", {"xgboost_conf": "1.5"})]
+        xb_signals = [sample_signal_result(symbol="BTC/USDT", score=1.5, signal_type="LONG", details={"xgboost_conf": "1.5"})]
         gemini_signals = {}
         # NOTE: This returns None now because missing Gemini means missing price levels (strict validation)
         # So we must verify the behavior is consistent (None) OR provide Gemini

@@ -65,13 +65,6 @@ class TestReconcileFunction:
     """Test reconcile_orders_with_binance function."""
 
     @pytest.fixture
-    def test_db(self, tmp_path):
-        """Create temporary test database."""
-        db_path = tmp_path / "test_reconcile.db"
-        initialize_database(str(db_path))
-        yield str(db_path)
-
-    @pytest.fixture
     def mock_exchange(self):
         """Create mock CCXT exchange."""
         exchange = Mock()
@@ -469,13 +462,6 @@ class TestReconcileFunction:
 
 class TestCloseStaleOrders:
     """Test closing stale OPEN orders not on Binance anymore."""
-
-    @pytest.fixture
-    def test_db(self, tmp_path):
-        """Create temporary test database."""
-        db_path = tmp_path / "test_stale.db"
-        initialize_database(str(db_path))
-        yield str(db_path)
 
     @pytest.fixture
     def mock_exchange(self):

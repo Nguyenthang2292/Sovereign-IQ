@@ -8,6 +8,8 @@ used for parallel signal calculation.
 import pickle
 from typing import Any, Dict, List, Optional
 
+from pandas import DataFrame
+
 # Try to import shared memory utilities
 try:
     from modules.common.system.shared_memory_utils import (
@@ -17,7 +19,7 @@ try:
 except ImportError:
     SHARED_MEMORY_AVAILABLE = False
 
-    def reconstruct_dataframe_from_shared_memory(shm_info: Any) -> Any:
+    def reconstruct_dataframe_from_shared_memory(shm_info: Dict[str, Any]) -> DataFrame:
         raise RuntimeError("Shared memory utilities not available")
 
 
@@ -26,12 +28,12 @@ def calculate_signal_batch_worker(
     end_idx: int,
     df_bytes: Optional[bytes] = None,
     shm_info: Optional[Dict[str, Any]] = None,
-    symbol: str = None,
-    timeframe: str = None,
-    limit: int = None,
-    signal_type: str = None,
-    osc_length: int = None,
-    osc_mult: float = None,
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    limit: Optional[int] = None,
+    signal_type: Optional[str] = None,
+    osc_length: Optional[int] = None,
+    osc_mult: Optional[float] = None,
     osc_strategies: Optional[List[int]] = None,
     spc_params: Optional[Dict] = None,
     enabled_indicators: Optional[List[str]] = None,
@@ -92,6 +94,9 @@ def calculate_signal_batch_worker(
         min_indicators_agreement=min_indicators_agreement,
     )
 
+    assert symbol is not None and timeframe is not None and signal_type is not None
+    assert osc_length is not None and osc_mult is not None
+
     batch_signals = {}
 
     # Calculate signals for each period in this batch
@@ -121,11 +126,11 @@ def calculate_single_signal_batch_worker(
     end_idx: int,
     df_bytes: Optional[bytes] = None,
     shm_info: Optional[Dict[str, Any]] = None,
-    symbol: str = None,
-    timeframe: str = None,
-    limit: int = None,
-    osc_length: int = None,
-    osc_mult: float = None,
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    limit: Optional[int] = None,
+    osc_length: Optional[int] = None,
+    osc_mult: Optional[float] = None,
     osc_strategies: Optional[List[int]] = None,
     spc_params: Optional[Dict] = None,
     enabled_indicators: Optional[List[str]] = None,
@@ -185,6 +190,9 @@ def calculate_single_signal_batch_worker(
         use_confidence_weighting=use_confidence_weighting,
         min_indicators_agreement=min_indicators_agreement,
     )
+
+    assert symbol is not None and timeframe is not None
+    assert osc_length is not None and osc_mult is not None
 
     batch_signals = {}
 

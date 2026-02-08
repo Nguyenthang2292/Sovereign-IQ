@@ -7,33 +7,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from modules.auto_trade.core.circuit_breaker import CircuitBreakerOpenError, CircuitState
-from modules.auto_trade.core.gemini_integration import GeminiSignal
 from modules.auto_trade.core.signal_pipeline import FinalSignal, SignalPipeline
 
 
 class TestSignalPipelineHealth:
     """Test health check integration and degraded scenarios."""
-
-    @pytest.fixture
-    def mock_components(self):
-        return {
-            "symbol_manager": MagicMock(),
-            "atc_scanner": MagicMock(),
-            "xgboost_filter": MagicMock(),
-            "gemini_integration": MagicMock(),
-            "signal_selector": MagicMock(),
-        }
-
-    @pytest.fixture
-    def pipeline(self, mock_components):
-        return SignalPipeline(
-            symbol_manager=mock_components["symbol_manager"],
-            atc_scanner=mock_components["atc_scanner"],
-            xgboost_filter=mock_components["xgboost_filter"],
-            gemini_integration=mock_components["gemini_integration"],
-            signal_selector=mock_components["signal_selector"],
-            config={"max_symbols_to_scan": 10, "pipeline_timeout": 5},
-        )
 
     def test_pipeline_health_check_degraded_continues(self, pipeline, mock_components, caplog):
         """Test pipeline continues with degraded health status."""
@@ -67,27 +45,6 @@ class TestSignalPipelineHealth:
 
 class TestSignalPipelineCircuitBreaker:
     """Test circuit breaker behavior and recovery scenarios."""
-
-    @pytest.fixture
-    def mock_components(self):
-        return {
-            "symbol_manager": MagicMock(),
-            "atc_scanner": MagicMock(),
-            "xgboost_filter": MagicMock(),
-            "gemini_integration": MagicMock(),
-            "signal_selector": MagicMock(),
-        }
-
-    @pytest.fixture
-    def pipeline(self, mock_components):
-        return SignalPipeline(
-            symbol_manager=mock_components["symbol_manager"],
-            atc_scanner=mock_components["atc_scanner"],
-            xgboost_filter=mock_components["xgboost_filter"],
-            gemini_integration=mock_components["gemini_integration"],
-            signal_selector=mock_components["signal_selector"],
-            config={"max_symbols_to_scan": 10, "pipeline_timeout": 5},
-        )
 
     def test_pipeline_circuit_breaker_open_blocks_gemini(self, pipeline, mock_components):
         """Test that open circuit breaker blocks Gemini analysis."""
@@ -136,27 +93,6 @@ class TestSignalPipelineCircuitBreaker:
 class TestSignalPipelineMetrics:
     """Test metrics recording and collection."""
 
-    @pytest.fixture
-    def mock_components(self):
-        return {
-            "symbol_manager": MagicMock(),
-            "atc_scanner": MagicMock(),
-            "xgboost_filter": MagicMock(),
-            "gemini_integration": MagicMock(),
-            "signal_selector": MagicMock(),
-        }
-
-    @pytest.fixture
-    def pipeline(self, mock_components):
-        return SignalPipeline(
-            symbol_manager=mock_components["symbol_manager"],
-            atc_scanner=mock_components["atc_scanner"],
-            xgboost_filter=mock_components["xgboost_filter"],
-            gemini_integration=mock_components["gemini_integration"],
-            signal_selector=mock_components["signal_selector"],
-            config={"max_symbols_to_scan": 10, "pipeline_timeout": 5},
-        )
-
     def test_pipeline_metrics_recorded(self, pipeline, mock_components, sample_gemini_signal):
         """Test that all pipeline metrics are recorded."""
         mock_components["symbol_manager"].get_symbols.return_value = ["BTC/USDT", "ETH/USDT"]
@@ -198,17 +134,7 @@ class TestSignalPipelineMetrics:
 
 
 class TestSignalPipelineXGBoostMode:
-    """Test XGBoost mode switching and behavior."""
-
-    @pytest.fixture
-    def mock_components(self):
-        return {
-            "symbol_manager": MagicMock(),
-            "atc_scanner": MagicMock(),
-            "xgboost_filter": MagicMock(),
-            "gemini_integration": MagicMock(),
-            "signal_selector": MagicMock(),
-        }
+    """Test XGBoost mode switching and behavior. Uses local pipeline fixture for config enable_xgboost=True."""
 
     @pytest.fixture
     def pipeline(self, mock_components):
@@ -242,17 +168,7 @@ class TestSignalPipelineXGBoostMode:
 
 
 class TestSignalPipelineMaxCandidates:
-    """Test max AI candidates limiting behavior."""
-
-    @pytest.fixture
-    def mock_components(self):
-        return {
-            "symbol_manager": MagicMock(),
-            "atc_scanner": MagicMock(),
-            "xgboost_filter": MagicMock(),
-            "gemini_integration": MagicMock(),
-            "signal_selector": MagicMock(),
-        }
+    """Test max AI candidates limiting behavior. Uses local pipeline fixture for config max_ai_candidates=3."""
 
     @pytest.fixture
     def pipeline(self, mock_components):
@@ -322,27 +238,6 @@ class TestSignalPipelineMaxCandidates:
 
 class TestSignalPipelineEventBus:
     """Test event bus integration and event publishing."""
-
-    @pytest.fixture
-    def mock_components(self):
-        return {
-            "symbol_manager": MagicMock(),
-            "atc_scanner": MagicMock(),
-            "xgboost_filter": MagicMock(),
-            "gemini_integration": MagicMock(),
-            "signal_selector": MagicMock(),
-        }
-
-    @pytest.fixture
-    def pipeline(self, mock_components):
-        return SignalPipeline(
-            symbol_manager=mock_components["symbol_manager"],
-            atc_scanner=mock_components["atc_scanner"],
-            xgboost_filter=mock_components["xgboost_filter"],
-            gemini_integration=mock_components["gemini_integration"],
-            signal_selector=mock_components["signal_selector"],
-            config={"max_symbols_to_scan": 10, "pipeline_timeout": 5},
-        )
 
     def test_pipeline_publishes_success_event(self, pipeline, mock_components, sample_gemini_signal):
         """Test that pipeline publishes success event on successful completion."""

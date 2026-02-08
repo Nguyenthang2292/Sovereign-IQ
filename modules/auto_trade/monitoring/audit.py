@@ -99,7 +99,7 @@ class AuditLogger:
         Returns:
             Sanitized dictionary with sensitive values redacted
         """
-        sanitized = {}
+        sanitized: Dict[str, Any] = {}
         for key, value in details.items():
             # Check if key contains sensitive keywords
             if any(sensitive in key.lower() for sensitive in self.SENSITIVE_KEYS):

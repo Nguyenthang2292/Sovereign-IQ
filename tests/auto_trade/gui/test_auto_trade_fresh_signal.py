@@ -33,8 +33,8 @@ def test_auto_trade_picks_best_fresh_signal_by_score_and_passes_tp_sl():
     now = 1000.0
     signals = [
         {"symbol": "AAAUSDT", "signal": "LONG", "score": 0.80, "created_at_ts": now - 1},   # fresh
-        {"symbol": "BBBUSDT", "signal": "SHORT", "score": 0.90, "created_at_ts": now - 50}, # fresh (best)
-        {"symbol": "CCCUSDT", "signal": "LONG", "score": 0.99, "created_at_ts": now - 200}, # stale
+        {"symbol": "BBBUSDT", "signal": "SHORT", "score": 0.90, "created_at_ts": now - 50}, # fresh
+        {"symbol": "CCCUSDT", "signal": "LONG", "score": 0.99, "created_at_ts": now - 200}, # fresh (best)
     ]
     parent = _make_parent(signals=signals, tp_sl={"default_tp": 9.0, "default_sl": 4.0})
 
@@ -51,9 +51,9 @@ def test_auto_trade_picks_best_fresh_signal_by_score_and_passes_tp_sl():
 
             MockExecutor.return_value.execute_from_signal.assert_called_once()
             args, kwargs = MockExecutor.return_value.execute_from_signal.call_args
-            assert args[0]["symbol"] == "BBBUSDT"
-            assert args[0]["signal"] == "SHORT"
-            assert float(args[0]["score"]) == 0.90
+            assert args[0]["symbol"] == "CCCUSDT"
+            assert args[0]["signal"] == "LONG"
+            assert float(args[0]["score"]) == 0.99
             assert kwargs["tp_sl_settings"] == {"default_tp": 9.0, "default_sl": 4.0}
 
 
@@ -62,8 +62,8 @@ def test_auto_trade_skips_when_no_fresh_signals():
 
     now = 1000.0
     signals = [
-        {"symbol": "AAAUSDT", "signal": "LONG", "score": 0.80, "created_at_ts": now - 120},
-        {"symbol": "BBBUSDT", "signal": "SHORT", "score": 0.90, "created_at_ts": now - 300},
+        {"symbol": "AAAUSDT", "signal": "LONG", "score": 0.80, "created_at_ts": now - 301},
+        {"symbol": "BBBUSDT", "signal": "SHORT", "score": 0.90, "created_at_ts": now - 600},
     ]
     parent = _make_parent(signals=signals)
 

@@ -25,44 +25,44 @@
            │         FullBacktester                          │
            │         (from modules/backtester)               │
            │                                                 │
-           │  ┌───────────────────────────────────────────┐ │
-           │  │  1. Fetch OHLCV Data                      │ │
-           │  │     ├─ DataFetcher                        │ │
-           │  │     └─ Historical price data              │ │
-           │  └───────────────────────────────────────────┘ │
+           │  ┌───────────────────────────────────────────┐  │
+           │  │  1. Fetch OHLCV Data                      │  │
+           │  │     ├─ DataFetcher                        │  │
+           │  │     └─ Historical price data              │  │
+           │  └───────────────────────────────────────────┘  │
            │                     │                           │
            │                     ▼                           │
-           │  ┌───────────────────────────────────────────┐ │
-           │  │  2. Calculate Signals                     │ │
-           │  │     ├─ HybridSignalCalculator             │ │
-           │  │     ├─ Single signal mode (highest conf)  │ │
-           │  │     └─ Returns signal series              │ │
-           │  └───────────────────────────────────────────┘ │
+           │  ┌───────────────────────────────────────────┐  │
+           │  │  2. Calculate Signals                     │  │
+           │  │     ├─ HybridSignalCalculator             │  │
+           │  │     ├─ Single signal mode (highest conf)  │  │
+           │  │     └─ Returns signal series              │  │
+           │  └───────────────────────────────────────────┘  │
            │                     │                           │
            │                     ▼                           │
-           │  ┌───────────────────────────────────────────┐ │
-           │  │  3. Simulate Trades                       │ │
-           │  │     ├─ Entry/Exit logic                   │ │
-           │  │     ├─ SL/TP/Trailing stop                │ │
-           │  │     ├─ Max hold periods                   │ │
-           │  │     └─ Returns trades list                │ │
-           │  └───────────────────────────────────────────┘ │
+           │  ┌───────────────────────────────────────────┐  │
+           │  │  3. Simulate Trades                       │  │
+           │  │     ├─ Entry/Exit logic                   │  │
+           │  │     ├─ SL/TP/Trailing stop                │  │
+           │  │     ├─ Max hold periods                   │  │
+           │  │     └─ Returns trades list                │  │
+           │  └───────────────────────────────────────────┘  │
            │                     │                           │
            │                     ▼                           │
-           │  ┌───────────────────────────────────────────┐ │
-           │  │  4. Calculate Standard Metrics            │ │
-           │  │     ├─ Win rate                           │ │
-           │  │     ├─ Sharpe ratio                       │ │
-           │  │     ├─ Max drawdown                       │ │
-           │  │     └─ Profit factor                      │ │
-           │  └───────────────────────────────────────────┘ │
+           │  ┌───────────────────────────────────────────┐  │
+           │  │  4. Calculate Standard Metrics            │  │
+           │  │     ├─ Win rate                           │  │
+           │  │     ├─ Sharpe ratio                       │  │
+           │  │     ├─ Max drawdown                       │  │
+           │  │     └─ Profit factor                      │  │
+           │  └───────────────────────────────────────────┘  │
            └─────────────────────────────────────────────────┘
                                     │
                                     │ Returns trades + metrics
                                     ▼
-           ┌─────────────────────────────────────────────────┐
-           │   AutoTradeBacktester Post-Processing           │
-           │                                                 │
+           ┌────────────────────────────────────────────────┐
+           │   AutoTradeBacktester Post-Processing          │
+           │                                                │
            │  ┌───────────────────────────────────────────┐ │
            │  │  5. Break-Even Protection Simulation      │ │
            │  │     ├─ Monitor drawdown per trade         │ │
@@ -70,8 +70,8 @@
            │  │     │   └─ Move TP to break-even          │ │
            │  │     └─ Mark "be_moved" flag               │ │
            │  └───────────────────────────────────────────┘ │
-           │                     │                           │
-           │                     ▼                           │
+           │                     │                          │
+           │                     ▼                          │
            │  ┌───────────────────────────────────────────┐ │
            │  │  6. Martingale Strategy Simulation        │ │
            │  │     ├─ Detect consecutive losses          │ │
@@ -80,8 +80,8 @@
            │  │     ├─ Reset after profit                 │ │
            │  │     └─ Track martingale_step              │ │
            │  └───────────────────────────────────────────┘ │
-           │                     │                           │
-           │                     ▼                           │
+           │                     │                          │
+           │                     ▼                          │
            │  ┌───────────────────────────────────────────┐ │
            │  │  7. Recalculate Metrics                   │ │
            │  │     ├─ Update with BE/Martingale changes  │ │
@@ -92,8 +92,8 @@
            │  │     │   • leverage_used                   │ │
            │  │     └─ Recalculate equity curve           │ │
            │  └───────────────────────────────────────────┘ │
-           │                     │                           │
-           │                     ▼                           │
+           │                     │                          │
+           │                     ▼                          │
            │  ┌───────────────────────────────────────────┐ │
            │  │  8. Safety Validation                     │ │
            │  │     ├─ Max consecutive losses check       │ │
@@ -101,7 +101,7 @@
            │  │     ├─ Max steps check                    │ │
            │  │     └─ Return safety metrics              │ │
            │  └───────────────────────────────────────────┘ │
-           └─────────────────────────────────────────────────┘
+           └────────────────────────────────────────────────┘
                                     │
                                     │ Returns final result
                                     ▼

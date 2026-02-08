@@ -6,17 +6,6 @@ import pytest
 from modules.auto_trade.core.atc_scanner import ATCScanner
 
 
-@pytest.fixture
-def mock_data_fetcher():
-    return MagicMock()
-
-
-@pytest.fixture
-def mock_scan_all_symbols():
-    with patch("modules.auto_trade.core.atc_scanner.scan_all_symbols") as mock:
-        yield mock
-
-
 class TestATCScannerEnhancements:
     """Tests for signal strength and parallel execution enhancements."""
 
@@ -67,7 +56,9 @@ class TestATCScannerEnhancements:
 
     def test_signal_strength_capture(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test that signal strengths are captured in SignalResult."""
-        scanner = ATCScanner(mock_data_fetcher)
+        # Default threshold 0.6; 1h LONG + 15m LONG + 5m SHORT => score 0.6 (not > 0.6).
+        # Use threshold 0.0 so we get one result and can assert strengths.
+        scanner = ATCScanner(mock_data_fetcher, config={"threshold": 0.0})
 
         def side_effect(data_fetcher, atc_config, symbols, **kwargs):
             if atc_config.timeframe == "1h":

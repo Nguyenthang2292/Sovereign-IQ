@@ -8,10 +8,9 @@ import math
 import re
 import time
 from collections import deque
-from datetime import datetime
 from enum import Enum
 from threading import RLock
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 
 class MetricType(Enum):
@@ -142,7 +141,7 @@ class MetricsCollector:
                 self._counters[name] = self._counters.get(name, 0) + value
                 self._update_metadata(name, MetricType.COUNTER)
 
-        except Exception as e:
+        except Exception:
             # Re-raise validation errors
             raise
 
@@ -172,7 +171,7 @@ class MetricsCollector:
                 self._gauges[name] = float(value)
                 self._update_metadata(name, MetricType.GAUGE)
 
-        except Exception as e:
+        except Exception:
             # Re-raise validation errors
             raise
 
@@ -205,7 +204,7 @@ class MetricsCollector:
                 self._histograms[name].append(float(value))
                 self._update_metadata(name, MetricType.HISTOGRAM)
 
-        except Exception as e:
+        except Exception:
             # Re-raise validation errors
             raise
 
@@ -341,7 +340,7 @@ class MetricsCollector:
 
             return deleted
 
-    def get_metrics(self) -> Dict[str, Dict[str, Union[int, float, List[float]]]]:
+    def get_metrics(self) -> Dict[str, Any]:
         """
         Retrieve all metrics.
 

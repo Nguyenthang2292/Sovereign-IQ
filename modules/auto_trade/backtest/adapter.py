@@ -6,7 +6,7 @@ and position monitoring strategies.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -279,7 +279,7 @@ class AutoTradeBacktester:
 
         return updated_trades
 
-    def validate_martingale_safety(self, trades: List[Dict]) -> Dict[str, any]:
+    def validate_martingale_safety(self, trades: List[Dict]) -> Dict[str, Any]:
         """
         Validate Martingale strategy safety metrics.
 

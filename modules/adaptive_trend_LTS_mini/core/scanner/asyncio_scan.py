@@ -84,15 +84,16 @@ def _scan_asyncio(
                         result = await _process_symbol_async(symbol, data_fetcher, atc_config, min_signal, loop)
                         return symbol, result
 
-                tasks = [_process_with_semaphore(symbol) for symbol in batch_symbols]
+                coros = [_process_with_semaphore(symbol) for symbol in batch_symbols]
             else:
                 # Wrap to include symbol
                 async def _wrap_with_symbol(symbol):
                     result = await _process_symbol_async(symbol, data_fetcher, atc_config, min_signal, loop)
                     return symbol, result
 
-                tasks = [_wrap_with_symbol(symbol) for symbol in batch_symbols]
+                coros = [_wrap_with_symbol(symbol) for symbol in batch_symbols]
 
+            tasks = [asyncio.create_task(c) for c in coros]
             try:
                 # Process results as they complete
                 for coro in asyncio.as_completed(tasks):
@@ -121,10 +122,10 @@ def _scan_asyncio(
                         log_warn(f"Error processing symbol: {type(e).__name__}: {e}. Skipping and continuing...")
             except KeyboardInterrupt:
                 log_warn("Scan interrupted by user")
-                # Cancel remaining tasks
                 for task in tasks:
                     if not task.done():
                         task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
                 break
 
             # Force garbage collection after each batch

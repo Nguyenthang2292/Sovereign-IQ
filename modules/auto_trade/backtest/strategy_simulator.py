@@ -75,7 +75,7 @@ class AutoTradeStrategySimulator:
         if signal_pipeline is None:
             from modules.auto_trade.core.signal_pipeline import SignalPipeline
 
-            self.signal_pipeline = SignalPipeline(data_fetcher=data_fetcher)
+            self.signal_pipeline = SignalPipeline(data_fetcher=data_fetcher)  # type: ignore[call-arg]
         else:
             self.signal_pipeline = signal_pipeline
 

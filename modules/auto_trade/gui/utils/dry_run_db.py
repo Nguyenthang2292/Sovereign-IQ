@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 
 class DryRunDB:
@@ -188,8 +188,8 @@ class DryRunDB:
         Returns:
             True if update was successful, False otherwise
         """
-        updates = []
-        values = []
+        updates: List[str] = []
+        values: List[Any] = []
 
         if current_price is not None:
             updates.append("current_price = ?")

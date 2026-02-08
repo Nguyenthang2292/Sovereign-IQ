@@ -153,4 +153,5 @@ def compute_liquidity_metrics_batch(
 def update_incremental_atc_rust(
     state: Dict[str, Any],
     new_price: float,
+    config: Dict[str, Any],
 ) -> Tuple[float, Dict[str, Any]]: ...

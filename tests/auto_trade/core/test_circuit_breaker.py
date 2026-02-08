@@ -161,10 +161,11 @@ class TestCircuitBreaker:
         assert breaker.get_state() == CircuitState.HALF_OPEN
 
         # Need 2 more successes
-        for _ in range(2):
-            breaker.call(success_func)
-            assert breaker.get_state() == CircuitState.HALF_OPEN
+        # Call 2: Should still be HALF_OPEN
+        breaker.call(success_func)
+        assert breaker.get_state() == CircuitState.HALF_OPEN
 
+        # Call 3: Should transition to CLOSED
         breaker.call(success_func)
         assert breaker.get_state() == CircuitState.CLOSED
 
@@ -337,7 +338,7 @@ class TestCircuitBreaker:
 
         time.sleep(0.1)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ZeroDivisionError):
             breaker.call(lambda: 1 / 0)
 
         time.sleep(0.1)
@@ -348,9 +349,10 @@ class TestCircuitBreaker:
 
     def test_custom_exception_class(self):
         """Test that CircuitBreakerError is properly raised."""
-        breaker = CircuitBreaker(name="test")
+        # Use failure_threshold=1 to easily open the circuit
+        breaker = CircuitBreaker(failure_threshold=1, name="test")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ZeroDivisionError):
             breaker.call(lambda: 1 / 0)
 
         with pytest.raises(CircuitBreakerOpenError) as exc_info:
@@ -364,7 +366,13 @@ class TestCircuitBreaker:
         breaker1 = CircuitBreaker(failure_threshold=2, name="breaker1")
         breaker2 = CircuitBreaker(failure_threshold=2, name="breaker2")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ZeroDivisionError):
+            breaker1.call(lambda: 1 / 0)
+
+        # Still closed (threshold 2)
+        assert breaker1.get_state() == CircuitState.CLOSED
+
+        with pytest.raises(ZeroDivisionError):
             breaker1.call(lambda: 1 / 0)
 
         assert breaker1.get_state() == CircuitState.OPEN

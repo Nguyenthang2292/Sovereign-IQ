@@ -70,7 +70,7 @@ class AutoModeExecutor:
         atc_config = self.config_manager.create_config(timeframe)
 
         # Scan symbols (provided list or all from exchange)
-        long_signals, short_signals = scan_all_symbols(
+        scan_result = scan_all_symbols(
             data_fetcher=self.data_fetcher,
             atc_config=atc_config,
             max_symbols=self.args.max_symbols,
@@ -80,6 +80,15 @@ class AutoModeExecutor:
             npartitions=getattr(self.args, "npartitions", None),
             symbols=symbols,
         )
+        long_signals: pd.DataFrame
+        short_signals: pd.DataFrame
+        if isinstance(scan_result, tuple) and len(scan_result) == 2:
+            long_signals, short_signals = scan_result
+        elif isinstance(scan_result, dict):
+            long_signals = scan_result.get("long_signals", pd.DataFrame())
+            short_signals = scan_result.get("short_signals", pd.DataFrame())
+        else:
+            long_signals, short_signals = pd.DataFrame(), pd.DataFrame()
 
         return long_signals, short_signals
 

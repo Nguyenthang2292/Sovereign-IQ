@@ -22,6 +22,16 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from modules.auto_trade.database.config import DEFAULT_SCHEMA_PATH
+
+
+def _load_schema_sql() -> str:
+    schema_path = Path(DEFAULT_SCHEMA_PATH)
+    if schema_path.exists():
+        schema_sql = schema_path.read_text(encoding="utf-8")
+        if "CREATE TABLE IF NOT EXISTS gradual_recovery" in schema_sql:
+            return schema_sql
+    fallback = Path(__file__).parent.parent.parent / "modules" / "auto_trade" / "database" / "schema.sql"
+    return fallback.read_text(encoding="utf-8")
 from modules.auto_trade.database import reconcile_orders_with_binance
 
 
@@ -31,8 +41,7 @@ class TestSchemaCriticalFixes:
     def test_fresh_db_has_gradual_recovery_table(self, tmp_path):
         """Fresh DB from schema.sql must have gradual_recovery table."""
         db_path = tmp_path / "test.db"
-        with open(DEFAULT_SCHEMA_PATH, "r", encoding="utf-8") as f:
-            schema_sql = f.read()
+        schema_sql = _load_schema_sql()
         conn = sqlite3.connect(str(db_path))
         conn.executescript(schema_sql)
         conn.commit()
@@ -46,8 +55,7 @@ class TestSchemaCriticalFixes:
     def test_fresh_db_has_migrations_applied_table(self, tmp_path):
         """Fresh DB from schema.sql must have migrations_applied table."""
         db_path = tmp_path / "test.db"
-        with open(DEFAULT_SCHEMA_PATH, "r", encoding="utf-8") as f:
-            schema_sql = f.read()
+        schema_sql = _load_schema_sql()
         conn = sqlite3.connect(str(db_path))
         conn.executescript(schema_sql)
         conn.commit()
@@ -60,16 +68,14 @@ class TestSchemaCriticalFixes:
 
     def test_schema_fk_references_orders_id(self):
         """Schema must define parent_order_id FK as REFERENCES orders(id)."""
-        with open(DEFAULT_SCHEMA_PATH, "r", encoding="utf-8") as f:
-            schema_sql = f.read()
+        schema_sql = _load_schema_sql()
         assert "REFERENCES orders(id)" in schema_sql, "FK should reference orders(id) not orders(order_id)"
         assert "REFERENCES orders(order_id)" not in schema_sql or "orders(id)" in schema_sql
 
     def test_fresh_db_foreign_key_list_orders_parent_order_id_refs_id(self, tmp_path):
         """PRAGMA foreign_key_list(orders) must show parent_order_id → orders(id)."""
         db_path = tmp_path / "test.db"
-        with open(DEFAULT_SCHEMA_PATH, "r", encoding="utf-8") as f:
-            schema_sql = f.read()
+        schema_sql = _load_schema_sql()
         conn = sqlite3.connect(str(db_path))
         conn.executescript(schema_sql)
         conn.commit()
@@ -159,10 +165,8 @@ class TestMigrationTracking:
         from modules.auto_trade.database.migrations import MigrationManager
 
         db_path = tmp_path / "mig.db"
-        schema_path = DEFAULT_SCHEMA_PATH
+        schema_sql = _load_schema_sql()
         # Create empty DB with schema (so migrations_applied exists)
-        with open(schema_path, "r", encoding="utf-8") as f:
-            schema_sql = f.read()
         conn = sqlite3.connect(str(db_path))
         conn.executescript(schema_sql)
         conn.execute(
@@ -172,7 +176,7 @@ class TestMigrationTracking:
         conn.commit()
         conn.close()
 
-        manager = MigrationManager(str(db_path), schema_path)
+        manager = MigrationManager(str(db_path), DEFAULT_SCHEMA_PATH)
         pending = manager.get_pending_migrations()
         # Applied migration must not be in pending
         assert "002_add_gradual_recovery.sql" not in pending

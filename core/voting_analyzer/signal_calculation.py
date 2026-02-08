@@ -23,6 +23,12 @@ from modules.simplified_percentile_clustering.core.features import FeatureConfig
 class VotingSignalCalculationMixin:
     """Mixin for parallel signal calculation across indicators."""
 
+    args: Any
+    data_fetcher: Any
+    selected_timeframe: str
+    get_oscillator_params: Any
+    get_spc_params: Any
+
     def _process_symbol_for_all_indicators(
         self,
         symbol_data: Dict[str, Any],

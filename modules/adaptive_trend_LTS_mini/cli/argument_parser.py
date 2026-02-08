@@ -120,13 +120,20 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         version=f"%(prog)s {VERSION}",
     )
 
-    # Basic options
+    # Basic options (optional positional symbol so "BTC/USDT --timeframe 1h" works)
     basic_group = parser.add_argument_group("Basic Options")
+    basic_group.add_argument(
+        "symbol_pos",
+        nargs="?",
+        default=None,
+        help=f"Symbol pair to analyze (default: {DEFAULT_SYMBOL})",
+    )
     basic_group.add_argument(
         "--symbol",
         type=str,
         default=None,
-        help=f"Symbol pair to analyze (default: {DEFAULT_SYMBOL})",
+        dest="symbol",
+        help="Symbol pair to analyze (overrides positional if both given)",
     )
     basic_group.add_argument(
         "--quote",
@@ -229,6 +236,12 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     )
 
     parsed = parser.parse_args(args)
+
+    # Normalize positional vs optional symbol to a single field
+    if parsed.symbol is None and parsed.symbol_pos is not None:
+        parsed.symbol = parsed.symbol_pos
+    if hasattr(parsed, "symbol_pos"):
+        delattr(parsed, "symbol_pos")
 
     # Validate numerical arguments
     if parsed.limit <= 0:

@@ -102,7 +102,7 @@ class OrderBuilder:
             raise ValueError(f"Position size must be positive, got {position_size}")
 
         # Determine side
-        side = "BUY" if signal.signal_type == "LONG" else "SELL"
+        side: Literal["BUY", "SELL"] = "BUY" if signal.signal_type == "LONG" else "SELL"
 
         # Use defaults if not overridden
         leverage = leverage or self.default_leverage

@@ -78,9 +78,8 @@ class TestSymbolManagerRefresh:
     def _create_mock_data_fetcher(self, symbols: List[str]) -> Mock:
         """Helper to create a mock DataFetcher with symbol discovery."""
         data_fetcher = Mock(spec=DataFetcher)
-        symbol_discovery = Mock()
-        symbol_discovery.list_binance_futures_symbols.return_value = symbols
-        data_fetcher.symbol_discovery = symbol_discovery
+        # SymbolManager calls data_fetcher.list_binance_futures_symbols directly
+        data_fetcher.list_binance_futures_symbols.return_value = symbols
         return data_fetcher
 
     def test_refresh_symbols_without_filters(self):
@@ -92,7 +91,7 @@ class TestSymbolManagerRefresh:
         manager.refresh_symbols()
 
         assert manager._cached_symbols == symbols
-        data_fetcher.symbol_discovery.list_binance_futures_symbols.assert_called_once_with(
+        data_fetcher.list_binance_futures_symbols.assert_called_once_with(
             exclude_symbols=set(), max_candidates=100, progress_label="Refreshing Symbols"
         )
 
@@ -105,7 +104,7 @@ class TestSymbolManagerRefresh:
         manager.refresh_symbols()
 
         assert manager._cached_symbols == symbols
-        data_fetcher.symbol_discovery.list_binance_futures_symbols.assert_called_once_with(
+        data_fetcher.list_binance_futures_symbols.assert_called_once_with(
             exclude_symbols={"SHIB/USDT", "DOGE/USDT"}, max_candidates=100, progress_label="Refreshing Symbols"
         )
 
@@ -160,9 +159,7 @@ class TestSymbolManagerGetSymbols:
     def _create_manager_with_symbols(self, symbols: List[str], random_seed: int = 42) -> SymbolManager:
         """Helper to create a SymbolManager with pre-populated symbols."""
         data_fetcher = Mock(spec=DataFetcher)
-        symbol_discovery = Mock()
-        symbol_discovery.list_binance_futures_symbols.return_value = symbols
-        data_fetcher.symbol_discovery = symbol_discovery
+        data_fetcher.list_binance_futures_symbols.return_value = symbols
 
         manager = SymbolManager(data_fetcher=data_fetcher, random_seed=random_seed)
         manager.refresh_symbols()
@@ -172,15 +169,13 @@ class TestSymbolManagerGetSymbols:
         """Test that get_symbols auto-refreshes when cache is empty."""
         symbols = ["BTC/USDT", "ETH/USDT"]
         data_fetcher = Mock(spec=DataFetcher)
-        symbol_discovery = Mock()
-        symbol_discovery.list_binance_futures_symbols.return_value = symbols
-        data_fetcher.symbol_discovery = symbol_discovery
+        data_fetcher.list_binance_futures_symbols.return_value = symbols
 
         manager = SymbolManager(data_fetcher=data_fetcher)
         result = manager.get_symbols()
 
         assert result == symbols
-        symbol_discovery.list_binance_futures_symbols.assert_called_once()
+        data_fetcher.list_binance_futures_symbols.assert_called_once()
 
     def test_get_symbols_100_percent(self):
         """Test getting 100% of symbols."""
@@ -287,9 +282,7 @@ class TestSymbolManagerGetSymbols:
     def test_get_symbols_with_empty_cache_after_refresh(self, mock_log_warn):
         """Test handling when no symbols are available after refresh."""
         data_fetcher = Mock(spec=DataFetcher)
-        symbol_discovery = Mock()
-        symbol_discovery.list_binance_futures_symbols.return_value = []
-        data_fetcher.symbol_discovery = symbol_discovery
+        data_fetcher.list_binance_futures_symbols.return_value = []
 
         manager = SymbolManager(data_fetcher=data_fetcher)
         result = manager.get_symbols()
@@ -306,9 +299,7 @@ class TestSymbolManagerCaching:
         """Test that get_all_cached_symbols returns a copy."""
         symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT"]
         data_fetcher = Mock(spec=DataFetcher)
-        symbol_discovery = Mock()
-        symbol_discovery.list_binance_futures_symbols.return_value = symbols
-        data_fetcher.symbol_discovery = symbol_discovery
+        data_fetcher.list_binance_futures_symbols.return_value = symbols
 
         manager = SymbolManager(data_fetcher=data_fetcher)
         manager.refresh_symbols()
@@ -328,18 +319,16 @@ class TestSymbolManagerCaching:
         symbols2 = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "ADA/USDT"]
 
         data_fetcher = Mock(spec=DataFetcher)
-        symbol_discovery = Mock()
-        data_fetcher.symbol_discovery = symbol_discovery
 
         manager = SymbolManager(data_fetcher=data_fetcher)
 
         # First refresh
-        symbol_discovery.list_binance_futures_symbols.return_value = symbols1
+        data_fetcher.list_binance_futures_symbols.return_value = symbols1
         manager.refresh_symbols()
         assert len(manager._cached_symbols) == 2
 
         # Second refresh with different symbols
-        symbol_discovery.list_binance_futures_symbols.return_value = symbols2
+        data_fetcher.list_binance_futures_symbols.return_value = symbols2
         manager.refresh_symbols()
         assert len(manager._cached_symbols) == 4
 
@@ -351,9 +340,7 @@ class TestSymbolManagerEdgeCases:
         """Test with only one symbol available."""
         symbols = ["BTC/USDT"]
         data_fetcher = Mock(spec=DataFetcher)
-        symbol_discovery = Mock()
-        symbol_discovery.list_binance_futures_symbols.return_value = symbols
-        data_fetcher.symbol_discovery = symbol_discovery
+        data_fetcher.list_binance_futures_symbols.return_value = symbols
 
         manager = SymbolManager(data_fetcher=data_fetcher, random_seed=42)
         manager.refresh_symbols()
@@ -367,9 +354,7 @@ class TestSymbolManagerEdgeCases:
         """Test that whitelist takes precedence (blacklist already filters in discovery)."""
         symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT"]  # Already blacklist-filtered
         data_fetcher = Mock(spec=DataFetcher)
-        symbol_discovery = Mock()
-        symbol_discovery.list_binance_futures_symbols.return_value = symbols
-        data_fetcher.symbol_discovery = symbol_discovery
+        data_fetcher.list_binance_futures_symbols.return_value = symbols
 
         # Even if we set both, whitelist should just filter from what discovery returns
         manager = SymbolManager(
@@ -383,13 +368,11 @@ class TestSymbolManagerEdgeCases:
         """Test that max_symbols is correctly passed to symbol discovery."""
         symbols = ["BTC/USDT", "ETH/USDT"]
         data_fetcher = Mock(spec=DataFetcher)
-        symbol_discovery = Mock()
-        symbol_discovery.list_binance_futures_symbols.return_value = symbols
-        data_fetcher.symbol_discovery = symbol_discovery
+        data_fetcher.list_binance_futures_symbols.return_value = symbols
 
         manager = SymbolManager(data_fetcher=data_fetcher, max_symbols=25)
         manager.refresh_symbols()
 
-        symbol_discovery.list_binance_futures_symbols.assert_called_once_with(
+        data_fetcher.list_binance_futures_symbols.assert_called_once_with(
             exclude_symbols=set(), max_candidates=25, progress_label="Refreshing Symbols"
         )

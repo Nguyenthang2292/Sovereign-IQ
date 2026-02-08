@@ -115,18 +115,8 @@ def test_scan_all_symbols_invalid_input(invalid_input, expected_error):
 
 def test_scan_all_symbols_none_data_fetcher():
     """Test that scan_all_symbols raises error for None data_fetcher."""
-    # type: ignore[arg-type] - Intentionally passing invalid type to test error handling
-    from typing import TYPE_CHECKING
-
-    mock_fetcher = MagicMock()
-    if TYPE_CHECKING:
-        # This branch is never executed at runtime, but satisfies type checker
-        data_fetcher_arg: Optional[Any] = None  # type: ignore[arg-type]
-    else:
-        data_fetcher_arg = None  # type: ignore[arg-type]
-
     with pytest.raises(ValueError, match="data_fetcher cannot be None"):
-        scan_all_symbols(data_fetcher_arg, ATCConfig())
+        scan_all_symbols(None, ATCConfig())  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(

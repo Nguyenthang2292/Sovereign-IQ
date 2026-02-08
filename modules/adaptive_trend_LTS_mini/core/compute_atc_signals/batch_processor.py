@@ -1,5 +1,3 @@
-import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Optional
 
 import numpy as np

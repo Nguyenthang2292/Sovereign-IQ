@@ -81,7 +81,7 @@ def setup_shared_memory_for_dataframe(
             shm = shared_memory.SharedMemory(create=True, size=arr.nbytes, name=shm_name)
 
         # Copy data to shared memory
-        np_array = np.ndarray(arr.shape, dtype=arr.dtype, buffer=shm.buf)
+        np_array: np.ndarray = np.ndarray(arr.shape, dtype=arr.dtype, buffer=shm.buf)
         np_array[:] = arr[:]
 
         # Store SharedMemory object reference to prevent garbage collection (Windows requirement)
@@ -164,7 +164,7 @@ def reconstruct_dataframe_from_shared_memory(shm_info: Dict[str, Any]) -> pd.Dat
             shm = shared_memory.SharedMemory(name=info["shm_name"])
 
             # Create numpy array from shared memory buffer
-            arr = np.ndarray(info["shape"], dtype=info["dtype"], buffer=shm.buf)
+            arr: np.ndarray = np.ndarray(info["shape"], dtype=info["dtype"], buffer=shm.buf)
 
             # Copy from shared memory to local (to avoid issues when shared memory is closed)
             data[col] = arr.copy()

@@ -9,6 +9,7 @@ Created: 2026-02-03
 
 import os
 from pathlib import Path
+from typing import Optional
 
 # ============================================================================
 # DATABASE PATHS
@@ -24,7 +25,7 @@ DEFAULT_DB_NAME = os.getenv("AUTO_TRADE_DB_NAME", "auto_trade.db")
 DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, DEFAULT_DB_NAME)
 
 # Schema file path (relative to this file)
-DEFAULT_SCHEMA_PATH = str(Path(__file__).parent / "schema.sql")
+DEFAULT_SCHEMA_PATH = str((Path(__file__).resolve().parent / "schema.sql"))
 
 # Backup directory
 DEFAULT_BACKUP_DIR = os.path.join(DEFAULT_DB_DIR, "backups")
@@ -193,7 +194,7 @@ LOG_PERFORMANCE = os.getenv("AUTO_TRADE_LOG_PERFORMANCE", "false").lower() == "t
 # ============================================================================
 
 
-def get_db_path(custom_path: str = None) -> str:
+def get_db_path(custom_path: Optional[str] = None) -> str:
     """
     Get database path with optional override.
 
@@ -206,7 +207,7 @@ def get_db_path(custom_path: str = None) -> str:
     return custom_path or DEFAULT_DB_PATH
 
 
-def get_backup_dir(custom_dir: str = None) -> str:
+def get_backup_dir(custom_dir: Optional[str] = None) -> str:
     """
     Get backup directory with optional override.
 

@@ -1,6 +1,6 @@
 """Workflow helpers for VotingAnalyzer."""
 
-from typing import List, Optional
+from typing import Any, Callable, List, Optional
 
 import pandas as pd
 from colorama import Fore, Style
@@ -17,6 +17,18 @@ from modules.range_oscillator.cli import display_final_results
 
 class VotingWorkflowMixin:
     """Mixin for workflow orchestration, display, and runtime steps."""
+
+    args: Any
+    atc_analyzer: Any
+    selected_timeframe: str
+    long_signals_atc: Any
+    short_signals_atc: Any
+    long_signals_final: Any
+    short_signals_final: Any
+    get_oscillator_params: Callable[[], Any]
+    get_spc_params: Callable[[], Any]
+    calculate_signals_for_all_indicators: Callable[..., Any]
+    apply_voting_system: Callable[..., Any]
 
     def determine_timeframe(self) -> str:
         """Determine timeframe from arguments and interactive menu."""

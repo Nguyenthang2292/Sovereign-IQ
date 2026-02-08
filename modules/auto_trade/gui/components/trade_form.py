@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Any, Callable, Optional
 
 import customtkinter as ctk
 
@@ -11,7 +11,7 @@ class TradeFormFrame(ctk.CTkFrame):
     Allows users to place LONG/SHORT orders with TP/SL
     """
 
-    def __init__(self, parent, on_trade_callback: Callable = None):
+    def __init__(self, parent: Any, on_trade_callback: Optional[Callable[..., Any]] = None):
         super().__init__(parent)
 
         self.on_trade_callback = on_trade_callback

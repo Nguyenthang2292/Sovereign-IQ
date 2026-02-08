@@ -121,7 +121,11 @@ class StateManager:
                 log_debug(f"State saved to {path}")
 
     def load_state(self, path: Union[str, Path], o1_mas: Optional[Dict[str, Any]] = None) -> None:
-        """Load state from file."""
+        """Load state from file.
+
+        SECURITY: Only call with paths to trusted state files. Do not deserialize
+        msgpack from untrusted input (raw=False is safe only for trusted payloads).
+        """
         path = Path(path)
         with open(path, "rb") as f:
             payload = msgpack.unpackb(f.read(), raw=False)

@@ -54,15 +54,15 @@ class VotingAnalyzer(
         use_performance = getattr(args, "use_atc_performance", True)
 
         if use_performance_mini:
-            from modules.adaptive_trend_LTS_mini.cli import ATCAnalyzer
+            from modules.adaptive_trend_LTS_mini.cli import ATCAnalyzer  # type: ignore[assignment]
 
             log_info("Using CPU-Only Mini ATC (LTS Mini) module")
         elif use_performance:
-            from modules.adaptive_trend_LTS.cli import ATCAnalyzer
+            from modules.adaptive_trend_LTS.cli import ATCAnalyzer  # type: ignore[assignment]
 
             log_info("Using High-Performance ATC (LTS Full) module")
         else:
-            from modules.adaptive_trend.cli import ATCAnalyzer
+            from modules.adaptive_trend.cli import ATCAnalyzer  # type: ignore[assignment]
 
             log_info("Using Standard ATC (Legacy) module")
 
@@ -72,7 +72,7 @@ class VotingAnalyzer(
 
         # Initialize SPC Vote Aggregator
         aggregation_config = SPCAggregationConfig(
-            mode=SPC_AGGREGATION_MODE,
+            mode=SPC_AGGREGATION_MODE,  # type: ignore[arg-type]
             threshold=SPC_AGGREGATION_THRESHOLD,
             weighted_min_total=SPC_AGGREGATION_WEIGHTED_MIN_TOTAL,
             weighted_min_diff=SPC_AGGREGATION_WEIGHTED_MIN_DIFF,

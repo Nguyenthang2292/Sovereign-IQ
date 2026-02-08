@@ -4,8 +4,12 @@ Input utilities for ATC CLI.
 
 import sys
 from argparse import Namespace
-from typing import List, Optional, Tuple
+from typing import Tuple
 
+from config import (
+    DEFAULT_QUOTE,
+    DEFAULT_SYMBOL,
+)
 from modules.adaptive_trend_LTS_mini.cli.interactive_prompts import (
     UserExitRequested,
     prompt_interactive_mode,
@@ -15,10 +19,7 @@ from modules.common.utils import (
     normalize_symbol,
     prompt_user_input,
 )
-from config import (
-    DEFAULT_QUOTE,
-    DEFAULT_SYMBOL,
-)
+
 
 def determine_mode_and_timeframe(args: Namespace) -> Tuple[str, str]:
     """
@@ -35,7 +36,7 @@ def determine_mode_and_timeframe(args: Namespace) -> Tuple[str, str]:
 
     if args.auto:
         mode = "auto"
-    elif not args.no_menu:
+    elif not args.no_menu and not args.no_prompt and args.symbol is None:
         try:
             menu_result = prompt_interactive_mode(default_tf=args.timeframe)
 

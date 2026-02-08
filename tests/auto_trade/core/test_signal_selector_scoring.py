@@ -15,11 +15,6 @@ from modules.auto_trade.core.signal_pipeline import FinalSignal
 class TestSignalSelectorScoring:
     """Test score calculation components."""
 
-    @pytest.fixture
-    def selector(self):
-        """Create a SignalSelector instance."""
-        return SignalSelector()
-
     def test_score_calculation_components_breakdown(self, selector, sample_signal_result, sample_gemini_signal):
         """Test individual score components (confidence, R/R, consistency)."""
         xb_signal = sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG", xgboost_conf=0.8)
@@ -61,11 +56,6 @@ class TestSignalSelectorScoring:
 class TestSignalSelectorRR:
     """Test risk/reward ratio capping."""
 
-    @pytest.fixture
-    def selector(self):
-        """Create a SignalSelector instance."""
-        return SignalSelector()
-
     def test_score_risk_reward_component_capped_at_3(self, selector, sample_signal_result, sample_gemini_signal):
         """Test that R/R ratio is capped at 3.0 for scoring."""
         # Create signal with R/R = 5.0
@@ -96,11 +86,6 @@ class TestSignalSelectorRR:
 
 class TestSignalSelectorEdgeCases:
     """Test edge cases and invalid inputs."""
-
-    @pytest.fixture
-    def selector(self):
-        """Create a SignalSelector instance."""
-        return SignalSelector()
 
     def test_evaluate_candidate_handles_invalid_xgboost_conf(self, selector, sample_gemini_signal):
         """Test handling of unparseable xgboost_conf."""

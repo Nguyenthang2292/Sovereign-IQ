@@ -76,6 +76,9 @@ class IncrementalATC:
         import msgpack  # type: ignore[import-untyped]
 
         path = Path(path)
+        # SECURITY: Only load state files from trusted sources. Do not deserialize
+        # msgpack from untrusted input (e.g. user uploads or network); use raw=False
+        # for str keys/values in trusted payloads only.
         with open(path, "rb") as f:
             payload = msgpack.unpackb(f.read(), raw=False)
 
@@ -137,7 +140,7 @@ class IncrementalATC:
         _allowed = {
             "ema_len", "hma_len", "wma_len", "dema_len", "lsma_len", "kama_len",
             "ema_w", "hma_w", "wma_w", "dema_w", "lsma_w", "kama_w",
-            "robustness", "lambda_param", "decay_rate", "cutout",
+            "robustness", "lambda_param", "decay", "cutout",
             "long_threshold", "short_threshold", "strategy_mode",
             "parallel_l1", "parallel_l2", "precision",
             "use_rust_backend", "use_cache", "fast_mode",
@@ -146,8 +149,13 @@ class IncrementalATC:
             "equity_floor",
         }
         compute_config = {k: v for k, v in self.config.items() if k in _allowed}
-        if "decay" in self.config and "decay_rate" not in compute_config:
-            compute_config["decay_rate"] = self.config["decay"]
+        if "decay" not in compute_config:
+            if "decay" in self.config:
+                compute_config["decay"] = self.config["decay"]
+            elif "decay_rate" in self.config:
+                compute_config["decay"] = self.config["decay_rate"]
+            elif "De" in self.config:
+                compute_config["decay"] = self.config["De"]
 
         # Full calculation to establish baseline state
         results = compute_atc_signals(prices, **compute_config)

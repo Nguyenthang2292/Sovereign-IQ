@@ -21,7 +21,7 @@ Typical usage will involve fetching ATC results, then calling `display_atc_signa
 to present the results to the user.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import pandas as pd
 from colorama import Fore, Style
@@ -192,11 +192,12 @@ def display_manual_mode_config(
 
 
 def display_atc_signals(
-    symbol: str,
-    df: pd.DataFrame,
-    atc_results: dict,
-    current_price: float,
-    exchange_label: str,
+    symbol: str | dict,
+    df: Optional[pd.DataFrame] = None,
+    atc_results: Optional[dict] = None,
+    current_price: float = 0.0,
+    exchange_label: str = "",
+    **_unused: Any,
 ) -> None:
     """
     Display ATC signals and analysis results.
@@ -208,6 +209,16 @@ def display_atc_signals(
         current_price: Current price
         exchange_label: Exchange name label
     """
+    if isinstance(symbol, dict):
+        result = symbol
+        symbol = result.get("symbol", "")
+        _ = result.get("df")
+        atc_results = result.get("atc_results", {})
+        current_price = result.get("current_price", 0.0)
+        exchange_label = result.get("exchange_label", "")
+    if atc_results is None:
+        atc_results = {}
+
     average_signal = atc_results.get("Average_Signal")
     if average_signal is None or average_signal.empty:
         log_error("No ATC signals available")

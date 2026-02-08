@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Callable, Dict
+from typing import Any, Callable, Dict, Optional
 
 import customtkinter as ctk
 
@@ -12,7 +12,12 @@ class ScannerControl(ctk.CTkFrame):
     Control scanning operations, display status, and configure scanner settings
     """
 
-    def __init__(self, parent, on_scan_toggle: Callable = None, on_config_change: Callable = None):
+    def __init__(
+        self,
+        parent: Any,
+        on_scan_toggle: Optional[Callable[..., Any]] = None,
+        on_config_change: Optional[Callable[..., Any]] = None,
+    ):
         super().__init__(parent)
 
         self.on_scan_toggle = on_scan_toggle

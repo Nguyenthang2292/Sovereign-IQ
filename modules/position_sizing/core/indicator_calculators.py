@@ -67,6 +67,13 @@ class IndicatorCalculatorsMixin:
             initialized before any calculation methods are invoked.
     """
 
+    _indicator_cache: Any
+    data_fetcher: Any
+
+    def _cache_indicator_result(self, cache_key: Tuple[str, int, str], result: Dict) -> None:
+        """Store indicator result in cache. Provided by host class."""
+        pass  # Overridden by host class
+
     def _calc_range_oscillator(
         self,
         symbol: str,

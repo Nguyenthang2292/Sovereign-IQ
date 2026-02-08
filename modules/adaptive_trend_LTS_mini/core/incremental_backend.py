@@ -21,7 +21,7 @@ except ImportError:
 
 
 try:
-    from modules.common.utils import log_debug, log_warn, log_error
+    from modules.common.utils import log_debug, log_error, log_warn
 except ImportError:
 
     def log_debug(msg: str) -> None:
@@ -61,6 +61,7 @@ def update_incremental_rust(
     """
     if not _RUST_AVAILABLE:
         raise ImportError("Rust incremental backend is not available. Install the atc_rust package.")
+    assert update_incremental_atc_rust is not None  # narrow type after availability check
 
     log_debug(f"Updating incremental ATC with Rust backend, new_price={new_price}")
 
@@ -90,7 +91,7 @@ def update_incremental_rust(
             "short_threshold": config.get("short_threshold", -0.1),
         }
 
-        signal, updated_state = update_incremental_atc_rust(state, new_price, rust_config)
+        signal, updated_state = update_incremental_atc_rust(state, new_price, rust_config)  # type: ignore[call-arg]
         log_debug(f"Rust update complete, signal={signal}")
         return signal, updated_state
     except Exception as e:

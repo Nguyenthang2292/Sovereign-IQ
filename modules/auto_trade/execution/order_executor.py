@@ -6,7 +6,7 @@ Resolves credentials from env when not passed.
 """
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 from modules.auto_trade.core.signal_selector import FinalSignal
 from modules.auto_trade.execution.binance_client import BinanceClient
@@ -150,10 +150,7 @@ class OrderExecutor:
 
             sym = symbol.replace("USDT", "/USDT") if "/" not in symbol else symbol
             side_lower = side.lower()
-            if side_lower in ("long", "buy"):
-                side_val = "BUY"
-            else:
-                side_val = "SELL"
+            side_val: Literal["BUY", "SELL"] = "BUY" if side_lower in ("long", "buy") else "SELL"
 
             client = BinanceClient(
                 api_key=self._api_key,

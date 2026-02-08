@@ -9,7 +9,9 @@ import functools
 import pickle
 import signal
 import threading
-from multiprocessing import Pool, cpu_count
+from multiprocessing import cpu_count
+from multiprocessing.pool import Pool
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -46,10 +48,12 @@ try:
 except ImportError:
     SHARED_MEMORY_AVAILABLE = False
 
-    def setup_shared_memory_for_dataframe(df: pd.DataFrame) -> dict:
+    def setup_shared_memory_for_dataframe(
+        df: pd.DataFrame, columns_to_share: Optional[list[str]] = None
+    ) -> Dict[str, Any]:
         raise RuntimeError("Shared memory utilities not available")
 
-    def cleanup_shared_memory(shm_info: dict) -> None:
+    def cleanup_shared_memory(shm_info: Dict[str, Any]) -> None:
         pass
 
 
@@ -438,7 +442,7 @@ def calculate_single_signals_parallel(
     original_handler = None
 
     # Use a list to store pool reference for signal handler
-    pool_ref = [None]
+    pool_ref: list[Optional[Pool]] = [None]
 
     def signal_handler(signum, frame):
         """Handle Ctrl+C to gracefully terminate all worker processes."""
@@ -676,7 +680,7 @@ def calculate_signals_parallel(
     pool = None
 
     # Use a list to store pool reference for signal handler
-    pool_ref = [None]
+    pool_ref: list[Optional[Pool]] = [None]
 
     def signal_handler(signum, frame):
         """Handle Ctrl+C to gracefully terminate all worker processes."""

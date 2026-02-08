@@ -258,7 +258,7 @@ class MarketBatchScanner:
             )
             from modules.gemini_chart_analyzer.core.utils import normalize_timeframes
 
-            normalized_tfs = normalize_timeframes(timeframes)
+            normalized_tfs = normalize_timeframes(timeframes or [])
             if not normalized_tfs:
                 raise ScanConfigurationError("No valid timeframes provided for multi-timeframe scan")
             log_info(f"Multi-timeframe mode: {', '.join(normalized_tfs)}")
@@ -598,7 +598,7 @@ class MarketBatchScanner:
                 else:
                     batch_result = self._process_single_tf_batch(batch_symbols, normalized_tfs[0], limit, batch_idx)
 
-                    all_results.update(batch_result)
+                    all_results.update(batch_result)  # type: ignore[arg-type]
                     symbols_data_keys = [s for s in batch_result.keys()]
                     batch_results.append({"batch_id": batch_idx, "symbols": symbols_data_keys, "results": batch_result})
 
@@ -689,7 +689,7 @@ class MarketBatchScanner:
         """
         msg = f"Fetching OHLCV data for {len(batch_symbols)} symbols across {len(normalized_tfs)} timeframes..."
         log_info(msg)
-        symbols_tf_data = {}  # {symbol: {timeframe: df}}
+        symbols_tf_data: dict[str, dict[str, Any]] = {}  # {symbol: {timeframe: df}}
 
         for symbol in batch_symbols:
             symbols_tf_data[symbol] = {}

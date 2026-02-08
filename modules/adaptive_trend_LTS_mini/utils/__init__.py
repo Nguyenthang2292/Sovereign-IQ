@@ -18,20 +18,18 @@ This package provides utility functions used throughout the ATC Enhanced system:
 - create_memory_mapped_from_csv: Create memory-mapped files from CSV (NEW)
 """
 
+# NEW: Cache Management
+from modules.adaptive_trend_LTS_mini.utils.cache_manager import (
+    CacheEntry,
+    CacheManager,
+    cached_ma,
+    get_cache_manager,
+    get_cached_ma,
+    reset_cache_manager,
+)
 from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig, create_atc_config_from_dict
 from modules.adaptive_trend_LTS_mini.utils.diflen import diflen
 from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
-from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
-
-# NEW: Cache Management
-from modules.adaptive_trend_LTS_mini.utils.cache_manager import (
-    CacheManager,
-    CacheEntry,
-    get_cache_manager,
-    reset_cache_manager,
-    cached_ma,
-    get_cached_ma,
-)
 
 # NEW: Memory-mapped data management
 from modules.adaptive_trend_LTS_mini.utils.memory_mapped_data import (
@@ -39,9 +37,16 @@ from modules.adaptive_trend_LTS_mini.utils.memory_mapped_data import (
     MemoryMappedDataManager,
     create_memory_mapped_from_csv,
     load_memory_mapped_from_csv,
+)
+from modules.adaptive_trend_LTS_mini.utils.memory_mapped_data import (
     get_manager as get_memory_mapped_manager,
 )
-
+from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
+from modules.common.domain.symbol_validation import (
+    filter_valid_symbols,
+    require_valid_symbol,
+    validate_symbol,
+)
 
 __all__ = [
     # Original utilities
@@ -50,6 +55,9 @@ __all__ = [
     "exp_growth",
     "ATCConfig",
     "create_atc_config_from_dict",
+    "validate_symbol",
+    "require_valid_symbol",
+    "filter_valid_symbols",
     # Cache Management (NEW)
     "CacheManager",
     "CacheEntry",

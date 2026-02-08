@@ -7,46 +7,25 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from modules.auto_trade.core.atc_scanner import SignalResult
-from modules.auto_trade.core.gemini_integration import GeminiSignal
 from modules.auto_trade.core.signal_pipeline import FinalSignal, SignalPipeline
 
 
 class TestSignalPipeline:
-    @pytest.fixture
-    def mock_components(self):
-        return {
-            "symbol_manager": MagicMock(),
-            "atc_scanner": MagicMock(),
-            "xgboost_filter": MagicMock(),
-            "gemini_integration": MagicMock(),
-            "signal_selector": MagicMock(),
-        }
+    """Uses conftest fixtures: pipeline, mock_components."""
 
-    @pytest.fixture
-    def pipeline(self, mock_components):
-        return SignalPipeline(
-            symbol_manager=mock_components["symbol_manager"],
-            atc_scanner=mock_components["atc_scanner"],
-            xgboost_filter=mock_components["xgboost_filter"],
-            gemini_integration=mock_components["gemini_integration"],
-            signal_selector=mock_components["signal_selector"],
-            config={"max_symbols_to_scan": 10, "pipeline_timeout": 1},
-        )
-
-    def test_run_pipeline_success(self, pipeline, mock_components):
+    def test_run_pipeline_success(self, pipeline, mock_components, sample_signal_result, sample_gemini_signal):
         """Test a successful pipeline run."""
         # Setup mocks
         mock_components["symbol_manager"].get_symbols.return_value = ["BTC/USDT"]
 
-        atc_sig = SignalResult("BTC/USDT", 0.9, "LONG", {})
+        atc_sig = sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG")
         mock_components["atc_scanner"].scan_symbols.return_value = [atc_sig]
 
         mock_components["xgboost_filter"].filter_signals.return_value = [atc_sig]
 
         mock_components["gemini_integration"].is_available.return_value = True
 
-        gemini_sig = GeminiSignal("UP", "LONG", 0.9)
+        gemini_sig = sample_gemini_signal(trend="UP", signal="LONG", confidence=0.9)
         mock_components["gemini_integration"].analyze_candidates_batch_async.return_value = {"BTC/USDT": gemini_sig}
 
         final_sig = FinalSignal("BTC/USDT", "LONG", 50000, 49000, 52000)
@@ -73,7 +52,7 @@ class TestSignalPipeline:
         assert result is None
         mock_components["atc_scanner"].scan_symbols.assert_not_called()
 
-    def test_run_pipeline_timeout(self, pipeline, mock_components):
+    def test_run_pipeline_timeout(self, pipeline, mock_components, sample_signal_result):
         """Test pipeline timeout interruption after ATC scan."""
         # Set a very short timeout
         pipeline.pipeline_timeout = 0.1
@@ -83,7 +62,7 @@ class TestSignalPipeline:
         # Simulate delays in ATC scan
         def slow_scan(*args):
             time.sleep(0.2)
-            return [SignalResult("BTC/USDT", 0.9, "LONG", {})]
+            return [sample_signal_result(symbol="BTC/USDT")]
 
         mock_components["atc_scanner"].scan_symbols.side_effect = slow_scan
 
@@ -106,10 +85,10 @@ class TestSignalPipeline:
 
         assert result is None
 
-    def test_run_pipeline_no_xgboost_signals(self, pipeline, mock_components):
+    def test_run_pipeline_no_xgboost_signals(self, pipeline, mock_components, sample_signal_result):
         """Test when no signals pass XGBoost filter."""
         mock_components["symbol_manager"].get_symbols.return_value = ["BTC/USDT"]
-        mock_components["atc_scanner"].scan_symbols.return_value = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
+        mock_components["atc_scanner"].scan_symbols.return_value = [sample_signal_result(symbol="BTC/USDT")]
         mock_components["xgboost_filter"].filter_signals.return_value = []
 
         result = pipeline.run_pipeline()
@@ -117,11 +96,11 @@ class TestSignalPipeline:
         assert result is None
         mock_components["gemini_integration"].analyze_candidate.assert_not_called()
 
-    def test_run_pipeline_gemini_unavailable(self, pipeline, mock_components):
+    def test_run_pipeline_gemini_unavailable(self, pipeline, mock_components, sample_signal_result):
         """Test when Gemini API is not available."""
         mock_components["symbol_manager"].get_symbols.return_value = ["BTC/USDT"]
-        mock_components["atc_scanner"].scan_symbols.return_value = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
-        mock_components["xgboost_filter"].filter_signals.return_value = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
+        mock_components["atc_scanner"].scan_symbols.return_value = [sample_signal_result(symbol="BTC/USDT")]
+        mock_components["xgboost_filter"].filter_signals.return_value = [sample_signal_result(symbol="BTC/USDT")]
         mock_components["gemini_integration"].is_available.return_value = False
         mock_components["signal_selector"].select_best_signal.return_value = None
 
@@ -129,15 +108,15 @@ class TestSignalPipeline:
 
         mock_components["gemini_integration"].analyze_candidate.assert_not_called()
 
-    def test_run_pipeline_persistence_success(self, pipeline, mock_components):
+    def test_run_pipeline_persistence_success(self, pipeline, mock_components, sample_signal_result, sample_gemini_signal):
         """Test signal persistence on successful pipeline."""
         mock_persistence = MagicMock()
         pipeline.signal_persistence = mock_persistence
 
         mock_components["symbol_manager"].get_symbols.return_value = ["BTC/USDT"]
-        mock_components["atc_scanner"].scan_symbols.return_value = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
-        mock_components["xgboost_filter"].filter_signals.return_value = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
-        mock_components["gemini_integration"].analyze_candidate.return_value = GeminiSignal("UP", "LONG", 0.9)
+        mock_components["atc_scanner"].scan_symbols.return_value = [sample_signal_result(symbol="BTC/USDT")]
+        mock_components["xgboost_filter"].filter_signals.return_value = [sample_signal_result(symbol="BTC/USDT")]
+        mock_components["gemini_integration"].analyze_candidate.return_value = sample_gemini_signal()
 
         final_signal = FinalSignal("BTC/USDT", "LONG", 50000, 49000, 52000)
         mock_components["signal_selector"].select_best_signal.return_value = final_signal
@@ -147,14 +126,14 @@ class TestSignalPipeline:
         assert result == final_signal
         mock_persistence.save_signal.assert_called_once_with(final_signal)
 
-    def test_run_pipeline_no_persistence_configured(self, pipeline, mock_components):
+    def test_run_pipeline_no_persistence_configured(self, pipeline, mock_components, sample_signal_result, sample_gemini_signal):
         """Test pipeline without persistence configured."""
         pipeline.signal_persistence = None
 
         mock_components["symbol_manager"].get_symbols.return_value = ["BTC/USDT"]
-        mock_components["atc_scanner"].scan_symbols.return_value = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
-        mock_components["xgboost_filter"].filter_signals.return_value = [SignalResult("BTC/USDT", 0.9, "LONG", {})]
-        mock_components["gemini_integration"].analyze_candidate.return_value = GeminiSignal("UP", "LONG", 0.9)
+        mock_components["atc_scanner"].scan_symbols.return_value = [sample_signal_result(symbol="BTC/USDT")]
+        mock_components["xgboost_filter"].filter_signals.return_value = [sample_signal_result(symbol="BTC/USDT")]
+        mock_components["gemini_integration"].analyze_candidate.return_value = sample_gemini_signal()
 
         final_signal = FinalSignal("BTC/USDT", "LONG", 50000, 49000, 52000)
         mock_components["signal_selector"].select_best_signal.return_value = final_signal
@@ -164,20 +143,20 @@ class TestSignalPipeline:
         assert result == final_signal
         # Should not crash when persistence is None
 
-    def test_run_pipeline_multiple_candidates(self, pipeline, mock_components):
+    def test_run_pipeline_multiple_candidates(self, pipeline, mock_components, sample_signal_result):
         """Test pipeline with multiple signals through each stage."""
         mock_components["symbol_manager"].get_symbols.return_value = ["BTC/USDT", "ETH/USDT", "BNB/USDT"]
 
         atc_signals = [
-            SignalResult("BTC/USDT", 0.9, "LONG", {}),
-            SignalResult("ETH/USDT", 0.8, "LONG", {}),
-            SignalResult("BNB/USDT", 0.7, "SHORT", {}),
+            sample_signal_result(symbol="BTC/USDT", score=0.9),
+            sample_signal_result(symbol="ETH/USDT", score=0.8),
+            sample_signal_result(symbol="BNB/USDT", score=0.7, signal_type="SHORT"),
         ]
         mock_components["atc_scanner"].scan_symbols.return_value = atc_signals
 
         xgb_signals = [
-            SignalResult("BTC/USDT", 0.9, "LONG", {}),
-            SignalResult("ETH/USDT", 0.8, "LONG", {}),
+            sample_signal_result(symbol="BTC/USDT", score=0.9),
+            sample_signal_result(symbol="ETH/USDT", score=0.8),
         ]
         mock_components["xgboost_filter"].filter_signals.return_value = xgb_signals
 

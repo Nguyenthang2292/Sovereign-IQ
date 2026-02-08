@@ -96,7 +96,7 @@ Comprehensive Martingale safety checking:
 │         AutoTradeBacktester (Adapter)           │
 │  ┌────────────────────────────────────────────┐ │
 │  │                                            │ │
-│  │   FullBacktester (Base from modules/      │ │
+│  │   FullBacktester (Base from modules/       │ │
 │  │     backtester)                            │ │
 │  │   • Signal calculation                     │ │
 │  │   • Trade simulation                       │ │

@@ -1,10 +1,11 @@
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import MagicMock, patch
-import numpy as np
 
-from modules.auto_trade.core.xgboost_filter import XGBoostFilter
 from modules.auto_trade.core.atc_scanner import SignalResult
+from modules.auto_trade.core.xgboost_filter import XGBoostFilter
 
 
 @pytest.fixture
@@ -15,14 +16,21 @@ def mock_data_fetcher():
 @pytest.fixture
 def mock_model():
     model = MagicMock()
-    # default predict_next_move returns [prob_down, prob_neutral, prob_up]
+    model.predict_proba = MagicMock(return_value=np.array([[0.1, 0.8, 0.1]]))
+    model.n_classes_ = 3
     return model
 
 
 @pytest.fixture
 def mock_joblib_load(mock_model):
-    with patch("joblib.load", return_value=mock_model) as mock:
+    """Patch joblib.load where the filter uses it so the filter gets the mock model."""
+    with patch("modules.auto_trade.core.xgboost_filter.joblib.load", return_value=mock_model) as mock:
         yield mock
+
+
+# Path.exists() in _load_model: path.exists(), then path_native.exists() (x3).
+# .joblib exists, .json not -> loader uses joblib.load.
+_PATH_EXISTS_JOBLIB_ONLY = [True, False, False, False]
 
 
 @pytest.fixture
@@ -48,7 +56,7 @@ def mock_add_advanced_features():
 
 
 def test_init_load_model(mock_data_fetcher, mock_joblib_load):
-    with patch("pathlib.Path.exists", return_value=True):
+    with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
         filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
         mock_joblib_load.assert_called_once()
         assert filter.model is not None
@@ -56,7 +64,9 @@ def test_init_load_model(mock_data_fetcher, mock_joblib_load):
 
 def test_init_model_not_found(mock_data_fetcher, mock_joblib_load):
     with patch("pathlib.Path.exists", return_value=False):
-        filter = XGBoostFilter(mock_data_fetcher, "missing.joblib")
+        filter = XGBoostFilter(
+            mock_data_fetcher, "missing.joblib", config={"require_model": False}
+        )
         mock_joblib_load.assert_not_called()
         assert filter.model is None
 
@@ -64,11 +74,13 @@ def test_init_model_not_found(mock_data_fetcher, mock_joblib_load):
 def test_filter_pass_long(
     mock_data_fetcher, mock_joblib_load, mock_predict_next_move, mock_indicator_engine, mock_add_advanced_features
 ):
-    with patch("pathlib.Path.exists", return_value=True):
+    with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
         filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100})
 
-        # Signals input
-        signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+        # Signals input (symbol, score, signal_type, details, strengths)
+        signals = [
+            SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})
+        ]
 
         # Mock Data Fetcher
         mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
@@ -80,19 +92,21 @@ def test_filter_pass_long(
 
         assert len(filtered) == 1
         assert filtered[0].symbol == "BTCUSDT"
-        assert filtered[0].details["xgboost_conf"] == "0.80"
+        assert filtered[0].details["xgboost_conf"] == 0.8
         assert filtered[0].details["xgboost_dir"] == "UP"
 
 
 def test_filter_reject_contradiction(
     mock_data_fetcher, mock_joblib_load, mock_predict_next_move, mock_indicator_engine, mock_add_advanced_features
 ):
-    with patch("pathlib.Path.exists", return_value=True):
+    with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
         filter = XGBoostFilter(
             mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100}
         )
-        # Signals input: LONG
-        signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+        # Signals input: LONG (symbol, score, signal_type, details, strengths)
+        signals = [
+            SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})
+        ]
 
         # Mock Data Fetcher
         mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
@@ -108,12 +122,14 @@ def test_filter_reject_contradiction(
 def test_filter_reject_low_confidence(
     mock_data_fetcher, mock_joblib_load, mock_predict_next_move, mock_indicator_engine, mock_add_advanced_features
 ):
-    with patch("pathlib.Path.exists", return_value=True):
+    with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
         filter = XGBoostFilter(
             mock_data_fetcher, "model.joblib", config={"min_confidence": 0.8, "min_required_candles": 100}
         )
-        # Signals input: LONG
-        signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+        # Signals input: LONG (symbol, score, signal_type, details, strengths)
+        signals = [
+            SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})
+        ]
 
         # Mock Data Fetcher
         mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
@@ -128,9 +144,11 @@ def test_filter_reject_low_confidence(
 
 def test_no_model_returns_all(mock_data_fetcher, mock_joblib_load):
     with patch("pathlib.Path.exists", return_value=False):
-        filter = XGBoostFilter(mock_data_fetcher, "missing.joblib")
+        filter = XGBoostFilter(
+            mock_data_fetcher, "missing.joblib", config={"require_model": False}
+        )
 
-        signals = [SignalResult("BTCUSDT", 1.0, "LONG", {})]
+        signals = [SignalResult("BTCUSDT", 1.0, "LONG", {}, {})]
         # Should return signals as-is if model missing
         filtered = filter.filter_signals(signals)
         assert len(filtered) == 1
@@ -147,10 +165,10 @@ class TestXGBoostFilterInitialization:
 
     def test_init_with_default_config(self, mock_data_fetcher, mock_joblib_load):
         """Test initialization with default configuration."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
-            assert filter.min_confidence == 0.6
+            assert filter.min_confidence == 0.3  # from config XGBOOST_FILTER_DEFAULTS
             assert filter.history_limit == 1500
             assert filter.prediction_timeframe == "5m"
             assert filter.on_error == "drop"
@@ -166,7 +184,7 @@ class TestXGBoostFilterInitialization:
             "min_required_candles": 300,
         }
 
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config=config)
 
             assert filter.min_confidence == 0.7
@@ -177,7 +195,7 @@ class TestXGBoostFilterInitialization:
 
     def test_init_invalid_min_confidence(self, mock_data_fetcher, mock_joblib_load):
         """Test that invalid min_confidence raises ValueError."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             # Too high
             with pytest.raises(ValueError, match="min_confidence must be between 0 and 1"):
                 XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 1.5})
@@ -188,7 +206,7 @@ class TestXGBoostFilterInitialization:
 
     def test_init_invalid_history_limit(self, mock_data_fetcher, mock_joblib_load):
         """Test that invalid history_limit raises ValueError."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             with pytest.raises(ValueError, match="history_limit must be positive"):
                 XGBoostFilter(mock_data_fetcher, "model.joblib", config={"history_limit": 0})
 
@@ -197,13 +215,13 @@ class TestXGBoostFilterInitialization:
 
     def test_init_invalid_prediction_timeframe(self, mock_data_fetcher, mock_joblib_load):
         """Test that invalid prediction_timeframe raises ValueError."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             with pytest.raises(ValueError, match="Invalid prediction_timeframe"):
                 XGBoostFilter(mock_data_fetcher, "model.joblib", config={"prediction_timeframe": "3m"})
 
     def test_init_invalid_on_error(self, mock_data_fetcher, mock_joblib_load):
         """Test that invalid on_error raises ValueError."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             with pytest.raises(ValueError, match="on_error must be 'drop', 'pass', or 'neutral'"):
                 XGBoostFilter(mock_data_fetcher, "model.joblib", config={"on_error": "invalid"})
 
@@ -218,7 +236,7 @@ class TestXGBoostFilterModelLoading:
 
     def test_load_model_success(self, mock_data_fetcher, mock_joblib_load):
         """Test successful model loading."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
             assert filter.model is not None
             mock_joblib_load.assert_called_once()
@@ -226,7 +244,9 @@ class TestXGBoostFilterModelLoading:
     def test_load_model_file_not_found(self, mock_data_fetcher, mock_joblib_load):
         """Test handling of missing model file."""
         with patch("pathlib.Path.exists", return_value=False):
-            filter = XGBoostFilter(mock_data_fetcher, "missing.joblib")
+            filter = XGBoostFilter(
+                mock_data_fetcher, "missing.joblib", config={"require_model": False}
+            )
             assert filter.model is None
             mock_joblib_load.assert_not_called()
 
@@ -234,17 +254,17 @@ class TestXGBoostFilterModelLoading:
         """Test model integrity check with matching hash."""
         model = MagicMock()
         model.predict_proba = lambda x: np.array([[0.1, 0.1, 0.8]])
+        model.n_classes_ = 3
 
         expected_hash = "abc123"
         config = {"model_hash": expected_hash}
 
         with (
-            patch("joblib.load", return_value=model),
-            patch("pathlib.Path.exists", return_value=True),
+            patch("modules.auto_trade.core.xgboost_filter.joblib.load", return_value=model),
+            patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY),
             patch("hashlib.sha256") as mock_sha256,
             patch("builtins.open", MagicMock()),  # Mock file open for integrity check
         ):
-            # Mock hash to return expected value
             mock_hash = MagicMock()
             mock_hash.hexdigest.return_value = expected_hash
             mock_sha256.return_value = mock_hash
@@ -254,42 +274,37 @@ class TestXGBoostFilterModelLoading:
 
     def test_model_integrity_check_fails(self, mock_data_fetcher):
         """Test model integrity check with mismatching hash."""
-        model = MagicMock()
-        model.predict_proba = lambda x: np.array([[0.1, 0.1, 0.8]])
-
-        config = {"model_hash": "expected_hash"}
+        config = {"model_hash": "expected_hash", "require_model": False}
 
         with (
-            patch("joblib.load", return_value=model),
-            patch("pathlib.Path.exists", return_value=True),
+            patch("modules.auto_trade.core.xgboost_filter.joblib.load") as mock_load,
+            patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY),
             patch("hashlib.sha256") as mock_sha256,
+            patch("builtins.open", MagicMock()),
         ):
-            # Mock hash to return different value
             mock_hash = MagicMock()
             mock_hash.hexdigest.return_value = "different_hash"
             mock_sha256.return_value = mock_hash
 
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config=config)
-            # Model should not load if integrity check fails
             assert filter.model is None
+            mock_load.assert_not_called()
 
     def test_load_model_no_hash_configured(self, mock_data_fetcher):
         """Test model loading without hash (should warn but load)."""
         model = MagicMock()
         model.predict_proba = lambda x: np.array([[0.1, 0.1, 0.8]])
+        model.n_classes_ = 3
 
         with (
-            patch("joblib.load", return_value=model),
-            patch("pathlib.Path.exists", return_value=True),
+            patch("modules.auto_trade.core.xgboost_filter.joblib.load", return_value=model),
+            patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY),
             patch("modules.auto_trade.core.xgboost_filter.log_warn") as mock_warn,
         ):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
-            # Should still load model
             assert filter.model is not None
-            # Should warn about missing hash
             mock_warn.assert_called()
-            # Check the first warning call contains "model_hash"
             first_call = str(mock_warn.call_args_list[0])
             assert "model_hash" in first_call
 
@@ -311,12 +326,12 @@ class TestXGBoostFilterSignalFiltering:
         mock_add_advanced_features,
     ):
         """Test filtering passes when model confirms LONG signal."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100}
             )
 
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
             # Model predicts UP (confirms LONG)
@@ -328,9 +343,9 @@ class TestXGBoostFilterSignalFiltering:
             assert len(filtered) == 1
             assert filtered[0].symbol == "BTCUSDT"
             assert filtered[0].signal_type == "LONG"
-            assert filtered[0].details["xgboost_conf"] == "0.80"
+            assert filtered[0].details["xgboost_conf"] == 0.8
             assert filtered[0].details["xgboost_dir"] == "UP"
-            assert filtered[0].details["xgboost_validated"] == "true"
+            assert filtered[0].details["xgboost_validated"] is True
 
     def test_filter_pass_short(
         self,
@@ -341,12 +356,12 @@ class TestXGBoostFilterSignalFiltering:
         mock_add_advanced_features,
     ):
         """Test filtering passes when model confirms SHORT signal."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100}
             )
 
-            signals = [SignalResult("BTCUSDT", 1.0, "SHORT", {"1h": "SHORT"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "SHORT", {"1h": "SHORT"}, {"1h": -1.0})]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
             # Model predicts DOWN (confirms SHORT)
@@ -367,12 +382,12 @@ class TestXGBoostFilterSignalFiltering:
         mock_add_advanced_features,
     ):
         """Test filtering rejects when model contradicts signal."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100}
             )
 
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
             # Model predicts DOWN (contradicts LONG)
@@ -391,12 +406,12 @@ class TestXGBoostFilterSignalFiltering:
         mock_add_advanced_features,
     ):
         """Test filtering rejects when confidence is below threshold."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"min_confidence": 0.8, "min_required_candles": 100}
             )
 
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
             # Model predicts UP but confidence 0.7 < 0.8
@@ -415,12 +430,12 @@ class TestXGBoostFilterSignalFiltering:
         mock_add_advanced_features,
     ):
         """Test filtering rejects when model predicts NEUTRAL."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100}
             )
 
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
             # Model predicts NEUTRAL
@@ -439,15 +454,15 @@ class TestXGBoostFilterSignalFiltering:
         mock_add_advanced_features,
     ):
         """Test filtering multiple signals with mixed results."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100}
             )
 
             signals = [
-                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}),
-                SignalResult("ETHUSDT", 1.0, "SHORT", {"1h": "SHORT"}),
-                SignalResult("BNBUSDT", 1.0, "LONG", {"1h": "LONG"}),
+                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
+                SignalResult("ETHUSDT", 1.0, "SHORT", {"1h": "SHORT"}, {"1h": -1.0}),
+                SignalResult("BNBUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
             ]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
@@ -481,7 +496,7 @@ class TestXGBoostFilterSignalFiltering:
 
     def test_filter_empty_signal_list(self, mock_data_fetcher, mock_joblib_load):
         """Test filtering with empty signal list."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
             filtered = filter.filter_signals([])
@@ -497,13 +512,13 @@ class TestXGBoostFilterSignalFiltering:
         mock_add_advanced_features,
     ):
         """Test that filtering preserves original signal details."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100}
             )
 
             original_details = {"1h": "LONG", "15m": "LONG", "5m": "NEUTRAL"}
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", original_details)]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", original_details, {})]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
             mock_predict_next_move.return_value = np.array([0.1, 0.1, 0.8])
@@ -521,11 +536,13 @@ class TestXGBoostFilterSignalFiltering:
     def test_no_model_returns_all_signals(self, mock_data_fetcher, mock_joblib_load):
         """Test that all signals pass when model is not loaded."""
         with patch("pathlib.Path.exists", return_value=False):
-            filter = XGBoostFilter(mock_data_fetcher, "missing.joblib")
+            filter = XGBoostFilter(
+                mock_data_fetcher, "missing.joblib", config={"require_model": False}
+            )
 
             signals = [
-                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}),
-                SignalResult("ETHUSDT", 1.0, "SHORT", {"1h": "SHORT"}),
+                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
+                SignalResult("ETHUSDT", 1.0, "SHORT", {"1h": "SHORT"}, {"1h": -1.0}),
             ]
 
             filtered = filter.filter_signals(signals)
@@ -552,12 +569,12 @@ class TestXGBoostFilterErrorHandling:
         mock_joblib_load,
     ):
         """Test 'drop' policy - errors cause signal to be dropped."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"on_error": "drop", "min_required_candles": 100}
             )
 
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
             # Mock _predict_signal to raise an exception
             with patch.object(filter, "_predict_signal", side_effect=Exception("Prediction error")):
@@ -575,12 +592,12 @@ class TestXGBoostFilterErrorHandling:
         mock_joblib_load,
     ):
         """Test 'pass' policy - errors pass original signal through."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"on_error": "pass", "min_required_candles": 100}
             )
 
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
             # Mock _predict_signal to raise an exception
             with patch.object(filter, "_predict_signal", side_effect=Exception("Prediction error")):
@@ -600,12 +617,12 @@ class TestXGBoostFilterErrorHandling:
         mock_joblib_load,
     ):
         """Test 'neutral' policy - errors convert signal to NEUTRAL."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"on_error": "neutral", "min_required_candles": 100}
             )
 
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
             # Mock _predict_signal to raise an exception
             with patch.object(filter, "_predict_signal", side_effect=Exception("Prediction error")):
@@ -637,7 +654,7 @@ class TestXGBoostFilterPrediction:
         mock_add_advanced_features,
     ):
         """Test prediction returns UP direction."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -657,7 +674,7 @@ class TestXGBoostFilterPrediction:
         mock_add_advanced_features,
     ):
         """Test prediction returns DOWN direction."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -677,7 +694,7 @@ class TestXGBoostFilterPrediction:
         mock_add_advanced_features,
     ):
         """Test prediction returns NEUTRAL direction."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -691,7 +708,7 @@ class TestXGBoostFilterPrediction:
     @patch("modules.auto_trade.core.xgboost_filter.log_warn")
     def test_predict_no_data(self, mock_log_warn, mock_data_fetcher, mock_joblib_load):
         """Test prediction with no available data."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
             # Return None or empty DataFrame
@@ -708,7 +725,7 @@ class TestXGBoostFilterPrediction:
         self, mock_log_warn, mock_data_fetcher, mock_joblib_load, mock_indicator_engine, mock_add_advanced_features
     ):
         """Test prediction with insufficient candles."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_required_candles": 250})
 
             # Only 100 candles (< 250 required)
@@ -732,7 +749,7 @@ class TestXGBoostFilterPrediction:
         mock_add_advanced_features,
     ):
         """Test prediction validation with invalid format."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -755,7 +772,7 @@ class TestXGBoostFilterPrediction:
         mock_add_advanced_features,
     ):
         """Test prediction validation with invalid probability sum."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -773,7 +790,7 @@ class TestXGBoostFilterPrediction:
         self, mock_log_error, mock_data_fetcher, mock_joblib_load, mock_predict_next_move, mock_add_advanced_features
     ):
         """Test prediction error handling in feature computation."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib")
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -804,12 +821,12 @@ class TestXGBoostFilterCaching:
         mock_add_advanced_features,
     ):
         """Test that cached predictions are reused."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6})
 
             signals = [
-                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}),
-                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}),  # Duplicate
+                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
+                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),  # Duplicate
             ]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -831,10 +848,10 @@ class TestXGBoostFilterCaching:
         mock_add_advanced_features,
     ):
         """Test that cache can be cleared."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6})
 
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
             mock_predict_next_move.return_value = np.array([0.1, 0.1, 0.8])
@@ -873,12 +890,12 @@ class TestXGBoostFilterEdgeCases:
         mock_add_advanced_features,
     ):
         """Test when all signals are rejected."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.9})
 
             signals = [
-                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}),
-                SignalResult("ETHUSDT", 1.0, "LONG", {"1h": "LONG"}),
+                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
+                SignalResult("ETHUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
             ]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -900,12 +917,12 @@ class TestXGBoostFilterEdgeCases:
         mock_add_advanced_features,
     ):
         """Test when all signals pass."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.5})
 
             signals = [
-                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}),
-                SignalResult("ETHUSDT", 1.0, "SHORT", {"1h": "SHORT"}),
+                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
+                SignalResult("ETHUSDT", 1.0, "SHORT", {"1h": "SHORT"}, {"1h": -1.0}),
             ]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -940,13 +957,13 @@ class TestXGBoostFilterEdgeCases:
         mock_add_advanced_features,
     ):
         """Test multiple signals with some having errors."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"on_error": "drop"})
 
             signals = [
-                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}),
-                SignalResult("ETHUSDT", 1.0, "LONG", {"1h": "LONG"}),
-                SignalResult("BNBUSDT", 1.0, "LONG", {"1h": "LONG"}),
+                SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
+                SignalResult("ETHUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
+                SignalResult("BNBUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
             ]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
@@ -981,12 +998,12 @@ class TestXGBoostFilterEdgeCases:
         mock_add_advanced_features,
     ):
         """Test with custom prediction timeframe."""
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             filter = XGBoostFilter(
                 mock_data_fetcher, "model.joblib", config={"prediction_timeframe": "1h", "min_confidence": 0.6}
             )
 
-            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"})]
+            signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 300})
             mock_predict_next_move.return_value = np.array([0.1, 0.1, 0.8])

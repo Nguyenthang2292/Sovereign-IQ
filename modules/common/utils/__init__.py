@@ -26,10 +26,13 @@ from modules.common.data import (
 # Re-export from domain package (trading domain utilities)
 from modules.common.domain import (
     days_to_candles,
+    filter_valid_symbols,
     normalize_symbol,
     normalize_symbol_key,
     normalize_timeframe,
+    require_valid_symbol,
     timeframe_to_minutes,
+    validate_symbol,
 )
 
 # Re-export from io package (file operations)
@@ -168,12 +171,12 @@ from ..ui.logging import (
     log_error,
     log_exchange,
     log_info,
+    log_memory,
     log_model,
     log_progress,
     log_success,
     log_system,
     log_warn,
-    log_memory,
 )
 
 __all__ = [
@@ -201,6 +204,9 @@ __all__ = [
     # Domain
     "normalize_symbol",
     "normalize_symbol_key",
+    "validate_symbol",
+    "require_valid_symbol",
+    "filter_valid_symbols",
     "normalize_timeframe",
     "timeframe_to_minutes",
     "days_to_candles",

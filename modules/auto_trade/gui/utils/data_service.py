@@ -272,9 +272,10 @@ class DataService:
                                         "created_at_ts": float(created_at.timestamp()) if created_at is not None else 0.0,
                                     }
                                 )
-
-                    return filtered
-            return self._get_demo_signals()
+                    if filtered:
+                        return filtered
+                    return self._get_demo_signals() if self.mode == "DRY_RUN" else []
+            return self._get_demo_signals() if self.mode == "DRY_RUN" else []
         except Exception as e:
             print(f"Error fetching signals: {e}")
             return self._get_demo_signals()

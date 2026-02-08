@@ -62,7 +62,7 @@ def _process_single_symbol_dask(
         if calculation_source not in df.columns:
             return None
 
-        raw_values = df[calculation_source].values
+        raw_values: np.ndarray = np.asarray(df[calculation_source].values)
         # Force float64 for compatibility with Rust backend which expects f64
         # Passing float32 to Rust extensions expecting f64 causes TypeErrors
         target_dtype = np.float64
@@ -99,7 +99,7 @@ def _process_single_symbol_dask(
             kama_w=atc_config.kama_w,
             robustness=atc_config.robustness,
             lambda_param=atc_config.lambda_param,
-            decay_rate=atc_config.decay,
+            decay=atc_config.decay,
             cutout=atc_config.cutout,
             long_threshold=atc_config.long_threshold,
             short_threshold=atc_config.short_threshold,
