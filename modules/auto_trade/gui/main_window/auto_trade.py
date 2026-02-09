@@ -1,10 +1,11 @@
 """Auto-trading logic and signal processing."""
 
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .main_window import AutoTradeDashboard
+    from .updaters import UpdaterManager
 
 
 class AutoTradeManager:
@@ -12,7 +13,7 @@ class AutoTradeManager:
 
     def __init__(self, parent: "AutoTradeDashboard"):
         self.parent = parent
-        self.updater = None
+        self.updater: Optional["UpdaterManager"] = None
 
     def _get_binance_client(self):
         """

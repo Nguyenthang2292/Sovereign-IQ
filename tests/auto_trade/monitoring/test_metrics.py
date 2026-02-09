@@ -103,7 +103,7 @@ class TestCounterMetrics:
         """Test that float value raises ValueError."""
         collector = MetricsCollector()
         with pytest.raises(ValueError, match="Increment value must be an integer"):
-            collector.increment("requests", 1.5)
+            collector.increment("requests", 1.5)  # type: ignore[arg-type]
 
     def test_increment_invalid_name_format(self):
         """Test that invalid name format raises ValueError."""
@@ -509,8 +509,8 @@ class TestMetricMetadata:
         time.sleep(0.01)  # Small delay
         collector.increment("test_counter")
         metadata2 = collector.get_metadata("test_counter")
-
-        assert metadata2["updated_at"] > metadata1["updated_at"]
+        assert metadata1 is not None and metadata2 is not None
+        assert metadata2["updated_at"] > metadata1["updated_at"]  # type: ignore[operator]
 
     def test_metadata_nonexistent(self):
         """Test getting metadata for non-existent metric."""
@@ -524,6 +524,7 @@ class TestMetricMetadata:
         collector.gauge("gauge", 50.0)
 
         all_metadata = collector.get_all_metadata()
+        assert all_metadata is not None
         assert "counter" in all_metadata
         assert "gauge" in all_metadata
         assert all_metadata["counter"]["type"] == "COUNTER"
@@ -542,6 +543,7 @@ class TestMetricCount:
         collector.histogram("h1", 10.0)
 
         counts = collector.get_metric_count()
+        assert isinstance(counts, dict)
         assert counts["counters"] == 2
         assert counts["gauges"] == 1
         assert counts["histograms"] == 1
@@ -729,7 +731,8 @@ class TestIntegration:
 
         # Reset
         collector.reset()
-        assert collector.get_metric_count()["total"] == 0
+        counts = collector.get_metric_count()
+        assert isinstance(counts, dict) and counts["total"] == 0
 
     def test_concurrent_operations(self):
         """Test concurrent metric operations."""
@@ -749,6 +752,7 @@ class TestIntegration:
 
         # Verify all metrics were created
         counts = collector.get_metric_count()
+        assert isinstance(counts, dict)
         assert counts["counters"] == 5
         assert counts["gauges"] == 5
         assert counts["histograms"] == 5

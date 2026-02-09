@@ -82,7 +82,7 @@ class DatabaseService:
             return (False, str(e))
 
     @staticmethod
-    def cleanup_old_records(days_to_keep: int = None) -> Tuple[bool, str]:
+    def cleanup_old_records(days_to_keep: Optional[int] = None) -> Tuple[bool, str]:
         """Cleanup old records. Returns (success, message)."""
         if days_to_keep is None:
             days_to_keep = DatabasePanelConfig.DEFAULT_DAYS_TO_KEEP
@@ -126,7 +126,7 @@ class ReconciliationService:
         api_secret: str,
         testnet: bool = False,
         symbols: Optional[List[str]] = None,
-        since_hours: int = None,
+        since_hours: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Reconcile orders with Binance."""
         if since_hours is None:
@@ -167,7 +167,7 @@ class DataViewerService:
             return 0
 
     @staticmethod
-    def get_table_data(table_name: str, limit: int = None, last_id: Optional[int] = None) -> List[Any]:
+    def get_table_data(table_name: str, limit: Optional[int] = None, last_id: Optional[int] = None) -> List[Any]:
         """Get paginated data from a table."""
         from modules.auto_trade.database import (
             get_audit_log_cursor,

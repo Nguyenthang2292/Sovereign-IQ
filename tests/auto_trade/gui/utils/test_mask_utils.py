@@ -6,7 +6,7 @@ from modules.auto_trade.gui.utils.mask_utils import mask_api_key, mask_secret
 
 def test_mask_api_key_empty():
     """Test mask_api_key with empty or None values."""
-    assert mask_api_key(None) == "—", "Expected placeholder for None API key"
+    assert mask_api_key(None) == "—", "Expected placeholder for None API key"  # type: ignore[arg-type]
     assert mask_api_key("") == "—", "Expected placeholder for empty API key"
 
 def test_mask_api_key_short():
@@ -23,7 +23,7 @@ def test_mask_api_key_long():
 
 def test_mask_secret_empty():
     """Test mask_secret with empty or None values."""
-    assert mask_secret(None) == "—", "Expected placeholder for None secret"
+    assert mask_secret(None) == "—", "Expected placeholder for None secret"  # type: ignore[arg-type]
     assert mask_secret("") == "—", "Expected placeholder for empty secret"
 
 def test_mask_secret_short():

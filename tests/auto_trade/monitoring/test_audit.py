@@ -461,8 +461,8 @@ class TestErrorHandling:
 
     def test_log_event_with_circular_reference_in_details(self, audit_logger, temp_log_dir):
         """Test handling of circular references in details."""
-        details = {"key": "value"}
-        details["self"] = details  # Circular reference
+        details: dict = {"key": "value"}
+        details["self"] = details  # type: ignore[assignment]  # Circular reference
 
         # Should handle gracefully and log
         audit_logger.log_event("TEST_EVENT", details)

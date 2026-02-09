@@ -203,7 +203,7 @@ class TestBackupRestoreWorkflowE2E:
         # Insert initial data
         with db_manager.session_scope() as session:
             session.bulk_insert_mappings(
-                Order,
+                Order,  # type: ignore[arg-type]
                 [
                     {
                         "order_id": "BACKUP_001",

@@ -110,6 +110,7 @@ class TestDryRunDB:
 
         # Insert position
         position_id = db.insert_position("BTC/USDT", "LONG", 42000.0, 42000.0, 0.1, 10)
+        assert position_id is not None
 
         # Update position
         success = db.update_position(
@@ -122,6 +123,7 @@ class TestDryRunDB:
 
         # Verify update
         position = db.get_position_by_id(position_id)
+        assert position is not None
         assert position["current_price"] == 43000.0
         assert position["unrealized_pnl"] == 100.0
 
@@ -131,6 +133,7 @@ class TestDryRunDB:
 
         # Insert position
         position_id = db.insert_position("BTC/USDT", "LONG", 42000.0, 42000.0, 0.1, 10)
+        assert position_id is not None
 
         # Update TP/SL
         success = db.update_position(
@@ -143,6 +146,7 @@ class TestDryRunDB:
 
         # Verify update
         position = db.get_position_by_id(position_id)
+        assert position is not None
         assert position["take_profit"] == 45000.0
         assert position["stop_loss"] == 39000.0
 
@@ -152,6 +156,7 @@ class TestDryRunDB:
 
         # Insert position
         position_id = db.insert_position("BTC/USDT", "LONG", 42000.0, 42000.0, 0.1, 10)
+        assert position_id is not None
 
         # Close position
         success = db.close_position(
@@ -164,6 +169,7 @@ class TestDryRunDB:
 
         # Verify position is closed
         position = db.get_position_by_id(position_id)
+        assert position is not None
         assert position["status"] == "CLOSED"
         assert position["current_price"] == 43000.0
         assert position["close_time"] is not None
@@ -174,6 +180,7 @@ class TestDryRunDB:
 
         # Insert position
         position_id = db.insert_position("BTC/USDT", "LONG", 42000.0, 42000.0, 0.1, 10)
+        assert position_id is not None
 
         # Get position
         position = db.get_position_by_id(position_id)
@@ -197,6 +204,7 @@ class TestDryRunDB:
         # Insert and close some positions
         pos1 = db.insert_position("BTC/USDT", "LONG", 42000.0, 42000.0, 0.1, 10)
         pos2 = db.insert_position("ETH/USDT", "SHORT", 2500.0, 2500.0, 1.0, 5)
+        assert pos1 is not None and pos2 is not None
 
         db.close_position(pos1, 43000.0, 100.0)
         db.close_position(pos2, 2400.0, 100.0)
@@ -213,6 +221,7 @@ class TestDryRunDB:
         # Insert and close many positions
         for i in range(10):
             pos_id = db.insert_position(f"SYMBOL{i}/USDT", "LONG", 100.0, 100.0, 1.0, 10)
+            assert pos_id is not None
             db.close_position(pos_id, 110.0, 10.0)
 
         closed = db.get_closed_positions(limit=5)
@@ -226,6 +235,7 @@ class TestDryRunDB:
         # Insert and close positions with known PnL
         pos1 = db.insert_position("BTC/USDT", "LONG", 42000.0, 42000.0, 0.1, 10)
         pos2 = db.insert_position("ETH/USDT", "SHORT", 2500.0, 2500.0, 1.0, 5)
+        assert pos1 is not None and pos2 is not None
 
         db.close_position(pos1, 43000.0, 100.0)
         db.close_position(pos2, 2400.0, 50.0)
@@ -256,6 +266,7 @@ class TestDryRunDB:
         # First instance inserts data
         db1 = DryRunDB(db_path=temp_db_file)
         position_id = db1.insert_position("BTC/USDT", "LONG", 42000.0, 42000.0, 0.1, 10)
+        assert position_id is not None
 
         # Second instance should see the data
         db2 = DryRunDB(db_path=temp_db_file)
@@ -277,6 +288,7 @@ class TestDryRunDB:
         db = DryRunDB(db_path=temp_db_file)
 
         position_id = db.insert_position("BTC/USDT", "LONG", 42000.0, 42000.0, 0.1, 10)
+        assert position_id is not None
 
         # Update with no parameters
         success = db.update_position(position_id=position_id)

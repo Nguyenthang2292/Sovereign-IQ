@@ -10,17 +10,27 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Mock imports BEFORE importing modules that use them
-sys.modules["customtkinter"] = MagicMock()
-sys.modules["tkinter"] = MagicMock()
-sys.modules["tkinter.ttk"] = MagicMock()
-sys.modules["tkinter.messagebox"] = MagicMock()
-sys.modules["tkinter.filedialog"] = MagicMock()
-sys.modules["tkinter.simpledialog"] = MagicMock()
+# NOTE: Do NOT patch sys.modules at module level — it permanently poisons
+# tkinter/customtkinter for all tests collected in the same process.
+
+# Keys that will be temporarily replaced with mocks during this test class.
+_MOCKED_MODULE_KEYS = [
+    "customtkinter",
+    "tkinter",
+    "tkinter.ttk",
+    "tkinter.messagebox",
+    "tkinter.filedialog",
+    "tkinter.simpledialog",
+]
 
 class TestComponentsEmptyStateIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # Save original modules and inject mocks
+        cls._saved_modules = {k: sys.modules.get(k) for k in _MOCKED_MODULE_KEYS}  # type: ignore[attr-defined,misc]
+        for k in _MOCKED_MODULE_KEYS:
+            sys.modules[k] = MagicMock()
+
         # Configure customtkinter mock
         import customtkinter as ctk
 
@@ -71,13 +81,22 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
 
         # Mock tkinter.ttk
         import tkinter.ttk as ttk
-        ttk.Treeview = MagicMock()
-        ttk.Style = MagicMock()
-        ttk.Label = MagicMock()
-        ttk.Button = MagicMock()
+        ttk.Treeview = MagicMock()  # type: ignore[misc]
+        ttk.Style = MagicMock()  # type: ignore[misc]
+        ttk.Label = MagicMock()  # type: ignore[misc]
+        ttk.Button = MagicMock()  # type: ignore[misc]
 
         # Store configured mock ctk for tests that run after real ctk was imported (e.g. in suite)
-        cls._mock_ctk = ctk
+        cls._mock_ctk = ctk  # type: ignore[attr-defined,misc]
+
+    @classmethod
+    def tearDownClass(cls):
+        # Restore original modules so subsequent tests get real tkinter/customtkinter
+        for k, orig in cls._saved_modules.items():  # type: ignore[attr-defined]
+            if orig is not None:
+                sys.modules[k] = orig
+            else:
+                sys.modules.pop(k, None)
 
     def setUp(self):
         self.parent = MagicMock()
@@ -94,12 +113,12 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
             PositionsFrame = positions_frame_module.PositionsFrame
             mock_empty_state = MagicMock()
             original_empty_state = positions_frame_module.EmptyState
-            positions_frame_module.EmptyState = mock_empty_state
+            positions_frame_module.EmptyState = mock_empty_state  # type: ignore[misc]
 
             frame = PositionsFrame(self.parent)
 
             # Ensure scroll_frame is our mock type
-            frame.scroll_frame = MagicMock()
+            frame.scroll_frame = MagicMock()  # type: ignore[method-assign,misc]
             frame.scroll_frame.winfo_children = MagicMock(return_value=[])
 
             # Test update with empty positions
@@ -110,12 +129,12 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
             mock_empty_state.return_value.pack.assert_called()
 
             # Prepare for non-empty update
-            frame.scroll_frame.winfo_children.return_value = [mock_empty_state.return_value]
+            frame.scroll_frame.winfo_children.return_value = [mock_empty_state.return_value]  # type: ignore[misc]
 
             positions = [{"symbol": "BTC/USDT", "side": "LONG", "size": 1.0, "entry_price": 50000, "current_price": 51000, "pnl": 100}]
 
             mock_card = MagicMock()
-            positions_frame_module.PositionCard = mock_card
+            positions_frame_module.PositionCard = mock_card  # type: ignore[misc]
             frame.update_positions(positions)
 
             # Verify EmptyState was destroyed
@@ -125,7 +144,7 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
             mock_card.assert_called()
 
             # Restore
-            positions_frame_module.EmptyState = original_empty_state
+            positions_frame_module.EmptyState = original_empty_state  # type: ignore[misc]
         finally:
             # Restore module cache
             if old_module is not None:
@@ -143,7 +162,7 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
 
             mock_empty_state = MagicMock()
             original_empty_state = signals_frame_module.EmptyState
-            signals_frame_module.EmptyState = mock_empty_state
+            signals_frame_module.EmptyState = mock_empty_state  # type: ignore[misc]
 
             frame = SignalsFrame(self.parent)
 
@@ -165,7 +184,7 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
             empty_state_instance.pack_forget.assert_called()
 
             # Restore
-            signals_frame_module.EmptyState = original_empty_state
+            signals_frame_module.EmptyState = original_empty_state  # type: ignore[misc]
         finally:
             if old_module is not None:
                 sys.modules[mod_key] = old_module
@@ -182,7 +201,7 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
 
             mock_empty_state = MagicMock()
             original_empty_state = recovery_panel_module.EmptyState
-            recovery_panel_module.EmptyState = mock_empty_state
+            recovery_panel_module.EmptyState = mock_empty_state  # type: ignore[misc]
 
             panel = RecoveryPanel(self.parent)
 
@@ -194,7 +213,7 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
             empty_state_instance.pack.assert_called()
 
             # Simulate active recovery
-            panel.recovery_strategy = MagicMock()
+            panel.recovery_strategy = MagicMock()  # type: ignore[misc]
             panel.recovery_strategy.get_state.return_value = MagicMock(
                 initial_loss=100, remaining_loss=100, recovery_percentage=0,
                 trades_count=0, win_streak=0, estimated_trades_remaining=10, is_complete=False
@@ -208,14 +227,14 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
             empty_state_instance.pack_forget.assert_called()
 
             # Simulate stop recovery
-            panel.recovery_strategy = None
+            panel.recovery_strategy = None  # type: ignore[misc]
             panel._update_status_display()
 
             # Should be shown
             empty_state_instance.pack.assert_called()
 
             # Restore
-            recovery_panel_module.EmptyState = original_empty_state
+            recovery_panel_module.EmptyState = original_empty_state  # type: ignore[misc]
         finally:
             if old_module is not None:
                 sys.modules[mod_key] = old_module
@@ -233,15 +252,15 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
         mock_cm.__exit__ = MagicMock(return_value=None)
         mock_session_scope.return_value = mock_cm
 
-        with patch("modules.auto_trade.gui.components.database.data_viewer_section.ctk", self._mock_ctk):
+        with patch("modules.auto_trade.gui.components.database.data_viewer_section.ctk", self._mock_ctk):  # type: ignore[attr-defined]
             from modules.auto_trade.gui.components.database import data_viewer_section
             from modules.auto_trade.gui.components.database.data_viewer_section import DataViewerSection
             section = DataViewerSection(self.parent, log_callback=MagicMock())
 
         # When run in suite, data_viewer_section may already have real EmptyState; patch it so refresh() uses mock
         with patch.object(data_viewer_section, "EmptyState", mock_empty_state):
-            section._get_table_count = MagicMock(return_value=0)
-            section._query_table_data_cursor = MagicMock(return_value=[])
+            section._get_table_count = MagicMock(return_value=0)  # type: ignore[method-assign]
+            section._query_table_data_cursor = MagicMock(return_value=[])  # type: ignore[method-assign]
 
             section.refresh()
 

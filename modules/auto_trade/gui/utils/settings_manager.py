@@ -14,17 +14,17 @@ class SettingsManager:
     DEFAULT_SETTINGS = {
         "risk": {
             "max_position_size": 100.0,
-            "max_open_positions": 3,
-            "max_daily_loss": 50.0,
-            "default_leverage": "10x",
+            "max_open_positions": 1,
+            "max_daily_loss": 100.0,
+            "default_leverage": "3x",
         },
         "filters": {
-            "min_signal_score": 0.7,
+            "min_signal_score": 0.2,
             "enable_xgboost": True,
-            "atc_threshold": 0.6,
+            "atc_threshold": 0.2,
             "symbol_whitelist": "BTC/USDT\nETH/USDT\nSOL/USDT",
-            "min_volume": 50.0,
-            "timeframe": "1h",
+            "min_volume": 5.0,
+            "timeframe": "15m",
         },
         "api": {"exchange": "Demo", "mode": "DRY_RUN", "api_key": "", "api_secret": ""},
         "tp_sl": {

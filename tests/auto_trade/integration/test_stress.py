@@ -15,7 +15,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from modules.auto_trade.database.config import DEFAULT_SCHEMA_PATH
-from modules.auto_trade.database.migrations import MigrationManager
+from modules.auto_trade.database.migrations import MigrationManager  # type: ignore[attr-defined]
 from modules.auto_trade.database.models import Order
 from modules.auto_trade.database.queries import get_orders_cursor, get_overall_stats
 from modules.auto_trade.database.utils import DatabaseManager
@@ -46,13 +46,13 @@ def _make_order_rows(n: int):
 def stress_db(tmp_path):
     """Create DB with many orders for stress testing."""
     db_path = str(tmp_path / "stress.db")
-    manager = MigrationManager(db_path, DEFAULT_SCHEMA_PATH)
+    manager = MigrationManager(db_path, DEFAULT_SCHEMA_PATH)  # type: ignore[attr-defined]
     manager.initialize_database()
     manager.auto_migrate()
 
     db_manager = DatabaseManager(db_path, echo=False)
     with db_manager.session_scope() as session:
-        session.bulk_insert_mappings(Order, _make_order_rows(STRESS_ORDERS))
+        session.bulk_insert_mappings(Order, _make_order_rows(STRESS_ORDERS))  # type: ignore[arg-type]
     return db_path
 
 
@@ -85,7 +85,8 @@ class TestHighVolumeOrders:
                     oid = getattr(order, "order_id", None) or getattr(order, "id", None)
                     assert oid not in seen_order_ids, "Duplicate order in pagination"
                     seen_order_ids.add(oid)
-                last_id = page[-1].id if hasattr(page[-1], "id") else None
+                raw_id = getattr(page[-1], "id", None)
+                last_id = int(raw_id) if raw_id is not None else None
                 if len(page) < 100:
                     break
 

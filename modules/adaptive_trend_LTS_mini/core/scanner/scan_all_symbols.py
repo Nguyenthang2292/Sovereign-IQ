@@ -33,6 +33,7 @@ except ImportError:
 
 from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
 from modules.common.domain.symbol_validation import filter_valid_symbols
+from modules.common.domain.symbols import normalize_symbol_key
 from modules.common.system import get_hardware_manager, get_memory_manager
 
 from .asyncio_scan import _scan_asyncio
@@ -173,6 +174,8 @@ def scan_all_symbols(
             if not symbols:
                 log_error("symbols list is empty")
                 return pd.DataFrame(), pd.DataFrame()
+            # Normalize CCXT format (BTC/USDT) to ticker (BTCUSDT) so validation accepts
+            symbols = list(dict.fromkeys(normalize_symbol_key(s) for s in symbols))
             symbols = filter_valid_symbols(symbols)
             if not symbols:
                 log_error("No valid symbols after format validation (2–30 alphanumeric chars)")
@@ -189,6 +192,8 @@ def scan_all_symbols(
                 log_error("No symbols found")
                 return pd.DataFrame(), pd.DataFrame()
 
+            # Normalize CCXT format (BTC/USDT) to ticker (BTCUSDT) so validation accepts
+            all_symbols = list(dict.fromkeys(normalize_symbol_key(s) for s in all_symbols))
             symbols = filter_valid_symbols(all_symbols)
             dropped = len(all_symbols) - len(symbols)
             if dropped:
@@ -286,6 +291,12 @@ def scan_all_symbols(
             short_signals = short_signals.sort_values("signal", ascending=True).reset_index(drop=True)
 
             log_success(f"Found {len(long_signals)} LONG signals and {len(short_signals)} SHORT signals")
+            timeframe_label = getattr(atc_config, "timeframe", "?")
+            long_syms = long_signals["symbol"].tolist() if not long_signals.empty else []
+            short_syms = short_signals["symbol"].tolist() if not short_signals.empty else []
+            log_progress(
+                f"[TF {timeframe_label}] LONG: {long_syms}; SHORT: {short_syms[:10]}{' ...' if len(short_syms) > 10 else ''}"
+            )
 
             # Final memory log
             mem_manager.log_memory_stats()

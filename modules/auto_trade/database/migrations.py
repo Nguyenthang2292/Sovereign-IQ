@@ -106,6 +106,47 @@ class MigrationManager:
 
         return False
 
+    def _ensure_migrations_applied_table(self) -> None:
+        """
+        Create migrations_applied table if it does not exist.
+        Safe to call on every run; required when DB exists but was created from an older schema.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS migrations_applied (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration_name TEXT UNIQUE NOT NULL,
+                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                checksum TEXT
+            )
+            """
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_migrations_applied_name ON migrations_applied(migration_name)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_migrations_applied_at ON migrations_applied(applied_at)"
+        )
+        conn.commit()
+        conn.close()
+
+    def _column_exists(self, table: str, column: str) -> bool:
+        """Return True if table has the given column (safe for migration idempotency)."""
+        if table not in {"orders", "signals", "martingale_chain", "gradual_recovery", "system_state", "audit_log", "migrations_applied"}:
+            return False
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute(f"PRAGMA table_info({table})")
+            rows = cursor.fetchall()
+            conn.close()
+            # row: (cid, name, type, notnull, default_value, pk)
+            return any(r[1] == column for r in rows)
+        except Exception:
+            return False
+
     def enable_wal_mode(self) -> bool:
         """
         Enable Write-Ahead Logging (WAL) mode for better concurrent access.
@@ -225,6 +266,27 @@ class MigrationManager:
         """
         try:
             logger.info(f"Applying migration: {migration_name}")
+            self._ensure_migrations_applied_table()
+
+            # Idempotency: 003 adds orders.trailing_step_index; schema.sql may already have it
+            if migration_name == "003_add_trailing_step_index.sql" and self._column_exists("orders", "trailing_step_index"):
+                logger.info(f"Migration {migration_name}: column already exists, marking as applied")
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                checksum = hashlib.sha256(migration_sql.encode()).hexdigest()
+                cursor.execute(
+                    """
+                    INSERT INTO migrations_applied (migration_name, applied_at, checksum)
+                    VALUES (?, datetime('now'), ?)
+                    ON CONFLICT(migration_name) DO UPDATE SET
+                        applied_at = excluded.applied_at,
+                        checksum = excluded.checksum
+                    """,
+                    (migration_name, checksum),
+                )
+                conn.commit()
+                conn.close()
+                return True
 
             conn = sqlite3.connect(self.db_path)
             conn.executescript(migration_sql)
@@ -323,6 +385,7 @@ class MigrationManager:
         Returns:
             True if all migrations applied successfully
         """
+        self._ensure_migrations_applied_table()
         pending = self.get_pending_migrations()
 
         if not pending:

@@ -8,7 +8,8 @@ Created: 2026-02-06
 """
 
 import pytest
-from execution.trailing_stop import (
+
+from modules.auto_trade.execution.trailing_stop import (
     calculate_next_threshold,
     calculate_trailing_stop,
     get_trailing_stop_info,

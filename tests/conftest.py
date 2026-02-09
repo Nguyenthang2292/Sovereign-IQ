@@ -5,9 +5,39 @@ and defines reusable fixtures to streamline test setup.
 """
 
 import sys
+import time
 import tracemalloc
 import warnings
 from contextlib import contextmanager
+from threading import Lock
+
+# Prevent "I/O operation on closed file" when pytest + colorama interact on Windows:
+# some test modules call colorama.init() at import, which wraps sys.stdout; if that
+# stream is later closed, pytest's TerminalWriter fails. Wrapping with a no-close
+# proxy keeps the underlying stream open for pytest.
+class _NoCloseStream:
+    __slots__ = ("_stream",)
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    def write(self, *args, **kwargs):
+        return self._stream.write(*args, **kwargs)
+
+    def flush(self, *args, **kwargs):
+        return self._stream.flush(*args, **kwargs)
+
+    def close(self):
+        pass  # no-op so pytest's TerminalWriter never sees a closed file
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+
+if not isinstance(sys.stdout, _NoCloseStream):
+    sys.stdout = _NoCloseStream(sys.stdout)
+if not isinstance(sys.stderr, _NoCloseStream):
+    sys.stderr = _NoCloseStream(sys.stderr)
 
 import numpy as np
 import pandas as pd
@@ -23,6 +53,15 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pytorch_forecast
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config):
     """Configure pytest to avoid capture issues on Windows."""
+    # Warn if not running inside a virtualenv (avoids wrong interpreter, e.g. ServBay vs .venv)
+    if sys.prefix == getattr(sys, "base_prefix", sys.prefix):
+        import warnings
+        warnings.warn(
+            "Not running in a virtualenv. Use project venv to avoid interpreter mix: "
+            "run_tests.bat / run_tests.ps1 or .venv\\Scripts\\python -m pytest",
+            UserWarning,
+            stacklevel=2,
+        )
 
     # Ensure capture is disabled if not already set
     if hasattr(config.option, "capture") and config.option.capture == "no":
@@ -365,9 +404,6 @@ def memory_monitor():
 
 
 # ==================== ADVANCED CACHING WITH TTL ====================
-
-import time
-from threading import Lock
 
 
 class TTLCache:

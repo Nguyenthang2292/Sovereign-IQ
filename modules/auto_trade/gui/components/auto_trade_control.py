@@ -213,7 +213,7 @@ class AutoTradeControl(ctk.CTkFrame):
             {
                 "title": "🔍 Filters",
                 "settings": [
-                    ("ATC Threshold:", "0.60", "atc_threshold"),
+                    ("ATC threshold (base):", "0.60", "atc_threshold"),
                     ("XGBoost:", "On", "enable_xgboost"),
                     ("Min Volume (M):", "50", "min_volume"),
                     ("Timeframe:", "1h", "timeframe"),

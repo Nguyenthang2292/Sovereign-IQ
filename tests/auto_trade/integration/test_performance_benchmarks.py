@@ -15,7 +15,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from modules.auto_trade.database.config import DEFAULT_SCHEMA_PATH
-from modules.auto_trade.database.migrations import MigrationManager
+from modules.auto_trade.database.migrations import MigrationManager  # type: ignore[attr-defined]
 from modules.auto_trade.database.models import Order
 from modules.auto_trade.database.queries import get_orders_cursor, get_overall_stats
 from modules.auto_trade.database.utils import DatabaseManager
@@ -52,13 +52,13 @@ def _make_order_rows(n: int):
 def bench_db(tmp_path):
     """Create DB with 10,001 orders for benchmarks."""
     db_path = str(tmp_path / "bench_10k.db")
-    manager = MigrationManager(db_path, DEFAULT_SCHEMA_PATH)
+    manager = MigrationManager(db_path, DEFAULT_SCHEMA_PATH)  # type: ignore[attr-defined]
     manager.initialize_database()
     manager.auto_migrate()
 
     db_manager = DatabaseManager(db_path, echo=False)
     with db_manager.session_scope() as session:
-        session.bulk_insert_mappings(Order, _make_order_rows(NUM_ORDERS_BENCHMARK))
+        session.bulk_insert_mappings(Order, _make_order_rows(NUM_ORDERS_BENCHMARK))  # type: ignore[arg-type]
     return db_path
 
 

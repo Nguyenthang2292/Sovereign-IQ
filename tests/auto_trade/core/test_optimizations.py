@@ -17,13 +17,13 @@ class TestCache:
 
     def test_cache_expiry(self):
         cache = Cache()
-        cache.set("key", "value", ttl=0.1)
+        cache.set("key", "value", ttl=0.1)  # type: ignore[arg-type]
         time.sleep(0.2)
         assert cache.get("key") is None
 
     def test_cache_cleanup(self):
         cache = Cache()
-        cache.set("key", "value", ttl=0.1)
+        cache.set("key", "value", ttl=0.1)  # type: ignore[arg-type]
         time.sleep(0.2)
         cache.cleanup()
         assert "key" not in cache._cache

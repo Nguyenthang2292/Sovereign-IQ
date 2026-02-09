@@ -59,7 +59,7 @@ class TestDatabaseService(unittest.TestCase):
         result = DatabaseService.get_last_backup_time()
 
         self.assertIsNotNone(result)
-        self.assertIn("2024", result)
+        self.assertIn("2024", result)  # type: ignore[arg-type]
 
     @patch("modules.auto_trade.gui.services.database_service.Path")
     def test_get_last_backup_time_no_backups(self, mock_path):

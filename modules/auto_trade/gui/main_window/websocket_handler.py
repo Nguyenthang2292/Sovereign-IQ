@@ -59,24 +59,30 @@ class WebSocketHandler:
             self.parent.positions_frame.update_positions(positions_list)
 
         self.parent._update_timestamp()
+        if hasattr(self.parent, "status_bar") and hasattr(self.parent, "ws_data_service"):
+            self.parent.status_bar.set_connection_status(self.parent.ws_data_service.is_connected)
 
     def _on_balance_update(self, balance: BalanceSnapshot):
         """Handle balance update from WebSocket."""
         self.parent.after(0, lambda: self._update_balance_display(balance))
 
     def _update_balance_display(self, balance: BalanceSnapshot):
-        """Update balance display in GUI."""
+        """Update balance display in GUI (keys must match AccountFrame.update_data)."""
         account_data = {
             "balance": balance.total,
-            "free_balance": balance.free,
-            "used_balance": balance.used,
-            "equity": balance.total,
+            "available": balance.free,
+            "margin_used": balance.used,
+            "unrealized_pnl": 0.0,
+            "daily_pnl": 0.0,
+            "daily_pnl_percent": 0.0,
         }
 
         if hasattr(self.parent, "account_frame"):
             self.parent.account_frame.update_data(account_data)
 
         self.parent._update_timestamp()
+        if hasattr(self.parent, "status_bar") and hasattr(self.parent, "ws_data_service"):
+            self.parent.status_bar.set_connection_status(self.parent.ws_data_service.is_connected)
 
     def _on_order_update(self, order: OrderSnapshot):
         """Handle order update from WebSocket."""

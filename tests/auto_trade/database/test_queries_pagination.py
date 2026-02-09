@@ -253,7 +253,7 @@ class TestGetOrdersCursor:
 
         with session_scope() as session:
             page1 = get_orders_cursor(session, last_id=None, limit=10)
-            last_id = page1[-1].id
+            last_id = int(page1[-1].id) if page1[-1].id is not None else None
 
             page2 = get_orders_cursor(session, last_id=last_id, limit=10)
 
@@ -272,7 +272,7 @@ class TestGetOrdersCursor:
 
         with session_scope() as session:
             page1 = get_orders_cursor(session, last_id=None, limit=10)
-            last_id = page1[-1].id
+            last_id = int(page1[-1].id) if page1[-1].id is not None else None
 
             page2 = get_orders_cursor(session, last_id=last_id, limit=10)
 

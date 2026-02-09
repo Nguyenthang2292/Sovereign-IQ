@@ -37,7 +37,7 @@ class TestFreshSignalFiltering:
         fresh = [
             s
             for s in signals
-            if isinstance(s.get("created_at_ts"), (int, float)) and (now - float(s["created_at_ts"])) < 60.0
+            if isinstance(s.get("created_at_ts"), (int, float)) and (now - float(s["created_at_ts"])) < 60.0  # type: ignore[arg-type,attr-defined,index]
         ]
 
         assert len(fresh) == 3
@@ -56,7 +56,7 @@ class TestFreshSignalFiltering:
         fresh = [
             s
             for s in signals
-            if isinstance(s.get("created_at_ts"), (int, float)) and (now - float(s["created_at_ts"])) < 60.0
+            if isinstance(s.get("created_at_ts"), (int, float)) and (now - float(s["created_at_ts"])) < 60.0  # type: ignore[arg-type,attr-defined,index]
         ]
 
         assert len(fresh) == 2
@@ -80,7 +80,7 @@ class TestFreshSignalFiltering:
         fresh = [
             s
             for s in signals
-            if isinstance(s.get("created_at_ts"), (int, float)) and (now - float(s["created_at_ts"])) < 60.0
+            if isinstance(s.get("created_at_ts"), (int, float)) and (now - float(s["created_at_ts"])) < 60.0  # type: ignore[arg-type,attr-defined,index]
         ]
 
         assert len(fresh) == 1
@@ -97,7 +97,7 @@ class TestFreshSignalFiltering:
         fresh = [
             s
             for s in signals
-            if isinstance(s.get("created_at_ts"), (int, float)) and (now - float(s["created_at_ts"])) < 60.0
+            if isinstance(s.get("created_at_ts"), (int, float)) and (now - float(s["created_at_ts"])) < 60.0  # type: ignore[arg-type,attr-defined,index]
         ]
 
         assert len(fresh) == 1
@@ -116,7 +116,7 @@ class TestBestSignalSelection:
         ]
 
         # Selection logic from auto_trade.py lines 112-113
-        signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)
+        signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)  # type: ignore[arg-type]
         best = signals[0]
 
         assert best["symbol"] == "ETH/USDT"
@@ -130,7 +130,7 @@ class TestBestSignalSelection:
             {"symbol": "SOL/USDT", "score": 0.70, "signal": "SHORT"},
         ]
 
-        signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)
+        signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)  # type: ignore[arg-type]
         best = signals[0]
 
         # First element in original list with highest score
@@ -145,11 +145,11 @@ class TestBestSignalSelection:
             {"symbol": "SOL/USDT", "signal": "SHORT"},  # Missing score - becomes 0.0
         ]
 
-        signals.sort(key=lambda s: float(s.get("score") if s.get("score") is not None else 0.0), reverse=True)
+        signals.sort(key=lambda s: float(s.get("score") if s.get("score") is not None else 0.0), reverse=True)  # type: ignore[attr-defined]
         best = signals[0]
 
-        assert best["symbol"] == "BTC/USDT"
-        assert best["score"] == 0.50
+        assert best["symbol"] == "BTC/USDT"  # type: ignore[index]
+        assert best["score"] == 0.50  # type: ignore[index]
 
 
 class TestOrderExecutorTPSL:
@@ -293,7 +293,7 @@ class TestOrderExecutorTPSL:
             executor = OrderExecutor(api_key="test_key", api_secret="test_secret")
 
             signal_dict = {"symbol": "BNB/USDT", "signal": "SHORT", "score": 0.82, "created_at_ts": time.time()}
-            tp_sl_settings = {}  # Empty settings dict
+            tp_sl_settings: dict[str, float] = {}  # Empty settings dict
 
             result = executor.execute_from_signal(signal_dict, tp_sl_settings=tp_sl_settings)
 
@@ -401,14 +401,14 @@ class TestAutoTradeCycleIntegration:
                 fresh_signals = [
                     s
                     for s in signals
-                    if isinstance(s.get("created_at_ts"), (int, float))
-                    and (time.time() - float(s["created_at_ts"])) < 60.0
+                    if isinstance(s.get("created_at_ts"), (int, float))  # type: ignore[attr-defined,index]
+                    and (time.time() - float(s["created_at_ts"])) < 60.0  # type: ignore[arg-type]
                 ]
 
                 assert len(fresh_signals) == 1
 
                 # Sort and select best
-                fresh_signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)
+                fresh_signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)  # type: ignore[arg-type]
                 best = fresh_signals[0]
 
                 assert best["symbol"] == "BTCUSDT"
@@ -449,7 +449,7 @@ class TestAutoTradeCycleIntegration:
         fresh_signals = [
             s
             for s in signals
-            if isinstance(s.get("created_at_ts"), (int, float)) and (time.time() - float(s["created_at_ts"])) < 60.0
+            if isinstance(s.get("created_at_ts"), (int, float)) and (time.time() - float(s["created_at_ts"])) < 60.0  # type: ignore[attr-defined,index,arg-type]
         ]
 
         assert len(fresh_signals) == 0
@@ -472,13 +472,13 @@ class TestAutoTradeCycleIntegration:
         fresh_signals = [
             s
             for s in signals
-            if isinstance(s.get("created_at_ts"), (int, float)) and (time.time() - float(s["created_at_ts"])) < 60.0
+            if isinstance(s.get("created_at_ts"), (int, float)) and (time.time() - float(s["created_at_ts"])) < 60.0  # type: ignore[attr-defined,index,arg-type]
         ]
 
         assert len(fresh_signals) == 3
 
         # Select best
-        fresh_signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)
+        fresh_signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)  # type: ignore[arg-type]
         best = fresh_signals[0]
 
         assert best["symbol"] == "ETH/USDT"

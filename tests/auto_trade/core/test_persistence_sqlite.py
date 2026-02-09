@@ -34,7 +34,7 @@ class TestSignalPersistenceSQLite:
             entry_price=50000.0,
             stop_loss=48000.0,
             take_profit=55000.0,
-            sources=["atc", "xgboost"],
+            sources=["atc", "xgboost"],  # type: ignore[arg-type]
             timestamp=datetime.now().timestamp(),
         )
 
@@ -288,7 +288,7 @@ class TestSignalPersistenceSQLite:
             entry_price=1000.0,
             stop_loss=900.0,
             take_profit=1100.0,
-            sources=["atc", "xgboost", "gemini"],
+            sources=["atc", "xgboost", "gemini"],  # type: ignore[arg-type]
             timestamp=time.time(),
         )
         persistence.save_signal(signal)

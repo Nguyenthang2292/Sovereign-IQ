@@ -20,7 +20,7 @@ def sample_signal_result():
         details = kwargs.get("details", {"xgboost_conf": xgboost_conf})
         details.update(kwargs.get("extra_details", {}))
 
-        strengths = kwargs.get("strengths", {"5m": 0.8, "15m": 0.7, "1h": 0.9})
+        strengths = kwargs.get("strengths", {"15m": 0.8, "1h": 0.7, "4h": 0.9})
         strengths.update(kwargs.get("extra_strengths", {}))
 
         return SignalResult(symbol, score, signal_type, details, strengths)

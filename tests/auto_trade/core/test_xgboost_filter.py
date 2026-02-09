@@ -75,7 +75,7 @@ def test_filter_pass_long(
     mock_data_fetcher, mock_joblib_load, mock_predict_next_move, mock_indicator_engine, mock_add_advanced_features
 ):
     with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
-        filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100})
+        filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6, "min_required_candles": 100})  # type: ignore[arg-type]
 
         # Signals input (symbol, score, signal_type, details, strengths)
         signals = [
@@ -185,7 +185,7 @@ class TestXGBoostFilterInitialization:
         }
 
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
-            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config=config)
+            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config=config)  # type: ignore[arg-type]
 
             assert filter.min_confidence == 0.7
             assert filter.history_limit == 2000
@@ -198,32 +198,32 @@ class TestXGBoostFilterInitialization:
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             # Too high
             with pytest.raises(ValueError, match="min_confidence must be between 0 and 1"):
-                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 1.5})
+                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 1.5})  # type: ignore[arg-type]
 
             # Too low
             with pytest.raises(ValueError, match="min_confidence must be between 0 and 1"):
-                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": -0.1})
+                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": -0.1})  # type: ignore[arg-type]
 
     def test_init_invalid_history_limit(self, mock_data_fetcher, mock_joblib_load):
         """Test that invalid history_limit raises ValueError."""
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             with pytest.raises(ValueError, match="history_limit must be positive"):
-                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"history_limit": 0})
+                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"history_limit": 0})  # type: ignore[arg-type]
 
             with pytest.raises(ValueError, match="history_limit must be positive"):
-                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"history_limit": -100})
+                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"history_limit": -100})  # type: ignore[arg-type]
 
     def test_init_invalid_prediction_timeframe(self, mock_data_fetcher, mock_joblib_load):
         """Test that invalid prediction_timeframe raises ValueError."""
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             with pytest.raises(ValueError, match="Invalid prediction_timeframe"):
-                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"prediction_timeframe": "3m"})
+                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"prediction_timeframe": "3m"})  # type: ignore[arg-type]
 
     def test_init_invalid_on_error(self, mock_data_fetcher, mock_joblib_load):
         """Test that invalid on_error raises ValueError."""
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
             with pytest.raises(ValueError, match="on_error must be 'drop', 'pass', or 'neutral'"):
-                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"on_error": "invalid"})
+                XGBoostFilter(mock_data_fetcher, "model.joblib", config={"on_error": "invalid"})  # type: ignore[arg-type]
 
 
 # ============================================================================
@@ -269,7 +269,7 @@ class TestXGBoostFilterModelLoading:
             mock_hash.hexdigest.return_value = expected_hash
             mock_sha256.return_value = mock_hash
 
-            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config=config)
+            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config=config)  # type: ignore[arg-type]
             assert filter.model is not None
 
     def test_model_integrity_check_fails(self, mock_data_fetcher):
@@ -286,7 +286,7 @@ class TestXGBoostFilterModelLoading:
             mock_hash.hexdigest.return_value = "different_hash"
             mock_sha256.return_value = mock_hash
 
-            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config=config)
+            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config=config)  # type: ignore[arg-type]
             assert filter.model is None
             mock_load.assert_not_called()
 
@@ -726,7 +726,7 @@ class TestXGBoostFilterPrediction:
     ):
         """Test prediction with insufficient candles."""
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
-            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_required_candles": 250})
+            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_required_candles": 250})  # type: ignore[arg-type]
 
             # Only 100 candles (< 250 required)
             mock_data_fetcher.fetch_ohlcv.return_value = pd.DataFrame({"close": [100.0] * 100})
@@ -822,7 +822,7 @@ class TestXGBoostFilterCaching:
     ):
         """Test that cached predictions are reused."""
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
-            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6})
+            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6})  # type: ignore[arg-type]
 
             signals = [
                 SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
@@ -849,7 +849,7 @@ class TestXGBoostFilterCaching:
     ):
         """Test that cache can be cleared."""
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
-            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6})
+            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.6})  # type: ignore[arg-type]
 
             signals = [SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0})]
 
@@ -891,7 +891,7 @@ class TestXGBoostFilterEdgeCases:
     ):
         """Test when all signals are rejected."""
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
-            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.9})
+            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.9})  # type: ignore[arg-type]
 
             signals = [
                 SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
@@ -918,7 +918,7 @@ class TestXGBoostFilterEdgeCases:
     ):
         """Test when all signals pass."""
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
-            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.5})
+            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"min_confidence": 0.5})  # type: ignore[arg-type]
 
             signals = [
                 SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),
@@ -958,7 +958,7 @@ class TestXGBoostFilterEdgeCases:
     ):
         """Test multiple signals with some having errors."""
         with patch("pathlib.Path.exists", side_effect=_PATH_EXISTS_JOBLIB_ONLY):
-            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"on_error": "drop"})
+            filter = XGBoostFilter(mock_data_fetcher, "model.joblib", config={"on_error": "drop"})  # type: ignore[arg-type]
 
             signals = [
                 SignalResult("BTCUSDT", 1.0, "LONG", {"1h": "LONG"}, {"1h": 1.0}),

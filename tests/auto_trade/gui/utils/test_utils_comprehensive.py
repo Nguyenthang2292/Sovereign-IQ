@@ -324,7 +324,7 @@ class TestThreadingUtils:
             nonlocal call_count
             call_count += 1
 
-        updater = PeriodicUpdater(callback, interval=0.1)
+        updater = PeriodicUpdater(callback, interval=0.1)  # type: ignore[arg-type]
         updater.start()
 
         time.sleep(0.3)  # Wait for multiple calls
@@ -341,7 +341,7 @@ class TestThreadingUtils:
             call_count += 1
             raise Exception("Test error")
 
-        updater = PeriodicUpdater(failing_callback, interval=0.1)
+        updater = PeriodicUpdater(failing_callback, interval=0.1)  # type: ignore[arg-type]
         updater.start()
 
         time.sleep(0.3)
@@ -429,7 +429,7 @@ class TestRiskCalculator:
             tp_percent=5.0,  # 5% profit
             sl_percent=2.5,  # 2.5% loss
         )
-
+        assert result is not None
         # Risk/reward should be 2:1 (5% profit vs 2.5% loss)
         assert result["risk_reward_ratio"] == pytest.approx(2.0, rel=0.1)
 
@@ -448,6 +448,7 @@ class TestRiskCalculator:
         assert result is not None
         assert result["margin_required"] == 1000.0 / 100  # 10 USDT
         # Liquidation price should be very close to entry with high leverage
+        assert result["liquidation_price"] is not None
         assert abs(result["liquidation_price"] - 40000.0) < 1000.0
 
     def test_calculate_error_handling(self):
@@ -478,6 +479,7 @@ class TestRiskCalculator:
         )
 
         # Liquidation should be below entry for LONG
+        assert result is not None and result["liquidation_price"] is not None
         assert result["liquidation_price"] < 40000.0
         # With 10x leverage, liquidation should be around 10% below entry
         expected_liq = 40000.0 * (1 - 1/10)
@@ -496,6 +498,7 @@ class TestRiskCalculator:
         )
 
         # Liquidation should be above entry for SHORT
+        assert result is not None and result["liquidation_price"] is not None
         assert result["liquidation_price"] > 40000.0
 
 

@@ -36,9 +36,9 @@ XGBOOST_PER_SYMBOL_DEFAULTS = {
 }
 
 ATC_SCANNER_DEFAULTS = {
-    "weights": {"1h": 0.5, "15m": 0.3, "5m": 0.2},
+    "weights": {"15m": 0.5, "1h": 0.3, "4h": 0.2},
     "threshold": 0.6,
-    "timeframes": ["1h", "15m", "5m"],
+    "timeframes": ["15m", "1h", "4h"],
     "min_signal": 0.0,
     "use_signal_strength": False,
     "enable_cache": True,

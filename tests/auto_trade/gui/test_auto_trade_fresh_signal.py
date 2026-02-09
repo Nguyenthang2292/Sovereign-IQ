@@ -87,7 +87,7 @@ def test_get_binance_client_returns_none_when_no_credentials():
     parent.settings_manager.get.return_value = "DRY_RUN"
     parent.mode = "DRY_RUN"
 
-    manager = AutoTradeManager(parent)
+    manager = AutoTradeManager(parent)  # type: ignore[arg-type]
     assert manager._get_binance_client() is None, "Expected no client when credentials are missing"
 
 
@@ -107,7 +107,7 @@ def test_get_binance_client_returns_client_when_credentials_present():
 
     with patch("modules.auto_trade.execution.binance_client.BinanceClient") as MockClient:
         MockClient.return_value = MagicMock()
-        manager = AutoTradeManager(parent)
+        manager = AutoTradeManager(parent)  # type: ignore[arg-type]
         client = manager._get_binance_client()
         assert client is not None, "Expected BinanceClient instance when credentials are present"
         MockClient.assert_called_once_with(

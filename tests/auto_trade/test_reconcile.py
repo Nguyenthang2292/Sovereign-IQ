@@ -24,7 +24,7 @@ from modules.auto_trade.database.reconcile import _normalize_symbol, reconcile_o
 def cleanup_test_order(client_order_id: str):
     """Helper function to clean up test orders."""
     with session_scope() as session:
-        existing = get_order_by_client_id(session, client_order_id)
+        existing = get_order_by_client_id(session, client_order_id)  # type: ignore[arg-type]
         if existing:
             session.delete(existing)
             session.commit()
@@ -160,7 +160,7 @@ class TestReconcileFunction:
         mock_exchange.fetch_closed_orders = Mock(return_value=[mock_binance_order_filled])
 
         client_order_id = mock_binance_order_filled["clientOrderId"]
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
         with patch("modules.auto_trade.database.reconcile.ccxt.binance", return_value=mock_exchange):
             result = reconcile_orders_with_binance("key", "secret", symbols=["BTC/USDT"])
@@ -170,19 +170,19 @@ class TestReconcileFunction:
 
             # Verify order in DB has CLOSED status
             with session_scope() as session:
-                order = get_order_by_client_id(session, client_order_id)
+                order = get_order_by_client_id(session, client_order_id)  # type: ignore[arg-type]
                 assert order is not None
                 assert order.status == "CLOSED"
                 assert order.pnl == 15.50
 
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
     def test_status_mapping_canceled_to_cancelled(self, test_db, mock_exchange, mock_binance_order_cancelled):
         """Test CANCELED status is mapped to CANCELLED."""
         mock_exchange.fetch_closed_orders = Mock(return_value=[mock_binance_order_cancelled])
 
         client_order_id = mock_binance_order_cancelled["clientOrderId"]
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
         with patch("modules.auto_trade.database.reconcile.ccxt.binance", return_value=mock_exchange):
             result = reconcile_orders_with_binance("key", "secret", symbols=["ETH/USDT"])
@@ -191,12 +191,12 @@ class TestReconcileFunction:
 
             # Verify order in DB has CANCELLED status
             with session_scope() as session:
-                order = get_order_by_client_id(session, client_order_id)
+                order = get_order_by_client_id(session, client_order_id)  # type: ignore[arg-type]
                 assert order is not None
                 assert order.status == "CANCELLED"
                 assert order.stop_loss == 2950.0
 
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
     def test_timestamp_extraction(self, test_db, mock_exchange, mock_binance_order_filled):
         """Test timestamp extraction for created_at and closed_at."""
@@ -245,7 +245,7 @@ class TestReconcileFunction:
         }
 
         client_order_id = order_with_sl_tp["clientOrderId"]
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
         mock_exchange.fetch_closed_orders = Mock(return_value=[order_with_sl_tp])
 
@@ -255,12 +255,12 @@ class TestReconcileFunction:
             assert result["inserted"] == 1
 
             with session_scope() as session:
-                order = get_order_by_client_id(session, client_order_id)
+                order = get_order_by_client_id(session, client_order_id)  # type: ignore[arg-type]
                 assert order is not None
                 assert order.stop_loss == 95.0
                 assert order.take_profit == 110.0
 
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
     def test_skip_non_programmatic_orders(self, test_db, mock_exchange):
         """Test that non-AT_ orders are skipped."""
@@ -530,14 +530,14 @@ class TestCloseStaleOrders:
 
             # Verify order is now CLOSED in DB
             with session_scope() as session:
-                order = get_order_by_client_id(session, client_order_id)
+                order = get_order_by_client_id(session, client_order_id)  # type: ignore[arg-type,assignment]
                 assert order is not None
                 assert order.status == "CLOSED"
                 assert order.closed_at is not None
                 assert order.pnl == 25.50
 
         # Cleanup
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
     def test_close_stale_cancelled_order(self, test_db, mock_exchange):
         """Test that stale OPEN orders are marked CANCELLED when cancelled on Binance."""
@@ -589,12 +589,12 @@ class TestCloseStaleOrders:
 
             # Verify order is now CANCELLED in DB
             with session_scope() as session:
-                order = get_order_by_client_id(session, client_order_id)
+                order = get_order_by_client_id(session, client_order_id)  # type: ignore[arg-type]
                 assert order is not None
                 assert order.status == "CANCELLED"
 
         # Cleanup
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
     def test_no_close_when_order_still_open(self, test_db, mock_exchange):
         """Test that orders are NOT closed when still open on Binance."""
@@ -643,12 +643,12 @@ class TestCloseStaleOrders:
 
             # Verify order is still OPEN in DB
             with session_scope() as session:
-                order = get_order_by_client_id(session, client_order_id)
+                order = get_order_by_client_id(session, client_order_id)  # type: ignore[arg-type]
                 assert order is not None
                 assert order.status == "OPEN"
 
         # Cleanup
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
     def test_close_stale_api_failure(self, test_db, mock_exchange):
         """Test that stale orders are closed even when fetch_order fails."""
@@ -684,13 +684,13 @@ class TestCloseStaleOrders:
 
             # Verify order is closed (even though API failed)
             with session_scope() as session:
-                order = get_order_by_client_id(session, client_order_id)
+                order = get_order_by_client_id(session, client_order_id)  # type: ignore[arg-type]
                 assert order is not None
                 assert order.status == "CLOSED"
                 assert order.closed_at is None  # No timestamp since API failed
 
         # Cleanup
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
 
 class TestWebSocketSync:
@@ -763,7 +763,7 @@ class TestWebSocketSync:
                 assert call_args[1]["status"] == "CLOSED"
 
         # Cleanup
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
     def test_websocket_sync_cancelled_order(self):
         """Test that WebSocket order cancel updates DB."""
@@ -828,7 +828,7 @@ class TestWebSocketSync:
                 assert call_args[1]["status"] == "CANCELLED"
 
         # Cleanup
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
     def test_websocket_no_sync_for_open_order(self):
         """Test that WebSocket does NOT sync when order is still open."""
@@ -884,7 +884,7 @@ class TestWebSocketSync:
             mock_update.assert_not_called()
 
         # Cleanup
-        cleanup_test_order(client_order_id)
+        cleanup_test_order(client_order_id)  # type: ignore[arg-type]
 
     def test_websocket_no_sync_for_manual_order(self):
         """Test that WebSocket does NOT sync non-AT_ orders."""

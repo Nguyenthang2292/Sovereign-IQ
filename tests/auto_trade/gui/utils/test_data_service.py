@@ -217,4 +217,4 @@ class TestDataService:
         account_data = service.get_account_data()
 
         # Should return demo data
-        assert account_data["balance"] == 1000.0
+        assert account_data["balance"] == 1000.0  # type: ignore[index]

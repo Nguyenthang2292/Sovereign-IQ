@@ -13,11 +13,8 @@ Run this on testnet/demo environment first to verify WebSocket connections.
 import asyncio
 import logging
 import os
-import sys
-from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+import pytest
 
 from modules.auto_trade.monitoring.account_monitor import BalanceMonitor, OrderMonitor
 from modules.auto_trade.monitoring.breakeven_manager import BreakEvenMonitor
@@ -33,6 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.asyncio
 async def test_websocket_integration():
     """Test WebSocket integration."""
 
@@ -131,6 +129,7 @@ def on_order_update(order):
     )
 
 
+@pytest.mark.asyncio
 async def test_breakeven_monitor():
     """Test break-even monitor with mock data."""
 

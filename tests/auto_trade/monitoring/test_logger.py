@@ -343,7 +343,7 @@ class TestCleanupLogging:
         original_closes = []
         for handler in root_logger.handlers:
             original_closes.append(handler.close)
-            handler.close = Mock(side_effect=Exception("Close error"))
+            handler.close = Mock(side_effect=Exception("Close error"))  # type: ignore[method-assign]
 
         # Should not raise exception even though close fails
         cleanup_logging()

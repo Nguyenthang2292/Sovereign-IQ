@@ -18,11 +18,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, TypedDict, cast
 
+import pandas as pd
 import polars as pl
 
 from modules.adaptive_trend_LTS_mini.core.scanner.scan_all_symbols import scan_all_symbols
 from modules.adaptive_trend_LTS_mini.utils.config import create_atc_config_from_dict
 from modules.common.core.data_fetcher import DataFetcher
+from modules.common.domain.symbols import normalize_symbol_key
 from modules.common.system import get_hardware_manager
 from modules.common.ui.logging import log_error, log_info, log_warn
 
@@ -38,12 +40,35 @@ except ImportError:
 from threading import RLock
 
 
+def _pandas_to_polars_safe(pd_df: pd.DataFrame, empty_schema: Dict[str, Any]) -> pl.DataFrame:
+    """Convert pandas DataFrame to Polars without pyarrow by going through Python dicts.
+
+    This avoids the 'pyarrow is required' error entirely by extracting data as plain Python
+    lists and constructing Polars DataFrames directly.
+    """
+    if pd_df is None or pd_df.empty:
+        return pl.DataFrame(schema=empty_schema)
+    try:
+        # Extract as plain Python dict of lists — no pyarrow needed
+        data: Dict[str, list] = {}
+        for col in pd_df.columns:
+            raw = pd_df[col].tolist()
+            # Ensure values are plain Python types (not numpy scalars)
+            data[str(col)] = [
+                v.item() if hasattr(v, "item") else v for v in raw
+            ]
+        return pl.DataFrame(data)
+    except Exception:
+        # Last resort fallback: try pl.from_pandas (will need pyarrow)
+        return pl.from_pandas(pd_df)
+
+
 class ATCScannerConfig(TypedDict, total=False):
     """Type definition for ATCScanner configuration."""
 
-    weights: Dict[str, float]  # Timeframe weights, e.g., {"1h": 0.5, "15m": 0.3, "5m": 0.2}
+    weights: Dict[str, float]  # Timeframe weights, e.g., {"15m": 0.5, "1h": 0.3, "4h": 0.2}
     threshold: float  # Signal threshold (0.0 to 1.0)
-    timeframes: List[str]  # Timeframes to scan, e.g., ["1h", "15m", "5m"]
+    timeframes: List[str]  # Timeframes to scan, e.g., ["15m", "1h", "4h"]
     min_signal: float  # Minimum signal for individual scans
     use_signal_strength: bool  # Whether to use signal strength for scoring (default: False)
     enable_cache: bool  # Enable caching of scan results (default: True)
@@ -59,8 +84,8 @@ class SignalResult(NamedTuple):
     symbol: str
     score: float  # Aggregated score from -1.0 to +1.0
     signal_type: str  # "LONG", "SHORT", "NEUTRAL"
-    details: Dict[str, Any]  # Per-timeframe signals: {"5m": "LONG", "15m": "SHORT"}
-    strengths: Dict[str, float]  # Per-timeframe signal strengths: {"5m": 0.8, "15m": -0.4}
+    details: Dict[str, Any]  # Per-timeframe signals: {"15m": "LONG", "1h": "SHORT"}
+    strengths: Dict[str, float]  # Per-timeframe signal strengths: {"15m": 0.8, "1h": -0.4}
 
 
 class ATCScanner:
@@ -83,22 +108,6 @@ class ATCScanner:
     _EMPTY_SCAN_RESULT: Dict[str, Any] = {"longs": set(), "shorts": set(), "strengths": {}}
     _EMPTY_DF_SCHEMA: Dict[str, Any] = {"symbol": pl.Utf8, "signal": pl.Float64}
 
-    data_fetcher: DataFetcher
-    config: ATCScannerConfig
-    timeframes: List[str]
-    min_signal: float
-    enable_cache: bool
-    cache_ttl_seconds: int
-    _use_rust_cache: bool
-    _cache: Dict[str, Tuple[Dict[str, Any], float]]
-    _cache_lock: RLock
-    _rust_cache: Optional[Any]
-    batch_size: int
-    max_workers: Optional[int]
-    use_signal_strength: bool
-    weights: Dict[str, float]
-    threshold: float
-
     def __init__(self, data_fetcher: DataFetcher, config: Optional[ATCScannerConfig] = None) -> None:
         """
         Initialize ATCScanner.
@@ -114,7 +123,7 @@ class ATCScanner:
         self.config: ATCScannerConfig = cast(ATCScannerConfig, config or {})
 
         # Configurable timeframes
-        self.timeframes: List[str] = self.config.get("timeframes", ["1h", "15m", "5m"])
+        self.timeframes: List[str] = self.config.get("timeframes", ["15m", "1h", "4h"])
 
         # Minimum signal for individual scans
         self.min_signal: float = self.config.get("min_signal", 0.0)
@@ -134,7 +143,9 @@ class ATCScanner:
 
         if self.enable_cache and use_rust_cache_config and USE_RUST_AGGREGATION and atc_rust:
             try:
-                self._rust_cache = atc_rust.ScanCache(capacity=1000, ttl_seconds=float(self.cache_ttl_seconds))
+                self._rust_cache = atc_rust.ScanCache(  # type: ignore[attr-defined]
+                    capacity=1000, ttl_seconds=float(self.cache_ttl_seconds)
+                )
                 self._use_rust_cache = True
                 log_info("ATCScanner: Using Rust ScanCache (thread-safe, high-performance)")
             except Exception as e:
@@ -157,8 +168,8 @@ class ATCScanner:
         # Use signal strength for scoring
         self.use_signal_strength: bool = self.config.get("use_signal_strength", False)
 
-        # Default Weights
-        self.weights: Dict[str, float] = self.config.get("weights", {"1h": 0.5, "15m": 0.3, "5m": 0.2})
+        # Default Weights (15m=0.5, 1h=0.3, 4h=0.2)
+        self.weights: Dict[str, float] = self.config.get("weights", {"15m": 0.5, "1h": 0.3, "4h": 0.2})
 
         # Validate weights
         self._validate_weights()
@@ -199,6 +210,83 @@ class ATCScanner:
         if extra_weights:
             log_warn(f"Weights for unused timeframes (will be ignored): {extra_weights}")
 
+    # ------------------------------------------------------------------
+    # Smart weight normalization & adaptive threshold
+    # ------------------------------------------------------------------
+
+    def _normalize_weights(
+        self, results_by_tf: Dict[str, Dict[str, Any]]
+    ) -> Tuple[Dict[str, float], float]:
+        """Return (normalized_weights, adaptive_threshold).
+
+        When a timeframe scan fails (empty longs AND shorts), its weight is
+        redistributed proportionally among timeframes that *did* produce data.
+        The threshold is scaled down so signals remain discoverable even when
+        not all timeframes are available.
+
+        Returns:
+            Tuple of:
+                - normalized weights dict  (sums to 1.0 for active TFs)
+                - adaptive threshold (>= 0)
+        """
+        active_weight = 0.0
+        active_tfs: Dict[str, float] = {}
+
+        for tf in self.timeframes:
+            w = self.weights.get(tf, 0.0)
+            res = results_by_tf.get(tf)
+            has_data = res is not None and (len(res.get("longs", set())) > 0 or len(res.get("shorts", set())) > 0)
+            if has_data:
+                active_tfs[tf] = w
+                active_weight += w
+            else:
+                log_warn(f"ATCScanner: TF '{tf}' has no data — weight {w} will be redistributed.")
+
+        if active_weight <= 0:
+            # No TF produced data — return original weights & threshold (will yield 0 signals)
+            log_warn("ATCScanner: No timeframe produced data. Cannot normalize weights.")
+            return dict(self.weights), self.threshold
+
+        # Normalize active TF weights so they sum to 1.0
+        normalized: Dict[str, float] = {}
+        for tf in self.timeframes:
+            if tf in active_tfs:
+                normalized[tf] = active_tfs[tf] / active_weight
+            else:
+                normalized[tf] = 0.0
+
+        # Adaptive threshold: scale by ratio of active weight to total weight
+        total_weight = sum(self.weights.get(tf, 0.0) for tf in self.timeframes)
+        weight_ratio = active_weight / total_weight if total_weight > 0 else 1.0
+        adaptive_threshold = self.threshold * weight_ratio
+
+        log_info(
+            f"ATCScanner: Weight normalization — active TFs: {list(active_tfs.keys())}, "
+            f"normalized: {{{', '.join(f'{k}:{v:.2f}' for k, v in normalized.items())}}}, "
+            f"threshold: {self.threshold} → {adaptive_threshold:.3f} "
+            f"(weight coverage: {weight_ratio:.0%})"
+        )
+
+        return normalized, adaptive_threshold
+
+    def _log_signals_detail(self, final_signals: List[SignalResult]) -> None:
+        """Log each signal with symbol, type, score, and per-TF direction, strength, weighted contribution."""
+        if not final_signals:
+            return
+        longs = [s for s in final_signals if s.signal_type == "LONG"]
+        shorts = [s for s in final_signals if s.signal_type == "SHORT"]
+        log_info(f"ATCScanner: LONG ({len(longs)}): {[s.symbol for s in longs]}")
+        log_info(f"ATCScanner: SHORT ({len(shorts)}): {[s.symbol for s in shorts]}")
+        for sig in final_signals:
+            parts = [f"{sig.symbol} {sig.signal_type} score={sig.score:.3f}"]
+            for tf in self.timeframes:
+                direction = sig.details.get(tf, "NEUTRAL")
+                strength = sig.strengths.get(tf, 0.0)
+                w = self.weights.get(tf, 0.0)
+                contrib = self._calculate_weighted_score(direction, w, strength)
+                parts.append(f"{tf}={direction}(str={strength:.3f},w_contrib={contrib:.3f})")
+            log_info("ATCScanner:   " + " | ".join(parts))
+
     def _calculate_weighted_score(self, signal_type: str, tf_weight: float, strength: float) -> float:
         """Calculate weighted score for a timeframe signal.
 
@@ -219,7 +307,7 @@ class ATCScanner:
         """
         if USE_RUST_AGGREGATION and atc_rust:
             try:
-                return atc_rust.calculate_weighted_score(
+                return atc_rust.calculate_weighted_score(  # type: ignore[attr-defined]
                     signal_type, tf_weight, strength, self.use_signal_strength
                 )
             except Exception as e:
@@ -463,24 +551,34 @@ class ATCScanner:
                     log_error(f"ATCScanner: Parallel scan failed for {tf}: {e}")
                     results_by_tf[tf] = self._EMPTY_SCAN_RESULT.copy()
 
+        # ------ Smart weight normalization & adaptive threshold ------
+        norm_weights, adaptive_threshold = self._normalize_weights(results_by_tf)
+
+        # Normalize symbols for aggregation: scan results use ticker format (BTCUSDT),
+        # so we must use the same format for lookups; then map back to original (e.g. BTC/USDT) for downstream.
+        key_to_original: Dict[str, str] = {normalize_symbol_key(s): s for s in symbols}
+        normalized_symbols: List[str] = list(key_to_original.keys())
+
         # Aggregate results using weighted voting
         final_signals: List[SignalResult] = []
 
         if USE_RUST_AGGREGATION and atc_rust:
             try:
-                rust_results = atc_rust.aggregate_signals(
-                    symbols,
+                # Pass normalized symbols so Rust matches results_by_tf keys (ticker format)
+                rust_results = atc_rust.aggregate_signals(  # type: ignore[attr-defined]
+                    normalized_symbols,
                     results_by_tf,
-                    self.weights,
-                    self.threshold,
+                    norm_weights,
+                    adaptive_threshold,
                     self.use_signal_strength,
                 )
 
-                # Convert Rust dictionaries to SignalResult objects
+                # Convert Rust dictionaries to SignalResult; map symbol back to original (CCXT) format
                 for res in rust_results:
+                    orig_symbol = key_to_original.get(res["symbol"], res["symbol"])
                     final_signals.append(
                         SignalResult(
-                            symbol=res["symbol"],
+                            symbol=orig_symbol,
                             score=res["score"],
                             signal_type=res["signal_type"],
                             details=res["details"],
@@ -489,21 +587,23 @@ class ATCScanner:
                     )
 
                 log_info(
-                    f"ATCScanner: Found {len(final_signals)} signals (via Rust) exceeding threshold {self.threshold}."
+                    f"ATCScanner: Found {len(final_signals)} signals (via Rust) exceeding "
+                    f"adaptive threshold {adaptive_threshold:.3f} (base {self.threshold})."
                 )
+                self._log_signals_detail(final_signals)
                 return final_signals
             except Exception as e:
                 log_error(f"ATCScanner: Rust aggregation failed: {e}. Falling back to Python.")
                 final_signals = []  # Reset for Python fallback
 
-        for symbol in symbols:
+        for symbol in normalized_symbols:
             score = 0.0
             details: Dict[str, Any] = {}
             strengths: Dict[str, float] = {}
 
             for tf in self.timeframes:
                 res = results_by_tf.get(tf, self._EMPTY_SCAN_RESULT.copy())
-                tf_weight = self.weights.get(tf, 0.0)
+                tf_weight = norm_weights.get(tf, 0.0)  # Use normalized weight
 
                 # Get signal strength if available, else use default direction
                 strength = res.get("strengths", {}).get(symbol, 0.0)
@@ -518,18 +618,19 @@ class ATCScanner:
                 else:
                     details[tf] = "NEUTRAL"
 
-            # Apply threshold to determine final signal
+            # Apply adaptive threshold to determine final signal
             signal_type = "NEUTRAL"
-            if score > self.threshold:
+            if score > adaptive_threshold:
                 signal_type = "LONG"
-            elif score < -self.threshold:
+            elif score < -adaptive_threshold:
                 signal_type = "SHORT"
 
-            # Only include non-neutral signals
+            # Only include non-neutral signals; map symbol back to original (CCXT) format
             if signal_type != "NEUTRAL":
+                orig_symbol = key_to_original.get(symbol, symbol)
                 final_signals.append(
                     SignalResult(
-                        symbol=symbol,
+                        symbol=orig_symbol,
                         score=round(score, 2),
                         signal_type=signal_type,
                         details=details,
@@ -537,7 +638,11 @@ class ATCScanner:
                     )
                 )
 
-        log_info(f"ATCScanner: Found {len(final_signals)} signals exceeding threshold {self.threshold}.")
+        log_info(
+            f"ATCScanner: Found {len(final_signals)} signals exceeding "
+            f"adaptive threshold {adaptive_threshold:.3f} (base {self.threshold})."
+        )
+        self._log_signals_detail(final_signals)
         return final_signals
 
     def _run_single_scan(self, symbols: List[str], timeframe: str) -> Tuple[pl.DataFrame, pl.DataFrame]:
@@ -608,9 +713,9 @@ class ATCScanner:
                 min_signal=self.min_signal,
             )
 
-            # Task 5: Convert results to Polars
-            long_signals = pl.from_pandas(long_pd)
-            short_signals = pl.from_pandas(short_pd)
+            # Task 5: Convert results to Polars via dict (avoids pyarrow dependency entirely)
+            long_signals = _pandas_to_polars_safe(long_pd, self._EMPTY_DF_SCHEMA)
+            short_signals = _pandas_to_polars_safe(short_pd, self._EMPTY_DF_SCHEMA)
 
             # Schema validation
             expected_cols = {"symbol", "signal"}

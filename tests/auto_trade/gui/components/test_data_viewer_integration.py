@@ -7,7 +7,7 @@ DISPLAY is available; otherwise skips to avoid CI hang.
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -15,11 +15,18 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+
+# Skip entire module if running in headless CI (no display)
+_has_display = os.environ.get("DISPLAY") or sys.platform == "win32"
+pytestmark = pytest.mark.skipif(not _has_display, reason="No display available")
+
+
 @pytest.fixture(scope="module")
 def _tk_root():
-    """Single Tk root for all tests."""
-    import tkinter as tk
-    root = tk.Tk()
+    """Single CTk root for all tests (customtkinter needs its own root)."""
+    import customtkinter as ctk
+
+    root = ctk.CTk()
     root.withdraw()
     yield root
     try:
@@ -32,9 +39,9 @@ def _tk_root():
 @pytest.fixture
 def viewer(_tk_root):
     """Create DataViewerSection with mocked DataViewerService."""
-    import tkinter as tk
+    import customtkinter as ctk
 
-    parent = tk.Frame(_tk_root)
+    parent = ctk.CTkFrame(_tk_root)
     log_callback = MagicMock()
 
     with patch("modules.auto_trade.gui.components.database.data_viewer_section.DataViewerService") as mock_svc:
@@ -44,8 +51,7 @@ def viewer(_tk_root):
         from modules.auto_trade.gui.components.database.data_viewer_section import DataViewerSection
 
         v = DataViewerSection(parent, log_callback)
-        v.mock_service = mock_svc
-        v.table_selector.get = lambda: "Orders"
+        v.mock_service = mock_svc  # type: ignore[attr-defined]
         yield v
 
     try:

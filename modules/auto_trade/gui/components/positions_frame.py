@@ -104,7 +104,7 @@ class PositionsFrame(ctk.CTkFrame):
         super().__init__(parent)
         self.on_action_callback = on_action_callback
         self.on_open_trade_callback = on_open_trade_callback
-        self._empty_state = None
+        self._empty_state: Optional[EmptyState] = None
 
         title = ctk.CTkLabel(self, text="Open Positions", font=("Arial", 16, "bold"))
         title.pack(pady=(10, 15))

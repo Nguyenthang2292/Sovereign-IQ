@@ -2,10 +2,24 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import List, Tuple
+
+
+def _build_env_for_maturin() -> dict:
+    """On Windows, set LIB so the linker finds the current Python's python3XX.lib (avoids ServBay/other LIB paths)."""
+    env = os.environ.copy()
+    if sys.platform == "win32":
+        # Use base prefix so venv finds the base Python's libs (e.g. python313.lib)
+        base = getattr(sys, "base_prefix", sys.prefix)
+        libs_dir = os.path.join(base, "libs")
+        if os.path.isdir(libs_dir):
+            # Prepend so linker finds python313.lib from the Python we're building for
+            env["LIB"] = libs_dir + os.pathsep + env.get("LIB", "")
+    return env
 
 
 def build_rust_extension(module_path: Path, module_name: str) -> Tuple[bool, str]:
@@ -27,10 +41,12 @@ def build_rust_extension(module_path: Path, module_name: str) -> Tuple[bool, str
     print(f"Building {module_name} Rust extension...")
 
     try:
+        env = _build_env_for_maturin()
         # Use maturin develop for development builds
         result = subprocess.run(
             [sys.executable, "-m", "maturin", "develop", "--release"],
             cwd=module_path,
+            env=env,
             capture_output=True,
             text=True,
             encoding="utf-8",

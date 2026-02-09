@@ -254,11 +254,11 @@ class ActionsSection:
                 )
                 for ch in chains:
                     if ch.initial_order_id in order_ids:
-                        ch.initial_order_id = None
+                        setattr(ch, "initial_order_id", None)
                     if ch.latest_order_id in order_ids:
-                        ch.latest_order_id = None
+                        setattr(ch, "latest_order_id", None)
                     if ch.recovery_order_id in order_ids:
-                        ch.recovery_order_id = None
+                        setattr(ch, "recovery_order_id", None)
                 session.query(Order).filter(Order.parent_order_id.in_(order_ids)).update(
                     {Order.parent_order_id: None}, synchronize_session=False
                 )

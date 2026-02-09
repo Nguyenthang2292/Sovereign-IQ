@@ -1,18 +1,16 @@
+import os
+import sys
 import unittest
 from unittest.mock import MagicMock
-import sys
-import os
-import tkinter as tk
 
 # Add project root to path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../'))
 sys.path.insert(0, project_root)
 
-# Mock customtkinter
+# Mock customtkinter if not available
 try:
     import customtkinter as ctk
-    ctk.CTk()
-except (ImportError, tk.TclError, Exception):
+except ImportError:
     ctk = MagicMock()
     ctk.CTkFrame = MagicMock
     ctk.CTkLabel = MagicMock
@@ -31,7 +29,10 @@ except (ImportError, tk.TclError, Exception):
 
 from modules.auto_trade.gui.components.recovery_panel import RecoveryPanel
 
+
 class TestRecoveryPanelEmptyState(unittest.TestCase):
+    root: object
+
     @classmethod
     def setUpClass(cls):
         try:
@@ -61,13 +62,12 @@ class TestRecoveryPanelEmptyState(unittest.TestCase):
         """Test that the EmptyState action button switches to the Config tab."""
         # Get the callback
         callback = self.panel.empty_state_widget.action_callback
-
-        # Execute it
+        assert callback is not None
         callback()
 
         # Verify it switched to "Config" tab
         # We mocked or wrapped the tabview.set method
-        self.panel.tabview.set.assert_called_with("Config")
+        self.panel.tabview.set.assert_called_with("Config")  # type: ignore[attr-defined]
 
 if __name__ == '__main__':
     unittest.main()

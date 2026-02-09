@@ -163,14 +163,14 @@ class TestEventBusSubscription:
         bus = EventBus()
 
         with pytest.raises(TypeError, match="callback must be callable"):
-            bus.subscribe(EventType.ORDER_CREATED, "not a function")
+            bus.subscribe(EventType.ORDER_CREATED, "not a function")  # type: ignore[arg-type]
 
     def test_subscribe_all_with_non_callable_raises_error(self):
         """Test that subscribe_all with non-callable raises TypeError."""
         bus = EventBus()
 
         with pytest.raises(TypeError, match="callback must be callable"):
-            bus.subscribe_all(123)
+            bus.subscribe_all(123)  # type: ignore[arg-type]
 
 
 class TestEventBusUnsubscription:

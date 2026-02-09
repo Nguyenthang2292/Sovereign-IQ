@@ -239,8 +239,10 @@ class ConfigPanel(ctk.CTkFrame):
         xgboost_checkbox = ctk.CTkCheckBox(filters_frame, text="Enable XGBoost Model", variable=self.enable_xgboost_var)
         xgboost_checkbox.pack(anchor="w", pady=(10, 2))
 
-        # ATC threshold (for ATC scanner: higher = fewer, stronger signals)
-        label_atc = ctk.CTkLabel(filters_frame, text="ATC Threshold:", font=("Arial", 12))
+        # ATC base threshold: used as reference; actual threshold is auto-scaled when some TFs have no data
+        label_atc = ctk.CTkLabel(
+            filters_frame, text="ATC base threshold (adaptive):", font=("Arial", 12)
+        )
         label_atc.pack(anchor="w", pady=(8, 2))
 
         self.atc_threshold_var = ctk.DoubleVar(value=0.6)
@@ -253,6 +255,14 @@ class ConfigPanel(ctk.CTkFrame):
             filters_frame, text=f"Current: {self.atc_threshold_var.get():.2f}", font=("Arial", 10)
         )
         self.atc_threshold_label.pack(anchor="w", pady=2)
+
+        atc_tooltip = ctk.CTkLabel(
+            filters_frame,
+            text="Base value (0–1). Effective threshold is scaled down when some timeframes fail or have no data.",
+            font=("Arial", 10),
+            text_color="gray",
+        )
+        atc_tooltip.pack(anchor="w", pady=(0, 4))
 
         def _on_atc_threshold_change(*args):
             try:
@@ -718,8 +728,8 @@ class ConfigPanel(ctk.CTkFrame):
                 self.credentials_entry_frame.pack_forget()
 
                 creds = manager.load_credentials(exchange)
-                self.api_key_masked_label.configure(text=mask_api_key(creds.get("api_key", "")))
-                self.api_secret_masked_label.configure(text=mask_secret(creds.get("api_secret", "")))
+                self.api_key_masked_label.configure(text=mask_api_key(creds.get("api_key") or ""))
+                self.api_secret_masked_label.configure(text=mask_secret(creds.get("api_secret") or ""))
 
                 self.credentials_masked_frame.pack(fill="x")
             else:

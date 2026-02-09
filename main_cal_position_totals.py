@@ -21,13 +21,13 @@ colorama_init(autoreset=True)
 
 def calculate_position_totals():
     """
-    Tính tổng size positions đang mở từ Binance Futures account.
+    Calculate the total size of open positions from a Binance Futures account.
 
     Returns:
         Tuple of (long_total, short_total, combined_total, positions_list)
-        - long_total: Tổng size của LONG positions (USDT)
-        - short_total: Tổng size của SHORT positions (USDT)
-        - combined_total: Tổng tổng (Long + Short) (USDT)
+        - long_total: Total size of LONG positions (USDT)
+        - short_total: Total size of SHORT positions (USDT)
+        - combined_total: Total size (Long + Short) (USDT)
         - positions_list: List of position dicts
     """
     # Initialize components

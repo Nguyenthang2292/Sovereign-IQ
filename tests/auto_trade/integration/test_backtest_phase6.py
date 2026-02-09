@@ -4,24 +4,28 @@ Test script for Auto-Trade Backtesting (Phase 6.5).
 Demonstrates the integration of the backtester module with auto-trade system.
 """
 
-import sys
-from pathlib import Path
+import pytest
 
-# Add project root to path
-if __name__ == "__main__":
-    project_root = Path(__file__).parent.parent.parent.parent
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
+try:
+    from colorama import Fore, Style
+    from colorama import init as colorama_init
 
-from colorama import Fore, Style
-from colorama import init as colorama_init
+    from modules.auto_trade.backtest import AutoTradeBacktester
+    from modules.common.core.data_fetcher import DataFetcher
+    _IMPORTS_AVAILABLE = True
+except ImportError as _import_err:
+    _IMPORTS_AVAILABLE = False
+    _import_reason = str(_import_err)
 
-from modules.auto_trade.backtest import AutoTradeBacktester
-from modules.common.core.data_fetcher import DataFetcher
+pytestmark = pytest.mark.skipif(
+    not _IMPORTS_AVAILABLE,
+    reason=f"Missing dependency: {_import_reason if not _IMPORTS_AVAILABLE else ''}",
+)
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import color_text, days_to_candles, log_error, log_progress, log_success
 
-colorama_init(autoreset=True)
+if _IMPORTS_AVAILABLE:
+    colorama_init(autoreset=True)
 
 
 def display_backtest_results(result: dict, symbol: str) -> None:
@@ -84,6 +88,8 @@ def display_backtest_results(result: dict, symbol: str) -> None:
 
 def test_basic_backtest():
     """Test basic backtesting functionality."""
+    if not _IMPORTS_AVAILABLE:
+        pytest.skip("Missing dependencies")
     print(color_text("\n" + "=" * 100, Fore.CYAN, Style.BRIGHT))
     print(color_text("TEST 1: BASIC BACKTEST (Without Martingale)", Fore.CYAN, Style.BRIGHT))
     print(color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
@@ -142,6 +148,8 @@ def test_basic_backtest():
 
 def test_martingale_backtest():
     """Test backtesting with Martingale strategy."""
+    if not _IMPORTS_AVAILABLE:
+        pytest.skip("Missing dependencies")
     print(color_text("\n" + "=" * 100, Fore.CYAN, Style.BRIGHT))
     print(color_text("TEST 2: MARTINGALE BACKTEST", Fore.CYAN, Style.BRIGHT))
     print(color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
@@ -220,70 +228,3 @@ def test_martingale_backtest():
 
         log_error(f"Traceback: {traceback.format_exc()}")
         return None
-
-
-def main():
-    """Main test function."""
-    print(color_text("\n" + "=" * 100, Fore.CYAN, Style.BRIGHT))
-    print(color_text("AUTO-TRADE BACKTESTING MODULE TEST (Phase 6.5)", Fore.CYAN, Style.BRIGHT))
-    print(color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
-
-    print(color_text("\nThis test demonstrates the integration of the backtester module", Fore.WHITE))
-    print(color_text("with the auto-trade system's specific requirements:", Fore.WHITE))
-    print(color_text("  • 50% Stop Loss / 5% Take Profit", Fore.CYAN))
-    print(color_text("  • 95% Balance Risk per Trade", Fore.CYAN))
-    print(color_text("  • 2x Leverage (scales with Martingale)", Fore.CYAN))
-    print(color_text("  • Break-Even Protection at 30% Drawdown", Fore.CYAN))
-    print(color_text("  • Optional Martingale Loss Recovery", Fore.CYAN))
-
-    # Run tests
-    result1 = test_basic_backtest()
-
-    print("\n")
-    input(color_text("Press Enter to run Martingale backtest...", Fore.YELLOW))
-
-    result2 = test_martingale_backtest()
-
-    # Summary
-    print("\n" + color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
-    print(color_text("TEST SUMMARY", Fore.CYAN, Style.BRIGHT))
-    print(color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
-
-    if result1:
-        print(
-            color_text(
-                f"✅ Test 1 (Basic): {result1['metrics']['num_trades']} trades, "
-                f"{result1['metrics']['total_return'] * 100:.2f}% return",
-                Fore.GREEN,
-            )
-        )
-    else:
-        print(color_text("❌ Test 1 (Basic): FAILED", Fore.RED))
-
-    if result2:
-        print(
-            color_text(
-                f"✅ Test 2 (Martingale): {result2['metrics']['num_trades']} trades, "
-                f"{result2['metrics']['total_return'] * 100:.2f}% return, "
-                f"{result2['metrics']['martingale_trades']} Martingale trades",
-                Fore.GREEN,
-            )
-        )
-    else:
-        print(color_text("❌ Test 2 (Martingale): FAILED", Fore.RED))
-
-    print(color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print(color_text("\n\nTest interrupted by user.", Fore.YELLOW))
-        sys.exit(0)
-    except Exception as e:
-        log_error(f"Unexpected error: {e}")
-        import traceback
-
-        log_error(f"Traceback: {traceback.format_exc()}")
-        sys.exit(1)

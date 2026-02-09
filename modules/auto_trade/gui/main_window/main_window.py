@@ -124,9 +124,10 @@ class AutoTradeDashboard(ctk.CTk):
         # Setup keyboard shortcuts
         self._setup_keyboard_shortcuts()
 
-        # Create and add status bar
+        # Create and add status bar (use grid to match root; layout uses row 0=header, 1=content, 2=status_frame)
         self.status_bar = StatusBar(self, mode=self.mode)
-        self.status_bar.pack(side="bottom", fill="x")
+        self.grid_rowconfigure(3, weight=0)
+        self.status_bar.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 10))
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
@@ -365,6 +366,10 @@ class AutoTradeDashboard(ctk.CTk):
                 self.websocket_handler.register_callbacks()
                 self.ws_data_service.start()
                 logging.info("WebSocket service restarted successfully")
+                # Reload DataService credentials and refresh account so Dashboard shows real balance
+                if hasattr(self.data_service, "_reload_credentials"):
+                    self.data_service._reload_credentials()
+                self.after(500, self.refresh_account)
             else:
                 logging.info("DRY_RUN mode - WebSocket not started")
 

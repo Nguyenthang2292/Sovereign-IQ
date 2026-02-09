@@ -1,3 +1,4 @@
+import importlib
 import os
 import sys
 import tempfile
@@ -14,17 +15,62 @@ def _set_module(name, module, originals):
 
 
 class TestDatabasePanel(unittest.TestCase):
+    _original_modules: dict = {}
+    DatabasePanel: type = type(None)  # set in setUpClass
+
     @classmethod
     def setUpClass(cls):
         cls._original_modules = {}
+
+        # Ensure any previously loaded customtkinter is removed so we can mock it
+        for name in list(sys.modules):
+            if name == "customtkinter" or name.startswith("customtkinter."):
+                if name not in cls._original_modules:
+                    cls._original_modules[name] = sys.modules.get(name)
+                sys.modules.pop(name, None)
+
+        # Ensure database panel modules are reloaded with the mocked customtkinter
+        for name in list(sys.modules):
+            if name == "modules.auto_trade.gui.components.database_panel" or name.startswith(
+                "modules.auto_trade.gui.components.database"
+            ):
+                if name not in cls._original_modules:
+                    cls._original_modules[name] = sys.modules.get(name)
+                sys.modules.pop(name, None)
 
         # Mock customtkinter before importing the panel
         customtk_mock = MagicMock()
         _set_module("customtkinter", customtk_mock, cls._original_modules)
 
+        # Create a mock Tk root that terminates the widget hierarchy
+        class MockTkRoot:
+            def __init__(self):
+                self.tk = self  # Root's tk attribute points to itself
+                self.master = None
+                self._last_child_ids = None
+                self.children = {}
+                self._w = '.'
+                self.widgetName = 'tk'
+
+            def call(self, *args, **kwargs):
+                """Mock Tcl/Tk interpreter call - just return empty string."""
+                return ""
+
+            def winfo_pathname(self, *args, **kwargs):
+                """Mock winfo_pathname."""
+                return "."
+
+        mock_root = MockTkRoot()
+
         class MockCTkFrame:
             def __init__(self, *args, **kwargs):
-                pass
+                # Add tkinter attributes to avoid AttributeError when used as parent
+                self.tk = mock_root
+                self._last_child_ids = None
+                self.children = {}
+                self._w = '.mock'
+                self.widgetName = 'frame'
+                self.master = mock_root  # Point to root to terminate traversal
 
             def pack(self, *args, **kwargs):
                 pass
@@ -80,9 +126,9 @@ class TestDatabasePanel(unittest.TestCase):
         _set_module("tkinter.messagebox", MagicMock(), cls._original_modules)
         _set_module("tkinter.filedialog", MagicMock(), cls._original_modules)
 
-        from modules.auto_trade.gui.components.database_panel import DatabasePanel
-
-        cls.DatabasePanel = DatabasePanel
+        # Import with mocked customtkinter (reload in case it was loaded earlier)
+        module = importlib.import_module("modules.auto_trade.gui.components.database_panel")
+        cls.DatabasePanel = module.DatabasePanel
 
     @classmethod
     def tearDownClass(cls):

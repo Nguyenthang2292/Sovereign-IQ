@@ -59,6 +59,7 @@ htmlcov/
 *.tmp
 *.bak
 *.swp
+.roo
 *~
 test_output.txt
 tmp_*.py

@@ -24,16 +24,28 @@ mock_ctk.CTkCheckBox = MagicMock()
 mock_ctk.CTkSlider = MagicMock()
 mock_ctk.CTkComboBox = MagicMock()
 
-sys.modules["customtkinter"] = mock_ctk
-sys.modules["tkinter"] = MagicMock()
-sys.modules["tkinter.ttk"] = MagicMock()
-sys.modules["tkinter.messagebox"] = MagicMock()
-sys.modules["tkinter.filedialog"] = MagicMock()
 
 class TestConfigPanelMaskingIntegration:
     @pytest.fixture
     def config_panel(self):
         """Create a mock ConfigPanel with just enough state to test the masking logic."""
+        # Save original modules before patching
+        _patched_keys = [
+            "customtkinter",
+            "tkinter",
+            "tkinter.ttk",
+            "tkinter.messagebox",
+            "tkinter.filedialog",
+        ]
+        _saved = {k: sys.modules.get(k) for k in _patched_keys}
+
+        # Temporarily replace with mocks
+        sys.modules["customtkinter"] = mock_ctk
+        sys.modules["tkinter"] = MagicMock()
+        sys.modules["tkinter.ttk"] = MagicMock()
+        sys.modules["tkinter.messagebox"] = MagicMock()
+        sys.modules["tkinter.filedialog"] = MagicMock()
+
         # Force fresh import to get the real ConfigPanel class (now with mocked ctk)
         modules_to_clear = [
             "modules.auto_trade.gui.components.config_panel",
@@ -76,6 +88,12 @@ class TestConfigPanelMaskingIntegration:
                     sys.modules[mod_key] = old_module
                 else:
                     sys.modules.pop(mod_key, None)
+            # Restore patched stdlib/ctk modules
+            for k, orig in _saved.items():
+                if orig is not None:
+                    sys.modules[k] = orig
+                else:
+                    sys.modules.pop(k, None)
 
     @patch('modules.auto_trade.gui.utils.credential_manager.CredentialManager')
     def test_refresh_display_saved_state(self, MockManager, config_panel):

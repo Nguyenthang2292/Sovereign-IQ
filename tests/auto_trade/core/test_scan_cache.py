@@ -6,8 +6,9 @@ Tests thread-safe LRU cache with TTL expiration.
 
 import time
 
-import atc_rust
 import pytest
+
+atc_rust = pytest.importorskip("atc_rust", reason="atc_rust (Rust backend) not available")
 
 
 class TestScanCache:

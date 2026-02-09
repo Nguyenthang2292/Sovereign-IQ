@@ -1,17 +1,8 @@
-import sys
 import unittest
-from pathlib import Path
 from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 import customtkinter as ctk
-
-# Add project root to path
-# File is at: modules/auto_trade/test_phase4_gui_integration.py
-# Root is at: ../../
-project_root = Path(__file__).resolve().parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
 
 from modules.auto_trade.gui.components.position_actions import PositionActions
 
@@ -141,11 +132,6 @@ class TestPhase4Integration(unittest.TestCase):
         actions = PositionActions(self.root, self.mock_position, self.mock_callback)
 
         # Test TP below entry for LONG (Invalid)
-        _ = actions._validate_tp_sl(tp=40000.0, sl=48000.0)
-        # Note: _validate_tp_sl shows error dialog, checking logic directly
-        # Since it calls messagebox.showerror, we should mock it,
-        # but for simplicity we rely on the internal logic returning False
-
         with patch("modules.auto_trade.gui.components.position_actions.messagebox.showerror") as mock_error:
             self.assertFalse(actions._validate_tp_sl(tp=40000.0, sl=48000.0))
             mock_error.assert_called()

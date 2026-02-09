@@ -167,9 +167,10 @@ class XGBoostFilter:
             )
 
         # Prediction timeframe
-        self.prediction_timeframe = self.config.get(
+        prediction_tf_raw = self.config.get(
             "prediction_timeframe", XGBOOST_FILTER_DEFAULTS["prediction_timeframe"]
         )
+        self.prediction_timeframe = str(prediction_tf_raw)
         valid_timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"]
         if self.prediction_timeframe not in valid_timeframes:
             raise ValueError(
@@ -178,7 +179,8 @@ class XGBoostFilter:
             )
 
         # Error handling policy
-        self.on_error = self.config.get("on_error", XGBOOST_FILTER_DEFAULTS["on_error"])
+        on_error_raw = self.config.get("on_error", XGBOOST_FILTER_DEFAULTS["on_error"])
+        self.on_error = str(on_error_raw)
         if self.on_error not in ["drop", "pass", "neutral"]:
             raise ValueError(
                 f"on_error must be 'drop', 'pass', or 'neutral', got {self.on_error}"

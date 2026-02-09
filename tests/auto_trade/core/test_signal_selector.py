@@ -60,7 +60,7 @@ class TestSignalSelector:
     def test_select_without_gemini(self, selector, sample_signal_result):
         """Test selection when Gemini data is missing (should return None due to missing prices)."""
         xb_signals = [sample_signal_result(symbol="BTC/USDT", score=0.9, signal_type="LONG", details={"xgboost_conf": "0.8"})]
-        gemini_signals = {}
+        gemini_signals: dict[str, dict[str, float]] = {}
 
         # New strict validation requires price levels, which are missing here
         final = selector.select_best_signal(xb_signals, gemini_signals)

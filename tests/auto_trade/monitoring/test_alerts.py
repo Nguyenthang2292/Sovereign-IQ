@@ -94,7 +94,7 @@ class TestErrorEventHandling:
         """Test handling error event with None data."""
         event = Event(
             type=EventType.PIPELINE_ERROR,
-            data=None
+            data=None  # type: ignore[arg-type]
         )
 
         alert_manager._handle_error(event)
@@ -149,7 +149,7 @@ class TestHealthCheckEventHandling:
         """Test handling health check failure with None data."""
         event = Event(
             type=EventType.HEALTH_CHECK_FAILED,
-            data=None
+            data=None  # type: ignore[arg-type]
         )
 
         alert_manager._handle_health_failure(event)

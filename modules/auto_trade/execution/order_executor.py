@@ -92,11 +92,11 @@ class OrderExecutor:
                     sl_pct = 2.0
 
             if signal_type == "LONG":
-                take_profit: float = entry * (1 + tp_pct / 100)
-                stop_loss: float = entry * (1 - sl_pct / 100)
+                take_profit = entry * (1 + tp_pct / 100)
+                stop_loss = entry * (1 - sl_pct / 100)
             else:
-                take_profit: float = entry * (1 - tp_pct / 100)
-                stop_loss: float = entry * (1 + sl_pct / 100)
+                take_profit = entry * (1 - tp_pct / 100)
+                stop_loss = entry * (1 + sl_pct / 100)
 
             final_signal = FinalSignal(
                 symbol=symbol,

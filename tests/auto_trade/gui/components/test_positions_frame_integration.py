@@ -8,13 +8,10 @@ import tkinter as tk
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../'))
 sys.path.insert(0, project_root)
 
-# Mock customtkinter if import fails (headless environment)
+# Mock customtkinter if not available
 try:
     import customtkinter as ctk
-    # Try to initialize a test root to see if it works
-    ctk.CTk()
-except (ImportError, tk.TclError, Exception):
-    # Create a comprehensive mock for customtkinter
+except ImportError:
     ctk = MagicMock()
     ctk.CTk = MagicMock
     ctk.CTkFrame = MagicMock
@@ -22,7 +19,6 @@ except (ImportError, tk.TclError, Exception):
     ctk.CTkButton = MagicMock
     ctk.CTkScrollbar = MagicMock
     ctk.CTkScrollableFrame = MagicMock
-    # Patch sys.modules to ensure imported modules use the mock
     sys.modules['customtkinter'] = ctk
 
 from modules.auto_trade.gui.components.positions_frame import PositionsFrame

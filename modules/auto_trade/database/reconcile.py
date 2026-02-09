@@ -69,6 +69,8 @@ def reconcile_orders_with_binance(
     """
     from datetime import datetime
 
+    from sqlalchemy import inspect
+
     from modules.auto_trade.database import get_order_by_client_id, session_scope
     from modules.auto_trade.database.models import Order
 
@@ -309,15 +311,17 @@ def reconcile_orders_with_binance(
                             continue
 
                         # Validate numeric fields
-                        if order_data["entry_price"] <= 0:
-                            err_msg = f"{client_order_id}: invalid entry_price {order_data['entry_price']}"
+                        entry_price_raw = order_data.get("entry_price")
+                        if not isinstance(entry_price_raw, (int, float)) or entry_price_raw <= 0:
+                            err_msg = f"{client_order_id}: invalid entry_price {entry_price_raw}"
                             result["errors"].append(err_msg)
                             failed_order_ids.append(client_order_id)
                             logger.warning("Reconcile: validation error for %s: %s", client_order_id, err_msg)
                             continue
 
-                        if order_data["amount"] <= 0:
-                            err_msg = f"{client_order_id}: invalid amount {order_data['amount']}"
+                        amount_raw = order_data.get("amount")
+                        if not isinstance(amount_raw, (int, float)) or amount_raw <= 0:
+                            err_msg = f"{client_order_id}: invalid amount {amount_raw}"
                             result["errors"].append(err_msg)
                             failed_order_ids.append(client_order_id)
                             logger.warning("Reconcile: validation error for %s: %s", client_order_id, err_msg)
@@ -359,8 +363,9 @@ def reconcile_orders_with_binance(
                                 result["skipped"] += len(existing_ids)
 
                                 if new_orders:
-                                    # Perform bulk insert
-                                    session.bulk_insert_mappings(Order, new_orders)
+                                    # Perform bulk insert using the mapper
+                                    order_mapper = inspect(Order).mapper
+                                    session.bulk_insert_mappings(order_mapper, new_orders)
                                     result["inserted"] += len(new_orders)
                                     logger.info(
                                         "Reconcile: bulk inserted %d orders for symbol %s", len(new_orders), symbol
@@ -388,8 +393,18 @@ def reconcile_orders_with_binance(
                 )
 
                 # (1) Get OPEN programmatic orders (read-only, no lock needed)
+                # Eagerly load all attributes we'll need to avoid detached instance errors
                 with session_scope() as session:
-                    open_orders = get_open_positions(session)
+                    open_orders_raw = get_open_positions(session)
+                    # Convert to dict to avoid detached instance errors
+                    open_orders = []
+                    for order in open_orders_raw:
+                        open_orders.append({
+                            "client_order_id": order.client_order_id,
+                            "order_id": order.order_id,
+                            "symbol": order.symbol,
+                            "created_at": order.created_at,
+                        })
 
                 if not open_orders:
                     logger.info("Reconcile: no OPEN orders to check for staleness")
@@ -398,13 +413,13 @@ def reconcile_orders_with_binance(
                     symbol_map: Dict[str, str] = {}  # DB symbol -> CCXT symbol
                     db_orders_by_symbol: Dict[str, List[Any]] = {}
 
-                    for order in open_orders:
-                        db_symbol = str(getattr(order, "symbol", ""))  # e.g., BTCUSDT
+                    for order_dict in open_orders:
+                        db_symbol = str(order_dict.get("symbol", ""))  # e.g., BTCUSDT
                         ccxt_symbol = _normalize_symbol(db_symbol)  # e.g., BTC/USDT
                         symbol_map[db_symbol] = ccxt_symbol
                         if ccxt_symbol not in db_orders_by_symbol:
                             db_orders_by_symbol[ccxt_symbol] = []
-                        db_orders_by_symbol[ccxt_symbol].append(order)
+                        db_orders_by_symbol[ccxt_symbol].append(order_dict)
 
                     # (3) For each symbol, fetch open orders from Binance
                     closed_stale_count = 0
@@ -436,7 +451,7 @@ def reconcile_orders_with_binance(
                             # (4) Find stale orders
                             stale_orders = []
                             for order in db_orders_by_symbol.get(ccxt_symbol, []):
-                                if order.client_order_id not in binance_open_ids:
+                                if order["client_order_id"] not in binance_open_ids:
                                     stale_orders.append(order)
 
                             # (5) Batch fetch closed orders for this symbol to minimize API calls
@@ -445,17 +460,17 @@ def reconcile_orders_with_binance(
                                 try:
                                     # Calculate since time (oldest stale order created_at - 1 hour buffer)
                                     oldest_created = min(
-                                        (order.created_at for order in stale_orders if order.created_at), default=None
+                                        (order["created_at"] for order in stale_orders if order.get("created_at")), default=None
                                     )
-                                    since_ts = None
+                                    stale_since_ts: Optional[int] = None
                                     if oldest_created:
-                                        since_ts = int(oldest_created.timestamp() * 1000) - 3600000  # -1 hour
+                                        stale_since_ts = int(oldest_created.timestamp() * 1000) - 3600000  # -1 hour
                                     else:
-                                        since_ts = int((time.time() - since_hours * 3600) * 1000)
+                                        stale_since_ts = int((time.time() - since_hours * 3600) * 1000)
 
                                     # Fetch closed orders in batch
                                     closed_orders = exchange.fetch_closed_orders(
-                                        ccxt_symbol, since=since_ts, limit=1000
+                                        ccxt_symbol, since=stale_since_ts, limit=1000
                                     )
                                     for o in closed_orders:
                                         cid = (o.get("clientOrderId") or o.get("client_order_id") or "").strip()
@@ -479,25 +494,25 @@ def reconcile_orders_with_binance(
                                 order_info = None
 
                                 # Try to get from batch fetch first
-                                if stale_order.client_order_id in closed_orders_map:
-                                    order_info = closed_orders_map[stale_order.client_order_id]
+                                if stale_order["client_order_id"] in closed_orders_map:
+                                    order_info = closed_orders_map[stale_order["client_order_id"]]
                                     logger.debug(
-                                        "Reconcile: found stale order %s in batch fetch", stale_order.client_order_id
+                                        "Reconcile: found stale order %s in batch fetch", stale_order["client_order_id"]
                                     )
                                 else:
                                     # Fall back to individual fetch_order
                                     try:
-                                        order_info = exchange.fetch_order(stale_order.order_id, ccxt_symbol)
+                                        order_info = exchange.fetch_order(stale_order["order_id"], ccxt_symbol)
                                         fetch_order_count += 1
                                         logger.debug(
                                             "Reconcile: fetched order %s individually (not in batch)",
-                                            stale_order.client_order_id,
+                                            stale_order["client_order_id"],
                                         )
                                     except Exception as fetch_err:
                                         # If API fails, still mark as CLOSED with minimal info
                                         logger.warning(
                                             "Reconcile: could not fetch order %s from Binance: %s",
-                                            stale_order.client_order_id,
+                                            stale_order["client_order_id"],
                                             fetch_err,
                                         )
 
@@ -533,7 +548,7 @@ def reconcile_orders_with_binance(
                                 # Collect update for batch processing
                                 stale_updates.append(
                                     {
-                                        "client_order_id": stale_order.client_order_id,
+                                        "client_order_id": stale_order["client_order_id"],
                                         "status": final_status,
                                         "closed_at": closed_at,
                                         "pnl": pnl,

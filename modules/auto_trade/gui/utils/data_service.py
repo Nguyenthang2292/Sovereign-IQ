@@ -138,10 +138,26 @@ class DataService:
             # Return a safe default from centralized mock prices
             return self._get_mock_price_feed().get_current_price(symbol)
 
+    def _reload_credentials(self) -> None:
+        """Reload API credentials from .env (e.g. after user saves in Settings)."""
+        try:
+            from modules.auto_trade.gui.utils.credential_manager import CredentialManager
+
+            cm = CredentialManager()
+            exchange = "binance"
+            creds = cm.load_credentials(exchange)
+            self.api_key = (creds.get("api_key") or "").strip()
+            self.api_secret = (creds.get("api_secret") or "").strip()
+        except Exception as e:
+            print(f"Warning: Could not reload credentials: {e}")
+
     def get_account_data(self) -> Optional[Dict]:
         try:
             if self.mode == "DRY_RUN":
                 return self._get_dry_run_account_data()
+
+            # Use latest credentials (e.g. after save in Settings)
+            self._reload_credentials()
 
             if self.data_fetcher and self.api_key and self.api_secret:
                 # Fetch balance using DataFetcher

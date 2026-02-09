@@ -85,7 +85,7 @@ class TestOrderIDParsing:
         """Test extract_order_info convenience function."""
         order_id = generate_order_id("ETHUSDT")
         info = extract_order_info(order_id)
-
+        assert info is not None
         assert info["symbol"] == "ETHUSDT"
 
 
@@ -109,7 +109,7 @@ class TestOrderIdentification:
     def test_identify_empty(self):
         """Test handling empty/None IDs."""
         assert is_auto_trade_order("") is False
-        assert is_auto_trade_order(None) is False
+        assert is_auto_trade_order(None) is False  # type: ignore[arg-type]
 
 
 class TestMetadataCreation:
@@ -170,7 +170,7 @@ class TestMetadataValidation:
         is_valid, error = validate_order_metadata(metadata)
 
         assert is_valid is False
-        assert "Missing required field" in error
+        assert error is not None and "Missing required field" in error
 
     def test_validate_wrong_prefix(self):
         """Test validation fails for wrong prefix."""
@@ -182,7 +182,7 @@ class TestMetadataValidation:
         is_valid, error = validate_order_metadata(metadata)
 
         assert is_valid is False
-        assert "Invalid client_order_id format" in error
+        assert error is not None and "Invalid client_order_id format" in error
 
 
 class TestBatchOperations:

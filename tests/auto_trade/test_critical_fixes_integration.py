@@ -141,14 +141,26 @@ class TestReconcileExchangeCleanup:
         """When auth fails, reconcile returns errors and does not leak (no exchange created)."""
         if ccxt is None:
             pytest.skip("ccxt not installed")
-        with patch("modules.auto_trade.database.reconcile.ccxt.binance") as mock_binance:
-            mock_binance.side_effect = ccxt.AuthenticationError("bad key")
+
+        # Store the real exception class before patching
+        AuthError = ccxt.AuthenticationError
+
+        with patch("modules.auto_trade.database.reconcile.ccxt") as mock_ccxt:
+            # Make sure the exception classes are still accessible through the mock
+            mock_ccxt.AuthenticationError = AuthError
+            mock_ccxt.NetworkError = ccxt.NetworkError
+            mock_ccxt.ExchangeError = ccxt.ExchangeError
+
+            # Mock the binance function to raise AuthenticationError
+            mock_ccxt.binance.side_effect = AuthError("bad key")
+
             result = reconcile_orders_with_binance(api_key="x", api_secret="y")
+
         assert "errors" in result, "Expected reconcile result to include errors on auth failure"
         assert any("Authentication" in str(e) or "auth" in str(e).lower() for e in result["errors"]), (
             "Expected auth-related error in reconcile result"
         )
-        mock_binance.assert_called_once()
+        mock_ccxt.binance.assert_called_once()
 
     def test_reconcile_closes_exchange_when_created(self):
         """When exchange is created, finally block must call exchange.close()."""
@@ -166,7 +178,7 @@ class TestMigrationTracking:
 
     def test_get_pending_migrations_excludes_applied(self, tmp_path):
         """get_pending_migrations returns only migrations not in migrations_applied."""
-        from modules.auto_trade.database.migrations import MigrationManager
+        from modules.auto_trade.database.migrations import MigrationManager  # type: ignore[attr-defined]
 
         db_path = tmp_path / "mig.db"
         schema_sql = _load_schema_sql()
@@ -180,7 +192,7 @@ class TestMigrationTracking:
         conn.commit()
         conn.close()
 
-        manager = MigrationManager(str(db_path), DEFAULT_SCHEMA_PATH)
+        manager = MigrationManager(str(db_path), DEFAULT_SCHEMA_PATH)  # type: ignore[attr-defined]
         pending = manager.get_pending_migrations()
         # Applied migration must not be in pending
         assert "002_add_gradual_recovery.sql" not in pending, "Applied migration should not be pending"

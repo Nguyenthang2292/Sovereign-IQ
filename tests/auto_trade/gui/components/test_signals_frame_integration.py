@@ -8,12 +8,10 @@ from unittest.mock import MagicMock
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../'))
 sys.path.insert(0, project_root)
 
-# Mock customtkinter if not available or if TclError occurs
+# Mock customtkinter if not available
 try:
     import customtkinter as ctk
-    ctk.CTk() # Try to init
-except (ImportError, tk.TclError, Exception):
-    # Mock customtkinter
+except ImportError:
     ctk = MagicMock()
     ctk.CTkFrame = MagicMock
     ctk.CTkLabel = MagicMock
@@ -22,12 +20,13 @@ except (ImportError, tk.TclError, Exception):
     ctk.CTkCheckBox = MagicMock
     ctk.CTkScrollbar = MagicMock
     ctk.CTk = MagicMock
-    # Inject into sys.modules
     sys.modules['customtkinter'] = ctk
 
 from modules.auto_trade.gui.components.signals_frame import SignalsFrame
 
 class TestSignalsFrameIntegration(unittest.TestCase):
+    root: object
+
     @classmethod
     def setUpClass(cls):
         try:
@@ -58,7 +57,7 @@ class TestSignalsFrameIntegration(unittest.TestCase):
             # Verify table frame pack_forget was called
             self.signals_frame.table_frame.pack_forget.assert_called()
         else:
-            self.root.update()
+            getattr(self.root, "update", lambda: None)()
             # Check if empty state is packed
             try:
                 self.signals_frame.empty_state.pack_info()
@@ -87,7 +86,7 @@ class TestSignalsFrameIntegration(unittest.TestCase):
             # Verify table frame pack was called
             self.signals_frame.table_frame.pack.assert_called()
         else:
-            self.root.update()
+            getattr(self.root, "update", lambda: None)()
             # Check if empty state is hidden
             try:
                 self.signals_frame.empty_state.pack_info()
@@ -106,7 +105,9 @@ class TestSignalsFrameIntegration(unittest.TestCase):
 
     def test_callback_wiring(self):
         # Call the callback stored in empty_state
-        self.signals_frame.empty_state.action_callback()
+        cb = self.signals_frame.empty_state.action_callback
+        assert cb is not None
+        cb()
         self.mock_callback.assert_called_once()
 
 if __name__ == '__main__':

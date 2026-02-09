@@ -382,19 +382,19 @@ class TestCircuitBreaker:
         """Test that recovery timeout is respected precisely."""
         pass
 
-    def test_context_manager_success(self):
+    def test_context_manager_success_stub(self):
         """Test context manager with successful call."""
         pass
 
-    def test_context_manager_failure(self):
+    def test_context_manager_failure_stub(self):
         """Test context manager with failure."""
         pass
 
-    def test_context_manager_excluded_exception(self):
+    def test_context_manager_excluded_exception_stub(self):
         """Test context manager with excluded exception."""
         pass
 
-    def test_context_manager_failure(self):
+    def test_context_manager_failure_implementation(self):
         """Test context manager with failure."""
         breaker = CircuitBreaker(failure_threshold=1, name="test")
 
@@ -407,7 +407,7 @@ class TestCircuitBreaker:
 
         assert breaker.get_state() == CircuitState.OPEN
 
-    def test_context_manager_excluded_exception(self):
+    def test_context_manager_excluded_exception_implementation(self):
         """Test context manager with excluded exception."""
         breaker = CircuitBreaker(failure_threshold=1, name="test", excluded_exceptions=(ValueError,))
 

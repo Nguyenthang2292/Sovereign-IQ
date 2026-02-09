@@ -17,9 +17,9 @@ class TestATCScannerInitialization:
     def test_init_with_defaults(self, mock_data_fetcher):
         """Test initialization with default configuration."""
         scanner = ATCScanner(mock_data_fetcher)
-        assert scanner.weights == {"1h": 0.5, "15m": 0.3, "5m": 0.2}
+        assert scanner.weights == {"15m": 0.5, "1h": 0.3, "4h": 0.2}
         assert scanner.threshold == 0.6
-        assert scanner.timeframes == ["1h", "15m", "5m"]
+        assert scanner.timeframes == ["15m", "1h", "4h"]
         assert scanner.min_signal == 0.0
 
     def test_init_with_custom_config(self, mock_data_fetcher):
@@ -30,7 +30,7 @@ class TestATCScannerInitialization:
             "timeframes": ["4h", "1h"],
             "min_signal": 0.01,
         }
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
         assert scanner.weights == {"4h": 0.6, "1h": 0.4}
         assert scanner.threshold == 0.7
         assert scanner.timeframes == ["4h", "1h"]
@@ -38,30 +38,30 @@ class TestATCScannerInitialization:
 
     def test_init_with_negative_weights_raises_error(self, mock_data_fetcher):
         """Test that negative weights raise ValueError."""
-        config = {"weights": {"1h": -0.5, "15m": 0.3, "5m": 0.2}}
+        config = {"weights": {"15m": -0.5, "1h": 0.3, "4h": 0.2}}
         with pytest.raises(ValueError, match="non-negative"):
-            ATCScanner(mock_data_fetcher, config=config)
+            ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
     def test_init_with_zero_sum_weights_raises_error(self, mock_data_fetcher):
         """Test that weights summing to zero raise ValueError."""
-        config = {"weights": {"1h": 0.0, "15m": 0.0, "5m": 0.0}}
+        config = {"weights": {"15m": 0.0, "1h": 0.0, "4h": 0.0}}
         with pytest.raises(ValueError, match="sum to zero"):
-            ATCScanner(mock_data_fetcher, config=config)
+            ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
     def test_init_with_invalid_threshold_raises_error(self, mock_data_fetcher):
         """Test that invalid threshold raises ValueError."""
         # Threshold > 1.0
         with pytest.raises(ValueError, match="between 0 and 1"):
-            ATCScanner(mock_data_fetcher, config={"threshold": 1.5})
+            ATCScanner(mock_data_fetcher, config={"threshold": 1.5})  # type: ignore[arg-type]
 
         # Threshold < 0
         with pytest.raises(ValueError, match="between 0 and 1"):
-            ATCScanner(mock_data_fetcher, config={"threshold": -0.1})
+            ATCScanner(mock_data_fetcher, config={"threshold": -0.1})  # type: ignore[arg-type]
 
     def test_init_warns_on_non_normalized_weights(self, mock_data_fetcher, caplog):
         """Test that non-normalized weights generate a warning."""
         config = {"weights": {"1h": 0.5, "15m": 0.5, "5m": 0.5}}  # Sum = 1.5
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
         # Scanner should still initialize, just warn
         assert scanner.weights == {"1h": 0.5, "15m": 0.5, "5m": 0.5}
 
@@ -92,7 +92,7 @@ class TestATCScannerScan:
 
     def test_scan_symbols_filters_by_threshold(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test that weak signals are filtered out."""
-        scanner = ATCScanner(mock_data_fetcher, config={"threshold": 0.8})
+        scanner = ATCScanner(mock_data_fetcher, config={"threshold": 0.8})  # type: ignore[arg-type]
         symbols = ["WEAK_SYMBOL"]
 
         # Weak signal: Only 1h Long (0.5 score < 0.8)
@@ -179,8 +179,8 @@ class TestATCScannerAggregation:
                     pd.DataFrame({"symbol": ["ETHUSDT"]}),  # Shorts
                 )
             elif tf == "15m":
-                return pd.DataFrame({"symbol": ["BTCUSDT"]}), pd.DataFrame()
-            elif tf == "5m":
+                return pd.DataFrame({"symbol": ["BTCUSDT"]}), pd.DataFrame({"symbol": ["ETHUSDT"]})
+            elif tf == "4h":
                 return pd.DataFrame({"symbol": ["BTCUSDT"]}), pd.DataFrame({"symbol": ["ETHUSDT"]})
             return pd.DataFrame(), pd.DataFrame()
 
@@ -188,8 +188,9 @@ class TestATCScannerAggregation:
 
         results = scanner.scan_symbols(symbols)
 
-        # BTC: 1h(0.5) + 15m(0.3) + 5m(0.2) = 1.0 -> LONG
-        # ETH: 1h(-0.5) + 15m(0.0) + 5m(-0.2) = -0.7 -> SHORT
+        # Default weights: 15m=0.5, 1h=0.3, 4h=0.2
+        # BTC: 15m(0.5) + 1h(0.3) + 4h(0.2) = 1.0 -> LONG
+        # ETH: 15m(-0.5) + 1h(-0.3) + 4h(-0.2) = -1.0 -> SHORT
 
         assert len(results) == 2
 
@@ -198,34 +199,44 @@ class TestATCScannerAggregation:
         assert btc_result.score == 1.0
         assert btc_result.details["1h"] == "LONG"
         assert btc_result.details["15m"] == "LONG"
-        assert btc_result.details["5m"] == "LONG"
+        assert btc_result.details["4h"] == "LONG"
 
         eth_result = next(r for r in results if r.symbol == "ETHUSDT")
         assert eth_result.signal_type == "SHORT"
-        assert eth_result.score == -0.7
+        assert eth_result.score == -1.0
         assert eth_result.details["1h"] == "SHORT"
-        assert eth_result.details["15m"] == "NEUTRAL"
-        assert eth_result.details["5m"] == "SHORT"
+        assert eth_result.details["15m"] == "SHORT"
+        assert eth_result.details["4h"] == "SHORT"
 
     def test_threshold_application(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test threshold correctly filters results."""
         # Low threshold - should include more signals
-        scanner_low = ATCScanner(mock_data_fetcher, config={"threshold": 0.3})
-        # High threshold - should include fewer signals
-        scanner_high = ATCScanner(mock_data_fetcher, config={"threshold": 0.8})
+        scanner_low = ATCScanner(mock_data_fetcher, config={"threshold": 0.3})  # type: ignore[arg-type]
+        # High threshold - should include fewer signals (need all TFs with data so threshold is not scaled down)
+        scanner_high = ATCScanner(mock_data_fetcher, config={"threshold": 0.8})  # type: ignore[arg-type]
 
-        def side_effect(data_fetcher, atc_config, symbols, **kwargs):
+        def side_effect_low(data_fetcher, atc_config, symbols, **kwargs):
             if atc_config.timeframe == "1h":
                 return pd.DataFrame({"symbol": ["BTCUSDT"]}), pd.DataFrame()
             return pd.DataFrame(), pd.DataFrame()
 
-        mock_scan_all_symbols.side_effect = side_effect
+        def side_effect_high(data_fetcher, atc_config, symbols, **kwargs):
+            # All TFs return same so weight coverage 100% → threshold stays 0.8; score = 0.3 (1h only) < 0.8
+            if atc_config.timeframe == "1h":
+                return pd.DataFrame({"symbol": ["BTCUSDT"]}), pd.DataFrame()
+            # 15m and 4h return empty so TF has no data; then only 1h active, adaptive = 0.8*0.3 = 0.24, score 1.0 would pass.
+            # So we need all 3 TFs to have data but only 1h LONG for BTC → score 0.3
+            if atc_config.timeframe == "15m":
+                return pd.DataFrame(), pd.DataFrame({"symbol": ["OTHER"]})  # active TF, but BTC not in it
+            if atc_config.timeframe == "4h":
+                return pd.DataFrame(), pd.DataFrame({"symbol": ["OTHER2"]})
+            return pd.DataFrame(), pd.DataFrame()
 
-        # With low threshold (0.3), 0.5 score should pass
+        mock_scan_all_symbols.side_effect = side_effect_low
         results_low = scanner_low.scan_symbols(["BTCUSDT"])
         assert len(results_low) == 1
 
-        # With high threshold (0.8), 0.5 score should not pass
+        mock_scan_all_symbols.side_effect = side_effect_high
         results_high = scanner_high.scan_symbols(["BTCUSDT"])
         assert len(results_high) == 0
 
@@ -250,6 +261,19 @@ class TestATCScannerEdgeCases:
         assert len(results) == 1
         assert results[0].symbol == "BTCUSDT"
 
+    def test_ccxt_input_returns_ccxt_symbol(self, mock_data_fetcher, mock_scan_all_symbols):
+        """Option A: input symbols in CCXT format (BTC/USDT) are normalized for aggregation;
+        returned SignalResult.symbol is mapped back to original CCXT format for downstream."""
+        scanner = ATCScanner(mock_data_fetcher)
+        mock_scan_all_symbols.return_value = (
+            pd.DataFrame({"symbol": ["BTCUSDT"]}),
+            pd.DataFrame(),
+        )
+        results = scanner.scan_symbols(["BTC/USDT"])
+        assert len(results) == 1
+        assert results[0].symbol == "BTC/USDT"
+        assert results[0].signal_type == "LONG"
+
     def test_all_neutral_signals(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test when all signals are neutral."""
         scanner = ATCScanner(mock_data_fetcher)
@@ -261,7 +285,7 @@ class TestATCScannerEdgeCases:
 
     def test_conflicting_timeframe_signals(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test symbol with conflicting signals across timeframes."""
-        scanner = ATCScanner(mock_data_fetcher, config={"threshold": 0.4})
+        scanner = ATCScanner(mock_data_fetcher, config={"threshold": 0.4})  # type: ignore[arg-type]
 
         def side_effect(data_fetcher, atc_config, symbols, **kwargs):
             tf = atc_config.timeframe
@@ -288,7 +312,7 @@ class TestATCScannerEdgeCases:
             "timeframes": ["4h", "1h"],
             "weights": {"4h": 0.7, "1h": 0.3},
         }
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         def side_effect(data_fetcher, atc_config, symbols, **kwargs):
             # Both timeframes LONG
@@ -338,7 +362,7 @@ class TestSignalResult:
             strengths={"1h": 0.8},
         )
         with pytest.raises(AttributeError):
-            result.symbol = "ETHUSDT"
+            result.symbol = "ETHUSDT"  # type: ignore[misc]
 
 
 # ============================================================================
@@ -370,7 +394,7 @@ class TestATCScannerScanningExtended:
         assert results[0].symbol == "BTCUSDT"
         assert results[0].signal_type == "LONG"
         assert results[0].score == 1.0
-        assert results[0].details == {"1h": "LONG", "15m": "LONG", "5m": "LONG"}
+        assert results[0].details == {"1h": "LONG", "15m": "LONG", "4h": "LONG"}
 
     def test_scan_symbols_all_short(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test scanning when all timeframes show SHORT."""
@@ -388,7 +412,7 @@ class TestATCScannerScanningExtended:
         assert results[0].symbol == "ETHUSDT"
         assert results[0].signal_type == "SHORT"
         assert results[0].score == -1.0
-        assert results[0].details == {"1h": "SHORT", "15m": "SHORT", "5m": "SHORT"}
+        assert results[0].details == {"1h": "SHORT", "15m": "SHORT", "4h": "SHORT"}
 
     def test_scan_symbols_mixed_below_threshold(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test scanning with mixed signals below threshold (NEUTRAL)."""
@@ -399,16 +423,20 @@ class TestATCScannerScanningExtended:
         def side_effect(data_fetcher, atc_config, symbols, **kwargs):
             nonlocal call_count
             call_count += 1
-            if call_count == 1:  # 1h LONG
+            if call_count == 1:  # 1h LONG for BTC only
                 return pd.DataFrame({"symbol": ["BTCUSDT"]}), pd.DataFrame()
-            else:  # 15m, 5m NEUTRAL
-                return pd.DataFrame(), pd.DataFrame()
+            # 15m and 4h: active (have some symbol) but BTC not in longs/shorts → BTC NEUTRAL for those
+            if call_count == 2:  # 15m
+                return pd.DataFrame({"symbol": ["OTHER"]}), pd.DataFrame()
+            if call_count == 3:  # 4h
+                return pd.DataFrame(), pd.DataFrame({"symbol": ["OTHER2"]})
+            return pd.DataFrame(), pd.DataFrame()
 
         mock_scan_all_symbols.side_effect = side_effect
 
         results = scanner.scan_symbols(["BTCUSDT"])
 
-        # 1h LONG = 0.5, but threshold is 0.6 → NEUTRAL (filtered out)
+        # 1h LONG = 0.3 (weight), 15m/4h NEUTRAL; score = 0.3, threshold 0.6 → NEUTRAL (filtered out)
         assert len(results) == 0
 
     def test_scan_symbols_just_above_threshold(self, mock_data_fetcher, mock_scan_all_symbols):
@@ -568,7 +596,7 @@ class TestATCScannerRunSingleScan:
             "min_signal": 0.5,
             "some_atc_param": "value",  # This should be passed through
         }
-        scanner = ATCScanner(mock_data_fetcher, config)
+        scanner = ATCScanner(mock_data_fetcher, config)  # type: ignore[arg-type]
 
         with (
             patch("modules.auto_trade.core.atc_scanner.create_atc_config_from_dict") as mock_create_config,
@@ -631,7 +659,7 @@ class TestATCScannerExtendedEdgeCases:
             "weights": {"1h": 1.0},
             "threshold": 0.9,
         }
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         mock_scan_all_symbols.return_value = (
             pd.DataFrame({"symbol": ["BTCUSDT"]}),
@@ -650,7 +678,7 @@ class TestATCScannerExtendedEdgeCases:
             "timeframes": ["4h", "1d"],
             "weights": {"4h": 0.6, "1d": 0.4},
         }
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         mock_scan_all_symbols.return_value = (
             pd.DataFrame({"symbol": ["BTCUSDT"]}),
@@ -666,7 +694,7 @@ class TestATCScannerExtendedEdgeCases:
     def test_threshold_zero(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test with threshold = 0 (all non-zero scores pass)."""
         config = {"threshold": 0.0}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Only 5m shows LONG (0.2 score)
         call_count = 0
@@ -689,7 +717,7 @@ class TestATCScannerExtendedEdgeCases:
     def test_threshold_one(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test with threshold = 1.0 (only perfect scores pass)."""
         config = {"threshold": 1.0}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # 1h and 15m LONG (0.8 total), but threshold is 1.0
         call_count = 0
@@ -724,7 +752,7 @@ class TestATCScannerReviewV3:
             "timeframes": ["1h", "15m", "5m"],
             "weights": {"1h": 0.5, "15m": 0.5},  # Missing 5m
         }
-        _ = ATCScanner(mock_data_fetcher, config=config)
+        _ = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
         mock_log_warn.assert_called()
         assert "without weights" in str(mock_log_warn.call_args_list)
 
@@ -735,7 +763,7 @@ class TestATCScannerReviewV3:
             "timeframes": ["1h", "15m"],
             "weights": {"1h": 0.5, "15m": 0.3, "5m": 0.2},  # 5m not in timeframes
         }
-        _ = ATCScanner(mock_data_fetcher, config=config)
+        _ = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
         mock_log_warn.assert_called()
         assert "unused timeframes" in str(mock_log_warn.call_args_list)
 
@@ -743,14 +771,14 @@ class TestATCScannerReviewV3:
     def test_non_normalized_weights_warning(self, mock_log_warn, mock_data_fetcher):
         """Test warning for non-normalized weights."""
         config = {"weights": {"1h": 0.5, "15m": 0.5, "5m": 0.5}}  # Sum = 1.5
-        _ = ATCScanner(mock_data_fetcher, config=config)
+        _ = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
         mock_log_warn.assert_called()
         assert "sum to 1.5" in str(mock_log_warn.call_args[0][0])
 
     def test_signal_strength_disabled_uses_unit_weights(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test that signal strength disabled uses unit weights."""
         config = {"use_signal_strength": False, "weights": {"1h": 0.5, "15m": 0.3, "5m": 0.2}}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Mock scan results with varying strengths (should be ignored)
         def side_effect(data_fetcher, atc_config, symbols, **kwargs):
@@ -768,7 +796,7 @@ class TestATCScannerReviewV3:
     def test_signal_strength_enabled_uses_actual_values(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test that signal strength enabled incorporates strength values."""
         config = {"use_signal_strength": True, "weights": {"1h": 0.5, "15m": 0.3, "5m": 0.2}}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Mock scan results with specific strengths
         call_count = 0
@@ -797,7 +825,7 @@ class TestATCScannerReviewV3:
     def test_long_signal_above_threshold(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test LONG signal above threshold."""
         config = {"threshold": 0.6}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Mock results for score = 0.7
         call_count = 0
@@ -823,7 +851,7 @@ class TestATCScannerReviewV3:
     def test_short_signal_below_negative_threshold(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test SHORT signal below negative threshold."""
         config = {"threshold": 0.6}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Mock results for score = -0.7
         call_count = 0
@@ -849,7 +877,7 @@ class TestATCScannerReviewV3:
     def test_neutral_signal_within_threshold(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test NEUTRAL signal within threshold."""
         config = {"threshold": 0.6}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Mock results for score = 0.3
         call_count = 0
@@ -884,7 +912,7 @@ class TestATCScannerReviewV3:
     def test_calculate_weighted_score_long(self, mock_data_fetcher):
         """Test _calculate_weighted_score for LONG signal."""
         config = {"use_signal_strength": True, "weights": {"1h": 0.5}}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # LONG with strength 0.8
         score = scanner._calculate_weighted_score("LONG", 0.5, 0.8)
@@ -893,7 +921,7 @@ class TestATCScannerReviewV3:
     def test_calculate_weighted_score_long_without_strength(self, mock_data_fetcher):
         """Test _calculate_weighted_score for LONG without strength."""
         config = {"use_signal_strength": False, "weights": {"1h": 0.5}}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # LONG without strength
         score = scanner._calculate_weighted_score("LONG", 0.5, 0.8)
@@ -902,7 +930,7 @@ class TestATCScannerReviewV3:
     def test_calculate_weighted_score_short(self, mock_data_fetcher):
         """Test _calculate_weighted_score for SHORT signal."""
         config = {"use_signal_strength": True, "weights": {"1h": 0.5}}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # SHORT with strength -0.8
         score = scanner._calculate_weighted_score("SHORT", 0.5, -0.8)
@@ -911,7 +939,7 @@ class TestATCScannerReviewV3:
     def test_calculate_weighted_score_short_without_strength(self, mock_data_fetcher):
         """Test _calculate_weighted_score for SHORT without strength."""
         config = {"use_signal_strength": False, "weights": {"1h": 0.5}}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # SHORT without strength
         score = scanner._calculate_weighted_score("SHORT", 0.5, -0.8)
@@ -920,7 +948,7 @@ class TestATCScannerReviewV3:
     def test_calculate_weighted_score_neutral(self, mock_data_fetcher):
         """Test _calculate_weighted_score for NEUTRAL signal."""
         config = {"weights": {"1h": 0.5}}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # NEUTRAL always returns 0
         score = scanner._calculate_weighted_score("NEUTRAL", 0.5, 0.8)
@@ -938,7 +966,7 @@ class TestATCScannerCache:
     def test_cache_disabled_never_caches(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test that cache is not used when enable_cache=False."""
         config = {"enable_cache": False}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Mock scan result
         mock_scan_all_symbols.return_value = (
@@ -964,7 +992,7 @@ class TestATCScannerCache:
     def test_rust_cache_stores_and_retrieves(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test that Rust ScanCache stores and retrieves results correctly."""
         config = {"enable_cache": True, "cache_ttl_seconds": 60}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Mock scan result
         mock_scan_all_symbols.return_value = (
@@ -1010,7 +1038,7 @@ class TestATCScannerCache:
     def test_cache_clear_rust(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test clearing Rust cache."""
         config = {"enable_cache": True}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Populate cache
         mock_scan_all_symbols.return_value = (
@@ -1027,7 +1055,7 @@ class TestATCScannerCache:
         import time
 
         config = {"enable_cache": True, "cache_ttl_seconds": 1}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Mock scan result
         mock_scan_all_symbols.return_value = (
@@ -1049,7 +1077,7 @@ class TestATCScannerCache:
     def test_cache_with_batch_processing(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test that cache works correctly with batch processing."""
         config = {"enable_cache": True, "batch_size": 2}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Create 5 symbols (will be processed in 3 batches: 2, 2, 1)
         symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "ADA/USDT", "SOL/USDT"]
@@ -1076,7 +1104,7 @@ class TestATCScannerCache:
         config = {"enable_cache": True}
 
         # Create scanner
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Scanner should initialize successfully
         assert scanner.enable_cache is True
@@ -1084,7 +1112,7 @@ class TestATCScannerCache:
     def test_cache_with_empty_results(self, mock_data_fetcher, mock_scan_all_symbols):
         """Test that cache does NOT cache empty scan results (by design)."""
         config = {"enable_cache": True}
-        scanner = ATCScanner(mock_data_fetcher, config=config)
+        scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]
 
         # Mock empty scan result
         mock_scan_all_symbols.return_value = (pd.DataFrame(), pd.DataFrame())
