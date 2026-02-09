@@ -22,6 +22,7 @@ from ._shared import (
     Session,
     datetime,
     desc,
+    timezone,
 )
 
 
@@ -116,7 +117,7 @@ def update_martingale_chain(
             chain.recovered = True
             chain.recovery_pnl = recovery_pnl
             chain.status = "RECOVERED"
-            chain.recovered_at = datetime.utcnow()
+            chain.recovered_at = datetime.now(timezone.utc)
             chain.recovery_order_id = latest_order_id
 
         session.commit()

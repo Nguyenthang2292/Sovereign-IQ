@@ -11,6 +11,7 @@ This module orchestrates the full ATC pipeline:
 from __future__ import annotations
 
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from typing import Dict, List, Optional, Tuple
 
@@ -189,19 +190,26 @@ def _compute_ma_tuples(
             ma_tuples["KAMA"] = make_approx_tuple_basic(fast_kama_approx, ma_configs[5][1])
         else:
             source_series = src if src is not None else prices
-            for ma_type, length, _ in ma_configs:
-                ma_tuple = set_of_moving_averages(
-                    length,
-                    source=source_series,
-                    ma_type=ma_type,
-                    robustness=robustness,
-                    use_cache=use_cache,
-                    use_rust=use_rust_backend,
-                )
-                if ma_tuple is None:
-                    log_error(f"Cannot compute {ma_type} with length={length}")
-                    raise ValueError(f"Cannot compute {ma_type} with length={length}")
-                ma_tuples[ma_type] = ma_tuple
+            # Create a shared ThreadPoolExecutor for all MA types to reuse
+            # This avoids creating 6 separate executors (one per MA type)
+            hw_mgr = get_hardware_manager()
+            config = hw_mgr.get_optimal_workload_config(workload_size=9, prefer_gpu=use_rust_backend)
+
+            with ThreadPoolExecutor(max_workers=config.num_threads) as shared_executor:
+                for ma_type, length, _ in ma_configs:
+                    ma_tuple = set_of_moving_averages(
+                        length,
+                        source=source_series,
+                        ma_type=ma_type,
+                        robustness=robustness,
+                        use_cache=use_cache,
+                        use_rust=use_rust_backend,
+                        executor=shared_executor,  # Pass shared executor to reuse
+                    )
+                    if ma_tuple is None:
+                        log_error(f"Cannot compute {ma_type} with length={length}")
+                        raise ValueError(f"Cannot compute {ma_type} with length={length}")
+                    ma_tuples[ma_type] = ma_tuple
 
     return ma_tuples
 
@@ -239,9 +247,7 @@ def _compute_layer1(
             n_bars = len(prices)
             n_cores = hw_manager.get_resources().cpu_cores
             use_parallel_l1 = (
-                n_bars >= min_bars_parallel_l1
-                and not is_child_process
-                and n_cores >= min_cores_parallel_l1
+                n_bars >= min_bars_parallel_l1 and not is_child_process and n_cores >= min_cores_parallel_l1
             )
         else:
             use_parallel_l1 = parallel_l1
@@ -426,14 +432,32 @@ def compute_atc_signals(
     )
 
     ma_configs = _build_ma_configs(
-        ema_len, hma_len, wma_len, dema_len, lsma_len, kama_len,
-        ema_w, hma_w, wma_w, dema_w, lsma_w, kama_w,
+        ema_len,
+        hma_len,
+        wma_len,
+        dema_len,
+        lsma_len,
+        kama_len,
+        ema_w,
+        hma_w,
+        wma_w,
+        dema_w,
+        lsma_w,
+        kama_w,
     )
     ma_tuples = _compute_ma_tuples(
-        prices, src, ma_configs, robustness,
-        use_adaptive_approximate, use_approximate, approximate_threshold,
-        approximate_volatility_window, approximate_volatility_factor,
-        use_rust_backend, use_cache, fast_mode,
+        prices,
+        src,
+        ma_configs,
+        robustness,
+        use_adaptive_approximate,
+        use_approximate,
+        approximate_threshold,
+        approximate_volatility_window,
+        approximate_volatility_factor,
+        use_rust_backend,
+        use_cache,
+        fast_mode,
     )
     log_debug(f"Computed {len(ma_tuples)} MA types")
 
@@ -441,18 +465,34 @@ def compute_atc_signals(
     min_bars = min_bars_parallel_l1 if min_bars_parallel_l1 is not None else DEFAULT_MIN_BARS_PARALLEL_L1
     min_cores = min_cores_parallel_l1 if min_cores_parallel_l1 is not None else DEFAULT_MIN_CORES_PARALLEL_L1
     layer1_signals = _compute_layer1(
-        prices, ma_tuples, ma_configs, rate_of_change_series,
-        lambda_scaled, decay_scaled, parallel_l1, fast_mode,
+        prices,
+        ma_tuples,
+        ma_configs,
+        rate_of_change_series,
+        lambda_scaled,
+        decay_scaled,
+        parallel_l1,
+        fast_mode,
         min_bars_parallel_l1=min_bars,
         min_cores_parallel_l1=min_cores,
     )
     log_debug("Completed Layer 1 signals")
 
     layer2_equities, average_signal = _run_layer2_and_average(
-        layer1_signals, ma_configs, rate_of_change_series,
-        lambda_scaled, decay_scaled, cutout, parallel_l2, precision,
-        use_rust_backend, equity_floor, prices,
-        long_threshold, short_threshold, strategy_mode,
+        layer1_signals,
+        ma_configs,
+        rate_of_change_series,
+        lambda_scaled,
+        decay_scaled,
+        cutout,
+        parallel_l2,
+        precision,
+        use_rust_backend,
+        equity_floor,
+        prices,
+        long_threshold,
+        short_threshold,
+        strategy_mode,
     )
     result = _build_atc_result(layer1_signals, layer2_equities, ma_configs, average_signal)
 

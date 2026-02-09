@@ -247,7 +247,6 @@ def initialize_pipeline(model_path: str, symbols: Optional[List[str]] = None, sa
         config={
             "max_symbols_to_scan": len(test_symbols),
             "max_ai_candidates": min(5, len(test_symbols)),
-            "pipeline_timeout": 300,
         },
     )
     print("   ✅ Pipeline ready")

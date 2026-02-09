@@ -20,14 +20,14 @@ api:
   mode: PRODUCTION
 tp_sl:
   default_tp: 5.0
-  default_sl: 50.0
+  default_sl: 29.0
   trailing_stop: true
   trailing_step_pct: 2.0
   trailing_limit_steps: false
   trailing_max_steps: 5
   mode: Percentage
   negative_be_enabled: true
-  negative_be_threshold_pct: 10.0
+  negative_be_threshold_pct: 5.0
 scanner:
   scan_interval: 5
   timeframe: 15m
@@ -36,7 +36,7 @@ scanner:
   retrain_xgboost: false
   running: false
   sampling_strategy: stratified
-  sample_percentage: 20
+  sample_percentage: 5
 ui:
   theme: dark
   font_size: 12

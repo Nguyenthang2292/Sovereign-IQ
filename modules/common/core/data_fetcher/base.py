@@ -1,5 +1,6 @@
 """Base DataFetcher infrastructure with core functionality."""
 
+import time
 from typing import Dict, Optional, Tuple
 
 import pandas as pd
@@ -21,6 +22,7 @@ class DataFetcherBase:
         self.exchange_manager = exchange_manager
         self.shutdown_event = shutdown_event
         self._ohlcv_dataframe_cache: Dict[Tuple[str, str, int], Tuple[pd.DataFrame, Optional[str]]] = {}
+        self._ohlcv_cache_timestamps: Dict[Tuple[str, str, int], float] = {}
         self.market_prices: Dict[str, float] = {}
 
     def should_stop(self) -> bool:

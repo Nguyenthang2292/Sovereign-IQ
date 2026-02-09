@@ -37,7 +37,11 @@ def _scan_threadpool(
     max_workers: Optional[int],
     batch_size: int = 100,
 ) -> Tuple[list, int, int, list]:
-    """Scan symbols using ThreadPoolExecutor with batched processing."""
+    """Scan symbols using ThreadPoolExecutor with batched processing.
+
+    Uses a single ThreadPoolExecutor for the entire scan to avoid
+    the overhead of creating/destroying pools for each batch.
+    """
     if max_workers is None:
         max_workers = min(32, len(symbols) + 4)
 
@@ -47,54 +51,53 @@ def _scan_threadpool(
     skipped_symbols = []
     total = len(symbols)
     completed = 0
+    all_futures = {}
 
-    # Process in batches to reduce memory usage
-    for batch_start in range(0, total, batch_size):
-        batch_end = min(batch_start + batch_size, total)
-        batch_symbols = symbols[batch_start:batch_end]
+    # Use a single ThreadPoolExecutor for the entire scan
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks in batches (submit doesn't block)
+        for batch_start in range(0, total, batch_size):
+            batch_end = min(batch_start + batch_size, total)
+            batch_symbols = symbols[batch_start:batch_end]
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit batch tasks
-            future_to_symbol = {
-                executor.submit(_process_symbol, symbol, data_fetcher, atc_config, min_signal): symbol
-                for symbol in batch_symbols
-            }
+            # Submit batch tasks to the shared executor
+            for symbol in batch_symbols:
+                future = executor.submit(_process_symbol, symbol, data_fetcher, atc_config, min_signal)
+                all_futures[future] = symbol
 
-            # Process completed tasks
-            try:
-                for future in as_completed(future_to_symbol):
-                    symbol = future_to_symbol[future]
-                    completed += 1
+        # Process completed tasks as they finish
+        try:
+            for future in as_completed(all_futures):
+                symbol = all_futures[future]
+                completed += 1
 
-                    try:
-                        result = future.result()
-                        if result is None:
-                            skipped_count += 1
-                            skipped_symbols.append(symbol)
-                        else:
-                            results.append(result)
-                    except Exception as e:
-                        error_count += 1
+                try:
+                    result = future.result()
+                    if result is None:
+                        skipped_count += 1
                         skipped_symbols.append(symbol)
-                        log_warn(
-                            f"Error processing symbol {symbol}: {type(e).__name__}: {e}. Skipping and continuing..."
-                        )
+                    else:
+                        results.append(result)
+                except Exception as e:
+                    error_count += 1
+                    skipped_symbols.append(symbol)
+                    log_warn(f"Error processing symbol {symbol}: {type(e).__name__}: {e}. Skipping and continuing...")
 
-                    # Progress update every 10 symbols
-                    if completed % 10 == 0 or completed == total:
-                        log_progress(
-                            f"Scanned {completed}/{total} symbols... "
-                            f"Found {len(results)} signals, "
-                            f"Skipped {skipped_count}, Errors {error_count}"
-                        )
-            except KeyboardInterrupt:
-                log_warn("Scan interrupted by user")
-                # Cancel remaining tasks
-                for future in future_to_symbol:
-                    future.cancel()
-                break
+                # Progress update every 10 symbols
+                if completed % 10 == 0 or completed == total:
+                    log_progress(
+                        f"Scanned {completed}/{total} symbols... "
+                        f"Found {len(results)} signals, "
+                        f"Skipped {skipped_count}, Errors {error_count}"
+                    )
+        except KeyboardInterrupt:
+            log_warn("Scan interrupted by user")
+            # Cancel remaining tasks
+            for future in all_futures:
+                future.cancel()
 
-        # Force garbage collection after each batch
-        gc.collect()
+    # Garbage collect only once after entire scan completes
+    # (or remove entirely if memory pressure is not an issue)
+    gc.collect()
 
     return results, skipped_count, error_count, skipped_symbols

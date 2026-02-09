@@ -31,7 +31,6 @@ Example:
     ...     signal_selector=signal_selector,
     ...     config={
     ...         "max_symbols_to_scan": 20,
-    ...         "pipeline_timeout": 300,
     ...         "xgboost_mode": "per_symbol",  # or "pretrained"
     ...     }
     ... )
@@ -71,14 +70,12 @@ class PipelineConfig(TypedDict, total=False):
 
     Attributes:
         max_symbols_to_scan: Maximum symbols to scan (default: 20)
-        pipeline_timeout: Timeout in seconds (default: 300)
         monitoring_enabled: Whether monitoring components are enabled
         max_ai_candidates: Maximum candidates for AI analysis (default: 5)
         xgboost_mode: XGBoost filter mode - "per_symbol" or "pretrained" (default: "per_symbol")
     """
 
     max_symbols_to_scan: int
-    pipeline_timeout: int
     monitoring_enabled: bool
     max_ai_candidates: int
     xgboost_mode: str  # "per_symbol" (train fresh) or "pretrained" (use existing model)
@@ -109,7 +106,6 @@ class SignalPipeline:
         config: Pipeline configuration
         max_symbols: Maximum symbols to scan (default: 20)
         max_ai_candidates: Maximum candidates for AI analysis (default: 5)
-        pipeline_timeout: Timeout in seconds (default: 300)
         xgboost_mode: XGBoost filter mode - "per_symbol" or "pretrained"
         circuit_breaker: Circuit breaker for external APIs
         health_registry: Registry for system health checks
@@ -124,7 +120,6 @@ class SignalPipeline:
     config: PipelineConfig
     max_symbols: int
     max_ai_candidates: int
-    pipeline_timeout: int
     xgboost_mode: str
     circuit_breaker: CircuitBreaker
     health_registry: HealthRegistry
@@ -161,10 +156,6 @@ class SignalPipeline:
         self.max_ai_candidates = self.config.get("max_ai_candidates", 5)
         if self.max_ai_candidates <= 0:
             raise ValueError(f"max_ai_candidates must be positive, got {self.max_ai_candidates}")
-
-        self.pipeline_timeout = self.config.get("pipeline_timeout", 300)
-        if self.pipeline_timeout <= 0:
-            raise ValueError(f"pipeline_timeout must be positive, got {self.pipeline_timeout}")
 
         # XGBoost mode tracking (for logging)
         self.xgboost_mode = self.config.get("xgboost_mode", "per_symbol")
@@ -253,10 +244,6 @@ class SignalPipeline:
 
             logger.info(f"Scanning {len(symbols)} candidate symbols.")
 
-            if time.time() - start_time > self.pipeline_timeout:
-                logger.warning("Pipeline timeout before scanning.")
-                return None
-
             # 2. ATC Scan (uses internal Rust cache)
             logger.info("Step 2: Scanners (ATC)...")
             atc_signals = self.atc_scanner.scan_symbols(symbols)
@@ -268,10 +255,6 @@ class SignalPipeline:
             self.metrics.gauge("atc_signals_found", len(atc_signals))
 
             logger.info(f"ATC Found {len(atc_signals)} candidates.")
-
-            if time.time() - start_time > self.pipeline_timeout:
-                logger.warning("Pipeline timeout after ATC scan.")
-                return None
 
             # 3. XGBoost Filter
             xgboost_mode_label = "per-symbol training" if self.xgboost_mode == "per_symbol" else "pre-trained model"

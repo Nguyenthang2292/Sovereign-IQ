@@ -1,7 +1,7 @@
 """
 Shared types and imports for query modules.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, cast
 
 from sqlalchemy import case, desc, func
@@ -31,6 +31,7 @@ __all__ = [
     "cast",
     "datetime",
     "timedelta",
+    "timezone",
     # SQLAlchemy
     "desc",
     "case",

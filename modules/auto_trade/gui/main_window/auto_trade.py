@@ -1,5 +1,6 @@
 """Auto-trading logic and signal processing."""
 
+import threading
 import time
 from typing import TYPE_CHECKING, Optional
 
@@ -14,6 +15,8 @@ class AutoTradeManager:
     def __init__(self, parent: "AutoTradeDashboard"):
         self.parent = parent
         self.updater: Optional["UpdaterManager"] = None
+        self._trading_running = False
+        self._trading_lock = threading.Lock()
 
     def _get_binance_client(self):
         """
@@ -46,6 +49,7 @@ class AutoTradeManager:
     def start(self):
         """Start auto-trading loop, periodic Binance reconcile, and updaters."""
         from .updaters import UpdaterManager
+        from modules.auto_trade.monitoring.event_system import EventType
 
         updater = UpdaterManager(self.parent)
         self.updater = updater
@@ -53,15 +57,38 @@ class AutoTradeManager:
         updater.create_reconcile_updater(self._reconcile_cycle, interval=3600)
         updater.create_trailing_stop_updater(self._trailing_stop_cycle, interval=30)
         updater.create_negative_breakeven_updater(self._negative_breakeven_cycle, interval=30)
+        self.parent.event_bus.subscribe(EventType.SIGNAL_GENERATED, self._on_signal_event)
         print("Auto-trading started (with trailing stop and negative breakeven)")
 
     def stop(self):
         """Stop auto-trading loop and all updaters."""
+        from modules.auto_trade.monitoring.event_system import EventType
+
+        try:
+            self.parent.event_bus.unsubscribe(EventType.SIGNAL_GENERATED, self._on_signal_event)
+        except Exception:
+            pass
         if self.updater:
             for updater_name in ["auto_trade", "reconcile", "trailing_stop", "negative_breakeven"]:
                 if updater_name in self.updater.updaters:
                     self.updater.updaters[updater_name].stop()
             print("Auto-trading stopped (including trailing stop and negative breakeven)")
+
+    def _on_signal_event(self, event):
+        """Handle signal event and trigger immediate auto-trade check."""
+        symbol = event.data.get("symbol", "unknown")
+        print(f"Signal event received: {symbol}, triggering immediate check")
+
+        with self._trading_lock:
+            if self._trading_running:
+                print("Auto-trade cycle already running, event skipped")
+                return
+
+        def run_cycle():
+            self._auto_trade_cycle()
+
+        thread = threading.Thread(target=run_cycle, daemon=True, name="AutoTradeEvent")
+        thread.start()
 
     def _trailing_stop_cycle(self):
         """Run trailing stop check every 30 seconds."""
@@ -159,6 +186,12 @@ class AutoTradeManager:
         2. Validate against risk rules
         3. Execute trade if conditions met
         """
+        with self._trading_lock:
+            if self._trading_running:
+                print("Auto-trade cycle already running, skipping...")
+                return
+            self._trading_running = True
+
         try:
             from modules.auto_trade.execution.order_executor import OrderExecutor
 
@@ -210,6 +243,9 @@ class AutoTradeManager:
 
         except Exception as e:
             print(f"Error in auto-trade cycle: {e}")
+        finally:
+            with self._trading_lock:
+                self._trading_running = False
 
     def _convert_signals(self, signals: list) -> list:
         """Convert signal dicts to SignalResult objects."""

@@ -28,6 +28,7 @@ from ._shared import (
     datetime,
     desc,
     timedelta,
+    timezone,
 )
 
 
@@ -67,7 +68,7 @@ def save_signal(
         "atc_score": atc_score,
         "xgboost_score": xgboost_score,
         "gemini_score": gemini_score,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
     signal_data.update(kwargs)
 
@@ -96,7 +97,7 @@ def mark_signal_executed(session: Session, correlation_id: str, order_id: str) -
     if signal:
         signal.executed = True
         signal.execution_order_id = order_id
-        signal.executed_at = datetime.utcnow()
+        signal.executed_at = datetime.now(timezone.utc)
         session.commit()
         return True
 
@@ -129,7 +130,7 @@ def update_signal_outcome(
         signal.outcome = outcome
         signal.outcome_pnl = outcome_pnl
         signal.outcome_duration_minutes = outcome_duration_minutes
-        signal.outcome_at = datetime.utcnow()
+        signal.outcome_at = datetime.now(timezone.utc)
         session.commit()
         return True
 
@@ -169,7 +170,7 @@ def get_signal_performance_stats(session: Session, symbol: Optional[str] = None,
     Returns:
         Dictionary with performance metrics
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     query = session.query(Signal).filter(
         Signal.executed.is_(True), Signal.outcome.isnot(None), Signal.created_at >= start_date

@@ -33,6 +33,7 @@ from ._shared import (
     cast,
     datetime,
     desc,
+    timezone,
 )
 
 
@@ -286,7 +287,7 @@ def update_order_status(
             setattr(order, "pnl_percentage", (pnl / base) * 100 if base else 0.0)
 
         if status == "CLOSED":
-            setattr(order, "closed_at", datetime.utcnow())
+            setattr(order, "closed_at", datetime.now(timezone.utc))
 
         session.commit()
         return True
@@ -331,7 +332,7 @@ def mark_be_moved(
         if new_take_profit is not None:
             setattr(order, "take_profit", cast(float, new_take_profit))
         setattr(order, "be_moved", True)
-        setattr(order, "be_moved_at", cast(DateTime, cast(datetime, datetime.utcnow())))
+        setattr(order, "be_moved_at", cast(DateTime, cast(datetime, datetime.now(timezone.utc))))
         session.commit()
         return True
 
@@ -381,7 +382,7 @@ def create_order(session: Session, order_data: Dict[str, Any]) -> Order:
     # Ensure order is marked as PROGRAMMATIC
     order_data.setdefault("order_source", "PROGRAMMATIC")
     order_data.setdefault("execution_mode", "AUTO")
-    order_data.setdefault("created_at", datetime.utcnow())
+    order_data.setdefault("created_at", datetime.now(timezone.utc))
 
     order = Order(**order_data)
     session.add(order)

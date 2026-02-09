@@ -109,6 +109,9 @@ class PublicExchangeManager:
         """
         Ensures a minimum delay between REST calls to respect rate limits.
 
+        Uses a token-bucket style approach: only holds lock for bookkeeping,
+        releases lock during actual function execution to allow parallel requests.
+
         Args:
             func: Function to call
             *args: Positional arguments for func
@@ -117,13 +120,23 @@ class PublicExchangeManager:
         Returns:
             Result of func(*args, **kwargs)
         """
+        # Calculate wait time and update timestamp under lock
         with self._request_lock:
             wait = self.request_pause - (time.time() - self._last_request_ts)
             if wait > 0:
-                time.sleep(wait)
-            result = func(*args, **kwargs)
-            self._last_request_ts = time.time()
-            return result
+                # Release lock before sleeping to allow other threads to proceed
+                pass
+            else:
+                wait = 0
+            # Update timestamp optimistically - assume request will start now
+            # This allows other threads to calculate their wait correctly
+            self._last_request_ts = time.time() + wait
+
+        # Sleep and execute outside the lock
+        if wait > 0:
+            time.sleep(wait)
+
+        return func(*args, **kwargs)
 
     @property
     def exchange_priority_for_fallback(self):

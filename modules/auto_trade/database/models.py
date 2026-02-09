@@ -14,7 +14,7 @@ Created: 2026-02-03
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional, cast
 
 from sqlalchemy import (
@@ -132,10 +132,10 @@ class Order(Base, JSONSerializableMixin):  # type: ignore[valid-type, misc]
     error_message = Column(Text)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     opened_at = Column(DateTime)
     closed_at = Column(DateTime)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     parent_order = relationship(
@@ -267,7 +267,7 @@ class Signal(Base, JSONSerializableMixin):  # type: ignore[valid-type, misc]
     outcome_duration_minutes = Column(Integer)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     executed_at = Column(DateTime)
     outcome_at = Column(DateTime)
 
@@ -367,7 +367,7 @@ class MartingaleChain(Base, JSONSerializableMixin):  # type: ignore[valid-type, 
     position_size_progression = Column(Text)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     recovered_at = Column(DateTime)
     failed_at = Column(DateTime)
 
@@ -473,7 +473,7 @@ class GradualRecovery(Base, JSONSerializableMixin):  # type: ignore[valid-type, 
     config_data = Column(Text)  # Stores RecoveryConfig as JSON
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     completed_at = Column(DateTime)
     failed_at = Column(DateTime)
 
@@ -551,8 +551,8 @@ class SystemState(Base):  # type: ignore[valid-type, misc]
     category = Column(String(50), index=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Table constraints
     __table_args__ = (
@@ -625,7 +625,7 @@ class AuditLog(Base, JSONSerializableMixin):  # type: ignore[valid-type, misc]
     error_message = Column(Text)
 
     # Timestamp
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     # Table constraints
     __table_args__ = (
@@ -678,7 +678,7 @@ class MigrationsApplied(Base):  # type: ignore[valid-type, misc]
 
     # Migration Tracking
     migration_name = Column(String(255), unique=True, nullable=False, index=True)
-    applied_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    applied_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     checksum = Column(String(64))
 
     def __repr__(self) -> str:
@@ -695,10 +695,10 @@ class MigrationsApplied(Base):  # type: ignore[valid-type, misc]
 @event.listens_for(Order, "before_update")
 def receive_before_update(mapper: Mapper, connection: Connection, target: Order) -> None:
     """Update timestamp before any order update."""
-    target.updated_at = datetime.utcnow()  # type: ignore[assignment]
+    target.updated_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
 
 @event.listens_for(SystemState, "before_update")
 def receive_before_update_state(mapper: Mapper, connection: Connection, target: SystemState) -> None:
     """Update timestamp before any system state update."""
-    target.updated_at = datetime.utcnow()  # type: ignore[assignment]
+    target.updated_at = datetime.now(timezone.utc)  # type: ignore[assignment]

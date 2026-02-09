@@ -144,7 +144,7 @@ class TestSignalPipelineXGBoostMode:
             xgboost_filter=mock_components["xgboost_filter"],
             gemini_integration=mock_components["gemini_integration"],
             signal_selector=mock_components["signal_selector"],
-            config={"max_symbols_to_scan": 10, "pipeline_timeout": 5, "enable_xgboost": True},  # type: ignore[arg-type]
+            config={"max_symbols_to_scan": 10, "enable_xgboost": True},  # type: ignore[arg-type]
         )
 
     def test_pipeline_gemini_unavailable_skips_analysis(self, pipeline, mock_components):
@@ -178,7 +178,7 @@ class TestSignalPipelineMaxCandidates:
             xgboost_filter=mock_components["xgboost_filter"],
             gemini_integration=mock_components["gemini_integration"],
             signal_selector=mock_components["signal_selector"],
-            config={"max_symbols_to_scan": 10, "pipeline_timeout": 5, "max_ai_candidates": 3},
+            config={"max_symbols_to_scan": 10, "max_ai_candidates": 3},
         )
 
     def test_pipeline_limits_gemini_candidates(self, pipeline, mock_components, sample_gemini_signal):

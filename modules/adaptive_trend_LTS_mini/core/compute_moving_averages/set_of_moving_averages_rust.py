@@ -27,6 +27,7 @@ def set_of_moving_averages_rust(
     use_cache: bool = True,
     use_parallel: bool = True,
     use_rust: bool = True,
+    executor: Optional[ThreadPoolExecutor] = None,
 ) -> Optional[Tuple[pd.Series, ...]]:
     """
     Calculate a set of 9 moving averages using Rust backend.
@@ -44,6 +45,8 @@ def set_of_moving_averages_rust(
         use_cache: If True, uses cached results if available (default: True).
         use_parallel: If True, computes the 9 MAs in parallel threads (default: True).
         use_rust: If True, attempts to use Rust backend (default: True).
+        executor: Optional external ThreadPoolExecutor to reuse. If provided,
+                 uses it instead of creating a new one. (default: None)
 
     Returns:
         Tuple of 9 pandas Series: (MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4)
@@ -82,17 +85,27 @@ def set_of_moving_averages_rust(
             raise ValueError(f"Invalid length offsets: {invalid}")
 
         if use_parallel:
-            hw_mgr = get_hardware_manager()
-            # For Rust backend, we don't need GPU preference
-            # Rust will handle optimization internally
-            config = hw_mgr.get_optimal_workload_config(workload_size=9, prefer_gpu=False)
-
-            with ThreadPoolExecutor(max_workers=config.num_threads) as executor:
+            # If external executor provided, use it; otherwise create one
+            if executor is not None:
+                # Use provided external executor (reuse across MA types)
                 futures = [
                     executor.submit(ma_calculation_rust, source, ma_len, ma_type, use_cache, use_rust)
                     for ma_len in ma_lengths
                 ]
                 mas = [f.result() for f in futures]
+            else:
+                # Create new executor (backward compatible behavior)
+                hw_mgr = get_hardware_manager()
+                # For Rust backend, we don't need GPU preference
+                # Rust will handle optimization internally
+                config = hw_mgr.get_optimal_workload_config(workload_size=9, prefer_gpu=False)
+
+                with ThreadPoolExecutor(max_workers=config.num_threads) as executor:
+                    futures = [
+                        executor.submit(ma_calculation_rust, source, ma_len, ma_type, use_cache, use_rust)
+                        for ma_len in ma_lengths
+                    ]
+                    mas = [f.result() for f in futures]
         else:
             mas = [ma_calculation_rust(source, ma_len, ma_type, use_cache, use_rust) for ma_len in ma_lengths]
 

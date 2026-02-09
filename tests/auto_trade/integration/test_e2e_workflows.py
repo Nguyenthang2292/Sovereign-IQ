@@ -138,7 +138,7 @@ class TestSignalPipelineWorkflowE2E:
             xgboost_filter=mock_xgboost,
             gemini_integration=mock_gemini,
             signal_selector=selector,
-            config={"max_symbols_to_scan": 5, "pipeline_timeout": 30, "max_ai_candidates": 3},
+            config={"max_symbols_to_scan": 5, "max_ai_candidates": 3},
         )
 
         result = pipeline.run_pipeline()

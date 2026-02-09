@@ -150,6 +150,9 @@ class GeminiChartAnalyzer:
                 # If unable to list models, will use default via helper
                 log_error("Failed to list available Gemini models, falling back to default model")
 
+            # Store available models for fallback filtering
+            self._available_models = available_models
+
             # Use helper function for consistent model selection
             self.model_name = select_best_model(available_models)
 
@@ -168,7 +171,7 @@ class GeminiChartAnalyzer:
             else:
                 model_for_legacy = selected_model
 
-            # If the model doesn't exist in legacy, fallback to gemini-1.5-pro
+            # If the model doesn't exist in legacy, fallback to gemini-2.5-pro
             # (legacy likely doesn't support flash models)
             if "flash" in model_for_legacy.lower():
                 # Try flash first; if not possible, fallback
@@ -180,11 +183,11 @@ class GeminiChartAnalyzer:
                     # Log exception and context before falling back
                     log_error(
                         f"Failed to initialize flash model '{model_for_legacy}' for legacy API. "
-                        f"Falling back to 'gemini-1.5-pro'"
+                        f"Falling back to 'gemini-2.5-pro'"
                     )
                     # Fall back to pro if flash is not available
-                    self.model = genai.GenerativeModel("gemini-1.5-pro")  # type: ignore
-                    self.model_name = "models/gemini-1.5-pro"
+                    self.model = genai.GenerativeModel("gemini-2.5-pro")  # type: ignore
+                    self.model_name = "models/gemini-2.5-pro"
             else:
                 self.model = genai.GenerativeModel(model_for_legacy)  # type: ignore
                 # Store the model name for fallback logic
@@ -204,7 +207,7 @@ class GeminiChartAnalyzer:
         - Inspecting self.model_name, self.model, self.model_id
         - Handling GenerativeModel objects via model_name attribute or str()
         - Guarding against empty/placeholder strings
-        - Applying fallback to getattr(self,'model_name',None) or 'models/gemini-1.5-pro'
+        - Applying fallback to getattr(self,'model_name',None) or 'models/gemini-2.5-pro'
 
         Returns:
             Normalized model name as string, or None if no valid model found
@@ -234,7 +237,7 @@ class GeminiChartAnalyzer:
                 current_model = str(current_model)
             # If it's an empty string after converting, use fallback
             if not current_model.strip():
-                current_model = getattr(self, "model_name", None) or "models/gemini-1.5-pro"
+                current_model = getattr(self, "model_name", None) or "models/gemini-2.5-pro"
 
         return current_model
 
@@ -262,13 +265,18 @@ class GeminiChartAnalyzer:
         last_error = None
         response = None
 
-        # Get current model and fallback models
+        # Get current model and fallback models (filtered to only available ones)
         current_model = self._resolve_current_model()
         fallback_models = []
         if current_model:
             model_type = GeminiModelType.from_name(current_model)
             if model_type:
-                fallback_models = [m.name for m in GeminiModelType.get_fallback_models(model_type)]
+                available = getattr(self, "_available_models", None)
+                fallback_models = [
+                    m.name
+                    for m in GeminiModelType.get_fallback_models(model_type)
+                    if available is None or m.name in available
+                ]
 
         models_to_try = [current_model] + fallback_models if current_model else [None]
 

@@ -33,6 +33,11 @@ customtkinter>=5.0.0,<6.0.0
 plyer>=2.1.0,<3.0.0
 PyYAML>=6.0.0,<7.0.0  # Settings YAML for auto_trade GUI
 
+# Auto Trade database and config
+sqlalchemy>=2.0.0,<3.0.0  # ORM for auto_trade database (Order, Signal, migrations)
+python-dotenv>=1.0.0,<2.0.0  # .env loading for auto_trade config and credential_manager
+joblib>=1.3.0,<2.0.0  # Model serialization (xgboost_filter, xgboost_LTS cache; also via scikit-learn)
+
 # Optional stacks are now split out:
 # - requirements-ml.txt  : Deep learning / TFT dependencies
 # - requirements-ocr.txt : UI + OCR helpers

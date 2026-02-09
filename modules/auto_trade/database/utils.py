@@ -12,7 +12,7 @@ import csv
 import json
 import logging
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Generator, Optional, Sequence
 
@@ -416,7 +416,7 @@ class DatabaseCleaner:
         try:
             from datetime import timedelta
 
-            cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
 
             # Build delete query
             date_col = getattr(model_class, date_column)
@@ -450,7 +450,7 @@ class DatabaseCleaner:
 
             from .models import Order
 
-            cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
 
             # Get old closed orders
             old_orders = session.query(Order).filter(Order.status == "CLOSED", Order.closed_at < cutoff_date).all()

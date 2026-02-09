@@ -20,18 +20,16 @@ class ImageValidationConfig:
 class GeminiModelType(Enum):
     """Enum for Gemini model types with priority."""
 
+    # --- Gemini 3.x (highest priority) ---
     FLASH_3_PREVIEW = ("models/gemini-3-flash-preview", 0)
     PRO_3_PREVIEW = ("models/gemini-3-pro-preview", 1)
+    FLASH_3 = ("models/gemini-3-flash", 2)
+    PRO_3 = ("models/gemini-3-pro", 3)
 
-    FLASH_25_LITE = ("models/gemini-2.5-flash-lite", 2)
-
-    FLASH_3 = ("models/gemini-3-flash", 3)
+    # --- Gemini 2.5 ---
     FLASH_25 = ("models/gemini-2.5-flash", 4)
-    FLASH_15 = ("models/gemini-1.5-flash", 5)
-
-    PRO_3 = ("models/gemini-3-pro", 6)
-    PRO_25 = ("models/gemini-2.5-pro", 7)
-    PRO_15 = ("models/gemini-1.5-pro", 8)
+    FLASH_25_LITE = ("models/gemini-2.5-flash-lite", 5)
+    PRO_25 = ("models/gemini-2.5-pro", 6)
 
     @property
     def name(self) -> str:

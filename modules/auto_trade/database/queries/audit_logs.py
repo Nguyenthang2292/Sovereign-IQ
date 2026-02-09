@@ -23,6 +23,7 @@ from ._shared import (
     Session,
     datetime,
     desc,
+    timezone,
 )
 
 
@@ -53,7 +54,7 @@ def create_audit_log(
         "event_category": event_category,
         "severity": severity,
         "event_summary": event_summary,
-        "timestamp": datetime.utcnow(),
+        "timestamp": datetime.now(timezone.utc),
     }
     log_data.update(kwargs)
 

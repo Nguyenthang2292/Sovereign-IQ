@@ -58,7 +58,10 @@ class TestATCScannerEnhancements:
         """Test that signal strengths are captured in SignalResult."""
         # Default threshold 0.6; 1h LONG + 15m LONG + 5m SHORT => score 0.6 (not > 0.6).
         # Use threshold 0.0 so we get one result and can assert strengths.
-        scanner = ATCScanner(mock_data_fetcher, config={"threshold": 0.0})  # type: ignore[arg-type]
+        scanner = ATCScanner(
+            mock_data_fetcher,
+            config={"threshold": 0.0, "timeframes": ["1h", "15m", "5m"]},
+        )  # type: ignore[arg-type]
 
         def side_effect(data_fetcher, atc_config, symbols, **kwargs):
             if atc_config.timeframe == "1h":
@@ -88,6 +91,7 @@ class TestATCScannerEnhancements:
         config = {
             "use_signal_strength": True,
             "weights": {"1h": 0.5, "15m": 0.3, "5m": 0.2},
+            "timeframes": ["1h", "15m", "5m"],
             "threshold": 0.0,  # Lower threshold to ensure we get results
         }
         scanner = ATCScanner(mock_data_fetcher, config=config)  # type: ignore[arg-type]

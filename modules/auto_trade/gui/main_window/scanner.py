@@ -1,6 +1,8 @@
 """Scanner management and configuration."""
 
 import logging
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, cast
@@ -24,6 +26,8 @@ class ScannerManager:
         self.pipeline: Optional[SignalPipeline] = None
         self._pipeline_initialized = False
         self._manual_scan_running = False
+        self._scan_running = False
+        self._scan_lock = threading.Lock()
 
     def handle_scan_toggle(self, action):
         """Handle scanner start/stop from ScannerControl."""
@@ -70,8 +74,6 @@ class ScannerManager:
 
     def _manual_scan(self):
         """Trigger manual scan in background thread."""
-        import threading
-
         # Prevent multiple manual scans from running simultaneously
         if hasattr(self, "_manual_scan_running") and self._manual_scan_running:
             logger.warning("Manual scan already in progress, skipping...")
@@ -226,7 +228,6 @@ class ScannerManager:
                 config={
                     "max_symbols_to_scan": 30,
                     "max_ai_candidates": 5,
-                    "pipeline_timeout": 300,
                     "xgboost_mode": xgboost_mode,
                 },
             )
@@ -287,6 +288,13 @@ class ScannerManager:
 
     def _scanner_cycle(self):
         """Scanner cycle (runs in background thread)."""
+        start_time = None
+        with self._scan_lock:
+            if self._scan_running:
+                logger.warning("Scanner cycle already in progress, skipping...")
+                return
+            self._scan_running = True
+        start_time = time.perf_counter()
         try:
             logger.info("=" * 50)
             logger.info("Running scanner cycle...")
@@ -316,9 +324,7 @@ class ScannerManager:
                             "no Gemini call. Will run full scan again when position(s) close."
                         )
                 except Exception as e:
-                    logger.warning(
-                        f"Could not check open positions for scanner gate: {e}. Skipping scan (no Gemini)."
-                    )
+                    logger.warning(f"Could not check open positions for scanner gate: {e}. Skipping scan (no Gemini).")
                     scan_skipped = True
 
             if not scan_skipped and self.parent.mode in ["PRODUCTION", "DEMO"]:
@@ -358,6 +364,12 @@ class ScannerManager:
             import traceback
 
             logger.error(traceback.format_exc())
+        finally:
+            with self._scan_lock:
+                self._scan_running = False
+            if start_time is not None:
+                duration = time.perf_counter() - start_time
+                logger.info("Scanner cycle completed in %.1fs", duration)
 
     def _run_signal_scan(self):
         """Run actual signal pipeline scan.
@@ -412,6 +424,22 @@ class ScannerManager:
                     market_context=str(signal.sources) if signal.sources else None,
                 )
                 logger.info("Signal saved to GUI database")
+                try:
+                    from modules.auto_trade.monitoring.event_system import EventType
+
+                    self.parent.event_bus.publish(
+                        EventType.SIGNAL_GENERATED,
+                        {
+                            "symbol": signal.symbol,
+                            "signal_type": signal.signal_type,
+                            "score": signal.score,
+                            "correlation_id": correlation_id,
+                        },
+                        source="scanner",
+                    )
+                    logger.info(f"Published SIGNAL_GENERATED event for {signal.symbol}")
+                except Exception as e:
+                    logger.warning(f"Failed to publish signal event: {e}")
 
         except Exception as e:
             logger.warning(f"Could not save to GUI database: {e}")

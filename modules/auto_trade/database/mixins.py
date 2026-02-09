@@ -88,7 +88,7 @@ class TimestampMixin:
         if created_at:
             from datetime import datetime
 
-            return (datetime.utcnow() - created_at).total_seconds()
+            return (datetime.now(timezone.utc) - created_at).total_seconds()
         return None
 
     @property

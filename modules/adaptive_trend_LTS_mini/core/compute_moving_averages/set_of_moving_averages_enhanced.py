@@ -34,6 +34,7 @@ def set_of_moving_averages_enhanced(
     use_cache: bool = True,
     use_parallel: bool = True,
     use_rust_backend: bool = True,
+    executor: Optional[ThreadPoolExecutor] = None,
 ) -> Optional[Tuple[pd.Series, ...]]:
     """
     Calculate a set of 9 moving averages with varying lengths based on robustness.
@@ -54,6 +55,8 @@ def set_of_moving_averages_enhanced(
         use_cache: If True, uses cached results if available (default: True).
         use_parallel: If True, computes the 9 MAs in parallel threads (default: True).
         use_rust_backend: If True, attempts to use Rust backend (default: True).
+        executor: Optional external ThreadPoolExecutor to reuse. If provided,
+                 uses it instead of creating a new one. (default: None)
 
     Returns:
         Tuple of 9 pandas Series: (MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4)
@@ -107,8 +110,15 @@ def set_of_moving_averages_enhanced(
                     ma_calculation_enhanced(source, ma_len, ma_type, use_cache, use_rust_backend)
                     for ma_len in ma_lengths
                 ]
+            elif executor is not None:
+                # Use provided external executor (reuse across MA types)
+                futures = [
+                    executor.submit(ma_calculation_enhanced, source, ma_len, ma_type, use_cache, use_rust_backend)
+                    for ma_len in ma_lengths
+                ]
+                mas = [f.result() for f in futures]
             else:
-                # In main process: use ThreadPoolExecutor
+                # Create new executor (backward compatible behavior)
                 hw_mgr = get_hardware_manager()
                 # Note: get_optimal_workload_config might still call get_resources(), but it's once per MA set (6 per symbol)
                 # We could optimize this too but it's less critical than the inner logs.

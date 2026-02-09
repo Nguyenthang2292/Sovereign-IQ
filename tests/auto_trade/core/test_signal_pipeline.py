@@ -2,7 +2,6 @@
 Tests for SignalPipeline.
 """
 
-import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -51,31 +50,6 @@ class TestSignalPipeline:
 
         assert result is None, "Expected None when no symbols are returned"
         mock_components["atc_scanner"].scan_symbols.assert_not_called()
-
-    def test_run_pipeline_timeout(self, pipeline, mock_components, sample_signal_result):
-        """Test pipeline timeout interruption after ATC scan."""
-        # Set a very short timeout
-        pipeline.pipeline_timeout = 0.1
-
-        mock_components["symbol_manager"].get_symbols.return_value = ["BTC/USDT"]
-
-        # Simulate delays in ATC scan
-        def slow_scan(*args):
-            time.sleep(0.2)
-            return [sample_signal_result(symbol="BTC/USDT")]
-
-        mock_components["atc_scanner"].scan_symbols.side_effect = slow_scan
-
-        result = pipeline.run_pipeline()
-
-        # Pipeline should timeout after ATC scan and return None
-        assert result is None, "Expected None when pipeline times out"
-
-        # Check that Gemini analysis was skipped because timeout happened
-        mock_components["gemini_integration"].is_available.assert_not_called()
-
-        # Selector should NOT be called due to timeout
-        mock_components["signal_selector"].select_best_signal.assert_not_called()
 
     def test_run_pipeline_exception(self, pipeline, mock_components):
         """Test generic exception handling."""
@@ -218,13 +192,3 @@ class TestSignalPipeline:
                 config={"max_symbols_to_scan": -1},
             )
 
-        # Test zero pipeline_timeout
-        with pytest.raises(ValueError, match="pipeline_timeout must be positive"):
-            SignalPipeline(
-                symbol_manager=mock_components["symbol_manager"],
-                atc_scanner=mock_components["atc_scanner"],
-                xgboost_filter=mock_components["xgboost_filter"],
-                gemini_integration=mock_components["gemini_integration"],
-                signal_selector=mock_components["signal_selector"],
-                config={"pipeline_timeout": 0},
-            )

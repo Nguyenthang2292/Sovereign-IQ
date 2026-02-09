@@ -23,6 +23,7 @@ from ._shared import (
     Dict,
     GradualRecovery,
     List,
+    timezone,
     Optional,
     Session,
     datetime,
@@ -144,9 +145,9 @@ def update_gradual_recovery(
     if status is not None:
         recovery.status = status
         if status == "COMPLETE":
-            recovery.completed_at = datetime.utcnow()
+            recovery.completed_at = datetime.now(timezone.utc)
         elif status == "FAILED":
-            recovery.failed_at = datetime.utcnow()
+            recovery.failed_at = datetime.now(timezone.utc)
 
     session.commit()
     return True

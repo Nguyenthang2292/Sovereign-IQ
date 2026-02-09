@@ -24,6 +24,7 @@ from ._shared import (
     datetime,
     func,
     timedelta,
+    timezone,
 )
 
 
@@ -38,7 +39,7 @@ def get_daily_stats(session: Session, days: int = 30) -> List[Dict[str, Any]]:
     Returns:
         List of daily stat dictionaries
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Use SQLAlchemy aggregation instead of loading all orders into memory
     results = (

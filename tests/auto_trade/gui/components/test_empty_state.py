@@ -1,6 +1,7 @@
 import sys
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Define the module name to reload
 MODULE_NAME = 'modules.auto_trade.gui.components.empty_state'

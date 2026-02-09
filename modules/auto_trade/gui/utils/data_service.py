@@ -267,6 +267,8 @@ class DataService:
                 with self.database_manager.session_scope() as session:
                     signals = get_recent_signals(session, limit=100)
 
+                    from datetime import timezone
+
                     filtered = []
                     for signal in signals:
                         # Use final_score (or confidence); cast for type checker (ORM instance yields float)
@@ -276,13 +278,16 @@ class DataService:
                             signal_type = signal.signal_type.upper()
                             if signal_types is None or signal_type in signal_types:
                                 created_at = signal.created_at
+                                # SQLite strips timezone info; re-attach UTC so .timestamp() is correct
+                                if created_at is not None and created_at.tzinfo is None:
+                                    created_at = created_at.replace(tzinfo=timezone.utc)
                                 filtered.append(
                                     {
                                         "symbol": signal.symbol,
                                         "signal": signal_type,
                                         "score": score,
-                                        "time": signal.created_at.strftime("%Y-%m-%d %H:%M")
-                                        if signal.created_at is not None
+                                        "time": created_at.strftime("%Y-%m-%d %H:%M")
+                                        if created_at is not None
                                         else "",
                                         # Extra fields for freshness filtering (< 5 minutes)
                                         "created_at": created_at.isoformat() if created_at is not None else "",

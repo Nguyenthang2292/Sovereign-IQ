@@ -41,17 +41,21 @@ class TestGeminiModelType:
         """Test that all model types have names."""
         assert GeminiModelType.FLASH_3_PREVIEW.name == "models/gemini-3-flash-preview"
         assert GeminiModelType.PRO_3_PREVIEW.name == "models/gemini-3-pro-preview"
-        assert GeminiModelType.FLASH_25_LITE.name == "models/gemini-2.5-flash-lite"
         assert GeminiModelType.FLASH_3.name == "models/gemini-3-flash"
         assert GeminiModelType.PRO_3.name == "models/gemini-3-pro"
+        assert GeminiModelType.FLASH_25.name == "models/gemini-2.5-flash"
+        assert GeminiModelType.FLASH_25_LITE.name == "models/gemini-2.5-flash-lite"
+        assert GeminiModelType.PRO_25.name == "models/gemini-2.5-pro"
 
     def test_model_priorities(self):
-        """Test that model priorities are correct."""
+        """Test that model priorities are correct (3.x before 2.5)."""
         assert GeminiModelType.FLASH_3_PREVIEW.priority == 0
         assert GeminiModelType.PRO_3_PREVIEW.priority == 1
-        assert GeminiModelType.FLASH_25_LITE.priority == 2
-        assert GeminiModelType.FLASH_3.priority == 3
-        assert GeminiModelType.PRO_3.priority == 6
+        assert GeminiModelType.FLASH_3.priority == 2
+        assert GeminiModelType.PRO_3.priority == 3
+        assert GeminiModelType.FLASH_25.priority == 4
+        assert GeminiModelType.FLASH_25_LITE.priority == 5
+        assert GeminiModelType.PRO_25.priority == 6
 
     def test_model_properties(self):
         """Test model type properties."""
@@ -78,6 +82,7 @@ class TestGeminiModelType:
         assert GeminiModelType.from_name("models/gemini-3-flash") == GeminiModelType.FLASH_3
         assert GeminiModelType.from_name("models/gemini-2.5-flash-lite") == GeminiModelType.FLASH_25_LITE
         assert GeminiModelType.from_name("models/gemini-3-pro") == GeminiModelType.PRO_3
+        assert GeminiModelType.from_name("models/gemini-2.5-flash") == GeminiModelType.FLASH_25
 
         # Test case insensitivity
         assert GeminiModelType.from_name("MODELS/GEMINI-3-FLASH-PREVIEW") == GeminiModelType.FLASH_3_PREVIEW
@@ -108,12 +113,12 @@ class TestSelectBestModel:
         available_models = [
             "models/gemini-2.5-flash",
             "models/gemini-3-flash",
-            "models/gemini-1.5-pro",
+            "models/gemini-2.5-pro",
         ]
 
         selected = select_best_model(available_models)
 
-        # Should select highest priority available model (gemini-3-flash, priority 3)
+        # Should select highest priority available model (gemini-3-flash, priority 2)
         assert selected == "models/gemini-3-flash"
 
     def test_select_best_model_none(self):

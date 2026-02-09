@@ -87,7 +87,7 @@ def pipeline(mock_components):
         xgboost_filter=mock_components["xgboost_filter"],
         gemini_integration=mock_components["gemini_integration"],
         signal_selector=mock_components["signal_selector"],
-        config={"max_symbols_to_scan": 10, "pipeline_timeout": 5},
+        config={"max_symbols_to_scan": 10},
     )
 
 
