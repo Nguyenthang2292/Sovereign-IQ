@@ -44,10 +44,18 @@ class PositionCard(ctk.CTkFrame):
         details_frame.bind("<Button-1>", self._on_click)
         details_frame.bind("<Button-3>", self._show_context_menu)
 
+        # Format TP/SL/BE with None handling
+        tp_value = position.get("take_profit")
+        sl_value = position.get("stop_loss")
+        be_value = position.get("break_even")
+
         rows = [
             ("Size:", f"{position['size']:.4f}"),
             ("Entry:", format_price(position["entry_price"])),
             ("Current:", format_price(position["current_price"])),
+            ("TP:", format_price(float(tp_value)) if tp_value is not None else "N/A"),
+            ("SL:", format_price(float(sl_value)) if sl_value is not None else "N/A"),
+            ("BE:", format_price(float(be_value)) if be_value is not None else "N/A"),
             ("P&L:", format_pnl(position["pnl"])),
         ]
 
@@ -57,8 +65,19 @@ class PositionCard(ctk.CTkFrame):
             label_widget.bind("<Button-1>", self._on_click)
             label_widget.bind("<Button-3>", self._show_context_menu)
 
-            pnl_color = Colors.PROFIT if i == 3 and position["pnl"] >= 0 else (Colors.LOSS if i == 3 else "white")
-            value_widget = ctk.CTkLabel(details_frame, text=value, font=("Arial", 11, "bold"), text_color=pnl_color)
+            # Color coding for different rows
+            if i == 6:  # P&L row
+                text_color = Colors.PROFIT if position["pnl"] >= 0 else Colors.LOSS
+            elif i == 3:  # TP row
+                text_color = Colors.PROFIT if value != "N/A" else "gray"
+            elif i == 4:  # SL row
+                text_color = Colors.LOSS if value != "N/A" else "gray"
+            elif i == 5:  # BE row
+                text_color = "#FFA500" if value != "N/A" else "gray"  # Orange for BE
+            else:
+                text_color = "white"
+
+            value_widget = ctk.CTkLabel(details_frame, text=value, font=("Arial", 11, "bold"), text_color=text_color)
             value_widget.grid(row=i, column=1, sticky="e", pady=2)
             value_widget.bind("<Button-1>", self._on_click)
             value_widget.bind("<Button-3>", self._show_context_menu)
@@ -100,19 +119,37 @@ class PositionCard(ctk.CTkFrame):
 
 
 class PositionsFrame(ctk.CTkFrame):
-    def __init__(self, parent, on_action_callback: Optional[Callable] = None, on_open_trade_callback: Optional[Callable] = None):
+    def __init__(self, parent, on_action_callback: Optional[Callable] = None, on_open_trade_callback: Optional[Callable] = None, on_refresh_callback: Optional[Callable] = None):
         super().__init__(parent)
         self.on_action_callback = on_action_callback
         self.on_open_trade_callback = on_open_trade_callback
+        self.on_refresh_callback = on_refresh_callback
         self._empty_state: Optional[EmptyState] = None
 
-        title = ctk.CTkLabel(self, text="Open Positions", font=("Arial", 16, "bold"))
-        title.pack(pady=(10, 15))
+        # Header with title and refresh button
+        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame.pack(fill="x", pady=(10, 5), padx=10)
+
+        title = ctk.CTkLabel(header_frame, text="Open Positions", font=("Arial", 16, "bold"))
+        title.pack(side="left")
+
+        if on_refresh_callback:
+            refresh_btn = ctk.CTkButton(
+                header_frame,
+                text="🔄 Refresh",
+                width=80,
+                height=24,
+                command=on_refresh_callback,
+                fg_color="#2B6CB0",
+                hover_color="#3182CE"
+            )
+            refresh_btn.pack(side="right")
 
         self.scroll_frame = ctk.CTkScrollableFrame(self, height=300)
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
     def update_positions(self, positions: List[Dict]):
+        print(f"[PositionsFrame] update_positions called with {len(positions) if positions else 0} positions")
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 

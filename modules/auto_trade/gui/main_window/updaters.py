@@ -25,11 +25,15 @@ class UpdaterManager:
 
         # PeriodicUpdater runs in background thread; callbacks use queue
         self.updaters["signal"] = PeriodicUpdater(self.parent._thread_refresh_signals, interval=30)
+        self.updaters["positions"] = PeriodicUpdater(self.parent._thread_refresh_positions, interval=10)
+        self.updaters["account"] = PeriodicUpdater(self.parent._thread_refresh_account, interval=15)
         self.updaters["stats"] = PeriodicUpdater(self.parent._thread_refresh_stats, interval=60)
 
         refresh_all()
 
         self.updaters["signal"].start()
+        self.updaters["positions"].start()
+        self.updaters["account"].start()
         self.updaters["stats"].start()
         self.parent.after(100, self._drain_update_queue)
 
@@ -44,6 +48,7 @@ class UpdaterManager:
                 if kind == "signals":
                     self.parent.signals_frame.update_signals(data)
                 elif kind == "positions":
+                    print(f"[UpdateQueue] Processing 'positions' update: {len(data) if data else 0} items")
                     self.parent.positions_frame.update_positions(data)
                 elif kind == "account" and data:
                     self.parent.account_frame.update_data(data)

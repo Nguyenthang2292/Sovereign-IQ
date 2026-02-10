@@ -452,7 +452,7 @@ class BinanceClient:
         Fetch current position for a symbol.
 
         Args:
-            symbol: Trading symbol
+            symbol: Trading symbol (any format: BTCUSDT, BTC/USDT, BTC/USDT:USDT)
 
         Returns:
             Position dict or None if not found
@@ -461,10 +461,17 @@ class BinanceClient:
             return {"symbol": symbol, "contracts": 0, "side": "long", "notional": 0}
 
         try:
+            from modules.common.domain.symbols import normalize_symbol_key
+
+            # Normalize input symbol for comparison (BTCUSDT, BTC/USDT, BTC/USDT:USDT -> BTCUSDT)
+            normalized_input = normalize_symbol_key(symbol)
+
             # fetch_positions might return a list of all positions or filtered by symbols depending on exchange
             positions: list = self.exchange.fetch_positions([symbol])
             for pos in positions:
-                if pos["symbol"] == symbol:
+                pos_symbol = pos.get("symbol", "")
+                # CCXT futures returns "BTC/USDT:USDT", normalize for comparison
+                if normalize_symbol_key(pos_symbol) == normalized_input:
                     return pos
             return None
         except Exception as e:

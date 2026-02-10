@@ -55,6 +55,10 @@ class WebSocketHandler:
         """Update position display in GUI (runs in main thread)."""
         positions_list = self._convert_positions_to_dicts(self.parent.ws_data_service.get_positions())
 
+        print(f"[WebSocket] Position update: {len(positions_list)} positions to display")
+        for p in positions_list:
+            print(f"  - {p['symbol']} {p['side']}: size={p['size']}, entry={p['entry_price']}, pnl={p['pnl']:.2f}")
+
         if hasattr(self.parent, "positions_frame"):
             self.parent.positions_frame.update_positions(positions_list)
 
@@ -68,11 +72,20 @@ class WebSocketHandler:
 
     def _update_balance_display(self, balance: BalanceSnapshot):
         """Update balance display in GUI (keys must match AccountFrame.update_data)."""
+        # Calculate total unrealized P&L from all positions
+        unrealized_pnl = 0.0
+        try:
+            positions = self.parent.ws_data_service.get_positions()
+            for pos in positions:
+                unrealized_pnl += pos.unrealized_pnl
+        except Exception as e:
+            print(f"[WebSocket] Could not calculate unrealized P&L: {e}")
+
         account_data = {
             "balance": balance.total,
             "available": balance.free,
             "margin_used": balance.used,
-            "unrealized_pnl": 0.0,
+            "unrealized_pnl": unrealized_pnl,
             "daily_pnl": 0.0,
             "daily_pnl_percent": 0.0,
         }
@@ -106,16 +119,89 @@ class WebSocketHandler:
 
     def _convert_positions_to_dicts(self, positions) -> list:
         """Convert PositionSnapshot objects to dict format for UI."""
-        return [
-            {
+        result = []
+        for p in positions:
+            # Fetch TP/SL/BE from Binance and sync to DB
+            take_profit = None
+            stop_loss = None
+            break_even = None
+
+            print(f"[WebSocket] Syncing TP/SL/BE for {p.symbol}...")
+
+            # Use TPSLSyncService for bidirectional sync
+            if hasattr(self.parent, 'data_service'):
+                try:
+                    from modules.auto_trade.execution.binance_client import BinanceClient
+                    from modules.auto_trade.gui.utils.tp_sl_sync import TPSLSyncService
+
+                    # Create client
+                    client = BinanceClient(
+                        api_key=self.parent.data_service.api_key,
+                        api_secret=self.parent.data_service.api_secret,
+                        testnet=self.parent.data_service.testnet,
+                        dry_run=False,
+                    )
+
+                    # Fetch from Binance and sync to DB in one call
+                    if self.parent.data_service.database_manager:
+                        with self.parent.data_service.database_manager.session_scope() as session:
+                            result = TPSLSyncService.sync_position_tp_sl(
+                                client=client,
+                                session=session,
+                                symbol=p.symbol,
+                                side=p.side,
+                                entry_price=p.entry_price
+                            )
+
+                            take_profit = result.get("take_profit")
+                            stop_loss = result.get("stop_loss")
+                            break_even = result.get("break_even")
+
+                            print(f"[WebSocket] ✅ Synced {p.symbol}: TP=${take_profit}, SL=${stop_loss}, BE=${break_even}")
+                    else:
+                        # No DB, fetch from Binance only
+                        tp, sl, _ = TPSLSyncService.fetch_tp_sl_from_binance(client, p.symbol)
+                        take_profit = tp
+                        stop_loss = sl
+                        break_even = TPSLSyncService.detect_break_even(p.entry_price, sl, p.side)
+                        print(f"[WebSocket] Fetched {p.symbol}: TP=${take_profit}, SL=${stop_loss} (no DB sync)")
+
+                except Exception as e:
+                    print(f"[WebSocket] Sync failed for {p.symbol}: {e}")
+
+                    # Fallback to DB-only if everything fails
+                    if hasattr(self.parent, 'data_service') and self.parent.data_service.database_manager:
+                        try:
+                            from modules.auto_trade.database.models import Order
+                            with self.parent.data_service.database_manager.session_scope() as session:
+                                db_orders = session.query(Order).filter(
+                                    Order.symbol == p.symbol,
+                                    Order.status == "OPEN"
+                                ).order_by(Order.created_at.desc()).all()
+
+                                if db_orders:
+                                    order = db_orders[0]
+                                    take_profit = order.take_profit
+                                    stop_loss = order.stop_loss
+                                    be_moved_flag = getattr(order, 'be_moved', False)
+                                    if be_moved_flag is True and stop_loss is not None:
+                                        break_even = stop_loss
+                                    print(f"[WebSocket]   Fallback to DB-only: TP={take_profit}, SL={stop_loss}")
+                        except Exception as db_err:
+                            print(f"[WebSocket]   DB fallback failed: {db_err}")
+
+            result.append({
                 "symbol": p.symbol,
                 "side": p.side.upper(),
                 "size": p.position_amt,
                 "entry_price": p.entry_price,
-                "mark_price": p.mark_price,
+                "current_price": p.mark_price,  # PositionsFrame expects "current_price"
                 "pnl": p.unrealized_pnl,
                 "pnl_percent": p.unrealized_pnl_percent,
                 "leverage": p.leverage,
-            }
-            for p in positions
-        ]
+                "take_profit": take_profit,
+                "stop_loss": stop_loss,
+                "break_even": break_even,
+            })
+
+        return result

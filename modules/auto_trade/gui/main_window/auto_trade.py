@@ -48,8 +48,21 @@ class AutoTradeManager:
 
     def start(self):
         """Start auto-trading loop, periodic Binance reconcile, and updaters."""
-        from .updaters import UpdaterManager
         from modules.auto_trade.monitoring.event_system import EventType
+
+        from .updaters import UpdaterManager
+
+        # Check for existing positions at startup
+        try:
+            positions = self.parent.data_service.get_positions()
+            if positions:
+                print(f"[AutoTrade] Startup: Found {len(positions)} existing position(s) on Binance")
+                for pos in positions:
+                    print(f"  - {pos.get('symbol')} {pos.get('side')}: {pos.get('size')} @ {pos.get('entry_price')}")
+            else:
+                print("[AutoTrade] Startup: No existing positions on Binance")
+        except Exception as e:
+            print(f"[AutoTrade] Startup: Could not check positions: {e}")
 
         updater = UpdaterManager(self.parent)
         self.updater = updater
@@ -197,7 +210,10 @@ class AutoTradeManager:
 
             # Signals are "fresh" if created within this many seconds (5 minutes)
             FRESH_SIGNAL_MAX_AGE_SECONDS = 300
-            signals = self.parent.data_service.get_signals(min_score=0.7)
+            min_score = self.parent.settings_manager.get("filters.min_signal_score", 0.7)
+            print(f"[AutoTrade] Checking for signals (min_score={min_score})...")
+            signals = self.parent.data_service.get_signals(min_score=min_score)
+            print(f"[AutoTrade] Found {len(signals) if signals else 0} total signals")
             now = time.time()
             fresh_signals = [
                 s
@@ -205,26 +221,34 @@ class AutoTradeManager:
                 if isinstance(s.get("created_at_ts"), (int, float))
                 and (now - float(s["created_at_ts"])) < FRESH_SIGNAL_MAX_AGE_SECONDS
             ]
+            print(f"[AutoTrade] Filtered to {len(fresh_signals)} fresh signals (<5 minutes old)")
             if not fresh_signals:
-                print("No fresh signals for auto-trade (<5 minutes)")
+                print("[AutoTrade] No fresh signals for auto-trade (<5 minutes)")
                 return
             fresh_signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)
             best = fresh_signals[0]
-            print(f"Auto-trade selected: {best.get('symbol')} (score={float(best.get('score', 0)):.2f})")
+            print(f"[AutoTrade] Selected best signal: {best.get('symbol')} (score={float(best.get('score', 0)):.2f})")
 
-            default_position_size = self.parent.settings_manager.get("trading.default_position_size", 100.0)
-            default_leverage = self.parent.settings_manager.get("trading.default_leverage", 2)
+            default_position_size = self.parent.settings_manager.get("risk.max_position_size", 100.0)
+            default_leverage_str = self.parent.settings_manager.get("risk.default_leverage", "10x")
+            # Parse leverage string (e.g. "3x" -> 3)
+            try:
+                default_leverage = int(str(default_leverage_str).replace("x", "").strip())
+            except (ValueError, AttributeError):
+                default_leverage = 2
 
             from .risk_manager import RiskManager
 
             risk_manager = RiskManager(self.parent)
+            print(f"[AutoTrade] Checking risk limits (pos_size=${default_position_size}, leverage={default_leverage}x)...")
             if not risk_manager.check_limits(
                 symbol=str(best.get("symbol") or ""),
                 position_size=default_position_size,
                 leverage=default_leverage,
             ):
-                print("Risk limits exceeded, skipping trade")
+                print("[AutoTrade] ❌ Risk limits exceeded, skipping trade")
                 return
+            print("[AutoTrade] ✅ Risk limits OK, proceeding with execution...")
 
             sig_dict = {
                 "symbol": best.get("symbol"),
@@ -233,13 +257,24 @@ class AutoTradeManager:
                 "created_at_ts": best.get("created_at_ts", 0.0),
             }
             tp_sl = self.parent.settings_manager.get("tp_sl", {}) or {}
-            executor = OrderExecutor()
+
+            # Pass credentials from DataService (not env vars)
+            ds = self.parent.data_service
+            executor = OrderExecutor(
+                api_key=ds.api_key,
+                api_secret=ds.api_secret,
+                testnet=ds.testnet,
+                dry_run=(getattr(self.parent, "mode", "DRY_RUN") == "DRY_RUN"),
+            )
             result = executor.execute_from_signal(sig_dict, tp_sl_settings=tp_sl)
 
             if result and result.get("success"):
-                print(f"Auto-trade executed: {sig_dict['symbol']}")
+                print(f"✅ Auto-trade executed: {sig_dict['symbol']}")
                 self.parent.after(0, self.parent.refresh_positions)
                 self.parent.after(0, self.parent.refresh_account)
+            else:
+                error_msg = result.get("error", "Unknown error") if result else "No result returned"
+                print(f"❌ Auto-trade FAILED for {sig_dict['symbol']}: {error_msg}")
 
         except Exception as e:
             print(f"Error in auto-trade cycle: {e}")

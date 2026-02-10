@@ -306,17 +306,38 @@ class ScannerManager:
             scan_skipped = False
             open_count = 0
 
-            # Gate: skip expensive scan (Gemini) when already at max open positions (DB)
+            # Gate: skip expensive scan (Gemini) when already at max open positions
+            # Check BOTH database AND Binance positions for accuracy
             if self.parent.mode in ["PRODUCTION", "DEMO"]:
                 try:
-                    from modules.auto_trade.database import get_open_positions, session_scope
-
                     max_open = self.parent.settings_manager.get("risk.max_open_positions", 3)
                     if not isinstance(max_open, int) or max_open <= 0:
                         max_open = 1
-                    with session_scope() as session:
-                        open_orders = get_open_positions(session)
-                        open_count = len(open_orders)
+
+                    # Check database positions
+                    db_open_count = 0
+                    try:
+                        from modules.auto_trade.database import get_open_positions, session_scope
+                        with session_scope() as session:
+                            open_orders = get_open_positions(session)
+                            db_open_count = len(open_orders)
+                    except Exception as e:
+                        logger.warning(f"Could not check DB positions: {e}")
+
+                    # Check live Binance positions (source of truth for PRODUCTION/DEMO)
+                    binance_open_count = 0
+                    try:
+                        positions = self.parent.data_service.get_positions()
+                        if positions:
+                            binance_open_count = len(positions)
+                    except Exception as e:
+                        logger.warning(f"Could not check Binance positions: {e}")
+
+                    # Use the HIGHER count (most conservative check)
+                    open_count = max(db_open_count, binance_open_count)
+
+                    logger.info(f"Position check: DB={db_open_count}, Binance={binance_open_count}, Using={open_count}")
+
                     if open_count >= max_open:
                         scan_skipped = True
                         logger.info(

@@ -52,11 +52,21 @@ class OrderExecutor:
             Dict with "success" (bool) and optional "error" or order details.
         """
         try:
+            print(f"[OrderExecutor] execute_from_signal called for {signal_dict.get('symbol')}")
             if not self._api_key or not self._api_secret:
+                print("[OrderExecutor] ERROR: API credentials not set")
                 return {"success": False, "error": "API credentials not set"}
 
-            symbol: str = signal_dict.get("symbol", "").replace("USDT", "/USDT")
-            if not symbol.endswith("/USDT"):
+            # Normalize symbol to CCXT format (BTC/USDT)
+            symbol: str = signal_dict.get("symbol", "").strip()
+            if "/" in symbol:
+                # Already in CCXT format (e.g. "BTC/USDT")
+                pass
+            elif symbol.endswith("USDT"):
+                # Binance format (e.g. "BTCUSDT") - insert slash
+                symbol = symbol.replace("USDT", "/USDT")
+            else:
+                # Missing quote currency - add /USDT
                 symbol = f"{symbol}/USDT"
             signal_type: str = (signal_dict.get("signal") or "LONG").upper()
             if signal_type not in ("LONG", "SHORT"):
@@ -74,9 +84,11 @@ class OrderExecutor:
                 testnet=self._testnet,
                 dry_run=self._dry_run,
             )
-            ticker: dict = client.exchange.fetch_ticker(symbol)
+            print(f"[OrderExecutor] Fetching ticker for {symbol}...")
+            ticker: Any = client.exchange.fetch_ticker(symbol)
             entry: float = float(ticker.get("last", 0) or 0)
             if entry <= 0:
+                print(f"[OrderExecutor] ERROR: Could not get current price for {symbol}")
                 return {"success": False, "error": "Could not get current price"}
 
             tp_pct: float = 5.0
@@ -114,11 +126,17 @@ class OrderExecutor:
                 testnet=self._testnet,
                 dry_run=self._dry_run,
             )
+            print(f"[OrderExecutor] Calling OrderManager.execute_signal for {symbol} {signal_type}...")
             result: Optional[dict] = manager.execute_signal(final_signal)
             if result is None:
+                print("[OrderExecutor] OrderManager returned None (execution skipped or failed)")
                 return {"success": False, "error": "Execution skipped or failed"}
+            print(f"[OrderExecutor] OrderManager returned success: {result}")
             return {"success": True, **result}
         except Exception as e:
+            print(f"[OrderExecutor] EXCEPTION in execute_from_signal: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             return {"success": False, "error": str(e)}
 
     def place_order(
@@ -148,7 +166,13 @@ class OrderExecutor:
             if not self._api_key or not self._api_secret:
                 return {"success": False, "error": "API credentials not set"}
 
-            sym: str = symbol.replace("USDT", "/USDT") if "/" not in symbol else symbol
+            # Normalize symbol to CCXT format
+            sym: str = symbol.strip()
+            if "/" not in sym:
+                if sym.endswith("USDT"):
+                    sym = sym.replace("USDT", "/USDT")
+                else:
+                    sym = f"{sym}/USDT"
             side_lower: str = side.lower()
             side_val: Literal["BUY", "SELL"] = "BUY" if side_lower in ("long", "buy") else "SELL"
 

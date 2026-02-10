@@ -13,6 +13,7 @@ class SettingsManager:
 
     DEFAULT_SETTINGS = {
         "risk": {
+            "limits_enabled": True,
             "max_position_size": 100.0,
             "max_open_positions": 1,
             "max_daily_loss": 100.0,

@@ -129,7 +129,7 @@ def get_orders_cursor(
     order_source: str = "PROGRAMMATIC",
     status: Optional[str] = None,
     symbol: Optional[str] = None,
-) -> List[Order]:
+) -> List[Dict[str, Any]]:
     """
     Fetch orders using cursor-based pagination (more performant for large datasets).
 
@@ -144,7 +144,7 @@ def get_orders_cursor(
         symbol: Optional symbol filter
 
     Returns:
-        List of Order objects
+        List of Order dicts (converted via to_dict() to avoid DetachedInstanceError)
     """
     query = session.query(Order).filter(Order.order_source == order_source)
 
@@ -157,7 +157,10 @@ def get_orders_cursor(
     if symbol:
         query = query.filter(Order.symbol == symbol)
 
-    return query.order_by(desc(Order.id)).limit(limit).all()
+    orders = query.order_by(desc(Order.id)).limit(limit).all()
+    
+    # Convert to dicts while still in session to avoid DetachedInstanceError
+    return [order.to_dict() for order in orders]
 
 
 def is_programmatic_order(session: Session, order_id: str) -> bool:

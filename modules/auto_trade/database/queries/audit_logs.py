@@ -18,6 +18,7 @@ Functions:
 from ._shared import (
     Any,
     AuditLog,
+    Dict,
     List,
     Optional,
     Session,
@@ -102,7 +103,7 @@ def get_audit_log_cursor(
     limit: int = 50,
     event_type: Optional[str] = None,
     severity: Optional[str] = None,
-) -> List[AuditLog]:
+) -> List[Dict[str, Any]]:
     """
     Fetch audit log entries using cursor-based pagination.
 
@@ -116,7 +117,7 @@ def get_audit_log_cursor(
         severity: Optional severity filter
 
     Returns:
-        List of AuditLog objects
+        List of AuditLog dicts (converted via to_dict() to avoid DetachedInstanceError)
     """
     query = session.query(AuditLog)
 
@@ -129,7 +130,10 @@ def get_audit_log_cursor(
     if severity:
         query = query.filter(AuditLog.severity == severity)
 
-    return query.order_by(desc(AuditLog.id)).limit(limit).all()
+    logs = query.order_by(desc(AuditLog.id)).limit(limit).all()
+    
+    # Convert to dicts while still in session to avoid DetachedInstanceError
+    return [log.to_dict() for log in logs]
 
 
 __all__ = [

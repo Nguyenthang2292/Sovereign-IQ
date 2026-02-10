@@ -175,11 +175,45 @@ class DataService:
                 unrealized_pnl = 0.0
 
                 if positions:
+                    # Create BinanceClient once for all positions (efficient)
+                    client = None
+                    try:
+                        from modules.auto_trade.execution.binance_client import BinanceClient
+                        client = BinanceClient(
+                            api_key=self.api_key,
+                            api_secret=self.api_secret,
+                            testnet=self.testnet,
+                            dry_run=False,
+                        )
+                    except Exception as e:
+                        print(f"[DataService] Could not create BinanceClient: {e}")
+
                     for pos in positions:
+                        contracts = float(pos.get("contracts", 0))
+                        if contracts == 0:
+                            continue
+
                         # size_usdt contains the position value in USDT
                         margin_used += float(pos.get("size_usdt", 0))
-                        # Note: unrealized PnL calculation would require current prices
-                        # For now, we'll leave it at 0.0
+
+                        # Calculate unrealized PnL with current mark price
+                        symbol = pos.get("symbol", "")
+                        entry_price = float(pos.get("entry_price", 0))
+                        direction = pos.get("direction", "LONG").upper()
+
+                        if client:
+                            try:
+                                ticker = client.exchange.fetch_ticker(symbol)
+                                mark_price = float(ticker.get("info", {}).get("markPrice") or ticker.get("last") or entry_price)
+
+                                if direction == "LONG":
+                                    pos_pnl = (mark_price - entry_price) * abs(contracts)
+                                else:
+                                    pos_pnl = (entry_price - mark_price) * abs(contracts)
+
+                                unrealized_pnl += pos_pnl
+                            except Exception as e:
+                                print(f"[DataService] Could not calc P&L for {symbol}: {e}")
 
                 return {
                     "balance": balance if balance else 0.0,
@@ -221,7 +255,11 @@ class DataService:
                 positions = self.data_fetcher.fetch_binance_futures_positions(
                     api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
                 )
-                open_positions = len(positions) if positions else 0
+                # Filter only positions with non-zero contracts (same as get_positions)
+                if positions:
+                    open_positions = len([p for p in positions if float(p.get("contracts", 0)) != 0])
+                else:
+                    open_positions = 0
             elif self.mode == "DRY_RUN":
                 try:
                     from modules.auto_trade.gui.utils.dry_run_db import DryRunDB
@@ -353,6 +391,11 @@ class DataService:
                         else:
                             pnl = (entry_price - current_price) * size
 
+                        # DRY_RUN mode also has TP/SL/BE in database
+                        take_profit = pos.get("take_profit")
+                        stop_loss = pos.get("stop_loss")
+                        break_even = pos.get("break_even")
+
                         filtered_positions.append(
                             {
                                 "symbol": symbol,
@@ -361,6 +404,9 @@ class DataService:
                                 "entry_price": entry_price,
                                 "current_price": current_price,
                                 "pnl": pnl,
+                                "take_profit": take_profit,
+                                "stop_loss": stop_loss,
+                                "break_even": break_even,
                             }
                         )
 
@@ -372,6 +418,22 @@ class DataService:
                 positions = self.data_fetcher.fetch_binance_futures_positions(
                     api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
                 )
+                print(f"[DataService] Fetched {len(positions) if positions else 0} positions from Binance")
+                for p in (positions or []):
+                    print(f"  - {p.get('symbol')}: {p.get('contracts')} contracts, direction={p.get('direction')}")
+
+                # Create BinanceClient once for all positions (efficient)
+                client = None
+                try:
+                    from modules.auto_trade.execution.binance_client import BinanceClient
+                    client = BinanceClient(
+                        api_key=self.api_key,
+                        api_secret=self.api_secret,
+                        testnet=self.testnet,
+                        dry_run=False,
+                    )
+                except Exception as e:
+                    print(f"[DataService] Could not create BinanceClient for price fetching: {e}")
 
                 filtered_positions = []
                 for pos in positions:
@@ -383,17 +445,73 @@ class DataService:
 
                     side = pos.get("direction", "LONG").upper()
                     entry_price = float(pos.get("entry_price", 0))
+                    symbol = pos.get("symbol", "")
 
-                    # For current price, we'd need to fetch from market data
-                    # For now, use entry price as placeholder
-                    current_price = entry_price
+                    # Fetch current mark price from exchange for accurate P&L
+                    current_price = entry_price  # Fallback
+                    if client:
+                        try:
+                            ticker = client.exchange.fetch_ticker(symbol)
+                            # Use mark price for futures (more accurate than last price)
+                            current_price = float(ticker.get("info", {}).get("markPrice") or ticker.get("last") or entry_price)
+                        except Exception as e:
+                            print(f"[DataService] Could not fetch mark price for {symbol}: {e}")
 
-                    # Calculate PnL (simplified - would need current market price for accuracy)
+                    # Calculate PnL with current market price
                     pnl = 0.0
                     if side == "LONG":
                         pnl = (current_price - entry_price) * abs(contracts)
                     else:
                         pnl = (entry_price - current_price) * abs(contracts)
+
+                    # Fetch TP/SL/BE from Binance and sync to DB
+                    take_profit = None
+                    stop_loss = None
+                    break_even = None
+
+                    if client and self.database_manager:
+                        try:
+                            from modules.auto_trade.gui.utils.tp_sl_sync import TPSLSyncService
+
+                            # Fetch from Binance and sync to DB in one call
+                            with self.database_manager.session_scope() as session:
+                                result = TPSLSyncService.sync_position_tp_sl(
+                                    client=client,
+                                    session=session,
+                                    symbol=symbol,
+                                    side=side,
+                                    entry_price=entry_price
+                                )
+
+                                take_profit = result.get("take_profit")
+                                stop_loss = result.get("stop_loss")
+                                break_even = result.get("break_even")
+
+                                print(f"[DataService] Synced TP/SL for {symbol}: TP=${take_profit}, SL=${stop_loss}, BE=${break_even}")
+
+                        except Exception as e:
+                            print(f"[DataService] Could not sync TP/SL for {symbol}: {e}")
+
+                            # Fallback to DB-only if sync fails
+                            if self.database_manager:
+                                try:
+                                    from modules.auto_trade.database.models import Order
+                                    with self.database_manager.session_scope() as session:
+                                        db_orders = session.query(Order).filter(
+                                            Order.symbol == symbol,
+                                            Order.status == "OPEN"
+                                        ).order_by(Order.created_at.desc()).all()
+
+                                        if db_orders:
+                                            order = db_orders[0]
+                                            take_profit = order.take_profit
+                                            stop_loss = order.stop_loss
+                                            be_moved_flag = getattr(order, 'be_moved', False)
+                                            if be_moved_flag is True and stop_loss is not None:
+                                                break_even = stop_loss
+                                            print(f"[DataService]   Fallback to DB: TP={take_profit}, SL={stop_loss}")
+                                except Exception as db_err:
+                                    print(f"[DataService]   DB fallback failed: {db_err}")
 
                     filtered_positions.append(
                         {
@@ -403,9 +521,13 @@ class DataService:
                             "entry_price": entry_price,
                             "current_price": current_price,
                             "pnl": pnl,
+                            "take_profit": take_profit,
+                            "stop_loss": stop_loss,
+                            "break_even": break_even,
                         }
                     )
 
+                print(f"[DataService] After filtering: {len(filtered_positions)} positions to display")
                 return filtered_positions
             return []
         except Exception as e:

@@ -28,6 +28,8 @@ class RiskManager:
         - Leverage limits
         - Account balance
         """
+        if not self.parent.settings_manager.get("risk.limits_enabled", True):
+            return True
         try:
             positions = self.parent.data_service.get_positions()
             if positions is None:
@@ -146,14 +148,19 @@ class RiskManager:
 
     def _check_symbol_limit(self, positions: list, symbol: str) -> bool:
         """Check per-symbol position limit."""
+        from modules.common.domain.symbols import normalize_symbol_key
+
         max_per_symbol = self.parent.settings_manager.get("risk.max_positions_per_symbol", 1)
 
         if not isinstance(max_per_symbol, int) or max_per_symbol <= 0:
             print(f"Error: Invalid max_positions_per_symbol: {max_per_symbol}, using default 1")
             max_per_symbol = 1
 
+        # Normalize both sides for comparison (BTCUSDT and BTC/USDT should match)
+        normalized_input = normalize_symbol_key(symbol)
         symbol_positions = [
-            p for p in positions if p.get("symbol", "").replace("USDT", "/USDT") == symbol or p.get("symbol") == symbol
+            p for p in positions
+            if normalize_symbol_key(p.get("symbol", "")) == normalized_input
         ]
 
         if len(symbol_positions) >= max_per_symbol:

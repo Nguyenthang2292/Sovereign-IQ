@@ -290,6 +290,13 @@ class AutoTradeDashboard(ctk.CTk):
         signals = self.data_service.get_signals()
         self._update_queue.put(("signals", signals))
 
+    def _thread_refresh_positions(self):
+        """Thread-safe positions refresh."""
+        print("[MainWindow] _thread_refresh_positions called")
+        positions = self.data_service.get_positions()
+        print(f"[MainWindow] data_service.get_positions() returned {len(positions) if positions else 0} positions")
+        self._update_queue.put(("positions", positions))
+
     def _thread_refresh_account(self):
         """Thread-safe account refresh."""
         data = self.data_service.get_account_data()

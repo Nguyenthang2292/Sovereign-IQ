@@ -16,6 +16,8 @@ Functions:
 """
 
 from ._shared import (
+    Any,
+    Dict,
     List,
     MartingaleChain,
     Optional,
@@ -145,7 +147,7 @@ def get_martingale_chains_cursor(
     session: Session,
     last_id: Optional[int] = None,
     limit: int = 50,
-) -> List[MartingaleChain]:
+) -> List[Dict[str, Any]]:
     """
     Fetch Martingale chains using cursor-based pagination.
 
@@ -157,12 +159,16 @@ def get_martingale_chains_cursor(
         limit: Maximum number of chains to return
 
     Returns:
-        List of MartingaleChain objects
+        List of MartingaleChain dicts (converted via to_dict() to avoid DetachedInstanceError)
     """
     query = session.query(MartingaleChain)
     if last_id:
         query = query.filter(MartingaleChain.id < last_id)
-    return query.order_by(desc(MartingaleChain.id)).limit(limit).all()
+    
+    chains = query.order_by(desc(MartingaleChain.id)).limit(limit).all()
+    
+    # Convert to dicts while still in session to avoid DetachedInstanceError
+    return [chain.to_dict() for chain in chains]
 
 
 __all__ = [

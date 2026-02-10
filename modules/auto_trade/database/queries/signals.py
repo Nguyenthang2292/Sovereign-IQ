@@ -205,7 +205,7 @@ def get_signals_cursor(
     limit: int = 50,
     symbol: Optional[str] = None,
     executed: Optional[bool] = None,
-) -> List[Signal]:
+) -> List[Dict[str, Any]]:
     """
     Fetch signals using cursor-based pagination.
 
@@ -219,7 +219,7 @@ def get_signals_cursor(
         executed: Optional executed filter
 
     Returns:
-        List of Signal objects
+        List of Signal dicts (converted via to_dict() to avoid DetachedInstanceError)
     """
     query = session.query(Signal)
 
@@ -232,7 +232,10 @@ def get_signals_cursor(
     if executed is not None:
         query = query.filter(Signal.executed == executed)
 
-    return query.order_by(desc(Signal.id)).limit(limit).all()
+    signals = query.order_by(desc(Signal.id)).limit(limit).all()
+    
+    # Convert to dicts while still in session to avoid DetachedInstanceError
+    return [signal.to_dict() for signal in signals]
 
 
 __all__ = [

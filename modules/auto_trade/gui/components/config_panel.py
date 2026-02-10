@@ -64,6 +64,13 @@ class ConfigPanel(ctk.CTkFrame):
 
         ctk.CTkLabel(risk_frame, text="Risk Management", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 15))
 
+        self.risk_limits_enabled_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(
+            risk_frame,
+            text="Enable risk limits (max exposure, daily loss, positions, etc.)",
+            variable=self.risk_limits_enabled_var,
+        ).pack(anchor="w", pady=(0, 10))
+
         # Max position size
         label = ctk.CTkLabel(risk_frame, text="Max Position Size ($):", font=("Arial", 12))
         label.pack(anchor="w", pady=(5, 2))
@@ -909,6 +916,7 @@ class ConfigPanel(ctk.CTkFrame):
 
             return {
                 "risk": {
+                    "limits_enabled": self.risk_limits_enabled_var.get(),
                     "max_position_size": max_position_size,
                     "max_open_positions": max_open_positions,
                     "max_daily_loss": max_daily_loss,
@@ -944,6 +952,7 @@ class ConfigPanel(ctk.CTkFrame):
             # Return safe defaults
             return {
                 "risk": {
+                    "limits_enabled": True,
                     "max_position_size": 100.0,
                     "max_open_positions": 3,
                     "max_daily_loss": 50.0,
@@ -974,6 +983,8 @@ class ConfigPanel(ctk.CTkFrame):
         """Load settings into UI"""
         if "risk" in settings:
             risk = settings["risk"]
+            if hasattr(self, "risk_limits_enabled_var"):
+                self.risk_limits_enabled_var.set(risk.get("limits_enabled", True))
             self.max_pos_size_entry.delete(0, "end")
             self.max_pos_size_entry.insert(0, str(risk.get("max_position_size", 100.0)))
             self.max_positions_entry.delete(0, "end")

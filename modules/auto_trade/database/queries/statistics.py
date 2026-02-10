@@ -65,21 +65,33 @@ def get_daily_stats(session: Session, days: int = 30) -> List[Dict[str, Any]]:
         if row.date is None:
             continue
 
+        # Handle date conversion (may already be string or date object)
+        if isinstance(row.date, str):
+            date_str = row.date
+        elif hasattr(row.date, 'isoformat'):
+            date_str = row.date.isoformat()
+        else:
+            date_str = str(row.date)
+
+        total_trades = int(row.total_trades or 0)
+        winning_trades = int(row.winning_trades or 0)
+        total_pnl = float(row.total_pnl or 0)
+
         stats = {
-            "date": row.date.isoformat(),
-            "total_trades": row.total_trades or 0,
-            "winning_trades": row.winning_trades or 0,
-            "losing_trades": row.losing_trades or 0,
-            "total_pnl": float(row.total_pnl or 0),
+            "date": date_str,
+            "total_trades": total_trades,
+            "winning_trades": winning_trades,
+            "losing_trades": int(row.losing_trades or 0),
+            "total_pnl": total_pnl,
             "total_fees": float(row.total_fees or 0),
             "best_trade": float(row.best_trade or 0),
             "worst_trade": float(row.worst_trade or 0),
         }
 
         # Calculate averages
-        if stats["total_trades"] > 0:
-            stats["avg_pnl"] = stats["total_pnl"] / stats["total_trades"]
-            stats["win_rate"] = (stats["winning_trades"] / stats["total_trades"]) * 100
+        if total_trades > 0:
+            stats["avg_pnl"] = total_pnl / total_trades
+            stats["win_rate"] = (winning_trades / total_trades) * 100
         else:
             stats["avg_pnl"] = 0.0
             stats["win_rate"] = 0.0

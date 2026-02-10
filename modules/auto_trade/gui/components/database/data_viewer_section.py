@@ -27,6 +27,8 @@ class DataViewerSection:
         self._last_page_count = 0  # number of items on last fetch (to detect end)
         self._empty_state_widget: Optional[EmptyState] = None
         self._create_ui()
+        # Load initial data after UI is created
+        self.parent.after(100, self.refresh)
 
     def _create_ui(self):
         """Create the data viewer section UI."""
@@ -39,17 +41,33 @@ class DataViewerSection:
         ctk.CTkLabel(header_frame, text="📂 Data Viewer", font=DatabasePanelConfig.TITLE_FONT).pack(side="left")
 
         self.table_selector = ctk.CTkOptionMenu(
-            header_frame, values=list(DatabasePanelConfig.AVAILABLE_TABLES), command=self._on_table_changed
+            header_frame,
+            values=list(DatabasePanelConfig.AVAILABLE_TABLES),
+            command=self._on_table_changed
         )
+        self.table_selector.set(self.current_table)  # Set initial value to match current_table
         self.table_selector.pack(side="right")
 
         self.content_frame = ctk.CTkFrame(frame, fg_color="transparent")
         self.content_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
         self.data_viewer = ctk.CTkTextbox(
-            self.content_frame, height=DatabasePanelConfig.DATA_VIEWER_HEIGHT, font=DatabasePanelConfig.TEXTBOX_FONT
+            self.content_frame, 
+            height=DatabasePanelConfig.DATA_VIEWER_HEIGHT, 
+            font=DatabasePanelConfig.TEXTBOX_FONT,
+            wrap="none",  # Disable word wrap for table display
+            state="normal"  # Ensure textbox is editable/writable
         )
         self.data_viewer.pack(fill="both", expand=True)
+        print(f"[DataViewer] Textbox created with font={DatabasePanelConfig.TEXTBOX_FONT}")
+        
+        # Test textbox is working
+        try:
+            test_msg = "📂 Data Viewer initialized. Loading data...\n"
+            self.data_viewer.insert("1.0", test_msg)
+            print(f"[DataViewer] Initial test insert successful: {len(test_msg)} chars")
+        except Exception as e:
+            print(f"[DataViewer] ERROR in initial test insert: {e}")
 
         pagination_frame = ctk.CTkFrame(frame, fg_color="transparent")
         pagination_frame.pack(fill="x", padx=10, pady=5)
@@ -58,13 +76,25 @@ class DataViewerSection:
         self.prev_btn.pack(side="left")
 
         self.page_label = ctk.CTkLabel(pagination_frame, text=f"Page {self.current_page}/{self.total_pages}")
-        self.page_label.pack(side="left", fill="x", expand=True)
+        self.page_label.pack(side="left", padx=10)
+        
+        # Force Reload button for debugging
+        self.reload_btn = ctk.CTkButton(
+            pagination_frame, 
+            text="🔄 Force Reload", 
+            width=120, 
+            command=self._force_reload,
+            fg_color="#2B6CB0",
+            hover_color="#3182CE"
+        )
+        self.reload_btn.pack(side="left", padx=5)
 
         self.next_btn = ctk.CTkButton(pagination_frame, text="Next >", width=80, command=self._next_page)
         self.next_btn.pack(side="right")
 
     def _on_table_changed(self, value):
         """Handle table selection change."""
+        print(f"[DataViewer] Table changed to: {value}")
         self.current_table = value
         self.current_page = 1
         self._page_cursors = [None]
@@ -81,24 +111,71 @@ class DataViewerSection:
         if self.current_page < self.total_pages:
             self.current_page += 1
             self.refresh()
+    
+    def _force_reload(self):
+        """Force reload with detailed diagnostics."""
+        print("\n" + "="*80)
+        print("[DataViewer] FORCE RELOAD TRIGGERED")
+        print("="*80)
+        
+        # Check textbox state
+        print(f"[DataViewer] Textbox widget: {self.data_viewer}")
+        print(f"[DataViewer] Textbox is mapped: {self.data_viewer.winfo_ismapped()}")
+        print(f"[DataViewer] Textbox is visible: {self.data_viewer.winfo_viewable()}")
+        print(f"[DataViewer] Textbox width x height: {self.data_viewer.winfo_width()} x {self.data_viewer.winfo_height()}")
+        
+        # Check current content
+        current_content = self.data_viewer.get("1.0", "end")
+        print(f"[DataViewer] Current textbox content length: {len(current_content)} chars")
+        print(f"[DataViewer] First 200 chars: {current_content[:200]}")
+        
+        # Test insert
+        print(f"[DataViewer] Testing textbox insert...")
+        try:
+            test_text = "=== FORCE RELOAD TEST ===\nThis is a test message.\n"
+            self.data_viewer.delete("1.0", "end")
+            self.data_viewer.insert("1.0", test_text)
+            print(f"[DataViewer] Test insert successful")
+            
+            # Verify insert
+            verify_content = self.data_viewer.get("1.0", "end")
+            print(f"[DataViewer] Verify content length: {len(verify_content)} chars")
+            print(f"[DataViewer] Verify content: {verify_content[:100]}")
+        except Exception as test_err:
+            print(f"[DataViewer] ERROR in test insert: {test_err}")
+            import traceback
+            traceback.print_exc()
+        
+        # Now try real refresh
+        print(f"[DataViewer] Calling refresh()...")
+        self.refresh()
+        print("="*80 + "\n")
 
     def refresh(self):
         """Refresh the data viewer with current page data (cursor-based pagination)."""
         try:
             table_name = self.table_selector.get()
+            print(f"[DataViewer] Refreshing table: {table_name}, page: {self.current_page}")
             last_id: Optional[int] = (
                 self._page_cursors[self.current_page - 1] if self.current_page <= len(self._page_cursors) else None
             )
 
             total_count = self._get_table_count(None, table_name)
+            print(f"[DataViewer] Total count for {table_name}: {total_count}")
             self.total_pages = max(1, (total_count + self.page_size - 1) // self.page_size)
             self.page_label.configure(text=f"Page {self.current_page}/{self.total_pages}")
 
             data = self._query_table_data_cursor(None, table_name, self.page_size, last_id)
+            print(f"[DataViewer] Query returned {len(data)} items")
             self._last_page_count = len(data)
             if data and self.current_page == len(self._page_cursors):
                 last_item = data[-1]
-                cursor_id = getattr(last_item, "id", None)
+                # Handle both dict and object types
+                if isinstance(last_item, dict):
+                    cursor_id = last_item.get("id")
+                else:
+                    cursor_id = getattr(last_item, "id", None)
+                print(f"[DataViewer] Extracted cursor_id: {cursor_id} from {type(last_item)}")
                 if cursor_id is not None:
                     self._page_cursors.append(cursor_id)
 
@@ -130,44 +207,79 @@ class DataViewerSection:
             output += "-" * 80 + "\n"
 
             if data:
-                # Get columns from first item if it's a dict, or attributes if object
-                first = data[0]
-                if hasattr(first, "to_dict"):
-                    first_dict = first.to_dict()
-                elif hasattr(first, "__dict__"):
-                    first_dict = {k: v for k, v in first.__dict__.items() if not k.startswith("_")}
-                elif isinstance(first, dict):
-                    first_dict = first
-                else:
-                    first_dict = {"value": str(first)}
+                try:
+                    # Get columns from first item if it's a dict, or attributes if object
+                    first = data[0]
+                    print(f"[DataViewer] First item type: {type(first)}")
+                    print(f"[DataViewer] First item: {first}")
 
-                columns = list(first_dict.keys())
-                # Limit columns for display
-                display_cols = columns[:5]  # Show first 5 columns to fit
-
-                # Header
-                header = " | ".join([f"{col:<15}" for col in display_cols])
-                output += header + "\n"
-                output += "-" * len(header) + "\n"
-
-                for item in data:
-                    if hasattr(item, "to_dict"):
-                        item_dict = item.to_dict()
-                    elif hasattr(item, "__dict__"):
-                        item_dict = {k: v for k, v in item.__dict__.items() if not k.startswith("_")}
-                    elif isinstance(item, dict):
-                        item_dict = item
+                    if hasattr(first, "to_dict"):
+                        first_dict = first.to_dict()
+                        print("[DataViewer] Using to_dict() method")
+                    elif hasattr(first, "__dict__"):
+                        first_dict = {k: v for k, v in first.__dict__.items() if not k.startswith("_")}
+                        print("[DataViewer] Using __dict__ attribute")
+                    elif isinstance(first, dict):
+                        first_dict = first
+                        print("[DataViewer] Item is already dict")
                     else:
-                        item_dict = {"value": str(item)}
+                        first_dict = {"value": str(first)}
+                        print("[DataViewer] Converting to string dict")
 
-                    row = " | ".join([f"{str(item_dict.get(col, ''))[:15]:<15}" for col in display_cols])
-                    output += row + "\n"
+                    columns = list(first_dict.keys())
+                    print(f"[DataViewer] Columns found: {columns}")
+                    # Limit columns for display
+                    display_cols = columns[:5]  # Show first 5 columns to fit
+                    print(f"[DataViewer] Display columns: {display_cols}")
 
+                    # Header
+                    header = " | ".join([f"{col:<15}" for col in display_cols])
+                    output += header + "\n"
+                    output += "-" * len(header) + "\n"
+
+                    for idx, item in enumerate(data):
+                        try:
+                            if hasattr(item, "to_dict"):
+                                item_dict = item.to_dict()
+                            elif hasattr(item, "__dict__"):
+                                item_dict = {k: v for k, v in item.__dict__.items() if not k.startswith("_")}
+                            elif isinstance(item, dict):
+                                item_dict = item
+                            else:
+                                item_dict = {"value": str(item)}
+
+                            row = " | ".join([f"{str(item_dict.get(col, ''))[:15]:<15}" for col in display_cols])
+                            output += row + "\n"
+                        except Exception as row_err:
+                            print(f"[DataViewer] Error formatting row {idx}: {row_err}")
+                            output += f"[Error formatting row {idx}]\n"
+
+                    print(f"[DataViewer] Formatted output length: {len(output)} chars")
+                except Exception as format_err:
+                    print(f"[DataViewer] Error formatting data: {format_err}")
+                    import traceback
+                    traceback.print_exc()
+                    output += f"\n[Error formatting data: {format_err}]\n"
+
+            print(f"[DataViewer] Updating textbox with {len(output)} chars")
             self.data_viewer.delete("1.0", "end")
             self.data_viewer.insert("1.0", output)
+            print("[DataViewer] Textbox updated successfully")
 
         except Exception as e:
-            self.log_callback(f"Failed to refresh data viewer: {e}", "ERROR")
+            error_msg = f"Failed to refresh data viewer: {e}"
+            print(f"[DataViewer] ERROR: {error_msg}")
+            import traceback
+            traceback.print_exc()
+            self.log_callback(error_msg, "ERROR")
+            
+            # Try to show error in textbox
+            try:
+                error_display = f"\n❌ ERROR LOADING DATA ❌\n\n{error_msg}\n\nCheck terminal for full traceback.\n"
+                self.data_viewer.delete("1.0", "end")
+                self.data_viewer.insert("1.0", error_display)
+            except Exception as display_err:
+                print(f"[DataViewer] Cannot even display error in textbox: {display_err}")
 
     def _get_table_count(self, session, table_name: str) -> int:
         """Get total count for a table using DataViewerService."""

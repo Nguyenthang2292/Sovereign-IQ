@@ -1,4 +1,5 @@
 risk:
+  limits_enabled: false
   max_position_size: 100.0
   max_open_positions: 1
   max_daily_loss: 100.0
@@ -20,14 +21,14 @@ api:
   mode: PRODUCTION
 tp_sl:
   default_tp: 5.0
-  default_sl: 29.0
-  trailing_stop: true
+  default_sl: 2.5
+  trailing_stop: false
   trailing_step_pct: 2.0
   trailing_limit_steps: false
   trailing_max_steps: 5
   mode: Percentage
-  negative_be_enabled: true
-  negative_be_threshold_pct: 5.0
+  negative_be_enabled: false
+  negative_be_threshold_pct: 2.0
 scanner:
   scan_interval: 5
   timeframe: 15m
@@ -47,7 +48,6 @@ ui:
   column_visibility: {}
   widget_order: {}
 recovery:
-  enabled: true
   initial_loss: 0.0
   target_profit_per_trade: 8.0
   max_recovery_trades: 13
@@ -56,6 +56,7 @@ recovery:
   min_leverage: 5
   max_leverage: 15
   enable_streak_bonus: true
+  enabled: true
 trading:
   default_position_size: 100.0
   default_leverage: 2

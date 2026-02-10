@@ -8,6 +8,7 @@ Run: pytest tests/auto_trade/database/test_queries_stats.py -v
 """
 
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from modules.auto_trade.database import (
     create_order,
+    get_daily_stats,
     get_overall_stats,
     session_scope,
 )
@@ -343,6 +345,33 @@ class TestGetOverallStatsEdgeCases:
             assert stats["total_pnl"] == pytest.approx(
                 300.0, abs=0.01
             ), f"Expected total_pnl 300.0, got {stats['total_pnl']}"
+
+
+class TestGetDailyStats:
+    """Test get_daily_stats (numeric coercion for division)."""
+
+    def test_daily_stats_numeric_types(self, test_db, sample_order_data):
+        """get_daily_stats must compute avg_pnl and win_rate without TypeError (no str / int)."""
+        now = datetime.now(timezone.utc)
+        with session_scope() as session:
+            data = sample_order_data(pnl=100.0)
+            data["closed_at"] = now
+            create_order(session, data)
+            data2 = sample_order_data(
+                order_id="SECOND_001",
+                client_order_id="AT_SECOND_001",
+                pnl=-50.0,
+            )
+            data2["closed_at"] = now
+            create_order(session, data2)
+
+        with session_scope() as session:
+            daily = get_daily_stats(session, days=30)
+        assert len(daily) >= 1
+        day = daily[0]
+        assert day["total_trades"] == 2
+        assert day["avg_pnl"] == pytest.approx(25.0, abs=0.01)
+        assert day["win_rate"] == pytest.approx(50.0, abs=0.01)
 
 
 if __name__ == "__main__":

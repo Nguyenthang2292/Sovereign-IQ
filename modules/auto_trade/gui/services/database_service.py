@@ -152,18 +152,23 @@ class DataViewerService:
     def get_table_count(table_name: str) -> int:
         """Get total count for a table."""
         try:
+            print(f"[DataViewerService] get_table_count called for: {table_name}")
             with session_scope() as session:
                 if table_name == "Orders":
-                    return session.query(Order).count()
+                    count = session.query(Order).count()
                 elif table_name == "Signals":
-                    return session.query(Signal).count()
+                    count = session.query(Signal).count()
                 elif table_name == "Martingale Chains":
-                    return session.query(MartingaleChain).count()
+                    count = session.query(MartingaleChain).count()
                 elif table_name == "Audit Log":
-                    return session.query(AuditLog).count()
-                return 0
+                    count = session.query(AuditLog).count()
+                else:
+                    count = 0
+                print(f"[DataViewerService] {table_name} count: {count}")
+                return count
         except Exception as e:
-            logger.error(f"Failed to get count: {e}")
+            logger.error(f"Failed to get count for {table_name}: {e}")
+            print(f"[DataViewerService] ERROR getting count for {table_name}: {e}")
             return 0
 
     @staticmethod
@@ -179,19 +184,28 @@ class DataViewerService:
         if limit is None:
             limit = DatabasePanelConfig.DEFAULT_PAGE_SIZE
 
+        print(f"[DataViewerService] get_table_data called: table={table_name}, limit={limit}, last_id={last_id}")
+        
         try:
             with session_scope() as session:
                 if table_name == "Orders":
-                    return get_orders_cursor(session, last_id=last_id, limit=limit)
+                    data = get_orders_cursor(session, last_id=last_id, limit=limit)
                 elif table_name == "Signals":
-                    return get_signals_cursor(session, last_id=last_id, limit=limit)
+                    data = get_signals_cursor(session, last_id=last_id, limit=limit)
                 elif table_name == "Martingale Chains":
-                    return get_martingale_chains_cursor(session, last_id=last_id, limit=limit)
+                    data = get_martingale_chains_cursor(session, last_id=last_id, limit=limit)
                 elif table_name == "Audit Log":
-                    return get_audit_log_cursor(session, last_id=last_id, limit=limit)
-                return []
+                    data = get_audit_log_cursor(session, last_id=last_id, limit=limit)
+                else:
+                    data = []
+                
+                print(f"[DataViewerService] Query returned {len(data)} rows for {table_name}")
+                return data
         except Exception as e:
-            logger.error(f"Failed to get data: {e}")
+            logger.error(f"Failed to get data for {table_name}: {e}")
+            print(f"[DataViewerService] ERROR getting data for {table_name}: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     @staticmethod
