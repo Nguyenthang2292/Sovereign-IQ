@@ -10,15 +10,36 @@ from datetime import datetime
 
 def format_price(price: float) -> str:
     """
-    Format price as USD currency.
+    Format value as USD currency (2 decimals).
 
     Args:
-        price: Price value
+        price: Value in USD
 
     Returns:
         Formatted price string (e.g., "$42,000.00")
     """
     return f"${price:,.2f}"
+
+
+def format_asset_price(price: float, decimals: int = 5) -> str:
+    """
+    Format asset unit price without currency symbol, preserving more precision.
+
+    Used for Entry / TP / SL / BE where we want to see the exact futures
+    price (e.g. 0.00663) instead of a rounded $0.01.
+
+    Args:
+        price: Price value
+        decimals: Maximum number of decimal places to show
+
+    Returns:
+        Formatted price string without currency symbol (e.g. "0.00663")
+    """
+    fmt = f"{{:.{decimals}f}}"
+    s = fmt.format(price)
+    # Trim trailing zeros and dot for cleaner display
+    s = s.rstrip("0").rstrip(".")
+    return s or "0"
 
 
 def format_pnl(pnl: float) -> str:

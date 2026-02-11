@@ -41,8 +41,8 @@ class AutoTradeDashboard(ctk.CTk):
 
         self.mode = self.settings_manager.get("api.mode", TradingMode.DRY_RUN)
 
-        # Initialize data services
-        self.data_service = DataService(mode=self.mode)
+        # Initialize data services (pass settings_manager so refresh can push missing TP/SL to Binance)
+        self.data_service = DataService(mode=self.mode, settings_manager=self.settings_manager)
         self.ws_data_service = WebSocketDataService(mode=self.mode, settings_manager=self.settings_manager)
 
         self.title(f"Auto Trade Dashboard - [{self.mode}]")
@@ -582,6 +582,57 @@ class AutoTradeDashboard(ctk.CTk):
     def on_position_action(self, action_data: dict):
         """Handle position actions from GUI."""
         return self.position_action_handler.handle_action(action_data)
+
+    def on_sync_positions(self):
+        """Handle manual sync of Binance positions to database."""
+        import threading
+        from tkinter import messagebox
+
+        def sync_thread():
+            try:
+                # Show status message
+                self.after(0, lambda: self.status_bar.set_connection_status(True, "🔄 Syncing positions..."))
+
+                # Perform sync
+                result = self.position_action_handler.sync_positions_from_binance()
+
+                # Show result
+                if result.get("success"):
+                    stats = result.get("stats", {})
+                    message = (
+                        f"✅ Sync completed!\n\n"
+                        f"Found: {stats.get('fetched', 0)} positions\n"
+                        f"Synced: {stats.get('synced', 0)} new\n"
+                        f"Existing: {stats.get('existing', 0)} already in DB\n"
+                        f"Failed: {stats.get('failed', 0)}"
+                    )
+                    self.after(0, lambda: messagebox.showinfo("Position Sync", message))
+                    self.after(0, lambda: self.status_bar.set_connection_status(True, "✅ Sync completed"))
+
+                    # Refresh positions display
+                    self.after(100, self.refresh_positions)
+
+                    # Restore connection status after 3 seconds
+                    self.after(3000, lambda: self._update_connection_status())
+                else:
+                    error_msg = result.get("message", "Unknown error")
+                    self.after(0, lambda: messagebox.showerror("Position Sync Failed", f"Error: {error_msg}"))
+                    self.after(0, lambda: self.status_bar.set_connection_status(False, "❌ Sync failed"))
+
+                    # Restore connection status after 3 seconds
+                    self.after(3000, lambda: self._update_connection_status())
+
+            except Exception as e:
+                logging.error(f"Error during position sync: {e}", exc_info=True)
+                self.after(0, lambda: messagebox.showerror("Position Sync Error", f"Fatal error: {str(e)}"))
+                self.after(0, lambda: self.status_bar.set_connection_status(False, "❌ Sync error"))
+
+                # Restore connection status after 3 seconds
+                self.after(3000, lambda: self._update_connection_status())
+
+        # Run sync in background thread
+        thread = threading.Thread(target=sync_thread, daemon=True)
+        thread.start()
 
     # ==================== Lifecycle ====================
 

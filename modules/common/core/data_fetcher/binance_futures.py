@@ -80,6 +80,14 @@ class BinanceFuturesFetcher:
                 if size_usdt <= 0:
                     continue
 
+                # Margin first (Binance positionRisk has initialMargin; leverage may be missing)
+                margin_used = self._extract_margin_used(pos, size_usdt, None)
+                # Leverage: from API or derive as notional/initialMargin (positionRisk has no leverage field)
+                leverage = self._extract_leverage(pos, size_usdt, margin_used)
+                if margin_used <= 0 and leverage > 0:
+                    margin_used = size_usdt / leverage
+                liquidation_price = self._extract_liquidation_price(pos)
+
                 open_positions.append(
                     {
                         "symbol": normalized_symbol,
@@ -87,6 +95,9 @@ class BinanceFuturesFetcher:
                         "entry_price": entry_price,
                         "direction": direction,
                         "contracts": abs(contracts),
+                        "leverage": leverage,
+                        "liquidation_price": liquidation_price,
+                        "margin_used": margin_used,
                     }
                 )
 
@@ -308,6 +319,91 @@ class BinanceFuturesFetcher:
             except Exception:
                 pass
         return size_usdt
+
+    @staticmethod
+    def _extract_leverage(position: Dict, notional_usdt: float = 0.0, initial_margin: Optional[float] = None) -> int:
+        """Extract leverage from position (ccxt/info) or derive from notional/initialMargin.
+        Binance positionRisk does not return leverage; use notional/initialMargin when available."""
+        lev = position.get("leverage")
+        if lev is not None:
+            try:
+                return int(lev)
+            except (TypeError, ValueError):
+                pass
+        info = position.get("info") or {}
+        if isinstance(info, dict):
+            lev = info.get("leverage")
+            if lev is not None:
+                try:
+                    return int(lev)
+                except (TypeError, ValueError):
+                    pass
+        # Derive from notional / initialMargin (Binance has initialMargin in positionRisk)
+        if initial_margin is None:
+            for key in ("collateral", "initialMargin", "margin"):
+                val = position.get(key)
+                if val is not None:
+                    try:
+                        initial_margin = float(val)
+                        break
+                    except (TypeError, ValueError):
+                        pass
+            if initial_margin is None and isinstance(info, dict):
+                val = info.get("initialMargin")
+                if val is not None:
+                    try:
+                        initial_margin = float(val)
+                    except (TypeError, ValueError):
+                        pass
+        if initial_margin and initial_margin > 0 and notional_usdt and notional_usdt > 0:
+            derived = abs(notional_usdt) / float(initial_margin)
+            return max(1, int(round(derived)))
+        return 1
+
+    @staticmethod
+    def _extract_liquidation_price(position: Dict) -> Optional[float]:
+        """Extract liquidation price from position (ccxt or info)."""
+        liq = position.get("liquidationPrice")
+        if liq is not None:
+            try:
+                v = float(liq)
+                if v > 0:
+                    return v
+            except (TypeError, ValueError):
+                pass
+        info = position.get("info") or {}
+        if isinstance(info, dict):
+            liq = info.get("liquidationPrice") or info.get("liquidationPrice")
+            if liq is not None:
+                try:
+                    return float(liq)
+                except (TypeError, ValueError):
+                    pass
+        return None
+
+    @staticmethod
+    def _extract_margin_used(position: Dict, size_usdt: float, leverage: Optional[int]) -> float:
+        """Extract margin/collateral from position (Binance: initialMargin), or approximate from notional/leverage."""
+        for key in ("collateral", "initialMargin", "margin"):
+            val = position.get(key)
+            if val is not None:
+                try:
+                    v = float(val)
+                    if v >= 0:
+                        return v
+                except (TypeError, ValueError):
+                    pass
+        info = position.get("info") or {}
+        if isinstance(info, dict):
+            val = info.get("initialMargin")
+            if val is not None:
+                try:
+                    return float(val)
+                except (TypeError, ValueError):
+                    pass
+        if size_usdt > 0 and leverage and leverage > 0:
+            return size_usdt / leverage
+        return 0.0
 
     @staticmethod
     def _debug_position(position: Dict, symbol: str, contracts: float):

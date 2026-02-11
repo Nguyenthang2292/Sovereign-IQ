@@ -77,6 +77,7 @@ class TestWebSocketServiceCallbacks:
             unrealized_pnl_percent=2.0,
             margin_type="cross",
             leverage=10,
+            notional=5000.0,
             timestamp=datetime.now(),
         )
         mock_service._handle_position_update(test_position)
@@ -267,6 +268,7 @@ class TestWebSocketServiceErrorHandling:
                 unrealized_pnl_percent=2.0,
                 margin_type="cross",
                 leverage=10,
+                notional=5000.0,
                 timestamp=datetime.now(),
             )
             service._handle_position_update(test_position)
@@ -347,6 +349,7 @@ class TestWebSocketServiceThreadSafety:
                 unrealized_pnl_percent=2.0,
                 margin_type="cross",
                 leverage=10,
+                notional=5000.0,
                 timestamp=datetime.now(),
             )
             service._handle_position_update(test_position)

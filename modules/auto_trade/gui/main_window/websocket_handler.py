@@ -145,7 +145,7 @@ class WebSocketHandler:
                     # Fetch from Binance and sync to DB in one call
                     if self.parent.data_service.database_manager:
                         with self.parent.data_service.database_manager.session_scope() as session:
-                            result = TPSLSyncService.sync_position_tp_sl(
+                            sync_result = TPSLSyncService.sync_position_tp_sl(
                                 client=client,
                                 session=session,
                                 symbol=p.symbol,
@@ -153,9 +153,9 @@ class WebSocketHandler:
                                 entry_price=p.entry_price
                             )
 
-                            take_profit = result.get("take_profit")
-                            stop_loss = result.get("stop_loss")
-                            break_even = result.get("break_even")
+                            take_profit = sync_result.get("take_profit")
+                            stop_loss = sync_result.get("stop_loss")
+                            break_even = sync_result.get("break_even")
 
                             print(f"[WebSocket] ✅ Synced {p.symbol}: TP=${take_profit}, SL=${stop_loss}, BE=${break_even}")
                     else:
@@ -190,18 +190,35 @@ class WebSocketHandler:
                         except Exception as db_err:
                             print(f"[WebSocket]   DB fallback failed: {db_err}")
 
-            result.append({
-                "symbol": p.symbol,
-                "side": p.side.upper(),
-                "size": p.position_amt,
-                "entry_price": p.entry_price,
-                "current_price": p.mark_price,  # PositionsFrame expects "current_price"
-                "pnl": p.unrealized_pnl,
-                "pnl_percent": p.unrealized_pnl_percent,
-                "leverage": p.leverage,
-                "take_profit": take_profit,
-                "stop_loss": stop_loss,
-                "break_even": break_even,
-            })
+            # For GUI we want Size in quote currency (USD), not contracts.
+            notional = getattr(p, "notional", 0.0) or 0.0
+            if not notional and p.entry_price:
+                notional = abs(p.position_amt * p.entry_price)
+
+            # Margin used: from snapshot or approximate (notional / leverage)
+            margin_used = getattr(p, "margin_used", 0.0) or 0.0
+            if margin_used <= 0 and notional and p.leverage:
+                margin_used = notional / p.leverage
+
+            result.append(
+                {
+                    "symbol": p.symbol,
+                    "side": p.side.upper(),
+                    # Size shown in USD
+                    "size": notional,
+                    # Preserve raw contracts separately for advanced views if needed
+                    "contracts": abs(p.position_amt),
+                    "entry_price": p.entry_price,
+                    "current_price": p.mark_price,  # PositionsFrame expects "current_price"
+                    "pnl": p.unrealized_pnl,
+                    "pnl_percent": p.unrealized_pnl_percent,
+                    "leverage": p.leverage,
+                    "margin_used": margin_used,
+                    "liquidation_price": p.liquidation_price,
+                    "take_profit": take_profit,
+                    "stop_loss": stop_loss,
+                    "break_even": break_even,
+                }
+            )
 
         return result

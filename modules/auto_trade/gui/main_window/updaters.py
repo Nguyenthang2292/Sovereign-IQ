@@ -154,3 +154,10 @@ class UpdaterManager:
         updater.start()
         self.updaters["negative_breakeven"] = updater
         return updater
+
+    def create_ensure_tp_sl_updater(self, callback, interval=60):
+        """Create and start ensure TP/SL updater (add missing TP/SL for open AUTO positions)."""
+        updater = PeriodicUpdater(callback, interval=interval)
+        updater.start()
+        self.updaters["ensure_tp_sl"] = updater
+        return updater

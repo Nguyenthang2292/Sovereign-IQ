@@ -21,6 +21,16 @@ from execution.trailing_stop import TrailingStopResult, calculate_trailing_stop
 logger = logging.getLogger(__name__)
 
 
+def _symbol_for_ccxt(symbol: str) -> str:
+    """Convert DB symbol (e.g. SKLUSDT) to CCXT format (SKL/USDT) for API calls."""
+    s = (symbol or "").strip()
+    if "/" in s:
+        return s
+    if s.endswith("USDT"):
+        return s[:-4] + "/USDT"
+    return s + "/USDT" if s else s
+
+
 class TrailingStopJob:
     """
     Timer-based trailing stop job.
@@ -156,8 +166,19 @@ class TrailingStopJob:
             if not self.binance_client:
                 logger.warning("No Binance client available for fetching mark price")
                 return None
-            ticker = self.binance_client.fetch_ticker(symbol)
-            if ticker and "last" in ticker:
+            ccxt_symbol = _symbol_for_ccxt(symbol)
+            ticker = self.binance_client.fetch_ticker(ccxt_symbol)
+            if not ticker:
+                return None
+            # Prefer mark price for futures
+            info = ticker.get("info") or {}
+            mark = info.get("markPrice") if isinstance(info, dict) else None
+            if mark is not None:
+                try:
+                    return float(mark)
+                except (TypeError, ValueError):
+                    pass
+            if "last" in ticker:
                 return float(ticker["last"])
             return None
         except Exception as e:
@@ -224,9 +245,11 @@ class TrailingStopJob:
 
         if self.binance_client and new_sl:
             try:
+                order_symbol: str = str(getattr(order, "symbol", ""))
+                ccxt_symbol: str = _symbol_for_ccxt(order_symbol)
                 # Modify stop loss on exchange
                 modify_result: Optional[dict] = self.binance_client.modify_stop_loss(
-                    symbol=str(getattr(order, "symbol", "")),
+                    symbol=ccxt_symbol,
                     position_id=None,
                     stop_loss_price=new_sl,
                 )

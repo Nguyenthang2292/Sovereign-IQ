@@ -139,6 +139,7 @@ class LayoutManager:
             on_action_callback=self.parent.on_position_action,
             on_open_trade_callback=lambda: self.parent.tabview.set("Trading"),
             on_refresh_callback=self.parent.refresh_positions,
+            on_sync_callback=self.parent.on_sync_positions,
         )
         self.parent.positions_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 

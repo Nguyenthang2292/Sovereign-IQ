@@ -6,7 +6,7 @@ import customtkinter as ctk
 from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.gui.components.position_details import PositionDetails
 from modules.auto_trade.gui.utils.colors import Colors
-from modules.auto_trade.gui.utils.formatters import format_pnl, format_price
+from modules.auto_trade.gui.utils.formatters import format_asset_price, format_pnl, format_price
 
 
 class PositionCard(ctk.CTkFrame):
@@ -50,12 +50,13 @@ class PositionCard(ctk.CTkFrame):
         be_value = position.get("break_even")
 
         rows = [
-            ("Size:", f"{position['size']:.4f}"),
-            ("Entry:", format_price(position["entry_price"])),
-            ("Current:", format_price(position["current_price"])),
-            ("TP:", format_price(float(tp_value)) if tp_value is not None else "N/A"),
-            ("SL:", format_price(float(sl_value)) if sl_value is not None else "N/A"),
-            ("BE:", format_price(float(be_value)) if be_value is not None else "N/A"),
+            # Size should be shown in USD, not contracts
+            ("Size:", format_price(float(position.get("size", 0.0)))),
+            # Entry / TP / SL / BE should show the raw futures price (e.g. 0.00663)
+            ("Entry:", format_asset_price(float(position.get("entry_price", 0.0)))),
+            ("TP:", format_asset_price(float(tp_value)) if tp_value is not None else "N/A"),
+            ("SL:", format_asset_price(float(sl_value)) if sl_value is not None else "N/A"),
+            ("BE:", format_asset_price(float(be_value)) if be_value is not None else "N/A"),
             ("P&L:", format_pnl(position["pnl"])),
         ]
 
@@ -66,7 +67,7 @@ class PositionCard(ctk.CTkFrame):
             label_widget.bind("<Button-3>", self._show_context_menu)
 
             # Color coding for different rows
-            if i == 6:  # P&L row
+            if i == len(rows) - 1:  # P&L row
                 text_color = Colors.PROFIT if position["pnl"] >= 0 else Colors.LOSS
             elif i == 3:  # TP row
                 text_color = Colors.PROFIT if value != "N/A" else "gray"
@@ -119,23 +120,28 @@ class PositionCard(ctk.CTkFrame):
 
 
 class PositionsFrame(ctk.CTkFrame):
-    def __init__(self, parent, on_action_callback: Optional[Callable] = None, on_open_trade_callback: Optional[Callable] = None, on_refresh_callback: Optional[Callable] = None):
+    def __init__(self, parent, on_action_callback: Optional[Callable] = None, on_open_trade_callback: Optional[Callable] = None, on_refresh_callback: Optional[Callable] = None, on_sync_callback: Optional[Callable] = None):
         super().__init__(parent)
         self.on_action_callback = on_action_callback
         self.on_open_trade_callback = on_open_trade_callback
         self.on_refresh_callback = on_refresh_callback
+        self.on_sync_callback = on_sync_callback
         self._empty_state: Optional[EmptyState] = None
 
-        # Header with title and refresh button
+        # Header with title and action buttons
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(fill="x", pady=(10, 5), padx=10)
 
         title = ctk.CTkLabel(header_frame, text="Open Positions", font=("Arial", 16, "bold"))
         title.pack(side="left")
 
+        # Button container for right-aligned buttons
+        button_container = ctk.CTkFrame(header_frame, fg_color="transparent")
+        button_container.pack(side="right")
+
         if on_refresh_callback:
             refresh_btn = ctk.CTkButton(
-                header_frame,
+                button_container,
                 text="🔄 Refresh",
                 width=80,
                 height=24,
@@ -143,7 +149,19 @@ class PositionsFrame(ctk.CTkFrame):
                 fg_color="#2B6CB0",
                 hover_color="#3182CE"
             )
-            refresh_btn.pack(side="right")
+            refresh_btn.pack(side="right", padx=(5, 0))
+
+        if on_sync_callback:
+            sync_btn = ctk.CTkButton(
+                button_container,
+                text="🔄 Sync from Binance",
+                width=140,
+                height=24,
+                command=on_sync_callback,
+                fg_color="#10B981",  # Green color
+                hover_color="#059669"
+            )
+            sync_btn.pack(side="right", padx=(5, 0))
 
         self.scroll_frame = ctk.CTkScrollableFrame(self, height=300)
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)

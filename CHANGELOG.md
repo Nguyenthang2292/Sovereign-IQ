@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **binance_client**: Refactored into modular sub-package architecture (2026-02-11)
+  - Split monolithic `binance_client.py` (793 lines) into focused modules:
+    - `binance/exchange_setup.py` - CCXT exchange initialization
+    - `binance/order_execution.py` - Market orders with TP/SL placement
+    - `binance/position_management.py` - Position operations
+    - `binance/order_management.py` - TP/SL modification and cancellation
+    - `binance/client.py` - Main orchestrator with backward compatibility
+  - Maintained 100% backward compatibility via legacy import layer
+  - All 35 critical tests passing (trailing stop, fresh signal, order executor)
+  - Benefits: Better separation of concerns, easier testing, improved maintainability
+  - Added comprehensive README documenting new architecture
+
 ### Added
 - **auto_trade**: Integration tests (Day 3)
   - End-to-end workflow tests (`tests/auto_trade/integration/test_e2e_workflows.py`)

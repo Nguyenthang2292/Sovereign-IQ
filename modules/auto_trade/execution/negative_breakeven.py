@@ -125,6 +125,10 @@ def should_trigger_negative_be(
     if profit_pct > -threshold_pct:
         return False
 
+    # No SL set: treat as "has not hit stop loss" so negative BE can trigger
+    if stop_loss is None or (isinstance(stop_loss, (int, float)) and float(stop_loss) == 0):
+        return True
+
     # Check if stop loss has been hit
     if has_hit_stop_loss(mark_price, stop_loss, side):
         return False

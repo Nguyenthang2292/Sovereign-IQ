@@ -70,8 +70,14 @@ class AutoTradeManager:
         updater.create_reconcile_updater(self._reconcile_cycle, interval=3600)
         updater.create_trailing_stop_updater(self._trailing_stop_cycle, interval=30)
         updater.create_negative_breakeven_updater(self._negative_breakeven_cycle, interval=30)
+        updater.create_ensure_tp_sl_updater(self._ensure_tp_sl_cycle, interval=60)
         self.parent.event_bus.subscribe(EventType.SIGNAL_GENERATED, self._on_signal_event)
-        print("Auto-trading started (with trailing stop and negative breakeven)")
+        # Reconcile once at start so open AUTO positions on Binance are in DB
+        try:
+            self._reconcile_cycle()
+        except Exception as e:
+            print(f"[AutoTrade] Startup reconcile skipped: {e}")
+        print("Auto-trading started (trailing stop, negative BE, ensure TP/SL)")
 
     def stop(self):
         """Stop auto-trading loop and all updaters."""
@@ -82,10 +88,16 @@ class AutoTradeManager:
         except Exception:
             pass
         if self.updater:
-            for updater_name in ["auto_trade", "reconcile", "trailing_stop", "negative_breakeven"]:
+            for updater_name in [
+                "auto_trade",
+                "reconcile",
+                "trailing_stop",
+                "negative_breakeven",
+                "ensure_tp_sl",
+            ]:
                 if updater_name in self.updater.updaters:
                     self.updater.updaters[updater_name].stop()
-            print("Auto-trading stopped (including trailing stop and negative breakeven)")
+            print("Auto-trading stopped (trailing stop, negative BE, ensure TP/SL)")
 
     def _on_signal_event(self, event):
         """Handle signal event and trigger immediate auto-trade check."""
@@ -167,6 +179,30 @@ class AutoTradeManager:
 
         except Exception as e:
             print(f"Negative breakeven cycle error: {e}")
+
+    def _ensure_tp_sl_cycle(self):
+        """Ensure every open AUTO position has TP and SL on Binance (add if missing)."""
+        try:
+            from modules.auto_trade.database import session_scope
+            from modules.auto_trade.execution.ensure_tp_sl_job import create_ensure_tp_sl_job
+
+            binance_client = self._get_binance_client()
+            job = create_ensure_tp_sl_job(
+                settings_manager=self.parent.settings_manager,
+                db_session_scope=session_scope,
+                binance_client=binance_client,
+            )
+            result = job.run()
+            if result.get("tp_added") or result.get("sl_added"):
+                print(
+                    f"Ensure TP/SL: checked={result.get('orders_checked', 0)}, "
+                    f"tp_added={result.get('tp_added', 0)}, sl_added={result.get('sl_added', 0)}"
+                )
+            if result.get("errors"):
+                for err in result["errors"][:3]:
+                    print(f"Ensure TP/SL error: {err}")
+        except Exception as e:
+            print(f"Ensure TP/SL cycle error: {e}")
 
     def _reconcile_cycle(self):
         """Reconcile AT_* orders from Binance into DB (run periodically when auto-trade is on)."""

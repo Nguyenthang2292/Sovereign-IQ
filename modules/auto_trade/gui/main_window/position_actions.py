@@ -1,9 +1,12 @@
 """Position action handlers for trading operations."""
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .main_window import AutoTradeDashboard
+
+logger = logging.getLogger(__name__)
 
 
 class PositionActionHandler:
@@ -14,10 +17,10 @@ class PositionActionHandler:
 
     def handle_action(self, action_data: dict) -> dict[str, Any]:
         """Handle position actions from GUI."""
-        print(f"Position action received: {action_data}")
+        logger.info(f"Position action received: {action_data}")
 
         if not self.parent.data_service.exchange_manager:
-            print("Error: Exchange manager not initialized")
+            logger.error("Exchange manager not initialized")
             return {"success": False, "error": "Exchange manager unavailable"}
 
         mgr = self.parent.data_service.exchange_manager
@@ -40,15 +43,70 @@ class PositionActionHandler:
                 return self._add_margin(target, action_data)
             elif action == "cancel_orders":
                 return target.cancel_open_orders(symbol)
+            elif action == "sync_positions":
+                return self.sync_positions_from_binance()
 
         except AttributeError:
-            print(f"Error: Target {target} does not support action {action}")
+            logger.error(f"Target {target} does not support action {action}")
             return {"success": False, "error": f"Method not supported: {action}"}
         except Exception as e:
-            print(f"Error executing {action}: {e}")
+            logger.error(f"Error executing {action}: {e}")
             return {"success": False, "error": str(e)}
 
         return {"success": False, "error": "Unknown action"}
+
+    def sync_positions_from_binance(self) -> dict[str, Any]:
+        """
+        Sync existing Binance positions into database.
+
+        Returns:
+            Result dictionary with success status and statistics
+        """
+        try:
+            from modules.auto_trade.execution.binance_client import BinanceClient
+            from modules.auto_trade.gui.utils.credential_manager import CredentialManager
+            from modules.auto_trade.gui.utils.position_sync_service import PositionSyncService
+            from modules.auto_trade.database import get_db_manager
+
+            logger.info("[PositionSync] Starting manual position sync...")
+
+            # Get credentials
+            credential_manager = CredentialManager()
+            api_config = credential_manager.load_credentials("binance")
+
+            # Get testnet setting
+            api_settings = self.parent.settings_manager.get("api", {})
+            testnet = api_settings.get("mode", "").upper() == "TESTNET"
+
+            # Create Binance client
+            client = BinanceClient(
+                api_key=api_config.get("api_key") or "",
+                api_secret=api_config.get("api_secret") or "",
+                testnet=testnet,
+                dry_run=False,
+            )
+
+            # Get database manager
+            db_manager = get_db_manager()
+
+            # Perform sync
+            stats = PositionSyncService.sync_all_positions(client, db_manager)
+
+            logger.info(f"[PositionSync] Sync completed: {stats}")
+
+            return {
+                "success": True,
+                "stats": stats,
+                "message": f"Synced {stats['synced']} positions, {stats['existing']} already existed"
+            }
+
+        except Exception as e:
+            logger.error(f"[PositionSync] Fatal error: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e),
+                "message": f"Sync failed: {str(e)}"
+            }
 
     def _close_position(self, target, action_data: dict) -> dict[str, Any]:
         """Execute close position action."""

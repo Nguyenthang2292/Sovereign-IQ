@@ -37,6 +37,10 @@ class PositionSnapshot:
     margin_type: str
     leverage: int
     timestamp: datetime
+    # Total notional size in quote currency (e.g. USDT). Used for GUI "Size" in USD.
+    notional: float = 0.0
+    # Margin used for this position (collateral). From ccxt "collateral" or "initialMargin".
+    margin_used: float = 0.0
 
     @property
     def is_profitable(self) -> bool:
@@ -231,7 +235,30 @@ class PositionMonitor:
         liquidation_price = data.get("liquidationPrice")
         unrealized_pnl = float(data.get("unrealizedPnl", 0))
         margin_type = data.get("marginType", "cross").lower()
-        leverage = int(data.get("leverage", 1))
+        # Notional value in quote currency (e.g. USDT)
+        notional = float(data.get("notional", 0))
+        # Margin used (collateral) from ccxt / Binance initialMargin (Binance positionRisk has initialMargin)
+        raw_margin = (
+            data.get("collateral")
+            or data.get("initialMargin")
+            or data.get("margin")
+            or ((data.get("info") or {}).get("initialMargin"))
+        )
+        try:
+            margin_used = abs(float(raw_margin)) if raw_margin is not None else 0.0
+        except (TypeError, ValueError):
+            margin_used = 0.0
+        # Leverage: from API or derive from notional/initialMargin (Binance positionRisk doesn't return leverage)
+        leverage_raw = data.get("leverage")
+        if leverage_raw is not None:
+            try:
+                leverage = int(leverage_raw)
+            except (TypeError, ValueError):
+                leverage = 1
+        else:
+            leverage = 1
+        if leverage <= 1 and margin_used > 0 and notional and abs(notional) > 0:
+            leverage = max(1, int(round(abs(notional) / margin_used)))
 
         return PositionSnapshot(
             symbol=symbol,
@@ -245,6 +272,8 @@ class PositionMonitor:
             margin_type=margin_type,
             leverage=leverage,
             timestamp=datetime.now(),
+            notional=abs(notional),
+            margin_used=abs(margin_used),
         )
 
     def _calculate_pnl_percent(self, snapshot: PositionSnapshot) -> float:

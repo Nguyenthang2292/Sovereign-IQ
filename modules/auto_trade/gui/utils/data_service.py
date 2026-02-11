@@ -27,14 +27,16 @@ class DataService:
     - PRODUCTION: Live trading with real API
     """
 
-    def __init__(self, mode: str = "DRY_RUN") -> None:
+    def __init__(self, mode: str = "DRY_RUN", settings_manager: Optional[Any] = None) -> None:
         """
         Initialize DataService.
 
         Args:
             mode: Operating mode ("DRY_RUN", "DEMO", or "PRODUCTION")
+            settings_manager: Optional settings manager for TP/SL config (enables push missing TP/SL to Binance on refresh)
         """
         self.mode: str = mode
+        self.settings_manager: Optional[Any] = settings_manager
         self.data_fetcher: Optional[Any] = None
         self.database_manager: Optional[Any] = None
         self.exchange_manager: Optional[Any] = None
@@ -383,13 +385,16 @@ class DataService:
                         symbol = pos.get("symbol", "")
                         side = pos.get("side", "LONG")
                         entry_price = float(pos.get("entry_price", 0))
-                        size = float(pos.get("size", 0))
+                        contracts = float(pos.get("size", 0))
                         current_price = price_feed.get_current_price(symbol)
 
+                        # Notional size in USD for display (size * entry_price)
+                        notional_usd = abs(contracts * entry_price)
+
                         if side == "LONG":
-                            pnl = (current_price - entry_price) * size
+                            pnl = (current_price - entry_price) * contracts
                         else:
-                            pnl = (entry_price - current_price) * size
+                            pnl = (entry_price - current_price) * contracts
 
                         # DRY_RUN mode also has TP/SL/BE in database
                         take_profit = pos.get("take_profit")
@@ -400,7 +405,10 @@ class DataService:
                             {
                                 "symbol": symbol,
                                 "side": side,
-                                "size": size,
+                                # For UI we treat size as notional (USD)
+                                "size": notional_usd,
+                                # Preserve contracts separately for advanced views if needed
+                                "contracts": abs(contracts),
                                 "entry_price": entry_price,
                                 "current_price": current_price,
                                 "pnl": pnl,
@@ -447,6 +455,20 @@ class DataService:
                     entry_price = float(pos.get("entry_price", 0))
                     symbol = pos.get("symbol", "")
 
+                    # Futures position notional in USD (from data_fetcher if available, else derive)
+                    size_usd = float(pos.get("size_usdt", 0)) if pos.get("size_usdt") is not None else 0.0
+                    if not size_usd and entry_price:
+                        size_usd = abs(contracts * entry_price)
+
+                    # Leverage, liquidation price, margin (for Position Details GUI)
+                    try:
+                        leverage = int(pos.get("leverage", 1))
+                    except (TypeError, ValueError):
+                        leverage = 1
+                    liq_price = pos.get("liquidation_price")
+                    liquidation_price = float(liq_price) if liq_price is not None else None
+                    margin_used = float(pos.get("margin_used", 0)) if pos.get("margin_used") is not None else (size_usd / leverage if leverage else 0.0)
+
                     # Fetch current mark price from exchange for accurate P&L
                     current_price = entry_price  # Fallback
                     if client:
@@ -487,6 +509,33 @@ class DataService:
                                 stop_loss = result.get("stop_loss")
                                 break_even = result.get("break_even")
 
+                                # If TP or SL missing on Binance, push them now (using config default_tp / default_sl)
+                                sm = getattr(self, "settings_manager", None)
+                                if (take_profit is None or stop_loss is None) and client and sm is not None and self.mode != "DRY_RUN":
+                                    try:
+                                        tp_sl_cfg = sm.get("tp_sl", {}) or {}
+                                        default_tp = float(tp_sl_cfg.get("default_tp", 5.0))
+                                        default_sl = float(tp_sl_cfg.get("default_sl", 2.5))
+                                        if default_tp > 0 and default_sl > 0:
+                                            pushed = TPSLSyncService.ensure_tp_sl_on_binance(
+                                                client=client,
+                                                symbol=symbol,
+                                                side=side,
+                                                entry_price=entry_price,
+                                                default_tp_pct=default_tp,
+                                                default_sl_pct=default_sl,
+                                            )
+                                            if pushed.get("take_profit") is not None:
+                                                take_profit = pushed["take_profit"]
+                                            if pushed.get("stop_loss") is not None:
+                                                stop_loss = pushed["stop_loss"]
+                                                break_even = TPSLSyncService.detect_break_even(entry_price, stop_loss, side)
+                                            if take_profit is not None or stop_loss is not None:
+                                                TPSLSyncService.sync_to_database(session, symbol, take_profit, stop_loss)
+                                                print(f"[DataService] Pushed missing TP/SL for {symbol}: TP=${take_profit}, SL=${stop_loss}")
+                                    except Exception as push_err:
+                                        print(f"[DataService] Could not push TP/SL for {symbol}: {push_err}")
+
                                 print(f"[DataService] Synced TP/SL for {symbol}: TP=${take_profit}, SL=${stop_loss}, BE=${break_even}")
 
                         except Exception as e:
@@ -517,13 +566,18 @@ class DataService:
                         {
                             "symbol": pos.get("symbol", ""),
                             "side": side,
-                            "size": abs(contracts),
+                            # For UI we treat size as notional (USD)
+                            "size": size_usd,
+                            "contracts": abs(contracts),
                             "entry_price": entry_price,
                             "current_price": current_price,
                             "pnl": pnl,
                             "take_profit": take_profit,
                             "stop_loss": stop_loss,
                             "break_even": break_even,
+                            "leverage": leverage,
+                            "margin_used": margin_used,
+                            "liquidation_price": liquidation_price,
                         }
                     )
 

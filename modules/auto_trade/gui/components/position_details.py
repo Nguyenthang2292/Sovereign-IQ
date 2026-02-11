@@ -4,6 +4,7 @@ import customtkinter as ctk
 
 from modules.auto_trade.gui.components.position_actions import PositionActions
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.formatters import format_asset_price, format_price
 
 
 class PositionDetails(ctk.CTkToplevel):
@@ -100,12 +101,12 @@ class PositionDetails(ctk.CTkToplevel):
 
         # Define metrics
         metrics = [
-            ("entry_price", "Entry Price:", "$0.00"),
-            ("mark_price", "Mark Price:", "$0.00"),
+            ("entry_price", "Entry Price:", "0.00"),
+            ("mark_price", "Mark Price:", "0.00"),
             ("size", "Position Size:", "0.00"),
             ("leverage", "Leverage:", "0x"),
             ("margin", "Margin Used:", "$0.00"),
-            ("liquidation_price", "Liquidation Price:", "$0.00"),
+            ("liquidation_price", "Liquidation Price:", "0.00"),
         ]
 
         for i, (key, label, default) in enumerate(metrics):
@@ -132,7 +133,7 @@ class PositionDetails(ctk.CTkToplevel):
         try:
             # Entry price
             entry_price = self.position.get("entry_price", 0)
-            self.metric_labels["entry_price"].configure(text=f"${entry_price:,.2f}")
+            self.metric_labels["entry_price"].configure(text=format_asset_price(float(entry_price)))
 
             # Mark price (if available, otherwise use current price)
             mark_price = self.position.get("mark_price") or self.position.get("current_price", entry_price)
@@ -140,13 +141,16 @@ class PositionDetails(ctk.CTkToplevel):
             if self.position.get("side") == "SHORT":
                 mp_color = "#00ff88" if mark_price < entry_price else "#ff4444"
 
-            self.metric_labels["mark_price"].configure(text=f"${mark_price:,.2f}", text_color=mp_color)
+            self.metric_labels["mark_price"].configure(
+                text=format_asset_price(float(mark_price)),
+                text_color=mp_color,
+            )
 
-            # Position size
-            size = self.position.get("size", 0)
+            # Position size (in quote currency, e.g. USDT)
+            size = float(self.position.get("size", 0) or 0)
             symbol = self.position.get("symbol", "")
-            base_asset = symbol.split("/")[0] if "/" in symbol else "USDT"
-            self.metric_labels["size"].configure(text=f"{size:.4f} {base_asset}")
+            quote_asset = symbol.split("/")[1] if "/" in symbol else "USDT"
+            self.metric_labels["size"].configure(text=f"{size:.4f} {quote_asset}")
 
             # Leverage
             leverage = self.position.get("leverage", 1)
@@ -154,12 +158,15 @@ class PositionDetails(ctk.CTkToplevel):
 
             # Margin
             margin = self.position.get("margin_used", 0)
-            self.metric_labels["margin"].configure(text=f"${margin:,.2f}")
+            self.metric_labels["margin"].configure(text=format_price(float(margin)))
 
             # Liquidation price
-            liq_price = self.position.get("liquidation_price", 0)
-            if liq_price > 0:
-                self.metric_labels["liquidation_price"].configure(text=f"${liq_price:,.2f}", text_color="#ff4444")
+            liq_price = self.position.get("liquidation_price")
+            if liq_price is not None and float(liq_price) > 0:
+                self.metric_labels["liquidation_price"].configure(
+                    text=format_asset_price(float(liq_price)),
+                    text_color="#ff4444",
+                )
             else:
                 self.metric_labels["liquidation_price"].configure(text="N/A")
         except Exception as e:
