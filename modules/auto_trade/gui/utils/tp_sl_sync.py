@@ -55,35 +55,39 @@ class TPSLSyncService:
         break_even = None
 
         try:
-            # Fetch open orders for this symbol
-            open_orders = client.exchange.fetch_open_orders(symbol)
+            # Use same symbol format as exchange (e.g. SKL/USDT:USDT) so we see conditional orders
+            from modules.auto_trade.execution.binance.order_management import _ccxt_futures_symbol
+
+            ccxt_symbol = _ccxt_futures_symbol(client.exchange, symbol)
+            open_orders = client.exchange.fetch_open_orders(ccxt_symbol)
             logger.info(f"[TPSLSync] Found {len(open_orders)} open orders for {symbol}")
 
             for order in open_orders:
-                # IMPORTANT: Use info['type'] instead of top-level type
-                # ccxt normalizes type to lowercase generic (e.g., 'market')
-                # but info['type'] preserves Binance's exact type (e.g., 'TAKE_PROFIT_MARKET')
-                order_type_main = order.get("type", "").upper()
-                order_type_info = order.get("info", {}).get("type", "").upper()
-
-                # Prefer info type (more specific)
+                # Binance returns type in info.type (and sometimes origType); CCXT top-level type
+                # is often normalized to generic "market". Use info first so we see TAKE_PROFIT_MARKET / STOP_MARKET.
+                info = order.get("info") or {}
+                if not isinstance(info, dict):
+                    info = {}
+                order_type_main = (order.get("type") or "").upper()
+                order_type_info = (info.get("type") or info.get("origType") or "").upper()
                 order_type = order_type_info if order_type_info else order_type_main
 
-                # Log order details for debugging
-                logger.debug(f"[TPSLSync] Order: main_type={order_type_main}, info_type={order_type_info}, stopPrice={order.get('stopPrice')}")
-
-                # Get stop price from either stopPrice or triggerPrice field
                 stop_price = order.get("stopPrice") or order.get("triggerPrice") or order.get("price", 0)
+                if not stop_price and isinstance(info, dict):
+                    stop_price = info.get("stopPrice") or info.get("triggerPrice") or info.get("price")
 
-                # Detect Take Profit orders
-                # Binance uses: TAKE_PROFIT, TAKE_PROFIT_MARKET, TAKE_PROFIT_LIMIT
+                logger.debug(
+                    f"[TPSLSync] Order id={order.get('id')} type={order_type} stopPrice={stop_price}"
+                )
+
+                # Take Profit: Binance TAKE_PROFIT, TAKE_PROFIT_MARKET, TAKE_PROFIT_LIMIT
                 if "TAKE_PROFIT" in order_type:
                     take_profit = float(stop_price) if stop_price else None
                     logger.info(f"[TPSLSync] ✅ Detected TP for {symbol}: ${take_profit}")
 
-                # Detect Stop Loss orders
-                # Binance uses: STOP, STOP_MARKET, STOP_LOSS, STOP_LOSS_MARKET
-                elif "STOP" in order_type and ("MARKET" in order_type or "LOSS" in order_type):
+                # Stop Loss: Binance STOP, STOP_MARKET, STOP_LOSS, STOP_LOSS_MARKET (all appear in Conditional)
+                # Require STOP or LOSS in type and exclude TAKE_PROFIT so we don't misclassify.
+                elif ("STOP" in order_type or "LOSS" in order_type) and "TAKE_PROFIT" not in order_type:
                     stop_loss = float(stop_price) if stop_price else None
                     logger.info(f"[TPSLSync] ✅ Detected SL for {symbol}: ${stop_loss}")
 
@@ -122,17 +126,36 @@ class TPSLSyncService:
 
         return None
 
+    # Buffer below/above mark so SL is valid and does not trigger immediately (Binance -2021)
+    _SL_MARK_BUFFER_PCT = 0.005  # 0.5%
+
+    @staticmethod
+    def _get_mark_price(client, symbol: str) -> Optional[float]:
+        """Get current mark price for symbol (futures). Returns None if unavailable."""
+        try:
+            exchange = getattr(client, "exchange", None)
+            if exchange is None:
+                return None
+            ticker = exchange.fetch_ticker(symbol)
+            info = ticker.get("info") if isinstance(ticker, dict) else None
+            if isinstance(info, dict) and info.get("markPrice") is not None:
+                return float(info["markPrice"])
+            last = ticker.get("last") if isinstance(ticker, dict) else None
+            return float(last) if last is not None else None
+        except Exception:
+            return None
+
     @staticmethod
     def sync_to_database(session, symbol: str, take_profit: Optional[float], stop_loss: Optional[float]) -> bool:
         """
         Sync TP/SL values to database order.
-        
+
         Args:
             session: Database session
             symbol: Trading symbol
             take_profit: TP price from Binance
             stop_loss: SL price from Binance
-            
+
         Returns:
             True if updated, False otherwise
         """
@@ -271,6 +294,17 @@ class TPSLSyncService:
         else:
             tp_price = entry_price * (1.0 - default_tp_pct / 100.0)
             sl_price = entry_price * (1.0 + default_sl_pct / 100.0)
+
+        # Clamp SL so it is valid vs mark price (avoid Binance -2021 "Order would immediately trigger")
+        if need_sl:
+            mark_price = TPSLSyncService._get_mark_price(client, symbol)
+            if mark_price is not None and mark_price > 0:
+                if side_upper == "LONG" and sl_price >= mark_price:
+                    sl_price = mark_price * (1.0 - TPSLSyncService._SL_MARK_BUFFER_PCT)
+                    logger.info(f"[TPSLSync] Adjusted SL below mark for {symbol} LONG: ${sl_price:.6f}")
+                elif side_upper == "SHORT" and sl_price <= mark_price:
+                    sl_price = mark_price * (1.0 + TPSLSyncService._SL_MARK_BUFFER_PCT)
+                    logger.info(f"[TPSLSync] Adjusted SL above mark for {symbol} SHORT: ${sl_price:.6f}")
 
         if need_tp:
             try:

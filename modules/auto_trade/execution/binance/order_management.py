@@ -11,6 +11,52 @@ import ccxt
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 
+def _log_sl_error(symbol: str, stop_loss_price: Optional[float], e: Exception) -> None:
+    """Log SL modification failure; treat Binance -2021 with a clear message."""
+    msg = str(e).strip()
+    if "-2021" in msg or "immediately trigger" in msg.lower():
+        log_warn(
+            f"SL not set for {symbol}: order would trigger immediately. "
+            f"Ensure SL is below mark for LONG and above mark for SHORT (Binance -2021)."
+        )
+    else:
+        log_error(f"Failed to modify SL: {e}")
+
+
+def _get_mark_price_from_exchange(exchange: ccxt.binance, symbol: str) -> Optional[float]:
+    """Fetch current mark price for symbol (futures). Returns None if unavailable."""
+    try:
+        ticker = cast(dict, exchange.fetch_ticker(symbol))
+        info = ticker.get("info")
+        if isinstance(info, dict) and info.get("markPrice") is not None:
+            return float(info["markPrice"])
+        last = ticker.get("last")
+        if last is not None:
+            return float(last)
+        return None
+    except Exception:
+        return None
+
+
+def _ccxt_futures_symbol(exchange: ccxt.binance, symbol: str) -> str:
+    """
+    Return the symbol format CCXT/Binance futures uses so fetch_open_orders finds orders.
+    With defaultType 'future', markets are often BASE/QUOTE:USDT (e.g. SKL/USDT:USDT).
+    If we pass only SKL/USDT, fetch_open_orders may return [] and we'd never cancel existing SL.
+    """
+    if not symbol:
+        return symbol
+    try:
+        market = exchange.market(symbol)
+        if market and market.get("symbol"):
+            return str(market["symbol"])
+    except Exception:
+        pass
+    if ":" not in symbol and "/" in symbol:
+        return f"{symbol}:USDT"
+    return symbol
+
+
 class OrderManagement:
     """
     Handles TP/SL and order management operations.
@@ -30,6 +76,10 @@ class OrderManagement:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.dry_run = dry_run
+
+    def _get_mark_price(self, symbol: str) -> Optional[float]:
+        """Current mark price for symbol (futures). Returns None if unavailable."""
+        return _get_mark_price_from_exchange(self.exchange, symbol)
 
     def modify_take_profit(
         self, symbol: str, position_id: Optional[str], take_profit_price: Optional[float] = None
@@ -75,15 +125,20 @@ class OrderManagement:
 
             tp_side: str = "sell" if side == "long" else "buy"
 
+            ccxt_symbol_tp: str = _ccxt_futures_symbol(self.exchange, symbol)
+
             # 2. Cancel existing TP orders
-            open_orders: list = self.exchange.fetch_open_orders(symbol)
+            open_orders: list = self.exchange.fetch_open_orders(ccxt_symbol_tp)
             cancelled_count: int = 0
 
             for order in open_orders:
-                order_type: str = order.get("type", "").lower()
-                if "take_profit" in order_type:
+                info_tp = order.get("info") or {}
+                order_type_tp = (
+                    (info_tp.get("type") or info_tp.get("origType") or order.get("type") or "")
+                ).lower()
+                if "take_profit" in order_type_tp:
                     try:
-                        self.exchange.cancel_order(order["id"], symbol)
+                        self.exchange.cancel_order(order["id"], ccxt_symbol_tp)
                         cancelled_count += 1
                         log_info(f"Cancelled existing TP order: {order['id']}")
                     except Exception as e:
@@ -96,7 +151,7 @@ class OrderManagement:
                 tp_order = cast(
                     dict,
                     self.exchange.create_order(
-                        symbol=symbol,
+                        symbol=ccxt_symbol_tp,
                         type=cast(Any, "take_profit_market"),
                         side=tp_side,
                         amount=amount,
@@ -160,45 +215,68 @@ class OrderManagement:
 
             sl_side: str = "sell" if side == "long" else "buy"
 
+            # Use CCXT futures symbol so we find and cancel existing conditional orders (avoid duplicates)
+            ccxt_symbol: str = _ccxt_futures_symbol(self.exchange, symbol)
+
             # 2. Cancel existing SL orders
-            open_orders: list = self.exchange.fetch_open_orders(symbol)
+            open_orders: list = self.exchange.fetch_open_orders(ccxt_symbol)
             cancelled_count: int = 0
 
             for order in open_orders:
-                order_type: str = order.get("type", "").lower()
-                if "stop" in order_type and "take_profit" not in order_type:
+                info_sl = order.get("info") or {}
+                order_type_sl = (
+                    (info_sl.get("type") or info_sl.get("origType") or order.get("type") or "")
+                ).lower()
+                if ("stop" in order_type_sl or "loss" in order_type_sl) and "take_profit" not in order_type_sl:
                     try:
-                        self.exchange.cancel_order(order["id"], symbol)
+                        self.exchange.cancel_order(order["id"], ccxt_symbol)
                         cancelled_count += 1
                         log_info(f"Cancelled existing SL order: {order['id']}")
                     except Exception as e:
                         log_warn(f"Failed to cancel SL order {order['id']}: {e}")
 
-            # 3. Place new SL order if price provided
+            # 3. Place new SL order if price provided (validate to avoid -2021 "Order would immediately trigger")
             if stop_loss_price:
+                mark_price: Optional[float] = self._get_mark_price(symbol)
+                if mark_price is not None and mark_price > 0:
+                    would_trigger = (side == "long" and stop_loss_price >= mark_price) or (
+                        side == "short" and stop_loss_price <= mark_price
+                    )
+                    if would_trigger:
+                        log_warn(
+                            f"Skipping SL at ${stop_loss_price:,.2f} for {symbol} {side}: "
+                            f"would trigger immediately (mark=${mark_price:,.2f}). "
+                            "For LONG, SL must be below mark; for SHORT, above mark."
+                        )
+                        return None
+
                 log_info(f"Setting new SL for {symbol} at ${stop_loss_price:,.2f}")
 
-                sl_order = cast(
-                    dict,
-                    self.exchange.create_order(
-                        symbol=symbol,
-                        type=cast(Any, "stop_market"),
-                        side=sl_side,
-                        amount=amount,
-                        params={
-                            "stopPrice": stop_loss_price,
-                            "reduceOnly": True,
-                        },
-                    ),
-                )
-                log_info(f"✅ Stop Loss order updated at ${stop_loss_price:,.2f}")
-                return sl_order
+                try:
+                    sl_order = cast(
+                        dict,
+                        self.exchange.create_order(
+                            symbol=ccxt_symbol,
+                            type=cast(Any, "stop_market"),
+                            side=sl_side,
+                            amount=amount,
+                            params={
+                                "stopPrice": stop_loss_price,
+                                "reduceOnly": True,
+                            },
+                        ),
+                    )
+                    log_info(f"✅ Stop Loss order updated at ${stop_loss_price:,.2f}")
+                    return sl_order
+                except Exception as create_err:  # noqa: BLE001
+                    _log_sl_error(symbol, stop_loss_price, create_err)
+                    return None
             else:
                 log_info(f"SL cancelled for {symbol}")
                 return {"symbol": symbol, "cancelled_sl_count": cancelled_count}
 
         except Exception as e:
-            log_error(f"Failed to modify SL: {e}")
+            _log_sl_error(symbol, stop_loss_price, e)
             return None
 
     def modify_tp_sl(
@@ -248,14 +326,13 @@ class OrderManagement:
 
         try:
             log_info(f"Cancelling all open orders for {symbol}")
-
-            # Get all open orders
-            open_orders: list = self.exchange.fetch_open_orders(symbol)
+            ccxt_sym: str = _ccxt_futures_symbol(self.exchange, symbol)
+            open_orders: list = self.exchange.fetch_open_orders(ccxt_sym)
 
             cancelled_count: int = 0
             for order in open_orders:
                 try:
-                    self.exchange.cancel_order(order["id"], symbol)
+                    self.exchange.cancel_order(order["id"], ccxt_sym)
                     cancelled_count += 1
                     log_info(f"  Cancelled order: {order['id']} ({order.get('type', 'N/A')})")
                 except Exception as e:

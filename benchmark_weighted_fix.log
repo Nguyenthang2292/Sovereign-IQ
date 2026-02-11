@@ -1,0 +1,1758 @@
+[22m[37mCuPy unavailable: No module named 'cupy'[0m
+================================================================================
+ATC BENCHMARK: Python (mini) vs Rust (serverless)
+================================================================================
+
+Symbols: BTCUSDT, ETHUSDT, XMRUSDT
+Timeframes: 15m, 1h, 4h
+Bars per timeframe: 500
+
+Building Rust benchmark binary...
+Γ£ô Rust binary built successfully
+
+
+Benchmarking BTCUSDT @ 15m...
+  Running Python module...
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Memory Manager initialized
+Hardware Manager initialized
+CUDA GPU detected via Numba: 1 device(s)
+XGBoost GPU available (nvidia-smi check passed)
+nvidia-smi output: GPU 0: NVIDIA GeForce GTX 1660 SUPER (UUID: GPU-9e72f548-f113-549c-1f66-60bb813f5af7)
+Hardware detected: 12 cores, 31.90GB RAM (47.4% used), GPU: cuda
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Enhanced Cache Manager initialized: L1=128, L2=1024, L2_max_size=1000.0MB, dir=.cache/atc
+  L2 miss - key not in L2: ma=EMA|len=28|d=7e05b9bf4db99e37|idx=524db802
+  L2 has 0 keys
+Cache MISS #1: ma_type=EMA, length=28, key=ma=EMA|len=28|d=7e05b9bf4db99e37|idx=524db802...
+  L2 miss - key not in L2: ma=EMA|len=29|d=7e05b9bf4db99e37|idx=524db802
+  L2 has 0 keys
+Cache MISS #2: ma_type=EMA, length=29, key=ma=EMA|len=29|d=7e05b9bf4db99e37|idx=524db802...
+  L2 miss - key not in L2: ma=EMA|len=30|d=7e05b9bf4db99e37|idx=524db802
+  L2 has 0 keys
+Cache MISS #3: ma_type=EMA, length=30, key=ma=EMA|len=30|d=7e05b9bf4db99e37|idx=524db802...
+  L2 miss - key not in L2: ma=EMA|len=31|d=7e05b9bf4db99e37|idx=524db802
+  L2 has 0 keys
+Cache MISS #4: ma_type=EMA, length=31, key=ma=EMA|len=31|d=7e05b9bf4db99e37|idx=524db802...  L2 miss - key not in L2: ma=EMA|len=32|d=7e05b9bf4db99e37|idx=524db802
+
+  L2 has 0 keys
+Cache MISS #5: ma_type=EMA, length=32, key=ma=EMA|len=32|d=7e05b9bf4db99e37|idx=524db802...
+Cache MISS #6: ma_type=EMA, length=27, key=ma=EMA|len=27|d=7e05b9bf4db99e37|idx=524db802...
+Cache MISS #7: ma_type=EMA, length=26, key=ma=EMA|len=26|d=7e05b9bf4db99e37|idx=524db802...
+Cache MISS #8: ma_type=EMA, length=25, key=ma=EMA|len=25|d=7e05b9bf4db99e37|idx=524db802...
+Cache MISS #9: ma_type=EMA, length=24, key=ma=EMA|len=24|d=7e05b9bf4db99e37|idx=524db802...
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+
+
+Cache MISS #10: ma_type=HMA, length=28, key=ma=HMA|len=28|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #11: ma_type=HMA, length=29, key=ma=HMA|len=29|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #12: ma_type=HMA, length=30, key=ma=HMA|len=30|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #14: ma_type=HMA, length=32, key=ma=HMA|len=32|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #15: ma_type=HMA, length=27, key=ma=HMA|len=27|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #13: ma_type=HMA, length=31, key=ma=HMA|len=31|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #18: ma_type=HMA, length=24, key=ma=HMA|len=24|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #17: ma_type=HMA, length=26, key=ma=HMA|len=26|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #16: ma_type=HMA, length=25, key=ma=HMA|len=25|d=7e05b9bf4db99e37|idx=524db802...
+
+
+
+
+
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+
+
+Cache MISS #19: ma_type=WMA, length=28, key=ma=WMA|len=28|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #20: ma_type=WMA, length=29, key=ma=WMA|len=29|d=7e05b9bf4db99e37|idx=524db802...
+Cache MISS #24: ma_type=WMA, length=26, key=ma=WMA|len=26|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #21: ma_type=WMA, length=31, key=ma=WMA|len=31|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #23: ma_type=WMA, length=27, key=ma=WMA|len=27|d=7e05b9bf4db99e37|idx=524db802...Fallback (pandas_ta/numba) used for WMA calculationCache MISS #27: ma_type=WMA, length=32, key=ma=WMA|len=32|d=7e05b9bf4db99e37|idx=524db802...
+Cache MISS #25: ma_type=WMA, length=25, key=ma=WMA|len=25|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #22: ma_type=WMA, length=30, key=ma=WMA|len=30|d=7e05b9bf4db99e37|idx=524db802...
+Cache MISS #26: ma_type=WMA, length=24, key=ma=WMA|len=24|d=7e05b9bf4db99e37|idx=524db802...
+Fallback (pandas_ta/numba) used for WMA calculation
+
+
+
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculation
+
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+
+
+Cache MISS #28: ma_type=DEMA, length=29, key=ma=DEMA|len=29|d=7e05b9bf4db99e37|idx=524db802...Cache MISS #29: ma_type=DEMA, length=30, key=ma=DEMA|len=30|d=7e05b9bf4db99e37|idx=524db802...Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+
+Fallback (pandas_ta/numba) used for DEMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+
+Fallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+
+
+Fallback (pandas_ta/numba) used for KAMA calculation
+
+
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.004GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta-0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.002GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+    Time: 110.25 ┬▒ 0.40 ms
+    Signal: SHORT (-0.1672)
+  Running Rust module...
+    Time: 1.33 ┬▒ 0.28 ms
+    Signal: LONG (0.1667)
+
+Benchmarking BTCUSDT @ 1h...
+  Running Python module...
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for DEMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+Fallback (pandas_ta/numba) used for LSMA calculation
+
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+
+
+Fallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculation
+
+
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+
+
+
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+    Time: 111.16 ┬▒ 0.83 ms
+    Signal: SHORT (-0.3710)
+  Running Rust module...
+    Time: 2.10 ┬▒ 0.23 ms
+    Signal: NEUTRAL (0.0000)
+
+Benchmarking BTCUSDT @ 4h...
+  Running Python module...
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+Fallback (pandas_ta/numba) used for EMA calculation
+
+
+
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+
+
+
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculation
+
+
+
+
+
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+Fallback (pandas_ta/numba) used for DEMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for DEMA calculation
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for KAMA calculation
+
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta-0.003GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+    Time: 108.55 ┬▒ 1.19 ms
+    Signal: NEUTRAL (-0.0575)
+  Running Rust module...
+    Time: 2.00 ┬▒ 0.22 ms
+    Signal: LONG (0.3333)
+
+Benchmarking ETHUSDT @ 15m...
+  Running Python module...
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+
+
+
+
+
+Fallback (pandas_ta/numba) used for HMA calculation
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+
+Fallback (pandas_ta/numba) used for WMA calculation
+
+Fallback (pandas_ta/numba) used for WMA calculation
+
+
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+Fallback (pandas_ta/numba) used for DEMA calculation
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+Fallback (pandas_ta/numba) used for LSMA calculation
+
+
+Fallback (pandas_ta/numba) used for LSMA calculation
+
+
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculation
+
+Fallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculation
+
+
+
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.5%
+[calculate_layer2_equities] Completed - RAM: 47.5% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.5%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.001GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta-0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+    Time: 107.72 ┬▒ 2.20 ms
+    Signal: SHORT (-0.6185)
+  Running Rust module...
+    Time: 1.97 ┬▒ 0.07 ms
+    Signal: NEUTRAL (0.0000)
+
+Benchmarking ETHUSDT @ 1h...
+  Running Python module...
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+
+
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+Fallback (pandas_ta/numba) used for DEMA calculation
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculation
+
+
+
+
+
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+
+
+
+
+
+
+
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta-0.001GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta-0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.001GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+    Time: 109.20 ┬▒ 1.95 ms
+    Signal: NEUTRAL (-0.0612)
+  Running Rust module...
+    Time: 2.11 ┬▒ 0.51 ms
+    Signal: LONG (0.1667)
+
+Benchmarking ETHUSDT @ 4h...
+  Running Python module...
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+
+
+
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+
+
+
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculation
+
+
+Fallback (pandas_ta/numba) used for WMA calculation
+
+
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculation
+
+
+
+
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+    Time: 108.50 ┬▒ 0.95 ms
+    Signal: SHORT (-0.6406)
+  Running Rust module...
+    Time: 2.06 ┬▒ 0.12 ms
+    Signal: SHORT (-0.6667)
+
+Benchmarking XMRUSDT @ 15m...
+  Running Python module...
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+
+
+
+
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+
+
+
+
+
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+
+
+
+
+Fallback (pandas_ta/numba) used for DEMA calculation
+Fallback (pandas_ta/numba) used for DEMA calculation
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+
+
+
+
+
+
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+    Time: 112.13 ┬▒ 2.34 ms
+    Signal: LONG (1.0000)
+  Running Rust module...
+    Time: 1.89 ┬▒ 0.19 ms
+    Signal: LONG (1.0000)
+
+Benchmarking XMRUSDT @ 1h...
+  Running Python module...
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+
+
+
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for DEMA calculation
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculation
+
+
+
+
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta+0.001GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.6%
+[calculate_layer2_equities] Completed - RAM: 47.6% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.6%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta+0.002GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta-0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+    Time: 109.84 ┬▒ 3.55 ms
+    Signal: SHORT (-1.0000)
+  Running Rust module...
+    Time: 1.81 ┬▒ 0.07 ms
+    Signal: SHORT (-1.0000)
+
+Benchmarking XMRUSDT @ 4h...
+  Running Python module...
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculation
+Fallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculationFallback (pandas_ta/numba) used for EMA calculation
+
+Fallback (pandas_ta/numba) used for EMA calculation
+
+
+Fallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculationFallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+
+Fallback (pandas_ta/numba) used for HMA calculation
+Fallback (pandas_ta/numba) used for HMA calculation
+
+
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+
+
+Fallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculationFallback (pandas_ta/numba) used for WMA calculation
+
+
+Fallback (pandas_ta/numba) used for WMA calculation
+
+
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+Fallback (pandas_ta/numba) used for DEMA calculationFallback (pandas_ta/numba) used for DEMA calculation
+
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculationFallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculation
+Fallback (pandas_ta/numba) used for LSMA calculation
+
+
+
+
+
+
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+Fallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculationFallback (pandas_ta/numba) used for KAMA calculation
+
+Fallback (pandas_ta/numba) used for KAMA calculation
+
+Fallback (pandas_ta/numba) used for KAMA calculation
+
+
+
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta-0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta+0.002GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta-0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+Starting ATC signal computation for 500 bars
+Parameters: robustness=Narrow, lambda_scaled=2e-05, decay_scaled=0.0003, cutout=0, strategy_mode=False, equity_floor=0.25
+Workload config: MP=False(1), MT=True(9), GPU=None, batch=9, chunk=9
+Computed 6 MA types
+MA series contains 54 NaN values (10.8%). This may affect signal generation.
+MA series contains 56 NaN values (11.2%). This may affect signal generation.
+MA series contains 58 NaN values (11.6%). This may affect signal generation.
+MA series contains 60 NaN values (12.0%). This may affect signal generation.
+MA series contains 62 NaN values (12.4%). This may affect signal generation.
+MA series contains 52 NaN values (10.4%). This may affect signal generation.
+Completed Layer 1 signals
+Computing Layer 2 equity weights...
+[calculate_layer2_equities] Starting - RAM: 47.7%
+[calculate_layer2_equities] Completed - RAM: 47.7% (delta+0.000GB)
+Completed Layer 2 equity weights
+Memory cleanup started (aggressive=False)
+Cleanup complete: RAM at 47.7%
+Computing Average_Signal (vectorized)...
+Completed Average_Signal
+Completed ATC signal computation for 500 bars
+    Time: 112.10 ┬▒ 1.60 ms
+    Signal: SHORT (-1.0000)
+  Running Rust module...
+    Time: 1.89 ┬▒ 0.09 ms
+    Signal: SHORT (-1.0000)
+
+================================================================================
+BENCHMARK SUMMARY
+================================================================================
+
+1. SPEED COMPARISON
+--------------------------------------------------------------------------------
+Symbol       TF     Python (ms)     Rust (ms)       Speedup   
+--------------------------------------------------------------------------------
+BTCUSDT      15m      110.25 ┬▒ 0.40       1.33 ┬▒ 0.28     83.1x
+BTCUSDT      1h       111.16 ┬▒ 0.83       2.10 ┬▒ 0.23     53.0x
+BTCUSDT      4h       108.55 ┬▒ 1.19       2.00 ┬▒ 0.22     54.2x
+ETHUSDT      15m      107.72 ┬▒ 2.20       1.97 ┬▒ 0.07     54.7x
+ETHUSDT      1h       109.20 ┬▒ 1.95       2.11 ┬▒ 0.51     51.8x
+ETHUSDT      4h       108.50 ┬▒ 0.95       2.06 ┬▒ 0.12     52.8x
+XMRUSDT      15m      112.13 ┬▒ 2.34       1.89 ┬▒ 0.19     59.4x
+XMRUSDT      1h       109.84 ┬▒ 3.55       1.81 ┬▒ 0.07     60.7x
+XMRUSDT      4h       112.10 ┬▒ 1.60       1.89 ┬▒ 0.09     59.2x
+--------------------------------------------------------------------------------
+TOTAL                 989.45             17.15            57.7x
+
+2. SIGNAL CONSISTENCY
+--------------------------------------------------------------------------------
+Symbol       TF     Python     Rust       Match   
+--------------------------------------------------------------------------------
+BTCUSDT      15m    SHORT      LONG       NO      
+BTCUSDT      1h     SHORT      NEUTRAL    NO      
+BTCUSDT      4h     NEUTRAL    LONG       NO      
+ETHUSDT      15m    SHORT      NEUTRAL    NO      
+ETHUSDT      1h     NEUTRAL    LONG       NO      
+ETHUSDT      4h     SHORT      SHORT      YES     
+XMRUSDT      15m    LONG       LONG       YES     
+XMRUSDT      1h     SHORT      SHORT      YES     
+XMRUSDT      4h     SHORT      SHORT      YES     
+--------------------------------------------------------------------------------
+Consistency Rate: 4/9 (44.4%)
+
+3. SIGNAL VALUE DIFFERENCE
+--------------------------------------------------------------------------------
+Symbol       TF     Python       Rust         Diff        
+--------------------------------------------------------------------------------
+BTCUSDT      15m     -0.167205     0.166667     0.333872
+BTCUSDT      1h      -0.371045     0.000000     0.371045
+BTCUSDT      4h      -0.057548     0.333333     0.390881
+ETHUSDT      15m     -0.618544     0.000000     0.618544
+ETHUSDT      1h      -0.061248     0.166667     0.227915
+ETHUSDT      4h      -0.640600    -0.666667     0.026067
+XMRUSDT      15m      1.000000     1.000000     0.000000
+XMRUSDT      1h      -1.000000    -1.000000     0.000000
+XMRUSDT      4h      -1.000000    -1.000000     0.000000
+--------------------------------------------------------------------------------
+Maximum Difference: 0.618544
+
+4. CONCLUSION
+--------------------------------------------------------------------------------
+Rust implementation is 57.7x faster on average
+Signal consistency: 44.4% (4/9)
+Maximum signal difference: 0.618544
+Excellent speedup achieved (>5x)
+Signal inconsistency detected
+
+================================================================================

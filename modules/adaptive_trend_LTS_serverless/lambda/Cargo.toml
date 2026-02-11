@@ -1,0 +1,21 @@
+[package]
+name = "atc_lambda"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+atc_serverless = { path = "../" }
+lambda_runtime = "0.8"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+aws-config = "1.0"
+aws-sdk-sqs = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
+codegen-units = 1

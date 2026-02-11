@@ -6,7 +6,11 @@ database operations, and mock data for dry-run mode.
 """
 
 import os
+import time
 from typing import Any, Dict, List, Optional, Union, cast
+
+# Cooldown (seconds) before pushing TP/SL again for the same symbol (avoids duplicate orders)
+TP_SL_PUSH_COOLDOWN_SEC = 60
 
 # Local imports
 from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
@@ -40,6 +44,7 @@ class DataService:
         self.data_fetcher: Optional[Any] = None
         self.database_manager: Optional[Any] = None
         self.exchange_manager: Optional[Any] = None
+        self._tp_sl_push_last: Dict[str, float] = {}  # symbol -> monotonic time of last push
 
         # Initialize MockPriceFeed (always available as fallback)
         self.mock_price_feed: Optional[MockPriceFeed] = self._initialize_mock_price_feed()
@@ -513,26 +518,32 @@ class DataService:
                                 sm = getattr(self, "settings_manager", None)
                                 if (take_profit is None or stop_loss is None) and client and sm is not None and self.mode != "DRY_RUN":
                                     try:
-                                        tp_sl_cfg = sm.get("tp_sl", {}) or {}
-                                        default_tp = float(tp_sl_cfg.get("default_tp", 5.0))
-                                        default_sl = float(tp_sl_cfg.get("default_sl", 2.5))
-                                        if default_tp > 0 and default_sl > 0:
-                                            pushed = TPSLSyncService.ensure_tp_sl_on_binance(
-                                                client=client,
-                                                symbol=symbol,
-                                                side=side,
-                                                entry_price=entry_price,
-                                                default_tp_pct=default_tp,
-                                                default_sl_pct=default_sl,
-                                            )
-                                            if pushed.get("take_profit") is not None:
-                                                take_profit = pushed["take_profit"]
-                                            if pushed.get("stop_loss") is not None:
-                                                stop_loss = pushed["stop_loss"]
-                                                break_even = TPSLSyncService.detect_break_even(entry_price, stop_loss, side)
-                                            if take_profit is not None or stop_loss is not None:
-                                                TPSLSyncService.sync_to_database(session, symbol, take_profit, stop_loss)
-                                                print(f"[DataService] Pushed missing TP/SL for {symbol}: TP=${take_profit}, SL=${stop_loss}")
+                                        now = time.monotonic()
+                                        last = getattr(self, "_tp_sl_push_last", {}).get(symbol, 0)
+                                        if now - last < TP_SL_PUSH_COOLDOWN_SEC:
+                                            pass  # Skip push: cooldown to avoid duplicate SL/TP orders
+                                        else:
+                                            tp_sl_cfg = sm.get("tp_sl", {}) or {}
+                                            default_tp = float(tp_sl_cfg.get("default_tp", 5.0))
+                                            default_sl = float(tp_sl_cfg.get("default_sl", 2.5))
+                                            if default_tp > 0 and default_sl > 0:
+                                                pushed = TPSLSyncService.ensure_tp_sl_on_binance(
+                                                    client=client,
+                                                    symbol=symbol,
+                                                    side=side,
+                                                    entry_price=entry_price,
+                                                    default_tp_pct=default_tp,
+                                                    default_sl_pct=default_sl,
+                                                )
+                                                if pushed.get("take_profit") is not None:
+                                                    take_profit = pushed["take_profit"]
+                                                if pushed.get("stop_loss") is not None:
+                                                    stop_loss = pushed["stop_loss"]
+                                                    break_even = TPSLSyncService.detect_break_even(entry_price, stop_loss, side)
+                                                if take_profit is not None or stop_loss is not None:
+                                                    TPSLSyncService.sync_to_database(session, symbol, take_profit, stop_loss)
+                                                    print(f"[DataService] Pushed missing TP/SL for {symbol}: TP=${take_profit}, SL=${stop_loss}")
+                                                    self._tp_sl_push_last[symbol] = now
                                     except Exception as push_err:
                                         print(f"[DataService] Could not push TP/SL for {symbol}: {push_err}")
 
