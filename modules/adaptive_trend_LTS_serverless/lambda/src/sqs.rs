@@ -24,7 +24,7 @@ impl SqsClient {
             Ok(b) => b,
             Err(e) => {
                 error!("Failed to serialize ScanResult: {}", e);
-                return Ok(());
+                return Err(SdkError::ConstructionFailure(Box::new(e)));
             }
         };
 

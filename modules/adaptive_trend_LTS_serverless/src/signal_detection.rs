@@ -112,19 +112,30 @@ pub fn calculate_layer1_signal(
     prices: ArrayView1<f64>,
     ma_type: &str,
     base_length: usize,
-    _lambda: f64,
-    decay: f64,
+    lambda_scaled: f64,
+    decay_scaled: f64,
+    cutout: usize,
+    equity_floor: f64,
+    robustness: Robustness,
 ) -> (Array1<f64>, f64) {
     let n = prices.len();
 
-    let diflen_result = match calculate_diflen(base_length, Robustness::Medium) {
+    let diflen_result = match calculate_diflen(base_length, robustness) {
         Some(lengths) => lengths,
         None => {
             eprintln!(
                 "[WARN] diflen failed for length {}, using base length only",
                 base_length
             );
-            return calculate_layer1_signal_single(prices, ma_type, base_length, decay);
+            return calculate_layer1_signal_single(
+                prices,
+                ma_type,
+                base_length,
+                lambda_scaled,
+                decay_scaled,
+                cutout,
+                equity_floor,
+            );
         }
     };
 
@@ -134,6 +145,9 @@ pub fn calculate_layer1_signal(
             roc[i] = (prices[i] - prices[i - 1]) / prices[i - 1];
         }
     }
+
+    let growth = exp_growth(lambda_scaled, n, cutout);
+    let r_adjusted = &roc * &growth;
 
     let mut all_signals: Vec<Array1<f64>> = Vec::with_capacity(8);
     let mut all_equities: Vec<f64> = Vec::with_capacity(8);
@@ -157,7 +171,14 @@ pub fn calculate_layer1_signal(
             sig_shifted[i] = signal[i - 1];
         }
 
-        let equity = calculate_equity(roc.view(), sig_shifted.view(), 1.0, 1.0 - decay, 0);
+        let equity = calculate_equity(
+            r_adjusted.view(),
+            sig_shifted.view(),
+            1.0,
+            1.0 - decay_scaled,
+            cutout,
+            equity_floor,
+        );
 
         let final_equity = equity[n - 1];
         all_equities.push(if final_equity.is_nan() { 1.0 } else { final_equity });
@@ -196,7 +217,10 @@ fn calculate_layer1_signal_single(
     prices: ArrayView1<f64>,
     ma_type: &str,
     length: usize,
-    decay: f64,
+    lambda_scaled: f64,
+    decay_scaled: f64,
+    cutout: usize,
+    equity_floor: f64,
 ) -> (Array1<f64>, f64) {
     let n = prices.len();
 
@@ -208,6 +232,9 @@ fn calculate_layer1_signal_single(
             roc[i] = (prices[i] - prices[i - 1]) / prices[i - 1];
         }
     }
+
+    let growth = exp_growth(lambda_scaled, n, cutout);
+    let r_adjusted = &roc * &growth;
 
     let mut signal = Array1::<f64>::from_elem(n, 0.0);
     for i in 0..n {
@@ -225,7 +252,14 @@ fn calculate_layer1_signal_single(
         sig_shifted[i] = signal[i - 1];
     }
 
-    let equity = calculate_equity(roc.view(), sig_shifted.view(), 1.0, 1.0 - decay, 0);
+    let equity = calculate_equity(
+        r_adjusted.view(),
+        sig_shifted.view(),
+        1.0,
+        1.0 - decay_scaled,
+        cutout,
+        equity_floor,
+    );
 
     let final_weight = equity[n - 1];
     (
@@ -255,6 +289,9 @@ fn calculate_layer1_signal_single(
 pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, String) {
     let prices_arr = ArrayView1::from(prices);
     let n = prices.len();
+    let lambda_scaled = config.lambda_param / 1000.0;
+    let decay_scaled = config.decay / 100.0;
+    let robustness = Robustness::from_str(&config.robustness);
 
     let mut weighted_score_sum = 0.0;
     let mut total_weight = 0.0;
@@ -264,8 +301,11 @@ pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, String)
             prices_arr,
             &ma_config.ma_type,
             ma_config.length,
-            config.lambda_param,
-            config.decay,
+            lambda_scaled,
+            decay_scaled,
+            config.cutout,
+            config.equity_floor,
+            robustness,
         );
 
         let last_signal = if n > 0 { signal_series[n - 1] } else { 0.0 };
@@ -345,7 +385,16 @@ mod tests {
         let prices: Vec<f64> = (0..100).map(|i| 100.0 + i as f64 * 0.5).collect();
         let prices_arr = ArrayView1::from(&prices);
 
-        let (signal, equity) = calculate_layer1_signal(prices_arr, "EMA", 20, 0.02, 0.03);
+        let (signal, equity) = calculate_layer1_signal(
+            prices_arr,
+            "EMA",
+            20,
+            0.02 / 1000.0,
+            0.03 / 100.0,
+            0,
+            0.25,
+            Robustness::Medium,
+        );
 
         assert_eq!(signal.len(), 100);
         assert!(!equity.is_nan());

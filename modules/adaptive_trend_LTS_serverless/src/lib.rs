@@ -24,9 +24,11 @@
 //!     threshold: 0.3,
 //!     min_signal: 0.0,
 //!     use_signal_strength: true,
+//!     robustness: "Medium".to_string(),
 //!     lambda_param: 0.02,
 //!     decay: 0.03,
 //!     cutout: 0,
+//!     equity_floor: 0.25,
 //!     ma_configs: vec![
 //!         MAConfig { ma_type: "EMA".to_string(), length: 20, weight: 1.0 },
 //!     ],
@@ -120,6 +122,9 @@ pub struct OHLCVData {
 /// timeframe weights, and MA configurations.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ATCConfig {
+    /// Robustness level for diflen calculation: "Narrow", "Medium", or "Wide"
+    #[serde(default = "default_robustness")]
+    pub robustness: String,
     /// Timeframe weights for multi-timeframe aggregation
     /// Example: {"1h": 0.6, "4h": 0.4}
     pub weights: HashMap<String, f64>,
@@ -141,6 +146,9 @@ pub struct ATCConfig {
     /// Number of initial bars to cut out (default: 0)
     #[serde(default = "default_cutout")]
     pub cutout: usize,
+    /// Minimum equity floor value to prevent numerical instability
+    #[serde(default = "default_equity_floor")]
+    pub equity_floor: f64,
     /// Configuration for each Moving Average type
     #[serde(default = "default_ma_configs")]
     pub ma_configs: Vec<MAConfig>,
@@ -154,6 +162,12 @@ fn default_decay() -> f64 {
 }
 fn default_cutout() -> usize {
     0
+}
+fn default_robustness() -> String {
+    "Medium".to_string()
+}
+fn default_equity_floor() -> f64 {
+    0.25
 }
 fn default_ma_configs() -> Vec<MAConfig> {
     vec![

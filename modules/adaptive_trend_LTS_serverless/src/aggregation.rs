@@ -2,7 +2,7 @@ use crate::multi_tf_voting::aggregate_timeframes;
 use crate::{ATCConfig, SignalResult, SymbolData, SymbolError};
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 /// Result of processing a single symbol
 pub struct SymbolProcessingResult {
@@ -47,7 +47,11 @@ pub fn process_batch(
     config: ATCConfig,
 ) -> (Vec<SignalResult>, Vec<SymbolError>) {
     let batch_start = Instant::now();
-    let batch_id = format!("batch-{}", batch_start.elapsed().as_millis());
+    let epoch_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let batch_id = format!("batch-{}", epoch_ms);
 
     eprintln!(
         "[INFO] [{}] Starting batch processing with {} symbols",

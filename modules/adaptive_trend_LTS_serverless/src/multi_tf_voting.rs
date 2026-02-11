@@ -23,34 +23,79 @@ pub fn aggregate_timeframes(
     config: &ATCConfig,
 ) -> SignalResult {
     let mut total_weighted_score = 0.0;
-    let mut total_weight = 0.0;
 
-    for (tf, score) in &tf_scores {
-        if let Some(weight) = config.weights.get(tf) {
-            total_weighted_score += score * weight;
-            total_weight += weight;
-        }
-    }
+    let total_config_weight: f64 = config.weights.values().sum();
+    let active_weight: f64 = config
+        .weights
+        .iter()
+        .filter(|(tf, _)| tf_scores.contains_key(*tf))
+        .map(|(_, w)| *w)
+        .sum();
 
-    let final_score = if total_weight > 0.0 {
-        total_weighted_score / total_weight
+    let weight_ratio = if total_config_weight > 0.0 {
+        active_weight / total_config_weight
     } else {
-        0.0
+        1.0
     };
 
-    let signal_type = if final_score > config.threshold {
+    let adaptive_threshold = config.threshold * weight_ratio;
+
+    for (tf, _) in &tf_scores {
+        let tf_weight = if active_weight > 0.0 {
+            config.weights.get(tf).copied().unwrap_or(0.0) / active_weight
+        } else {
+            0.0
+        };
+
+        let signal_type = tf_details.get(tf).map(String::as_str).unwrap_or("NEUTRAL");
+        let strength = tf_strengths.get(tf).copied().unwrap_or(0.0);
+
+        let weighted_score = calculate_weighted_score(signal_type, tf_weight, strength, config.use_signal_strength);
+        total_weighted_score += weighted_score;
+    }
+
+    let mut signal_type = if total_weighted_score > adaptive_threshold {
         "LONG".to_string()
-    } else if final_score < -config.threshold {
+    } else if total_weighted_score < -adaptive_threshold {
         "SHORT".to_string()
     } else {
         "NEUTRAL".to_string()
     };
 
+    if total_weighted_score.abs() < config.min_signal {
+        signal_type = "NEUTRAL".to_string();
+    }
+
     SignalResult {
         symbol,
-        score: final_score,
+        score: total_weighted_score,
         signal_type,
         details: tf_details,
         strengths: tf_strengths,
+    }
+}
+
+fn calculate_weighted_score(
+    signal_type: &str,
+    tf_weight: f64,
+    strength: f64,
+    use_signal_strength: bool,
+) -> f64 {
+    match signal_type {
+        "LONG" => {
+            if use_signal_strength {
+                tf_weight * strength.abs()
+            } else {
+                tf_weight
+            }
+        }
+        "SHORT" => {
+            if use_signal_strength {
+                tf_weight * strength
+            } else {
+                -tf_weight
+            }
+        }
+        _ => 0.0,
     }
 }

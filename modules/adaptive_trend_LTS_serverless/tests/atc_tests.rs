@@ -166,7 +166,7 @@ fn test_equity_calculation_basic() {
     let r = Array1::from(vec![0.01, 0.02, -0.01]);
     let sig = Array1::from(vec![1.0, 1.0, -1.0]);
 
-    let equity = calculate_equity(r.view(), sig.view(), 100.0, 1.0, 0);
+    let equity = calculate_equity(r.view(), sig.view(), 100.0, 1.0, 0, 0.25);
 
     assert_eq!(equity[0], 100.0, "Initial equity should be 100");
     // After positive returns, equity should increase
@@ -181,8 +181,8 @@ fn test_equity_with_decay() {
     let r = Array1::from(vec![0.01; 100]);
     let sig = Array1::from(vec![1.0; 100]);
 
-    let equity_no_decay = calculate_equity(r.view(), sig.view(), 100.0, 1.0, 0);
-    let equity_with_decay = calculate_equity(r.view(), sig.view(), 100.0, 0.97, 0);
+    let equity_no_decay = calculate_equity(r.view(), sig.view(), 100.0, 1.0, 0, 0.25);
+    let equity_with_decay = calculate_equity(r.view(), sig.view(), 100.0, 0.97, 0, 0.25);
 
     // Decay should result in lower equity
     assert!(
@@ -265,7 +265,16 @@ fn test_layer1_signal_uptrend() {
     let prices: Vec<f64> = (0..100).map(|i| 100.0 + i as f64 * 0.5).collect();
     let prices_arr = Array1::from(prices);
 
-    let (signal, equity) = calculate_layer1_signal(prices_arr.view(), "EMA", 20, 0.02, 0.03);
+    let (signal, equity) = calculate_layer1_signal(
+        prices_arr.view(),
+        "EMA",
+        20,
+        0.02 / 1000.0,
+        0.03 / 100.0,
+        0,
+        0.25,
+        Robustness::Medium,
+    );
 
     assert_eq!(signal.len(), 100);
     assert!(!equity.is_nan(), "Equity should not be NaN");
@@ -282,7 +291,16 @@ fn test_layer1_signal_downtrend() {
     let prices: Vec<f64> = (0..100).map(|i| 100.0 - i as f64 * 0.5).collect();
     let prices_arr = Array1::from(prices);
 
-    let (signal, equity) = calculate_layer1_signal(prices_arr.view(), "EMA", 20, 0.02, 0.03);
+    let (signal, equity) = calculate_layer1_signal(
+        prices_arr.view(),
+        "EMA",
+        20,
+        0.02 / 1000.0,
+        0.03 / 100.0,
+        0,
+        0.25,
+        Robustness::Medium,
+    );
 
     assert!(!equity.is_nan(), "Equity should not be NaN");
     // In a downtrend with EMA, signal should be negative
@@ -304,6 +322,8 @@ fn test_compute_symbol_score() {
         lambda_param: 0.02,
         decay: 0.03,
         cutout: 0,
+        equity_floor: 0.25,
+        robustness: "Medium".to_string(),
         ma_configs: vec![MAConfig {
             ma_type: "EMA".to_string(),
             length: 20,
@@ -333,6 +353,8 @@ fn test_signal_type_classification() {
         lambda_param: 0.02,
         decay: 0.03,
         cutout: 0,
+        equity_floor: 0.25,
+        robustness: "Medium".to_string(),
         ma_configs: vec![MAConfig {
             ma_type: "EMA".to_string(),
             length: 20,
@@ -389,6 +411,8 @@ fn test_process_batch_single_symbol() {
         lambda_param: 0.02,
         decay: 0.03,
         cutout: 0,
+        equity_floor: 0.25,
+        robustness: "Medium".to_string(),
         ma_configs: vec![MAConfig {
             ma_type: "EMA".to_string(),
             length: 10,
@@ -437,6 +461,8 @@ fn test_process_batch_multiple_symbols() {
         lambda_param: 0.02,
         decay: 0.03,
         cutout: 0,
+        equity_floor: 0.25,
+        robustness: "Medium".to_string(),
         ma_configs: vec![MAConfig {
             ma_type: "EMA".to_string(),
             length: 10,
@@ -499,6 +525,8 @@ fn test_process_batch_with_error_recovery() {
         lambda_param: 0.02,
         decay: 0.03,
         cutout: 0,
+        equity_floor: 0.25,
+        robustness: "Medium".to_string(),
         ma_configs: vec![MAConfig {
             ma_type: "EMA".to_string(),
             length: 30,
@@ -506,10 +534,11 @@ fn test_process_batch_with_error_recovery() {
         }],
     };
 
-    let (results, errors) = process_batch(symbols, config);
+    let symbol_count = symbols.len();
+    let (results, _errors) = process_batch(symbols, config);
 
     // Should still get results even if some fail
-    assert!(results.len() >= 0, "Should handle batch processing");
+    assert!(results.len() <= symbol_count, "Should handle batch processing");
     // May have errors but should not panic
 }
 
@@ -558,6 +587,8 @@ fn test_end_to_end_pipeline() {
         lambda_param: 0.02,
         decay: 0.03,
         cutout: 0,
+        equity_floor: 0.25,
+        robustness: "Medium".to_string(),
         ma_configs: vec![
             MAConfig {
                 ma_type: "EMA".to_string(),
@@ -608,6 +639,8 @@ fn test_all_ma_types() {
             lambda_param: 0.02,
             decay: 0.03,
             cutout: 0,
+            equity_floor: 0.25,
+            robustness: "Medium".to_string(),
             ma_configs: vec![MAConfig {
                 ma_type: ma_type.to_string(),
                 length: 20,
