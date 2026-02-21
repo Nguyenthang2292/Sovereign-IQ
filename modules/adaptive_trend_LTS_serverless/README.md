@@ -258,9 +258,20 @@ The test suite includes:
 ### Optimization Features
 
 - **Parallel Processing**: Uses Rayon for parallel symbol processing
-- **SIMD Optimizations**: Leverages ndarray for vectorized operations
+- **SIMD Optimizations**: Uses `std::simd` portable SIMD (`f64x4`) for EMA/SMA/WMA under `--features simd`
 - **Release Optimizations**: LTO, strip symbols, single codegen unit
 - **Error Recovery**: Per-symbol error handling prevents total batch failure
+
+### SIMD Performance Comparison (Benchmark Run: 2026-02-15)
+
+| Metric | Rust Scalar | Rust SIMD | Delta |
+|--------|-------------|-----------|-------|
+| Total latency (9 scenarios) | 13.71 ms | 11.58 ms | 1.18x faster |
+| Average latency / scenario | 1.52 ms | 1.29 ms | 1.19x faster |
+| Speedup vs Python baseline | 76.82x | 90.99x | +18.4% |
+| Signal consistency | 9/9 | 9/9 | 100% match |
+
+Detailed per-symbol/per-timeframe SIMD results are documented in `SIMD_OPTIMIZATION.md`.
 
 ## Monitoring and Observability
 

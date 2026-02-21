@@ -11,7 +11,7 @@ from modules.auto_trade.database.models import Order
 def fix_order_sources(dry_run: bool = True):
     """
     Fix order_source for AutoTrade orders.
-    
+
     Args:
         dry_run: If True, only show what would be changed without changing it.
                  If False, actually update the database.

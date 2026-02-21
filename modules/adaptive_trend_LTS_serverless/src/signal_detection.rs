@@ -96,6 +96,16 @@ pub fn calculate_diflen(length: usize, robustness: Robustness) -> Option<[usize;
 }
 
 fn calculate_ma_variation(prices: ArrayView1<f64>, ma_type: &str, length: usize) -> Array1<f64> {
+    #[cfg(feature = "simd")]
+    {
+        match ma_type {
+            "EMA" => return crate::ma_simd::calculate_ema_simd(prices, length),
+            "WMA" => return crate::ma_simd::calculate_wma_simd(prices, length),
+            "SMA" => return crate::ma_simd::calculate_sma_simd(prices, length),
+            _ => {}
+        }
+    }
+
     match ma_type {
         "EMA" => calculate_ema(prices, length),
         "HMA" => calculate_hma(prices, length),

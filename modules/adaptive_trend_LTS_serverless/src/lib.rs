@@ -36,6 +36,7 @@
 //! ```
 
 #![warn(missing_docs)]
+#![cfg_attr(feature = "simd", feature(portable_simd))]
 
 /// Batch processing and error recovery
 pub mod aggregation;
@@ -43,6 +44,9 @@ pub mod aggregation;
 pub mod equity;
 /// Moving Average calculations (EMA, HMA, WMA, DEMA, LSMA, KAMA)
 pub mod ma_calculations;
+/// SIMD-optimized Moving Average calculations (requires `simd` feature)
+#[cfg(feature = "simd")]
+pub mod ma_simd;
 /// Multi-timeframe signal aggregation and voting
 pub mod multi_tf_voting;
 /// Signal detection algorithms with diflen and trend classification
@@ -55,6 +59,8 @@ use std::collections::HashMap;
 pub use aggregation::*;
 pub use equity::*;
 pub use ma_calculations::*;
+#[cfg(feature = "simd")]
+pub use ma_simd::*;
 pub use multi_tf_voting::*;
 pub use signal_detection::*;
 

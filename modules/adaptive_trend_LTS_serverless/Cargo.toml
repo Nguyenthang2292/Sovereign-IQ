@@ -14,11 +14,16 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 
+[features]
+default = []
+simd = []  # Use std::simd from Rust standard library (nightly only)
+
 [profile.release]
 opt-level = 3
 lto = "thin"
 strip = true
 codegen-units = 1
+debug = true
 
 [[bin]]
 name = "atc_benchmark"
