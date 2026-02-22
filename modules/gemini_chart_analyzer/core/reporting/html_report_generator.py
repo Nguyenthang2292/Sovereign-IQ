@@ -20,12 +20,7 @@ from modules.gemini_chart_analyzer.core.reporting.generators import (
 )
 
 
-def generate_html_report(
-    analysis_data: Dict[str, Any],
-    output_dir: str,
-    report_type: str = "single",
-    **kwargs
-) -> str:
+def generate_html_report(analysis_data: Dict[str, Any], output_dir: str, report_type: str = "single", **kwargs) -> str:
     """
     Generate an HTML report based on the report type.
 

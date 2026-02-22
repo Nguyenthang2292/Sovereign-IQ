@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from modules.common.utils import validate_ohlcv_input
+from modules.common.data.validation import validate_ohlcv_input
 
 from .base import IndicatorResult, collect_metadata
 
@@ -58,6 +58,7 @@ class CandlestickPatterns:
             bearish & (body_ratio > 0.9) & (upper_shadow < 0.05 * body) & (lower_shadow < 0.05 * body)
         ).astype(int)
         result["SPINNING_TOP"] = ((body_ratio < 0.3) & (upper_shadow > body) & (lower_shadow > body)).astype(int)
+        result["LONG_LEGGED_DOJI"] = ((body_ratio < 0.1) & (upper_ratio > 0.4) & (lower_ratio > 0.4)).astype(int)
         result["DRAGONFLY_DOJI"] = ((body_ratio < 0.1) & (upper_ratio < 0.1) & (lower_ratio > 0.6)).astype(int)
         result["GRAVESTONE_DOJI"] = ((body_ratio < 0.1) & (lower_ratio < 0.1) & (upper_ratio > 0.6)).astype(int)
 
@@ -150,6 +151,22 @@ class CandlestickPatterns:
             & (c.shift(1) >= o.shift(2))
             & (c < c.shift(1))
         ).astype(int)
+        result["THREE_OUTSIDE_UP"] = (
+            bearish.shift(2)
+            & bullish.shift(1)
+            & (c.shift(1) > o.shift(2))
+            & (o.shift(1) < c.shift(2))
+            & bullish
+            & (c > c.shift(1))
+        ).astype(int)
+        result["THREE_OUTSIDE_DOWN"] = (
+            bullish.shift(2)
+            & bearish.shift(1)
+            & (o.shift(1) > c.shift(2))
+            & (c.shift(1) < o.shift(2))
+            & bearish
+            & (c < c.shift(1))
+        ).astype(int)
         tweezer_tolerance = 0.1 * range_series.combine(range_series.shift(1), np.minimum)
         result["TWEEZER_TOP"] = (bullish.shift(1) & bearish & (np.abs(h - h.shift(1)) <= tweezer_tolerance)).astype(int)
         result["TWEEZER_BOTTOM"] = (
@@ -233,6 +250,66 @@ class CandlestickPatterns:
         result["KICKER_BEAR"] = (prev_bullish & bearish & (o <= prev_low) & (body_ratio > 0.5)).astype(int)
         result["HANGING_MAN"] = (
             (lower_shadow > 2 * body) & (upper_shadow < body) & (body_ratio < 0.4) & bullish.shift(1)
+        ).astype(int)
+        result["BULLISH_ABANDONED_BABY"] = (
+            bearish.shift(2)
+            & (body_ratio.shift(1) < 0.1)
+            & (h.shift(1) < low.shift(2))
+            & bullish
+            & (low > h.shift(1))
+        ).astype(int)
+        result["BEARISH_ABANDONED_BABY"] = (
+            bullish.shift(2)
+            & (body_ratio.shift(1) < 0.1)
+            & (low.shift(1) > h.shift(2))
+            & bearish
+            & (h < low.shift(1))
+        ).astype(int)
+        result["BULLISH_TRI_STAR"] = (
+            (body_ratio.shift(2) < 0.1)
+            & (body_ratio.shift(1) < 0.1)
+            & (body_ratio < 0.1)
+            & (h.shift(1) < low.shift(2))
+            & (low > h.shift(1))
+        ).astype(int)
+        result["BEARISH_TRI_STAR"] = (
+            (body_ratio.shift(2) < 0.1)
+            & (body_ratio.shift(1) < 0.1)
+            & (body_ratio < 0.1)
+            & (low.shift(1) > h.shift(2))
+            & (h < low.shift(1))
+        ).astype(int)
+        result["RISING_THREE_METHODS"] = (
+            bullish.shift(4)
+            & (body.shift(4) > (range_series.shift(4) * 0.6))
+            & (body.shift(3) < (range_series.shift(3) * 0.5))
+            & (body.shift(2) < (range_series.shift(2) * 0.5))
+            & (body.shift(1) < (range_series.shift(1) * 0.5))
+            & (h.shift(3) < h.shift(4))
+            & (low.shift(3) > low.shift(4))
+            & (h.shift(1) < h.shift(4))
+            & (low.shift(1) > low.shift(4))
+            & bullish
+            & (c > c.shift(4))
+        ).astype(int)
+        result["FALLING_THREE_METHODS"] = (
+            bearish.shift(4)
+            & (body.shift(4) > (range_series.shift(4) * 0.6))
+            & (body.shift(3) < (range_series.shift(3) * 0.5))
+            & (body.shift(2) < (range_series.shift(2) * 0.5))
+            & (body.shift(1) < (range_series.shift(1) * 0.5))
+            & (h.shift(3) < h.shift(4))
+            & (low.shift(3) > low.shift(4))
+            & (h.shift(1) < h.shift(4))
+            & (low.shift(1) > low.shift(4))
+            & bearish
+            & (c < c.shift(4))
+        ).astype(int)
+        result["DOJI_STAR_BULLISH"] = (
+            bearish.shift(1)
+            & (body.shift(1) > (range_series.shift(1) * 0.5))
+            & (body_ratio < 0.1)
+            & (np.maximum(o, c) < c.shift(1))
         ).astype(int)
 
         metadata = collect_metadata(

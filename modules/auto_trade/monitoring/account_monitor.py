@@ -15,14 +15,13 @@ Key improvements over REST polling:
 """
 
 import asyncio
-import logging
-from dataclasses import dataclass
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from modules.auto_trade.websocket.client import BinanceWebSocketClient
 
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -60,7 +59,7 @@ class BalanceMonitor:
         self._callbacks: List[Callable[[BalanceSnapshot], None]] = []
         self._last_balance: Optional[BalanceSnapshot] = None
 
-        logger.info("BalanceMonitor initialized (WebSocket mode)")
+        log_info("BalanceMonitor initialized (WebSocket mode)")
 
     def add_callback(self, callback: Callable[[BalanceSnapshot], None]) -> None:
         """
@@ -70,12 +69,12 @@ class BalanceMonitor:
             callback: Function(BalanceSnapshot) called on balance update
         """
         self._callbacks.append(callback)
-        logger.info(f"Added balance callback: {callback.__name__}")
+        log_info(f"Added balance callback: {callback.__name__}")
 
     async def start(self) -> None:
         """Start monitoring balance via WebSocket."""
         if self._running:
-            logger.warning("BalanceMonitor is already running")
+            log_warn("BalanceMonitor is already running")
             return
 
         self._running = True
@@ -84,13 +83,13 @@ class BalanceMonitor:
         initial_balance = await self.ws_client.get_initial_balance()
 
         if initial_balance:
-            logger.info("Loaded initial balance")
+            log_info("Loaded initial balance")
             self._process_balance_update(initial_balance)
 
         # Register WebSocket callback
         self.ws_client.on_balance_update(self._handle_ws_balance_update)
 
-        logger.info("✅ BalanceMonitor started (WebSocket mode)")
+        log_info("✅ BalanceMonitor started (WebSocket mode)")
 
     async def stop(self) -> None:
         """Stop monitoring balance."""
@@ -98,7 +97,7 @@ class BalanceMonitor:
             return
 
         self._running = False
-        logger.info("⏹️  BalanceMonitor stopped")
+        log_info("⏹️  BalanceMonitor stopped")
 
     def _handle_ws_balance_update(self, balance: dict) -> None:
         """
@@ -113,7 +112,7 @@ class BalanceMonitor:
         try:
             self._process_balance_update(balance)
         except Exception as e:
-            logger.error(f"Error handling WebSocket balance update: {e}", exc_info=True)
+            log_error(f"Error handling WebSocket balance update: {e}", exc_info=True)
 
     def _process_balance_update(self, balance: dict) -> None:
         """
@@ -134,7 +133,7 @@ class BalanceMonitor:
         usdt_balance = balance.get("USDT", {})
 
         if not usdt_balance:
-            logger.warning("No USDT balance found in update")
+            log_warn("No USDT balance found in update")
             return
 
         snapshot = BalanceSnapshot(
@@ -147,7 +146,7 @@ class BalanceMonitor:
 
         # Log if changed significantly
         if self._has_significant_change(snapshot):
-            logger.info(f"💰 Balance update: ${snapshot.total:.2f} USDT (free: ${snapshot.free:.2f})")
+            log_info(f"💰 Balance update: ${snapshot.total:.2f} USDT (free: ${snapshot.free:.2f})")
 
         # Update last balance
         self._last_balance = snapshot
@@ -160,7 +159,7 @@ class BalanceMonitor:
                 else:
                     callback(snapshot)
             except Exception as e:
-                logger.error(f"Error in balance callback {callback.__name__}: {e}")
+                log_error(f"Error in balance callback {callback.__name__}: {e}")
 
     def _has_significant_change(self, snapshot: BalanceSnapshot) -> bool:
         """
@@ -205,6 +204,8 @@ class OrderSnapshot:
     remaining: float
     timestamp: datetime
     last_update_timestamp: datetime
+    realized_pnl: Optional[float] = None
+    raw_info: Dict[str, Any] = field(default_factory=dict)
 
 
 class OrderMonitor:
@@ -231,7 +232,7 @@ class OrderMonitor:
         self._callbacks: List[Callable[[OrderSnapshot], None]] = []
         self._open_orders: Dict[str, OrderSnapshot] = {}  # order_id -> snapshot
 
-        logger.info("OrderMonitor initialized (WebSocket mode)")
+        log_info("OrderMonitor initialized (WebSocket mode)")
 
     def add_callback(self, callback: Callable[[OrderSnapshot], None]) -> None:
         """
@@ -241,12 +242,12 @@ class OrderMonitor:
             callback: Function(OrderSnapshot) called on order update
         """
         self._callbacks.append(callback)
-        logger.info(f"Added order callback: {callback.__name__}")
+        log_info(f"Added order callback: {callback.__name__}")
 
     async def start(self) -> None:
         """Start monitoring orders via WebSocket."""
         if self._running:
-            logger.warning("OrderMonitor is already running")
+            log_warn("OrderMonitor is already running")
             return
 
         self._running = True
@@ -255,14 +256,14 @@ class OrderMonitor:
         initial_orders = await self.ws_client.get_initial_orders()
 
         if initial_orders:
-            logger.info(f"Loaded {len(initial_orders)} initial orders")
+            log_info(f"Loaded {len(initial_orders)} initial orders")
             for order in initial_orders:
                 self._process_order_update([order])
 
         # Register WebSocket callback
         self.ws_client.on_order_update(self._handle_ws_order_update)
 
-        logger.info("✅ OrderMonitor started (WebSocket mode)")
+        log_info("✅ OrderMonitor started (WebSocket mode)")
 
     async def stop(self) -> None:
         """Stop monitoring orders."""
@@ -270,7 +271,7 @@ class OrderMonitor:
             return
 
         self._running = False
-        logger.info("⏹️  OrderMonitor stopped")
+        log_info("⏹️  OrderMonitor stopped")
 
     def _handle_ws_order_update(self, orders: List[dict]) -> None:
         """
@@ -285,7 +286,7 @@ class OrderMonitor:
         try:
             self._process_order_update(orders)
         except Exception as e:
-            logger.error(f"Error handling WebSocket order update: {e}", exc_info=True)
+            log_error(f"Error handling WebSocket order update: {e}", exc_info=True)
 
     def _process_order_update(self, orders: List[dict]) -> None:
         """
@@ -316,10 +317,10 @@ class OrderMonitor:
                         else:
                             callback(snapshot)
                     except Exception as e:
-                        logger.error(f"Error in order callback {callback.__name__}: {e}")
+                        log_error(f"Error in order callback {callback.__name__}: {e}")
 
             except Exception as e:
-                logger.error(f"Error processing order: {e}", exc_info=True)
+                log_error(f"Error processing order: {e}", exc_info=True)
 
     def _parse_order(self, data: dict) -> OrderSnapshot:
         """
@@ -342,6 +343,21 @@ class OrderMonitor:
             'info': {...}
         }
         """
+        info: Dict[str, Any] = data.get("info") if isinstance(data.get("info"), dict) else {}
+
+        realized_raw: Any = info.get("realizedPnl")
+        if realized_raw is None:
+            realized_raw = info.get("rp")
+
+        realized_pnl: Optional[float]
+        if realized_raw is None:
+            realized_pnl = None
+        else:
+            try:
+                realized_pnl = float(realized_raw)
+            except (TypeError, ValueError):
+                realized_pnl = None
+
         return OrderSnapshot(
             order_id=str(data.get("id", "")),
             client_order_id=str(data.get("clientOrderId", "")),
@@ -353,6 +369,8 @@ class OrderMonitor:
             amount=float(data.get("amount", 0)),
             filled=float(data.get("filled", 0)),
             remaining=float(data.get("remaining", 0)),
+            realized_pnl=realized_pnl,
+            raw_info=info,
             timestamp=datetime.fromtimestamp(data.get("timestamp", 0) / 1000)
             if data.get("timestamp")
             else datetime.now(),
@@ -369,19 +387,19 @@ class OrderMonitor:
             snapshot: Order snapshot
         """
         if snapshot.status == "open":
-            logger.info(
+            log_info(
                 f"📝 Order {snapshot.order_id[:8]}: "
                 f"{snapshot.side.upper()} {snapshot.amount} {snapshot.symbol} @ ${snapshot.price} ({snapshot.type})"
             )
         elif snapshot.status == "closed":
-            logger.info(
+            log_info(
                 f"✅ Order filled {snapshot.order_id[:8]}: "
                 f"{snapshot.side.upper()} {snapshot.filled}/{snapshot.amount} {snapshot.symbol}"
             )
         elif snapshot.status == "canceled":
-            logger.info(f"❌ Order canceled {snapshot.order_id[:8]}: {snapshot.symbol}")
+            log_info(f"❌ Order canceled {snapshot.order_id[:8]}: {snapshot.symbol}")
         elif snapshot.status == "rejected":
-            logger.error(f"⛔ Order rejected {snapshot.order_id[:8]}: {snapshot.symbol}")
+            log_error(f"⛔ Order rejected {snapshot.order_id[:8]}: {snapshot.symbol}")
 
     def get_open_orders(self) -> List[OrderSnapshot]:
         """Get all open orders."""

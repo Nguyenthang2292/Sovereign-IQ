@@ -1,0 +1,30 @@
+[workspace]
+members = [".", "lambda"]
+
+[package]
+name = "xgboost_serverless"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+anyhow = "1.0"
+
+[target.'cfg(not(windows))'.dependencies]
+xgboost = { package = "xgboost-rs", version = "0.3", optional = true } # requires libxgboost installed; build with --features xgboost on non-Windows
+
+[features]
+default = []
+xgboost = ["dep:xgboost"]
+
+[dev-dependencies]
+proptest = "1.4"
+approx = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
+codegen-units = 1

@@ -1,5 +1,6 @@
 """WebSocket callback handlers for real-time updates."""
 
+from modules.common.ui.logging import log_debug, log_error, log_info
 from modules.auto_trade.monitoring.account_monitor import BalanceSnapshot, OrderSnapshot
 from modules.auto_trade.monitoring.position_monitor import PositionSnapshot
 
@@ -23,12 +24,14 @@ class WebSocketHandler:
         self.parent.ws_data_service.on_balance_update(self._on_balance_update)
         self.parent.ws_data_service.on_order_update(self._on_order_update)
 
+        binance_client = self._get_binance_client()
+
         # WebSocket-driven trailing stop: same logic as timer job, triggered on each position update (debounced)
         from modules.auto_trade.execution.trailing_stop_ws_handler import create_websocket_trailing_stop_handler
 
         self._ws_trailing_handler = create_websocket_trailing_stop_handler(
             settings_manager=self.parent.settings_manager,
-            binance_client=None,  # Optional: pass from data_service when available
+            binance_client=binance_client,
             debounce_seconds=2.0,
         )
         self.parent.ws_data_service.on_position_update(self._ws_trailing_handler.on_position_update)
@@ -40,12 +43,21 @@ class WebSocketHandler:
 
         self._ws_negative_be_handler = create_websocket_negative_breakeven_handler(
             settings_manager=self.parent.settings_manager,
-            binance_client=None,  # Optional: pass from data_service when available
+            binance_client=binance_client,
             debounce_seconds=2.0,
         )
         self.parent.ws_data_service.on_position_update(self._ws_negative_be_handler.on_position_update)
 
-        print("✅ WebSocket callbacks registered")
+        log_info("[WebSocket] Callbacks registered")
+
+    def _get_binance_client(self):
+        """Build BinanceClient from current dashboard credentials when available."""
+        try:
+            if hasattr(self.parent, "data_service") and hasattr(self.parent.data_service, "_get_or_create_client"):
+                return self.parent.data_service._get_or_create_client()
+        except Exception:
+            pass
+        return None
 
     def _on_position_update(self, position: PositionSnapshot):
         """Handle position update from WebSocket (called from background thread)."""
@@ -55,9 +67,12 @@ class WebSocketHandler:
         """Update position display in GUI (runs in main thread)."""
         positions_list = self._convert_positions_to_dicts(self.parent.ws_data_service.get_positions())
 
-        print(f"[WebSocket] Position update: {len(positions_list)} positions to display")
+        log_debug(f"[WebSocket] Position update: {len(positions_list)} positions to display")
         for p in positions_list:
-            print(f"  - {p['symbol']} {p['side']}: size={p['size']}, entry={p['entry_price']}, pnl={p['pnl']:.2f}")
+            log_debug(
+                f"[WebSocket]   - {p['symbol']} {p['side']}: size={p['size']}, "
+                f"entry={p['entry_price']}, pnl={p['pnl']:.2f}"
+            )
 
         if hasattr(self.parent, "positions_frame"):
             self.parent.positions_frame.update_positions(positions_list)
@@ -79,7 +94,7 @@ class WebSocketHandler:
             for pos in positions:
                 unrealized_pnl += pos.unrealized_pnl
         except Exception as e:
-            print(f"[WebSocket] Could not calculate unrealized P&L: {e}")
+            log_error(f"[WebSocket] Could not calculate unrealized P&L: {e}")
 
         account_data = {
             "balance": balance.total,
@@ -104,11 +119,11 @@ class WebSocketHandler:
     def _update_order_display(self, order: OrderSnapshot):
         """Update order display and show notifications."""
         if order.status == "closed":
-            print(f"✅ Order filled: {order.symbol} {order.side.upper()} {order.filled}/{order.amount}")
+            log_info(f"[WebSocket] Order filled: {order.symbol} {order.side.upper()} {order.filled}/{order.amount}")
         elif order.status == "canceled":
-            print(f"❌ Order canceled: {order.symbol}")
+            log_info(f"[WebSocket] Order canceled: {order.symbol}")
         elif order.status == "rejected":
-            print(f"⛔ Order rejected: {order.symbol}")
+            log_error(f"[WebSocket] Order rejected: {order.symbol}")
 
         if order.status == "closed":
             positions_list = self._convert_positions_to_dicts(self.parent.ws_data_service.get_positions())
@@ -126,69 +141,18 @@ class WebSocketHandler:
             stop_loss = None
             break_even = None
 
-            print(f"[WebSocket] Syncing TP/SL/BE for {p.symbol}...")
+            log_debug(f"[WebSocket] Syncing TP/SL/BE for {p.symbol}...")
 
-            # Use TPSLSyncService for bidirectional sync
-            if hasattr(self.parent, 'data_service'):
+            # Use data_service cached explicit TP/SL
+            if hasattr(self.parent, "data_service") and hasattr(self.parent.data_service, "get_cached_tpsl"):
                 try:
-                    from modules.auto_trade.execution.binance_client import BinanceClient
-                    from modules.auto_trade.gui.utils.tp_sl_sync import TPSLSyncService
-
-                    # Create client
-                    client = BinanceClient(
-                        api_key=self.parent.data_service.api_key,
-                        api_secret=self.parent.data_service.api_secret,
-                        testnet=self.parent.data_service.testnet,
-                        dry_run=False,
-                    )
-
-                    # Fetch from Binance and sync to DB in one call
-                    if self.parent.data_service.database_manager:
-                        with self.parent.data_service.database_manager.session_scope() as session:
-                            sync_result = TPSLSyncService.sync_position_tp_sl(
-                                client=client,
-                                session=session,
-                                symbol=p.symbol,
-                                side=p.side,
-                                entry_price=p.entry_price
-                            )
-
-                            take_profit = sync_result.get("take_profit")
-                            stop_loss = sync_result.get("stop_loss")
-                            break_even = sync_result.get("break_even")
-
-                            print(f"[WebSocket] ✅ Synced {p.symbol}: TP=${take_profit}, SL=${stop_loss}, BE=${break_even}")
-                    else:
-                        # No DB, fetch from Binance only
-                        tp, sl, _ = TPSLSyncService.fetch_tp_sl_from_binance(client, p.symbol)
-                        take_profit = tp
-                        stop_loss = sl
-                        break_even = TPSLSyncService.detect_break_even(p.entry_price, sl, p.side)
-                        print(f"[WebSocket] Fetched {p.symbol}: TP=${take_profit}, SL=${stop_loss} (no DB sync)")
-
+                    tpsl = self.parent.data_service.get_cached_tpsl(p.symbol)
+                    take_profit = tpsl.get("take_profit")
+                    stop_loss = tpsl.get("stop_loss")
+                    break_even = tpsl.get("break_even")
+                    log_debug(f"[WebSocket] Fetched {p.symbol}: TP=${take_profit}, SL=${stop_loss}, BE=${break_even}")
                 except Exception as e:
-                    print(f"[WebSocket] Sync failed for {p.symbol}: {e}")
-
-                    # Fallback to DB-only if everything fails
-                    if hasattr(self.parent, 'data_service') and self.parent.data_service.database_manager:
-                        try:
-                            from modules.auto_trade.database.models import Order
-                            with self.parent.data_service.database_manager.session_scope() as session:
-                                db_orders = session.query(Order).filter(
-                                    Order.symbol == p.symbol,
-                                    Order.status == "OPEN"
-                                ).order_by(Order.created_at.desc()).all()
-
-                                if db_orders:
-                                    order = db_orders[0]
-                                    take_profit = order.take_profit
-                                    stop_loss = order.stop_loss
-                                    be_moved_flag = getattr(order, 'be_moved', False)
-                                    if be_moved_flag is True and stop_loss is not None:
-                                        break_even = stop_loss
-                                    print(f"[WebSocket]   Fallback to DB-only: TP={take_profit}, SL={stop_loss}")
-                        except Exception as db_err:
-                            print(f"[WebSocket]   DB fallback failed: {db_err}")
+                    log_error(f"[WebSocket] Cache fetch failed for {p.symbol}: {e}")
 
             # For GUI we want Size in quote currency (USD), not contracts.
             notional = getattr(p, "notional", 0.0) or 0.0

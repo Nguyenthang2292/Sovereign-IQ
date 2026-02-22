@@ -8,17 +8,24 @@ Called from PositionMonitor when position updates arrive.
 Created: 2026-02-06
 """
 
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import time
 from typing import Any, Dict, List, Optional
 
-from database import get_open_positions, session_scope
-from database.queries import mark_be_moved
+from modules.auto_trade.database import get_open_positions, mark_be_moved
+from modules.auto_trade.execution.binance_client import BinanceClient
+from modules.auto_trade.execution.negative_breakeven import NegativeBreakevenLogic
 
-from execution.binance_client import BinanceClient
-from execution.negative_breakeven import NegativeBreakevenLogic
 
-logger = logging.getLogger(__name__)
+
+def _symbol_for_ccxt(symbol: str) -> str:
+    """Convert DB symbol (e.g. SKLUSDT) to CCXT format (SKL/USDT) for API calls."""
+    s = (symbol or "").strip()
+    if "/" in s:
+        return s
+    if s.endswith("USDT"):
+        return s[:-4] + "/USDT"
+    return s + "/USDT" if s else s
 
 
 class WebSocketNegativeBreakevenHandler:
@@ -79,99 +86,85 @@ class WebSocketNegativeBreakevenHandler:
             # Get mark price from position snapshot
             mark_price: float = float(position_snapshot.mark_price)
             if not mark_price or mark_price <= 0:
-                logger.warning(f"Invalid mark price for {symbol}: {mark_price}")
+                log_warn(f"Invalid mark price for {symbol}: {mark_price}")
                 return
 
             # Find open orders for this symbol
-            with session_scope() as session:
-                open_orders: Optional[List[Any]] = get_open_positions(session, symbol=symbol.replace("/", ""))
+            open_orders: Optional[List[Any]] = get_open_positions(symbol=symbol.replace("/", ""))
 
-                if not open_orders:
-                    return
+            if not open_orders:
+                return
 
-                for order in open_orders:
-                    try:
-                        # Skip if breakeven already moved
-                        if getattr(order, "be_moved", False):
-                            continue
+            for order in open_orders:
+                try:
+                    # Skip if breakeven already moved
+                    if order.get("be_moved", False):
+                        continue
 
-                        # Check if we should trigger negative breakeven
-                        should_trigger: bool = NegativeBreakevenLogic.should_trigger(
-                            entry_price=float(getattr(order, "entry_price", 0.0)),
-                            mark_price=mark_price,
-                            stop_loss=float(getattr(order, "stop_loss", 0.0)),
-                            side=str(getattr(order, "side", "")),
-                            threshold_pct=negative_be_threshold_pct,
-                            be_moved=bool(getattr(order, "be_moved", False)),
+                    # Check if we should trigger negative breakeven
+                    should_trigger: bool = NegativeBreakevenLogic.should_trigger(
+                        entry_price=float(order.get("entry_price", 0.0)),
+                        mark_price=mark_price,
+                        stop_loss=float(order.get("stop_loss", 0.0)),
+                        side=str(order.get("side", "")),
+                        threshold_pct=negative_be_threshold_pct,
+                        be_moved=bool(order.get("be_moved", False)),
+                    )
+
+                    if not should_trigger:
+                        continue
+
+                    # Should trigger - calculate new TP (entry price)
+                    new_tp: float = NegativeBreakevenLogic.get_new_take_profit(float(order.get("entry_price", 0.0)))
+
+                    if self.binance_client:
+                        try:
+                            order_symbol: str = str(order.get("symbol", ""))
+                            ccxt_symbol: str = _symbol_for_ccxt(order_symbol)
+                            # Modify take profit on exchange
+                            modify_result: Optional[dict] = self.binance_client.modify_take_profit(
+                                symbol=ccxt_symbol,
+                                position_id=None,
+                                take_profit_price=new_tp,
+                            )
+                            success: bool = modify_result is not None and (
+                                bool(modify_result.get("success"))
+                                or bool(modify_result.get("id"))
+                                or bool(modify_result.get("dry_run"))
+                            )
+                            if success:
+                                old_tp: Optional[float] = order.get("take_profit")
+
+                                # Use mark_be_moved to update DB
+                                mark_be_moved(
+                                    order_id=str(order.get("order_id", "")),
+                                    new_take_profit=new_tp,
+                                    verify_programmatic=True,
+                                )
+
+                                self._last_update_times[symbol] = now
+                                log_info(
+                                    f"[WS] Negative breakeven triggered for {order_symbol} "
+                                    f"{order.get('side', '')}: TP {old_tp} → {new_tp} (entry price)"
+                                )
+                            else:
+                                error_msg: str = str((modify_result or {}).get("error", "Unknown error"))
+                                log_error(f"[WS] Failed to modify TP for {order.get('order_id', '')}: {error_msg}")
+                        except Exception as modify_exc:
+                            log_error(f"[WS] Error modifying TP for {order.get('order_id', '')}: {modify_exc}")
+                    else:
+                        # No Binance client / dry-run mode - just log
+                        log_info(
+                            f"[WS] Negative breakeven would trigger for {order.get('symbol', '')}: "
+                            f"TP {order.get('take_profit')} → {new_tp}"
                         )
+                        self._last_update_times[symbol] = now
 
-                        if not should_trigger:
-                            continue
-
-                        # Should trigger - calculate new TP (entry price)
-                        new_tp: float = NegativeBreakevenLogic.get_new_take_profit(float(getattr(order, "entry_price", 0.0)))
-
-                        if self.binance_client:
-                            try:
-                                # Modify take profit on exchange
-                                modify_result: Optional[dict] = self.binance_client.modify_take_profit(
-                                    symbol=str(getattr(order, "symbol", "")),
-                                    position_id=None,
-                                    take_profit_price=new_tp,
-                                )
-                                success: bool = modify_result is not None and (
-                                    bool(modify_result.get("success"))
-                                    or bool(modify_result.get("id"))
-                                    or bool(modify_result.get("dry_run"))
-                                )
-                                if success:
-                                    # Update order in database
-                                    old_tp: Optional[float] = getattr(order, "take_profit", None)
-
-                                    # Use mark_be_moved to update DB
-                                    mark_be_moved(
-                                        session=session,
-                                        order_id=str(getattr(order, "order_id", "")),
-                                        new_take_profit=new_tp,
-                                        verify_programmatic=True,
-                                    )
-
-                                    self._last_update_times[symbol] = now
-
-                                    logger.info(
-                                        f"[WS] Negative breakeven triggered for {getattr(order, 'symbol', '')} {getattr(order, 'side', '')}: "
-                                        f"TP {old_tp} → {new_tp} (entry price)"
-                                    )
-                                else:
-                                    error_msg: str = str((modify_result or {}).get("error", "Unknown error"))
-                                    logger.error(f"[WS] Failed to modify TP for {getattr(order, 'order_id', '')}: {error_msg}")
-
-                            except Exception as e:
-                                logger.error(f"[WS] Error modifying TP for {getattr(order, 'order_id', '')}: {e}")
-                        else:
-                            # Dry run - just log
-                            logger.info(
-                                f"[WS] Negative breakeven would trigger for {getattr(order, 'symbol', '')}: "
-                                f"TP {getattr(order, 'take_profit', None)} → {new_tp}"
-                            )
-
-                            # Still update database in dry run mode
-                            mark_be_moved(
-                                session=session,
-                                order_id=str(getattr(order, "order_id", "")),
-                                new_take_profit=new_tp,
-                                verify_programmatic=True,
-                            )
-                            self._last_update_times[symbol] = now
-
-                    except Exception as e:
-                        logger.error(f"[WS] Error processing order {getattr(order, 'order_id', '')}: {e}")
-
-                # Commit all changes
-                session.commit()
+                except Exception as order_exc:
+                    log_error(f"[WS] Error processing order {order.get('order_id', '')}: {order_exc}")
 
         except Exception as e:
-            logger.error(f"[WS] Error in negative breakeven handler: {e}")
+            log_error(f"[WS] Error in negative breakeven handler: {e}")
 
 
 def create_websocket_negative_breakeven_handler(

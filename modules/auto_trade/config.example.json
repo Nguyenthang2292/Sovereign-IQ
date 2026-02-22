@@ -25,10 +25,11 @@
     "offset_percent": 0.001
   },
   "database": {
-    "path": "data/auto_trade.db",
+    "backend": "dynamodb",
+    "table_name_prefix": "auto_trade",
+    "region": "us-east-1",
+    "endpoint_url": null,
     "backup_enabled": true,
-    "backup_interval": 3600,
-    "backup_retention": 7,
     "auto_cleanup_days": 90
   },
   "binance": {

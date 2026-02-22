@@ -2,23 +2,26 @@
 Data Service Module
 
 Unified data access layer that abstracts exchange data fetching,
-database operations, and mock data for dry-run mode.
+database operations via DynamoDB, and mock data for dry-run mode.
 """
 
 import os
-import time
-from typing import Any, Dict, List, Optional, Union, cast
+from datetime import datetime as _datetime
+from typing import Any, Dict, List, Optional, TypedDict, Union, cast
+
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 # Cooldown (seconds) before pushing TP/SL again for the same symbol (avoids duplicate orders)
-TP_SL_PUSH_COOLDOWN_SEC = 60
+TP_SL_PUSH_COOLDOWN_SEC = 300  # 5 min cooldown to avoid duplicate conditional orders
 
 # Local imports
 from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
 
-# Module imports (lazy loaded)
-# from modules.common.core.data_fetcher import DataFetcher
-# from modules.common.core.exchange_manager import ExchangeManager
-# from modules.auto_trade.database import get_db_manager
+
+class TpSlResult(TypedDict):
+    take_profit: Optional[float]
+    stop_loss: Optional[float]
+    break_even: Optional[float]
 
 
 class DataService:
@@ -31,20 +34,28 @@ class DataService:
     - PRODUCTION: Live trading with real API
     """
 
-    def __init__(self, mode: str = "DRY_RUN", settings_manager: Optional[Any] = None) -> None:
+    def __init__(
+        self, mode: str = "DRY_RUN", settings_manager: Optional[Any] = None, event_bus: Optional[Any] = None
+    ) -> None:
         """
         Initialize DataService.
 
         Args:
             mode: Operating mode ("DRY_RUN", "DEMO", or "PRODUCTION")
-            settings_manager: Optional settings manager for TP/SL config (enables push missing TP/SL to Binance on refresh)
+            settings_manager: Optional settings manager for TP/SL config
         """
         self.mode: str = mode
         self.settings_manager: Optional[Any] = settings_manager
         self.data_fetcher: Optional[Any] = None
-        self.database_manager: Optional[Any] = None
+        self.repo_context: Optional[Any] = None
         self.exchange_manager: Optional[Any] = None
         self._tp_sl_push_last: Dict[str, float] = {}  # symbol -> monotonic time of last push
+
+        self._binance_client = None
+        self._tpsl_cache: Dict[str, TpSlResult] = {}
+        self._tpsl_cache_time: Dict[str, float] = {}
+        self._credentials_loaded = False
+        self._event_bus: Optional[Any] = None
 
         # Initialize MockPriceFeed (always available as fallback)
         self.mock_price_feed: Optional[MockPriceFeed] = self._initialize_mock_price_feed()
@@ -58,20 +69,36 @@ class DataService:
         if mode != "DRY_RUN":
             self._initialize_exchange_components()
 
-        # Initialize database manager
+        # Initialize repository context
         self._initialize_database_manager()
 
-    def _initialize_mock_price_feed(self) -> Optional[MockPriceFeed]:
-        """
-        Initialize MockPriceFeed (always available as fallback).
+        self.set_event_bus(event_bus)
 
-        Returns:
-            MockPriceFeed instance or None if initialization fails
-        """
+    def set_event_bus(self, event_bus: Optional[Any]) -> None:
+        """Attach event bus and subscribe to settings save events for credential cache invalidation."""
+        if event_bus is None:
+            return
+
+        self._event_bus = event_bus
+        try:
+            from modules.auto_trade.monitoring.event_system import EventType
+
+            event_bus.subscribe(EventType.SETTINGS_SAVED, self._on_settings_saved)
+        except Exception as error:
+            log_warn(f"Could not subscribe to SETTINGS_SAVED event: {error}")
+
+    def _on_settings_saved(self, event: Any) -> None:
+        """Invalidate cached credentials/client when settings are saved."""
+        self._credentials_loaded = False
+        self._binance_client = None
+        log_info("[DataService] Received SETTINGS_SAVED event, invalidated credential/client cache")
+
+    def _initialize_mock_price_feed(self) -> Optional[MockPriceFeed]:
+        """Initialize MockPriceFeed (always available as fallback)."""
         try:
             return MockPriceFeed()
         except Exception as e:
-            print(f"Warning: Could not initialize MockPriceFeed: {e}")
+            log_warn(f"Could not initialize MockPriceFeed: {e}")
             return None
 
     def _initialize_exchange_components(self) -> None:
@@ -88,122 +115,185 @@ class DataService:
             self.exchange_manager = exchange_manager
             self.data_fetcher = DataFetcher(exchange_manager=exchange_manager)
         except Exception as e:
-            print(f"Warning: Could not initialize DataFetcher: {e}")
+            log_warn(f"Could not initialize DataFetcher: {e}")
 
     def _initialize_database_manager(self) -> None:
-        """Initialize DatabaseManager for storing signals and trades."""
+        """Initialize RepositoryContext for storing signals and trades."""
         try:
-            from modules.auto_trade.database import get_db_manager
+            from modules.auto_trade.database.repository.context import RepositoryContext
 
-            # Use get_db_manager() which handles singleton and default path
-            self.database_manager = get_db_manager()
+            self.repo_context = RepositoryContext.from_env()
         except Exception as e:
-            print(f"Warning: Could not initialize DatabaseManager: {e}")
+            log_warn(f"Could not initialize RepositoryContext: {e}")
 
     def _get_mock_price_feed(self) -> MockPriceFeed:
-        """
-        Get MockPriceFeed instance (creates if not exists).
-
-        Returns:
-            MockPriceFeed instance
-        """
+        """Get MockPriceFeed instance (creates if not exists)."""
         if self.mock_price_feed is None:
             self.mock_price_feed = MockPriceFeed()
         return self.mock_price_feed
 
     def get_current_price(self, symbol: str) -> float:
-        """
-        Get current price for a symbol.
-
-        In DRY_RUN mode, uses MockPriceFeed for simulated prices.
-        In other modes, fetches from exchange via DataFetcher.
-
-        Args:
-            symbol: Trading symbol (e.g., "BTC/USDT" or "BTCUSDT")
-
-        Returns:
-            Current price as float
-        """
+        """Get current price for a symbol."""
         try:
             if self.mode == "DRY_RUN":
-                # Use centralized mock price feed
                 return self._get_mock_price_feed().get_current_price(symbol)
 
-            # For non-DRY_RUN modes, fetch from exchange
             if self.data_fetcher:
-                # Normalize symbol format (BTC/USDT -> BTCUSDT for API calls)
                 normalized_symbol = symbol.replace("/", "")
                 ticker = self.data_fetcher.fetch_ticker(normalized_symbol)
                 if ticker and "last" in ticker:
                     return float(ticker["last"])
 
-            # Fallback to mock prices if exchange fetch fails
             return self._get_mock_price_feed().get_current_price(symbol)
 
         except Exception as e:
-            print(f"Error fetching current price for {symbol}: {e}")
-            # Return a safe default from centralized mock prices
+            log_error(f"Error fetching current price for {symbol}: {e}")
             return self._get_mock_price_feed().get_current_price(symbol)
 
     def _reload_credentials(self) -> None:
         """Reload API credentials from .env (e.g. after user saves in Settings)."""
+        if self._credentials_loaded:
+            return
+
         try:
             from modules.auto_trade.gui.utils.credential_manager import CredentialManager
 
             cm = CredentialManager()
             exchange = "binance"
             creds = cm.load_credentials(exchange)
-            self.api_key = (creds.get("api_key") or "").strip()
-            self.api_secret = (creds.get("api_secret") or "").strip()
+            new_key = (creds.get("api_key") or "").strip()
+            new_secret = (creds.get("api_secret") or "").strip()
+
+            if new_key != self.api_key or new_secret != self.api_secret:
+                self.api_key = new_key
+                self.api_secret = new_secret
+                self._binance_client = None  # Invalidate cache
+
+            self._credentials_loaded = True
         except Exception as e:
-            print(f"Warning: Could not reload credentials: {e}")
+            log_warn(f"Could not reload credentials: {e}")
+
+    def _get_or_create_client(self):
+        """Get cached BinanceClient or create a new one."""
+        if self._binance_client is not None:
+            return self._binance_client
+
+        try:
+            from modules.auto_trade.execution.binance_client import BinanceClient
+
+            if not self.api_key or not self.api_secret:
+                return None
+
+            self._binance_client = BinanceClient(
+                api_key=self.api_key,
+                api_secret=self.api_secret,
+                testnet=self.testnet,
+                dry_run=False,
+            )
+            return self._binance_client
+        except Exception as e:
+            log_error(f"[DataService] Could not create BinanceClient: {e}")
+            return None
+
+    def get_cached_tpsl(self, symbol: str, ttl_seconds: int = 30) -> TpSlResult:
+        import time
+
+        now = time.monotonic()
+
+        # Check cache
+        if symbol in self._tpsl_cache and symbol in self._tpsl_cache_time:
+            if now - self._tpsl_cache_time[symbol] < ttl_seconds:
+                return self._tpsl_cache[symbol]
+
+        # Cache miss or expired, fetch it
+        client = self._get_or_create_client()
+        result: TpSlResult = {"take_profit": None, "stop_loss": None, "break_even": None}
+
+        if client and self.repo_context:
+            try:
+                from modules.auto_trade.gui.utils.tp_sl_sync import TPSLSyncService
+
+                side = None
+                entry_price = None
+                db_orders = self.repo_context.orders.get_open_positions(symbol=symbol)
+                if not db_orders:
+                    symbol_normalized = symbol.replace("/", "").split(":")[0]
+                    db_orders = self.repo_context.orders.get_open_positions(symbol=symbol_normalized)
+
+                if db_orders:
+                    order = db_orders[0]
+                    raw_side = order.get("side")
+                    raw_entry_price = order.get("entry_price")
+                    if raw_side is not None:
+                        side = str(raw_side)
+                    if raw_entry_price is not None:
+                        entry_price = float(raw_entry_price)
+
+                if side and entry_price is not None:
+                    sync_result = TPSLSyncService.sync_position_tp_sl(
+                        client=client,
+                        repo_context=self.repo_context,
+                        symbol=symbol,
+                        side=side,
+                        entry_price=entry_price,
+                    )
+                    result["take_profit"] = sync_result.get("take_profit")
+                    result["stop_loss"] = sync_result.get("stop_loss")
+                    result["break_even"] = sync_result.get("break_even")
+                else:
+                    take_profit, stop_loss, _ = TPSLSyncService.fetch_tp_sl_from_binance(client=client, symbol=symbol)
+                    result["take_profit"] = take_profit
+                    result["stop_loss"] = stop_loss
+            except Exception as e:
+                log_error(f"[DataService] Could not sync TP/SL for {symbol}: {e}")
+
+                # Fallback to DynamoDB
+                try:
+                    db_orders = self.repo_context.orders.get_open_positions(symbol=symbol)
+                    if db_orders:
+                        order = db_orders[0]
+                        result["take_profit"] = order.get("take_profit")
+                        result["stop_loss"] = order.get("stop_loss")
+                        if order.get("be_moved") and result["stop_loss"] is not None:
+                            result["break_even"] = result["stop_loss"]
+                except Exception as db_err:
+                    log_error(f"[DataService] DB fallback failed: {db_err}")
+
+        # Save to cache
+        self._tpsl_cache[symbol] = result
+        self._tpsl_cache_time[symbol] = now
+
+        return result
 
     def get_account_data(self) -> Optional[Dict]:
         try:
             if self.mode == "DRY_RUN":
                 return self._get_dry_run_account_data()
 
-            # Use latest credentials (e.g. after save in Settings)
             self._reload_credentials()
 
             if self.data_fetcher and self.api_key and self.api_secret:
-                # Fetch balance using DataFetcher
                 balance = self.data_fetcher.fetch_binance_account_balance(
                     api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet, currency="USDT"
                 )
 
-                # Fetch positions using DataFetcher
                 positions = self.data_fetcher.fetch_binance_futures_positions(
                     api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
                 )
 
-                # Calculate margin used and unrealized PnL from positions
                 margin_used = 0.0
                 unrealized_pnl = 0.0
 
                 if positions:
-                    # Create BinanceClient once for all positions (efficient)
-                    client = None
-                    try:
-                        from modules.auto_trade.execution.binance_client import BinanceClient
-                        client = BinanceClient(
-                            api_key=self.api_key,
-                            api_secret=self.api_secret,
-                            testnet=self.testnet,
-                            dry_run=False,
-                        )
-                    except Exception as e:
-                        print(f"[DataService] Could not create BinanceClient: {e}")
+                    client = self._get_or_create_client()
 
                     for pos in positions:
                         contracts = float(pos.get("contracts", 0))
                         if contracts == 0:
                             continue
 
-                        # size_usdt contains the position value in USDT
                         margin_used += float(pos.get("size_usdt", 0))
 
-                        # Calculate unrealized PnL with current mark price
                         symbol = pos.get("symbol", "")
                         entry_price = float(pos.get("entry_price", 0))
                         direction = pos.get("direction", "LONG").upper()
@@ -211,7 +301,9 @@ class DataService:
                         if client:
                             try:
                                 ticker = client.exchange.fetch_ticker(symbol)
-                                mark_price = float(ticker.get("info", {}).get("markPrice") or ticker.get("last") or entry_price)
+                                mark_price = float(
+                                    ticker.get("info", {}).get("markPrice") or ticker.get("last") or entry_price
+                                )
 
                                 if direction == "LONG":
                                     pos_pnl = (mark_price - entry_price) * abs(contracts)
@@ -220,11 +312,11 @@ class DataService:
 
                                 unrealized_pnl += pos_pnl
                             except Exception as e:
-                                print(f"[DataService] Could not calc P&L for {symbol}: {e}")
+                                log_error(f"[DataService] Could not calc P&L for {symbol}: {e}")
 
                 return {
                     "balance": balance if balance else 0.0,
-                    "available": balance if balance else 0.0,  # Simplified
+                    "available": balance if balance else 0.0,
                     "margin_used": margin_used,
                     "unrealized_pnl": unrealized_pnl,
                     "daily_pnl": 0.0,
@@ -232,7 +324,7 @@ class DataService:
                 }
             return self._get_demo_account_data()
         except Exception as e:
-            print(f"Error fetching account data: {e}")
+            log_error(f"Error fetching account data: {e}")
             return self._get_demo_account_data()
 
     def _get_demo_account_data(self) -> Dict:
@@ -262,7 +354,6 @@ class DataService:
                 positions = self.data_fetcher.fetch_binance_futures_positions(
                     api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
                 )
-                # Filter only positions with non-zero contracts (same as get_positions)
                 if positions:
                     open_positions = len([p for p in positions if float(p.get("contracts", 0)) != 0])
                 else:
@@ -277,22 +368,10 @@ class DataService:
                 except ImportError:
                     pass
 
+            # Not fetching daily stats correctly for now since get_daily_stats is omitted or complex in dynamodb without queries.
+            # You can adapt it to read from self.repo_context directly if you rebuild `get_daily_stats`.
             today_trades = 0
             win_rate = 0.0
-
-            if self.database_manager:
-                try:
-                    # Use database query functions
-                    from modules.auto_trade.database import get_daily_stats
-
-                    with self.database_manager.session_scope() as session:
-                        daily_stats = get_daily_stats(session)
-                        if daily_stats:
-                            today_stats = daily_stats[0]
-                            today_trades = today_stats.get("total_trades", 0)
-                            win_rate = today_stats.get("win_rate", 0.0)
-                except Exception as e:
-                    print(f"Warning: Could not fetch database stats: {e}")
 
             return {
                 "open_positions": open_positions,
@@ -301,50 +380,103 @@ class DataService:
                 "mode": self.mode,
             }
         except Exception as e:
-            print(f"Error fetching stats: {e}")
+            log_error(f"Error fetching stats: {e}")
             return {"open_positions": 0, "today_trades": 0, "win_rate": 0.0, "mode": self.mode}
 
-    def get_signals(self, min_score: float = 0.7, signal_types: Optional[List[str]] = None) -> List[Dict]:
+    @staticmethod
+    def _parse_datetime(value: object) -> "Optional[_datetime]":
+        """Coerce a DynamoDB value to datetime.
+
+        DynamoDB stores datetimes as ISO-8601 strings. ``from_dynamo_item``
+        does not convert them back, so this helper handles both cases:
+        - already a ``datetime`` object  → returned as-is
+        - ISO string                     → parsed with ``datetime.fromisoformat``
+        - anything else / None           → returns None
+        """
+        if value is None:
+            return None
+        if isinstance(value, _datetime):
+            return value
+        if isinstance(value, str):
+            try:
+                return _datetime.fromisoformat(value)
+            except ValueError:
+                return None
+        return None
+
+    def get_signals(
+        self,
+        min_score: float = 0.7,
+        signal_types: Optional[List[str]] = None,
+        max_age_hours: float = 24.0,
+    ) -> List[Dict]:
+        """Fetch signals from DB, filtered by score and age.
+
+        Args:
+            min_score: Minimum confidence/final_score (default 0.7)
+            signal_types: Optional allowlist of signal types (e.g. ["LONG", "SHORT"])
+            max_age_hours: Discard signals older than this many hours (default 24h).
+                           Pass 0 or a negative value to disable age filtering.
+        """
         try:
-            if self.database_manager:
-                from modules.auto_trade.database import get_recent_signals
+            if self.repo_context:
+                signals = self.repo_context.signals.get_recent_signals(limit=100)
+                filtered = []
+                stale_count = 0
 
-                with self.database_manager.session_scope() as session:
-                    signals = get_recent_signals(session, limit=100)
+                cutoff: Optional[_datetime] = None
+                if max_age_hours > 0:
+                    from datetime import timedelta as _td, timezone as _tz
 
-                    from datetime import timezone
+                    cutoff = _datetime.now(_tz.utc) - _td(hours=max_age_hours)
 
-                    filtered = []
-                    for signal in signals:
-                        # Use final_score (or confidence); cast for type checker (ORM instance yields float)
-                        raw = signal.final_score if signal.final_score is not None else signal.confidence
-                        score = float(cast(Union[float, int], raw))
-                        if score >= min_score:
-                            signal_type = signal.signal_type.upper()
-                            if signal_types is None or signal_type in signal_types:
-                                created_at = signal.created_at
-                                # SQLite strips timezone info; re-attach UTC so .timestamp() is correct
-                                if created_at is not None and created_at.tzinfo is None:
-                                    created_at = created_at.replace(tzinfo=timezone.utc)
-                                filtered.append(
-                                    {
-                                        "symbol": signal.symbol,
-                                        "signal": signal_type,
-                                        "score": score,
-                                        "time": created_at.strftime("%Y-%m-%d %H:%M")
-                                        if created_at is not None
-                                        else "",
-                                        # Extra fields for freshness filtering (< 5 minutes)
-                                        "created_at": created_at.isoformat() if created_at is not None else "",
-                                        "created_at_ts": float(created_at.timestamp()) if created_at is not None else 0.0,
-                                    }
-                                )
-                    if filtered:
-                        return filtered
-                    return self._get_demo_signals() if self.mode == "DRY_RUN" else []
+                for signal in signals:
+                    raw = signal.get("final_score") or signal.get("confidence", 0.0)
+                    score = float(cast(Union[float, int], raw))
+                    if score < min_score:
+                        continue
+
+                    signal_type = signal.get("signal_type", "").upper()
+                    if signal_types is not None and signal_type not in signal_types:
+                        continue
+
+                    # DynamoDB returns created_at as an ISO string, not a datetime object.
+                    # _parse_datetime coerces either type safely.
+                    created_at_dt = self._parse_datetime(signal.get("created_at"))
+
+                    # Age filter – skip signals that are too old to be actionable
+                    if cutoff is not None and created_at_dt is not None:
+                        # Make created_at_dt timezone-aware if it isn't already
+                        if created_at_dt.tzinfo is None:
+                            from datetime import timezone as _tz
+
+                            created_at_dt = created_at_dt.replace(tzinfo=_tz.utc)
+                        if created_at_dt < cutoff:
+                            stale_count += 1
+                            continue
+
+                    filtered.append(
+                        {
+                            "symbol": signal.get("symbol", ""),
+                            "signal": signal_type,
+                            "score": score,
+                            "time": created_at_dt.strftime("%Y-%m-%d %H:%M") if created_at_dt else "",
+                            "created_at": created_at_dt.isoformat() if created_at_dt else "",
+                            "created_at_ts": created_at_dt.timestamp() if created_at_dt else 0.0,
+                        }
+                    )
+
+                if stale_count:
+                    log_warn(
+                        f"[Signals] Dropped {stale_count} stale signal(s) older than {max_age_hours:.0f}h "
+                        f"({len(filtered)} fresh signal(s) remain)"
+                    )
+
+                if filtered:
+                    return filtered
             return self._get_demo_signals() if self.mode == "DRY_RUN" else []
         except Exception as e:
-            print(f"Error fetching signals: {e}")
+            log_error(f"Error fetching signals: {e}")
             return self._get_demo_signals()
 
     def _get_demo_signals(self) -> List[Dict]:
@@ -362,14 +494,6 @@ class DataService:
                 "signal": "SHORT",
                 "score": 0.72,
                 "time": "2024-01-15 10:25",
-                "created_at": "",
-                "created_at_ts": 0.0,
-            },
-            {
-                "symbol": "SOLUSDT",
-                "signal": "NEUTRAL",
-                "score": 0.45,
-                "time": "2024-01-15 10:20",
                 "created_at": "",
                 "created_at_ts": 0.0,
             },
@@ -393,7 +517,6 @@ class DataService:
                         contracts = float(pos.get("size", 0))
                         current_price = price_feed.get_current_price(symbol)
 
-                        # Notional size in USD for display (size * entry_price)
                         notional_usd = abs(contracts * entry_price)
 
                         if side == "LONG":
@@ -401,28 +524,20 @@ class DataService:
                         else:
                             pnl = (entry_price - current_price) * contracts
 
-                        # DRY_RUN mode also has TP/SL/BE in database
-                        take_profit = pos.get("take_profit")
-                        stop_loss = pos.get("stop_loss")
-                        break_even = pos.get("break_even")
-
                         filtered_positions.append(
                             {
                                 "symbol": symbol,
                                 "side": side,
-                                # For UI we treat size as notional (USD)
                                 "size": notional_usd,
-                                # Preserve contracts separately for advanced views if needed
                                 "contracts": abs(contracts),
                                 "entry_price": entry_price,
                                 "current_price": current_price,
                                 "pnl": pnl,
-                                "take_profit": take_profit,
-                                "stop_loss": stop_loss,
-                                "break_even": break_even,
+                                "take_profit": pos.get("take_profit"),
+                                "stop_loss": pos.get("stop_loss"),
+                                "break_even": pos.get("break_even"),
                             }
                         )
-
                     return filtered_positions
                 except ImportError:
                     return []
@@ -431,26 +546,11 @@ class DataService:
                 positions = self.data_fetcher.fetch_binance_futures_positions(
                     api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
                 )
-                print(f"[DataService] Fetched {len(positions) if positions else 0} positions from Binance")
-                for p in (positions or []):
-                    print(f"  - {p.get('symbol')}: {p.get('contracts')} contracts, direction={p.get('direction')}")
 
-                # Create BinanceClient once for all positions (efficient)
-                client = None
-                try:
-                    from modules.auto_trade.execution.binance_client import BinanceClient
-                    client = BinanceClient(
-                        api_key=self.api_key,
-                        api_secret=self.api_secret,
-                        testnet=self.testnet,
-                        dry_run=False,
-                    )
-                except Exception as e:
-                    print(f"[DataService] Could not create BinanceClient for price fetching: {e}")
+                client = self._get_or_create_client()
 
                 filtered_positions = []
-                for pos in positions:
-                    # DataFetcher returns positions with: symbol, size_usdt, entry_price, direction, contracts
+                for pos in positions or []:
                     contracts = float(pos.get("contracts", 0))
 
                     if contracts == 0:
@@ -460,124 +560,51 @@ class DataService:
                     entry_price = float(pos.get("entry_price", 0))
                     symbol = pos.get("symbol", "")
 
-                    # Futures position notional in USD (from data_fetcher if available, else derive)
                     size_usd = float(pos.get("size_usdt", 0)) if pos.get("size_usdt") is not None else 0.0
                     if not size_usd and entry_price:
                         size_usd = abs(contracts * entry_price)
 
-                    # Leverage, liquidation price, margin (for Position Details GUI)
                     try:
                         leverage = int(pos.get("leverage", 1))
                     except (TypeError, ValueError):
                         leverage = 1
                     liq_price = pos.get("liquidation_price")
                     liquidation_price = float(liq_price) if liq_price is not None else None
-                    margin_used = float(pos.get("margin_used", 0)) if pos.get("margin_used") is not None else (size_usd / leverage if leverage else 0.0)
+                    margin_used = (
+                        float(pos.get("margin_used", 0))
+                        if pos.get("margin_used") is not None
+                        else (size_usd / leverage if leverage else 0.0)
+                    )
 
-                    # Fetch current mark price from exchange for accurate P&L
-                    current_price = entry_price  # Fallback
+                    current_price = entry_price
                     if client:
                         try:
                             ticker = client.exchange.fetch_ticker(symbol)
-                            # Use mark price for futures (more accurate than last price)
-                            current_price = float(ticker.get("info", {}).get("markPrice") or ticker.get("last") or entry_price)
+                            current_price = float(
+                                ticker.get("info", {}).get("markPrice") or ticker.get("last") or entry_price
+                            )
                         except Exception as e:
-                            print(f"[DataService] Could not fetch mark price for {symbol}: {e}")
+                            log_error(f"[DataService] Could not fetch mark price for {symbol}: {e}")
 
-                    # Calculate PnL with current market price
                     pnl = 0.0
                     if side == "LONG":
                         pnl = (current_price - entry_price) * abs(contracts)
                     else:
                         pnl = (entry_price - current_price) * abs(contracts)
 
-                    # Fetch TP/SL/BE from Binance and sync to DB
                     take_profit = None
                     stop_loss = None
                     break_even = None
 
-                    if client and self.database_manager:
-                        try:
-                            from modules.auto_trade.gui.utils.tp_sl_sync import TPSLSyncService
-
-                            # Fetch from Binance and sync to DB in one call
-                            with self.database_manager.session_scope() as session:
-                                result = TPSLSyncService.sync_position_tp_sl(
-                                    client=client,
-                                    session=session,
-                                    symbol=symbol,
-                                    side=side,
-                                    entry_price=entry_price
-                                )
-
-                                take_profit = result.get("take_profit")
-                                stop_loss = result.get("stop_loss")
-                                break_even = result.get("break_even")
-
-                                # If TP or SL missing on Binance, push them now (using config default_tp / default_sl)
-                                sm = getattr(self, "settings_manager", None)
-                                if (take_profit is None or stop_loss is None) and client and sm is not None and self.mode != "DRY_RUN":
-                                    try:
-                                        now = time.monotonic()
-                                        last = getattr(self, "_tp_sl_push_last", {}).get(symbol, 0)
-                                        if now - last < TP_SL_PUSH_COOLDOWN_SEC:
-                                            pass  # Skip push: cooldown to avoid duplicate SL/TP orders
-                                        else:
-                                            tp_sl_cfg = sm.get("tp_sl", {}) or {}
-                                            default_tp = float(tp_sl_cfg.get("default_tp", 5.0))
-                                            default_sl = float(tp_sl_cfg.get("default_sl", 2.5))
-                                            if default_tp > 0 and default_sl > 0:
-                                                pushed = TPSLSyncService.ensure_tp_sl_on_binance(
-                                                    client=client,
-                                                    symbol=symbol,
-                                                    side=side,
-                                                    entry_price=entry_price,
-                                                    default_tp_pct=default_tp,
-                                                    default_sl_pct=default_sl,
-                                                )
-                                                if pushed.get("take_profit") is not None:
-                                                    take_profit = pushed["take_profit"]
-                                                if pushed.get("stop_loss") is not None:
-                                                    stop_loss = pushed["stop_loss"]
-                                                    break_even = TPSLSyncService.detect_break_even(entry_price, stop_loss, side)
-                                                if take_profit is not None or stop_loss is not None:
-                                                    TPSLSyncService.sync_to_database(session, symbol, take_profit, stop_loss)
-                                                    print(f"[DataService] Pushed missing TP/SL for {symbol}: TP=${take_profit}, SL=${stop_loss}")
-                                                    self._tp_sl_push_last[symbol] = now
-                                    except Exception as push_err:
-                                        print(f"[DataService] Could not push TP/SL for {symbol}: {push_err}")
-
-                                print(f"[DataService] Synced TP/SL for {symbol}: TP=${take_profit}, SL=${stop_loss}, BE=${break_even}")
-
-                        except Exception as e:
-                            print(f"[DataService] Could not sync TP/SL for {symbol}: {e}")
-
-                            # Fallback to DB-only if sync fails
-                            if self.database_manager:
-                                try:
-                                    from modules.auto_trade.database.models import Order
-                                    with self.database_manager.session_scope() as session:
-                                        db_orders = session.query(Order).filter(
-                                            Order.symbol == symbol,
-                                            Order.status == "OPEN"
-                                        ).order_by(Order.created_at.desc()).all()
-
-                                        if db_orders:
-                                            order = db_orders[0]
-                                            take_profit = order.take_profit
-                                            stop_loss = order.stop_loss
-                                            be_moved_flag = getattr(order, 'be_moved', False)
-                                            if be_moved_flag is True and stop_loss is not None:
-                                                break_even = stop_loss
-                                            print(f"[DataService]   Fallback to DB: TP={take_profit}, SL={stop_loss}")
-                                except Exception as db_err:
-                                    print(f"[DataService]   DB fallback failed: {db_err}")
+                    tpsl = self.get_cached_tpsl(symbol)
+                    take_profit = tpsl.get("take_profit")
+                    stop_loss = tpsl.get("stop_loss")
+                    break_even = tpsl.get("break_even")
 
                     filtered_positions.append(
                         {
                             "symbol": pos.get("symbol", ""),
                             "side": side,
-                            # For UI we treat size as notional (USD)
                             "size": size_usd,
                             "contracts": abs(contracts),
                             "entry_price": entry_price,
@@ -591,10 +618,8 @@ class DataService:
                             "liquidation_price": liquidation_price,
                         }
                     )
-
-                print(f"[DataService] After filtering: {len(filtered_positions)} positions to display")
                 return filtered_positions
             return []
         except Exception as e:
-            print(f"Error fetching positions: {e}")
+            log_error(f"Error fetching positions: {e}")
             return []

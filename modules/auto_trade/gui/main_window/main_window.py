@@ -1,13 +1,13 @@
 """Main Auto Trade Dashboard Window - orchestrates all components."""
 
-import logging
-import logging.handlers
 import queue
 import sys
 from pathlib import Path
 from typing import Any
 
 import customtkinter as ctk
+
+from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
@@ -43,7 +43,11 @@ class AutoTradeDashboard(ctk.CTk):
 
         # Initialize data services (pass settings_manager so refresh can push missing TP/SL to Binance)
         self.data_service = DataService(mode=self.mode, settings_manager=self.settings_manager)
-        self.ws_data_service = WebSocketDataService(mode=self.mode, settings_manager=self.settings_manager)
+        self.ws_data_service = WebSocketDataService(
+            mode=self.mode,
+            settings_manager=self.settings_manager,
+            event_bus=self.event_bus if hasattr(self, "event_bus") else None,
+        )
 
         self.title(f"Auto Trade Dashboard - [{self.mode}]")
         self.geometry("1200x800")
@@ -66,6 +70,11 @@ class AutoTradeDashboard(ctk.CTk):
         from modules.auto_trade.monitoring.event_system import EventSystem
 
         self.event_bus = EventSystem()
+        self.settings_manager.set_event_bus(self.event_bus)
+        if hasattr(self, "data_service") and self.data_service:
+            self.data_service.set_event_bus(self.event_bus)
+        if hasattr(self, "ws_data_service") and self.ws_data_service:
+            self.ws_data_service.event_bus = self.event_bus
 
         # Initialize RecoveryManager for Gradual Recovery
         from modules.auto_trade.strategies.recovery_manager import RecoveryManager
@@ -78,7 +87,7 @@ class AutoTradeDashboard(ctk.CTk):
             database=True,  # Enable database persistence
         )
         self.recovery_manager.start()
-        logging.info(f"RecoveryManager started (enabled={recovery_config.get('enabled', False)})")
+        log_info(f"RecoveryManager started (enabled={recovery_config.get('enabled', False)})")
 
         # Initialize managers
         self.layout_manager = LayoutManager(self)
@@ -109,8 +118,8 @@ class AutoTradeDashboard(ctk.CTk):
         self.layout_manager.create_layout()
 
         # Test log message after UI creation
-        logging.info("GUI layout created successfully")
-        logging.info("LogsViewer should now be active and reading from log file")
+        log_info("GUI layout created successfully")
+        log_info("LogsViewer should now be active and reading from log file")
 
         self.updater_manager.setup_updaters()
         self.websocket_handler.register_callbacks()
@@ -119,7 +128,7 @@ class AutoTradeDashboard(ctk.CTk):
         # Start WebSocket service
         if self.mode != TradingMode.DRY_RUN:
             self.ws_data_service.start()
-            logging.info(f"WebSocket service started (mode={self.mode})")
+            log_info(f"WebSocket service started (mode={self.mode})")
 
         # Setup keyboard shortcuts
         self._setup_keyboard_shortcuts()
@@ -133,31 +142,11 @@ class AutoTradeDashboard(ctk.CTk):
 
     def _setup_file_logging(self):
         """Set up file-based logging that captures all logs from all modules."""
-        # Configure root logger
-        root_logger = logging.getLogger()
-        root_logger.setLevel(logging.DEBUG)
-
-        # Remove existing file handlers
-        for handler in root_logger.handlers[:]:
-            if isinstance(handler, logging.FileHandler):
-                root_logger.removeHandler(handler)
-
-        # Create file handler
-        file_handler = logging.FileHandler(self.log_file_path, mode="w", encoding="utf-8")
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-        root_logger.addHandler(file_handler)
-
-        # Create queue handler for GUI streaming
-        queue_handler = logging.handlers.QueueHandler(self.log_queue)
-        queue_handler.setLevel(logging.INFO)  # Only stream INFO and above to GUI
-        root_logger.addHandler(queue_handler)
-
-        logging.info("=" * 60)
-        logging.info("AUTO TRADE DASHBOARD")
-        logging.info(f"Mode: {self.mode}")
-        logging.info(f"Log file: {self.log_file_path}")
-        logging.info("=" * 60)
+        log_info("=" * 60)
+        log_info("AUTO TRADE DASHBOARD")
+        log_info(f"Mode: {self.mode}")
+        log_info(f"Log file: {self.log_file_path}")
+        log_info("=" * 60)
 
     def _setup_keyboard_shortcuts(self):
         """Set up keyboard shortcuts (bind_all so they work regardless of focus)."""
@@ -178,14 +167,14 @@ class AutoTradeDashboard(ctk.CTk):
         self.bind_all("<Control-Return>", lambda e: self._handle_confirm_trade(e))
         self.bind_all("<Control-c>", lambda e: self._handle_copy_selection(e))
 
-        logging.info(
+        log_info(
             "Keyboard shortcuts: F1 (shortcuts help), Ctrl+R/F5, Esc, Ctrl+S, "
             "Ctrl+1..5 (tabs), Ctrl+M (scan), Ctrl+Enter (trade), Ctrl+C (copy in DB)"
         )
 
     def _handle_refresh(self):
         """Handle refresh keyboard shortcut."""
-        logging.info("Refresh triggered by keyboard shortcut")
+        log_info("Refresh triggered by keyboard shortcut")
         self.refresh_signals()
         self.refresh_positions()
         self.refresh_account()
@@ -200,7 +189,7 @@ class AutoTradeDashboard(ctk.CTk):
         for widget in self.winfo_children():
             if isinstance(widget, ctk.CTkToplevel):
                 widget.destroy()
-                logging.debug("Closed dialog via Escape key")
+                log_debug("Closed dialog via Escape key")
                 break
         return "break"
 
@@ -291,10 +280,10 @@ class AutoTradeDashboard(ctk.CTk):
         self._update_queue.put(("signals", signals))
 
     def _thread_refresh_positions(self):
-        """Thread-safe positions refresh."""
-        print("[MainWindow] _thread_refresh_positions called")
+        """Thread-safe positions refresh (runs in PeriodicUpdater background thread)."""
+        log_debug("[MainWindow] _thread_refresh_positions called")
         positions = self.data_service.get_positions()
-        print(f"[MainWindow] data_service.get_positions() returned {len(positions) if positions else 0} positions")
+        log_debug(f"[MainWindow] get_positions() returned {len(positions) if positions else 0} positions")
         self._update_queue.put(("positions", positions))
 
     def _thread_refresh_account(self):
@@ -314,40 +303,38 @@ class AutoTradeDashboard(ctk.CTk):
             self.status_bar.set_connection_status(is_connected)
 
     def refresh_signals(self):
-        """Refresh signals display."""
-        signals = self.data_service.get_signals()
-        self.after(0, lambda: self.signals_frame.update_signals(signals))
+        """Trigger background signal refresh (non-blocking, result delivered via update queue)."""
+        if hasattr(self, "updater_manager") and "signal" in self.updater_manager.updaters:
+            self.updater_manager.updaters["signal"].trigger()
         self._update_connection_status()
 
     def refresh_positions(self):
-        """Refresh positions display."""
-        positions = self.data_service.get_positions()
-        self.after(0, lambda: self.positions_frame.update_positions(positions))
+        """Trigger background positions refresh (non-blocking, result delivered via update queue)."""
+        if hasattr(self, "updater_manager") and "positions" in self.updater_manager.updaters:
+            self.updater_manager.updaters["positions"].trigger()
         self._update_connection_status()
 
     def refresh_account(self):
-        """Refresh account display."""
-        data = self.data_service.get_account_data()
-        if data:
-            self.after(0, lambda: self.account_frame.update_data(data))
+        """Trigger background account refresh (non-blocking, result delivered via update queue)."""
+        if hasattr(self, "updater_manager") and "account" in self.updater_manager.updaters:
+            self.updater_manager.updaters["account"].trigger()
 
     def refresh_stats(self):
-        """Refresh stats display."""
-        stats = self.data_service.get_quick_stats()
-        if stats:
-            self.after(0, lambda: self.stats_frame.update_data(stats))
+        """Trigger background stats refresh (non-blocking, result delivered via update queue)."""
+        if hasattr(self, "updater_manager") and "stats" in self.updater_manager.updaters:
+            self.updater_manager.updaters["stats"].trigger()
 
     # ==================== Callback Handlers ====================
 
     def on_trade_executed(self):
         """Callback when manual trade is executed."""
-        logging.info("Trade executed! Refreshing positions...")
+        log_info("Trade executed! Refreshing positions...")
         self.refresh_positions()
         self.refresh_account()
 
     def on_auto_trade_toggle(self, enabled: bool):
         """Callback when auto-trade is toggled."""
-        logging.info(f"Auto-trade {'enabled' if enabled else 'disabled'}")
+        log_info(f"Auto-trade {'enabled' if enabled else 'disabled'}")
         if enabled:
             self.auto_trade_manager.start()
         else:
@@ -361,27 +348,31 @@ class AutoTradeDashboard(ctk.CTk):
         """Restart WebSocket service with updated credentials/mode."""
         try:
             if hasattr(self, "ws_data_service") and self.ws_data_service:
-                logging.info("Stopping existing WebSocket service...")
+                log_info("Stopping existing WebSocket service...")
                 self.ws_data_service.stop()
 
             self.settings_manager.load()
 
-            logging.info(f"Creating new WebSocket service (mode={self.mode})...")
-            self.ws_data_service = WebSocketDataService(mode=self.mode, settings_manager=self.settings_manager)
+            log_info(f"Creating new WebSocket service (mode={self.mode})...")
+            self.ws_data_service = WebSocketDataService(
+                mode=self.mode,
+                settings_manager=self.settings_manager,
+                event_bus=self.event_bus if hasattr(self, "event_bus") else None,
+            )
 
             if self.mode != TradingMode.DRY_RUN:
                 self.websocket_handler.register_callbacks()
                 self.ws_data_service.start()
-                logging.info("WebSocket service restarted successfully")
+                log_info("WebSocket service restarted successfully")
                 # Reload DataService credentials and refresh account so Dashboard shows real balance
                 if hasattr(self.data_service, "_reload_credentials"):
                     self.data_service._reload_credentials()
                 self.after(500, self.refresh_account)
             else:
-                logging.info("DRY_RUN mode - WebSocket not started")
+                log_info("DRY_RUN mode - WebSocket not started")
 
         except Exception as e:
-            logging.error(f"Error restarting WebSocket service: {e}")
+            log_error(f"Error restarting WebSocket service: {e}")
             import traceback
 
             traceback.print_exc()
@@ -394,9 +385,10 @@ class AutoTradeDashboard(ctk.CTk):
         """Build status dict for Current Settings (database, api_mode, api_connection)."""
         status = {"api_mode": getattr(self, "mode", "DRY_RUN")}
         try:
-            from modules.auto_trade.database import get_database_stats
+            from modules.auto_trade.database.repository.context import RepositoryContext
 
-            get_database_stats()
+            RepositoryContext.from_env()
+            # If we successfully created the context, assume DB is OK
             status["database"] = "OK"
         except Exception:
             status["database"] = "Error"
@@ -412,6 +404,23 @@ class AutoTradeDashboard(ctk.CTk):
     def on_scan_toggle(self, action):
         """Handle scanner start/stop from ScannerControl."""
         self.scanner_manager.handle_scan_toggle(action)
+
+    def on_risk_limits_toggle(self, enabled: bool):
+        """Handle Risk Limits toggle from Trading tab and persist setting."""
+        try:
+            self.settings_manager.set("risk.limits_enabled", bool(enabled))
+            self.settings_manager.save()
+
+            if hasattr(self, "config_panel") and hasattr(self.config_panel, "risk_limits_enabled_var"):
+                self.config_panel.risk_limits_enabled_var.set(bool(enabled))
+
+            if hasattr(self, "status_label"):
+                state_text = "enabled" if enabled else "disabled"
+                self.status_label.configure(text=f"Risk limits {state_text}.")
+
+            log_info(f"Risk limits toggled: {'enabled' if enabled else 'disabled'}")
+        except Exception as e:
+            log_warn(f"Failed to toggle risk limits: {e}")
 
     def on_scanner_config_change(self, config: dict):
         """Handle scanner configuration change."""
@@ -468,7 +477,7 @@ class AutoTradeDashboard(ctk.CTk):
                     self.auto_trade_control.update_idletasks()
                     self.update_idletasks()
                 except Exception as refresh_err:
-                    logging.warning(f"Trading tab Current Settings refresh: {refresh_err}")
+                    log_warn(f"Trading tab Current Settings refresh: {refresh_err}")
 
             # Scanner: reset pipeline so next scan uses new filters (atc_threshold, etc.)
             if hasattr(self, "scanner_manager"):
@@ -477,9 +486,9 @@ class AutoTradeDashboard(ctk.CTk):
 
             if hasattr(self, "status_label"):
                 self.status_label.configure(text="Settings applied (Scanner, Trading, Gradual Recovery default).")
-            logging.info("Settings applied: Scanner, Trading, Gradual Recovery default (settings_manager overwritten)")
+            log_info("Settings applied: Scanner, Trading, Gradual Recovery default (settings_manager overwritten)")
         except Exception as e:
-            logging.error(f"Error applying settings: {e}")
+            log_error(f"Error applying settings: {e}")
             if hasattr(self, "status_label"):
                 self.status_label.configure(text=f"Apply failed: {e}")
 
@@ -533,16 +542,16 @@ class AutoTradeDashboard(ctk.CTk):
                 self.update_idletasks()
             if hasattr(self, "status_label"):
                 self.status_label.configure(text="Current Settings reloaded (from Settings tab form).")
-            logging.info("Current Settings force-reloaded (Trading tab)")
+            log_info("Current Settings force-reloaded (Trading tab)")
         except Exception as e:
-            logging.warning(f"Force reload Current Settings: {e}")
+            log_warn(f"Force reload Current Settings: {e}")
             if hasattr(self, "status_label"):
                 self.status_label.configure(text=f"Reload failed: {e}")
 
     def on_recovery_config_change(self, event_type: str, data):
         """Handle recovery configuration change."""
         try:
-            logging.info(f"Recovery {event_type}: {data}")
+            log_info(f"Recovery {event_type}: {data}")
 
             if event_type == "recovery_started":
                 self.settings_manager.set("recovery.enabled", True)
@@ -574,10 +583,10 @@ class AutoTradeDashboard(ctk.CTk):
 
                 if hasattr(self, "recovery_manager"):
                     self.recovery_manager.set_enabled(enabled)
-                    logging.info(f"RecoveryManager enabled={enabled}")
+                    log_info(f"RecoveryManager enabled={enabled}")
 
         except Exception as e:
-            logging.error(f"Error handling recovery config change: {e}")
+            log_error(f"Error handling recovery config change: {e}")
 
     def on_position_action(self, action_data: dict):
         """Handle position actions from GUI."""
@@ -604,6 +613,7 @@ class AutoTradeDashboard(ctk.CTk):
                         f"Found: {stats.get('fetched', 0)} positions\n"
                         f"Synced: {stats.get('synced', 0)} new\n"
                         f"Existing: {stats.get('existing', 0)} already in DB\n"
+                        f"Closed: {stats.get('closed', 0)} stale\n"
                         f"Failed: {stats.get('failed', 0)}"
                     )
                     self.after(0, lambda: messagebox.showinfo("Position Sync", message))
@@ -623,8 +633,11 @@ class AutoTradeDashboard(ctk.CTk):
                     self.after(3000, lambda: self._update_connection_status())
 
             except Exception as e:
-                logging.error(f"Error during position sync: {e}", exc_info=True)
-                self.after(0, lambda: messagebox.showerror("Position Sync Error", f"Fatal error: {str(e)}"))
+                log_error(f"Error during position sync: {e}", exc_info=True)
+                err_str = str(e)
+                self.after(
+                    0, lambda error=err_str: messagebox.showerror("Position Sync Error", f"Fatal error: {error}")
+                )
                 self.after(0, lambda: self.status_bar.set_connection_status(False, "❌ Sync error"))
 
                 # Restore connection status after 3 seconds
@@ -641,18 +654,18 @@ class AutoTradeDashboard(ctk.CTk):
         try:
             if hasattr(self, "settings_manager"):
                 self.settings_manager.save()
-                logging.info("Settings saved on exit")
+                log_info("Settings saved on exit")
         except Exception as e:
-            logging.error(f"Error saving settings: {e}")
+            log_error(f"Error saving settings: {e}")
 
         if hasattr(self, "ws_data_service"):
             self.ws_data_service.stop()
-            logging.info("WebSocket service stopped")
+            log_info("WebSocket service stopped")
 
         # Stop RecoveryManager
         if hasattr(self, "recovery_manager"):
             self.recovery_manager.stop()
-            logging.info("RecoveryManager stopped")
+            log_info("RecoveryManager stopped")
 
         self.updater_manager.stop_all()
         self.auto_trade_manager.stop()

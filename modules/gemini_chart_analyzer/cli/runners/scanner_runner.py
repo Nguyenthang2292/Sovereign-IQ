@@ -6,8 +6,8 @@ from colorama import Fore
 
 from modules.common.utils import color_text
 from modules.gemini_chart_analyzer.cli.config.display import DisplayConfig
-from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
 from modules.gemini_chart_analyzer.core.scanner_types import BatchScanResult
+from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner, ScanConfig
 
 
 def run_scanner(
@@ -34,13 +34,15 @@ def run_scanner(
     """
     scanner = MarketBatchScanner(cooldown_seconds=cooldown)
 
-    results = scanner.scan_market(
+    scan_config = ScanConfig(
         timeframe=timeframe,
         timeframes=timeframes,
         max_symbols=max_symbols,
         limit=limit,
         initial_symbols=pre_filtered_symbols,
     )
+
+    results = scanner.scan_market(scan_config)
 
     return results
 

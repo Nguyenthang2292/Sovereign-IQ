@@ -1,0 +1,21 @@
+services:
+  localstack:
+    image: localstack/localstack:3.5.0
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    environment:
+      - DEBUG=1
+      - START_WEB=0
+      - SERVICES=lambda,sqs,cloudwatch,iam,logs
+      - DATA_DIR=/tmp/localstack/data
+      - HOSTNAME=localstack
+    volumes:
+      - "/tmp/localstack:/tmp/localstack"
+      - "./localstack:/docker-entrypoint-initaws.d"
+    networks:
+      - localstack-network
+
+networks:
+  localstack-network:
+    driver: bridge

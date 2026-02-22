@@ -1,6 +1,6 @@
 """Stats Section Component for Database Panel."""
 
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Dict
 
 import customtkinter as ctk
@@ -8,7 +8,6 @@ import customtkinter as ctk
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 from modules.auto_trade.gui.services.database_service import DatabaseService
 
-logger = logging.getLogger(__name__)
 
 
 class StatsSection:
@@ -72,4 +71,4 @@ class StatsSection:
                     self.stats_labels["last_backup"].configure(text="None")
 
         except Exception as e:
-            logger.error(f"Failed to refresh stats: {e}")
+            log_error(f"Failed to refresh stats: {e}")

@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 
 from modules.auto_trade.monitoring.alerts import AlertLevel, AlertManager
-from modules.auto_trade.monitoring.events import Event, EventBus, EventType
+from modules.auto_trade.monitoring.event_system import Event, EventBus, EventType
 
 
 @pytest.fixture

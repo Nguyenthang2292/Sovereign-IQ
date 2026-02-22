@@ -1,148 +1,100 @@
 """Database Service Layer.
 
 Extracts database operations from UI components to provide a clean service layer.
-All database operations should go through this service rather than being called
-directly from UI components.
+Supports DynamoDB (RepositoryContext) backend.
 """
 
-from typing import Dict, List, Optional, Any, Tuple
-from pathlib import Path
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
+import os
+from typing import Any, Dict, List, Optional, Tuple
+import boto3
 
-from modules.auto_trade.database import (
-    session_scope,
-    get_open_positions,
-    create_database_backup,
-    get_migration_manager,
-    get_recent_audit_logs,
-    reconcile_orders_with_binance,
-    get_db_manager,
-)
-from modules.auto_trade.database.models import Order, Signal, MartingaleChain, AuditLog
-from modules.auto_trade.database.config import DEFAULT_DB_PATH, DEFAULT_SCHEMA_PATH
+from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 
-logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_ctx() -> RepositoryContext:
+    """Return a RepositoryContext for the active backend (DynamoDB)."""
+    return RepositoryContext.from_env()
+
+
+# ---------------------------------------------------------------------------
+# DatabaseService
+# ---------------------------------------------------------------------------
 
 
 class DatabaseService:
-    """Service for database operations."""
+    """Service for database operations using DynamoDB."""
 
     @staticmethod
     def get_stats() -> Dict[str, Any]:
         """Get database statistics."""
         try:
-            with session_scope() as session:
-                return {
-                    "total_orders": session.query(Order).count(),
-                    "open_positions": session.query(Order).filter(Order.status == "OPEN").count(),
-                    "total_signals": session.query(Signal).count(),
-                    "active_chains": session.query(MartingaleChain).filter(MartingaleChain.status == "ACTIVE").count(),
-                    "audit_logs": session.query(AuditLog).count(),
-                }
+            ctx = _get_ctx()
+            orders = ctx.orders.get_all_programmatic_orders(limit=99999)
+            open_positions = ctx.orders.get_open_positions()
+            signals = ctx.signals.get_recent_signals(limit=99999)
+            chains = ctx.martingale.get_active_martingale_chains()
+            logs = ctx.audit_log.get_recent_audit_logs(limit=99999)
+
+            return {
+                "total_orders": len(orders),
+                "open_positions": len(open_positions),
+                "total_signals": len(signals),
+                "active_chains": len(chains),
+                "audit_logs": len(logs),
+            }
         except Exception as e:
-            logger.error(f"Failed to get stats: {e}")
+            log_error(f"Failed to get stats: {e}")
             return {}
 
     @staticmethod
     def get_last_backup_time() -> Optional[str]:
-        """Get last backup timestamp as formatted string."""
-        try:
-            from modules.auto_trade.database.config import DEFAULT_BACKUP_DIR
-
-            backup_dir = Path(DEFAULT_BACKUP_DIR)
-            if backup_dir.exists():
-                backups = sorted(list(backup_dir.glob("*.db")), key=lambda f: f.stat().st_mtime, reverse=True)
-                if backups:
-                    from datetime import datetime
-
-                    return datetime.fromtimestamp(backups[0].stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-            return None
-        except Exception:
-            return None
+        """Get last backup timestamp."""
+        return "DynamoDB PITR"
 
     @staticmethod
     def create_backup() -> Optional[str]:
-        """Create database backup. Returns backup path or None."""
-        try:
-            return create_database_backup()
-        except Exception as e:
-            logger.error(f"Backup failed: {e}")
-            return None
+        """Create database backup. For DynamoDB, directs to AWS PITR."""
+        log_info("DynamoDB backup: use AWS Console → DynamoDB → AutoTrade → Backups (PITR enabled)")
+        return "DynamoDB: PITR enabled — use AWS Console for on-demand backups"
 
     @staticmethod
     def run_migrations() -> Tuple[bool, str]:
-        """Run database migrations. Returns (success, message)."""
-        try:
-            manager = get_migration_manager(DEFAULT_DB_PATH, DEFAULT_SCHEMA_PATH)
-            if manager:
-                return (True, "Migration manager ready")
-            return (False, "Migration manager not available")
-        except Exception as e:
-            return (False, str(e))
+        """Run database migrations. Not applicable for DynamoDB."""
+        return (True, "DynamoDB uses schema-less design — no SQL migrations needed")
 
     @staticmethod
     def cleanup_old_records(days_to_keep: Optional[int] = None) -> Tuple[bool, str]:
-        """Cleanup old records. Returns (success, message)."""
-        if days_to_keep is None:
-            days_to_keep = DatabasePanelConfig.DEFAULT_DAYS_TO_KEEP
-
-        try:
-            from modules.auto_trade.database.utils import DatabaseCleaner
-
-            with session_scope() as session:
-                deleted_orders = DatabaseCleaner.cleanup_old_records(session, Order, days_to_keep=days_to_keep)
-                deleted_signals = DatabaseCleaner.cleanup_old_records(session, Signal, days_to_keep=days_to_keep)
-                deleted_logs = DatabaseCleaner.cleanup_old_records(
-                    session, AuditLog, days_to_keep=days_to_keep, date_column="timestamp"
-                )
-
-                msg = f"Deleted: {deleted_orders} orders, {deleted_signals} signals, {deleted_logs} logs"
-                return (True, msg)
-        except Exception as e:
-            return (False, str(e))
+        """Cleanup old records."""
+        return (
+            True,
+            "DynamoDB: TTL (expire_at) auto-expires records — no manual cleanup needed",
+        )
 
     @staticmethod
     def check_integrity() -> Tuple[bool, str]:
-        """Check database integrity. Returns (is_ok, status)."""
+        """Check database integrity for DynamoDB."""
         try:
-            from sqlalchemy import text
-
-            manager = get_db_manager()
-            with manager.engine.connect() as conn:
-                result = conn.execute(text("PRAGMA integrity_check")).fetchone()
-                status = result[0] if result else "Unknown"
-                return (status == "ok", status)
+            region = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "ap-southeast-1"
+            table_name = os.getenv("DYNAMODB_TABLE_NAME", "AutoTrade")
+            client = boto3.client("dynamodb", region_name=region)
+            resp = client.describe_table(TableName=table_name)
+            status = resp["Table"]["TableStatus"]
+            is_ok = status == "ACTIVE"
+            return (is_ok, f"DynamoDB table '{table_name}' ({region}): {status}")
         except Exception as e:
             return (False, str(e))
 
 
-class ReconciliationService:
-    """Service for Binance reconciliation operations."""
-
-    @staticmethod
-    def reconcile_with_binance(
-        api_key: str,
-        api_secret: str,
-        testnet: bool = False,
-        symbols: Optional[List[str]] = None,
-        since_hours: Optional[int] = None,
-    ) -> Dict[str, Any]:
-        """Reconcile orders with Binance."""
-        if since_hours is None:
-            since_hours = DatabasePanelConfig.DEFAULT_RECONCILE_HOURS
-
-        try:
-            return reconcile_orders_with_binance(
-                api_key=api_key,
-                api_secret=api_secret,
-                testnet=testnet,
-                symbols=symbols,
-                since_hours=since_hours,
-            )
-        except Exception as e:
-            logger.error(f"Reconcile failed: {e}")
-            return {"inserted": 0, "skipped": 0, "closed_stale": 0, "errors": [str(e)]}
+# ---------------------------------------------------------------------------
+# DataViewerService
+# ---------------------------------------------------------------------------
 
 
 class DataViewerService:
@@ -152,68 +104,51 @@ class DataViewerService:
     def get_table_count(table_name: str) -> int:
         """Get total count for a table."""
         try:
-            print(f"[DataViewerService] get_table_count called for: {table_name}")
-            with session_scope() as session:
-                if table_name == "Orders":
-                    count = session.query(Order).count()
-                elif table_name == "Signals":
-                    count = session.query(Signal).count()
-                elif table_name == "Martingale Chains":
-                    count = session.query(MartingaleChain).count()
-                elif table_name == "Audit Log":
-                    count = session.query(AuditLog).count()
-                else:
-                    count = 0
-                print(f"[DataViewerService] {table_name} count: {count}")
-                return count
+            ctx = _get_ctx()
+            if table_name == "Orders":
+                return len(ctx.orders.get_all_programmatic_orders(limit=99999))
+            elif table_name == "Signals":
+                return len(ctx.signals.get_recent_signals(limit=99999))
+            elif table_name == "Martingale Chains":
+                return len(ctx.martingale.get_active_martingale_chains())
+            elif table_name == "Audit Log":
+                return len(ctx.audit_log.get_recent_audit_logs(limit=99999))
+            return 0
         except Exception as e:
-            logger.error(f"Failed to get count for {table_name}: {e}")
-            print(f"[DataViewerService] ERROR getting count for {table_name}: {e}")
+            log_error(f"Failed to get count for {table_name}: {e}")
             return 0
 
     @staticmethod
-    def get_table_data(table_name: str, limit: Optional[int] = None, last_id: Optional[int] = None) -> List[Any]:
-        """Get paginated data from a table."""
-        from modules.auto_trade.database import (
-            get_audit_log_cursor,
-            get_martingale_chains_cursor,
-            get_orders_cursor,
-            get_signals_cursor,
-        )
-
+    def get_table_data(
+        table_name: str,
+        limit: Optional[int] = None,
+        last_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get paginated data from a table. Returns list of dicts."""
         if limit is None:
             limit = DatabasePanelConfig.DEFAULT_PAGE_SIZE
 
-        print(f"[DataViewerService] get_table_data called: table={table_name}, limit={limit}, last_id={last_id}")
-        
         try:
-            with session_scope() as session:
-                if table_name == "Orders":
-                    data = get_orders_cursor(session, last_id=last_id, limit=limit)
-                elif table_name == "Signals":
-                    data = get_signals_cursor(session, last_id=last_id, limit=limit)
-                elif table_name == "Martingale Chains":
-                    data = get_martingale_chains_cursor(session, last_id=last_id, limit=limit)
-                elif table_name == "Audit Log":
-                    data = get_audit_log_cursor(session, last_id=last_id, limit=limit)
-                else:
-                    data = []
-                
-                print(f"[DataViewerService] Query returned {len(data)} rows for {table_name}")
-                return data
+            ctx = _get_ctx()
+            if table_name == "Orders":
+                return ctx.orders.get_all_programmatic_orders(limit=limit)
+            elif table_name == "Signals":
+                return ctx.signals.get_recent_signals(limit=limit)
+            elif table_name == "Martingale Chains":
+                return ctx.martingale.get_active_martingale_chains()
+            elif table_name == "Audit Log":
+                return ctx.audit_log.get_recent_audit_logs(limit=limit)
+            return []
         except Exception as e:
-            logger.error(f"Failed to get data for {table_name}: {e}")
-            print(f"[DataViewerService] ERROR getting data for {table_name}: {e}")
-            import traceback
-            traceback.print_exc()
+            log_error(f"Failed to get data for {table_name}: {e}")
             return []
 
     @staticmethod
-    def get_audit_logs(limit: int = 100) -> List[Any]:
-        """Get recent audit logs."""
+    def get_audit_logs(limit: int = 100) -> List[Dict[str, Any]]:
+        """Get recent audit logs. Returns list of dicts."""
         try:
-            with session_scope() as session:
-                return get_recent_audit_logs(session, limit=limit)
+            ctx = _get_ctx()
+            return ctx.audit_log.get_recent_audit_logs(limit=limit)
         except Exception as e:
-            logger.error(f"Failed to get audit logs: {e}")
+            log_error(f"Failed to get audit logs: {e}")
             return []

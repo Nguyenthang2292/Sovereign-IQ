@@ -1,10 +1,9 @@
 """Database Panel Component - Refactored as container."""
 
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 
 import customtkinter as ctk
 
-from modules.auto_trade.database import DatabaseManager
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 
 from .database import (
@@ -17,8 +16,6 @@ from .database import (
     SignalsSection,
     StatsSection,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class DatabasePanel(ctk.CTkFrame):
@@ -39,32 +36,11 @@ class DatabasePanel(ctk.CTkFrame):
         super().__init__(parent)
         self.settings_manager = settings_manager
 
-        # Initialize database
-        self.db_manager = self._init_database()
-
         # Create layout
         self._create_layout()
 
         # Load initial stats
         self._load_initial_stats()
-
-    def _init_database(self):
-        """Initialize database connection.
-
-        Returns:
-            DatabaseManager class or None on failure. Uses DatabasePanelConfig.DEFAULT_DB_NAME
-            unless settings_manager provides database.path.
-        """
-        try:
-            _db_path = DatabasePanelConfig.DEFAULT_DB_NAME
-            if hasattr(self.settings_manager, "get_setting"):
-                path_setting = self.settings_manager.get_setting("database.path")
-                if path_setting:
-                    _db_path = path_setting
-            return DatabaseManager
-        except Exception as e:
-            logger.error(f"Failed to initialize database: {e}")
-            return None
 
     def _create_layout(self):
         """Create the main layout structure (left/right panels and sections)."""
@@ -139,8 +115,6 @@ class DatabasePanel(ctk.CTkFrame):
             root = self.winfo_toplevel()
             root.clipboard_clear()
             root.clipboard_append(sel.strip())
-            if logger:
-                logger.debug("Copied selection to clipboard")
+            log_debug("Copied selection to clipboard")
         except Exception as e:
-            if logger:
-                logger.debug("Copy selection failed: %s", e)
+            log_debug("Copy selection failed: %s", e)

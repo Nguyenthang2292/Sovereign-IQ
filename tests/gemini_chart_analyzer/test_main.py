@@ -9,7 +9,7 @@ Tests cover:
 - Edge cases (empty text, special characters)
 """
 
-from modules.gemini_chart_analyzer.cli.chart_analyzer_main import format_text_to_html
+from modules.gemini_chart_analyzer.core.reporting.generators.formatters import format_text_to_html
 
 
 class TestFormatTextToHtml:

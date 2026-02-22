@@ -1,5 +1,6 @@
 """Shared helper components used across Gemini analyzers."""
 
+from .analyzer_config import GeminiModelType, ImageValidationConfig
 from .exceptions import (
     GeminiAPIError,
     GeminiAuthenticationError,
@@ -10,7 +11,6 @@ from .exceptions import (
     GeminiRateLimitError,
     GeminiResponseParseError,
 )
-from .analyzer_config import ImageValidationConfig, GeminiModelType
 from .token_limit import MAX_TOKENS_PER_REQUEST, PROMPT_TOKEN_WARNING_THRESHOLD, estimate_token_count
 
 __all__ = [

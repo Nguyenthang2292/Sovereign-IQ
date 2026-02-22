@@ -3,7 +3,7 @@ members = [".", "lambda"]
 
 [package]
 name = "atc_serverless"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Serverless Adaptive Trend Classification module"
 
@@ -13,6 +13,12 @@ rayon = "1.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
+smallvec = { version = "1.13", features = ["const_generics", "union"] }
+once_cell = "1.19"
+tracing = { version = "0.1", optional = true }
+
+[dev-dependencies]
+proptest = "1.4"
 
 [features]
 default = []
@@ -23,6 +29,10 @@ opt-level = 3
 lto = "thin"
 strip = true
 codegen-units = 1
+debug = false
+
+[profile.release-debug]
+inherits = "release"
 debug = true
 
 [[bin]]

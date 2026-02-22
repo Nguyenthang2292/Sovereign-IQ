@@ -1,4 +1,4 @@
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, TypedDict
 
@@ -40,8 +40,7 @@ class GradualRecoveryStrategy:
             "is_complete": False,
         }
 
-        self.logger: logging.Logger = logging.getLogger(__name__)
-        self.logger.info(f"Gradual Recovery initialized with ${initial_loss} loss")
+        log_info(f"Gradual Recovery initialized with ${initial_loss} loss")
 
     def _validate_config(self, config: RecoveryConfig) -> Dict[str, Any]:
         defaults: Dict[str, Any] = {
@@ -76,22 +75,23 @@ class GradualRecoveryStrategy:
         if self._state["remaining_loss"] <= 0:
             self._state["remaining_loss"] = 0
             self._state["is_complete"] = True
-            self.logger.info("Recovery complete!")
+            log_info("Recovery complete!")
 
         progress_pct: float = self.recovery_percentage
-        self.logger.info(f"Profit recorded: ${profit_amount:.2f}. Progress: {progress_pct:.1f}%")
+        log_info(f"Profit recorded: ${profit_amount:.2f}. Progress: {progress_pct:.1f}%")
 
         self._persist_state()
 
     def record_loss(self, loss_amount: float) -> None:
         self._state["remaining_loss"] += loss_amount
         self._state["win_streak"] = 0
+        self._state["trades_count"] += 1
 
-        self.logger.warning(f"Setback: ${loss_amount:.2f} added to remaining loss")
+        log_warn(f"Setback: ${loss_amount:.2f} added to remaining loss")
 
         max_loss: float = float(self.config.get("max_total_loss", 2.0 * self.initial_loss))
         if self._state["remaining_loss"] >= max_loss:
-            self.logger.warning(f"Max total loss reached: ${max_loss:.2f}")
+            log_warn(f"Max total loss reached: ${max_loss:.2f}")
 
         self._persist_state()
 
@@ -139,11 +139,11 @@ class GradualRecoveryStrategy:
         max_loss: float = float(self.config.get("max_total_loss", 2.0 * self.initial_loss))
 
         if self._state["trades_count"] >= max_trades:
-            self.logger.warning(f"Max trades reached: {max_trades}")
+            log_warn(f"Max trades reached: {max_trades}")
             return True
 
         if self._state["remaining_loss"] >= max_loss:
-            self.logger.warning(f"Max total loss reached: ${max_loss:.2f}")
+            log_warn(f"Max total loss reached: ${max_loss:.2f}")
             return True
 
         return False
@@ -168,7 +168,7 @@ class GradualRecoveryStrategy:
             "win_streak": 0,
             "is_complete": False,
         }
-        self.logger.info("Recovery state reset")
+        log_info("Recovery state reset")
         self._clear_state()
 
     @property

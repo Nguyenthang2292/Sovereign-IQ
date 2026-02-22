@@ -1,0 +1,7 @@
+Hãy phân tích biểu đồ {symbol} khung {timeframe} này.
+
+Cho tôi biết:
+1. Giá đang nằm trong mô hình gì?
+2. Có dấu hiệu phân kỳ RSI nào không?
+3. Hãy khoanh vùng các khu vực thanh khoản (Liquidity) quan trọng.
+4. Đưa ra tín hiệu LONG hoặc SHORT với Entry, Stop Loss và Take Profit nếu có cơ hội giao dịch.

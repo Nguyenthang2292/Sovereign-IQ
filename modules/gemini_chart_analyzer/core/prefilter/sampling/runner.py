@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from modules.common.ui.logging import log_info, log_success
+from modules.common.ui.logging import log_info, log_success, log_warn
 
 from .base import SamplingStrategy
 from .factory import apply_sampling_strategy
@@ -81,7 +81,8 @@ def run_sampling_stage(
                     if df is not None and len(df) >= metrics_lookback:
                         return symbol, df
                     return symbol, None
-                except Exception:
+                except Exception as e:
+                    log_warn(f"[Pre-filter Stage 0] Failed to fetch data for {symbol}: {e}")
                     return symbol, None
 
             with ThreadPoolExecutor(max_workers=20) as executor:

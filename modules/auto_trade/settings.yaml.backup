@@ -5,9 +5,9 @@ risk:
   max_daily_loss: 100.0
   default_leverage: 3x
 filters:
-  min_signal_score: 0.15
-  enable_xgboost: false
-  atc_threshold: 0.15
+  min_signal_score: 0.19999999999999996
+  enable_xgboost: true
+  atc_threshold: 0.19999999999999996
   symbol_whitelist: 'BTC/USDT
 
     ETH/USDT
@@ -15,15 +15,15 @@ filters:
     SOL/USDT
 
     '
-  min_volume: 50.0
+  min_volume: 10.0
   timeframe: 15m
 api:
   exchange: Binance
   mode: PRODUCTION
 tp_sl:
-  default_tp: 5.0
-  default_sl: 50.0
-  trailing_stop: true
+  default_tp: 2.0
+  default_sl: 30.0
+  trailing_stop: false
   trailing_step_pct: 2.0
   trailing_limit_steps: false
   trailing_max_steps: 5
@@ -33,12 +33,14 @@ tp_sl:
 scanner:
   scan_interval: 5
   timeframe: 15m
+  atc_backend: serverless
+  xgboost_backend: serverless
   symbol_list: Top 20
   auto_start: true
   retrain_xgboost: false
   running: false
   sampling_strategy: stratified
-  sample_percentage: 5
+  sample_percentage: 50
 ui:
   theme: dark
   font_size: 12

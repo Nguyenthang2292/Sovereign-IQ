@@ -18,8 +18,7 @@ use std::collections::HashMap;
 pub fn aggregate_timeframes(
     symbol: String,
     tf_scores: HashMap<String, f64>,
-    tf_details: HashMap<String, String>,
-    tf_strengths: HashMap<String, f64>,
+    tf_details: HashMap<String, crate::SignalType>,
     config: &ATCConfig,
 ) -> SignalResult {
     let mut total_weighted_score = 0.0;
@@ -38,32 +37,33 @@ pub fn aggregate_timeframes(
         1.0
     };
 
-    let adaptive_threshold = config.threshold * weight_ratio;
+    let adaptive_threshold = (config.threshold * weight_ratio).max(config.threshold * 0.1);
 
-    for (tf, _) in &tf_scores {
+    for tf in tf_scores.keys() {
         let tf_weight = if active_weight > 0.0 {
             config.weights.get(tf).copied().unwrap_or(0.0) / active_weight
         } else {
             0.0
         };
 
-        let signal_type = tf_details.get(tf).map(String::as_str).unwrap_or("NEUTRAL");
-        let strength = tf_strengths.get(tf).copied().unwrap_or(0.0);
+        let signal_type = tf_details.get(tf).unwrap_or(&crate::SignalType::Neutral);
+        let strength = tf_scores.get(tf).copied().unwrap_or(0.0);
 
-        let weighted_score = calculate_weighted_score(signal_type, tf_weight, strength, config.use_signal_strength);
+        let weighted_score =
+            calculate_weighted_score(signal_type, tf_weight, strength, config.use_signal_strength);
         total_weighted_score += weighted_score;
     }
 
     let mut signal_type = if total_weighted_score > adaptive_threshold {
-        "LONG".to_string()
+        crate::SignalType::Long
     } else if total_weighted_score < -adaptive_threshold {
-        "SHORT".to_string()
+        crate::SignalType::Short
     } else {
-        "NEUTRAL".to_string()
+        crate::SignalType::Neutral
     };
 
     if total_weighted_score.abs() < config.min_signal {
-        signal_type = "NEUTRAL".to_string();
+        signal_type = crate::SignalType::Neutral;
     }
 
     SignalResult {
@@ -71,31 +71,72 @@ pub fn aggregate_timeframes(
         score: total_weighted_score,
         signal_type,
         details: tf_details,
-        strengths: tf_strengths,
+        strengths: tf_scores,
     }
 }
 
 fn calculate_weighted_score(
-    signal_type: &str,
+    signal_type: &crate::SignalType,
     tf_weight: f64,
     strength: f64,
     use_signal_strength: bool,
 ) -> f64 {
     match signal_type {
-        "LONG" => {
+        crate::SignalType::Long => {
             if use_signal_strength {
                 tf_weight * strength.abs()
             } else {
                 tf_weight
             }
         }
-        "SHORT" => {
+        crate::SignalType::Short => {
             if use_signal_strength {
-                tf_weight * strength
+                -tf_weight * strength.abs()
             } else {
                 -tf_weight
             }
         }
         _ => 0.0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ATCConfig, MAConfig, MAType};
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_aggregate_no_matching_timeframe() {
+        let mut config_weights = HashMap::new();
+        config_weights.insert("1d".to_string(), 1.0);
+
+        let config = ATCConfig {
+            weights: config_weights,
+            threshold: 0.3,
+            min_signal: 0.0,
+            use_signal_strength: false,
+            lambda_param: 0.02,
+            decay: 0.03,
+            cutout: 0,
+            equity_floor: 0.25,
+            robustness: crate::Robustness::Medium,
+            ma_configs: vec![MAConfig {
+                ma_type: MAType::Ema,
+                length: 12,
+                weight: 1.0,
+            }],
+        };
+
+        let mut tf_scores = HashMap::new();
+        tf_scores.insert("1h".to_string(), 0.8);
+
+        let mut tf_details = HashMap::new();
+        tf_details.insert("1h".to_string(), crate::SignalType::Long);
+
+        let result = aggregate_timeframes("BTCUSDT".to_string(), tf_scores, tf_details, &config);
+
+        assert_eq!(result.signal_type, crate::SignalType::Neutral);
+        assert_eq!(result.score, 0.0);
     }
 }

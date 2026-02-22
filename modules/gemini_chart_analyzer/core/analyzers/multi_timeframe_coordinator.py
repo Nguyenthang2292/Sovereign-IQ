@@ -7,8 +7,6 @@ Coordinates multi-timeframe analysis for both Deep Analysis and Batch Analysis m
 import os
 from typing import Any, Callable, Dict, List, Optional
 
-# Import timeframe weights from config (use backward-compatible import)
-from config import TIMEFRAME_WEIGHTS
 from modules.common.ui.logging import log_debug, log_error, log_info, log_success, log_warn
 from modules.gemini_chart_analyzer.core.aggregators.signal_aggregator import SignalAggregator
 from modules.gemini_chart_analyzer.core.exceptions import (
@@ -31,7 +29,7 @@ class MultiTimeframeCoordinator:
             timeframe_weights: Optional custom weights dict
         """
         self.signal_aggregator = SignalAggregator(timeframe_weights)
-        self.timeframe_weights = timeframe_weights or TIMEFRAME_WEIGHTS.copy()
+        self.timeframe_weights = timeframe_weights or {"15m": 0.2, "30m": 0.3, "1h": 0.5}
 
     def _validate_timeframes(self, timeframes: List[str]) -> List[str]:
         """

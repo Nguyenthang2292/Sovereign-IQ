@@ -1,0 +1,73 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install dependencies
+        run: cargo install cargo-benchcmp
+      
+      - name: Run benchmarks
+        run: cargo bench
+      
+      - name: Save benchmark results
+        run: |
+          mkdir -p benchmarks
+          cargo bench -- --output-format=json > benchmarks/current.json
+      
+      - name: Download baseline
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # TODO: Replace with your actual repository URL
+          # wget -O benchmarks/baseline.json https://github.com/YOUR_ORG/YOUR_REPO/raw/main/benchmarks/baseline.json
+          echo "Skipping baseline download - configure repository URL in benchmark.yml"
+      
+      - name: Compare benchmarks
+        run: |
+          if [ -f benchmarks/baseline.json ]; then
+            cargo benchcmp benchmarks/baseline.json benchmarks/current.json
+          else
+            echo "No baseline found, creating new baseline"
+            cp benchmarks/current.json benchmarks/baseline.json
+          fi
+      
+      - name: Generate regression report and dashboard
+        run: |
+          python scripts/benchmark_tracking.py benchmarks/baseline.json benchmarks/current.json || true
+          python scripts/generate_dashboard.py benchmarks/current.json benchmarks/ benchmark_dashboard.html
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks
+          path: |
+            benchmarks/
+            benchmark_report.html
+            regression_report.txt
+            benchmark_dashboard.html
+
+      - name: Check for regressions
+        run: |
+          if [ -f regression_report.txt ]; then
+            cat regression_report.txt
+            if grep -q "REGRESSION" regression_report.txt; then
+              echo "Performance regression detected!"
+              exit 1
+            else
+              echo "No performance regressions found"
+            fi
+          else
+            echo "No baseline to compare against"
+          fi

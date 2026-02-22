@@ -1,52 +1,25 @@
 """
 Pre-filter workflow module for running VotingAnalyzer.
 
-This module provides the core workflow logic for the 4-stage pre-filtering process.
-It coordinates between ATC, oscillators, SPC, and ML models to filter symbols.
+This module provides core workflow logic for  4-stage pre-filtering process.
+It coordinates between ATC, oscillators, SPC and ML models to filter symbols.
 """
 
 import json
 import sys
 import traceback
-from pathlib import Path
 from typing import Any, Dict, List, Optional
-
-
-def _find_project_root() -> Path:
-    """
-    Find project root by looking for marker files (.git, setup.py, requirements.txt).
-    Falls back to going up 5 levels if markers not found.
-    """
-    current = Path(__file__).resolve()
-    # Look for project markers
-    for parent in [current] + list(current.parents):
-        if (parent / ".git").exists() or (parent / "setup.py").exists() or (parent / "requirements.txt").exists():
-            return parent
-    # Fallback to expected structure: prefilter -> core -> gemini_chart_analyzer -> modules -> project_root
-    return current.parent.parent.parent.parent.parent
-
-
-# Add project root to sys.path
-project_root = _find_project_root()
-project_root_str = str(project_root)
-if project_root_str not in sys.path:
-    sys.path.insert(0, project_root_str)
 
 from core.voting_analyzer import VotingAnalyzer
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
-from modules.gemini_chart_analyzer.core.prefilter.args_builder import build_voting_analyzer_args
-from modules.gemini_chart_analyzer.core.prefilter.sampling import run_sampling_stage
-from modules.gemini_chart_analyzer.core.prefilter.stages import (
-    filter_stage_1_atc as _filter_stage_1_atc,
-)
-from modules.gemini_chart_analyzer.core.prefilter.stages import (
-    filter_stage_2_osc_spc as _filter_stage_2_osc_spc,
-)
-from modules.gemini_chart_analyzer.core.prefilter.stages import (
-    filter_stage_3_ml_models as _filter_stage_3_ml_models,
-)
+
+from .args_builder import build_voting_analyzer_args
+from .sampling import run_sampling_stage
+from .stages import filter_stage_1_atc as _filter_stage_1_atc
+from .stages import filter_stage_2_osc_spc as _filter_stage_2_osc_spc
+from .stages import filter_stage_3_ml_models as _filter_stage_3_ml_models
 
 
 def run_prefilter_worker(

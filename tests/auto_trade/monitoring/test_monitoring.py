@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from modules.auto_trade.monitoring.alerts import AlertManager
 from modules.auto_trade.monitoring.audit import AuditLogger
-from modules.auto_trade.monitoring.events import Event, EventBus, EventType
+from modules.auto_trade.monitoring.event_system import Event, EventBus, EventType
 from modules.auto_trade.monitoring.logger import JSONFormatter, get_logger, setup_logging
 from modules.auto_trade.monitoring.metrics import MetricsCollector
 

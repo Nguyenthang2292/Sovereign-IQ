@@ -3,8 +3,10 @@ Database Configuration for Auto Trading System
 ===============================================
 
 Centralized configuration for database paths, settings, and constants.
+Currently using DynamoDB exclusively.
 
 Created: 2026-02-03
+Modified: 2026-02-20
 """
 
 import os
@@ -12,77 +14,32 @@ from pathlib import Path
 from typing import Optional
 
 # ============================================================================
-# DATABASE PATHS
+# DATABASE PATHS (Kept for exports/archives if needed)
 # ============================================================================
 
-# Default database directory
-DEFAULT_DB_DIR = os.getenv("AUTO_TRADE_DB_DIR", "data")
-
-# Default database file name
-DEFAULT_DB_NAME = os.getenv("AUTO_TRADE_DB_NAME", "auto_trade.db")
-
-# Full database path
-DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, DEFAULT_DB_NAME)
-
-# Schema file path (relative to this file)
-DEFAULT_SCHEMA_PATH = str((Path(__file__).resolve().parent / "schema.sql"))
-
-# Backup directory
-DEFAULT_BACKUP_DIR = os.path.join(DEFAULT_DB_DIR, "backups")
+# Default configuration directory
+DEFAULT_DATA_DIR = os.getenv("AUTO_TRADE_DATA_DIR", "data")
 
 # Archive directory for old data
-DEFAULT_ARCHIVE_DIR = os.path.join(DEFAULT_DB_DIR, "archive")
+DEFAULT_ARCHIVE_DIR = os.path.join(DEFAULT_DATA_DIR, "archive")
 
 # Export directory for data exports
-DEFAULT_EXPORT_DIR = os.path.join(DEFAULT_DB_DIR, "exports")
+DEFAULT_EXPORT_DIR = os.path.join(DEFAULT_DATA_DIR, "exports")
 
 # ============================================================================
-# CONNECTION SETTINGS
+# BACKEND SELECTION
 # ============================================================================
 
-# Connection pool size
-DB_POOL_SIZE = int(os.getenv("AUTO_TRADE_DB_POOL_SIZE", "5"))
+# Database backend
+DB_BACKEND = "dynamodb"
 
-# Maximum pool overflow
-DB_MAX_OVERFLOW = int(os.getenv("AUTO_TRADE_DB_MAX_OVERFLOW", "10"))
+# DynamoDB Settings
+DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME", "AutoTrade")
+DYNAMODB_ENDPOINT_URL = os.getenv("DYNAMODB_ENDPOINT_URL")  # None = AWS production
+DYNAMODB_REGION = os.getenv("AWS_REGION", "ap-southeast-1")
 
-# Connection timeout (seconds)
-DB_TIMEOUT = int(os.getenv("AUTO_TRADE_DB_TIMEOUT", "30"))
-
-# Echo SQL statements (for debugging)
-DB_ECHO = os.getenv("AUTO_TRADE_DB_ECHO", "false").lower() == "true"
-
-# ============================================================================
-# SQLITE OPTIMIZATION SETTINGS
-# ============================================================================
-
-# Journal mode (WAL for better concurrency)
-SQLITE_JOURNAL_MODE = "WAL"
-
-# Synchronous mode (NORMAL for balance of safety and speed)
-SQLITE_SYNCHRONOUS = "NORMAL"
-
-# Cache size in KB (negative means KB, positive means pages)
-SQLITE_CACHE_SIZE = -64000  # 64MB cache
-
-# Temp store location
-SQLITE_TEMP_STORE = "MEMORY"
-
-# ============================================================================
-# BACKUP SETTINGS
-# ============================================================================
-
-# Maximum number of backups to keep
-MAX_BACKUPS = int(os.getenv("AUTO_TRADE_MAX_BACKUPS", "30"))
-
-# Compress backups by default
-BACKUP_COMPRESS = os.getenv("AUTO_TRADE_BACKUP_COMPRESS", "true").lower() == "true"
-
-# Backup interval in hours
-BACKUP_INTERVAL_HOURS = int(os.getenv("AUTO_TRADE_BACKUP_INTERVAL", "24"))
-
-# Backup name prefix
-BACKUP_PREFIX = "auto_trade_backup"
+# Valid backends
+VALID_DB_BACKENDS = {"dynamodb"}
 
 # ============================================================================
 # DATA RETENTION SETTINGS
@@ -101,13 +58,14 @@ SIGNALS_RETENTION_DAYS = int(os.getenv("AUTO_TRADE_SIGNALS_RETENTION", "180"))
 # VALIDATION CONSTANTS
 # ============================================================================
 
-# Allowed table names (for SQL injection prevention)
+# Allowed table names (models logical names)
 ALLOWED_TABLES = {
     "orders",
     "signals",
     "martingale_chain",
     "system_state",
     "audit_log",
+    "gradual_recovery",
 }
 
 # Valid order statuses
@@ -180,9 +138,6 @@ MAX_RETRY_DELAY = float(os.getenv("AUTO_TRADE_DB_MAX_RETRY_DELAY", "10.0"))
 # LOGGING SETTINGS
 # ============================================================================
 
-# Log SQL queries
-LOG_SQL_QUERIES = os.getenv("AUTO_TRADE_LOG_SQL", "false").lower() == "true"
-
 # Log database operations
 LOG_DB_OPERATIONS = os.getenv("AUTO_TRADE_LOG_DB_OPS", "true").lower() == "true"
 
@@ -194,87 +149,24 @@ LOG_PERFORMANCE = os.getenv("AUTO_TRADE_LOG_PERFORMANCE", "false").lower() == "t
 # ============================================================================
 
 
-def get_db_path(custom_path: Optional[str] = None) -> str:
-    """
-    Get database path with optional override.
-
-    Args:
-        custom_path: Optional custom database path
-
-    Returns:
-        Database file path
-    """
-    return custom_path or DEFAULT_DB_PATH
-
-
-def get_backup_dir(custom_dir: Optional[str] = None) -> str:
-    """
-    Get backup directory with optional override.
-
-    Args:
-        custom_dir: Optional custom backup directory
-
-    Returns:
-        Backup directory path
-    """
-    return custom_dir or DEFAULT_BACKUP_DIR
-
-
 def validate_leverage(leverage: int) -> bool:
-    """
-    Validate leverage value.
-
-    Args:
-        leverage: Leverage value to validate
-
-    Returns:
-        True if valid
-
-    Raises:
-        ValueError: If leverage is out of range
-    """
+    """Validate leverage value."""
     if not isinstance(leverage, int):
         raise ValueError(f"Leverage must be an integer, got {type(leverage).__name__}")
-
     if leverage < MIN_LEVERAGE or leverage > MAX_LEVERAGE:
         raise ValueError(f"Leverage must be between {MIN_LEVERAGE} and {MAX_LEVERAGE}, got {leverage}")
-
     return True
 
 
 def validate_order_status(status: str) -> bool:
-    """
-    Validate order status.
-
-    Args:
-        status: Status to validate
-
-    Returns:
-        True if valid
-
-    Raises:
-        ValueError: If status is invalid
-    """
+    """Validate order status."""
     if status not in VALID_ORDER_STATUSES:
         raise ValueError(f"Invalid order status: {status}. Must be one of {VALID_ORDER_STATUSES}")
-
     return True
 
 
 def validate_table_name(table_name: str) -> bool:
-    """
-    Validate table name against whitelist (SQL injection prevention).
-
-    Args:
-        table_name: Table name to validate
-
-    Returns:
-        True if valid
-
-    Raises:
-        ValueError: If table name is not in whitelist
-    """
+    """Validate table name (entity name) against whitelist."""
     if table_name not in ALLOWED_TABLES:
         raise ValueError(f"Invalid table name: {table_name}. Must be one of {ALLOWED_TABLES}")
-
     return True

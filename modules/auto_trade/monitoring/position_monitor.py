@@ -12,14 +12,13 @@ Key improvements over REST polling:
 """
 
 import asyncio
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
 
 from modules.auto_trade.websocket.client import BinanceWebSocketClient
 
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -92,7 +91,7 @@ class PositionMonitor:
         self._callbacks: List[Callable[[PositionSnapshot], None]] = []
         self._last_positions: Dict[str, PositionSnapshot] = {}  # symbol -> last snapshot
 
-        logger.info(f"PositionMonitor initialized (max_positions={max_positions}, WebSocket mode)")
+        log_info(f"PositionMonitor initialized (max_positions={max_positions}, WebSocket mode)")
 
     def add_callback(self, callback: Callable[[PositionSnapshot], None]):
         """
@@ -102,14 +101,14 @@ class PositionMonitor:
             callback: Function that takes PositionSnapshot as argument
         """
         self._callbacks.append(callback)
-        logger.info(f"Added position callback: {callback.__name__}")
+        log_info(f"Added position callback: {callback.__name__}")
 
     async def start(self):
         """
         Start monitoring positions via WebSocket.
         """
         if self._running:
-            logger.warning("PositionMonitor is already running")
+            log_warn("PositionMonitor is already running")
             return
 
         self._running = True
@@ -118,13 +117,13 @@ class PositionMonitor:
         initial_positions = await self.ws_client.get_initial_positions()
 
         if initial_positions:
-            logger.info(f"Loaded {len(initial_positions)} initial positions")
+            log_info(f"Loaded {len(initial_positions)} initial positions")
             self._process_positions_update(initial_positions)
 
         # Register WebSocket callback
         self.ws_client.on_position_update(self._handle_ws_position_update)
 
-        logger.info("✅ PositionMonitor started (WebSocket mode)")
+        log_info("✅ PositionMonitor started (WebSocket mode)")
 
     async def stop(self):
         """Stop monitoring positions."""
@@ -132,7 +131,7 @@ class PositionMonitor:
             return
 
         self._running = False
-        logger.info("⏹️  PositionMonitor stopped")
+        log_info("⏹️  PositionMonitor stopped")
 
     def _handle_ws_position_update(self, positions: List[dict]):
         """
@@ -149,7 +148,7 @@ class PositionMonitor:
         try:
             self._process_positions_update(positions)
         except Exception as e:
-            logger.error(f"Error handling WebSocket position update: {e}", exc_info=True)
+            log_error(f"Error handling WebSocket position update: {e}", exc_info=True)
 
     def _process_positions_update(self, positions: List[dict]):
         """
@@ -160,7 +159,7 @@ class PositionMonitor:
         """
         # Check max positions limit
         if len(positions) > self.max_positions:
-            logger.error(f"⚠️  Too many positions! Found {len(positions)}, max allowed: {self.max_positions}")
+            log_error(f"⚠️  Too many positions! Found {len(positions)}, max allowed: {self.max_positions}")
 
         # Track current symbols
         current_symbols = set()
@@ -176,7 +175,7 @@ class PositionMonitor:
 
                 # Log if position changed significantly
                 if self._has_significant_change(snapshot):
-                    logger.info(
+                    log_info(
                         f"📊 {snapshot.symbol} {snapshot.side.upper()}: "
                         f"PnL=${snapshot.unrealized_pnl:.2f} ({snapshot.unrealized_pnl_percent:+.2f}%), "
                         f"Entry=${snapshot.entry_price:.2f}, Mark=${snapshot.mark_price:.2f}"
@@ -193,15 +192,15 @@ class PositionMonitor:
                         else:
                             callback(snapshot)
                     except Exception as e:
-                        logger.error(f"Error in position callback {callback.__name__}: {e}")
+                        log_error(f"Error in position callback {callback.__name__}: {e}")
 
             except Exception as e:
-                logger.error(f"Error processing position: {e}", exc_info=True)
+                log_error(f"Error processing position: {e}", exc_info=True)
 
         # Check for closed positions
         closed_symbols = set(self._last_positions.keys()) - current_symbols
         for symbol in closed_symbols:
-            logger.info(f"Position closed: {symbol}")
+            log_info(f"Position closed: {symbol}")
             del self._last_positions[symbol]
 
     def _parse_position(self, data: dict) -> PositionSnapshot:

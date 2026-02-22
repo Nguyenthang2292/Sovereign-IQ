@@ -1,6 +1,6 @@
 """Actions Section Component for Database Panel."""
 
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import os
 import tkinter.filedialog as filedialog
 import tkinter.messagebox as messagebox
@@ -8,17 +8,14 @@ from typing import Any, Callable, Optional
 
 import customtkinter as ctk
 
-from modules.auto_trade.database import get_open_positions, session_scope
-from modules.auto_trade.database.models import AuditLog, MartingaleChain, Order, Signal
+from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.components.loading_overlay import LoadingOverlay
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 from modules.auto_trade.gui.services.database_service import (
     DatabaseService,
-    ReconciliationService,
     DataViewerService,
 )
 
-logger = logging.getLogger(__name__)
 
 
 class ActionsSection:
@@ -69,7 +66,7 @@ class ActionsSection:
         try:
             backup_path = DatabaseService.create_backup()
             if backup_path:
-                self.log_callback(f"Backup created at: {backup_path}", "SUCCESS")
+                self.log_callback(f"Backup: {backup_path}", "SUCCESS")
                 self.refresh_callback()
             else:
                 self.log_callback("Backup failed (check logs)", "ERROR")
@@ -105,33 +102,36 @@ class ActionsSection:
             self.log_callback(f"Cleanup failed: {e}", "ERROR")
 
     def _export_csv(self):
-        """Export current table to CSV."""
+        """Export current data to CSV using RepositoryContext data."""
         file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
         if not file_path:
             return
 
         try:
-            from modules.auto_trade.database.utils import DataExporter
+            import csv
 
-            table_map = {
-                "Orders": Order,
-                "Signals": Signal,
-                "Martingale Chains": MartingaleChain,
-                "Audit Log": AuditLog,
-            }
+            table_name = self.get_current_table()
+            rows = DataViewerService.get_table_data(table_name, limit=99999)
 
-            model_class = table_map.get(self.get_current_table())
-            if not model_class:
-                self.log_callback(f"Unknown table selected for export: {self.get_current_table()}", "ERROR")
+            if not rows:
+                self.log_callback(f"No data found for table: {table_name}", "WARNING")
                 return
 
-            with session_scope() as session:
-                success = DataExporter.export_to_csv(session, model_class, file_path)
-
-                if success:
-                    self.log_callback(f"Exported {self.get_current_table()} to {file_path}", "SUCCESS")
+            # rows are dicts — write header from first row keys
+            with open(file_path, "w", newline="", encoding="utf-8") as f:
+                if isinstance(rows[0], dict):
+                    writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+                    writer.writeheader()
+                    writer.writerows(rows)
                 else:
-                    self.log_callback("Export failed (check logs)", "ERROR")
+                    # ORM objects — convert attributes
+                    writer = csv.writer(f)
+                    cols = [c.key for c in rows[0].__table__.columns]
+                    writer.writerow(cols)
+                    for row in rows:
+                        writer.writerow([getattr(row, c) for c in cols])
+
+            self.log_callback(f"Exported {table_name} ({len(rows)} rows) to {file_path}", "SUCCESS")
 
         except Exception as e:
             self.log_callback(f"Export failed: {e}", "ERROR")
@@ -144,7 +144,11 @@ class ActionsSection:
             output = "Recent Audit Logs:\n"
             output += "-" * 80 + "\n"
             for log in logs:
-                output += f"[{log.timestamp}] [{log.severity}] {log.event_type}: {log.event_summary}\n"
+                ts = log.get("timestamp", log.get("created_at", ""))
+                severity = log.get("severity", "")
+                event_type = log.get("event_type", "")
+                summary = log.get("event_summary", log.get("summary", ""))
+                output += f"[{ts}] [{severity}] {event_type}: {summary}\n"
 
             self._show_in_data_viewer(output)
             self.log_callback("Retrieved audit logs", "INFO")
@@ -179,93 +183,69 @@ class ActionsSection:
             return
 
         testnet = bool(self.settings_manager.get("api.testnet", False))
-        symbols = self.settings_manager.get("filters.symbol_whitelist") or None
 
-        # Show loading overlay
         loading = LoadingOverlay(self.parent)
         loading.show("Reconciling with Binance...")
 
-        self.log_callback(f"Reconciling with Binance (last {DatabasePanelConfig.DEFAULT_RECONCILE_HOURS}h)...", "INFO")
+        self.log_callback(
+            f"Reconciling with Binance (last {DatabasePanelConfig.DEFAULT_RECONCILE_HOURS}h)...",
+            "INFO",
+        )
         try:
-            result = ReconciliationService.reconcile_with_binance(
-                api_key=api_key,
-                api_secret=api_secret,
-                testnet=testnet,
-                symbols=symbols,
-                since_hours=DatabasePanelConfig.DEFAULT_RECONCILE_HOURS,
-            )
-            inserted = result.get("inserted", 0)
-            skipped = result.get("skipped", 0)
-            closed_stale = result.get("closed_stale", 0)
-            errors = result.get("errors", [])
+            from modules.auto_trade.execution.binance_client import BinanceClient
+            from modules.auto_trade.gui.utils.position_sync_service import PositionSyncService
+
+            client = BinanceClient(api_key=api_key, api_secret=api_secret, testnet=testnet, dry_run=False)
+
+            stats = PositionSyncService.sync_all_positions(client)
+
+            inserted = stats.get("synced", 0)
+            skipped = stats.get("existing", 0)
+            errors_count = stats.get("failed", 0)
+
             self.log_callback(
-                f"Reconcile done: inserted={inserted}, skipped={skipped}, closed_stale={closed_stale}", "SUCCESS"
+                f"Reconcile done: inserted={inserted}, skipped={skipped}, errors={errors_count}",
+                "SUCCESS",
             )
-            for err in errors[: DatabasePanelConfig.MAX_RECONCILE_ERRORS_SHOWN]:
-                self.log_callback(err, "ERROR")
-            if len(errors) > DatabasePanelConfig.MAX_RECONCILE_ERRORS_SHOWN:
-                self.log_callback(
-                    f"... and {len(errors) - DatabasePanelConfig.MAX_RECONCILE_ERRORS_SHOWN} more errors", "ERROR"
-                )
             self.refresh_callback()
             messagebox.showinfo(
                 "Reconcile",
-                f"Inserted: {inserted}, Skipped (already in DB): {skipped}, Closed stale: {closed_stale}. Errors: {len(errors)}",
+                f"Inserted: {inserted}, Skipped (already in DB): {skipped}. Errors: {errors_count}",
             )
         except Exception as e:
             self.log_callback(f"Reconcile failed: {e}", "ERROR")
             messagebox.showerror("Reconcile", str(e))
         finally:
-            # Always hide overlay to prevent stuck UI
             loading.hide()
 
     def _remove_all_open_orders(self):
-        """Delete all open (programmatic) orders from the database after clearing FK references."""
+        """Cancel all open (programmatic) orders in the database."""
         if not messagebox.askyesno(
             "Confirm Remove",
-            "Remove all open orders from the database? This only deletes records in DB; it does not cancel orders on the exchange.",
+            "Remove all open orders from the database? This only updates records in DB; it does not cancel orders on the exchange.",
         ):
             return
         try:
-            with session_scope() as session:
-                positions = get_open_positions(session)
-                count = len(positions)
-                if count == 0:
-                    self.log_callback("No open orders in DB to remove", "INFO")
-                    messagebox.showinfo("Remove Open Orders", "No open orders in database.")
-                    return
-                order_ids = [o.order_id for o in positions]
-                # Clear FK references so we can delete orders
-                session.query(Signal).filter(Signal.execution_order_id.in_(order_ids)).update(
-                    {Signal.execution_order_id: None}, synchronize_session=False
-                )
-                from sqlalchemy import or_
+            ctx = RepositoryContext.from_env()
+            positions = ctx.orders.get_open_positions()
+            count = len(positions)
+            if count == 0:
+                self.log_callback("No open orders in DB to remove", "INFO")
+                messagebox.showinfo("Remove Open Orders", "No open orders in database.")
+                return
 
-                chains = (
-                    session.query(MartingaleChain)
-                    .filter(
-                        or_(
-                            MartingaleChain.initial_order_id.in_(order_ids),
-                            MartingaleChain.latest_order_id.in_(order_ids),
-                            MartingaleChain.recovery_order_id.in_(order_ids),
-                        )
-                    )
-                    .all()
-                )
-                for ch in chains:
-                    if ch.initial_order_id in order_ids:
-                        setattr(ch, "initial_order_id", None)
-                    if ch.latest_order_id in order_ids:
-                        setattr(ch, "latest_order_id", None)
-                    if ch.recovery_order_id in order_ids:
-                        setattr(ch, "recovery_order_id", None)
-                session.query(Order).filter(Order.parent_order_id.in_(order_ids)).update(
-                    {Order.parent_order_id: None}, synchronize_session=False
-                )
-                for o in positions:
-                    session.delete(o)
-            self.log_callback(f"Removed {count} open order(s) from DB", "SUCCESS")
-            messagebox.showinfo("Remove Open Orders", f"Removed {count} open order(s) from database.")
+            # DynamoDB: update status to CANCELLED
+            removed = 0
+            for pos in positions:
+                order_id = pos.get("order_id")
+                try:
+                    ctx.orders.update_order_status(order_id, "CANCELLED")
+                    removed += 1
+                except Exception as update_err:
+                    log_warn(f"Could not cancel order {order_id}: {update_err}")
+            self.log_callback(f"Cancelled {removed} open order(s) in DB", "SUCCESS")
+            messagebox.showinfo("Remove Open Orders", f"Cancelled {removed} open order(s) in database.")
+
             self.refresh_callback()
         except Exception as e:
             self.log_callback(f"Remove open orders failed: {e}", "ERROR")

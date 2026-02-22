@@ -15,7 +15,7 @@ import warnings
 import webbrowser
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 # Add project root to sys.path to ensure modules can be imported
 if "__file__" in globals():
@@ -117,61 +117,6 @@ def _convert_menu_to_config(config):
         "chart_dpi": getattr(config, "chart_dpi", 150),
         "no_cleanup": getattr(config, "no_cleanup", False),
     }
-
-
-def format_text_to_html(text: str) -> str:
-    """Delegates to centralized html_report_generator."""
-    from modules.gemini_chart_analyzer.core.reporting.generators.formatters import format_text_to_html
-
-    return format_text_to_html(text)
-
-
-def _sanitize_chart_path(chart_path: str, output_dir: str) -> str:
-    """Delegates to centralized html_report_generator."""
-    from modules.gemini_chart_analyzer.core.reporting.generators.chart_utils import sanitize_chart_path
-
-    return sanitize_chart_path(chart_path, output_dir)
-
-
-def _find_chart_paths_for_timeframes(symbol: str, timeframes: List[str], charts_dir: str) -> Dict[str, str]:
-    """Delegates to centralized html_report_generator."""
-    from modules.gemini_chart_analyzer.core.reporting.generators.chart_utils import find_chart_paths_for_timeframes
-
-    return find_chart_paths_for_timeframes(symbol, timeframes, charts_dir)
-
-
-def generate_html_report(
-    symbol: str, timeframe: str, chart_path: str, analysis_result: str, report_datetime: datetime, output_dir: str
-) -> str:
-    """Delegates to centralized html_report_generator."""
-    from modules.gemini_chart_analyzer.core.reporting.html_report_generator import (
-        generate_html_report as centralized_gen,
-    )
-
-    return centralized_gen(
-        analysis_data={"symbol": symbol, "timeframe": timeframe, "analysis": analysis_result},
-        output_dir=output_dir,
-        report_type="single",
-        chart_path=chart_path,
-        report_datetime=report_datetime,
-    )
-
-
-def generate_multi_tf_html_report(
-    symbol: str, timeframes_list: List[str], results: Dict, report_datetime: datetime, output_dir: str
-) -> str:
-    """Delegates to centralized html_report_generator."""
-    from modules.gemini_chart_analyzer.core.reporting.html_report_generator import (
-        generate_html_report as centralized_gen,
-    )
-
-    return centralized_gen(
-        analysis_data=results,
-        output_dir=output_dir,
-        report_type="multi",
-        timeframes_list=timeframes_list,
-        report_datetime=report_datetime,
-    )
 
 
 def parse_and_build_config(args):

@@ -1,7 +1,7 @@
-import unittest
-from unittest.mock import MagicMock, patch, ANY
-import sys
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
 
 # Add project root to path
 # Current file: tests/auto_trade/gui/components/test_components_empty_state_integration.py
@@ -23,6 +23,7 @@ _MOCKED_MODULE_KEYS = [
     "tkinter.simpledialog",
 ]
 
+
 class TestComponentsEmptyStateIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -38,35 +39,49 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
         class MockFrame(MagicMock):
             def __init__(self, *args, **kwargs):
                 MagicMock.__init__(self)
+
             def winfo_children(self):
                 return []
+
         ctk.CTkFrame = MockFrame
 
         # Mock CTkScrollableFrame (no spec so .pack etc. work when parent is Mock)
         class MockScrollableFrame(MagicMock):
             def __init__(self, *args, **kwargs):
                 MagicMock.__init__(self)
+
             def winfo_children(self):
                 return []
+
         ctk.CTkScrollableFrame = MockScrollableFrame
 
         # Mock CTkTabview
         class MockTabview(MagicMock):
             def __init__(self, *args, **kwargs):
                 MagicMock.__init__(self)
+
             def add(self, name):
                 return MagicMock()
+
             def set(self, name):
                 pass
+
         ctk.CTkTabview = MockTabview
 
         # Mock CTkCheckBox
         class MockCheckBox(MagicMock):
             def __init__(self, *args, **kwargs):
                 MagicMock.__init__(self)
-            def select(self): pass
-            def deselect(self): pass
-            def get(self): return 1
+
+            def select(self):
+                pass
+
+            def deselect(self):
+                pass
+
+            def get(self):
+                return 1
+
         ctk.CTkCheckBox = MockCheckBox
 
         # Other widgets
@@ -81,6 +96,7 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
 
         # Mock tkinter.ttk
         import tkinter.ttk as ttk
+
         ttk.Treeview = MagicMock()  # type: ignore[misc]
         ttk.Style = MagicMock()  # type: ignore[misc]
         ttk.Label = MagicMock()  # type: ignore[misc]
@@ -102,7 +118,6 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
         self.parent = MagicMock()
 
     def test_positions_frame_empty_state(self):
-        import importlib
 
         # Force fresh import so PositionsFrame uses the configured MockFrame base class
         mod_key = "modules.auto_trade.gui.components.positions_frame"
@@ -131,7 +146,16 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
             # Prepare for non-empty update
             frame.scroll_frame.winfo_children.return_value = [mock_empty_state.return_value]  # type: ignore[misc]
 
-            positions = [{"symbol": "BTC/USDT", "side": "LONG", "size": 1.0, "entry_price": 50000, "current_price": 51000, "pnl": 100}]
+            positions = [
+                {
+                    "symbol": "BTC/USDT",
+                    "side": "LONG",
+                    "size": 1.0,
+                    "entry_price": 50000,
+                    "current_price": 51000,
+                    "pnl": 100,
+                }
+            ]
 
             mock_card = MagicMock()
             positions_frame_module.PositionCard = mock_card  # type: ignore[misc]
@@ -158,6 +182,7 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
         old_module = sys.modules.pop(mod_key, None)
         try:
             import modules.auto_trade.gui.components.signals_frame as signals_frame_module
+
             SignalsFrame = signals_frame_module.SignalsFrame
 
             mock_empty_state = MagicMock()
@@ -197,6 +222,7 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
         old_module = sys.modules.pop(mod_key, None)
         try:
             import modules.auto_trade.gui.components.recovery_panel as recovery_panel_module
+
             RecoveryPanel = recovery_panel_module.RecoveryPanel
 
             mock_empty_state = MagicMock()
@@ -215,8 +241,13 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
             # Simulate active recovery
             panel.recovery_strategy = MagicMock()  # type: ignore[misc]
             panel.recovery_strategy.get_state.return_value = MagicMock(
-                initial_loss=100, remaining_loss=100, recovery_percentage=0,
-                trades_count=0, win_streak=0, estimated_trades_remaining=10, is_complete=False
+                initial_loss=100,
+                remaining_loss=100,
+                recovery_percentage=0,
+                trades_count=0,
+                win_streak=0,
+                estimated_trades_remaining=10,
+                is_complete=False,
             )
             panel.recovery_strategy.calculate_next_position_size.return_value = 100.0
             panel.recovery_strategy.calculate_next_leverage.return_value = 2
@@ -242,19 +273,13 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
                 sys.modules.pop(mod_key, None)
 
     @patch("modules.auto_trade.gui.components.empty_state.EmptyState")
-    @patch("modules.auto_trade.database.session_scope")
-    def test_data_viewer_empty_state(self, mock_session_scope, mock_empty_state):
+    def test_data_viewer_empty_state(self, mock_empty_state):
         # Patch ctk in data_viewer_section so we use mock ctk when module was already
         # loaded with real ctk (e.g. when run after test_data_viewer_section in suite).
-        mock_session = MagicMock()
-        mock_cm = MagicMock()
-        mock_cm.__enter__ = MagicMock(return_value=mock_session)
-        mock_cm.__exit__ = MagicMock(return_value=None)
-        mock_session_scope.return_value = mock_cm
-
         with patch("modules.auto_trade.gui.components.database.data_viewer_section.ctk", self._mock_ctk):  # type: ignore[attr-defined]
             from modules.auto_trade.gui.components.database import data_viewer_section
             from modules.auto_trade.gui.components.database.data_viewer_section import DataViewerSection
+
             section = DataViewerSection(self.parent, log_callback=MagicMock())
 
         # When run in suite, data_viewer_section may already have real EmptyState; patch it so refresh() uses mock
@@ -275,6 +300,7 @@ class TestComponentsEmptyStateIntegration(unittest.TestCase):
             section.refresh()
 
             mock_empty_state.return_value.destroy.assert_called()
+
 
 if __name__ == "__main__":
     unittest.main()

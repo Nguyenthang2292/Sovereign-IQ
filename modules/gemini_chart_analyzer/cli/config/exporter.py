@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-from modules.common.utils import log_error, log_success
+from modules.common.ui.logging import log_error, log_success
 
 
 def export_configuration(

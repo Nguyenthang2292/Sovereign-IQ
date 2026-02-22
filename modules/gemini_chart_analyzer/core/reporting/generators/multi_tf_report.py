@@ -81,15 +81,13 @@ def generate_multi_tf_report(
         tf_escaped = escape_html(tf)
         signal_escaped = escape_html(str(signal))
         confidence_str = f"{confidence:.2f}"
-        analysis_html = (
-            format_text_to_html(analysis_text)
-            if analysis_text
-            else "<p>Không có phân tích</p>"
-        )
+        analysis_html = format_text_to_html(analysis_text) if analysis_text else "<p>Không có phân tích</p>"
 
         if chart_path:
             chart_src = sanitize_chart_path(chart_path, output_dir)
-            chart_html = f'<div class="chart-container"><img src="{chart_src}" alt="Chart {symbol_escaped} {tf_escaped}"></div>'
+            chart_html = (
+                f'<div class="chart-container"><img src="{chart_src}" alt="Chart {symbol_escaped} {tf_escaped}"></div>'
+            )
         else:
             chart_html = '<div class="chart-placeholder"><p>⚠️ Không tìm thấy biểu đồ</p></div>'
 

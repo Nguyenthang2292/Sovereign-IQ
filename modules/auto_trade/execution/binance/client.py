@@ -10,9 +10,10 @@ import ccxt
 
 from modules.auto_trade.execution.binance.exchange_setup import ExchangeSetup
 from modules.auto_trade.execution.binance.order_execution import OrderExecution
-from modules.auto_trade.execution.binance.position_management import PositionManagement
 from modules.auto_trade.execution.binance.order_management import OrderManagement
+from modules.auto_trade.execution.binance.position_management import PositionManagement
 from modules.auto_trade.execution.order_builder import OrderTicket
+from modules.auto_trade.security.secret_string import SecretString
 
 
 class BinanceClient:
@@ -52,8 +53,8 @@ class BinanceClient:
             retry_delay: Initial delay between retries (exponential backoff)
             dry_run: If True, simulate orders without executing
         """
-        self.api_key = api_key
-        self.api_secret = api_secret
+        self.api_key = SecretString(api_key)
+        self.api_secret = SecretString(api_secret)
         self.testnet = testnet
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -61,8 +62,8 @@ class BinanceClient:
 
         # Initialize exchange
         self.exchange: ccxt.binance = ExchangeSetup.initialize_exchange(
-            api_key=api_key,
-            api_secret=api_secret,
+            api_key=self.api_key.get_secret_value(),
+            api_secret=self.api_secret.get_secret_value(),
             testnet=testnet,
             enable_rate_limiting=enable_rate_limiting,
         )

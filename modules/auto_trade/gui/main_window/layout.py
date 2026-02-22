@@ -82,9 +82,9 @@ class LayoutManager:
             text="⌨ Shortcuts",
             width=90,
             font=("Arial", 11),
-            command=lambda: self.parent._show_shortcuts_help()
-            if hasattr(self.parent, "_show_shortcuts_help")
-            else None,
+            command=lambda: (
+                self.parent._show_shortcuts_help() if hasattr(self.parent, "_show_shortcuts_help") else None
+            ),
         )
         shortcuts_btn.pack(side="right", padx=(10, 10))
 
@@ -234,6 +234,10 @@ class LayoutManager:
                     p.scan_interval_entry.insert(0, str(config.get("scan_interval", 5)))
                 if hasattr(p, "timeframe_var"):
                     p.timeframe_var.set(config.get("timeframe", "15m"))
+                if hasattr(p, "atc_backend_var"):
+                    p.atc_backend_var.set(config.get("atc_backend", "local"))
+                if hasattr(p, "xgboost_backend_var"):
+                    p.xgboost_backend_var.set(config.get("xgboost_backend", "local"))
                 if hasattr(p, "sampling_strategy_var"):
                     p.sampling_strategy_var.set(config.get("sampling_strategy", "stratified"))
                 if hasattr(p, "sample_percentage_entry"):
@@ -251,6 +255,10 @@ class LayoutManager:
                         labels["strategy"].configure(text=config.get("sampling_strategy", "stratified"))
                     if "sample" in labels:
                         labels["sample"].configure(text=f"{config.get('sample_percentage', 20)}%")
+                    if "backend" in labels:
+                        labels["backend"].configure(text=str(config.get("atc_backend", "local")).upper())
+                    if "xgboost_backend" in labels:
+                        labels["xgboost_backend"].configure(text=str(config.get("xgboost_backend", "local")).upper())
 
         self.parent.scanner_control = ScannerControlAdapter(self.parent)
 
@@ -267,6 +275,8 @@ class LayoutManager:
                 config = {
                     "scan_interval": max(1, min(60, interval)),
                     "timeframe": getattr(p.timeframe_var, "get", lambda: "15m")() or "15m",
+                    "atc_backend": getattr(p.atc_backend_var, "get", lambda: "local")() or "local",
+                    "xgboost_backend": getattr(p.xgboost_backend_var, "get", lambda: "local")() or "local",
                     "sampling_strategy": strat,
                     "sample_percentage": 20,
                     "auto_start": getattr(p, "auto_scan_startup_var", None) and p.auto_scan_startup_var.get(),
@@ -289,6 +299,10 @@ class LayoutManager:
                         labels["strategy"].configure(text=config["sampling_strategy"])
                     if "sample" in labels:
                         labels["sample"].configure(text=f"{config['sample_percentage']}%")
+                    if "backend" in labels:
+                        labels["backend"].configure(text=str(config["atc_backend"]).upper())
+                    if "xgboost_backend" in labels:
+                        labels["xgboost_backend"].configure(text=str(config["xgboost_backend"]).upper())
             except Exception:
                 pass
 
@@ -334,6 +348,42 @@ class LayoutManager:
             command=lambda _: self._push_scanner_config(),
         )
         timeframe_dropdown.pack(side="right")
+
+        # ATC backend switch
+        backend_row = ctk.CTkFrame(inputs_frame, fg_color="transparent")
+        backend_row.pack(fill="x", pady=3)
+        ctk.CTkLabel(backend_row, text="ATC Backend:", font=("Arial", 10), text_color="gray").pack(
+            side="left", padx=(0, 5)
+        )
+        self.parent.atc_backend_var = ctk.StringVar(value="local")
+        backend_wrapper = ctk.CTkFrame(backend_row, fg_color="transparent", width=160, height=32)
+        backend_wrapper.pack(side="right")
+        backend_wrapper.pack_propagate(False)
+        backend_switch = ctk.CTkSegmentedButton(
+            backend_wrapper,
+            values=["local", "serverless"],
+            variable=self.parent.atc_backend_var,
+            command=lambda _: self._push_scanner_config(),
+        )
+        backend_switch.pack(fill="x")
+
+        # XGBoost backend switch
+        xgb_backend_row = ctk.CTkFrame(inputs_frame, fg_color="transparent")
+        xgb_backend_row.pack(fill="x", pady=3)
+        ctk.CTkLabel(xgb_backend_row, text="XGBoost Backend:", font=("Arial", 10), text_color="gray").pack(
+            side="left", padx=(0, 5)
+        )
+        self.parent.xgboost_backend_var = ctk.StringVar(value="local")
+        xgb_wrapper = ctk.CTkFrame(xgb_backend_row, fg_color="transparent", width=160, height=32)
+        xgb_wrapper.pack(side="right")
+        xgb_wrapper.pack_propagate(False)
+        xgb_backend_switch = ctk.CTkSegmentedButton(
+            xgb_wrapper,
+            values=["local", "serverless"],
+            variable=self.parent.xgboost_backend_var,
+            command=lambda _: self._push_scanner_config(),
+        )
+        xgb_backend_switch.pack(fill="x")
 
         # Sampling strategy
         strategy_row = ctk.CTkFrame(inputs_frame, fg_color="transparent")
@@ -389,6 +439,8 @@ class LayoutManager:
         settings_data = [
             ("Interval:", "5 min", "interval"),
             ("Timeframe:", "15m", "timeframe"),
+            ("ATC Backend:", "LOCAL", "backend"),
+            ("XGBoost Backend:", "LOCAL", "xgboost_backend"),
             ("Strategy:", "stratified", "strategy"),
             ("Sample:", "20.0%", "sample"),
             ("Status:", "Stopped", "status"),
@@ -525,6 +577,7 @@ class LayoutManager:
             parent,
             on_toggle_callback=self.parent.on_auto_trade_toggle,
             on_reload_settings=self.parent.reload_current_settings,
+            on_risk_limits_toggle=self.parent.on_risk_limits_toggle,
         )
         self.parent.auto_trade_control.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 

@@ -38,21 +38,23 @@ def valid_batch_config():
         max_symbols=100,
         limit=700,
         cooldown=2.5,
-        enable_pre_filter=True,
-        pre_filter_mode="voting",
-        pre_filter_percentage=10.0,
-        pre_filter_fast_mode=True,
-        spc_config={
-            "preset": None,
-            "volatility_adjustment": False,
-            "use_correlation_weights": False,
-            "time_decay_factor": None,
-            "interpolation_mode": None,
-            "min_flip_duration": None,
-            "flip_confidence_threshold": None,
-            "enable_mtf": False,
-            "mtf_timeframes": None,
-            "mtf_require_alignment": None,
+        pre_filter={
+            "enabled": True,
+            "mode": "voting",
+            "percentage": 10.0,
+            "fast_mode": True,
+            "spc_config": {
+                "preset": None,
+                "volatility_adjustment": False,
+                "use_correlation_weights": False,
+                "time_decay_factor": None,
+                "interpolation_mode": None,
+                "min_flip_duration": None,
+                "flip_confidence_threshold": None,
+                "enable_mtf": False,
+                "mtf_timeframes": None,
+                "mtf_require_alignment": None,
+            },
         },
         rf_model_path=None,
     )
@@ -105,11 +107,9 @@ def test_run_batch_scan_with_valid_config(valid_batch_config):
 
         # Verify scanner was called with correct configuration
         mock_scanner.scan_market.assert_called_once()
-        call_kwargs = mock_scanner.scan_market.call_args[1]
-        assert call_kwargs["timeframe"] == "1h"
-        assert call_kwargs["timeframes"] == ["1h", "4h"]
-        assert call_kwargs["enable_pre_filter"] is True
-        assert call_kwargs["pre_filter_percentage"] == 10.0
+        scan_config = mock_scanner.scan_market.call_args[0][0]
+        assert scan_config.timeframe == "1h"
+        assert scan_config.timeframes == ["1h", "4h"]
 
 
 def test_run_batch_scan_handles_empty_results(valid_batch_config):
@@ -162,11 +162,10 @@ def test_run_batch_scan_configuration_validation(valid_batch_config):
             max_symbols=100,
             limit=700,
             cooldown=2.5,
-            enable_pre_filter=False,
-            pre_filter_mode=None,
-            pre_filter_fast_mode=True,
-            spc_config=None,
-            rf_model_path=None,
+            pre_filter={
+                "enabled": False,
+                "fast_mode": True,
+            },
         )
 
         with pytest.raises(ScanConfigurationError):
@@ -175,9 +174,9 @@ def test_run_batch_scan_configuration_validation(valid_batch_config):
 
 def test_run_batch_scan_with_pre_filter(valid_batch_config):
     """Test batch scan with pre-filter enabled."""
-    valid_batch_config.enable_pre_filter = True
-    valid_batch_config.pre_filter_mode = "voting"
-    valid_batch_config.pre_filter_percentage = 10.0
+    valid_batch_config.pre_filter.enabled = True
+    valid_batch_config.pre_filter.mode = "voting"
+    valid_batch_config.pre_filter.percentage = 10.0
 
     mock_result = BatchScanResult(
         long_symbols=["BTC/USDT"],
@@ -199,10 +198,8 @@ def test_run_batch_scan_with_pre_filter(valid_batch_config):
         # Run the batch scan
         results = run_batch_scan(valid_batch_config)
 
-        # Verify pre-filter was configured
-        call_kwargs = mock_scanner.scan_market.call_args[1]
-        assert call_kwargs["enable_pre_filter"] is True
-        assert call_kwargs["pre_filter_percentage"] == 10.0
+        # pre_filter happens before scanner, so it just returns initial_symbols
+        # We don't check Scanner's pre_filter args anymore, as Scanner shouldn't know about them
         assert results is not None
 
 
@@ -231,8 +228,8 @@ def test_run_batch_scan_symbol_limiting(valid_batch_config):
         results = run_batch_scan(valid_batch_config)
 
         # Verify max_symbols was passed
-        call_kwargs = mock_scanner.scan_market.call_args[1]
-        assert call_kwargs["max_symbols"] == 2
+        scan_config = mock_scanner.scan_market.call_args[0][0]
+        assert scan_config.max_symbols == 2
         assert results is not None
 
 
@@ -261,8 +258,8 @@ def test_run_batch_scan_timeframe_multiple(valid_batch_config):
         results = run_batch_scan(valid_batch_config)
 
         # Verify multiple timeframes were passed
-        call_kwargs = mock_scanner.scan_market.call_args[1]
-        assert call_kwargs["timeframes"] == ["1h", "4h", "1d"]
+        scan_config = mock_scanner.scan_market.call_args[0][0]
+        assert scan_config.timeframes == ["1h", "4h", "1d"]
         assert results is not None
 
 
@@ -300,12 +297,12 @@ def test_batch_config_creation_from_dict():
     assert config.max_symbols == 50
     assert config.limit == 500
     assert config.cooldown == 3.0
-    assert config.enable_pre_filter is True
-    assert config.pre_filter_mode == "hybrid"
-    assert config.pre_filter_percentage == 15.0
-    assert config.pre_filter_fast_mode is False
-    assert config.spc_config is not None
-    assert config.spc_config["preset"] == "medium_risk"
+    assert config.pre_filter.enabled is True
+    assert config.pre_filter.mode == "hybrid"
+    assert config.pre_filter.percentage == 15.0
+    assert config.pre_filter.fast_mode is False
+    assert config.pre_filter.spc_config is not None
+    assert config.pre_filter.spc_config["preset"] == "medium_risk"
     assert config.rf_model_path == "models/random_forest_model.pkl"
 
 

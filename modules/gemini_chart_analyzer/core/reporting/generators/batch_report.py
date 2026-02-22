@@ -76,15 +76,9 @@ def generate_batch_report(results_data: Dict[str, Any], output_dir: str) -> str:
     is_multi_tf = len(timeframes) > 1 if timeframes else False
     primary_tf = timeframes[0] if timeframes else results_data.get("timeframe", "1h")
 
-    long_rows = _generate_symbol_rows(
-        long_with_conf, "LONG", all_results, timeframes, is_multi_tf, primary_tf
-    )
-    short_rows = _generate_symbol_rows(
-        short_with_conf, "SHORT", all_results, timeframes, is_multi_tf, primary_tf
-    )
-    none_rows = _generate_symbol_rows(
-        none_with_conf, "NONE", all_results, timeframes, is_multi_tf, primary_tf
-    )
+    long_rows = _generate_symbol_rows(long_with_conf, "LONG", all_results, timeframes, is_multi_tf, primary_tf)
+    short_rows = _generate_symbol_rows(short_with_conf, "SHORT", all_results, timeframes, is_multi_tf, primary_tf)
+    none_rows = _generate_symbol_rows(none_with_conf, "NONE", all_results, timeframes, is_multi_tf, primary_tf)
 
     timeframes_str = ", ".join(timeframes) if timeframes else "N/A"
     datetime_str_escaped = escape_html(datetime_str)
@@ -208,9 +202,7 @@ def _generate_symbol_rows(
                     tf_color = get_signal_color(tf_signal)
                     badge_style = f"background-color: {tf_color}20; color: {tf_color}; border: 1px solid {tf_color}"
                     badge_content = f"{escape_html(str(tf))}: {escape_html(str(tf_signal))} ({tf_conf:.2f})"
-                    breakdown_badges.append(
-                        f'<span class="tf-badge" style="{badge_style}">{badge_content}</span>'
-                    )
+                    breakdown_badges.append(f'<span class="tf-badge" style="{badge_style}">{badge_content}</span>')
 
         breakdown_html = " ".join(breakdown_badges) if breakdown_badges else '<span class="no-breakdown">N/A</span>'
         signal_color = get_signal_color(signal_type)

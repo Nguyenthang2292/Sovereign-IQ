@@ -20,7 +20,7 @@ pub fn exp_growth(lambda_val: f64, n: usize, cutout: usize) -> Array1<f64> {
     growth
 }
 
-/// Calculate equity values with SIMD-optimized inner loop.
+/// Calculate equity values for the ATC algorithm.
 pub fn calculate_equity(
     r: ArrayView1<f64>,
     sig: ArrayView1<f64>,
@@ -46,9 +46,7 @@ pub fn calculate_equity(
         let r_i = r[i];
         let s_prev = sig[i];
 
-        let a = if s_prev.is_nan() || r_i.is_nan() {
-            0.0
-        } else if s_prev == 0.0 {
+        let a = if s_prev.is_nan() || r_i.is_nan() || s_prev == 0.0 {
             0.0
         } else {
             let sign = if s_prev > 0.0 { 1.0 } else { -1.0 };

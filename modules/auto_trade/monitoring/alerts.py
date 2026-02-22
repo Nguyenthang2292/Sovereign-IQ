@@ -7,7 +7,7 @@ Subscribes to system events and dispatches notifications for critical conditions
 from enum import Enum
 from typing import Any, Callable, Dict
 
-from modules.auto_trade.monitoring.events import Event, EventBus, EventType
+from modules.auto_trade.monitoring.event_system import Event, EventSystem, EventType
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 
@@ -23,7 +23,7 @@ class AlertManager:
     Manages system alerts and notifications.
     """
 
-    def __init__(self, event_bus: EventBus) -> None:
+    def __init__(self, event_bus: EventSystem) -> None:
         self.event_bus = event_bus
         self._setup_subscriptions()
 

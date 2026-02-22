@@ -60,13 +60,12 @@ def sanitize_chart_path(chart_path: str, output_dir: str) -> str:
     try:
         rel_path = os.path.relpath(chart_path, output_dir)
         return rel_path.replace("\\", "/")
-    except Exception:
+    except Exception as e:
+        log_warn(f"[Chart Utils] Failed to get relative path for {chart_path}: {e}")
         return Path(chart_path).name
 
 
-def find_chart_paths_for_timeframes(
-    symbol: str, timeframes: List[str], charts_dir: str
-) -> Dict[str, str]:
+def find_chart_paths_for_timeframes(symbol: str, timeframes: List[str], charts_dir: str) -> Dict[str, str]:
     """
     Find chart image files for each timeframe of a symbol.
 
@@ -87,10 +86,7 @@ def find_chart_paths_for_timeframes(
 
     for tf in timeframes:
         # Match pattern: {safe_symbol}_{tf}_{timestamp}.png
-        matches = [
-            f for f in all_files
-            if f.startswith(f"{safe_symbol}_{tf}_") and f.endswith(".png")
-        ]
+        matches = [f for f in all_files if f.startswith(f"{safe_symbol}_{tf}_") and f.endswith(".png")]
         if matches:
             # Get latest match (sorted by filename, which includes timestamp)
             latest = sorted(matches, reverse=True)[0]

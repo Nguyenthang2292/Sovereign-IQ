@@ -1,12 +1,11 @@
 """Position action handlers for trading operations."""
 
-import logging
 from typing import TYPE_CHECKING, Any
+
+from modules.common.ui.logging import log_error, log_info
 
 if TYPE_CHECKING:
     from .main_window import AutoTradeDashboard
-
-logger = logging.getLogger(__name__)
 
 
 class PositionActionHandler:
@@ -17,10 +16,10 @@ class PositionActionHandler:
 
     def handle_action(self, action_data: dict) -> dict[str, Any]:
         """Handle position actions from GUI."""
-        logger.info(f"Position action received: {action_data}")
+        log_info(f"Position action received: {action_data}")
 
         if not self.parent.data_service.exchange_manager:
-            logger.error("Exchange manager not initialized")
+            log_error("Exchange manager not initialized")
             return {"success": False, "error": "Exchange manager unavailable"}
 
         mgr = self.parent.data_service.exchange_manager
@@ -47,10 +46,10 @@ class PositionActionHandler:
                 return self.sync_positions_from_binance()
 
         except AttributeError:
-            logger.error(f"Target {target} does not support action {action}")
+            log_error(f"Target {target} does not support action {action}")
             return {"success": False, "error": f"Method not supported: {action}"}
         except Exception as e:
-            logger.error(f"Error executing {action}: {e}")
+            log_error(f"Error executing {action}: {e}")
             return {"success": False, "error": str(e)}
 
         return {"success": False, "error": "Unknown action"}
@@ -66,9 +65,8 @@ class PositionActionHandler:
             from modules.auto_trade.execution.binance_client import BinanceClient
             from modules.auto_trade.gui.utils.credential_manager import CredentialManager
             from modules.auto_trade.gui.utils.position_sync_service import PositionSyncService
-            from modules.auto_trade.database import get_db_manager
 
-            logger.info("[PositionSync] Starting manual position sync...")
+            log_info("[PositionSync] Starting manual position sync...")
 
             # Get credentials
             credential_manager = CredentialManager()
@@ -86,27 +84,20 @@ class PositionActionHandler:
                 dry_run=False,
             )
 
-            # Get database manager
-            db_manager = get_db_manager()
+            # Perform sync (RepositoryContext is created internally)
+            stats = PositionSyncService.sync_all_positions(client)
 
-            # Perform sync
-            stats = PositionSyncService.sync_all_positions(client, db_manager)
-
-            logger.info(f"[PositionSync] Sync completed: {stats}")
+            log_info(f"[PositionSync] Sync completed: {stats}")
 
             return {
                 "success": True,
                 "stats": stats,
-                "message": f"Synced {stats['synced']} positions, {stats['existing']} already existed"
+                "message": f"Synced {stats['synced']} positions, {stats['existing']} already existed",
             }
 
         except Exception as e:
-            logger.error(f"[PositionSync] Fatal error: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e),
-                "message": f"Sync failed: {str(e)}"
-            }
+            log_error(f"[PositionSync] Fatal error: {e}", exc_info=True)
+            return {"success": False, "error": str(e), "message": f"Sync failed: {str(e)}"}
 
     def _close_position(self, target, action_data: dict) -> dict[str, Any]:
         """Execute close position action."""

@@ -1,4 +1,5 @@
 """
+# EXPERIMENTAL: Forex scanner is experimental and might be deprecated soon.
 Forex Market Batch Scanner using TradingView scraper.
 
 Extends MarketBatchScanner to use TradingView scraper for forex data

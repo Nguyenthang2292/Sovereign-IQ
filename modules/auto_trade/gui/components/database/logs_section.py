@@ -1,13 +1,12 @@
 """Logs Section Component for Database Panel."""
 
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from datetime import datetime
 
 import customtkinter as ctk
 
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 
-logger = logging.getLogger(__name__)
 
 
 class LogsSection:

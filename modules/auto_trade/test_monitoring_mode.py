@@ -12,13 +12,10 @@ Hoặc từ thư mục modules/auto_trade:
     python test_monitoring_mode.py
 """
 
-import asyncio
-import logging
-import signal as signal_module
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import sys
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
 
 # Thêm project root vào path
 _current_file = Path(__file__).resolve()
@@ -28,47 +25,13 @@ _project_root = _modules_dir.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from modules.auto_trade.auto_trade_config import AutoTradeConfig
-from modules.auto_trade.main import AutoTradeSystem
-
-
-def get_monitoring_config() -> AutoTradeConfig:
-    """
-    Load config cho chế độ chỉ giám sát.
-    Ưu tiên: config.json trong auto_trade → mặc định từ env, luôn bật dry_run.
-    """
-    config_path = _auto_trade_dir / "config.json"
-    if config_path.exists():
-        config = AutoTradeConfig.from_json(str(config_path))
-    else:
-        # Tạo config mặc định với dry_run=True để không bắt buộc API key khi chỉ chạy monitoring
-        config = AutoTradeConfig(dry_run=True)
-    config.dry_run = True  # Luôn chỉ giám sát, không đặt lệnh
-    return config
-
-
-async def run_monitoring():
-    """Khởi tạo hệ thống và chạy vòng lặp giám sát (main_loop)."""
-    config = get_monitoring_config()
-    system = AutoTradeSystem(config=config)
-
-    # Xử lý tắt gọn (Ctrl+C, SIGTERM)
-    signal_module.signal(signal_module.SIGINT, system.signal_handler)
-    signal_module.signal(signal_module.SIGTERM, system.signal_handler)
-
-    try:
-        await system.initialize()
-        # Chạy vòng lặp chính (scan, monitor positions, backup; không execute order vì dry_run)
-        await system.main_loop()
-    except Exception as e:
-        logger.error(f"Fatal error: {e}", exc_info=True)
-    finally:
-        await system.shutdown()
+def run_monitoring() -> None:
+    """Deprecated entrypoint retained for backward compatibility."""
+    log_warn(
+        "modules.auto_trade.main has been removed. "
+        "Use the GUI dashboard entrypoint instead (main.py at repository root)."
+    )
 
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("Chế độ chỉ giám sát (Monitoring only) - dry_run=True")
-    print("Không đặt lệnh thật. Dừng: Ctrl+C")
-    print("=" * 60)
-    asyncio.run(run_monitoring())
+    run_monitoring()

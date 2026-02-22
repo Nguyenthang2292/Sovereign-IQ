@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 
-from web.utils.log_manager import LogFileManager, get_log_manager
+from web.shared.utils.log_manager import LogFileManager, get_log_manager
 
 
 class TestLogFileManager:
@@ -369,7 +369,7 @@ class TestLogFileManagerAutoCleanup:
 
         # Need to create new instance to read env vars
         # Clear the global instance first
-        import web.utils.log_manager as log_manager_module
+        import web.shared.utils.log_manager as log_manager_module
 
         log_manager_module._log_manager_instance = None
 

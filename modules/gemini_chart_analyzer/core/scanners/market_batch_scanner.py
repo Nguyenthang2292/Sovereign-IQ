@@ -12,6 +12,7 @@ This refactored version uses sub-modules for better code organization:
 """
 
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -28,16 +29,15 @@ from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.gemini_chart_analyzer.core.analyzers.gemini_batch_chart_analyzer import GeminiBatchChartAnalyzer
 from modules.gemini_chart_analyzer.core.exceptions import (
-    ChartGenerationError,
     DataFetchError,
-    GeminiAnalysisError,
     ScanConfigurationError,
 )
 from modules.gemini_chart_analyzer.core.generators.chart_batch_generator import ChartBatchGenerator
-from modules.gemini_chart_analyzer.core.prefilter.workflow import run_prefilter_worker
-from modules.gemini_chart_analyzer.core.scanner_types import BatchScanResult, SignalResult, SymbolScanResult
+from modules.gemini_chart_analyzer.core.protocols import BatchChartAnalyzerProtocol
+from modules.gemini_chart_analyzer.core.scanner_types import BatchScanResult
 
 # Import sub-modules
+from .batch_processor import BatchProcessor
 from .batch_scanner_components import (
     CleanupManager,
     DataFetcherAdapter,
@@ -45,6 +45,19 @@ from .batch_scanner_components import (
     SymbolFetcher,
     protect_stdin_windows,
 )
+
+
+@dataclass
+class ScanConfig:
+    """Configuration for market scan operation."""
+
+    timeframe: Optional[str] = "1h"
+    timeframes: Optional[List[str]] = None
+    max_symbols: Optional[int] = None
+    limit: int = 500
+    cancelled_callback: Optional[Callable[[], bool]] = None
+    initial_symbols: Optional[List[str]] = None
+    skip_cleanup: bool = False
 
 
 class MarketBatchScanner:
@@ -109,7 +122,7 @@ class MarketBatchScanner:
         self.cleanup_manager = CleanupManager()
 
     @property
-    def batch_gemini_analyzer(self):
+    def batch_gemini_analyzer(self) -> BatchChartAnalyzerProtocol:
         """
         Lazy initialization property for GeminiBatchChartAnalyzer.
 
@@ -120,7 +133,7 @@ class MarketBatchScanner:
         "I/O operation on closed file" errors on Windows caused by Google SDK initialization.
 
         Returns:
-            GeminiBatchChartAnalyzer: The initialized batch analyzer instance
+            BatchChartAnalyzerProtocol: The initialized batch analyzer instance
         """
         if self._gemini_analyzer is None:
             # Use context manager to protect stdin during initialization
@@ -188,59 +201,12 @@ class MarketBatchScanner:
         """
         return self.symbol_fetcher.get_all_symbols(max_retries=max_retries, retry_delay=retry_delay)
 
-    def scan_market(
-        self,
-        timeframe: Optional[str] = "1h",
-        timeframes: Optional[List[str]] = None,
-        max_symbols: Optional[int] = None,
-        limit: int = 500,
-        cancelled_callback: Optional[Callable[[], bool]] = None,
-        initial_symbols: Optional[List[str]] = None,
-        enable_pre_filter: bool = False,
-        pre_filter_mode: str = "voting",
-        pre_filter_percentage: Optional[float] = None,
-        pre_filter_auto_skip_threshold: int = 10,
-        pre_filter_fast_mode: bool = True,
-        spc_config: Optional[Dict[str, Any]] = None,
-        skip_cleanup: bool = False,
-        stage0_sample_percentage: Optional[float] = None,
-        stage0_sampling_strategy: str = "random",
-        stage0_stratified_strata_count: int = 3,
-        stage0_hybrid_top_percentage: float = 50.0,
-        atc_performance: Optional[Dict[str, Any]] = None,
-        approximate_ma_scanner: Optional[Dict[str, Any]] = None,
-        use_atc_performance: bool = True,
-        use_atc_performance_mini: bool = False,
-        xgboost_lts: Optional[Dict[str, Any]] = None,
-        use_xgboost_performance: bool = True,
-    ) -> BatchScanResult:
+    def scan_market(self, config: ScanConfig) -> BatchScanResult:
         """
         Scan entire market and return LONG/SHORT signals.
 
         Args:
-            timeframe: Single timeframe for charts (default: '1h', ignored if timeframes provided)
-            timeframes: List of timeframes for multi-timeframe analysis (enables multi-TF mode)
-            max_symbols: Maximum number of symbols to scan (None = all)
-            limit: Number of candles to fetch per symbol (default: 500)
-            cancelled_callback: Optional callable that returns bool; True indicates cancellation
-            initial_symbols: Optional pre-filtered symbols from external pre-filter
-            enable_pre_filter: Whether to run internal pre-filtering using VotingAnalyzer
-            pre_filter_mode: Mode for pre-filtering ('voting' or 'hybrid')
-            pre_filter_percentage: Percentage of symbols to select via pre-filter (0-100)
-            pre_filter_auto_skip_threshold: Auto-skip percentage filter if Stage 3 returns fewer symbols
-            pre_filter_fast_mode: Whether to run pre-filter in fast mode (3-stage sequential filtering)
-            spc_config: Optional configuration for SPC analyzer
-            skip_cleanup: If True, skip automatic cleanup of old results/charts
-            stage0_sample_percentage: Stage 0 sampling percentage
-            stage0_sampling_strategy: Stage 0 sampling strategy
-            stage0_stratified_strata_count: Number of strata for stratified sampling
-            stage0_hybrid_top_percentage: Top percentage for hybrid sampling
-            atc_performance: ATC high-performance parameters
-            approximate_ma_scanner: Approximate MA scanner configuration
-            use_atc_performance: Switch between Full LTS (True) and Legacy (False) ATC modules
-            use_atc_performance_mini: Use CPU-only mini version (takes priority over use_atc_performance)
-            xgboost_lts: XGBoost LTS configuration
-            use_xgboost_performance: Switch between LTS (True) and Legacy (False) XGBoost modules
+            config: ScanConfig containing all scan parameters
 
         Returns:
             BatchScanResult with signals, confidence scores, and summary statistics
@@ -250,7 +216,7 @@ class MarketBatchScanner:
         log_info("=" * 60)
 
         # Determine if multi-timeframe mode
-        is_multi_tf = timeframes is not None and len(timeframes) > 0
+        is_multi_tf = config.timeframes is not None and len(config.timeframes) > 0
         if is_multi_tf:
             from modules.gemini_chart_analyzer.core.aggregators.signal_aggregator import SignalAggregator
             from modules.gemini_chart_analyzer.core.generators.chart_multi_timeframe_batch_generator import (
@@ -258,7 +224,7 @@ class MarketBatchScanner:
             )
             from modules.gemini_chart_analyzer.core.utils import normalize_timeframes
 
-            normalized_tfs = normalize_timeframes(timeframes or [])
+            normalized_tfs = normalize_timeframes(config.timeframes or [])
             if not normalized_tfs:
                 raise ScanConfigurationError("No valid timeframes provided for multi-timeframe scan")
             log_info(f"Multi-timeframe mode: {', '.join(normalized_tfs)}")
@@ -269,43 +235,20 @@ class MarketBatchScanner:
             )
             signal_aggregator = SignalAggregator()
         else:
-            normalized_tfs = [timeframe] if timeframe else ["1h"]
+            normalized_tfs = [config.timeframe] if config.timeframe else ["1h"]
             log_info(f"Single timeframe mode: {normalized_tfs[0]}")
 
         # Step 0: Cleanup old batch scan results
-        if not skip_cleanup:
+        if not config.skip_cleanup:
             self._cleanup_old_results()
 
         # Step 1: Get symbols (from initial_symbols or fetch from exchange)
-        all_symbols = self._get_symbols_for_scan(initial_symbols)
-
-        # Step 1.5: Apply internal pre-filter if enabled
-        if enable_pre_filter and all_symbols:
-            all_symbols = self._apply_pre_filter(
-                all_symbols=all_symbols,
-                pre_filter_percentage=pre_filter_percentage,
-                normalized_tfs=normalized_tfs,
-                limit=limit,
-                pre_filter_mode=pre_filter_mode,
-                pre_filter_fast_mode=pre_filter_fast_mode,
-                spc_config=spc_config,
-                stage0_sample_percentage=stage0_sample_percentage,
-                stage0_sampling_strategy=stage0_sampling_strategy,
-                stage0_stratified_strata_count=stage0_stratified_strata_count,
-                stage0_hybrid_top_percentage=stage0_hybrid_top_percentage,
-                atc_performance=atc_performance,
-                approximate_ma_scanner=approximate_ma_scanner,
-                pre_filter_auto_skip_threshold=pre_filter_auto_skip_threshold,
-                use_atc_performance=use_atc_performance,
-                use_atc_performance_mini=use_atc_performance_mini,
-                xgboost_lts=xgboost_lts,
-                use_xgboost_performance=use_xgboost_performance,
-            )
+        all_symbols = self._get_symbols_for_scan(config.initial_symbols)
 
         # Apply max_symbols
-        if max_symbols and all_symbols:
-            all_symbols = all_symbols[:max_symbols]
-            log_info(f"Limited to {max_symbols} symbols")
+        if config.max_symbols and all_symbols:
+            all_symbols = all_symbols[: config.max_symbols]
+            log_info(f"Limited to {config.max_symbols} symbols")
 
         log_success(f"Found {len(all_symbols)} symbols to scan")
 
@@ -319,8 +262,8 @@ class MarketBatchScanner:
             batches=batches,
             is_multi_tf=is_multi_tf,
             normalized_tfs=normalized_tfs,
-            limit=limit,
-            cancelled_callback=cancelled_callback,
+            limit=config.limit,
+            cancelled_callback=config.cancelled_callback,
             multi_tf_generator=multi_tf_generator if is_multi_tf else None,
             signal_aggregator=signal_aggregator if is_multi_tf else None,
         )
@@ -370,149 +313,6 @@ class MarketBatchScanner:
 
         return symbols
 
-    def _apply_pre_filter(
-        self,
-        all_symbols: List[str],
-        pre_filter_percentage: Optional[float],
-        normalized_tfs: List[str],
-        limit: int,
-        pre_filter_mode: str,
-        pre_filter_fast_mode: bool,
-        spc_config: Optional[Dict[str, Any]],
-        stage0_sample_percentage: Optional[float],
-        stage0_sampling_strategy: str,
-        stage0_stratified_strata_count: int,
-        stage0_hybrid_top_percentage: float,
-        atc_performance: Optional[Dict[str, Any]],
-        approximate_ma_scanner: Optional[Dict[str, Any]],
-        pre_filter_auto_skip_threshold: int,
-        use_atc_performance: bool,
-        use_atc_performance_mini: bool = False,
-        xgboost_lts: Optional[Dict[str, Any]] = None,
-        use_xgboost_performance: bool = True,
-    ) -> List[str]:
-        """
-        Apply internal pre-filter to symbol list.
-
-        Args:
-            all_symbols: List of all symbols
-            pre_filter_percentage: Percentage to select
-            (Additional args for pre-filter configuration)
-
-        Returns:
-            Filtered symbol list
-        """
-        log_info(f"Step 1.5: Running internal pre-filter ({pre_filter_mode})...")
-
-        # Use provided percentage or default to 10%
-        if pre_filter_percentage is None:
-            pre_filter_percentage = 10.0
-        elif pre_filter_percentage <= 0.0 or pre_filter_percentage > 100.0:
-            log_warn(f"Invalid pre_filter_percentage {pre_filter_percentage}, using default 10.0")
-            pre_filter_percentage = 10.0
-
-        log_info(f"Pre-filter will select top {pre_filter_percentage}% of symbols by weighted score")
-
-        try:
-            pre_filtered = self._run_pre_filter(
-                symbols=all_symbols,
-                percentage=pre_filter_percentage,
-                timeframe=normalized_tfs[0],
-                limit=limit,
-                pre_filter_fast_mode=pre_filter_fast_mode,
-                spc_config=spc_config,
-                stage0_sample_percentage=stage0_sample_percentage,
-                stage0_sampling_strategy=stage0_sampling_strategy,
-                stage0_stratified_strata_count=stage0_stratified_strata_count,
-                stage0_hybrid_top_percentage=stage0_hybrid_top_percentage,
-                atc_performance=atc_performance,
-                approximate_ma_scanner=approximate_ma_scanner,
-                auto_skip_threshold=pre_filter_auto_skip_threshold,
-                use_atc_performance=use_atc_performance,
-                use_atc_performance_mini=use_atc_performance_mini,
-                xgboost_lts=xgboost_lts,
-                use_xgboost_performance=use_xgboost_performance,
-            )
-            if pre_filtered:
-                log_success(f"Internal pre-filter selected {len(pre_filtered)}/{len(all_symbols)} symbols")
-                return pre_filtered
-            else:
-                log_warn("Internal pre-filter returned no symbols, continuing with original list")
-                return all_symbols
-        except Exception as e:
-            log_error(f"Error during internal pre-filtering: {e}")
-            log_warn("Continuing with original symbol list due to pre-filter error")
-            return all_symbols
-
-    def _run_pre_filter(
-        self,
-        symbols: List[str],
-        percentage: float,
-        timeframe: str,
-        limit: int,
-        pre_filter_fast_mode: bool = True,
-        spc_config: Optional[Dict[str, Any]] = None,
-        stage0_sample_percentage: Optional[float] = None,
-        stage0_sampling_strategy: str = "random",
-        stage0_stratified_strata_count: int = 3,
-        stage0_hybrid_top_percentage: float = 50.0,
-        atc_performance: Optional[Dict[str, Any]] = None,
-        approximate_ma_scanner: Optional[Dict[str, Any]] = None,
-        auto_skip_threshold: int = 10,
-        use_atc_performance: bool = True,
-        use_atc_performance_mini: bool = False,
-        xgboost_lts: Optional[Dict[str, Any]] = None,
-        use_xgboost_performance: bool = True,
-    ) -> List[str]:
-        """
-        Run internal pre-filter using 3-stage sequential filtering workflow.
-
-        Args:
-            symbols: List of symbols to filter
-            percentage: Percentage of symbols to select (0-100)
-            timeframe: Timeframe for analysis
-            limit: Number of candles per symbol
-            pre_filter_fast_mode: Whether to run in fast mode (3-stage sequential filtering)
-            spc_config: Optional SPC configuration
-            (Additional stage0 and atc_performance args)
-
-        Returns:
-            List of pre-filtered symbols from Stage 3
-        """
-        try:
-            log_info(f"Pre-filter processing {len(symbols)} symbols (this may take several minutes)...")
-
-            # Call pre-filter function directly in the same process
-            filtered_symbols = run_prefilter_worker(
-                all_symbols=symbols,
-                percentage=percentage,
-                timeframe=timeframe,
-                limit=limit,
-                fast_mode=pre_filter_fast_mode,
-                spc_config=spc_config,
-                rf_model_path=self.rf_model_path,
-                stage0_sample_percentage=stage0_sample_percentage,
-                stage0_sampling_strategy=stage0_sampling_strategy,
-                stage0_stratified_strata_count=stage0_stratified_strata_count,
-                stage0_hybrid_top_percentage=stage0_hybrid_top_percentage,
-                atc_performance=atc_performance,
-                auto_skip_threshold=auto_skip_threshold,
-                use_atc_performance=use_atc_performance,
-                use_atc_performance_mini=use_atc_performance_mini,
-                xgboost_lts=xgboost_lts,
-                use_xgboost_performance=use_xgboost_performance,
-            )
-
-            log_success(f"Pre-filter completed: Selected {len(filtered_symbols)}/{len(symbols)} symbols")
-            return filtered_symbols
-
-        except Exception as e:
-            log_error(f"Failed to run pre-filter: {e}")
-            import traceback
-
-            traceback.print_exc()
-            return symbols
-
     def _split_into_batches(self, symbols: List[str], batch_size: Optional[int] = None) -> List[List[str]]:
         """
         Split symbols into batches.
@@ -544,125 +344,30 @@ class MarketBatchScanner:
         signal_aggregator: Optional[Any],
     ) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
         """
-        Process all batches and return aggregated results.
-
-        This is a placeholder that delegates to the original complex batch processing logic.
-        In a full refactoring, this would be moved to a separate batch_processor.py module.
-
-        Args:
-            batches: List of symbol batches
-            is_multi_tf: Whether multi-timeframe mode is enabled
-            normalized_tfs: List of normalized timeframes
-            limit: Number of candles per symbol
-            cancelled_callback: Optional cancellation callback
-            multi_tf_generator: Optional multi-TF chart generator
-            signal_aggregator: Optional signal aggregator
-
-        Returns:
-            Tuple of (all_results dict, batch_results list)
+        Process all batches and return aggregated results by delegating to BatchProcessor.
         """
-        all_results = {}
-        batch_results = []
-
-        for batch_idx, batch_symbols in enumerate(batches, 1):
-            # Check for cancellation
-            if cancelled_callback and cancelled_callback():
-                log_warn("Scan cancelled by user")
-                log_info(f"Processed {batch_idx - 1}/{len(batches)} batches before cancellation")
-                break
-
-            log_info(f"\n{'=' * 60}")
-            log_info(f"Processing batch {batch_idx}/{len(batches)}")
-            log_info(f"{'=' * 60}")
-
-            try:
-                if is_multi_tf:
-                    batch_result = self._process_multi_tf_batch(
-                        batch_symbols, normalized_tfs, limit, batch_idx, multi_tf_generator, signal_aggregator
-                    )
-
-                    # Extract aggregated signals
-                    for symbol, result in batch_result.items():
-                        if hasattr(result, "aggregated") and result.aggregated:
-                            all_results[symbol] = result.aggregated
-                        else:
-                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
-
-                    valid_symbols = [s for s in batch_result.keys()]
-                    batch_results.append({"batch_id": batch_idx, "symbols": valid_symbols, "results": batch_result})
-
-                    # Handle failed symbols
-                    for symbol in batch_symbols:
-                        if symbol not in valid_symbols:
-                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
-                else:
-                    batch_result = self._process_single_tf_batch(batch_symbols, normalized_tfs[0], limit, batch_idx)
-
-                    all_results.update(batch_result)  # type: ignore[arg-type]
-                    symbols_data_keys = [s for s in batch_result.keys()]
-                    batch_results.append({"batch_id": batch_idx, "symbols": symbols_data_keys, "results": batch_result})
-
-                    # Handle failed symbols
-                    fetched_symbols = set(batch_result.keys())
-                    for symbol in batch_symbols:
-                        if symbol not in fetched_symbols:
-                            all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
-
-            except (GeminiAnalysisError, ChartGenerationError) as e:
-                log_error(f"Error processing batch {batch_idx}: {e}")
-                for symbol in batch_symbols:
-                    if symbol not in all_results:
-                        all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
-            except Exception as e:
-                log_error(f"Unexpected error processing batch {batch_idx}: {e}")
-                for symbol in batch_symbols:
-                    if symbol not in all_results:
-                        all_results[symbol] = SignalResult(signal="NONE", confidence=0.0)
-
-        return all_results, batch_results
-
-    def _process_single_tf_batch(
-        self, batch_symbols: List[str], timeframe: str, limit: int, batch_idx: int
-    ) -> Dict[str, Any]:
-        """
-        Process a single-timeframe batch.
-
-        Args:
-            batch_symbols: List of symbols in this batch
-            timeframe: Timeframe string
-            limit: Number of candles
-            batch_idx: Batch index
-
-        Returns:
-            Dict mapping symbol to result
-        """
-        log_info(f"Fetching OHLCV data for {len(batch_symbols)} symbols...")
-        symbols_data = self.data_fetcher_adapter.fetch_batch_data(batch_symbols, timeframe, limit)
-
-        if not symbols_data:
-            log_warn(f"No data fetched for batch {batch_idx}, skipping...")
-            return {}
-
-        log_success(f"Fetched data for {len(symbols_data)} symbols")
-
-        # Generate batch chart
-        log_info("Generating batch chart image...")
-        batch_chart_path, truncated = self.batch_chart_generator.create_batch_chart(
-            symbols_data=symbols_data, timeframe=timeframe, batch_id=batch_idx
-        )
-        if truncated:
-            log_warn(f"Batch {batch_idx}: Input symbols list was truncated to {self.charts_per_batch} items")
-
-        # Analyze with Gemini
-        log_info("Sending to Gemini for analysis...")
-        batch_result = self.batch_gemini_analyzer.analyze_batch_chart(
-            image_path=batch_chart_path,
-            batch_id=batch_idx,
-            total_batches=None,
-            symbols=[sd["symbol"] for sd in symbols_data],
+        processor = BatchProcessor(self)
+        return processor.process_batches(
+            batches=batches,
+            is_multi_tf=is_multi_tf,
+            normalized_tfs=normalized_tfs,
+            limit=limit,
+            cancelled_callback=cancelled_callback,
+            multi_tf_generator=multi_tf_generator,
+            signal_aggregator=signal_aggregator,
         )
 
-        return batch_result
+    def _process_single_tf_batch(self, batch_symbols: List[str], timeframe: str, limit: int, batch_idx: int) -> Dict[str, Any]:
+        """
+        Backward-compatible wrapper delegating single-timeframe batch processing to BatchProcessor.
+        """
+        processor = BatchProcessor(self)
+        return processor._process_single_tf_batch(
+            batch_symbols=batch_symbols,
+            timeframe=timeframe,
+            limit=limit,
+            batch_idx=batch_idx,
+        )
 
     def _process_multi_tf_batch(
         self,
@@ -672,106 +377,19 @@ class MarketBatchScanner:
         batch_idx: int,
         multi_tf_generator: Any,
         signal_aggregator: Any,
-    ) -> Dict[str, SymbolScanResult]:
+    ) -> Dict[str, Any]:
         """
-        Process a multi-timeframe batch.
-
-        Args:
-            batch_symbols: List of symbols in this batch
-            normalized_tfs: List of normalized timeframes
-            limit: Number of candles
-            batch_idx: Batch index
-            multi_tf_generator: Multi-TF chart generator
-            signal_aggregator: Signal aggregator
-
-        Returns:
-            Dict mapping symbol to SymbolScanResult
+        Backward-compatible wrapper delegating multi-timeframe batch processing to BatchProcessor.
         """
-        msg = f"Fetching OHLCV data for {len(batch_symbols)} symbols across {len(normalized_tfs)} timeframes..."
-        log_info(msg)
-        symbols_tf_data: dict[str, dict[str, Any]] = {}  # {symbol: {timeframe: df}}
-
-        for symbol in batch_symbols:
-            symbols_tf_data[symbol] = {}
-            for tf in normalized_tfs:
-                try:
-                    df, _ = self.data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                        symbol=symbol, timeframe=tf, limit=limit, check_freshness=False
-                    )
-                    if df is not None and not df.empty and len(df) >= self.min_candles:
-                        symbols_tf_data[symbol][tf] = df
-                except Exception as e:
-                    log_error(f"Error fetching {symbol} {tf}: {e}")
-
-        # Filter symbols that have data for at least one timeframe
-        valid_symbols = {sym for sym, tf_data in symbols_tf_data.items() if tf_data}
-
-        if not valid_symbols:
-            log_warn(f"No valid data for batch {batch_idx}, skipping...")
-            return {}
-
-        log_success(f"Fetched data for {len(valid_symbols)} symbols")
-
-        # Generate multi-TF batch chart
-        log_info("Generating multi-timeframe batch chart image...")
-        batch_chart_path, truncated = multi_tf_generator.create_multi_tf_batch_chart(
-            symbols_data=symbols_tf_data, timeframes=normalized_tfs, batch_id=batch_idx
+        processor = BatchProcessor(self)
+        return processor._process_multi_tf_batch(
+            batch_symbols=batch_symbols,
+            normalized_tfs=normalized_tfs,
+            limit=limit,
+            batch_idx=batch_idx,
+            multi_tf_generator=multi_tf_generator,
+            signal_aggregator=signal_aggregator,
         )
-
-        # Analyze with Gemini (multi-TF prompt)
-        log_info("Sending to Gemini for multi-timeframe analysis...")
-        parsed_results = self.batch_gemini_analyzer.analyze_multi_tf_batch_chart(
-            batch_chart_path=batch_chart_path,
-            symbols=sorted(valid_symbols),
-            normalized_timeframes=normalized_tfs,
-        )
-
-        # Handle empty/None results
-        if parsed_results is None:
-            log_error(f"Gemini analysis failed for batch {batch_idx}: No results object returned. Skipping batch.")
-            return {}
-        elif isinstance(parsed_results, dict) and not parsed_results:
-            log_info(f"Gemini analyzed batch {batch_idx}, but found no signals (empty result set). Skipping batch.")
-            return {}
-
-        log_success(f"Parsed {len(parsed_results)} results from Gemini")
-
-        # Aggregate signals for each symbol
-        batch_result = {}
-        for symbol in valid_symbols:
-            if symbol in parsed_results:
-                symbol_result = parsed_results[symbol]
-
-                # Support both new dataclass format (SymbolScanResult) and legacy dict format
-                if isinstance(symbol_result, SymbolScanResult):
-                    tf_signals = symbol_result.timeframes
-                    aggregated = symbol_result.aggregated
-                elif isinstance(symbol_result, dict):
-                    # Backward compatibility: dict format
-                    tf_signals = symbol_result.get("timeframes", {})
-                    aggregated = symbol_result.get("aggregated")
-                else:
-                    log_warn(
-                        f"Unexpected result format for {symbol}: {type(symbol_result).__name__}, "
-                        f"expected SymbolScanResult or dict"
-                    )
-                    tf_signals = {}
-                    aggregated = None
-
-                # If aggregated signal not provided by Gemini, calculate it
-                if aggregated is None:
-                    aggregated = signal_aggregator.aggregate_signals(tf_signals)
-
-                batch_result[symbol] = SymbolScanResult(timeframes=tf_signals, aggregated=aggregated)
-            else:
-                # Symbol not found in parsed results
-                log_warn(f"Symbol {symbol} not found in parsed multi-TF results")
-                batch_result[symbol] = SymbolScanResult(
-                    timeframes={tf: SignalResult(signal="NONE", confidence=0.0) for tf in normalized_tfs},
-                    aggregated=SignalResult(signal="NONE", confidence=0.0),
-                )
-
-        return batch_result
 
     def _finalize_results(
         self, all_results: Dict[str, Any], all_symbols: List[str], normalized_tfs: List[str], is_multi_tf: bool

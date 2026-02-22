@@ -5,7 +5,7 @@ metrics (CCI, Fisher Transform, DMI difference, Z-Score, MAR), see
 modules.common.quantitative_metrics.
 """
 
-from modules.common.utils import validate_ohlcv_input
+from modules.common.data.validation import validate_ohlcv_input
 
 from .base import (
     IndicatorFunc,

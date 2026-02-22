@@ -49,8 +49,8 @@ class TestDatabasePanel(unittest.TestCase):
                 self.master = None
                 self._last_child_ids = None
                 self.children = {}
-                self._w = '.'
-                self.widgetName = 'tk'
+                self._w = "."
+                self.widgetName = "tk"
 
             def call(self, *args, **kwargs):
                 """Mock Tcl/Tk interpreter call - just return empty string."""
@@ -68,8 +68,8 @@ class TestDatabasePanel(unittest.TestCase):
                 self.tk = mock_root
                 self._last_child_ids = None
                 self.children = {}
-                self._w = '.mock'
-                self.widgetName = 'frame'
+                self._w = ".mock"
+                self.widgetName = "frame"
                 self.master = mock_root  # Point to root to terminate traversal
 
             def pack(self, *args, **kwargs):
@@ -185,74 +185,66 @@ class TestDatabasePanel(unittest.TestCase):
         self.assertEqual(self.panel.data_viewer_section.current_page, 1)
         self.panel.data_viewer_section.refresh.assert_called_once()
 
-    @patch("modules.auto_trade.gui.components.database.orders_section.create_order")
-    @patch("modules.auto_trade.gui.components.database.orders_section.session_scope")
-    def test_create_test_order(self, mock_session_scope, mock_create_order):
+    @patch("modules.auto_trade.gui.components.database.orders_section.RepositoryContext")
+    def test_create_test_order(self, mock_repo_ctx):
+        mock_ctx = MagicMock()
+        mock_repo_ctx.from_env.return_value = mock_ctx
+        mock_ctx.orders.create_order.return_value = {"order_id": "TEST_abc"}
+
         # Mock UI inputs
         self.panel.orders_section.order_symbol = MagicMock()
         self.panel.orders_section.order_symbol.get.return_value = "BTCUSDT"
         self.panel.orders_section.order_side = MagicMock()
         self.panel.orders_section.order_side.get.return_value = "LONG"
-
         self.panel.orders_section.refresh_callback = MagicMock()
 
         self.panel.orders_section._create_test_order()
 
-        mock_create_order.assert_called_once()
+        mock_ctx.orders.create_order.assert_called_once()
         self.panel.orders_section.refresh_callback.assert_called_once()
 
-    @patch("sqlalchemy.or_")
     @patch("modules.auto_trade.gui.components.database.actions_section.messagebox")
-    @patch("modules.auto_trade.gui.components.database.actions_section.get_open_positions")
-    @patch("modules.auto_trade.gui.components.database.actions_section.session_scope")
-    def test_remove_all_open_orders_confirmed_calls_session_and_get_positions(
-        self, mock_session_scope, mock_get_open_positions, mock_messagebox, mock_or_
-    ):
-        mock_or_.return_value = MagicMock()
+    @patch("modules.auto_trade.gui.components.database.actions_section.RepositoryContext")
+    def test_remove_all_open_orders_confirmed_calls_ctx_and_get_positions(self, mock_repo_ctx, mock_messagebox):
+        mock_ctx = MagicMock()
+        mock_repo_ctx.from_env.return_value = mock_ctx
         mock_messagebox.askyesno.return_value = True
-        mock_session = MagicMock()
-        mock_session_scope.return_value.__enter__.return_value = mock_session
-        mock_session_scope.return_value.__exit__.return_value = None
-        mock_order = MagicMock()
-        mock_order.order_id = "ORD_001"
-        mock_get_open_positions.return_value = [mock_order]
-        mock_session.query.return_value.filter.return_value.update.return_value = None
-        mock_session.query.return_value.filter.return_value.all.return_value = []
+        mock_order = {"order_id": "ORD_001", "status": "OPEN"}
+        mock_ctx.orders.get_open_positions.return_value = [mock_order]
+        mock_ctx.orders.update_order_status.return_value = True
 
         self.panel.actions_section.log_callback = MagicMock()
         self.panel.actions_section.refresh_callback = MagicMock()
 
-        self.panel.actions_section._remove_all_open_orders()
+        import os
+
+        with unittest.mock.patch.dict(os.environ, {"DB_BACKEND": "dynamodb"}):
+            self.panel.actions_section._remove_all_open_orders()
 
         mock_messagebox.askyesno.assert_called_once()
-        mock_get_open_positions.assert_called_once_with(mock_session)
-        self.panel.actions_section.log_callback.assert_any_call("Removed 1 open order(s) from DB", "SUCCESS")
+        mock_ctx.orders.get_open_positions.assert_called_once()
+        self.panel.actions_section.log_callback.assert_any_call("Cancelled 1 open order(s) in DB", "SUCCESS")
         self.panel.actions_section.refresh_callback.assert_called_once()
 
     @patch("modules.auto_trade.gui.components.database.actions_section.messagebox")
-    @patch("modules.auto_trade.gui.components.database.actions_section.get_open_positions")
-    @patch("modules.auto_trade.gui.components.database.actions_section.session_scope")
-    def test_remove_all_open_orders_cancelled_does_nothing(
-        self, mock_session_scope, mock_get_open_positions, mock_messagebox
-    ):
+    @patch("modules.auto_trade.gui.components.database.actions_section.RepositoryContext")
+    def test_remove_all_open_orders_cancelled_does_nothing(self, mock_repo_ctx, mock_messagebox):
         mock_messagebox.askyesno.return_value = False
+        mock_ctx = MagicMock()
+        mock_repo_ctx.from_env.return_value = mock_ctx
 
         self.panel.actions_section._remove_all_open_orders()
 
         mock_messagebox.askyesno.assert_called_once()
-        mock_get_open_positions.assert_not_called()
+        mock_ctx.orders.get_open_positions.assert_not_called()
 
     @patch("modules.auto_trade.gui.components.database.actions_section.messagebox")
-    @patch("modules.auto_trade.gui.components.database.actions_section.get_open_positions")
-    @patch("modules.auto_trade.gui.components.database.actions_section.session_scope")
-    def test_remove_all_open_orders_no_orders_shows_info(
-        self, mock_session_scope, mock_get_open_positions, mock_messagebox
-    ):
+    @patch("modules.auto_trade.gui.components.database.actions_section.RepositoryContext")
+    def test_remove_all_open_orders_no_orders_shows_info(self, mock_repo_ctx, mock_messagebox):
         mock_messagebox.askyesno.return_value = True
-        mock_session = MagicMock()
-        mock_session_scope.return_value.__enter__.return_value = mock_session
-        mock_session_scope.return_value.__exit__.return_value = None
-        mock_get_open_positions.return_value = []
+        mock_ctx = MagicMock()
+        mock_repo_ctx.from_env.return_value = mock_ctx
+        mock_ctx.orders.get_open_positions.return_value = []
 
         self.panel.actions_section.log_callback = MagicMock()
 
@@ -261,7 +253,6 @@ class TestDatabasePanel(unittest.TestCase):
         mock_messagebox.showinfo.assert_called_once()
         call_args = mock_messagebox.showinfo.call_args[0]
         self.assertIn("No open orders", call_args[1])
-        mock_session.delete.assert_not_called()
 
     def test_refresh_data_viewer_on_table_switch(self):
         """Test data viewer refresh when table is changed (table switch triggers refresh)."""
@@ -280,19 +271,19 @@ class TestDatabasePanel(unittest.TestCase):
         )
         self.panel.data_viewer_section.refresh.assert_called_once_with()
 
-    @patch("modules.auto_trade.database.utils.DataExporter")
-    @patch("modules.auto_trade.gui.components.database.actions_section.session_scope")
+    @patch("modules.auto_trade.gui.services.database_service.DataViewerService.get_table_data")
     @patch("modules.auto_trade.gui.components.database.actions_section.filedialog")
-    def test_export_to_csv_success(self, mock_filedialog, mock_session_scope, mock_data_exporter):
+    def test_export_to_csv_success(self, mock_filedialog, mock_get_table_data):
         """Test successful export of current table to CSV."""
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
             export_path = f.name
         try:
             mock_filedialog.asksaveasfilename.return_value = export_path
-            mock_session = MagicMock()
-            mock_session_scope.return_value.__enter__.return_value = mock_session
-            mock_session_scope.return_value.__exit__.return_value = None
-            mock_data_exporter.export_to_csv.return_value = True
+            # Return list of dicts (DynamoDB/repository format)
+            mock_get_table_data.return_value = [
+                {"order_id": "ORD_001", "symbol": "BTCUSDT", "side": "LONG"},
+                {"order_id": "ORD_002", "symbol": "ETHUSDT", "side": "SHORT"},
+            ]
 
             self.panel.actions_section.get_current_table = MagicMock(return_value="Orders")
             self.panel.actions_section.log_callback = MagicMock()

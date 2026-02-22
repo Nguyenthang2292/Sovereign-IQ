@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Benchmark Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .regression { color: red; font-weight: bold; }
+        .improvement { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Benchmark Results</h1>
+    <p>Generated on: 2026-02-16 02:50:03</p>
+    <table>
+        <tr>
+            <th>Test Name</th>
+            <th>Baseline (ns)</th>
+            <th>Current (ns)</th>
+            <th>Change (%)</th>
+            <th>Status</th>
+        </tr>
+        <tr>
+            <td>calculate_ema_benchmark</td>
+            <td>1234.56</td>
+            <td>1180.23</td>
+            <td>-4.40%</td>
+            <td class="improvement">IMPROVEMENT</td>
+        </tr>
+        <tr>
+            <td>calculate_sma_benchmark</td>
+            <td>2345.67</td>
+            <td>2500.00</td>
+            <td>6.58%</td>
+            <td class="regression">REGRESSION</td>
+        </tr>
+        <tr>
+            <td>calculate_wma_benchmark</td>
+            <td>3456.78</td>
+            <td>3400.00</td>
+            <td>-1.64%</td>
+            <td class="improvement">IMPROVEMENT</td>
+        </tr>
+        <tr>
+            <td>signal_detection_benchmark</td>
+            <td>5678.90</td>
+            <td>5700.00</td>
+            <td>0.37%</td>
+            <td class="">NO CHANGE</td>
+        </tr>
+    </table>
+</body>
+</html>

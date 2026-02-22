@@ -1,23 +1,27 @@
 """
-Audit Trail System.
+Audit logging for critical system events.
 
-Provides an append-only log for critical business events (Orders, Positions).
-Designed for high integrity and traceability.
+Records immutable trails of actions like order execution,
+configuration changes, and risk limit hits.
+
+Created: 2026-02-06
 """
 
 import hashlib
 import json
-import logging
-import logging.handlers
-import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union
+
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 
-class AuditEventType(str, Enum):
-    """Standardized audit event types."""
+class AuditEventType(Enum):
+    """
+    Standardized categories for audit events to ensure consistency.
+    """
+
     ORDER_CREATED = "ORDER_CREATED"
     ORDER_FILLED = "ORDER_FILLED"
     ORDER_CANCELLED = "ORDER_CANCELLED"
@@ -39,14 +43,23 @@ class AuditLogger:
 
     # Sensitive keys to redact from logs
     SENSITIVE_KEYS: Set[str] = {
-        'password', 'api_key', 'token', 'secret', 'api_secret',
-        'private_key', 'passphrase', 'auth', 'authorization',
-        'credential', 'access_token', 'refresh_token'
+        "password",
+        "api_key",
+        "token",
+        "secret",
+        "api_secret",
+        "private_key",
+        "passphrase",
+        "auth",
+        "authorization",
+        "credential",
+        "access_token",
+        "refresh_token",
     }
 
     def __init__(self, log_dir: str = "logs") -> None:
         """
-        Initialize audit logger with rotating file handler.
+        Initialize audit logger.
 
         Args:
             log_dir: Directory to store audit logs
@@ -58,36 +71,13 @@ class AuditLogger:
         if not log_dir or not log_dir.strip():
             raise ValueError("log_dir cannot be empty")
 
-        self.logger = logging.getLogger("audit")
-        self.logger.setLevel(logging.INFO)
         self.log_dir = Path(log_dir)
+        self.log_file = self.log_dir / "audit.log"
 
         try:
             self.log_dir.mkdir(parents=True, exist_ok=True)
         except (OSError, PermissionError) as e:
             raise ValueError(f"Cannot create log directory '{log_dir}': {e}")
-
-        # Ensure we don't add multiple handlers on re-init
-        if not self.logger.handlers:
-            try:
-                # Audit logs rotate but we keep them longer (90 days)
-                handler = logging.handlers.TimedRotatingFileHandler(
-                    filename=self.log_dir / "audit.log",
-                    when="midnight",
-                    interval=1,
-                    backupCount=90,
-                    encoding="utf-8"
-                )
-
-                # Simple JSON format for audit
-                formatter = logging.Formatter("%(message)s")
-                handler.setFormatter(formatter)
-                self.logger.addHandler(handler)
-
-                # Prevent propagation to root logger (avoid duplication in system.log)
-                self.logger.propagate = False
-            except (OSError, PermissionError) as e:
-                raise ValueError(f"Cannot create audit log handler: {e}")
 
     def _sanitize_details(self, details: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -101,54 +91,58 @@ class AuditLogger:
         """
         sanitized: Dict[str, Any] = {}
         for key, value in details.items():
-            # Check if key contains sensitive keywords
-            if any(sensitive in key.lower() for sensitive in self.SENSITIVE_KEYS):
-                sanitized[key] = "***REDACTED***"
+            # Check for sensitive key names (case-insensitive)
+            is_sensitive = any(s_key in key.lower() for s_key in self.SENSITIVE_KEYS)
+
+            if is_sensitive and value:
+                # Mask value but preserve length to indicate it was set
+                sanitized[key] = f"***REDACTED({len(str(value))})***"
             elif isinstance(value, dict):
                 # Recursively sanitize nested dictionaries
                 sanitized[key] = self._sanitize_details(value)
-            elif isinstance(value, list):
-                # Handle lists that might contain dicts
-                sanitized[key] = [
-                    self._sanitize_details(item) if isinstance(item, dict) else item
-                    for item in value
-                ]
+            elif isinstance(value, list) and value and isinstance(value[0], dict):
+                # Sanitize lists of dictionaries
+                sanitized[key] = [self._sanitize_details(item) for item in value]
             else:
                 sanitized[key] = value
+
         return sanitized
 
     def _calculate_checksum(self, record: Dict[str, Any]) -> str:
         """
-        Calculate SHA256 checksum of record for integrity verification.
+        Calculate integrity checksum for an audit record.
+
+        Creates a predictable string representation of the record (excluding
+        existing checksum) and hashes it.
 
         Args:
-            record: Record dictionary (without checksum field)
+            record: The audit record dictionary
 
         Returns:
-            Hexadecimal checksum string
+            SHA-256 hex digest of the record
         """
-        # Create a copy without checksum field to avoid circular dependency
-        record_copy = {k: v for k, v in record.items() if k != "checksum"}
-        record_str = json.dumps(record_copy, sort_keys=True)
-        return hashlib.sha256(record_str.encode("utf-8")).hexdigest()
+        # Create a copy without any existing checksum
+        checksum_record = {k: v for k, v in record.items() if k != "checksum"}
+
+        # Serialize with sorted keys for consistency across Python versions/runs
+        # Separators ensure no whitespace variations
+        serialized = json.dumps(checksum_record, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     def _make_json_serializable(self, obj: Any) -> Any:
         """
-        Convert non-serializable objects to JSON-serializable format.
-
-        Args:
-            obj: Object to convert
-
-        Returns:
-            JSON-serializable version of the object
+        Recursively convert objects to JSON-serializable formats.
+        Specifically handles datetime objects which default json encoder fails on.
         """
-        if isinstance(obj, dict):
-            return {k: self._make_json_serializable(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple)):
-            return [self._make_json_serializable(item) for item in obj]
-        elif isinstance(obj, (str, int, float, bool)) or obj is None:
+        if obj is None or isinstance(obj, (int, float, str, bool)):
             return obj
-        elif isinstance(obj, datetime):
+        elif isinstance(obj, dict):
+            return {k: self._make_json_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple, set)):
+            return [self._make_json_serializable(item) for item in obj]
+        elif hasattr(obj, "isoformat"):
+            # Handles datetime, date, time
             return obj.isoformat()
         elif hasattr(obj, "__dict__"):
             # For custom objects, use their __dict__
@@ -197,7 +191,7 @@ class AuditLogger:
 
             # Create audit record
             record = {
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
                 "event_type": event_type_str,
                 "user": user,
                 "details": serializable_details,
@@ -209,55 +203,116 @@ class AuditLogger:
 
             # Attempt to log
             try:
-                self.logger.info(json.dumps(record))
-                # Flush to ensure immediate write
-                for handler in self.logger.handlers:
-                    handler.flush()
+                msg = json.dumps(record)
+                with open(self.log_file, "a", encoding="utf-8") as f:
+                    f.write(msg + "\n")
+                log_info(msg)
             except (TypeError, ValueError) as e:
                 # JSON serialization failed - try with safe fallback
                 fallback_record = {
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
                     "event_type": event_type_str,
                     "user": user,
                     "details": {"error": f"Serialization failed: {e}", "original": str(details)},
-                    "error": "JSON_SERIALIZATION_ERROR",
                 }
                 if add_checksum:
                     fallback_record["checksum"] = self._calculate_checksum(fallback_record)
-                self.logger.info(json.dumps(fallback_record))
+
+                msg = json.dumps(fallback_record)
+                with open(self.log_file, "a", encoding="utf-8") as f:
+                    f.write(msg + "\n")
+                log_warn(msg)
 
         except Exception as e:
-            # Critical fallback: log to stderr if audit logging fails
-            error_msg = (
-                f"CRITICAL: Failed to write audit log\n"
-                f"  Event Type: {event_type}\n"
-                f"  User: {user}\n"
-                f"  Error: {e}\n"
-            )
-            print(error_msg, file=sys.stderr)
+            # Absolute fallback - try to record the failure itself
+            error_msg = f"CRITICAL: Audit logging failed entirely: {e} | Type: {event_type}"
+            log_error(error_msg, exc_info=True)
+            # We don't raise here to prevent bringing down the system over an audit failure
+            # but we ensure it's recorded to stderr
 
-            # Try one last time with minimal record
-            try:
-                minimal_record = {
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "event_type": "AUDIT_LOGGING_FAILED",
-                    "user": "system",
-                    "details": {"original_event_type": str(event_type), "error": str(e)},
-                }
-                self.logger.error(json.dumps(minimal_record))
-            except Exception:
-                # If even minimal logging fails, raise exception
-                raise RuntimeError(f"Audit logging completely failed: {e}")
-
-    def close(self) -> None:
+    def verify_integrity(self, log_lines: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
-        Close all log handlers and release file handles.
+        Verify the checksums of existing audit logs.
 
-        Call this method when shutting down to ensure proper cleanup.
+        Args:
+            log_lines: Optional list of raw JSON strings to verify instead of reading file
+
+        Returns:
+            List of dictionaries containing validation results for each record
         """
-        for handler in self.logger.handlers[:]:  # Copy list to avoid modification during iteration
-            try:
-                handler.close()
-                self.logger.removeHandler(handler)
-            except Exception:
-                pass  # Ignore errors during cleanup
+        results: List[Dict[str, Any]] = []
+
+        try:
+            lines_to_check = log_lines
+
+            # Read from file if no lines provided
+            if lines_to_check is None:
+                if not self.log_file.exists():
+                    return [{"status": "error", "message": "Audit log file not found"}]
+
+                try:
+                    with open(self.log_file, "r", encoding="utf-8") as f:
+                        lines_to_check = [line.strip() for line in f if line.strip()]
+                except (OSError, PermissionError) as e:
+                    return [{"status": "error", "message": f"Cannot read audit file: {e}"}]
+
+            # Verify each line
+            for i, line in enumerate(lines_to_check):
+                try:
+                    record = json.loads(line)
+
+                    # Missing checksum is a validation failure
+                    if "checksum" not in record:
+                        results.append(
+                            {
+                                "line": i + 1,
+                                "timestamp": record.get("timestamp", "unknown"),
+                                "status": "failed",
+                                "reason": "Missing checksum field",
+                            }
+                        )
+                        continue
+
+                    # Extract stored checksum and verify against recalculated one
+                    stored_checksum = record["checksum"]
+                    calculated_checksum = self._calculate_checksum(record)
+
+                    if stored_checksum == calculated_checksum:
+                        results.append({"line": i + 1, "timestamp": record.get("timestamp"), "status": "valid"})
+                    else:
+                        results.append(
+                            {
+                                "line": i + 1,
+                                "timestamp": record.get("timestamp"),
+                                "status": "failed",
+                                "reason": f"Checksum mismatch. Expected {calculated_checksum}, got {stored_checksum}",
+                            }
+                        )
+
+                except json.JSONDecodeError as e:
+                    results.append({"line": i + 1, "status": "error", "reason": f"Invalid JSON format: {e}"})
+
+            return results
+        except Exception as e:
+            # Catch unexpected errors during verification
+            return [{"status": "error", "message": f"Verification process failed: {e}"}]
+
+    def cleanup(self) -> None:
+        """
+        Close file handlers. Used during system shutdown.
+        """
+        pass
+
+
+# Global instance for easy access
+_audit_logger: Optional[AuditLogger] = None
+
+
+def get_audit_logger(log_dir: str = "logs") -> AuditLogger:
+    """
+    Get or create the global audit logger instance.
+    """
+    global _audit_logger
+    if _audit_logger is None:
+        _audit_logger = AuditLogger(log_dir)
+    return _audit_logger

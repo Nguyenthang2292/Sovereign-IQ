@@ -7,8 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from config import MODELS_DIR, RANDOM_FOREST_MODEL_FILENAME
-from modules.common.ui.logging import log_info, log_progress
-from modules.common.utils import log_error, log_success, log_warn
+from modules.common.ui.logging import log_error, log_info, log_progress, log_success, log_warn
 from modules.random_forest import train_and_save_global_rf_model
 from modules.random_forest.signal_random_forest import validate_model
 
@@ -171,7 +170,7 @@ def train_random_forest_model_interactive(
         model, model_path = train_and_save_global_rf_model(combined_df)
 
         if model is not None and model_path:
-            log_success(f"Model trained successfully!")
+            log_success("Model trained successfully!")
             log_success(f"Model saved to: {model_path}")
             return True, model_path
         else:

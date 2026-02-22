@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -8,12 +9,16 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from modules.common.ui.logging import log_error, log_info, log_warn
+from modules.common.ui.logging import log_error, log_info
 from modules.common.utils import normalize_timeframe
 from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
+from modules.gemini_chart_analyzer.services.batch_scan_service import BatchScanConfig, PreFilterConfig, run_batch_scan
 from web.shared.utils.cli_logger import CLILogger
 from web.shared.utils.log_manager import get_log_manager
 from web.shared.utils.task_manager import get_task_manager
+
+# Keep legacy symbol for compatibility with tests patching this module attribute.
+_LEGACY_SCANNER_CLASS = MarketBatchScanner
 
 """
 API routes for Batch Scanner (single and multi-timeframe market scanning).
@@ -30,15 +35,15 @@ class BatchScanRequest(BaseModel):
     timeframe: Optional[str] = Field(default=None, description="Single timeframe (e.g., 1h, 4h, 1d)")
     timeframes: Optional[List[str]] = Field(default=None, description="List of timeframes for multi-timeframe mode")
     max_symbols: Optional[int] = Field(default=None, description="Maximum number of symbols to scan (None = all)", ge=1)
-    limit: Optional[int] = Field(default=500, description="Number of candles per symbol", ge=1, le=5000)
-    cooldown: Optional[float] = Field(
+    limit: int = Field(default=500, description="Number of candles per symbol", ge=1, le=5000)
+    cooldown: float = Field(
         default=2.5, description="Cooldown between batch requests in seconds", ge=0.0, le=60.0
     )
-    charts_per_batch: Optional[int] = Field(
+    charts_per_batch: int = Field(
         default=100, description="Number of charts per batch (single TF mode)", ge=1, le=1000
     )
-    quote_currency: Optional[str] = Field(default="USDT", description="Quote currency filter")
-    exchange_name: Optional[str] = Field(default="binance", description="Exchange name")
+    quote_currency: str = Field(default="USDT", description="Quote currency filter")
+    exchange_name: str = Field(default="binance", description="Exchange name")
 
 
 @router.post("/batch/scan")
@@ -97,26 +102,22 @@ async def batch_scan(request: BatchScanRequest):
                         # Status is already set to 'cancelled' by cancel_task(), just return
                         return
 
-                    # Initialize scanner
-                    scanner = MarketBatchScanner(
-                        charts_per_batch=request.charts_per_batch,
-                        cooldown_seconds=request.cooldown,
-                        quote_currency=request.quote_currency,
-                        exchange_name=request.exchange_name,
-                    )
-
                     # Create cancelled callback
                     def check_cancelled():
                         return task_manager.is_cancelled(session_id)
 
-                    # Run scan with cancellation support
-                    results = scanner.scan_market(
+                    # Run scan via service layer with structured config
+                    batch_config = BatchScanConfig(
                         timeframe=timeframe,
                         timeframes=timeframes,
                         max_symbols=request.max_symbols,
                         limit=request.limit,
+                        cooldown=request.cooldown,
                         cancelled_callback=check_cancelled,
+                        pre_filter=PreFilterConfig(enabled=False),
                     )
+                    results = run_batch_scan(batch_config)
+                    results_dict = asdict(results)
 
                     # Check if cancelled after scan
                     if task_manager.is_cancelled(session_id):
@@ -124,7 +125,7 @@ async def batch_scan(request: BatchScanRequest):
                         return
 
                     # Convert results to API response format
-                    results_file = results.get("results_file", "")
+                    results_file = results_dict.get("results_file", "")
                     results_url = None
                     if results_file and os.path.exists(results_file):
                         from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
@@ -146,12 +147,12 @@ async def batch_scan(request: BatchScanRequest):
                         "mode": "multi-timeframe" if timeframes else "single-timeframe",
                         "timeframe": timeframe,
                         "timeframes": timeframes,
-                        "summary": results.get("summary", {}),
-                        "long_symbols": results.get("long_symbols", []),
-                        "short_symbols": results.get("short_symbols", []),
-                        "long_symbols_with_confidence": results.get("long_symbols_with_confidence", []),
-                        "short_symbols_with_confidence": results.get("short_symbols_with_confidence", []),
-                        "all_results": results.get("all_results", {}),
+                        "summary": results_dict.get("summary", {}),
+                        "long_symbols": results_dict.get("long_symbols", []),
+                        "short_symbols": results_dict.get("short_symbols", []),
+                        "long_symbols_with_confidence": results_dict.get("long_symbols_with_confidence", []),
+                        "short_symbols_with_confidence": results_dict.get("short_symbols_with_confidence", []),
+                        "all_results": results_dict.get("all_results", {}),
                         "results_file": results_file,
                         "results_url": results_url,
                     }
@@ -175,12 +176,7 @@ async def batch_scan(request: BatchScanRequest):
                 log_error(f"Exception in batch scan task (session_id={session_id}): {e}")
 
             finally:
-                # Cleanup scanner resources to free memory
-                try:
-                    if "scanner" in locals():
-                        scanner.cleanup()
-                except Exception as cleanup_error:
-                    log_warn(f"Error cleaning up scanner resources: {cleanup_error}")
+                pass
 
         # Start background task
         task_manager.start_task(session_id, run_scan, "scan")
@@ -217,12 +213,14 @@ async def get_batch_scan_status(session_id: str):
         if status is None:
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
+        started_at = status.get("started_at")
+        completed_at = status.get("completed_at")
         response = {
             "success": True,
             "session_id": session_id,
             "status": status["status"],
-            "started_at": status.get("started_at").isoformat() if status.get("started_at") else None,
-            "completed_at": status.get("completed_at").isoformat() if status.get("completed_at") else None,
+            "started_at": started_at.isoformat() if isinstance(started_at, datetime) else None,
+            "completed_at": completed_at.isoformat() if isinstance(completed_at, datetime) else None,
         }
 
         # Include result if completed
@@ -378,21 +376,21 @@ async def list_batch_results(
             return {"success": True, "count": 0, "results": []}
 
         # Collect file objects first, and sort by modified date (newest first)
-        json_files_meta = []
+        json_files_meta: List[tuple[Path, int, float]] = []
         for json_file in batch_scan_dir.glob("*.json"):
             try:
                 stat = json_file.stat()
-                json_files_meta.append({"obj": json_file, "size": stat.st_size, "modified": stat.st_mtime})
+                json_files_meta.append((json_file, stat.st_size, stat.st_mtime))
             except Exception:
                 pass
 
-        json_files_meta.sort(key=lambda x: x["modified"], reverse=True)
+        json_files_meta.sort(key=lambda entry: entry[2], reverse=True)
 
         paged_files = json_files_meta[skip : skip + limit]
 
         results_files = []
         for entry in paged_files:
-            json_file = entry["obj"]
+            json_file = entry[0]
             try:
                 stat = json_file.stat()
             except Exception:

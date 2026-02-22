@@ -1,12 +1,27 @@
 """Configuration loader module for batch scanner."""
 
 import json
-import yaml
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from modules.common.utils import log_error, log_success, log_debug
+import yaml
+
 from modules.common.system.managers.hardware_manager import get_hardware_manager
+from modules.common.ui.logging import log_debug, log_error, log_success
+
+
+def _find_project_root(current_file: Path) -> Path:
+    """
+    Find project root by looking for marker files (.git, setup.py, requirements.txt).
+    Falls back to going up 5 levels if markers not found.
+    """
+    current = current_file.resolve()
+    # Look for project markers
+    for parent in [current] + list(current.parents):
+        if (parent / ".git").exists() or (parent / "setup.py").exists() or (parent / "requirements.txt").exists():
+            return parent
+    # Fallback to expected structure: loader.py -> config -> cli -> gemini_chart_analyzer -> modules -> project_root
+    return current.parent.parent.parent.parent.parent
 
 
 def list_configuration_files() -> List[Path]:
@@ -15,7 +30,7 @@ def list_configuration_files() -> List[Path]:
     Returns:
         List of Path objects for configuration files
     """
-    project_root = Path(__file__).parent.parent.parent.parent.parent
+    project_root = _find_project_root(Path(__file__))
     patterns = [
         "batch_scanner_config_*.json",
         "batch_scanner_config_*.yaml",

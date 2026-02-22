@@ -1,12 +1,16 @@
 import importlib
+import importlib.abc
+import importlib.util
+import os
 import sys
+from types import ModuleType
 
 """
 Modules package for crypto prediction system.
 Provides compatibility aliases for legacy import paths used in tests.
 """
 
-__all__ = []
+__all__: list[str] = []
 
 # Backwards-compatible import aliases
 
@@ -50,12 +54,60 @@ _ALIASES = {
 
 _this_package = sys.modules[__name__]
 
-for alias, target in _ALIASES.items():
-    try:
-        module = importlib.import_module(target)
-    except Exception:
-        continue
-    sys.modules.setdefault(alias, module)
+_ALIASES_BY_ATTR = {
+    alias.split(".", 1)[1]: target
+    for alias, target in _ALIASES.items()
+    if alias.startswith("modules.") and "." in alias
+}
+
+
+def _resolve_alias(alias: str) -> ModuleType:
+    target = _ALIASES.get(alias)
+    if not target:
+        raise ModuleNotFoundError(f"No alias mapping for {alias}")
+
+    module = importlib.import_module(target)
+    sys.modules[alias] = module
+
     attr_name = alias.split(".", 1)[1] if "." in alias else None
     if attr_name and not hasattr(_this_package, attr_name):
         setattr(_this_package, attr_name, module)
+
+    return module
+
+
+class _AliasLoader(importlib.abc.Loader):
+    def __init__(self, alias: str):
+        self.alias = alias
+
+    def create_module(self, spec):
+        return _resolve_alias(self.alias)
+
+    def exec_module(self, module):
+        return None
+
+
+class _AliasFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname in _ALIASES:
+            return importlib.util.spec_from_loader(fullname, _AliasLoader(fullname))
+        return None
+
+
+if not any(type(f).__name__ == "_AliasFinder" for f in sys.meta_path):
+    sys.meta_path.insert(0, _AliasFinder())
+
+
+def __getattr__(name: str):
+    target = _ALIASES_BY_ATTR.get(name)
+    if target is None:
+        raise AttributeError(name)
+    return _resolve_alias(f"modules.{name}")
+
+
+if os.getenv("MODULES_EAGER_ALIASES", "0") == "1":
+    for alias in _ALIASES:
+        try:
+            _resolve_alias(alias)
+        except Exception:
+            continue

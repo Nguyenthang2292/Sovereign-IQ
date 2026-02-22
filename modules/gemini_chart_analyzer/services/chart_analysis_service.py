@@ -1,8 +1,9 @@
 """Service for individual chart analysis operations."""
 
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
+
+from pydantic import BaseModel, ConfigDict
 
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.ui.logging import log_error, log_info
@@ -20,9 +21,10 @@ from modules.gemini_chart_analyzer.core.reporting.html_report_generator import g
 from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
 
 
-@dataclass
-class SingleAnalysisConfig:
+class SingleAnalysisConfig(BaseModel):
     """Configuration for individual chart analysis."""
+
+    model_config = ConfigDict(extra="forbid")
 
     symbol: str
     timeframe: Optional[str] = "1h"
@@ -49,6 +51,8 @@ def run_chart_analysis(config: SingleAnalysisConfig, data_fetcher: DataFetcher) 
     """
     try:
         is_multi_tf = config.timeframes_list is not None and len(config.timeframes_list) > 0
+        timeframes_list = config.timeframes_list or []
+        timeframe = config.timeframe or "1h"
         report_datetime = datetime.now()
         output_dir = config.output_dir or str(get_analysis_results_dir())
 
@@ -81,7 +85,7 @@ def run_chart_analysis(config: SingleAnalysisConfig, data_fetcher: DataFetcher) 
 
             results = mtf_coordinator.analyze_deep(
                 symbol=config.symbol,
-                timeframes=config.timeframes_list,
+                timeframes=timeframes_list,
                 fetch_data_func=fetch_data_func,
                 generate_chart_func=generate_chart_func,
                 analyze_chart_func=analyze_chart_func,
@@ -91,37 +95,37 @@ def run_chart_analysis(config: SingleAnalysisConfig, data_fetcher: DataFetcher) 
                 analysis_data=results,
                 output_dir=output_dir,
                 report_type="multi",
-                timeframes_list=config.timeframes_list,
+                timeframes_list=timeframes_list,
                 report_datetime=report_datetime,
             )
             results["html_report_path"] = html_path
             return results
 
         else:
-            log_info(f"Running single timeframe analysis for {config.symbol} ({config.timeframe})...")
+            log_info(f"Running single timeframe analysis for {config.symbol} ({timeframe})...")
 
             df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
-                symbol=config.symbol, timeframe=config.timeframe, limit=config.limit, check_freshness=False
+                symbol=config.symbol, timeframe=timeframe, limit=config.limit, check_freshness=False
             )
 
             if df is None or df.empty:
-                raise DataFetchError(f"No data found for {config.symbol} on {config.timeframe}")
+                raise DataFetchError(f"No data found for {config.symbol} on {timeframe}")
 
             chart_path = chart_gen.create_chart(
-                df=df, symbol=config.symbol, timeframe=config.timeframe, indicators=config.indicators, show_volume=True
+                df=df, symbol=config.symbol, timeframe=timeframe, indicators=config.indicators, show_volume=True
             )
 
             analysis_text = gemini_analyzer.analyze_chart(
                 image_path=chart_path,
                 symbol=config.symbol,
-                timeframe=config.timeframe,
+                timeframe=timeframe,
                 prompt_type=config.prompt_type,
                 custom_prompt=config.custom_prompt,
             )
 
             analysis_data = {
                 "symbol": config.symbol,
-                "timeframe": config.timeframe,
+                "timeframe": timeframe,
                 "analysis": analysis_text,
                 "chart_path": chart_path,
                 "exchange": exchange_id,

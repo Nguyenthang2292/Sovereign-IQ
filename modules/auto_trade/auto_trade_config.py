@@ -69,23 +69,14 @@ class BreakEvenConfig:
 
 @dataclass
 class DatabaseConfig:
-    """Database configuration."""
+    """Database configuration (DynamoDB)."""
 
-    path: str = field(
-        default_factory=lambda: str(
-            Path(os.getenv("AUTO_TRADE_DB_DIR", "data")) / os.getenv("AUTO_TRADE_DB_NAME", "auto_trade.db")
-        )
-    )
-    backup_enabled: bool = field(
-        default_factory=lambda: os.getenv("AUTO_TRADE_BACKUP_ENABLED", "True").lower() == "true"
-    )
-    backup_interval: int = 3600  # 1 hour
-    backup_retention: int = field(default_factory=lambda: int(os.getenv("AUTO_TRADE_MAX_BACKUPS", "7")))
-    backup_compress: bool = field(
-        default_factory=lambda: os.getenv("AUTO_TRADE_BACKUP_COMPRESS", "True").lower() == "true"
-    )
+    backend: str = field(default_factory=lambda: os.getenv("DB_BACKEND", "dynamodb"))
+    table_name_prefix: str = field(default_factory=lambda: os.getenv("DYNAMODB_TABLE_PREFIX", "auto_trade"))
+    region: str = field(default_factory=lambda: os.getenv("AWS_REGION", "us-east-1"))
+    endpoint_url: Optional[str] = field(default_factory=lambda: os.getenv("DYNAMODB_ENDPOINT_URL", None))
+    backup_enabled: bool = field(default_factory=lambda: os.getenv("DYNAMODB_BACKUP_ENABLED", "True").lower() == "true")
     auto_cleanup_days: int = 90
-    pool_size: int = field(default_factory=lambda: int(os.getenv("AUTO_TRADE_DB_POOL_SIZE", "5")))
 
 
 @dataclass
@@ -261,8 +252,9 @@ class AutoTradeConfig:
             f"  Trigger: {self.breakeven.trigger_profit_percent * 100}%",
             "",
             "DATABASE:",
-            f"  Path: {self.database.path}",
-            f"  Backup: {self.database.backup_enabled}",
+            f"  Backend: {self.database.backend}",
+            f"  Region: {self.database.region}",
+            f"  Table Prefix: {self.database.table_name_prefix}",
             "",
             "BINANCE:",
             f"  Testnet: {self.binance.testnet}",
@@ -356,5 +348,6 @@ def get_testnet_config() -> AutoTradeConfig:
     config = AutoTradeConfig()
     config.binance.testnet = True
     config.dry_run = True
-    config.database.path = "data/auto_trade_test.db"
+    config.database.endpoint_url = os.getenv("DYNAMODB_ENDPOINT_URL")
+    config.database.table_name_prefix = "auto_trade_test"
     return config

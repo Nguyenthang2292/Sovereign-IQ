@@ -2,9 +2,9 @@
 
 AI-powered cryptocurrency chart analysis using Google Gemini with a modern service-oriented architecture.
 
-> **Note**: Vietnamese documentation is available in [README.vi.md](README.vi.md)
+> **Note**: Vietnamese documentation is available in [README_vi.md](README_vi.md)
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Architecture](#architecture)
@@ -18,8 +18,9 @@ AI-powered cryptocurrency chart analysis using Google Gemini with a modern servi
 - [Testing](#testing)
 - [API Reference](#api-reference)
 - [Recent Refactoring](#recent-refactoring-january-2026)
+- [Changelog](CHANGELOG.md)
 
-## 🎯 Overview
+## Overview
 
 The Gemini Chart Analyzer is a comprehensive module for analyzing cryptocurrency charts using Google's Gemini AI models. It features a clean service-oriented architecture with clear separation between business logic, CLI interfaces, and core functionality.
 
@@ -33,7 +34,7 @@ The Gemini Chart Analyzer is a comprehensive module for analyzing cryptocurrency
 - 🎨 **Multi-Timeframe Support**: Analyze across multiple timeframes simultaneously
 - 📈 **Random Forest Integration**: ML-powered pre-filtering for better signal quality
 
-## 🏛️ Architecture
+## Architecture
 
 ### Layered Architecture
 
@@ -74,7 +75,7 @@ The Gemini Chart Analyzer is a comprehensive module for analyzing cryptocurrency
 4. **Error Handling**: Granular exceptions with proper error context
 5. **Testability**: Each layer can be tested independently
 
-## ✨ Features
+## Features
 
 ### Batch Market Scanning
 
@@ -98,7 +99,7 @@ The Gemini Chart Analyzer is a comprehensive module for analyzing cryptocurrency
 - **Interactive Training**: CLI-guided training workflow
 - **Model Validation**: Comprehensive compatibility checks
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 
@@ -130,7 +131,7 @@ chmod +x setup/setup_api_keys.sh
 
 See `setup/QUICK_START_API_KEYS.md` for details.
 
-## 📖 Usage
+## Usage
 
 ### CLI Tools
 
@@ -246,7 +247,7 @@ config = SingleAnalysisConfig(
 results = run_chart_analysis(config, data_fetcher)
 ```
 
-## 📁 Module Structure
+## Module Structure
 
 ```text
 modules/gemini_chart_analyzer/
@@ -295,7 +296,7 @@ modules/gemini_chart_analyzer/
 └── README.md                         # This file
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Display Configuration
 
@@ -326,8 +327,9 @@ from modules.gemini_chart_analyzer.core.analyzers.components.analyzer_config imp
 )
 
 # Model selection
-primary_model = GeminiModelType.FLASH_3_PREVIEW
-fallback_models = primary_model.get_fallback_models(primary_model)
+primary_model = GeminiModelType.PRO_31_PREVIEW
+secondary_model = GeminiModelType.PRO_31_PREVIEW_CUSTOMTOOLS
+fallback_models = GeminiModelType.get_fallback_models(primary_model)
 
 # Image validation
 image_config = ImageValidationConfig(
@@ -363,7 +365,7 @@ export_configuration_to_json(config_data, "my_config.json")
 loaded_config = load_configuration_from_json("my_config.json")
 ```
 
-## 🧪 Testing
+## Testing
 
 Run the test suite:
 
@@ -387,7 +389,7 @@ pytest tests/gemini_chart_analyzer/ --cov=modules.gemini_chart_analyzer --cov-re
 - Market scanner: full workflow with mocked dependencies
 - Exception handling and error cases
 
-## 📚 API Reference
+## API Reference
 
 ### Types ([core/types.py](core/types.py))
 
@@ -478,7 +480,7 @@ def run_chart_analysis(config: SingleAnalysisConfig, data_fetcher: DataFetcher) 
 
 ---
 
-## 📝 Recent Refactoring (January 2026)
+## Recent Refactoring (January 2026)
 
 ### Summary
 
@@ -494,7 +496,7 @@ This module underwent a major refactoring that:
 ### What Changed
 
 | Aspect | Before | After |
-|--------|--------|-------|
+| -------- | -------- | ------- |
 | **Architecture** | Monolithic CLI scripts | Layered (CLI → Services → Core) |
 | **Configuration** | Scattered across files | Centralized dataclasses |
 | **Exceptions** | Generic exceptions | Typed exception hierarchy |

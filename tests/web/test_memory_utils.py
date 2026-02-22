@@ -13,7 +13,7 @@ Tests cover:
 import gc
 from unittest.mock import MagicMock, Mock, patch
 
-from web.utils.memory_utils import (
+from web.shared.utils.memory_utils import (
     force_garbage_collection,
     get_memory_snapshot_diff,
     get_memory_usage,
@@ -110,7 +110,7 @@ class TestStartMemoryTracking:
 
     def test_start_memory_tracking_success(self):
         """Test starting memory tracking when tracemalloc is available."""
-        with patch("web.utils.memory_utils.tracemalloc") as mock_tracemalloc:
+        with patch("web.shared.utils.memory_utils.tracemalloc") as mock_tracemalloc:
             mock_tracemalloc.is_tracing.return_value = False
             mock_snapshot = MagicMock()
             mock_tracemalloc.take_snapshot.return_value = mock_snapshot
@@ -123,7 +123,7 @@ class TestStartMemoryTracking:
 
     def test_start_memory_tracking_already_tracing(self):
         """Test starting memory tracking when already tracing."""
-        with patch("web.utils.memory_utils.tracemalloc") as mock_tracemalloc:
+        with patch("web.shared.utils.memory_utils.tracemalloc") as mock_tracemalloc:
             mock_tracemalloc.is_tracing.return_value = True
             mock_snapshot = MagicMock()
             mock_tracemalloc.take_snapshot.return_value = mock_snapshot
@@ -137,7 +137,7 @@ class TestStartMemoryTracking:
 
     def test_start_memory_tracking_error(self):
         """Test starting memory tracking when tracemalloc raises error."""
-        with patch("web.utils.memory_utils.tracemalloc") as mock_tracemalloc:
+        with patch("web.shared.utils.memory_utils.tracemalloc") as mock_tracemalloc:
             mock_tracemalloc.is_tracing.side_effect = Exception("Tracemalloc error")
 
             snapshot = start_memory_tracking()
@@ -150,7 +150,7 @@ class TestStartMemoryTracking:
         mock_tracemalloc = MagicMock()
         mock_tracemalloc.is_tracing.side_effect = AttributeError("No tracemalloc")
 
-        with patch("web.utils.memory_utils.tracemalloc", mock_tracemalloc):
+        with patch("web.shared.utils.memory_utils.tracemalloc", mock_tracemalloc):
             snapshot = start_memory_tracking()
 
             assert snapshot is None

@@ -15,9 +15,8 @@ When a position closes with profit:
 Created: 2026-02-06
 """
 
-import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, cast
 
 from modules.auto_trade.monitoring.event_system import Event, EventSystem, EventType
@@ -26,6 +25,7 @@ from modules.auto_trade.strategies.gradual_recovery import (
     RecoveryConfig,
     RecoveryState,
 )
+from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 
 class RecoveryManager:
@@ -67,11 +67,7 @@ class RecoveryManager:
         self._recovery_id: Optional[str] = None
         self._subscribed: bool = False
 
-        self.logger: logging.Logger = logging.getLogger(__name__)
-        self.logger.info(
-            f"RecoveryManager initialized (enabled={enabled}, "
-            f"config keys: {list(self.config.keys())})"
-        )
+        log_info(f"RecoveryManager initialized (enabled={enabled}, config keys: {list(self.config.keys())})")
 
     def start(self) -> None:
         """
@@ -81,13 +77,13 @@ class RecoveryManager:
         any active recovery from database.
         """
         if self._subscribed:
-            self.logger.warning("RecoveryManager already started")
+            log_warn("RecoveryManager already started")
             return
 
         if self.event_bus:
             self.event_bus.subscribe(EventType.POSITION_CLOSED, self._on_position_closed)
             self._subscribed = True
-            self.logger.info("RecoveryManager subscribed to POSITION_CLOSED events")
+            log_info("RecoveryManager subscribed to POSITION_CLOSED events")
 
         # Load active recovery from database
         self._load_active_recovery()
@@ -101,7 +97,7 @@ class RecoveryManager:
         if self._subscribed and self.event_bus:
             self.event_bus.unsubscribe(EventType.POSITION_CLOSED, self._on_position_closed)
             self._subscribed = False
-            self.logger.info("RecoveryManager unsubscribed from events")
+            log_info("RecoveryManager unsubscribed from events")
 
     def set_enabled(self, enabled: bool) -> None:
         """
@@ -111,7 +107,7 @@ class RecoveryManager:
             enabled: True to enable, False to disable
         """
         self._enabled = enabled
-        self.logger.info(f"RecoveryManager enabled={enabled}")
+        log_info(f"RecoveryManager enabled={enabled}")
 
     def update_config(self, config: Dict[str, Any]) -> None:
         """
@@ -121,7 +117,7 @@ class RecoveryManager:
             config: New configuration dictionary
         """
         self.config = config
-        self.logger.info(f"RecoveryManager config updated: {list(config.keys())}")
+        log_info(f"RecoveryManager config updated: {list(config.keys())}")
 
         # If strategy exists, update it with new config
         if self._strategy and config:
@@ -178,7 +174,7 @@ class RecoveryManager:
             True if started successfully
         """
         if self._strategy and self._strategy.is_active:
-            self.logger.warning("Recovery already active, cannot start new one")
+            log_warn("Recovery already active, cannot start new one")
             return False
 
         return self._start_new_recovery(initial_loss)
@@ -193,7 +189,7 @@ class RecoveryManager:
         if self._strategy:
             self._strategy.record_profit(profit)
             self._persist_state()
-            self.logger.info(f"Manually recorded profit: ${profit:.2f}")
+            log_info(f"Manually recorded profit: ${profit:.2f}")
 
     def manual_record_loss(self, loss: float) -> None:
         """
@@ -205,22 +201,22 @@ class RecoveryManager:
         if self._strategy:
             self._strategy.record_loss(loss)
             self._persist_state()
-            self.logger.info(f"Manually recorded loss: ${loss:.2f}")
+            log_info(f"Manually recorded loss: ${loss:.2f}")
 
     def reset(self) -> None:
         """Reset the recovery strategy."""
         if self._strategy:
             self._strategy.reset()
             self._persist_state()
-            self.logger.info("Recovery reset")
+            log_info("Recovery reset")
 
     def cancel(self) -> None:
         """Cancel the current recovery."""
         if self._strategy:
+            self._cancel_in_database()
             self._strategy = None
             self._recovery_id = None
-            self._cancel_in_database()
-            self.logger.info("Recovery cancelled")
+            log_info("Recovery cancelled")
 
     @property
     def is_active(self) -> bool:
@@ -254,10 +250,10 @@ class RecoveryManager:
 
             # Only handle programmatic orders
             if not is_programmatic:
-                self.logger.debug(f"Ignoring non-programmatic position close: {symbol}")
+                log_debug(f"Ignoring non-programmatic position close: {symbol}")
                 return
 
-            self.logger.info(
+            log_info(
                 f"Position closed event received: {symbol}, PnL=${pnl:.2f}, "
                 f"enabled={self._enabled}, active_recovery={self.is_active}"
             )
@@ -268,7 +264,7 @@ class RecoveryManager:
                 self._handle_loss(abs(pnl))
 
         except Exception as e:
-            self.logger.error(f"Error handling position closed event: {e}", exc_info=True)
+            log_error(f"Error handling position closed event: {e}", exc_info=True)
 
     def _handle_profit(self, profit: float) -> None:
         """
@@ -280,21 +276,21 @@ class RecoveryManager:
             profit: Profit amount
         """
         if not self._strategy:
-            self.logger.debug(f"No active recovery, profit ${profit:.2f} not recorded")
+            log_debug(f"No active recovery, profit ${profit:.2f} not recorded")
             return
 
         self._strategy.record_profit(profit)
         self._persist_state()
 
         state: RecoveryState = self._strategy.get_state()
-        self.logger.info(
+        log_info(
             f"Recovery profit recorded: ${profit:.2f}, "
             f"progress: {state.recovery_percentage:.1f}%, "
             f"remaining: ${state.remaining_loss:.2f}"
         )
 
         if state.is_complete:
-            self.logger.info("Recovery COMPLETE! All losses recovered.")
+            log_info("Recovery COMPLETE! All losses recovered.")
             self._mark_recovery_complete()
 
     def _handle_loss(self, loss: float) -> None:
@@ -308,12 +304,12 @@ class RecoveryManager:
             loss: Loss amount (positive value)
         """
         if not self._enabled:
-            self.logger.debug(f"Auto-recovery disabled, loss ${loss:.2f} not recorded")
+            log_debug(f"Auto-recovery disabled, loss ${loss:.2f} not recorded")
             return
 
         if not self._strategy:
             # Start new recovery
-            self.logger.info(f"Starting new recovery for loss: ${loss:.2f}")
+            log_info(f"Starting new recovery for loss: ${loss:.2f}")
             self._start_new_recovery(loss)
         else:
             # Add to existing recovery
@@ -321,13 +317,10 @@ class RecoveryManager:
             self._persist_state()
 
             state: RecoveryState = self._strategy.get_state()
-            self.logger.warning(
-                f"Recovery setback: ${loss:.2f} added, "
-                f"remaining: ${state.remaining_loss:.2f}"
-            )
+            log_warn(f"Recovery setback: ${loss:.2f} added, remaining: ${state.remaining_loss:.2f}")
 
             if self._strategy.should_stop():
-                self.logger.error("Recovery safety limits reached!")
+                log_error("Recovery safety limits reached!")
 
     # ==================== Recovery Lifecycle ====================
 
@@ -342,7 +335,7 @@ class RecoveryManager:
             True if started successfully
         """
         try:
-            self._recovery_id = f"REC_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+            self._recovery_id = f"REC_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
             recovery_config: RecoveryConfig = {
                 "target_profit_per_trade": float(self.config.get("target_profit_per_trade", 5.0)),
@@ -361,14 +354,11 @@ class RecoveryManager:
 
             self._persist_state(create=True)
 
-            self.logger.info(
-                f"New recovery started: ID={self._recovery_id}, "
-                f"initial_loss=${initial_loss:.2f}"
-            )
+            log_info(f"New recovery started: ID={self._recovery_id}, initial_loss=${initial_loss:.2f}")
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to start recovery: {e}", exc_info=True)
+            log_error(f"Failed to start recovery: {e}", exc_info=True)
             return False
 
     def _load_active_recovery(self) -> None:
@@ -377,47 +367,47 @@ class RecoveryManager:
             return
 
         try:
-            from modules.auto_trade.database import get_session
             from modules.auto_trade.database.queries import get_active_gradual_recovery
 
-            with get_session() as session:
-                recovery: Any = get_active_gradual_recovery(session, symbol=None)  # GLOBAL
-                if recovery:
-                    self._recovery_id = str(getattr(recovery, "recovery_id", "")) or None
-                    db_config: Dict[str, Any] = recovery.get_config() or {}
+            recovery: Any = get_active_gradual_recovery(symbol=None)  # GLOBAL
+            if recovery:
+                self._recovery_id = str(recovery.get("recovery_id", "")) or None
+                db_config: Dict[str, Any] = recovery.get("config") or {}
 
-                    recovery_config: RecoveryConfig = {
-                        "target_profit_per_trade": float(db_config.get("target_profit_per_trade", 5.0)),
-                        "max_recovery_trades": int(db_config.get("max_recovery_trades", 20)),
-                        "margin_scaling_mode": str(db_config.get("margin_scaling_mode", "fixed")),
-                        "leverage_scaling_mode": str(db_config.get("leverage_scaling_mode", "fixed")),
-                        "min_leverage": int(db_config.get("min_leverage", 2)),
-                        "max_leverage": int(db_config.get("max_leverage", 10)),
-                        "enable_streak_bonus": bool(db_config.get("enable_streak_bonus", False)),
-                    }
+                recovery_config: RecoveryConfig = {
+                    "target_profit_per_trade": float(db_config.get("target_profit_per_trade", 5.0)),
+                    "max_recovery_trades": int(db_config.get("max_recovery_trades", 20)),
+                    "margin_scaling_mode": str(db_config.get("margin_scaling_mode", "fixed")),
+                    "leverage_scaling_mode": str(db_config.get("leverage_scaling_mode", "fixed")),
+                    "min_leverage": int(db_config.get("min_leverage", 2)),
+                    "max_leverage": int(db_config.get("max_leverage", 10)),
+                    "enable_streak_bonus": bool(db_config.get("enable_streak_bonus", False)),
+                }
 
-                    initial_loss_val: float = float(getattr(recovery, "initial_loss", 0.0))
-                    self._strategy = GradualRecoveryStrategy(
-                        initial_loss=initial_loss_val,
-                        config=recovery_config,
+                initial_loss_val: float = float(recovery.get("initial_loss", 0.0))
+                self._strategy = GradualRecoveryStrategy(
+                    initial_loss=initial_loss_val,
+                    config=recovery_config,
+                )
+
+                # Restore state
+                if self._strategy:
+                    self._strategy._state["remaining_loss"] = float(recovery.get("remaining_loss", 0.0))
+                    self._strategy._state["total_profit_accumulated"] = float(
+                        recovery.get("total_profit_accumulated", 0.0)
                     )
+                    self._strategy._state["trades_count"] = int(recovery.get("trades_count", 0))
+                    self._strategy._state["win_streak"] = int(recovery.get("win_streak", 0))
+                    self._strategy._state["is_complete"] = recovery.get("status") == "COMPLETE"
 
-                    # Restore state
-                    if self._strategy:
-                        self._strategy._state["remaining_loss"] = float(recovery.remaining_loss)
-                        self._strategy._state["total_profit_accumulated"] = float(recovery.total_profit_accumulated)
-                        self._strategy._state["trades_count"] = int(recovery.trades_count)
-                        self._strategy._state["win_streak"] = int(recovery.win_streak)
-                        self._strategy._state["is_complete"] = recovery.status == "COMPLETE"
-
-                    self.logger.info(
-                        f"Loaded active recovery: ID={self._recovery_id}, "
-                        f"remaining=${recovery.remaining_loss:.2f}, "
-                        f"progress={recovery.recovery_percentage:.1f}%"
-                    )
+                log_info(
+                    f"Loaded active recovery: ID={self._recovery_id}, "
+                    f"remaining=${recovery.get('remaining_loss', 0):.2f}, "
+                    f"progress={recovery.get('recovery_percentage', 0):.1f}%"
+                )
 
         except Exception as e:
-            self.logger.error(f"Error loading active recovery: {e}", exc_info=True)
+            log_error(f"Error loading active recovery: {e}", exc_info=True)
 
     def _persist_state(self, create: bool = False) -> None:
         """
@@ -430,7 +420,6 @@ class RecoveryManager:
             return
 
         try:
-            from modules.auto_trade.database import get_session
             from modules.auto_trade.database.queries import (
                 create_gradual_recovery,
                 update_gradual_recovery,
@@ -438,29 +427,31 @@ class RecoveryManager:
 
             state: RecoveryState = self._strategy.get_state()
 
-            with get_session() as session:
-                if create:
-                    create_gradual_recovery(
-                        session=session,
-                        recovery_id=self._recovery_id,
-                        initial_loss=state.initial_loss,
-                        config=self._strategy.config,
-                        symbol=None,  # GLOBAL
-                    )
-                else:
-                    update_gradual_recovery(
-                        session=session,
-                        recovery_id=self._recovery_id,
-                        remaining_loss=state.remaining_loss,
-                        total_profit_accumulated=state.total_profit_accumulated,
-                        recovery_percentage=state.recovery_percentage,
-                        trades_count=state.trades_count,
-                        win_streak=state.win_streak,
-                        estimated_trades_remaining=state.estimated_trades_remaining,
-                    )
+            if create:
+                create_gradual_recovery(
+                    {
+                        "recovery_id": self._recovery_id,
+                        "initial_loss": state.initial_loss,
+                        "config": self._strategy.config,
+                        "symbol": None,  # GLOBAL
+                    }
+                )
+            else:
+                update_gradual_recovery(
+                    self._recovery_id,
+                    {
+                        "remaining_loss": state.remaining_loss,
+                        "total_profit_accumulated": state.total_profit_accumulated,
+                        "trades_count": state.trades_count,
+                        "win_streak": state.win_streak,
+                        "status": "ACTIVE",
+                    },
+                )
+
+            log_debug(f"Recovery state persisted: {self._recovery_id}")
 
         except Exception as e:
-            self.logger.error(f"Error persisting recovery state: {e}", exc_info=True)
+            log_error(f"Error persisting recovery state: {e}", exc_info=True)
 
     def _mark_recovery_complete(self) -> None:
         """Mark recovery as complete in database."""
@@ -468,20 +459,17 @@ class RecoveryManager:
             return
 
         try:
-            from modules.auto_trade.database import get_session
             from modules.auto_trade.database.queries import update_gradual_recovery
 
-            with get_session() as session:
-                update_gradual_recovery(
-                    session=session,
-                    recovery_id=self._recovery_id,
-                    status="COMPLETE",
-                )
+            update_gradual_recovery(
+                self._recovery_id,
+                {"status": "COMPLETE"},
+            )
 
-            self.logger.info(f"Recovery {self._recovery_id} marked as COMPLETE")
+            log_info(f"Recovery {self._recovery_id} marked as COMPLETE")
 
         except Exception as e:
-            self.logger.error(f"Error marking recovery complete: {e}", exc_info=True)
+            log_error(f"Error marking recovery complete: {e}", exc_info=True)
 
     def _cancel_in_database(self) -> None:
         """Cancel recovery in database."""
@@ -489,13 +477,11 @@ class RecoveryManager:
             return
 
         try:
-            from modules.auto_trade.database import get_session
             from modules.auto_trade.database.queries import cancel_gradual_recovery
 
-            with get_session() as session:
-                cancel_gradual_recovery(session, self._recovery_id)
+            cancel_gradual_recovery(self._recovery_id)
 
-            self.logger.info(f"Recovery {self._recovery_id} cancelled in database")
+            log_info(f"Recovery {self._recovery_id} cancelled in database")
 
         except Exception as e:
-            self.logger.error(f"Error cancelling recovery: {e}", exc_info=True)
+            log_error(f"Error cancelling recovery: {e}", exc_info=True)

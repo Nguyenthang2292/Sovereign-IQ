@@ -1,69 +1,50 @@
 """
 Auto Trading Database Module
-==============================
+=============================
 
 Database layer for the auto trading system.
 
 Provides:
-- SQLAlchemy ORM models (Order, Signal, MartingaleChain, etc.)
-- Query functions with programmatic order filtering
-- Migration system
-- Backup and recovery
-- Database utilities and helpers
+- Repository interaction layer (DynamoDB backends only)
+- RepositoryContext for backend-agnostic operations
+- Query functions for convenient access
 
 Usage:
-    from modules.auto_trade.database import (
-        get_db_manager,
-        get_session,
-        create_order,
-        get_open_positions,
-        save_signal
-    )
+    # New code - use RepositoryContext
+    from modules.auto_trade.database import RepositoryContext
 
-    # Initialize database
-    db_manager = get_db_manager()
+    ctx = RepositoryContext.from_env()
+    orders = ctx.orders.get_open_positions()
 
-    # Get session
-    with db_manager.session_scope() as session:
-        orders = get_open_positions(session)
+    # Legacy compatible - query functions
+    from modules.auto_trade.database import get_open_positions
+
+    orders = get_open_positions()  # No session needed
 
 Created: 2026-02-03
+Modified: 2026-02-20
 """
 
-import threading
-from contextlib import AbstractContextManager
-from typing import Optional
-
-from sqlalchemy.orm import Session
-
-# Import backup
-from .backup import BackupManager, BackupScheduler, create_backup, list_all_backups, restore_latest_backup
-
 # Import configuration
-from .config import DEFAULT_DB_PATH, DEFAULT_SCHEMA_PATH
+from .config import DB_BACKEND
 
-# Import migrations
-from .migrations import CommonMigrations, MigrationManager, get_migration_manager, initialize_database_if_needed
-
-# Import models
-from .models import AuditLog, Base, GradualRecovery, MartingaleChain, Order, Signal, SystemState
-
-# Import query functions
+# Import query functions for backward compatibility
 from .queries import (
-    # Audit log queries
+    cancel_gradual_recovery,
     create_audit_log,
+    create_gradual_recovery,
     create_order,
     find_or_create_martingale_chain,
+    get_active_gradual_recovery,
     get_active_martingale_chains,
+    get_all_gradual_recoveries,
     get_all_programmatic_orders,
     get_audit_log_cursor,
-    # Statistics queries
     get_daily_stats,
+    get_gradual_recovery_by_id,
     get_last_closed_order,
-    # Martingale queries
     get_martingale_chains_cursor,
     get_martingale_state,
-    # Order queries
     get_open_positions,
     get_order_by_client_id,
     get_order_by_id,
@@ -74,169 +55,81 @@ from .queries import (
     get_recent_signals,
     get_signal_performance_stats,
     get_signals_cursor,
-    # System state queries
     get_system_state,
     is_programmatic_order,
     mark_be_moved,
     mark_signal_executed,
-    # Signal queries
     save_signal,
     set_system_state,
+    update_gradual_recovery,
     update_martingale_chain,
     update_order_status,
     update_order_status_by_client_id,
     update_signal_outcome,
 )
 
-# Import reconcile
-from .reconcile import reconcile_orders_with_binance
-
-# Import utilities
-from .utils import (
-    DatabaseCleaner,
-    DatabaseManager,
-    DataExporter,
-    export_all_data,
-    reset_database_for_testing,
-    safe_commit,
-    seed_test_data,
-    transaction,
+# Import repository abstracts and context
+from .repository import (
+    RepositoryContext,
+    get_audit_log_repository,
+    get_gradual_recovery_repository,
+    get_martingale_repository,
+    get_order_repository,
+    get_signal_repository,
+    get_system_state_repository,
 )
 
+# ---------------------------------------------------------------------------
+# Binance → DynamoDB reconciliation
+# ---------------------------------------------------------------------------
+
+
+def reconcile_orders_with_binance(
+    api_key: str,
+    api_secret: str,
+    testnet: bool = False,
+    symbols=None,
+    since_hours: int = 24,
+) -> dict:
+    """
+    Reconcile open Binance positions into DynamoDB.
+
+    Fetches all positions that are currently open on Binance and inserts any
+    that are missing from the local DynamoDB table.  This is called:
+    - Once at auto-trade startup
+    - Periodically every hour while auto-trade is running
+    - Manually via the "Reconcile with Binance" button in the DB panel
+
+    Args:
+        api_key: Binance API key
+        api_secret: Binance API secret
+        testnet: True to use testnet
+        symbols: Optional list of symbols to filter (unused; all open positions are checked)
+        since_hours: Unused kept for API compat with legacy SQLite version
+
+    Returns:
+        Dict with keys: inserted (int), skipped (int), errors (list[str])
+    """
+    from modules.auto_trade.execution.binance_client import BinanceClient
+    from modules.auto_trade.gui.utils.position_sync_service import PositionSyncService
+
+    client = BinanceClient(
+        api_key=api_key,
+        api_secret=api_secret,
+        testnet=testnet,
+        dry_run=False,
+    )
+    stats = PositionSyncService.sync_all_positions(client)
+    return {
+        "inserted": stats.get("synced", 0),
+        "skipped": stats.get("existing", 0),
+        "closed": stats.get("closed", 0),
+        "errors": [f"failed={stats.get('failed', 0)}"] if stats.get("failed") else [],
+    }
+
+
 # Module version
-__version__ = "1.0.0"
-
-# Note: DEFAULT_DB_PATH and DEFAULT_SCHEMA_PATH are now imported from config.py
-# They can be overridden via environment variables:
-# - AUTO_TRADE_DB_DIR: Directory for database files (default: "data")
-# - AUTO_TRADE_DB_NAME: Database filename (default: "auto_trade.db")
-
-
-# ============================================================================
-# GLOBAL DATABASE MANAGER (Singleton)
-# ============================================================================
-
-_db_manager_instance = None
-_db_manager_lock = threading.Lock()
-
-
-def get_db_manager(
-    db_path: str = DEFAULT_DB_PATH, echo: bool = False, initialize: bool = True, pool_size: int = 5
-) -> DatabaseManager:
-    """
-    Get global database manager instance (singleton with thread-safety).
-
-    Args:
-        db_path: Path to database file
-        echo: Whether to echo SQL statements
-        initialize: Whether to initialize database if needed
-        pool_size: Connection pool size
-
-    Returns:
-        DatabaseManager instance
-    """
-    global _db_manager_instance
-
-    # Fast path: instance already exists
-    if _db_manager_instance is not None:
-        return _db_manager_instance
-
-    # Slow path: acquire lock and create instance
-    with _db_manager_lock:
-        # Double-check pattern to prevent race conditions
-        if _db_manager_instance is None:
-            _db_manager_instance = DatabaseManager(db_path, echo=echo, pool_size=pool_size)
-
-            if initialize:
-                # Initialize database if needed
-                initialize_database_if_needed(db_path=db_path, schema_path=DEFAULT_SCHEMA_PATH, auto_migrate=True)
-
-    return _db_manager_instance
-
-
-def get_session() -> Session:
-    """
-    Get a new database session from global manager.
-
-    Returns:
-        SQLAlchemy Session
-    """
-    manager = get_db_manager()
-    return manager.get_session()
-
-
-def session_scope() -> AbstractContextManager[Session]:
-    """
-    Get session scope context manager from global manager.
-
-    Usage:
-        with session_scope() as session:
-            orders = get_open_positions(session)
-
-    Yields:
-        SQLAlchemy Session
-    """
-    manager = get_db_manager()
-    return manager.session_scope()
-
-
-# ============================================================================
-# CONVENIENCE FUNCTIONS
-# ============================================================================
-
-
-def initialize_database(db_path: str = DEFAULT_DB_PATH, force_recreate: bool = False) -> None:
-    """
-    Initialize database with schema.
-
-    Args:
-        db_path: Path to database file
-        force_recreate: If True, drop and recreate all tables
-    """
-    if force_recreate:
-        manager = get_db_manager(db_path, initialize=False)
-        manager.drop_all_tables()
-        manager.create_all_tables()
-    else:
-        initialize_database_if_needed(db_path=db_path, schema_path=DEFAULT_SCHEMA_PATH, auto_migrate=True)
-
-
-def create_database_backup(compress: bool = True) -> Optional[str]:
-    """
-    Create a backup of the database.
-
-    Args:
-        compress: Whether to compress backup
-
-    Returns:
-        Path to backup file, or None if backup failed
-    """
-    return create_backup(db_path=DEFAULT_DB_PATH, backup_dir="data/backups", compress=compress)
-
-
-def get_database_stats() -> dict:
-    """
-    Get comprehensive database statistics.
-
-    Returns:
-        Dictionary with statistics
-    """
-    manager = get_db_manager()
-
-    # Get basic stats
-    stats = manager.get_database_stats()
-
-    # Add backup stats
-    backup_manager = BackupManager(DEFAULT_DB_PATH)
-    stats["backup_stats"] = backup_manager.get_backup_stats()
-
-    # Add performance stats
-    with session_scope() as session:
-        stats["signal_performance"] = get_signal_performance_stats(session, days=30)
-        stats["overall_trading"] = get_overall_stats(session)
-
-    return stats
-
+__version__ = "1.2.1"
 
 # ============================================================================
 # EXPORTS
@@ -245,18 +138,20 @@ def get_database_stats() -> dict:
 __all__ = [
     # Version
     "__version__",
-    # Models
-    "Base",
-    "Order",
-    "Signal",
-    "MartingaleChain",
-    "GradualRecovery",
-    "SystemState",
-    "AuditLog",
-    # Order Queries
+    # Repository Layer
+    "RepositoryContext",
+    "DB_BACKEND",
+    "get_order_repository",
+    "get_signal_repository",
+    "get_martingale_repository",
+    "get_gradual_recovery_repository",
+    "get_system_state_repository",
+    "get_audit_log_repository",
+    # Query functions (backward compatible)
     "get_open_positions",
     "get_last_closed_order",
     "get_all_programmatic_orders",
+    "get_orders_cursor",
     "is_programmatic_order",
     "get_order_by_id",
     "get_order_by_client_id",
@@ -265,58 +160,30 @@ __all__ = [
     "mark_be_moved",
     "create_order",
     "get_orders_by_symbol",
-    "get_orders_cursor",
-    # Martingale Queries
     "get_martingale_state",
     "find_or_create_martingale_chain",
     "update_martingale_chain",
     "get_active_martingale_chains",
     "get_martingale_chains_cursor",
-    # Signal Queries
     "save_signal",
     "mark_signal_executed",
     "update_signal_outcome",
     "get_recent_signals",
-    "get_signals_cursor",
     "get_signal_performance_stats",
-    # System State
+    "get_signals_cursor",
     "get_system_state",
     "set_system_state",
-    # Audit Log
     "create_audit_log",
-    "get_audit_log_cursor",
     "get_recent_audit_logs",
-    # Statistics
+    "get_audit_log_cursor",
     "get_daily_stats",
     "get_overall_stats",
-    # Database Management
-    "DatabaseManager",
-    "get_db_manager",
+    "get_active_gradual_recovery",
+    "create_gradual_recovery",
+    "update_gradual_recovery",
+    "cancel_gradual_recovery",
+    "get_gradual_recovery_by_id",
+    "get_all_gradual_recoveries",
+    # Binance → DB reconciliation
     "reconcile_orders_with_binance",
-    "get_session",
-    "session_scope",
-    "initialize_database",
-    # Transactions
-    "transaction",
-    "safe_commit",
-    # Utilities
-    "DataExporter",
-    "DatabaseCleaner",
-    "export_all_data",
-    "get_database_stats",
-    # Migrations
-    "MigrationManager",
-    "CommonMigrations",
-    "initialize_database_if_needed",
-    "get_migration_manager",
-    # Backup
-    "BackupManager",
-    "BackupScheduler",
-    "create_backup",
-    "create_database_backup",
-    "restore_latest_backup",
-    "list_all_backups",
-    # Testing
-    "reset_database_for_testing",
-    "seed_test_data",
 ]

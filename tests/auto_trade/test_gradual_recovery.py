@@ -61,6 +61,16 @@ class TestLossRecording(unittest.TestCase):
 
         self.assertEqual(recovery._state["win_streak"], 0)
 
+    def test_loss_increments_trades_count(self):
+        """Bug #1 regression: record_loss must also increment trades_count."""
+        config: RecoveryConfig = {}
+        recovery = GradualRecoveryStrategy(initial_loss=500, config=config)
+
+        recovery.record_profit(50)  # trades_count = 1
+        recovery.record_loss(30)    # trades_count must become 2
+
+        self.assertEqual(recovery._state["trades_count"], 2)
+
     def test_safety_limit_triggers(self):
         config: RecoveryConfig = {"max_total_loss": 800}
         recovery = GradualRecoveryStrategy(initial_loss=500, config=config)
@@ -138,6 +148,18 @@ class TestScenarios(unittest.TestCase):
             recovery.record_profit(30)
 
         self.assertTrue(recovery.should_stop())
+
+    def test_scenario_5_max_trades_includes_loss_trades(self):
+        """Bug #1 regression: max_recovery_trades must count loss trades too."""
+        config: RecoveryConfig = {"max_recovery_trades": 3}
+        recovery = GradualRecoveryStrategy(initial_loss=500, config=config)
+
+        recovery.record_profit(30)  # trade 1
+        recovery.record_loss(20)    # trade 2
+        recovery.record_profit(30)  # trade 3
+
+        self.assertTrue(recovery.should_stop())
+        self.assertEqual(recovery._state["trades_count"], 3)
 
     def test_scenario_4_exceeded_max_total_loss(self):
         config: RecoveryConfig = {"max_total_loss": 800}

@@ -16,12 +16,16 @@ class AutoTradeControl(ctk.CTkFrame):
         parent: Any,
         on_toggle_callback: Optional[Callable[..., Any]] = None,
         on_reload_settings: Optional[Callable[..., Any]] = None,
+        on_risk_limits_toggle: Optional[Callable[[bool], Any]] = None,
     ):
         super().__init__(parent)
 
         self.on_toggle_callback = on_toggle_callback
         self.on_reload_settings = on_reload_settings
+        self.on_risk_limits_toggle = on_risk_limits_toggle
         self.auto_trade_enabled = False
+        self._suppress_risk_toggle = False
+        self.risk_limits_enabled_var = ctk.BooleanVar(value=True)
 
         # Title
         title = ctk.CTkLabel(self, text="🤖 Auto-Trade System", font=("Arial", 16, "bold"))
@@ -99,6 +103,23 @@ class AutoTradeControl(ctk.CTkFrame):
         )
         self.disable_button.pack(fill="x", pady=5)
         self.disable_button.pack_forget()  # Hide initially
+
+        risk_limits_cb = ctk.CTkCheckBox(
+            controls_frame,
+            text="🛡️ Enable Risk Limits",
+            variable=self.risk_limits_enabled_var,
+            command=self._on_risk_limits_toggle,
+        )
+        risk_limits_cb.pack(anchor="w", pady=(8, 0))
+
+    def _on_risk_limits_toggle(self):
+        """Persist Risk Limits toggle change from Trading tab."""
+        if self._suppress_risk_toggle:
+            return
+
+        enabled = bool(self.risk_limits_enabled_var.get())
+        if self.on_risk_limits_toggle:
+            self.on_risk_limits_toggle(enabled)
 
     def _enable_auto_trade(self):
         """Enable auto-trading system"""
@@ -194,6 +215,7 @@ class AutoTradeControl(ctk.CTkFrame):
             {
                 "title": "💰 Risk Management",
                 "settings": [
+                    ("Risk Limits:", "On", "risk_limits_enabled"),
                     ("Min Score:", "0.7", "min_score"),
                     ("Max Position Size:", "$10 USDT", "max_position_size"),
                     ("Max Open Positions:", "3", "max_open_positions"),
@@ -296,6 +318,8 @@ class AutoTradeControl(ctk.CTkFrame):
 
         # Risk & filters & TP/SL
         _safe_configure("min_score", f"{float(filters.get('min_signal_score', 0.7)):.2f}")
+        risk_limits_enabled = bool(risk.get("limits_enabled", True))
+        _safe_configure("risk_limits_enabled", "On" if risk_limits_enabled else "Off")
         _safe_configure("max_position_size", f"${float(risk.get('max_position_size', 100.0)):.0f} USDT")
         _safe_configure("max_open_positions", str(int(risk.get("max_open_positions", 3))))
         _safe_configure("max_daily_loss", f"${float(risk.get('max_daily_loss', 50.0)):.0f} USDT")
@@ -323,3 +347,7 @@ class AutoTradeControl(ctk.CTkFrame):
         _safe_configure("database_status", str(st.get("database", "—")))
         _safe_configure("api_mode", str(st.get("api_mode", api.get("mode", "DRY_RUN"))))
         _safe_configure("api_connection", str(st.get("api_connection", "—")))
+
+        self._suppress_risk_toggle = True
+        self.risk_limits_enabled_var.set(risk_limits_enabled)
+        self._suppress_risk_toggle = False

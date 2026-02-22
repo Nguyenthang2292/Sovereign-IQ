@@ -10,7 +10,7 @@ Created: 2026-02-03
 
 import secrets
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 # Order source types
@@ -141,7 +141,7 @@ class OrderTagger:
             "client_order_id": client_order_id,
             "order_source": order_source,
             "execution_mode": execution_mode,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
             "is_programmatic": order_source == ORDER_SOURCE_PROGRAMMATIC,
         }
 

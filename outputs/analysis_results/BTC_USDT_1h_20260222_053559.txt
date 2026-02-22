@@ -1,0 +1,10 @@
+Symbol: BTC/USDT
+Timeframe: 1h
+Chart Path: C:\Users\Admin\Desktop\i-ching\crypto-probability\outputs\charts\BTC_USDT_1h_20260222_053524.png
+Prompt Type: detailed
+
+============================================================
+ANALYSIS RESULTS
+============================================================
+
+{'symbol': 'BTC/USDT', 'timeframe': '1h', 'analysis': '```json\n{\n    "trend": "Xu hướng hiện tại là đi ngang (Sideways) và tích lũy trong biên độ hẹp sau một đợt giảm giá mạnh. Mức độ xu hướng hiện tại rất yếu do giá đang bị nén chặt giữa các đường trung bình động.",\n    "patterns": [\n        "Consolidation (Tích lũy biên độ hẹp)",\n        "Symmetrical Triangle (Tam giác cân - đang đi về cuối góc nhọn)"\n    ],\n    "support_resistance": {\n        "support": [66000, 64500],\n        "resistance": [68500, 70500]\n    },\n    "indicators": {\n        "rsi": {\n            "value": 55,\n            "signal": "Trung tính (Neutral), đang có chiều hướng dốc lên nhẹ cho thấy phe mua đang cố gắng kiểm soát nhưng chưa có đà rõ rệt."\n        },\n        "macd": {\n            "value": 0,\n            "signal": "Bullish Crossover (Đường MACD cắt lên đường Signal) ngay sát mốc 0, Histogram chuyển sang xanh dương nhẹ, cho thấy tín hiệu phục hồi nhưng động lượng (momentum) khá yếu."\n        },\n        "ma": {\n            "ma20": 67800,\n            "ma50": 67500,\n            "ma200": 68200\n        },\n        "bb": {\n            "upper": 69000,\n            "middle": 67800,\n            "lower": 66500\n        },\n        "volume": "Khối lượng giao dịch (Volume) giảm cạn kiệt trong vùng giá đi ngang. Đây là dấu hiệu điển hình của sự nén giá (squeeze), dự báo sắp có một đợt bứt phá (breakout) mạnh về một trong hai hướng."\n    },\n    "signal": "LONG",\n    "confidence": 0.45,\n    "entry": 68500,\n    "stop_loss": 66800,\n    "take_profit": 70500\n}\n```', 'chart_path': 'C:\\Users\\Admin\\Desktop\\i-ching\\crypto-probability\\outputs\\charts\\BTC_USDT_1h_20260222_053524.png', 'exchange': 'kucoin', 'html_report_path': 'C:\\Users\\Admin\\Desktop\\i-ching\\crypto-probability\\outputs\\analysis_results\\BTC_USDT_1h_20260222_053520.html'}

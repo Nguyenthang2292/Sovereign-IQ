@@ -1,22 +1,15 @@
 """Orders Section Component for Database Panel."""
 
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import uuid
 from datetime import datetime
 from typing import Callable
 
 import customtkinter as ctk
 
-from modules.auto_trade.database import (
-    create_order,
-    get_daily_stats,
-    get_open_positions,
-    get_overall_stats,
-    session_scope,
-)
+from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 
-logger = logging.getLogger(__name__)
 
 
 class OrdersSection:
@@ -30,36 +23,29 @@ class OrdersSection:
 
     def _create_ui(self):
         """Create the orders section UI."""
-        # Frame
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="x", padx=5, pady=5)
 
-        # Title
         ctk.CTkLabel(frame, text="📋 Orders Testing", font=DatabasePanelConfig.TITLE_FONT).pack(
             anchor="w",
             padx=DatabasePanelConfig.PADX_MEDIUM,
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
-        # Inputs Frame
         input_frame = ctk.CTkFrame(frame, fg_color="transparent")
         input_frame.pack(fill="x", padx=10, pady=5)
 
-        # Symbol
         ctk.CTkLabel(input_frame, text="Symbol:").pack(side="left", padx=(0, 5))
         self.order_symbol = ctk.CTkEntry(input_frame, width=100)
         self.order_symbol.pack(side="left", padx=(0, 10))
         self.order_symbol.insert(0, "BTCUSDT")
 
-        # Side
         ctk.CTkLabel(input_frame, text="Side:").pack(side="left", padx=(0, 5))
         self.order_side = ctk.CTkOptionMenu(input_frame, values=["LONG", "SHORT"], width=100)
         self.order_side.pack(side="left", padx=(0, 10))
 
-        # Create Button
         ctk.CTkButton(input_frame, text="Create Test Order", command=self._create_test_order).pack(side="right")
 
-        # Query Buttons Frame
         btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
         btn_frame.pack(fill="x", padx=10, pady=5)
 
@@ -74,91 +60,148 @@ class OrdersSection:
         )
 
     def _create_test_order(self):
-        """Create a test order."""
+        """Create a test order via RepositoryContext."""
         symbol = self.order_symbol.get()
         side = self.order_side.get()
 
         try:
-            with session_scope() as session:
-                order_data = {
-                    "order_id": f"TEST_{uuid.uuid4().hex[:8]}",
-                    "client_order_id": f"AT_{int(datetime.now().timestamp())}_{symbol}",
-                    "symbol": symbol,
-                    "side": side,
-                    "entry_price": 50000.0,
-                    "amount": 0.01,
-                    "leverage": 2,
-                    "status": "OPEN",
-                    "order_source": "PROGRAMMATIC",
-                    "execution_mode": "AUTO",
-                }
-
-                create_order(session, order_data)
-
-                self.log_callback(f"Created test order for {symbol} ({side})", "SUCCESS")
-                self.refresh_callback()
-
+            ctx = RepositoryContext.from_env()
+            order_data = {
+                "order_id": f"TEST_{uuid.uuid4().hex[:8]}",
+                "client_order_id": f"AT_{int(datetime.now().timestamp())}_{symbol}",
+                "symbol": symbol,
+                "side": side,
+                "entry_price": 50000.0,
+                "amount": 0.01,
+                "leverage": 2,
+                "status": "OPEN",
+                "order_source": "PROGRAMMATIC",
+                "execution_mode": "AUTO",
+            }
+            ctx.orders.create_order(order_data)
+            self.log_callback(f"Created test order for {symbol} ({side})", "SUCCESS")
+            self.refresh_callback()
         except Exception as e:
             self.log_callback(f"Failed to create test order: {e}", "ERROR")
 
     def _query_open_positions(self):
-        """Query open positions."""
+        """Query open positions via RepositoryContext."""
         try:
-            with session_scope() as session:
-                positions = get_open_positions(session)
+            ctx = RepositoryContext.from_env()
+            positions = ctx.orders.get_open_positions()
 
-                output = "Open Positions:\n"
-                output += "-" * 50 + "\n"
-                for pos in positions:
+            output = "Open Positions:\n"
+            output += "-" * 50 + "\n"
+            for pos in positions:
+                if isinstance(pos, dict):
+                    output += (
+                        f"ID: {pos.get('order_id')} | {pos.get('symbol')} | "
+                        f"{pos.get('side')} | Entry: {pos.get('entry_price')}\n"
+                    )
+                else:
                     output += f"ID: {pos.order_id} | {pos.symbol} | {pos.side} | Entry: {pos.entry_price}\n"
 
-                self._show_in_data_viewer(output)
-                self.log_callback(f"Queried {len(positions)} open positions", "INFO")
+            self._show_in_data_viewer(output)
+            self.log_callback(f"Queried {len(positions)} open positions", "INFO")
 
         except Exception as e:
             self.log_callback(f"Failed to query open positions: {e}", "ERROR")
 
     def _get_overall_stats(self):
-        """Get overall trading statistics."""
+        """Get overall trading statistics via RepositoryContext."""
         try:
-            with session_scope() as session:
-                stats = get_overall_stats(session)
+            ctx = RepositoryContext.from_env()
 
-                output = "Overall Trading Statistics:\n"
-                output += "=" * 30 + "\n"
-                for key, value in stats.items():
-                    output += f"{key.replace('_', ' ').title()}: {value}\n"
+            all_orders = ctx.orders.get_all_programmatic_orders(limit=99999)
+            open_pos = ctx.orders.get_open_positions()
+            signals = ctx.signals.get_recent_signals(limit=99999)
 
-                self._show_in_data_viewer(output)
-                self.log_callback("Retrieved overall stats", "INFO")
+            total = len(all_orders)
+            open_count = len(open_pos)
+            closed_count = sum(
+                1
+                for o in all_orders
+                if (o.get("status") if isinstance(o, dict) else getattr(o, "status", "")) in ("CLOSED", "CANCELLED")
+            )
+            win_count = sum(
+                1
+                for o in all_orders
+                if (o.get("realized_pnl") if isinstance(o, dict) else getattr(o, "realized_pnl", None) or 0) > 0
+            )
+            win_rate = (win_count / closed_count * 100) if closed_count > 0 else 0.0
+
+            stats = {
+                "total_orders": total,
+                "open_positions": open_count,
+                "closed_orders": closed_count,
+                "winning_orders": win_count,
+                "win_rate_pct": f"{win_rate:.2f}%",
+                "total_signals": len(signals),
+            }
+
+            output = "Overall Trading Statistics:\n"
+            output += "=" * 30 + "\n"
+            for key, value in stats.items():
+                output += f"{key.replace('_', ' ').title()}: {value}\n"
+
+            self._show_in_data_viewer(output)
+            self.log_callback("Retrieved overall stats", "INFO")
 
         except Exception as e:
             self.log_callback(f"Failed to get overall stats: {e}", "ERROR")
 
     def _get_daily_stats(self):
-        """Get daily statistics for last 30 days."""
+        """Get daily statistics for last 30 days via RepositoryContext."""
         try:
-            with session_scope() as session:
-                stats = get_daily_stats(session, days=30)
+            ctx = RepositoryContext.from_env()
 
-                output = "Daily Statistics (Last 30 Days):\n"
-                output += f"{'Date':<12} | {'Orders':<8} | {'PnL':<10}\n"
-                output += "-" * 35 + "\n"
+            # Fetch all orders and group by date
+            all_orders = ctx.orders.get_all_programmatic_orders(limit=99999)
+            from datetime import timedelta, timezone
 
-                for day in stats:
-                    date_str = day.get("date", "N/A")
-                    orders = day.get("total_orders", 0)
-                    pnl = day.get("realized_pnl", 0.0)
-                    output += f"{str(date_str):<12} | {orders:<8} | {pnl:<10.2f}\n"
+            now = datetime.now(timezone.utc)
+            cutoff = now - timedelta(days=30)
 
-                self._show_in_data_viewer(output)
-                self.log_callback("Retrieved daily stats", "INFO")
+            daily: dict = {}
+            for o in all_orders:
+                if isinstance(o, dict):
+                    created_raw = o.get("created_at") or o.get("updated_at") or ""
+                    pnl = float(o.get("realized_pnl") or 0)
+                else:
+                    created_raw = getattr(o, "created_at", None)
+                    pnl = float(getattr(o, "realized_pnl", 0) or 0)
+
+                try:
+                    if isinstance(created_raw, str):
+                        from datetime import datetime as _dt
+
+                        dt = _dt.fromisoformat(created_raw.replace("Z", "+00:00"))
+                    else:
+                        dt = created_raw
+                    if dt and dt >= cutoff:
+                        date_key = dt.strftime("%Y-%m-%d")
+                        if date_key not in daily:
+                            daily[date_key] = {"total_orders": 0, "realized_pnl": 0.0}
+                        daily[date_key]["total_orders"] += 1
+                        daily[date_key]["realized_pnl"] += pnl
+                except Exception:
+                    pass
+
+            output = "Daily Statistics (Last 30 Days):\n"
+            output += f"{'Date':<12} | {'Orders':<8} | {'PnL':<10}\n"
+            output += "-" * 35 + "\n"
+
+            for date_key in sorted(daily.keys(), reverse=True):
+                d = daily[date_key]
+                output += f"{date_key:<12} | {d['total_orders']:<8} | {d['realized_pnl']:<10.2f}\n"
+
+            self._show_in_data_viewer(output)
+            self.log_callback("Retrieved daily stats", "INFO")
 
         except Exception as e:
             self.log_callback(f"Failed to get daily stats: {e}", "ERROR")
 
     def _show_in_data_viewer(self, content: str):
         """Show content in data viewer. To be connected by parent."""
-        # This will be overridden by the parent to show in the data viewer
         if hasattr(self.parent, "data_viewer_callback"):
             self.parent.data_viewer_callback(content)

@@ -1,0 +1,57 @@
+name: xgboost-lts-serverless-ci
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "modules/xgboost_LTS_serverless/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "modules/xgboost_LTS_serverless/**"
+
+jobs:
+  rust-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: modules/xgboost_LTS_serverless
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo check
+        run: cargo check --workspace
+
+      - name: Cargo test
+        run: cargo test --workspace
+
+      - name: Feature check (xgboost)
+        run: cargo check --features xgboost
+
+  python-scripts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: modules/xgboost_LTS_serverless
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install minimal deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas
+
+      - name: Validate CLI help
+        run: |
+          python scripts/train_and_upload.py --help
+          python scripts/lambda_demo.py --help
+          python scripts/load_test.py --help

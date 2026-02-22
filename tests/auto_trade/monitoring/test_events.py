@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from modules.auto_trade.monitoring.events import Event, EventBus, EventType
+from modules.auto_trade.monitoring.event_system import Event, EventBus, EventType
 
 
 class TestEventType:
@@ -33,7 +33,7 @@ class TestEventType:
 
         for event_type in expected_types:
             assert hasattr(EventType, event_type)
-            assert getattr(EventType, event_type).value == event_type
+            assert getattr(EventType, event_type).value == event_type.lower()
 
     def test_event_type_values_are_strings(self):
         """Test that EventType values are strings."""
@@ -149,7 +149,7 @@ class TestEventBusSubscription:
         bus = EventBus()
         callback = MagicMock()
 
-        with patch('modules.auto_trade.monitoring.events.log_error') as mock_log:
+        with patch('modules.auto_trade.monitoring.event_system.log_error') as mock_log:
             bus.subscribe(EventType.ORDER_CREATED, callback)
             bus.subscribe(EventType.ORDER_CREATED, callback)
 
@@ -332,7 +332,7 @@ class TestEventBusPublishing:
         bus.subscribe(EventType.ORDER_CREATED, failing_callback)
         bus.subscribe(EventType.ORDER_CREATED, working_callback)
 
-        with patch('modules.auto_trade.monitoring.events.log_error'):
+        with patch('modules.auto_trade.monitoring.event_system.log_error'):
             event = Event(type=EventType.ORDER_CREATED)
             bus.publish(event)
 
@@ -347,7 +347,7 @@ class TestEventBusPublishing:
 
         bus.subscribe(EventType.ORDER_CREATED, callback)
 
-        with patch('modules.auto_trade.monitoring.events.log_error') as mock_log:
+        with patch('modules.auto_trade.monitoring.event_system.log_error') as mock_log:
             event = Event(type=EventType.ORDER_CREATED)
             bus.publish(event)
 
@@ -361,7 +361,7 @@ class TestEventBusPublishing:
 
         bus.subscribe_all(callback)
 
-        with patch('modules.auto_trade.monitoring.events.log_error') as mock_log:
+        with patch('modules.auto_trade.monitoring.event_system.log_error') as mock_log:
             event = Event(type=EventType.ORDER_CREATED)
             bus.publish(event)
 

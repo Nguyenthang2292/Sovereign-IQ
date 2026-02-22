@@ -1,0 +1,223 @@
+    Checking atc_serverless v0.2.0 (C:\Users\Admin\Desktop\i-ching\crypto-probability\modules\adaptive_trend_LTS_serverless)
+error[E0308]: mismatched types
+   --> tests\stress_tests.rs:178:39
+    |
+178 |                 result.signal_type == "LONG"
+    |                 ------------------    ^^^^^^ expected `SignalType`, found `&str`
+    |                 |
+    |                 expected because this is `SignalType`
+
+error[E0308]: mismatched types
+   --> tests\stress_tests.rs:179:46
+    |
+179 |                     || result.signal_type == "SHORT"
+    |                        ------------------    ^^^^^^^ expected `SignalType`, found `&str`
+    |                        |
+    |                        expected because this is `SignalType`
+
+error[E0308]: mismatched types
+   --> tests\stress_tests.rs:180:46
+    |
+180 |                     || result.signal_type == "NEUTRAL",
+    |                        ------------------    ^^^^^^^^^ expected `SignalType`, found `&str`
+    |                        |
+    |                        expected because this is `SignalType`
+
+For more information about this error, try `rustc --explain E0308`.
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:340:24
+    |
+340 |         signal_type == "LONG" || signal_type == "SHORT" || signal_type == "NEUTRAL",
+    |         -----------    ^^^^^^ expected `SignalType`, found `&str`
+    |         |
+    |         expected because this is `SignalType`
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:340:49
+    |
+340 |         signal_type == "LONG" || signal_type == "SHORT" || signal_type == "NEUTRAL",
+    |                                  -----------    ^^^^^^^ expected `SignalType`, found `&str`
+    |                                  |
+    |                                  expected because this is `SignalType`
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:340:75
+    |
+340 |         signal_type == "LONG" || signal_type == "SHORT" || signal_type == "NEUTRAL",
+    |                                                            -----------    ^^^^^^^^^ expected `SignalType`, found `&str`
+    |                                                            |
+    |                                                            expected because this is `SignalType`
+
+error: could not compile `atc_serverless` (test "stress_tests") due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:372:34
+    |
+372 |         assert_eq!(uptrend_type, "LONG", "Uptrend should produce LONG signal");
+    |                                  ^^^^^^ expected `SignalType`, found `&str`
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:376:29
+    |
+376 |             downtrend_type, "SHORT",
+    |                             ^^^^^^^ expected `SignalType`, found `&str`
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:658:31
+    |
+658 |         result.signal_type == "LONG"
+    |         ------------------    ^^^^^^ expected `SignalType`, found `&str`
+    |         |
+    |         expected because this is `SignalType`
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:659:38
+    |
+659 |             || result.signal_type == "SHORT"
+    |                ------------------    ^^^^^^^ expected `SignalType`, found `&str`
+    |                |
+    |                expected because this is `SignalType`
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:660:38
+    |
+660 |             || result.signal_type == "NEUTRAL",
+    |                ------------------    ^^^^^^^^^ expected `SignalType`, found `&str`
+    |                |
+    |                expected because this is `SignalType`
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:700:28
+    |
+700 |             signal_type == "LONG" || signal_type == "SHORT" || signal_type == "NEUTRAL",
+    |             -----------    ^^^^^^ expected `SignalType`, found `&str`
+    |             |
+    |             expected because this is `SignalType`
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:700:53
+    |
+700 |             signal_type == "LONG" || signal_type == "SHORT" || signal_type == "NEUTRAL",
+    |                                      -----------    ^^^^^^^ expected `SignalType`, found `&str`
+    |                                      |
+    |                                      expected because this is `SignalType`
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:700:79
+    |
+700 |             signal_type == "LONG" || signal_type == "SHORT" || signal_type == "NEUTRAL",
+    |                                                                -----------    ^^^^^^^^^ expected `SignalType`, found `&str`
+    |                                                                |
+    |                                                                expected because this is `SignalType`
+
+error[E0061]: this function takes 4 arguments but 5 arguments were supplied
+   --> tests\atc_tests.rs:738:18
+    |
+738 |     let result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+742 |         tf_strengths,
+    |         ------------ unexpected argument #4 of type `HashMap<String, {float}>`
+    |
+note: function defined here
+   --> src\multi_tf_voting.rs:18:8
+    |
+ 18 | pub fn aggregate_timeframes(
+    |        ^^^^^^^^^^^^^^^^^^^^
+help: remove the extra argument
+    |
+741 -         tf_details,
+742 -         tf_strengths,
+741 +         tf_details,
+    |
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:746:36
+    |
+746 |     assert_eq!(result.signal_type, "LONG");
+    |                                    ^^^^^^ expected `SignalType`, found `&str`
+
+error[E0061]: this function takes 4 arguments but 5 arguments were supplied
+   --> tests\atc_tests.rs:781:18
+    |
+781 |     let result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+785 |         tf_strengths,
+    |         ------------ unexpected argument #4 of type `HashMap<String, {float}>`
+    |
+note: function defined here
+   --> src\multi_tf_voting.rs:18:8
+    |
+ 18 | pub fn aggregate_timeframes(
+    |        ^^^^^^^^^^^^^^^^^^^^
+help: remove the extra argument
+    |
+784 -         tf_details,
+785 -         tf_strengths,
+784 +         tf_details,
+    |
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:790:29
+    |
+790 |         result.signal_type, "LONG",
+    |                             ^^^^^^ expected `SignalType`, found `&str`
+
+error[E0061]: this function takes 4 arguments but 5 arguments were supplied
+   --> tests\atc_tests.rs:822:18
+    |
+822 |     let result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+826 |         tf_strengths,
+    |         ------------ unexpected argument #4 of type `HashMap<String, {float}>`
+    |
+note: function defined here
+   --> src\multi_tf_voting.rs:18:8
+    |
+ 18 | pub fn aggregate_timeframes(
+    |        ^^^^^^^^^^^^^^^^^^^^
+help: remove the extra argument
+    |
+825 -         tf_details,
+826 -         tf_strengths,
+825 +         tf_details,
+    |
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:831:29
+    |
+831 |         result.signal_type, "NEUTRAL",
+    |                             ^^^^^^^^^ expected `SignalType`, found `&str`
+
+error[E0061]: this function takes 4 arguments but 5 arguments were supplied
+   --> tests\atc_tests.rs:867:18
+    |
+867 |     let result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+871 |         tf_strengths,
+    |         ------------ unexpected argument #4 of type `HashMap<String, {float}>`
+    |
+note: function defined here
+   --> src\multi_tf_voting.rs:18:8
+    |
+ 18 | pub fn aggregate_timeframes(
+    |        ^^^^^^^^^^^^^^^^^^^^
+help: remove the extra argument
+    |
+870 -         tf_details,
+871 -         tf_strengths,
+870 +         tf_details,
+    |
+
+error[E0308]: mismatched types
+   --> tests\atc_tests.rs:877:36
+    |
+877 |     assert_eq!(result.signal_type, "LONG");
+    |                                    ^^^^^^ expected `SignalType`, found `&str`
+
+Some errors have detailed explanations: E0061, E0308.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `atc_serverless` (test "atc_tests") due to 19 previous errors

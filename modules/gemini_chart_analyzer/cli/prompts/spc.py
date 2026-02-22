@@ -1,7 +1,8 @@
 """SPC enhancement prompts for batch scanner."""
 
-from colorama import Fore
 from typing import Any, Dict, Optional
+
+from colorama import Fore
 
 from modules.common.ui.formatting import color_text
 from modules.common.ui.logging import log_warn

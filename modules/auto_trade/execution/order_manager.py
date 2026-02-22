@@ -6,13 +6,18 @@ Integrates all components: builder, validator, risk manager, Binance client,
 and optionally RecoveryManager for gradual recovery parameters.
 """
 
+import json
+from pathlib import Path
 from typing import Optional
+
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from modules.auto_trade.core.signal_selector import FinalSignal
 from modules.auto_trade.execution.binance_client import BinanceClient
 from modules.auto_trade.execution.order_builder import OrderBuilder, OrderTicket
 from modules.auto_trade.execution.order_validator import OrderValidator
 from modules.auto_trade.execution.risk_manager import RiskManager
+from modules.auto_trade.security.secret_string import SecretString
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.ui.logging import log_error, log_info, log_warn
 
@@ -67,8 +72,8 @@ class OrderManager:
             recovery_manager: Optional RecoveryManager for gradual recovery parameters
         """
         self.data_fetcher = data_fetcher
-        self.api_key = api_key
-        self.api_secret = api_secret
+        self.api_key = SecretString(api_key)
+        self.api_secret = SecretString(api_secret)
         self.testnet = testnet
         self.dry_run = dry_run
         self.recovery_manager = recovery_manager
@@ -89,14 +94,34 @@ class OrderManager:
         self.order_validator = OrderValidator()
 
         self.binance_client = BinanceClient(
-            api_key=api_key,
-            api_secret=api_secret,
+            api_key=self.api_key.get_secret_value(),
+            api_secret=self.api_secret.get_secret_value(),
             testnet=testnet,
             dry_run=dry_run,
         )
 
         log_info(
             f"OrderManager initialized ({'DRY RUN' if dry_run else 'LIVE'} mode, {'testnet' if testnet else 'mainnet'})"
+        )
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
+    def _fetch_open_positions(self) -> Optional[list]:
+        return self.data_fetcher.fetch_binance_futures_positions(
+            api_key=self.api_key.get_secret_value(), api_secret=self.api_secret.get_secret_value(), testnet=self.testnet
+        )
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
+    def _fetch_ticker(self, symbol: str) -> dict:
+        return self.binance_client.exchange.fetch_ticker(symbol)
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
+    def _create_market_order(self, order: OrderTicket) -> Optional[dict]:
+        return self.binance_client.create_market_order(order)
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
+    def _fetch_account_balance(self) -> Optional[float]:
+        return self.risk_manager.fetch_account_balance(
+            api_key=self.api_key.get_secret_value(), api_secret=self.api_secret.get_secret_value(), testnet=self.testnet
         )
 
     def check_open_positions(self) -> Optional[list]:
@@ -107,9 +132,7 @@ class OrderManager:
             List of open positions or None if error/no positions
         """
         try:
-            positions: Optional[list] = self.data_fetcher.fetch_binance_futures_positions(
-                api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
-            )
+            positions: Optional[list] = self._fetch_open_positions()
 
             if not positions:
                 log_info("No open positions found")
@@ -178,7 +201,7 @@ class OrderManager:
 
         # Step 2: Calculate position size
         position_size: Optional[float] = self.risk_manager.calculate_position_size(
-            api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
+            api_key=self.api_key.get_secret_value(), api_secret=self.api_secret.get_secret_value(), testnet=self.testnet
         )
 
         if not position_size:
@@ -216,8 +239,9 @@ class OrderManager:
         )
         # Set client_order_id (AT_ prefix) for Binance and DB sync
         from modules.auto_trade.execution.order_tagging import OrderTagger
+        from modules.common.domain.symbols import normalize_symbol_key
 
-        symbol_ccxt = (order.symbol or "").replace("/", "")
+        symbol_ccxt = normalize_symbol_key(order.symbol or "")
         order.client_order_id = OrderTagger.generate_client_order_id(symbol_ccxt)
 
         log_info(f"Built order ticket: {order.symbol} {order.side} ${order.amount:.2f} @ {order.leverage}x")
@@ -225,7 +249,7 @@ class OrderManager:
         # Step 5: Fetch current price
         try:
             # Use DataFetcher or directly from CCXT
-            ticker: dict = self.binance_client.exchange.fetch_ticker(signal.symbol)
+            ticker: dict = self._fetch_ticker(signal.symbol)
             current_price: float = ticker["last"]
             log_info(f"Current price for {signal.symbol}: ${current_price:,.2f}")
         except Exception as e:
@@ -233,9 +257,7 @@ class OrderManager:
             return None
 
         # Step 6: Pre-order validation
-        balance: Optional[float] = self.risk_manager.fetch_account_balance(
-            api_key=self.api_key, api_secret=self.api_secret, testnet=self.testnet
-        )
+        balance: Optional[float] = self._fetch_account_balance()
 
         if balance is None:
             log_error("Failed to fetch balance for validation, aborting")
@@ -247,7 +269,7 @@ class OrderManager:
 
         # Step 7: Execute order
         log_info("Executing order on Binance...")
-        order_result: Optional[dict] = self.binance_client.create_market_order(order)
+        order_result: Optional[dict] = self._create_market_order(order)
 
         if not order_result:
             log_error("Order execution failed")
@@ -260,40 +282,49 @@ class OrderManager:
         # Step 8.5: Persist order to DB (sync Binance -> DB)
         if not self.dry_run and order_result.get("market_order"):
             try:
-                from modules.auto_trade.database import create_order, session_scope
+                from modules.auto_trade.database.repository.context import RepositoryContext
 
                 market: dict = order_result["market_order"]
                 order_id_binance: str = str(market.get("id", ""))
-                client_order_id: Optional[str] = market.get("clientOrderId") or getattr(
-                    order, "client_order_id", None
-                ) or (order.client_order_id if hasattr(order, "client_order_id") else None)
-                entry_price: float = float(
-                    order_result.get("entry_price") or order.entry_price or 0
+                client_order_id: Optional[str] = (
+                    market.get("clientOrderId")
+                    or getattr(order, "client_order_id", None)
+                    or (order.client_order_id if hasattr(order, "client_order_id") else None)
                 )
+                entry_price: float = float(order_result.get("entry_price") or order.entry_price or 0)
                 ticket: dict = order_result.get("order_ticket") or order.to_dict()
                 side_long_short: str = "LONG" if (order.side or "").upper() == "BUY" else "SHORT"
                 symbol_db: str = (order.symbol or "").replace("/", "")
                 order_data: dict = {
                     "order_id": order_id_binance,
-                    "client_order_id": client_order_id or (order.client_order_id if hasattr(order, "client_order_id") else None),
+                    "client_order_id": client_order_id
+                    or (order.client_order_id if hasattr(order, "client_order_id") else None),
                     "symbol": symbol_db,
                     "side": side_long_short,
                     "entry_price": entry_price,
                     "amount": float(order.amount),
                     "leverage": int(order.leverage),
-                    "stop_loss": getattr(order, "stop_loss_price", None)
-                    or ticket.get("stop_loss_price"),
-                    "take_profit": getattr(order, "take_profit_price", None)
-                    or ticket.get("take_profit_price"),
+                    "stop_loss": getattr(order, "stop_loss_price", None) or ticket.get("stop_loss_price"),
+                    "take_profit": getattr(order, "take_profit_price", None) or ticket.get("take_profit_price"),
                     "status": "OPEN",
                     "order_source": "PROGRAMMATIC",
                     "execution_mode": "AUTO",
                 }
-                with session_scope() as session:
-                    create_order(session, order_data)
+
+                ctx = RepositoryContext.from_env()
+                ctx.orders.create_order(order_data)
+
                 log_info(f"Order {order_id_binance} persisted to DB (client_order_id={client_order_id})")
             except Exception as db_err:
                 log_error(f"Failed to persist order to DB: {db_err}", exc_info=True)
+                try:
+                    fallback_path = Path.home() / ".auto_trade" / "fallback_orders.jsonl"
+                    fallback_path.parent.mkdir(parents=True, exist_ok=True)
+                    with fallback_path.open("a", encoding="utf-8") as f:
+                        f.write(json.dumps(order_data) + "\n")
+                    log_warn(f"Order written to fallback file: {fallback_path}")
+                except Exception as file_err:
+                    log_error(f"Failed to write fallback order to disk: {file_err}")
 
         # Step 9: Return result
         log_info(f"✅ Order executed successfully for {signal.symbol}")

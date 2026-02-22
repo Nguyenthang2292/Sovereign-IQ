@@ -97,3 +97,6 @@ rust_backend/target/
 artifacts/models/random_forest/
 artifacts/models/lstm/
 
+
+# Adaptive Trend LTS Serverless Rust build output
+modules/adaptive_trend_LTS_serverless/target/

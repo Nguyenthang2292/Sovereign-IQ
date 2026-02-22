@@ -1,0 +1,1 @@
+Phân tích biểu đồ {symbol} {timeframe} và đưa ra tín hiệu giao dịch với Entry, Stop Loss, Take Profit.

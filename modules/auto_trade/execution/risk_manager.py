@@ -54,7 +54,16 @@ class RiskManager:
         self.min_position_size = min_position_size
         self.max_position_size = max_position_size
         self.emergency_stop_enabled = emergency_stop_enabled
-        self._emergency_stop_triggered = False
+
+        # Load emergency_stop flag from DB
+        from modules.auto_trade.database.queries import get_system_state
+
+        try:
+            stored_state = get_system_state("emergency_stop")
+            self._emergency_stop_triggered = bool(stored_state)
+        except Exception as e:
+            log_error(f"Failed to load emergency_stop state: {e}")
+            self._emergency_stop_triggered = False
 
     def fetch_account_balance(self, api_key: str, api_secret: str, testnet: bool = False) -> Optional[float]:
         """
@@ -206,6 +215,12 @@ class RiskManager:
         if self.emergency_stop_enabled:
             self._emergency_stop_triggered = True
             log_error(f"🛑 EMERGENCY STOP TRIGGERED: {reason}")
+            try:
+                from modules.auto_trade.database.queries import set_system_state
+
+                set_system_state("emergency_stop", True)
+            except Exception as e:
+                log_error(f"Failed to persist emergency_stop state: {e}")
         else:
             log_warn(f"Emergency stop would be triggered (disabled): {reason}")
 
@@ -218,6 +233,12 @@ class RiskManager:
         """
         self._emergency_stop_triggered = False
         log_info(f"✅ Emergency stop reset: {reason}")
+        try:
+            from modules.auto_trade.database.queries import set_system_state
+
+            set_system_state("emergency_stop", False)
+        except Exception as e:
+            log_error(f"Failed to persist emergency_stop state: {e}")
 
     @property
     def is_emergency_stop_active(self) -> bool:

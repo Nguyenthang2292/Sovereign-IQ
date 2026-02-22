@@ -34,7 +34,8 @@ from modules.common.utils import configure_windows_stdio
 configure_windows_stdio()
 
 
-from modules.common.utils import color_text, log_error, log_warn, safe_input
+from modules.common.ui.logging import log_error, log_warn
+from modules.common.utils import color_text, safe_input
 from modules.gemini_chart_analyzer.cli.batch_scanner.config_builder import gather_scan_configuration
 from modules.gemini_chart_analyzer.cli.batch_scanner.display import display_configuration_summary
 from modules.gemini_chart_analyzer.cli.runners.scanner_runner import display_scan_results
@@ -46,7 +47,14 @@ from modules.gemini_chart_analyzer.core.exceptions import (
     ScanConfigurationError,
 )
 from modules.gemini_chart_analyzer.core.scanner_types import BatchScanResult
-from modules.gemini_chart_analyzer.services.batch_scan_service import BatchScanConfig, run_batch_scan
+from modules.gemini_chart_analyzer.services.batch_scan_service import (
+    ATCPerformanceConfig,
+    BatchScanConfig,
+    PreFilterConfig,
+    Stage0Config,
+    XGBoostConfig,
+    run_batch_scan,
+)
 
 # Suppress specific noisy warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="PIL.Image")
@@ -63,24 +71,32 @@ def execute_scan(config: Dict[str, Any]) -> BatchScanResult:
             max_symbols=config["max_symbols"],
             limit=config["limit"],
             cooldown=config["cooldown"],
-            enable_pre_filter=config["enable_pre_filter"],
-            pre_filter_mode=config["pre_filter_mode"],
-            pre_filter_percentage=config.get("pre_filter_percentage"),
-            pre_filter_auto_skip_threshold=config.get("pre_filter_auto_skip_threshold", 10),
-            pre_filter_fast_mode=config["fast_mode"],
-            spc_config=config["spc_config"] if config["enable_pre_filter"] else None,
             rf_model_path=config["random_forest_model"]["model_path"],
-            stage0_sample_percentage=config.get("stage0_sample_percentage"),
-            stage0_sampling_strategy=config.get("stage0_sampling_strategy", "random"),
-            stage0_stratified_strata_count=config.get("stage0_stratified_strata_count", 3),
-            stage0_hybrid_top_percentage=config.get("stage0_hybrid_top_percentage", 50.0),
             rf_training=config.get("rf_training"),
-            atc_performance=config.get("atc_performance"),
-            approximate_ma_scanner=config.get("approximate_ma_scanner"),
-            use_atc_performance=config.get("use_atc_performance", True),
-            use_atc_performance_mini=config.get("use_atc_performance_mini", False),
-            xgboost_lts=config.get("xgboost_lts"),
-            use_xgboost_performance=config.get("use_xgboost_performance", True),
+            pre_filter=PreFilterConfig(
+                enabled=config["enable_pre_filter"],
+                mode=config["pre_filter_mode"],
+                percentage=config.get("pre_filter_percentage"),
+                auto_skip_threshold=config.get("pre_filter_auto_skip_threshold", 10),
+                fast_mode=config["fast_mode"],
+                spc_config=config["spc_config"] if config["enable_pre_filter"] else None,
+                stage0=Stage0Config(
+                    sample_percentage=config.get("stage0_sample_percentage"),
+                    sampling_strategy=config.get("stage0_sampling_strategy", "random"),
+                    stratified_strata_count=config.get("stage0_stratified_strata_count", 3),
+                    hybrid_top_percentage=config.get("stage0_hybrid_top_percentage", 50.0),
+                ),
+            ),
+            atc=ATCPerformanceConfig(
+                settings=config.get("atc_performance"),
+                approximate_ma_scanner=config.get("approximate_ma_scanner"),
+                use_performance=config.get("use_atc_performance", True),
+                use_mini=config.get("use_atc_performance_mini", False),
+            ),
+            xgboost=XGBoostConfig(
+                settings=config.get("xgboost_lts"),
+                use_performance=config.get("use_xgboost_performance", True),
+            ),
         )
 
         # Run the scan

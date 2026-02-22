@@ -48,14 +48,16 @@ class TestGeminiModelType:
         assert GeminiModelType.PRO_25.name == "models/gemini-2.5-pro"
 
     def test_model_priorities(self):
-        """Test that model priorities are correct (3.x before 2.5)."""
-        assert GeminiModelType.FLASH_3_PREVIEW.priority == 0
-        assert GeminiModelType.PRO_3_PREVIEW.priority == 1
-        assert GeminiModelType.FLASH_3.priority == 2
-        assert GeminiModelType.PRO_3.priority == 3
-        assert GeminiModelType.FLASH_25.priority == 4
-        assert GeminiModelType.FLASH_25_LITE.priority == 5
-        assert GeminiModelType.PRO_25.priority == 6
+        """Test that model priorities are correct (3.1 first, then 3.x, then 2.5)."""
+        assert GeminiModelType.PRO_31_PREVIEW.priority == 0
+        assert GeminiModelType.PRO_31_PREVIEW_CUSTOMTOOLS.priority == 1
+        assert GeminiModelType.FLASH_3_PREVIEW.priority == 2
+        assert GeminiModelType.PRO_3_PREVIEW.priority == 3
+        assert GeminiModelType.FLASH_3.priority == 4
+        assert GeminiModelType.PRO_3.priority == 5
+        assert GeminiModelType.FLASH_25.priority == 6
+        assert GeminiModelType.FLASH_25_LITE.priority == 7
+        assert GeminiModelType.PRO_25.priority == 8
 
     def test_model_properties(self):
         """Test model type properties."""
@@ -125,15 +127,15 @@ class TestSelectBestModel:
         """Test model selection with None available models."""
         selected = select_best_model(None)
 
-        # Should return default model (flash-3-preview)
-        assert selected == "models/gemini-3-flash-preview"
+        # Should return default model (highest priority)
+        assert selected == "models/gemini-3.1-pro-preview"
 
     def test_select_best_model_empty_list(self):
         """Test model selection with empty list."""
         selected = select_best_model([])
 
-        # Should return first model in list (fallback)
-        assert selected == "models/gemini-2.5-flash"
+        # Should return custom-tools default for empty availability response
+        assert selected == "models/gemini-3.1-pro-preview-customtools"
 
 
 class TestValidateImage:

@@ -1,8 +1,10 @@
 """Periodic updater and threading management."""
 
 import queue
+import threading
 
 from modules.auto_trade.gui.utils.threading_utils import PeriodicUpdater
+from modules.common.ui.logging import log_error, log_info
 
 
 class UpdaterManager:
@@ -16,21 +18,15 @@ class UpdaterManager:
         """Initialize and start all periodic updaters."""
         self.parent._update_queue = queue.Queue()
 
-        def refresh_all():
-            self.parent.refresh_signals()
-            self.parent.refresh_positions()
-            self.parent.refresh_account()
-            self.parent.refresh_stats()
-            self.parent._update_timestamp()
-
         # PeriodicUpdater runs in background thread; callbacks use queue
         self.updaters["signal"] = PeriodicUpdater(self.parent._thread_refresh_signals, interval=30)
         self.updaters["positions"] = PeriodicUpdater(self.parent._thread_refresh_positions, interval=10)
         self.updaters["account"] = PeriodicUpdater(self.parent._thread_refresh_account, interval=15)
         self.updaters["stats"] = PeriodicUpdater(self.parent._thread_refresh_stats, interval=60)
 
-        refresh_all()
-
+        # NOTE: PeriodicUpdater._run() fires the callback immediately on first tick,
+        # so we do NOT call refresh_all() here — that would block the main thread.
+        # Each updater runs its first callback in its own background thread.
         self.updaters["signal"].start()
         self.updaters["positions"].start()
         self.updaters["account"].start()
@@ -39,6 +35,12 @@ class UpdaterManager:
 
         # Start log streaming updater
         self.parent.after(100, self._drain_log_queue)
+
+        # One-shot startup reconcile: close stale OPEN positions in DB that
+        # are no longer on Binance.  Runs in a background thread with a short
+        # delay so the GUI paints first.  This is independent of auto-trade.
+        if getattr(self.parent, "mode", "DRY_RUN") != "DRY_RUN":
+            self.parent.after(3000, self._startup_reconcile)
 
     def _drain_update_queue(self):
         """Process UI updates from background thread (must run on main thread)."""
@@ -109,6 +111,43 @@ class UpdaterManager:
             tb.configure(state="disabled")
         except Exception as e:
             print(f"Error appending log to textbox: {e}")
+
+    def _startup_reconcile(self):
+        """One-shot reconcile: sync Binance positions and close stale DB entries.
+
+        Runs in a background thread so the GUI stays responsive.
+        """
+
+        def _run():
+            try:
+                from modules.auto_trade.execution.binance_client import BinanceClient
+                from modules.auto_trade.gui.utils.position_sync_service import PositionSyncService
+
+                ds = self.parent.data_service
+                api_key = getattr(ds, "api_key", "") or ""
+                api_secret = getattr(ds, "api_secret", "") or ""
+                if not api_key or not api_secret:
+                    return
+
+                testnet = getattr(ds, "testnet", False)
+                client = BinanceClient(
+                    api_key=api_key,
+                    api_secret=api_secret,
+                    testnet=testnet,
+                    dry_run=False,
+                )
+                stats = PositionSyncService.sync_all_positions(client)
+                closed = stats.get("closed", 0)
+                if closed:
+                    log_info(f"[Startup] Reconcile closed {closed} stale DB position(s)")
+                    # Refresh positions frame so the GUI removes stale entries
+                    if hasattr(self.parent, "updater_manager") and "positions" in self.updaters:
+                        self.updaters["positions"].trigger()
+            except Exception as exc:
+                log_error(f"[Startup] Reconcile error: {exc}")
+
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
 
     def stop_all(self):
         """Stop all periodic updaters."""

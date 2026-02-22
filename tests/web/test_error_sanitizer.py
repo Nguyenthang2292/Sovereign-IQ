@@ -9,7 +9,7 @@ Tests cover:
 - Mapping of known error types to user-friendly messages
 """
 
-from web.utils.error_sanitizer import sanitize_error
+from web.shared.utils.error_sanitizer import sanitize_error
 
 
 class TestSanitizeError:

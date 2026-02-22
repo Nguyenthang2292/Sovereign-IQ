@@ -4,7 +4,7 @@ Simple Chart Generator for batch scanning.
 Render simple candlestick charts without indicators for batch processing.
 """
 
-from typing import Tuple, Any
+from typing import Any, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd

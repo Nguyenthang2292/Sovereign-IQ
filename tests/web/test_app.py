@@ -14,7 +14,7 @@ import pytest
 from fastapi.responses import FileResponse
 
 # Import app - project root is added to path in conftest, so use absolute import
-from web.app import app
+from web.apps.gemini_analyzer.backend.main import app
 
 
 class TestRootEndpoint:
@@ -28,7 +28,7 @@ class TestRootEndpoint:
         index_html = vue_dist / "index.html"
         index_html.write_text("<html>Vue App</html>")
 
-        with patch("web.app.VUE_DIST_DIR", vue_dist):
+        with patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", vue_dist):
             response = client.get("/")
             assert response.status_code == 200
             assert response.headers["content-type"] == "text/html; charset=utf-8"
@@ -40,7 +40,7 @@ class TestRootEndpoint:
         non_existent_dir = tmp_path / "non_existent_vue_dist"
         # Don't create the directory - it should not exist
 
-        with patch("web.app.VUE_DIST_DIR", non_existent_dir):
+        with patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", non_existent_dir):
             response = client.get("/")
             assert response.status_code == 200
             data = response.json()
@@ -59,9 +59,9 @@ class TestHealthCheck:
         vue_dist = tmp_path / "vue_dist"
 
         with (
-            patch("web.app.CHARTS_DIR", charts_dir),
-            patch("web.app.RESULTS_DIR", results_dir),
-            patch("web.app.VUE_DIST_DIR", vue_dist),
+            patch("web.apps.gemini_analyzer.backend.main.CHARTS_DIR", charts_dir),
+            patch("web.apps.gemini_analyzer.backend.main.RESULTS_DIR", results_dir),
+            patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", vue_dist),
         ):
             response = client.get("/health")
             assert response.status_code == 200
@@ -83,9 +83,9 @@ class TestHealthCheck:
         vue_dist.mkdir(parents=True, exist_ok=True)
 
         with (
-            patch("web.app.CHARTS_DIR", charts_dir),
-            patch("web.app.RESULTS_DIR", results_dir),
-            patch("web.app.VUE_DIST_DIR", vue_dist),
+            patch("web.apps.gemini_analyzer.backend.main.CHARTS_DIR", charts_dir),
+            patch("web.apps.gemini_analyzer.backend.main.RESULTS_DIR", results_dir),
+            patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", vue_dist),
         ):
             response = client.get("/health")
             assert response.status_code == 200
@@ -104,7 +104,7 @@ def ensure_vue_catchall_route():
 
         @app.get("/{full_path:path}")
         async def serve_vue_app(full_path: str, request: Request):
-            from web.app import VUE_DIST_DIR
+            from web.apps.gemini_analyzer.backend.main import VUE_DIST_DIR
 
             if full_path.startswith("api/"):
                 raise HTTPException(status_code=404, detail="Not found")
@@ -132,7 +132,7 @@ class TestVueAppServing:
         index_html = vue_dist / "index.html"
         index_html.write_text("<html>Vue App</html>")
 
-        with patch("web.app.VUE_DIST_DIR", vue_dist):
+        with patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", vue_dist):
             response = client.get("/dashboard")
             assert response.status_code == 200
             assert response.headers["content-type"] == "text/html; charset=utf-8"
@@ -143,7 +143,7 @@ class TestVueAppServing:
         vue_dist = tmp_path / "static" / "vue" / "dist"
         vue_dist.mkdir(parents=True, exist_ok=True)
 
-        with patch("web.app.VUE_DIST_DIR", vue_dist):
+        with patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", vue_dist):
             # Test with a non-existent API route
             response = client.get("/api/nonexistent/endpoint")
             # API routes that don't exist return 404 from catch-all route
@@ -164,7 +164,7 @@ class TestVueAppServing:
                 "modules.gemini_chart_analyzer.core.utils.chart_paths.get_analysis_results_dir",
                 return_value=str(tmp_path),
             ),
-            patch("web.app.VUE_DIST_DIR", vue_dist),
+            patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", vue_dist),
         ):
             batch_scan_dir = tmp_path / "batch_scan"
             batch_scan_dir.mkdir(parents=True, exist_ok=True)
@@ -187,7 +187,7 @@ class TestVueAppServing:
 
         # Test with a static path that doesn't have a mount registered
         # Use /static/other/test.png which doesn't match any mount
-        with patch("web.app.VUE_DIST_DIR", vue_dist):
+        with patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", vue_dist):
             response = client.get("/static/other/test.png")
             # Static routes that don't exist return 404, not caught by Vue route
             assert response.status_code == 404
@@ -200,7 +200,7 @@ class TestVueAppServing:
         vue_dist.mkdir(parents=True, exist_ok=True)
         # Don't create index.html
 
-        with patch("web.app.VUE_DIST_DIR", vue_dist):
+        with patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", vue_dist):
             response = client.get("/dashboard")
             # When index.html doesn't exist, catch-all route returns 404
             assert response.status_code == 404
@@ -213,7 +213,7 @@ class TestVueAppServing:
         index_html = vue_dist / "index.html"
         index_html.write_text("<html>Vue App</html>")
 
-        with patch("web.app.VUE_DIST_DIR", vue_dist):
+        with patch("web.apps.gemini_analyzer.backend.main.VUE_DIST_DIR", vue_dist):
             response = client.get("/dashboard/settings")
             assert response.status_code == 200
             assert "<html>Vue App</html>" in response.text

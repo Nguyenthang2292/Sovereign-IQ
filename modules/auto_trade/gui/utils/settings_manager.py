@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 
 class SettingsManager:
@@ -42,6 +43,8 @@ class SettingsManager:
         "scanner": {
             "scan_interval": 5,
             "timeframe": "1h",
+            "atc_backend": "local",
+            "xgboost_backend": "local",
             "symbol_list": "Top 20",
             "auto_start": True,
             "retrain_xgboost": False,
@@ -67,7 +70,7 @@ class SettingsManager:
         },
     }
 
-    def __init__(self, settings_file: Optional[str] = None) -> None:
+    def __init__(self, settings_file: Optional[str] = None, event_bus: Optional[Any] = None) -> None:
         """
         Initialize SettingsManager.
 
@@ -80,7 +83,12 @@ class SettingsManager:
             self.settings_file = Path(settings_file)
 
         self.settings: Dict[str, Any] = self.DEFAULT_SETTINGS.copy()
+        self.event_bus: Optional[Any] = event_bus
         self._ensure_settings_directory()
+
+    def set_event_bus(self, event_bus: Optional[Any]) -> None:
+        """Attach event bus for SETTINGS_SAVED notifications."""
+        self.event_bus = event_bus
 
     def _ensure_settings_directory(self) -> None:
         """Ensure settings directory exists"""
@@ -100,7 +108,7 @@ class SettingsManager:
                     self.settings = self._merge_settings(self.DEFAULT_SETTINGS, loaded_settings)
                     self._validate_settings()
                     self._normalize_whitelist()
-                    print(f"Settings loaded from {self.settings_file}")
+                    log_info(f"Settings loaded from {self.settings_file}")
                 else:
                     self._use_defaults_and_save()
             else:
@@ -113,14 +121,14 @@ class SettingsManager:
                         self._validate_settings()
                         self._normalize_whitelist()
                         self.save()
-                        print(f"Settings migrated from {json_path} to {self.settings_file}")
+                        log_info(f"Settings migrated from {json_path} to {self.settings_file}")
                     else:
                         self._use_defaults_and_save()
                 else:
-                    print("No settings file found, using defaults")
+                    log_info("No settings file found, using defaults")
                     self.save()
         except Exception as e:
-            print(f"Error loading settings: {e}, using defaults")
+            log_error(f"Error loading settings: {e}, using defaults")
             self.settings = self.DEFAULT_SETTINGS.copy()
 
         return self.settings
@@ -175,10 +183,23 @@ class SettingsManager:
                     sort_keys=False,
                 )
 
-            print(f"Settings saved to {self.settings_file}")
+            log_info(f"Settings saved to {self.settings_file}")
+
+            if self.event_bus is not None:
+                try:
+                    from modules.auto_trade.monitoring.event_system import EventType
+
+                    self.event_bus.publish(
+                        EventType.SETTINGS_SAVED,
+                        {"settings_file": str(self.settings_file)},
+                        source="SettingsManager",
+                    )
+                except Exception as error:
+                    log_warn(f"Could not publish SETTINGS_SAVED event: {error}")
+
             return True
         except Exception as e:
-            print(f"Error saving settings: {e}")
+            log_error(f"Error saving settings: {e}")
             return False
 
     def _merge_settings(self, defaults: Dict, loaded: Dict) -> Dict:
@@ -250,8 +271,20 @@ class SettingsManager:
             if self.settings["scanner"]["scan_interval"] < 1 or self.settings["scanner"]["scan_interval"] > 60:
                 self.settings["scanner"]["scan_interval"] = 5
 
+            backend = str(self.settings["scanner"].get("atc_backend", "local")).lower()
+            if backend not in {"local", "serverless"}:
+                self.settings["scanner"]["atc_backend"] = "local"
+            else:
+                self.settings["scanner"]["atc_backend"] = backend
+
+            xgb_backend = str(self.settings["scanner"].get("xgboost_backend", "local")).lower()
+            if xgb_backend not in {"local", "serverless"}:
+                self.settings["scanner"]["xgboost_backend"] = "local"
+            else:
+                self.settings["scanner"]["xgboost_backend"] = xgb_backend
+
         except Exception as e:
-            print(f"Settings validation error: {e}, using defaults")
+            log_error(f"Settings validation error: {e}, using defaults")
             self.settings = self.DEFAULT_SETTINGS.copy()
 
     def _create_backup(self) -> None:
@@ -262,9 +295,9 @@ class SettingsManager:
                 with open(self.settings_file, "r", encoding="utf-8") as src:
                     with open(backup_file, "w", encoding="utf-8") as dst:
                         dst.write(src.read())
-                print(f"Backup created at {backup_file}")
+                log_info(f"Backup created at {backup_file}")
         except Exception as e:
-            print(f"Error creating backup: {e}")
+            log_error(f"Error creating backup: {e}")
 
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -311,7 +344,7 @@ class SettingsManager:
             current[keys[-1]] = value
             return True
         except Exception as e:
-            print(f"Error setting {key}: {e}")
+            log_error(f"Error setting {key}: {e}")
             return False
 
     def export(self, export_path: str) -> bool:
@@ -331,10 +364,10 @@ class SettingsManager:
                     yaml.dump(self.settings, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
                 else:
                     json.dump(self.settings, f, indent=2, ensure_ascii=False)
-            print(f"Settings exported to {export_path}")
+            log_info(f"Settings exported to {export_path}")
             return True
         except Exception as e:
-            print(f"Error exporting settings: {e}")
+            log_error(f"Error exporting settings: {e}")
             return False
 
     def import_settings(self, import_path: str) -> bool:
@@ -350,22 +383,22 @@ class SettingsManager:
         try:
             path = Path(import_path)
             if not path.exists():
-                print(f"Import file not found: {import_path}")
+                log_warn(f"Import file not found: {import_path}")
                 return False
 
             loaded = self._load_file(path)
             if loaded is None:
-                print(f"Could not parse settings from {import_path}")
+                log_warn(f"Could not parse settings from {import_path}")
                 return False
 
             self.settings = self._merge_settings(self.DEFAULT_SETTINGS, loaded)
             self._validate_settings()
             self._normalize_whitelist()
             self.save()
-            print(f"Settings imported from {import_path}")
+            log_info(f"Settings imported from {import_path}")
             return True
         except Exception as e:
-            print(f"Error importing settings: {e}")
+            log_error(f"Error importing settings: {e}")
             return False
 
     def reset_to_defaults(self) -> bool:
@@ -378,10 +411,10 @@ class SettingsManager:
         try:
             self.settings = self.DEFAULT_SETTINGS.copy()
             self.save()
-            print("Settings reset to defaults")
+            log_info("Settings reset to defaults")
             return True
         except Exception as e:
-            print(f"Error resetting settings: {e}")
+            log_error(f"Error resetting settings: {e}")
             return False
 
     def get_all(self) -> Dict[str, Any]:

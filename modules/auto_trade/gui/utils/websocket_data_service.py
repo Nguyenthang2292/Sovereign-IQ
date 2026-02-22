@@ -12,7 +12,6 @@ Features:
 """
 
 import asyncio
-import logging
 import os
 import threading
 from typing import Any, Callable, Dict, List, Optional
@@ -22,8 +21,7 @@ from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
 from modules.auto_trade.monitoring.account_monitor import BalanceMonitor, BalanceSnapshot, OrderMonitor, OrderSnapshot
 from modules.auto_trade.monitoring.position_monitor import PositionMonitor, PositionSnapshot
 from modules.auto_trade.websocket.client import BinanceWebSocketClient
-
-logger = logging.getLogger(__name__)
+from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 
 class WebSocketDataService:
@@ -43,7 +41,12 @@ class WebSocketDataService:
         >>> service.on_balance_update(my_callback)
     """
 
-    def __init__(self, mode: str = "DRY_RUN", settings_manager: Optional[Any] = None) -> None:
+    def __init__(
+        self,
+        mode: str = "DRY_RUN",
+        settings_manager: Optional[Any] = None,
+        event_bus: Optional[Any] = None,
+    ) -> None:
         """
         Initialize WebSocket data service.
 
@@ -64,6 +67,8 @@ class WebSocketDataService:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._loop_thread: Optional[threading.Thread] = None
         self._running: bool = False
+        self.event_bus: Optional[Any] = event_bus
+        self._published_closed_events: set[str] = set()
 
         # GUI callbacks
         self._position_callbacks: List[Callable[[PositionSnapshot], None]] = []
@@ -93,11 +98,11 @@ class WebSocketDataService:
 
         # Log credential status (without exposing actual keys)
         if self.api_key and self.api_secret:
-            logger.info(f"Credentials loaded for {exchange} (key length: {len(self.api_key)})")
+            log_info(f"Credentials loaded for {exchange} (key length: {len(self.api_key)})")
         else:
-            logger.warning(f"No credentials found for {exchange} - WebSocket will fail in PRODUCTION mode")
+            log_warn(f"No credentials found for {exchange} - WebSocket will fail in PRODUCTION mode")
 
-        logger.info(f"WebSocketDataService initialized (mode={mode})")
+        log_info(f"WebSocketDataService initialized (mode={mode})")
 
     def start(self) -> None:
         """
@@ -107,11 +112,11 @@ class WebSocketDataService:
         WebSocket connections without blocking the GUI thread.
         """
         if self._running:
-            logger.warning("WebSocket service already running")
+            log_warn("WebSocket service already running")
             return
 
         if self.mode == "DRY_RUN":
-            logger.info("DRY_RUN mode - WebSocket not started (using mock data)")
+            log_info("DRY_RUN mode - WebSocket not started (using mock data)")
             return
 
         self._running = True
@@ -120,7 +125,7 @@ class WebSocketDataService:
         self._loop_thread = threading.Thread(target=self._run_event_loop, daemon=True)
         self._loop_thread.start()
 
-        logger.info("✅ WebSocket service started in background")
+        log_info("✅ WebSocket service started in background")
 
     def _run_event_loop(self) -> None:
         """Run asyncio event loop in background thread."""
@@ -135,23 +140,27 @@ class WebSocketDataService:
             self._loop.run_forever()
 
         except Exception as e:
-            logger.error(f"Error in WebSocket event loop: {e}", exc_info=True)
+            log_error(f"Error in WebSocket event loop: {e}", exc_info=True)
         finally:
             if self._loop:
                 self._loop.close()
 
     async def _async_start(self) -> None:
-        """Initialize WebSocket client and monitors (async)."""
+        """Initialize WebSocket client and start monitors (async).
+
+        connect() with binanceusdm is instant (no REST pre-flight) — the
+        listen key is created lazily on the first watch_* call.  Monitor
+        startup failures (e.g., auth errors) are caught and logged.
+        """
         try:
-            # Initialize WebSocket client
             self.ws_client = BinanceWebSocketClient(
                 api_key=self.api_key,
                 api_secret=self.api_secret,
                 testnet=self.testnet,
             )
 
-            await self.ws_client.connect()
-            logger.info("WebSocket client connected")
+            await self.ws_client.connect()  # instant — no REST call
+            log_info("WebSocket client ready")
 
             # Initialize monitors
             self.position_monitor = PositionMonitor(self.ws_client, max_positions=5)
@@ -163,7 +172,8 @@ class WebSocketDataService:
             self.balance_monitor.add_callback(self._handle_balance_update)
             self.order_monitor.add_callback(self._handle_order_update)
 
-            # Start monitors
+            # Start monitors (these start watch_* tasks which make the first
+            # REST call to create the listen key on Binance)
             await self.position_monitor.start()
             await self.balance_monitor.start()
             await self.order_monitor.start()
@@ -171,10 +181,10 @@ class WebSocketDataService:
             # Start watching WebSocket streams
             await self.ws_client.start_watching_all()
 
-            logger.info("✅ All WebSocket monitors started")
+            log_info("✅ All WebSocket monitors started")
 
-        except Exception as e:
-            logger.error(f"Failed to start WebSocket monitors: {e}", exc_info=True)
+        except Exception as exc:
+            log_error(f"Failed to start WebSocket service: {exc}")
             self._running = False
 
     def stop(self) -> None:
@@ -190,7 +200,7 @@ class WebSocketDataService:
                 future = asyncio.run_coroutine_threadsafe(self._async_stop(), self._loop)
                 future.result(timeout=10.0)  # Increased timeout for cleanup
             except TimeoutError:
-                logger.warning("WebSocket cleanup timed out after 10s, forcing close")
+                log_warn("WebSocket cleanup timed out after 10s, forcing close")
                 # Force close ws_client if it exists
                 if self.ws_client:
                     try:
@@ -200,7 +210,7 @@ class WebSocketDataService:
                     except Exception:
                         pass  # Already tried our best
             except Exception as e:
-                logger.error(f"Error waiting for WebSocket cleanup: {e}")
+                log_error(f"Error waiting for WebSocket cleanup: {e}")
             finally:
                 # Ensure event loop is stopped
                 if self._loop and self._loop.is_running():
@@ -210,7 +220,7 @@ class WebSocketDataService:
         if self._loop_thread and self._loop_thread.is_alive():
             self._loop_thread.join(timeout=2.0)
 
-        logger.info("WebSocket service stopped")
+        log_info("WebSocket service stopped")
 
     async def _async_stop(self) -> None:
         """Stop WebSocket monitors and close connection (async)."""
@@ -224,10 +234,10 @@ class WebSocketDataService:
             if self.ws_client:
                 await self.ws_client.close()
 
-            logger.info("WebSocket monitors stopped")
+            log_info("WebSocket monitors stopped")
 
         except Exception as e:
-            logger.error(f"Error stopping WebSocket monitors: {e}")
+            log_error(f"Error stopping WebSocket monitors: {e}")
 
     # ==================== GUI Callback Registration ====================
 
@@ -239,7 +249,7 @@ class WebSocketDataService:
             callback: Function(PositionSnapshot) called on position update
         """
         self._position_callbacks.append(callback)
-        logger.debug(f"Registered position callback: {callback.__name__}")
+        log_debug(f"Registered position callback: {callback.__name__}")
 
     def on_balance_update(self, callback: Callable[[BalanceSnapshot], None]) -> None:
         """
@@ -249,7 +259,7 @@ class WebSocketDataService:
             callback: Function(BalanceSnapshot) called on balance update
         """
         self._balance_callbacks.append(callback)
-        logger.debug(f"Registered balance callback: {callback.__name__}")
+        log_debug(f"Registered balance callback: {callback.__name__}")
 
     def on_order_update(self, callback: Callable[[OrderSnapshot], None]) -> None:
         """
@@ -259,7 +269,7 @@ class WebSocketDataService:
             callback: Function(OrderSnapshot) called on order update
         """
         self._order_callbacks.append(callback)
-        logger.debug(f"Registered order callback: {callback.__name__}")
+        log_debug(f"Registered order callback: {callback.__name__}")
 
     def on_price_update(self, symbol: str, callback: Callable[[float], None]) -> None:
         """
@@ -273,7 +283,7 @@ class WebSocketDataService:
             self._price_callbacks[symbol] = []
 
         self._price_callbacks[symbol].append(callback)
-        logger.debug(f"Registered price callback for {symbol}: {callback.__name__}")
+        log_debug(f"Registered price callback for {symbol}: {callback.__name__}")
 
     # ==================== Internal Callbacks (WebSocket -> GUI) ====================
 
@@ -289,7 +299,7 @@ class WebSocketDataService:
             try:
                 callback(position)
             except Exception as e:
-                logger.error(f"Error in GUI position callback: {e}")
+                log_error(f"Error in GUI position callback: {e}")
 
     def _handle_balance_update(self, balance: BalanceSnapshot) -> None:
         """
@@ -303,7 +313,7 @@ class WebSocketDataService:
             try:
                 callback(balance)
             except Exception as e:
-                logger.error(f"Error in GUI balance callback: {e}")
+                log_error(f"Error in GUI balance callback: {e}")
 
     def _handle_order_update(self, order: OrderSnapshot) -> None:
         """
@@ -317,7 +327,7 @@ class WebSocketDataService:
             try:
                 callback(order)
             except Exception as e:
-                logger.error(f"Error in GUI order callback: {e}")
+                log_error(f"Error in GUI order callback: {e}")
 
         # Sync to DB if order is closed/canceled/rejected
         if order.status in ("closed", "canceled", "rejected"):
@@ -325,24 +335,60 @@ class WebSocketDataService:
                 from modules.auto_trade.execution.order_tagging import OrderTagger
 
                 if OrderTagger.is_programmatic_order_id(order.client_order_id):
-                    from modules.auto_trade.database import session_scope, update_order_status_by_client_id
+                    from modules.auto_trade.database import get_order_by_client_id, update_order_status_by_client_id
+                    from modules.auto_trade.monitoring.event_system import EventType
 
                     # Map WebSocket status to DB status
                     status_map: Dict[str, str] = {"closed": "CLOSED", "canceled": "CANCELLED", "rejected": "FAILED"}
                     db_status: str = status_map.get(order.status, "CLOSED")
+                    pnl_value: Optional[float] = order.realized_pnl
 
-                    with session_scope() as session:
-                        updated: bool = update_order_status_by_client_id(
-                            session=session,
-                            client_order_id=order.client_order_id,
-                            status=db_status,
-                            closed_at=order.last_update_timestamp,
-                            pnl=None,  # May be updated later from snapshot if available
+                    updated: bool = update_order_status_by_client_id(
+                        client_order_id=order.client_order_id,
+                        status=db_status,
+                        pnl=pnl_value,
+                    )
+                    if updated:
+                        log_info(f"WS sync: updated order {order.client_order_id} to {db_status}")
+
+                    if (
+                        db_status == "CLOSED"
+                        and self.event_bus
+                        and order.client_order_id not in self._published_closed_events
+                    ):
+                        db_order = get_order_by_client_id(order.client_order_id) or {}
+
+                        event_pnl: float
+                        if pnl_value is not None:
+                            event_pnl = float(pnl_value)
+                        else:
+                            try:
+                                event_pnl = float(db_order.get("pnl", 0.0) or 0.0)
+                            except (TypeError, ValueError):
+                                event_pnl = 0.0
+
+                        symbol = db_order.get("symbol") or order.symbol
+                        leverage = db_order.get("leverage")
+                        entry_price = db_order.get("entry_price")
+
+                        self.event_bus.publish(
+                            EventType.POSITION_CLOSED,
+                            {
+                                "symbol": symbol,
+                                "pnl": event_pnl,
+                                "is_profit": event_pnl >= 0,
+                                "exit_price": order.price,
+                                "entry_price": entry_price,
+                                "leverage": leverage,
+                                "duration_seconds": 0,
+                                "is_programmatic": True,
+                            },
+                            source="WebSocketDataService",
                         )
-                        if updated:
-                            logger.info(f"WS sync: updated order {order.client_order_id} to {db_status}")
+                        self._published_closed_events.add(order.client_order_id)
+                        log_info(f"WS recovery event published for {order.client_order_id}: pnl={event_pnl:+.2f}")
             except Exception as e:
-                logger.error(f"WS sync error for order {order.client_order_id}: {e}")
+                log_error(f"WS sync error for order {order.client_order_id}: {e}")
 
     # ==================== Synchronous API for GUI ====================
 

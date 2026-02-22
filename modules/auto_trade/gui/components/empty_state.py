@@ -1,4 +1,4 @@
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Callable, Optional
 
 import customtkinter as ctk
@@ -85,4 +85,4 @@ class EmptyState(ctk.CTkFrame):
             try:
                 self.action_callback()
             except Exception as e:
-                logging.error(f"Error in EmptyState action callback: {e}", exc_info=True)
+                log_error(f"Error in EmptyState action callback: {e}", exc_info=True)

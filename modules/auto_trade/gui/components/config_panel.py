@@ -24,6 +24,7 @@ class ConfigPanel(ctk.CTkFrame):
         self.mode = mode
         self.on_recovery_config_change = on_recovery_config_change
         self._editing_credentials = False
+        self._suppress_mode_notify = True
 
         # Title
         title = ctk.CTkLabel(self, text="⚙️ Configuration", font=("Arial", 16, "bold"))
@@ -38,6 +39,7 @@ class ConfigPanel(ctk.CTkFrame):
         self._create_signal_filters_tab()
         self._create_api_keys_tab()
         self._create_ui_preferences_tab()
+        self._suppress_mode_notify = False
 
     def _create_risk_settings_tab(self):
         """Create Risk Settings tab (Merged with TP/SL and Recovery)"""
@@ -822,7 +824,7 @@ class ConfigPanel(ctk.CTkFrame):
                     "Make sure you understand the risks involved.",
                 )
 
-            if self.on_settings_change:
+            if self.on_settings_change and not self._suppress_mode_notify:
                 self.on_settings_change("mode", mode)
 
         except Exception as e:
@@ -1007,6 +1009,7 @@ class ConfigPanel(ctk.CTkFrame):
 
         if "api" in settings:
             api = settings["api"]
+            self._suppress_mode_notify = True
             self.mode_var.set(api.get("mode", "DRY_RUN"))
             self.exchange_var.set(api.get("exchange", "Binance"))
             # SECURITY: Remove raw key/secret insertion
@@ -1015,6 +1018,7 @@ class ConfigPanel(ctk.CTkFrame):
             self._editing_credentials = False
             self._on_mode_change()
             self._refresh_credentials_display()
+            self._suppress_mode_notify = False
 
         if "tp_sl" in settings:
             tp_sl = settings["tp_sl"]

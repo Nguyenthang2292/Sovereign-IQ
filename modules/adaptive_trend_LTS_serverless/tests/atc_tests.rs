@@ -1,7 +1,8 @@
 use atc_serverless::{
     calculate_dema, calculate_diflen, calculate_ema, calculate_equity, calculate_hma,
     calculate_kama, calculate_layer1_signal, calculate_lsma, calculate_sma, calculate_wma,
-    compute_symbol_score, process_batch, ATCConfig, MAConfig, OHLCVData, Robustness, SymbolData,
+    compute_symbol_score, process_batch, ATCConfig, MAConfig, OHLCVData, Robustness, SignalType,
+    SignalParams, SymbolData,
 };
 use ndarray::Array1;
 use std::collections::HashMap;
@@ -118,10 +119,12 @@ fn test_ma_with_nan_values() {
     let arr = Array1::from(data);
     let ema = calculate_ema(arr.view(), 3);
 
-    // Should handle NaN gracefully
+    // Should handle NaN gracefully - verify output is reasonable
+    // EMA with NaN input may produce valid or NaN output depending on position
+    let has_valid_output = ema.iter().any(|&x| !x.is_nan());
     assert!(
-        !ema[9].is_nan() || ema[9].is_nan(),
-        "EMA should handle NaN values"
+        has_valid_output,
+        "EMA should produce some valid values even with NaN input"
     );
 }
 
@@ -240,11 +243,11 @@ fn test_diflen_too_small() {
     assert!(calculate_diflen(3, Robustness::Medium).is_none());
     assert!(calculate_diflen(4, Robustness::Medium).is_none());
     assert!(calculate_diflen(6, Robustness::Medium).is_none());
-    
+
     // Narrow requires minimum 5
     assert!(calculate_diflen(4, Robustness::Narrow).is_none());
     assert!(calculate_diflen(3, Robustness::Narrow).is_none());
-    
+
     // Wide requires minimum 8
     assert!(calculate_diflen(7, Robustness::Wide).is_none());
     assert!(calculate_diflen(6, Robustness::Wide).is_none());
@@ -267,13 +270,15 @@ fn test_layer1_signal_uptrend() {
 
     let (signal, equity) = calculate_layer1_signal(
         prices_arr.view(),
-        "EMA",
+        &atc_serverless::MAType::Ema,
         20,
-        0.02 / 1000.0,
-        0.03 / 100.0,
-        0,
-        0.25,
-        Robustness::Medium,
+        &SignalParams {
+            lambda_scaled: 0.02 / 1000.0,
+            decay_scaled: 0.03 / 100.0,
+            cutout: 0,
+            equity_floor: 0.25,
+            robustness: Robustness::Medium,
+        },
     );
 
     assert_eq!(signal.len(), 100);
@@ -293,13 +298,15 @@ fn test_layer1_signal_downtrend() {
 
     let (signal, equity) = calculate_layer1_signal(
         prices_arr.view(),
-        "EMA",
+        &atc_serverless::MAType::Ema,
         20,
-        0.02 / 1000.0,
-        0.03 / 100.0,
-        0,
-        0.25,
-        Robustness::Medium,
+        &SignalParams {
+            lambda_scaled: 0.02 / 1000.0,
+            decay_scaled: 0.03 / 100.0,
+            cutout: 0,
+            equity_floor: 0.25,
+            robustness: Robustness::Medium,
+        },
     );
 
     assert!(!equity.is_nan(), "Equity should not be NaN");
@@ -323,9 +330,9 @@ fn test_compute_symbol_score() {
         decay: 0.03,
         cutout: 0,
         equity_floor: 0.25,
-        robustness: "Medium".to_string(),
+        robustness: atc_serverless::Robustness::Medium,
         ma_configs: vec![MAConfig {
-            ma_type: "EMA".to_string(),
+            ma_type: atc_serverless::MAType::Ema,
             length: 20,
             weight: 1.0,
         }],
@@ -335,7 +342,9 @@ fn test_compute_symbol_score() {
 
     assert!(!score.is_nan(), "Score should not be NaN");
     assert!(
-        signal_type == "LONG" || signal_type == "SHORT" || signal_type == "NEUTRAL",
+        signal_type == SignalType::Long
+            || signal_type == SignalType::Short
+            || signal_type == SignalType::Neutral,
         "Signal type should be valid"
     );
 }
@@ -354,9 +363,9 @@ fn test_signal_type_classification() {
         decay: 0.03,
         cutout: 0,
         equity_floor: 0.25,
-        robustness: "Medium".to_string(),
+        robustness: atc_serverless::Robustness::Medium,
         ma_configs: vec![MAConfig {
-            ma_type: "EMA".to_string(),
+            ma_type: atc_serverless::MAType::Ema,
             length: 20,
             weight: 1.0,
         }],
@@ -367,11 +376,16 @@ fn test_signal_type_classification() {
 
     // Strong trends should produce non-neutral signals
     if uptrend_score > config.threshold {
-        assert_eq!(uptrend_type, "LONG", "Uptrend should produce LONG signal");
+        assert_eq!(
+            uptrend_type,
+            SignalType::Long,
+            "Uptrend should produce LONG signal"
+        );
     }
     if downtrend_score < -config.threshold {
         assert_eq!(
-            downtrend_type, "SHORT",
+            downtrend_type,
+            SignalType::Short,
             "Downtrend should produce SHORT signal"
         );
     }
@@ -385,12 +399,18 @@ fn test_signal_type_classification() {
 fn test_process_batch_single_symbol() {
     let mut timeframes = HashMap::new();
     let ohlcv = OHLCVData {
-        timestamp: (0..50).map(|i| i as i64).collect(),
-        open: vec![100.0; 50],
-        high: vec![101.0; 50],
-        low: vec![99.0; 50],
-        close: (0..50).map(|i| 100.0 + i as f64 * 0.5).collect(),
-        volume: vec![1000.0; 50],
+        timestamp: (0..50)
+            .map(|i| i as i64)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        open: vec![100.0; 50].into_boxed_slice(),
+        high: vec![101.0; 50].into_boxed_slice(),
+        low: vec![99.0; 50].into_boxed_slice(),
+        close: (0..50)
+            .map(|i| 100.0 + i as f64 * 0.5)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        volume: vec![1000.0; 50].into_boxed_slice(),
     };
     timeframes.insert("1h".to_string(), ohlcv);
 
@@ -412,15 +432,15 @@ fn test_process_batch_single_symbol() {
         decay: 0.03,
         cutout: 0,
         equity_floor: 0.25,
-        robustness: "Medium".to_string(),
+        robustness: atc_serverless::Robustness::Medium,
         ma_configs: vec![MAConfig {
-            ma_type: "EMA".to_string(),
+            ma_type: atc_serverless::MAType::Ema,
             length: 10,
             weight: 1.0,
         }],
     };
 
-    let (results, errors) = process_batch(vec![symbol_data], config);
+    let (results, errors) = process_batch(vec![symbol_data], config, None);
 
     assert_eq!(results.len(), 1, "Should have one result");
     assert_eq!(errors.len(), 0, "Should have no errors");
@@ -433,12 +453,18 @@ fn test_process_batch_multiple_symbols() {
         .map(|i| {
             let mut timeframes = HashMap::new();
             let ohlcv = OHLCVData {
-                timestamp: (0..50).map(|j| j as i64).collect(),
-                open: vec![100.0; 50],
-                high: vec![101.0; 50],
-                low: vec![99.0; 50],
-                close: (0..50).map(|j| 100.0 + j as f64 * 0.5).collect(),
-                volume: vec![1000.0; 50],
+                timestamp: (0..50)
+                    .map(|j| j as i64)
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice(),
+                open: vec![100.0; 50].into_boxed_slice(),
+                high: vec![101.0; 50].into_boxed_slice(),
+                low: vec![99.0; 50].into_boxed_slice(),
+                close: (0..50)
+                    .map(|j| 100.0 + j as f64 * 0.5)
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice(),
+                volume: vec![1000.0; 50].into_boxed_slice(),
             };
             timeframes.insert("1h".to_string(), ohlcv);
 
@@ -462,15 +488,15 @@ fn test_process_batch_multiple_symbols() {
         decay: 0.03,
         cutout: 0,
         equity_floor: 0.25,
-        robustness: "Medium".to_string(),
+        robustness: atc_serverless::Robustness::Medium,
         ma_configs: vec![MAConfig {
-            ma_type: "EMA".to_string(),
+            ma_type: atc_serverless::MAType::Ema,
             length: 10,
             weight: 1.0,
         }],
     };
 
-    let (results, errors) = process_batch(symbols, config);
+    let (results, errors) = process_batch(symbols, config, None);
 
     assert_eq!(results.len(), 5, "Should have 5 results");
     assert_eq!(errors.len(), 0, "Should have no errors");
@@ -481,24 +507,30 @@ fn test_process_batch_with_error_recovery() {
     // Create one valid and one invalid symbol
     let mut timeframes_valid = HashMap::new();
     let ohlcv_valid = OHLCVData {
-        timestamp: (0..50).map(|i| i as i64).collect(),
-        open: vec![100.0; 50],
-        high: vec![101.0; 50],
-        low: vec![99.0; 50],
-        close: (0..50).map(|i| 100.0 + i as f64 * 0.5).collect(),
-        volume: vec![1000.0; 50],
+        timestamp: (0..50)
+            .map(|i| i as i64)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        open: vec![100.0; 50].into_boxed_slice(),
+        high: vec![101.0; 50].into_boxed_slice(),
+        low: vec![99.0; 50].into_boxed_slice(),
+        close: (0..50)
+            .map(|i| 100.0 + i as f64 * 0.5)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        volume: vec![1000.0; 50].into_boxed_slice(),
     };
     timeframes_valid.insert("1h".to_string(), ohlcv_valid);
 
     // Invalid symbol with insufficient data
     let mut timeframes_invalid = HashMap::new();
     let ohlcv_invalid = OHLCVData {
-        timestamp: vec![1, 2],
-        open: vec![100.0, 101.0],
-        high: vec![101.0, 102.0],
-        low: vec![99.0, 100.0],
-        close: vec![100.0, 101.0],
-        volume: vec![1000.0, 1000.0],
+        timestamp: vec![1, 2].into_boxed_slice(),
+        open: vec![100.0, 101.0].into_boxed_slice(),
+        high: vec![101.0, 102.0].into_boxed_slice(),
+        low: vec![99.0, 100.0].into_boxed_slice(),
+        close: vec![100.0, 101.0].into_boxed_slice(),
+        volume: vec![1000.0, 1000.0].into_boxed_slice(),
     };
     timeframes_invalid.insert("1h".to_string(), ohlcv_invalid);
 
@@ -526,19 +558,22 @@ fn test_process_batch_with_error_recovery() {
         decay: 0.03,
         cutout: 0,
         equity_floor: 0.25,
-        robustness: "Medium".to_string(),
+        robustness: atc_serverless::Robustness::Medium,
         ma_configs: vec![MAConfig {
-            ma_type: "EMA".to_string(),
+            ma_type: atc_serverless::MAType::Ema,
             length: 30,
             weight: 1.0,
         }],
     };
 
     let symbol_count = symbols.len();
-    let (results, _errors) = process_batch(symbols, config);
+    let (results, _errors) = process_batch(symbols, config, None);
 
     // Should still get results even if some fail
-    assert!(results.len() <= symbol_count, "Should handle batch processing");
+    assert!(
+        results.len() <= symbol_count,
+        "Should handle batch processing"
+    );
     // May have errors but should not panic
 }
 
@@ -559,12 +594,27 @@ fn test_end_to_end_pipeline() {
         .collect();
 
     let ohlcv = OHLCVData {
-        timestamp: (0..200).map(|i| i as i64).collect(),
-        open: close_prices.iter().map(|&c| c - 0.5).collect(),
-        high: close_prices.iter().map(|&c| c + 1.0).collect(),
-        low: close_prices.iter().map(|&c| c - 1.0).collect(),
-        close: close_prices,
-        volume: vec![1000.0; 200],
+        timestamp: (0..200)
+            .map(|i| i as i64)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        open: close_prices
+            .iter()
+            .map(|&c| c - 0.5)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        high: close_prices
+            .iter()
+            .map(|&c| c + 1.0)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        low: close_prices
+            .iter()
+            .map(|&c| c - 1.0)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        close: close_prices.into_boxed_slice(),
+        volume: vec![1000.0; 200].into_boxed_slice(),
     };
     timeframes.insert("1h".to_string(), ohlcv.clone());
     timeframes.insert("4h".to_string(), ohlcv);
@@ -588,27 +638,27 @@ fn test_end_to_end_pipeline() {
         decay: 0.03,
         cutout: 0,
         equity_floor: 0.25,
-        robustness: "Medium".to_string(),
+        robustness: atc_serverless::Robustness::Medium,
         ma_configs: vec![
             MAConfig {
-                ma_type: "EMA".to_string(),
+                ma_type: atc_serverless::MAType::Ema,
                 length: 12,
                 weight: 1.0,
             },
             MAConfig {
-                ma_type: "HMA".to_string(),
+                ma_type: atc_serverless::MAType::Hma,
                 length: 12,
                 weight: 1.0,
             },
             MAConfig {
-                ma_type: "WMA".to_string(),
+                ma_type: atc_serverless::MAType::Wma,
                 length: 12,
                 weight: 1.0,
             },
         ],
     };
 
-    let (results, errors) = process_batch(vec![symbol_data], config);
+    let (results, errors) = process_batch(vec![symbol_data], config, None);
 
     assert_eq!(results.len(), 1, "Should produce one result");
     assert_eq!(errors.len(), 0, "Should have no errors");
@@ -617,9 +667,9 @@ fn test_end_to_end_pipeline() {
     assert_eq!(result.symbol, "BTCUSDT");
     assert!(!result.score.is_nan(), "Score should not be NaN");
     assert!(
-        result.signal_type == "LONG"
-            || result.signal_type == "SHORT"
-            || result.signal_type == "NEUTRAL",
+        result.signal_type == SignalType::Long
+            || result.signal_type == SignalType::Short
+            || result.signal_type == SignalType::Neutral,
         "Signal type should be valid"
     );
 }
@@ -628,7 +678,14 @@ fn test_end_to_end_pipeline() {
 fn test_all_ma_types() {
     let prices: Vec<f64> = (0..100).map(|i| 100.0 + i as f64 * 0.5).collect();
 
-    let ma_types = vec!["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"];
+    let ma_types = vec![
+        atc_serverless::MAType::Ema,
+        atc_serverless::MAType::Hma,
+        atc_serverless::MAType::Wma,
+        atc_serverless::MAType::Dema,
+        atc_serverless::MAType::Lsma,
+        atc_serverless::MAType::Kama,
+    ];
 
     for ma_type in ma_types {
         let config = ATCConfig {
@@ -640,9 +697,9 @@ fn test_all_ma_types() {
             decay: 0.03,
             cutout: 0,
             equity_floor: 0.25,
-            robustness: "Medium".to_string(),
+            robustness: atc_serverless::Robustness::Medium,
             ma_configs: vec![MAConfig {
-                ma_type: ma_type.to_string(),
+                ma_type: ma_type.clone(),
                 length: 20,
                 weight: 1.0,
             }],
@@ -652,9 +709,167 @@ fn test_all_ma_types() {
 
         assert!(!score.is_nan(), "Score should not be NaN for {}", ma_type);
         assert!(
-            signal_type == "LONG" || signal_type == "SHORT" || signal_type == "NEUTRAL",
+            signal_type == SignalType::Long
+                || signal_type == SignalType::Short
+                || signal_type == SignalType::Neutral,
             "Signal type should be valid for {}",
             ma_type
         );
     }
+}
+
+#[test]
+fn test_aggregate_all_long_timeframes() {
+    let mut config_weights = HashMap::new();
+    config_weights.insert("1h".to_string(), 0.5);
+    config_weights.insert("4h".to_string(), 0.5);
+
+    let config = ATCConfig {
+        weights: config_weights,
+        threshold: 0.3,
+        min_signal: 0.0,
+        use_signal_strength: true,
+        lambda_param: 0.02,
+        decay: 0.03,
+        cutout: 0,
+        equity_floor: 0.25,
+        robustness: atc_serverless::Robustness::Medium,
+        ma_configs: vec![],
+    };
+
+    let mut tf_scores = HashMap::new();
+    tf_scores.insert("1h".to_string(), 0.8);
+    tf_scores.insert("4h".to_string(), 0.9);
+
+    let mut tf_details = HashMap::new();
+    tf_details.insert("1h".to_string(), atc_serverless::SignalType::Long);
+    tf_details.insert("4h".to_string(), atc_serverless::SignalType::Long);
+
+    let result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+        "BTC".to_string(),
+        tf_scores,
+        tf_details,
+        &config,
+    );
+
+    assert_eq!(result.signal_type, SignalType::Long);
+    assert!(result.score > 0.0);
+}
+
+#[test]
+fn test_aggregate_mixed_signals() {
+    let mut config_weights = HashMap::new();
+    config_weights.insert("1h".to_string(), 0.8);
+    config_weights.insert("4h".to_string(), 0.2);
+
+    let config = ATCConfig {
+        weights: config_weights.clone(),
+        threshold: 0.1,
+        min_signal: 0.0,
+        use_signal_strength: true,
+        lambda_param: 0.02,
+        decay: 0.03,
+        cutout: 0,
+        equity_floor: 0.25,
+        robustness: atc_serverless::Robustness::Medium,
+        ma_configs: vec![],
+    };
+
+    let mut tf_scores = HashMap::new();
+    tf_scores.insert("1h".to_string(), 0.9);
+    tf_scores.insert("4h".to_string(), -0.9);
+
+    let mut tf_details = HashMap::new();
+    tf_details.insert("1h".to_string(), atc_serverless::SignalType::Long);
+    tf_details.insert("4h".to_string(), atc_serverless::SignalType::Short);
+
+    let result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+        "BTC".to_string(),
+        tf_scores,
+        tf_details,
+        &config,
+    );
+
+    assert_eq!(
+        result.signal_type,
+        SignalType::Long,
+        "Heavily weighted 1h LONG should override slightly weighted 4h SHORT"
+    );
+}
+
+#[test]
+fn test_aggregate_no_matching_weights() {
+    let mut config_weights = HashMap::new();
+    config_weights.insert("1d".to_string(), 1.0);
+
+    let config = ATCConfig {
+        weights: config_weights,
+        threshold: 0.3,
+        min_signal: 0.0,
+        use_signal_strength: true,
+        lambda_param: 0.02,
+        decay: 0.03,
+        cutout: 0,
+        equity_floor: 0.25,
+        robustness: atc_serverless::Robustness::Medium,
+        ma_configs: vec![],
+    };
+
+    let mut tf_scores = HashMap::new();
+    tf_scores.insert("1h".to_string(), 0.9);
+
+    let mut tf_details = HashMap::new();
+    tf_details.insert("1h".to_string(), atc_serverless::SignalType::Long);
+
+    let result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+        "BTC".to_string(),
+        tf_scores,
+        tf_details,
+        &config,
+    );
+
+    assert_eq!(
+        result.signal_type,
+        SignalType::Neutral,
+        "Should be NEUTRAL when matching weights are missing"
+    );
+}
+
+#[test]
+fn test_aggregate_use_signal_strength_false() {
+    let mut config_weights = HashMap::new();
+    config_weights.insert("1h".to_string(), 0.5);
+    config_weights.insert("4h".to_string(), 0.5);
+
+    let config = ATCConfig {
+        weights: config_weights,
+        threshold: 0.3,
+        min_signal: 0.0,
+        use_signal_strength: false, // << Tested path
+        lambda_param: 0.02,
+        decay: 0.03,
+        cutout: 0,
+        equity_floor: 0.25,
+        robustness: atc_serverless::Robustness::Medium,
+        ma_configs: vec![],
+    };
+
+    let mut tf_scores = HashMap::new();
+    tf_scores.insert("1h".to_string(), 0.2); // Weak
+    tf_scores.insert("4h".to_string(), 0.2); // Weak
+
+    let mut tf_details = HashMap::new();
+    tf_details.insert("1h".to_string(), atc_serverless::SignalType::Long);
+    tf_details.insert("4h".to_string(), atc_serverless::SignalType::Long);
+
+    let result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+        "BTC".to_string(),
+        tf_scores,
+        tf_details,
+        &config,
+    );
+
+    // If signal strength were true, score would be 0.2 and < threshold 0.3 -> NEUTRAL
+    // Since signal strength is false, score is combined weight 0.5+0.5=1.0 > threshold -> LONG
+    assert_eq!(result.signal_type, SignalType::Long);
 }

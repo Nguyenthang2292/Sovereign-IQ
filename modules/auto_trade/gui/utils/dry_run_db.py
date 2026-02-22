@@ -1,66 +1,58 @@
-import sqlite3
+"""
+Dry Run Database Module
+
+Simple JSON-backed database for managing dry-run (simulated) positions.
+Used when the application is in DRY_RUN mode to simulate trading.
+Replaces the legacy SQLite implementation.
+"""
+
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 
 class DryRunDB:
-    """
-    SQLite database for managing dry-run (simulated) positions.
+    """JSON-based database for managing dry-run positions."""
 
-    Used when the application is in DRY_RUN mode to simulate trading
-    without actually executing trades on an exchange.
-    """
-
-    def __init__(self, db_path: Optional[Union[str, Path]] = None):
+    def __init__(self, db_path: Optional[Union[str, Path]] = None) -> None:
         """
         Initialize DryRunDB.
 
         Args:
-            db_path: Path to the SQLite database file. If None, uses default
-                     location at modules/auto_trade/data/dry_run_positions.db
+            db_path: Path to the JSON file. Defaults to dry_run_positions.json
         """
         if db_path is None:
-            # Default path: modules/auto_trade/data/dry_run_positions.db
-            self.db_path = Path(__file__).parent.parent.parent / "data" / "dry_run_positions.db"
+            # Default to data directory relative to project root
+            base_dir = Path(__file__).parent.parent.parent
+            self.db_path = base_dir / "data" / "dry_run_positions.json"
         else:
-            # Convert string to Path if needed
-            self.db_path = Path(db_path) if isinstance(db_path, str) else db_path
+            self.db_path = Path(db_path)
 
         self._ensure_db_directory()
         self._create_tables()
 
     def _ensure_db_directory(self) -> None:
-        """Ensure the database directory exists."""
-        try:
-            self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        except OSError as e:
-            print(f"Warning: Could not create database directory: {e}")
+        """Ensure the directory exists."""
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
     def _create_tables(self) -> None:
-        """Create database tables if they don't exist."""
+        """Create JSON file if it doesn't exist."""
+        if not self.db_path.exists():
+            with open(self.db_path, "w", encoding="utf-8") as f:
+                json.dump({"positions": []}, f)
+
+    def _load_data(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Load data from JSON."""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS dry_run_positions (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        symbol TEXT NOT NULL,
-                        side TEXT NOT NULL,
-                        entry_price REAL NOT NULL,
-                        current_price REAL,
-                        size REAL NOT NULL,
-                        leverage INTEGER NOT NULL,
-                        take_profit REAL,
-                        stop_loss REAL,
-                        unrealized_pnl REAL DEFAULT 0.0,
-                        status TEXT DEFAULT 'OPEN',
-                        entry_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        close_time TIMESTAMP
-                    )
-                """)
-                conn.commit()
-        except sqlite3.Error as e:
-            print(f"Error creating database tables: {e}")
+            with open(self.db_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return {"positions": []}
+
+    def _save_data(self, data: Dict[str, List[Dict[str, Any]]]) -> None:
+        """Save data to JSON."""
+        with open(self.db_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
 
     def insert_position(
         self,
@@ -72,98 +64,52 @@ class DryRunDB:
         leverage: int,
         take_profit: Optional[float] = None,
         stop_loss: Optional[float] = None,
-    ) -> Optional[int]:
-        """
-        Insert a new position into the database.
+    ) -> bool:
+        """Insert a new position."""
+        data = self._load_data()
 
-        Args:
-            symbol: Trading symbol (e.g., "BTC/USDT")
-            side: Position side ("LONG" or "SHORT")
-            entry_price: Entry price
-            current_price: Current market price
-            size: Position size
-            leverage: Leverage used
-            take_profit: Take profit price (optional)
-            stop_loss: Stop loss price (optional)
+        # Calculate unrealized PNL
+        if side == "LONG":
+            unrealized_pnl = (current_price - entry_price) * size
+        else:
+            unrealized_pnl = (entry_price - current_price) * size
 
-        Returns:
-            Position ID if successful, None if failed
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    INSERT INTO dry_run_positions
-                    (symbol, side, entry_price, current_price, size, leverage, take_profit, stop_loss, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')
-                """,
-                    (symbol, side, entry_price, current_price, size, leverage, take_profit, stop_loss),
-                )
-                conn.commit()
-                return cursor.lastrowid
-        except sqlite3.Error as e:
-            print(f"Error inserting position: {e}")
-            return None
+        new_id = 1
+        if data["positions"]:
+            new_id = max(p.get("id", 0) for p in data["positions"]) + 1
+
+        position = {
+            "id": new_id,
+            "symbol": symbol,
+            "side": side,
+            "entry_price": entry_price,
+            "current_price": current_price,
+            "size": size,
+            "leverage": leverage,
+            "unrealized_pnl": unrealized_pnl,
+            "take_profit": take_profit,
+            "stop_loss": stop_loss,
+            "status": "OPEN",
+            "close_price": None,
+            "realized_pnl": None,
+        }
+
+        data["positions"].append(position)
+        self._save_data(data)
+        return True
 
     def get_open_positions(self) -> List[Dict[str, Any]]:
-        """
-        Get all open positions.
-
-        Returns:
-            List of position dictionaries
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT * FROM dry_run_positions WHERE status = 'OPEN'
-                """)
-                rows = cursor.fetchall()
-                return [dict(row) for row in rows]
-        except sqlite3.Error as e:
-            print(f"Error fetching open positions: {e}")
-            return []
+        """Get all open positions."""
+        data = self._load_data()
+        return [p for p in data["positions"] if p.get("status") == "OPEN"]
 
     def get_open_positions_by_symbol(self, symbol: str, side: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Get open positions for a specific symbol.
-
-        Args:
-            symbol: Trading symbol to filter by
-            side: Optional side filter ("LONG" or "SHORT")
-
-        Returns:
-            List of position dictionaries
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-
-                if side:
-                    cursor.execute(
-                        """
-                        SELECT * FROM dry_run_positions
-                        WHERE symbol = ? AND side = ? AND status = 'OPEN'
-                    """,
-                        (symbol, side),
-                    )
-                else:
-                    cursor.execute(
-                        """
-                        SELECT * FROM dry_run_positions
-                        WHERE symbol = ? AND status = 'OPEN'
-                    """,
-                        (symbol,),
-                    )
-
-                rows = cursor.fetchall()
-                return [dict(row) for row in rows]
-        except sqlite3.Error as e:
-            print(f"Error fetching positions by symbol: {e}")
-            return []
+        """Get open positions for a specific symbol."""
+        open_positions = self.get_open_positions()
+        filtered = [p for p in open_positions if p.get("symbol") == symbol]
+        if side:
+            filtered = [p for p in filtered if p.get("side") == side]
+        return filtered
 
     def update_position(
         self,
@@ -174,165 +120,70 @@ class DryRunDB:
         stop_loss: Optional[float] = None,
         status: Optional[str] = None,
     ) -> bool:
-        """
-        Update an existing position.
+        """Update an existing position."""
+        data = self._load_data()
+        updated = False
 
-        Args:
-            position_id: ID of the position to update
-            current_price: New current price (optional)
-            unrealized_pnl: New unrealized PnL (optional)
-            take_profit: New take profit price (optional)
-            stop_loss: New stop loss price (optional)
-            status: New status (optional, e.g., "CLOSED")
+        for p in data["positions"]:
+            if p.get("id") == position_id:
+                if current_price is not None:
+                    p["current_price"] = current_price
+                if unrealized_pnl is not None:
+                    p["unrealized_pnl"] = unrealized_pnl
+                if take_profit is not None:
+                    p["take_profit"] = take_profit
+                if stop_loss is not None:
+                    p["stop_loss"] = stop_loss
+                if status is not None:
+                    p["status"] = status
+                updated = True
+                break
 
-        Returns:
-            True if update was successful, False otherwise
-        """
-        updates: List[str] = []
-        values: List[Any] = []
+        if updated:
+            self._save_data(data)
 
-        if current_price is not None:
-            updates.append("current_price = ?")
-            values.append(current_price)
-        if unrealized_pnl is not None:
-            updates.append("unrealized_pnl = ?")
-            values.append(unrealized_pnl)
-        if take_profit is not None:
-            updates.append("take_profit = ?")
-            values.append(take_profit)
-        if stop_loss is not None:
-            updates.append("stop_loss = ?")
-            values.append(stop_loss)
-        if status is not None:
-            updates.append("status = ?")
-            values.append(status)
-            if status == "CLOSED":
-                updates.append("close_time = CURRENT_TIMESTAMP")
-
-        if not updates:
-            return False
-
-        try:
-            values.append(position_id)
-            query: str = f"UPDATE dry_run_positions SET {', '.join(updates)} WHERE id = ?"
-
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, values)
-                conn.commit()
-                return cursor.rowcount > 0
-        except sqlite3.Error as e:
-            print(f"Error updating position {position_id}: {e}")
-            return False
+        return updated
 
     def close_position(self, position_id: int, close_price: float, realized_pnl: float) -> bool:
-        """
-        Close a position.
+        """Close a position."""
+        data = self._load_data()
+        updated = False
 
-        Args:
-            position_id: ID of the position to close
-            close_price: Price at which the position was closed
-            realized_pnl: Realized profit/loss
+        for p in data["positions"]:
+            if p.get("id") == position_id and p.get("status") == "OPEN":
+                p["status"] = "CLOSED"
+                p["close_price"] = close_price
+                p["realized_pnl"] = realized_pnl
+                updated = True
+                break
 
-        Returns:
-            True if successful, False otherwise
-        """
-        return self.update_position(
-            position_id=position_id,
-            current_price=close_price,
-            unrealized_pnl=realized_pnl,
-            status="CLOSED"
-        )
+        if updated:
+            self._save_data(data)
+
+        return updated
 
     def get_position_by_id(self, position_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get a specific position by ID.
-
-        Args:
-            position_id: ID of the position to fetch
-
-        Returns:
-            Position dictionary if found, None otherwise
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT * FROM dry_run_positions WHERE id = ?",
-                    (position_id,)
-                )
-                row = cursor.fetchone()
-                return dict(row) if row else None
-        except sqlite3.Error as e:
-            print(f"Error fetching position {position_id}: {e}")
-            return None
+        """Get a specific position by ID."""
+        data = self._load_data()
+        for p in data["positions"]:
+            if p.get("id") == position_id:
+                return p
+        return None
 
     def clear_all_positions(self) -> bool:
-        """
-        Clear all positions from the database.
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM dry_run_positions")
-                conn.commit()
-                return True
-        except sqlite3.Error as e:
-            print(f"Error clearing positions: {e}")
-            return False
+        """Clear all positions."""
+        self._save_data({"positions": []})
+        return True
 
     def get_closed_positions(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """
-        Get closed positions.
-
-        Args:
-            limit: Maximum number of positions to return
-
-        Returns:
-            List of closed position dictionaries
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT * FROM dry_run_positions
-                    WHERE status = 'CLOSED'
-                    ORDER BY close_time DESC
-                    LIMIT ?
-                    """,
-                    (limit,)
-                )
-                rows = cursor.fetchall()
-                return [dict(row) for row in rows]
-        except sqlite3.Error as e:
-            print(f"Error fetching closed positions: {e}")
-            return []
+        """Get closed positions."""
+        data = self._load_data()
+        closed = [p for p in data["positions"] if p.get("status") == "CLOSED"]
+        # Sort by id descending
+        closed.sort(key=lambda x: x.get("id", 0), reverse=True)
+        return closed[:limit]
 
     def get_total_pnl(self) -> float:
-        """
-        Get total realized PnL from all closed positions.
-
-        Returns:
-            Total PnL value
-        """
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT COALESCE(SUM(unrealized_pnl), 0.0)
-                    FROM dry_run_positions
-                    WHERE status = 'CLOSED'
-                    """
-                )
-                result = cursor.fetchone()
-                return float(result[0]) if result else 0.0
-        except sqlite3.Error as e:
-            print(f"Error calculating total PnL: {e}")
-            return 0.0
+        """Get total realized PnL from all closed positions."""
+        closed = self.get_closed_positions(limit=999999)
+        return sum(p.get("realized_pnl", 0.0) for p in closed if p.get("realized_pnl") is not None)

@@ -14,7 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Import app - project root is added to path in conftest, so use absolute import
-from web.app import app
+from web.apps.gemini_analyzer.backend.main import app
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def client():
 @pytest.fixture
 def log_manager(tmp_path):
     """Create LogFileManager instance for testing."""
-    from web.utils.log_manager import LogFileManager
+    from web.shared.utils.log_manager import LogFileManager
 
     manager = LogFileManager(logs_dir=str(tmp_path))
     return manager
@@ -45,7 +45,7 @@ class TestGetLogsEndpoint:
         log_manager.write_log(session_id, "Line 1", command_type)
         log_manager.write_log(session_id, "Line 2", command_type)
 
-        with patch("web.api.logs.get_log_manager", return_value=log_manager):
+        with patch("web.apps.gemini_analyzer.backend.api.logs.get_log_manager", return_value=log_manager):
             response = client.get(f"/api/logs/{session_id}?command_type={command_type}")
 
             assert response.status_code == 200
@@ -74,7 +74,7 @@ class TestGetLogsEndpoint:
         log_manager.write_log(session_id, "Line 2", command_type)
         log_manager.write_log(session_id, "Line 3", command_type)
 
-        with patch("web.api.logs.get_log_manager", return_value=log_manager):
+        with patch("web.apps.gemini_analyzer.backend.api.logs.get_log_manager", return_value=log_manager):
             response = client.get(f"/api/logs/{session_id}?offset={first_offset}&command_type={command_type}")
 
             assert response.status_code == 200
@@ -89,7 +89,7 @@ class TestGetLogsEndpoint:
         session_id = "nonexistent-session"
         command_type = "scan"
 
-        with patch("web.api.logs.get_log_manager", return_value=log_manager):
+        with patch("web.apps.gemini_analyzer.backend.api.logs.get_log_manager", return_value=log_manager):
             response = client.get(f"/api/logs/{session_id}?command_type={command_type}")
 
             assert response.status_code == 200
@@ -110,7 +110,7 @@ class TestGetLogsEndpoint:
         log_manager.write_log(session_id, "Scan log", "scan")
         log_manager.write_log(session_id, "Analyze log", "analyze")
 
-        with patch("web.api.logs.get_log_manager", return_value=log_manager):
+        with patch("web.apps.gemini_analyzer.backend.api.logs.get_log_manager", return_value=log_manager):
             # Get scan logs
             scan_response = client.get(f"/api/logs/{session_id}?command_type=scan")
             assert scan_response.status_code == 200
@@ -130,7 +130,7 @@ class TestGetLogsEndpoint:
         session_id = "test-session-123"
         command_type = "scan"
 
-        with patch("web.api.logs.get_log_manager", return_value=log_manager):
+        with patch("web.apps.gemini_analyzer.backend.api.logs.get_log_manager", return_value=log_manager):
             # FastAPI should validate offset >= 0
             response = client.get(f"/api/logs/{session_id}?offset=-1&command_type={command_type}")
             assert response.status_code == 422  # Validation error
@@ -147,7 +147,7 @@ class TestGetLogsEndpoint:
 
         file_size = log_manager.get_log_size(session_id, command_type)
 
-        with patch("web.api.logs.get_log_manager", return_value=log_manager):
+        with patch("web.apps.gemini_analyzer.backend.api.logs.get_log_manager", return_value=log_manager):
             # Read from beginning
             response = client.get(f"/api/logs/{session_id}?offset=0&command_type={command_type}")
             assert response.status_code == 200
@@ -168,7 +168,7 @@ class TestGetLogsEndpoint:
         mock_manager = MagicMock()
         mock_manager.read_log.side_effect = Exception("Test error")
 
-        with patch("web.api.logs.get_log_manager", return_value=mock_manager):
+        with patch("web.apps.gemini_analyzer.backend.api.logs.get_log_manager", return_value=mock_manager):
             response = client.get(f"/api/logs/{session_id}?command_type={command_type}")
 
             assert response.status_code == 500
@@ -176,7 +176,11 @@ class TestGetLogsEndpoint:
             assert "detail" in data
             assert data["detail"]  # Check that detail is non-empty
             # Verify error is sanitized (should contain translated message)
-            assert "Error reading logs" in data["detail"] or "Lỗi khi đọc logs" in data["detail"]
+            assert (
+                "Error reading logs" in data["detail"]
+                or "Lỗi khi đọc logs" in data["detail"]
+                or "errors.logReadError" in data["detail"]
+            )
 
     def test_get_logs_error_sanitization(self, client):
         """Test that errors with sensitive info are sanitized."""
@@ -188,7 +192,7 @@ class TestGetLogsEndpoint:
         error_with_path = FileNotFoundError("C:\\Users\\secret\\file.txt")
         mock_manager.read_log.side_effect = error_with_path
 
-        with patch("web.api.logs.get_log_manager", return_value=mock_manager):
+        with patch("web.apps.gemini_analyzer.backend.api.logs.get_log_manager", return_value=mock_manager):
             response = client.get(f"/api/logs/{session_id}?command_type={command_type}")
 
             assert response.status_code == 500
@@ -199,4 +203,9 @@ class TestGetLogsEndpoint:
             assert "Users" not in detail
             assert "secret" not in detail
             # Should contain sanitized error message
-            assert "File not found" in detail or "Error reading logs" in detail
+            assert (
+                "File not found" in detail
+                or "Error reading logs" in detail
+                or "errors.fileNotFound" in detail
+                or "errors.logReadError" in detail
+            )

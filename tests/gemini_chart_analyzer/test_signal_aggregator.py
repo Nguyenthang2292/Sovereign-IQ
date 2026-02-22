@@ -14,7 +14,7 @@ import math
 
 import pytest
 
-from config.gemini_chart_analyzer import TIMEFRAME_WEIGHTS as DEFAULT_TIMEFRAME_WEIGHTS
+from config import TIMEFRAME_WEIGHTS as DEFAULT_TIMEFRAME_WEIGHTS
 from modules.gemini_chart_analyzer.core.aggregators.signal_aggregator import SignalAggregator
 
 

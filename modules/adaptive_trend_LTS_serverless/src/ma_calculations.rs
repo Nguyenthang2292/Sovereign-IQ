@@ -1,8 +1,7 @@
-use ndarray::{Array1, ArrayView1};
-use rayon::prelude::*;
+use ndarray::{s, Array1, ArrayView1};
 
 /// Calculate EMA (Exponential Moving Average) internally with SIMD optimizations.
-#[allow(dead_code)]
+#[cfg(not(feature = "simd"))]
 fn calculate_ema_simple(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut ema = Array1::<f64>::from_elem(n, f64::NAN);
@@ -65,7 +64,6 @@ pub fn calculate_ema(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> 
 }
 
 /// Calculate WMA (Weighted Moving Average)
-#[allow(dead_code)]
 pub fn calculate_wma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut wma = Array1::<f64>::from_elem(n, f64::NAN);
@@ -77,32 +75,15 @@ pub fn calculate_wma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> 
     // Pre-calculate denominator for efficiency
     let denominator = (length * (length + 1)) as f64 / 2.0;
 
-    // Threshold for parallel processing
-    const PARALLEL_THRESHOLD: usize = 2000;
-    const PARALLEL_LENGTH_THRESHOLD: usize = 20;
-    let use_parallel = n > PARALLEL_THRESHOLD && length > PARALLEL_LENGTH_THRESHOLD;
-
-    // Optimized nested loop: use iterators for better vectorization
+    // Sequential processing - inner-loop Rayon was removed as it caused overhead
+    // for typical MA lengths (20-50 elements)
     for i in (length - 1)..n {
-        let weighted_sum = if use_parallel {
-            // Parallel weighted sum calculation for large arrays
-            (0..length)
-                .into_par_iter()
-                .map(|j| {
-                    let weight = (length - j) as f64;
-                    prices_arr[i - j] * weight
-                })
-                .sum::<f64>()
-        } else {
-            // Sequential optimized: use iterator for SIMD vectorization
-            (0..length)
-                .map(|j| {
-                    let weight = (length - j) as f64;
-                    prices_arr[i - j] * weight
-                })
-                .sum::<f64>()
-        };
-
+        let weighted_sum: f64 = (0..length)
+            .map(|j| {
+                let weight = (length - j) as f64;
+                prices_arr[i - j] * weight
+            })
+            .sum();
         wma[i] = weighted_sum / denominator;
     }
 
@@ -110,7 +91,7 @@ pub fn calculate_wma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> 
 }
 
 /// Calculate DEMA (Double Exponential Moving Average)
-#[allow(dead_code)]
+#[cfg(not(feature = "simd"))]
 pub fn calculate_dema(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     // Pass 1: Standard EMA (SMA Init)
     let ema1 = calculate_ema(prices_arr, length);
@@ -122,8 +103,13 @@ pub fn calculate_dema(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64>
     2.0 * &ema1 - &ema2
 }
 
+/// Calculate DEMA (Double Exponential Moving Average)
+#[cfg(feature = "simd")]
+pub fn calculate_dema(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
+    crate::ma_simd::calculate_dema_simd(prices_arr, length)
+}
+
 /// Calculate LSMA (Least Squares Moving Average)
-#[allow(dead_code)]
 pub fn calculate_lsma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut lsma = Array1::<f64>::from_elem(n, f64::NAN);
@@ -176,6 +162,7 @@ pub fn calculate_lsma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64>
 }
 
 /// Calculate SMA (Simple Moving Average)
+/// Uses sliding window algorithm for O(n) complexity instead of O(n*length)
 pub fn calculate_sma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut sma = Array1::<f64>::from_elem(n, f64::NAN);
@@ -186,28 +173,20 @@ pub fn calculate_sma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> 
 
     let length_f64 = length as f64;
 
-    const PARALLEL_THRESHOLD: usize = 2000;
-    const PARALLEL_LENGTH_THRESHOLD: usize = 30;
-    let use_parallel = n > PARALLEL_THRESHOLD && length > PARALLEL_LENGTH_THRESHOLD;
+    // Calculate first window sum
+    let mut window_sum: f64 = prices_arr.slice(s![0..length]).sum();
+    sma[length - 1] = window_sum / length_f64;
 
-    for i in (length - 1)..n {
-        let sum = if use_parallel {
-            (0..length)
-                .into_par_iter()
-                .map(|j| prices_arr[i - j])
-                .sum::<f64>()
-        } else {
-            (0..length).map(|j| prices_arr[i - j]).sum::<f64>()
-        };
-
-        sma[i] = sum / length_f64;
+    // Sliding window: O(n) instead of O(n*length)
+    for i in length..n {
+        window_sum += prices_arr[i] - prices_arr[i - length];
+        sma[i] = window_sum / length_f64;
     }
 
     sma
 }
 
 /// Calculate HMA (Hull Moving Average)
-#[allow(dead_code)]
 pub fn calculate_hma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
 
@@ -243,8 +222,7 @@ pub fn calculate_hma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> 
 /// * `length` - Period for ER calculation
 ///
 /// # Returns
-/// Array1<f64> containing KAMA values
-#[allow(dead_code)]
+/// `Array1<f64>` containing KAMA values
 pub fn calculate_kama(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut kama = Array1::<f64>::from_elem(n, f64::NAN);

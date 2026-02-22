@@ -1,0 +1,35 @@
+# ATC Serverless Module - Local Cache & Artifacts
+
+# Cache directories
+.cache/
+**/.cache/
+cache/
+
+# Rust build artifacts
+target/
+target/debug/
+target/release/
+target/debug/deps/
+target/release/deps/
+
+# Benchmark outputs
+benchmarks/results/
+
+# Test outputs
+test_output/
+
+# Benchmark outputs
+benchmarks/results/
+
+# Test outputs
+test_output/
+test_results/
+
+# Local development
+*.tmp
+*.bak
+*.swp
+*~
+
+test_data_120.json
+test_data_500.json

@@ -7,9 +7,6 @@ Aggregate signals from multiple timeframes using weighted aggregation.
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
-# Import timeframe weights from config (use backward-compatible import)
-from config import TIMEFRAME_WEIGHTS
-
 
 # ============================================================================
 # Signal Aggregator Class
@@ -33,7 +30,7 @@ class SignalAggregator:
             timeframe_weights: Dict mapping timeframe -> weight (if None, use TIMEFRAME_WEIGHTS)
             confidence_threshold: Threshold for determining clear signals (default: 0.5)
         """
-        self.timeframe_weights = timeframe_weights or TIMEFRAME_WEIGHTS.copy()
+        self.timeframe_weights = timeframe_weights or {"15m": 0.2, "30m": 0.3, "1h": 0.5}
         self.confidence_threshold = confidence_threshold
 
         # Normalize weights so total = 1.0

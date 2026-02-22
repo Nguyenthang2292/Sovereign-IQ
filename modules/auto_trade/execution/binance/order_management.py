@@ -23,6 +23,56 @@ def _log_sl_error(symbol: str, stop_loss_price: Optional[float], e: Exception) -
         log_error(f"Failed to modify SL: {e}")
 
 
+def _classify_order_kind(order: dict, entry_price: float = 0.0, side: str = "") -> str:
+    """
+    Classify a conditional order as 'tp', 'sl', or 'unknown'.
+
+    Strategy:
+    1. Try explicit type string first (TAKE_PROFIT_MARKET, STOP_MARKET, etc.).
+    2. When CCXT normalises the type to 'market' / '', fall back to price comparison:
+       - LONG:  stopPrice > entry → TP,  stopPrice <= entry → SL
+       - SHORT: stopPrice < entry → TP,  stopPrice >= entry → SL
+
+    Args:
+        order:       CCXT order dict.
+        entry_price: Position entry price (for fallback classification).
+        side:        'long' or 'short' (for fallback classification).
+
+    Returns:
+        'tp' | 'sl' | 'unknown'
+    """
+    info = order.get("info") or {}
+    if not isinstance(info, dict):
+        info = {}
+
+    otype = (info.get("type") or info.get("origType") or order.get("type") or "").upper()
+
+    if "TAKE_PROFIT" in otype:
+        return "tp"
+    if ("STOP" in otype or "LOSS" in otype) and "TAKE_PROFIT" not in otype:
+        return "sl"
+
+    # ── Fallback: type is ambiguous (CCXT normalises to 'MARKET') ───────────
+    sp_raw = order.get("stopPrice") or order.get("triggerPrice") or info.get("stopPrice") or info.get("triggerPrice")
+    if not sp_raw:
+        return "unknown"  # no stopPrice → not a conditional order at all
+
+    try:
+        sp = float(sp_raw)
+    except (TypeError, ValueError):
+        return "unknown"
+
+    if entry_price > 0 and side:
+        s = side.lower()
+        if s == "long":
+            return "tp" if sp > entry_price else "sl"
+        if s == "short":
+            return "tp" if sp < entry_price else "sl"
+
+    # No context — can't distinguish safely; flag as 'unknown' so caller skips
+    return "unknown"
+
+
 def _get_mark_price_from_exchange(exchange: ccxt.binance, symbol: str) -> Optional[float]:
     """Fetch current mark price for symbol (futures). Returns None if unavailable."""
     try:
@@ -46,15 +96,92 @@ def _ccxt_futures_symbol(exchange: ccxt.binance, symbol: str) -> str:
     """
     if not symbol:
         return symbol
+
+    try:
+        if not getattr(exchange, "markets", None):
+            exchange.load_markets()
+    except Exception:
+        pass
+
     try:
         market = exchange.market(symbol)
         if market and market.get("symbol"):
             return str(market["symbol"])
     except Exception:
         pass
+
+    normalized_id = symbol.replace("/", "").split(":")[0].upper()
+    try:
+        by_id = getattr(exchange, "markets_by_id", {}) or {}
+        market_by_id = by_id.get(normalized_id)
+        if isinstance(market_by_id, list) and market_by_id:
+            first_market = market_by_id[0]
+            if isinstance(first_market, dict) and first_market.get("symbol"):
+                return str(first_market["symbol"])
+        if isinstance(market_by_id, dict) and market_by_id.get("symbol"):
+            return str(market_by_id["symbol"])
+    except Exception:
+        pass
+
     if ":" not in symbol and "/" in symbol:
         return f"{symbol}:USDT"
+
+    if ":" not in symbol and "/" not in symbol:
+        for quote in ("USDT", "BUSD", "USDC", "FDUSD", "BTC", "ETH", "BNB"):
+            if normalized_id.endswith(quote) and len(normalized_id) > len(quote):
+                base = normalized_id[: -len(quote)]
+                return f"{base}/{quote}:{quote}"
+
     return symbol
+
+
+def _fetch_all_open_orders(exchange: ccxt.binance, symbol: str) -> list:
+    """Fetch BOTH Basic AND Conditional (stop) open orders for a symbol.
+
+    Binance Futures separates orders into two categories:
+      - Basic orders:       regular limit/market orders
+      - Conditional orders: STOP_MARKET, TAKE_PROFIT_MARKET, STOP_LOSS, etc.
+
+    CCXT's ``fetch_open_orders()`` by default only returns Basic orders.
+    To get Conditional orders, we must pass ``params={'stop': True}``.
+
+    Failure to fetch both means TP/SL detection fails, causing the
+    EnsureTPSL job to flood Binance with duplicate conditional orders.
+
+    Args:
+        exchange: CCXT Binance exchange instance.
+        symbol: Trading symbol in CCXT format (e.g. 'BAND/USDT:USDT').
+
+    Returns:
+        Combined list of all open orders (basic + conditional), deduplicated by id.
+    """
+    all_orders: list = []
+    seen_ids: set = set()
+
+    # 1. Basic orders (default)
+    try:
+        basic_orders = exchange.fetch_open_orders(symbol)
+        for o in basic_orders:
+            oid = o.get("id")
+            if oid and oid not in seen_ids:
+                seen_ids.add(oid)
+                all_orders.append(o)
+    except Exception as e:
+        log_warn(f"_fetch_all_open_orders: basic query failed for {symbol}: {e}")
+
+    # 2. Conditional (stop) orders - the critical missing piece
+    try:
+        stop_orders = exchange.fetch_open_orders(symbol, params={"stop": True})
+        for o in stop_orders:
+            oid = o.get("id")
+            if oid and oid not in seen_ids:
+                seen_ids.add(oid)
+                all_orders.append(o)
+    except Exception as e:
+        # Some CCXT versions may not support the 'stop' param - log but don't crash
+        log_warn(f"_fetch_all_open_orders: conditional query failed for {symbol}: {e}")
+
+    return all_orders
 
 
 class OrderManagement:
@@ -123,20 +250,29 @@ class OrderManagement:
                 amt: float = float(position.get("info", {}).get("positionAmt", 0))
                 side = "long" if amt > 0 else "short"
 
+            entry_price_tp: float = 0.0
+            try:
+                entry_price_tp = float(position.get("entryPrice") or position.get("info", {}).get("entryPrice", 0) or 0)
+            except (TypeError, ValueError):
+                pass
+
             tp_side: str = "sell" if side == "long" else "buy"
 
             ccxt_symbol_tp: str = _ccxt_futures_symbol(self.exchange, symbol)
 
-            # 2. Cancel existing TP orders
-            open_orders: list = self.exchange.fetch_open_orders(ccxt_symbol_tp)
+            # 2. Cancel existing TP orders only (NOT SL orders).
+            # Use _classify_order_kind so CCXT-normalised 'market' typed orders
+            # are classified correctly via entry_price+side comparison.
+            open_orders: list = _fetch_all_open_orders(self.exchange, ccxt_symbol_tp)
             cancelled_count: int = 0
+            log_info(
+                f"Cancelling existing TP orders for {symbol} (side={side}, entry={entry_price_tp}, "
+                f"{len(open_orders)} total open orders)"
+            )
 
             for order in open_orders:
-                info_tp = order.get("info") or {}
-                order_type_tp = (
-                    (info_tp.get("type") or info_tp.get("origType") or order.get("type") or "")
-                ).lower()
-                if "take_profit" in order_type_tp:
+                kind = _classify_order_kind(order, entry_price_tp, side)
+                if kind == "tp":
                     try:
                         self.exchange.cancel_order(order["id"], ccxt_symbol_tp)
                         cancelled_count += 1
@@ -152,12 +288,13 @@ class OrderManagement:
                     dict,
                     self.exchange.create_order(
                         symbol=ccxt_symbol_tp,
-                        type=cast(Any, "take_profit_market"),
+                        type=cast(Any, "TAKE_PROFIT_MARKET"),
                         side=tp_side,
                         amount=amount,
                         params={
                             "stopPrice": take_profit_price,
                             "reduceOnly": True,
+                            "workingType": "MARK_PRICE",
                         },
                     ),
                 )
@@ -213,21 +350,30 @@ class OrderManagement:
                 amt: float = float(position.get("info", {}).get("positionAmt", 0))
                 side = "long" if amt > 0 else "short"
 
+            entry_price_sl: float = 0.0
+            try:
+                entry_price_sl = float(position.get("entryPrice") or position.get("info", {}).get("entryPrice", 0) or 0)
+            except (TypeError, ValueError):
+                pass
+
             sl_side: str = "sell" if side == "long" else "buy"
 
             # Use CCXT futures symbol so we find and cancel existing conditional orders (avoid duplicates)
             ccxt_symbol: str = _ccxt_futures_symbol(self.exchange, symbol)
 
-            # 2. Cancel existing SL orders
-            open_orders: list = self.exchange.fetch_open_orders(ccxt_symbol)
+            # 2. Cancel existing SL orders only (NOT TP orders).
+            # Use _classify_order_kind so CCXT-normalised 'market' typed orders
+            # are classified correctly via entry_price+side comparison.
+            open_orders: list = _fetch_all_open_orders(self.exchange, ccxt_symbol)
             cancelled_count: int = 0
+            log_info(
+                f"Cancelling existing SL orders for {symbol} (side={side}, entry={entry_price_sl}, "
+                f"{len(open_orders)} total open orders)"
+            )
 
             for order in open_orders:
-                info_sl = order.get("info") or {}
-                order_type_sl = (
-                    (info_sl.get("type") or info_sl.get("origType") or order.get("type") or "")
-                ).lower()
-                if ("stop" in order_type_sl or "loss" in order_type_sl) and "take_profit" not in order_type_sl:
+                kind = _classify_order_kind(order, entry_price_sl, side)
+                if kind == "sl":
                     try:
                         self.exchange.cancel_order(order["id"], ccxt_symbol)
                         cancelled_count += 1
@@ -257,12 +403,13 @@ class OrderManagement:
                         dict,
                         self.exchange.create_order(
                             symbol=ccxt_symbol,
-                            type=cast(Any, "stop_market"),
+                            type=cast(Any, "STOP_MARKET"),
                             side=sl_side,
                             amount=amount,
                             params={
                                 "stopPrice": stop_loss_price,
                                 "reduceOnly": True,
+                                "workingType": "MARK_PRICE",
                             },
                         ),
                     )
@@ -327,7 +474,7 @@ class OrderManagement:
         try:
             log_info(f"Cancelling all open orders for {symbol}")
             ccxt_sym: str = _ccxt_futures_symbol(self.exchange, symbol)
-            open_orders: list = self.exchange.fetch_open_orders(ccxt_sym)
+            open_orders: list = _fetch_all_open_orders(self.exchange, ccxt_sym)
 
             cancelled_count: int = 0
             for order in open_orders:

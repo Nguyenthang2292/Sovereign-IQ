@@ -7,9 +7,9 @@ This package provides:
 - Data fetching functions for multiple symbols and timeframes
 """
 
-from .fetchers import fetch_ohlcv_data_dict
 from .transformation import dataframe_to_close_series
 from .validation import OHLCV_REQUIRED_COLUMNS, validate_ohlcv_input, validate_price_series
+from .fetchers import fetch_ohlcv_data_dict
 
 __all__ = [
     # Validation

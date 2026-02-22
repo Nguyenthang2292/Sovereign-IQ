@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 6840486be3e7c9847fe83cd44cf42c79a22cbf0bd8f42590caae48d4e777f48a # shrinks to length = 10, lambda_param = 0.0, decay = 0.027072249752582135
+cc 68d4bad6a55c8e8b5be8a1c4b923f842a32af40e37dfa448227ec279ee2a1253 # shrinks to length = 1, ma_type = "EMA"
+cc 4b5c163f55eb4860826280f71ae81b24bd0c3ac64afddd66c15b605ff90527b5 # shrinks to length = 12, ma_type = "HMA"

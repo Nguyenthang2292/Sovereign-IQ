@@ -1,5 +1,7 @@
 # Gemini Chart Analyzer
 
+<!-- markdownlint-disable MD009 MD022 MD024 MD031 MD032 MD034 MD040 MD051 MD060 -->
+
 Module phân tích biểu đồ kỹ thuật bằng Google Gemini AI. Module này cho phép tạo biểu đồ từ dữ liệu OHLCV với các indicators (MA, RSI, MACD, Bollinger Bands) và gửi lên Google Gemini để nhận phân tích chi tiết với tín hiệu LONG/SHORT kèm Entry, Stop Loss và Take Profit.
 
 ## Workflow
@@ -69,6 +71,15 @@ Hoặc sử dụng biến môi trường:
 ```bash
 export GEMINI_API_KEY='your-api-key-here'
 ```
+
+### 3. Cấu hình model Gemini (mặc định mới nhất)
+
+Module hiện ưu tiên 2 phiên bản model mới nhất sau (giữ nguyên tên):
+
+- `gemini-3.1-pro-preview`
+- `gemini-3.1-pro-preview-customtools`
+
+Trong code nội bộ, hệ thống dùng định dạng có tiền tố `models/` khi gọi API.
 
 ## Sử dụng
 

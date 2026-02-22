@@ -1,20 +1,14 @@
 """Signals Section Component for Database Panel."""
 
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import uuid
 from typing import Callable
 
 import customtkinter as ctk
 
-from modules.auto_trade.database import (
-    get_recent_signals,
-    get_signal_performance_stats,
-    save_signal,
-    session_scope,
-)
+from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 
-logger = logging.getLogger(__name__)
 
 
 class SignalsSection:
@@ -63,26 +57,25 @@ class SignalsSection:
         )
 
     def _create_test_signal(self):
-        """Create a test signal."""
+        """Create a test signal via RepositoryContext."""
         symbol = self.signal_symbol.get()
         try:
             confidence = float(self.signal_confidence.get())
             if not (0 <= confidence <= 1):
                 raise ValueError("Confidence must be between 0 and 1")
 
-            with session_scope() as session:
-                signal_data = {
-                    "correlation_id": f"SIG_{uuid.uuid4().hex[:8]}",
-                    "symbol": symbol,
-                    "signal_type": "LONG",
-                    "confidence": confidence,
-                    "executed": False,
-                }
+            ctx = RepositoryContext.from_env()
+            signal_data = {
+                "correlation_id": f"SIG_{uuid.uuid4().hex[:8]}",
+                "symbol": symbol,
+                "signal_type": "LONG",
+                "confidence": confidence,
+                "executed": False,
+            }
+            ctx.signals.save_signal(signal_data)
 
-                save_signal(session, **signal_data)
-
-                self.log_callback(f"Created test signal for {symbol}", "SUCCESS")
-                self.refresh_callback()
+            self.log_callback(f"Created test signal for {symbol}", "SUCCESS")
+            self.refresh_callback()
 
         except ValueError as ve:
             self.log_callback(str(ve), "WARNING")
@@ -90,35 +83,82 @@ class SignalsSection:
             self.log_callback(f"Failed to create test signal: {e}", "ERROR")
 
     def _get_recent_signals(self):
-        """Get recent signals."""
+        """Get recent signals via RepositoryContext."""
         try:
-            with session_scope() as session:
-                signals = get_recent_signals(session, limit=50)
+            ctx = RepositoryContext.from_env()
+            signals = ctx.signals.get_recent_signals(limit=50)
 
-                output = "Recent Signals:\n"
-                output += "-" * 50 + "\n"
-                for sig in signals:
+            output = "Recent Signals:\n"
+            output += "-" * 50 + "\n"
+            for sig in signals:
+                if isinstance(sig, dict):
+                    output += (
+                        f"{sig.get('created_at', '')} | {sig.get('symbol')} | "
+                        f"{sig.get('signal_type')} | Conf: {sig.get('confidence')}\n"
+                    )
+                else:
                     output += f"{sig.created_at} | {sig.symbol} | {sig.signal_type} | Conf: {sig.confidence}\n"
 
-                self._show_in_data_viewer(output)
-                self.log_callback("Retrieved recent signals", "INFO")
+            self._show_in_data_viewer(output)
+            self.log_callback("Retrieved recent signals", "INFO")
 
         except Exception as e:
             self.log_callback(f"Failed to get recent signals: {e}", "ERROR")
 
     def _get_signal_stats(self):
-        """Get signal performance statistics."""
+        """Get signal performance statistics via RepositoryContext."""
         try:
-            with session_scope() as session:
-                stats = get_signal_performance_stats(session, days=30)
+            ctx = RepositoryContext.from_env()
+            signals = ctx.signals.get_recent_signals(limit=99999)
 
-                output = "Signal Performance (30d):\n"
-                output += "=" * 30 + "\n"
-                for key, value in stats.items():
-                    output += f"{key.replace('_', ' ').title()}: {value}\n"
+            # Aggregate in Python (backend-agnostic)
+            from datetime import datetime, timedelta, timezone
 
-                self._show_in_data_viewer(output)
-                self.log_callback("Retrieved signal stats", "INFO")
+            cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
+            total = len(signals)
+            executed = 0
+            recent = 0
+            confidence_sum = 0.0
+
+            for sig in signals:
+                if isinstance(sig, dict):
+                    conf = float(sig.get("confidence") or 0)
+                    exc = sig.get("executed", False)
+                    created_raw = sig.get("created_at", "")
+                else:
+                    conf = float(getattr(sig, "confidence", 0) or 0)
+                    exc = getattr(sig, "executed", False)
+                    created_raw = getattr(sig, "created_at", "")
+
+                confidence_sum += conf
+                if exc:
+                    executed += 1
+                try:
+                    if isinstance(created_raw, str):
+                        dt = datetime.fromisoformat(created_raw.replace("Z", "+00:00"))
+                    else:
+                        dt = created_raw
+                    if dt and dt >= cutoff:
+                        recent += 1
+                except Exception:
+                    pass
+
+            avg_conf = (confidence_sum / total) if total > 0 else 0.0
+            stats = {
+                "total_signals_all_time": total,
+                "signals_last_30d": recent,
+                "executed_signals": executed,
+                "avg_confidence": f"{avg_conf:.4f}",
+            }
+
+            output = "Signal Performance (30d):\n"
+            output += "=" * 30 + "\n"
+            for key, value in stats.items():
+                output += f"{key.replace('_', ' ').title()}: {value}\n"
+
+            self._show_in_data_viewer(output)
+            self.log_callback("Retrieved signal stats", "INFO")
 
         except Exception as e:
             self.log_callback(f"Failed to get signal stats: {e}", "ERROR")

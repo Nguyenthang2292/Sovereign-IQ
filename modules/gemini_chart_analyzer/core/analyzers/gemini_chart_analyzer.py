@@ -6,6 +6,7 @@ Send a chart image to Google Gemini for analysis and receive LONG/SHORT signals 
 
 import os
 import time
+from pathlib import Path
 from typing import List, Optional
 
 import PIL.Image
@@ -15,15 +16,15 @@ from PIL.Image import Image as PILImage
 # Note: There may be a conflict with other google packages, so try direct import first
 try:
     # Try importing google.genai directly first (to avoid namespace collisions)
-    import google.genai as genai
+    import google.genai as genai  # type: ignore[import-untyped]  # pyright: ignore[reportMissingTypeStubs]
 except ImportError as e1:
     try:
         # Fallback: from google import genai
-        from google import genai
+        from google import genai  # type: ignore[import-untyped]  # pyright: ignore[reportMissingTypeStubs]
     except ImportError as e2:
         try:
             # Fallback: google-generativeai (legacy package)
-            import google.generativeai as genai  # pyright: ignore[reportMissingImports]
+            import google.generativeai as genai  # type: ignore[import-untyped]  # pyright: ignore[reportMissingTypeStubs]
         except ImportError as e3:
             raise ImportError(
                 f"Unable to import Google Generative AI. "
@@ -57,10 +58,10 @@ from .components.token_limit import (
 def select_best_model(available_models: Optional[List[str]] = None) -> str:
     """Choose highest priority Gemini model from available list."""
     if available_models is None:
-        return GeminiModelType.FLASH_3_PREVIEW.name
+        return GeminiModelType.PRO_31_PREVIEW.name
 
     if len(available_models) == 0:
-        return GeminiModelType.FLASH_25.name
+        return GeminiModelType.PRO_31_PREVIEW_CUSTOMTOOLS.name
 
     available_model_types: List[GeminiModelType] = []
     for model_name in available_models:
@@ -107,6 +108,9 @@ def validate_image(image_path: str, config: Optional[ImageValidationConfig] = No
 class GeminiChartAnalyzer:
     """Analyze chart images using Google Gemini AI."""
 
+    MAX_RETRIES: int = 3
+    RETRY_DELAY: int = 1  # seconds
+
     def __init__(self, api_key: Optional[str] = None, image_config: Optional[ImageValidationConfig] = None):
         """
         Initialize GeminiChartAnalyzer.
@@ -115,6 +119,9 @@ class GeminiChartAnalyzer:
             api_key: Google Gemini API key (if None, will load from config)
             image_config: Image validation configuration (optional)
         """
+        if api_key is None:
+            api_key = os.getenv("GEMINI_API_KEY")
+
         if api_key is None:
             try:
                 from config.config_api import get_gemini_api_key
@@ -146,9 +153,9 @@ class GeminiChartAnalyzer:
                 ]
                 # Sort to prioritize models using the same logic as select_best_model
                 # This ensures consistency between sorting and selection
-            except Exception:
+            except Exception as e:
                 # If unable to list models, will use default via helper
-                log_error("Failed to list available Gemini models, falling back to default model")
+                log_error(f"Failed to list available Gemini models: {e}, falling back to default model")
 
             # Store available models for fallback filtering
             self._available_models = available_models
@@ -179,10 +186,10 @@ class GeminiChartAnalyzer:
                     self.model = genai.GenerativeModel(model_for_legacy)  # type: ignore
                     # Store the model name for fallback logic
                     self.model_name = selected_model  # Keep the format with 'models/' prefix
-                except Exception:
+                except Exception as e:
                     # Log exception and context before falling back
                     log_error(
-                        f"Failed to initialize flash model '{model_for_legacy}' for legacy API. "
+                        f"Failed to initialize flash model '{model_for_legacy}' for legacy API: {e}. "
                         f"Falling back to 'gemini-2.5-pro'"
                     )
                     # Fall back to pro if flash is not available
@@ -198,6 +205,10 @@ class GeminiChartAnalyzer:
             raise AttributeError("genai module is missing Client, configure, or GenerativeModel")
 
         log_success("Successfully connected to the Google Gemini API")
+
+    def validate_image(self, image_path: str) -> tuple[bool, Optional[str]]:
+        """Validate image file using analyzer's configured validation rules."""
+        return validate_image(image_path, self.image_config)
 
     def _resolve_current_model(self) -> Optional[str]:
         """
@@ -260,9 +271,9 @@ class GeminiChartAnalyzer:
         Raises:
             Exception: If all retries and fallback models are exhausted
         """
-        max_retries = 3
-        retry_delay = 1  # seconds
-        last_error = None
+        max_retries = self.MAX_RETRIES
+        retry_delay = self.RETRY_DELAY  # seconds
+        last_error: Optional[GeminiAPIError] = None
         response = None
 
         # Get current model and fallback models (filtered to only available ones)
@@ -387,7 +398,9 @@ class GeminiChartAnalyzer:
                                 f"Max retries ({max_retries}) reached with model {model_identifier}: {error_message}. "
                                 f"All models have been tried"
                             )
-                            raise last_error
+                            if last_error is not None:
+                                raise last_error
+                            raise GeminiAPIError("Failed after retries with no captured exception")
 
             if response is not None:
                 break  # Success, exit model loop
@@ -483,9 +496,9 @@ class GeminiChartAnalyzer:
 
             return result
 
-        except Exception:
+        except Exception as e:
             log_error(f"Error while analyzing chart {symbol}")
-            raise GeminiAnalysisError(f"Failed to analyze chart {symbol} on {timeframe}")
+            raise GeminiAnalysisError(f"Failed to analyze chart {symbol} on {timeframe}") from e
 
     def _get_prompt(self, symbol: str, timeframe: str, prompt_type: str, custom_prompt: Optional[str]) -> str:
         """Generate prompt for Gemini."""
@@ -493,73 +506,26 @@ class GeminiChartAnalyzer:
         if prompt_type == "custom" and custom_prompt:
             return custom_prompt
 
+        prompts_dir = Path(__file__).parent.parent / "prompts"
+
         if prompt_type == "detailed":
-            return (
-                f"""Bạn là một chuyên gia phân tích kỹ thuật tài chính cao cấp. """
-                f"""Nhiệm vụ của bạn là nhận diện các mẫu hình giá, """
-                f"""các vùng hỗ trợ/kháng cự và các chỉ báo kỹ thuật """
-                f"""trên hình ảnh biểu đồ được cung cấp.
-
-Biểu đồ này là của {symbol} trên khung thời gian {timeframe}.
-
-Hãy phân tích biểu đồ và phản hồi theo cấu trúc sau:
-
-1. **Xu hướng chính**: Mô tả xu hướng hiện tại (tăng, giảm, hoặc đi ngang) và độ mạnh của xu hướng.
-
-2. **Các mẫu hình nhận diện được**:
-    - Các mẫu hình nến (candlestick patterns) quan trọng
-    - Các mẫu hình giá (chart patterns) như triangle, head and shoulders, double top/bottom, etc.
-    - Các vùng hỗ trợ và kháng cự quan trọng
-
-3. **Phân tích Indicators**:
-    - RSI: Xác định vùng overbought (>70) hoặc oversold (<30), tìm phân kỳ nếu có
-    - MACD: Phân tích tín hiệu giao cắt và histogram
-    - Moving Averages: Xác định vị trí giá so với các MA (20, 50, 200)
-    - Bollinger Bands: Xác định vùng giá có thể bật lại hoặc breakout
-    - Volume: Phân tích volume để xác nhận xu hướng
-
-4. **Tín hiệu giao dịch**:
-    - Signal: LONG/SHORT/NONE
-    - Confidence: mức độ tin cậy (0.0-1.0)
-    - Entry: giá vào lệnh
-    - Stop Loss: giá cắt lỗ
-    - Take Profit: giá chốt lời
-
-Trả lời theo format JSON:
-{{
-    "trend": "mô tả xu hướng",
-    "patterns": ["mẫu hình 1", "mẫu hình 2"],
-    "support_resistance": {{
-        "support": [giá hỗ trợ 1, giá hỗ trợ 2],
-        "resistance": [giá kháng cự 1, giá kháng cự 2]
-    }},
-    "indicators": {{
-        "rsi": {{"value": giá trị, "signal": "tín hiệu"}},
-        "macd": {{"value": giá trị, "signal": "tín hiệu"}},
-        "ma": {{"ma20": giá trị, "ma50": giá trị, "ma200": giá trị}},
-        "bb": {{"upper": giá trị, "middle": giá trị, "lower": giá}},
-        "volume": "phân tích volume"
-    }},
-    "signal": "LONG/SHORT/NONE",
-    "confidence": 0.xx,
-    "entry": giá,
-    "stop_loss": giá,
-    "take_profit": giá
-}}
-"""
-            )
+            prompt_file = prompts_dir / "detailed.txt"
         elif prompt_type == "simple":
-            return f"""Hãy phân tích biểu đồ {symbol} khung {timeframe} này.
-
-Cho tôi biết:
-1. Giá đang nằm trong mô hình gì?
-2. Có dấu hiệu phân kỳ RSI nào không?
-3. Hãy khoanh vùng các khu vực thanh khoản (Liquidity) quan trọng.
-4. Đưa ra tín hiệu LONG hoặc SHORT với Entry, Stop Loss và Take Profit nếu có cơ hội giao dịch."""
-
+            prompt_file = prompts_dir / "simple.txt"
+        elif prompt_type == "batch":
+            prompt_file = prompts_dir / "batch.txt"
         else:
             # Default prompt
+            prompt_file = prompts_dir / "default.txt"
+
+        try:
+            with open(prompt_file, "r", encoding="utf-8") as f:
+                prompt_template = f.read()
+        except FileNotFoundError:
+            log_error(f"Prompt file not found: {prompt_file}")
             return (
-                f"""Phân tích biểu đồ {symbol} {timeframe} và đưa ra tín hiệu giao dịch """
-                f"""với Entry, Stop Loss, Take Profit."""
+                f"Phân tích biểu đồ {symbol} {timeframe} và đưa ra tín hiệu giao dịch "
+                "với Entry, Stop Loss, Take Profit."
             )
+
+        return prompt_template.replace("{symbol}", symbol).replace("{timeframe}", timeframe)

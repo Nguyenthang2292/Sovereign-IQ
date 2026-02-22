@@ -118,9 +118,10 @@ class TestGeminiChartAnalyzerInit:
     @patch("modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai")
     def test_init_no_api_key_raises_error(self, mock_genai):
         """Test initialization without API key raises error."""
-        with patch("config.config_api.GEMINI_API_KEY", None):
-            with pytest.raises(ValueError, match="GEMINI_API_KEY not provided"):
-                GeminiChartAnalyzer()
+        with patch("os.getenv", return_value=None):
+            with patch("config.config_api.get_gemini_api_key", return_value=None):
+                with pytest.raises(ValueError, match="GEMINI_API_KEY not provided"):
+                    GeminiChartAnalyzer()
 
     @patch("modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai")
     def test_init_empty_api_key_raises_error(self, mock_genai):

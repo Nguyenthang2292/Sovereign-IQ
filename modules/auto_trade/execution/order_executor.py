@@ -8,12 +8,16 @@ Resolves credentials from env when not passed.
 import os
 from typing import Any, Dict, Literal, Optional
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from modules.auto_trade.core.signal_selector import FinalSignal
 from modules.auto_trade.execution.binance_client import BinanceClient
 from modules.auto_trade.execution.order_builder import OrderTicket
 from modules.auto_trade.execution.order_manager import OrderManager
+from modules.auto_trade.security.secret_string import SecretString
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 
 class OrderExecutor:
@@ -30,17 +34,34 @@ class OrderExecutor:
         api_secret: Optional[str] = None,
         testnet: Optional[bool] = None,
         dry_run: bool = False,
+        recovery_manager: Optional[Any] = None,
     ):
-        self._api_key = api_key or os.getenv("BINANCE_API_KEY", "")
-        self._api_secret = api_secret or os.getenv("BINANCE_API_SECRET", "")
-        self._testnet = (
-            testnet
-            if testnet is not None
-            else os.getenv("BINANCE_TESTNET", "false").lower() == "true"
-        )
+        resolved_api_key = api_key if api_key is not None else (os.getenv("BINANCE_API_KEY", "") or "")
+        resolved_api_secret = api_secret if api_secret is not None else (os.getenv("BINANCE_API_SECRET", "") or "")
+        self._api_key = SecretString(resolved_api_key)
+        self._api_secret = SecretString(resolved_api_secret)
+        self._testnet = testnet if testnet is not None else os.getenv("BINANCE_TESTNET", "false").lower() == "true"
         self._dry_run = dry_run
+        self._recovery_manager = recovery_manager
 
-    def execute_from_signal(self, signal_dict: Dict[str, Any], tp_sl_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        self._client = BinanceClient(
+            api_key=self._api_key.get_secret_value(),
+            api_secret=self._api_secret.get_secret_value(),
+            testnet=self._testnet,
+            dry_run=self._dry_run,
+        )
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
+    def _fetch_ticker(self, symbol: str) -> Dict[str, Any]:
+        return dict(self._client.exchange.fetch_ticker(symbol))
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
+    def _create_market_order(self, ticket: OrderTicket) -> Optional[dict]:
+        return self._client.create_market_order(ticket)
+
+    def execute_from_signal(
+        self, signal_dict: Dict[str, Any], tp_sl_settings: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Execute a trade from a signal dict (e.g. from get_signals).
 
@@ -52,47 +73,38 @@ class OrderExecutor:
             Dict with "success" (bool) and optional "error" or order details.
         """
         try:
-            print(f"[OrderExecutor] execute_from_signal called for {signal_dict.get('symbol')}")
+            log_info(f"[OrderExecutor] execute_from_signal called for {signal_dict.get('symbol')}")
             if not self._api_key or not self._api_secret:
-                print("[OrderExecutor] ERROR: API credentials not set")
+                log_error("[OrderExecutor] ERROR: API credentials not set")
                 return {"success": False, "error": "API credentials not set"}
 
+            from modules.common.domain.symbols import normalize_symbol
+
             # Normalize symbol to CCXT format (BTC/USDT)
-            symbol: str = signal_dict.get("symbol", "").strip()
-            if "/" in symbol:
-                # Already in CCXT format (e.g. "BTC/USDT")
-                pass
-            elif symbol.endswith("USDT"):
-                # Binance format (e.g. "BTCUSDT") - insert slash
-                symbol = symbol.replace("USDT", "/USDT")
-            else:
-                # Missing quote currency - add /USDT
-                symbol = f"{symbol}/USDT"
+            symbol: str = normalize_symbol(signal_dict.get("symbol", ""))
+
             signal_type: str = (signal_dict.get("signal") or "LONG").upper()
             if signal_type not in ("LONG", "SHORT"):
                 signal_type = "LONG"
 
             exchange_manager = ExchangeManager(
-                api_key=self._api_key,
-                api_secret=self._api_secret,
+                api_key=self._api_key.get_secret_value(),
+                api_secret=self._api_secret.get_secret_value(),
                 testnet=self._testnet,
             )
             data_fetcher = DataFetcher(exchange_manager=exchange_manager)
-            client = BinanceClient(
-                api_key=self._api_key,
-                api_secret=self._api_secret,
-                testnet=self._testnet,
-                dry_run=self._dry_run,
-            )
-            print(f"[OrderExecutor] Fetching ticker for {symbol}...")
-            ticker: Any = client.exchange.fetch_ticker(symbol)
+
+            log_info(f"[OrderExecutor] Fetching ticker for {symbol}...")
+            ticker: Any = self._fetch_ticker(symbol)
             entry: float = float(ticker.get("last", 0) or 0)
             if entry <= 0:
-                print(f"[OrderExecutor] ERROR: Could not get current price for {symbol}")
+                log_error(f"[OrderExecutor] ERROR: Could not get current price for {symbol}")
                 return {"success": False, "error": "Could not get current price"}
 
             tp_pct: float = 5.0
             sl_pct: float = 2.0
+            # Leverage: prefer explicit value in signal_dict, then tp_sl_settings, then default 2
+            leverage: int = 2
             if tp_sl_settings:
                 try:
                     tp_pct = float(tp_sl_settings.get("default_tp", tp_pct))
@@ -102,6 +114,21 @@ class OrderExecutor:
                     sl_pct = float(tp_sl_settings.get("default_sl", sl_pct))
                 except (TypeError, ValueError):
                     sl_pct = 2.0
+            # Parse leverage from signal_dict first (set by GUI auto_trade cycle)
+            raw_lev = signal_dict.get("leverage")
+            if raw_lev is not None:
+                try:
+                    leverage = int(str(raw_lev).replace("x", "").strip())
+                except (TypeError, ValueError):
+                    leverage = 2
+            elif tp_sl_settings:
+                raw_lev_cfg = tp_sl_settings.get("default_leverage")
+                if raw_lev_cfg is not None:
+                    try:
+                        leverage = int(str(raw_lev_cfg).replace("x", "").strip())
+                    except (TypeError, ValueError):
+                        leverage = 2
+            log_info(f"[OrderExecutor] Using leverage={leverage}x for {symbol}")
 
             if signal_type == "LONG":
                 take_profit = entry * (1 + tp_pct / 100)
@@ -116,27 +143,27 @@ class OrderExecutor:
                 entry_price=entry,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                leverage=2,
+                leverage=leverage,
                 score=float(signal_dict.get("score", 0)),
             )
             manager = OrderManager(
                 data_fetcher=data_fetcher,
-                api_key=self._api_key,
-                api_secret=self._api_secret,
+                api_key=self._api_key.get_secret_value(),
+                api_secret=self._api_secret.get_secret_value(),
                 testnet=self._testnet,
                 dry_run=self._dry_run,
+                default_leverage=leverage,  # propagate to OrderBuilder / RiskManager
+                recovery_manager=self._recovery_manager,
             )
-            print(f"[OrderExecutor] Calling OrderManager.execute_signal for {symbol} {signal_type}...")
+            log_info(f"[OrderExecutor] Calling OrderManager.execute_signal for {symbol} {signal_type}...")
             result: Optional[dict] = manager.execute_signal(final_signal)
             if result is None:
-                print("[OrderExecutor] OrderManager returned None (execution skipped or failed)")
+                log_warn("[OrderExecutor] OrderManager returned None (execution skipped or failed)")
                 return {"success": False, "error": "Execution skipped or failed"}
-            print(f"[OrderExecutor] OrderManager returned success: {result}")
+            log_info(f"[OrderExecutor] OrderManager returned success: {result}")
             return {"success": True, **result}
         except Exception as e:
-            print(f"[OrderExecutor] EXCEPTION in execute_from_signal: {type(e).__name__}: {e}")
-            import traceback
-            traceback.print_exc()
+            log_error(f"[OrderExecutor] EXCEPTION in execute_from_signal: {type(e).__name__}: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     def place_order(
@@ -166,22 +193,13 @@ class OrderExecutor:
             if not self._api_key or not self._api_secret:
                 return {"success": False, "error": "API credentials not set"}
 
+            from modules.common.domain.symbols import normalize_symbol
+
             # Normalize symbol to CCXT format
-            sym: str = symbol.strip()
-            if "/" not in sym:
-                if sym.endswith("USDT"):
-                    sym = sym.replace("USDT", "/USDT")
-                else:
-                    sym = f"{sym}/USDT"
+            sym: str = normalize_symbol(symbol)
             side_lower: str = side.lower()
             side_val: Literal["BUY", "SELL"] = "BUY" if side_lower in ("long", "buy") else "SELL"
 
-            client = BinanceClient(
-                api_key=self._api_key,
-                api_secret=self._api_secret,
-                testnet=self._testnet,
-                dry_run=self._dry_run,
-            )
             ticket = OrderTicket(
                 symbol=sym,
                 side=side_val,
@@ -190,9 +208,39 @@ class OrderExecutor:
                 take_profit_price=take_profit,
                 stop_loss_price=stop_loss,
             )
-            result: Optional[dict] = client.create_market_order(ticket)
+            result: Optional[dict] = self._create_market_order(ticket)
             if result is None:
                 return {"success": False, "error": "Order failed"}
+
+            if not self._dry_run and result.get("market_order"):
+                try:
+                    from modules.auto_trade.database.repository.context import RepositoryContext
+
+                    market: Dict[str, Any] = result["market_order"]
+                    order_id_binance = str(market.get("id") or "")
+                    entry_price = float(result.get("entry_price") or market.get("average") or 0.0)
+
+                    order_data: Dict[str, Any] = {
+                        "order_id": order_id_binance,
+                        "client_order_id": market.get("clientOrderId"),
+                        "symbol": sym.replace("/", ""),
+                        "side": "LONG" if side_val == "BUY" else "SHORT",
+                        "entry_price": entry_price,
+                        "amount": float(amount),
+                        "leverage": int(leverage),
+                        "stop_loss": stop_loss,
+                        "take_profit": take_profit,
+                        "status": "OPEN",
+                        "order_source": "PROGRAMMATIC",
+                        "execution_mode": "MANUAL",
+                    }
+
+                    ctx = RepositoryContext.from_env()
+                    ctx.orders.create_order(order_data)
+
+                except Exception as db_err:
+                    return {"success": False, "error": f"Order executed but DB persist failed: {db_err}"}
+
             return {"success": True, **result}
         except Exception as e:
             return {"success": False, "error": str(e)}

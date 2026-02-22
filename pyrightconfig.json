@@ -1,0 +1,16 @@
+{
+    "include": [
+        "modules",
+        "tests"
+    ],
+    "exclude": [
+        "modules/auto_trade/archives",
+        "**/__pycache__",
+        "**/node_modules"
+    ],
+    "pythonVersion": "3.12",
+    "typeCheckingMode": "basic",
+    "useLibraryCodeForTypes": true,
+    "reportMissingImports": false,
+    "reportMissingModuleSource": false
+}

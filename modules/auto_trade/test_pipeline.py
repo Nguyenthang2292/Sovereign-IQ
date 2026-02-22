@@ -29,7 +29,6 @@ sys.path.insert(0, str(project_root))
 from config import ATC_SCANNER_DEFAULTS, SIGNAL_SELECTOR_DEFAULTS, XGBOOST_FILTER_DEFAULTS
 from modules.auto_trade.core.atc_scanner import ATCScanner
 from modules.auto_trade.core.gemini_integration import GeminiIntegration
-from modules.auto_trade.core.persistence_sqlite import SignalPersistenceSQLite
 from modules.auto_trade.core.signal_pipeline import SignalPipeline
 from modules.auto_trade.core.signal_selector import SignalSelector
 from modules.auto_trade.core.symbol_manager import SymbolManager
@@ -230,26 +229,21 @@ def initialize_pipeline(model_path: str, symbols: Optional[List[str]] = None, sa
         f"Gemini={SIGNAL_SELECTOR_DEFAULTS['weight_gemini']}"
     )
 
-    # 7. Persistence (SQLite)
-    print("7. SignalPersistenceSQLite...")
-    persistence = SignalPersistenceSQLite(db_path="data/signals/test_signals.db")
-    print("   ✅ Database: data/signals/test_signals.db")
-
-    # 8. Signal Pipeline
-    print("8. SignalPipeline...")
+    # 7. Signal Pipeline (DynamoDB - persistence optional for tests)
+    print("7. SignalPipeline...")
     pipeline = SignalPipeline(
         symbol_manager=symbol_manager,
         atc_scanner=atc_scanner,
         xgboost_filter=xgboost_filter,
         gemini_integration=gemini_integration,
         signal_selector=signal_selector,
-        signal_persistence=persistence,
+        signal_persistence=None,  # Skip persistence for test pipeline
         config={
             "max_symbols_to_scan": len(test_symbols),
             "max_ai_candidates": min(5, len(test_symbols)),
         },
     )
-    print("   ✅ Pipeline ready")
+    print("   ✅ Pipeline ready (no persistence)")
     print()
 
     return pipeline

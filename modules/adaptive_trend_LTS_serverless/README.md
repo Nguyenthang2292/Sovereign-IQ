@@ -5,19 +5,41 @@ A high-performance Rust implementation of the Adaptive Trend Classification (ATC
 ## Overview
 
 ATC Serverless implements a multi-timeframe trend classification system that:
+
 - Calculates 6 types of Moving Averages (EMA, HMA, WMA, DEMA, LSMA, KAMA)
 - Uses 8 length variations per MA type (via diflen) for robustness
 - Applies Layer 1 signal detection with equity-based weighting
 - Aggregates signals across multiple timeframes
 - Returns LONG/SHORT/NEUTRAL classifications with confidence scores
 
+## 🚀 Quick Start
+
+**New to this module?** Get started in 15 minutes:
+
+1. **Quick Setup Guide**: See [`docs/QUICK_START.md`](docs/QUICK_START.md) for step-by-step instructions
+2. **Binance Demo**: Run [`scripts/binance_lambda_demo.py`](scripts/binance_lambda_demo.py) to test with real market data
+3. **Full Documentation**: Read [`docs/aws/AWS_SETUP_DEPLOYMENT_GUIDE.md`](docs/aws/AWS_SETUP_DEPLOYMENT_GUIDE.md) for comprehensive setup
+
+```bash
+# Install dependencies
+pip install -r scripts/requirements.txt
+
+# Run demo with mock data (no AWS needed)
+python scripts/binance_lambda_demo.py --mock --symbols 10
+
+# Or test with your deployed Lambda
+python scripts/binance_lambda_demo.py --endpoint YOUR_FUNCTION_URL --symbols 20
+```
+
+For complete documentation, see [`docs/aws/BINANCE_LAMBDA_DEMO_OVERVIEW.md`](docs/aws/BINANCE_LAMBDA_DEMO_OVERVIEW.md).
+
 ## Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+┌─────────────────┐      ┌──────────────────┐     ┌─────────────────┐
 │   API Gateway   │────▶│   AWS Lambda     │────▶│   SQS Queue     │
-│   (HTTP/REST)   │     │   (This Module)  │     │   (Results)     │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
+│   (HTTP/REST)   │      │   (This Module)  │     │   (Results)     │
+└─────────────────┘      └──────────────────┘     └─────────────────┘
                                 │
                                 ▼
                        ┌──────────────────┐
@@ -52,6 +74,7 @@ modules/adaptive_trend_LTS_serverless/
 ## Installation
 
 ### Prerequisites
+
 - Rust 1.70+ (install via [rustup](https://rustup.rs/))
 - AWS CLI (for deployment)
 - Docker (optional, for building Lambda deployment packages)
@@ -238,6 +261,7 @@ cargo bench
 ### Test Coverage
 
 The test suite includes:
+
 - **MA Calculations**: All 6 MA types with edge cases
 - **Signal Detection**: Layer 1 logic with diflen variations
 - **Equity Calculation**: Layer 2 equity curve computation
@@ -258,20 +282,9 @@ The test suite includes:
 ### Optimization Features
 
 - **Parallel Processing**: Uses Rayon for parallel symbol processing
-- **SIMD Optimizations**: Uses `std::simd` portable SIMD (`f64x4`) for EMA/SMA/WMA under `--features simd`
+- **SIMD Optimizations**: Leverages ndarray for vectorized operations
 - **Release Optimizations**: LTO, strip symbols, single codegen unit
 - **Error Recovery**: Per-symbol error handling prevents total batch failure
-
-### SIMD Performance Comparison (Benchmark Run: 2026-02-15)
-
-| Metric | Rust Scalar | Rust SIMD | Delta |
-|--------|-------------|-----------|-------|
-| Total latency (9 scenarios) | 13.71 ms | 11.58 ms | 1.18x faster |
-| Average latency / scenario | 1.52 ms | 1.29 ms | 1.19x faster |
-| Speedup vs Python baseline | 76.82x | 90.99x | +18.4% |
-| Signal consistency | 9/9 | 9/9 | 100% match |
-
-Detailed per-symbol/per-timeframe SIMD results are documented in `SIMD_OPTIMIZATION.md`.
 
 ## Monitoring and Observability
 
@@ -286,6 +299,7 @@ info!("Batch {} completed: {} successful, {} errors", batch_id, success_count, e
 ### CloudWatch Metrics
 
 Recommended CloudWatch alarms:
+
 - Error rate > 5%
 - Duration > 35 seconds
 - Memory usage > 80%
@@ -293,6 +307,7 @@ Recommended CloudWatch alarms:
 ### Tracing
 
 Enable tracing with:
+
 ```bash
 aws lambda update-function-configuration \
   --function-name atc-serverless \
@@ -304,21 +319,25 @@ aws lambda update-function-configuration \
 ### Common Issues
 
 **1. Cold Start Too Slow**
+
 - Increase Lambda memory allocation
 - Use Provisioned Concurrency for critical workloads
 - Consider using ARM64 (Graviton2) for better price/performance
 
 **2. Out of Memory**
+
 - Reduce batch size (number of symbols per invocation)
 - Increase Lambda memory allocation
 - Check for memory leaks in custom code
 
 **3. Signal Accuracy Issues**
+
 - Verify OHLCV data quality (no gaps, correct timestamps)
 - Check config.threshold setting
 - Compare with Python reference implementation
 
 **4. Build Errors**
+
 - Ensure Rust version >= 1.70
 - Run `cargo clean` and rebuild
 - Check for conflicting dependencies
@@ -326,6 +345,7 @@ aws lambda update-function-configuration \
 ### Debug Mode
 
 Enable debug logging:
+
 ```bash
 export RUST_LOG=debug
 cargo run
@@ -346,24 +366,29 @@ cargo run
 ### Core Functions
 
 #### `process_batch`
+
 ```rust
 pub fn process_batch(
     symbols: Vec<SymbolData>,
     config: ATCConfig,
 ) -> (Vec<SignalResult>, Vec<SymbolError>)
 ```
+
 Process a batch of symbols with error recovery. Returns partial results even if some symbols fail.
 
 #### `compute_symbol_score`
+
 ```rust
 pub fn compute_symbol_score(
     prices: &[f64],
     config: &ATCConfig,
 ) -> (f64, String)
 ```
+
 Calculate the final score and signal type for a single symbol's price data.
 
 #### `calculate_layer1_signal`
+
 ```rust
 pub fn calculate_layer1_signal(
     prices: ArrayView1<f64>,
@@ -373,6 +398,7 @@ pub fn calculate_layer1_signal(
     decay: f64,
 ) -> (Array1<f64>, f64)
 ```
+
 Calculate Layer 1 signal with full diflen variations (8 MA calculations).
 
 ## Contributing
@@ -396,6 +422,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Changelog
 
 ### 0.1.0 (2026-02-11)
+
 - Initial release
 - Complete signal detection logic with diflen
 - Error recovery with per-symbol handling
@@ -405,6 +432,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Support
 
 For issues and questions:
+
 - GitHub Issues: [Report a bug](https://github.com/your-org/your-repo/issues)
 - Documentation: [Full API Docs](https://docs.rs/atc_serverless)
-- Email: support@yourcompany.com
+- Email: <support@yourcompany.com>

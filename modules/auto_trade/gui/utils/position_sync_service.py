@@ -8,13 +8,10 @@ Useful when:
 - Miss-sync occurred due to errors
 """
 
-import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-from modules.auto_trade.database.models import Order
-
-logger = logging.getLogger(__name__)
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 
 class PositionSyncService:
@@ -35,12 +32,7 @@ class PositionSyncService:
             # Fetch all positions (including zero-sized)
             positions = client.exchange.fetch_positions()
 
-            logger.info(f"[PositionSync] Raw API returned {len(positions) if positions else 0} positions")
-
-            # Debug: Log first position structure if available
-            if positions and len(positions) > 0:
-                sample = positions[0]
-                logger.debug(f"[PositionSync] Sample position structure: {list(sample.keys())}")
+            log_info(f"[PositionSync] Raw API returned {len(positions) if positions else 0} positions")
 
             # Filter only positions with non-zero size
             open_positions = []
@@ -50,44 +42,50 @@ class PositionSyncService:
                     if contracts == 0:
                         continue
 
-                    symbol = pos.get("symbol", "")
-                    if not symbol:
-                        logger.warning(f"[PositionSync] Skipping position with no symbol: {pos}")
+                    symbol_raw = pos.get("symbol", "")
+                    if not symbol_raw:
+                        log_warn(f"[PositionSync] Skipping position with no symbol: {pos}")
                         continue
 
+                    # CCXT futures symbols look like "DOGE/USDT:USDT" or "BTC/USDT:USDT".
+                    # Normalise to plain Binance format ("DOGEUSDT") so the symbol is
+                    # consistent with what the rest of the system stores in DynamoDB.
+                    symbol = symbol_raw.split(":")[0].replace("/", "")  # DOGE/USDT:USDT → DOGEUSDT
+
                     side = pos.get("side", "").upper()
-                    entry_price = float(pos.get("entryPrice", 0) or 0)
+                    entry_price = float(pos.get("entryPrice", 0) or pos.get("info", {}).get("entryPrice", 0) or 0)
                     notional = float(pos.get("notional", 0) or 0)
 
                     # Safe int conversion with None handling
                     leverage_raw = pos.get("leverage")
                     leverage = int(leverage_raw) if leverage_raw is not None else 1
 
-                    # Fetch TP/SL from open orders
-                    tp_price, sl_price = PositionSyncService._fetch_tp_sl_orders(
-                        client, symbol
+                    # Fetch TP/SL from open orders (use raw CCXT symbol for the API call)
+                    tp_price, sl_price = PositionSyncService._fetch_tp_sl_orders(client, symbol_raw)
+
+                    open_positions.append(
+                        {
+                            "symbol": symbol,  # normalised: DOGEUSDT
+                            "symbol_ccxt": symbol_raw,  # CCXT form kept for debugging
+                            "side": side,
+                            "contracts": abs(contracts),
+                            "entry_price": entry_price,
+                            "notional": abs(notional),
+                            "leverage": leverage,
+                            "take_profit": tp_price,
+                            "stop_loss": sl_price,
+                        }
                     )
 
-                    open_positions.append({
-                        "symbol": symbol,
-                        "side": side,
-                        "contracts": abs(contracts),
-                        "entry_price": entry_price,
-                        "notional": abs(notional),
-                        "leverage": leverage,
-                        "take_profit": tp_price,
-                        "stop_loss": sl_price,
-                    })
-
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"[PositionSync] Error parsing position {pos.get('symbol')}: {e}")
+                    log_warn(f"[PositionSync] Error parsing position {pos.get('symbol')}: {e}")
                     continue
 
-            logger.info(f"[PositionSync] Fetched {len(open_positions)} open positions from Binance")
+            log_info(f"[PositionSync] Fetched {len(open_positions)} open positions from Binance")
             return open_positions
 
         except Exception as e:
-            logger.error(f"[PositionSync] Error fetching positions: {e}")
+            log_error(f"[PositionSync] Error fetching positions: {e}")
             return []
 
     @staticmethod
@@ -103,169 +101,155 @@ class PositionSyncService:
             Tuple of (take_profit, stop_loss)
         """
         try:
-            open_orders = client.exchange.fetch_open_orders(symbol)
+            from modules.auto_trade.gui.utils.tp_sl_sync import TPSLSyncService
 
-            logger.info(f"[PositionSync] Found {len(open_orders)} open orders for {symbol}")
-
-            tp_price = None
-            sl_price = None
-
-            for order in open_orders:
-                # IMPORTANT: Use info['type'] instead of top-level type
-                # ccxt normalizes type to lowercase generic (e.g., 'market')
-                # but info['type'] preserves Binance's exact type (e.g., 'TAKE_PROFIT_MARKET')
-                order_type_main = order.get("type", "").upper()
-                order_type_info = order.get("info", {}).get("type", "").upper()
-                
-                # Prefer info type (more specific)
-                order_type = order_type_info if order_type_info else order_type_main
-                
-                # Log order details for debugging
-                logger.debug(f"[PositionSync] Order: main_type={order_type_main}, info_type={order_type_info}, stopPrice={order.get('stopPrice')}")
-                
-                # Get stop price from either stopPrice or triggerPrice field
-                stop_price = order.get("stopPrice") or order.get("triggerPrice") or order.get("price", 0)
-                
-                # Detect Take Profit orders
-                # Binance uses: TAKE_PROFIT, TAKE_PROFIT_MARKET, TAKE_PROFIT_LIMIT
-                if "TAKE_PROFIT" in order_type:
-                    tp_price = float(stop_price) if stop_price else None
-                    logger.info(f"[PositionSync] ✅ Detected TP order: type={order_type}, price=${tp_price}")
-                
-                # Detect Stop Loss orders
-                # Binance uses: STOP, STOP_MARKET, STOP_LOSS, STOP_LOSS_MARKET
-                elif "STOP" in order_type and ("MARKET" in order_type or "LOSS" in order_type):
-                    sl_price = float(stop_price) if stop_price else None
-                    logger.info(f"[PositionSync] ✅ Detected SL order: type={order_type}, price=${sl_price}")
-
+            tp_price, sl_price, _ = TPSLSyncService.fetch_tp_sl_from_binance(client, symbol)
             if tp_price is None and sl_price is None:
-                logger.warning(f"[PositionSync] ⚠️ No TP/SL orders detected for {symbol}")
-
+                log_warn(f"[PositionSync] ⚠️ No TP/SL orders detected for {symbol}")
             return tp_price, sl_price
 
         except Exception as e:
-            logger.error(f"[PositionSync] Error fetching orders for {symbol}: {e}")
+            log_error(f"[PositionSync] Error fetching orders for {symbol}: {e}")
             return None, None
 
     @staticmethod
-    def sync_position_to_db(session, position: Dict, order_source: str = "MANUAL") -> tuple[Optional[Order], bool]:
+    def sync_position_to_db(ctx, position: Dict, order_source: str = "PROGRAMMATIC") -> tuple[bool, bool]:
         """
-        Sync a single position to database.
+        Sync a single position to database using RepositoryContext.
 
         Args:
-            session: Database session
+            ctx: RepositoryContext
             position: Position dictionary from Binance
-            order_source: Order source tag (default: MANUAL)
+            order_source: Order source tag (default: PROGRAMMATIC so it appears in all queries)
 
         Returns:
-            Tuple of (Order object or None, is_new: bool)
+            Tuple of (success: bool, is_new: bool)
         """
         try:
             symbol = position["symbol"]
             side = position["side"]
+            symbol_normalized = symbol.replace("/", "")
 
-            # Check if position already exists in DB
-            existing = session.query(Order).filter(
-                Order.symbol == symbol.replace("/", ""),
-                Order.status == "OPEN"
-            ).first()
+            # Check if position already exists in DB.
+            # get_open_positions only returns PROGRAMMATIC orders; that covers both
+            # auto-placed and previously-synced positions.
+            existing_list = ctx.orders.get_open_positions(symbol=symbol_normalized)
+            if existing_list:
+                existing = existing_list[0]
+                log_info(f"[PositionSync] Position {symbol} already exists in DB (order_id={existing.get('order_id')})")
+                return True, False
 
-            if existing:
-                logger.info(f"[PositionSync] Position {symbol} already exists in DB (ID={existing.id})")
-                return existing, False
-
-            # Create new order record
+            # Create new order record — tagged PROGRAMMATIC so it is visible
+            # to all downstream queries (trailing stop, breakeven, GUI, etc.).
             now = datetime.now(timezone.utc)
 
-            new_order = Order(
-                order_id=f"SYNC_{int(now.timestamp())}",  # Synthetic order ID
-                client_order_id=f"SYNC_{symbol}_{int(now.timestamp())}",
-                symbol=symbol.replace("/", ""),  # Remove slash for consistency
-                side=side,
-                order_type="MARKET",
-                order_source=order_source,
-                execution_mode="MANUAL",
-                entry_price=position["entry_price"],
-                amount=position["contracts"],
-                leverage=position["leverage"],
-                stop_loss=position.get("stop_loss"),
-                take_profit=position.get("take_profit"),
-                status="OPEN",
-                pnl=0.0,
-                pnl_percentage=0.0,
-                be_moved=False,
-                trailing_step_index=0,
-                martingale_step=0,
-                created_at=now,
-                opened_at=now,
-            )
+            order_data: Dict[str, Any] = {
+                "order_id": f"SYNC_{int(now.timestamp())}",
+                "client_order_id": f"SYNC_{symbol_normalized}_{int(now.timestamp())}",
+                "symbol": symbol_normalized,
+                "side": side,
+                "order_type": "MARKET",
+                "order_source": order_source,  # PROGRAMMATIC → shows in all queries
+                "execution_mode": "SYNCED",  # distinct from AUTO/MANUAL for auditing
+                "entry_price": float(position["entry_price"]),
+                "amount": float(position["contracts"]),
+                "leverage": int(position["leverage"]),
+                "stop_loss": float(position["stop_loss"]) if position.get("stop_loss") else None,
+                "take_profit": float(position["take_profit"]) if position.get("take_profit") else None,
+                "status": "OPEN",
+                "pnl": 0.0,
+                "pnl_percentage": 0.0,
+                "be_moved": False,
+                "trailing_step_index": 0,
+                "martingale_step": 0,
+                "created_at": now.isoformat(),
+                "opened_at": now.isoformat(),
+            }
 
-            session.add(new_order)
-            session.commit()
-
-            logger.info(f"[PositionSync] ✅ Synced {symbol} to DB (ID={new_order.id})")
-            return new_order, True
+            ctx.orders.create_order(order_data)
+            log_info(f"[PositionSync] ✅ Synced {symbol} to DB (order_id={order_data.get('order_id')})")
+            return True, True
 
         except Exception as e:
-            logger.error(f"[PositionSync] Error syncing position {position.get('symbol')}: {e}")
-            session.rollback()
-            return None, False
+            log_error(f"[PositionSync] Error syncing position {position.get('symbol')}: {e}")
+            return False, False
 
     @staticmethod
-    def sync_all_positions(client, db_manager) -> Dict[str, int]:
+    def sync_all_positions(client) -> Dict[str, int]:
         """
-        Sync all open Binance positions to database.
+        Sync all open Binance positions to database using DynamoDB.
+
+        This performs TWO operations:
+        1. INSERT: positions open on Binance but missing from DB → create
+        2. CLOSE:  positions in DB marked OPEN but no longer on Binance → mark CLOSED
 
         Args:
             client: BinanceClient instance
-            db_manager: DatabaseManager instance
 
         Returns:
-            Dict with sync statistics: {
-                "fetched": int,
-                "synced": int,
-                "existing": int,
-                "failed": int
-            }
+            Dict with sync statistics
         """
         stats = {
             "fetched": 0,
             "synced": 0,
             "existing": 0,
             "failed": 0,
+            "closed": 0,
         }
 
         try:
-            # Fetch positions from Binance
-            positions = PositionSyncService.fetch_binance_positions(client)
-            stats["fetched"] = len(positions)
+            from modules.auto_trade.database.repository.context import RepositoryContext
 
-            if not positions:
-                logger.info("[PositionSync] No open positions found on Binance")
-                return stats
+            binance_positions = PositionSyncService.fetch_binance_positions(client)
+            stats["fetched"] = len(binance_positions)
 
-            # Sync each position to DB
-            with db_manager.session_scope() as session:
-                for pos in positions:
-                    order, is_new = PositionSyncService.sync_position_to_db(session, pos)
+            ctx = RepositoryContext.from_env()
 
-                    if order:
-                        if is_new:
-                            stats["synced"] += 1
-                        else:
-                            stats["existing"] += 1
+            # ── Phase 1: Insert missing positions into DB ──────────────────
+            binance_open_symbols: set[str] = set()
+            for pos in binance_positions:
+                symbol = pos.get("symbol", "").replace("/", "")
+                if symbol:
+                    binance_open_symbols.add(symbol)
+
+                success, is_new = PositionSyncService.sync_position_to_db(ctx, pos)
+                if success:
+                    if is_new:
+                        stats["synced"] += 1
                     else:
-                        stats["failed"] += 1
+                        stats["existing"] += 1
+                else:
+                    stats["failed"] += 1
 
-            logger.info(
+            # ── Phase 2: Close stale DB positions ──────────────────────────
+            # Query all OPEN orders in DB and close any whose symbol is no
+            # longer open on Binance (TP/SL triggered, liquidated, manual close).
+            try:
+                db_open_orders = ctx.orders.get_open_positions()  # GSI3: PROGRAMMATIC#OPEN
+                for order in db_open_orders:
+                    db_symbol = (order.get("symbol") or "").replace("/", "")
+                    if db_symbol and db_symbol not in binance_open_symbols:
+                        order_id = order.get("order_id")
+                        if order_id:
+                            ok = ctx.orders.update_order_status(order_id, "CLOSED")
+                            if ok:
+                                stats["closed"] += 1
+                                log_info(f"[PositionSync] 🔴 Closed stale DB order: {db_symbol} (order_id={order_id})")
+                            else:
+                                log_warn(f"[PositionSync] Could not close stale order {order_id} for {db_symbol}")
+            except Exception as close_err:
+                log_error(f"[PositionSync] Error closing stale positions: {close_err}")
+
+            log_info(
                 f"[PositionSync] Sync completed: "
                 f"{stats['synced']} synced, "
                 f"{stats['existing']} existing, "
+                f"{stats['closed']} closed, "
                 f"{stats['failed']} failed"
             )
 
         except Exception as e:
-            logger.error(f"[PositionSync] Fatal error during sync: {e}")
+            log_error(f"[PositionSync] Fatal error during sync: {e}")
 
         return stats
 

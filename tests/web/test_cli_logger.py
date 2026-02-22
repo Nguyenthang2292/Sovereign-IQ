@@ -16,8 +16,8 @@ from unittest.mock import patch
 
 import pytest
 
-from web.utils.cli_logger import CLILogger
-from web.utils.log_manager import LogFileManager
+from web.shared.utils.cli_logger import CLILogger
+from web.shared.utils.log_manager import LogFileManager
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def tmp_logs_dir(tmp_path):
 @pytest.fixture
 def log_manager(tmp_logs_dir):
     """Create LogFileManager instance for testing."""
-    with patch("web.utils.cli_logger.get_log_manager") as mock_get:
+    with patch("web.shared.utils.cli_logger.get_log_manager") as mock_get:
         manager = LogFileManager(logs_dir=str(tmp_logs_dir))
         mock_get.return_value = manager
         yield manager

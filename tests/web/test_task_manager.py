@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from web.utils.task_manager import TaskManager, get_task_manager
+from web.shared.utils.task_manager import TaskManager, get_task_manager
 
 
 class TestTaskManager:

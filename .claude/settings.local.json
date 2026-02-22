@@ -42,7 +42,10 @@
       "Bash(git commit:*)",
       "Bash(\"C:\\\\Users\\\\Admin\\\\Desktop\\\\i-ching\\\\crypto-probability\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest tests/auto_trade/gui/utils/test_mask_utils.py tests/auto_trade/gui/components/test_config_panel_masking_integration.py)",
       "Bash(cargo test)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(cargo lambda:*)",
+      "Bash(cargo doc:*)",
+      "Bash(cargo test:*)"
     ]
   }
 }

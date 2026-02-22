@@ -1,0 +1,30 @@
+# Rust
+target/
+Cargo.lock
+
+# Build artifacts
+*.wasm
+*.so
+
+# Models
+*.json
+*.xgb
+models/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# AWS
+.aws-sam/

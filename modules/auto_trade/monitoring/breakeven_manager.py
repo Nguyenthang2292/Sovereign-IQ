@@ -11,13 +11,12 @@ Key improvements over REST polling:
 """
 
 import asyncio
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Any
 
 from modules.auto_trade.monitoring.position_monitor import PositionSnapshot
 from modules.auto_trade.websocket.client import BinanceWebSocketClient
 
-logger = logging.getLogger(__name__)
 
 
 class BreakEvenManager:
@@ -53,7 +52,7 @@ class BreakEvenManager:
         self.database = database
         self._be_moved_positions: set[str] = set()  # Track symbols where BE was moved
 
-        logger.info(f"BreakEvenManager initialized (threshold={drawdown_threshold_percent}%, WebSocket mode)")
+        log_info(f"BreakEvenManager initialized (threshold={drawdown_threshold_percent}%, WebSocket mode)")
 
     async def check_and_move_breakeven(
         self,
@@ -87,13 +86,13 @@ class BreakEvenManager:
             return False
 
         # Threshold reached, move TP to break-even
-        logger.warning(
+        log_warn(
             f"⚠️  Drawdown threshold reached for {symbol}: "
             f"${drawdown_usdt:.2f} ({drawdown_percent_of_account:.1f}% of account)"
         )
 
         if dry_run:
-            logger.info(f"[DRY RUN] Would move TP to break-even for {symbol}")
+            log_info(f"[DRY RUN] Would move TP to break-even for {symbol}")
             return True
 
         # Move TP to break-even
@@ -108,12 +107,12 @@ class BreakEvenManager:
                 try:
                     self.database.mark_be_moved(symbol)
                 except Exception as e:
-                    logger.error(f"Failed to update database for BE move: {e}")
+                    log_error(f"Failed to update database for BE move: {e}")
 
-            logger.info(f"✅ Moved TP to break-even for {symbol}")
+            log_info(f"✅ Moved TP to break-even for {symbol}")
             return True
         else:
-            logger.error(f"❌ Failed to move TP to break-even for {symbol}")
+            log_error(f"❌ Failed to move TP to break-even for {symbol}")
             return False
 
     async def _move_tp_to_breakeven(self, position: PositionSnapshot) -> bool:
@@ -132,14 +131,14 @@ class BreakEvenManager:
 
         try:
             # Cancel existing TP orders first
-            logger.info(f"Canceling existing TP orders for {symbol}...")
+            log_info(f"Canceling existing TP orders for {symbol}...")
             await self._cancel_tp_orders(symbol)
 
             # Determine side for TP order (opposite of position)
             tp_side = "sell" if position.side == "long" else "buy"
 
             # Create new TP order at break-even price using WebSocket API
-            logger.info(f"Placing new TP order at break-even price ${entry_price:.2f}...")
+            log_info(f"Placing new TP order at break-even price ${entry_price:.2f}...")
 
             # Create order via REST (ccxt.pro doesn't support order creation via WS yet)
             tp_order = await self.ws_client.exchange.create_order(
@@ -150,11 +149,11 @@ class BreakEvenManager:
                 params={"stopPrice": entry_price, "reduceOnly": True},
             )
 
-            logger.info(f"✅ TP order placed: {tp_order.get('id')}")
+            log_info(f"✅ TP order placed: {tp_order.get('id')}")
             return True
 
         except Exception as e:
-            logger.error(f"Error moving TP to break-even: {e}", exc_info=True)
+            log_error(f"Error moving TP to break-even: {e}", exc_info=True)
             return False
 
     async def _cancel_tp_orders(self, symbol: str) -> bool:
@@ -182,14 +181,14 @@ class BreakEvenManager:
                 order_id = order.get("id")
                 try:
                     await self.ws_client.exchange.cancel_order(order_id, symbol)
-                    logger.info(f"Cancelled TP order: {order_id}")
+                    log_info(f"Cancelled TP order: {order_id}")
                 except Exception as e:
-                    logger.warning(f"Failed to cancel order {order_id}: {e}")
+                    log_warn(f"Failed to cancel order {order_id}: {e}")
 
             return True
 
         except Exception as e:
-            logger.error(f"Error canceling TP orders: {e}")
+            log_error(f"Error canceling TP orders: {e}")
             return False
 
     def reset_position(self, symbol: str) -> None:
@@ -201,7 +200,7 @@ class BreakEvenManager:
         """
         if symbol in self._be_moved_positions:
             self._be_moved_positions.remove(symbol)
-            logger.info(f"Reset BE flag for {symbol}")
+            log_info(f"Reset BE flag for {symbol}")
 
     def is_be_moved(self, symbol: str) -> bool:
         """Check if BE was moved for a symbol."""
@@ -253,12 +252,12 @@ class BreakEvenMonitor:
 
         self._running = False
 
-        logger.info(f"BreakEvenMonitor initialized (threshold={drawdown_threshold_percent}%)")
+        log_info(f"BreakEvenMonitor initialized (threshold={drawdown_threshold_percent}%)")
 
     async def start(self) -> None:
         """Start monitoring for break-even conditions."""
         if self._running:
-            logger.warning("BreakEvenMonitor is already running")
+            log_warn("BreakEvenMonitor is already running")
             return
 
         self._running = True
@@ -269,12 +268,12 @@ class BreakEvenMonitor:
         # Register balance callback to keep account balance updated
         self.ws_client.on_balance_update(self._handle_balance_update)
 
-        logger.info("✅ BreakEvenMonitor started (WebSocket mode)")
+        log_info("✅ BreakEvenMonitor started (WebSocket mode)")
 
     async def stop(self) -> None:
         """Stop monitoring."""
         self._running = False
-        logger.info("⏹️  BreakEvenMonitor stopped")
+        log_info("⏹️  BreakEvenMonitor stopped")
 
     def _handle_position_update(self, position: PositionSnapshot) -> None:
         """
@@ -299,7 +298,7 @@ class BreakEvenMonitor:
         try:
             await self.be_manager.check_and_move_breakeven(position, self.account_balance, self.dry_run)
         except Exception as e:
-            logger.error(f"Error checking break-even for {position.symbol}: {e}")
+            log_error(f"Error checking break-even for {position.symbol}: {e}")
 
     def _handle_balance_update(self, balance: dict) -> None:
         """
@@ -317,7 +316,7 @@ class BreakEvenMonitor:
 
         if total > 0:
             self.account_balance = total
-            logger.debug(f"Updated account balance: ${total:.2f}")
+            log_debug(f"Updated account balance: ${total:.2f}")
 
     @property
     def is_running(self) -> bool:

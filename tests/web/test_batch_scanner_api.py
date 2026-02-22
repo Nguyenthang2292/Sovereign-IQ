@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from web.app import app
+from web.apps.gemini_analyzer.backend.main import app
 
 # Import app - project root is added to path in conftest, so use absolute import
 
@@ -49,9 +49,9 @@ class TestBatchScanEndpoint:
         }
 
         with (
-            patch("web.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
-            patch("web.api.batch_scanner.get_log_manager") as mock_log_mgr,
-            patch("web.api.batch_scanner.get_task_manager") as mock_task_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_log_manager") as mock_log_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_task_manager") as mock_task_mgr,
         ):
             mock_scanner = Mock()
             mock_scanner.scan_market.return_value = mock_scanner_result
@@ -97,9 +97,9 @@ class TestBatchScanEndpoint:
         }
 
         with (
-            patch("web.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
-            patch("web.api.batch_scanner.get_log_manager") as mock_log_mgr,
-            patch("web.api.batch_scanner.get_task_manager") as mock_task_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_log_manager") as mock_log_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_task_manager") as mock_task_mgr,
         ):
             mock_scanner = Mock()
             mock_scanner.scan_market.return_value = mock_scanner_result
@@ -144,9 +144,9 @@ class TestBatchScanEndpoint:
         }
 
         with (
-            patch("web.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
-            patch("web.api.batch_scanner.get_log_manager") as mock_log_mgr,
-            patch("web.api.batch_scanner.get_task_manager") as mock_task_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_log_manager") as mock_log_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_task_manager") as mock_task_mgr,
         ):
             mock_scanner = Mock()
             mock_scanner.scan_market.return_value = mock_scanner_result
@@ -201,9 +201,9 @@ class TestBatchScanEndpoint:
         }
 
         with (
-            patch("web.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
-            patch("web.api.batch_scanner.get_log_manager") as mock_log_mgr,
-            patch("web.api.batch_scanner.get_task_manager") as mock_task_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_log_manager") as mock_log_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_task_manager") as mock_task_mgr,
         ):
             mock_scanner = Mock()
             mock_scanner.scan_market.return_value = mock_scanner_result
@@ -259,9 +259,9 @@ class TestBatchScanEndpoint:
     def test_error_scanner_failure(self, client, tmp_path):
         """Test error when scanner fails - error occurs in background thread."""
         with (
-            patch("web.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
-            patch("web.api.batch_scanner.get_log_manager") as mock_log_mgr,
-            patch("web.api.batch_scanner.get_task_manager") as mock_task_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_log_manager") as mock_log_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_task_manager") as mock_task_mgr,
         ):
             mock_scanner = Mock()
             mock_scanner.scan_market.side_effect = Exception("Scanner error")
@@ -299,9 +299,9 @@ class TestBatchScanEndpoint:
         }
 
         with (
-            patch("web.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
-            patch("web.api.batch_scanner.get_log_manager") as mock_log_mgr,
-            patch("web.api.batch_scanner.get_task_manager") as mock_task_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_log_manager") as mock_log_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_task_manager") as mock_task_mgr,
         ):
             mock_scanner = Mock()
             mock_scanner.scan_market.return_value = mock_scanner_result
@@ -875,9 +875,9 @@ class TestBatchScanBackgroundThread:
         }
 
         with (
-            patch("web.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
-            patch("web.api.batch_scanner.get_log_manager") as mock_log_mgr,
-            patch("web.api.batch_scanner.get_task_manager") as mock_task_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_log_manager") as mock_log_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_task_manager") as mock_task_mgr,
         ):
             # Setup mocks
             mock_scanner = Mock()
@@ -927,9 +927,9 @@ class TestBatchScanBackgroundThread:
         }
 
         with (
-            patch("web.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
-            patch("web.api.batch_scanner.get_log_manager") as mock_log_mgr,
-            patch("web.api.batch_scanner.get_task_manager") as mock_task_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_log_manager") as mock_log_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_task_manager") as mock_task_mgr,
         ):
             mock_scanner = Mock()
             mock_scanner.scan_market.return_value = mock_scanner_result
@@ -956,7 +956,7 @@ class TestBatchScanStatusEndpoint:
 
     def test_get_status_running(self, client):
         """Test getting status of running task."""
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = f"test-session-{uuid.uuid4()}"
@@ -986,7 +986,7 @@ class TestBatchScanStatusEndpoint:
 
     def test_get_status_completed(self, client):
         """Test getting status of completed task."""
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = f"test-session-{uuid.uuid4()}"
@@ -1018,7 +1018,7 @@ class TestBatchScanStatusEndpoint:
 
     def test_get_status_error(self, client):
         """Test getting status of failed task."""
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = f"test-session-{uuid.uuid4()}"
@@ -1064,7 +1064,7 @@ class TestBatchScanStatusEndpoint:
         3. Result should NOT be overwritten by run_task()
         4. Status endpoint should return the result that was set via set_result()
         """
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = f"test-session-{uuid.uuid4()}"
@@ -1124,7 +1124,7 @@ class TestCancelBatchScanEndpoint:
 
     def test_cancel_scan_success(self, client):
         """Test successfully cancelling a running scan."""
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = f"test-session-{uuid.uuid4()}"
@@ -1172,7 +1172,7 @@ class TestCancelBatchScanEndpoint:
 
     def test_cancel_scan_already_completed(self, client):
         """Test cancelling a scan that is already completed (should fail)."""
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = f"test-session-{uuid.uuid4()}"
@@ -1201,7 +1201,7 @@ class TestCancelBatchScanEndpoint:
 
     def test_cancel_scan_already_cancelled(self, client):
         """Test cancelling a scan that is already cancelled (should fail)."""
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = f"test-session-{uuid.uuid4()}"
@@ -1257,7 +1257,7 @@ class TestAutoCleanupIntegration:
         os.utime(recent_log, (recent_time, recent_time))
 
         # Patch get_log_manager to use real instance with cleanup enabled
-        from web.utils.log_manager import LogFileManager
+        from web.shared.utils.log_manager import LogFileManager
 
         real_manager = LogFileManager(
             logs_dir=str(logs_dir),
@@ -1271,9 +1271,9 @@ class TestAutoCleanupIntegration:
 
         # Mock other dependencies but use real log manager
         with (
-            patch("web.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
-            patch("web.api.batch_scanner.get_log_manager", return_value=real_manager),
-            patch("web.api.batch_scanner.get_task_manager") as mock_task_mgr,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.MarketBatchScanner") as mock_scanner_class,
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_log_manager", return_value=real_manager),
+            patch("web.apps.gemini_analyzer.backend.api.batch_scanner.get_task_manager") as mock_task_mgr,
         ):
             # Setup mocks
             mock_scanner = Mock()

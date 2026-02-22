@@ -1,0 +1,39 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:TransactWriteItems",
+        "dynamodb:DescribeTable",
+        "dynamodb:DescribeTimeToLive"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:${AWS_REGION}:${ACCOUNT_ID}:table/AutoTrade",
+        "arn:aws:dynamodb:${AWS_REGION}:${ACCOUNT_ID}:table/AutoTrade/index/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:ListTables"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "kms:Decrypt",
+        "kms:Encrypt",
+        "kms:DescribeKey"
+      ],
+      "Resource": "arn:aws:kms:${AWS_REGION}:${ACCOUNT_ID}:key/${KMS_KEY_ID}"
+    }
+  ]
+}

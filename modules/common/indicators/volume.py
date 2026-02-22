@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import pandas_ta as ta
 
-from modules.common.utils import validate_ohlcv_input
+from modules.common.data.validation import validate_ohlcv_input
 
 from .base import IndicatorResult, collect_metadata
 
@@ -47,8 +49,14 @@ def calculate_obv_series(close: pd.Series, volume: pd.Series) -> pd.Series:
             f"volume.index: {volume.index.tolist()[:5]}..."
         )
 
-    obv = ta.obv(close, volume)
-    if obv is not None:
+    ta_any: Any = ta
+    obv_func = getattr(ta_any, "obv", None)
+    ta_volume = getattr(ta_any, "volume", None)
+    if obv_func is None and ta_volume is not None:
+        obv_func = getattr(ta_volume, "obv", None)
+
+    obv: Any = obv_func(close, volume) if callable(obv_func) else None
+    if obv is not None and hasattr(obv, "reindex"):
         # Ensure alignment to close.index with ffill/fillna fallback
         obv_aligned = obv.reindex(close.index).ffill().fillna(0.0)
         return obv_aligned

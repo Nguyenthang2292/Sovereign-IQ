@@ -4,8 +4,7 @@ from typing import List, Optional
 
 from modules.common.core.data_fetcher import DataFetcher, SymbolFetchError
 from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.ui.logging import log_info
-from modules.common.utils import log_error, log_warn
+from modules.common.ui.logging import log_error, log_info, log_warn
 from modules.gemini_chart_analyzer.core.prefilter.legacy_voting import (
     pre_filter_symbols_with_hybrid,
     pre_filter_symbols_with_voting,

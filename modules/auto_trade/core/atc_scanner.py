@@ -13,6 +13,7 @@ Score semantics:
 - NEUTRAL: otherwise
 """
 
+import hashlib
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -54,9 +55,7 @@ def _pandas_to_polars_safe(pd_df: pd.DataFrame, empty_schema: Dict[str, Any]) ->
         for col in pd_df.columns:
             raw = pd_df[col].tolist()
             # Ensure values are plain Python types (not numpy scalars)
-            data[str(col)] = [
-                v.item() if hasattr(v, "item") else v for v in raw
-            ]
+            data[str(col)] = [v.item() if hasattr(v, "item") else v for v in raw]
         return pl.DataFrame(data)
     except Exception:
         # Last resort fallback: try pl.from_pandas (will need pyarrow)
@@ -214,9 +213,7 @@ class ATCScanner:
     # Smart weight normalization & adaptive threshold
     # ------------------------------------------------------------------
 
-    def _normalize_weights(
-        self, results_by_tf: Dict[str, Dict[str, Any]]
-    ) -> Tuple[Dict[str, float], float]:
+    def _normalize_weights(self, results_by_tf: Dict[str, Dict[str, Any]]) -> Tuple[Dict[str, float], float]:
         """Return (normalized_weights, adaptive_threshold).
 
         When a timeframe scan fails (empty longs AND shorts), its weight is
@@ -355,7 +352,8 @@ class ATCScanner:
         minute = datetime.now().replace(second=0, microsecond=0)
         # Sort symbols for consistent key generation
         symbol_key = ",".join(sorted(symbols))
-        return f"{symbol_key}_{timeframe}_{minute}"
+        hashed_key = hashlib.md5(symbol_key.encode()).hexdigest()
+        return f"{hashed_key}_{timeframe}_{minute}"
 
     def _get_cached_result(self, cache_key: str) -> Optional[Dict[str, Dict[str, Any]]]:
         """Get cached scan result if valid.

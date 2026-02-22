@@ -35,7 +35,7 @@ if project_root_str in sys.path:
 sys.path.insert(0, project_root_str)
 
 # Now import app - app.py uses 'from web.api import ...' which needs project_root in path
-from web.app import app
+from web.apps.gemini_analyzer.backend.main import app
 
 
 @pytest.fixture
@@ -296,13 +296,15 @@ def chart_analyzer_mocks(sample_ohlcv_df, tmp_path):
     chart_path = str(tmp_path / "chart.png")
 
     with (
-        patch("web.api.chart_analyzer.ExchangeManager") as mock_exchange,
-        patch("web.api.chart_analyzer.DataFetcher") as mock_data_fetcher_class,
-        patch("web.api.chart_analyzer.ChartGenerator") as mock_chart_gen_class,
-        patch("web.api.chart_analyzer.GeminiChartAnalyzer") as mock_gemini_class,
-        patch("web.api.chart_analyzer.get_charts_dir", return_value=tmp_path) as mock_get_charts_dir,
-        patch("web.api.chart_analyzer.get_log_manager") as mock_log_mgr,
-        patch("web.api.chart_analyzer.get_task_manager") as mock_task_mgr,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.ExchangeManager") as mock_exchange,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.DataFetcher") as mock_data_fetcher_class,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.ChartGenerator") as mock_chart_gen_class,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.GeminiChartAnalyzer") as mock_gemini_class,
+        patch(
+            "web.apps.gemini_analyzer.backend.api.chart_analyzer.get_charts_dir", return_value=tmp_path
+        ) as mock_get_charts_dir,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.get_log_manager") as mock_log_mgr,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.get_task_manager") as mock_task_mgr,
     ):
         # Setup common mocks using helper
         mock_data_fetcher, mock_log_manager, mock_task_manager = _setup_common_mocks(
@@ -353,12 +355,14 @@ def multi_timeframe_mocks(sample_ohlcv_df, tmp_path):
     """
 
     with (
-        patch("web.api.chart_analyzer.ExchangeManager") as mock_exchange,
-        patch("web.api.chart_analyzer.DataFetcher") as mock_data_fetcher_class,
-        patch("web.api.chart_analyzer.MultiTimeframeCoordinator") as mock_mtf_class,
-        patch("web.api.chart_analyzer.get_charts_dir", return_value=tmp_path) as mock_get_charts_dir,
-        patch("web.api.chart_analyzer.get_log_manager") as mock_log_mgr,
-        patch("web.api.chart_analyzer.get_task_manager") as mock_task_mgr,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.ExchangeManager") as mock_exchange,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.DataFetcher") as mock_data_fetcher_class,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.MultiTimeframeCoordinator") as mock_mtf_class,
+        patch(
+            "web.apps.gemini_analyzer.backend.api.chart_analyzer.get_charts_dir", return_value=tmp_path
+        ) as mock_get_charts_dir,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.get_log_manager") as mock_log_mgr,
+        patch("web.apps.gemini_analyzer.backend.api.chart_analyzer.get_task_manager") as mock_task_mgr,
     ):
         # Setup common mocks using helper
         mock_data_fetcher, mock_log_manager, mock_task_manager = _setup_common_mocks(

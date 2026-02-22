@@ -5,6 +5,8 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from modules.common.ui.logging import log_warn
+
 
 def calculate_volatility_and_spread(
     symbols: List[str],
@@ -75,7 +77,8 @@ def calculate_volatility_and_spread(
                                 "low": df["low"].values.astype(np.float64),
                                 "close": df["close"].values.astype(np.float64),
                             }
-                    except Exception:
+                    except Exception as e:
+                        log_warn(f"[Liquidity Metrics] Failed to cache data for {symbol}: {e}")
                         continue
             except ImportError:
                 # If rust not available, we proceed to Python fallback for remaining

@@ -1,7 +1,8 @@
 """Service layer for batch market scanning operations."""
 
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.gemini_chart_analyzer.core.exceptions import (
@@ -13,40 +14,135 @@ from modules.gemini_chart_analyzer.core.exceptions import (
 )
 from modules.gemini_chart_analyzer.core.reporting.html_report_generator import generate_html_report
 from modules.gemini_chart_analyzer.core.scanner_types import BatchScanResult
-from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner
+from modules.gemini_chart_analyzer.core.scanners.market_batch_scanner import MarketBatchScanner, ScanConfig
 from modules.gemini_chart_analyzer.core.utils.chart_paths import get_analysis_results_dir
 
 
-@dataclass
-class BatchScanConfig:
+class Stage0Config(BaseModel):
+    """Stage 0 sampling configuration."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    sample_percentage: Optional[float] = None
+    sampling_strategy: str = "random"
+    stratified_strata_count: int = 3
+    hybrid_top_percentage: float = 50.0
+
+
+class PreFilterConfig(BaseModel):
+    """Pre-filter workflow configuration."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    enabled: bool = False
+    mode: str = "voting"
+    percentage: Optional[float] = None
+    auto_skip_threshold: int = 10
+    fast_mode: bool = True
+    spc_config: Optional[Dict[str, Any]] = None
+    stage0: Stage0Config = Field(default_factory=Stage0Config)
+
+
+class ATCPerformanceConfig(BaseModel):
+    """ATC performance module configuration."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    settings: Optional[Dict[str, Any]] = None
+    approximate_ma_scanner: Optional[Dict[str, Any]] = None
+    use_performance: bool = True
+    use_mini: bool = False
+
+
+class XGBoostConfig(BaseModel):
+    """XGBoost configuration for pre-filter stage."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    settings: Optional[Dict[str, Any]] = None
+    use_performance: bool = True
+
+
+class BatchScanConfig(BaseModel):
     """Configuration for batch scan."""
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
     timeframe: Optional[str] = None
     timeframes: Optional[List[str]] = None
     max_symbols: Optional[int] = None
     limit: int = 700
     cooldown: float = 2.5
-    enable_pre_filter: bool = False
-    pre_filter_mode: str = "voting"
-    pre_filter_percentage: Optional[float] = None
-    pre_filter_auto_skip_threshold: int = 10
-    pre_filter_fast_mode: bool = True
+    cancelled_callback: Optional[Callable[[], bool]] = None
     initial_symbols: Optional[List[str]] = None
-    spc_config: Optional[Dict[str, Any]] = None
     rf_model_path: Optional[str] = None
     skip_cleanup: bool = False
     output_dir: Optional[str] = None
-    stage0_sample_percentage: Optional[float] = None  # Stage 0: Sample percentage before Stage 1
-    stage0_sampling_strategy: str = "random"  # Sampling strategy for Stage 0
-    stage0_stratified_strata_count: int = 3  # For stratified sampling
-    stage0_hybrid_top_percentage: float = 50.0  # For top_n_hybrid sampling
-    rf_training: Optional[Dict[str, Any]] = None  # RF model training configuration
-    atc_performance: Optional[Dict[str, Any]] = None  # ATC high-performance parameters
-    approximate_ma_scanner: Optional[Dict[str, Any]] = None  # Approximate MA Batch Scanner configuration
-    use_atc_performance: bool = True  # Switch between Full LTS (True) and Legacy (False) ATC modules
-    use_atc_performance_mini: bool = False  # Use CPU-only mini version (takes priority over use_atc_performance)
-    xgboost_lts: Optional[Dict[str, Any]] = None  # XGBoost LTS configuration (labeling, model, optuna, etc.)
-    use_xgboost_performance: bool = True  # Switch between LTS (True) and Legacy (False) XGBoost modules
+    rf_training: Optional[Dict[str, Any]] = None
+    pre_filter: PreFilterConfig = Field(default_factory=PreFilterConfig)
+    atc: ATCPerformanceConfig = Field(default_factory=ATCPerformanceConfig)
+    xgboost: XGBoostConfig = Field(default_factory=XGBoostConfig)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _map_legacy_flat_fields(cls, data: Any) -> Any:
+        """Map legacy flat config fields to nested config models."""
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+
+        pre_filter_data = dict(normalized.get("pre_filter") or {})
+        stage0_data = dict(pre_filter_data.get("stage0") or {})
+
+        if "enable_pre_filter" in normalized:
+            pre_filter_data.setdefault("enabled", normalized.pop("enable_pre_filter"))
+        if "pre_filter_mode" in normalized:
+            pre_filter_data.setdefault("mode", normalized.pop("pre_filter_mode"))
+        if "pre_filter_percentage" in normalized:
+            pre_filter_data.setdefault("percentage", normalized.pop("pre_filter_percentage"))
+        if "pre_filter_auto_skip_threshold" in normalized:
+            pre_filter_data.setdefault("auto_skip_threshold", normalized.pop("pre_filter_auto_skip_threshold"))
+        if "pre_filter_fast_mode" in normalized:
+            pre_filter_data.setdefault("fast_mode", normalized.pop("pre_filter_fast_mode"))
+        if "spc_config" in normalized:
+            pre_filter_data.setdefault("spc_config", normalized.pop("spc_config"))
+
+        if "stage0_sample_percentage" in normalized:
+            stage0_data.setdefault("sample_percentage", normalized.pop("stage0_sample_percentage"))
+        if "stage0_sampling_strategy" in normalized:
+            stage0_data.setdefault("sampling_strategy", normalized.pop("stage0_sampling_strategy"))
+        if "stage0_stratified_strata_count" in normalized:
+            stage0_data.setdefault("stratified_strata_count", normalized.pop("stage0_stratified_strata_count"))
+        if "stage0_hybrid_top_percentage" in normalized:
+            stage0_data.setdefault("hybrid_top_percentage", normalized.pop("stage0_hybrid_top_percentage"))
+
+        if stage0_data:
+            pre_filter_data["stage0"] = stage0_data
+        if pre_filter_data:
+            normalized["pre_filter"] = pre_filter_data
+
+        atc_data = dict(normalized.get("atc") or {})
+        if "atc_performance" in normalized:
+            atc_data.setdefault("settings", normalized.pop("atc_performance"))
+        if "approximate_ma_scanner" in normalized:
+            atc_data.setdefault("approximate_ma_scanner", normalized.pop("approximate_ma_scanner"))
+        if "use_atc_performance" in normalized:
+            atc_data.setdefault("use_performance", normalized.pop("use_atc_performance"))
+        if "use_atc_performance_mini" in normalized:
+            atc_data.setdefault("use_mini", normalized.pop("use_atc_performance_mini"))
+        if atc_data:
+            normalized["atc"] = atc_data
+
+        xgboost_data = dict(normalized.get("xgboost") or {})
+        if "xgboost_lts" in normalized:
+            xgboost_data.setdefault("settings", normalized.pop("xgboost_lts"))
+        if "use_xgboost_performance" in normalized:
+            xgboost_data.setdefault("use_performance", normalized.pop("use_xgboost_performance"))
+        if xgboost_data:
+            normalized["xgboost"] = xgboost_data
+
+        return normalized
 
 
 def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
@@ -100,31 +196,57 @@ def run_batch_scan(config: BatchScanConfig) -> BatchScanResult:
         # Initialize scanner
         scanner = MarketBatchScanner(cooldown_seconds=config.cooldown, rf_model_path=config.rf_model_path)
 
+        # Execute pre-filter before scanning if enabled
+        initial_symbols = config.initial_symbols
+        if config.pre_filter.enabled and not initial_symbols:
+            # Need to get all symbols first
+            # We already initialized components for RF training, but if not we can use a fresh one
+            from modules.gemini_chart_analyzer.cli.batch_scanner.utils import init_components
+            from modules.gemini_chart_analyzer.core.prefilter.workflow import run_prefilter_worker
+
+            _, data_fetcher = init_components()
+
+            log_info(f"Pre-filter enabled ({config.pre_filter.mode}). Fetching all symbols...")
+            try:
+                all_symbols = scanner.get_all_symbols()
+
+                initial_symbols = run_prefilter_worker(
+                    all_symbols=all_symbols,
+                    percentage=config.pre_filter.percentage if config.pre_filter.percentage is not None else 100.0,
+                    timeframe=config.timeframe or "1h",
+                    limit=config.limit,
+                    fast_mode=config.pre_filter.fast_mode,
+                    spc_config=config.pre_filter.spc_config,
+                    rf_model_path=config.rf_model_path,
+                    stage0_sample_percentage=config.pre_filter.stage0.sample_percentage,
+                    stage0_sampling_strategy=config.pre_filter.stage0.sampling_strategy,
+                    stage0_stratified_strata_count=config.pre_filter.stage0.stratified_strata_count,
+                    stage0_hybrid_top_percentage=config.pre_filter.stage0.hybrid_top_percentage,
+                    atc_performance=config.atc.settings,
+                    approximate_ma_scanner=config.atc.approximate_ma_scanner,
+                    auto_skip_threshold=config.pre_filter.auto_skip_threshold,
+                    use_atc_performance=config.atc.use_performance,
+                    use_atc_performance_mini=config.atc.use_mini,
+                    xgboost_lts=config.xgboost.settings,
+                    use_xgboost_performance=config.xgboost.use_performance,
+                )
+                log_success(f"Pre-filter complete. {len(initial_symbols)} symbols selected.")
+            except Exception as e:
+                log_error(f"Error during pre-filtering: {e}")
+                log_warn("Proceeding with empty initial_symbols to scan all fetched symbols.")
+                initial_symbols = None
+
         # Run scan
-        results = scanner.scan_market(
+        scan_config = ScanConfig(
             timeframe=config.timeframe,
             timeframes=config.timeframes,
             max_symbols=config.max_symbols,
             limit=config.limit,
-            initial_symbols=config.initial_symbols,
-            enable_pre_filter=config.enable_pre_filter,
-            pre_filter_mode=config.pre_filter_mode,
-            pre_filter_percentage=config.pre_filter_percentage,
-            pre_filter_auto_skip_threshold=config.pre_filter_auto_skip_threshold,
-            pre_filter_fast_mode=config.pre_filter_fast_mode,
-            spc_config=config.spc_config,
+            cancelled_callback=config.cancelled_callback,
+            initial_symbols=initial_symbols,
             skip_cleanup=config.skip_cleanup,
-            stage0_sample_percentage=config.stage0_sample_percentage,
-            stage0_sampling_strategy=config.stage0_sampling_strategy,
-            stage0_stratified_strata_count=config.stage0_stratified_strata_count,
-            stage0_hybrid_top_percentage=config.stage0_hybrid_top_percentage,
-            atc_performance=config.atc_performance,
-            approximate_ma_scanner=config.approximate_ma_scanner,
-            use_atc_performance=config.use_atc_performance,
-            use_atc_performance_mini=config.use_atc_performance_mini,
-            xgboost_lts=config.xgboost_lts,
-            use_xgboost_performance=config.use_xgboost_performance,
         )
+        results = scanner.scan_market(scan_config)
 
         # Generate HTML report if results were found
 

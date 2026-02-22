@@ -9,7 +9,8 @@ from typing import Any, Optional, cast
 
 import ccxt
 
-from modules.auto_trade.execution.order_builder import OrderTicket, OrderBuilder
+from modules.auto_trade.execution.binance.order_management import _ccxt_futures_symbol, _fetch_all_open_orders
+from modules.auto_trade.execution.order_builder import OrderBuilder, OrderTicket
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 
@@ -119,7 +120,9 @@ class OrderExecution:
                     ),
                 )
 
-                log_info(f"✅ Market order executed: {market_order_result.get('id') if market_order_result else 'Unknown'}")
+                log_info(
+                    f"✅ Market order executed: {market_order_result.get('id') if market_order_result else 'Unknown'}"
+                )
                 break
 
             except Exception as e:
@@ -144,11 +147,16 @@ class OrderExecution:
         builder = OrderBuilder()
         order = builder.update_order_with_entry(order, filled_price)
 
-        # Step 5: Place TP/SL orders
-        tp_order_result: Optional[dict] = self._place_take_profit(order, amount_contracts)
-        sl_order_result: Optional[dict] = self._place_stop_loss(order, amount_contracts)
+        # Step 5: Cancel any existing TP/SL conditional orders before placing new ones
+        # This prevents duplicate conditional orders (the root cause of the 10-order bug)
+        ccxt_symbol: str = _ccxt_futures_symbol(self.exchange, order.symbol)
+        self._cancel_existing_tp_sl(ccxt_symbol)
 
-        # Step 6: Return combined result
+        # Step 6: Place TP/SL orders using the correct futures symbol
+        tp_order_result: Optional[dict] = self._place_take_profit(order, amount_contracts, ccxt_symbol)
+        sl_order_result: Optional[dict] = self._place_stop_loss(order, amount_contracts, ccxt_symbol)
+
+        # Step 7: Return combined result
         return {
             "market_order": market_order_result,
             "entry_price": filled_price,
@@ -186,13 +194,42 @@ class OrderExecution:
         log_error(f"Failed to set leverage after {self.max_retries} attempts")
         return False
 
-    def _place_take_profit(self, order: OrderTicket, amount: float) -> Optional[dict]:
+    def _cancel_existing_tp_sl(self, ccxt_symbol: str) -> None:
+        """
+        Cancel all existing TP/SL conditional orders for a symbol.
+        This prevents duplicate conditional orders when placing new TP/SL.
+
+        Args:
+            ccxt_symbol: CCXT-formatted futures symbol (e.g. DOGE/USDT:USDT)
+        """
+        if self.dry_run:
+            return
+
+        try:
+            open_orders: list = _fetch_all_open_orders(self.exchange, ccxt_symbol)
+            for order in open_orders:
+                info = order.get("info") or {}
+                order_type = (info.get("type") or info.get("origType") or order.get("type") or "").upper()
+                # Cancel TP and SL conditional orders
+                if "TAKE_PROFIT" in order_type or "STOP" in order_type:
+                    try:
+                        self.exchange.cancel_order(order["id"], ccxt_symbol)
+                        log_info(f"Cancelled existing conditional order: {order['id']} ({order_type})")
+                    except Exception as e:
+                        log_warn(f"Failed to cancel conditional order {order['id']}: {e}")
+        except Exception as e:
+            log_warn(f"Could not fetch/cancel existing orders for {ccxt_symbol}: {e}")
+
+    def _place_take_profit(
+        self, order: OrderTicket, amount: float, ccxt_symbol: Optional[str] = None
+    ) -> Optional[dict]:
         """
         Place take profit order.
 
         Args:
             order: Order ticket with TP price
             amount: Contract amount
+            ccxt_symbol: Optional pre-resolved CCXT futures symbol
 
         Returns:
             TP order result or None
@@ -202,19 +239,21 @@ class OrderExecution:
             return None
 
         tp_side: str = "sell" if order.side == "BUY" else "buy"
+        symbol: str = ccxt_symbol or _ccxt_futures_symbol(self.exchange, order.symbol)
 
         for attempt in range(self.max_retries):
             try:
                 tp_order = cast(
                     dict,
                     self.exchange.create_order(
-                        symbol=order.symbol,
-                        type=cast(Any, "take_profit_market"),
+                        symbol=symbol,
+                        type=cast(Any, "TAKE_PROFIT_MARKET"),
                         side=tp_side,
                         amount=amount,
                         params={
                             "stopPrice": order.take_profit_price,
                             "reduceOnly": True,
+                            "workingType": "MARK_PRICE",
                         },
                     ),
                 )
@@ -230,13 +269,14 @@ class OrderExecution:
         log_error("Failed to place TP order")
         return None
 
-    def _place_stop_loss(self, order: OrderTicket, amount: float) -> Optional[dict]:
+    def _place_stop_loss(self, order: OrderTicket, amount: float, ccxt_symbol: Optional[str] = None) -> Optional[dict]:
         """
         Place stop loss order.
 
         Args:
             order: Order ticket with SL price
             amount: Contract amount
+            ccxt_symbol: Optional pre-resolved CCXT futures symbol
 
         Returns:
             SL order result or None
@@ -246,19 +286,21 @@ class OrderExecution:
             return None
 
         sl_side: str = "sell" if order.side == "BUY" else "buy"
+        symbol: str = ccxt_symbol or _ccxt_futures_symbol(self.exchange, order.symbol)
 
         for attempt in range(self.max_retries):
             try:
                 sl_order = cast(
                     dict,
                     self.exchange.create_order(
-                        symbol=order.symbol,
-                        type=cast(Any, "stop_market"),
+                        symbol=symbol,
+                        type=cast(Any, "STOP_MARKET"),
                         side=sl_side,
                         amount=amount,
                         params={
                             "stopPrice": order.stop_loss_price,
                             "reduceOnly": True,
+                            "workingType": "MARK_PRICE",
                         },
                     ),
                 )

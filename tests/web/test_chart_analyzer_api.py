@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Import app - project root is added to path in conftest, so use absolute import
-from web.app import app
+from web.apps.gemini_analyzer.backend.main import app
 
 
 def get_test_timeout(base_timeout: float, env_var: str = "TEST_TIMEOUT_MULTIPLIER") -> float:
@@ -267,7 +267,7 @@ class TestSingleAnalysisEndpoint:
         mocks = chart_analyzer_mocks
 
         # Add cleanup mock and error logging
-        with patch("web.api.chart_analyzer._cleanup_old_charts") as mock_cleanup:
+        with patch("web.apps.gemini_analyzer.backend.api.chart_analyzer._cleanup_old_charts") as mock_cleanup:
             request_data = {"symbol": "BTC/USDT", "timeframe": "1h", "no_cleanup": True}
             response = client.post("/api/analyze/single", json=request_data)
 
@@ -775,7 +775,7 @@ class TestAnalyzeStatusEndpoint:
 
     def test_get_status_running(self, client):
         """Test getting status of running analysis task."""
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = "test-analyze-123"
@@ -801,7 +801,7 @@ class TestAnalyzeStatusEndpoint:
 
     def test_get_status_completed(self, client):
         """Test getting status of completed analysis task."""
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = "test-analyze-456"
@@ -822,7 +822,7 @@ class TestAnalyzeStatusEndpoint:
 
     def test_get_status_error(self, client):
         """Test getting status of failed analysis task."""
-        from web.utils.task_manager import get_task_manager
+        from web.shared.utils.task_manager import get_task_manager
 
         task_manager = get_task_manager()
         session_id = "test-analyze-789"
@@ -875,7 +875,7 @@ class TestAutoCleanupIntegration:
         os.utime(recent_log, (recent_time, recent_time))
 
         # Patch get_log_manager to use real instance with cleanup enabled
-        from web.utils.log_manager import LogFileManager
+        from web.shared.utils.log_manager import LogFileManager
 
         real_manager = LogFileManager(
             logs_dir=str(logs_dir),

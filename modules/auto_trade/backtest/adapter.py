@@ -5,7 +5,7 @@ Adapts the existing backtester module to work with auto-trade signal pipeline
 and position monitoring strategies.
 """
 
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -13,7 +13,6 @@ import pandas as pd
 from modules.backtester.core.backtester import FullBacktester
 from modules.common.core.data_fetcher import DataFetcher
 
-logger = logging.getLogger(__name__)
 
 
 class AutoTradeBacktester:
@@ -80,7 +79,7 @@ class AutoTradeBacktester:
             signal_mode="single_signal",  # Auto-trade uses single best signal
         )
 
-        logger.info(
+        log_info(
             f"AutoTradeBacktester initialized: SL={stop_loss_pct}, TP={take_profit_pct}, "
             f"Leverage={leverage}, BE={enable_breakeven}, Martingale={enable_martingale}"
         )
@@ -118,7 +117,7 @@ class AutoTradeBacktester:
             )
 
             if not result or not result.get("trades"):
-                logger.warning(f"No trades generated for {symbol}")
+                log_warn(f"No trades generated for {symbol}")
                 return result
 
             # Apply auto-trade specific post-processing
@@ -162,7 +161,7 @@ class AutoTradeBacktester:
             return result
 
         except Exception as e:
-            logger.error(f"Error backtesting {symbol}: {e}", exc_info=True)
+            log_error(f"Error backtesting {symbol}: {e}", exc_info=True)
             from modules.backtester.core.metrics import empty_backtest_result
 
             return empty_backtest_result()
@@ -212,7 +211,7 @@ class AutoTradeBacktester:
                     trade_copy["pnl"] = 0
                     trade_copy["pnl_pct"] = 0
                     trade_copy["exit_reason"] = "BREAKEVEN_PROTECTION"
-                    logger.debug(f"BE protection applied to trade at {trade.get('entry_time', 'unknown')}")
+                    log_debug(f"BE protection applied to trade at {trade.get('entry_time', 'unknown')}")
             else:
                 trade_copy["be_moved"] = False
 
@@ -253,17 +252,17 @@ class AutoTradeBacktester:
                         martingale_step += 1
                         current_leverage = min(current_leverage * 2, self.martingale_max_leverage)
                         total_loss_to_recover += abs(prev_pnl)
-                        logger.debug(
+                        log_debug(
                             f"Martingale step {martingale_step}: "
                             f"Leverage {current_leverage}x, "
                             f"Loss to recover: ${total_loss_to_recover:.2f}"
                         )
                     else:
-                        logger.warning(f"Max Martingale steps reached ({self.martingale_max_steps})")
+                        log_warn(f"Max Martingale steps reached ({self.martingale_max_steps})")
                 else:
                     # Profit detected, reset Martingale
                     if martingale_step > 0:
-                        logger.info(f"Martingale chain recovered at step {martingale_step}")
+                        log_info(f"Martingale chain recovered at step {martingale_step}")
                     martingale_step = 0
                     current_leverage = self.leverage
                     total_loss_to_recover = 0.0

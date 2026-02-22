@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pandas_ta as ta
 
-from modules.common.utils import validate_ohlcv_input
+from modules.common.data.validation import validate_ohlcv_input
 
 from .base import IndicatorResult, collect_metadata
 

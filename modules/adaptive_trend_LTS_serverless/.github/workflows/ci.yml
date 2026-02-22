@@ -1,0 +1,162 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Stable Rust build (no SIMD)
+  stable:
+    name: Stable (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build without SIMD (stable)
+        working-directory: modules/adaptive_trend_LTS_serverless
+        run: cargo build --no-default-features --verbose
+
+      - name: Run tests without SIMD
+        working-directory: modules/adaptive_trend_LTS_serverless
+        run: cargo test --no-default-features --verbose
+
+      - name: Build Lambda without SIMD (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: modules/adaptive_trend_LTS_serverless/lambda
+        run: cargo build --no-default-features --verbose --target x86_64-unknown-linux-gnu
+
+  # Nightly Rust build (with SIMD)
+  nightly:
+    name: Nightly SIMD (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly-2026-02-01
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-nightly-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build with SIMD (nightly)
+        working-directory: modules/adaptive_trend_LTS_serverless
+        run: cargo build --features simd --verbose
+
+      - name: Run tests with SIMD
+        working-directory: modules/adaptive_trend_LTS_serverless
+        run: cargo test --features simd --verbose
+
+      - name: Build Lambda with SIMD
+        working-directory: modules/adaptive_trend_LTS_serverless/lambda
+        run: cargo build --features simd --verbose --target x86_64-unknown-linux-gnu
+
+      - name: Run clippy
+        working-directory: modules/adaptive_trend_LTS_serverless
+        run: cargo clippy --features simd -- -D warnings
+
+      - name: Run rustfmt
+        working-directory: modules/adaptive_trend_LTS_serverless
+        run: cargo fmt --all -- --check
+
+  # Build for Lambda ARM64 (Graviton)
+  lambda-arm64:
+    name: Lambda ARM64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly-2026-02-01
+          targets: aarch64-unknown-linux-gnu
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-arm64-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Lambda ARM64 with SIMD
+        working-directory: modules/adaptive_trend_LTS_serverless/lambda
+        run: cargo build --features simd --verbose --target aarch64-unknown-linux-gnu
+
+  # Security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Run security audit
+        uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

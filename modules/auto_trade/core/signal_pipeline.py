@@ -41,14 +41,15 @@ import asyncio
 import time
 from typing import Dict, List, Optional, Protocol, TypedDict
 
-from modules.auto_trade.core.atc_scanner import ATCScanner, SignalResult
+from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.auto_trade.core.circuit_breaker import CircuitBreaker, CircuitState
 from modules.auto_trade.core.gemini_integration import GeminiIntegration, GeminiSignal
 from modules.auto_trade.core.health import HealthRegistry, HealthStatus
-from modules.auto_trade.core.persistence_sqlite import SignalPersistenceSQLite
 from modules.auto_trade.core.signal_selector import FinalSignal, SignalSelector
 from modules.auto_trade.core.symbol_manager import SymbolManager
 from modules.auto_trade.monitoring.alerts import AlertManager
+from modules.auto_trade.monitoring.logger import setup_logging
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 
 class XGBoostFilterLike(Protocol):
@@ -57,12 +58,16 @@ class XGBoostFilterLike(Protocol):
     def filter_signals(self, signals: List[SignalResult]) -> List[SignalResult]: ...
 
 
+class ATCScannerLike(Protocol):
+    """Protocol for any ATC scanner implementation used by the pipeline."""
+
+    def scan_symbols(self, symbols: List[str]) -> List[SignalResult]: ...
+
+
 from modules.auto_trade.monitoring.audit import AuditLogger
-from modules.auto_trade.monitoring.events import Event, EventBus, EventType
-from modules.auto_trade.monitoring.logger import get_logger, setup_logging
+from modules.auto_trade.monitoring.event_system import EventSystem, EventType
 from modules.auto_trade.monitoring.metrics import MetricsCollector
 
-logger = get_logger("modules.auto_trade.core.signal_pipeline")
 
 
 class PipelineConfig(TypedDict, total=False):
@@ -112,18 +117,17 @@ class SignalPipeline:
     """
 
     symbol_manager: SymbolManager
-    atc_scanner: ATCScanner
+    atc_scanner: ATCScannerLike
     xgboost_filter: XGBoostFilterLike
     gemini_integration: GeminiIntegration
     signal_selector: SignalSelector
-    signal_persistence: Optional[SignalPersistenceSQLite]
     config: PipelineConfig
     max_symbols: int
     max_ai_candidates: int
     xgboost_mode: str
     circuit_breaker: CircuitBreaker
     health_registry: HealthRegistry
-    event_bus: EventBus
+    event_bus: EventSystem
     metrics: MetricsCollector
     audit: AuditLogger
     alerts: AlertManager
@@ -131,11 +135,10 @@ class SignalPipeline:
     def __init__(
         self,
         symbol_manager: SymbolManager,
-        atc_scanner: ATCScanner,
+        atc_scanner: ATCScannerLike,
         xgboost_filter: XGBoostFilterLike,
         gemini_integration: GeminiIntegration,
         signal_selector: SignalSelector,
-        signal_persistence: Optional[SignalPersistenceSQLite] = None,
         config: Optional[PipelineConfig] = None,
     ) -> None:
         self.symbol_manager = symbol_manager
@@ -143,7 +146,6 @@ class SignalPipeline:
         self.xgboost_filter = xgboost_filter
         self.gemini_integration = gemini_integration
         self.signal_selector = signal_selector
-        self.signal_persistence = signal_persistence
         self.config = config or {}
 
         # Initialize Logging
@@ -167,7 +169,7 @@ class SignalPipeline:
         self.health_registry = HealthRegistry()
 
         # Monitoring foundation
-        self.event_bus = EventBus()
+        self.event_bus = EventSystem()
         self.metrics = MetricsCollector()
         self.audit = AuditLogger()
         self.alerts = AlertManager(self.event_bus)
@@ -206,85 +208,89 @@ class SignalPipeline:
             FinalSignal object if a valid trade is found, else None.
         """
         start_time = time.time()
-        logger.info("Starting Signal Pipeline...")
-        self.event_bus.publish(Event(EventType.PIPELINE_START))
+        log_info("Starting Signal Pipeline...")
+        self.event_bus.publish(EventType.PIPELINE_START, {}, source="SignalPipeline")
         self.metrics.increment("pipeline_runs")
 
         # Run Health Checks
         health_status = self.health_registry.check_health()
         if not self.health_registry.is_healthy():
             msg = f"System Unhealthy: {health_status}"
-            logger.warning(msg)
-            self.event_bus.publish(Event(EventType.HEALTH_CHECK_FAILED, {"details": str(health_status)}))
+            log_warn(msg)
+            self.event_bus.publish(
+                EventType.HEALTH_CHECK_FAILED,
+                {"details": str(health_status)},
+                source="SignalPipeline",
+            )
             # For now, we just log, but we could abort if critical
             # return None
 
         try:
             # 1. Refresh Symbols
-            logger.info("Step 1: Refreshing Symbols...")
+            log_info("Step 1: Refreshing Symbols...")
             self.symbol_manager.refresh_symbols()
 
             # Log sampling configuration
             sample_pct = getattr(self.symbol_manager, "sample_percentage", 100.0)
             strategy = getattr(self.symbol_manager, "sampling_strategy", "random")
-            logger.info(f"Sampling config: {sample_pct}% using '{strategy}' strategy")
+            log_info(f"Sampling config: {sample_pct}% using '{strategy}' strategy")
 
             symbols = self.symbol_manager.get_symbols()
-            logger.info(f"Sampled {len(symbols)} symbols using {strategy} strategy")
+            log_info(f"Sampled {len(symbols)} symbols using {strategy} strategy")
 
             if len(symbols) > self.max_symbols:
-                logger.info(f"Limiting scan to top {self.max_symbols} from {len(symbols)} candidates.")
+                log_info(f"Limiting scan to top {self.max_symbols} from {len(symbols)} candidates.")
                 symbols = symbols[: self.max_symbols]
 
             if not symbols:
-                logger.warning("No symbols available to scan.")
+                log_warn("No symbols available to scan.")
                 return None
 
             self.metrics.gauge("candidate_symbols", len(symbols))
 
-            logger.info(f"Scanning {len(symbols)} candidate symbols.")
+            log_info(f"Scanning {len(symbols)} candidate symbols.")
 
             # 2. ATC Scan (uses internal Rust cache)
-            logger.info("Step 2: Scanners (ATC)...")
+            log_info("Step 2: ATC Scan...")
             atc_signals = self.atc_scanner.scan_symbols(symbols)
 
             if not atc_signals:
-                logger.info("No ATC signals found.")
+                log_info("No ATC signals found.")
                 return None
 
             self.metrics.gauge("atc_signals_found", len(atc_signals))
 
-            logger.info(f"ATC Found {len(atc_signals)} candidates.")
+            log_info(f"ATC Found {len(atc_signals)} candidates.")
 
             # 3. XGBoost Filter
             xgboost_mode_label = "per-symbol training" if self.xgboost_mode == "per_symbol" else "pre-trained model"
-            logger.info(f"Step 3: Filtering (XGBoost - {xgboost_mode_label})...")
+            log_info(f"Step 3: XGBoost Filter ({xgboost_mode_label})...")
             xgboost_signals = self.xgboost_filter.filter_signals(atc_signals)
 
             self.metrics.gauge("xgboost_signals_passed", len(xgboost_signals))
 
             if not xgboost_signals:
-                logger.info("No signals passed XGBoost filter.")
+                log_info("No signals passed XGBoost filter.")
                 return None
 
-            logger.info(f"XGBoost passed {len(xgboost_signals)} candidates.")
+            log_info(f"XGBoost passed {len(xgboost_signals)} candidates.")
 
             # 4. Filter top candidates for AI Analysis
             # Sort by XGBoost confidence (descending)
             xgboost_signals.sort(key=lambda x: float(x.details.get("xgboost_conf", 0.0)), reverse=True)
 
             if len(xgboost_signals) > self.max_ai_candidates:
-                logger.info(
+                log_info(
                     f"Limiting AI analysis to top {self.max_ai_candidates} candidates (from {len(xgboost_signals)})."
                 )
                 xgboost_signals = xgboost_signals[: self.max_ai_candidates]
 
             # 5. Gemini Analysis
-            logger.info(f"Step 4: AI Analysis (Gemini) for {len(xgboost_signals)} candidates...")
+            log_info(f"Step 5: Gemini AI Analysis for {len(xgboost_signals)} candidates...")
 
             gemini_results: Dict[str, GeminiSignal] = {}
             if not self.gemini_integration.is_available():
-                logger.warning("Gemini API not configured. Skipping AI analysis.")
+                log_warn("Gemini API not configured. Skipping AI analysis.")
             else:
                 try:
                     # Wrapped in Circuit Breaker - handle both sync and async contexts
@@ -305,39 +311,38 @@ class SignalPipeline:
                     gemini_results_raw = self.circuit_breaker.call(call_gemini)
 
                     gemini_results = {k: v for k, v in gemini_results_raw.items() if v is not None}
-                    logger.info(f"Gemini analyzed {len(gemini_results)} candidates successfully.")
+                    log_info(f"Gemini analyzed {len(gemini_results)} candidates successfully.")
                 except Exception as e:
-                    logger.error(f"Gemini analysis failed: {e}")
-                    self.event_bus.publish(Event(EventType.CIRCUIT_OPEN, {"error": str(e)}))
+                    log_error(f"Gemini analysis failed: {e}")
+                    self.event_bus.publish(EventType.CIRCUIT_OPEN, {"error": str(e)}, source="SignalPipeline")
 
-            # 5. Signal Selection
-            logger.info("Step 5: Final Selection...")
+            # 6. Signal Selection
+            log_info("Step 6: Final Signal Selection...")
             final_signal = self.signal_selector.select_best_signal(xgboost_signals, gemini_results)
 
-            # 6. Persistence & Audit
+            # 7. Audit & Metric
             if final_signal:
-                if self.signal_persistence:
-                    self.signal_persistence.save_signal(final_signal)
-
                 # Audit Log
                 self.audit.log_event("SIGNAL_GENERATED", final_signal.__dict__)
 
                 # Event & Metric
                 self.event_bus.publish(
-                    Event(EventType.SIGNAL_GENERATED, {"symbol": final_signal.symbol, "type": final_signal.signal_type})
+                    EventType.SIGNAL_GENERATED,
+                    {"symbol": final_signal.symbol, "type": final_signal.signal_type},
+                    source="SignalPipeline",
                 )
                 self.metrics.increment("signals_generated")
 
                 duration = time.time() - start_time
                 self.metrics.histogram("pipeline_duration", duration)
-                logger.info(f"Pipeline SUCCESS in {duration:.2f}s: Selected {final_signal.symbol}")
+                log_info(f"Pipeline SUCCESS in {duration:.2f}s: Selected {final_signal.symbol}")
             else:
-                logger.info(f"Pipeline COMPLETED in {time.time() - start_time:.2f}s: No final signal selected.")
+                log_info(f"Pipeline COMPLETED in {time.time() - start_time:.2f}s: No final signal selected.")
 
-            self.event_bus.publish(Event(EventType.PIPELINE_COMPLETE))
+            self.event_bus.publish(EventType.PIPELINE_COMPLETE, {}, source="SignalPipeline")
             return final_signal
 
         except Exception as e:
-            logger.error(f"Pipeline Failed: {e}", exc_info=True)
-            self.event_bus.publish(Event(EventType.PIPELINE_ERROR, {"error": str(e)}))
+            log_error(f"Pipeline Failed: {e}", exc_info=True)
+            self.event_bus.publish(EventType.PIPELINE_ERROR, {"error": str(e)}, source="SignalPipeline")
             return None

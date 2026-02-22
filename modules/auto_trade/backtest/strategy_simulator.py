@@ -5,13 +5,12 @@ Simulates complete auto-trade strategy including signal pipeline,
 order execution, position monitoring, and Martingale recovery.
 """
 
-import logging
+from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Any, Dict, List, Optional
 
 from modules.auto_trade.core.signal_pipeline import SignalPipeline
 from modules.common.core.data_fetcher import DataFetcher
 
-logger = logging.getLogger(__name__)
 
 
 class AutoTradeStrategySimulator:
@@ -87,7 +86,7 @@ class AutoTradeStrategySimulator:
         self.trades: List[Dict] = []
         self.positions: List[Dict] = []
 
-        logger.info(
+        log_info(
             f"AutoTradeStrategySimulator initialized: "
             f"Capital=${initial_capital}, Leverage={leverage}x, "
             f"Risk={risk_pct * 100}%, SL={stop_loss_pct * 100}%, TP={take_profit_pct * 100}%"
@@ -111,7 +110,7 @@ class AutoTradeStrategySimulator:
             Dictionary with simulation results
         """
         try:
-            logger.info(f"Starting simulation: timeframe={timeframe}, lookback={lookback}")
+            log_info(f"Starting simulation: timeframe={timeframe}, lookback={lookback}")
 
             # Calculate number of scan intervals
             # Each scan happens every scan_interval_minutes
@@ -119,7 +118,7 @@ class AutoTradeStrategySimulator:
             scans_per_period = max(1, timeframe_minutes // self.scan_interval_minutes)
             total_scans = lookback * scans_per_period
 
-            logger.info(f"Will perform {total_scans} market scans over {lookback} periods")
+            log_info(f"Will perform {total_scans} market scans over {lookback} periods")
 
             # Simulate market scans and trading
             for scan_idx in range(total_scans):
@@ -151,7 +150,7 @@ class AutoTradeStrategySimulator:
             }
 
         except Exception as e:
-            logger.error(f"Error during simulation: {e}", exc_info=True)
+            log_error(f"Error during simulation: {e}", exc_info=True)
             return {"error": str(e), "trades": self.trades}
 
     def _timeframe_to_minutes(self, timeframe: str) -> int:
@@ -226,7 +225,7 @@ class AutoTradeStrategySimulator:
             return None
 
         except Exception as e:
-            logger.error(f"Error scanning for signals: {e}", exc_info=True)
+            log_error(f"Error scanning for signals: {e}", exc_info=True)
             return None
 
     def _execute_order(self, signal: Dict[str, Any], period_idx: int) -> None:
@@ -261,13 +260,13 @@ class AutoTradeStrategySimulator:
 
             self.positions.append(position)
 
-            logger.info(
+            log_info(
                 f"Order executed: {signal.get('symbol')} {signal.get('signal_type')} "
                 f"at period {period_idx}, size=${position_size:.2f}, leverage={self.leverage}x"
             )
 
         except Exception as e:
-            logger.error(f"Error executing order: {e}", exc_info=True)
+            log_error(f"Error executing order: {e}", exc_info=True)
 
     def _close_position(self, reason: str, period_idx: int) -> None:
         """
@@ -316,16 +315,16 @@ class AutoTradeStrategySimulator:
                     self.martingale_step += 1
                     self.leverage = min(self.leverage * 2, 16)  # Max 16x
                     self.total_loss_to_recover += abs(pnl)
-                    logger.info(f"Martingale step {self.martingale_step}, leverage now {self.leverage}x")
+                    log_info(f"Martingale step {self.martingale_step}, leverage now {self.leverage}x")
             else:
                 # Profit - reset Martingale
                 if self.martingale_step > 0:
-                    logger.info(f"Martingale chain recovered at step {self.martingale_step}")
+                    log_info(f"Martingale chain recovered at step {self.martingale_step}")
                 self.martingale_step = 0
                 self.leverage = 2  # Reset to initial
                 self.total_loss_to_recover = 0.0
 
-        logger.info(
+        log_info(
             f"Position closed: {position.get('symbol')} {reason}, "
             f"PnL=${pnl:.2f} ({pnl_pct:.2f}%), Capital=${self.current_capital:.2f}"
         )
@@ -339,7 +338,7 @@ class AutoTradeStrategySimulator:
         """
         position["be_moved"] = True
         position["take_profit"] = position.get("entry_price")  # Move TP to entry
-        logger.info(f"Break-even protection applied for {position.get('symbol')}")
+        log_info(f"Break-even protection applied for {position.get('symbol')}")
 
     def _calculate_metrics(self) -> Dict[str, Any]:
         """Calculate performance metrics."""

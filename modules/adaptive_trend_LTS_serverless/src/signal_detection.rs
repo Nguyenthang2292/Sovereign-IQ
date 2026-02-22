@@ -1,7 +1,28 @@
+use crate::buffer_pool::{get_buffer, return_buffer};
+use crate::constants::{
+    DECAY_SCALE, LAMBDA_SCALE, MIN_LENGTH_MEDIUM, MIN_LENGTH_NARROW, MIN_LENGTH_WIDE, SIGNAL_LONG,
+    SIGNAL_NEUTRAL, SIGNAL_SHORT, STARTING_EQUITY,
+};
 use crate::equity::*;
+#[cfg(not(feature = "simd"))]
 use crate::ma_calculations::*;
 use crate::ATCConfig;
+use crate::SignalType;
 use ndarray::{Array1, ArrayView1};
+use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
+use std::str::FromStr;
+
+// Module for signal detection algorithms
+//
+// This module implements the core signal detection logic including:
+// - diflen (differential length) calculations for robustness
+// - Layer 1 signal detection with equity-based weighting
+// - Multiple MA type support (EMA, HMA, WMA, DEMA, LSMA, KAMA)
+// - Error handling and fallback mechanisms
+//
+// The main functions are `calculate_layer1_signal()` and `compute_symbol_score()`
+// which implement the core ATC algorithm logic.
 
 /// Robustness level for diflen calculation
 ///
@@ -9,7 +30,8 @@ use ndarray::{Array1, ArrayView1};
 /// - Narrow: ±1, ±2, ±3, ±4 from base
 /// - Medium: ±1, ±2, ±4, ±6 from base (default)
 /// - Wide: ±1, ±3, ±5, ±7 from base
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub enum Robustness {
     /// Narrow range: ±1, ±2, ±3, ±4 from base length
     Narrow,
@@ -19,15 +41,30 @@ pub enum Robustness {
     Wide,
 }
 
-impl Robustness {
-    /// Parse robustness level from string ("narrow", "medium", "wide")
-    ///
-    /// Returns Medium for any unrecognized input.
-    pub fn from_str(s: &str) -> Self {
+/// Parameters controlling Layer 1 signal and equity computation.
+#[derive(Debug, Clone, Copy)]
+pub struct SignalParams {
+    /// Scaled lambda parameter for equity growth adjustment.
+    pub lambda_scaled: f64,
+    /// Scaled decay parameter for equity curve damping.
+    pub decay_scaled: f64,
+    /// Number of initial bars to ignore for equity calculation.
+    pub cutout: usize,
+    /// Lower bound for equity values to avoid numerical instability.
+    pub equity_floor: f64,
+    /// Robustness profile used for diflen variations.
+    pub robustness: Robustness,
+}
+
+impl FromStr for Robustness {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "narrow" => Robustness::Narrow,
-            "wide" => Robustness::Wide,
-            _ => Robustness::Medium,
+            "narrow" => Ok(Robustness::Narrow),
+            "wide" => Ok(Robustness::Wide),
+            "medium" => Ok(Robustness::Medium),
+            _ => Err(format!("Unknown robustness level: '{}'", s)),
         }
     }
 }
@@ -40,15 +77,17 @@ pub fn calculate_diflen(length: usize, robustness: Robustness) -> Option<[usize;
     }
 
     let min_required = match robustness {
-        Robustness::Narrow => 5,
-        Robustness::Medium => 7,
-        Robustness::Wide => 8,
+        Robustness::Narrow => MIN_LENGTH_NARROW,
+        Robustness::Medium => MIN_LENGTH_MEDIUM,
+        Robustness::Wide => MIN_LENGTH_WIDE,
     };
 
     if length < min_required {
-        eprintln!(
-            "[WARN] Base length {} is too small for robustness {:?}. Minimum required: {}",
-            length, robustness, min_required
+        crate::log_warn!(
+            "Base length {} is too small for robustness {:?}. Minimum required: {}",
+            length,
+            robustness,
+            min_required
         );
         return None;
     }
@@ -87,80 +126,84 @@ pub fn calculate_diflen(length: usize, robustness: Robustness) -> Option<[usize;
     };
 
     let lengths = [l1, l2, l3, l4, l_1, l_2, l_3, l_4];
-    if lengths.iter().any(|&l| l == 0) {
-        eprintln!("[ERROR] Calculated length offsets contain zero values");
+    if lengths.contains(&0) {
+        crate::log_error!("Calculated length offsets contain zero values");
         return None;
     }
 
     Some(lengths)
 }
 
-fn calculate_ma_variation(prices: ArrayView1<f64>, ma_type: &str, length: usize) -> Array1<f64> {
+fn calculate_ma_variation(
+    prices: ArrayView1<f64>,
+    ma_type: &crate::MAType,
+    length: usize,
+) -> Array1<f64> {
     #[cfg(feature = "simd")]
     {
         match ma_type {
-            "EMA" => return crate::ma_simd::calculate_ema_simd(prices, length),
-            "WMA" => return crate::ma_simd::calculate_wma_simd(prices, length),
-            "SMA" => return crate::ma_simd::calculate_sma_simd(prices, length),
-            _ => {}
+            crate::MAType::Ema => return crate::ma_simd::calculate_ema_simd(prices, length),
+            crate::MAType::Wma => return crate::ma_simd::calculate_wma_simd(prices, length),
+            crate::MAType::Hma => return crate::ma_simd::calculate_hma_simd(prices, length),
+            crate::MAType::Dema => return crate::ma_simd::calculate_dema_simd(prices, length),
+            crate::MAType::Lsma => return crate::ma_simd::calculate_lsma_simd(prices, length),
+            crate::MAType::Kama => return crate::ma_simd::calculate_kama_simd(prices, length),
         }
     }
 
+    #[cfg(not(feature = "simd"))]
     match ma_type {
-        "EMA" => calculate_ema(prices, length),
-        "HMA" => calculate_hma(prices, length),
-        "WMA" => calculate_wma(prices, length),
-        "DEMA" => calculate_dema(prices, length),
-        "LSMA" => calculate_lsma(prices, length),
-        "KAMA" => calculate_kama(prices, length),
-        _ => calculate_ema(prices, length),
+        crate::MAType::Ema => calculate_ema(prices, length),
+        crate::MAType::Hma => calculate_hma(prices, length),
+        crate::MAType::Wma => calculate_wma(prices, length),
+        crate::MAType::Dema => calculate_dema(prices, length),
+        crate::MAType::Lsma => calculate_lsma(prices, length),
+        crate::MAType::Kama => calculate_kama(prices, length),
     }
 }
 
-/// Calculate Layer 1 signal with full diflen variations (8 MA calculations)
-pub fn calculate_layer1_signal(
-    prices: ArrayView1<f64>,
-    ma_type: &str,
-    base_length: usize,
-    lambda_scaled: f64,
-    decay_scaled: f64,
-    cutout: usize,
-    equity_floor: f64,
-    robustness: Robustness,
-) -> (Array1<f64>, f64) {
-    let n = prices.len();
-
-    let diflen_result = match calculate_diflen(base_length, robustness) {
-        Some(lengths) => lengths,
-        None => {
-            eprintln!(
-                "[WARN] diflen failed for length {}, using base length only",
-                base_length
-            );
-            return calculate_layer1_signal_single(
-                prices,
-                ma_type,
-                base_length,
-                lambda_scaled,
-                decay_scaled,
-                cutout,
-                equity_floor,
-            );
-        }
-    };
-
-    let mut roc = Array1::<f64>::from_elem(n, f64::NAN);
+fn calculate_roc(prices: ArrayView1<f64>, n: usize) -> Array1<f64> {
+    let mut roc = get_buffer(n);
+    roc[0] = 0.0; // Explicitly set first element to avoid NaN propagation
     for i in 1..n {
         if prices[i - 1] != 0.0 && !prices[i - 1].is_nan() {
             roc[i] = (prices[i] - prices[i - 1]) / prices[i - 1];
         }
     }
+    roc
+}
 
-    let growth = exp_growth(lambda_scaled, n, cutout);
-    let r_adjusted = &roc * &growth;
+/// Calculate Layer 1 signal with full diflen variations (8 MA calculations)
+pub fn calculate_layer1_signal(
+    prices: ArrayView1<f64>,
+    ma_type: &crate::MAType,
+    base_length: usize,
+    params: &SignalParams,
+) -> (Array1<f64>, f64) {
+    let n = prices.len();
 
-    let mut all_signals: Vec<Array1<f64>> = Vec::with_capacity(8);
-    let mut all_equities: Vec<f64> = Vec::with_capacity(8);
+    let diflen_result = match calculate_diflen(base_length, params.robustness) {
+        Some(lengths) => lengths,
+        None => {
+            crate::log_warn!(
+                "diflen failed for length {}, using base length only",
+                base_length
+            );
+            return calculate_layer1_signal_single(prices, ma_type, base_length, params);
+        }
+    };
+
+    let roc = calculate_roc(prices, n);
+
+    let growth = exp_growth(params.lambda_scaled, n, params.cutout);
+    let mut r_adjusted = get_buffer(n);
+    for i in 0..n {
+        r_adjusted[i] = roc[i] * growth[i];
+    }
+    return_buffer(roc);
+
+    let mut all_signals: SmallVec<[Array1<f64>; 8]> = SmallVec::new();
+    let mut all_equities: SmallVec<[f64; 8]> = SmallVec::new();
 
     for &length in &diflen_result {
         let ma = calculate_ma_variation(prices, ma_type, length);
@@ -169,14 +212,14 @@ pub fn calculate_layer1_signal(
         for i in 0..n {
             if !prices[i].is_nan() && !ma[i].is_nan() {
                 if prices[i] > ma[i] {
-                    signal[i] = 1.0;
+                    signal[i] = SIGNAL_LONG;
                 } else if prices[i] < ma[i] {
-                    signal[i] = -1.0;
+                    signal[i] = SIGNAL_SHORT;
                 }
             }
         }
 
-        let mut sig_shifted = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut sig_shifted = get_buffer(n);
         for i in 1..n {
             sig_shifted[i] = signal[i - 1];
         }
@@ -184,16 +227,23 @@ pub fn calculate_layer1_signal(
         let equity = calculate_equity(
             r_adjusted.view(),
             sig_shifted.view(),
-            1.0,
-            1.0 - decay_scaled,
-            cutout,
-            equity_floor,
+            STARTING_EQUITY,
+            STARTING_EQUITY - params.decay_scaled,
+            params.cutout,
+            params.equity_floor,
         );
 
         let final_equity = equity[n - 1];
-        all_equities.push(if final_equity.is_nan() { 1.0 } else { final_equity });
+        all_equities.push(if final_equity.is_nan() {
+            STARTING_EQUITY
+        } else {
+            final_equity
+        });
         all_signals.push(signal);
+        return_buffer(sig_shifted);
     }
+
+    return_buffer(r_adjusted);
 
     // Simple average of signals (original implementation that gave 88.9% consistency)
     // Layer 1 signal = mean of diflen variation signals (NOT weighted!)
@@ -223,41 +273,55 @@ pub fn calculate_layer1_signal(
     (combined_signal, avg_equity)
 }
 
+/// Calculate Layer 1 signal for a single length (no diflen variations)
+///
+/// This is a simplified version of `calculate_layer1_signal` that uses only the base length
+/// without diflen variations. Used as a fallback when diflen calculation fails.
+///
+/// # Arguments
+/// * `prices` - Price data array
+/// * `ma_type` - Moving Average type ("EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA")
+/// * `length` - Base length for MA calculation
+/// * `lambda_scaled` - Scaled lambda parameter for equity calculation
+/// * `decay_scaled` - Scaled decay parameter for equity calculation
+/// * `cutout` - Number of initial bars to cut out
+/// * `equity_floor` - Minimum equity value to prevent numerical instability
+///
+/// # Returns
+/// Tuple of (signal_series, final_equity) where:
+/// - signal_series: Array of signals (-1.0, 0.0, or 1.0) for each price bar
+/// - final_equity: Final equity value used for weighting
 fn calculate_layer1_signal_single(
     prices: ArrayView1<f64>,
-    ma_type: &str,
+    ma_type: &crate::MAType,
     length: usize,
-    lambda_scaled: f64,
-    decay_scaled: f64,
-    cutout: usize,
-    equity_floor: f64,
+    params: &SignalParams,
 ) -> (Array1<f64>, f64) {
     let n = prices.len();
 
     let ma = calculate_ma_variation(prices, ma_type, length);
 
-    let mut roc = Array1::<f64>::from_elem(n, f64::NAN);
-    for i in 1..n {
-        if prices[i - 1] != 0.0 && !prices[i - 1].is_nan() {
-            roc[i] = (prices[i] - prices[i - 1]) / prices[i - 1];
-        }
-    }
+    let roc = calculate_roc(prices, n);
 
-    let growth = exp_growth(lambda_scaled, n, cutout);
-    let r_adjusted = &roc * &growth;
+    let growth = exp_growth(params.lambda_scaled, n, params.cutout);
+    let mut r_adjusted = get_buffer(n);
+    for i in 0..n {
+        r_adjusted[i] = roc[i] * growth[i];
+    }
+    return_buffer(roc);
 
     let mut signal = Array1::<f64>::from_elem(n, 0.0);
     for i in 0..n {
         if !prices[i].is_nan() && !ma[i].is_nan() {
             if prices[i] > ma[i] {
-                signal[i] = 1.0;
+                signal[i] = SIGNAL_LONG;
             } else if prices[i] < ma[i] {
-                signal[i] = -1.0;
+                signal[i] = SIGNAL_SHORT;
             }
         }
     }
 
-    let mut sig_shifted = Array1::<f64>::from_elem(n, f64::NAN);
+    let mut sig_shifted = get_buffer(n);
     for i in 1..n {
         sig_shifted[i] = signal[i - 1];
     }
@@ -265,11 +329,13 @@ fn calculate_layer1_signal_single(
     let equity = calculate_equity(
         r_adjusted.view(),
         sig_shifted.view(),
-        1.0,
-        1.0 - decay_scaled,
-        cutout,
-        equity_floor,
+        STARTING_EQUITY,
+        STARTING_EQUITY - params.decay_scaled,
+        params.cutout,
+        params.equity_floor,
     );
+    return_buffer(sig_shifted);
+    return_buffer(r_adjusted);
 
     let final_weight = equity[n - 1];
     (
@@ -295,13 +361,17 @@ fn calculate_layer1_signal_single(
 /// # Returns
 /// Tuple of (final_score, signal_type) where:
 /// - score: -1.0 (strong SHORT) to +1.0 (strong LONG)
-/// - signal_type: "LONG", "SHORT", or "NEUTRAL"
-pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, String) {
+/// - signal_type: SignalType::Long, SignalType::Short, or SignalType::Neutral
+pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, SignalType) {
     let prices_arr = ArrayView1::from(prices);
     let n = prices.len();
-    let lambda_scaled = config.lambda_param / 1000.0;
-    let decay_scaled = config.decay / 100.0;
-    let robustness = Robustness::from_str(&config.robustness);
+    let params = SignalParams {
+        lambda_scaled: config.lambda_param / LAMBDA_SCALE,
+        decay_scaled: config.decay / DECAY_SCALE,
+        cutout: config.cutout,
+        equity_floor: config.equity_floor,
+        robustness: config.robustness,
+    };
 
     let mut weighted_score_sum = 0.0;
     let mut total_weight = 0.0;
@@ -311,11 +381,7 @@ pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, String)
             prices_arr,
             &ma_config.ma_type,
             ma_config.length,
-            lambda_scaled,
-            decay_scaled,
-            config.cutout,
-            config.equity_floor,
-            robustness,
+            &params,
         );
 
         let last_signal = if n > 0 { signal_series[n - 1] } else { 0.0 };
@@ -324,11 +390,11 @@ pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, String)
         // Discretization happens in average_signal.py BEFORE final averaging with Layer 2 equities
         // Python: C = np.where(S > threshold, 1.0, np.where(S < -threshold, -1.0, 0.0))
         let discrete_signal = if last_signal > config.threshold {
-            1.0
+            SIGNAL_LONG
         } else if last_signal < -config.threshold {
-            -1.0
+            SIGNAL_SHORT
         } else {
-            0.0
+            SIGNAL_NEUTRAL
         };
 
         let combined_weight = ma_config.weight * equity_weight;
@@ -340,15 +406,15 @@ pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, String)
     let final_score = if total_weight > 0.0 {
         weighted_score_sum / total_weight
     } else {
-        0.0
+        SIGNAL_NEUTRAL
     };
 
     let signal_type = if final_score > config.threshold {
-        "LONG".to_string()
+        SignalType::Long
     } else if final_score < -config.threshold {
-        "SHORT".to_string()
+        SignalType::Short
     } else {
-        "NEUTRAL".to_string()
+        SignalType::Neutral
     };
 
     (final_score, signal_type)
@@ -397,13 +463,15 @@ mod tests {
 
         let (signal, equity) = calculate_layer1_signal(
             prices_arr,
-            "EMA",
+            &crate::MAType::Ema,
             20,
-            0.02 / 1000.0,
-            0.03 / 100.0,
-            0,
-            0.25,
-            Robustness::Medium,
+            &SignalParams {
+                lambda_scaled: 0.02 / 1000.0,
+                decay_scaled: 0.03 / 100.0,
+                cutout: 0,
+                equity_floor: 0.25,
+                robustness: Robustness::Medium,
+            },
         );
 
         assert_eq!(signal.len(), 100);

@@ -98,6 +98,30 @@ with session_scope() as session:
 
 ## 🔑 Key Features
 
+### DynamoDB Single-Table Design
+
+Module hỗ trợ backend DynamoDB qua `DB_BACKEND=dynamodb` với mô hình single-table:
+
+- Primary Key: `pk`, `sk`
+- `GSI1`: truy vấn theo symbol + trạng thái/time
+- `GSI2`: global timeline theo entity type
+- `GSI3`: truy vấn order programmatic theo trạng thái
+
+### Access Patterns (6 patterns chính)
+
+1. `get_open_positions(symbol?)` → `GSI1`/`GSI3`
+2. `get_recent_signals(symbol?)` → `GSI1`/`GSI2`
+3. `get_signal_performance_stats(days)` → `GSI2`
+4. `get_martingale_state(symbol)` → `GSI1`
+5. `get_active_gradual_recovery(symbol)` → `GSI1`
+6. `get_recent_audit_logs(limit, severity?)` → `GSI2` (+ TTL)
+
+### GSI Usage Guide
+
+- `GSI1(gsi1pk, gsi1sk)`: symbol-centric queries (ORDER/SIGNAL/CHAIN/RECOVERY)
+- `GSI2(gsi2pk, gsi2sk)`: timeline-centric queries (`ORDER`, `SIGNAL`, `CHAIN`, `RECOVERY`, `AUDIT`)
+- `GSI3(gsi3pk, gsi3sk)`: programmatic order state (`PROGRAMMATIC#OPEN`, `PROGRAMMATIC#CLOSED`)
+
 ### 1. Programmatic Order Filtering
 
 **All order queries filter by `order_source='PROGRAMMATIC'` by default.**

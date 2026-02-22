@@ -1,0 +1,12 @@
+[toolchain]
+channel = "nightly-2026-02-01"
+components = ["rustfmt", "clippy", "rust-src"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
+
+[toolchain.rustup]
+default_toolchain = "nightly-2026-02-01"
+
+[toolchain.prompt]
+# This toolchain is required for SIMD support (std::simd)
+# The SIMD feature requires nightly Rust
+# To build without SIMD (using stable Rust), see README "Building Without SIMD" section

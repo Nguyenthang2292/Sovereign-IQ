@@ -20,6 +20,13 @@ class CredentialManager:
 
     def _find_or_create_env_file(self) -> Path:
         """Find or create .env file in project root"""
+        # Prefer module-specific .env used by Auto Trade GUI
+        current_file = Path(__file__).resolve()
+        module_root = current_file.parent.parent.parent
+        module_env = module_root / ".env"
+        if module_env.exists():
+            return module_env
+
         # Try to find existing .env file
         env_path = find_dotenv()
 
@@ -28,7 +35,6 @@ class CredentialManager:
 
         # Create new .env file in project root
         # Navigate up from modules/auto_trade/gui/utils/ to project root
-        current_file = Path(__file__).resolve()
         project_root = current_file.parent.parent.parent.parent
         env_file = project_root / ".env"
 

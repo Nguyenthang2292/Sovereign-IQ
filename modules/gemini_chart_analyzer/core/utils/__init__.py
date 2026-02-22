@@ -52,10 +52,8 @@ def get_timeframe_weight(timeframe: str, weights: Optional[dict] = None) -> floa
     Returns:
         Weight value (default: 0.1 if not found)
     """
-    from config import TIMEFRAME_WEIGHTS
-
     if weights is None:
-        weights = TIMEFRAME_WEIGHTS
+        weights = {"15m": 0.2, "30m": 0.3, "1h": 0.5}
 
     normalized_tf = normalize_timeframe(timeframe)
     return weights.get(normalized_tf, 0.1)
@@ -72,10 +70,8 @@ def sort_timeframes_by_weight(timeframes: List[str], weights: Optional[dict] = N
     Returns:
         Sorted list of timeframes
     """
-    from config import TIMEFRAME_WEIGHTS
-
     if weights is None:
-        weights = TIMEFRAME_WEIGHTS
+        weights = {"15m": 0.2, "30m": 0.3, "1h": 0.5}
 
     # Sort by weight descending
     return sorted(timeframes, key=lambda tf: get_timeframe_weight(tf, weights), reverse=True)

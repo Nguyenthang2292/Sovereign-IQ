@@ -1,0 +1,28 @@
+{
+  "benchmarks": [
+    {
+      "name": "calculate_ema_benchmark",
+      "real_time": 1234.56,
+      "cpu_time": 1230.00,
+      "time_unit": "ns"
+    },
+    {
+      "name": "calculate_sma_benchmark",
+      "real_time": 2345.67,
+      "cpu_time": 2340.00,
+      "time_unit": "ns"
+    },
+    {
+      "name": "calculate_wma_benchmark",
+      "real_time": 3456.78,
+      "cpu_time": 3450.00,
+      "time_unit": "ns"
+    },
+    {
+      "name": "signal_detection_benchmark",
+      "real_time": 5678.90,
+      "cpu_time": 5670.00,
+      "time_unit": "ns"
+    }
+  ]
+}
