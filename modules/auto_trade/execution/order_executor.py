@@ -128,14 +128,19 @@ class OrderExecutor:
                         leverage = int(str(raw_lev_cfg).replace("x", "").strip())
                     except (TypeError, ValueError):
                         leverage = 2
-            log_info(f"[OrderExecutor] Using leverage={leverage}x for {symbol}")
+            log_info(f"[OrderExecutor] Using leverage={leverage}x for {symbol} | tp_roi={tp_pct}% sl_roi={sl_pct}%")
+
+            # tp_pct / sl_pct are ROI% on capital → convert to price-move% by dividing by leverage
+            tp_price_pct = tp_pct / max(leverage, 1)
+            sl_price_pct = sl_pct / max(leverage, 1)
+            log_info(f"[OrderExecutor] Price-move: tp={tp_price_pct:.4f}% sl={sl_price_pct:.4f}%")
 
             if signal_type == "LONG":
-                take_profit = entry * (1 + tp_pct / 100)
-                stop_loss = entry * (1 - sl_pct / 100)
+                take_profit = entry * (1 + tp_price_pct / 100)
+                stop_loss = entry * (1 - sl_price_pct / 100)
             else:
-                take_profit = entry * (1 - tp_pct / 100)
-                stop_loss = entry * (1 + sl_pct / 100)
+                take_profit = entry * (1 - tp_price_pct / 100)
+                stop_loss = entry * (1 + sl_price_pct / 100)
 
             final_signal = FinalSignal(
                 symbol=symbol,

@@ -39,8 +39,8 @@ class RiskCalculator:
             amount_usdt: Position size in USDT
             leverage: Leverage multiplier
             current_price: Current market price
-            tp_percent: Take profit percentage
-            sl_percent: Stop loss percentage
+            tp_percent: Take profit ROI% on capital (e.g. 5.0 = 5% ROI)
+            sl_percent: Stop loss ROI% on capital (e.g. 2.5 = 2.5% ROI)
 
         Returns:
             Dictionary containing:
@@ -65,20 +65,22 @@ class RiskCalculator:
             # Margin required (with leverage)
             margin_required: float = amount_usdt / leverage
 
+            # tp/sl_percent are ROI% on capital → convert to price-move%
+            tp_price_pct: float = tp_percent / max(leverage, 1)
+            sl_price_pct: float = sl_percent / max(leverage, 1)
+
             # TP/SL prices
             tp_price: float
             sl_price: float
             liquidation_price: float
             if side == "LONG":
-                tp_price = current_price * (1 + tp_percent / 100)
-                sl_price = current_price * (1 - sl_percent / 100)
-
+                tp_price = current_price * (1 + tp_price_pct / 100)
+                sl_price = current_price * (1 - sl_price_pct / 100)
                 # Liquidation (simplified)
-                # Real formula more complex, includes fees
                 liquidation_price = current_price * (1 - (1 / leverage))
             else:  # SHORT
-                tp_price = current_price * (1 - tp_percent / 100)
-                sl_price = current_price * (1 + sl_percent / 100)
+                tp_price = current_price * (1 - tp_price_pct / 100)
+                sl_price = current_price * (1 + sl_price_pct / 100)
                 liquidation_price = current_price * (1 + (1 / leverage))
 
             # Profit/Loss calculations (with leverage)

@@ -14,7 +14,6 @@ from boto3.dynamodb.conditions import Attr, Key
 
 from ..base import OrderRepository
 from .client import get_dynamodb_table
-from .exceptions import DynamoDBConditionalCheckFailed, DynamoDBItemNotFound
 from .keys import DynamoKeys
 from .serializer import from_dynamo_item, to_dynamo_item
 
@@ -228,6 +227,8 @@ class DynamoDBOrderRepository(OrderRepository):
             "pnl",
             "closed_at",
             "be_moved",
+            "be_moved_at",
+            "original_stop_loss",
             "notes",
         }
 

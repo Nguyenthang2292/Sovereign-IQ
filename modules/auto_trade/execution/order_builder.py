@@ -126,40 +126,48 @@ class OrderBuilder:
         """
         Calculate take profit and stop loss prices based on entry price.
 
+        tp_percentage / sl_percentage are ROI percentages on capital.
+        We convert to price-move%:  price_pct = roi_pct / leverage
+
         Args:
-            order: Order ticket
+            order: Order ticket (must include leverage > 0)
             entry_price: Entry price (current market price)
 
         Returns:
             Tuple of (take_profit_price, stop_loss_price)
 
-        Formulas:
+        Formulas (after ROI → price-move conversion):
             - LONG:
-                TP = entry_price × (1 + tp_percentage / 100)
-                SL = entry_price × (1 - sl_percentage / 100)
+                TP = entry_price × (1 + tp_price_pct / 100)
+                SL = entry_price × (1 - sl_price_pct / 100)
             - SHORT:
-                TP = entry_price × (1 - tp_percentage / 100)
-                SL = entry_price × (1 + sl_percentage / 100)
+                TP = entry_price × (1 - tp_price_pct / 100)
+                SL = entry_price × (1 + sl_price_pct / 100)
         """
         if entry_price <= 0:
             raise ValueError(f"Entry price must be positive, got {entry_price}")
 
         tp_percentage: float = order.take_profit_percentage
         sl_percentage: float = order.stop_loss_percentage
+        lev: float = float(max(order.leverage, 1))
+
+        # ROI% → price-move%
+        tp_price_pct = tp_percentage / lev
+        sl_price_pct = sl_percentage / lev
 
         tp_price: float
         sl_price: float
         if order.side == "BUY":  # LONG
-            tp_price = entry_price * (1 + tp_percentage / 100.0)
-            sl_price = entry_price * (1 - sl_percentage / 100.0)
+            tp_price = entry_price * (1 + tp_price_pct / 100.0)
+            sl_price = entry_price * (1 - sl_price_pct / 100.0)
         else:  # SELL (SHORT)
-            tp_price = entry_price * (1 - tp_percentage / 100.0)
-            sl_price = entry_price * (1 + sl_percentage / 100.0)
+            tp_price = entry_price * (1 - tp_price_pct / 100.0)
+            sl_price = entry_price * (1 + sl_price_pct / 100.0)
 
         # Ensure SL > 0
         if sl_price <= 0:
             raise ValueError(
-                f"Calculated SL price is invalid: {sl_price} (entry={entry_price}, sl_pct={sl_percentage})"
+                f"Calculated SL price is invalid: {sl_price} (entry={entry_price}, sl_pct={sl_percentage}, lev={lev})"
             )
 
         return tp_price, sl_price

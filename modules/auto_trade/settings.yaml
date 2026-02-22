@@ -3,7 +3,7 @@ risk:
   max_position_size: 100.0
   max_open_positions: 1
   max_daily_loss: 100.0
-  default_leverage: 3x
+  default_leverage: 5x
 filters:
   min_signal_score: 0.19999999999999996
   enable_xgboost: true
@@ -27,7 +27,7 @@ tp_sl:
   trailing_step_pct: 2.0
   trailing_limit_steps: false
   trailing_max_steps: 5
-  mode: Percentage
+  mode: ROI
   negative_be_enabled: true
   negative_be_threshold_pct: 10.0
 scanner:

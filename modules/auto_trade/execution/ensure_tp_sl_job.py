@@ -36,6 +36,8 @@ def _tp_sl_prices_from_pct(
     side: str,
     tp_pct: float,
     sl_pct: float,
+    leverage: float = 1.0,
+    roi_mode: bool = False,
 ) -> Tuple[float, float]:
     """
     Compute TP and SL prices from entry and percentages.
@@ -43,21 +45,34 @@ def _tp_sl_prices_from_pct(
     LONG: TP above entry, SL below. SHORT: TP below entry, SL above.
 
     Args:
-        entry_price: Entry price
-        side: 'LONG' or 'SHORT'
-        tp_pct: Take profit percentage (e.g. 5.0 for 5%)
-        sl_pct: Stop loss percentage (e.g. 2.5 for 2.5%)
+        entry_price: Entry price.
+        side: 'LONG' or 'SHORT'.
+        tp_pct: Percentage value (meaning depends on roi_mode).
+        sl_pct: Percentage value (meaning depends on roi_mode).
+        leverage: Actual position leverage fetched from Binance (default=1 = no scaling).
+        roi_mode: If True, tp_pct/sl_pct are ROI percentages on capital, so divide by
+                  leverage to convert to price-move percentages.
+                  If False (default), tp_pct/sl_pct are already price-move percentages.
 
     Returns:
         (tp_price, sl_price)
     """
     if not entry_price or entry_price <= 0:
         return 0.0, 0.0
-    mult_tp = 1.0 + (tp_pct / 100.0)
-    mult_sl = 1.0 - (sl_pct / 100.0)
+
+    if roi_mode and leverage > 0:
+        # Convert ROI% → price-move%:  price_pct = roi_pct / leverage
+        tp_price_pct = tp_pct / leverage
+        sl_price_pct = sl_pct / leverage
+    else:
+        tp_price_pct = tp_pct
+        sl_price_pct = sl_pct
+
+    mult_tp = 1.0 + (tp_price_pct / 100.0)
+    mult_sl = 1.0 - (sl_price_pct / 100.0)
     if str(side).upper() == "SHORT":
-        mult_tp = 1.0 - (tp_pct / 100.0)
-        mult_sl = 1.0 + (sl_pct / 100.0)
+        mult_tp = 1.0 - (tp_price_pct / 100.0)
+        mult_sl = 1.0 + (sl_price_pct / 100.0)
     return entry_price * mult_tp, entry_price * mult_sl
 
 
@@ -258,6 +273,41 @@ class EnsureTPSLJob:
         if not entry_price or entry_price <= 0:
             return
 
+        # ── Fetch actual leverage from Binance position ───────────────────────
+        # The GUI 'trading.default_leverage' may differ from what was used when
+        # the position was opened. Always read the real leverage from the live
+        # position object so TP/SL prices are scaled correctly.
+        actual_leverage: float = float(order.get("leverage") or 1.0)
+        if self.binance_client and actual_leverage <= 1.0:
+            try:
+                from modules.auto_trade.execution.binance.position_management import PositionManagement
+
+                pos_mgr = PositionManagement(self.binance_client.exchange)
+                pos = pos_mgr.get_position(symbol)
+                if pos:
+                    # CCXT top-level 'leverage', or info.leverage
+                    lev_raw = pos.get("leverage") or (pos.get("info") or {}).get("leverage")
+                    if lev_raw is not None:
+                        try:
+                            actual_leverage = float(lev_raw)
+                        except (TypeError, ValueError):
+                            pass
+            except Exception as lev_err:
+                log_debug(f"Ensure TP/SL: could not fetch leverage for {symbol}: {lev_err}")
+
+        if actual_leverage < 1.0:
+            actual_leverage = 1.0
+
+        # Always use ROI mode: default_tp/sl are % ROI on capital.
+        # price_move% = roi% / actual_leverage
+        roi_mode = True
+
+        log_info(
+            f"Ensure TP/SL: {symbol} entry={entry_price} side={side} "
+            f"leverage={actual_leverage}x roi_mode=ROI "
+            f"default_tp={default_tp}% default_sl={default_sl}%"
+        )
+
         # Fetch existing TP/SL with fail-closed approach:
         # if detection fails, we do NOT create new orders.
         current_tp, current_sl, has_tp, has_sl, detection_ok = self._fetch_existing_tp_sl(
@@ -275,7 +325,14 @@ class EnsureTPSLJob:
             log_debug(f"Ensure TP/SL: {symbol} already has TP and SL")
             return
 
-        tp_price, sl_price = _tp_sl_prices_from_pct(entry_price, side, default_tp, default_sl)
+        tp_price, sl_price = _tp_sl_prices_from_pct(
+            entry_price,
+            side,
+            default_tp,
+            default_sl,
+            leverage=actual_leverage,
+            roi_mode=roi_mode,
+        )
 
         # Convert DB symbol to CCXT format for BinanceClient methods
         ccxt_sym = _ccxt_futures_symbol(self.binance_client.exchange, symbol) if self.binance_client else symbol

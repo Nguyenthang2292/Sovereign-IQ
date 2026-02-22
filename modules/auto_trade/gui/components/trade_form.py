@@ -446,12 +446,15 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
             current_price = service.get_current_price(symbol)
 
             # Calculate TP/SL prices
+            # tp_percent / sl_percent are ROI% on capital → convert to price-move%
+            tp_price_pct = tp_percent / max(leverage, 1)
+            sl_price_pct = sl_percent / max(leverage, 1)
             if side == "LONG":
-                tp_price = current_price * (1 + tp_percent / 100)
-                sl_price = current_price * (1 - sl_percent / 100)
+                tp_price = current_price * (1 + tp_price_pct / 100)
+                sl_price = current_price * (1 - sl_price_pct / 100)
             else:
-                tp_price = current_price * (1 - tp_percent / 100)
-                sl_price = current_price * (1 + sl_percent / 100)
+                tp_price = current_price * (1 - tp_price_pct / 100)
+                sl_price = current_price * (1 + sl_price_pct / 100)
 
             # Execute order
             executor = OrderExecutor()

@@ -267,16 +267,20 @@ class TPSLSyncService:
                         changed = True
 
             if changed:
-                from copy import deepcopy
+                order_id = order.get("order_id")
+                if not order_id:
+                    log_warn(f"[TPSLSync] Cannot update DB for {symbol}: order_id missing")
+                    return False
 
-                new_order = deepcopy(order)
-                new_order.update(update_data)
-
-                # Only DynamoDB is used now, so create_order serves as an UPSERT since it doesn't fail on existing keys
-                repo_context.orders.create_order(new_order)
-
-                log_info(f"[TPSLSync] ✅ DB updated for {symbol}")
-                return True
+                # Use update() not create_order() — create_order has ConditionExpression=pk.not_exists()
+                # which always raises ConditionalCheckFailedException for existing orders.
+                updated = repo_context.orders.update(order_id, update_data)
+                if updated:
+                    log_info(f"[TPSLSync] ✅ DB updated for {symbol}")
+                    return True
+                else:
+                    log_warn(f"[TPSLSync] DB update returned False for {symbol} (order may not exist)")
+                    return False
             else:
                 log_debug(f"[TPSLSync] No changes needed for {symbol}")
                 return False
@@ -331,21 +335,44 @@ class TPSLSyncService:
         If position is missing TP or SL on Binance, place them using config percentages.
         Call this after sync_position_tp_sl when take_profit or stop_loss is None.
 
-        Includes a secondary verification step that directly checks conditional orders
-        to avoid placing duplicates due to symbol format mismatches.
+        default_tp_pct / default_sl_pct are treated as ROI% on capital.
+        The function fetches the actual leverage from the live Binance position and
+        converts:  price_move% = roi% / leverage.
 
         Args:
             client: BinanceClient instance (must not be dry_run if you want real orders)
             symbol: Trading symbol (e.g. "SKL/USDT")
             side: LONG or SHORT
             entry_price: Position entry price
-            default_tp_pct: Take profit % (e.g. 5.0 for 5%)
-            default_sl_pct: Stop loss % (e.g. 2.5 for 2.5%)
+            default_tp_pct: Take profit ROI% (e.g. 5.0 = 5% on capital)
+            default_sl_pct: Stop loss ROI% (e.g. 2.5 = 2.5% on capital)
 
         Returns:
             Dict with take_profit, stop_loss (prices now on exchange, or unchanged if failed)
         """
         take_profit, stop_loss, _ = TPSLSyncService.fetch_tp_sl_from_binance(client, symbol)
+
+        # Fetch actual leverage from live Binance position
+        actual_leverage: float = 1.0
+        try:
+            from modules.auto_trade.execution.binance.position_management import PositionManagement
+
+            pos_mgr = PositionManagement(client.exchange)
+            pos = pos_mgr.get_position(symbol)
+            if pos:
+                lev_raw = pos.get("leverage") or (pos.get("info") or {}).get("leverage")
+                if lev_raw is not None:
+                    try:
+                        actual_leverage = float(lev_raw)
+                    except (TypeError, ValueError):
+                        pass
+        except Exception as lev_err:
+            log_debug(f"[TPSLSync] Could not fetch leverage for {symbol}: {lev_err}")
+
+        if actual_leverage < 1.0:
+            actual_leverage = 1.0
+
+        log_info(f"[TPSLSync] ensure_tp_sl_on_binance: {symbol} leverage={actual_leverage}x ")
 
         # Secondary verification: check conditional orders directly using correct symbol format
         has_tp_conditional = take_profit is not None
@@ -387,13 +414,17 @@ class TPSLSyncService:
         if entry_price <= 0 or default_tp_pct <= 0 or default_sl_pct <= 0:
             return {"take_profit": take_profit, "stop_loss": stop_loss}
 
+        # ROI% → price-move% by dividing by actual leverage
+        tp_price_pct = default_tp_pct / actual_leverage
+        sl_price_pct = default_sl_pct / actual_leverage
+
         side_upper = str(side).upper()
         if side_upper == "LONG":
-            tp_price = entry_price * (1.0 + default_tp_pct / 100.0)
-            sl_price = entry_price * (1.0 - default_sl_pct / 100.0)
+            tp_price = entry_price * (1.0 + tp_price_pct / 100.0)
+            sl_price = entry_price * (1.0 - sl_price_pct / 100.0)
         else:
-            tp_price = entry_price * (1.0 - default_tp_pct / 100.0)
-            sl_price = entry_price * (1.0 + default_sl_pct / 100.0)
+            tp_price = entry_price * (1.0 - tp_price_pct / 100.0)
+            sl_price = entry_price * (1.0 + sl_price_pct / 100.0)
 
         # Clamp SL so it is valid vs mark price (avoid Binance -2021 "Order would immediately trigger")
         if need_sl:
