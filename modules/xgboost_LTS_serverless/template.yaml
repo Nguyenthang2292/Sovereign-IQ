@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: XGBoost Serverless Prediction Service
 
@@ -6,10 +6,10 @@ Parameters:
   ModelBucketName:
     Type: String
     Description: S3 bucket name used to store XGBoost models
-    Default: ''
+    Default: ""
 
 Conditions:
-  UseProvidedModelBucketName: !Not [!Equals [!Ref ModelBucketName, '']]
+  UseProvidedModelBucketName: !Not [!Equals [!Ref ModelBucketName, ""]]
 
 Resources:
   XGBoostFunction:
@@ -41,13 +41,40 @@ Resources:
             Path: /predict
             Method: POST
 
+  XGBoostTrainerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: xgboost-trainer
+      PackageType: Image
+      ImageUri: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/xgboost-trainer:latest"
+      MemorySize: 3008
+      Timeout: 900
+      EphemeralStorage:
+        Size: 1024
+      Policies:
+        - S3FullAccessPolicy:
+            BucketName: !Ref ModelBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
+      Environment:
+        Variables:
+          MODEL_BUCKET: !Ref ModelBucket
+          # Binance API keys — inject from AWS Secrets Manager
+          BINANCE_API_KEY: !Sub "{{resolve:secretsmanager:auto-trade/binance:SecretString:api_key}}"
+          BINANCE_API_SECRET: !Sub "{{resolve:secretsmanager:auto-trade/binance:SecretString:api_secret}}"
+
   ModelBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !If
         - UseProvidedModelBucketName
         - !Ref ModelBucketName
-        - !Sub '${AWS::StackName}-models-${AWS::AccountId}'
+        - !Sub "${AWS::StackName}-models-${AWS::AccountId}"
       VersioningConfiguration:
         Status: Enabled
 
@@ -61,8 +88,8 @@ Resources:
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
-    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/predict'
-  
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/predict"
+
   ModelBucketName:
     Description: S3 bucket for model storage
     Value: !Ref ModelBucket
@@ -70,3 +97,11 @@ Outputs:
   PredictionQueueUrl:
     Description: SQS queue for predictions
     Value: !Ref PredictionQueue
+
+  TrainerFunctionName:
+    Description: XGBoost Trainer Lambda function name
+    Value: !Ref XGBoostTrainerFunction
+
+  TrainerFunctionArn:
+    Description: XGBoost Trainer Lambda ARN
+    Value: !GetAtt XGBoostTrainerFunction.Arn

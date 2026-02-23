@@ -3,6 +3,23 @@
 
 Write-Host "[BUILD] Building Rust extensions..." -ForegroundColor Cyan
 
+# -------------------------------------------------------------------
+# Pre-flight check: warn if atc_rust is loaded by running Python procs
+# Windows locks .pyd files while they are imported, causing maturin to
+# fail with "Access is denied" when trying to overwrite the old wheel.
+# -------------------------------------------------------------------
+$pyProcs = @(Get-Process python*, pythonw* -ErrorAction SilentlyContinue)
+if ($pyProcs.Count -gt 0) {
+    Write-Host "" 
+    Write-Host "[WARNING] $($pyProcs.Count) Python process(es) are running:" -ForegroundColor Yellow
+    $pyProcs | ForEach-Object { Write-Host "  PID $($_.Id) – $($_.ProcessName)" -ForegroundColor Yellow }
+    Write-Host ""
+    Write-Host "[WARNING] If the build fails with 'Access is denied' (os error 5), close" -ForegroundColor Yellow
+    Write-Host "          ALL Python processes first (GUI, notebooks, terminals importing" -ForegroundColor Yellow
+    Write-Host "          atc_rust or xgboost_rust) and then re-run this script." -ForegroundColor Yellow
+    Write-Host ""
+}
+
 # Check if Rust is installed
 $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
 $rustcExe = Join-Path $cargoBin "rustc.exe"

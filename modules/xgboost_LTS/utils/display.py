@@ -28,17 +28,29 @@ def print_classification_report(y_true, y_pred, title="Classification Report"):
     )
     target_names_present = [TARGET_LABELS[i] for i in labels_present]
 
-    report = classification_report(
-        y_true,
-        y_pred,
-        labels=labels_present,
-        target_names=target_names_present,
-        output_dict=False,
-    )
+    try:
+        report = classification_report(
+            y_true,
+            y_pred,
+            labels=labels_present,
+            target_names=target_names_present,
+            zero_division=0,
+            output_dict=False,
+        )
+    except TypeError:
+        report = classification_report(
+            y_true,
+            y_pred,
+            target_names=target_names_present,
+            output_dict=False,
+        )
     print(report)
 
     # Confusion matrix with same label order
-    cm = confusion_matrix(y_true, y_pred, labels=labels_present)
+    try:
+        cm = confusion_matrix(y_true, y_pred, labels=labels_present)
+    except TypeError:
+        cm = confusion_matrix(y_true, y_pred)
     log_model("Confusion Matrix:")
     log_info("(Rows = True, Columns = Predicted)")
     print(" " * 12, end="")

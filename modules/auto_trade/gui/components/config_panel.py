@@ -785,7 +785,7 @@ class ConfigPanel(ctk.CTkFrame):
         except Exception as e:
             print(f"Error toggling negative breakeven: {e}")
 
-    def _on_mode_change(self):
+    def _on_mode_change(self, show_warning: bool = True):
         """Handle mode radio button change"""
         try:
             from tkinter import messagebox
@@ -816,7 +816,7 @@ class ConfigPanel(ctk.CTkFrame):
                 self._refresh_credentials_display()
 
             # Show warning for Production mode (after UI update)
-            if mode == "PRODUCTION":
+            if show_warning and mode == "PRODUCTION":
                 messagebox.showwarning(
                     "Production Mode",
                     "⚠️ WARNING: You are about to use PRODUCTION mode!\n\n"
@@ -1016,7 +1016,7 @@ class ConfigPanel(ctk.CTkFrame):
             self.api_key_entry.delete(0, "end")
             self.api_secret_entry.delete(0, "end")
             self._editing_credentials = False
-            self._on_mode_change()
+            self._on_mode_change(show_warning=False)
             self._refresh_credentials_display()
             self._suppress_mode_notify = False
 

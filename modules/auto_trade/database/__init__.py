@@ -80,6 +80,29 @@ from .repository import (
 )
 
 # ---------------------------------------------------------------------------
+# Legacy SQLite compatibility helpers
+# ---------------------------------------------------------------------------
+
+
+def initialize_database(db_path: str = ":memory:", schema_path: str | None = None) -> bool:
+    """Initialize legacy SQLite DB for backward-compatible test tooling."""
+    from .config import DEFAULT_SCHEMA_PATH
+    from .migrations import MigrationManager
+
+    manager = MigrationManager(db_path, schema_path or DEFAULT_SCHEMA_PATH)
+    manager.initialize_database()
+    manager.auto_migrate()
+    return True
+
+
+def session_scope(db_path: str = ":memory:"):
+    """Provide a legacy SQLAlchemy session context manager for old tests."""
+    from .utils import DatabaseManager
+
+    manager = DatabaseManager(db_path, echo=False)
+    return manager.session_scope()
+
+# ---------------------------------------------------------------------------
 # Binance → DynamoDB reconciliation
 # ---------------------------------------------------------------------------
 
@@ -186,4 +209,7 @@ __all__ = [
     "get_all_gradual_recoveries",
     # Binance → DB reconciliation
     "reconcile_orders_with_binance",
+    # Legacy SQLite compatibility
+    "initialize_database",
+    "session_scope",
 ]

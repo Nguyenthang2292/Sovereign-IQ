@@ -62,6 +62,7 @@ class OrderExecution:
         symbol: str = order.symbol
         side: str = order.side.lower()
         amount_usdt: float = order.amount
+        side = cast(Any, side)
 
         log_info(f"Creating {side.upper()} order for {symbol}: ${amount_usdt:.2f} USDT @ {order.leverage}x leverage")
 
@@ -114,7 +115,7 @@ class OrderExecution:
                     self.exchange.create_order(
                         symbol=symbol,
                         type="market",
-                        side=side,
+                        side=cast(Any, side),
                         amount=amount_contracts,
                         params=params,
                     ),
@@ -248,7 +249,7 @@ class OrderExecution:
                     self.exchange.create_order(
                         symbol=symbol,
                         type=cast(Any, "TAKE_PROFIT_MARKET"),
-                        side=tp_side,
+                        side=cast(Any, tp_side),
                         amount=amount,
                         params={
                             "stopPrice": order.take_profit_price,
@@ -295,7 +296,7 @@ class OrderExecution:
                     self.exchange.create_order(
                         symbol=symbol,
                         type=cast(Any, "STOP_MARKET"),
-                        side=sl_side,
+                        side=cast(Any, sl_side),
                         amount=amount,
                         params={
                             "stopPrice": order.stop_loss_price,

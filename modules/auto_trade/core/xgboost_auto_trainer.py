@@ -25,6 +25,8 @@ Results are cached in-memory:
 
 from __future__ import annotations
 
+import json
+import os
 import threading
 import time
 from pathlib import Path
@@ -50,6 +52,10 @@ _FAILURE_TTL = 600  # 10 minutes
 # Temp directory for saving models before upload
 _TMP_DIR = Path("/tmp")
 
+# Lambda trainer config
+_TRAINER_FUNCTION_NAME = os.environ.get("XGBOOST_TRAINER_FUNCTION_NAME", "xgboost-trainer")
+_TRAINER_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+
 
 # ── State ─────────────────────────────────────────────────────────────────────
 
@@ -57,6 +63,10 @@ _TMP_DIR = Path("/tmp")
 _STATUS: Dict[str, Dict[str, Any]] = {}
 _LOCK = threading.Lock()
 _SYMBOL_LOCKS: Dict[str, threading.Lock] = {}
+
+# S3 check cache: Dict[cache_key → timestamp_checked]
+_S3_CHECK_CACHE: Dict[str, float] = {}
+_S3_CHECK_TTL = 300  # 5 minutes
 
 
 def _symbol_lock(cache_key: str) -> threading.Lock:
@@ -88,6 +98,38 @@ def get_training_status(cache_key: str) -> Optional[str]:
 def _normalize(symbol: str) -> str:
     """Strip separators and uppercase: 'BTC/USDT' → 'BTCUSDT'."""
     return "".join(ch for ch in symbol.upper() if ch.isalnum())
+
+
+# ── S3 Check Helper ───────────────────────────────────────────────────────────
+
+
+def _model_exists_in_s3(symbol: str, timeframe: str, version: str, bucket: str) -> bool:
+    """Check if model exists in S3 (caches 'not found' result for 5 minutes)."""
+    cache_key = f"{_normalize(symbol)}_{timeframe}_{version}"
+    
+    with _LOCK:
+        last_checked = _S3_CHECK_CACHE.get(cache_key, 0)
+        if time.monotonic() - last_checked < _S3_CHECK_TTL:
+            return False
+
+    try:
+        import boto3
+        import botocore.exceptions
+        s3 = boto3.client("s3", region_name=_TRAINER_REGION)
+        s3_key = f"{_normalize(symbol)}_{timeframe}_{version}.json"
+        
+        s3.head_object(Bucket=bucket, Key=s3_key)
+        return True
+    except botocore.exceptions.ClientError as exc:
+        if exc.response['Error']['Code'] == '404':
+            with _LOCK:
+                _S3_CHECK_CACHE[cache_key] = time.monotonic()
+            return False
+        log_error("XGBoostAutoTrainer: [%s] S3 head_object error: %s", symbol, exc)
+        return False
+    except Exception as exc:
+        log_error("XGBoostAutoTrainer: [%s] S3 head_object unexpected error: %s", symbol, exc)
+        return False
 
 
 # ── Core training function ────────────────────────────────────────────────────
@@ -158,18 +200,39 @@ def _train_and_upload(
         _TMP_DIR.mkdir(parents=True, exist_ok=True)
         local_path = _TMP_DIR / model_filename
 
-        # model is an XGBClassifier (sklearn wrapper) — use save_model for native format
-        if hasattr(model, "save_model"):
-            model.save_model(str(local_path))
-        elif hasattr(model, "get_booster"):
-            model.get_booster().save_model(str(local_path))
-        else:
-            # Fallback: save via the underlying booster attribute
+        # Prefer saving via booster directly to avoid sklearn-compat metadata issues
+        # in some xgboost/sklearn version combinations (e.g. `_estimator_type` errors).
+        saved = False
+
+        get_booster = getattr(model, "get_booster", None)
+        if callable(get_booster):
+            try:
+                booster = get_booster()
+                if booster is not None and hasattr(booster, "save_model"):
+                    booster.save_model(str(local_path))
+                    saved = True
+            except Exception:
+                saved = False
+
+        if not saved:
+            # Fallback 1: sklearn-wrapper save_model
+            model_save = getattr(model, "save_model", None)
+            if callable(model_save):
+                try:
+                    model_save(str(local_path))
+                    saved = True
+                except Exception:
+                    saved = False
+
+        if not saved:
+            # Fallback 2: raw booster attributes
             booster = getattr(model, "_Booster", None) or getattr(model, "booster_", None)
-            if booster is not None:
+            if booster is not None and hasattr(booster, "save_model"):
                 booster.save_model(str(local_path))
-            else:
-                raise RuntimeError("Cannot save model: no known save interface found")
+                saved = True
+
+        if not saved:
+            raise RuntimeError("Cannot save model: no known save interface found")
 
         log_info("XGBoostAutoTrainer: [%s] saved model to %s", symbol, local_path)
 
@@ -203,8 +266,50 @@ def _train_and_upload(
         _set_status(cache_key, "ready", path=str(local_path))
 
     except Exception as exc:
-        log_error("XGBoostAutoTrainer: [%s] training failed: %s", symbol, exc)
+        log_error("XGBoostAutoTrainer: [%s] training failed: %s", symbol, exc, exc_info=True)
         _set_status(cache_key, "failed")
+
+
+def _invoke_lambda_trainer(
+    symbol: str,
+    timeframe: str,
+    model_version: str,
+    s3_bucket: str,
+    data_fetcher: "DataFetcher",
+    cache_key: str,
+) -> None:
+    """Invoke Lambda trainer asynchronously; fallback to local training on failure."""
+    payload = {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "model_version": model_version,
+        "s3_bucket": s3_bucket,
+        "fetch_limit": _FETCH_LIMIT,
+    }
+
+    try:
+        import boto3
+
+        lambda_client = boto3.client("lambda", region_name=_TRAINER_REGION)
+        lambda_client.invoke(
+            FunctionName=_TRAINER_FUNCTION_NAME,
+            InvocationType="Event",
+            Payload=json.dumps(payload).encode("utf-8"),
+        )
+        log_info(
+            "XGBoostAutoTrainer: [%s] invoked Lambda trainer '%s' (region=%s)",
+            symbol,
+            _TRAINER_FUNCTION_NAME,
+            _TRAINER_REGION,
+        )
+    except Exception as exc:
+        log_error(
+            "XGBoostAutoTrainer: [%s] Lambda trainer unavailable, fallback to local training: %s",
+            symbol,
+            exc,
+            exc_info=True,
+        )
+        _train_and_upload(symbol, timeframe, model_version, s3_bucket, data_fetcher, cache_key)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -235,6 +340,12 @@ def request_training(
         log_info("XGBoostAutoTrainer: [%s] training already in progress", symbol)
         return "pending"
 
+    # Check S3 before starting new training
+    if _model_exists_in_s3(symbol, timeframe, model_version, s3_bucket):
+        log_info("XGBoostAutoTrainer: [%s] model found in S3, skipping training", symbol)
+        _set_status(cache_key, "ready")
+        return "ready"
+
     # "failed" (expired) or None → start new training
     sym_lock = _symbol_lock(cache_key)
     if not sym_lock.acquire(blocking=False):
@@ -249,7 +360,7 @@ def request_training(
 
         _set_status(cache_key, "pending")
         thread = threading.Thread(
-            target=_train_and_upload,
+            target=_invoke_lambda_trainer,
             args=(symbol, timeframe, model_version, s3_bucket, data_fetcher, cache_key),
             daemon=True,
             name=f"xgb-train-{cache_key}",

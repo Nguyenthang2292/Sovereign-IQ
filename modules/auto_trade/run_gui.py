@@ -1,6 +1,43 @@
 import sys
 import warnings
+import os
 from pathlib import Path
+
+
+def _patch_windows_platform_for_customtkinter() -> None:
+    """Avoid darkdetect WMI hangs on some Windows setups.
+
+    darkdetect imports platform.release()/version() during customtkinter import.
+    On certain systems this path can block in WMI queries. Provide fast values
+    from sys.getwindowsversion() before importing GUI modules.
+    """
+    if sys.platform != "win32":
+        return
+
+    try:
+        import platform
+
+        win = sys.getwindowsversion()
+        release_value = "10" if int(getattr(win, "major", 10)) >= 10 else str(int(getattr(win, "major", 10)))
+        version_value = f"{int(getattr(win, 'major', 10))}.{int(getattr(win, 'minor', 0))}.{int(getattr(win, 'build', 0))}"
+
+        # Prevent slow/hanging WMI calls inside platform.* on some Windows systems.
+        # Several dependencies (darkdetect, aiohttp, boto3, numba) trigger these during import.
+        if hasattr(platform, "_wmi_query"):
+            platform._wmi_query = lambda *args, **kwargs: (  # type: ignore[attr-defined,assignment]
+                version_value,
+                "1",
+                "Multiprocessor Free",
+                "0",
+                "0",
+            )
+
+        platform.release = lambda: release_value  # type: ignore[assignment]
+        platform.version = lambda: version_value  # type: ignore[assignment]
+        platform.system = lambda: "Windows"  # type: ignore[assignment]
+        platform.machine = lambda: os.getenv("PROCESSOR_ARCHITECTURE", "AMD64")  # type: ignore[assignment]
+    except Exception:
+        pass
 
 # Suppress pkg_resources deprecation warning from lightning_fabric
 warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
@@ -19,8 +56,6 @@ try:
         load_dotenv()
 except ImportError:
     pass
-
-from modules.auto_trade.gui.main_window import AutoTradeDashboard
 
 
 def main() -> None:
@@ -80,6 +115,9 @@ def main() -> None:
     print("Launching GUI...\n")
 
     # Step 3: Launch the GUI
+    _patch_windows_platform_for_customtkinter()
+    from modules.auto_trade.gui.main_window import AutoTradeDashboard
+
     app = AutoTradeDashboard()
     app.mainloop()
 

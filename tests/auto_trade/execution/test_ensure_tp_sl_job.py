@@ -60,8 +60,32 @@ def _install_binance_stubs() -> None:
             """Stub: delegates to exchange.fetch_open_orders (mocked in tests)."""
             return exchange.fetch_open_orders(symbol)
 
+        def _classify_order_kind(order: dict, entry_price: float = 0.0, side: str = "") -> str:
+            """Minimal compatibility stub for imports from order_management."""
+            info = order.get("info") or {}
+            otype = str(info.get("type") or info.get("origType") or order.get("type") or "").upper()
+            if "TAKE_PROFIT" in otype:
+                return "tp"
+            if "STOP" in otype or "LOSS" in otype:
+                return "sl"
+            return "unknown"
+
+        def _get_mark_price_from_exchange(exchange, symbol: str):
+            """Compatibility stub for tests importing mark-price helper."""
+            try:
+                ticker = exchange.fetch_ticker(symbol)
+                info = ticker.get("info") if isinstance(ticker, dict) else None
+                if isinstance(info, dict) and info.get("markPrice") is not None:
+                    return float(info["markPrice"])
+                last = ticker.get("last") if isinstance(ticker, dict) else None
+                return float(last) if last is not None else None
+            except Exception:
+                return None
+
         om_stub._ccxt_futures_symbol = _ccxt_futures_symbol
         om_stub._fetch_all_open_orders = _fetch_all_open_orders
+        om_stub._classify_order_kind = _classify_order_kind
+        om_stub._get_mark_price_from_exchange = _get_mark_price_from_exchange
         om_stub.OrderManagement = MagicMock(name="OrderManagement")
         sys.modules[om_name] = om_stub
 

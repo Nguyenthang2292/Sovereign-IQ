@@ -26,6 +26,15 @@ DEFAULT_ARCHIVE_DIR = os.path.join(DEFAULT_DATA_DIR, "archive")
 # Export directory for data exports
 DEFAULT_EXPORT_DIR = os.path.join(DEFAULT_DATA_DIR, "exports")
 
+# Legacy SQLite schema path retained for backwards compatibility in tests/tools
+DEFAULT_SCHEMA_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "archives",
+    "sqlite_legacy",
+    "database",
+    "schema.sql",
+)
+
 # ============================================================================
 # BACKEND SELECTION
 # ============================================================================

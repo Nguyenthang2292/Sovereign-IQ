@@ -8,6 +8,7 @@ for cryptocurrency price direction prediction, including:
 - Prediction probability calculation for next candle movement
 """
 
+import threading
 from typing import Any, Type, Union
 
 import numpy as np
@@ -170,6 +171,9 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
     if "Target" not in df.columns:
         raise ValueError("DataFrame must contain a 'Target' column from labeling.")
     check_cols = feature_cols + ["Target"]
+    # Coerce any non-numeric columns (e.g. object dtype from pandas-ta on pandas 3.x)
+    # to numeric so np.isfinite works correctly; non-convertible values become NaN.
+    df[check_cols] = df[check_cols].apply(pd.to_numeric, errors="coerce")
     finite_mask = np.isfinite(df[check_cols].values).all(axis=1)
     if not finite_mask.all():
         n_dropped = (~finite_mask).sum()
@@ -187,8 +191,12 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
         # Check for potential precision issues
         max_abs_val = X.abs().max().max()
         if max_abs_val > 1e6:
-            log_warn(f"Float32 conversion may lose precision for large values (max: {max_abs_val:.2e})")
-        X = X.astype(np.float32)
+            log_warn(
+                f"Float32 conversion skipped for large values (max: {max_abs_val:.2e}); "
+                f"keeping float64 for numerical stability."
+            )
+        else:
+            X = X.astype(np.float32)
 
     y = df["Target"].astype(int)
 
@@ -345,7 +353,11 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
     if max_splits >= 2:
         tscv = TimeSeriesSplit(n_splits=max_splits)
 
-        if XGBOOST_USE_PARALLEL_CV:
+        should_use_parallel_cv = XGBOOST_USE_PARALLEL_CV and threading.current_thread() is threading.main_thread()
+        if XGBOOST_USE_PARALLEL_CV and not should_use_parallel_cv:
+            log_warn("Parallel CV disabled outside main thread to avoid multiprocessing spawn issues on Windows.")
+
+        if should_use_parallel_cv:
             # Parallel CV execution
             cv_scores, all_y_true, all_y_pred = run_parallel_cv(X, y, tscv, XGBOOST_PARAMS)
         else:

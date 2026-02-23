@@ -11,3 +11,7 @@ from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, 
 
 # With DynamoDB, session and transactions are managed differently.
 # This file is kept for backward compatibility if any generic util is needed.
+
+from modules.auto_trade.archives.sqlite_legacy.database.utils import DatabaseManager
+
+__all__ = ["DatabaseManager"]
