@@ -94,9 +94,43 @@ class OrderExecution:
             current_price: float = ticker["last"]
             log_info(f"Current price for {symbol}: ${current_price:,.2f}")
 
-            # Calculate contract amount
+            # Calculate contract amount (notional / price)
             amount_contracts: float = (amount_usdt * order.leverage) / current_price
             log_info(f"Calculated contract amount: {amount_contracts:.4f} contracts")
+
+            # ── Validate against Binance minimum qty / step size ──────────────────
+            try:
+                import math
+
+                markets = self.exchange.load_markets()
+                ccxt_sym = _ccxt_futures_symbol(self.exchange, symbol)
+                market_info = markets.get(ccxt_sym) or markets.get(symbol) or {}
+                limits = market_info.get("limits") or {}
+                precision = market_info.get("precision") or {}
+
+                min_amount: float = float((limits.get("amount") or {}).get("min") or 0.0)
+                amount_step: float = float(precision.get("amount") or 0.0)
+
+                # Round DOWN to valid step size to avoid exchange precision rejection
+                if amount_step > 0:
+                    amount_contracts = math.floor(amount_contracts / amount_step) * amount_step
+                    dp = len(str(amount_step).rstrip("0").split(".")[-1]) if "." in str(amount_step) else 0
+                    amount_contracts = round(amount_contracts, dp)
+                    log_info(f"Rounded contract amount (step={amount_step}): {amount_contracts} contracts")
+
+                # Reject below minimum BEFORE submitting to exchange
+                if min_amount > 0 and amount_contracts < min_amount:
+                    notional_needed = (min_amount * current_price) / order.leverage
+                    log_warn(
+                        f"[{symbol}] Order skipped: calculated {amount_contracts:.6f} contracts "
+                        f"is below exchange minimum {min_amount}. "
+                        f"Need ≥ ${notional_needed:.2f} USDT balance at {order.leverage}x leverage "
+                        f"(current usable: ${amount_usdt:.2f} USDT)."
+                    )
+                    return None
+
+            except Exception as min_exc:
+                log_warn(f"Could not validate minimum qty for {symbol}: {min_exc} — proceeding anyway")
 
         except Exception as e:
             log_error(f"Failed to fetch ticker for {symbol}: {e}")

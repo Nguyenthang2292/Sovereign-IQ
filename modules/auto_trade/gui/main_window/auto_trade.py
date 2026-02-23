@@ -62,7 +62,9 @@ class AutoTradeManager:
             if positions:
                 log_info(f"[AutoTrade] Startup: Found {len(positions)} existing position(s) on Binance")
                 for pos in positions:
-                    log_info(f"[AutoTrade]   - {pos.get('symbol')} {pos.get('side')}: {pos.get('size')} @ {pos.get('entry_price')}")
+                    log_info(
+                        f"[AutoTrade]   - {pos.get('symbol')} {pos.get('side')}: {pos.get('size')} @ {pos.get('entry_price')}"
+                    )
             else:
                 log_info("[AutoTrade] Startup: No existing positions on Binance")
         except Exception as e:
@@ -273,12 +275,10 @@ class AutoTradeManager:
                 log_info("[AutoTrade] No fresh signals for auto-trade (<5 minutes)")
                 return
             fresh_signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)
-            best = fresh_signals[0]
-            log_info(f"[AutoTrade] Selected best signal: {best.get('symbol')} (score={float(best.get('score', 0)):.2f})")
+            log_info(f"[AutoTrade] Attempting execution for up to {len(fresh_signals)} signal(s) in score order...")
 
             default_position_size = self.parent.settings_manager.get("risk.max_position_size", 100.0)
             default_leverage_str = self.parent.settings_manager.get("risk.default_leverage", "10x")
-            # Parse leverage string (e.g. "3x" -> 3)
             try:
                 default_leverage = int(str(default_leverage_str).replace("x", "").strip())
             except (ValueError, AttributeError):
@@ -286,29 +286,6 @@ class AutoTradeManager:
 
             from .risk_manager import RiskManager
 
-            risk_manager = RiskManager(self.parent)
-            log_info(
-                f"[AutoTrade] Checking risk limits (pos_size=${default_position_size}, leverage={default_leverage}x)..."
-            )
-            if not risk_manager.check_limits(
-                symbol=str(best.get("symbol") or ""),
-                position_size=default_position_size,
-                leverage=default_leverage,
-            ):
-                log_warn("[AutoTrade] Risk limits exceeded, skipping trade")
-                return
-            log_info("[AutoTrade] Risk limits OK, proceeding with execution...")
-
-            sig_dict = {
-                "symbol": best.get("symbol"),
-                "signal": best.get("signal"),
-                "score": best.get("score", 0.0),
-                "created_at_ts": best.get("created_at_ts", 0.0),
-                "leverage": default_leverage,  # pass parsed leverage from settings
-            }
-            tp_sl = self.parent.settings_manager.get("tp_sl", {}) or {}
-
-            # Pass credentials from DataService (not env vars)
             ds = self.parent.data_service
             executor = OrderExecutor(
                 api_key=ds.api_key,
@@ -317,15 +294,52 @@ class AutoTradeManager:
                 dry_run=(getattr(self.parent, "mode", "DRY_RUN") == "DRY_RUN"),
                 recovery_manager=getattr(self.parent, "recovery_manager", None),
             )
-            result = executor.execute_from_signal(sig_dict, tp_sl_settings=tp_sl)
+            tp_sl = self.parent.settings_manager.get("tp_sl", {}) or {}
 
-            if result and result.get("success"):
-                log_info(f"Auto-trade executed: {sig_dict['symbol']}")
-                self.parent.after(0, self.parent.refresh_positions)
-                self.parent.after(0, self.parent.refresh_account)
-            else:
-                error_msg = result.get("error", "Unknown error") if result else "No result returned"
-                log_error(f"Auto-trade FAILED for {sig_dict['symbol']}: {error_msg}")
+            executed = False
+            for idx, candidate in enumerate(fresh_signals):
+                sym = str(candidate.get("symbol") or "")
+                score = float(candidate.get("score", 0.0))
+                log_info(f"[AutoTrade] Trying signal {idx + 1}/{len(fresh_signals)}: {sym} (score={score:.2f})")
+
+                risk_manager = RiskManager(self.parent)
+                if not risk_manager.check_limits(
+                    symbol=sym,
+                    position_size=default_position_size,
+                    leverage=default_leverage,
+                ):
+                    log_warn(f"[AutoTrade] [{sym}] Risk limits exceeded, trying next signal...")
+                    continue
+
+                sig_dict = {
+                    "symbol": candidate.get("symbol"),
+                    "signal": candidate.get("signal"),
+                    "score": score,
+                    "created_at_ts": candidate.get("created_at_ts", 0.0),
+                    "leverage": default_leverage,
+                }
+
+                result = executor.execute_from_signal(sig_dict, tp_sl_settings=tp_sl)
+
+                if result and result.get("success"):
+                    log_info(f"[AutoTrade] Trade executed: {sym} (attempt {idx + 1}/{len(fresh_signals)})")
+                    self.parent.after(0, self.parent.refresh_positions)
+                    self.parent.after(0, self.parent.refresh_account)
+                    executed = True
+                    break
+                else:
+                    error_msg = result.get("error", "Unknown error") if result else "No result returned"
+                    has_next = idx + 1 < len(fresh_signals)
+                    log_warn(
+                        f"[AutoTrade] [{sym}] Execution failed: {error_msg}. "
+                        f"{'Trying next signal...' if has_next else 'No more signals.'}"
+                    )
+
+            if not executed:
+                log_warn(
+                    f"[AutoTrade] All {len(fresh_signals)} signal(s) failed or were rejected "
+                    f"(insufficient balance, risk limits, or exchange minimum). No trade placed this cycle."
+                )
 
         except Exception as e:
             log_error(f"Error in auto-trade cycle: {e}")

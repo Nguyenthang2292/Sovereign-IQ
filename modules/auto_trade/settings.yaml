@@ -6,7 +6,7 @@ risk:
   default_leverage: 5x
 filters:
   min_signal_score: 0.19999999999999996
-  enable_xgboost: true
+  enable_xgboost: false
   atc_threshold: 0.19999999999999996
   symbol_whitelist: 'BTC/USDT
 
@@ -20,8 +20,6 @@ filters:
 api:
   exchange: Binance
   mode: PRODUCTION
-  api_key: ''
-  api_secret: ''
 tp_sl:
   default_tp: 2.0
   default_sl: 30.0
@@ -53,6 +51,7 @@ ui:
   column_visibility: {}
   widget_order: {}
 recovery:
+  enabled: true
   initial_loss: 0.0
   target_profit_per_trade: 8.0
   max_recovery_trades: 13
@@ -61,7 +60,6 @@ recovery:
   min_leverage: 5
   max_leverage: 15
   enable_streak_bonus: true
-  enabled: true
 trading:
   default_position_size: 100.0
   default_leverage: 2
