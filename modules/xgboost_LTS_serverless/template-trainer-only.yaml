@@ -1,46 +1,27 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: XGBoost Serverless Prediction Service
+Description: XGBoost Serverless Trainer Service Only
 
 Parameters:
   ModelBucketName:
     Type: String
     Description: S3 bucket name used to store XGBoost models
     Default: ""
+  BinanceApiKey:
+    Type: String
+    Description: Binance API key
+    Default: ""
+    NoEcho: true
+  BinanceApiSecret:
+    Type: String
+    Description: Binance API secret
+    Default: ""
+    NoEcho: true
 
 Conditions:
   UseProvidedModelBucketName: !Not [!Equals [!Ref ModelBucketName, ""]]
 
 Resources:
-  XGBoostFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: xgboost-serverless-predict
-      MemorySize: 3008
-      Timeout: 30
-      Runtime: provided.al2
-      Handler: bootstrap
-      CodeUri: .
-      Description: XGBoost serverless prediction function
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref ModelBucket
-        - Statement:
-            - Effect: Allow
-              Action:
-                - sqs:SendMessage
-              Resource: !GetAtt PredictionQueue.Arn
-      Environment:
-        Variables:
-          MODEL_BUCKET: !Ref ModelBucket
-          PREDICTION_QUEUE_URL: !Ref PredictionQueue
-      Events:
-        PredictionApi:
-          Type: Api
-          Properties:
-            Path: /predict
-            Method: POST
-
   XGBoostTrainerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -65,9 +46,8 @@ Resources:
         Variables:
           MODEL_BUCKET: !Ref ModelBucket
           NUMBA_CACHE_DIR: /tmp
-          # Binance API keys — inject from AWS Secrets Manager
-          BINANCE_API_KEY: !Sub "{{resolve:secretsmanager:auto-trade/binance:SecretString:api_key}}"
-          BINANCE_API_SECRET: !Sub "{{resolve:secretsmanager:auto-trade/binance:SecretString:api_secret}}"
+          BINANCE_API_KEY: !Ref BinanceApiKey
+          BINANCE_API_SECRET: !Ref BinanceApiSecret
 
   ModelBucket:
     Type: AWS::S3::Bucket
@@ -82,15 +62,11 @@ Resources:
   PredictionQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: xgboost-predictions
+      QueueName: !Sub "${AWS::StackName}-predictions"
       VisibilityTimeout: 300
       MessageRetentionPeriod: 86400
 
 Outputs:
-  ApiEndpoint:
-    Description: API Gateway endpoint URL
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/predict"
-
   ModelBucketName:
     Description: S3 bucket for model storage
     Value: !Ref ModelBucket

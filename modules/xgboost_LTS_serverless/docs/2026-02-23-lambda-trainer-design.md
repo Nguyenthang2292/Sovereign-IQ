@@ -68,18 +68,18 @@ xgboost_auto_trainer.request_training()
 │                                                             │
 │  ┌──────────────────────┐      ┌─────────────────────────┐  │
 │  │  xgboost-trainer     │      │  xgboost-models-store   │  │
-│  │  (Lambda Python 3.12)│─────▶│  (S3 Bucket)            │  │
+│  │  (Lambda Python 3.12)│────▶│  (S3 Bucket)            │  │
 │  │  RAM: 3008 MB        │      │  BTCUSDT_15m_v1.json    │  │
 │  │  Timeout: 900s       │      │  ETHUSDT_15m_v1.json    │  │
 │  │  Container Image     │      │  ...                    │  │
 │  └──────────────────────┘      └──────────┬──────────────┘  │
-│           ▲                               │                  │
-│           │ invoke async                  │ download model   │
-│           │                               ▼                  │
+│           ▲                               │                 │
+│           │ invoke async                  │ download model  │
+│           │                               ▼                 │
 │  ┌──────────────────────┐      ┌─────────────────────────┐  │
 │  │  Auto Trade          │      │  xgboost-serverless-    │  │
 │  │  (Local Python)      │      │  predict (Lambda Rust)  │  │
-│  │  XGBoostServerless   │─────▶│  Booster.load()         │  │
+│  │  XGBoostServerless   │────▶│  Booster.load()         │  │
 │  │  Filter              │      │  predict() → JSON       │  │
 │  └──────────────────────┘      └─────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘

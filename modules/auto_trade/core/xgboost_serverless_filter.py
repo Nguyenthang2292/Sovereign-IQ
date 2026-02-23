@@ -41,7 +41,7 @@ from typing import Any, Dict, List, Optional, Sequence, cast
 import pandas as pd
 
 from modules.auto_trade.core.atc_scanner import SignalResult
-from modules.auto_trade.core.xgboost_auto_trainer import get_training_status, request_training
+from modules.auto_trade.core.xgboost_auto_trainer import request_training
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.domain.symbols import normalize_symbol_key
 from modules.common.ui.logging import (
@@ -391,91 +391,64 @@ class XGBoostServerlessFilter:
         signal_map: Dict[str, SignalResult],
         exc_str: str,
     ) -> List[SignalResult]:
-        """Handle Lambda failure due to missing S3 model(s).
+        """Handle Lambda failure due to missing S3 model(s) with fire-and-forget parallel training.
 
-        Strategy per symbol:
-          - If model is already training → pass signal through unchanged (non-blocking)
-          - If model just became ready  → retry Lambda for that symbol alone
-          - Otherwise                  → start background training, pass through for now
+        Strategy:
+          1) For each missing symbol, call request_training() which spawns a background
+             thread and returns immediately ("pending") — no blocking.
+          2) Number of parallel Lambda trainers = number of ATC-filtered signals (dynamic).
+          3) Current pipeline cycle returns empty — no signals blocked.
+          4) Next pipeline cycle: models are in S3, Lambda predict works normally.
+
+        Status cache prevents duplicate training threads for the same symbol:
+          - "pending"    → already training, skip
+          - "ready"      → model in S3 (shouldn't reach here, but handled)
+          - "skipped"    → class imbalance, wait TTL
+          - "infra_error"→ IAM/S3 error, wait TTL
         """
+        n = len(request_items)
         log_warn(
-            "XGBoostServerlessFilter: Lambda S3 model missing — checking %s symbol(s) for auto-training",
-            len(request_items),
+            "XGBoostServerlessFilter: Lambda S3 model missing — firing %s background trainer(s) in parallel",
+            n,
         )
 
-        ready_items: List[Dict[str, Any]] = []
-        passthrough_signals: List[SignalResult] = []
+        pending_symbols: List[str] = []
+        skipped_symbols: List[str] = []
 
         for item in request_items:
             sym_normalized = item["symbol"]
-            # Reverse-lookup original SignalResult
             signal = signal_map.get(sym_normalized)
             if signal is None:
                 continue
 
-            cache_key = f"{sym_normalized}_{self.timeframe}_{self.model_version}"
-            status = get_training_status(cache_key)
+            # Fire-and-forget: spawns a background thread per symbol (if not already running)
+            status = request_training(
+                symbol=signal.symbol,
+                timeframe=self.timeframe,
+                model_version=self.model_version,
+                s3_bucket=self.s3_bucket,
+                data_fetcher=self.data_fetcher,
+            )
 
-            if status == "ready":
-                # Model just finished training on a previous cycle → retry Lambda
-                log_info(
-                    "XGBoostServerlessFilter: [%s] model now ready in S3, will retry Lambda",
-                    signal.symbol,
-                )
-                ready_items.append(item)
-            elif status == "pending":
-                log_info(
-                    "XGBoostServerlessFilter: [%s] training in progress — passing signal through",
-                    signal.symbol,
-                )
-                passthrough_signals.append(signal)
+            if status in ("pending", "ready"):
+                pending_symbols.append(signal.symbol)
             else:
-                # Not started or failed+TTL expired → kick off training
-                status = request_training(
-                    symbol=signal.symbol,
-                    timeframe=self.timeframe,
-                    model_version=self.model_version,
-                    s3_bucket=self.s3_bucket,
-                    data_fetcher=self.data_fetcher,
-                )
+                # skipped (class imbalance) or infra_error (IAM/S3) — won't train
+                skipped_symbols.append(signal.symbol)
                 log_warn(
-                    "XGBoostServerlessFilter: [%s] auto-training triggered (status=%s) — "
-                    "passing signal through this cycle",
+                    "XGBoostServerlessFilter: [%s] training status '%s' — signal skipped this cycle",
                     signal.symbol,
                     status,
                 )
-                passthrough_signals.append(signal)
 
-        # ── Retry Lambda for symbols whose models are now in S3 ───────────────
-        confirmed: List[SignalResult] = []
-        if ready_items:
-            try:
-                assert self._lambda_client is not None
-                retry_response = self._lambda_client.predict(ready_items)
-                ready_signal_map = {item["symbol"]: signal_map[item["symbol"]] for item in ready_items}
-                confirmed = self._parse_predictions(
-                    ready_items, ready_signal_map, list(ready_signal_map.values()), retry_response
-                )
-                log_info(
-                    "XGBoostServerlessFilter: Lambda retry confirmed %s/%s signals",
-                    len(confirmed),
-                    len(ready_items),
-                )
-            except Exception as retry_exc:
-                log_warn(
-                    "XGBoostServerlessFilter: Lambda retry also failed (%s) — passing ready signals through",
-                    retry_exc,
-                )
-                passthrough_signals.extend(signal_map[i["symbol"]] for i in ready_items if i["symbol"] in signal_map)
-
-        result = confirmed + passthrough_signals
         log_info(
-            "XGBoostServerlessFilter: _handle_missing_models → %s confirmed + %s pass-through = %s total",
-            len(confirmed),
-            len(passthrough_signals),
-            len(result),
+            "XGBoostServerlessFilter: %s symbol(s) queued for parallel training, %s skipped. "
+            "Signals will be available next pipeline cycle.",
+            len(pending_symbols),
+            len(skipped_symbols),
         )
-        return result
+        # Return empty — no signals blocked. Next cycle the models will be in S3.
+        return []
 
     def _build_requests(self, signals: List[SignalResult]) -> tuple:
         """Fetch OHLCV and build Lambda request payloads.

@@ -1,0 +1,63 @@
+# ── Rust build artifacts (biggest offenders: ~15GB)
+modules/xgboost_LTS_serverless/target/
+modules/adaptive_trend_LTS_serverless/target/
+modules/adaptive_trend_LTS_mini/target/
+# Generic catch-all for any future Rust module
+modules/*/target/
+
+# ── Python virtual environments
+.venv/
+*/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# ── Test artifacts
+modules/xgboost_LTS_serverless/tests/
+modules/*/tests/
+tests/
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ── Pre-built model files (Lambda downloads from S3, not from image)
+modules/xgboost_LTS_serverless/models/
+modules/xgboost_LTS/models/
+models/
+*.json.bak
+
+# ── Logs (62GB! never needed in image)
+logs/
+
+# ── CI/CD & tooling
+.github/
+.mypy_cache/
+.ruff_cache/
+.agent/
+artifacts/
+outputs/
+docs/
+
+# ── Dev files
+*.md
+*.sh
+*.bat
+*.ps1
+
+# ── Git
+.git/
+.gitignore
+
+# ── IDE
+.vscode/
+.idea/
+
+# ── Cargo lock / Rust source (Lambda Python image doesn't need Rust)
+modules/xgboost_LTS_serverless/Cargo.toml
+modules/xgboost_LTS_serverless/Cargo.lock
+modules/xgboost_LTS_serverless/src/
+modules/xgboost_LTS_serverless/lambda/src/
+modules/adaptive_trend_LTS_serverless/src/
+modules/adaptive_trend_LTS_serverless/target/

@@ -144,7 +144,7 @@ class ConfigPanel(ctk.CTkFrame):
 
         self.tp_sl_mode_var = ctk.StringVar(value="Percentage")
         mode_dropdown = ctk.CTkComboBox(
-            tp_sl_inner, values=["Percentage", "Price", "ATR"], variable=self.tp_sl_mode_var
+            tp_sl_inner, values=["Percentage", "Price", "ATR", "ROI"], variable=self.tp_sl_mode_var
         )
         mode_dropdown.pack(fill="x", pady=(2, 8))
 
@@ -249,9 +249,7 @@ class ConfigPanel(ctk.CTkFrame):
         xgboost_checkbox.pack(anchor="w", pady=(10, 2))
 
         # ATC base threshold: used as reference; actual threshold is auto-scaled when some TFs have no data
-        label_atc = ctk.CTkLabel(
-            filters_frame, text="ATC base threshold (adaptive):", font=("Arial", 12)
-        )
+        label_atc = ctk.CTkLabel(filters_frame, text="ATC base threshold (adaptive):", font=("Arial", 12))
         label_atc.pack(anchor="w", pady=(8, 2))
 
         self.atc_threshold_var = ctk.DoubleVar(value=0.6)
@@ -380,7 +378,7 @@ class ConfigPanel(ctk.CTkFrame):
 
         # --- Entry block (Task 2) ---
         self.credentials_entry_frame = ctk.CTkFrame(self.api_key_frame, fg_color="transparent")
-        self.credentials_entry_frame.pack(fill="x") # Packed by default for backward compat
+        self.credentials_entry_frame.pack(fill="x")  # Packed by default for backward compat
 
         # API Key
         label = ctk.CTkLabel(self.credentials_entry_frame, text="API Key:", font=("Arial", 12))

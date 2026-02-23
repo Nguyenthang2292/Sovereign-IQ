@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-02-24
+
+### Added
+
+- **AWS Lambda Python Trainer (`xgboost-trainer`)**: Implemented a cloud-native background training pipeline. Shifts heavy per-symbol `xgboost` OHLCV feature calculation and model `Booster` fitting from local `auto_trade` threads directly into a Python 3.12 Lambda container instance.
+- **Docker Container Packaging (`lambda/trainer/`)**: Added `Dockerfile` and `requirements_trainer.txt` tailored for Serverless ML. Replaces standard Python deployments to handle `xgboost` & `pandas-ta` sizes exceeding normal 250MB Lambda layers.
+- **Robust Asynchronous Auto-Trainer**: Re-implemented the state manager inside `xgboost_auto_trainer.py`. Now delegates training asynchronously (`InvocationType="Event"`) and synchronizes model availability dynamically via `s3.head_object()` checking. Retains seamless local-thread fallback functionality.
+
+### Fixed
+
+- **Lambda ECR Image Format Errors**: Fixed AWS `InvalidRequest` manifest-rejection errors during CloudFormation stack creation. Explicitly forced `--provenance=false` into `build_trainer.sh` to bypass latest Docker Desktop builds shifting to unsupported `OCI Image Index` format headers.
+- **Numba Crash In Serverless Environments**: Fixed `RuntimeError (cannot cache function fibonacci)` crashes within `pandas-ta`/`numba` caching execution. Injected `NUMBA_CACHE_DIR=/tmp` directly inside CloudFormation `template.yaml` to overwrite Lambda's native read-only filesystem restrictions.
+- **CloudFormation Naming Conflicts**: Prevented Stack `AlreadyExists` rollback errors by enabling CloudFormation to auto-generate unique logical IDs for `ModelBucket` and `PredictionQueue`.
+- **Secrets Management Collisions**: Removed restrictive `SecretsManager` constraints against Binance API configs inside the CloudFormation stack. Extensively integrated parameter-based overwrites to prevent `ResourceNotFoundException`.
+- **Python Lambda Keyword Collision**: Avoided `SyntaxError` failures during Lambda execution pipeline by relocating the entrypoint from `modules/xgboost_LTS_serverless/lambda/trainer/` path to the Docker's root structure (`trainer_handler.py`), circumventing Python's parsing constraints on `lambda` package keywords.
+- **Boto3 Deployment Orchestration**: Bypassed recurrent `aws-cli` process-hanging bugs tied to Windows shell `PAGER` variables by writing a fully interactive CloudFormation deployment & monitoring python script (`_deploy_trainer_stack.py`).
+
 ## [0.1.4] - 2026-02-22
 
 ### Deployed

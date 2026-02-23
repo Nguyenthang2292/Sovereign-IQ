@@ -5,8 +5,8 @@ Delegates to modules.auto_trade.run_gui.main().
 Run from project root: python run_auto_trade_gui.py [--clear-cache] [--no-rust-build]
 """
 
-import sys
 import multiprocessing as mp
+import sys
 from pathlib import Path
 
 # Ensure project root is on path so "modules.auto_trade.run_gui" resolves

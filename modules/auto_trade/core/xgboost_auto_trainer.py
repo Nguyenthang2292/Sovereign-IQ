@@ -32,7 +32,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from modules.common.ui.logging import log_error, log_info
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
@@ -48,6 +48,14 @@ _FETCH_LIMIT = 1_000
 
 # How long (seconds) a "failed" status is cached before a retry is allowed
 _FAILURE_TTL = 600  # 10 minutes
+
+# How long (seconds) a "skipped" status (class imbalance) is cached before a retry
+# Set to 1 hour — give the market time to generate more diverse price movements
+_SKIP_TTL = 3600  # 1 hour
+
+# How long (seconds) an "infra_error" status (AWS IAM/S3 permission) is cached
+# No point retrying frequently — fix requires IAM policy change on AWS side
+_INFRA_ERROR_TTL = 1800  # 30 minutes
 
 # Temp directory for saving models before upload
 _TMP_DIR = Path("/tmp")
@@ -82,13 +90,18 @@ def _set_status(cache_key: str, status: str, path: Optional[str] = None) -> None
 
 
 def get_training_status(cache_key: str) -> Optional[str]:
-    """Return 'pending' | 'ready' | 'failed' | None (unknown)."""
+    """Return 'pending' | 'ready' | 'failed' | 'skipped' | 'infra_error' | None (unknown)."""
     with _LOCK:
         entry = _STATUS.get(cache_key)
     if entry is None:
         return None
-    if entry["status"] == "failed" and time.monotonic() - entry["ts"] > _FAILURE_TTL:
+    elapsed = time.monotonic() - entry["ts"]
+    if entry["status"] == "failed" and elapsed > _FAILURE_TTL:
         return None  # TTL expired → allow retry
+    if entry["status"] == "skipped" and elapsed > _SKIP_TTL:
+        return None  # TTL expired → retry (market may have more class diversity now)
+    if entry["status"] == "infra_error" and elapsed > _INFRA_ERROR_TTL:
+        return None  # TTL expired → retry in case IAM was fixed
     return entry["status"]
 
 
@@ -106,7 +119,7 @@ def _normalize(symbol: str) -> str:
 def _model_exists_in_s3(symbol: str, timeframe: str, version: str, bucket: str) -> bool:
     """Check if model exists in S3 (caches 'not found' result for 5 minutes)."""
     cache_key = f"{_normalize(symbol)}_{timeframe}_{version}"
-    
+
     with _LOCK:
         last_checked = _S3_CHECK_CACHE.get(cache_key, 0)
         if time.monotonic() - last_checked < _S3_CHECK_TTL:
@@ -114,14 +127,14 @@ def _model_exists_in_s3(symbol: str, timeframe: str, version: str, bucket: str) 
 
     try:
         import boto3
-        import botocore.exceptions
+        import botocore.exceptions  # type: ignore[import-untyped]
+
         s3 = boto3.client("s3", region_name=_TRAINER_REGION)
         s3_key = f"{_normalize(symbol)}_{timeframe}_{version}.json"
-        
         s3.head_object(Bucket=bucket, Key=s3_key)
         return True
     except botocore.exceptions.ClientError as exc:
-        if exc.response['Error']['Code'] == '404':
+        if exc.response["Error"]["Code"] == "404":
             with _LOCK:
                 _S3_CHECK_CACHE[cache_key] = time.monotonic()
             return False
@@ -155,7 +168,7 @@ def _train_and_upload(
             IndicatorProfile,
         )
         from modules.xgboost_LTS.core.labeling import apply_directional_labels
-        from modules.xgboost_LTS.core.model import train_and_predict
+        from modules.xgboost_LTS.core.model import ClassDiversityError, train_and_predict
         from modules.xgboost_LTS.utils.features import add_advanced_features
 
         # ── 2. Fetch OHLCV ────────────────────────────────────────────────────
@@ -191,7 +204,16 @@ def _train_and_upload(
             raise ValueError(f"No labeled rows after dropna for {symbol}")
 
         # ── 5. Train ──────────────────────────────────────────────────────────
-        model = train_and_predict(df, use_cache=False)
+        try:
+            model = train_and_predict(df, use_cache=False)
+        except ClassDiversityError as cde:
+            log_warn(
+                "XGBoostAutoTrainer: [%s] skipping training — insufficient class diversity: %s",
+                symbol,
+                cde,
+            )
+            _set_status(cache_key, "skipped")
+            return
         log_info("XGBoostAutoTrainer: [%s] training done in %.1fs", symbol, time.perf_counter() - t0)
 
         # ── 6. Save as XGBoost native JSON ────────────────────────────────────
@@ -209,7 +231,7 @@ def _train_and_upload(
             try:
                 booster = get_booster()
                 if booster is not None and hasattr(booster, "save_model"):
-                    booster.save_model(str(local_path))
+                    booster.save_model(str(local_path))  # type: ignore[attr-defined]
                     saved = True
             except Exception:
                 saved = False
@@ -228,7 +250,7 @@ def _train_and_upload(
             # Fallback 2: raw booster attributes
             booster = getattr(model, "_Booster", None) or getattr(model, "booster_", None)
             if booster is not None and hasattr(booster, "save_model"):
-                booster.save_model(str(local_path))
+                booster.save_model(str(local_path))  # type: ignore[attr-defined]
                 saved = True
 
         if not saved:
@@ -237,7 +259,7 @@ def _train_and_upload(
         log_info("XGBoostAutoTrainer: [%s] saved model to %s", symbol, local_path)
 
         # ── 7. Upload to S3 ───────────────────────────────────────────────────
-        import boto3
+        import boto3  # type: ignore[import-untyped]
 
         s3 = boto3.client("s3")
         s3_key = model_filename  # bare key — matches Lambda model_s3_key lookup
@@ -288,7 +310,7 @@ def _invoke_lambda_trainer(
     }
 
     try:
-        import boto3
+        import boto3  # type: ignore[import-untyped]
 
         lambda_client = boto3.client("lambda", region_name=_TRAINER_REGION)
         lambda_client.invoke(
@@ -340,6 +362,21 @@ def request_training(
         log_info("XGBoostAutoTrainer: [%s] training already in progress", symbol)
         return "pending"
 
+    if current == "skipped":
+        log_info(
+            "XGBoostAutoTrainer: [%s] previously skipped due to class imbalance, will retry after TTL expires",
+            symbol,
+        )
+        return "skipped"
+
+    if current == "infra_error":
+        log_warn(
+            "XGBoostAutoTrainer: [%s] previously failed due to AWS infrastructure error (IAM/S3). "
+            "Fix the IAM policy for the Lambda role and retry will happen automatically after TTL.",
+            symbol,
+        )
+        return "infra_error"
+
     # Check S3 before starting new training
     if _model_exists_in_s3(symbol, timeframe, model_version, s3_bucket):
         log_info("XGBoostAutoTrainer: [%s] model found in S3, skipping training", symbol)
@@ -374,3 +411,149 @@ def request_training(
         return "pending"
     finally:
         sym_lock.release()
+
+
+def train_model_sync(
+    symbol: str,
+    timeframe: str,
+    model_version: str,
+    s3_bucket: str,
+    data_fetcher: "DataFetcher",
+    wait_timeout_seconds: int = 120,
+) -> str:
+    """Train model synchronously and return final status.
+
+    Strict mode contract:
+      1) Trigger trainer Lambda with RequestResponse (or local fallback)
+      2) Wait until model is visible in S3
+      3) Return "ready" only when S3 key is confirmed
+
+    Returns:
+      "ready" | "failed"
+    """
+    cache_key = f"{_normalize(symbol)}_{timeframe}_{model_version}"
+
+    if _model_exists_in_s3(symbol, timeframe, model_version, s3_bucket):
+        _set_status(cache_key, "ready")
+        return "ready"
+
+    sym_lock = _symbol_lock(cache_key)
+    with sym_lock:
+        if _model_exists_in_s3(symbol, timeframe, model_version, s3_bucket):
+            _set_status(cache_key, "ready")
+            return "ready"
+
+        _set_status(cache_key, "pending")
+        payload = {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "model_version": model_version,
+            "s3_bucket": s3_bucket,
+            "fetch_limit": _FETCH_LIMIT,
+        }
+
+        try:
+            import boto3
+
+            lambda_client = boto3.client("lambda", region_name=_TRAINER_REGION)
+            response = lambda_client.invoke(
+                FunctionName=_TRAINER_FUNCTION_NAME,
+                InvocationType="RequestResponse",
+                Payload=json.dumps(payload).encode("utf-8"),
+            )
+
+            if response.get("FunctionError"):
+                body = response.get("Payload").read().decode("utf-8") if response.get("Payload") else ""
+                _body_lower = body.lower()
+                # Detect class imbalance errors from Lambda — skip instead of fallback local training
+                if (
+                    "missing classes" in _body_lower
+                    or "class diversity" in _body_lower
+                    or "biased predictions" in _body_lower
+                ):
+                    log_warn(
+                        "XGBoostAutoTrainer: [%s] Lambda reports insufficient class diversity — skipping training. Details: %s",
+                        symbol,
+                        body,
+                    )
+                    _set_status(cache_key, "skipped")
+                    return "failed"
+                # Detect AWS infrastructure errors (IAM/S3) — no point doing local fallback
+                if (
+                    "accessdenied" in _body_lower
+                    or "putobject" in _body_lower
+                    or "getobject" in _body_lower
+                    or ("s3" in _body_lower and "not authorized" in _body_lower)
+                ):
+                    log_error(
+                        "XGBoostAutoTrainer: [%s] Lambda IAM/S3 permission error — skipping local fallback. "
+                        "Action required: add s3:PutObject to Lambda role policy for bucket 'xgboost-models-store'. "
+                        "Details: %s",
+                        symbol,
+                        body,
+                    )
+                    _set_status(cache_key, "infra_error")
+                    return "failed"
+                raise RuntimeError(f"Trainer Lambda function error: {body}")
+
+            status_code = int(response.get("StatusCode", 0))
+            if status_code != 200:
+                body = response.get("Payload").read().decode("utf-8") if response.get("Payload") else ""
+                raise RuntimeError(f"Trainer Lambda failed with status {status_code}: {body}")
+
+            log_info(
+                "XGBoostAutoTrainer: [%s] synchronous trainer invoke completed (function=%s)",
+                symbol,
+                _TRAINER_FUNCTION_NAME,
+            )
+        except Exception as exc:
+            exc_msg = str(exc).lower()
+            # Detect class imbalance before trying expensive local fallback
+            if "missing classes" in exc_msg or "class diversity" in exc_msg or "biased predictions" in exc_msg:
+                log_warn(
+                    "XGBoostAutoTrainer: [%s] skipping local fallback — class imbalance detected: %s",
+                    symbol,
+                    exc,
+                )
+                _set_status(cache_key, "skipped")
+                return "failed"
+            # Detect AWS infrastructure errors — local training won't help (S3 upload will also fail)
+            if (
+                "accessdenied" in exc_msg
+                or ("putobject" in exc_msg)
+                or ("s3" in exc_msg and "not authorized" in exc_msg)
+            ):
+                log_error(
+                    "XGBoostAutoTrainer: [%s] AWS IAM/S3 permission error — skipping local fallback. "
+                    "Fix: add s3:PutObject to Lambda role 'xgboost-trainer' for bucket 'xgboost-models-store'. "
+                    "Error: %s",
+                    symbol,
+                    exc,
+                )
+                _set_status(cache_key, "infra_error")
+                return "failed"
+            log_error(
+                "XGBoostAutoTrainer: [%s] sync Lambda trainer failed, fallback local training: %s",
+                symbol,
+                exc,
+                exc_info=True,
+            )
+            try:
+                _train_and_upload(symbol, timeframe, model_version, s3_bucket, data_fetcher, cache_key)
+            except Exception:
+                _set_status(cache_key, "failed")
+                return "failed"
+
+        deadline = time.monotonic() + max(wait_timeout_seconds, 1)
+        while time.monotonic() < deadline:
+            if _model_exists_in_s3(symbol, timeframe, model_version, s3_bucket):
+                _set_status(cache_key, "ready")
+                return "ready"
+            time.sleep(2)
+
+        log_error(
+            "XGBoostAutoTrainer: [%s] timeout waiting model on S3 after sync training",
+            symbol,
+        )
+        _set_status(cache_key, "failed")
+        return "failed"

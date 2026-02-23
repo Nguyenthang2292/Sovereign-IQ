@@ -47,6 +47,7 @@ class AutoTradeDashboard(ctk.CTk):
             mode=self.mode,
             settings_manager=self.settings_manager,
             event_bus=self.event_bus if hasattr(self, "event_bus") else None,
+            tk_root=self,
         )
 
         self.title(f"Auto Trade Dashboard - [{self.mode}]")
@@ -358,6 +359,7 @@ class AutoTradeDashboard(ctk.CTk):
                 mode=self.mode,
                 settings_manager=self.settings_manager,
                 event_bus=self.event_bus if hasattr(self, "event_bus") else None,
+                tk_root=self,
             )
 
             if self.mode != TradingMode.DRY_RUN:

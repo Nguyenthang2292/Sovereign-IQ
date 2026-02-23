@@ -14,7 +14,9 @@ Features:
 import asyncio
 import os
 import threading
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TypeVar
+
+_T = TypeVar("_T")
 
 from modules.auto_trade.gui.utils.credential_manager import CredentialManager
 from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
@@ -46,6 +48,7 @@ class WebSocketDataService:
         mode: str = "DRY_RUN",
         settings_manager: Optional[Any] = None,
         event_bus: Optional[Any] = None,
+        tk_root: Optional[Any] = None,
     ) -> None:
         """
         Initialize WebSocket data service.
@@ -62,6 +65,9 @@ class WebSocketDataService:
 
         # Mock data for DRY_RUN mode
         self.mock_price_feed: MockPriceFeed = MockPriceFeed()
+
+        # tkinter root for thread-safe GUI callback dispatch
+        self._tk_root: Optional[Any] = tk_root
 
         # Event loop for async operations
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -287,6 +293,24 @@ class WebSocketDataService:
 
     # ==================== Internal Callbacks (WebSocket -> GUI) ====================
 
+    def _dispatch_to_main(self, callback: Callable, data: Any) -> None:
+        """Call *callback(data)* on the tkinter main thread.
+
+        When invoked from a background thread (WebSocket asyncio loop) and a
+        tk_root is available, we use ``root.after(0, ...)`` which is the
+        correct tkinter thread-safe mechanism.  If already on the main thread
+        (or no tk_root), the callback is called directly.
+        """
+        is_background = threading.current_thread() is not threading.main_thread()
+        if is_background and self._tk_root is not None:
+            try:
+                self._tk_root.after(0, callback, data)
+            except Exception as e:
+                log_error(f"Error scheduling GUI callback via after(): {e}")
+        else:
+            # Already on main thread or no root available (e.g. tests)
+            callback(data)
+
     def _handle_position_update(self, position: PositionSnapshot) -> None:
         """
         Handle position update from WebSocket.
@@ -294,10 +318,9 @@ class WebSocketDataService:
         Args:
             position: Position snapshot
         """
-        # Trigger GUI callbacks (in GUI thread)
         for callback in self._position_callbacks:
             try:
-                callback(position)
+                self._dispatch_to_main(callback, position)
             except Exception as e:
                 log_error(f"Error in GUI position callback: {e}")
 
@@ -308,10 +331,9 @@ class WebSocketDataService:
         Args:
             balance: Balance snapshot
         """
-        # Trigger GUI callbacks (in GUI thread)
         for callback in self._balance_callbacks:
             try:
-                callback(balance)
+                self._dispatch_to_main(callback, balance)
             except Exception as e:
                 log_error(f"Error in GUI balance callback: {e}")
 
@@ -322,10 +344,9 @@ class WebSocketDataService:
         Args:
             order: Order snapshot
         """
-        # Trigger GUI callbacks (in GUI thread)
         for callback in self._order_callbacks:
             try:
-                callback(order)
+                self._dispatch_to_main(callback, order)
             except Exception as e:
                 log_error(f"Error in GUI order callback: {e}")
 

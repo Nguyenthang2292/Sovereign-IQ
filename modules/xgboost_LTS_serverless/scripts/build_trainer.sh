@@ -24,7 +24,7 @@ else
 fi
 
 echo "Building image (from project root)..."
-docker build -f modules/xgboost_LTS_serverless/lambda/trainer/Dockerfile -t ${REPO_NAME} .
+docker build --provenance=false -f modules/xgboost_LTS_serverless/lambda/trainer/Dockerfile -t ${REPO_NAME} .
 
 echo "Tagging image..."
 docker tag ${REPO_NAME}:latest ${IMAGE_URI}

@@ -19,7 +19,11 @@ from .metrics import log_dynamodb_error, log_dynamodb_success
 
 # Configuration
 TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME", "AutoTrade")
-AWS_REGION = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "ap-southeast-1"
+# DYNAMODB_REGION takes precedence over the global AWS_REGION / AWS_DEFAULT_REGION
+# so DynamoDB can live in a different region from Lambda/S3 etc.
+AWS_REGION = (
+    os.getenv("DYNAMODB_REGION") or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "ap-southeast-1"
+)
 ENDPOINT_URL = os.getenv("DYNAMODB_ENDPOINT_URL")
 
 

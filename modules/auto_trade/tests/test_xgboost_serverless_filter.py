@@ -317,6 +317,124 @@ class TestXGBoostServerlessFilterSignals:
         # All signals pass through unchanged
         assert result == signals
 
+    def test_missing_model_fires_request_training_per_symbol(self, mock_data_fetcher):
+        """Fire-and-forget: request_training called once per ATC signal, no blocking."""
+        Cls = _import_filter_class()
+
+        mock_lambda_client = MagicMock()
+        with (
+            patch(
+                "modules.auto_trade.core.xgboost_serverless_filter.XGBoostLambdaClient",
+                return_value=mock_lambda_client,
+            ),
+            patch.object(Cls, "_build_local_fallback", return_value=None),
+        ):
+            flt = Cls(
+                data_fetcher=mock_data_fetcher,
+                config={
+                    "xgboost_serverless_mock_mode": False,
+                    "xgboost_serverless_timeframe": "15m",
+                    "xgboost_serverless_model_version": "v1",
+                    "xgboost_serverless_s3_bucket": "xgboost-models-store",
+                },
+            )
+
+        sig_btc = _make_signal("BTC/USDT", "LONG", 0.8)
+        sig_eth = _make_signal("ETH/USDT", "SHORT", 0.7)
+        request_items = [
+            {
+                "symbol": "BTCUSDT",
+                "timeframe": "15m",
+                "model_version": "v1",
+                "model_s3_key": "BTCUSDT_15m_v1.json",
+                "data": {},
+            },
+            {
+                "symbol": "ETHUSDT",
+                "timeframe": "15m",
+                "model_version": "v1",
+                "model_s3_key": "ETHUSDT_15m_v1.json",
+                "data": {},
+            },
+        ]
+        signal_map = {"BTCUSDT": sig_btc, "ETHUSDT": sig_eth}
+
+        with patch(
+            "modules.auto_trade.core.xgboost_serverless_filter.request_training",
+            return_value="pending",
+        ) as rt_mock:
+            result = flt._handle_missing_models(
+                signals=[sig_btc, sig_eth],
+                request_items=request_items,
+                signal_map=signal_map,
+                exc_str="Failed to download model from S3",
+            )
+
+        # Fire-and-forget: one request_training call per symbol (dynamic = 2)
+        assert rt_mock.call_count == 2
+        # Current cycle returns empty — no blocking
+        assert result == []
+        # Lambda predict must NOT be called in this cycle
+        mock_lambda_client.predict.assert_not_called()
+
+    def test_missing_model_skips_infra_error_symbols(self, mock_data_fetcher):
+        """Symbols with infra_error or skipped status are counted separately but still return []."""
+        Cls = _import_filter_class()
+
+        mock_lambda_client = MagicMock()
+        with (
+            patch(
+                "modules.auto_trade.core.xgboost_serverless_filter.XGBoostLambdaClient",
+                return_value=mock_lambda_client,
+            ),
+            patch.object(Cls, "_build_local_fallback", return_value=None),
+        ):
+            flt = Cls(
+                data_fetcher=mock_data_fetcher,
+                config={
+                    "xgboost_serverless_mock_mode": False,
+                    "xgboost_serverless_timeframe": "15m",
+                    "xgboost_serverless_model_version": "v1",
+                    "xgboost_serverless_s3_bucket": "xgboost-models-store",
+                },
+            )
+
+        sig_btc = _make_signal("BTC/USDT", "LONG", 0.8)
+        sig_eth = _make_signal("ETH/USDT", "SHORT", 0.7)
+        request_items = [
+            {
+                "symbol": "BTCUSDT",
+                "timeframe": "15m",
+                "model_version": "v1",
+                "model_s3_key": "BTCUSDT_15m_v1.json",
+                "data": {},
+            },
+            {
+                "symbol": "ETHUSDT",
+                "timeframe": "15m",
+                "model_version": "v1",
+                "model_s3_key": "ETHUSDT_15m_v1.json",
+                "data": {},
+            },
+        ]
+        signal_map = {"BTCUSDT": sig_btc, "ETHUSDT": sig_eth}
+
+        # BTC → pending (training ok), ETH → infra_error (IAM issue)
+        with patch(
+            "modules.auto_trade.core.xgboost_serverless_filter.request_training",
+            side_effect=["pending", "infra_error"],
+        ) as rt_mock:
+            result = flt._handle_missing_models(
+                signals=[sig_btc, sig_eth],
+                request_items=request_items,
+                signal_map=signal_map,
+                exc_str="Failed to download model from S3",
+            )
+
+        assert rt_mock.call_count == 2
+        assert result == []  # always empty this cycle
+        mock_lambda_client.predict.assert_not_called()
+
 
 # ── OHLCV helper tests ────────────────────────────────────────────────────────
 
