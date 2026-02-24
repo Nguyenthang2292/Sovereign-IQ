@@ -17,7 +17,6 @@ SHORTCUTS_LIST: List[Tuple[str, str, str]] = [
     ("Ctrl+4", "Switch to Settings tab", "Global"),
     ("Ctrl+5", "Switch to Database tab", "Global"),
     # Scanner
-    ("Ctrl+M", "Manual scan (when Scanner tab active)", "Scanner"),
     # Trading
     ("Ctrl+Enter", "Confirm trade / open confirm dialog (when Trading tab active)", "Trading"),
     # Database

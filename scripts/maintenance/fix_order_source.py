@@ -63,7 +63,7 @@ def fix_order_sources(dry_run: bool = True):
             print(f"   {len(incorrect_orders)} order(s) changed to order_source='PROGRAMMATIC'\n")
         else:
             print("💡 To apply these changes, run:")
-            print("   python fix_order_source.py --live\n")
+            print("   python scripts/maintenance/fix_order_source.py --live\n")
 
     # Verify the fix
     if not dry_run:
@@ -134,4 +134,4 @@ if __name__ == "__main__":
         print("Running in DRY RUN mode (safe)")
         fix_order_sources(dry_run=True)
         print("\n💡 To actually apply changes, run:")
-        print("   python fix_order_source.py --live")
+        print("   python scripts/maintenance/fix_order_source.py --live")

@@ -7,30 +7,37 @@ from typing import Any
 
 import customtkinter as ctk
 
-from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
+from modules.common.ui.logging import log_info
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from modules.auto_trade.gui.components.status_bar import StatusBar
-from modules.auto_trade.gui.dialogs import ShortcutsHelpDialog
-from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.data_service import DataService
 from modules.auto_trade.gui.utils.modes import TradingMode
 from modules.auto_trade.gui.utils.settings_manager import SettingsManager
-from modules.auto_trade.gui.utils.shortcuts import is_editable_focus
 from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
 
 from .auto_trade import AutoTradeManager
 from .layout import LayoutManager
+from .lifecycle_actions_mixin import LifecycleActionsMixin
 from .position_actions import PositionActionHandler
 from .risk_manager import RiskManager
 from .scanner import ScannerManager
 from .settings_handler import SettingsHandler
+from .settings_recovery_mixin import SettingsRecoveryMixin
+from .shortcuts_mixin import KeyboardShortcutsMixin
+from .ui_updates_mixin import UIUpdatesMixin
 from .updaters import UpdaterManager
 from .websocket_handler import WebSocketHandler
 
 
-class AutoTradeDashboard(ctk.CTk):
+class AutoTradeDashboard(
+    KeyboardShortcutsMixin,
+    UIUpdatesMixin,
+    SettingsRecoveryMixin,
+    LifecycleActionsMixin,
+    ctk.CTk,
+):
     """Main Auto Trade Dashboard application window."""
 
     def __init__(self):
@@ -41,7 +48,6 @@ class AutoTradeDashboard(ctk.CTk):
 
         self.mode = self.settings_manager.get("api.mode", TradingMode.DRY_RUN)
 
-        # Initialize data services (pass settings_manager so refresh can push missing TP/SL to Binance)
         self.data_service = DataService(mode=self.mode, settings_manager=self.settings_manager)
         self.ws_data_service = WebSocketDataService(
             mode=self.mode,
@@ -58,16 +64,12 @@ class AutoTradeDashboard(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         self._update_queue: queue.Queue = queue.Queue()
-
-        # Create log queue for GUI logging (stream to textbox)
         self.log_queue: queue.Queue = queue.Queue(maxsize=500)
 
-        # Set up file-based logging for GUI (use absolute path)
         self.log_file_path = Path("logs/auto_trade_gui.log").absolute()
         self.log_file_path.parent.mkdir(parents=True, exist_ok=True)
         self._setup_file_logging()
 
-        # Initialize EventSystem for position lifecycle events
         from modules.auto_trade.monitoring.event_system import EventSystem
 
         self.event_bus = EventSystem()
@@ -77,7 +79,6 @@ class AutoTradeDashboard(ctk.CTk):
         if hasattr(self, "ws_data_service") and self.ws_data_service:
             self.ws_data_service.event_bus = self.event_bus
 
-        # Initialize RecoveryManager for Gradual Recovery
         from modules.auto_trade.strategies.recovery_manager import RecoveryManager
 
         recovery_config = self.settings_manager.get("recovery", {})
@@ -85,12 +86,11 @@ class AutoTradeDashboard(ctk.CTk):
             event_bus=self.event_bus,
             config=recovery_config,
             enabled=recovery_config.get("enabled", False),
-            database=True,  # Enable database persistence
+            database=True,
         )
         self.recovery_manager.start()
         log_info(f"RecoveryManager started (enabled={recovery_config.get('enabled', False)})")
 
-        # Initialize managers
         self.layout_manager = LayoutManager(self)
         self.updater_manager = UpdaterManager(self)
         self.websocket_handler = WebSocketHandler(self)
@@ -100,7 +100,6 @@ class AutoTradeDashboard(ctk.CTk):
         self.scanner_manager = ScannerManager(self)
         self.position_action_handler = PositionActionHandler(self)
 
-        # Layout-assigned components (declared for type checker)
         self.config_panel: Any = None
         self.scanner_control: Any = None
         self.auto_trade_control: Any = None
@@ -115,10 +114,8 @@ class AutoTradeDashboard(ctk.CTk):
         self.trade_form: Any = None
         self.database_panel: Any = None
 
-        # Create UI and start services
         self.layout_manager.create_layout()
 
-        # Test log message after UI creation
         log_info("GUI layout created successfully")
         log_info("LogsViewer should now be active and reading from log file")
 
@@ -126,15 +123,12 @@ class AutoTradeDashboard(ctk.CTk):
         self.websocket_handler.register_callbacks()
         self.settings_handler.apply_settings()
 
-        # Start WebSocket service
         if self.mode != TradingMode.DRY_RUN:
             self.ws_data_service.start()
             log_info(f"WebSocket service started (mode={self.mode})")
 
-        # Setup keyboard shortcuts
         self._setup_keyboard_shortcuts()
 
-        # Create and add status bar (use grid to match root; layout uses row 0=header, 1=content, 2=status_frame)
         self.status_bar = StatusBar(self, mode=self.mode)
         self.grid_rowconfigure(3, weight=0)
         self.status_bar.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 10))
@@ -148,529 +142,3 @@ class AutoTradeDashboard(ctk.CTk):
         log_info(f"Mode: {self.mode}")
         log_info(f"Log file: {self.log_file_path}")
         log_info("=" * 60)
-
-    def _setup_keyboard_shortcuts(self):
-        """Set up keyboard shortcuts (bind_all so they work regardless of focus)."""
-        # Global
-        self.bind_all("<F1>", lambda e: self._show_shortcuts_help())
-        self.bind_all("<Control-r>", lambda e: self._handle_refresh())
-        self.bind_all("<F5>", lambda e: self._handle_refresh())
-        self.bind_all("<Escape>", lambda e: self._handle_escape())
-        self.bind_all("<Control-s>", lambda e: self._handle_save())
-        # Tab switching
-        self.bind_all("<Control-Key-1>", lambda e: self._handle_tab_switch(0))
-        self.bind_all("<Control-Key-2>", lambda e: self._handle_tab_switch(1))
-        self.bind_all("<Control-Key-3>", lambda e: self._handle_tab_switch(2))
-        self.bind_all("<Control-Key-4>", lambda e: self._handle_tab_switch(3))
-        self.bind_all("<Control-Key-5>", lambda e: self._handle_tab_switch(4))
-        # Context-aware (only when focus not in editable)
-        self.bind_all("<Control-m>", lambda e: self._handle_manual_scan(e))
-        self.bind_all("<Control-Return>", lambda e: self._handle_confirm_trade(e))
-        self.bind_all("<Control-c>", lambda e: self._handle_copy_selection(e))
-
-        log_info(
-            "Keyboard shortcuts: F1 (shortcuts help), Ctrl+R/F5, Esc, Ctrl+S, "
-            "Ctrl+1..5 (tabs), Ctrl+M (scan), Ctrl+Enter (trade), Ctrl+C (copy in DB)"
-        )
-
-    def _handle_refresh(self):
-        """Handle refresh keyboard shortcut."""
-        log_info("Refresh triggered by keyboard shortcut")
-        self.refresh_signals()
-        self.refresh_positions()
-        self.refresh_account()
-        self.refresh_stats()
-        if hasattr(self, "status_bar"):
-            self.status_bar.set_last_update()
-        return "break"  # Prevent default behavior
-
-    def _handle_escape(self):
-        """Handle escape key - close any open dialogs."""
-        # Close any open toplevel windows (dialogs)
-        for widget in self.winfo_children():
-            if isinstance(widget, ctk.CTkToplevel):
-                widget.destroy()
-                log_debug("Closed dialog via Escape key")
-                break
-        return "break"
-
-    def _handle_save(self):
-        """Handle Ctrl+S - apply and save settings."""
-        self.on_apply_settings()
-        return "break"
-
-    def _show_shortcuts_help(self):
-        """Open keyboard shortcuts help dialog. Called by F1 or header button."""
-        ShortcutsHelpDialog(self)
-        return "break"
-
-    def _handle_tab_switch(self, index: int):
-        """Switch to tab by index (0=Dashboard, 1=Scanner, 2=Trading, 3=Settings, 4=Database)."""
-        tabs = ["Dashboard", "Scanner", "Trading", "Settings", "Database"]
-        if 0 <= index < len(tabs) and hasattr(self, "tabview"):
-            self.tabview.set(tabs[index])
-        return "break"
-
-    def _handle_manual_scan(self, event):
-        """Trigger manual scan when Scanner tab is active and focus not in editable."""
-        if is_editable_focus(self.focus_get()):
-            return
-        if hasattr(self, "tabview") and self.tabview.get() == "Scanner":
-            self.on_scan_toggle("manual")
-        return "break"
-
-    def _handle_confirm_trade(self, event):
-        """Open confirm trade dialog when Trading tab is active and focus not in editable."""
-        if is_editable_focus(self.focus_get()):
-            return
-        if hasattr(self, "tabview") and self.tabview.get() == "Trading" and hasattr(self, "trade_form"):
-            try:
-                self.trade_form._confirm_trade()
-            except Exception:
-                pass
-        return "break"
-
-    def _handle_copy_selection(self, event):
-        """Copy Data Viewer selection when Database tab is active and focus not in editable."""
-        if is_editable_focus(self.focus_get()):
-            return
-        if hasattr(self, "tabview") and self.tabview.get() == "Database" and hasattr(self, "database_panel"):
-            try:
-                self.database_panel.copy_selection_to_clipboard()
-            except Exception:
-                pass
-        return "break"
-
-    # ==================== UI Update Methods ====================
-
-    def _update_mode_display(self):
-        """Update mode indicator in stats frame and header."""
-        mode_colors = {
-            TradingMode.PRODUCTION: Colors.PRODUCTION,
-            TradingMode.DEMO: Colors.DEMO,
-            TradingMode.DRY_RUN: Colors.DRY_RUN,
-        }
-
-        mode_color = mode_colors.get(self.mode, Colors.DRY_RUN)
-        mode_text = self.mode.replace("_", " ")
-
-        if hasattr(self, "stats_frame"):
-            self.stats_frame.mode_indicator.destroy()
-            from modules.auto_trade.gui.components.stats_frame import ModeIndicator
-
-            self.stats_frame.mode_indicator = ModeIndicator(self.stats_frame, self.mode)
-            self.stats_frame.mode_indicator.pack(pady=(0, 10))
-
-        if hasattr(self, "header_mode_label"):
-            self.header_mode_label.configure(text=f"[{mode_text}]", text_color=mode_color)
-
-    def _update_timestamp(self):
-        """Update last update timestamp."""
-        from datetime import datetime
-
-        timestamp = datetime.now()
-        time_str = timestamp.strftime("%H:%M:%S")
-        self.after(0, lambda: self.last_update_label.configure(text=f"Last update: {time_str}"))
-        # Also update status bar
-        if hasattr(self, "status_bar"):
-            self.after(0, lambda: self.status_bar.set_last_update(timestamp))
-
-    def _thread_refresh_signals(self):
-        """Thread-safe signal refresh."""
-        signals = self.data_service.get_signals()
-        self._update_queue.put(("signals", signals))
-
-    def _thread_refresh_positions(self):
-        """Thread-safe positions refresh (runs in PeriodicUpdater background thread)."""
-        log_debug("[MainWindow] _thread_refresh_positions called")
-        positions = self.data_service.get_positions()
-        log_debug(f"[MainWindow] get_positions() returned {len(positions) if positions else 0} positions")
-        self._update_queue.put(("positions", positions))
-
-    def _thread_refresh_account(self):
-        """Thread-safe account refresh."""
-        data = self.data_service.get_account_data()
-        self._update_queue.put(("account", data))
-
-    def _thread_refresh_stats(self):
-        """Thread-safe stats refresh."""
-        stats = self.data_service.get_quick_stats()
-        self._update_queue.put(("stats", stats))
-
-    def _update_connection_status(self):
-        """Update status bar connection status based on WebSocket state."""
-        if hasattr(self, "status_bar") and hasattr(self, "ws_data_service"):
-            is_connected = self.ws_data_service.is_connected
-            self.status_bar.set_connection_status(is_connected)
-
-    def refresh_signals(self):
-        """Trigger background signal refresh (non-blocking, result delivered via update queue)."""
-        if hasattr(self, "updater_manager") and "signal" in self.updater_manager.updaters:
-            self.updater_manager.updaters["signal"].trigger()
-        self._update_connection_status()
-
-    def refresh_positions(self):
-        """Trigger background positions refresh (non-blocking, result delivered via update queue)."""
-        if hasattr(self, "updater_manager") and "positions" in self.updater_manager.updaters:
-            self.updater_manager.updaters["positions"].trigger()
-        self._update_connection_status()
-
-    def refresh_account(self):
-        """Trigger background account refresh (non-blocking, result delivered via update queue)."""
-        if hasattr(self, "updater_manager") and "account" in self.updater_manager.updaters:
-            self.updater_manager.updaters["account"].trigger()
-
-    def refresh_stats(self):
-        """Trigger background stats refresh (non-blocking, result delivered via update queue)."""
-        if hasattr(self, "updater_manager") and "stats" in self.updater_manager.updaters:
-            self.updater_manager.updaters["stats"].trigger()
-
-    # ==================== Callback Handlers ====================
-
-    def on_trade_executed(self):
-        """Callback when manual trade is executed."""
-        log_info("Trade executed! Refreshing positions...")
-        self.refresh_positions()
-        self.refresh_account()
-
-    def on_auto_trade_toggle(self, enabled: bool):
-        """Callback when auto-trade is toggled."""
-        log_info(f"Auto-trade {'enabled' if enabled else 'disabled'}")
-        if enabled:
-            self.auto_trade_manager.start()
-        else:
-            self.auto_trade_manager.stop()
-
-    def on_settings_change(self, setting_type: str, value=None):
-        """Handle settings change from ConfigPanel."""
-        self.settings_handler.handle_settings_change(setting_type, value)
-
-    def _restart_websocket_service(self):
-        """Restart WebSocket service with updated credentials/mode."""
-        try:
-            if hasattr(self, "ws_data_service") and self.ws_data_service:
-                log_info("Stopping existing WebSocket service...")
-                self.ws_data_service.stop()
-
-            self.settings_manager.load()
-
-            log_info(f"Creating new WebSocket service (mode={self.mode})...")
-            self.ws_data_service = WebSocketDataService(
-                mode=self.mode,
-                settings_manager=self.settings_manager,
-                event_bus=self.event_bus if hasattr(self, "event_bus") else None,
-                tk_root=self,
-            )
-
-            if self.mode != TradingMode.DRY_RUN:
-                self.websocket_handler.register_callbacks()
-                self.ws_data_service.start()
-                log_info("WebSocket service restarted successfully")
-                # Reload DataService credentials and refresh account so Dashboard shows real balance
-                if hasattr(self.data_service, "_reload_credentials"):
-                    self.data_service._reload_credentials()
-                self.after(500, self.refresh_account)
-            else:
-                log_info("DRY_RUN mode - WebSocket not started")
-
-        except Exception as e:
-            log_error(f"Error restarting WebSocket service: {e}")
-            import traceback
-
-            traceback.print_exc()
-
-    def _refresh_theme_colors(self):
-        """Refresh all component colors when theme changes."""
-        self.settings_handler.refresh_theme_colors()
-
-    def _get_current_status(self):
-        """Build status dict for Current Settings (database, api_mode, api_connection)."""
-        status = {"api_mode": getattr(self, "mode", "DRY_RUN")}
-        try:
-            from modules.auto_trade.database.repository.context import RepositoryContext
-
-            RepositoryContext.from_env()
-            # If we successfully created the context, assume DB is OK
-            status["database"] = "OK"
-        except Exception:
-            status["database"] = "Error"
-        ws = getattr(self, "ws_data_service", None)
-        if ws is None or status["api_mode"] == "DRY_RUN":
-            status["api_connection"] = "N/A" if status["api_mode"] == "DRY_RUN" else "—"
-        elif getattr(ws, "is_connected", False):
-            status["api_connection"] = "Connected"
-        else:
-            status["api_connection"] = "Disconnected"
-        return status
-
-    def on_scan_toggle(self, action):
-        """Handle scanner start/stop from ScannerControl."""
-        self.scanner_manager.handle_scan_toggle(action)
-
-    def on_risk_limits_toggle(self, enabled: bool):
-        """Handle Risk Limits toggle from Trading tab and persist setting."""
-        try:
-            self.settings_manager.set("risk.limits_enabled", bool(enabled))
-            self.settings_manager.save()
-
-            if hasattr(self, "config_panel") and hasattr(self.config_panel, "risk_limits_enabled_var"):
-                self.config_panel.risk_limits_enabled_var.set(bool(enabled))
-
-            if hasattr(self, "status_label"):
-                state_text = "enabled" if enabled else "disabled"
-                self.status_label.configure(text=f"Risk limits {state_text}.")
-
-            log_info(f"Risk limits toggled: {'enabled' if enabled else 'disabled'}")
-        except Exception as e:
-            log_warn(f"Failed to toggle risk limits: {e}")
-
-    def on_scanner_config_change(self, config: dict):
-        """Handle scanner configuration change."""
-        self.scanner_manager.handle_config_change(config)
-
-    def on_apply_settings(self):
-        """Overwrite settings_manager from form (risk, filters, tp_sl, api, recovery) then save and apply."""
-        try:
-            if not hasattr(self, "config_panel"):
-                return
-            current = self.config_panel.get_settings()
-            # Ensure Default Leverage always comes from form (avoid 10x when get_settings() returned defaults)
-            if hasattr(self.config_panel, "default_leverage_var"):
-                current.setdefault("risk", {})["default_leverage"] = self.config_panel.default_leverage_var.get()
-            # Overwrite settings_manager with form values (ghi đè từ Apply Settings)
-            for key in ("risk", "tp_sl", "api"):
-                if key in current:
-                    self.settings_manager.settings[key] = current[key]
-            # Merge filters so we preserve keys not in form (e.g. timeframe)
-            if "filters" in current:
-                existing = self.settings_manager.settings.get("filters", {})
-                self.settings_manager.settings["filters"] = {**existing, **current["filters"]}
-            # Gradual Recovery: set current Settings panel config as default for Trading tab
-            if hasattr(self.config_panel, "recovery_panel"):
-                raw = self.config_panel.recovery_panel.get_config()
-                try:
-                    eb = raw.get("enable_streak_bonus", False)
-                    enabled = raw.get("enabled", False)
-                    self.settings_manager.settings["recovery"] = {
-                        "enabled": enabled
-                        if isinstance(enabled, bool)
-                        else str(enabled).lower() in ("true", "1", "yes"),
-                        "initial_loss": float(raw.get("initial_loss", 500)),
-                        "target_profit_per_trade": float(raw.get("target_profit_per_trade", 5)),
-                        "max_recovery_trades": int(raw.get("max_recovery_trades", 20)),
-                        "margin_scaling_mode": str(raw.get("margin_scaling_mode", "fixed")),
-                        "leverage_scaling_mode": str(raw.get("leverage_scaling_mode", "fixed")),
-                        "min_leverage": int(raw.get("min_leverage", 2)),
-                        "max_leverage": int(raw.get("max_leverage", 10)),
-                        "enable_streak_bonus": (
-                            eb if isinstance(eb, bool) else str(eb).lower() in ("true", "1", "yes")
-                        ),
-                    }
-                except (TypeError, ValueError):
-                    pass
-            self.settings_manager.save()
-
-            # Refresh Trading tab Current Settings so they reflect applied values
-            if hasattr(self, "auto_trade_control") and hasattr(self.auto_trade_control, "update_from_settings"):
-                try:
-                    self.auto_trade_control.update_from_settings(
-                        self.settings_manager.settings, status=self._get_current_status()
-                    )
-                    self.auto_trade_control.update_idletasks()
-                    self.update_idletasks()
-                except Exception as refresh_err:
-                    log_warn(f"Trading tab Current Settings refresh: {refresh_err}")
-
-            # Scanner: reset pipeline so next scan uses new filters (atc_threshold, etc.)
-            if hasattr(self, "scanner_manager"):
-                self.scanner_manager._pipeline_initialized = False
-                self.scanner_manager.pipeline = None
-
-            if hasattr(self, "status_label"):
-                self.status_label.configure(text="Settings applied (Scanner, Trading, Gradual Recovery default).")
-            log_info("Settings applied: Scanner, Trading, Gradual Recovery default (settings_manager overwritten)")
-        except Exception as e:
-            log_error(f"Error applying settings: {e}")
-            if hasattr(self, "status_label"):
-                self.status_label.configure(text=f"Apply failed: {e}")
-
-    def reload_current_settings(self):
-        """Force reload Trading tab Current Settings: prefer Settings tab form, else in-memory settings."""
-        try:
-            settings_to_show = None
-            # 1) Prefer current values from Settings tab form (so "settings from Settings tab" are passed)
-            if hasattr(self, "config_panel"):
-                current = self.config_panel.get_settings()
-                if hasattr(self.config_panel, "default_leverage_var"):
-                    current.setdefault("risk", {})["default_leverage"] = self.config_panel.default_leverage_var.get()
-                existing_filters = self.settings_manager.settings.get("filters", {})
-                settings_to_show = {
-                    "risk": current.get("risk", {}),
-                    "filters": {**existing_filters, **current.get("filters", {})},
-                    "tp_sl": current.get("tp_sl", {}),
-                    "api": current.get("api", {}),
-                    "recovery": self.settings_manager.settings.get("recovery", {}),
-                }
-                if hasattr(self.config_panel, "recovery_panel"):
-                    raw = self.config_panel.recovery_panel.get_config()
-                    try:
-                        eb = raw.get("enable_streak_bonus", False)
-                        enabled = raw.get("enabled", False)
-                        settings_to_show["recovery"] = {
-                            "enabled": (
-                                enabled if isinstance(enabled, bool) else str(enabled).lower() in ("true", "1", "yes")
-                            ),
-                            "initial_loss": float(raw.get("initial_loss", 500)),
-                            "target_profit_per_trade": float(raw.get("target_profit_per_trade", 5)),
-                            "max_recovery_trades": int(raw.get("max_recovery_trades", 20)),
-                            "margin_scaling_mode": str(raw.get("margin_scaling_mode", "fixed")),
-                            "leverage_scaling_mode": str(raw.get("leverage_scaling_mode", "fixed")),
-                            "min_leverage": int(raw.get("min_leverage", 2)),
-                            "max_leverage": int(raw.get("max_leverage", 10)),
-                            "enable_streak_bonus": (
-                                eb if isinstance(eb, bool) else str(eb).lower() in ("true", "1", "yes")
-                            ),
-                        }
-                    except (TypeError, ValueError):
-                        pass
-            # 2) Fallback: use in-memory settings (no load() so we don't overwrite with file)
-            if settings_to_show is None:
-                self.settings_manager.load()
-                settings_to_show = self.settings_manager.settings
-
-            if hasattr(self, "auto_trade_control") and hasattr(self.auto_trade_control, "update_from_settings"):
-                self.auto_trade_control.update_from_settings(settings_to_show, status=self._get_current_status())
-                self.auto_trade_control.update_idletasks()
-                self.update_idletasks()
-            if hasattr(self, "status_label"):
-                self.status_label.configure(text="Current Settings reloaded (from Settings tab form).")
-            log_info("Current Settings force-reloaded (Trading tab)")
-        except Exception as e:
-            log_warn(f"Force reload Current Settings: {e}")
-            if hasattr(self, "status_label"):
-                self.status_label.configure(text=f"Reload failed: {e}")
-
-    def on_recovery_config_change(self, event_type: str, data):
-        """Handle recovery configuration change."""
-        try:
-            log_info(f"Recovery {event_type}: {data}")
-
-            if event_type == "recovery_started":
-                self.settings_manager.set("recovery.enabled", True)
-                self.settings_manager.set("recovery.config", data)
-                self.settings_manager.save()
-
-                # Update RecoveryManager with new config
-                if hasattr(self, "recovery_manager"):
-                    self.recovery_manager.set_enabled(True)
-                    self.recovery_manager.update_config(data)
-
-            elif event_type == "recovery_reset":
-                self.settings_manager.set("recovery.enabled", False)
-                self.settings_manager.save()
-
-                # Reset RecoveryManager
-                if hasattr(self, "recovery_manager"):
-                    self.recovery_manager.reset()
-
-            elif event_type == "recovery_alert":
-                if hasattr(self, "status_label"):
-                    self.status_label.configure(text=f"Recovery: {data}")
-
-            elif event_type == "recovery_enabled_changed":
-                # Handle enabled toggle from GUI
-                enabled = data.get("enabled", False)
-                self.settings_manager.set("recovery.enabled", enabled)
-                self.settings_manager.save()
-
-                if hasattr(self, "recovery_manager"):
-                    self.recovery_manager.set_enabled(enabled)
-                    log_info(f"RecoveryManager enabled={enabled}")
-
-        except Exception as e:
-            log_error(f"Error handling recovery config change: {e}")
-
-    def on_position_action(self, action_data: dict):
-        """Handle position actions from GUI."""
-        return self.position_action_handler.handle_action(action_data)
-
-    def on_sync_positions(self):
-        """Handle manual sync of Binance positions to database."""
-        import threading
-        from tkinter import messagebox
-
-        def sync_thread():
-            try:
-                # Show status message
-                self.after(0, lambda: self.status_bar.set_connection_status(True, "🔄 Syncing positions..."))
-
-                # Perform sync
-                result = self.position_action_handler.sync_positions_from_binance()
-
-                # Show result
-                if result.get("success"):
-                    stats = result.get("stats", {})
-                    message = (
-                        f"✅ Sync completed!\n\n"
-                        f"Found: {stats.get('fetched', 0)} positions\n"
-                        f"Synced: {stats.get('synced', 0)} new\n"
-                        f"Existing: {stats.get('existing', 0)} already in DB\n"
-                        f"Closed: {stats.get('closed', 0)} stale\n"
-                        f"Failed: {stats.get('failed', 0)}"
-                    )
-                    self.after(0, lambda: messagebox.showinfo("Position Sync", message))
-                    self.after(0, lambda: self.status_bar.set_connection_status(True, "✅ Sync completed"))
-
-                    # Refresh positions display
-                    self.after(100, self.refresh_positions)
-
-                    # Restore connection status after 3 seconds
-                    self.after(3000, lambda: self._update_connection_status())
-                else:
-                    error_msg = result.get("message", "Unknown error")
-                    self.after(0, lambda: messagebox.showerror("Position Sync Failed", f"Error: {error_msg}"))
-                    self.after(0, lambda: self.status_bar.set_connection_status(False, "❌ Sync failed"))
-
-                    # Restore connection status after 3 seconds
-                    self.after(3000, lambda: self._update_connection_status())
-
-            except Exception as e:
-                log_error(f"Error during position sync: {e}", exc_info=True)
-                err_str = str(e)
-                self.after(
-                    0, lambda error=err_str: messagebox.showerror("Position Sync Error", f"Fatal error: {error}")
-                )
-                self.after(0, lambda: self.status_bar.set_connection_status(False, "❌ Sync error"))
-
-                # Restore connection status after 3 seconds
-                self.after(3000, lambda: self._update_connection_status())
-
-        # Run sync in background thread
-        thread = threading.Thread(target=sync_thread, daemon=True)
-        thread.start()
-
-    # ==================== Lifecycle ====================
-
-    def on_closing(self):
-        """Handle application shutdown."""
-        try:
-            if hasattr(self, "settings_manager"):
-                self.settings_manager.save()
-                log_info("Settings saved on exit")
-        except Exception as e:
-            log_error(f"Error saving settings: {e}")
-
-        if hasattr(self, "ws_data_service"):
-            self.ws_data_service.stop()
-            log_info("WebSocket service stopped")
-
-        # Stop RecoveryManager
-        if hasattr(self, "recovery_manager"):
-            self.recovery_manager.stop()
-            log_info("RecoveryManager stopped")
-
-        self.updater_manager.stop_all()
-        self.auto_trade_manager.stop()
-        self.scanner_manager._stop_scanner()
-
-        self.destroy()

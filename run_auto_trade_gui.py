@@ -14,9 +14,9 @@ _root = Path(__file__).resolve().parent
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 
-# Load .env TRUOC KHI import bat ky module nao dung AWS / Binance credentials.
-# Dieu nay dam bao boto3, ccxt va cac client khac nhan duoc key tu env vars
-# thay vi bao loi "Unable to locate credentials".
+# Load .env BEFORE importing any modules that use AWS / Binance credentials.
+# This ensures boto3, ccxt, and other clients receive keys from env vars
+# instead of reporting "Unable to locate credentials" errors.
 from dotenv import load_dotenv  # noqa: E402
 
 # Priority: modules/auto_trade/.env (contains auto-trade specific credentials)
@@ -32,3 +32,4 @@ from modules.auto_trade.run_gui import main  # noqa: E402
 if __name__ == "__main__":
     mp.freeze_support()
     main()
+

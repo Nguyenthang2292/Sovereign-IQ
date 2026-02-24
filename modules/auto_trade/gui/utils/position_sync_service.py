@@ -235,6 +235,12 @@ class PositionSyncService:
                             if ok:
                                 stats["closed"] += 1
                                 log_info(f"[PositionSync] 🔴 Closed stale DB order: {db_symbol} (order_id={order_id})")
+                                # Cancel any orphaned conditional orders on Binance
+                                try:
+                                    cancel_res = client.cancel_open_orders(db_symbol)
+                                    log_info(f"[PositionSync] Cancelled orphaned conditional orders for {db_symbol}: {cancel_res}")
+                                except Exception as exc:
+                                    log_warn(f"[PositionSync] Error cancelling orphaned conditional orders for {db_symbol}: {exc}")
                             else:
                                 log_warn(f"[PositionSync] Could not close stale order {order_id} for {db_symbol}")
             except Exception as close_err:

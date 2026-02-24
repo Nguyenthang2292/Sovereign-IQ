@@ -174,6 +174,89 @@ class ScannerControl(ctk.CTkFrame):
         )
         auto_scan_checkbox.grid(row=4, column=0, columnspan=2, sticky="w", pady=5)
 
+        # Min Signal Score
+        min_score_label = ctk.CTkLabel(inputs_frame, text="Min Signal Score:", font=("Arial", 11), text_color="gray")
+        min_score_label.grid(row=5, column=0, sticky="w", pady=5)
+
+        self.min_score_var = ctk.DoubleVar(value=0.7)
+        min_score_slider = ctk.CTkSlider(
+            inputs_frame, from_=0, to=1, number_of_steps=100, variable=self.min_score_var, width=150
+        )
+        min_score_slider.grid(row=5, column=1, sticky="e", pady=5, padx=(10, 0))
+
+        self.min_score_value_label = ctk.CTkLabel(
+            inputs_frame, text=f"{self.min_score_var.get():.2f}", font=("Arial", 10), text_color="gray"
+        )
+        self.min_score_value_label.grid(row=6, column=1, sticky="e", pady=(0, 3), padx=(10, 0))
+
+        def _on_min_score_change(*args):
+            try:
+                v = self.min_score_var.get()
+                self.min_score_value_label.configure(text=f"{v:.2f}")
+                self._on_config_change()
+            except Exception:
+                pass
+
+        self.min_score_var.trace_add("write", _on_min_score_change)
+
+        # Min 24h Volume
+        volume_label = ctk.CTkLabel(inputs_frame, text="Min 24h Volume (M):", font=("Arial", 11), text_color="gray")
+        volume_label.grid(row=7, column=0, sticky="w", pady=5)
+
+        self.min_volume_entry = ctk.CTkEntry(inputs_frame, placeholder_text="50", width=150)
+        self.min_volume_entry.grid(row=7, column=1, sticky="e", pady=5, padx=(10, 0))
+        self.min_volume_entry.insert(0, "50")
+
+        # ---- Model Filters group (XGBoost + ATC) ----
+        model_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        model_group.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(10, 5))
+
+        model_title = ctk.CTkLabel(model_group, text="Model Filters", font=("Arial", 11, "bold"))
+        model_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
+
+        # XGBoost checkbox
+        self.enable_xgboost_var = ctk.BooleanVar(value=True)
+        xgboost_checkbox = ctk.CTkCheckBox(
+            model_group,
+            text="Enable XGBoost Model",
+            variable=self.enable_xgboost_var,
+            command=self._on_config_change,
+        )
+        xgboost_checkbox.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
+
+        # ATC base threshold
+        atc_label = ctk.CTkLabel(model_group, text="ATC base threshold:", font=("Arial", 11), text_color="gray")
+        atc_label.grid(row=2, column=0, sticky="w", padx=10, pady=4)
+
+        self.atc_threshold_var = ctk.DoubleVar(value=0.6)
+        atc_slider = ctk.CTkSlider(
+            model_group, from_=0, to=1, number_of_steps=100, variable=self.atc_threshold_var, width=130
+        )
+        atc_slider.grid(row=2, column=1, sticky="e", padx=10, pady=4)
+
+        self.atc_value_label = ctk.CTkLabel(
+            model_group, text=f"{self.atc_threshold_var.get():.2f}", font=("Arial", 10), text_color="gray"
+        )
+        self.atc_value_label.grid(row=3, column=1, sticky="e", padx=10, pady=(0, 4))
+
+        atc_tooltip = ctk.CTkLabel(
+            model_group,
+            text="Scaled down when some timeframes fail.",
+            font=("Arial", 9),
+            text_color="gray",
+        )
+        atc_tooltip.grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
+
+        def _on_atc_change(*args):
+            try:
+                v = self.atc_threshold_var.get()
+                self.atc_value_label.configure(text=f"{v:.2f}")
+                self._on_config_change()
+            except Exception:
+                pass
+
+        self.atc_threshold_var.trace_add("write", _on_atc_change)
+
         # Configure grid columns - column 0 for labels needs minimum width
         inputs_frame.grid_columnconfigure(0, weight=0, minsize=140)
         inputs_frame.grid_columnconfigure(1, weight=1)
@@ -332,6 +415,12 @@ class ScannerControl(ctk.CTkFrame):
 
     def get_config(self) -> Dict:
         """Get current scanner configuration"""
+        try:
+            min_volume = float(self.min_volume_entry.get())
+            if min_volume < 0:
+                min_volume = 50.0
+        except (ValueError, AttributeError):
+            min_volume = 50.0
         return {
             "scan_interval": int(self.scan_interval_entry.get()),
             "timeframe": self.timeframe_var.get(),
@@ -339,6 +428,10 @@ class ScannerControl(ctk.CTkFrame):
             "sample_percentage": float(self.sample_percentage_entry.get()),
             "auto_start": self.auto_scan_startup_var.get(),
             "running": self.scanner_running,
+            "min_signal_score": self.min_score_var.get(),
+            "enable_xgboost": self.enable_xgboost_var.get(),
+            "atc_threshold": self.atc_threshold_var.get(),
+            "min_volume": min_volume,
         }
 
     def load_config(self, config: Dict):
@@ -350,6 +443,17 @@ class ScannerControl(ctk.CTkFrame):
         self.sample_percentage_entry.delete(0, "end")
         self.sample_percentage_entry.insert(0, str(config.get("sample_percentage", 20)))
         self.auto_scan_startup_var.set(config.get("auto_start", True))
+
+        # Load migrated filter fields
+        self.min_score_var.set(config.get("min_signal_score", 0.7))
+        if hasattr(self, "min_score_value_label"):
+            self.min_score_value_label.configure(text=f"{self.min_score_var.get():.2f}")
+        self.min_volume_entry.delete(0, "end")
+        self.min_volume_entry.insert(0, str(config.get("min_volume", 50)))
+        self.enable_xgboost_var.set(config.get("enable_xgboost", True))
+        self.atc_threshold_var.set(config.get("atc_threshold", 0.6))
+        if hasattr(self, "atc_value_label"):
+            self.atc_value_label.configure(text=f"{self.atc_threshold_var.get():.2f}")
 
         # Update settings display
         self.setting_interval.configure(text=f"{config.get('scan_interval', 5)} min")

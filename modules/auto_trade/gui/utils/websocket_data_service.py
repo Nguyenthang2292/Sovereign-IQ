@@ -194,37 +194,36 @@ class WebSocketDataService:
             self._running = False
 
     def stop(self) -> None:
-        """Stop WebSocket service."""
+        """Stop WebSocket service.
+
+        Designed to be called from a background daemon thread (see on_closing).
+        Uses a short timeout so the calling thread (and thus the process) can
+        exit cleanly without hanging if the network is slow.
+        """
         if not self._running:
             return
 
         self._running = False
 
         if self._loop and self._loop.is_running():
-            # Schedule async cleanup and wait for it to finish
             try:
                 future = asyncio.run_coroutine_threadsafe(self._async_stop(), self._loop)
-                future.result(timeout=10.0)  # Increased timeout for cleanup
+                # 3 s is plenty in normal conditions; if Binance REST is slow
+                # the daemon thread (and the process) will be killed anyway.
+                future.result(timeout=3.0)
             except TimeoutError:
-                log_warn("WebSocket cleanup timed out after 10s, forcing close")
-                # Force close ws_client if it exists
-                if self.ws_client:
-                    try:
-                        # Try to close synchronously by scheduling and waiting briefly
-                        future = asyncio.run_coroutine_threadsafe(self.ws_client.close(), self._loop)
-                        future.result(timeout=2.0)
-                    except Exception:
-                        pass  # Already tried our best
+                log_warn("WebSocket cleanup timed out after 3s, forcing loop stop")
             except Exception as e:
                 log_error(f"Error waiting for WebSocket cleanup: {e}")
             finally:
-                # Ensure event loop is stopped
+                # Ensure event loop is stopped regardless
                 if self._loop and self._loop.is_running():
                     self._loop.call_soon_threadsafe(self._loop.stop)
 
-        # Join the thread
+        # Join the thread with a short timeout; daemon=True means the OS will
+        # clean it up when the process exits even if join() hits the limit.
         if self._loop_thread and self._loop_thread.is_alive():
-            self._loop_thread.join(timeout=2.0)
+            self._loop_thread.join(timeout=1.0)
 
         log_info("WebSocket service stopped")
 
@@ -318,6 +317,90 @@ class WebSocketDataService:
         Args:
             position: Position snapshot
         """
+        # ── 1. If position size is 0, it means the position just closed ──
+        # This fires for BOTH manual close AND TP/SL fill.
+        # _handle_order_update already handles TP/SL fill (with real PnL).
+        # This block acts as a SAFETY NET for manual closes where no TP/SL fill event arrives.
+        if position.position_amt == 0:
+            symbol_normalized = position.symbol.replace("/", "").split(":")[0]
+            log_info(f"[WS Data] Position {symbol_normalized} closed (size→0). Checking DB...")
+            try:
+                from modules.auto_trade.database.repository.context import RepositoryContext
+                from modules.auto_trade.monitoring.event_system import EventType
+
+                ctx = RepositoryContext.from_env()
+                db_orders = ctx.orders.get_open_positions(symbol=symbol_normalized)
+
+                # Filter to orders that have NOT been closed yet by _handle_order_update
+                pending_orders = [o for o in db_orders if o.get("status", "").upper() == "OPEN"]
+
+                if not pending_orders:
+                    # Already handled by _handle_order_update (TP/SL fill path)
+                    log_info(f"[WS Data] {symbol_normalized}: already CLOSED in DB — skip duplicate cleanup.")
+                else:
+                    # Manual close — no TP/SL conditional order fired → we must cleanup
+                    log_info(
+                        f"[WS Data] {symbol_normalized}: manual close detected "
+                        f"({len(pending_orders)} OPEN DB record(s)). Running cleanup..."
+                    )
+
+                    # Cancel any orphaned conditional orders still on Binance
+                    if self.api_key and self.mode != "DRY_RUN":
+                        from modules.auto_trade.execution.binance_client import BinanceClient
+                        _client = BinanceClient(
+                            api_key=self.api_key,
+                            api_secret=self.api_secret,
+                            testnet=self.testnet,
+                            dry_run=False,
+                        )
+                        try:
+                            cancel_res = _client.cancel_open_orders(symbol_normalized)
+                            log_info(f"[WS Data] Cancelled orphaned orders for {symbol_normalized}: {cancel_res}")
+                        except Exception as _ce:
+                            log_warn(f"[WS Data] cancel_open_orders({symbol_normalized}) non-fatal: {_ce}")
+
+                    # Mark DB CLOSED and publish event
+                    for db_order in pending_orders:
+                        order_id = db_order.get("order_id")
+                        client_order_id = db_order.get("client_order_id")
+                        if not order_id:
+                            continue
+
+                        ctx.orders.update_order_status(order_id, "CLOSED")
+                        log_info(
+                            f"[WS Data] DB closed (manual) for {symbol_normalized} (order={order_id})"
+                        )
+
+                        if self.event_bus and client_order_id and client_order_id not in self._published_closed_events:
+                            # PnL for manual close: DB value (0.0 — no realized PnL available from WS)
+                            pnl_value = float(db_order.get("pnl", 0.0) or 0.0)
+                            self.event_bus.publish(
+                                EventType.POSITION_CLOSED,
+                                {
+                                    "symbol": symbol_normalized,
+                                    "pnl": pnl_value,
+                                    "is_profit": pnl_value >= 0,
+                                    "exit_price": position.mark_price,
+                                    "entry_price": position.entry_price or float(db_order.get("entry_price", 0)),
+                                    "leverage": position.leverage or int(db_order.get("leverage", 1) or 1),
+                                    "duration_seconds": 0,
+                                    "is_programmatic": True,
+                                },
+                                source="WebSocketDataService (manual close)",
+                            )
+                            self._published_closed_events.add(client_order_id)
+                            log_info(
+                                f"[WS Data] POSITION_CLOSED event (manual) for {symbol_normalized} "
+                                f"(pnl={pnl_value:+.2f})"
+                            )
+
+            except Exception as e:
+                log_error(
+                    f"[WS Data] Error in position close cleanup for {position.symbol}: {e}",
+                    exc_info=True,
+                )
+
+        # ── 2. Pass to GUI callbacks (always, including zero-size snapshots) ──
         for callback in self._position_callbacks:
             try:
                 self._dispatch_to_main(callback, position)
@@ -350,66 +433,109 @@ class WebSocketDataService:
             except Exception as e:
                 log_error(f"Error in GUI order callback: {e}")
 
-        # Sync to DB if order is closed/canceled/rejected
-        if order.status in ("closed", "canceled", "rejected"):
-            try:
-                from modules.auto_trade.execution.order_tagging import OrderTagger
+        # ── Order DB sync logic ──────────────────────────────────────────────
+        try:
+            from modules.auto_trade.execution.order_tagging import OrderTagger
 
-                if OrderTagger.is_programmatic_order_id(order.client_order_id):
-                    from modules.auto_trade.database import get_order_by_client_id, update_order_status_by_client_id
+            order_type_raw = order.type.lower()  # 'take_profit_market', 'stop_market', 'market', 'limit', ...
+            # Detect if this is a TP/SL conditional order that just filled
+            is_tp_sl_fill = (
+                order.status == "closed"
+                and any(t in order_type_raw for t in ("take_profit", "stop_market", "stop_loss"))
+            )
+
+            if is_tp_sl_fill:
+                # ── TP or SL order was filled → position is now closed ───────────────
+                symbol_normalized = order.symbol.replace("/", "").split(":")[0]
+                pnl_from_ws: Optional[float] = order.realized_pnl   # Real PnL from Binance WS event
+
+                log_info(
+                    f"[WS Data] TP/SL fill detected for {symbol_normalized} "
+                    f"(type={order.type}, pnl={pnl_from_ws})"
+                )
+
+                # 1. Cancel any remaining sibling conditional orders (the paired TP or SL)
+                if self.api_key and self.mode != "DRY_RUN":
+                    from modules.auto_trade.execution.binance_client import BinanceClient
+                    _client = BinanceClient(
+                        api_key=self.api_key,
+                        api_secret=self.api_secret,
+                        testnet=self.testnet,
+                        dry_run=False,
+                    )
+                    try:
+                        cancel_res = _client.cancel_open_orders(symbol_normalized)
+                        log_info(f"[WS Data] Cancelled sibling orders for {symbol_normalized}: {cancel_res}")
+                    except Exception as _ce:
+                        log_warn(f"[WS Data] cancel_open_orders({symbol_normalized}) non-fatal: {_ce}")
+
+                # 2. Update DB to CLOSED with actual PnL + emit recovery event
+                try:
+                    from modules.auto_trade.database.repository.context import RepositoryContext
                     from modules.auto_trade.monitoring.event_system import EventType
 
-                    # Map WebSocket status to DB status
-                    status_map: Dict[str, str] = {"closed": "CLOSED", "canceled": "CANCELLED", "rejected": "FAILED"}
-                    db_status: str = status_map.get(order.status, "CLOSED")
-                    pnl_value: Optional[float] = order.realized_pnl
+                    ctx = RepositoryContext.from_env()
+                    db_orders = ctx.orders.get_open_positions(symbol=symbol_normalized)
 
+                    for db_order in db_orders:
+                        order_id = db_order.get("order_id")
+                        client_order_id = db_order.get("client_order_id")
+                        if not order_id:
+                            continue
+
+                        # Compute effective PnL: prefer live WS value, fallback to DB stored value
+                        if pnl_from_ws is not None:
+                            effective_pnl = pnl_from_ws
+                        else:
+                            try:
+                                effective_pnl = float(db_order.get("pnl", 0.0) or 0.0)
+                            except (TypeError, ValueError):
+                                effective_pnl = 0.0
+
+                        ctx.orders.update_order_status(order_id, "CLOSED")
+                        log_info(
+                            f"[WS Data] DB closed for {symbol_normalized} "
+                            f"(order_id={order_id}, pnl={effective_pnl:+.2f})"
+                        )
+
+                        if self.event_bus and client_order_id and client_order_id not in self._published_closed_events:
+                            self.event_bus.publish(
+                                EventType.POSITION_CLOSED,
+                                {
+                                    "symbol": symbol_normalized,
+                                    "pnl": effective_pnl,
+                                    "is_profit": effective_pnl >= 0,
+                                    "exit_price": order.price,
+                                    "entry_price": float(db_order.get("entry_price", 0) or 0),
+                                    "leverage": int(db_order.get("leverage", 1) or 1),
+                                    "duration_seconds": 0,
+                                    "is_programmatic": True,
+                                },
+                                source="WebSocketDataService (TP/SL fill)",
+                            )
+                            self._published_closed_events.add(client_order_id)
+                            log_info(
+                                f"[WS Data] POSITION_CLOSED event published for {symbol_normalized} "
+                                f"(pnl={effective_pnl:+.2f})"
+                            )
+                except Exception as _db_err:
+                    log_error(f"[WS Data] DB/event error after TP/SL fill for {order.symbol}: {_db_err}")
+
+            elif order.status in ("canceled", "rejected"):
+                # ── Entry / other orders canceled or rejected → mark DB only ─────────
+                if OrderTagger.is_programmatic_order_id(order.client_order_id):
+                    from modules.auto_trade.database import update_order_status_by_client_id
+                    status_map: Dict[str, str] = {"canceled": "CANCELLED", "rejected": "FAILED"}
+                    db_status: str = status_map.get(order.status, "FAILED")
                     updated: bool = update_order_status_by_client_id(
                         client_order_id=order.client_order_id,
                         status=db_status,
-                        pnl=pnl_value,
                     )
                     if updated:
-                        log_info(f"WS sync: updated order {order.client_order_id} to {db_status}")
+                        log_info(f"[WS Data] order {order.client_order_id} → {db_status}")
 
-                    if (
-                        db_status == "CLOSED"
-                        and self.event_bus
-                        and order.client_order_id not in self._published_closed_events
-                    ):
-                        db_order = get_order_by_client_id(order.client_order_id) or {}
-
-                        event_pnl: float
-                        if pnl_value is not None:
-                            event_pnl = float(pnl_value)
-                        else:
-                            try:
-                                event_pnl = float(db_order.get("pnl", 0.0) or 0.0)
-                            except (TypeError, ValueError):
-                                event_pnl = 0.0
-
-                        symbol = db_order.get("symbol") or order.symbol
-                        leverage = db_order.get("leverage")
-                        entry_price = db_order.get("entry_price")
-
-                        self.event_bus.publish(
-                            EventType.POSITION_CLOSED,
-                            {
-                                "symbol": symbol,
-                                "pnl": event_pnl,
-                                "is_profit": event_pnl >= 0,
-                                "exit_price": order.price,
-                                "entry_price": entry_price,
-                                "leverage": leverage,
-                                "duration_seconds": 0,
-                                "is_programmatic": True,
-                            },
-                            source="WebSocketDataService",
-                        )
-                        self._published_closed_events.add(order.client_order_id)
-                        log_info(f"WS recovery event published for {order.client_order_id}: pnl={event_pnl:+.2f}")
-            except Exception as e:
-                log_error(f"WS sync error for order {order.client_order_id}: {e}")
+        except Exception as e:
+            log_error(f"[WS Data] _handle_order_update sync error: {e}", exc_info=True)
 
     # ==================== Synchronous API for GUI ====================
 

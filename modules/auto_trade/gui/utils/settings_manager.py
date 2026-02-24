@@ -21,11 +21,6 @@ class SettingsManager:
             "default_leverage": "3x",
         },
         "filters": {
-            "min_signal_score": 0.2,
-            "enable_xgboost": True,
-            "atc_threshold": 0.2,
-            "symbol_whitelist": "BTC/USDT\nETH/USDT\nSOL/USDT",
-            "min_volume": 5.0,
             "timeframe": "15m",
         },
         "api": {"exchange": "Demo", "mode": "DRY_RUN", "api_key": "", "api_secret": ""},
@@ -49,6 +44,10 @@ class SettingsManager:
             "auto_start": True,
             "retrain_xgboost": False,
             "running": False,
+            "min_signal_score": 0.2,
+            "enable_xgboost": True,
+            "atc_threshold": 0.2,
+            "min_volume": 5.0,
         },
         "ui": {
             "theme": "dark",
@@ -105,6 +104,7 @@ class SettingsManager:
             if self.settings_file.exists():
                 loaded_settings = self._load_file(self.settings_file)
                 if loaded_settings is not None:
+                    loaded_settings = self._migrate_legacy_filter_fields(loaded_settings)
                     self.settings = self._merge_settings(self.DEFAULT_SETTINGS, loaded_settings)
                     self._validate_settings()
                     self._normalize_whitelist()
@@ -117,6 +117,7 @@ class SettingsManager:
                 if json_path.exists():
                     loaded_settings = self._load_json(json_path)
                     if loaded_settings:
+                        loaded_settings = self._migrate_legacy_filter_fields(loaded_settings)
                         self.settings = self._merge_settings(self.DEFAULT_SETTINGS, loaded_settings)
                         self._validate_settings()
                         self._normalize_whitelist()
@@ -150,6 +151,34 @@ class SettingsManager:
                 return json.load(f)
         except Exception:
             return None
+
+    def _migrate_legacy_filter_fields(self, loaded_settings: Dict[str, Any]) -> Dict[str, Any]:
+        """Map legacy scanner-related fields from filters -> scanner for backward compatibility."""
+        if not isinstance(loaded_settings, dict):
+            return loaded_settings
+
+        filters = loaded_settings.get("filters")
+        if not isinstance(filters, dict):
+            return loaded_settings
+
+        scanner = loaded_settings.get("scanner")
+        if not isinstance(scanner, dict):
+            scanner = {}
+            loaded_settings["scanner"] = scanner
+
+        legacy_keys = (
+            "min_signal_score",
+            "enable_xgboost",
+            "atc_threshold",
+            "min_volume",
+            "symbol_whitelist",
+        )
+
+        for key in legacy_keys:
+            if key in filters and key not in scanner:
+                scanner[key] = filters[key]
+
+        return loaded_settings
 
     def _use_defaults_and_save(self) -> None:
         self.settings = self.DEFAULT_SETTINGS.copy()
@@ -241,12 +270,12 @@ class SettingsManager:
             if self.settings["risk"]["max_daily_loss"] < 0:
                 self.settings["risk"]["max_daily_loss"] = 50.0
 
-            # Validate filters
-            if not 0 <= self.settings["filters"]["min_signal_score"] <= 1:
-                self.settings["filters"]["min_signal_score"] = 0.7
+            # Validate scanner filter fields
+            if not 0 <= self.settings["scanner"].get("min_signal_score", 0.7) <= 1:
+                self.settings["scanner"]["min_signal_score"] = 0.7
 
-            if self.settings["filters"]["min_volume"] < 0:
-                self.settings["filters"]["min_volume"] = 50.0
+            if self.settings["scanner"].get("min_volume", 5.0) < 0:
+                self.settings["scanner"]["min_volume"] = 50.0
 
             # Validate API mode
             valid_modes: List[str] = ["PRODUCTION", "DEMO", "DRY_RUN"]
@@ -390,6 +419,8 @@ class SettingsManager:
             if loaded is None:
                 log_warn(f"Could not parse settings from {import_path}")
                 return False
+
+            loaded = self._migrate_legacy_filter_fields(loaded)
 
             self.settings = self._merge_settings(self.DEFAULT_SETTINGS, loaded)
             self._validate_settings()

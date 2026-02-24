@@ -303,6 +303,7 @@ class AutoTradeControl(ctk.CTkFrame):
 
         risk = settings.get("risk", {})
         filters = settings.get("filters", {})
+        scanner = settings.get("scanner", {})
         tp_sl = settings.get("tp_sl", {})
         api = settings.get("api", {})
         recovery = settings.get("recovery", {})
@@ -316,8 +317,8 @@ class AutoTradeControl(ctk.CTkFrame):
             if hasattr(label, "configure") and callable(label.configure):
                 label.configure(text=text_value)
 
-        # Risk & filters & TP/SL
-        _safe_configure("min_score", f"{float(filters.get('min_signal_score', 0.7)):.2f}")
+        # Risk & scanner filters & TP/SL
+        _safe_configure("min_score", f"{float(scanner.get('min_signal_score', filters.get('min_signal_score', 0.7))):.2f}")
         risk_limits_enabled = bool(risk.get("limits_enabled", True))
         _safe_configure("risk_limits_enabled", "On" if risk_limits_enabled else "Off")
         _safe_configure("max_position_size", f"${float(risk.get('max_position_size', 100.0)):.0f} USDT")
@@ -328,10 +329,10 @@ class AutoTradeControl(ctk.CTkFrame):
         _safe_configure("default_sl", f"{float(tp_sl.get('default_sl', 2.5)):.1f}%")
         _safe_configure("tp_sl_mode", str(tp_sl.get("mode", "Percentage")))
         _safe_configure("trailing_stop", "On" if tp_sl.get("trailing_stop", False) else "Off")
-        _safe_configure("atc_threshold", f"{float(filters.get('atc_threshold', 0.6)):.2f}")
-        _safe_configure("enable_xgboost", "On" if filters.get("enable_xgboost", True) else "Off")
-        _safe_configure("min_volume", str(int(float(filters.get("min_volume", 50.0)))))
-        _safe_configure("timeframe", str(filters.get("timeframe", "1h")))
+        _safe_configure("atc_threshold", f"{float(scanner.get('atc_threshold', filters.get('atc_threshold', 0.6))):.2f}")
+        _safe_configure("enable_xgboost", "On" if scanner.get("enable_xgboost", filters.get("enable_xgboost", True)) else "Off")
+        _safe_configure("min_volume", str(int(float(scanner.get("min_volume", filters.get("min_volume", 50.0))))))
+        _safe_configure("timeframe", str(scanner.get("timeframe", filters.get("timeframe", "1h"))))
 
         # Gradual Recovery
         _safe_configure("recovery_enabled", "On" if recovery.get("enabled", False) else "Off")

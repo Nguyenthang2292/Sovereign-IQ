@@ -23,7 +23,6 @@ class ScannerManager:
         self.updater = None
         self.pipeline: Optional[SignalPipeline] = None
         self._pipeline_initialized = False
-        self._manual_scan_running = False
         self._scan_running = False
         self._scan_lock = threading.Lock()
 
@@ -32,9 +31,7 @@ class ScannerManager:
         try:
             log_info(f"Scanner action: {action}")
 
-            if action == "manual":
-                self._manual_scan()
-            elif action is True:
+            if action is True:
                 self._start_scanner()
             elif action is False:
                 self._stop_scanner()
@@ -69,48 +66,6 @@ class ScannerManager:
             self.updater.stop()
             self.updater = None
             log_info("Scanner stopped")
-
-    def _manual_scan(self):
-        """Trigger manual scan in background thread."""
-        # Prevent multiple manual scans from running simultaneously
-        if hasattr(self, "_manual_scan_running") and self._manual_scan_running:
-            log_warn("Manual scan already in progress, skipping...")
-            return
-
-        # Mark as running
-        self._manual_scan_running = True
-
-        # Update UI to show scanning
-        scanner_control = getattr(self.parent, "scanner_control", None)
-        if scanner_control is not None:
-            scanner_control.progress_label.configure(text="Scanning...")
-
-        # Run in background thread
-        def run_scan():
-            try:
-                self._scanner_cycle()
-            finally:
-                # Mark as complete
-                self._manual_scan_running = False
-
-                # Update timestamp on main thread
-                def _update_ui_after_scan():
-                    ctrl = getattr(self.parent, "scanner_control", None)
-                    if ctrl is not None:
-                        ctrl.update_last_scan_time()
-
-                self.parent.after(0, _update_ui_after_scan)
-
-                # Clear progress after 2 seconds
-                def _clear_progress():
-                    ctrl = getattr(self.parent, "scanner_control", None)
-                    if ctrl is not None:
-                        ctrl.progress_label.configure(text="")
-
-                self.parent.after(2000, _clear_progress)
-
-        scan_thread = threading.Thread(target=run_scan, daemon=True, name="ManualScan")
-        scan_thread.start()
 
     def _initialize_pipeline(self):
         """Initialize the SignalPipeline with all components."""
@@ -164,10 +119,9 @@ class ScannerManager:
             )
             log_info(f"SymbolManager ready (sample: {sample_percentage}%, strategy: {sampling_strategy})")
 
-            # 2. ATC Scanner - threshold from Signal Filters tab
+            # 2. ATC Scanner - threshold from Scanner Configuration
             atc_config = ATC_SCANNER_DEFAULTS.copy()
-            filters = self.parent.settings_manager.get("filters", {})
-            atc_config["threshold"] = float(filters.get("atc_threshold", 0.6))
+            atc_config["threshold"] = float(scanner_config.get("atc_threshold", 0.6))
 
             atc_scanner = None
             if atc_backend == "serverless":
@@ -199,7 +153,7 @@ class ScannerManager:
 
             # 3. XGBoost Filter (serverless, per-symbol, or pre-trained based on config)
             xgboost_filter: XGBoostFilterLike = self._create_passthrough_xgboost_filter()
-            if filters.get("enable_xgboost", True):
+            if scanner_config.get("enable_xgboost", True):
                 if xgboost_backend == "serverless":
                     # Serverless mode - delegate to AWS Lambda
                     serverless_xgb_config = {
@@ -212,7 +166,7 @@ class ScannerManager:
                         ),
                         "xgboost_serverless_timeframe": timeframe,
                         "xgboost_serverless_candle_limit": scanner_config.get("xgboost_serverless_candle_limit", 200),
-                        "xgboost_serverless_min_confidence": float(filters.get("xgboost_min_confidence", 0.55)),
+                        "xgboost_serverless_min_confidence": float(scanner_config.get("xgboost_min_confidence", 0.55)),
                         "xgboost_serverless_min_candles": scanner_config.get("xgboost_serverless_min_candles", 50),
                         "xgboost_serverless_mock_mode": scanner_config.get("xgboost_serverless_mock_mode", False),
                     }
@@ -255,7 +209,7 @@ class ScannerManager:
                             log_warn("XGBoost model not found, using passthrough filter")
                             xgboost_filter = self._create_passthrough_xgboost_filter()
             else:
-                log_info("XGBoost disabled in filters, using passthrough")
+                log_info("XGBoost disabled in scanner config, using passthrough")
 
             # 4. Gemini Integration
             gemini_integration = GeminiIntegration(data_fetcher=data_fetcher, analysis_timeframe=timeframe)
@@ -266,7 +220,7 @@ class ScannerManager:
 
             # 5. Signal Selector
             selector_config = SIGNAL_SELECTOR_DEFAULTS.copy()
-            selector_config["min_confidence_threshold"] = float(filters.get("min_signal_score", 0.7))
+            selector_config["min_confidence_threshold"] = float(scanner_config.get("min_signal_score", 0.7))
             signal_selector = SignalSelector(config=selector_config)
             log_info(f"SignalSelector ready (min_confidence: {selector_config['min_confidence_threshold']})")
 

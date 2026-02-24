@@ -719,8 +719,8 @@ See `tests/docs/test_memory_usage_guide.md` for detailed memory optimization doc
 
 - **README.md**: Main project documentation (this file)
 - **CODE_REVIEW.md**: Code review guidelines and best practices
-- **ENHANCE_FUTURES.md**: Futures trading enhancements and roadmap
-- **BATCH_SCANNER_FLOW.md**: Batch scanner workflow documentation
+- **docs/plans/enhance_futures.md**: Futures trading enhancements and roadmap
+- **docs/plans/batch_scanner_flow.md**: Batch scanner workflow documentation
 
 ### Core Documentation
 

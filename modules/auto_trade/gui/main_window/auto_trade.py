@@ -228,7 +228,7 @@ class AutoTradeManager:
             if not api_key or not api_secret:
                 return
             testnet = getattr(ds, "testnet", False)
-            symbols = self.parent.settings_manager.get("filters.symbol_whitelist") or None
+            symbols = self.parent.settings_manager.get("scanner.symbol_whitelist") or None
             result = reconcile_orders_with_binance(
                 api_key=api_key,
                 api_secret=api_secret,
@@ -259,7 +259,7 @@ class AutoTradeManager:
 
             # Signals are "fresh" if created within this many seconds (5 minutes)
             FRESH_SIGNAL_MAX_AGE_SECONDS = 300
-            min_score = self.parent.settings_manager.get("filters.min_signal_score", 0.7)
+            min_score = self.parent.settings_manager.get("scanner.min_signal_score", 0.7)
             log_info(f"[AutoTrade] Checking for signals (min_score={min_score})...")
             signals = self.parent.data_service.get_signals(min_score=min_score)
             log_info(f"[AutoTrade] Found {len(signals) if signals else 0} total signals")

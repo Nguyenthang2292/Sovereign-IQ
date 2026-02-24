@@ -55,7 +55,6 @@ class LayoutManager:
         database_tab = self.parent.tabview.add("Database")
         self._populate_database_tab(database_tab)
 
-        self._create_status_bar()
         self.parent._update_mode_display()
 
     def _create_header(self):
@@ -92,19 +91,6 @@ class LayoutManager:
             header_frame, text=f"[{mode_text}]", font=("Arial", 12), text_color=mode_color
         )
         self.parent.header_mode_label.pack(side="right", padx=20)
-
-    def _create_status_bar(self):
-        """Create status bar at bottom."""
-        status_frame = ctk.CTkFrame(self.parent, height=30)
-        status_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
-
-        self.parent.status_label = ctk.CTkLabel(status_frame, text="Ready", font=("Arial", 10), text_color="gray")
-        self.parent.status_label.pack(side="left", padx=10)
-
-        self.parent.last_update_label = ctk.CTkLabel(
-            status_frame, text="Last update: --", font=("Arial", 10), text_color="gray"
-        )
-        self.parent.last_update_label.pack(side="right", padx=10)
 
     def _populate_dashboard_tab(self, parent):
         """Create dashboard interface."""
@@ -189,7 +175,7 @@ class LayoutManager:
         buttons_container = ctk.CTkFrame(status_btn_frame, fg_color="transparent")
         buttons_container.pack(fill="x")
 
-        # Start button (full width)
+        # Start/Stop button (full width)
         self.parent.scanner_start_button = ctk.CTkButton(
             buttons_container,
             text="▶️ Start Scanner",
@@ -197,21 +183,40 @@ class LayoutManager:
             fg_color="#00ff88",
             hover_color="#00cc66",
             height=40,
-            command=lambda: self.parent.on_scan_toggle(True) if hasattr(self.parent, "on_scan_toggle") else None,
         )
         self.parent.scanner_start_button.pack(fill="x", pady=(0, 8))
 
-        # Manual Scan button (full width)
-        self.parent.scanner_manual_button = ctk.CTkButton(
-            buttons_container,
-            text="🔄 Manual Scan",
-            font=("Arial", 13),
-            fg_color="#4488ff",
-            hover_color="#0066ff",
-            height=40,
-            command=lambda: self.parent.on_scan_toggle("manual") if hasattr(self.parent, "on_scan_toggle") else None,
-        )
-        self.parent.scanner_manual_button.pack(fill="x")
+        # --- Dynamic Background Button Handlers ---
+        def update_scanner_buttons():
+            sm = getattr(self.parent, "scanner_manager", None)
+            if not sm:
+                return
+
+            # Update Scanner Button
+            if sm.updater is not None:
+                self.parent.scanner_start_button.configure(
+                    text="⏹️ Stop Scanner", fg_color="#ff4444", hover_color="#cc0000"
+                )
+                self.parent.scanner_status_label.configure(text="Scanner: RUNNING", text_color="#00ff88")
+            else:
+                self.parent.scanner_start_button.configure(
+                    text="▶️ Start Scanner", fg_color="#00ff88", hover_color="#00cc66"
+                )
+                self.parent.scanner_status_label.configure(text="Scanner: STOPPED", text_color="gray")
+
+        self.parent.update_scanner_buttons = update_scanner_buttons
+
+        def _on_start_click():
+            if not hasattr(self.parent, "on_scan_toggle"):
+                return
+            sm = getattr(self.parent, "scanner_manager", None)
+            if sm:
+                is_running = sm.updater is not None
+                self.parent.on_scan_toggle(False if is_running else True)
+                update_scanner_buttons()
+
+
+        self.parent.scanner_start_button.configure(command=_on_start_click)
 
         # Setup Adapter for legacy compatibility
         class ScannerControlAdapter:
@@ -245,6 +250,20 @@ class LayoutManager:
                     p.sample_percentage_entry.insert(0, str(config.get("sample_percentage", 20)))
                 if hasattr(p, "auto_scan_startup_var"):
                     p.auto_scan_startup_var.set(config.get("auto_start", True))
+                # Load new filter fields
+                if hasattr(p, "min_signal_score_var"):
+                    p.min_signal_score_var.set(config.get("min_signal_score", 0.7))
+                    if hasattr(p, "min_signal_score_label"):
+                        p.min_signal_score_label.configure(text=f"{config.get('min_signal_score', 0.7):.2f}")
+                if hasattr(p, "min_volume_entry"):
+                    p.min_volume_entry.delete(0, "end")
+                    p.min_volume_entry.insert(0, str(config.get("min_volume", 50)))
+                if hasattr(p, "enable_xgboost_var"):
+                    p.enable_xgboost_var.set(config.get("enable_xgboost", True))
+                if hasattr(p, "atc_threshold_var"):
+                    p.atc_threshold_var.set(config.get("atc_threshold", 0.6))
+                    if hasattr(p, "atc_threshold_label"):
+                        p.atc_threshold_label.configure(text=f"{config.get('atc_threshold', 0.6):.2f}")
                 if hasattr(p, "settings_labels") and isinstance(p.settings_labels, dict):
                     labels = p.settings_labels
                     if "interval" in labels:
@@ -259,6 +278,14 @@ class LayoutManager:
                         labels["backend"].configure(text=str(config.get("atc_backend", "local")).upper())
                     if "xgboost_backend" in labels:
                         labels["xgboost_backend"].configure(text=str(config.get("xgboost_backend", "local")).upper())
+                    if "min_signal_score" in labels:
+                        labels["min_signal_score"].configure(text=f"{config.get('min_signal_score', 0.2):.2f}")
+                    if "min_volume" in labels:
+                        labels["min_volume"].configure(text=f"{config.get('min_volume', 5.0):.1f}")
+                    if "atc_threshold" in labels:
+                        labels["atc_threshold"].configure(text=f"{config.get('atc_threshold', 0.0):.2f}")
+                    if "enable_xgboost" in labels:
+                        labels["enable_xgboost"].configure(text="Enabled" if config.get("enable_xgboost", True) else "Disabled")
 
         self.parent.scanner_control = ScannerControlAdapter(self.parent)
 
@@ -280,11 +307,33 @@ class LayoutManager:
                     "sampling_strategy": strat,
                     "sample_percentage": 20,
                     "auto_start": getattr(p, "auto_scan_startup_var", None) and p.auto_scan_startup_var.get(),
+                    "min_signal_score": 0.7,
+                    "min_volume": 50.0,
+                    "enable_xgboost": True,
+                    "atc_threshold": 0.6,
                 }
                 try:
                     sample_val = (p.sample_percentage_entry.get() or "20").strip()
                     config["sample_percentage"] = max(1, min(100, int(float(sample_val))))
                 except (ValueError, TypeError, AttributeError):
+                    pass
+                # Collect new filter fields
+                try:
+                    config["min_signal_score"] = round(float(getattr(p, "min_signal_score_var", None).get()), 2)
+                except (AttributeError, TypeError, ValueError):
+                    pass
+                try:
+                    vol_str = (p.min_volume_entry.get() or "50").strip()
+                    config["min_volume"] = max(0.0, float(vol_str))
+                except (AttributeError, ValueError):
+                    pass
+                try:
+                    config["enable_xgboost"] = bool(p.enable_xgboost_var.get())
+                except (AttributeError, Exception):
+                    pass
+                try:
+                    config["atc_threshold"] = round(float(p.atc_threshold_var.get()), 2)
+                except (AttributeError, TypeError, ValueError):
                     pass
                 if hasattr(p, "on_scanner_config_change"):
                     p.on_scanner_config_change(config)
@@ -303,6 +352,14 @@ class LayoutManager:
                         labels["backend"].configure(text=str(config["atc_backend"]).upper())
                     if "xgboost_backend" in labels:
                         labels["xgboost_backend"].configure(text=str(config["xgboost_backend"]).upper())
+                    if "min_signal_score" in labels:
+                        labels["min_signal_score"].configure(text=f"{config.get('min_signal_score', 0.2):.2f}")
+                    if "min_volume" in labels:
+                        labels["min_volume"].configure(text=f"{config.get('min_volume', 5.0):.1f}")
+                    if "atc_threshold" in labels:
+                        labels["atc_threshold"].configure(text=f"{config.get('atc_threshold', 0.0):.2f}")
+                    if "enable_xgboost" in labels:
+                        labels["enable_xgboost"].configure(text="Enabled" if config.get("enable_xgboost", True) else "Disabled")
             except Exception:
                 pass
 
@@ -317,111 +374,231 @@ class LayoutManager:
         config_title = ctk.CTkLabel(config_frame, text="⚙️ Scanner Configuration", font=("Arial", 12, "bold"))
         config_title.pack(pady=(10, 5))
 
-        # Configuration inputs
-        inputs_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
+        # Configuration inputs (scrollable to fit all controls)
+        inputs_frame = ctk.CTkScrollableFrame(config_frame, fg_color="transparent")
         inputs_frame.pack(fill="both", expand=True, padx=10, pady=(5, 10))
 
-        # Scan interval
-        interval_row = ctk.CTkFrame(inputs_frame, fg_color="transparent")
-        interval_row.pack(fill="x", pady=3)
-        ctk.CTkLabel(interval_row, text="Interval (min):", font=("Arial", 10), text_color="gray").pack(
-            side="left", padx=(0, 5)
+        # ═══════════════════════════════════════════════
+        # GROUP 1: Scan Settings
+        # ═══════════════════════════════════════════════
+        scan_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        scan_group.pack(fill="x", pady=(0, 8))
+        scan_group.grid_columnconfigure(0, weight=0, minsize=130)
+        scan_group.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(scan_group, text="📡 Scan Settings", font=("Arial", 10, "bold")).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
-        self.parent.scan_interval_entry = ctk.CTkEntry(interval_row, placeholder_text="5", width=160)
-        self.parent.scan_interval_entry.pack(side="right")
+
+        # Auto-scan on startup
+        self.parent.auto_scan_startup_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(
+            scan_group,
+            text="Auto-start on startup",
+            variable=self.parent.auto_scan_startup_var,
+            command=self._push_scanner_config,
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(4, 8))
+
+        # Scan interval
+        ctk.CTkLabel(scan_group, text="Interval (min):", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=2, column=0, sticky="w", padx=(10, 5), pady=4
+        )
+        self.parent.scan_interval_entry = ctk.CTkEntry(scan_group, placeholder_text="5")
+        self.parent.scan_interval_entry.grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=4)
         self.parent.scan_interval_entry.insert(0, "5")
         self.parent.scan_interval_entry.bind("<FocusOut>", lambda e: self._push_scanner_config())
         self.parent.scan_interval_entry.bind("<Return>", lambda e: self._push_scanner_config())
 
         # Timeframe
-        timeframe_row = ctk.CTkFrame(inputs_frame, fg_color="transparent")
-        timeframe_row.pack(fill="x", pady=3)
-        ctk.CTkLabel(timeframe_row, text="Timeframe:", font=("Arial", 10), text_color="gray").pack(
-            side="left", padx=(0, 5)
+        ctk.CTkLabel(scan_group, text="Timeframe:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=3, column=0, sticky="w", padx=(10, 5), pady=4
         )
         self.parent.timeframe_var = ctk.StringVar(value="15m")
-        timeframe_dropdown = ctk.CTkComboBox(
-            timeframe_row,
+        ctk.CTkComboBox(
+            scan_group,
             values=["5m", "15m", "30m", "1h", "4h", "1d"],
             variable=self.parent.timeframe_var,
-            width=160,
             command=lambda _: self._push_scanner_config(),
-        )
-        timeframe_dropdown.pack(side="right")
-
-        # ATC backend switch
-        backend_row = ctk.CTkFrame(inputs_frame, fg_color="transparent")
-        backend_row.pack(fill="x", pady=3)
-        ctk.CTkLabel(backend_row, text="ATC Backend:", font=("Arial", 10), text_color="gray").pack(
-            side="left", padx=(0, 5)
-        )
-        self.parent.atc_backend_var = ctk.StringVar(value="local")
-        backend_wrapper = ctk.CTkFrame(backend_row, fg_color="transparent", width=160, height=32)
-        backend_wrapper.pack(side="right")
-        backend_wrapper.pack_propagate(False)
-        backend_switch = ctk.CTkSegmentedButton(
-            backend_wrapper,
-            values=["local", "serverless"],
-            variable=self.parent.atc_backend_var,
-            command=lambda _: self._push_scanner_config(),
-        )
-        backend_switch.pack(fill="x")
-
-        # XGBoost backend switch
-        xgb_backend_row = ctk.CTkFrame(inputs_frame, fg_color="transparent")
-        xgb_backend_row.pack(fill="x", pady=3)
-        ctk.CTkLabel(xgb_backend_row, text="XGBoost Backend:", font=("Arial", 10), text_color="gray").pack(
-            side="left", padx=(0, 5)
-        )
-        self.parent.xgboost_backend_var = ctk.StringVar(value="local")
-        xgb_wrapper = ctk.CTkFrame(xgb_backend_row, fg_color="transparent", width=160, height=32)
-        xgb_wrapper.pack(side="right")
-        xgb_wrapper.pack_propagate(False)
-        xgb_backend_switch = ctk.CTkSegmentedButton(
-            xgb_wrapper,
-            values=["local", "serverless"],
-            variable=self.parent.xgboost_backend_var,
-            command=lambda _: self._push_scanner_config(),
-        )
-        xgb_backend_switch.pack(fill="x")
+        ).grid(row=3, column=1, sticky="ew", padx=(0, 10), pady=4)
 
         # Sampling strategy
-        strategy_row = ctk.CTkFrame(inputs_frame, fg_color="transparent")
-        strategy_row.pack(fill="x", pady=3)
-        ctk.CTkLabel(strategy_row, text="Strategy:", font=("Arial", 10), text_color="gray").pack(
-            side="left", padx=(0, 5)
+        ctk.CTkLabel(scan_group, text="Strategy:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=4, column=0, sticky="w", padx=(10, 5), pady=4
         )
         self.parent.sampling_strategy_var = ctk.StringVar(value="stratified")
-        strategy_dropdown = ctk.CTkComboBox(
-            strategy_row,
+        ctk.CTkComboBox(
+            scan_group,
             values=["random", "stratified", "volume_weighted"],
             variable=self.parent.sampling_strategy_var,
-            width=160,
             command=lambda _: self._push_scanner_config(),
-        )
-        strategy_dropdown.pack(side="right")
+        ).grid(row=4, column=1, sticky="ew", padx=(0, 10), pady=4)
 
         # Sample percentage
-        sample_row = ctk.CTkFrame(inputs_frame, fg_color="transparent")
-        sample_row.pack(fill="x", pady=3)
-        ctk.CTkLabel(sample_row, text="Sample (%):", font=("Arial", 10), text_color="gray").pack(
-            side="left", padx=(0, 5)
+        ctk.CTkLabel(scan_group, text="Sample (%):", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=5, column=0, sticky="w", padx=(10, 5), pady=(4, 10)
         )
-        self.parent.sample_percentage_entry = ctk.CTkEntry(sample_row, placeholder_text="20", width=160)
-        self.parent.sample_percentage_entry.pack(side="right")
+        self.parent.sample_percentage_entry = ctk.CTkEntry(scan_group, placeholder_text="20")
+        self.parent.sample_percentage_entry.grid(row=5, column=1, sticky="ew", padx=(0, 10), pady=(4, 10))
         self.parent.sample_percentage_entry.insert(0, "20.0")
         self.parent.sample_percentage_entry.bind("<FocusOut>", lambda e: self._push_scanner_config())
         self.parent.sample_percentage_entry.bind("<Return>", lambda e: self._push_scanner_config())
 
-        # Auto-scan on startup
-        self.parent.auto_scan_startup_var = ctk.BooleanVar(value=True)
-        auto_scan_cb = ctk.CTkCheckBox(
-            inputs_frame,
-            text="Auto-start on startup",
-            variable=self.parent.auto_scan_startup_var,
-            command=self._push_scanner_config,
+        # ═══════════════════════════════════════════════
+        # GROUP 2: Signal Filters
+        # ═══════════════════════════════════════════════
+        signal_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        signal_group.pack(fill="x", pady=(0, 8))
+        signal_group.grid_columnconfigure(0, weight=0, minsize=130)
+        signal_group.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(signal_group, text="🎯 Signal Filters", font=("Arial", 10, "bold")).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
-        auto_scan_cb.pack(fill="x", pady=(8, 2))
+
+        # Min Signal Score
+        ctk.CTkLabel(signal_group, text="Min Signal Score:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=1, column=0, sticky="w", padx=(10, 5), pady=4
+        )
+        
+        slider_frame1 = ctk.CTkFrame(signal_group, fg_color="transparent")
+        slider_frame1.grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=4)
+        slider_frame1.grid_columnconfigure(0, weight=1)
+        slider_frame1.grid_columnconfigure(1, weight=0)
+
+        self.parent.min_signal_score_var = ctk.DoubleVar(value=0.7)
+        ctk.CTkSlider(
+            slider_frame1,
+            from_=0,
+            to=1,
+            number_of_steps=100,
+            variable=self.parent.min_signal_score_var,
+            command=lambda _: self._push_scanner_config(),
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 5))
+
+        self.parent.min_signal_score_label = ctk.CTkLabel(
+            slider_frame1, text="0.70", font=("Arial", 9), text_color="gray", width=30
+        )
+        self.parent.min_signal_score_label.grid(row=0, column=1, sticky="e")
+
+        def _on_score_change(*_args):
+            try:
+                v = self.parent.min_signal_score_var.get()
+                self.parent.min_signal_score_label.configure(text=f"{v:.2f}")
+                self._push_scanner_config()
+            except Exception:
+                pass
+
+        self.parent.min_signal_score_var.trace_add("write", _on_score_change)
+
+        # Min 24h Volume
+        ctk.CTkLabel(signal_group, text="Min 24h Vol (M):", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=2, column=0, sticky="w", padx=(10, 5), pady=(4, 8)
+        )
+        self.parent.min_volume_entry = ctk.CTkEntry(signal_group, placeholder_text="50")
+        self.parent.min_volume_entry.grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=(4, 8))
+        self.parent.min_volume_entry.insert(0, "50")
+        self.parent.min_volume_entry.bind("<FocusOut>", lambda e: self._push_scanner_config())
+        self.parent.min_volume_entry.bind("<Return>", lambda e: self._push_scanner_config())
+
+        # ═══════════════════════════════════════════════
+        # GROUP 3: ATC Configuration
+        # ═══════════════════════════════════════════════
+        atc_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        atc_group.pack(fill="x", pady=(0, 8))
+        atc_group.grid_columnconfigure(0, weight=0, minsize=130)
+        atc_group.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(atc_group, text="📊 ATC Configuration", font=("Arial", 10, "bold")).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
+        )
+
+        # ATC backend switch
+        ctk.CTkLabel(atc_group, text="Backend:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=1, column=0, sticky="w", padx=(10, 5), pady=4
+        )
+        self.parent.atc_backend_var = ctk.StringVar(value="local")
+        ctk.CTkSegmentedButton(
+            atc_group,
+            values=["local", "serverless"],
+            variable=self.parent.atc_backend_var,
+            command=lambda _: self._push_scanner_config(),
+        ).grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=4)
+
+        # ATC base threshold
+        ctk.CTkLabel(atc_group, text="Base threshold:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=2, column=0, sticky="w", padx=(10, 5), pady=4
+        )
+        
+        slider_frame2 = ctk.CTkFrame(atc_group, fg_color="transparent")
+        slider_frame2.grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=4)
+        slider_frame2.grid_columnconfigure(0, weight=1)
+        slider_frame2.grid_columnconfigure(1, weight=0)
+
+        self.parent.atc_threshold_var = ctk.DoubleVar(value=0.6)
+        ctk.CTkSlider(
+            slider_frame2,
+            from_=0,
+            to=1,
+            number_of_steps=100,
+            variable=self.parent.atc_threshold_var,
+            command=lambda _: self._push_scanner_config(),
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 5))
+
+        self.parent.atc_threshold_label = ctk.CTkLabel(
+            slider_frame2, text="0.60", font=("Arial", 9), text_color="gray", width=30
+        )
+        self.parent.atc_threshold_label.grid(row=0, column=1, sticky="e")
+
+        ctk.CTkLabel(
+            atc_group,
+            text="Scaled down when some timeframes fail.",
+            font=("Arial", 9),
+            text_color="gray",
+            anchor="w",
+        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
+
+        def _on_atc_change(*_args):
+            try:
+                v = self.parent.atc_threshold_var.get()
+                self.parent.atc_threshold_label.configure(text=f"{v:.2f}")
+                self._push_scanner_config()
+            except Exception:
+                pass
+
+        self.parent.atc_threshold_var.trace_add("write", _on_atc_change)
+
+        # ═══════════════════════════════════════════════
+        # GROUP 4: XGBoost Configuration
+        # ═══════════════════════════════════════════════
+        xgb_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        xgb_group.pack(fill="x", pady=(0, 8))
+        xgb_group.grid_columnconfigure(0, weight=0, minsize=130)
+        xgb_group.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(xgb_group, text="🤖 XGBoost Configuration", font=("Arial", 10, "bold")).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
+        )
+
+        # XGBoost enable checkbox
+        self.parent.enable_xgboost_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(
+            xgb_group,
+            text="Enable XGBoost Model",
+            variable=self.parent.enable_xgboost_var,
+            command=self._push_scanner_config,
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
+
+        # XGBoost backend switch
+        ctk.CTkLabel(xgb_group, text="Backend:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=2, column=0, sticky="w", padx=(10, 5), pady=(4, 8)
+        )
+        self.parent.xgboost_backend_var = ctk.StringVar(value="local")
+        ctk.CTkSegmentedButton(
+            xgb_group,
+            values=["local", "serverless"],
+            variable=self.parent.xgboost_backend_var,
+            command=lambda _: self._push_scanner_config(),
+        ).grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=(4, 8))
 
         # Column 1: Current Settings
         settings_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
@@ -436,23 +613,60 @@ class LayoutManager:
         settings_list = ctk.CTkFrame(settings_frame, fg_color="transparent")
         settings_list.pack(fill="both", expand=True, padx=10, pady=(5, 10))
 
-        settings_data = [
-            ("Interval:", "5 min", "interval"),
-            ("Timeframe:", "15m", "timeframe"),
-            ("ATC Backend:", "LOCAL", "backend"),
-            ("XGBoost Backend:", "LOCAL", "xgboost_backend"),
-            ("Strategy:", "stratified", "strategy"),
-            ("Sample:", "20.0%", "sample"),
-            ("Status:", "Stopped", "status"),
+        # Grouped settings structure: (group_title, [(label, default_value, key), ...])
+        settings_groups = [
+            ("📅 Scan Schedule", [
+                ("Interval:", "5 min", "interval"),
+                ("Timeframe:", "15m", "timeframe"),
+                ("Strategy:", "stratified", "strategy"),
+                ("Sample:", "20%", "sample"),
+            ]),
+            ("🔍 Signal Filters", [
+                ("Min Signal Score:", "0.20", "min_signal_score"),
+                ("Min 24h Vol (M):", "5.0", "min_volume"),
+            ]),
+            ("⚙️ ATC Config", [
+                ("Backend:", "LOCAL", "backend"),
+                ("ATC Threshold:", "0.00", "atc_threshold"),
+            ]),
+            ("🤖 XGBoost Config", [
+                ("Backend:", "LOCAL", "xgboost_backend"),
+                ("XGBoost:", "Enabled", "enable_xgboost"),
+            ]),
         ]
 
-        for label_text, value_text, key in settings_data:
-            row = ctk.CTkFrame(settings_list, fg_color="transparent")
-            row.pack(fill="x", pady=2)
-            ctk.CTkLabel(row, text=label_text, font=("Arial", 10), text_color="gray").pack(side="left")
-            val_label = ctk.CTkLabel(row, text=value_text, font=("Arial", 10, "bold"))
-            val_label.pack(side="right")
-            self.parent.settings_labels[key] = val_label
+        for group_title, items in settings_groups:
+            # Group header
+            group_header = ctk.CTkLabel(
+                settings_list,
+                text=group_title,
+                font=("Arial", 9, "bold"),
+                text_color="#888888",
+                anchor="w",
+            )
+            group_header.pack(fill="x", pady=(8, 2))
+            # Separator line
+            sep = ctk.CTkFrame(settings_list, height=1, fg_color=("#cccccc", "#444444"))
+            sep.pack(fill="x", pady=(0, 4))
+            # Items
+            for label_text, value_text, key in items:
+                row = ctk.CTkFrame(settings_list, fg_color="transparent")
+                row.pack(fill="x", pady=1)
+                ctk.CTkLabel(row, text=label_text, font=("Arial", 10), text_color="gray").pack(side="left")
+                val_label = ctk.CTkLabel(row, text=value_text, font=("Arial", 10, "bold"))
+                val_label.pack(side="right")
+                self.parent.settings_labels[key] = val_label
+
+        # Status row at the bottom
+        sep_bottom = ctk.CTkFrame(settings_list, height=1, fg_color=("#cccccc", "#444444"))
+        sep_bottom.pack(fill="x", pady=(8, 4))
+        status_row = ctk.CTkFrame(settings_list, fg_color="transparent")
+        status_row.pack(fill="x", pady=1)
+        ctk.CTkLabel(status_row, text="Status:", font=("Arial", 10), text_color="gray").pack(side="left")
+        status_val = ctk.CTkLabel(status_row, text="Stopped", font=("Arial", 10, "bold"), text_color="gray")
+        status_val.pack(side="right")
+        self.parent.settings_labels["status"] = status_val
+
 
         # Column 2: System Logs
         system_logs_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)

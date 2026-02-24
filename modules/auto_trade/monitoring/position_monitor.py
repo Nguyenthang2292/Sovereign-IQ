@@ -157,17 +157,35 @@ class PositionMonitor:
         Args:
             positions: List of position dicts from ccxt.pro
         """
-        # Check max positions limit
-        if len(positions) > self.max_positions:
-            log_error(f"⚠️  Too many positions! Found {len(positions)}, max allowed: {self.max_positions}")
+        # Check max positions limit — only count non-zero positions
+        active_count = sum(1 for p in positions if abs(float(p.get("contracts", 0) or 0)) > 0)
+        if active_count > self.max_positions:
+            log_error(f"⚠️  Too many positions! Found {active_count}, max allowed: {self.max_positions}")
 
-        # Track current symbols
-        current_symbols = set()
+        # Track symbols that still have a non-zero position
+        current_symbols: set = set()
 
         # Process each position
         for position_data in positions:
             try:
                 snapshot = self._parse_position(position_data)
+
+                # ── Case A: position size hit 0 (Binance kept the row but cleared it) ──
+                if snapshot.position_amt == 0:
+                    if snapshot.symbol in self._last_positions:
+                        log_info(f"Position closed (size→0): {snapshot.symbol}")
+                        closed_snapshot = self._last_positions.pop(snapshot.symbol)
+                        closed_snapshot.position_amt = 0.0
+                        for callback in self._callbacks:
+                            try:
+                                if asyncio.iscoroutinefunction(callback):
+                                    asyncio.create_task(callback(closed_snapshot))
+                                else:
+                                    callback(closed_snapshot)
+                            except Exception as e:
+                                log_error(f"Error in close callback (size→0) for {snapshot.symbol}: {e}")
+                    continue  # don't add to current_symbols
+
                 current_symbols.add(snapshot.symbol)
 
                 # Calculate P&L percentage
@@ -197,11 +215,20 @@ class PositionMonitor:
             except Exception as e:
                 log_error(f"Error processing position: {e}", exc_info=True)
 
-        # Check for closed positions
+        # ── Case B: position disappeared from Binance response entirely ──
         closed_symbols = set(self._last_positions.keys()) - current_symbols
         for symbol in closed_symbols:
-            log_info(f"Position closed: {symbol}")
-            del self._last_positions[symbol]
+            log_info(f"Position closed (disappeared): {symbol}")
+            closed_snapshot = self._last_positions.pop(symbol)
+            closed_snapshot.position_amt = 0.0
+            for callback in self._callbacks:
+                try:
+                    if asyncio.iscoroutinefunction(callback):
+                        asyncio.create_task(callback(closed_snapshot))
+                    else:
+                        callback(closed_snapshot)
+                except Exception as e:
+                    log_error(f"Error in close callback (disappeared) for {symbol}: {e}")
 
     def _parse_position(self, data: dict) -> PositionSnapshot:
         """
