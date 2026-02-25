@@ -67,15 +67,6 @@ class LayoutManager:
 
         from modules.auto_trade.gui.utils.modes import TradingMode
 
-        mode_colors = {
-            TradingMode.PRODUCTION: Colors.PRODUCTION,
-            TradingMode.DEMO: Colors.DEMO,
-            TradingMode.DRY_RUN: Colors.DRY_RUN,
-        }
-
-        mode_color = mode_colors.get(self.parent.mode, Colors.DRY_RUN)
-        mode_text = self.parent.mode.replace("_", " ")
-
         shortcuts_btn = ctk.CTkButton(
             header_frame,
             text="⌨ Shortcuts",
@@ -86,11 +77,6 @@ class LayoutManager:
             ),
         )
         shortcuts_btn.pack(side="right", padx=(10, 10))
-
-        self.parent.header_mode_label = ctk.CTkLabel(
-            header_frame, text=f"[{mode_text}]", font=("Arial", 12), text_color=mode_color
-        )
-        self.parent.header_mode_label.pack(side="right", padx=20)
 
     def _populate_dashboard_tab(self, parent):
         """Create dashboard interface."""
@@ -145,7 +131,7 @@ class LayoutManager:
         control_frame.grid_columnconfigure(0, weight=1)
 
         # Title
-        title = ctk.CTkLabel(control_frame, text="🔍 Scanner Control", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(control_frame, text="Scanner Control", font=("Arial", 16, "bold"))
         title.pack(pady=(0, 10))
 
         # Status and buttons container
@@ -371,7 +357,7 @@ class LayoutManager:
         config_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         config_frame.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=(0, 10))
 
-        config_title = ctk.CTkLabel(config_frame, text="⚙️ Scanner Configuration", font=("Arial", 12, "bold"))
+        config_title = ctk.CTkLabel(config_frame, text="Scanner Configuration", font=("Arial", 14, "bold"))
         config_title.pack(pady=(10, 5))
 
         # Configuration inputs (scrollable to fit all controls)
@@ -386,7 +372,7 @@ class LayoutManager:
         scan_group.grid_columnconfigure(0, weight=0, minsize=130)
         scan_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(scan_group, text="📡 Scan Settings", font=("Arial", 10, "bold")).grid(
+        ctk.CTkLabel(scan_group, text="Scan Settings", font=("Arial", 14, "bold")).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
@@ -451,7 +437,7 @@ class LayoutManager:
         signal_group.grid_columnconfigure(0, weight=0, minsize=130)
         signal_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(signal_group, text="🎯 Signal Filters", font=("Arial", 10, "bold")).grid(
+        ctk.CTkLabel(signal_group, text="Signal Filters", font=("Arial", 14, "bold")).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
@@ -508,7 +494,7 @@ class LayoutManager:
         atc_group.grid_columnconfigure(0, weight=0, minsize=130)
         atc_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(atc_group, text="📊 ATC Configuration", font=("Arial", 10, "bold")).grid(
+        ctk.CTkLabel(atc_group, text="ATC Configuration", font=("Arial", 14, "bold")).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
@@ -575,7 +561,7 @@ class LayoutManager:
         xgb_group.grid_columnconfigure(0, weight=0, minsize=130)
         xgb_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(xgb_group, text="🤖 XGBoost Configuration", font=("Arial", 10, "bold")).grid(
+        ctk.CTkLabel(xgb_group, text="XGBoost Configuration", font=("Arial", 14, "bold")).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
@@ -604,7 +590,7 @@ class LayoutManager:
         settings_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         settings_frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=(0, 10))
 
-        settings_title = ctk.CTkLabel(settings_frame, text="📊 Current Settings", font=("Arial", 12, "bold"))
+        settings_title = ctk.CTkLabel(settings_frame, text="Current Settings", font=("Arial", 14, "bold"))
         settings_title.pack(pady=(10, 5))
 
         # We need a reference to update these settings
@@ -615,21 +601,21 @@ class LayoutManager:
 
         # Grouped settings structure: (group_title, [(label, default_value, key), ...])
         settings_groups = [
-            ("📅 Scan Schedule", [
+            ("Scan Schedule", [
                 ("Interval:", "5 min", "interval"),
                 ("Timeframe:", "15m", "timeframe"),
                 ("Strategy:", "stratified", "strategy"),
                 ("Sample:", "20%", "sample"),
             ]),
-            ("🔍 Signal Filters", [
+            ("Signal Filters", [
                 ("Min Signal Score:", "0.20", "min_signal_score"),
                 ("Min 24h Vol (M):", "5.0", "min_volume"),
             ]),
-            ("⚙️ ATC Config", [
+            ("ATC Config", [
                 ("Backend:", "LOCAL", "backend"),
                 ("ATC Threshold:", "0.00", "atc_threshold"),
             ]),
-            ("🤖 XGBoost Config", [
+            ("XGBoost Config", [
                 ("Backend:", "LOCAL", "xgboost_backend"),
                 ("XGBoost:", "Enabled", "enable_xgboost"),
             ]),
@@ -640,7 +626,7 @@ class LayoutManager:
             group_header = ctk.CTkLabel(
                 settings_list,
                 text=group_title,
-                font=("Arial", 9, "bold"),
+                font=("Arial", 12, "bold"),
                 text_color="#888888",
                 anchor="w",
             )
@@ -675,7 +661,7 @@ class LayoutManager:
         inner = ctk.CTkFrame(system_logs_frame, fg_color="transparent")
         inner.pack(fill="both", expand=True, padx=10, pady=10)
 
-        system_title = ctk.CTkLabel(inner, text="System Logs", font=("Arial", 12, "bold"))
+        system_title = ctk.CTkLabel(inner, text="System Logs", font=("Arial", 14, "bold"))
         system_title.pack(pady=(0, 8))
 
         info = ctk.CTkLabel(
@@ -717,7 +703,7 @@ class LayoutManager:
         live_logs_frame.grid_columnconfigure(0, weight=1)
         live_logs_frame.grid_rowconfigure(1, weight=1)
 
-        logs_label = ctk.CTkLabel(live_logs_frame, text="📡 Live Stream Logs", font=("Arial", 12, "bold"))
+        logs_label = ctk.CTkLabel(live_logs_frame, text="Live Stream Logs", font=("Arial", 14, "bold"))
         logs_label.grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
 
         self.parent.logs_textbox = ctk.CTkTextbox(live_logs_frame, font=("Consolas", 9), wrap="word")

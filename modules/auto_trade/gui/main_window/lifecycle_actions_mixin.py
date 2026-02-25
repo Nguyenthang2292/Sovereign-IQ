@@ -104,7 +104,12 @@ class LifecycleActionsMixin:
         except Exception:
             pass
 
-        # 3. Destroy the window NOW so the user sees the GUI close instantly.
+        # 3. Restore original stdout before destroying the window.
+        import sys
+        if hasattr(self, "_original_stdout"):
+            sys.stdout = self._original_stdout
+
+        # 4. Destroy the window NOW so the user sees the GUI close instantly.
         #    The actual slow cleanup (WebSocket teardown, REST calls) happens
         #    in a daemon thread that will be killed when the process exits.
         self.destroy()

@@ -86,7 +86,13 @@ class UpdaterManager:
             while not self.parent.log_queue.empty():
                 try:
                     log_record = self.parent.log_queue.get_nowait()
-                    log_msg = f"[{log_record.levelname}] {log_record.getMessage()}"
+                    if isinstance(log_record, dict):
+                        level = log_record.get("level", "INFO")
+                        msg = log_record.get("message", "")
+                        log_msg = f"[{level}] {msg}"
+                    else:
+                        # Fallback for raw LogRecord objects
+                        log_msg = f"[{getattr(log_record, 'levelname', 'INFO')}] {getattr(log_record, 'getMessage', lambda: str(log_record))()}"
                     if hasattr(self.parent, "logs_viewer"):
                         self.parent.logs_viewer.append_log(log_msg)
                     elif hasattr(self.parent, "logs_textbox"):

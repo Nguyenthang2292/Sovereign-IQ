@@ -66,6 +66,17 @@ class AutoTradeDashboard(
         self._update_queue: queue.Queue = queue.Queue()
         self.log_queue: queue.Queue = queue.Queue(maxsize=500)
 
+        # ── Redirect stdout → log_queue so Live Stream Logs textbox works ──
+        # All project logging uses print() via modules.common.ui.logging,
+        # so intercepting sys.stdout is sufficient to feed the GUI textbox.
+        # NOTE: do NOT redirect sys.stderr — Python's C-level exception handler
+        #       writes raw bytes to stderr and our text-mode proxy causes
+        #       "lost sys.stderr" / TypeError in edge cases.
+        from modules.auto_trade.gui.utils.stdout_redirector import StdoutRedirector
+
+        self._original_stdout = sys.stdout
+        sys.stdout = StdoutRedirector(self.log_queue, original_stdout=self._original_stdout)
+
         self.log_file_path = Path("logs/auto_trade_gui.log").absolute()
         self.log_file_path.parent.mkdir(parents=True, exist_ok=True)
         self._setup_file_logging()
@@ -119,6 +130,14 @@ class AutoTradeDashboard(
         log_info("GUI layout created successfully")
         log_info("LogsViewer should now be active and reading from log file")
 
+        self._setup_keyboard_shortcuts()
+
+        # ── Status bar — must be created BEFORE setup_updaters() so that
+        # _update_timestamp() can find self.status_bar on first updater tick. ──
+        self.status_bar = StatusBar(self, mode=self.mode)
+        self.grid_rowconfigure(3, weight=0)
+        self.status_bar.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 10))
+
         self.updater_manager.setup_updaters()
         self.websocket_handler.register_callbacks()
         self.settings_handler.apply_settings()
@@ -126,12 +145,6 @@ class AutoTradeDashboard(
         if self.mode != TradingMode.DRY_RUN:
             self.ws_data_service.start()
             log_info(f"WebSocket service started (mode={self.mode})")
-
-        self._setup_keyboard_shortcuts()
-
-        self.status_bar = StatusBar(self, mode=self.mode)
-        self.grid_rowconfigure(3, weight=0)
-        self.status_bar.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 10))
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 

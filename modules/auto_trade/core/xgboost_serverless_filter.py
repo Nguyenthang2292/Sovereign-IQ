@@ -32,6 +32,7 @@ Flow:
 from __future__ import annotations
 
 import json
+import os
 import random
 import time
 from datetime import datetime
@@ -54,7 +55,8 @@ from modules.common.ui.logging import (
 # ── Default constants ────────────────────────────────────────────────────────
 
 DEFAULT_FUNCTION_NAME = "xgboost-serverless-predict"
-DEFAULT_REGION = "us-east-1"
+# Read region from .env (loaded by run_auto_trade_gui.py before any imports)
+DEFAULT_REGION = os.environ.get("AWS_REGION", os.environ.get("AWS_DEFAULT_REGION", "ap-southeast-1"))
 DEFAULT_MODEL_VERSION = "v1"
 DEFAULT_TIMEFRAME = "15m"
 DEFAULT_CANDLE_LIMIT = 200
@@ -121,7 +123,24 @@ class XGBoostLambdaClient:
 
         self.function_name = function_name
         self.region = region
-        self._lambda = boto3.client("lambda", region_name=region)
+
+        # Explicitly pass credentials from env so boto3 does not fall back to
+        # ~/.aws/credentials or instance metadata — mirrors binance_lambda_demo.py.
+        aws_key = os.environ.get("AWS_ACCESS_KEY_ID")
+        aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY")
+
+        if not aws_key or not aws_secret:
+            raise RuntimeError(
+                "AWS credentials not found in environment. "
+                "Ensure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are set in .env"
+            )
+
+        self._lambda = boto3.client(
+            "lambda",
+            region_name=region,
+            aws_access_key_id=aws_key,
+            aws_secret_access_key=aws_secret,
+        )
         log_info(f"XGBoostLambdaClient: function='{function_name}', region={region}")
 
     def predict(self, requests: List[Dict[str, Any]]) -> Dict[str, Any]:

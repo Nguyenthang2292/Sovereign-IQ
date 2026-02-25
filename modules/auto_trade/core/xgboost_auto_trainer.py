@@ -57,12 +57,41 @@ _SKIP_TTL = 3600  # 1 hour
 # No point retrying frequently — fix requires IAM policy change on AWS side
 _INFRA_ERROR_TTL = 1800  # 30 minutes
 
+# Model age TTL: retrain if model in S3 is older than this threshold.
+# Configurable via XGBOOST_MODEL_AGE_DAYS env var (default: 7 days).
+# Set to 0 to disable periodic retraining.
+_MODEL_AGE_DAYS: float = float(os.environ.get("XGBOOST_MODEL_AGE_DAYS", "7"))
+_MODEL_AGE_TTL: float = _MODEL_AGE_DAYS * 86_400  # convert to seconds
+
 # Temp directory for saving models before upload
 _TMP_DIR = Path("/tmp")
 
 # Lambda trainer config
 _TRAINER_FUNCTION_NAME = os.environ.get("XGBOOST_TRAINER_FUNCTION_NAME", "xgboost-trainer")
-_TRAINER_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+# Prefer AWS_REGION (set in .env); fall back to AWS_DEFAULT_REGION then literal fallback
+_TRAINER_REGION = os.environ.get("AWS_REGION", os.environ.get("AWS_DEFAULT_REGION", "ap-southeast-1"))
+
+
+def _boto3_lambda(region: str = _TRAINER_REGION):
+    """Create a boto3 Lambda client with explicit env credentials."""
+    import boto3
+    return boto3.client(
+        "lambda",
+        region_name=region,
+        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+    )
+
+
+def _boto3_s3(region: str = _TRAINER_REGION):
+    """Create a boto3 S3 client with explicit env credentials."""
+    import boto3
+    return boto3.client(
+        "s3",
+        region_name=region,
+        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+    )
 
 
 # ── State ─────────────────────────────────────────────────────────────────────
@@ -117,7 +146,13 @@ def _normalize(symbol: str) -> str:
 
 
 def _model_exists_in_s3(symbol: str, timeframe: str, version: str, bucket: str) -> bool:
-    """Check if model exists in S3 (caches 'not found' result for 5 minutes)."""
+    """Check if a fresh model exists in S3.
+
+    Returns False when:
+      - the model key is absent (404)
+      - the model is older than _MODEL_AGE_TTL (triggers background retrain)
+    Caches negative results for _S3_CHECK_TTL seconds.
+    """
     cache_key = f"{_normalize(symbol)}_{timeframe}_{version}"
 
     with _LOCK:
@@ -126,13 +161,36 @@ def _model_exists_in_s3(symbol: str, timeframe: str, version: str, bucket: str) 
             return False
 
     try:
-        import boto3
         import botocore.exceptions  # type: ignore[import-untyped]
 
-        s3 = boto3.client("s3", region_name=_TRAINER_REGION)
+        s3 = _boto3_s3()
         s3_key = f"{_normalize(symbol)}_{timeframe}_{version}.json"
-        s3.head_object(Bucket=bucket, Key=s3_key)
+        head = s3.head_object(Bucket=bucket, Key=s3_key)
+
+        # ── Model Age Check ───────────────────────────────────────────────────
+        if _MODEL_AGE_TTL > 0:
+            trained_at_str = head.get("Metadata", {}).get("trained_at", "")
+            if trained_at_str:
+                try:
+                    trained_at_ts = float(trained_at_str)
+                    age_seconds = time.time() - trained_at_ts
+                    if age_seconds > _MODEL_AGE_TTL:
+                        age_days = age_seconds / 86_400
+                        log_warn(
+                            "XGBoostAutoTrainer: [%s] model is %.1f days old (limit=%.1f days) — "
+                            "will schedule background retrain",
+                            symbol, age_days, _MODEL_AGE_DAYS,
+                        )
+                        # Clear in-memory "ready" status so request_training() re-evaluates
+                        with _LOCK:
+                            _STATUS.pop(cache_key, None)
+                            _S3_CHECK_CACHE.pop(cache_key, None)
+                        return False  # triggers retrain path in request_training()
+                except (ValueError, TypeError):
+                    pass  # malformed metadata → treat as fresh
+
         return True
+
     except botocore.exceptions.ClientError as exc:
         if exc.response["Error"]["Code"] == "404":
             with _LOCK:
@@ -259,9 +317,7 @@ def _train_and_upload(
         log_info("XGBoostAutoTrainer: [%s] saved model to %s", symbol, local_path)
 
         # ── 7. Upload to S3 ───────────────────────────────────────────────────
-        import boto3  # type: ignore[import-untyped]
-
-        s3 = boto3.client("s3")
+        s3 = _boto3_s3()
         s3_key = model_filename  # bare key — matches Lambda model_s3_key lookup
         s3.upload_file(
             str(local_path),
@@ -310,9 +366,7 @@ def _invoke_lambda_trainer(
     }
 
     try:
-        import boto3  # type: ignore[import-untyped]
-
-        lambda_client = boto3.client("lambda", region_name=_TRAINER_REGION)
+        lambda_client = _boto3_lambda()
         lambda_client.invoke(
             FunctionName=_TRAINER_FUNCTION_NAME,
             InvocationType="Event",
@@ -377,13 +431,16 @@ def request_training(
         )
         return "infra_error"
 
-    # Check S3 before starting new training
+    # Check S3 before starting new training.
+    # If model is absent OR stale (older than _MODEL_AGE_TTL), _model_exists_in_s3 returns False.
     if _model_exists_in_s3(symbol, timeframe, model_version, s3_bucket):
-        log_info("XGBoostAutoTrainer: [%s] model found in S3, skipping training", symbol)
+        log_info("XGBoostAutoTrainer: [%s] model found in S3 (fresh), skipping training", symbol)
         _set_status(cache_key, "ready")
         return "ready"
 
-    # "failed" (expired) or None → start new training
+    # Determine log message: new model vs stale refresh
+    stale_msg = f" (model older than {_MODEL_AGE_DAYS:.0f} days — refreshing)" if _MODEL_AGE_TTL > 0 else ""
+    log_info("XGBoostAutoTrainer: [%s] scheduling background training%s", symbol, stale_msg)
     sym_lock = _symbol_lock(cache_key)
     if not sym_lock.acquire(blocking=False):
         # Another thread just grabbed the lock → already starting
@@ -453,9 +510,7 @@ def train_model_sync(
         }
 
         try:
-            import boto3
-
-            lambda_client = boto3.client("lambda", region_name=_TRAINER_REGION)
+            lambda_client = _boto3_lambda()
             response = lambda_client.invoke(
                 FunctionName=_TRAINER_FUNCTION_NAME,
                 InvocationType="RequestResponse",

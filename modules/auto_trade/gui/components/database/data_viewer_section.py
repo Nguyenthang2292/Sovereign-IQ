@@ -1,6 +1,5 @@
 """Data Viewer Section Component for Database Panel."""
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Any, Callable, List, Optional
 
 import customtkinter as ctk
@@ -8,7 +7,6 @@ import customtkinter as ctk
 from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 from modules.auto_trade.gui.services.database_service import DataViewerService
-
 
 
 class DataViewerSection:
@@ -40,9 +38,7 @@ class DataViewerSection:
         ctk.CTkLabel(header_frame, text="📂 Data Viewer", font=DatabasePanelConfig.TITLE_FONT).pack(side="left")
 
         self.table_selector = ctk.CTkOptionMenu(
-            header_frame,
-            values=list(DatabasePanelConfig.AVAILABLE_TABLES),
-            command=self._on_table_changed
+            header_frame, values=list(DatabasePanelConfig.AVAILABLE_TABLES), command=self._on_table_changed
         )
         self.table_selector.set(self.current_table)  # Set initial value to match current_table
         self.table_selector.pack(side="right")
@@ -51,15 +47,15 @@ class DataViewerSection:
         self.content_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
         self.data_viewer = ctk.CTkTextbox(
-            self.content_frame, 
-            height=DatabasePanelConfig.DATA_VIEWER_HEIGHT, 
+            self.content_frame,
+            height=DatabasePanelConfig.DATA_VIEWER_HEIGHT,
             font=DatabasePanelConfig.TEXTBOX_FONT,
             wrap="none",  # Disable word wrap for table display
-            state="normal"  # Ensure textbox is editable/writable
+            state="normal",  # Ensure textbox is editable/writable
         )
         self.data_viewer.pack(fill="both", expand=True)
         print(f"[DataViewer] Textbox created with font={DatabasePanelConfig.TEXTBOX_FONT}")
-        
+
         # Test textbox is working
         try:
             test_msg = "📂 Data Viewer initialized. Loading data...\n"
@@ -76,15 +72,15 @@ class DataViewerSection:
 
         self.page_label = ctk.CTkLabel(pagination_frame, text=f"Page {self.current_page}/{self.total_pages}")
         self.page_label.pack(side="left", padx=10)
-        
+
         # Force Reload button for debugging
         self.reload_btn = ctk.CTkButton(
-            pagination_frame, 
-            text="🔄 Force Reload", 
-            width=120, 
+            pagination_frame,
+            text="🔄 Force Reload",
+            width=120,
             command=self._force_reload,
             fg_color="#2B6CB0",
-            hover_color="#3182CE"
+            hover_color="#3182CE",
         )
         self.reload_btn.pack(side="left", padx=5)
 
@@ -110,32 +106,34 @@ class DataViewerSection:
         if self.current_page < self.total_pages:
             self.current_page += 1
             self.refresh()
-    
+
     def _force_reload(self):
         """Force reload with detailed diagnostics."""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("[DataViewer] FORCE RELOAD TRIGGERED")
-        print("="*80)
-        
+        print("=" * 80)
+
         # Check textbox state
         print(f"[DataViewer] Textbox widget: {self.data_viewer}")
         print(f"[DataViewer] Textbox is mapped: {self.data_viewer.winfo_ismapped()}")
         print(f"[DataViewer] Textbox is visible: {self.data_viewer.winfo_viewable()}")
-        print(f"[DataViewer] Textbox width x height: {self.data_viewer.winfo_width()} x {self.data_viewer.winfo_height()}")
-        
+        print(
+            f"[DataViewer] Textbox width x height: {self.data_viewer.winfo_width()} x {self.data_viewer.winfo_height()}"
+        )
+
         # Check current content
         current_content = self.data_viewer.get("1.0", "end")
         print(f"[DataViewer] Current textbox content length: {len(current_content)} chars")
         print(f"[DataViewer] First 200 chars: {current_content[:200]}")
-        
+
         # Test insert
-        print(f"[DataViewer] Testing textbox insert...")
+        print("[DataViewer] Testing textbox insert...")
         try:
             test_text = "=== FORCE RELOAD TEST ===\nThis is a test message.\n"
             self.data_viewer.delete("1.0", "end")
             self.data_viewer.insert("1.0", test_text)
-            print(f"[DataViewer] Test insert successful")
-            
+            print("[DataViewer] Test insert successful")
+
             # Verify insert
             verify_content = self.data_viewer.get("1.0", "end")
             print(f"[DataViewer] Verify content length: {len(verify_content)} chars")
@@ -143,12 +141,13 @@ class DataViewerSection:
         except Exception as test_err:
             print(f"[DataViewer] ERROR in test insert: {test_err}")
             import traceback
+
             traceback.print_exc()
-        
+
         # Now try real refresh
-        print(f"[DataViewer] Calling refresh()...")
+        print("[DataViewer] Calling refresh()...")
         self.refresh()
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
     def refresh(self):
         """Refresh the data viewer with current page data (cursor-based pagination)."""
@@ -210,7 +209,9 @@ class DataViewerSection:
                     # Get columns from first item if it's a dict, or attributes if object
                     first = data[0]
                     print(f"[DataViewer] First item type: {type(first)}")
-                    print(f"[DataViewer] First item: {first}")
+                    print(
+                        f"[DataViewer] First item keys: {list(first.keys()) if isinstance(first, dict) else dir(first)}"
+                    )
 
                     if hasattr(first, "to_dict"):
                         first_dict = first.to_dict()
@@ -225,14 +226,77 @@ class DataViewerSection:
                         first_dict = {"value": str(first)}
                         print("[DataViewer] Converting to string dict")
 
-                    columns = list(first_dict.keys())
-                    print(f"[DataViewer] Columns found: {columns}")
-                    # Limit columns for display
-                    display_cols = columns[:5]  # Show first 5 columns to fit
+                    # Internal DynamoDB keys to exclude from display
+                    _DYNAMO_INTERNAL_KEYS = {
+                        "pk",
+                        "sk",
+                        "gsi1pk",
+                        "gsi1sk",
+                        "gsi2pk",
+                        "gsi2sk",
+                        "gsi3pk",
+                        "gsi3sk",
+                        "entity_type",
+                    }
+
+                    # Preferred display columns per table (shown first, in this order)
+                    _PREFERRED_COLUMNS = {
+                        "Orders": [
+                            "order_id",
+                            "symbol",
+                            "side",
+                            "status",
+                            "entry_price",
+                            "amount",
+                            "pnl",
+                            "created_at",
+                            "take_profit",
+                            "stop_loss",
+                            "closed_at",
+                            "order_source",
+                        ],
+                        "Signals": [
+                            "correlation_id",
+                            "symbol",
+                            "direction",
+                            "confidence",
+                            "executed",
+                            "created_at",
+                            "outcome",
+                            "outcome_pnl",
+                        ],
+                        "Martingale Chains": [
+                            "chain_id",
+                            "symbol",
+                            "status",
+                            "step",
+                            "total_invested",
+                            "created_at",
+                        ],
+                        "Audit Log": [
+                            "event_type",
+                            "order_id",
+                            "symbol",
+                            "description",
+                            "created_at",
+                        ],
+                    }
+
+                    preferred = _PREFERRED_COLUMNS.get(table_name, [])
+                    all_cols = list(first_dict.keys())
+
+                    # Build display_cols: preferred first (only those actually present in data),
+                    # then remaining non-internal columns
+                    display_cols = [c for c in preferred if c in first_dict]
+                    remaining = [c for c in all_cols if c not in _DYNAMO_INTERNAL_KEYS and c not in display_cols]
+                    display_cols += remaining
+                    display_cols = display_cols[:8]  # cap at 8 columns to fit the textbox
+
                     print(f"[DataViewer] Display columns: {display_cols}")
 
-                    # Header
-                    header = " | ".join([f"{col:<15}" for col in display_cols])
+                    # Header row
+                    col_width = 18
+                    header = " | ".join([f"{col:<{col_width}}" for col in display_cols])
                     output += header + "\n"
                     output += "-" * len(header) + "\n"
 
@@ -247,7 +311,9 @@ class DataViewerSection:
                             else:
                                 item_dict = {"value": str(item)}
 
-                            row = " | ".join([f"{str(item_dict.get(col, ''))[:15]:<15}" for col in display_cols])
+                            row = " | ".join(
+                                [f"{str(item_dict.get(col, ''))[:col_width]:<{col_width}}" for col in display_cols]
+                            )
                             output += row + "\n"
                         except Exception as row_err:
                             print(f"[DataViewer] Error formatting row {idx}: {row_err}")
@@ -257,6 +323,7 @@ class DataViewerSection:
                 except Exception as format_err:
                     print(f"[DataViewer] Error formatting data: {format_err}")
                     import traceback
+
                     traceback.print_exc()
                     output += f"\n[Error formatting data: {format_err}]\n"
 
@@ -269,9 +336,10 @@ class DataViewerSection:
             error_msg = f"Failed to refresh data viewer: {e}"
             print(f"[DataViewer] ERROR: {error_msg}")
             import traceback
+
             traceback.print_exc()
             self.log_callback(error_msg, "ERROR")
-            
+
             # Try to show error in textbox
             try:
                 error_display = f"\n❌ ERROR LOADING DATA ❌\n\n{error_msg}\n\nCheck terminal for full traceback.\n"

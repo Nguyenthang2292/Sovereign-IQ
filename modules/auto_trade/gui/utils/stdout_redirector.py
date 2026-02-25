@@ -2,6 +2,7 @@
 Stdout Redirector for GUI Logging
 
 Captures stdout (print statements) and redirects to GUI log queue.
+Keeps writing to the original console simultaneously (tee behaviour).
 """
 
 import queue
@@ -11,84 +12,120 @@ from io import StringIO
 from typing import Any, Dict, List, Union
 
 
+class _BinaryBufferProxy:
+    """Binary-compatible proxy for sys.stdout.buffer / sys.stderr.buffer.
+
+    Some libraries (colorama, tqdm, etc.) call sys.stdout.buffer.write(bytes)
+    directly.  This proxy delegates those byte-writes to the parent redirector
+    so they appear in the GUI log as decoded text.
+    """
+
+    def __init__(self, redirector: "StdoutRedirector") -> None:
+        self._redirector = redirector
+
+    def write(self, data: bytes) -> int:
+        if isinstance(data, (bytes, bytearray)):
+            text = data.decode(self._redirector.encoding, errors=self._redirector.errors)
+        else:
+            text = str(data)
+        self._redirector.write(text)
+        return len(data)
+
+    def flush(self) -> None:
+        self._redirector.flush()
+
+    def fileno(self) -> int:
+        return self._redirector.fileno()
+
+    @property
+    def closed(self) -> bool:
+        return self._redirector.closed
+
+
 class StdoutRedirector:
-    """Redirects stdout to both console and GUI log queue."""
+    """Redirects stdout to both console and GUI log queue (tee).
+
+    Usage::
+        original = sys.stdout
+        sys.stdout = StdoutRedirector(log_queue, original_stdout=original)
+    """
 
     def __init__(self, log_queue: queue.Queue, original_stdout: Any = None) -> None:
-        """
-        Initialize stdout redirector.
-
-        Args:
-            log_queue: Queue to send log messages to
-            original_stdout: Original stdout to also write to (for console output)
-        """
         self.log_queue: queue.Queue = log_queue
         self.original_stdout: Any = original_stdout or sys.stdout
-        self.buffer: StringIO = StringIO()
 
-        # Store encoding and other attributes from original stdout
-        self.encoding: str = getattr(self.original_stdout, 'encoding', 'utf-8')
-        self.errors: str = getattr(self.original_stdout, 'errors', 'replace')
+        # Store encoding/errors from original stream
+        self.encoding: str = getattr(self.original_stdout, "encoding", "utf-8") or "utf-8"
+        self.errors: str = getattr(self.original_stdout, "errors", "replace") or "replace"
+
+        # Internal line buffer (text-mode)
+        self._line_buf: StringIO = StringIO()
+
+        # Binary buffer proxy — satisfies sys.stdout.buffer accesses
+        self.buffer: _BinaryBufferProxy = _BinaryBufferProxy(self)
+
+    # ── Text-mode interface ───────────────────────────────────────────────────
 
     def write(self, message: Union[str, bytes]) -> None:
         """Write message to both original stdout and log queue."""
-        # Handle both string and bytes
-        if isinstance(message, bytes):
+        # Decode bytes if necessary
+        if isinstance(message, (bytes, bytearray)):
             try:
                 message = message.decode(self.encoding, errors=self.errors)
             except Exception:
-                message = str(message)
+                message = repr(message)
 
-        # Ensure message is string
         if not isinstance(message, str):
             message = str(message)
 
-        # Write to original stdout (console) - with error handling
+        # Mirror to original console (best-effort)
         try:
             self.original_stdout.write(message)
             self.original_stdout.flush()
         except Exception:
-            # If console output fails, continue with GUI logging
             pass
 
-        # Add to buffer
-        self.buffer.write(message)
-
-        # If we have a complete line, send to log queue
+        # Buffer until newline, then flush entire line(s) to the queue
+        self._line_buf.write(message)
         if "\n" in message:
-            self._flush_buffer()
+            self._flush_line_buf()
 
-    def _flush_buffer(self) -> None:
-        """Flush buffered content to log queue."""
-        content: str = self.buffer.getvalue()
-        if content.strip():  # Only send non-empty messages
-            # Split into lines
-            lines: List[str] = content.split("\n")
-            for line in lines:
-                line = line.strip()
-                if line:  # Skip empty lines
-                    self._send_to_queue(line)
+    def _flush_line_buf(self) -> None:
+        """Send complete lines from the internal buffer to the log queue."""
+        content: str = self._line_buf.getvalue()
+        self._line_buf = StringIO()
 
-        # Clear buffer
-        self.buffer = StringIO()
+        if not content.strip():
+            return
 
-    def _send_to_queue(self, message: str) -> None:
-        """Send message to log queue."""
-        # Determine log level based on message content
-        level: str
-        if "❌" in message or "ERROR" in message.upper() or "Error" in message:
+        for raw_line in content.split("\n"):
+            line = raw_line.strip()
+            if line:
+                self._enqueue(line)
+
+    def _enqueue(self, message: str) -> None:
+        """Put a log dict into the queue (non-blocking, drop-oldest on full)."""
+        # Infer level from message content
+        msg_upper = message.upper()
+        if "ERROR" in msg_upper or "❌" in message:
             level = "ERROR"
-        elif "⚠️" in message or "WARNING" in message.upper() or "WARN" in message.upper():
+        elif "WARN" in msg_upper or "⚠" in message:
             level = "WARNING"
+        elif "DEBUG" in msg_upper:
+            level = "DEBUG"
         else:
             level = "INFO"
 
-        log_dict: Dict[str, Any] = {"level": level, "message": message, "timestamp": datetime.now(), "logger": "stdout"}
+        log_dict: Dict[str, Any] = {
+            "level": level,
+            "message": message,
+            "timestamp": datetime.now(),
+            "logger": "stdout",
+        }
 
         try:
             self.log_queue.put_nowait(log_dict)
         except queue.Full:
-            # If queue is full, drop oldest and try again
             try:
                 self.log_queue.get_nowait()
                 self.log_queue.put_nowait(log_dict)
@@ -96,22 +133,22 @@ class StdoutRedirector:
                 pass
 
     def flush(self) -> None:
-        """Flush any remaining buffer."""
-        self._flush_buffer()
+        """Flush remaining buffer."""
+        self._flush_line_buf()
         try:
             self.original_stdout.flush()
         except Exception:
             pass
 
+    # ── Standard stream interface ─────────────────────────────────────────────
+
     def isatty(self) -> bool:
-        """Return whether this is a tty."""
         try:
             return bool(self.original_stdout.isatty())
         except Exception:
             return False
 
     def fileno(self) -> int:
-        """Return file descriptor number."""
         try:
             return int(self.original_stdout.fileno())
         except Exception:
@@ -119,7 +156,6 @@ class StdoutRedirector:
 
     @property
     def closed(self) -> bool:
-        """Check if stream is closed."""
         try:
             return bool(self.original_stdout.closed)
         except Exception:

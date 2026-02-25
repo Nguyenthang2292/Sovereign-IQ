@@ -44,7 +44,7 @@ class StatusBar(ctk.CTkFrame):
         self.mode_label = ctk.CTkLabel(
             self,
             text=f"Mode: {mode_display}",
-            font=("Arial", 10, "bold"),
+            font=("Arial", 14, "bold"),
             text_color=mode_color,
         )
         self.mode_label.grid(row=0, column=1, pady=5)

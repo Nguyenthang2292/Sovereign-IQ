@@ -26,7 +26,7 @@ class UIUpdatesMixin:
             self.stats_frame.mode_indicator = ModeIndicator(self.stats_frame, self.mode)
             self.stats_frame.mode_indicator.pack(pady=(0, 10))
 
-        if hasattr(self, "header_mode_label"):
+        if hasattr(self, "header_mode_label") and self.header_mode_label is not None:
             self.header_mode_label.configure(text=f"[{mode_text}]", text_color=mode_color)
 
     def _update_timestamp(self):
@@ -35,7 +35,19 @@ class UIUpdatesMixin:
 
         timestamp = datetime.now()
         time_str = timestamp.strftime("%H:%M:%S")
-        self.after(0, lambda: self.last_update_label.configure(text=f"Last update: {time_str}"))
+
+        def _do_update():
+            # self.last_update_label is declared as None in __init__ and may never
+            # be assigned if the layout doesn't create a standalone label.
+            # The actual widget lives inside StatusBar, so check both locations.
+            lbl = self.last_update_label
+            if lbl is None and hasattr(self, "status_bar"):
+                lbl = getattr(self.status_bar, "last_update_label", None)
+            if lbl is not None:
+                lbl.configure(text=f"Last update: {time_str}")
+
+        self.after(0, _do_update)
+
         if hasattr(self, "status_bar"):
             self.after(0, lambda: self.status_bar.set_last_update(timestamp))
 

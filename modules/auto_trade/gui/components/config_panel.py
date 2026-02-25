@@ -10,23 +10,17 @@ from modules.auto_trade.gui.components.config_panel_parts.credentials import (
     test_connection,
 )
 from modules.auto_trade.gui.components.config_panel_parts.event_handlers import (
-    on_font_size_change,
     on_limit_steps_toggle,
     on_mode_change,
     on_negative_be_toggle,
-    on_theme_change,
 )
 from modules.auto_trade.gui.components.config_panel_parts.settings_io import (
-    export_settings,
     get_settings,
-    import_settings,
     load_settings,
-    reset_settings,
 )
 from modules.auto_trade.gui.components.config_panel_parts.tab_builders import (
     create_api_keys_tab,
     create_risk_settings_tab,
-    create_ui_preferences_tab,
 )
 
 
@@ -56,7 +50,6 @@ class ConfigPanel(ctk.CTkFrame):
 
         self._create_risk_settings_tab()
         self._create_api_keys_tab()
-        self._create_ui_preferences_tab()
         self._suppress_mode_notify = False
 
     def _create_risk_settings_tab(self):
@@ -65,23 +58,7 @@ class ConfigPanel(ctk.CTkFrame):
     def _create_api_keys_tab(self):
         create_api_keys_tab(self)
 
-    def _create_ui_preferences_tab(self):
-        create_ui_preferences_tab(self)
 
-    def _on_theme_change(self, choice):
-        on_theme_change(self, choice)
-
-    def _on_font_size_change(self, value):
-        on_font_size_change(self, value)
-
-    def _export_settings(self):
-        export_settings(self)
-
-    def _import_settings(self):
-        import_settings(self)
-
-    def _reset_settings(self):
-        reset_settings(self)
 
     def _test_connection(self):
         test_connection(self)

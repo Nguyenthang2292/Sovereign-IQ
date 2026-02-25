@@ -1,30 +1,3 @@
-import customtkinter as ctk
-
-
-def on_theme_change(panel, choice):
-    """Handle theme change."""
-    try:
-        print(f"Theme changed to: {choice}")
-        if choice == "Light":
-            ctk.set_appearance_mode("light")
-        else:
-            ctk.set_appearance_mode("dark")
-
-        if panel.on_settings_change:
-            panel.on_settings_change("theme", choice)
-    except Exception as e:
-        print(f"Error changing theme: {e}")
-
-
-def on_font_size_change(panel, value):
-    """Handle font size change."""
-    try:
-        panel.font_size_label.configure(text=f"Current: {int(value)}pt")
-        if panel.on_settings_change:
-            panel.on_settings_change("font_size", int(value))
-    except Exception as e:
-        print(f"Error changing font size: {e}")
-
 
 def on_limit_steps_toggle(panel):
     """Show/hide max steps field based on checkbox."""
