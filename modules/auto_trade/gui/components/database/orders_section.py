@@ -1,6 +1,5 @@
 """Orders Section Component for Database Panel."""
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import uuid
 from datetime import datetime
 from typing import Callable
@@ -9,7 +8,7 @@ import customtkinter as ctk
 
 from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
-
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 
 
 class OrdersSection:
@@ -26,7 +25,13 @@ class OrdersSection:
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="x", padx=5, pady=5)
 
-        ctk.CTkLabel(frame, text="📋 Orders Testing", font=DatabasePanelConfig.TITLE_FONT).pack(
+        ctk.CTkLabel(
+            frame,
+            text="  Orders Testing",
+            font=DatabasePanelConfig.TITLE_FONT,
+            image=get_icon("clipboard_list", size=(20, 20)),
+            compound="left",
+        ).pack(
             anchor="w",
             padx=DatabasePanelConfig.PADX_MEDIUM,
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
@@ -49,15 +54,29 @@ class OrdersSection:
         btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
         btn_frame.pack(fill="x", padx=10, pady=5)
 
-        ctk.CTkButton(btn_frame, text="📊 Query Open Positions", command=self._query_open_positions).pack(
-            side="left", padx=(0, 5), fill="x", expand=True
-        )
-        ctk.CTkButton(btn_frame, text="📈 Get Overall Stats", command=self._get_overall_stats).pack(
-            side="left", padx=5, fill="x", expand=True
-        )
-        ctk.CTkButton(btn_frame, text="📅 Get Daily Stats (30d)", command=self._get_daily_stats).pack(
-            side="left", padx=(5, 0), fill="x", expand=True
-        )
+        ctk.CTkButton(
+            btn_frame,
+            text="  Query Open Positions",
+            command=self._query_open_positions,
+            image=get_icon("database", size=(16, 16)),
+            compound="left",
+        ).pack(side="left", padx=(0, 5), fill="x", expand=True)
+
+        ctk.CTkButton(
+            btn_frame,
+            text="  Get Overall Stats",
+            command=self._get_overall_stats,
+            image=get_icon("bar_chart_2", size=(16, 16)),
+            compound="left",
+        ).pack(side="left", padx=5, fill="x", expand=True)
+
+        ctk.CTkButton(
+            btn_frame,
+            text="  Get Daily Stats (30d)",
+            command=self._get_daily_stats,
+            image=get_icon("calendar", size=(16, 16)),
+            compound="left",
+        ).pack(side="left", padx=(5, 0), fill="x", expand=True)
 
     def _create_test_order(self):
         """Create a test order via RepositoryContext."""

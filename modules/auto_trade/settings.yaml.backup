@@ -44,6 +44,10 @@ scanner:
   min_volume: 5.0
   enable_xgboost: true
   atc_threshold: 0.59
+  enable_gann_square: false
+  gann_timeframe: 1h
+  gann_candle_limit: 200
+  gann_lookback: 5
 ui:
   theme: dark
   font_size: 12

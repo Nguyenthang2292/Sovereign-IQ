@@ -1,13 +1,13 @@
 """Stats Section Component for Database Panel."""
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Dict
 
 import customtkinter as ctk
 
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 from modules.auto_trade.gui.services.database_service import DatabaseService
-
+from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.common.ui.logging import log_error
 
 
 class StatsSection:
@@ -23,7 +23,13 @@ class StatsSection:
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="x", padx=5, pady=5)
 
-        ctk.CTkLabel(frame, text="📊 Database Stats", font=DatabasePanelConfig.TITLE_FONT).pack(
+        ctk.CTkLabel(
+            frame,
+            text="  Database Stats",
+            font=DatabasePanelConfig.TITLE_FONT,
+            image=get_icon("app_window", size=(20, 20)),
+            compound="left",
+        ).pack(
             anchor="w",
             padx=DatabasePanelConfig.PADX_MEDIUM,
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),

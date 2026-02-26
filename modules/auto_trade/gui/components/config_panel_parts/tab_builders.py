@@ -1,5 +1,7 @@
 import customtkinter as ctk
 
+from modules.auto_trade.gui.utils.svg_icons import get_icon
+
 
 def create_risk_settings_tab(panel):
     """Create Risk Settings tab (Merged with TP/SL and Recovery)."""
@@ -174,9 +176,11 @@ def create_api_keys_tab(panel):
 
     panel.mode_description_label = ctk.CTkLabel(
         api_frame,
-        text="✅ Safe local simulation",
+        text="  Safe local simulation",
         font=("Arial", 10),
         text_color="gray",
+        image=get_icon("shield_check", size=(16, 16), light_color="gray", dark_color="gray"),
+        compound="left",
     )
     panel.mode_description_label.pack(anchor="w", pady=(2, 10))
 
@@ -204,11 +208,13 @@ def create_api_keys_tab(panel):
 
     change_btn = ctk.CTkButton(
         panel.credentials_masked_frame,
-        text="✏️ Change Credentials",
+        text="  Change Credentials",
         fg_color="#ffcc00",
         text_color="black",
         hover_color="#e6b800",
         command=panel._on_change_credentials,
+        image=get_icon("pencil", size=(16, 16), light_color="black", dark_color="black"),
+        compound="left",
     )
     change_btn.pack(anchor="w", pady=(20, 5))
 
@@ -238,30 +244,34 @@ def create_api_keys_tab(panel):
 
     test_btn = ctk.CTkButton(
         entry_buttons_frame,
-        text="🔗 Test Connection",
+        text="  Test Connection",
         fg_color="#00ff88",
         hover_color="#00cc66",
         command=panel._test_connection,
+        image=get_icon("link", size=(16, 16), light_color="black", dark_color="black"),
+        compound="left",
     )
     test_btn.pack(side="left", padx=(0, 10))
 
     save_btn = ctk.CTkButton(
         entry_buttons_frame,
-        text="💾 Save Credentials",
+        text="  Save Credentials",
         fg_color="#4488ff",
         hover_color="#0066ff",
         command=panel._save_credentials,
+        image=get_icon("save", size=(16, 16)),
+        compound="left",
     )
     save_btn.pack(side="left", padx=(0, 10))
 
     panel.cancel_credentials_btn = ctk.CTkButton(
         entry_buttons_frame,
-        text="✖ Cancel",
+        text="  Cancel",
         fg_color="#ff4444",
         hover_color="#cc3333",
         command=panel._on_cancel_credentials,
+        image=get_icon("x", size=(16, 16)),
+        compound="left",
     )
 
     panel._on_mode_change()
-
-

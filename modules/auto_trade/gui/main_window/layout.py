@@ -65,8 +65,6 @@ class LayoutManager:
         title_label = ctk.CTkLabel(header_frame, text="Auto Trade Dashboard", font=("Arial", 20, "bold"))
         title_label.pack(side="left", padx=20)
 
-        from modules.auto_trade.gui.utils.modes import TradingMode
-
         shortcuts_btn = ctk.CTkButton(
             header_frame,
             text="⌨ Shortcuts",
@@ -161,11 +159,19 @@ class LayoutManager:
         buttons_container = ctk.CTkFrame(status_btn_frame, fg_color="transparent")
         buttons_container.pack(fill="x")
 
+        from modules.auto_trade.gui.utils.svg_icons import get_icon
+
+        play_icon = get_icon("play", size=(18, 18), light_color="black", dark_color="black")
+        stop_icon = get_icon("square", size=(18, 18), light_color="white", dark_color="white")
+
         # Start/Stop button (full width)
         self.parent.scanner_start_button = ctk.CTkButton(
             buttons_container,
-            text="▶️ Start Scanner",
+            text=" Start Scanner",
+            image=play_icon,
+            compound="left",
             font=("Arial", 13, "bold"),
+            text_color="black",
             fg_color="#00ff88",
             hover_color="#00cc66",
             height=40,
@@ -181,12 +187,16 @@ class LayoutManager:
             # Update Scanner Button
             if sm.updater is not None:
                 self.parent.scanner_start_button.configure(
-                    text="⏹️ Stop Scanner", fg_color="#ff4444", hover_color="#cc0000"
+                    text=" Stop Scanner", image=stop_icon, text_color="white", fg_color="#ff4444", hover_color="#cc0000"
                 )
                 self.parent.scanner_status_label.configure(text="Scanner: RUNNING", text_color="#00ff88")
             else:
                 self.parent.scanner_start_button.configure(
-                    text="▶️ Start Scanner", fg_color="#00ff88", hover_color="#00cc66"
+                    text=" Start Scanner",
+                    image=play_icon,
+                    text_color="black",
+                    fg_color="#00ff88",
+                    hover_color="#00cc66",
                 )
                 self.parent.scanner_status_label.configure(text="Scanner: STOPPED", text_color="gray")
 
@@ -200,7 +210,6 @@ class LayoutManager:
                 is_running = sm.updater is not None
                 self.parent.on_scan_toggle(False if is_running else True)
                 update_scanner_buttons()
-
 
         self.parent.scanner_start_button.configure(command=_on_start_click)
 
@@ -250,6 +259,17 @@ class LayoutManager:
                     p.atc_threshold_var.set(config.get("atc_threshold", 0.6))
                     if hasattr(p, "atc_threshold_label"):
                         p.atc_threshold_label.configure(text=f"{config.get('atc_threshold', 0.6):.2f}")
+                if hasattr(p, "enable_gann_square_var"):
+                    p.enable_gann_square_var.set(config.get("enable_gann_square", False))
+                if hasattr(p, "gann_timeframe_var"):
+                    p.gann_timeframe_var.set(config.get("gann_timeframe", "1h"))
+                if hasattr(p, "gann_candle_limit_entry"):
+                    p.gann_candle_limit_entry.delete(0, "end")
+                    p.gann_candle_limit_entry.insert(0, str(config.get("gann_candle_limit", 200)))
+                if hasattr(p, "gann_lookback_entry"):
+                    p.gann_lookback_entry.delete(0, "end")
+                    p.gann_lookback_entry.insert(0, str(config.get("gann_lookback", 5)))
+
                 if hasattr(p, "settings_labels") and isinstance(p.settings_labels, dict):
                     labels = p.settings_labels
                     if "interval" in labels:
@@ -271,7 +291,19 @@ class LayoutManager:
                     if "atc_threshold" in labels:
                         labels["atc_threshold"].configure(text=f"{config.get('atc_threshold', 0.0):.2f}")
                     if "enable_xgboost" in labels:
-                        labels["enable_xgboost"].configure(text="Enabled" if config.get("enable_xgboost", True) else "Disabled")
+                        labels["enable_xgboost"].configure(
+                            text="Enabled" if config.get("enable_xgboost", True) else "Disabled"
+                        )
+                    if "enable_gann_square" in labels:
+                        labels["enable_gann_square"].configure(
+                            text="Enabled" if config.get("enable_gann_square", False) else "Disabled"
+                        )
+                    if "gann_timeframe" in labels:
+                        labels["gann_timeframe"].configure(text=config.get("gann_timeframe", "1h"))
+                    if "gann_candle_limit" in labels:
+                        labels["gann_candle_limit"].configure(text=str(config.get("gann_candle_limit", 200)))
+                    if "gann_lookback" in labels:
+                        labels["gann_lookback"].configure(text=str(config.get("gann_lookback", 5)))
 
         self.parent.scanner_control = ScannerControlAdapter(self.parent)
 
@@ -321,6 +353,23 @@ class LayoutManager:
                     config["atc_threshold"] = round(float(p.atc_threshold_var.get()), 2)
                 except (AttributeError, TypeError, ValueError):
                     pass
+                try:
+                    config["enable_gann_square"] = bool(p.enable_gann_square_var.get())
+                except (AttributeError, Exception):
+                    pass
+                try:
+                    config["gann_timeframe"] = p.gann_timeframe_var.get()
+                except (AttributeError, Exception):
+                    pass
+                try:
+                    config["gann_candle_limit"] = int(p.gann_candle_limit_entry.get())
+                except (AttributeError, ValueError, TypeError):
+                    pass
+                try:
+                    config["gann_lookback"] = int(p.gann_lookback_entry.get())
+                except (AttributeError, ValueError, TypeError):
+                    pass
+
                 if hasattr(p, "on_scanner_config_change"):
                     p.on_scanner_config_change(config)
                 # Update Current Settings panel to match
@@ -345,14 +394,25 @@ class LayoutManager:
                     if "atc_threshold" in labels:
                         labels["atc_threshold"].configure(text=f"{config.get('atc_threshold', 0.0):.2f}")
                     if "enable_xgboost" in labels:
-                        labels["enable_xgboost"].configure(text="Enabled" if config.get("enable_xgboost", True) else "Disabled")
+                        labels["enable_xgboost"].configure(
+                            text="Enabled" if config.get("enable_xgboost", True) else "Disabled"
+                        )
+                    if "enable_gann_square" in labels:
+                        labels["enable_gann_square"].configure(
+                            text="Enabled" if config.get("enable_gann_square", False) else "Disabled"
+                        )
+                    if "gann_timeframe" in labels:
+                        labels["gann_timeframe"].configure(text=config.get("gann_timeframe", "1h"))
+                    if "gann_candle_limit" in labels:
+                        labels["gann_candle_limit"].configure(text=str(config.get("gann_candle_limit", 200)))
+                    if "gann_lookback" in labels:
+                        labels["gann_lookback"].configure(text=str(config.get("gann_lookback", 5)))
             except Exception:
                 pass
 
         self._push_scanner_config = _push_scanner_config
 
         # Column 0: Scanner Configuration
-        from modules.auto_trade.gui.utils.colors import Colors
 
         config_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         config_frame.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=(0, 10))
@@ -445,7 +505,7 @@ class LayoutManager:
         ctk.CTkLabel(signal_group, text="Min Signal Score:", font=("Arial", 10), text_color="gray", anchor="w").grid(
             row=1, column=0, sticky="w", padx=(10, 5), pady=4
         )
-        
+
         slider_frame1 = ctk.CTkFrame(signal_group, fg_color="transparent")
         slider_frame1.grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=4)
         slider_frame1.grid_columnconfigure(0, weight=1)
@@ -514,7 +574,7 @@ class LayoutManager:
         ctk.CTkLabel(atc_group, text="Base threshold:", font=("Arial", 10), text_color="gray", anchor="w").grid(
             row=2, column=0, sticky="w", padx=(10, 5), pady=4
         )
-        
+
         slider_frame2 = ctk.CTkFrame(atc_group, fg_color="transparent")
         slider_frame2.grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=4)
         slider_frame2.grid_columnconfigure(0, weight=1)
@@ -586,6 +646,55 @@ class LayoutManager:
             command=lambda _: self._push_scanner_config(),
         ).grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=(4, 8))
 
+        # ═══════════════════════════════════════════════
+        # GROUP 5: Gann Square Configuration
+        # ═══════════════════════════════════════════════
+        gann_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        gann_group.pack(fill="x", pady=(0, 8))
+        gann_group.grid_columnconfigure(0, weight=0, minsize=130)
+        gann_group.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(gann_group, text="Gann Square Configuration", font=("Arial", 14, "bold")).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
+        )
+
+        self.parent.enable_gann_square_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(
+            gann_group,
+            text="Enable Gann Filter",
+            variable=self.parent.enable_gann_square_var,
+            command=self._push_scanner_config,
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
+
+        ctk.CTkLabel(gann_group, text="Timeframe:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=2, column=0, sticky="w", padx=(10, 5), pady=4
+        )
+        self.parent.gann_timeframe_var = ctk.StringVar(value="1h")
+        ctk.CTkComboBox(
+            gann_group,
+            values=["1h", "2h", "4h", "6h", "8h", "12h", "1d"],
+            variable=self.parent.gann_timeframe_var,
+            command=lambda _: self._push_scanner_config(),
+        ).grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=4)
+
+        ctk.CTkLabel(gann_group, text="Candles Limit:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=3, column=0, sticky="w", padx=(10, 5), pady=4
+        )
+        self.parent.gann_candle_limit_entry = ctk.CTkEntry(gann_group, placeholder_text="200")
+        self.parent.gann_candle_limit_entry.grid(row=3, column=1, sticky="ew", padx=(0, 10), pady=4)
+        self.parent.gann_candle_limit_entry.insert(0, "200")
+        self.parent.gann_candle_limit_entry.bind("<FocusOut>", lambda e: self._push_scanner_config())
+        self.parent.gann_candle_limit_entry.bind("<Return>", lambda e: self._push_scanner_config())
+
+        ctk.CTkLabel(gann_group, text="Lookback:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=4, column=0, sticky="w", padx=(10, 5), pady=(4, 8)
+        )
+        self.parent.gann_lookback_entry = ctk.CTkEntry(gann_group, placeholder_text="5")
+        self.parent.gann_lookback_entry.grid(row=4, column=1, sticky="ew", padx=(0, 10), pady=(4, 8))
+        self.parent.gann_lookback_entry.insert(0, "5")
+        self.parent.gann_lookback_entry.bind("<FocusOut>", lambda e: self._push_scanner_config())
+        self.parent.gann_lookback_entry.bind("<Return>", lambda e: self._push_scanner_config())
+
         # Column 1: Current Settings
         settings_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         settings_frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=(0, 10))
@@ -596,29 +705,50 @@ class LayoutManager:
         # We need a reference to update these settings
         self.parent.settings_labels = {}
 
-        settings_list = ctk.CTkFrame(settings_frame, fg_color="transparent")
-        settings_list.pack(fill="both", expand=True, padx=10, pady=(5, 10))
+        settings_list = ctk.CTkScrollableFrame(settings_frame, fg_color="transparent")
+        settings_list.pack(fill="both", expand=True, padx=5, pady=(5, 10))
 
         # Grouped settings structure: (group_title, [(label, default_value, key), ...])
         settings_groups = [
-            ("Scan Schedule", [
-                ("Interval:", "5 min", "interval"),
-                ("Timeframe:", "15m", "timeframe"),
-                ("Strategy:", "stratified", "strategy"),
-                ("Sample:", "20%", "sample"),
-            ]),
-            ("Signal Filters", [
-                ("Min Signal Score:", "0.20", "min_signal_score"),
-                ("Min 24h Vol (M):", "5.0", "min_volume"),
-            ]),
-            ("ATC Config", [
-                ("Backend:", "LOCAL", "backend"),
-                ("ATC Threshold:", "0.00", "atc_threshold"),
-            ]),
-            ("XGBoost Config", [
-                ("Backend:", "LOCAL", "xgboost_backend"),
-                ("XGBoost:", "Enabled", "enable_xgboost"),
-            ]),
+            (
+                "Scan Schedule",
+                [
+                    ("Interval:", "5 min", "interval"),
+                    ("Timeframe:", "15m", "timeframe"),
+                    ("Strategy:", "stratified", "strategy"),
+                    ("Sample:", "20%", "sample"),
+                ],
+            ),
+            (
+                "Signal Filters",
+                [
+                    ("Min Signal Score:", "0.20", "min_signal_score"),
+                    ("Min 24h Vol (M):", "5.0", "min_volume"),
+                ],
+            ),
+            (
+                "ATC Config",
+                [
+                    ("Backend:", "LOCAL", "backend"),
+                    ("ATC Threshold:", "0.00", "atc_threshold"),
+                ],
+            ),
+            (
+                "XGBoost Config",
+                [
+                    ("Backend:", "LOCAL", "xgboost_backend"),
+                    ("XGBoost:", "Enabled", "enable_xgboost"),
+                ],
+            ),
+            (
+                "Gann Square Config",
+                [
+                    ("Gann Filter:", "Disabled", "enable_gann_square"),
+                    ("Timeframe:", "1h", "gann_timeframe"),
+                    ("Candles Limit:", "200", "gann_candle_limit"),
+                    ("Lookback:", "5", "gann_lookback"),
+                ],
+            ),
         ]
 
         for group_title, items in settings_groups:
@@ -643,17 +773,6 @@ class LayoutManager:
                 val_label.pack(side="right")
                 self.parent.settings_labels[key] = val_label
 
-        # Status row at the bottom
-        sep_bottom = ctk.CTkFrame(settings_list, height=1, fg_color=("#cccccc", "#444444"))
-        sep_bottom.pack(fill="x", pady=(8, 4))
-        status_row = ctk.CTkFrame(settings_list, fg_color="transparent")
-        status_row.pack(fill="x", pady=1)
-        ctk.CTkLabel(status_row, text="Status:", font=("Arial", 10), text_color="gray").pack(side="left")
-        status_val = ctk.CTkLabel(status_row, text="Stopped", font=("Arial", 10, "bold"), text_color="gray")
-        status_val.pack(side="right")
-        self.parent.settings_labels["status"] = status_val
-
-
         # Column 2: System Logs
         system_logs_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         system_logs_frame.grid(row=1, column=2, sticky="nsew", padx=5, pady=(0, 10))
@@ -677,12 +796,22 @@ class LayoutManager:
         btn_frame = ctk.CTkFrame(inner, fg_color="transparent")
         btn_frame.pack(pady=10)
 
-        ctk.CTkButton(btn_frame, text="Open Log File", width=120, command=self._open_log_file).pack(pady=(0, 6))
+        from modules.auto_trade.gui.utils.svg_icons import get_icon
+
+        folder_icon = get_icon("folder_open", size=(16, 16), light_color="white", dark_color="white")
+        file_icon = get_icon("file_text", size=(16, 16), light_color="white", dark_color="white")
+        trash_icon = get_icon("trash", size=(16, 16), light_color="white", dark_color="white")
+
+        ctk.CTkButton(
+            btn_frame, text=" Open Log File", image=file_icon, compound="left", width=130, command=self._open_log_file
+        ).pack(pady=(0, 6))
 
         ctk.CTkButton(
             btn_frame,
-            text="Open Folder",
-            width=120,
+            text=" Open Folder",
+            image=folder_icon,
+            compound="left",
+            width=130,
             fg_color="#555555",
             hover_color="#666666",
             command=self._open_log_folder,
@@ -690,8 +819,10 @@ class LayoutManager:
 
         ctk.CTkButton(
             btn_frame,
-            text="🗑️ Clear Logs",
-            width=120,
+            text=" Clear Logs",
+            image=trash_icon,
+            compound="left",
+            width=130,
             fg_color="#ff6644",
             hover_color="#cc4422",
             command=self._clear_logs,

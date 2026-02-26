@@ -1,12 +1,11 @@
 """Logs Section Component for Database Panel."""
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from datetime import datetime
 
 import customtkinter as ctk
 
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
-
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 
 
 class LogsSection:
@@ -25,7 +24,14 @@ class LogsSection:
         header = ctk.CTkFrame(frame, fg_color="transparent")
         header.pack(fill="x", padx=10, pady=(10, 5))
 
-        ctk.CTkLabel(header, text="📝 Activity Logs", font=DatabasePanelConfig.TITLE_FONT).pack(side="left")
+        ctk.CTkLabel(
+            header,
+            text="  Activity Logs",
+            font=DatabasePanelConfig.TITLE_FONT,
+            image=get_icon("file_text", size=(20, 20)),
+            compound="left",
+        ).pack(side="left")
+
         ctk.CTkButton(header, text="Clear", width=60, height=24, command=self.clear).pack(side="right")
 
         self.logs_viewer = ctk.CTkTextbox(frame)

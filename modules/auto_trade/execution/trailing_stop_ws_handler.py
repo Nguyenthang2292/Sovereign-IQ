@@ -8,14 +8,13 @@ Called from PositionMonitor when position updates arrive.
 Created: 2026-02-06
 """
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import time
 from typing import Any, Dict, List, Optional
 
 from modules.auto_trade.database import get_open_positions
 from modules.auto_trade.execution.binance_client import BinanceClient
 from modules.auto_trade.execution.trailing_stop import TrailingStopResult, calculate_trailing_stop
-
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 
 def _symbol_for_ccxt(symbol: str) -> str:

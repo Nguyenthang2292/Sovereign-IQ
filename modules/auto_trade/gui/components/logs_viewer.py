@@ -11,6 +11,8 @@ from pathlib import Path
 
 import customtkinter as ctk
 
+from modules.auto_trade.gui.utils.svg_icons import get_icon
+
 
 class LogsViewer(ctk.CTkFrame):
     """Simple logs viewer with button to open log file and live stream display."""
@@ -101,29 +103,35 @@ class LogsViewer(ctk.CTkFrame):
 
         open_btn = ctk.CTkButton(
             btn_frame,
-            text="Open Log File",
+            text="  Open Log File",
             width=160,
             command=self._open_log_file,
+            image=get_icon("file_text", size=(16, 16)),
+            compound="left",
         )
         open_btn.pack(pady=(0, 8))
 
         folder_btn = ctk.CTkButton(
             btn_frame,
-            text="Open Folder",
+            text="  Open Folder",
             width=160,
             fg_color="#555555",
             hover_color="#666666",
             command=self._open_log_folder,
+            image=get_icon("folder_open", size=(16, 16)),
+            compound="left",
         )
         folder_btn.pack(pady=8)
 
         clear_btn = ctk.CTkButton(
             btn_frame,
-            text="🗑️ Clear Logs",
+            text="  Clear Logs",
             width=160,
             fg_color="#ff6644",
             hover_color="#cc4422",
             command=self.clear_logs,
+            image=get_icon("trash", size=(16, 16)),
+            compound="left",
         )
         clear_btn.pack(pady=(8, 0))
 

@@ -1,6 +1,6 @@
 """Loading Overlay Component for async operations."""
 
-from typing import Optional
+from typing import Any, Optional
 
 import customtkinter as ctk
 
@@ -8,7 +8,7 @@ import customtkinter as ctk
 class LoadingOverlay:
     """Simple loading overlay for async operations."""
 
-    def __init__(self, parent: ctk.CTk):
+    def __init__(self, parent: Any):
         """Initialize loading overlay.
 
         Args:

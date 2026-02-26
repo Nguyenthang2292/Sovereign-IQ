@@ -4,7 +4,6 @@ Health Check Module.
 Provides a registry for system health checks.
 """
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -12,6 +11,7 @@ from enum import Enum
 from threading import RLock
 from typing import Callable, Dict, Literal, Optional, Tuple, TypedDict, cast
 
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 
 class HealthStatus(Enum):

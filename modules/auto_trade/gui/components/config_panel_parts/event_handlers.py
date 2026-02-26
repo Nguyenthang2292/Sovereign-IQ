@@ -1,4 +1,3 @@
-
 def on_limit_steps_toggle(panel):
     """Show/hide max steps field based on checkbox."""
     try:
@@ -31,17 +30,22 @@ def on_mode_change(panel, show_warning: bool = True):
         from tkinter import messagebox
 
         from modules.auto_trade.gui.utils.colors import Colors
+        from modules.auto_trade.gui.utils.svg_icons import get_icon
 
         mode = panel.mode_var.get()
 
         mode_descriptions = {
-            "PRODUCTION": ("⚠️ Real money at risk", Colors.PRODUCTION),
-            "DEMO": ("Testnet - Requires API keys", Colors.DEMO),
-            "DRY_RUN": ("✅ Safe local simulation", Colors.DRY_RUN),
+            "PRODUCTION": ("  Real money at risk", Colors.PRODUCTION, "alert_triangle"),
+            "DEMO": ("  Testnet - Requires API keys", Colors.DEMO, "database"),
+            "DRY_RUN": ("  Safe local simulation", Colors.DRY_RUN, "shield_check"),
         }
 
-        description, color = mode_descriptions.get(mode, ("✅ Safe local simulation", Colors.DRY_RUN))
-        panel.mode_description_label.configure(text=description, text_color=color)
+        description, color, icon_key = mode_descriptions.get(
+            mode, ("  Safe local simulation", Colors.DRY_RUN, "shield_check")
+        )
+        icon = get_icon(icon_key, size=(16, 16), light_color=color, dark_color=color)
+
+        panel.mode_description_label.configure(text=description, text_color=color, image=icon, compound="left")
 
         if mode == "DRY_RUN":
             panel.api_key_frame.pack_forget()

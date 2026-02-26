@@ -103,18 +103,18 @@ class SignalSelector:
         # Default policy: Signals must have valid price levels (usually from Gemini)
         self.require_gemini_levels = self.config.get("require_gemini_levels", True)
 
-    def select_best_signal(
+    def rank_signals(
         self, xgboost_signals: List[SignalResult], gemini_signals: Dict[str, GeminiSignal]
-    ) -> Optional[FinalSignal]:
+    ) -> List[FinalSignal]:
         """
-        Evaluate all candidates and return the single best signal.
+        Build and rank all candidate signals by confidence.
 
         Args:
             xgboost_signals: Results from the XGBoost filter step.
             gemini_signals: Results from the Gemini analysis step (keyed by symbol).
 
         Returns:
-            The FinalSignal to execute, or None if no suitable signal found.
+            Sorted list of FinalSignal candidates (highest confidence first).
         """
         candidates: List[FinalSignal] = []
 
@@ -124,12 +124,9 @@ class SignalSelector:
             if gemini_data is None:
                 log_info(f"Signal Selector: {symbol} has no Gemini result; skipping.")
 
-            # If no Gemini data, we might skip or rely solely on XGBoost based on policy.
-            # Current policy: Require at least XGBoost confirmation, boost with Gemini.
-
             final_signal = self._evaluate_candidate(signal, gemini_data)
             if final_signal is None:
-                continue  # _evaluate_candidate already logged reason (conflict, missing levels, validation)
+                continue
             if final_signal.confidence < self.min_confidence_threshold:
                 log_info(
                     f"Signal Selector: {symbol} rejected — confidence {final_signal.confidence:.2f} "
@@ -143,13 +140,30 @@ class SignalSelector:
                 "Signal Selector: No candidates met the criteria "
                 "(missing Gemini price levels, conflict, confidence < threshold, or validation failed)."
             )
+            return []
+
+        candidates.sort(key=lambda x: x.confidence, reverse=True)
+        return candidates
+
+    def select_best_signal(
+        self, xgboost_signals: List[SignalResult], gemini_signals: Dict[str, GeminiSignal]
+    ) -> Optional[FinalSignal]:
+        """
+        Evaluate all candidates and return the single best signal.
+
+        Args:
+            xgboost_signals: Results from the XGBoost filter step.
+            gemini_signals: Results from the Gemini analysis step (keyed by symbol).
+
+        Returns:
+            The FinalSignal to execute, or None if no suitable signal found.
+        """
+        ranked = self.rank_signals(xgboost_signals, gemini_signals)
+        if not ranked:
             return None
 
-        # Sort by confidence descending
-        candidates.sort(key=lambda x: x.confidence, reverse=True)
-        best_signal = candidates[0]
+        best_signal = ranked[0]
 
-        # Calculate Risk/Reward for logging
         rr_ratio = self._calculate_risk_reward_ratio(best_signal)
 
         log_info(

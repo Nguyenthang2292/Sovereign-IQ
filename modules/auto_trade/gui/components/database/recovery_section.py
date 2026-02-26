@@ -1,6 +1,5 @@
 """Recovery Section Component for Database Panel."""
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import tkinter.messagebox as messagebox
 from typing import Callable, cast
 
@@ -8,7 +7,8 @@ import customtkinter as ctk
 
 from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
-
+from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.common.ui.logging import log_warn
 
 
 class RecoverySection:
@@ -25,7 +25,13 @@ class RecoverySection:
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="x", padx=5, pady=5)
 
-        ctk.CTkLabel(frame, text="🔄 Recovery Testing", font=DatabasePanelConfig.TITLE_FONT).pack(
+        ctk.CTkLabel(
+            frame,
+            text="  Recovery Testing",
+            font=DatabasePanelConfig.TITLE_FONT,
+            image=get_icon("repeat", size=(20, 20)),
+            compound="left",
+        ).pack(
             anchor="w",
             padx=DatabasePanelConfig.PADX_MEDIUM,
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
@@ -52,24 +58,30 @@ class RecoverySection:
 
         ctk.CTkButton(
             btn_frame,
-            text="🧪 Run Test Sequence",
+            text="  Run Test Sequence",
             fg_color="#4488ff",
             hover_color="#2266cc",
             command=self._run_recovery_test_sequence,
+            image=get_icon("play", size=(16, 16)),
+            compound="left",
         ).pack(side="left", padx=(0, 5), fill="x", expand=True)
 
         ctk.CTkButton(
             btn_frame,
-            text="📊 View Recovery Stats",
+            text="  View Recovery Stats",
             command=self._view_recovery_stats,
+            image=get_icon("bar_chart_2", size=(16, 16)),
+            compound="left",
         ).pack(side="left", padx=5, fill="x", expand=True)
 
         ctk.CTkButton(
             btn_frame,
-            text="🗑️ Clear Recovery Data",
+            text="  Clear Recovery Data",
             fg_color="#ff6644",
             hover_color="#cc4422",
             command=self._clear_recovery_data,
+            image=get_icon("trash", size=(16, 16)),
+            compound="left",
         ).pack(side="left", padx=(5, 0), fill="x", expand=True)
 
     def _run_recovery_test_sequence(self):

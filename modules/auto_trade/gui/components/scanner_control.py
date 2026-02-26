@@ -115,8 +115,8 @@ class ScannerControl(ctk.CTkFrame):
         config_title.pack(pady=(10, 5))
 
         # Configuration inputs
-        inputs_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
-        inputs_frame.pack(fill="x", padx=10, pady=(5, 10))
+        inputs_frame = ctk.CTkScrollableFrame(config_frame, fg_color="transparent")
+        inputs_frame.pack(fill="both", expand=True, padx=5, pady=(5, 10))
 
         # Scan interval
         interval_label = ctk.CTkLabel(
@@ -257,6 +257,61 @@ class ScannerControl(ctk.CTkFrame):
 
         self.atc_threshold_var.trace_add("write", _on_atc_change)
 
+        # ---- Gann Square Filter group ----
+        gann_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        gann_group.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(10, 5))
+
+        gann_title = ctk.CTkLabel(gann_group, text="Gann Square Filter", font=("Arial", 11, "bold"))
+        gann_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
+
+        # Enable Gann Square checkbox
+        self.enable_gann_square_var = ctk.BooleanVar(value=False)
+        gann_checkbox = ctk.CTkCheckBox(
+            gann_group,
+            text="Enable Gann Square Filter",
+            variable=self.enable_gann_square_var,
+            command=self._on_gann_toggle,
+        )
+        gann_checkbox.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
+
+        # Gann sub-frame (only shown when checkbox is ON)
+        self.gann_sub_frame = ctk.CTkFrame(gann_group, fg_color="transparent")
+        self.gann_sub_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 8))
+        self.gann_sub_frame.grid_remove()
+
+        # Gann timeframe selector
+        gann_tf_label = ctk.CTkLabel(self.gann_sub_frame, text="Gann TF:", font=("Arial", 11), text_color="gray")
+        gann_tf_label.grid(row=0, column=0, sticky="w", pady=4)
+
+        self.gann_tf_var = ctk.StringVar(value="1h")
+        gann_tf_dropdown = ctk.CTkComboBox(
+            self.gann_sub_frame,
+            values=["1h", "2h", "4h", "6h", "8h", "12h", "1d"],
+            variable=self.gann_tf_var,
+            width=100,
+            command=self._on_config_change,
+        )
+        gann_tf_dropdown.grid(row=0, column=1, sticky="e", pady=4, padx=(10, 0))
+
+        # Gann candle limit
+        gann_candle_label = ctk.CTkLabel(self.gann_sub_frame, text="Candles:", font=("Arial", 11), text_color="gray")
+        gann_candle_label.grid(row=1, column=0, sticky="w", pady=4)
+
+        self.gann_candle_limit_entry = ctk.CTkEntry(self.gann_sub_frame, placeholder_text="200", width=100)
+        self.gann_candle_limit_entry.grid(row=1, column=1, sticky="e", pady=4, padx=(10, 0))
+        self.gann_candle_limit_entry.insert(0, "200")
+
+        # Gann lookback
+        gann_lookback_label = ctk.CTkLabel(self.gann_sub_frame, text="Lookback:", font=("Arial", 11), text_color="gray")
+        gann_lookback_label.grid(row=2, column=0, sticky="w", pady=4)
+
+        self.gann_lookback_entry = ctk.CTkEntry(self.gann_sub_frame, placeholder_text="5", width=100)
+        self.gann_lookback_entry.grid(row=2, column=1, sticky="e", pady=4, padx=(10, 0))
+        self.gann_lookback_entry.insert(0, "5")
+
+        self.gann_sub_frame.grid_columnconfigure(0, weight=0, minsize=80)
+        self.gann_sub_frame.grid_columnconfigure(1, weight=1)
+
         # Configure grid columns - column 0 for labels needs minimum width
         inputs_frame.grid_columnconfigure(0, weight=0, minsize=140)
         inputs_frame.grid_columnconfigure(1, weight=1)
@@ -386,6 +441,14 @@ class ScannerControl(ctk.CTkFrame):
 
         self.after(1000, self._animate_status)
 
+    def _on_gann_toggle(self):
+        """Handle Gann Square checkbox toggle."""
+        if self.enable_gann_square_var.get():
+            self.gann_sub_frame.grid()
+        else:
+            self.gann_sub_frame.grid_remove()
+        self._on_config_change()
+
     def _on_config_change(self, choice=None):
         """Handle configuration change"""
         try:
@@ -432,6 +495,12 @@ class ScannerControl(ctk.CTkFrame):
             "enable_xgboost": self.enable_xgboost_var.get(),
             "atc_threshold": self.atc_threshold_var.get(),
             "min_volume": min_volume,
+            "enable_gann_square": self.enable_gann_square_var.get(),
+            "gann_timeframe": self.gann_tf_var.get(),
+            "gann_candle_limit": int(self.gann_candle_limit_entry.get()) if self.gann_candle_limit_entry.get() else 200,
+            "gann_lookback": int(self.gann_lookback_entry.get())
+            if getattr(self, "gann_lookback_entry", None) and self.gann_lookback_entry.get()
+            else 5,
         }
 
     def load_config(self, config: Dict):
@@ -454,6 +523,19 @@ class ScannerControl(ctk.CTkFrame):
         self.atc_threshold_var.set(config.get("atc_threshold", 0.6))
         if hasattr(self, "atc_value_label"):
             self.atc_value_label.configure(text=f"{self.atc_threshold_var.get():.2f}")
+
+        # Load Gann Square settings
+        self.enable_gann_square_var.set(config.get("enable_gann_square", False))
+        self.gann_tf_var.set(config.get("gann_timeframe", "1h"))
+        self.gann_candle_limit_entry.delete(0, "end")
+        self.gann_candle_limit_entry.insert(0, str(config.get("gann_candle_limit", 200)))
+        if hasattr(self, "gann_lookback_entry"):
+            self.gann_lookback_entry.delete(0, "end")
+            self.gann_lookback_entry.insert(0, str(config.get("gann_lookback", 5)))
+        if self.enable_gann_square_var.get():
+            self.gann_sub_frame.grid()
+        else:
+            self.gann_sub_frame.grid_remove()
 
         # Update settings display
         self.setting_interval.configure(text=f"{config.get('scan_interval', 5)} min")

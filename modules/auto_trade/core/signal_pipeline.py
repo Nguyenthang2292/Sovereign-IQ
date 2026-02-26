@@ -39,13 +39,17 @@ Example:
 
 import asyncio
 import time
-from typing import Dict, List, Optional, Protocol, TypedDict
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, TypedDict, cast
 
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.auto_trade.core.circuit_breaker import CircuitBreaker, CircuitState
+from modules.auto_trade.core.gann_square_filter import GannSquareFilter
 from modules.auto_trade.core.gemini_integration import GeminiIntegration, GeminiSignal
+
+if TYPE_CHECKING:
+    from modules.gemini_gann_square.core.gann_signal_engine import GannAnalysisResult
 from modules.auto_trade.core.health import HealthRegistry, HealthStatus
-from modules.auto_trade.core.signal_selector import FinalSignal, SignalSelector
+from modules.auto_trade.core.signal_selector import FinalSignal, SignalSelector, SignalSources
 from modules.auto_trade.core.symbol_manager import SymbolManager
 from modules.auto_trade.monitoring.alerts import AlertManager
 from modules.auto_trade.monitoring.logger import setup_logging
@@ -69,7 +73,6 @@ from modules.auto_trade.monitoring.event_system import EventSystem, EventType
 from modules.auto_trade.monitoring.metrics import MetricsCollector
 
 
-
 class PipelineConfig(TypedDict, total=False):
     """Pipeline configuration options.
 
@@ -78,12 +81,14 @@ class PipelineConfig(TypedDict, total=False):
         monitoring_enabled: Whether monitoring components are enabled
         max_ai_candidates: Maximum candidates for AI analysis (default: 5)
         xgboost_mode: XGBoost filter mode - "per_symbol" or "pretrained" (default: "per_symbol")
+        enable_gann_square: Enable Gann Square filter (default: False)
     """
 
     max_symbols_to_scan: int
     monitoring_enabled: bool
     max_ai_candidates: int
     xgboost_mode: str  # "per_symbol" (train fresh) or "pretrained" (use existing model)
+    enable_gann_square: bool
 
 
 class SignalPipeline:
@@ -140,6 +145,7 @@ class SignalPipeline:
         gemini_integration: GeminiIntegration,
         signal_selector: SignalSelector,
         config: Optional[PipelineConfig] = None,
+        gann_square_filter: Optional[GannSquareFilter] = None,
     ) -> None:
         self.symbol_manager = symbol_manager
         self.atc_scanner = atc_scanner
@@ -147,6 +153,7 @@ class SignalPipeline:
         self.gemini_integration = gemini_integration
         self.signal_selector = signal_selector
         self.config = config or {}
+        self.gann_square_filter = gann_square_filter
 
         # Initialize Logging
         setup_logging()
@@ -199,6 +206,51 @@ class SignalPipeline:
         status = HealthStatus.HEALTHY if self.circuit_breaker.state == CircuitState.CLOSED else HealthStatus.UNHEALTHY
         # Publish event if unhealthy (though AlertManager listens to CIRCUIT_OPEN directly)
         return status, f"Circuit Breaker {self.circuit_breaker.state.name}"
+
+    def _gann_result_to_final_signal(self, gann_result: Any, original: FinalSignal) -> FinalSignal:
+        """
+        Convert GannAnalysisResult to FinalSignal.
+
+        Args:
+            gann_result: The Gann analysis result.
+            original: The original FinalSignal from ranking.
+
+        Returns:
+            FinalSignal with Gann-derived price levels and updated sources.
+
+        Raises:
+            ValueError: If price levels are invalid.
+        """
+        if gann_result is None:
+            raise ValueError("gann_result is None")
+
+        if not gann_result.is_tradeable():
+            raise ValueError(f"Gann result is not tradeable: {gann_result.signal}")
+
+        signal_type = gann_result.signal
+        entry_price = gann_result.entry_price
+        stop_loss = gann_result.stop_loss
+        take_profit = gann_result.take_profit_1
+
+        if entry_price <= 0 or stop_loss <= 0 or take_profit <= 0:
+            raise ValueError(f"Invalid Gann price levels: entry={entry_price}, sl={stop_loss}, tp={take_profit}")
+
+        sources = dict(original.sources)
+        sources["gann_confidence"] = gann_result.confidence_pct / 100.0
+        sources["gann_reasoning"] = gann_result.reasoning
+
+        return FinalSignal(
+            symbol=gann_result.symbol,
+            signal_type=signal_type,
+            entry_price=entry_price,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            leverage=original.leverage,
+            confidence=original.confidence,
+            score=original.score,
+            sources=cast(SignalSources, sources),
+            timestamp=original.timestamp,
+        )
 
     def run_pipeline(self) -> Optional[FinalSignal]:
         """
@@ -316,9 +368,29 @@ class SignalPipeline:
                     log_error(f"Gemini analysis failed: {e}")
                     self.event_bus.publish(EventType.CIRCUIT_OPEN, {"error": str(e)}, source="SignalPipeline")
 
-            # 6. Signal Selection
+            # 6. Signal Selection (rank signals)
             log_info("Step 6: Final Signal Selection...")
-            final_signal = self.signal_selector.select_best_signal(xgboost_signals, gemini_results)
+            ranked_signals = self.signal_selector.rank_signals(xgboost_signals, gemini_results)
+
+            # 7. Optional Gann Square Filter
+            final_signal = None
+            if self.gann_square_filter is not None and ranked_signals:
+                log_info("Step 7: Gann Square Filter...")
+                gann_result = self.gann_square_filter.run(ranked_signals)
+                if gann_result is None:
+                    log_warn("GannSquareFilter: All candidates rejected.")
+                else:
+                    try:
+                        original_signal = next(
+                            (candidate for candidate in ranked_signals if candidate.symbol == gann_result.symbol),
+                            ranked_signals[0],
+                        )
+                        final_signal = self._gann_result_to_final_signal(gann_result, original_signal)
+                    except ValueError as e:
+                        log_warn(f"GannSquareFilter: Invalid result rejected: {e}")
+                        final_signal = None
+            elif ranked_signals:
+                final_signal = ranked_signals[0]
 
             # 7. Audit & Metric
             if final_signal:

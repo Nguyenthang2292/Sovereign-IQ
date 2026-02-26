@@ -40,13 +40,15 @@ class AutoTradeDashboard(
 ):
     """Main Auto Trade Dashboard application window."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.settings_manager = SettingsManager()
         self.settings_manager.load()
 
-        self.mode = self.settings_manager.get("api.mode", TradingMode.DRY_RUN)
+        # str() ensures Pylance infers self.mode as plain str, not TradingMode,
+        # avoiding any base-class annotation conflict across the mixin MRO.
+        self.mode = str(self.settings_manager.get("api.mode", TradingMode.DRY_RUN))
 
         self.data_service = DataService(mode=self.mode, settings_manager=self.settings_manager)
         self.ws_data_service = WebSocketDataService(
@@ -124,6 +126,7 @@ class AutoTradeDashboard(
         self.tabview: Any = None
         self.trade_form: Any = None
         self.database_panel: Any = None
+        self.status_bar: Any = None
 
         self.layout_manager.create_layout()
 
@@ -148,7 +151,7 @@ class AutoTradeDashboard(
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-    def _setup_file_logging(self):
+    def _setup_file_logging(self) -> None:
         """Set up file-based logging that captures all logs from all modules."""
         log_info("=" * 60)
         log_info("AUTO TRADE DASHBOARD")

@@ -1,6 +1,5 @@
 """Signals Section Component for Database Panel."""
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import uuid
 from typing import Callable
 
@@ -8,7 +7,7 @@ import customtkinter as ctk
 
 from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
-
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 
 
 class SignalsSection:
@@ -25,7 +24,13 @@ class SignalsSection:
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="x", padx=5, pady=5)
 
-        ctk.CTkLabel(frame, text="🎯 Signals Testing", font=DatabasePanelConfig.TITLE_FONT).pack(
+        ctk.CTkLabel(
+            frame,
+            text="  Signals Testing",
+            font=DatabasePanelConfig.TITLE_FONT,
+            image=get_icon("target", size=(20, 20)),
+            compound="left",
+        ).pack(
             anchor="w",
             padx=DatabasePanelConfig.PADX_MEDIUM,
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
@@ -49,12 +54,21 @@ class SignalsSection:
         btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
         btn_frame.pack(fill="x", padx=10, pady=5)
 
-        ctk.CTkButton(btn_frame, text="📊 Get Recent Signals", command=self._get_recent_signals).pack(
-            side="left", padx=(0, 5), fill="x", expand=True
-        )
-        ctk.CTkButton(btn_frame, text="📈 Signal Performance Stats", command=self._get_signal_stats).pack(
-            side="left", padx=(5, 0), fill="x", expand=True
-        )
+        ctk.CTkButton(
+            btn_frame,
+            text="  Get Recent Signals",
+            command=self._get_recent_signals,
+            image=get_icon("database", size=(16, 16)),
+            compound="left",
+        ).pack(side="left", padx=(0, 5), fill="x", expand=True)
+
+        ctk.CTkButton(
+            btn_frame,
+            text="  Signal Performance Stats",
+            command=self._get_signal_stats,
+            image=get_icon("bar_chart_2", size=(16, 16)),
+            compound="left",
+        ).pack(side="left", padx=(5, 0), fill="x", expand=True)
 
     def _create_test_signal(self):
         """Create a test signal via RepositoryContext."""

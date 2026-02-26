@@ -1,10 +1,33 @@
 """Lifecycle and action callbacks for Auto Trade Dashboard."""
 
+from typing import TYPE_CHECKING, Any, Callable
+
 from modules.common.ui.logging import log_error, log_info
 
 
 class LifecycleActionsMixin:
     """Provide lifecycle and action callback handlers."""
+
+    # --- Attribute stubs satisfied at class body level so Pylance/mypy
+    #     can resolve them in all methods of this mixin.  The real values
+    #     are injected by the concrete subclass (MainWindow) at runtime.
+    auto_trade_manager: Any
+    position_action_handler: Any
+    updater_manager: Any
+    scanner_manager: Any
+    recovery_manager: Any
+    settings_manager: Any
+    ws_data_service: Any
+    status_bar: Any
+    _original_stdout: Any
+
+    if TYPE_CHECKING:
+        # Method stubs: satisfied by tkinter.Tk / the concrete subclass.
+        def after(self, ms: int, func: Callable) -> str: ...
+        def destroy(self) -> None: ...
+        def refresh_positions(self) -> None: ...
+        def refresh_account(self) -> None: ...
+        def _update_connection_status(self) -> None: ...
 
     def on_trade_executed(self):
         """Callback when manual trade is executed."""
@@ -106,6 +129,7 @@ class LifecycleActionsMixin:
 
         # 3. Restore original stdout before destroying the window.
         import sys
+
         if hasattr(self, "_original_stdout"):
             sys.stdout = self._original_stdout
 

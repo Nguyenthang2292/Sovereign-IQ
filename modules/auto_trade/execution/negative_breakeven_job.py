@@ -10,13 +10,12 @@ Created: 2026-02-06
 Refactored: 2026-02-20 (DynamoDB only)
 """
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Any, Dict, List, Optional
 
 from modules.auto_trade.database import RepositoryContext, get_open_positions
 from modules.auto_trade.execution.binance_client import BinanceClient
 from modules.auto_trade.execution.negative_breakeven import NegativeBreakevenLogic
-
+from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 
 def _symbol_for_ccxt(symbol: str) -> str:

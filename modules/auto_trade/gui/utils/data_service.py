@@ -426,7 +426,8 @@ class DataService:
 
                 cutoff: Optional[_datetime] = None
                 if max_age_hours > 0:
-                    from datetime import timedelta as _td, timezone as _tz
+                    from datetime import timedelta as _td
+                    from datetime import timezone as _tz
 
                     cutoff = _datetime.now(_tz.utc) - _td(hours=max_age_hours)
 

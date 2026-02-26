@@ -1,10 +1,11 @@
 import random
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional, cast
 
 import customtkinter as ctk
 
 from modules.auto_trade.gui.components.empty_state import EmptyState
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 from modules.auto_trade.strategies.gradual_recovery import (
     GradualRecoveryStrategy,
     RecoveryConfig,
@@ -28,7 +29,13 @@ class RecoveryPanel(ctk.CTkFrame):
         self.test_log_entries: List[str] = []
 
         # Title
-        title = ctk.CTkLabel(self, text="🔄 Gradual Recovery", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(
+            self,
+            text="  Gradual Recovery",
+            font=("Arial", 16, "bold"),
+            image=get_icon("repeat", size=(20, 20)),
+            compound="left",
+        )
         title.pack(pady=(10, 15))
 
         # Create tabbed interface
@@ -56,11 +63,13 @@ class RecoveryPanel(ctk.CTkFrame):
 
         ctk.CTkButton(
             expand_frame,
-            text="🔍 Expand Full View",
+            text="  Expand Full View",
             fg_color="#4488ff",
             hover_color="#2266cc",
             command=self._open_expanded_modal,
             height=28,
+            image=get_icon("zoom_in", size=(16, 16)),
+            compound="left",
         ).pack(fill="x")
 
     def _open_expanded_modal(self):
@@ -125,7 +134,9 @@ class RecoveryPanel(ctk.CTkFrame):
         self.active_recovery_frame = ctk.CTkFrame(status_frame, fg_color="transparent")
 
         # Initial Loss
-        self.initial_loss_label = ctk.CTkLabel(self.active_recovery_frame, text="Initial Loss: $0.00", font=("Arial", 12))
+        self.initial_loss_label = ctk.CTkLabel(
+            self.active_recovery_frame, text="Initial Loss: $0.00", font=("Arial", 12)
+        )
         self.initial_loss_label.pack(anchor="w", pady=(5, 2))
 
         # Remaining Loss
@@ -189,26 +200,32 @@ class RecoveryPanel(ctk.CTkFrame):
         self.leverage_label.pack(anchor="w", pady=(2, 10), padx=10)
 
         # Status Message (this will be handled by EmptyState or updated based on recovery_strategy)
-        self.status_label = ctk.CTkLabel(self.active_recovery_frame, text="No active recovery", font=("Arial", 11), text_color="gray")
+        self.status_label = ctk.CTkLabel(
+            self.active_recovery_frame, text="No active recovery", font=("Arial", 11), text_color="gray"
+        )
         self.status_label.pack(pady=(10, 5))
 
         # Reset Button
         reset_btn = ctk.CTkButton(
             self.active_recovery_frame,
-            text="🔄 Reset Recovery",
+            text="  Reset Recovery",
             fg_color="#ff6644",
             hover_color="#cc4422",
             command=self._on_reset,
+            image=get_icon("repeat", size=(16, 16)),
+            compound="left",
         )
         reset_btn.pack(fill="x", pady=(5, 5))
 
         # Stop Button
         stop_btn = ctk.CTkButton(
             self.active_recovery_frame,
-            text="⏹️ Stop Recovery",
+            text="  Stop Recovery",
             fg_color="#444444",
             hover_color="#333333",
             command=self._on_stop_recovery,
+            image=get_icon("square", size=(16, 16)),
+            compound="left",
         )
         stop_btn.pack(fill="x", pady=(0, 10))
 
@@ -354,10 +371,12 @@ class RecoveryPanel(ctk.CTkFrame):
         # Row 11: Start Recovery Button (spans both columns)
         start_btn = ctk.CTkButton(
             config_frame,
-            text="🚀 Start Recovery",
+            text="  Start Recovery",
             fg_color="#00ff88",
             hover_color="#00cc66",
             command=self._on_start_recovery,
+            image=get_icon("rocket", size=(16, 16)),
+            compound="left",
         )
         start_btn.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(15, 10))
 
@@ -376,10 +395,12 @@ class RecoveryPanel(ctk.CTkFrame):
 
         preview_btn = ctk.CTkButton(
             config_frame,
-            text="📊 Preview Plan",
+            text="  Preview Plan",
             fg_color="#888888",
             hover_color="#666666",
             command=self._update_plan_preview,
+            image=get_icon("bar_chart_2", size=(16, 16)),
+            compound="left",
         )
         preview_btn.grid(row=13, column=0, columnspan=2, sticky="ew", pady=(0, 10))
 
@@ -770,7 +791,7 @@ class RecoveryPanel(ctk.CTkFrame):
 
         self._update_test_mode_label()
 
-    def _test_run_mode_comparison(self):
+    def _test_run_mode_comparison(self) -> None:
         """Compare all three modes with identical sequence"""
         self._test_log("=== MODE COMPARISON TEST ===")
         self._test_log("Testing identical sequence across fixed/progressive/adaptive modes")
@@ -790,8 +811,8 @@ class RecoveryPanel(ctk.CTkFrame):
             config: RecoveryConfig = {
                 "target_profit_per_trade": 5.0,
                 "max_recovery_trades": 20,
-                "margin_scaling_mode": mode,
-                "leverage_scaling_mode": mode,
+                "margin_scaling_mode": cast(Literal["fixed", "progressive", "adaptive"], mode),
+                "leverage_scaling_mode": cast(Literal["fixed", "progressive", "adaptive"], mode),
                 "min_leverage": 2,
                 "max_leverage": 10,
                 "enable_streak_bonus": mode == "adaptive",
@@ -882,7 +903,7 @@ class RecoveryPanel(ctk.CTkFrame):
 
         self._update_plan_preview()
 
-    def _on_start_recovery(self):
+    def _on_start_recovery(self) -> None:
         """Start new recovery with current config"""
         try:
             initial_loss = float(self.initial_loss_entry.get())
@@ -890,8 +911,10 @@ class RecoveryPanel(ctk.CTkFrame):
             config: RecoveryConfig = {
                 "target_profit_per_trade": float(self.target_profit_entry.get()),
                 "max_recovery_trades": int(self.max_trades_entry.get()),
-                "margin_scaling_mode": self.margin_mode_var.get(),
-                "leverage_scaling_mode": self.leverage_mode_var.get(),
+                "margin_scaling_mode": cast(Literal["fixed", "progressive", "adaptive"], self.margin_mode_var.get()),
+                "leverage_scaling_mode": cast(
+                    Literal["fixed", "progressive", "adaptive"], self.leverage_mode_var.get()
+                ),
                 "min_leverage": int(self.min_leverage_entry.get()),
                 "max_leverage": int(self.max_leverage_entry.get()),
                 "enable_streak_bonus": self.streak_bonus_var.get(),
@@ -968,7 +991,7 @@ class RecoveryPanel(ctk.CTkFrame):
         else:
             self.status_label.configure(text="🔄 In Progress...", text_color="#ffaa00")
 
-    def _update_plan_preview(self):
+    def _update_plan_preview(self) -> None:
         """Update plan preview with current config"""
         try:
             initial_loss = float(self.initial_loss_entry.get())
@@ -976,8 +999,10 @@ class RecoveryPanel(ctk.CTkFrame):
             config: RecoveryConfig = {
                 "target_profit_per_trade": float(self.target_profit_entry.get()),
                 "max_recovery_trades": int(self.max_trades_entry.get()),
-                "margin_scaling_mode": self.margin_mode_var.get(),
-                "leverage_scaling_mode": self.leverage_mode_var.get(),
+                "margin_scaling_mode": cast(Literal["fixed", "progressive", "adaptive"], self.margin_mode_var.get()),
+                "leverage_scaling_mode": cast(
+                    Literal["fixed", "progressive", "adaptive"], self.leverage_mode_var.get()
+                ),
                 "min_leverage": int(self.min_leverage_entry.get()),
                 "max_leverage": int(self.max_leverage_entry.get()),
                 "enable_streak_bonus": self.streak_bonus_var.get(),
@@ -1044,9 +1069,7 @@ class RecoveryPanel(ctk.CTkFrame):
         try:
             if "enabled" in config:
                 v = config["enabled"]
-                self.recovery_enabled_var.set(
-                    v if isinstance(v, bool) else str(v).lower() in ("true", "1", "yes")
-                )
+                self.recovery_enabled_var.set(v if isinstance(v, bool) else str(v).lower() in ("true", "1", "yes"))
             if "initial_loss" in config:
                 self.initial_loss_entry.delete(0, "end")
                 self.initial_loss_entry.insert(0, str(config["initial_loss"]))
@@ -1068,8 +1091,6 @@ class RecoveryPanel(ctk.CTkFrame):
                 self.max_leverage_entry.insert(0, str(config["max_leverage"]))
             if "enable_streak_bonus" in config:
                 v = config["enable_streak_bonus"]
-                self.streak_bonus_var.set(
-                    v if isinstance(v, bool) else str(v).lower() in ("true", "1", "yes")
-                )
+                self.streak_bonus_var.set(v if isinstance(v, bool) else str(v).lower() in ("true", "1", "yes"))
         except Exception as e:
             print(f"Error loading recovery config: {e}")

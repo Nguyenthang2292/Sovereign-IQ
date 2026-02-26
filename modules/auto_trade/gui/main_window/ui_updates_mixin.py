@@ -1,5 +1,7 @@
 """UI update and refresh helpers for Auto Trade Dashboard."""
 
+from typing import TYPE_CHECKING, Any, Callable
+
 from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.modes import TradingMode
 from modules.common.ui.logging import log_debug
@@ -7,6 +9,21 @@ from modules.common.ui.logging import log_debug
 
 class UIUpdatesMixin:
     """Provide UI update helpers and non-blocking refresh triggers."""
+
+    # Attribute stubs — injected by concrete subclass (AutoTradeDashboard).
+    data_service: Any
+    _update_queue: Any
+    last_update_label: Any
+    status_bar: Any
+    updater_manager: Any
+    ws_data_service: Any
+    stats_frame: Any
+    header_mode_label: Any
+
+    if TYPE_CHECKING:
+        mode: str  # defined by AutoTradeDashboard.__init__
+
+        def after(self, ms: int, func: Callable) -> str: ...
 
     def _update_mode_display(self):
         """Update mode indicator in stats frame and header."""

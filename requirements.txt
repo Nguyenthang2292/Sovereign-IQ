@@ -32,6 +32,7 @@ tradingview-scraper>=0.4.0  # TradingView scraper for forex data (OANDA:<SYMBOL_
 customtkinter>=5.0.0,<6.0.0
 plyer>=2.1.0,<3.0.0
 PyYAML>=6.0.0,<7.0.0  # Settings YAML for auto_trade GUI
+cairosvg>=2.8.0  # SVG icon rendering for CustomTkinter
 
 # Auto Trade database and config
 sqlalchemy>=2.0.0,<3.0.0  # ORM for auto_trade database (Order, Signal, migrations)

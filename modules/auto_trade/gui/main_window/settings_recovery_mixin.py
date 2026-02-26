@@ -1,14 +1,35 @@
 """Settings, scanner, and recovery handlers for Auto Trade Dashboard."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
-from modules.auto_trade.gui.utils.modes import TradingMode
 from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 
 class SettingsRecoveryMixin:
     """Provide settings/scanner/recovery event handlers."""
+
+    # --- Attribute stubs: real values injected by the concrete subclass (MainWindow).
+    settings_manager: Any
+    settings_handler: Any
+    scanner_manager: Any
+    data_service: Any
+    ws_data_service: Any
+    websocket_handler: Any
+    recovery_manager: Any
+    event_bus: Any
+    config_panel: Any
+    auto_trade_control: Any
+    status_label: Any
+
+    if TYPE_CHECKING:
+        mode: str  # defined by AutoTradeDashboard.__init__; str so no conflict
+
+        # Method stubs: satisfied by tkinter.Tk / the concrete subclass.
+        def after(self, ms: int, func: Callable) -> str: ...
+        def update_idletasks(self) -> None: ...
+        def refresh_positions(self) -> None: ...
+        def refresh_account(self) -> None: ...
 
     def on_settings_change(self, setting_type: str, value=None):
         """Handle settings change from ConfigPanel."""
@@ -31,7 +52,7 @@ class SettingsRecoveryMixin:
                 tk_root=self,
             )
 
-            if self.mode != TradingMode.DRY_RUN:
+            if self.mode != "DRY_RUN":
                 self.websocket_handler.register_callbacks()
                 self.ws_data_service.start()
                 log_info("WebSocket service restarted successfully")
@@ -154,9 +175,7 @@ class SettingsRecoveryMixin:
             if self.mode != "DRY_RUN":
                 import threading
 
-                t = threading.Thread(
-                    target=self._reapply_tp_sl_to_open_positions, daemon=True, name="reapply-tpsl"
-                )
+                t = threading.Thread(target=self._reapply_tp_sl_to_open_positions, daemon=True, name="reapply-tpsl")
                 t.start()
 
         except Exception as e:

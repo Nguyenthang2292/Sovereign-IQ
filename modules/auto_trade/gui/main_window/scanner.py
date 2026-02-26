@@ -1,11 +1,12 @@
 """Scanner management and configuration."""
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import threading
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, cast
+
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 if TYPE_CHECKING:
     from modules.auto_trade.core.signal_pipeline import SignalPipeline
@@ -26,7 +27,7 @@ class ScannerManager:
         self._scan_running = False
         self._scan_lock = threading.Lock()
 
-    def handle_scan_toggle(self, action):
+    def handle_scan_toggle(self, action) -> None:
         """Handle scanner start/stop from ScannerControl."""
         try:
             log_info(f"Scanner action: {action}")
@@ -67,7 +68,7 @@ class ScannerManager:
             self.updater = None
             log_info("Scanner stopped")
 
-    def _initialize_pipeline(self):
+    def _initialize_pipeline(self) -> bool:
         """Initialize the SignalPipeline with all components."""
         if self._pipeline_initialized and self.pipeline:
             return True
@@ -84,7 +85,7 @@ class ScannerManager:
             from modules.auto_trade.core.atc_scanner import ATCScanner, ATCScannerConfig
             from modules.auto_trade.core.atc_serverless_scanner import ATCServerlessScanner
             from modules.auto_trade.core.gemini_integration import GeminiIntegration
-            from modules.auto_trade.core.signal_pipeline import SignalPipeline, XGBoostFilterLike
+            from modules.auto_trade.core.signal_pipeline import ATCScannerLike, SignalPipeline, XGBoostFilterLike
             from modules.auto_trade.core.signal_selector import SignalSelector
             from modules.auto_trade.core.symbol_manager import SymbolManager
             from modules.auto_trade.core.xgboost_filter import XGBoostFilter, XGBoostFilterConfig
@@ -123,7 +124,7 @@ class ScannerManager:
             atc_config = ATC_SCANNER_DEFAULTS.copy()
             atc_config["threshold"] = float(scanner_config.get("atc_threshold", 0.6))
 
-            atc_scanner = None
+            atc_scanner: ATCScannerLike | None = None
             if atc_backend == "serverless":
                 serverless_config = {
                     **atc_config,
@@ -224,7 +225,25 @@ class ScannerManager:
             signal_selector = SignalSelector(config=selector_config)
             log_info(f"SignalSelector ready (min_confidence: {selector_config['min_confidence_threshold']})")
 
-            # 6. Create Pipeline
+            # 6. Gann Square Filter (optional)
+            gann_filter = None
+            if scanner_config.get("enable_gann_square", False):
+                try:
+                    from modules.auto_trade.core.gann_square_filter import GannSquareFilter
+
+                    gann_filter = GannSquareFilter(
+                        timeframe=scanner_config.get("gann_timeframe", "1h"),
+                        limit=int(scanner_config.get("gann_candle_limit", 200)),
+                        lookback=int(scanner_config.get("gann_lookback", 5)),
+                    )
+                    log_info(
+                        f"GannSquareFilter ready (tf={gann_filter.timeframe}, limit={gann_filter.limit}, lookback={gann_filter.lookback})"
+                    )
+                except ImportError as e:
+                    log_warn(f"GannSquareFilter not available: {e}")
+
+            # 7. Create Pipeline
+            assert atc_scanner is not None, "atc_scanner must be initialized before building the pipeline"
             self.pipeline = SignalPipeline(
                 symbol_manager=symbol_manager,
                 atc_scanner=atc_scanner,
@@ -236,8 +255,9 @@ class ScannerManager:
                     "max_ai_candidates": 5,
                     "xgboost_mode": xgboost_mode,
                 },
+                gann_square_filter=gann_filter,
             )
-            log_info(f"SignalPipeline initialized (xgboost_mode: {xgboost_mode})")
+            log_info(f"SignalPipeline initialized (xgboost_mode: {xgboost_mode}, gann: {gann_filter is not None})")
 
             self._pipeline_initialized = True
             return True

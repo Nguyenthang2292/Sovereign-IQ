@@ -1,9 +1,9 @@
 """Actions Section Component for Database Panel."""
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import os
 import tkinter.filedialog as filedialog
 import tkinter.messagebox as messagebox
+from collections.abc import Mapping
 from typing import Any, Callable, Optional
 
 import customtkinter as ctk
@@ -15,7 +15,8 @@ from modules.auto_trade.gui.services.database_service import (
     DatabaseService,
     DataViewerService,
 )
-
+from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.common.ui.logging import log_warn
 
 
 class ActionsSection:
@@ -47,19 +48,28 @@ class ActionsSection:
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
+        # (label, callback, svg_icon_key)
         actions = [
-            ("💾 Create Backup", self._create_backup),
-            ("🔄 Run Migrations", self._run_migrations),
-            ("🔄 Reconcile with Binance", self._reconcile_with_binance),
-            ("🗑️ Remove All Open Orders in DB", self._remove_all_open_orders),
-            ("🧹 Cleanup Old Records", self._cleanup_records),
-            ("📤 Export to CSV", self._export_csv),
-            ("📋 View Audit Log", self._view_audit_log),
-            ("🔍 Check Integrity", self._check_integrity),
+            ("Create Backup", self._create_backup, "save"),
+            ("Run Migrations", self._run_migrations, "refresh"),
+            ("Reconcile with Binance", self._reconcile_with_binance, "git_compare"),
+            ("Remove All Open Orders in DB", self._remove_all_open_orders, "trash"),
+            ("Cleanup Old Records", self._cleanup_records, "sparkles"),
+            ("Export to CSV", self._export_csv, "file_up"),
+            ("View Audit Log", self._view_audit_log, "scroll_text"),
+            ("Check Integrity", self._check_integrity, "shield_check"),
         ]
 
-        for text, command in actions:
-            ctk.CTkButton(frame, text=text, command=command).pack(fill="x", padx=10, pady=2)
+        for text, command, icon_key in actions:
+            icon = get_icon(icon_key, size=(16, 16))
+            ctk.CTkButton(
+                frame,
+                text=f"  {text}",
+                command=command,
+                image=icon,
+                compound="left",
+                anchor="w",
+            ).pack(fill="x", padx=10, pady=2)
 
     def _create_backup(self):
         """Create database backup."""
@@ -101,17 +111,18 @@ class ActionsSection:
         except Exception as e:
             self.log_callback(f"Cleanup failed: {e}", "ERROR")
 
-    def _export_csv(self):
+    def _export_csv(self) -> None:
         """Export current data to CSV using RepositoryContext data."""
         file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
         if not file_path:
             return
 
         try:
-            import csv
+            import csv  # noqa: PLC0415
+            csv_module: Any = csv
 
             table_name = self.get_current_table()
-            rows = DataViewerService.get_table_data(table_name, limit=99999)
+            rows: list[Any] = DataViewerService.get_table_data(table_name, limit=99999)
 
             if not rows:
                 self.log_callback(f"No data found for table: {table_name}", "WARNING")
@@ -119,17 +130,18 @@ class ActionsSection:
 
             # rows are dicts — write header from first row keys
             with open(file_path, "w", newline="", encoding="utf-8") as f:
-                if isinstance(rows[0], dict):
-                    writer = csv.DictWriter(f, fieldnames=rows[0].keys())
-                    writer.writeheader()
-                    writer.writerows(rows)
+                first_row = rows[0]
+                if isinstance(first_row, Mapping):
+                    dict_writer = csv_module.DictWriter(f, fieldnames=first_row.keys())
+                    dict_writer.writeheader()
+                    dict_writer.writerows(rows)
                 else:
                     # ORM objects — convert attributes
-                    writer = csv.writer(f)
-                    cols = [c.key for c in rows[0].__table__.columns]
-                    writer.writerow(cols)
+                    row_writer = csv_module.writer(f)
+                    cols = [c.key for c in first_row.__table__.columns]
+                    row_writer.writerow(cols)
                     for row in rows:
-                        writer.writerow([getattr(row, c) for c in cols])
+                        row_writer.writerow([getattr(row, c) for c in cols])
 
             self.log_callback(f"Exported {table_name} ({len(rows)} rows) to {file_path}", "SUCCESS")
 
@@ -238,6 +250,9 @@ class ActionsSection:
             removed = 0
             for pos in positions:
                 order_id = pos.get("order_id")
+                if not isinstance(order_id, str) or not order_id:
+                    log_warn(f"Skipping open order without valid order_id: {pos}")
+                    continue
                 try:
                     ctx.orders.update_order_status(order_id, "CANCELLED")
                     removed += 1
@@ -253,5 +268,6 @@ class ActionsSection:
 
     def _show_in_data_viewer(self, content: str):
         """Show content in data viewer."""
-        if hasattr(self.parent, "data_viewer_callback"):
-            self.parent.data_viewer_callback(content)
+        callback = getattr(self.parent, "data_viewer_callback", None)
+        if callable(callback):
+            callback(content)

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **gemini_gann_square**: New module — Gann Square technical analysis + Gemini AI (2026-02-25)
+  - `core/swing_detector.py` — Pivot Zigzag algorithm for Swing High/Low detection
+  - `core/gann_calculator.py` — 4-zone Gann Square builder with trend-aware signals (LONG/SHORT/SKIP)
+  - `core/gann_chart_generator.py` — Candlestick chart with zone overlays, swing markers, current price line
+  - `core/gann_signal_engine.py` — Full orchestrator: fetch → detect → calculate → chart → Gemini AI → parse
+  - `cli/` — CLI entry point with argparse and interactive menu
+  - `prompts/gann_analysis.txt` — Structured Gemini prompt template with placeholder injection
+  - 39 unit tests (100% pass) covering calculator zones, trend detection, swing detection, and edge cases
+  - Code review: fixed 5 lint issues (unused imports, import ordering, line length)
+
 ### Changed
 - **binance_client**: Refactored into modular sub-package architecture (2026-02-11)
   - Split monolithic `binance_client.py` (793 lines) into focused modules:

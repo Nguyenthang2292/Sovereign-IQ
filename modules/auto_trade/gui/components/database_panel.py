@@ -39,8 +39,9 @@ class DatabasePanel(ctk.CTkFrame):
         # Create layout
         self._create_layout()
 
-        # Load initial stats
-        self._load_initial_stats()
+        # Load initial stats asynchronously after startup settles.
+        # Running synchronous DynamoDB queries too early can block initial window display.
+        self.after(3000, self._load_initial_stats)
 
     def _create_layout(self):
         """Create the main layout structure (left/right panels and sections)."""
