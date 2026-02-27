@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `visualizer` sub-module (`modules/adaptive_trend_LTS_serverless/visualizer`) with `ATCChartRenderer` + CLI (`python -m modules.adaptive_trend_LTS_serverless.visualizer`) to render candlestick charts with ATC signal markers and all ATC MA lines (EMA/WMA/DEMA/LSMA/HMA/KAMA); verified by smoke run output `charts/review_visualizer_smoke.png`.
 - Added final codex review: `docs/codex_review_final_2026-02-22.md` — **32/32 issues resolved across 2 review cycles**, 0 Critical/High/Medium remaining, 3 cosmetic-only items. Module approved for v0.2.0 release ✅.
 - Added codex review report: `docs/codex_review_2026-02-22.md` — follow-up review confirming all 21 previous issues resolved ✅, identified 2 High, 4 Medium, 5 Low new findings.
 - Added codex review report: `docs/codex_review_2026-02-21.md` — full module audit with 3 Critical, 5 High, 7 Medium, 6 Low findings. (archived)

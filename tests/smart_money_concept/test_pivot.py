@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from modules.smart_money_concept.pivot import Pivot
+from modules.smart_money_concept.models import Pivot
 
 
 class TestPivotInitialization:
