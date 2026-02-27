@@ -36,6 +36,8 @@ from sklearn.model_selection import TimeSeriesSplit  # type: ignore[import-untyp
 
 from config import (
     MODEL_FEATURES,
+    OPTUNA_N_JOBS,
+    OPTUNA_PARALLEL_TRIALS,
     TARGET_HORIZON,
     TARGET_LABELS,
     XGBOOST_MIN_OPTIMIZATION_SAMPLES,
@@ -43,6 +45,7 @@ from config import (
 )
 from modules.common.utils import log_error, log_info, log_success, log_warn
 from modules.xgboost_LTS.core.model import _resolve_xgb_classifier
+from modules.xgboost_LTS.utils.cv_utils import apply_cv_gap
 
 
 @contextmanager
@@ -108,7 +111,6 @@ class StudyManager:
         Args:
             storage_dir: Directory to store studies (relative to project root)
         """
-        # [DEBUG] Path resolution - always resolve relative to project root
         # Calculate project root: modules/xgboost/optimization.py -> modules/xgboost/ -> modules/ -> project root
         # Adjust depth as needed based on actual file location
         _PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -187,12 +189,10 @@ class StudyManager:
         study_files = sorted(self.storage_dir.glob(pattern), reverse=True)
 
         if not study_files:
-            # [DEBUG] No study files found - checked pattern matching
             return None
 
         # Load the most recent study
         latest_study = study_files[0]
-        # [DEBUG] Study file loading - error handling added for JSON parsing and timestamp validation
         try:
             with open(latest_study, "r", encoding="utf-8") as f:
                 study_data = json.load(f)
@@ -214,11 +214,9 @@ class StudyManager:
             study_timestamp = datetime.strptime(study_data["timestamp"], "%Y%m%d_%H%M%S")
             age_days = (datetime.now() - study_timestamp).days
         except (KeyError, ValueError):
-            # [DEBUG] Timestamp parsing error handling added
             return None
 
         if age_days > max_age_days:
-            # [DEBUG] Study age validation checked
             log_warn(f"Study is {age_days} days old (max: {max_age_days}). Consider re-running optimization.")
             return None
 
@@ -298,25 +296,8 @@ class HyperparameterTuner:
         cv_scores = []
 
         for train_idx, test_idx in tscv.split(X):
-            # [DEBUG] CV fold processing - gap prevention and class diversity validation checked
-            # Apply gap to prevent data leakage
-            train_idx_array = np.array(train_idx)
-            if len(train_idx_array) > TARGET_HORIZON:
-                train_idx_filtered = train_idx_array[:-TARGET_HORIZON]
-            else:
-                continue
-
-            # Ensure test set doesn't overlap with gap
-            # Always filter test indices to prevent data leakage
-            # [DEBUG] test_idx_array scope and gap filtering logic verified
-            test_idx_array = np.array(test_idx)
-            if len(train_idx_filtered) > 0 and len(test_idx_array) > 0:
-                min_test_start = train_idx_filtered[-1] + TARGET_HORIZON + 1
-                # Always filter, not just when first element is < min_test_start
-                test_idx_filtered = test_idx_array[test_idx_array >= min_test_start]
-                if len(test_idx_filtered) == 0:
-                    continue
-            else:
+            train_idx_filtered, test_idx_filtered = apply_cv_gap(train_idx, test_idx, TARGET_HORIZON)
+            if len(train_idx_filtered) == 0 or len(test_idx_filtered) == 0:
                 continue
 
             # Class diversity validation
@@ -336,7 +317,6 @@ class HyperparameterTuner:
             model.fit(X.iloc[train_idx_filtered], y.iloc[train_idx_filtered], eval_set=[(X_val, y_val)], verbose=False)
 
             # Evaluate on test set
-            # [DEBUG] test_idx_filtered usage verified - correctly used after filtering
             if len(test_idx_filtered) > 0:
                 y_test_fold = y.iloc[test_idx_filtered]
                 preds = model.predict(X.iloc[test_idx_filtered])
@@ -370,7 +350,6 @@ class HyperparameterTuner:
         Returns:
             Dictionary containing best parameters
         """
-        # [DEBUG] Input validation - MODEL_FEATURES and Target column validation added
         if "Target" not in df.columns:
             raise ValueError("DataFrame must contain 'Target' column")
         missing_features = set(MODEL_FEATURES) - set(df.columns)
@@ -413,7 +392,6 @@ class HyperparameterTuner:
 
         with file_lock(lock_file_path):
             # Load existing study if available
-            # [DEBUG] Exception handling improved - added DuplicatedStudyError handling for Optuna
             study = None
             if load_existing:
                 try:
@@ -437,13 +415,17 @@ class HyperparameterTuner:
                     raise
 
             # Create new study if not loaded
-            # [DEBUG] DuplicatedStudyError handling with fallback to load_study added
             if study is None:
                 try:
                     study = optuna.create_study(
                         study_name=study_name,
                         direction="maximize",
                         storage=storage_url,
+                        pruner=optuna.pruners.MedianPruner(
+                            n_startup_trials=10,
+                            n_warmup_steps=2,
+                            interval_steps=1,
+                        ),
                         load_if_exists=True,
                     )
                     log_info(f"Created new study: {study_name}")
@@ -465,10 +447,6 @@ class HyperparameterTuner:
             # Optuna's internal SQLite handler handles concurrent write attempts,
             # but our file lock ensures we don't have multiple processes trying
             # to initialize the study at the exact same millisecond.
-
-            # Configuration for parallel trials
-            OPTUNA_PARALLEL_TRIALS = True
-            OPTUNA_N_JOBS = -1  # -1 = use all CPU cores
 
             # Retry logic with exponential backoff for SQLite database locked errors
             max_retries = 5

@@ -34,11 +34,8 @@ class TestTrainAndPredictEdgeCases:
         monkeypatch.setattr("modules.xgboost_LTS.core.model.MODEL_FEATURES", ["feature1", "feature2"])
         monkeypatch.setattr("modules.xgboost_LTS.core.model.XGBOOST_MIN_TRAIN_FRACTION", 0.1)
 
-        # Should handle gracefully
-        result = train_and_predict(df, use_cache=False)
-
-        # May return None or trained model depending on implementation
-        # The important thing is it doesn't crash
+        with pytest.raises(ValueError, match="No rows with finite target/features"):
+            train_and_predict(df, use_cache=False)
 
     def test_single_class_in_training(self, monkeypatch):
         """Test with single class in training data."""
@@ -218,6 +215,10 @@ class TestTrainAndPredictEdgeCases:
 class TestPredictNextMove:
     """Test predict_next_move function."""
 
+    @pytest.fixture(autouse=True)
+    def _patch_model_features(self, monkeypatch):
+        monkeypatch.setattr("modules.xgboost_LTS.core.model.MODEL_FEATURES", ["feature1", "feature2"])
+
     def test_with_series_input(self):
         """Test prediction with Series input."""
         model = MagicMock()
@@ -247,7 +248,7 @@ class TestPredictNextMove:
         model = MagicMock()
         model.predict_proba.side_effect = ValueError("Model error")
 
-        row = pd.Series({"feature1": 1.0})
+        row = pd.Series({"feature1": 1.0, "feature2": 2.0})
 
         with pytest.raises(ValueError) as exc:
             predict_next_move(model, row)
@@ -259,12 +260,13 @@ class TestPredictNextMove:
         model = MagicMock()
         model.predict_proba.return_value = np.array([[0.5, 0.5]])  # Only 2 classes
 
-        row = pd.Series({"feature1": 1.0})
+        row = pd.Series({"feature1": 1.0, "feature2": 2.0})
 
         result = predict_next_move(model, row)
 
-        # Should return the probabilities even if wrong shape
-        assert result.shape == (2,)
+        # Should be padded to 3 classes for consistent output shape
+        assert result.shape == (3,)
+        np.testing.assert_array_almost_equal(result, [0.5, 0.5, 0.0])
 
     def test_empty_input(self):
         """Test with empty input."""
@@ -357,7 +359,7 @@ class TestDataValidation:
             {
                 "feature1": np.random.randn(50),
                 "feature2": np.random.randn(50),
-                "Target": ["UP", "DOWN", "NEUTRAL"] * 17,  # String labels
+                "Target": (["UP", "DOWN", "NEUTRAL"] * 17)[:50],  # String labels
             }
         )
 
@@ -378,7 +380,7 @@ class TestDataValidation:
             {
                 "feature1": np.random.randn(50),
                 "feature2": np.random.randn(50),
-                "Target": [0.0, 1.0, 2.0] * 17,  # Float labels
+                "Target": ([0.0, 1.0, 2.0] * 17)[:50],  # Float labels
             }
         )
 

@@ -186,7 +186,7 @@ class TestModelCaching:
             cache.save_model(model, df, config)
 
             # Corrupt the file
-            model_path = cache.get_model_path(df, config)
+            model_path = cache.get_model_path(df, config, native=False)
             with open(model_path, "w") as f:
                 f.write("corrupted data")
 
@@ -333,7 +333,7 @@ class TestCachePathGeneration:
 
             path = cache.get_model_path(df, config)
 
-            assert path.suffix == ".joblib"
+            assert path.suffix == ".json"
             assert "model_" in path.name
             assert path.parent == cache.models_dir
 

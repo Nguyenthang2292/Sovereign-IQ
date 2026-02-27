@@ -3,9 +3,25 @@
 from typing import Any, Dict
 
 import numpy as np
-from tabulate import tabulate
+try:
+    from tabulate import tabulate
+except Exception:
+    tabulate = None
 
 from modules.common.utils import log_info, log_warn
+
+
+def _fallback_table(table_data: list[list[str]]) -> str:
+    """Render a simple plaintext table when tabulate is unavailable."""
+    column_count = max(len(row) for row in table_data)
+    normalized = [row + [""] * (column_count - len(row)) for row in table_data]
+    widths = [max(len(str(row[index])) for row in normalized) for index in range(column_count)]
+
+    def render_row(row: list[str]) -> str:
+        cells = [str(cell).ljust(widths[index]) for index, cell in enumerate(row)]
+        return " | ".join(cells)
+
+    return "\n".join(render_row(row) for row in normalized)
 
 
 def compare_results(
@@ -130,4 +146,6 @@ def generate_comparison_table(
         ],
     ]
 
-    return tabulate(table_data, headers="firstrow", tablefmt="grid")
+    if tabulate is not None:
+        return tabulate(table_data, headers="firstrow", tablefmt="grid")
+    return _fallback_table(table_data)

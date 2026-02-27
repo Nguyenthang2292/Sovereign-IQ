@@ -18,6 +18,7 @@ import pandas as pd
 import xgboost as xgb
 
 from config import ARTIFACTS_DIR
+from modules.xgboost_LTS.utils.memory_map import dataframe_to_memmap
 
 logger = logging.getLogger(__name__)
 
@@ -29,20 +30,41 @@ LEGACY_EXT = ".joblib"
 class CacheManager:
     """Manage caching of XGBoost models and labeled datasets."""
 
-    def __init__(self, subsystem: str = "xgboost"):
+    def __init__(self, subsystem: str = "xgboost", max_cache_entries: Optional[int] = None):
         """
         Initialize cache manager.
 
         Args:
             subsystem: Subsystem name (e.g., 'xgboost')
+            max_cache_entries: Optional max files per cache subdirectory.
+                When exceeded, oldest files are evicted.
         """
         self.cache_dir = Path(ARTIFACTS_DIR) / subsystem
         self.models_dir = self.cache_dir / "models"
         self.labels_dir = self.cache_dir / "labels"
+        self.max_cache_entries = max_cache_entries
 
         # Create directories
         self.models_dir.mkdir(parents=True, exist_ok=True)
         self.labels_dir.mkdir(parents=True, exist_ok=True)
+
+    def _evict_oldest(self, directory: Path) -> None:
+        """Evict oldest files in directory when exceeding max_cache_entries."""
+        if self.max_cache_entries is None or self.max_cache_entries <= 0:
+            return
+
+        files = [f for f in directory.iterdir() if f.is_file()]
+        if len(files) <= self.max_cache_entries:
+            return
+
+        files.sort(key=lambda file_path: file_path.stat().st_mtime)
+        excess_count = len(files) - self.max_cache_entries
+        for file_path in files[:excess_count]:
+            try:
+                file_path.unlink()
+                logger.info(f"Evicted old cache file: {file_path.name}")
+            except OSError as e:
+                logger.warning(f"Failed to evict cache file {file_path}: {e}")
 
     def _compute_df_hash(self, df: pd.DataFrame) -> str:
         """
@@ -156,6 +178,7 @@ class CacheManager:
                 path_joblib = self.get_model_path(df, config, native=False)
                 joblib.dump(model, path_joblib, compress=3)
                 logger.info(f"Saved model to cache: {path_joblib.name} (legacy joblib)")
+            self._evict_oldest(self.models_dir)
         except Exception as e:
             logger.error(f"Failed to save model to cache: {e}")
 
@@ -186,6 +209,11 @@ class CacheManager:
         filename = f"labels_{df_hash}_{config_hash}.parquet"
         return self.labels_dir / filename
 
+    @staticmethod
+    def _get_labels_fallback_path(parquet_path: Path) -> Path:
+        """Fallback path when parquet engines are unavailable."""
+        return parquet_path.with_suffix(".pkl")
+
     def load_labels(self, df: pd.DataFrame, config: Dict[str, Any]) -> Optional[pd.DataFrame]:
         """
         Load labeled DataFrame from cache if exists.
@@ -204,7 +232,44 @@ class CacheManager:
                 return pd.read_parquet(path)
             except Exception as e:
                 logger.warning(f"Failed to load cached labels: {e}")
+
+        fallback_path = self._get_labels_fallback_path(path)
+        if fallback_path.exists():
+            try:
+                logger.info(f"Loading cached labels from {fallback_path.name} (pickle fallback)")
+                return pd.read_pickle(fallback_path)
+            except Exception as e:
+                logger.warning(f"Failed to load fallback cached labels: {e}")
         return None
+
+    def load_labels_memmap(
+        self,
+        df: pd.DataFrame,
+        config: Dict[str, Any],
+        columns: Optional[list[str]] = None,
+        dtype: Any = np.float32,
+    ) -> Optional[tuple[np.memmap, list[str]]]:
+        """Load cached labels and expose selected columns as a read-only memmap array."""
+        try:
+            cached_df = self.load_labels(df, config)
+            if cached_df is None:
+                return None
+            if columns is not None:
+                cached_df = cached_df[list(columns)]
+
+            path = self.get_labels_path(df, config)
+            memmap_path = self.labels_dir / f"{path.stem}.mmap"
+            mapped, used_columns = dataframe_to_memmap(
+                cached_df,
+                memmap_path,
+                columns=cached_df.columns.tolist(),
+                dtype=dtype,
+            )
+            logger.info(f"Loaded memory-mapped labels from {memmap_path.name}")
+            return mapped, used_columns
+        except Exception as e:
+            logger.warning(f"Failed to load memory-mapped labels: {e}")
+            return None
 
     def save_labels(self, labeled_df: pd.DataFrame, source_df: pd.DataFrame, config: Dict[str, Any]):
         """
@@ -219,8 +284,16 @@ class CacheManager:
         try:
             labeled_df.to_parquet(path, compression="snappy")
             logger.info(f"Saved labels to cache: {path.name}")
+            self._evict_oldest(self.labels_dir)
         except Exception as e:
-            logger.error(f"Failed to save labels to cache: {e}")
+            logger.warning(f"Failed to save labels as parquet, trying pickle fallback: {e}")
+            fallback_path = self._get_labels_fallback_path(path)
+            try:
+                labeled_df.to_pickle(fallback_path)
+                logger.info(f"Saved labels to cache: {fallback_path.name} (pickle fallback)")
+                self._evict_oldest(self.labels_dir)
+            except Exception as fallback_error:
+                logger.error(f"Failed to save labels to fallback cache: {fallback_error}")
 
     def clear_cache(self) -> None:
         """Remove all cached model and label files in this manager's cache directory."""

@@ -7,11 +7,13 @@ from pathlib import Path
 # Import from argument_parser.py (renamed from cli.py) to avoid circular import
 cli_file_path = Path(__file__).parent / "argument_parser.py"
 spec = importlib.util.spec_from_file_location("xgboost_cli_module", cli_file_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Unable to load CLI parser module from {cli_file_path}")
 cli_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cli_module)
 
 # Import main from cli.main
-from modules.xgboost.cli.main import main
+from modules.xgboost_LTS.cli.main import main
 
 # Re-export functions from argument_parser.py
 prompt_with_default = cli_module.prompt_with_default

@@ -315,7 +315,7 @@ class TestAddAdvancedFeatures:
     def test_datetime_index_features(self):
         """Test time-based features with DatetimeIndex."""
         n = 100
-        dates = pd.date_range("2024-01-01", periods=n, freq="H")
+        dates = pd.date_range("2024-01-01", periods=n, freq="h")
 
         df = pd.DataFrame(
             {

@@ -33,6 +33,7 @@ fn xgboost_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(features::rolling_skew_rust, m)?)?;
     m.add_function(wrap_pyfunction!(features::pct_change_rust, m)?)?;
     m.add_function(wrap_pyfunction!(features::add_advanced_features_rust, m)?)?;
+    m.add_function(wrap_pyfunction!(features::calculate_all_features_rust, m)?)?;
 
     Ok(())
 }

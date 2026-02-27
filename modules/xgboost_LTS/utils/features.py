@@ -3,19 +3,24 @@ Feature engineering functions for XGBoost module with Rust acceleration.
 """
 
 import logging
+from typing import Any, Iterable, Optional
 
 import numpy as np
 import pandas as pd
 
+from config import MODEL_FEATURES
+
 try:
     from modules.xgboost_LTS.rust_extensions import (
         add_advanced_features_rust,
+        calculate_all_features_rust,
         add_price_derived_features_rust,
     )
 
     RUST_AVAILABLE = True
 except ImportError:
     RUST_AVAILABLE = False
+    calculate_all_features_rust = None
 
 
 def add_price_derived_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -48,6 +53,16 @@ def add_price_derived_features(df: pd.DataFrame) -> pd.DataFrame:
             for key, val in features.items():
                 if key not in df.columns:
                     df[key] = val
+            if "close_open_diff" in df.columns:
+                df["close_open_diff"] = np.where(
+                    df["open"] != 0,
+                    (df["close"] - df["open"]) / df["open"],
+                    0.0,
+                )
+            if "returns_1" in df.columns:
+                df["returns_1"] = pd.Series(df["returns_1"]).fillna(0.0)
+            if "returns_5" in df.columns:
+                df["returns_5"] = pd.Series(df["returns_5"]).fillna(0.0)
             return df
         except Exception as e:
             logging.warning(f"Rust price-derived features failed: {e}")
@@ -73,6 +88,39 @@ def add_advanced_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
     df = add_price_derived_features(df)
+
+    if RUST_AVAILABLE and calculate_all_features_rust is not None:
+        try:
+            atr_14 = df["ATR_14"].values.astype(np.float64) if "ATR_14" in df.columns else None
+            rsi_14 = df["RSI_14"].values.astype(np.float64) if "RSI_14" in df.columns else None
+            sma_20 = df["SMA_20"].values.astype(np.float64) if "SMA_20" in df.columns else None
+            sma_50 = df["SMA_50"].values.astype(np.float64) if "SMA_50" in df.columns else None
+            sma_200 = df["SMA_200"].values.astype(np.float64) if "SMA_200" in df.columns else None
+
+            features = calculate_all_features_rust(
+                df["open"].values.astype(np.float64),
+                df["high"].values.astype(np.float64),
+                df["low"].values.astype(np.float64),
+                df["close"].values.astype(np.float64),
+                df["volume"].values.astype(np.float64),
+                atr_14,
+                rsi_14,
+                sma_20,
+                sma_50,
+                sma_200,
+            )
+
+            for key, val in features.items():
+                df[key] = val
+
+            if isinstance(df.index, pd.DatetimeIndex):
+                df["hour"] = df.index.hour
+                df["dayofweek"] = df.index.dayofweek
+                df["month"] = df.index.month
+
+            return df
+        except Exception as e:
+            logging.warning(f"Rust batch feature calculation failed: {e}")
 
     if RUST_AVAILABLE:
         try:
@@ -133,3 +181,86 @@ def add_advanced_features(df: pd.DataFrame) -> pd.DataFrame:
         df["month"] = df.index.month
 
     return df
+
+
+def _infer_important_features_from_model(model: Any, importance_threshold: float) -> list[str]:
+    importances = getattr(model, "feature_importances_", None)
+    if importances is None:
+        return list(MODEL_FEATURES)
+
+    bounded_threshold = max(0.0, float(importance_threshold))
+    selected = [
+        feature
+        for feature, importance in zip(MODEL_FEATURES, np.asarray(importances).tolist())
+        if float(importance) >= bounded_threshold
+    ]
+    return selected or list(MODEL_FEATURES)
+
+
+def compute_features_lazy(
+    df: pd.DataFrame,
+    model: Optional[Any] = None,
+    selected_features: Optional[Iterable[str]] = None,
+    importance_threshold: float = 0.01,
+) -> pd.DataFrame:
+    """Compute features lazily by selecting only required feature columns.
+
+    Priority:
+    1) `selected_features` if provided
+    2) Features inferred from `model.feature_importances_`
+    3) Fallback to full `MODEL_FEATURES`
+    """
+    working_df = df.copy()
+
+    if selected_features is not None:
+        selected = {str(feature) for feature in selected_features}
+    elif model is not None:
+        selected = set(_infer_important_features_from_model(model, importance_threshold))
+    else:
+        selected = set(MODEL_FEATURES)
+
+    if not selected:
+        selected = set(MODEL_FEATURES)
+
+    core_features = {"returns_1", "returns_5", "log_volume", "high_low_range", "close_open_diff"}
+    advanced_candidates = selected.union(core_features)
+
+    if RUST_AVAILABLE and calculate_all_features_rust is not None:
+        try:
+            atr_14 = working_df["ATR_14"].values.astype(np.float64) if "ATR_14" in working_df.columns else None
+            rsi_14 = working_df["RSI_14"].values.astype(np.float64) if "RSI_14" in working_df.columns else None
+            sma_20 = working_df["SMA_20"].values.astype(np.float64) if "SMA_20" in working_df.columns else None
+            sma_50 = working_df["SMA_50"].values.astype(np.float64) if "SMA_50" in working_df.columns else None
+            sma_200 = working_df["SMA_200"].values.astype(np.float64) if "SMA_200" in working_df.columns else None
+
+            features = calculate_all_features_rust(
+                working_df["open"].values.astype(np.float64),
+                working_df["high"].values.astype(np.float64),
+                working_df["low"].values.astype(np.float64),
+                working_df["close"].values.astype(np.float64),
+                working_df["volume"].values.astype(np.float64),
+                atr_14,
+                rsi_14,
+                sma_20,
+                sma_50,
+                sma_200,
+            )
+
+            for key, val in features.items():
+                if key in advanced_candidates:
+                    working_df[key] = val
+        except Exception as exc:
+            logging.warning(f"Rust lazy feature computation failed: {exc}")
+            working_df = add_advanced_features(working_df)
+    else:
+        working_df = add_advanced_features(working_df)
+
+    if isinstance(working_df.index, pd.DatetimeIndex):
+        if "hour" in selected:
+            working_df["hour"] = working_df.index.hour
+        if "dayofweek" in selected:
+            working_df["dayofweek"] = working_df.index.dayofweek
+        if "month" in selected:
+            working_df["month"] = working_df.index.month
+
+    return working_df

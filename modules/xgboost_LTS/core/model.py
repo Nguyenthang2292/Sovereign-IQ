@@ -37,6 +37,7 @@ from modules.common.utils import (
 )
 from modules.xgboost_LTS.utils.cache_manager import CacheManager
 from modules.xgboost_LTS.utils.cv_parallel import run_parallel_cv
+from modules.xgboost_LTS.utils.cv_utils import apply_cv_gap
 from modules.xgboost_LTS.utils.display import print_classification_report
 from modules.xgboost_LTS.utils.gpu_utils import detect_cuda_available
 
@@ -138,6 +139,47 @@ def _resolve_xgb_classifier() -> Type:
     return sklearn_classifier
 
 
+def _build_model(seed_offset: int = 0) -> Any:
+    """
+    Build XGBoost classifier instance with configuration parameters.
+
+    Uses parameters from config, dynamically adds num_class based on TARGET_LABELS.
+    Filters parameters through whitelist if classifier has one (for fallback compatibility).
+    Adds GPU support if available.
+
+    Args:
+        seed_offset: Offset to add to random_state for CV fold diversity (default: 0)
+
+    Returns:
+        XGBoost classifier instance (or fallback equivalent)
+    """
+    classifier_cls = _resolve_xgb_classifier()
+    params = XGBOOST_PARAMS.copy()
+    params["num_class"] = len(TARGET_LABELS)
+
+    if "random_state" in params:
+        params["random_state"] = params["random_state"] + seed_offset
+
+    if USE_GPU and detect_cuda_available():
+        params["tree_method"] = "hist"
+        params["device"] = "cuda"
+        if "n_jobs" in params:
+            del params["n_jobs"]
+
+    whitelist = getattr(classifier_cls, "XGB_PARAM_WHITELIST", None)
+    if whitelist is not None:
+        params = {k: v for k, v in params.items() if k in whitelist}
+
+    try:
+        return classifier_cls(**params)
+    except Exception:
+        if "device" in params:
+            params_without_device = params.copy()
+            del params_without_device["device"]
+            return classifier_cls(**params_without_device)
+        raise
+
+
 def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
     """
     Train XGBoost model with proper time-series validation and return trained model.
@@ -208,56 +250,6 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
             log_model("Using cached model (skipping training)")
             return cached_model
 
-    def build_model(seed_offset=0):
-        """
-        Build XGBoost classifier instance with configuration parameters.
-
-        Uses parameters from config, dynamically adds num_class based on TARGET_LABELS.
-        Filters parameters through whitelist if classifier has one (for fallback compatibility).
-        Adds GPU support if available.
-
-        Args:
-            seed_offset: Offset to add to random_state for CV fold diversity (default: 0)
-
-        Returns:
-            XGBoost classifier instance (or fallback equivalent)
-        """
-        classifier_cls = _resolve_xgb_classifier()
-        params = XGBOOST_PARAMS.copy()
-        params["num_class"] = len(TARGET_LABELS)
-
-        # Add seed offset for CV fold diversity
-        if "random_state" in params:
-            params["random_state"] = params["random_state"] + seed_offset
-
-        # Add GPU support if available
-        if USE_GPU and detect_cuda_available():
-            params["tree_method"] = "hist"
-            params["device"] = "cuda"
-            # Remove n_jobs when using GPU (GPU handles parallelism)
-            if "n_jobs" in params:
-                del params["n_jobs"]
-
-        # Filter parameters through whitelist if classifier has one (for fallback compatibility)
-        whitelist = getattr(classifier_cls, "XGB_PARAM_WHITELIST", None)
-        if whitelist is not None:
-            params = {k: v for k, v in params.items() if k in whitelist}
-
-        try:
-            return classifier_cls(**params)
-        except Exception:
-            # Try without device parameter if it fails
-            # (XGBoost 3.x might not support device="cuda" with tree_method="hist")
-            if "device" in params:
-                params_without_device = params.copy()
-                del params_without_device["device"]
-                try:
-                    return classifier_cls(**params_without_device)
-                except Exception as e2:
-                    raise e2
-            else:
-                raise
-
     # Train/Test Split with Gap Prevention
     # Strategy: 80/20 split with TARGET_HORIZON gap between train and test sets
     # IMPORTANT: The gap prevents data leakage because labels for the last TARGET_HORIZON
@@ -320,7 +312,7 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
             f"Training with missing classes produces biased predictions."
         )
 
-    model = build_model()
+    model = _build_model()
     try:
         model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=False)
     except ValueError as e:
@@ -369,26 +361,13 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
             for fold, (train_idx, test_idx) in enumerate(tscv.split(X), start=1):
                 # Apply gap to prevent data leakage: remove last TARGET_HORIZON indices from train
                 # This ensures labels for training data don't require future prices from test set
-                train_idx_array = np.array(train_idx)
-                if len(train_idx_array) > TARGET_HORIZON:
-                    train_idx_filtered = train_idx_array[:-TARGET_HORIZON]
-                else:
+                train_idx_filtered, test_idx_filtered = apply_cv_gap(train_idx, test_idx, TARGET_HORIZON)
+                if len(train_idx_filtered) == 0:
                     log_warn(f"CV Fold {fold}: Skipped (insufficient train data for gap)")
                     continue
 
-                # Ensure test set doesn't overlap with gap
-                # Gap is sufficient when: test_start > train_end + TARGET_HORIZON
-                # Always filter test indices to prevent data leakage
-                test_idx_array = np.array(test_idx)
-                if len(train_idx_filtered) > 0 and len(test_idx_array) > 0:
-                    min_test_start = train_idx_filtered[-1] + TARGET_HORIZON + 1
-                    # Always filter, not just when first element is < min_test_start
-                    test_idx_filtered = test_idx_array[test_idx_array >= min_test_start]
-                    if len(test_idx_filtered) == 0:
-                        log_warn(f"CV Fold {fold}: Skipped (no valid test data after gap)")
-                        continue
-                else:
-                    log_warn(f"CV Fold {fold}: Skipped (insufficient data)")
+                if len(test_idx_filtered) == 0:
+                    log_warn(f"CV Fold {fold}: Skipped (no valid test data after gap)")
                     continue
 
                 # Class Diversity Validation
@@ -417,7 +396,7 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
                     y_test_fold = y.iloc[test_idx_filtered]
                     eval_set = [(X_test_fold, y_test_fold)]
 
-                cv_model = build_model(seed_offset=fold)
+                cv_model = _build_model(seed_offset=fold)
                 cv_model.fit(X_train_fold, y_train_fold, eval_set=eval_set, verbose=False)
 
                 if len(test_idx_filtered) > 0:
@@ -435,7 +414,7 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
                     log_model(
                         f"CV Fold {fold} Accuracy: {acc:.4f} "
                         f"(train: {len(train_idx_filtered)}, "
-                        f"gap: {TARGET_HORIZON}, test: {len(test_idx_array)})"
+                        f"gap: {TARGET_HORIZON}, test: {len(test_idx_filtered)})"
                     )
 
         if len(cv_scores) > 0:
@@ -461,14 +440,15 @@ def train_and_predict(df: pd.DataFrame, use_cache: bool = True) -> Any:
     # Here we follow the roadmap to add eval_set even to final fit.
     # For final fit on ALL data, we'll use the last 20% as eval_set.
     final_split = int(len(X) * 0.8)
-    model.fit(X, y, eval_set=[(X.iloc[final_split:], y.iloc[final_split:])], verbose=False)
+    final_model = _build_model()
+    final_model.fit(X, y, eval_set=[(X.iloc[final_split:], y.iloc[final_split:])], verbose=False)
 
     # Save model to cache (Task 3.1)
     if use_cache:
         cache_manager = CacheManager()
-        cache_manager.save_model(model, df, XGBOOST_PARAMS)
+        cache_manager.save_model(final_model, df, XGBOOST_PARAMS)
 
-    return model
+    return final_model
 
 
 def predict_next_move(model: Any, last_row: Union[pd.Series, pd.DataFrame]) -> np.ndarray:

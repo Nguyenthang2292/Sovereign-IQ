@@ -100,7 +100,7 @@ class TestLabelingOptimization:
         # Target can be float due to NaNs at end
 
         # Verify NaN handling at end of series (due to shift)
-        assert result["Target"].iloc[-1] is np.nan or np.isnan(result["Target"].iloc[-1])
+        assert pd.isna(result["Target"].iloc[-1])
 
 
 class TestFloat32Optimization:

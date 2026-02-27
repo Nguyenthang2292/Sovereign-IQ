@@ -69,4 +69,60 @@ def parse_args():
         action="store_true",
         help="Disable interactive prompts; rely only on CLI arguments.",
     )
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="Enable batch mode for multi-symbol parallel training.",
+    )
+    parser.add_argument(
+        "--symbols",
+        help="Comma-separated symbols for batch mode (e.g. BTC/USDT,ETH/USDT,SOL/USDT).",
+    )
+    parser.add_argument(
+        "--symbols-file",
+        help="Path to a text file containing one symbol per line for batch mode.",
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        help="Max worker processes for batch mode (default: cpu_count()-1).",
+    )
+    parser.add_argument(
+        "--no-batch-progress",
+        action="store_true",
+        help="Disable tqdm progress bar in batch mode.",
+    )
+    parser.add_argument(
+        "--batch-no-cache",
+        action="store_true",
+        help="Disable model cache in batch mode.",
+    )
+    parser.add_argument(
+        "--batch-use-dask",
+        action="store_true",
+        help="Use Dask training path in batch mode (optional dependencies required).",
+    )
+    parser.add_argument(
+        "--dask-scheduler-address",
+        help="Remote Dask scheduler address for multi-node runs (e.g. tcp://host:8786).",
+    )
+    parser.add_argument(
+        "--dask-use-cuda",
+        action="store_true",
+        help="Create/use CUDA-backed Dask workers when batch Dask mode is enabled.",
+    )
+    parser.add_argument(
+        "--dask-workers",
+        type=int,
+        help="Number of Dask workers for locally managed cluster.",
+    )
+    parser.add_argument(
+        "--dask-threads-per-worker",
+        type=int,
+        help="Threads per Dask worker for locally managed cluster.",
+    )
+    parser.add_argument(
+        "--dask-memory-limit",
+        help='Memory limit per Dask worker (e.g. "4GB").',
+    )
     return parser.parse_args()

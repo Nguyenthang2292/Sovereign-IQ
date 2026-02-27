@@ -3,6 +3,7 @@ Batch symbol training for XGBoost module.
 """
 
 import os
+import importlib
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Any, Dict, Optional, Callable
 
@@ -11,7 +12,13 @@ import pandas as pd
 from modules.common.utils import log_error, log_warn
 
 
-def _train_one(symbol: str, df: pd.DataFrame, train_fn: Callable[..., Any], use_cache: bool) -> tuple:
+def _train_one(
+    symbol: str,
+    df: pd.DataFrame,
+    train_fn: Callable[..., Any],
+    use_cache: bool,
+    return_result: bool = True,
+) -> tuple:
     """
     Helper function to train one symbol.
     Must be top-level for pickling support in multiprocessing.
@@ -20,7 +27,10 @@ def _train_one(symbol: str, df: pd.DataFrame, train_fn: Callable[..., Any], use_
         # Note: Assuming train_and_predict_fn accepts use_cache kwargs
         # If not, it might need to be wrapped or arguments adjusted
         out = train_fn(df, use_cache=use_cache)
-        return (symbol, {"ok": True, "result": out})
+        payload: Dict[str, Any] = {"ok": True}
+        if return_result:
+            payload["result"] = out
+        return (symbol, payload)
     except Exception as e:
         # We can't use log_error here easily if it's not picklable or if logging is not configured in worker
         # But normally logging works if configured properly.
@@ -33,6 +43,8 @@ def batch_train_symbols(
     train_and_predict_fn: Callable[..., Any],
     max_workers: Optional[int] = None,
     use_cache: bool = True,
+    show_progress: bool = True,
+    return_result: bool = True,
 ) -> Dict[str, Any]:
     """
     Train models for multiple symbols in parallel.
@@ -42,6 +54,8 @@ def batch_train_symbols(
         train_and_predict_fn: Function with signature (df, **kwargs) -> result (e.g. train_and_predict).
         max_workers: Max parallel processes; default os.cpu_count() - 1 or 1.
         use_cache: Passed to labeling/training if supported.
+        show_progress: Show tqdm progress bar when available.
+        return_result: Return model/result payload from worker. Set False to reduce IPC overhead.
 
     Returns:
         Dict mapping symbol -> result of train_and_predict_fn (or exception info on failure).
@@ -51,10 +65,22 @@ def batch_train_symbols(
 
     results: Dict[str, Any] = {}
 
+    def _with_progress(iterable, total: int, desc: str):
+        if not show_progress:
+            return iterable
+        try:
+            tqdm_mod = importlib.import_module("tqdm")
+            tqdm = getattr(tqdm_mod, "tqdm")
+
+            return tqdm(iterable, total=total, desc=desc, unit="symbol")
+        except Exception:
+            return iterable
+
     # If only 1 worker, run sequentially to avoid overhead/pickling issues
     if max_workers == 1:
-        for symbol, df in symbols_data.items():
-            results[symbol] = _train_one(symbol, df.copy(), train_and_predict_fn, use_cache)[1]
+        seq_iter = _with_progress(symbols_data.items(), len(symbols_data), "Training symbols")
+        for symbol, df in seq_iter:
+            results[symbol] = _train_one(symbol, df.copy(), train_and_predict_fn, use_cache, return_result)[1]
         return results
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -62,11 +88,12 @@ def batch_train_symbols(
         # We copy dataframe to ensure thread safety if passed by reference (though processes use pickle)
         # Note: train_and_predict_fn must be picklable
         futures = {
-            executor.submit(_train_one, symbol, df.copy(), train_and_predict_fn, use_cache): symbol
+            executor.submit(_train_one, symbol, df.copy(), train_and_predict_fn, use_cache, return_result): symbol
             for symbol, df in symbols_data.items()
         }
 
-        for future in as_completed(futures):
+        completed_iter = _with_progress(as_completed(futures), len(futures), "Training symbols")
+        for future in completed_iter:
             symbol = futures[future]
             try:
                 symbol_res, data = future.result()

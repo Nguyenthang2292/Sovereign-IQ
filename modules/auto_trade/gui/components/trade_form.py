@@ -3,6 +3,7 @@ from typing import Any, Callable, Optional
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 
 
 class TradeFormFrame(ctk.CTkFrame):
@@ -17,7 +18,10 @@ class TradeFormFrame(ctk.CTkFrame):
         self.on_trade_callback = on_trade_callback
 
         # Title
-        title = ctk.CTkLabel(self, text="💱 Manual Trade", font=("Arial", 16, "bold"))
+        icon_crosshair = get_icon("crosshair", size=(20, 20), light_color="white", dark_color="white")
+        title = ctk.CTkLabel(
+            self, text=" Manual Trade", image=icon_crosshair, compound="left", font=("Arial", 16, "bold")
+        )
         title.pack(pady=(10, 15))
 
         # Form fields
@@ -260,7 +264,10 @@ class TradeFormFrame(ctk.CTkFrame):
         risk_frame.pack(fill="x", padx=15, pady=10)
 
         # Title
-        risk_title = ctk.CTkLabel(risk_frame, text="📊 Calculated Risk", font=("Arial", 13, "bold"))
+        icon_calc = get_icon("calculator", size=(18, 18), light_color="white", dark_color="white")
+        risk_title = ctk.CTkLabel(
+            risk_frame, text=" Calculated Risk", image=icon_calc, compound="left", font=("Arial", 13, "bold")
+        )
         risk_title.pack(pady=(10, 5))
 
         # Grid for metrics
@@ -293,9 +300,12 @@ class TradeFormFrame(ctk.CTkFrame):
 
     def _create_trade_button(self):
         """Create the main trade execution button"""
+        icon_rocket = get_icon("rocket", size=(20, 20), light_color="white", dark_color="white")
         self.trade_button = ctk.CTkButton(
             self,
-            text="🔴 Place Order",
+            text=" Place Order",
+            image=icon_rocket,
+            compound="left",
             font=("Arial", 14, "bold"),
             height=40,
             fg_color="#ff4444",
@@ -485,7 +495,7 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
 
         finally:
             # Re-enable trade button
-            self.trade_button.configure(state="normal", text="🔴 Place Order")
+            self.trade_button.configure(state="normal", text=" Place Order")
 
     def _show_success(self, message: str):
         """Show success notification"""

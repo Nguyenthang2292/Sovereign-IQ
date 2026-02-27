@@ -11,6 +11,7 @@ import pandas as pd
 from sklearn.metrics import accuracy_score  # type: ignore[import-untyped]
 
 from config import ID_TO_LABEL, TARGET_HORIZON, TARGET_LABELS
+from modules.xgboost_LTS.utils.cv_utils import apply_cv_gap
 
 
 def _train_cv_fold(
@@ -39,22 +40,9 @@ def _train_cv_fold(
     """
     import xgboost as xgb
 
-    # Apply gap to prevent data leakage
-    train_idx_array = np.array(train_idx)
-    if len(train_idx_array) <= TARGET_HORIZON:
+    train_idx_filtered, test_idx_filtered = apply_cv_gap(train_idx, test_idx, TARGET_HORIZON)
+    if len(train_idx_filtered) == 0:
         return (fold_num, 0.0, None, None, "Skipped (insufficient train data for gap)")
-
-    train_idx_filtered = train_idx_array[:-TARGET_HORIZON]
-
-    # Ensure test set doesn't overlap with gap
-    # Always filter test indices to prevent data leakage
-    test_idx_array = np.array(test_idx)
-    if len(train_idx_filtered) == 0 or len(test_idx_array) == 0:
-        return (fold_num, 0.0, None, None, "Skipped (no valid data)")
-
-    min_test_start = train_idx_filtered[-1] + TARGET_HORIZON + 1
-    # Always filter, not just when first element is < min_test_start
-    test_idx_filtered = test_idx_array[test_idx_array >= min_test_start]
     if len(test_idx_filtered) == 0:
         return (fold_num, 0.0, None, None, "Skipped (no valid test data after gap)")
 
@@ -86,11 +74,9 @@ def _train_cv_fold(
         X_test = pd.DataFrame(X_values[test_idx_filtered], columns=feature_names)
         y_test_fold = y_values[test_idx_filtered]
 
-        model.fit(X_train, y_train, eval_set=[(X_test, y_test_fold)], verbose=False)
+        model.fit(X_train, y_train, eval_set=[(X_test.values, y_test_fold)], verbose=False)
 
         # Evaluate (move X_test to GPU when model is on cuda to avoid device mismatch warning)
-        X_test = pd.DataFrame(X_values[test_idx_filtered], columns=feature_names)
-        y_test_fold = y_values[test_idx_filtered]
         try:
             import cupy as _cp  # type: ignore[import-untyped]
 

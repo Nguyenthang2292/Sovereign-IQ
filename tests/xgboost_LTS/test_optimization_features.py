@@ -13,7 +13,7 @@ from sklearn.model_selection import TimeSeriesSplit
 # Ensure modules can be imported
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-from modules.xgboost_LTS.utils.gpu_utils import detect_cuda_available, get_gpu_info
+from modules.xgboost_LTS.utils.gpu_utils import detect_cuda_available, get_gpu_info, _query_nvidia_smi
 from modules.xgboost_LTS.utils.cv_parallel import run_parallel_cv
 from modules.xgboost_LTS.core.optimization import HyperparameterTuner
 from config import TARGET_LABELS
@@ -22,6 +22,7 @@ from config import TARGET_LABELS
 @pytest.fixture(autouse=True)
 def clear_gpu_cache():
     """Clear GPU cache before each test."""
+    _query_nvidia_smi.cache_clear()
     detect_cuda_available.cache_clear()
     get_gpu_info.cache_clear()
 

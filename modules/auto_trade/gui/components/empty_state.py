@@ -1,7 +1,8 @@
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 import customtkinter as ctk
+
+from modules.common.ui.logging import log_error
 
 
 class EmptyState(ctk.CTkFrame):
@@ -14,12 +15,12 @@ class EmptyState(ctk.CTkFrame):
     def __init__(
         self,
         parent,
-        icon: str,
+        icon: Union[str, Any],
         message: str,
         hint: Optional[str] = None,
         action_text: Optional[str] = None,
         action_callback: Optional[Callable] = None,
-        **kwargs
+        **kwargs,
     ):
         """Initialize the EmptyState component.
 
@@ -44,19 +45,14 @@ class EmptyState(ctk.CTkFrame):
 
     def _create_widgets(self):
         # Icon
-        self.icon_label = ctk.CTkLabel(
-            self,
-            text=self.icon,
-            font=("Segoe UI", 48)
-        )
+        if isinstance(self.icon, str):
+            self.icon_label = ctk.CTkLabel(self, text=self.icon, font=("Segoe UI", 48))
+        else:
+            self.icon_label = ctk.CTkLabel(self, text="", image=self.icon)
         self.icon_label.pack(pady=(20, 10), padx=20)
 
         # Message
-        self.message_label = ctk.CTkLabel(
-            self,
-            text=self.message,
-            font=("Segoe UI", 16, "bold")
-        )
+        self.message_label = ctk.CTkLabel(self, text=self.message, font=("Segoe UI", 16, "bold"))
         self.message_label.pack(pady=(0, 5), padx=20)
 
         # Hint (optional)
@@ -66,17 +62,13 @@ class EmptyState(ctk.CTkFrame):
                 text=self.hint,
                 font=("Segoe UI", 12),
                 text_color=("gray60", "gray40"),  # Adapts to light/dark mode
-                wraplength=300
+                wraplength=300,
             )
             self.hint_label.pack(pady=(0, 10), padx=20)
 
         # Action Button (optional)
         if self.action_text and self.action_callback:
-            self.action_button = ctk.CTkButton(
-                self,
-                text=self.action_text,
-                command=self._on_action_button_click
-            )
+            self.action_button = ctk.CTkButton(self, text=self.action_text, command=self._on_action_button_click)
             self.action_button.pack(pady=(10, 20), padx=20)
 
     def _on_action_button_click(self):

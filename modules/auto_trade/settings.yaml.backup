@@ -41,9 +41,9 @@ scanner:
   sample_percentage: 50
   auto_start: false
   min_signal_score: 0.32
-  min_volume: 5.0
+  min_volume: 50.0
   enable_xgboost: true
-  atc_threshold: 0.59
+  atc_threshold: 0.6
   enable_gann_square: false
   gann_timeframe: 1h
   gann_candle_limit: 200

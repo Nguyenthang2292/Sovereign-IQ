@@ -3,6 +3,7 @@ from typing import Any, Callable, Optional
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 
 
 class AutoTradeControl(ctk.CTkFrame):
@@ -28,7 +29,10 @@ class AutoTradeControl(ctk.CTkFrame):
         self.risk_limits_enabled_var = ctk.BooleanVar(value=True)
 
         # Title
-        title = ctk.CTkLabel(self, text="🤖 Auto-Trade System", font=("Arial", 16, "bold"))
+        icon_bot = get_icon("bot", size=(20, 20), light_color="white", dark_color="white")
+        title = ctk.CTkLabel(
+            self, text=" Auto-Trade System", image=icon_bot, compound="left", font=("Arial", 16, "bold")
+        )
         title.pack(pady=(10, 15))
 
         # Status indicator
@@ -86,6 +90,7 @@ class AutoTradeControl(ctk.CTkFrame):
             controls_frame,
             text="▶️ Enable Auto-Trade",
             font=("Arial", 12, "bold"),
+            text_color="black",
             fg_color="#00ff88",
             hover_color="#00cc66",
             command=self._enable_auto_trade,
@@ -103,14 +108,6 @@ class AutoTradeControl(ctk.CTkFrame):
         )
         self.disable_button.pack(fill="x", pady=5)
         self.disable_button.pack_forget()  # Hide initially
-
-        risk_limits_cb = ctk.CTkCheckBox(
-            controls_frame,
-            text="🛡️ Enable Risk Limits",
-            variable=self.risk_limits_enabled_var,
-            command=self._on_risk_limits_toggle,
-        )
-        risk_limits_cb.pack(anchor="w", pady=(8, 0))
 
     def _on_risk_limits_toggle(self):
         """Persist Risk Limits toggle change from Trading tab."""
@@ -192,11 +189,18 @@ class AutoTradeControl(ctk.CTkFrame):
         title_row = ctk.CTkFrame(settings_frame, fg_color="transparent")
         title_row.pack(fill="x", padx=10, pady=(10, 2))
         title_row.grid_columnconfigure(0, weight=1)
-        settings_title = ctk.CTkLabel(title_row, text="⚙️ Current Settings", font=("Arial", 12, "bold"))
+        settings_title = ctk.CTkLabel(title_row, text=" Current Settings", font=("Arial", 12, "bold"))
+        icon_settings = get_icon("settings", size=(16, 16), light_color="white", dark_color="white")
+        if icon_settings:
+            settings_title.configure(image=icon_settings, compound="left")
         settings_title.grid(row=0, column=0, sticky="w")
+
+        icon_refresh = get_icon("refresh", size=(14, 14), light_color="white", dark_color="white")
         self.reload_settings_btn = ctk.CTkButton(
             title_row,
-            text="🔄 Force reload",
+            text=" Force reload",
+            image=icon_refresh,
+            compound="left",
             font=("Arial", 10),
             width=100,
             height=28,
@@ -213,7 +217,8 @@ class AutoTradeControl(ctk.CTkFrame):
         # Organized settings by sections
         settings_sections = [
             {
-                "title": "💰 Risk Management",
+                "title": " Risk Management",
+                "icon": "shield",
                 "settings": [
                     ("Risk Limits:", "On", "risk_limits_enabled"),
                     ("Min Score:", "0.7", "min_score"),
@@ -224,7 +229,8 @@ class AutoTradeControl(ctk.CTkFrame):
                 ],
             },
             {
-                "title": "🎯 TP/SL Settings",
+                "title": " TP/SL Settings",
+                "icon": "target",
                 "settings": [
                     ("Default TP:", "5%", "default_tp"),
                     ("Default SL:", "2.5%", "default_sl"),
@@ -233,7 +239,8 @@ class AutoTradeControl(ctk.CTkFrame):
                 ],
             },
             {
-                "title": "🔍 Filters",
+                "title": " Filters",
+                "icon": "zoom_in",
                 "settings": [
                     ("ATC threshold (base):", "0.60", "atc_threshold"),
                     ("XGBoost:", "On", "enable_xgboost"),
@@ -242,7 +249,8 @@ class AutoTradeControl(ctk.CTkFrame):
                 ],
             },
             {
-                "title": "🔄 Gradual Recovery",
+                "title": " Gradual Recovery",
+                "icon": "repeat",
                 "settings": [
                     ("Recovery:", "Off", "recovery_enabled"),
                     ("Initial Loss:", "$500", "recovery_initial_loss"),
@@ -254,7 +262,8 @@ class AutoTradeControl(ctk.CTkFrame):
                 ],
             },
             {
-                "title": "📡 Status",
+                "title": " Status",
+                "icon": "satellite_dish",
                 "settings": [
                     ("Database:", "—", "database_status"),
                     ("API Mode:", "DRY_RUN", "api_mode"),
@@ -274,6 +283,11 @@ class AutoTradeControl(ctk.CTkFrame):
             header = ctk.CTkLabel(
                 section_frame, text=section["title"], font=("Arial", 11, "bold"), text_color=Colors.get_accent()
             )
+            icon_img = get_icon(
+                section["icon"], size=(14, 14), light_color=Colors.get_accent(), dark_color=Colors.get_accent()
+            )
+            if icon_img:
+                header.configure(image=icon_img, compound="left")
             header.pack(anchor="w", padx=10, pady=(8, 5))
 
             # Section settings
@@ -318,7 +332,9 @@ class AutoTradeControl(ctk.CTkFrame):
                 label.configure(text=text_value)
 
         # Risk & scanner filters & TP/SL
-        _safe_configure("min_score", f"{float(scanner.get('min_signal_score', filters.get('min_signal_score', 0.7))):.2f}")
+        _safe_configure(
+            "min_score", f"{float(scanner.get('min_signal_score', filters.get('min_signal_score', 0.7))):.2f}"
+        )
         risk_limits_enabled = bool(risk.get("limits_enabled", True))
         _safe_configure("risk_limits_enabled", "On" if risk_limits_enabled else "Off")
         _safe_configure("max_position_size", f"${float(risk.get('max_position_size', 100.0)):.0f} USDT")
@@ -329,8 +345,12 @@ class AutoTradeControl(ctk.CTkFrame):
         _safe_configure("default_sl", f"{float(tp_sl.get('default_sl', 2.5)):.1f}%")
         _safe_configure("tp_sl_mode", str(tp_sl.get("mode", "Percentage")))
         _safe_configure("trailing_stop", "On" if tp_sl.get("trailing_stop", False) else "Off")
-        _safe_configure("atc_threshold", f"{float(scanner.get('atc_threshold', filters.get('atc_threshold', 0.6))):.2f}")
-        _safe_configure("enable_xgboost", "On" if scanner.get("enable_xgboost", filters.get("enable_xgboost", True)) else "Off")
+        _safe_configure(
+            "atc_threshold", f"{float(scanner.get('atc_threshold', filters.get('atc_threshold', 0.6))):.2f}"
+        )
+        _safe_configure(
+            "enable_xgboost", "On" if scanner.get("enable_xgboost", filters.get("enable_xgboost", True)) else "Off"
+        )
         _safe_configure("min_volume", str(int(float(scanner.get("min_volume", filters.get("min_volume", 50.0))))))
         _safe_configure("timeframe", str(scanner.get("timeframe", filters.get("timeframe", "1h"))))
 

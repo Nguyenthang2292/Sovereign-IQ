@@ -70,6 +70,7 @@ dependencies = [
     "flask>=3.1.2",
     "boto3>=1.42.49",
     "tenacity>=9.1.4",
+    "cairosvg>=2.8.2",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -126,7 +127,7 @@ warn_unused_configs = true
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["ccxt", "ccxt.pro", "numba", "sklearn.*", "joblib", "cupy", "pandas", "numpy", "customtkinter", "yaml", "atc_rust", "colorama", "psutil"]
+module = ["ccxt", "ccxt.pro", "numba", "sklearn.*", "joblib", "cupy", "pandas", "numpy", "customtkinter", "yaml", "atc_rust", "colorama", "psutil", "tqdm", "dask", "dask.*", "dask_ml", "dask_ml.*", "dask_cuda"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -411,3 +411,232 @@ pub fn add_advanced_features_rust<'py>(
 
     Ok(results)
 }
+
+/// Calculate price-derived and advanced features in a single Rust FFI call.
+#[pyfunction]
+#[pyo3(signature = (open, high, low, close, volume, atr_14=None, rsi_14=None, sma_20=None, sma_50=None, sma_200=None))]
+pub fn calculate_all_features_rust<'py>(
+    py: Python<'py>,
+    open: PyReadonlyArray1<f64>,
+    high: PyReadonlyArray1<f64>,
+    low: PyReadonlyArray1<f64>,
+    close: PyReadonlyArray1<f64>,
+    volume: PyReadonlyArray1<f64>,
+    atr_14: Option<PyReadonlyArray1<f64>>,
+    rsi_14: Option<PyReadonlyArray1<f64>>,
+    sma_20: Option<PyReadonlyArray1<f64>>,
+    sma_50: Option<PyReadonlyArray1<f64>>,
+    sma_200: Option<PyReadonlyArray1<f64>>,
+) -> PyResult<Bound<'py, pyo3::types::PyDict>> {
+    let open = open.as_array();
+    let high = high.as_array();
+    let low = low.as_array();
+    let close = close.as_array();
+    let volume = volume.as_array();
+    let n = close.len();
+
+    if open.len() != n || high.len() != n || low.len() != n || volume.len() != n {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "All input arrays must have the same length",
+        ));
+    }
+
+    let mut returns_1 = Array1::<f64>::from_elem(n, f64::NAN);
+    let mut returns_5 = Array1::<f64>::from_elem(n, f64::NAN);
+    let mut log_volume = Array1::<f64>::zeros(n);
+    let mut high_low_range = Array1::<f64>::zeros(n);
+    let mut close_open_diff = Array1::<f64>::zeros(n);
+
+    let s_r1 = returns_1.as_slice_mut().expect("returns_1 not contiguous");
+    let s_r5 = returns_5.as_slice_mut().expect("returns_5 not contiguous");
+    let s_lv = log_volume
+        .as_slice_mut()
+        .expect("log_volume not contiguous");
+    let s_hlr = high_low_range
+        .as_slice_mut()
+        .expect("high_low_range not contiguous");
+    let s_cod = close_open_diff
+        .as_slice_mut()
+        .expect("close_open_diff not contiguous");
+
+    (0..n)
+        .into_par_iter()
+        .zip(s_r1.par_iter_mut())
+        .zip(s_r5.par_iter_mut())
+        .zip(s_lv.par_iter_mut())
+        .zip(s_hlr.par_iter_mut())
+        .zip(s_cod.par_iter_mut())
+        .for_each(|(((((i, r1), r5), lv), hlr), cod)| {
+            if i >= 1 && close[i - 1] != 0.0 {
+                *r1 = (close[i] - close[i - 1]) / close[i - 1];
+            }
+            if i >= 5 && close[i - 5] != 0.0 {
+                *r5 = (close[i] - close[i - 5]) / close[i - 5];
+            }
+            *lv = (volume[i] + 1.0).ln();
+            if close[i] != 0.0 {
+                *hlr = (high[i] - low[i]) / close[i];
+                *cod = (close[i] - open[i]) / close[i];
+            }
+        });
+
+    let results = pyo3::types::PyDict::new(py);
+    results.set_item("returns_1", returns_1.clone().into_pyarray(py))?;
+    results.set_item("returns_5", returns_5.into_pyarray(py))?;
+    results.set_item("log_volume", log_volume.clone().into_pyarray(py))?;
+    results.set_item("high_low_range", high_low_range.into_pyarray(py))?;
+    results.set_item("close_open_diff", close_open_diff.into_pyarray(py))?;
+
+    for period in [3, 5, 10, 20] {
+        let mut roc = Array1::<f64>::from_elem(n, f64::NAN);
+        let s_roc = roc.as_slice_mut().expect("roc not contiguous");
+        s_roc.par_iter_mut().enumerate().for_each(|(i, val)| {
+            if i >= period && close[i - period] != 0.0 {
+                *val = (close[i] - close[i - period]) / close[i - period];
+            }
+        });
+        results.set_item(format!("roc_{}", period), roc.into_pyarray(py))?;
+    }
+
+    let mut atr_ratio_arr = Array1::<f64>::from_elem(n, f64::NAN);
+    if let Some(atr) = &atr_14 {
+        let atr = atr.as_array();
+        let s_atr_ratio = atr_ratio_arr
+            .as_slice_mut()
+            .expect("atr_ratio not contiguous");
+        s_atr_ratio.par_iter_mut().enumerate().for_each(|(i, val)| {
+            if close[i] != 0.0 {
+                *val = atr[i] / close[i];
+            }
+        });
+        results.set_item("atr_ratio", atr_ratio_arr.clone().into_pyarray(py))?;
+    }
+
+    if let Some(sma) = sma_20 {
+        let sma = sma.as_array();
+        let mut ratio = Array1::<f64>::from_elem(n, f64::NAN);
+        let s_ratio = ratio.as_slice_mut().expect("ratio not contiguous");
+        s_ratio.par_iter_mut().enumerate().for_each(|(i, val)| {
+            if sma[i] != 0.0 {
+                *val = close[i] / sma[i];
+            }
+        });
+        results.set_item("price_to_SMA_20", ratio.into_pyarray(py))?;
+    }
+    if let Some(sma) = sma_50 {
+        let sma = sma.as_array();
+        let mut ratio = Array1::<f64>::from_elem(n, f64::NAN);
+        let s_ratio = ratio.as_slice_mut().expect("ratio not contiguous");
+        s_ratio.par_iter_mut().enumerate().for_each(|(i, val)| {
+            if sma[i] != 0.0 {
+                *val = close[i] / sma[i];
+            }
+        });
+        results.set_item("price_to_SMA_50", ratio.into_pyarray(py))?;
+    }
+    if let Some(sma) = sma_200 {
+        let sma = sma.as_array();
+        let mut ratio = Array1::<f64>::from_elem(n, f64::NAN);
+        let s_ratio = ratio.as_slice_mut().expect("ratio not contiguous");
+        s_ratio.par_iter_mut().enumerate().for_each(|(i, val)| {
+            if sma[i] != 0.0 {
+                *val = close[i] / sma[i];
+            }
+        });
+        results.set_item("price_to_SMA_200", ratio.into_pyarray(py))?;
+    }
+
+    for window in [10, 20] {
+        let mut roll_std = Array1::<f64>::from_elem(n, f64::NAN);
+        let mut roll_skew = Array1::<f64>::from_elem(n, f64::NAN);
+
+        let s_std = roll_std.as_slice_mut().expect("roll_std not contiguous");
+        let s_skew = roll_skew.as_slice_mut().expect("roll_skew not contiguous");
+
+        s_std
+            .par_iter_mut()
+            .zip(s_skew.par_iter_mut())
+            .enumerate()
+            .for_each(|(i, (val_std, val_skew))| {
+                if i >= window - 1 {
+                    let start = i + 1 - window;
+                    let slice = returns_1.slice(ndarray::s![start..=i]);
+                    let mean = slice.mean().unwrap_or(0.0);
+
+                    let mut m2 = 0.0;
+                    let mut m3 = 0.0;
+                    for &x in slice {
+                        let diff = x - mean;
+                        m2 += diff * diff;
+                        m3 += diff * diff * diff;
+                    }
+
+                    let variance = m2 / (window - 1) as f64;
+                    let std_dev = if variance > 0.0 { variance.sqrt() } else { 0.0 };
+                    *val_std = std_dev;
+
+                    if m2 > 0.0 && window >= 3 {
+                        let n_f = window as f64;
+                        let skew = (n_f * m3) / ((n_f - 1.0) * (n_f - 2.0) * std_dev.powi(3));
+                        *val_skew = skew;
+                    } else if window >= 3 {
+                        *val_skew = 0.0;
+                    }
+                }
+            });
+
+        results.set_item(format!("rolling_std_{}", window), roll_std.into_pyarray(py))?;
+        results.set_item(format!("rolling_skew_{}", window), roll_skew.into_pyarray(py))?;
+    }
+
+    for lag in 1..=3 {
+        let mut lag_arr = Array1::<f64>::from_elem(n, f64::NAN);
+        let s_lag = lag_arr.as_slice_mut().expect("lag_arr not contiguous");
+        s_lag.par_iter_mut().enumerate().for_each(|(i, val)| {
+            if i >= lag {
+                *val = returns_1[i - lag];
+            }
+        });
+        results.set_item(format!("returns_1_lag_{}", lag), lag_arr.into_pyarray(py))?;
+    }
+
+    if let Some(rsi) = rsi_14 {
+        let rsi = rsi.as_array();
+        for lag in 1..=3 {
+            let mut lag_arr = Array1::<f64>::from_elem(n, f64::NAN);
+            let s_lag = lag_arr.as_slice_mut().expect("lag_arr not contiguous");
+            s_lag.par_iter_mut().enumerate().for_each(|(i, val)| {
+                if i >= lag {
+                    *val = rsi[i - lag];
+                }
+            });
+            results.set_item(format!("RSI_14_lag_{}", lag), lag_arr.into_pyarray(py))?;
+        }
+    }
+
+    for lag in 1..=3 {
+        let mut lag_arr = Array1::<f64>::from_elem(n, f64::NAN);
+        let s_lag = lag_arr.as_slice_mut().expect("lag_arr not contiguous");
+        s_lag.par_iter_mut().enumerate().for_each(|(i, val)| {
+            if i >= lag {
+                *val = log_volume[i - lag];
+            }
+        });
+        results.set_item(format!("log_volume_lag_{}", lag), lag_arr.into_pyarray(py))?;
+    }
+
+    if atr_14.is_some() {
+        for lag in 1..=3 {
+            let mut lag_arr = Array1::<f64>::from_elem(n, f64::NAN);
+            let s_lag = lag_arr.as_slice_mut().expect("lag_arr not contiguous");
+            s_lag.par_iter_mut().enumerate().for_each(|(i, val)| {
+                if i >= lag {
+                    *val = atr_ratio_arr[i - lag];
+                }
+            });
+            results.set_item(format!("atr_ratio_lag_{}", lag), lag_arr.into_pyarray(py))?;
+        }
+    }
+
+    Ok(results)
+}

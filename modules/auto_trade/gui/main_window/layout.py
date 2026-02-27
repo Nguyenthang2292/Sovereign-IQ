@@ -10,6 +10,7 @@ from modules.auto_trade.gui.components.signals_frame import SignalsFrame
 from modules.auto_trade.gui.components.stats_frame import StatsFrame
 from modules.auto_trade.gui.components.trade_form import TradeFormFrame
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 
 
 class LayoutManager:
@@ -65,9 +66,12 @@ class LayoutManager:
         title_label = ctk.CTkLabel(header_frame, text="Auto Trade Dashboard", font=("Arial", 20, "bold"))
         title_label.pack(side="left", padx=20)
 
+        icon_kb = get_icon("keyboard", size=(16, 16), light_color="white", dark_color="white")
         shortcuts_btn = ctk.CTkButton(
             header_frame,
-            text="⌨ Shortcuts",
+            text=" Shortcuts",
+            image=icon_kb,
+            compound="left",
             width=90,
             font=("Arial", 11),
             command=lambda: (
@@ -79,8 +83,8 @@ class LayoutManager:
     def _populate_dashboard_tab(self, parent):
         """Create dashboard interface."""
         parent.grid_rowconfigure(0, weight=1)
-        parent.grid_columnconfigure(0, weight=1)
-        parent.grid_columnconfigure(1, weight=1)
+        parent.grid_columnconfigure(0, weight=1, uniform="equal")
+        parent.grid_columnconfigure(1, weight=1, uniform="equal")
 
         left_panel = ctk.CTkFrame(parent)
         left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
@@ -95,6 +99,7 @@ class LayoutManager:
         right_panel.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
         right_panel.grid_rowconfigure(0, weight=1)
         right_panel.grid_rowconfigure(1, weight=1)
+        right_panel.grid_columnconfigure(0, weight=1)
 
         def on_run_scanner():
             self.parent.tabview.set("Scanner")

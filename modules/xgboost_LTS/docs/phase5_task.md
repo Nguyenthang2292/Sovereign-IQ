@@ -99,17 +99,17 @@ def batch_process_all_symbols(symbols, timeframe, max_workers=None):
 
 ## 📋 Checklist
 
-- [ ] **Task 5.1**: Dask Integration
-    - [ ] Prototype dask-ml training notebook
-    - [ ] Create `modules/xgboost_LTS/core/distributed.py`
-    - [ ] Handle GPU multi-node training (optional)
+- [x] **Task 5.1**: Dask Integration (Core implementation available)
+    - [x] Prototype Dask training script `modules/xgboost_LTS/scripts/prototype_dask_training.py`
+    - [x] Create `modules/xgboost_LTS/core/model_dask.py` (`train_and_predict_dask`)
+    - [x] Handle GPU multi-node training (optional) via `--dask-scheduler-address` / `--dask-use-cuda` and `model_dask.py` client orchestration
 
-- [ ] **Task 5.2**: Batch Symbol Processing
-    - [ ] Implement `cli/batch_processor.py`
-    - [ ] Add CLI flag `--batch` to `main.py`
-    - [ ] Add progress bar (tqdm) for batch runs
+- [x] **Task 5.2**: Batch Symbol Processing (Core implementation available)
+    - [x] Implement batch processor equivalent in `modules/xgboost_LTS/utils/batch_symbols.py`
+    - [x] Add CLI flag `--batch` to `main.py`
+    - [x] Add progress bar (tqdm) for batch runs
 
 ---
 
-**Status**: 📋 PROPOSAL
+**Status**: 🏗️ IN PROGRESS (partial)
 **Target Completion**: Future Expansion

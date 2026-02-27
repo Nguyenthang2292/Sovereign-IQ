@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **xgboost_LTS**: Post-review fixes applied (2026-02-27) — all items verified by `pytest tests/xgboost_LTS`
+  - ✅ **F-01 FIXED** (`core/__init__.py`): All three imports now reference `modules.xgboost_LTS`; critical silent-export bug resolved.
+  - ✅ **F-04 PARTIALLY FIXED** (`utils/cv_utils.py` + `utils/cv_parallel.py`): Shared `apply_cv_gap()` helper extracted; `cv_parallel.py` migrated. `model.py` and `optimization.py` still have own copies (remaining open).
+  - ✅ **F-07 FIXED** (`utils/cache_manager.py`): `max_cache_entries` constructor parameter and `_evict_oldest()` method added to `CacheManager`; default is unlimited (backward-compatible).
+  - ✅ **F-09 FIXED** (`utils/utils.py`): `from config import PREDICTION_WINDOWS` moved below the module docstring.
+  - ✅ **F-10 FIXED** (`utils/cv_parallel.py`): Redundant `pd.DataFrame(X_test_vals, columns=…)` allocation removed; `X_test` built once and `.values` passed to the eval set.
+  - ✅ **F-11 FIXED** (`utils/gpu_utils.py`): `_query_nvidia_smi()` added as shared `@lru_cache(maxsize=1)` helper; both `detect_cuda_available()` and `get_gpu_info()` delegate to it — single subprocess call.
+  - ✅ **F-12 FIXED** (`tests/xgboost_LTS/test_optimization_features.py`): `clear_gpu_cache` autouse fixture now also calls `_query_nvidia_smi.cache_clear()` first; companion fix for F-11's new inner LRU cache. 3 GPU tests that previously failed now pass.
+  - ✅ **Test fix** (`tests/xgboost_LTS/test_features_comprehensive.py` line 318): `freq="H"` → `freq="h"` (pandas ≥ 2.2 deprecation).
+  - ✅ **Full test suite result: 160 passed, 1 skipped, 0 failures** (192 s)
+
+### Reviewed
+- **xgboost_LTS**: Full codex-review completed (2026-02-27) — `modules/xgboost_LTS/docs/2026-02-27-xgboost_LTS_codex_review.md`
+  - ~~🔴 **Critical (F-01)**~~: ✅ Fixed — see `### Fixed` above.
+  - 🟠 **High (F-02)**: `OPTUNA_PARALLEL_TRIALS = True` and `OPTUNA_N_JOBS = -1` are hardcoded locals inside `HyperparameterTuner.optimize()` — not exposed to config or constructor; saturates all CPU cores in a live session.
+  - 🟠 **High (F-03)**: No unit tests inside `modules/xgboost_LTS/`; only 4 integration-level test files exist externally. Labeling thresholds, cache hashing, and feature column names have no safety net.
+  - 🟡 **Medium (F-04)** *(partial)*: `TARGET_HORIZON` gap-prevention CV logic — `utils/cv_utils.py` extracted; `model.py` and `optimization.py` still have own copies.
+  - 🟡 **Medium (F-05)**: `build_model()` defined as inner closure inside `train_and_predict()` — re-created on every call; promote to module scope.
+  - 🟡 **Medium (F-06)**: Final full-data fit in `train_and_predict()` calls `fit()` on the same instance used in the last CV fold; XGBoost may append trees — use a fresh instance.
+  - ~~🟡 **Medium (F-07)**~~: ✅ Fixed — see `### Fixed` above.
+  - 🔵 **Low (F-08)**: `[DEBUG]` comment residue (~8 occurrences) in `optimization.py` — still open.
+  - ~~🔵 **Low (F-09, F-10, F-11)**~~: ✅ All fixed — see `### Fixed` above.
+  - ✅ **Strengths**: Rust→Numba→Python fallback chain; correct `TimeSeriesSplit` gap with `TARGET_HORIZON`; smart OHLCV-only label cache hash; `ClassDiversityError` typed exception; pickle-safe parallel CV; `num_class` pinned from `len(TARGET_LABELS)`; cross-platform file locking with exponential SQLite retry; float32 overflow guard.
+
 ### Added
 - **gemini_gann_square**: New module — Gann Square technical analysis + Gemini AI (2026-02-25)
   - `core/swing_detector.py` — Pivot Zigzag algorithm for Swing High/Low detection

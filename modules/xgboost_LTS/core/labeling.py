@@ -220,7 +220,7 @@ def apply_directional_labels(df: pd.DataFrame, use_cache: bool = True) -> pd.Dat
 
     # Use Rust if available, else Numba (approx 3-5x faster)
     try:
-        vol_values = volatility_multiplier.values.astype(np.float64)
+        vol_values = volatility_multiplier.to_numpy(dtype=np.float64, na_value=np.nan)
         if RUST_AVAILABLE:
             vol_low_rolling = pd.Series(
                 rolling_quantile_rust(vol_values, rolling_window, 0.33), index=volatility_multiplier.index
@@ -348,8 +348,10 @@ def apply_directional_labels(df: pd.DataFrame, use_cache: bool = True) -> pd.Dat
     conditions = [pct_arr >= thresh_arr, pct_arr <= -thresh_arr]
     choices = [up_id, down_id]
 
-    # Assign integer targets directly
-    df.loc[:, "Target"] = np.select(conditions, choices, default=neutral_id)
+    # Assign integer targets directly using nullable integer dtype.
+    # This avoids pandas dtype incompatibility warnings when we later set missing rows.
+    target_values = np.select(conditions, choices, default=neutral_id).astype(np.int64)
+    df["Target"] = pd.Series(target_values, index=df.index, dtype="Int64")
 
     # Create string labels for display/debugging (optional, could be removed for max speed)
     df.loc[:, "TargetLabel"] = df["Target"].map(ID_TO_LABEL)
@@ -358,7 +360,7 @@ def apply_directional_labels(df: pd.DataFrame, use_cache: bool = True) -> pd.Dat
     no_future_mask = future_close.isna()
     if no_future_mask.any():
         df.loc[no_future_mask, "TargetLabel"] = np.nan
-        df.loc[no_future_mask, "Target"] = np.nan
+        df.loc[no_future_mask, "Target"] = pd.NA
 
     # Explicit garbage collection for large intermediates
     del volatility_multiplier, vol_low_rolling, vol_high_rolling

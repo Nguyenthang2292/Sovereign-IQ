@@ -13,7 +13,6 @@ if "__file__" in globals():
 import importlib.util
 
 # Import from cli.py file (not cli package) to avoid circular import
-import sys
 
 import numpy as np
 from colorama import Fore, Style
@@ -39,10 +38,12 @@ from modules.common.utils import (
     log_error,
     normalize_symbol,
 )
-from modules.xgboost.utils.utils import get_prediction_window
+from modules.xgboost_LTS.utils.utils import get_prediction_window
 
 cli_file_path = Path(__file__).parent / "argument_parser.py"
 spec = importlib.util.spec_from_file_location("xgboost_cli_module", cli_file_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Unable to load CLI parser module from {cli_file_path}")
 cli_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cli_module)
 parse_args = cli_module.parse_args
@@ -55,8 +56,9 @@ from modules.common.core.indicator_engine import (
     IndicatorProfile,
 )
 from modules.targets import calculate_atr_targets, format_atr_target_display
-from modules.xgboost.core.labeling import apply_directional_labels
-from modules.xgboost.core.model import predict_next_move, train_and_predict
+from modules.xgboost_LTS.core.labeling import apply_directional_labels
+from modules.xgboost_LTS.core.model import predict_next_move, train_and_predict
+from modules.xgboost_LTS.utils.batch_symbols import batch_train_symbols
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
@@ -82,7 +84,7 @@ def main():
     if exchanges != DEFAULT_EXCHANGES:
         exchange_manager.public.exchange_priority_for_fallback = exchanges
 
-    def run_once(raw_symbol):
+    def _prepare_symbol_data(raw_symbol):
         symbol = normalize_symbol(raw_symbol, quote)
         df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
             symbol,
@@ -91,28 +93,42 @@ def main():
             check_freshness=True,
             exchanges=exchanges if exchanges != DEFAULT_EXCHANGES else None,
         )
-        exchange_label = exchange_id.upper() if exchange_id else "UNKNOWN"
+        if df is None:
+            return None
 
-        if df is not None:
-            # Calculate basic indicators without labels first (to preserve latest_data)
-            df = indicator_engine.compute_features(df)
+        # Calculate basic indicators without labels first (to preserve latest_data)
+        df = indicator_engine.compute_features(df)
 
-            # Calculate advanced features required by XGBoost MODEL_FEATURES
-            # This includes: ROC, atr_ratio, price_to_SMA, rolling stats, lag features, time features
-            from modules.xgboost_LTS.utils.features import add_advanced_features
+        # Calculate advanced features required by XGBoost MODEL_FEATURES
+        # This includes: ROC, atr_ratio, price_to_SMA, rolling stats, lag features, time features
+        from modules.xgboost_LTS.utils.features import add_advanced_features
 
-            df = add_advanced_features(df)
+        df = add_advanced_features(df)
 
-            # Save latest data before applying labels and dropping NaN
-            latest_data = df.iloc[-1:].copy()
-            # Fill any remaining NaN in latest_data with forward fill then backward fill
-            latest_data = latest_data.ffill()
+        # Save latest data before applying labels and dropping NaN
+        latest_data = df.iloc[-1:].copy().ffill()
 
-            # Apply directional labels and drop NaN for training data
-            df = apply_directional_labels(df)
-            latest_threshold = df["DynamicThreshold"].iloc[-1] if len(df) > 0 else TARGET_BASE_THRESHOLD
-            df.dropna(inplace=True)
-            latest_data["DynamicThreshold"] = latest_threshold
+        # Apply directional labels and drop NaN for training data
+        df = apply_directional_labels(df)
+        latest_threshold = df["DynamicThreshold"].iloc[-1] if len(df) > 0 else TARGET_BASE_THRESHOLD
+        df.dropna(inplace=True)
+        latest_data["DynamicThreshold"] = latest_threshold
+
+        return {
+            "symbol": symbol,
+            "exchange_label": exchange_id.upper() if exchange_id else "UNKNOWN",
+            "train_df": df,
+            "latest_data": latest_data,
+            "threshold": latest_threshold,
+        }
+
+    def run_once(raw_symbol):
+        prepared = _prepare_symbol_data(raw_symbol)
+        if prepared is not None:
+            symbol = prepared["symbol"]
+            exchange_label = prepared["exchange_label"]
+            df = prepared["train_df"]
+            latest_data = prepared["latest_data"]
 
             print(color_text(f"Training on {len(df)} samples...", Fore.CYAN))
             model = train_and_predict(df)
@@ -235,7 +251,126 @@ def main():
                 )
             )
 
+    def _symbols_from_file(file_path: str) -> list[str]:
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Symbols file not found: {file_path}")
+        symbols: list[str] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            item = line.strip()
+            if item and not item.startswith("#"):
+                symbols.append(item)
+        return symbols
+
+    def _resolve_batch_symbols() -> list[str]:
+        symbols: list[str] = []
+
+        if args.symbols:
+            symbols.extend([s.strip() for s in args.symbols.split(",") if s.strip()])
+
+        if args.symbols_file:
+            symbols.extend(_symbols_from_file(args.symbols_file))
+
+        if args.symbol:
+            symbols.append(args.symbol)
+
+        if not symbols and allow_prompt:
+            raw = resolve_input(
+                None,
+                DEFAULT_SYMBOL,
+                "Enter comma-separated symbols for batch mode",
+                str,
+                allow_prompt,
+            )
+            symbols.extend([s.strip() for s in raw.split(",") if s.strip()])
+
+        if not symbols:
+            symbols = [DEFAULT_SYMBOL]
+
+        deduped = []
+        seen = set()
+        for s in symbols:
+            ns = normalize_symbol(s, quote)
+            if ns not in seen:
+                seen.add(ns)
+                deduped.append(ns)
+        return deduped
+
+    def run_batch_mode():
+        symbols = _resolve_batch_symbols()
+        print(color_text(f"Batch mode enabled for {len(symbols)} symbols.", Fore.CYAN, Style.BRIGHT))
+
+        prepared: dict[str, dict] = {}
+        for raw_symbol in symbols:
+            info = _prepare_symbol_data(raw_symbol)
+            if info is None:
+                log_warn(f"Skipping {raw_symbol}: unable to fetch market data.")
+                continue
+            if len(info["train_df"]) == 0:
+                log_warn(f"Skipping {info['symbol']}: no training rows after labeling/dropna.")
+                continue
+            prepared[info["symbol"]] = info
+
+        if not prepared:
+            print(color_text("No valid symbols to train in batch mode.", Fore.RED, Style.BRIGHT))
+            return
+
+        if args.batch_use_dask:
+            try:
+                import dask.dataframe as dd
+                from config import MODEL_FEATURES, XGBOOST_PARAMS
+                from modules.xgboost_LTS.core.model_dask import train_and_predict_dask
+            except Exception as exc:
+                print(color_text(f"Batch Dask mode unavailable: {exc}", Fore.RED, Style.BRIGHT))
+                return
+
+            ok_count = 0
+            fail_count = 0
+            for symbol, info in prepared.items():
+                try:
+                    npartitions = max(1, min(8, len(info["train_df"]) // 2000 or 1))
+                    df_dask = dd.from_pandas(info["train_df"], npartitions=npartitions)
+                    train_and_predict_dask(
+                        df_dask,
+                        model_features=MODEL_FEATURES,
+                        params=XGBOOST_PARAMS.copy(),
+                        scheduler_address=args.dask_scheduler_address,
+                        use_cuda=args.dask_use_cuda,
+                        n_workers=args.dask_workers,
+                        threads_per_worker=args.dask_threads_per_worker,
+                        memory_limit=args.dask_memory_limit,
+                    )
+                    ok_count += 1
+                    print(color_text(f"[OK] {symbol}: Dask training completed.", Fore.GREEN))
+                except Exception as exc:
+                    fail_count += 1
+                    print(color_text(f"[FAIL] {symbol}: {exc}", Fore.RED))
+            print(color_text(f"Batch Dask summary -> ok: {ok_count}, fail: {fail_count}", Fore.CYAN, Style.BRIGHT))
+            return
+
+        symbols_data = {symbol: info["train_df"] for symbol, info in prepared.items()}
+        results = batch_train_symbols(
+            symbols_data=symbols_data,
+            train_and_predict_fn=train_and_predict,
+            max_workers=args.max_workers,
+            use_cache=not args.batch_no_cache,
+            show_progress=not args.no_batch_progress,
+            return_result=False,
+        )
+
+        ok_count = sum(1 for v in results.values() if v.get("ok"))
+        fail_count = len(results) - ok_count
+        print(color_text(f"Batch summary -> ok: {ok_count}, fail: {fail_count}", Fore.CYAN, Style.BRIGHT))
+
+        for symbol, payload in results.items():
+            if not payload.get("ok"):
+                print(color_text(f"[FAIL] {symbol}: {payload.get('error', 'Unknown error')}", Fore.RED))
+
     try:
+        if args.batch:
+            run_batch_mode()
+            return
+
         while True:
             raw_symbol = resolve_input(args.symbol, DEFAULT_SYMBOL, "Enter symbol pair", str, allow_prompt)
             run_once(raw_symbol)

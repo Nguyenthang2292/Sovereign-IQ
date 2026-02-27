@@ -5,6 +5,7 @@ import customtkinter as ctk
 
 from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 
 
 class SignalsFrame(ctk.CTkFrame):
@@ -24,17 +25,18 @@ class SignalsFrame(ctk.CTkFrame):
         self.refresh_label.pack(pady=5)
 
     def _create_empty_state(self):
+        icon_img = get_icon("satellite_dish", size=(64, 64), light_color="#666666", dark_color="#cccccc")
+
         self.empty_state = EmptyState(
             self,
-            icon="📡",
+            icon=icon_img if icon_img else "📡",
             message="No signals yet",
             hint="Run the scanner to get live signals.",
             action_text="Run scanner",
-            action_callback=self._on_run_scanner_callback
+            action_callback=self._on_run_scanner_callback,
         )
         self.empty_state.pack(fill="both", expand=True)
-        self.empty_state.pack_forget() # Initially hide empty state
-
+        self.empty_state.pack_forget()  # Initially hide empty state
 
     def _create_header(self):
         header = ctk.CTkFrame(self, fg_color="transparent")
