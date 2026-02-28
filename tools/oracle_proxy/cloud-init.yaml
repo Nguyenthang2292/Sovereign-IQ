@@ -1,0 +1,72 @@
+#cloud-config
+# =====================================================================
+# Oracle Cloud VM — Binance Proxy Setup (Cloud-init)
+# Region: us-ashburn-1 (us-east-1)
+# Purpose: SSH SOCKS5 proxy tunnel for fixed outbound IP
+# Paste nội dung file này vào ô "Cloud-init script" khi tạo Instance
+# =====================================================================
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - openssh-server
+  - fail2ban
+  - curl
+  - net-tools
+
+write_files:
+  # Hardened SSH config — enable TCP forwarding cho SOCKS5 proxy
+  - path: /etc/ssh/sshd_config.d/99-binance-proxy.conf
+    content: |
+      # Allow SOCKS5 dynamic port forwarding
+      AllowTcpForwarding yes
+      GatewayPorts no
+
+      # Keep connections alive (prevent tunnel timeout)
+      ClientAliveInterval 60
+      ClientAliveCountMax 10
+
+      # Security hardening
+      PermitRootLogin no
+      PasswordAuthentication no
+      X11Forwarding no
+      MaxAuthTries 3
+    permissions: '0644'
+
+  # fail2ban config — block brute-force SSH attempts
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      bantime  = 3600
+      findtime = 600
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+      port    = ssh
+      logpath = /var/log/auth.log
+      maxretry = 3
+    permissions: '0644'
+
+runcmd:
+  # Restart SSH to pick up new config
+  - systemctl restart ssh || systemctl restart sshd
+
+  # Enable & start fail2ban
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # Verify TCP forwarding is active
+  - sshd -T | grep -i allowtcpforwarding
+
+  # Log IP for verification
+  - echo "=== Public IP ===" >> /var/log/cloud-init-proxy.log
+  - curl -s https://api.ipify.org >> /var/log/cloud-init-proxy.log
+  - echo "" >> /var/log/cloud-init-proxy.log
+  - echo "=== Setup complete at $(date) ===" >> /var/log/cloud-init-proxy.log
+
+final_message: |
+  Oracle Binance Proxy VM is ready.
+  SSH SOCKS5 tunnel can now be established from local machine.
+  Check /var/log/cloud-init-proxy.log for public IP confirmation.

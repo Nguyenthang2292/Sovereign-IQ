@@ -104,7 +104,7 @@ class SettingsRecoveryMixin:
             if hasattr(self, "config_panel") and hasattr(self.config_panel, "risk_limits_enabled_var"):
                 self.config_panel.risk_limits_enabled_var.set(bool(enabled))
 
-            if hasattr(self, "status_label"):
+            if hasattr(self, "status_label") and self.status_label is not None:
                 state_text = "enabled" if enabled else "disabled"
                 self.status_label.configure(text=f"Risk limits {state_text}.")
 
@@ -168,7 +168,7 @@ class SettingsRecoveryMixin:
                 self.scanner_manager._pipeline_initialized = False
                 self.scanner_manager.pipeline = None
 
-            if hasattr(self, "status_label"):
+            if hasattr(self, "status_label") and self.status_label is not None:
                 self.status_label.configure(text="Settings applied (Scanner, Trading, Gradual Recovery default).")
             log_info("Settings applied: Scanner, Trading, Gradual Recovery default (settings_manager overwritten)")
 
@@ -180,7 +180,7 @@ class SettingsRecoveryMixin:
 
         except Exception as e:
             log_error(f"Error applying settings: {e}")
-            if hasattr(self, "status_label"):
+            if hasattr(self, "status_label") and self.status_label is not None:
                 self.status_label.configure(text=f"Apply failed: {e}")
 
     def _reapply_tp_sl_to_open_positions(self) -> None:
@@ -388,12 +388,12 @@ class SettingsRecoveryMixin:
                 self.auto_trade_control.update_from_settings(settings_to_show, status=self._get_current_status())
                 self.auto_trade_control.update_idletasks()
                 self.update_idletasks()
-            if hasattr(self, "status_label"):
+            if hasattr(self, "status_label") and self.status_label is not None:
                 self.status_label.configure(text="Current Settings reloaded (from Settings tab form).")
             log_info("Current Settings force-reloaded (Trading tab)")
         except Exception as e:
             log_warn(f"Force reload Current Settings: {e}")
-            if hasattr(self, "status_label"):
+            if hasattr(self, "status_label") and self.status_label is not None:
                 self.status_label.configure(text=f"Reload failed: {e}")
 
     def on_recovery_config_change(self, event_type: str, data):
@@ -418,7 +418,7 @@ class SettingsRecoveryMixin:
                     self.recovery_manager.reset()
 
             elif event_type == "recovery_alert":
-                if hasattr(self, "status_label"):
+                if hasattr(self, "status_label") and self.status_label is not None:
                     self.status_label.configure(text=f"Recovery: {data}")
 
             elif event_type == "recovery_enabled_changed":

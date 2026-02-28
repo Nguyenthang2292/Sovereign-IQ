@@ -26,7 +26,7 @@ class RiskManager:
         balance_percentage: float = 0.95,
         default_leverage: int = 2,
         max_leverage: int = 125,
-        min_position_size: float = 10.0,
+        min_position_size: float = 0.0,
         max_position_size: Optional[float] = None,
         emergency_stop_enabled: bool = True,
     ):
@@ -38,7 +38,7 @@ class RiskManager:
             balance_percentage: Percentage of balance to use (default: 0.95 = 95%)
             default_leverage: Default leverage (default: 2x)
             max_leverage: Maximum allowed leverage (default: 125x)
-            min_position_size: Minimum position size in USDT (default: 10.0)
+            min_position_size: Minimum position size in USDT (default: 0.0, disabled)
             max_position_size: Optional maximum position size in USDT
             emergency_stop_enabled: Enable emergency stop mechanism
         """

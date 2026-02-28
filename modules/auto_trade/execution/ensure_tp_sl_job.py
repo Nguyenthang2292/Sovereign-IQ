@@ -152,6 +152,15 @@ class EnsureTPSLJob:
                 if not symbol:
                     continue
                 try:
+                    # ── Stale-position guard ────────────────────────────────────────────
+                    # If the position is no longer live on Binance (e.g. TP was hit),
+                    # cancel any remaining TP/SL orders and close it in the DB so they
+                    # don't stay hanging indefinitely.
+                    if self.binance_client and self._is_position_closed_on_binance(symbol):
+                        self._cleanup_closed_position(symbol, order)
+                        results.setdefault("stale_cleaned", []).append(symbol)
+                        continue
+                    # ────────────────────────────────────────────────────────────────────
                     self._process_order(
                         order,
                         symbol,
@@ -169,6 +178,53 @@ class EnsureTPSLJob:
             results["errors"].append(str(e))
 
         return results
+
+    def _is_position_closed_on_binance(self, symbol: str) -> bool:
+        """Return True if the symbol has NO open position on Binance (contracts == 0)."""
+        try:
+            from modules.auto_trade.execution.binance.position_management import PositionManagement
+
+            pos_mgr = PositionManagement(self.binance_client.exchange)
+            pos = pos_mgr.get_position(symbol)
+            if pos is None:
+                return True
+            contracts = float(pos.get("contracts", 0) or pos.get("info", {}).get("positionAmt", 0) or 0)
+            return contracts == 0
+        except Exception as e:
+            log_warn(f"[EnsureTPSL] Could not verify position on Binance for {symbol}: {e}")
+            return False  # Fail-safe: assume still open
+
+    def _cleanup_closed_position(self, symbol: str, db_order: Dict[str, Any]) -> None:
+        """Cancel all hanging TP/SL orders on Binance and mark the DB record as closed."""
+        log_info(f"[EnsureTPSL] Position {symbol} is CLOSED on Binance but DB record is still OPEN. Cleaning up...")
+
+        # 1. Cancel all pending orders on Binance
+        if self.binance_client:
+            try:
+                from modules.auto_trade.execution.binance.order_management import (
+                    OrderManagement,
+                    _ccxt_futures_symbol,
+                )
+
+                om = OrderManagement(self.binance_client.exchange)
+                ccxt_sym = _ccxt_futures_symbol(self.binance_client.exchange, symbol)
+                result = om.cancel_open_orders(ccxt_sym)
+                cancelled = result.get("cancelled_count", 0) if result else 0
+                log_info(f"[EnsureTPSL] Cancelled {cancelled} hanging order(s) for {symbol}")
+            except Exception as e:
+                log_warn(f"[EnsureTPSL] Failed to cancel orders for {symbol}: {e}")
+
+        # 2. Mark the DB record as closed
+        try:
+            repo = self._get_repo_context()
+            order_id = db_order.get("order_id") or db_order.get("pk") or db_order.get("id")
+            if order_id:
+                repo.orders.update_order_status(order_id, "CLOSED")
+                log_info(f"[EnsureTPSL] DB record for {symbol} ({order_id}) marked as CLOSED")
+            else:
+                log_warn(f"[EnsureTPSL] Could not determine order_id for {symbol} to update DB")
+        except Exception as e:
+            log_warn(f"[EnsureTPSL] Could not update DB status for {symbol}: {e}")
 
     def _fetch_existing_tp_sl(
         self,

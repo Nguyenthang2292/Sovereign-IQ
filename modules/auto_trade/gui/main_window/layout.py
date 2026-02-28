@@ -160,6 +160,11 @@ class LayoutManager:
         )
         self.parent.scanner_progress_label.pack(anchor="w", pady=(2, 0))
 
+        self.parent.scanner_countdown_label = ctk.CTkLabel(
+            status_container, text="", font=("Arial", 10), text_color="#aaaaaa"
+        )
+        self.parent.scanner_countdown_label.pack(anchor="w", pady=(2, 0))
+
         # Buttons container (vertical stack)
         buttons_container = ctk.CTkFrame(status_btn_frame, fg_color="transparent")
         buttons_container.pack(fill="x")
@@ -189,12 +194,11 @@ class LayoutManager:
             if not sm:
                 return
 
-            # Update Scanner Button
+            # Update Scanner Button appearance
             if sm.updater is not None:
                 self.parent.scanner_start_button.configure(
                     text=" Stop Scanner", image=stop_icon, text_color="white", fg_color="#ff4444", hover_color="#cc0000"
                 )
-                self.parent.scanner_status_label.configure(text="Scanner: RUNNING", text_color="#00ff88")
             else:
                 self.parent.scanner_start_button.configure(
                     text=" Start Scanner",
@@ -203,7 +207,14 @@ class LayoutManager:
                     fg_color="#00ff88",
                     hover_color="#00cc66",
                 )
-                self.parent.scanner_status_label.configure(text="Scanner: STOPPED", text_color="gray")
+                # Clear countdown when scanner is stopped
+                if hasattr(self.parent, "scanner_countdown_label"):
+                    self.parent.scanner_countdown_label.configure(text="", text_color="#aaaaaa")
+
+            # Delegate status label refresh to updater_manager (knows current position count)
+            um = getattr(self.parent, "updater_manager", None)
+            if um and hasattr(um, "_refresh_scanner_status_label"):
+                um._refresh_scanner_status_label()
 
         self.parent.update_scanner_buttons = update_scanner_buttons
 
@@ -677,7 +688,7 @@ class LayoutManager:
         self.parent.gann_timeframe_var = ctk.StringVar(value="1h")
         ctk.CTkComboBox(
             gann_group,
-            values=["1h", "2h", "4h", "6h", "8h", "12h", "1d"],
+            values=["15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d"],
             variable=self.parent.gann_timeframe_var,
             command=lambda _: self._push_scanner_config(),
         ).grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=4)

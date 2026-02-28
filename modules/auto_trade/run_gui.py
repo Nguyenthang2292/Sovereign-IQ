@@ -1,6 +1,6 @@
+import os
 import sys
 import warnings
-import os
 from pathlib import Path
 
 
@@ -19,7 +19,9 @@ def _patch_windows_platform_for_customtkinter() -> None:
 
         win = sys.getwindowsversion()
         release_value = "10" if int(getattr(win, "major", 10)) >= 10 else str(int(getattr(win, "major", 10)))
-        version_value = f"{int(getattr(win, 'major', 10))}.{int(getattr(win, 'minor', 0))}.{int(getattr(win, 'build', 0))}"
+        version_value = (
+            f"{int(getattr(win, 'major', 10))}.{int(getattr(win, 'minor', 0))}.{int(getattr(win, 'build', 0))}"
+        )
 
         # Prevent slow/hanging WMI calls inside platform.* on some Windows systems.
         # Several dependencies (darkdetect, aiohttp, boto3, numba) trigger these during import.
@@ -38,6 +40,7 @@ def _patch_windows_platform_for_customtkinter() -> None:
         platform.machine = lambda: os.getenv("PROCESSOR_ARCHITECTURE", "AMD64")  # type: ignore[assignment]
     except Exception:
         pass
+
 
 # Suppress pkg_resources deprecation warning from lightning_fabric
 warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
@@ -110,6 +113,26 @@ def main() -> None:
             print("   Using Python fallback.\n")
     else:
         print("Skipping Rust build check (--no-rust-build)\n")
+
+    # Step 2.5: Start EC2 SSH tunnel (if enabled)
+    # Routes all Binance API calls through EC2 Elastic IP → fixed IP for whitelist
+    try:
+        from modules.auto_trade.infrastructure.ec2_tunnel import get_tunnel_manager
+
+        tunnel = get_tunnel_manager()
+        if tunnel.enabled:
+            print("Starting EC2 SSH tunnel for Binance proxy...")
+            tunnel.start()
+            print("Waiting for tunnel to be ready (up to 30s)...")
+            ready = tunnel.wait_ready(timeout=30.0)
+            if ready:
+                print(f"✅ EC2 tunnel ready — Binance outbound IP: {tunnel.host}\n")
+            else:
+                print("⚠️  EC2 tunnel not ready yet (will retry in background).")
+                print("   Binance API calls may fail until tunnel connects.\n")
+    except Exception as _tunnel_err:
+        print(f"⚠️  EC2 tunnel setup failed: {_tunnel_err}")
+        print("   Continuing without proxy — Binance IP whitelist may reject calls.\n")
 
     print("=" * 60)
     print("Launching GUI...\n")

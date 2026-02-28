@@ -2,6 +2,7 @@
 Secure Credential Manager
 Handles secure storage and retrieval of API credentials using environment variables
 """
+
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional, cast
@@ -165,10 +166,7 @@ class CredentialManager:
 
             exchange_class = exchange_map.get(exchange.lower())
             if not exchange_class:
-                return {
-                    "success": False,
-                    "message": f"Unsupported exchange: {exchange}"
-                }
+                return {"success": False, "message": f"Unsupported exchange: {exchange}"}
 
             # Initialize exchange with credentials
             # adjustForTimeDifference: CCXT syncs with Binance server time to avoid -1021 timestamp errors
@@ -179,7 +177,7 @@ class CredentialManager:
                 "enableRateLimit": True,
                 "options": {
                     "adjustForTimeDifference": True,
-                    "recvWindow": 60000,  # 60 seconds tolerance
+                    "recvWindow": 50000,  # 50 seconds tolerance (Binance max is < 60000)
                 },
             }
             exchange_instance = exchange_class(cast(Any, config))
@@ -195,7 +193,7 @@ class CredentialManager:
             return {
                 "success": True,
                 "message": f"Successfully connected to {exchange}!",
-                "balance": balance.get("total", {})
+                "balance": balance.get("total", {}),
             }
 
         except ccxt.AuthenticationError:
@@ -214,7 +212,7 @@ class CredentialManager:
                         "Local clock is out of sync with server. "
                         "Fix: Sync Windows time (Settings > Time & language > Sync now) "
                         "or enable 'Set time automatically'."
-                    )
+                    ),
                 }
             return {"success": False, "message": f"Network error: {msg}"}
         except Exception as e:
@@ -226,6 +224,6 @@ class CredentialManager:
                         "Time synchronization error (Binance -1021). "
                         "Sync Windows time (Settings > Time & language > Sync now) "
                         "or enable 'Set time automatically'."
-                    )
+                    ),
                 }
             return {"success": False, "message": f"Connection test failed: {msg}"}

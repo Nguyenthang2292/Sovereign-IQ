@@ -2,6 +2,7 @@
 
 import queue
 import threading
+import time
 
 from modules.auto_trade.gui.utils.threading_utils import PeriodicUpdater
 from modules.common.ui.logging import log_error, log_info
@@ -13,6 +14,10 @@ class UpdaterManager:
     def __init__(self, parent):
         self.parent = parent
         self.updaters = {}
+        # Track next scheduled scan time for countdown display
+        self._next_scan_time: float = 0.0
+        # Track current known open positions count for status label
+        self._open_positions_count: int = 0
 
     def setup_updaters(self):
         """Initialize and start all periodic updaters."""
@@ -36,6 +41,9 @@ class UpdaterManager:
         # Start log streaming updater
         self.parent.after(100, self._drain_log_queue)
 
+        # Start 1-second ticker for scanner countdown
+        self.parent.after(1000, self._update_scanner_status_tick)
+
         # One-shot startup reconcile: close stale OPEN positions in DB that
         # are no longer on Binance.  Runs in a background thread with a short
         # delay so the GUI paints first.  This is independent of auto-trade.
@@ -52,6 +60,11 @@ class UpdaterManager:
                 elif kind == "positions":
                     print(f"[UpdateQueue] Processing 'positions' update: {len(data) if data else 0} items")
                     self.parent.positions_frame.update_positions(data)
+                    # Update open position count and refresh scanner status in real-time
+                    new_count = len(data) if data else 0
+                    if new_count != self._open_positions_count:
+                        self._open_positions_count = new_count
+                        self._refresh_scanner_status_label()
                 elif kind == "account" and data:
                     self.parent.account_frame.update_data(data)
                 elif kind == "stats" and data:
@@ -59,21 +72,69 @@ class UpdaterManager:
                 elif kind == "scanner_done":
                     if hasattr(self.parent, "scanner_control"):
                         self.parent.scanner_control.update_last_scan_time()
-                    if hasattr(self.parent, "scanner_status_label"):
-                        if data and data.get("skipped"):
-                            n = data.get("count", 1)
-                            self.parent.scanner_status_label.configure(
-                                text=f"🟢 Scanner: RUNNING (scan skipped – {n} open position)",
-                                text_color="#00ff88",
-                            )
-                        else:
-                            self.parent.scanner_status_label.configure(
-                                text="🟢 Scanner: RUNNING",
-                                text_color="#00ff88",
-                            )
+                    # Record the time when next scan will run
+                    sm = getattr(self.parent, "scanner_manager", None)
+                    if sm and sm.updater:
+                        config = self.parent.settings_manager.get("scanner", {})
+                        interval_s = config.get("scan_interval", 5) * 60
+                        self._next_scan_time = time.monotonic() + interval_s
+                    else:
+                        self._next_scan_time = 0.0
+                    # Refresh scanner status label with the current state
+                    self._refresh_scanner_status_label()
         except queue.Empty:
             pass
         self.parent.after(100, self._drain_update_queue)
+
+    def _refresh_scanner_status_label(self):
+        """Update scanner_status_label to reflect current positions / scanner state."""
+        if not hasattr(self.parent, "scanner_status_label"):
+            return
+        sm = getattr(self.parent, "scanner_manager", None)
+        is_running = sm is not None and sm.updater is not None
+        if not is_running:
+            self.parent.scanner_status_label.configure(text="🔴 Scanner: STOPPED", text_color="gray")
+            return
+        n = self._open_positions_count
+        if n > 0:
+            pos_word = "position" if n == 1 else "positions"
+            self.parent.scanner_status_label.configure(
+                text=f"🟢 Scanner: RUNNING (scan skipped – {n} open {pos_word})",
+                text_color="#00ff88",
+            )
+        else:
+            self.parent.scanner_status_label.configure(
+                text="🟢 Scanner: RUNNING",
+                text_color="#00ff88",
+            )
+
+    def _update_scanner_status_tick(self):
+        """1-second ticker: refresh scanner status label + countdown to next scan."""
+        try:
+            self._refresh_scanner_status_label()
+            # Update countdown label
+            if hasattr(self.parent, "scanner_countdown_label"):
+                sm = getattr(self.parent, "scanner_manager", None)
+                is_running = sm is not None and sm.updater is not None
+                if is_running and self._next_scan_time > 0:
+                    remaining = self._next_scan_time - time.monotonic()
+                    if remaining > 0:
+                        mins, secs = divmod(int(remaining), 60)
+                        if mins > 0:
+                            countdown_text = f"⏱ Next scan in: {mins}m {secs:02d}s"
+                        else:
+                            countdown_text = f"⏱ Next scan in: {secs}s"
+                        self.parent.scanner_countdown_label.configure(text=countdown_text, text_color="#aaaaaa")
+                    else:
+                        self.parent.scanner_countdown_label.configure(text="⏱ Scanning now...", text_color="#00ff88")
+                elif is_running:
+                    # Scanner running but we don't know next scan time yet
+                    self.parent.scanner_countdown_label.configure(text="", text_color="#aaaaaa")
+                else:
+                    self.parent.scanner_countdown_label.configure(text="", text_color="#aaaaaa")
+        except Exception as e:
+            print(f"Error in scanner status tick: {e}")
+        self.parent.after(1000, self._update_scanner_status_tick)
 
     MAX_LOG_LINES = 500
 
@@ -92,7 +153,11 @@ class UpdaterManager:
                         log_msg = f"[{level}] {msg}"
                     else:
                         # Fallback for raw LogRecord objects
-                        log_msg = f"[{getattr(log_record, 'levelname', 'INFO')}] {getattr(log_record, 'getMessage', lambda: str(log_record))()}"
+                        log_msg = (
+                            f"[{getattr(log_record, 'levelname', 'INFO')}] {getattr(log_record, 'getMessage', lambda: (
+                                    str(log_record)
+                                ))()}"
+                        )
                     if hasattr(self.parent, "logs_viewer"):
                         self.parent.logs_viewer.append_log(log_msg)
                     elif hasattr(self.parent, "logs_textbox"):

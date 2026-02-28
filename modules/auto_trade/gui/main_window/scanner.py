@@ -61,12 +61,23 @@ class ScannerManager:
         self.updater = self.parent.updater_manager.create_scanner_updater(self._scanner_cycle, interval=interval)
         log_info(f"Scanner started (interval: {interval}s)")
 
+        # Prime the countdown so users see it from the very first tick.
+        # PeriodicUpdater runs the callback immediately on start, so the first
+        # "real" next-scan will be after `interval` seconds.
+        import time as _time
+
+        if hasattr(self.parent, "updater_manager"):
+            self.parent.updater_manager._next_scan_time = _time.monotonic() + interval
+
     def _stop_scanner(self):
         """Stop scanner loop."""
         if self.updater:
             self.updater.stop()
             self.updater = None
             log_info("Scanner stopped")
+            # Clear countdown
+            if hasattr(self.parent, "updater_manager"):
+                self.parent.updater_manager._next_scan_time = 0.0
 
     def _initialize_pipeline(self) -> bool:
         """Initialize the SignalPipeline with all components."""

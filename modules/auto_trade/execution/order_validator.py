@@ -22,7 +22,7 @@ class OrderValidator:
 
     def __init__(
         self,
-        min_position_size: float = 10.0,
+        min_position_size: float = 0.0,
         max_position_size: Optional[float] = None,
         max_leverage: int = 125,
         max_slippage_pct: float = 2.0,
@@ -31,7 +31,7 @@ class OrderValidator:
         Initialize OrderValidator.
 
         Args:
-            min_position_size: Minimum position size in USDT
+            min_position_size: Minimum position size in USDT (default: 0.0, disabled)
             max_position_size: Optional maximum position size in USDT
             max_leverage: Maximum allowed leverage
             max_slippage_pct: Maximum acceptable slippage percentage

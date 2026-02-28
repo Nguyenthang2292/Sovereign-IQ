@@ -286,7 +286,7 @@ class ScannerControl(ctk.CTkFrame):
         self.gann_tf_var = ctk.StringVar(value="1h")
         gann_tf_dropdown = ctk.CTkComboBox(
             self.gann_sub_frame,
-            values=["1h", "2h", "4h", "6h", "8h", "12h", "1d"],
+            values=["15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d"],
             variable=self.gann_tf_var,
             width=100,
             command=self._on_config_change,

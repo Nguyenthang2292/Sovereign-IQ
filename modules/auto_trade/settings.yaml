@@ -23,8 +23,8 @@ api:
   api_key: ''
   api_secret: ''
 tp_sl:
-  default_tp: 2.0
-  default_sl: 30.0
+  default_tp: 2.5
+  default_sl: 80.0
   trailing_stop: false
   trailing_step_pct: 2.0
   trailing_limit_steps: false
@@ -38,11 +38,11 @@ scanner:
   atc_backend: serverless
   xgboost_backend: serverless
   sampling_strategy: stratified
-  sample_percentage: 50
+  sample_percentage: 30
   auto_start: false
   min_signal_score: 0.32
   min_volume: 5.0
-  enable_xgboost: true
+  enable_xgboost: false
   atc_threshold: 0.59
   enable_gann_square: false
   gann_timeframe: 1h
