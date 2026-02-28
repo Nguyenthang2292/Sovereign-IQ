@@ -1,0 +1,53 @@
+ccxt>=4.2.0,<5.0.0  # WebSocket/Pro support is bundled in the main package since v4.x
+pandas>=2.3.2
+numpy>=2.2.6
+pandas_ta>=0.4.0
+xgboost>=2.0.0,<2.1.0
+scikit-learn>=1.5.0
+statsmodels>=0.14.0,<0.15.0
+pykalman>=0.9.5,<0.10.0
+colorama>=0.4.6,<0.5.0
+imbalanced-learn>=0.12.3
+hmmlearn>=0.3.0,<0.4.0
+blosc>=1.11.0,<2.0.0  # Compression library for cache optimization
+psutil>=5.9.0,<6.0.0  # System and process utilities for resource monitoring
+mlxtend>=0.23.0,<0.24.0
+numba>=0.60.0  # JIT compilation; 0.60+ supports numpy 2.x
+matplotlib>=3.7.0  # Chart generation for Gemini Chart Analyzer
+mplfinance>=0.12.10b0,<0.13.0  # Candlestick plotting library
+google-genai>=0.3.0,<0.4.0  # Google Gemini API for chart analysis
+# Note: package name is google-genai but import as: import google.generativeai as genai
+pillow>=10.0.0,<11.0.0  # Image processing for Gemini Chart Analyzer
+markdown>=3.5.0,<4.0.0  # Markdown to HTML conversion for Gemini Chart Analyzer
+fastapi>=0.104.0,<1.0.0  # FastAPI web framework for Gemini Chart Analyzer web interface
+uvicorn[standard]>=0.24.0,<1.0.0  # ASGI server for FastAPI
+python-multipart>=0.0.6,<1.0.0  # Form data parsing for FastAPI
+redis>=5.0.0,<6.0.0  # Redis client for pub-sub streaming
+websocket-client>=1.6.0,<2.0.0  # WebSocket client for testing
+requests>=2.31.0,<3.0.0  # HTTP client for testing
+tradingview-scraper>=0.4.0  # TradingView scraper for forex data (OANDA:<SYMBOL_NAME>)
+# tvdatafeed: install from GitHub if needed: pip install "tvdatafeed @ git+https://github.com/StreamAlpha/tvdatafeed.git"  # TradingView data feed fallback for forex data
+
+plyer>=2.1.0,<3.0.0
+PyYAML>=6.0.0,<7.0.0  # Settings YAML for auto_trade GUI
+
+# Auto Trade database and config
+sqlalchemy>=2.0.0,<3.0.0  # ORM for auto_trade database (Order, Signal, migrations)
+python-dotenv>=1.0.0,<2.0.0  # .env loading for auto_trade config and credential_manager
+joblib>=1.3.0,<2.0.0  # Model serialization (xgboost_filter, xgboost_LTS cache; also via scikit-learn)
+
+# Optional stacks are now split out:
+# - requirements-ml.txt  : Deep learning / TFT dependencies
+# - requirements-ocr.txt : UI + OCR helpers
+# - requirements-dev.txt : Tooling for contributors/tests
+
+# Rust extensions (optional, 2-3x speedup for adaptive_trend_LTS):
+#   cd modules/adaptive_trend_LTS/rust_extensions && maturin develop --release
+#   Or from project root: .\build_rust.bat (Windows) / .\build_rust.ps1
+#   Requires: Rust (https://rustup.rs/), maturin (pip install maturin)
+msgpack
+polars>=0.20.0,<1.0.0  # Polars for ATC scanner internal DataFrames
+boto3>=1.34.0
+boto3-stubs[dynamodb]
+tenacity>=9.0.0,<10.0.0
+dask>=2024.1.0  # Parallel computing for auto_trade_gui

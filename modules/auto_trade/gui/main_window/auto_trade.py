@@ -77,13 +77,14 @@ class AutoTradeManager:
         updater.create_trailing_stop_updater(self._trailing_stop_cycle, interval=30)
         updater.create_negative_breakeven_updater(self._negative_breakeven_cycle, interval=30)
         updater.create_ensure_tp_sl_updater(self._ensure_tp_sl_cycle, interval=60)
+        updater.create_auto_close_timer_updater(self._auto_close_timer_cycle, interval=30)
         self.parent.event_bus.subscribe(EventType.SIGNAL_GENERATED, self._on_signal_event)
         # Reconcile once at start so open AUTO positions on Binance are in DB
         try:
             self._reconcile_cycle()
         except Exception as e:
             log_warn(f"[AutoTrade] Startup reconcile skipped: {e}")
-        log_info("Auto-trading started (trailing stop, negative BE, ensure TP/SL)")
+        log_info("Auto-trading started (trailing stop, negative BE, ensure TP/SL, auto-close timer)")
 
     def stop(self):
         """Stop auto-trading loop and all updaters."""
@@ -100,10 +101,11 @@ class AutoTradeManager:
                 "trailing_stop",
                 "negative_breakeven",
                 "ensure_tp_sl",
+                "auto_close_timer",
             ]:
                 if updater_name in self.updater.updaters:
                     self.updater.updaters[updater_name].stop()
-            log_info("Auto-trading stopped (trailing stop, negative BE, ensure TP/SL)")
+            log_info("Auto-trading stopped (trailing stop, negative BE, ensure TP/SL, auto-close timer)")
 
     def _on_signal_event(self, event):
         """Handle signal event and trigger immediate auto-trade check."""
@@ -216,6 +218,33 @@ class AutoTradeManager:
                     log_error(f"Ensure TP/SL error: {err}")
         except Exception as e:
             log_error(f"Ensure TP/SL cycle error: {e}")
+
+    def _auto_close_timer_cycle(self):
+        """Run auto-close timer checks for open positions."""
+        try:
+            from modules.auto_trade.execution.auto_close_timer_job import create_auto_close_timer_job
+
+            binance_client = self._get_binance_client()
+            job = create_auto_close_timer_job(
+                settings_manager=self.parent.settings_manager,
+                binance_client=binance_client,
+            )
+            result = job.run()
+            if result.get("orders_triggered"):
+                log_info(
+                    f"Auto-close timer: checked={result.get('orders_checked', 0)}, "
+                    f"triggered={result.get('orders_triggered', 0)}"
+                )
+                for update in result.get("updates", [])[:5]:
+                    log_info(
+                        f"  - {update.get('symbol', '')}: reason={update.get('reason', '')}, "
+                        f"deadline={update.get('deadline_utc', '')}"
+                    )
+            if result.get("errors"):
+                for err in result["errors"][:3]:
+                    log_error(f"Auto-close timer error: {err}")
+        except Exception as e:
+            log_error(f"Auto-close timer cycle error: {e}")
 
     def _reconcile_cycle(self):
         """Reconcile AT_* orders from Binance into DB (run periodically when auto-trade is on)."""

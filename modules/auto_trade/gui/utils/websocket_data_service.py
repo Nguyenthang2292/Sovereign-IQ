@@ -14,6 +14,7 @@ Features:
 import asyncio
 import os
 import threading
+import time
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 _T = TypeVar("_T")
@@ -310,6 +311,57 @@ class WebSocketDataService:
             # Already on main thread or no root available (e.g. tests)
             callback(data)
 
+    def _fetch_realized_pnl_from_binance(
+        self,
+        symbol: str,
+        delay_ms: int = 1000,
+        lookback_seconds: int = 30,
+    ) -> Optional[float]:
+        """
+        Fetch realized PnL from Binance REALIZED_PNL income history.
+        Returns PnL in USDT or None if fetch fails.
+        """
+        try:
+            time.sleep(delay_ms / 1000.0)
+
+            if not self.api_key or self.mode == "DRY_RUN":
+                return None
+
+            from modules.auto_trade.execution.binance_client import BinanceClient
+
+            _client = BinanceClient(
+                api_key=self.api_key,
+                api_secret=self.api_secret,
+                testnet=self.testnet,
+                dry_run=False,
+            )
+
+            since_ms = int((time.time() - 300) * 1000)  # last 5 min
+            response = _client.exchange.fapiPrivateGetIncome(
+                {
+                    "symbol": symbol,
+                    "incomeType": "REALIZED_PNL",
+                    "startTime": since_ms,
+                    "limit": 5,
+                }
+            )
+
+            if not response:
+                return None
+
+            now_ms = time.time() * 1000
+            recent = [e for e in response if (now_ms - float(e.get("time", 0))) < (lookback_seconds * 1000)]
+
+            if not recent:
+                return None
+
+            # Get the income from the latest matching entry
+            return float(recent[-1].get("income", 0.0))
+
+        except Exception as e:
+            log_error(f"Failed to fetch realized PnL from income API for {symbol}: {e}")
+            return None
+
     def _handle_position_update(self, position: PositionSnapshot) -> None:
         """
         Handle position update from WebSocket.
@@ -347,6 +399,7 @@ class WebSocketDataService:
                     # Cancel any orphaned conditional orders still on Binance
                     if self.api_key and self.mode != "DRY_RUN":
                         from modules.auto_trade.execution.binance_client import BinanceClient
+
                         _client = BinanceClient(
                             api_key=self.api_key,
                             api_secret=self.api_secret,
@@ -366,14 +419,16 @@ class WebSocketDataService:
                         if not order_id:
                             continue
 
-                        ctx.orders.update_order_status(order_id, "CLOSED")
+                        # PnL for manual close: fetch from income API, fallback to snapshot
+                        pnl_from_api = self._fetch_realized_pnl_from_binance(symbol_normalized)
+                        pnl_value = pnl_from_api if pnl_from_api is not None else position.unrealized_pnl
+
+                        ctx.orders.update_order_status(order_id, "CLOSED", pnl=pnl_value)
                         log_info(
-                            f"[WS Data] DB closed (manual) for {symbol_normalized} (order={order_id})"
+                            f"[WS Data] DB closed (manual) for {symbol_normalized} (order={order_id}, pnl={pnl_value:+.2f})"
                         )
 
                         if self.event_bus and client_order_id and client_order_id not in self._published_closed_events:
-                            # PnL for manual close: DB value (0.0 — no realized PnL available from WS)
-                            pnl_value = float(db_order.get("pnl", 0.0) or 0.0)
                             self.event_bus.publish(
                                 EventType.POSITION_CLOSED,
                                 {
@@ -439,24 +494,23 @@ class WebSocketDataService:
 
             order_type_raw = order.type.lower()  # 'take_profit_market', 'stop_market', 'market', 'limit', ...
             # Detect if this is a TP/SL conditional order that just filled
-            is_tp_sl_fill = (
-                order.status == "closed"
-                and any(t in order_type_raw for t in ("take_profit", "stop_market", "stop_loss"))
+            is_tp_sl_fill = order.status == "closed" and any(
+                t in order_type_raw for t in ("take_profit", "stop_market", "stop_loss")
             )
 
             if is_tp_sl_fill:
                 # ── TP or SL order was filled → position is now closed ───────────────
                 symbol_normalized = order.symbol.replace("/", "").split(":")[0]
-                pnl_from_ws: Optional[float] = order.realized_pnl   # Real PnL from Binance WS event
+                pnl_from_ws: Optional[float] = order.realized_pnl  # Real PnL from Binance WS event
 
                 log_info(
-                    f"[WS Data] TP/SL fill detected for {symbol_normalized} "
-                    f"(type={order.type}, pnl={pnl_from_ws})"
+                    f"[WS Data] TP/SL fill detected for {symbol_normalized} (type={order.type}, pnl={pnl_from_ws})"
                 )
 
                 # 1. Cancel any remaining sibling conditional orders (the paired TP or SL)
                 if self.api_key and self.mode != "DRY_RUN":
                     from modules.auto_trade.execution.binance_client import BinanceClient
+
                     _client = BinanceClient(
                         api_key=self.api_key,
                         api_secret=self.api_secret,
@@ -492,7 +546,7 @@ class WebSocketDataService:
                             except (TypeError, ValueError):
                                 effective_pnl = 0.0
 
-                        ctx.orders.update_order_status(order_id, "CLOSED")
+                        ctx.orders.update_order_status(order_id, "CLOSED", pnl=effective_pnl)
                         log_info(
                             f"[WS Data] DB closed for {symbol_normalized} "
                             f"(order_id={order_id}, pnl={effective_pnl:+.2f})"
@@ -525,6 +579,7 @@ class WebSocketDataService:
                 # ── Entry / other orders canceled or rejected → mark DB only ─────────
                 if OrderTagger.is_programmatic_order_id(order.client_order_id):
                     from modules.auto_trade.database import update_order_status_by_client_id
+
                     status_map: Dict[str, str] = {"canceled": "CANCELLED", "rejected": "FAILED"}
                     db_status: str = status_map.get(order.status, "FAILED")
                     updated: bool = update_order_status_by_client_id(

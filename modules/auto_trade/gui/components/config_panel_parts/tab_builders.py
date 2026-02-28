@@ -1,6 +1,7 @@
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.components.config_panel_parts.auto_close_settings import build_auto_close_section
 
 
 def create_risk_settings_tab(panel):
@@ -123,6 +124,8 @@ def create_risk_settings_tab(panel):
     panel.negative_be_threshold_entry = ctk.CTkEntry(tp_sl_inner, placeholder_text="2.0")
     panel.negative_be_threshold_entry.pack(fill="x", pady=(2, 8))
     panel.negative_be_threshold_entry.insert(0, "2.0")
+
+    build_auto_close_section(panel, tp_sl_inner)
 
     from modules.auto_trade.gui.components.recovery_panel import RecoveryPanel
 

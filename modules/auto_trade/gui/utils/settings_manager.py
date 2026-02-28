@@ -35,6 +35,16 @@ class SettingsManager:
             "negative_be_enabled": False,
             "negative_be_threshold_pct": 2.0,
         },
+        "auto_close": {
+            "enabled": False,
+            "max_duration_enabled": True,
+            "max_duration_hours": 4.0,
+            "daily_close_enabled": True,
+            "daily_close_time": "22:00",
+            "daily_close_days": "1234567",
+            "grace_period_minutes": 5,
+            "tp_offset_pct": 0.05,
+        },
         "scanner": {
             "scan_interval": 5,
             "timeframe": "1h",
@@ -295,6 +305,38 @@ class SettingsManager:
 
             if self.settings["tp_sl"].get("trailing_max_steps", 0) < 1:
                 self.settings["tp_sl"]["trailing_max_steps"] = 5
+
+            auto_close = self.settings.get("auto_close", {})
+            if not isinstance(auto_close, dict):
+                auto_close = {}
+                self.settings["auto_close"] = auto_close
+
+            if float(auto_close.get("max_duration_hours", 4.0) or 4.0) <= 0:
+                auto_close["max_duration_hours"] = 4.0
+
+            grace = int(auto_close.get("grace_period_minutes", 5) or 5)
+            if grace < 0:
+                auto_close["grace_period_minutes"] = 5
+
+            offset = float(auto_close.get("tp_offset_pct", 0.05) or 0.05)
+            if offset <= 0 or offset > 5:
+                auto_close["tp_offset_pct"] = 0.05
+
+            daily_time = str(auto_close.get("daily_close_time", "22:00") or "22:00")
+            parts = daily_time.split(":")
+            valid_daily_time = (
+                len(parts) == 2
+                and parts[0].isdigit()
+                and parts[1].isdigit()
+                and 0 <= int(parts[0]) <= 23
+                and 0 <= int(parts[1]) <= 59
+            )
+            if not valid_daily_time:
+                auto_close["daily_close_time"] = "22:00"
+
+            days = str(auto_close.get("daily_close_days", "1234567") or "1234567")
+            if not days or any(ch not in "1234567" for ch in days):
+                auto_close["daily_close_days"] = "1234567"
 
             # Validate scanner
             if self.settings["scanner"]["scan_interval"] < 1 or self.settings["scanner"]["scan_interval"] > 60:

@@ -294,23 +294,14 @@ Trade 4: 16x leverage, PROFIT $1,000
 ### With Phase 3 (Execution Module)
 ```python
 from modules.auto_trade.execution.order_manager import OrderManager
-from modules.auto_trade.monitoring.lifecycle_handler import PositionLifecycleHandler
+from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
 
-# After order execution
-lifecycle_handler.on_position_opened(
-    symbol="BTC/USDT",
-    entry_price=50000,
-    leverage=2,
-    amount=1000
-)
+# Runtime services
+order_manager = OrderManager(...)
+ws_data_service = WebSocketDataService(mode="DEMO")
 
-# On position close
-lifecycle_handler.on_position_closed(
-    symbol="BTC/USDT",
-    exit_price=52500,
-    pnl=100,
-    is_profit=True
-)
+# Position close handling now flows through WebSocketDataService
+# (_handle_position_update / _handle_order_update)
 ```
 
 ### With Phase 2 (Signal Pipeline)

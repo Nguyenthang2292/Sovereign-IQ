@@ -32,6 +32,15 @@ tp_sl:
   mode: ROI
   negative_be_enabled: true
   negative_be_threshold_pct: 10.0
+auto_close:
+  enabled: false
+  max_duration_enabled: true
+  max_duration_hours: 4.0
+  daily_close_enabled: true
+  daily_close_time: '22:00'
+  daily_close_days: '1234567'
+  grace_period_minutes: 5
+  tp_offset_pct: 0.05
 scanner:
   scan_interval: 5
   timeframe: 15m

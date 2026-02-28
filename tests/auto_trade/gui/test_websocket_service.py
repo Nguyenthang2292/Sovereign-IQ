@@ -362,3 +362,71 @@ class TestWebSocketServiceThreadSafety:
             t.join()
 
         assert invocation_count[0] == 10
+
+
+class TestWebSocketServiceManualClosePnL:
+    """Tests for manual close PnL fetch and fallback chain."""
+
+    @pytest.fixture
+    def service(self):
+        """Create service with credentials in DEMO mode for PnL tests."""
+        with patch("modules.auto_trade.gui.utils.websocket_data_service.CredentialManager") as mock_cm:
+            mock_cm_instance = MagicMock()
+            mock_cm_instance.load_credentials.return_value = {"api_key": "test_key", "api_secret": "test_secret"}
+            mock_cm.return_value = mock_cm_instance
+
+            yield WebSocketDataService(mode="DEMO")
+
+    def test_fetch_realized_pnl_from_income_api(self, service):
+        """Fetch realized PnL from Binance income API and return latest recent income value."""
+        with (
+            patch("modules.auto_trade.gui.utils.websocket_data_service.time.sleep"),
+            patch("modules.auto_trade.gui.utils.websocket_data_service.time.time", return_value=1000.0),
+            patch("modules.auto_trade.execution.binance_client.BinanceClient") as mock_client_cls,
+        ):
+            mock_client = MagicMock()
+            mock_client.exchange.fapiPrivateGetIncome.return_value = [
+                {"time": 999800.0, "income": "1.25"},
+                {"time": 999900.0, "income": "2.5"},
+            ]
+            mock_client_cls.return_value = mock_client
+
+            pnl = service._fetch_realized_pnl_from_binance("BTCUSDT", delay_ms=0, lookback_seconds=30)
+
+        assert pnl == pytest.approx(2.5)
+
+    def test_handle_position_update_fallbacks_to_unrealized_pnl_when_api_none(self, service):
+        """Manual close should use position.unrealized_pnl when income API returns None."""
+        mock_ctx = MagicMock()
+        mock_ctx.orders.get_open_positions.return_value = [
+            {
+                "status": "OPEN",
+                "order_id": "order_1",
+                "client_order_id": "AT_order_1",
+                "entry_price": 50000.0,
+                "leverage": 5,
+            }
+        ]
+
+        with (
+            patch("modules.auto_trade.database.repository.context.RepositoryContext.from_env", return_value=mock_ctx),
+            patch.object(service, "_fetch_realized_pnl_from_binance", return_value=None),
+        ):
+            service._handle_position_update(
+                PositionSnapshot(
+                    symbol="BTC/USDT",
+                    side="long",
+                    position_amt=0.0,
+                    entry_price=50000.0,
+                    mark_price=49000.0,
+                    liquidation_price=None,
+                    unrealized_pnl=-12.34,
+                    unrealized_pnl_percent=-0.25,
+                    margin_type="cross",
+                    leverage=5,
+                    notional=5000.0,
+                    timestamp=datetime.now(),
+                )
+            )
+
+        mock_ctx.orders.update_order_status.assert_called_once_with("order_1", "CLOSED", pnl=-12.34)

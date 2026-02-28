@@ -101,6 +101,7 @@ class SettingsHandler:
                 "auto_trade_control",
                 "scanner_control",
                 "config_panel",
+                "scheduled_exits_panel",
             ]:
                 widget = getattr(self.parent, name, None)
                 if widget is not None:

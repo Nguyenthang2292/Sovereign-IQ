@@ -13,7 +13,6 @@ __all__ = [
     "PositionMonitor",
     "BreakEvenManager",
     "ScannerScheduler",
-    "PositionLifecycleHandler",
     "EventSystem",
     "EventType",
 ]

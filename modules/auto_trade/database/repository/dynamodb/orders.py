@@ -230,6 +230,12 @@ class DynamoDBOrderRepository(OrderRepository):
             "be_moved_at",
             "original_stop_loss",
             "notes",
+            "auto_close_deadline_utc",
+            "auto_close_triggered",
+            "auto_close_reason",
+            "auto_close_triggered_at",
+            "auto_close_target_tp",
+            "auto_close_last_daily_date",
         }
 
         for i, (key, value) in enumerate(updates.items()):

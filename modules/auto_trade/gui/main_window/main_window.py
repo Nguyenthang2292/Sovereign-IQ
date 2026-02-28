@@ -126,6 +126,7 @@ class AutoTradeDashboard(
         self.tabview: Any = None
         self.trade_form: Any = None
         self.database_panel: Any = None
+        self.scheduled_exits_panel: Any = None
         self.status_bar: Any = None
 
         self.layout_manager.create_layout()

@@ -6,6 +6,7 @@ from modules.auto_trade.gui.components.account_frame import AccountFrame
 from modules.auto_trade.gui.components.auto_trade_control import AutoTradeControl
 from modules.auto_trade.gui.components.config_panel import ConfigPanel
 from modules.auto_trade.gui.components.positions_frame import PositionsFrame
+from modules.auto_trade.gui.components.scheduled_exits_panel import ScheduledExitsPanel
 from modules.auto_trade.gui.components.signals_frame import SignalsFrame
 from modules.auto_trade.gui.components.stats_frame import StatsFrame
 from modules.auto_trade.gui.components.trade_form import TradeFormFrame
@@ -51,6 +52,10 @@ class LayoutManager:
         # Settings tab
         settings_tab = self.parent.tabview.add("Settings")
         self._populate_settings_tab(settings_tab)
+
+        # Scheduled Exits tab
+        scheduled_exits_tab = self.parent.tabview.add("Scheduled Exits")
+        self._populate_scheduled_exits_tab(scheduled_exits_tab)
 
         # Database tab
         database_tab = self.parent.tabview.add("Database")
@@ -118,6 +123,18 @@ class LayoutManager:
         )
         self.parent.positions_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
+    def _populate_scheduled_exits_tab(self, parent):
+        """Create Scheduled Exits tab UI."""
+        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
+
+        self.parent.scheduled_exits_panel = ScheduledExitsPanel(
+            parent,
+            settings_manager=self.parent.settings_manager,
+            on_open_settings=lambda: self.parent.tabview.set("Settings"),
+        )
+        self.parent.scheduled_exits_panel.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+
     def _populate_scanner_tab(self, parent):
         """Create Scanner tab with all 4 boxes in a single horizontal row."""
         # Configure grid: 1 row, 4 columns
@@ -161,7 +178,7 @@ class LayoutManager:
         self.parent.scanner_progress_label.pack(anchor="w", pady=(2, 0))
 
         self.parent.scanner_countdown_label = ctk.CTkLabel(
-            status_container, text="", font=("Arial", 10), text_color="#aaaaaa"
+            status_container, text="", font=("Arial", 14, "bold"), text_color="#aaaaaa"
         )
         self.parent.scanner_countdown_label.pack(anchor="w", pady=(2, 0))
 
@@ -173,6 +190,9 @@ class LayoutManager:
 
         play_icon = get_icon("play", size=(18, 18), light_color="black", dark_color="black")
         stop_icon = get_icon("square", size=(18, 18), light_color="white", dark_color="white")
+        next_scan_icon = get_icon("refresh", size=(16, 16), light_color="#aaaaaa", dark_color="#aaaaaa")
+        self.parent.scanner_countdown_label.configure(image=next_scan_icon, compound="left")
+        self.parent._next_scan_icon = next_scan_icon
 
         # Start/Stop button (full width)
         self.parent.scanner_start_button = ctk.CTkButton(

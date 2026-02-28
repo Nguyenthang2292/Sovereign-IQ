@@ -121,12 +121,12 @@ class UpdaterManager:
                     if remaining > 0:
                         mins, secs = divmod(int(remaining), 60)
                         if mins > 0:
-                            countdown_text = f"⏱ Next scan in: {mins}m {secs:02d}s"
+                            countdown_text = f" Next scan in: {mins}m {secs:02d}s"
                         else:
-                            countdown_text = f"⏱ Next scan in: {secs}s"
+                            countdown_text = f" Next scan in: {secs}s"
                         self.parent.scanner_countdown_label.configure(text=countdown_text, text_color="#aaaaaa")
                     else:
-                        self.parent.scanner_countdown_label.configure(text="⏱ Scanning now...", text_color="#00ff88")
+                        self.parent.scanner_countdown_label.configure(text="Scanning now...", text_color="#00ff88")
                 elif is_running:
                     # Scanner running but we don't know next scan time yet
                     self.parent.scanner_countdown_label.configure(text="", text_color="#aaaaaa")
@@ -270,4 +270,11 @@ class UpdaterManager:
         updater = PeriodicUpdater(callback, interval=interval)
         updater.start()
         self.updaters["ensure_tp_sl"] = updater
+        return updater
+
+    def create_auto_close_timer_updater(self, callback, interval=30):
+        """Create and start auto-close timer updater."""
+        updater = PeriodicUpdater(callback, interval=interval)
+        updater.start()
+        self.updaters["auto_close_timer"] = updater
         return updater

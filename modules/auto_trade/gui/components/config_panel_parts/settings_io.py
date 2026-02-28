@@ -1,5 +1,10 @@
 from typing import Dict
 
+from modules.auto_trade.gui.components.config_panel_parts.auto_close_settings import (
+    extract_auto_close_settings,
+    load_auto_close_settings,
+)
+
 
 def get_settings(panel) -> Dict:
     """
@@ -97,6 +102,7 @@ def get_settings(panel) -> Dict:
                 "negative_be_enabled": panel.negative_be_var.get(),
                 "negative_be_threshold_pct": negative_be_threshold,
             },
+            "auto_close": extract_auto_close_settings(panel),
         }
     except Exception as e:
         print(f"Error getting settings: {e}")
@@ -119,6 +125,16 @@ def get_settings(panel) -> Dict:
                 "trailing_limit_steps": False,
                 "trailing_max_steps": 5,
                 "mode": "Percentage",
+            },
+            "auto_close": {
+                "enabled": False,
+                "max_duration_enabled": True,
+                "max_duration_hours": 4.0,
+                "daily_close_enabled": True,
+                "daily_close_time": "22:00",
+                "daily_close_days": "1234567",
+                "grace_period_minutes": 5,
+                "tp_offset_pct": 0.05,
             },
         }
 
@@ -166,6 +182,8 @@ def load_settings(panel, settings: Dict):
         panel.negative_be_var.set(tp_sl.get("negative_be_enabled", False))
         panel.negative_be_threshold_entry.delete(0, "end")
         panel.negative_be_threshold_entry.insert(0, str(tp_sl.get("negative_be_threshold_pct", 2.0)))
+
+    load_auto_close_settings(panel, settings)
 
     if "recovery" in settings and hasattr(panel, "recovery_panel"):
         panel.recovery_panel.load_config(settings["recovery"])

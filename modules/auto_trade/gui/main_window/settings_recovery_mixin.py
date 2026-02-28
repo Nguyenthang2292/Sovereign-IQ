@@ -124,7 +124,7 @@ class SettingsRecoveryMixin:
             current = self.config_panel.get_settings()
             if hasattr(self.config_panel, "default_leverage_var"):
                 current.setdefault("risk", {})["default_leverage"] = self.config_panel.default_leverage_var.get()
-            for key in ("risk", "tp_sl", "api"):
+            for key in ("risk", "tp_sl", "auto_close", "api"):
                 if key in current:
                     self.settings_manager.settings[key] = current[key]
             if "filters" in current:
