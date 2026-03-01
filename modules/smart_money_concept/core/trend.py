@@ -3,7 +3,7 @@ Trend detection module for Smart Money Concept.
 Pure stateless functions - no global state, no Plotly imports.
 """
 
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -14,17 +14,23 @@ NEUTRAL = 0
 BEARISH = -1
 
 
-def detect_trend(swing_highs: List[Pivot], swing_lows: List[Pivot]) -> int:
+def detect_trend(swing_highs: List[Pivot], swing_lows: List[Pivot], last_structure_break: Optional[int] = None) -> int:
     """
     Determine market trend based on swing highs and swing lows.
 
     Args:
         swing_highs: List of swing high Pivot objects
         swing_lows: List of swing low Pivot objects
+        last_structure_break: Optional last structure break (BULLISH or BEARISH).
+            If provided, used as the trend. Only falls back to HH/HL pattern
+            if last_structure_break is not provided.
 
     Returns:
         int: BULLISH (1), BEARISH (-1), or NEUTRAL (0)
     """
+    if last_structure_break is not None:
+        return last_structure_break
+
     if len(swing_highs) < 2 or len(swing_lows) < 2:
         return NEUTRAL
 

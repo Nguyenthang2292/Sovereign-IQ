@@ -5,14 +5,13 @@ from modules.auto_trade.gui.components.config_panel_parts.auto_close_settings im
 
 
 def create_risk_settings_tab(panel):
-    """Create Risk Settings tab (Merged with TP/SL and Recovery)."""
+    """Create Risk Settings tab (Risk + TP/SL)."""
     tab = panel.tabview.add("Risk Settings")
 
     container = ctk.CTkFrame(tab, fg_color="transparent")
     container.pack(fill="both", expand=True, padx=5, pady=5)
     container.grid_columnconfigure(0, weight=1)
     container.grid_columnconfigure(1, weight=1)
-    container.grid_columnconfigure(2, weight=1)
 
     from modules.auto_trade.gui.utils.colors import Colors
 
@@ -125,7 +124,14 @@ def create_risk_settings_tab(panel):
     panel.negative_be_threshold_entry.pack(fill="x", pady=(2, 8))
     panel.negative_be_threshold_entry.insert(0, "2.0")
 
-    build_auto_close_section(panel, tp_sl_inner)
+
+def create_gradual_recovery_tab(panel):
+    """Create dedicated Gradual Recovery tab."""
+    tab = panel.tabview.add("Gradual Recovery")
+
+    container = ctk.CTkFrame(tab, fg_color="transparent")
+    container.pack(fill="both", expand=True, padx=10, pady=10)
+    container.grid_columnconfigure(0, weight=1)
 
     from modules.auto_trade.gui.components.recovery_panel import RecoveryPanel
 
@@ -135,7 +141,26 @@ def create_risk_settings_tab(panel):
         mode=panel.mode,
         compact=True,
     )
-    panel.recovery_panel.grid(row=0, column=2, sticky="nsew", padx=(5, 0))
+    panel.recovery_panel.grid(row=0, column=0, sticky="nsew")
+
+
+def create_auto_close_timer_tab(panel):
+    """Create dedicated Auto-Close Timer tab."""
+    tab = panel.tabview.add("Auto-Close Timer")
+
+    container = ctk.CTkFrame(tab, fg_color="transparent")
+    container.pack(fill="both", expand=True, padx=10, pady=10)
+    container.grid_columnconfigure(0, weight=1)
+
+    from modules.auto_trade.gui.utils.colors import Colors
+
+    auto_close_box = ctk.CTkFrame(container, fg_color=Colors.get_card_bg(), corner_radius=10)
+    auto_close_box.grid(row=0, column=0, sticky="nsew")
+
+    auto_close_inner = ctk.CTkFrame(auto_close_box, fg_color="transparent")
+    auto_close_inner.pack(fill="both", expand=True, padx=15, pady=15)
+
+    build_auto_close_section(panel, auto_close_inner, show_separator=False, show_title=True)
 
 
 def create_api_keys_tab(panel):

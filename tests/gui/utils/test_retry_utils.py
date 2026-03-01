@@ -1,14 +1,12 @@
 """
 Unit tests for retry utilities
 """
+
 import pytest
 import time
 from unittest.mock import MagicMock
 import ccxt
-from gui.utils.retry_utils import (
-    retry_with_exponential_backoff,
-    RetryableOperation
-)
+from modules.auto_trade.gui.utils.retry_utils import retry_with_exponential_backoff, RetryableOperation
 
 
 class TestRetryWithExponentialBackoff:
@@ -46,6 +44,7 @@ class TestRetryWithExponentialBackoff:
 
     def test_all_retries_exhausted(self):
         """Test all retries are exhausted and exception is raised"""
+
         @retry_with_exponential_backoff(max_retries=2, base_delay=0.01)
         def decorated_func():
             raise ccxt.NetworkError("Persistent error")
@@ -57,11 +56,7 @@ class TestRetryWithExponentialBackoff:
         """Test that exponential backoff increases delays"""
         delays = []
 
-        @retry_with_exponential_backoff(
-            max_retries=3,
-            base_delay=0.1,
-            backoff_factor=2.0
-        )
+        @retry_with_exponential_backoff(max_retries=3, base_delay=0.1, backoff_factor=2.0)
         def decorated_func():
             start = time.time()
             if len(delays) > 0:
@@ -94,11 +89,12 @@ class TestRetryWithExponentialBackoff:
 
     def test_max_delay_capping(self):
         """Test that delay is capped at max_delay"""
+
         @retry_with_exponential_backoff(
             max_retries=5,
             base_delay=1.0,
             max_delay=2.0,
-            backoff_factor=10.0  # Would normally cause very large delays
+            backoff_factor=10.0,  # Would normally cause very large delays
         )
         def decorated_func():
             raise ccxt.NetworkError("Test error")
@@ -116,11 +112,8 @@ class TestRetryWithExponentialBackoff:
 
     def test_custom_exceptions(self):
         """Test retry with custom exception types"""
-        @retry_with_exponential_backoff(
-            max_retries=2,
-            base_delay=0.01,
-            exceptions=(ConnectionError, TimeoutError)
-        )
+
+        @retry_with_exponential_backoff(max_retries=2, base_delay=0.01, exceptions=(ConnectionError, TimeoutError))
         def decorated_func():
             raise ConnectionError("Connection failed")
 
@@ -129,6 +122,7 @@ class TestRetryWithExponentialBackoff:
 
     def test_function_with_arguments(self):
         """Test decorated function with arguments"""
+
         @retry_with_exponential_backoff(max_retries=2, base_delay=0.01)
         def decorated_func(x, y, z=10):
             if x < 2:
@@ -140,6 +134,7 @@ class TestRetryWithExponentialBackoff:
 
     def test_function_preserves_metadata(self):
         """Test that decorator preserves function metadata"""
+
         @retry_with_exponential_backoff(max_retries=2)
         def my_function():
             """My docstring"""
@@ -204,11 +199,7 @@ class TestRetryableOperation:
 
     def test_exponential_backoff(self):
         """Test exponential backoff between attempts"""
-        operation = RetryableOperation(
-            max_retries=3,
-            base_delay=0.05,
-            backoff_factor=2.0
-        )
+        operation = RetryableOperation(max_retries=3, base_delay=0.05, backoff_factor=2.0)
 
         start_time = time.time()
         for attempt in operation:

@@ -19,7 +19,9 @@ from modules.auto_trade.gui.components.config_panel_parts.settings_io import (
     load_settings,
 )
 from modules.auto_trade.gui.components.config_panel_parts.tab_builders import (
+    create_auto_close_timer_tab,
     create_api_keys_tab,
+    create_gradual_recovery_tab,
     create_risk_settings_tab,
 )
 
@@ -49,6 +51,8 @@ class ConfigPanel(ctk.CTkFrame):
         self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
 
         self._create_risk_settings_tab()
+        self._create_auto_close_timer_tab()
+        self._create_gradual_recovery_tab()
         self._create_api_keys_tab()
         self._suppress_mode_notify = False
 
@@ -57,6 +61,21 @@ class ConfigPanel(ctk.CTkFrame):
 
     def _create_api_keys_tab(self):
         create_api_keys_tab(self)
+
+    def _create_auto_close_timer_tab(self):
+        create_auto_close_timer_tab(self)
+
+    def _create_gradual_recovery_tab(self):
+        create_gradual_recovery_tab(self)
+
+    def _create_signal_filters_tab(self):
+        return None
+
+    def _create_tp_sl_tab(self):
+        return None
+
+    def _create_ui_preferences_tab(self):
+        return None
 
 
 

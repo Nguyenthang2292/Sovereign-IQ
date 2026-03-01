@@ -6,7 +6,7 @@ An OrderBlock represents a price zone where institutional orders are likely plac
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Optional
 
 BULLISH = 1
 NEUTRAL = 0

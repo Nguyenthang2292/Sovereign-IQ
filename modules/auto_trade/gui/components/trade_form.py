@@ -160,7 +160,7 @@ class TradeFormFrame(ctk.CTkFrame):
     def _on_symbol_change(self, choice: str):
         """Update current price when symbol changes"""
         try:
-            from modules.auto_trade.gui.utils.data_service import DataService
+            from modules.auto_trade.gui.services.data_service import DataService
 
             service = DataService()
             price = service.get_current_price(choice)
@@ -175,7 +175,7 @@ class TradeFormFrame(ctk.CTkFrame):
     def _calculate_risk(self):
         """Calculate and display risk metrics"""
         try:
-            from modules.auto_trade.gui.utils.data_service import DataService
+            from modules.auto_trade.gui.services.data_service import DataService
             from modules.auto_trade.gui.utils.risk_calculator import RiskCalculator
 
             # Get form values
@@ -435,7 +435,7 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
         """Execute the trade via OrderExecutor"""
         try:
             from modules.auto_trade.execution.order_executor import OrderExecutor
-            from modules.auto_trade.gui.utils.data_service import DataService
+            from modules.auto_trade.gui.services.data_service import DataService
 
             # Close confirmation dialog
             dialog.destroy()

@@ -38,6 +38,23 @@ import pandas as pd
 _PRECOMPUTED_DATA = {}
 
 
+class FastMockDataFetcher:
+    """Lightweight data fetcher used by backtester tests."""
+
+    def __init__(self, data_func):
+        self.data_func = data_func
+        self.market_prices = {}
+        self._ohlcv_dataframe_cache = {}
+
+    def fetch_ohlcv_with_fallback_exchange(self, symbol, **kwargs):
+        limit = kwargs.get("limit", 50)
+        df = self.data_func(periods=limit)
+        return df, "binance"
+
+    def fetch_binance_account_balance(self):
+        return None
+
+
 def _precompute_small_data():
     """Pre-compute small DataFrame (50 periods) once per session."""
     if "small" not in _PRECOMPUTED_DATA:
@@ -157,24 +174,6 @@ def mock_data_fetcher(mock_ohlcv_data):
 
     Optimized: Uses cached data and SimpleNamespace for speed.
     """
-
-    class FastMockDataFetcher:
-        """Lightweight data fetcher without Mock overhead."""
-
-        def __init__(self, data_func):
-            self.data_func = data_func
-            self.market_prices = {}
-            self._ohlcv_dataframe_cache = {}
-
-        def fetch_ohlcv_with_fallback_exchange(self, symbol, **kwargs):
-            """Mock fetch function that returns generated data."""
-            limit = kwargs.get("limit", 50)
-            df = self.data_func(periods=limit)
-            return df, "binance"
-
-        def fetch_binance_account_balance(self):
-            """Return None - no account balance needed for testing."""
-            return None
 
     return FastMockDataFetcher(mock_ohlcv_data)
 

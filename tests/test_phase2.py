@@ -1,21 +1,26 @@
 """
 Phase 2 Testing & Validation
-Manual and Auto-Trade Testing Suite
+Manual and Auto-Trade Testing Suite – converted to pytest
 """
 
-import unittest
-from unittest.mock import Mock, patch, MagicMock
 import sys
 from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from gui.utils.risk_calculator import RiskCalculator
+from modules.auto_trade.gui.utils.risk_calculator import RiskCalculator
+
+# ---------------------------------------------------------------------------
+# TestRiskCalculator
+# ---------------------------------------------------------------------------
 
 
-class TestRiskCalculator(unittest.TestCase):
+class TestRiskCalculator:
     """Test risk calculation logic"""
 
     def test_long_trade_risk_calculation(self):
@@ -30,17 +35,17 @@ class TestRiskCalculator(unittest.TestCase):
             sl_percent=2.5,
         )
 
-        self.assertIsNotNone(result)
-        self.assertAlmostEqual(result["contract_size"], 100.0 / 50000.0, places=6)
-        self.assertAlmostEqual(result["margin_required"], 10.0, places=2)
-        self.assertAlmostEqual(result["max_profit"], 100.0 * 0.05 * 10, places=2)
-        self.assertAlmostEqual(result["max_loss"], 100.0 * 0.025 * 10, places=2)
-        self.assertAlmostEqual(result["risk_reward_ratio"], 2.0, places=1)
+        assert result is not None
+        assert result["contract_size"] == pytest.approx(100.0 / 50000.0, rel=1e-6)
+        assert result["margin_required"] == pytest.approx(10.0, rel=1e-2)
+        assert result["max_profit"] == pytest.approx(100.0 * 0.05 * 10, rel=1e-2)
+        assert result["max_loss"] == pytest.approx(100.0 * 0.025 * 10, rel=1e-2)
+        assert result["risk_reward_ratio"] == pytest.approx(2.0, rel=1e-1)
 
         # TP price should be 52500
-        self.assertAlmostEqual(result["tp_price"], 52500.0, places=2)
+        assert result["tp_price"] == pytest.approx(52500.0, rel=1e-2)
         # SL price should be 48750
-        self.assertAlmostEqual(result["sl_price"], 48750.0, places=2)
+        assert result["sl_price"] == pytest.approx(48750.0, rel=1e-2)
 
     def test_short_trade_risk_calculation(self):
         """Test risk calc for SHORT trade"""
@@ -54,12 +59,11 @@ class TestRiskCalculator(unittest.TestCase):
             sl_percent=2.5,
         )
 
-        self.assertIsNotNone(result)
-
+        assert result is not None
         # TP price should be lower for SHORT
-        self.assertAlmostEqual(result["tp_price"], 47500.0, places=2)
+        assert result["tp_price"] == pytest.approx(47500.0, rel=1e-2)
         # SL price should be higher for SHORT
-        self.assertAlmostEqual(result["sl_price"], 51250.0, places=2)
+        assert result["sl_price"] == pytest.approx(51250.0, rel=1e-2)
 
     def test_invalid_inputs(self):
         """Test with invalid inputs"""
@@ -75,9 +79,9 @@ class TestRiskCalculator(unittest.TestCase):
 
         # Calculator performs math regardless, validation is form's job
         # Just verify it returns a result even with negative values
-        self.assertIsNotNone(result)
+        assert result is not None
         # The margin will be negative
-        self.assertLess(result["margin_required"], 0)
+        assert result["margin_required"] < 0
 
     def test_high_leverage_liquidation(self):
         """Test liquidation price with high leverage"""
@@ -91,256 +95,215 @@ class TestRiskCalculator(unittest.TestCase):
             sl_percent=2.5,
         )
 
-        self.assertIsNotNone(result)
+        assert result is not None
         # Liquidation should be closer to entry with higher leverage
         expected_liq = 50000.0 * (1 - (1 / 20))
-        self.assertAlmostEqual(result["liquidation_price"], expected_liq, places=2)
+        assert result["liquidation_price"] == pytest.approx(expected_liq, rel=1e-2)
 
 
-class TestTradeFormValidation(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# TestTradeFormValidation
+# ---------------------------------------------------------------------------
+
+
+class TestTradeFormValidation:
     """Test trade form validation logic"""
 
-    def setUp(self):
-        """Setup test fixtures"""
-        from gui.components.trade_form import TradeFormFrame
+    @pytest.fixture
+    def trade_form(self):
+        """Setup trade form mock"""
+        from modules.auto_trade.gui.components.trade_form import TradeFormFrame
 
-        self.root = Mock()  # Mock parent
-        self.trade_form = TradeFormFrame.__new__(TradeFormFrame)
-        self.trade_form.amount_entry = Mock()
-        self.trade_form.leverage_var = Mock()
-        self.trade_form.tp_entry = Mock()
-        self.trade_form.sl_entry = Mock()
-        self.trade_form._show_error = Mock()  # Mock error display
+        form = TradeFormFrame.__new__(TradeFormFrame)
+        form.amount_entry = Mock()
+        form.leverage_var = Mock()
+        form.tp_entry = Mock()
+        form.sl_entry = Mock()
+        form._show_error = Mock()
+        return form
 
-    def test_empty_amount_validation(self):
+    def test_empty_amount_validation(self, trade_form):
         """Test validation with empty amount"""
-        self.trade_form.amount_entry.get.return_value = ""
-        self.trade_form.leverage_var.get.return_value = "10x"
-        self.trade_form.tp_entry.get.return_value = "5.0"
-        self.trade_form.sl_entry.get.return_value = "2.5"
+        trade_form.amount_entry.get.return_value = ""
+        trade_form.leverage_var.get.return_value = "10x"
+        trade_form.tp_entry.get.return_value = "5.0"
+        trade_form.sl_entry.get.return_value = "2.5"
 
-        # Should fail validation
-        result = self.trade_form._validate_form()
-        self.assertFalse(result)
+        assert trade_form._validate_form() is False
 
-    def test_negative_amount_validation(self):
+    def test_negative_amount_validation(self, trade_form):
         """Test validation with negative amount"""
-        self.trade_form.amount_entry.get.return_value = "-10.0"
-        self.trade_form.leverage_var.get.return_value = "10x"
-        self.trade_form.tp_entry.get.return_value = "5.0"
-        self.trade_form.sl_entry.get.return_value = "2.5"
+        trade_form.amount_entry.get.return_value = "-10.0"
+        trade_form.leverage_var.get.return_value = "10x"
+        trade_form.tp_entry.get.return_value = "5.0"
+        trade_form.sl_entry.get.return_value = "2.5"
 
-        # Should fail validation
-        result = self.trade_form._validate_form()
-        self.assertFalse(result)
+        assert trade_form._validate_form() is False
 
-    def test_amount_exceeds_limit(self):
+    def test_amount_exceeds_limit(self, trade_form):
         """Test validation with amount exceeding limit"""
-        self.trade_form.amount_entry.get.return_value = "1500.0"  # > $1000 limit
-        self.trade_form.leverage_var.get.return_value = "10x"
-        self.trade_form.tp_entry.get.return_value = "5.0"
-        self.trade_form.sl_entry.get.return_value = "2.5"
+        trade_form.amount_entry.get.return_value = "1500.0"  # > $1000 limit
+        trade_form.leverage_var.get.return_value = "10x"
+        trade_form.tp_entry.get.return_value = "5.0"
+        trade_form.sl_entry.get.return_value = "2.5"
 
-        # Should fail validation
-        result = self.trade_form._validate_form()
-        self.assertFalse(result)
+        assert trade_form._validate_form() is False
 
-    def test_invalid_leverage(self):
+    def test_invalid_leverage(self, trade_form):
         """Test validation with invalid leverage"""
-        self.trade_form.amount_entry.get.return_value = "100.0"
-        self.trade_form.leverage_var.get.return_value = "150x"  # > 100 limit
-        self.trade_form.tp_entry.get.return_value = "5.0"
-        self.trade_form.sl_entry.get.return_value = "2.5"
+        trade_form.amount_entry.get.return_value = "100.0"
+        trade_form.leverage_var.get.return_value = "150x"  # > 100 limit
+        trade_form.tp_entry.get.return_value = "5.0"
+        trade_form.sl_entry.get.return_value = "2.5"
 
-        # Should fail validation
-        result = self.trade_form._validate_form()
-        self.assertFalse(result)
+        assert trade_form._validate_form() is False
 
-    def test_tp_less_than_sl(self):
+    def test_tp_less_than_sl(self, trade_form):
         """Test validation when TP is too close to SL"""
-        self.trade_form.amount_entry.get.return_value = "100.0"
-        self.trade_form.leverage_var.get.return_value = "10x"
-        self.trade_form.tp_entry.get.return_value = "3.0"  # TP < SL * 1.5
-        self.trade_form.sl_entry.get.return_value = "2.5"
+        trade_form.amount_entry.get.return_value = "100.0"
+        trade_form.leverage_var.get.return_value = "10x"
+        trade_form.tp_entry.get.return_value = "3.0"  # TP < SL * 1.5
+        trade_form.sl_entry.get.return_value = "2.5"
 
-        # Should fail validation
-        result = self.trade_form._validate_form()
-        self.assertFalse(result)
+        assert trade_form._validate_form() is False
 
-    def test_valid_trade_parameters(self):
+    def test_valid_trade_parameters(self, trade_form):
         """Test validation with all valid parameters"""
-        self.trade_form.amount_entry.get.return_value = "100.0"
-        self.trade_form.leverage_var.get.return_value = "10x"
-        self.trade_form.tp_entry.get.return_value = "5.0"
-        self.trade_form.sl_entry.get.return_value = "2.5"
+        trade_form.amount_entry.get.return_value = "100.0"
+        trade_form.leverage_var.get.return_value = "10x"
+        trade_form.tp_entry.get.return_value = "5.0"
+        trade_form.sl_entry.get.return_value = "2.5"
 
-        # Should pass validation
-        result = self.trade_form._validate_form()
-        self.assertTrue(result)
+        assert trade_form._validate_form() is True
 
 
-class TestAutoTradeControl(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# TestAutoTradeControl
+# ---------------------------------------------------------------------------
+
+
+class TestAutoTradeControl:
     """Test auto-trade control functionality"""
 
-    def setUp(self):
-        """Setup test fixtures"""
-        from gui.components.auto_trade_control import AutoTradeControl
+    @pytest.fixture
+    def control(self):
+        """Setup auto-trade control mock"""
+        from modules.auto_trade.gui.components.auto_trade_control import AutoTradeControl
 
-        self.root = Mock()
-        self.control = AutoTradeControl.__new__(AutoTradeControl)
-        self.control.auto_trade_enabled = False
-        self.control.status_label = Mock()
-        self.control.enable_button = Mock()
-        self.control.disable_button = Mock()
-        self.control.last_action_label = Mock()
-        self.control.on_toggle_callback = Mock()
+        ctrl = AutoTradeControl.__new__(AutoTradeControl)
+        ctrl.auto_trade_enabled = False
+        ctrl.status_label = Mock()
+        ctrl.enable_button = Mock()
+        ctrl.disable_button = Mock()
+        ctrl.last_action_label = Mock()
+        ctrl.on_toggle_callback = Mock()
+        return ctrl
 
-    def test_enable_auto_trade(self):
+    def test_enable_auto_trade(self, control):
         """Test enabling auto-trade"""
-        # Just test that state changes without checking callback details
-        original_state = self.control.auto_trade_enabled
+        original_state = control.auto_trade_enabled
 
-        # We'll simulate the state change directly since mocking imports is complex
-        self.control.auto_trade_enabled = not original_state
+        # Simulate the state change directly
+        control.auto_trade_enabled = not original_state
 
-        # Verify state changed
-        self.assertNotEqual(self.control.auto_trade_enabled, original_state)
+        assert control.auto_trade_enabled != original_state
 
         # Reset for next test
-        self.control.auto_trade_enabled = original_state
+        control.auto_trade_enabled = original_state
 
-    def test_enable_auto_trade_cancelled(self):
+    def test_enable_auto_trade_cancelled(self, control):
         """Test that cancelled enable doesn't change state"""
-        original_state = self.control.auto_trade_enabled
+        original_state = control.auto_trade_enabled
 
-        # Simulate cancellation - state should remain unchanged
+        # Simulate cancellation – state unchanged
         new_state = original_state
 
-        # Verify state didn't change
-        self.assertEqual(new_state, original_state)
+        assert new_state == original_state
 
-    def test_disable_auto_trade(self):
+    def test_disable_auto_trade(self, control):
         """Test disabling auto-trade"""
-        self.control.auto_trade_enabled = True
+        control.auto_trade_enabled = True
 
-        self.control._disable_auto_trade()
+        control._disable_auto_trade()
 
-        self.assertFalse(self.control.auto_trade_enabled)
-        self.control.on_toggle_callback.assert_called_once_with(False)
+        assert control.auto_trade_enabled is False
+        control.on_toggle_callback.assert_called_once_with(False)
 
-    def test_status_indicator_update_enabled(self):
+    def test_status_indicator_update_enabled(self, control):
         """Test status update when enabled"""
-        self.control.auto_trade_enabled = True
-        # Mock the after method to avoid tkinter widget requirements
-        self.control.after = Mock()
+        control.auto_trade_enabled = True
+        control.after = Mock()
 
-        self.control._update_status_indicator(True)
+        control._update_status_indicator(True)
 
-        self.control.status_label.configure.assert_called()
+        control.status_label.configure.assert_called()
         # Check that animation was triggered
-        self.control.after.assert_called_once()
-        # Check it's set to active (green)
-        call_args = self.control.status_label.configure.call_args
-        self.assertIsNotNone(call_args)
+        control.after.assert_called_once()
+        call_args = control.status_label.configure.call_args
+        assert call_args is not None
 
-    def test_status_indicator_update_disabled_state(self):
+    def test_status_indicator_update_disabled_state(self, control):
         """Test status update when disabled"""
-        self.control.auto_trade_enabled = False
+        control.auto_trade_enabled = False
 
-        self.control._update_status_indicator(False)
+        control._update_status_indicator(False)
 
-        self.control.status_label.configure.assert_called()
+        control.status_label.configure.assert_called()
 
-    def test_animation_stops_when_disabled(self):
+    def test_animation_stops_when_disabled(self, control):
         """Test animation stops when auto-trade disabled"""
-        self.control.auto_trade_enabled = False
+        control.auto_trade_enabled = False
 
         # Should not animate
-        result = self.control._animate_status()
+        result = control._animate_status()
 
         # Should return None immediately
-        self.assertIsNone(result)
+        assert result is None
 
-    def test_status_indicator_update_disabled(self):
-        """Test status update when disabled"""
-        self.control.auto_trade_enabled = False
+    def test_status_indicator_update_disabled(self, control):
+        """Test status update when disabled (duplicate scenario)"""
+        control.auto_trade_enabled = False
 
-        self.control._update_status_indicator(False)
+        control._update_status_indicator(False)
 
-        self.control.status_label.configure.assert_called()
+        control.status_label.configure.assert_called()
 
 
-class TestRiskLimitChecking(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# TestRiskLimitChecking
+# ---------------------------------------------------------------------------
+
+
+class TestRiskLimitChecking:
     """Test risk limit checking logic"""
 
     def test_max_open_positions_limit_logic(self):
         """Test max 3 open positions limit logic"""
-        # Test that the limit is 3
         positions_limit = 3
 
-        # Simulate 3 open positions - should be at limit
         positions = [
             {"symbol": "BTC/USDT", "side": "LONG"},
             {"symbol": "ETH/USDT", "side": "SHORT"},
             {"symbol": "SOL/USDT", "side": "LONG"},
         ]
 
-        result = len(positions) >= positions_limit
-        self.assertTrue(result)
+        assert len(positions) >= positions_limit
 
     def test_under_limit_logic(self):
         """Test when under position limit"""
         positions_limit = 3
 
-        # Simulate 2 open positions - should be under limit
-        positions = [{"symbol": "BTC/USDT", "side": "LONG"}, {"symbol": "ETH/USDT", "side": "SHORT"}]
+        positions = [
+            {"symbol": "BTC/USDT", "side": "LONG"},
+            {"symbol": "ETH/USDT", "side": "SHORT"},
+        ]
 
-        result = len(positions) >= positions_limit
-        self.assertFalse(result)
+        assert not (len(positions) >= positions_limit)
 
     def test_no_positions_logic(self):
         """Test with no open positions"""
         positions_limit = 3
 
-        # Simulate 0 open positions - should be under limit
         positions = []
 
-        result = len(positions) >= positions_limit
-        self.assertFalse(result)
-
-
-def run_tests():
-    """Run all tests"""
-    print("=" * 60)
-    print("PHASE 2 TESTING SUITE")
-    print("=" * 60)
-    print()
-
-    # Create test suite
-    loader = unittest.TestLoader()
-    suite = unittest.TestSuite()
-
-    # Add test classes
-    suite.addTests(loader.loadTestsFromTestCase(TestRiskCalculator))
-    suite.addTests(loader.loadTestsFromTestCase(TestTradeFormValidation))
-    suite.addTests(loader.loadTestsFromTestCase(TestAutoTradeControl))
-    suite.addTests(loader.loadTestsFromTestCase(TestRiskLimitChecking))
-
-    # Run tests
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
-
-    print()
-    print("=" * 60)
-    print(f"Tests run: {result.testsRun}")
-    print(f"Successes: {result.testsRun - len(result.failures) - len(result.errors)}")
-    print(f"Failures: {len(result.failures)}")
-    print(f"Errors: {len(result.errors)}")
-    print("=" * 60)
-
-    return result.wasSuccessful()
-
-
-if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+        assert not (len(positions) >= positions_limit)

@@ -16,6 +16,8 @@ NOTE: New code should import directly from organized packages:
 import sys
 from typing import TYPE_CHECKING, Any
 
+import modules.common.system as system
+
 # Re-export from data package (DataFrame/Series utilities)
 from modules.common.data import (
     dataframe_to_close_series,
@@ -180,6 +182,7 @@ from ..ui.logging import (
 )
 
 __all__ = [
+    "system",
     # Hardware Management
     "HardwareManager",
     "HardwareResources",

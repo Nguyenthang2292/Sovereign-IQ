@@ -8,7 +8,7 @@ executing real trades on an exchange.
 from typing import Any, Dict, List, Optional
 
 # Local imports
-from modules.auto_trade.gui.utils.dry_run_db import DryRunDB
+from modules.auto_trade.gui.services.dry_run.dry_run_db import DryRunDB
 from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
 
 

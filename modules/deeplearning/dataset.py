@@ -9,10 +9,21 @@ This module provides:
 """
 
 import pickle
+import sys
+import types
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import pandas as pd
+
+try:
+    from numpy.lib.function_base import iterable as _np_iterable
+except ModuleNotFoundError:
+    from numpy.lib import _function_base_impl as _numpy_function_base_impl
+
+    shim_module = types.ModuleType("numpy.lib.function_base")
+    shim_module.iterable = _numpy_function_base_impl.iterable
+    sys.modules["numpy.lib.function_base"] = shim_module
 
 # Import from lightning.pytorch to match pytorch-forecasting's imports
 try:

@@ -23,7 +23,7 @@ class SwingResult:
     swing_lows: List[Pivot]
 
 
-def detect_swings(df: pd.DataFrame, internal_order: int = 5, external_order: int = 30) -> SwingResult:
+def detect_swings(df: pd.DataFrame, internal_order: int = 5, external_order: int = 50) -> SwingResult:
     """
     Detect swing highs and lows from OHLC DataFrame.
 

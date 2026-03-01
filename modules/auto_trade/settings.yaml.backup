@@ -6,8 +6,8 @@ risk:
   default_leverage: 5x
 filters:
   timeframe: 15m
-  min_signal_score: 0.19999999999999996
-  enable_xgboost: false
+  min_signal_score: 0.7
+  enable_xgboost: true
   atc_threshold: 0.19999999999999996
   symbol_whitelist: 'BTC/USDT
 
@@ -16,12 +16,11 @@ filters:
     SOL/USDT
 
     '
-  min_volume: 10.0
+  min_volume: 50.0
+  whitelist_symbols: []
 api:
   exchange: Binance
   mode: PRODUCTION
-  api_key: ''
-  api_secret: ''
 tp_sl:
   default_tp: 2.5
   default_sl: 80.0
@@ -32,6 +31,15 @@ tp_sl:
   mode: ROI
   negative_be_enabled: true
   negative_be_threshold_pct: 10.0
+auto_close:
+  enabled: false
+  max_duration_enabled: false
+  max_duration_hours: 4.0
+  daily_close_enabled: false
+  daily_close_time: '22:00'
+  daily_close_days: '1234567'
+  grace_period_minutes: 5
+  tp_offset_pct: 0.05
 scanner:
   scan_interval: 5
   timeframe: 15m
@@ -41,11 +49,11 @@ scanner:
   sample_percentage: 30
   auto_start: false
   min_signal_score: 0.32
-  min_volume: 50.0
-  enable_xgboost: true
-  atc_threshold: 0.6
-  enable_gann_square: false
-  gann_timeframe: 1h
+  min_volume: 5.0
+  enable_xgboost: false
+  atc_threshold: 0.41
+  enable_gann_square: true
+  gann_timeframe: 30m
   gann_candle_limit: 200
   gann_lookback: 5
 ui:
@@ -58,6 +66,7 @@ ui:
   column_visibility: {}
   widget_order: {}
 recovery:
+  enabled: true
   initial_loss: 0.0
   target_profit_per_trade: 8.0
   max_recovery_trades: 13
@@ -66,7 +75,6 @@ recovery:
   min_leverage: 5
   max_leverage: 15
   enable_streak_bonus: true
-  enabled: true
 trading:
   default_position_size: 100.0
   default_leverage: 2

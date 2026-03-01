@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Any, Callable
 
-from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
+from modules.auto_trade.gui.services.websocket_data_service import WebSocketDataService
 from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 
@@ -227,7 +227,7 @@ class SettingsRecoveryMixin:
 
             log_info(f"[ReapplyTPSL] Found {len(active_positions)} open position(s). Re-applying TP/SL...")
 
-            from modules.auto_trade.gui.utils.tp_sl_sync import TPSLSyncService
+            from modules.auto_trade.gui.services.tp_sl_sync import TPSLSyncService
 
             results: list[str] = []
 

@@ -2,7 +2,7 @@ import pytest
 import time
 from unittest.mock import patch, MagicMock
 
-from modules.auto_trade.gui.utils.data_service import DataService
+from modules.auto_trade.gui.services.data_service import DataService
 
 
 def test_data_service_dry_run_mode():
@@ -37,7 +37,7 @@ def test_data_service_client_caching(mock_client_class):
     assert mock_client_class.call_count == 1
 
     # Invalidate cache like SETTINGS_SAVED event would
-    with patch("modules.auto_trade.gui.utils.credential_manager.CredentialManager.load_credentials") as mock_load:
+    with patch("modules.auto_trade.gui.services.credential_manager.CredentialManager.load_credentials") as mock_load:
         mock_load.return_value = {"api_key": "new_key", "api_secret": "new_secret"}
         ds._on_settings_saved(None)
         ds._reload_credentials()
@@ -48,8 +48,8 @@ def test_data_service_client_caching(mock_client_class):
     assert mock_client_class.call_count == 2
 
 
-@patch("modules.auto_trade.gui.utils.tp_sl_sync.TPSLSyncService.sync_position_tp_sl")
-@patch("modules.auto_trade.gui.utils.data_service.DataService._get_or_create_client")
+@patch("modules.auto_trade.gui.services.tp_sl_sync.TPSLSyncService.sync_position_tp_sl")
+@patch("modules.auto_trade.gui.services.data_service.DataService._get_or_create_client")
 def test_data_service_tpsl_caching(mock_get_client, mock_sync):
     mock_get_client.return_value = MagicMock()
     mock_sync.return_value = {"take_profit": 1.0, "stop_loss": 0.5, "break_even": None}

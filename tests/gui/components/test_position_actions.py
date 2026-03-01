@@ -1,9 +1,10 @@
 """
 Unit tests for PositionActions validation logic
 """
+
 import pytest
 from unittest.mock import MagicMock, patch
-from gui.components.position_actions import PositionActions
+from modules.auto_trade.gui.components.position_actions import PositionActions
 
 
 class TestPositionActionsValidation:
@@ -50,7 +51,7 @@ class TestPositionActionsValidation:
 
     def test_validate_tp_sl_long_position_valid(self, sample_long_position, mock_parent):
         """Test valid TP/SL for LONG position"""
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_long_position)
 
             # Valid: TP above entry, SL below entry
@@ -59,7 +60,7 @@ class TestPositionActionsValidation:
 
     def test_validate_tp_sl_long_position_invalid_tp(self, sample_long_position, mock_parent):
         """Test invalid TP for LONG position (below entry)"""
-        with patch('gui.components.position_actions.messagebox') as mock_msg:
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox") as mock_msg:
             actions = PositionActions(mock_parent, sample_long_position)
 
             # Invalid: TP below entry for LONG
@@ -70,7 +71,7 @@ class TestPositionActionsValidation:
 
     def test_validate_tp_sl_long_position_invalid_sl(self, sample_long_position, mock_parent):
         """Test invalid SL for LONG position (above entry)"""
-        with patch('gui.components.position_actions.messagebox') as mock_msg:
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox") as mock_msg:
             actions = PositionActions(mock_parent, sample_long_position)
 
             # Invalid: SL above entry for LONG
@@ -80,7 +81,7 @@ class TestPositionActionsValidation:
 
     def test_validate_tp_sl_short_position_valid(self, sample_short_position, mock_parent):
         """Test valid TP/SL for SHORT position"""
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_short_position)
 
             # Valid: TP below entry, SL above entry
@@ -89,7 +90,7 @@ class TestPositionActionsValidation:
 
     def test_validate_tp_sl_short_position_invalid_tp(self, sample_short_position, mock_parent):
         """Test invalid TP for SHORT position (above entry)"""
-        with patch('gui.components.position_actions.messagebox') as mock_msg:
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox") as mock_msg:
             actions = PositionActions(mock_parent, sample_short_position)
 
             # Invalid: TP above entry for SHORT
@@ -99,7 +100,7 @@ class TestPositionActionsValidation:
 
     def test_validate_tp_sl_short_position_invalid_sl(self, sample_short_position, mock_parent):
         """Test invalid SL for SHORT position (below entry)"""
-        with patch('gui.components.position_actions.messagebox') as mock_msg:
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox") as mock_msg:
             actions = PositionActions(mock_parent, sample_short_position)
 
             # Invalid: SL below entry for SHORT
@@ -109,7 +110,7 @@ class TestPositionActionsValidation:
 
     def test_validate_tp_sl_zero_values(self, sample_long_position, mock_parent):
         """Test validation with zero TP/SL (meaning not set)"""
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_long_position)
 
             # Zero values should be allowed (means not set)
@@ -121,7 +122,7 @@ class TestPositionActionsValidation:
 
     def test_validate_tp_sl_sl_too_close_to_current(self, sample_long_position, mock_parent):
         """Test warning when SL is too close to current price"""
-        with patch('gui.components.position_actions.messagebox') as mock_msg:
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox") as mock_msg:
             actions = PositionActions(mock_parent, sample_long_position)
 
             # SL very close to current price (51000 * 0.98 = 49980)
@@ -131,7 +132,7 @@ class TestPositionActionsValidation:
 
     def test_format_pnl_positive(self, sample_long_position, mock_parent):
         """Test P&L formatting for positive values"""
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_long_position)
 
             formatted = actions._format_pnl(100.50)
@@ -139,7 +140,7 @@ class TestPositionActionsValidation:
 
     def test_format_pnl_negative(self, sample_long_position, mock_parent):
         """Test P&L formatting for negative values"""
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_long_position)
 
             formatted = actions._format_pnl(-50.25)
@@ -147,7 +148,7 @@ class TestPositionActionsValidation:
 
     def test_format_pnl_zero(self, sample_long_position, mock_parent):
         """Test P&L formatting for zero"""
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_long_position)
 
             formatted = actions._format_pnl(0)
@@ -177,7 +178,7 @@ class TestPositionActionsRetryLogic:
         """Test successful execution with retry logic"""
         callback = MagicMock(return_value={"success": True})
 
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_position, callback)
 
             result = actions._execute_with_retry({"action": "test"})
@@ -190,12 +191,9 @@ class TestPositionActionsRetryLogic:
         import ccxt
 
         callback = MagicMock()
-        callback.side_effect = [
-            ccxt.NetworkError("Temporary error"),
-            {"success": True}
-        ]
+        callback.side_effect = [ccxt.NetworkError("Temporary error"), {"success": True}]
 
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_position, callback)
 
             result = actions._execute_with_retry({"action": "test"})
@@ -209,7 +207,7 @@ class TestPositionActionsRetryLogic:
 
         callback = MagicMock(side_effect=ccxt.NetworkError("Persistent error"))
 
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_position, callback)
 
             result = actions._execute_with_retry({"action": "test"})
@@ -221,7 +219,7 @@ class TestPositionActionsRetryLogic:
 
     def test_execute_with_retry_no_callback(self, sample_position, mock_parent):
         """Test execution with no callback configured"""
-        with patch('gui.components.position_actions.messagebox'):
+        with patch("modules.auto_trade.gui.components.position_actions.messagebox"):
             actions = PositionActions(mock_parent, sample_position, None)
 
             result = actions._execute_with_retry({"action": "test"})

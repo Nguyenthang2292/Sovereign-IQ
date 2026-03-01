@@ -1,11 +1,12 @@
 """
 Unit tests for CredentialManager
 """
+
 import pytest
 import os
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from gui.utils.credential_manager import CredentialManager
+from modules.auto_trade.gui.utils.credential_manager import CredentialManager
 
 
 class TestCredentialManager:
@@ -21,7 +22,7 @@ class TestCredentialManager:
     @pytest.fixture
     def manager(self, temp_env_file, monkeypatch):
         """Create a CredentialManager with temporary env file"""
-        with patch.object(CredentialManager, '_find_or_create_env_file', return_value=temp_env_file):
+        with patch.object(CredentialManager, "_find_or_create_env_file", return_value=temp_env_file):
             manager = CredentialManager()
             return manager
 
@@ -79,14 +80,12 @@ class TestCredentialManager:
         # Verify cleared
         assert manager.has_credentials("binance") is False
 
-    @patch('gui.utils.credential_manager.ccxt.binance')
+    @patch("modules.auto_trade.gui.utils.credential_manager.ccxt.binance")
     def test_test_connection_success(self, mock_binance_class, manager):
         """Test successful connection test"""
         # Mock exchange instance
         mock_exchange = MagicMock()
-        mock_exchange.fetch_balance.return_value = {
-            "total": {"BTC": 1.5, "USDT": 1000}
-        }
+        mock_exchange.fetch_balance.return_value = {"total": {"BTC": 1.5, "USDT": 1000}}
         mock_binance_class.return_value = mock_exchange
 
         # Test connection
@@ -96,7 +95,7 @@ class TestCredentialManager:
         assert "Successfully connected" in result["message"]
         assert "balance" in result
 
-    @patch('gui.utils.credential_manager.ccxt.binance')
+    @patch("modules.auto_trade.gui.utils.credential_manager.ccxt.binance")
     def test_test_connection_auth_error(self, mock_binance_class, manager):
         """Test connection with authentication error"""
         import ccxt
@@ -112,7 +111,7 @@ class TestCredentialManager:
         assert result["success"] is False
         assert "Authentication failed" in result["message"]
 
-    @patch('gui.utils.credential_manager.ccxt.binance')
+    @patch("modules.auto_trade.gui.utils.credential_manager.ccxt.binance")
     def test_test_connection_network_error(self, mock_binance_class, manager):
         """Test connection with network error"""
         import ccxt

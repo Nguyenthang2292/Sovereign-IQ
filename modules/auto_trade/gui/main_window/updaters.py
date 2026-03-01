@@ -192,7 +192,7 @@ class UpdaterManager:
         def _run():
             try:
                 from modules.auto_trade.execution.binance_client import BinanceClient
-                from modules.auto_trade.gui.utils.position_sync_service import PositionSyncService
+                from modules.auto_trade.gui.services.position_sync_service import PositionSyncService
 
                 ds = self.parent.data_service
                 api_key = getattr(ds, "api_key", "") or ""

@@ -101,7 +101,7 @@ class PositionSyncService:
             Tuple of (take_profit, stop_loss)
         """
         try:
-            from modules.auto_trade.gui.utils.tp_sl_sync import TPSLSyncService
+            from modules.auto_trade.gui.services.tp_sl_sync import TPSLSyncService
 
             tp_price, sl_price, _ = TPSLSyncService.fetch_tp_sl_from_binance(client, symbol)
             if tp_price is None and sl_price is None:

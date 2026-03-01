@@ -41,6 +41,10 @@ class LayoutManager:
         dashboard_tab = self.parent.tabview.add("Dashboard")
         self._populate_dashboard_tab(dashboard_tab)
 
+        # Settings tab
+        settings_tab = self.parent.tabview.add("Settings")
+        self._populate_settings_tab(settings_tab)
+
         # Scanner tab (Scanner Control + Logs)
         scanner_tab = self.parent.tabview.add("Scanner")
         self._populate_scanner_tab(scanner_tab)
@@ -48,10 +52,6 @@ class LayoutManager:
         # Trading tab
         trading_tab = self.parent.tabview.add("Trading")
         self._populate_trading_tab(trading_tab)
-
-        # Settings tab
-        settings_tab = self.parent.tabview.add("Settings")
-        self._populate_settings_tab(settings_tab)
 
         # Scheduled Exits tab
         scheduled_exits_tab = self.parent.tabview.add("Scheduled Exits")

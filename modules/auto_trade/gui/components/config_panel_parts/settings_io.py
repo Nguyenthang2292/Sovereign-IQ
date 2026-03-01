@@ -6,6 +6,16 @@ from modules.auto_trade.gui.components.config_panel_parts.auto_close_settings im
 )
 
 
+def _safe_get(panel, attr: str, fallback):
+    widget = getattr(panel, attr, None)
+    if widget is None:
+        return fallback
+    getter = getattr(widget, "get", None)
+    if callable(getter):
+        return getter()
+    return fallback
+
+
 def get_settings(panel) -> Dict:
     """
     Get current settings (excluding API credentials for security).
@@ -56,7 +66,7 @@ def get_settings(panel) -> Dict:
             default_sl = 2.5
 
         try:
-            trailing_step_pct = float(panel.trailing_step_pct_entry.get())
+            trailing_step_pct = float(_safe_get(panel, "trailing_step_pct_entry", "2.0"))
             if trailing_step_pct <= 0 or trailing_step_pct > 50:
                 raise ValueError("Trailing step must be between 0 and 50")
         except ValueError as e:
@@ -64,7 +74,7 @@ def get_settings(panel) -> Dict:
             trailing_step_pct = 2.0
 
         try:
-            trailing_max_steps = int(panel.max_steps_entry.get())
+            trailing_max_steps = int(_safe_get(panel, "max_steps_entry", "5"))
             if trailing_max_steps < 1:
                 raise ValueError("Max steps must be at least 1")
         except ValueError as e:
@@ -72,34 +82,56 @@ def get_settings(panel) -> Dict:
             trailing_max_steps = 5
 
         try:
-            negative_be_threshold = float(panel.negative_be_threshold_entry.get())
+            negative_be_threshold = float(_safe_get(panel, "negative_be_threshold_entry", "2.0"))
             if negative_be_threshold <= 0 or negative_be_threshold > 100:
                 raise ValueError("Negative BE threshold must be between 0 and 100")
         except ValueError as e:
             print(f"Invalid negative BE threshold: {e}, using default 2.0")
             negative_be_threshold = 2.0
 
+        try:
+            min_volume = float(_safe_get(panel, "min_volume_entry", "50"))
+            if min_volume < 0:
+                raise ValueError("Min volume must be >= 0")
+        except ValueError:
+            min_volume = 50.0
+
+        try:
+            min_signal_score = float(_safe_get(panel, "min_score_var", 0.7))
+        except (TypeError, ValueError):
+            min_signal_score = 0.7
+
+        enable_xgboost = bool(_safe_get(panel, "enable_xgboost_var", True))
+        whitelist_raw = str(_safe_get(panel, "whitelist_entry", "")).strip()
+        whitelist_symbols = [s.strip() for s in whitelist_raw.split(",") if s.strip()] if whitelist_raw else []
+
         return {
             "risk": {
-                "limits_enabled": panel.risk_limits_enabled_var.get(),
+                "limits_enabled": bool(_safe_get(panel, "risk_limits_enabled_var", True)),
                 "max_position_size": max_position_size,
                 "max_open_positions": max_open_positions,
                 "max_daily_loss": max_daily_loss,
-                "default_leverage": panel.default_leverage_var.get(),
+                "default_leverage": _safe_get(panel, "default_leverage_var", "10x"),
+            },
+            "filters": {
+                "min_volume": min_volume,
+                "min_signal_score": min_signal_score,
+                "enable_xgboost": enable_xgboost,
+                "whitelist_symbols": whitelist_symbols,
             },
             "api": {
-                "exchange": panel.exchange_var.get(),
-                "mode": panel.mode_var.get(),
+                "exchange": _safe_get(panel, "exchange_var", "Binance"),
+                "mode": _safe_get(panel, "mode_var", "DRY_RUN"),
             },
             "tp_sl": {
                 "default_tp": default_tp,
                 "default_sl": default_sl,
-                "trailing_stop": panel.trailing_stop_var.get(),
+                "trailing_stop": bool(_safe_get(panel, "trailing_stop_var", False)),
                 "trailing_step_pct": trailing_step_pct,
-                "trailing_limit_steps": panel.limit_trailing_steps_var.get(),
+                "trailing_limit_steps": bool(_safe_get(panel, "limit_trailing_steps_var", False)),
                 "trailing_max_steps": trailing_max_steps,
-                "mode": panel.tp_sl_mode_var.get(),
-                "negative_be_enabled": panel.negative_be_var.get(),
+                "mode": _safe_get(panel, "tp_sl_mode_var", "Percentage"),
+                "negative_be_enabled": bool(_safe_get(panel, "negative_be_var", False)),
                 "negative_be_threshold_pct": negative_be_threshold,
             },
             "auto_close": extract_auto_close_settings(panel),
@@ -114,8 +146,15 @@ def get_settings(panel) -> Dict:
                 "max_daily_loss": 50.0,
                 "default_leverage": "10x",
             },
+            "filters": {
+                "min_volume": 50.0,
+                "min_signal_score": 0.7,
+                "enable_xgboost": True,
+                "whitelist_symbols": [],
+            },
             "api": {
                 "exchange": "Binance",
+                "mode": "DRY_RUN",
             },
             "tp_sl": {
                 "default_tp": 5.0,

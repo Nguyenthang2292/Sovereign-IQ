@@ -61,6 +61,7 @@ from .system import (
     get_pytorch_env,
 )
 from .utils.monitoring import RuntimeMonitor, get_runtime_monitor
+from modules.common.ui.logging import log_info, log_system, log_warn
 
 __all__ = [
     # Detection Layer
@@ -111,4 +112,8 @@ __all__ = [
     "get_array_pool",
     "get_series_pool",
     "cleanup_pools",
+    # Legacy logging aliases used by older patch paths
+    "log_system",
+    "log_info",
+    "log_warn",
 ]

@@ -1,9 +1,10 @@
 """
 Unit tests for ConfigPanel validation and settings management
 """
+
 import pytest
 from unittest.mock import MagicMock, patch
-from gui.components.config_panel import ConfigPanel
+from modules.auto_trade.gui.components.config_panel import ConfigPanel
 
 
 class TestConfigPanelValidation:
@@ -18,12 +19,12 @@ class TestConfigPanelValidation:
     @pytest.fixture
     def config_panel(self, mock_parent):
         """Create a ConfigPanel instance"""
-        with patch('customtkinter.CTkFrame.__init__', return_value=None):
-            with patch.object(ConfigPanel, '_create_risk_settings_tab'):
-                with patch.object(ConfigPanel, '_create_signal_filters_tab'):
-                    with patch.object(ConfigPanel, '_create_api_keys_tab'):
-                        with patch.object(ConfigPanel, '_create_tp_sl_tab'):
-                            with patch.object(ConfigPanel, '_create_ui_preferences_tab'):
+        with patch("customtkinter.CTkFrame.__init__", return_value=None):
+            with patch.object(ConfigPanel, "_create_risk_settings_tab"):
+                with patch.object(ConfigPanel, "_create_signal_filters_tab"):
+                    with patch.object(ConfigPanel, "_create_api_keys_tab"):
+                        with patch.object(ConfigPanel, "_create_tp_sl_tab"):
+                            with patch.object(ConfigPanel, "_create_ui_preferences_tab"):
                                 panel = ConfigPanel.__new__(ConfigPanel)
                                 panel.on_settings_change = None
                                 return panel

@@ -3,12 +3,14 @@ from typing import Any, Dict
 import customtkinter as ctk
 
 
-def build_auto_close_section(panel, parent_frame) -> None:
+def build_auto_close_section(panel, parent_frame, *, show_separator: bool = True, show_title: bool = True) -> None:
     """Build Auto-Close settings UI section inside TP/SL area."""
-    separator = ctk.CTkLabel(parent_frame, text="─────────────────────────", text_color="gray")
-    separator.pack(anchor="w", pady=(12, 5))
+    if show_separator:
+        separator = ctk.CTkLabel(parent_frame, text="─────────────────────────", text_color="gray")
+        separator.pack(anchor="w", pady=(12, 5))
 
-    ctk.CTkLabel(parent_frame, text="Auto-Close Timer", font=("Arial", 13, "bold")).pack(anchor="w", pady=(0, 8))
+    if show_title:
+        ctk.CTkLabel(parent_frame, text="Auto-Close Timer", font=("Arial", 13, "bold")).pack(anchor="w", pady=(0, 8))
 
     panel.auto_close_enabled_var = ctk.BooleanVar(value=False)
     ctk.CTkCheckBox(

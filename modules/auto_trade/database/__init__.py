@@ -134,7 +134,7 @@ def reconcile_orders_with_binance(
         Dict with keys: inserted (int), skipped (int), errors (list[str])
     """
     from modules.auto_trade.execution.binance_client import BinanceClient
-    from modules.auto_trade.gui.utils.position_sync_service import PositionSyncService
+    from modules.auto_trade.gui.services.position_sync_service import PositionSyncService
 
     client = BinanceClient(
         api_key=api_key,

@@ -10,6 +10,7 @@ This module implements 3 phases:
 import json
 import pickle
 import sys
+import types
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -32,6 +33,16 @@ except ImportError:
 import torch
 import torch.nn as nn
 from colorama import Fore
+
+try:
+    from numpy.lib.function_base import iterable as _np_iterable
+except ModuleNotFoundError:
+    from numpy.lib import _function_base_impl as _numpy_function_base_impl
+
+    shim_module = types.ModuleType("numpy.lib.function_base")
+    shim_module.iterable = _numpy_function_base_impl.iterable
+    sys.modules["numpy.lib.function_base"] = shim_module
+
 from pytorch_forecasting import TemporalFusionTransformer
 from pytorch_forecasting.data import TimeSeriesDataSet
 from pytorch_forecasting.metrics import MAE, QuantileLoss

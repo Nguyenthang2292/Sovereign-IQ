@@ -18,7 +18,7 @@ print()
 print("1. Risk Calculator Tests")
 print("-" * 40)
 try:
-    from gui.utils.risk_calculator import RiskCalculator
+    from modules.auto_trade.gui.utils.risk_calculator import RiskCalculator
 
     # Test LONG trade
     result = RiskCalculator.calculate(
@@ -74,9 +74,9 @@ print()
 print("2. Component Import Tests")
 print("-" * 40)
 components = [
-    ("TradeFormFrame", "gui.components.trade_form"),
-    ("AutoTradeControl", "gui.components.auto_trade_control"),
-    ("RiskCalculator", "gui.utils.risk_calculator"),
+    ("TradeFormFrame", "modules.auto_trade.gui.components.trade_form"),
+    ("AutoTradeControl", "modules.auto_trade.gui.components.auto_trade_control"),
+    ("RiskCalculator", "modules.auto_trade.gui.utils.risk_calculator"),
 ]
 
 for component_name, module_path in components:
@@ -170,8 +170,8 @@ print("5. Integration Points")
 print("-" * 40)
 
 integrations = [
-    ("DataService", "gui.utils.data_service"),
-    ("ThreadingUtils", "gui.utils.threading_utils"),
+    ("DataService", "modules.auto_trade.gui.utils.data_service"),
+    ("ThreadingUtils", "modules.auto_trade.gui.utils.threading_utils"),
     ("OrderExecutor", "modules.auto_trade.execution.order_executor"),
     ("SignalSelector", "modules.auto_trade.signal_selector"),
 ]
@@ -208,7 +208,7 @@ print()
 print("1. Risk Calculator Tests")
 print("-" * 40)
 try:
-    from gui.utils.risk_calculator import RiskCalculator
+    from modules.auto_trade.gui.utils.risk_calculator import RiskCalculator
 
     # Test LONG trade
     result = RiskCalculator.calculate(
@@ -264,9 +264,9 @@ print()
 print("2. Component Import Tests")
 print("-" * 40)
 components = [
-    ("TradeFormFrame", "gui.components.trade_form"),
-    ("AutoTradeControl", "gui.components.auto_trade_control"),
-    ("RiskCalculator", "gui.utils.risk_calculator"),
+    ("TradeFormFrame", "modules.auto_trade.gui.components.trade_form"),
+    ("AutoTradeControl", "modules.auto_trade.gui.components.auto_trade_control"),
+    ("RiskCalculator", "modules.auto_trade.gui.utils.risk_calculator"),
 ]
 
 for component_name, module_path in components:
@@ -360,8 +360,8 @@ print("5. Integration Points")
 print("-" * 40)
 
 integrations = [
-    ("DataService", "gui.utils.data_service"),
-    ("ThreadingUtils", "gui.utils.threading_utils"),
+    ("DataService", "modules.auto_trade.gui.utils.data_service"),
+    ("ThreadingUtils", "modules.auto_trade.gui.utils.threading_utils"),
     ("OrderExecutor", "modules.auto_trade.execution.order_executor"),
     ("SignalSelector", "modules.auto_trade.signal_selector"),
 ]
@@ -392,3 +392,4 @@ print("- Check that TP/SL prices update when parameters change")
 print("- Confirm leverage warning appears for >10x")
 print("- Test auto-trade cycle with sample signals")
 print()
+

@@ -63,8 +63,8 @@ class PositionActionHandler:
         """
         try:
             from modules.auto_trade.execution.binance_client import BinanceClient
-            from modules.auto_trade.gui.utils.credential_manager import CredentialManager
-            from modules.auto_trade.gui.utils.position_sync_service import PositionSyncService
+            from modules.auto_trade.gui.services.credential_manager import CredentialManager
+            from modules.auto_trade.gui.services.position_sync_service import PositionSyncService
 
             log_info("[PositionSync] Starting manual position sync...")
 

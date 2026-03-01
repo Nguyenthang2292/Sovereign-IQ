@@ -6,7 +6,7 @@ def test_connection(panel):
     try:
         from tkinter import messagebox
 
-        from modules.auto_trade.gui.utils.credential_manager import CredentialManager
+        from modules.auto_trade.gui.services.credential_manager import CredentialManager
 
         exchange = panel.exchange_var.get().lower()
         api_key = panel.api_key_entry.get().strip()
@@ -46,7 +46,7 @@ def save_credentials(panel):
     try:
         from tkinter import messagebox
 
-        from modules.auto_trade.gui.utils.credential_manager import CredentialManager
+        from modules.auto_trade.gui.services.credential_manager import CredentialManager
 
         exchange = panel.exchange_var.get().lower()
         api_key = panel.api_key_entry.get().strip()
@@ -111,7 +111,7 @@ def on_cancel_credentials(panel):
 def refresh_credentials_display(panel):
     """Refresh credentials display (masked vs entry)."""
     try:
-        from modules.auto_trade.gui.utils.credential_manager import CredentialManager
+        from modules.auto_trade.gui.services.credential_manager import CredentialManager
 
         exchange = panel.exchange_var.get().lower()
         manager = CredentialManager()

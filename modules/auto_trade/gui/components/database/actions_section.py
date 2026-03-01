@@ -205,7 +205,7 @@ class ActionsSection:
         )
         try:
             from modules.auto_trade.execution.binance_client import BinanceClient
-            from modules.auto_trade.gui.utils.position_sync_service import PositionSyncService
+            from modules.auto_trade.gui.services.position_sync_service import PositionSyncService
 
             client = BinanceClient(api_key=api_key, api_secret=api_secret, testnet=testnet, dry_run=False)
 

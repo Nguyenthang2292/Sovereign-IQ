@@ -156,7 +156,7 @@ class DataService:
             return
 
         try:
-            from modules.auto_trade.gui.utils.credential_manager import CredentialManager
+            from modules.auto_trade.gui.services.credential_manager import CredentialManager
 
             cm = CredentialManager()
             exchange = "binance"
@@ -211,7 +211,7 @@ class DataService:
 
         if client and self.repo_context:
             try:
-                from modules.auto_trade.gui.utils.tp_sl_sync import TPSLSyncService
+                from modules.auto_trade.gui.services.tp_sl_sync import TPSLSyncService
 
                 side = None
                 entry_price = None
@@ -360,7 +360,7 @@ class DataService:
                     open_positions = 0
             elif self.mode == "DRY_RUN":
                 try:
-                    from modules.auto_trade.gui.utils.dry_run_db import DryRunDB
+                    from modules.auto_trade.gui.services.dry_run.dry_run_db import DryRunDB
 
                     db = DryRunDB()
                     positions = db.get_open_positions()
@@ -504,7 +504,7 @@ class DataService:
         try:
             if self.mode == "DRY_RUN":
                 try:
-                    from modules.auto_trade.gui.utils.dry_run_db import DryRunDB
+                    from modules.auto_trade.gui.services.dry_run.dry_run_db import DryRunDB
 
                     db = DryRunDB()
                     price_feed = self._get_mock_price_feed()

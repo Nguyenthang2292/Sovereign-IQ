@@ -25,8 +25,7 @@ main_dir = os.path.dirname(strategies_dir)
 if main_dir not in sys.path:
     sys.path.insert(0, main_dir)
 
-from data_class.class_order_block import OrderBlock
-from data_class.class_pivot import Pivot
+from modules.smart_money_concept.models import OrderBlock, Pivot
 
 # Global variables for OHLC and pivot data
 opens: List[float] = []
