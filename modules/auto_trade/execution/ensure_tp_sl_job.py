@@ -242,12 +242,22 @@ class EnsureTPSLJob:
         # 2. Mark the DB record as closed
         try:
             repo = self._get_repo_context()
-            order_id = db_order.get("order_id") or db_order.get("pk") or db_order.get("id")
+            order_id = (
+                db_order.get("order_id")
+                or db_order.get("OrderId")
+                or db_order.get("pk")
+                or db_order.get("PK")
+                or db_order.get("id")
+            )
             if order_id:
                 repo.orders.update_order_status(order_id, "CLOSED")
                 log_info(f"[EnsureTPSL] DB record for {symbol} ({order_id}) marked as CLOSED")
             else:
-                log_warn(f"[EnsureTPSL] Could not determine order_id for {symbol} to update DB")
+                log_error(
+                    f"[EnsureTPSL] Could not determine order_id for {symbol}. "
+                    f"Available keys: {list(db_order.keys())}. "
+                    f"Check DynamoDB schema in RepositoryContext."
+                )
         except Exception as e:
             log_warn(f"[EnsureTPSL] Could not update DB status for {symbol}: {e}")
 

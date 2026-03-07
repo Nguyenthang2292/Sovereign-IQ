@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
+
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 
@@ -22,6 +23,9 @@ class SettingsManager:
         },
         "filters": {
             "timeframe": "15m",
+            # Legacy keys kept for backward-compatible tests/older GUI code.
+            "min_signal_score": 0.7,
+            "symbol_whitelist": "",
         },
         "api": {"exchange": "Demo", "mode": "DRY_RUN", "api_key": "", "api_secret": ""},
         "tp_sl": {
@@ -297,6 +301,15 @@ class SettingsManager:
 
             if self.settings["scanner"].get("min_volume", 5.0) < 0:
                 self.settings["scanner"]["min_volume"] = 50.0
+
+            # Validate legacy filters fields (still used by compatibility tests).
+            filters = self.settings.setdefault("filters", {})
+            if not 0 <= float(filters.get("min_signal_score", 0.7) or 0.7) <= 1:
+                filters["min_signal_score"] = 0.7
+
+            # Keep scanner.min_signal_score in sync when legacy key exists.
+            if "min_signal_score" in filters:
+                self.settings["scanner"]["min_signal_score"] = float(filters["min_signal_score"])
 
             # Validate API mode
             valid_modes: List[str] = ["PRODUCTION", "DEMO", "DRY_RUN"]

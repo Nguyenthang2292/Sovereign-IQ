@@ -5,12 +5,11 @@ Simulates complete auto-trade strategy including signal pipeline,
 order execution, position monitoring, and Martingale recovery.
 """
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Any, Dict, List, Optional
 
 from modules.auto_trade.core.signal_pipeline import SignalPipeline
 from modules.common.core.data_fetcher import DataFetcher
-
+from modules.common.ui.logging import log_error, log_info
 
 
 class AutoTradeStrategySimulator:

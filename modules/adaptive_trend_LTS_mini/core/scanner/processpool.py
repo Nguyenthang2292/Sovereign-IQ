@@ -18,13 +18,13 @@ try:
     from modules.common.utils import log_debug, log_progress, log_warn
 except ImportError:
 
-    def log_warn(msg: str) -> None:
+    def log_warn(msg: str, *args: object) -> None:
         print(f"[WARN] {msg}")
 
-    def log_progress(msg: str) -> None:
+    def log_progress(msg: str, *args: object) -> None:
         print(f"[PROGRESS] {msg}")
 
-    def log_debug(msg: str) -> None:
+    def log_debug(msg: str, *args: object) -> None:
         print(f"[DEBUG] {msg}")
 
 

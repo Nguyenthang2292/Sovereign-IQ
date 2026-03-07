@@ -15,17 +15,17 @@ try:
     from modules.common.utils import log_debug, log_error, log_info, log_warn
 except ImportError:
 
-    def log_debug(msg: str) -> None:
-        print(f"[DEBUG] {msg}")
+    def log_debug(msg: str, *args: object) -> None:
+        print(f"[DEBUG] {msg % args if args else msg}")
 
-    def log_info(msg: str) -> None:
-        print(f"[INFO] {msg}")
+    def log_info(msg: str, *args: object) -> None:
+        print(f"[INFO] {msg % args if args else msg}")
 
-    def log_warn(msg: str) -> None:
-        print(f"[WARN] {msg}")
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg % args if args else msg}")
 
-    def log_error(msg: str) -> None:
-        print(f"[ERROR] {msg}")
+    def log_error(msg: str, *args: object, exc_info: bool = False) -> None:
+        print(f"[ERROR] {msg % args if args else msg}")
 
 
 from .adaptive_approximate_mas import get_adaptive_ma_approx
@@ -313,7 +313,9 @@ class BatchApproximateMAScanner:
         try:
             from modules.adaptive_trend_LTS.utils import diflen
 
-            L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(base_length, robustness=robustness)
+            diflen_res = diflen(base_length, robustness=robustness)
+            assert diflen_res is not None, "diflen returned None"
+            L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_res
             ma_lengths = [base_length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
             ma_names = ["MA", "MA1", "MA2", "MA3", "MA4", "MA_1", "MA_2", "MA_3", "MA_4"]
 

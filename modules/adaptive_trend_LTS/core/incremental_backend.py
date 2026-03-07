@@ -24,14 +24,14 @@ try:
     from modules.common.utils import log_debug, log_warn, log_error
 except ImportError:
 
-    def log_debug(msg: str) -> None:
-        print(f"[DEBUG] {msg}")
+    def log_debug(msg: str, *args: object) -> None:
+        print(f"[DEBUG] {msg % args if args else msg}")
 
-    def log_warn(msg: str) -> None:
-        print(f"[WARN] {msg}")
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg % args if args else msg}")
 
-    def log_error(msg: str) -> None:
-        print(f"[ERROR] {msg}")
+    def log_error(msg: str, *args: object, exc_info: bool = False) -> None:
+        print(f"[ERROR] {msg % args if args else msg}")
 
 
 def check_rust_available() -> bool:

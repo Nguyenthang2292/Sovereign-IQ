@@ -14,11 +14,11 @@ try:
     from modules.common.utils import log_debug, log_warn
 except ImportError:
     # Fallback logging if common utils not available
-    def log_debug(msg: str) -> None:  # pragma: no cover
-        print(f"[DEBUG] {msg}")
+    def log_debug(msg: str, *args: object) -> None:  # pragma: no cover
+        print(f"[DEBUG] {msg % args if args else msg}")
 
-    def log_warn(msg: str) -> None:  # pragma: no cover
-        print(f"[WARN] {msg}")
+    def log_warn(msg: str, *args: object) -> None:  # pragma: no cover
+        print(f"[WARN] {msg % args if args else msg}")
 
 
 from modules.adaptive_trend_LTS.core.compute_equity import _calculate_equities_parallel

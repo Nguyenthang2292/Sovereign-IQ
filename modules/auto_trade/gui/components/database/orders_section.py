@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Callable
+from typing import Any, Callable
 
 import customtkinter as ctk
 
@@ -14,13 +14,18 @@ from modules.auto_trade.gui.utils.svg_icons import get_icon
 class OrdersSection:
     """Orders testing section component."""
 
-    def __init__(self, parent: ctk.CTkFrame, log_callback: Callable, refresh_callback: Callable):
+    def __init__(
+        self,
+        parent: ctk.CTkFrame | ctk.CTkScrollableFrame,
+        log_callback: Callable[[str, str], None],
+        refresh_callback: Callable[[], None],
+    ) -> None:
         self.parent = parent
         self.log_callback = log_callback
         self.refresh_callback = refresh_callback
         self._create_ui()
 
-    def _create_ui(self):
+    def _create_ui(self) -> None:
         """Create the orders section UI."""
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="x", padx=5, pady=5)
@@ -78,7 +83,7 @@ class OrdersSection:
             compound="left",
         ).pack(side="left", padx=(5, 0), fill="x", expand=True)
 
-    def _create_test_order(self):
+    def _create_test_order(self) -> None:
         """Create a test order via RepositoryContext."""
         symbol = self.order_symbol.get()
         side = self.order_side.get()
@@ -103,7 +108,7 @@ class OrdersSection:
         except Exception as e:
             self.log_callback(f"Failed to create test order: {e}", "ERROR")
 
-    def _query_open_positions(self):
+    def _query_open_positions(self) -> None:
         """Query open positions via RepositoryContext."""
         try:
             ctx = RepositoryContext.from_env()
@@ -126,7 +131,7 @@ class OrdersSection:
         except Exception as e:
             self.log_callback(f"Failed to query open positions: {e}", "ERROR")
 
-    def _get_overall_stats(self):
+    def _get_overall_stats(self) -> None:
         """Get overall trading statistics via RepositoryContext."""
         try:
             ctx = RepositoryContext.from_env()
@@ -137,16 +142,26 @@ class OrdersSection:
 
             total = len(all_orders)
             open_count = len(open_pos)
-            closed_count = sum(
-                1
-                for o in all_orders
-                if (o.get("status") if isinstance(o, dict) else getattr(o, "status", "")) in ("CLOSED", "CANCELLED")
-            )
-            win_count = sum(
-                1
-                for o in all_orders
-                if (o.get("realized_pnl") if isinstance(o, dict) else getattr(o, "realized_pnl", None) or 0) > 0
-            )
+            closed_count = 0
+            win_count = 0
+            for order in all_orders:
+                status = str(order.get("status", "") if isinstance(order, dict) else getattr(order, "status", ""))
+                if status in ("CLOSED", "CANCELLED"):
+                    closed_count += 1
+
+                raw_pnl: Any
+                if isinstance(order, dict):
+                    raw_pnl = order.get("realized_pnl")
+                else:
+                    raw_pnl = getattr(order, "realized_pnl", 0.0)
+
+                try:
+                    pnl_value = float(0.0 if raw_pnl is None else raw_pnl)
+                except (TypeError, ValueError):
+                    pnl_value = 0.0
+
+                if pnl_value > 0:
+                    win_count += 1
             win_rate = (win_count / closed_count * 100) if closed_count > 0 else 0.0
 
             stats = {
@@ -169,7 +184,7 @@ class OrdersSection:
         except Exception as e:
             self.log_callback(f"Failed to get overall stats: {e}", "ERROR")
 
-    def _get_daily_stats(self):
+    def _get_daily_stats(self) -> None:
         """Get daily statistics for last 30 days via RepositoryContext."""
         try:
             ctx = RepositoryContext.from_env()
@@ -181,7 +196,7 @@ class OrdersSection:
             now = datetime.now(timezone.utc)
             cutoff = now - timedelta(days=30)
 
-            daily: dict = {}
+            daily: dict[str, dict[str, float | int]] = {}
             for o in all_orders:
                 if isinstance(o, dict):
                     created_raw = o.get("created_at") or o.get("updated_at") or ""
@@ -220,7 +235,8 @@ class OrdersSection:
         except Exception as e:
             self.log_callback(f"Failed to get daily stats: {e}", "ERROR")
 
-    def _show_in_data_viewer(self, content: str):
+    def _show_in_data_viewer(self, content: str) -> None:
         """Show content in data viewer. To be connected by parent."""
-        if hasattr(self.parent, "data_viewer_callback"):
-            self.parent.data_viewer_callback(content)
+        callback = getattr(self.parent, "data_viewer_callback", None)
+        if callable(callback):
+            callback(content)

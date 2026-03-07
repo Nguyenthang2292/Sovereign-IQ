@@ -136,6 +136,7 @@ class SignalPipeline:
     metrics: MetricsCollector
     audit: AuditLogger
     alerts: AlertManager
+    signal_persistence: Optional[Any]
 
     def __init__(
         self,
@@ -154,6 +155,7 @@ class SignalPipeline:
         self.signal_selector = signal_selector
         self.config = config or {}
         self.gann_square_filter = gann_square_filter
+        self.signal_persistence = None
 
         # Initialize Logging
         setup_logging()
@@ -347,18 +349,23 @@ class SignalPipeline:
                 try:
                     # Wrapped in Circuit Breaker - handle both sync and async contexts
                     def call_gemini():
-                        coro = self.gemini_integration.analyze_candidates_batch_async(
+                        maybe_result = self.gemini_integration.analyze_candidates_batch_async(
                             xgboost_signals, max_concurrency=3
                         )
+
+                        # Test doubles may return a plain dict instead of a coroutine.
+                        if not asyncio.iscoroutine(maybe_result):
+                            return cast(Dict[str, Optional[GeminiSignal]], maybe_result)
+
                         try:
                             # Check if we're already in an event loop
                             loop = asyncio.get_running_loop()
                             # We're in an async context, use run_coroutine_threadsafe
-                            future = asyncio.run_coroutine_threadsafe(coro, loop)
+                            future = asyncio.run_coroutine_threadsafe(maybe_result, loop)
                             return future.result(timeout=60.0)
                         except RuntimeError:
                             # No running loop, safe to use asyncio.run
-                            return asyncio.run(coro)
+                            return asyncio.run(maybe_result)
 
                     gemini_results_raw = self.circuit_breaker.call(call_gemini)
 
@@ -370,10 +377,17 @@ class SignalPipeline:
 
             # 6. Signal Selection (rank signals)
             log_info("Step 6: Final Signal Selection...")
-            ranked_signals = self.signal_selector.rank_signals(xgboost_signals, gemini_results)
+            ranked_signals: List[FinalSignal] = []
+            if hasattr(self.signal_selector, "rank_signals"):
+                ranked_signals = self.signal_selector.rank_signals(xgboost_signals, gemini_results)
+
+            final_signal: Optional[FinalSignal] = None
+            if hasattr(self.signal_selector, "select_best_signal"):
+                final_signal = self.signal_selector.select_best_signal(xgboost_signals, gemini_results)
+            elif ranked_signals:
+                final_signal = ranked_signals[0]
 
             # 7. Optional Gann Square Filter
-            final_signal = None
             if self.gann_square_filter is not None and ranked_signals:
                 log_info("Step 7: Gann Square Filter...")
                 gann_result = self.gann_square_filter.run(ranked_signals)
@@ -389,11 +403,15 @@ class SignalPipeline:
                     except ValueError as e:
                         log_warn(f"GannSquareFilter: Invalid result rejected: {e}")
                         final_signal = None
-            elif ranked_signals:
-                final_signal = ranked_signals[0]
 
             # 7. Audit & Metric
             if final_signal:
+                if self.signal_persistence is not None:
+                    try:
+                        self.signal_persistence.save_signal(final_signal)
+                    except Exception as e:
+                        log_warn(f"Signal persistence failed: {e}")
+
                 # Audit Log
                 self.audit.log_event("SIGNAL_GENERATED", final_signal.__dict__)
 

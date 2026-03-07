@@ -157,8 +157,9 @@ def _build_model(seed_offset: int = 0) -> Any:
     params = XGBOOST_PARAMS.copy()
     params["num_class"] = len(TARGET_LABELS)
 
-    if "random_state" in params:
-        params["random_state"] = params["random_state"] + seed_offset
+    if "random_state" in params and params["random_state"] is not None:
+        random_state_val = int(str(params["random_state"]))
+        params["random_state"] = random_state_val + seed_offset
 
     if USE_GPU and detect_cuda_available():
         params["tree_method"] = "hist"

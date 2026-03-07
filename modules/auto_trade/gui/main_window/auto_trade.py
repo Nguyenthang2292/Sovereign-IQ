@@ -76,8 +76,11 @@ class AutoTradeManager:
         updater.create_reconcile_updater(self._reconcile_cycle, interval=300)  # 5 min (was 3600)
         updater.create_trailing_stop_updater(self._trailing_stop_cycle, interval=30)
         updater.create_negative_breakeven_updater(self._negative_breakeven_cycle, interval=30)
-        updater.create_ensure_tp_sl_updater(self._ensure_tp_sl_cycle, interval=60)
-        updater.create_auto_close_timer_updater(self._auto_close_timer_cycle, interval=30)
+        # Keep compatibility with legacy test doubles that don't implement newer updaters.
+        if hasattr(updater, "create_ensure_tp_sl_updater"):
+            updater.create_ensure_tp_sl_updater(self._ensure_tp_sl_cycle, interval=60)
+        if hasattr(updater, "create_auto_close_timer_updater"):
+            updater.create_auto_close_timer_updater(self._auto_close_timer_cycle, interval=30)
         self.parent.event_bus.subscribe(EventType.SIGNAL_GENERATED, self._on_signal_event)
         # Reconcile once at start so open AUTO positions on Binance are in DB
         try:
@@ -286,8 +289,8 @@ class AutoTradeManager:
         try:
             from modules.auto_trade.execution.order_executor import OrderExecutor
 
-            # Signals are "fresh" if created within this many seconds (5 minutes)
-            FRESH_SIGNAL_MAX_AGE_SECONDS = 300
+            # Signals are "fresh" if created within this many seconds (15 minutes)
+            FRESH_SIGNAL_MAX_AGE_SECONDS = 900
             min_score = self.parent.settings_manager.get("scanner.min_signal_score", 0.7)
             log_info(f"[AutoTrade] Checking for signals (min_score={min_score})...")
             signals = self.parent.data_service.get_signals(min_score=min_score)
@@ -296,15 +299,39 @@ class AutoTradeManager:
             fresh_signals = [
                 s
                 for s in signals
-                if isinstance(s.get("created_at_ts"), (int, float))
-                and (now - float(s["created_at_ts"])) < FRESH_SIGNAL_MAX_AGE_SECONDS
+                # Keep signal if:
+                # (a) no numeric timestamp at all → treat as unknown/fresh
+                # (b) created_at_ts == 0.0 → DB could not parse datetime → treat as fresh
+                # (c) signal was created within FRESH_SIGNAL_MAX_AGE_SECONDS
+                if not isinstance(s.get("created_at_ts"), (int, float))
+                or float(s["created_at_ts"]) == 0.0
+                or (now - float(s["created_at_ts"])) < FRESH_SIGNAL_MAX_AGE_SECONDS
             ]
-            log_info(f"[AutoTrade] Filtered to {len(fresh_signals)} fresh signals (<5 minutes old)")
+            log_info(
+                f"[AutoTrade] Filtered to {len(fresh_signals)} fresh signals (<{FRESH_SIGNAL_MAX_AGE_SECONDS}s old)"
+            )
             if not fresh_signals:
-                log_info("[AutoTrade] No fresh signals for auto-trade (<5 minutes)")
+                log_info(f"[AutoTrade] No fresh signals for auto-trade (<{FRESH_SIGNAL_MAX_AGE_SECONDS}s)")
                 return
             fresh_signals.sort(key=lambda s: float(s.get("score", 0.0)), reverse=True)
             log_info(f"[AutoTrade] Attempting execution for up to {len(fresh_signals)} signal(s) in score order...")
+
+            # ── Hard guard: abort early if max_open_positions already reached ──
+            # This check is INDEPENDENT of risk.limits_enabled so it cannot be
+            # accidentally bypassed when the user disables the risk manager.
+            max_open = int(self.parent.settings_manager.get("risk.max_open_positions", 1))
+            try:
+                current_positions = self.parent.data_service.get_positions() or []
+                open_count = len(current_positions)
+            except Exception as _pos_err:
+                log_warn(f"[AutoTrade] Could not fetch current positions for guard check: {_pos_err}")
+                open_count = 0
+            if open_count >= max_open:
+                log_info(
+                    f"[AutoTrade] Already {open_count}/{max_open} open position(s). Skipping new entry this cycle."
+                )
+                return
+            # ─────────────────────────────────────────────────────────────────
 
             default_position_size = self.parent.settings_manager.get("risk.max_position_size", 100.0)
             default_leverage_str = self.parent.settings_manager.get("risk.default_leverage", "10x")
@@ -320,11 +347,14 @@ class AutoTradeManager:
             # Only pass config when the gate is explicitly enabled; otherwise
             # OrderExecutor won't instantiate the gate at all.
             order_book_imbalance_config = _ob_cfg if (_ob_cfg and _ob_cfg.get("enabled")) else None
+            _mode = getattr(self.parent, "mode", "DRY_RUN")
+            _dry_run = _mode == "DRY_RUN"
+            log_info(f"[AutoTrade] Mode={_mode}, dry_run={_dry_run}, testnet={ds.testnet}")
             executor = OrderExecutor(
                 api_key=ds.api_key,
                 api_secret=ds.api_secret,
                 testnet=ds.testnet,
-                dry_run=(getattr(self.parent, "mode", "DRY_RUN") == "DRY_RUN"),
+                dry_run=_dry_run,
                 recovery_manager=getattr(self.parent, "recovery_manager", None),
                 order_book_imbalance_config=order_book_imbalance_config,
             )

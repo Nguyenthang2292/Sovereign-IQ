@@ -37,7 +37,7 @@ try:
     from modules.common.utils import log_debug
 except ImportError:
 
-    def log_debug(msg: str) -> None:
+    def log_debug(msg: str, *args: object) -> None:
         print(f"[DEBUG] {msg}")
 
 

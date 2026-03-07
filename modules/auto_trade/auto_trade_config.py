@@ -78,6 +78,20 @@ class DatabaseConfig:
     backup_enabled: bool = field(default_factory=lambda: os.getenv("DYNAMODB_BACKUP_ENABLED", "True").lower() == "true")
     auto_cleanup_days: int = 90
 
+    @property
+    def path(self) -> str:
+        """
+        Backward-compatible alias used by legacy tests and older SQLite-oriented code.
+
+        For DynamoDB mode, the logical equivalent is the table name prefix.
+        """
+        return self.table_name_prefix
+
+    @path.setter
+    def path(self, value: str) -> None:
+        # Keep behavior symmetric for callers that still assign `database.path`.
+        self.table_name_prefix = value
+
 
 @dataclass
 class BinanceConfig:

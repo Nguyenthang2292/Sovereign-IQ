@@ -76,8 +76,8 @@ def calculate_growth_factor(bar_index: int, cutout: int, L: float) -> float:
             from modules.common.utils import log_warn
         except ImportError:
 
-            def log_warn(msg: str) -> None:
-                print(f"[WARN] {msg}")
+            def log_warn(msg: str, *args: object) -> None:
+                print(f"[WARN] {msg % args if args else msg}")
 
         log_warn(
             f"Growth factor exponent {exponent:.2f} exceeds maximum {MAX_EXPONENT}. "
@@ -93,8 +93,8 @@ def calculate_growth_factor(bar_index: int, cutout: int, L: float) -> float:
                 from modules.common.utils import log_warn
             except ImportError:
 
-                def log_warn(msg: str) -> None:
-                    print(f"[WARN] {msg}")
+                def log_warn(msg: str, *args: object) -> None:
+                    print(f"[WARN] {msg % args if args else msg}")
 
             log_warn(f"Growth factor is not finite: {growth}, using max safe value")
             growth = np.exp(MAX_EXPONENT)
@@ -105,8 +105,8 @@ def calculate_growth_factor(bar_index: int, cutout: int, L: float) -> float:
             from modules.common.utils import log_warn
         except ImportError:
 
-            def log_warn(msg: str) -> None:
-                print(f"[WARN] {msg}")
+            def log_warn(msg: str, *args: object) -> None:
+                print(f"[WARN] {msg % args if args else msg}")
 
         log_warn("OverflowError in growth factor calculation, using max safe value")
         return float(np.exp(MAX_EXPONENT))

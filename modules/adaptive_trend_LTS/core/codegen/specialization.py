@@ -116,8 +116,6 @@ def get_specialized_compute_fn(
     except ImportError:
         return None
 
-    config_key = _get_config_key(config, mode)
-
     # Check if we have a specialized function for this config
     if mode == "ema_only":
         # Return EMA-only specialized function
@@ -148,13 +146,6 @@ def get_specialized_compute_fn(
         return _ema_only_specialized
 
     # For other modes, return None (not yet implemented)
-    return None
-
-    config_key = _get_config_key(config, mode)
-
-    # Check if we have a specialized function for this config
-    # For now, return None - specialization will be implemented in Task 3
-    # TODO: Implement actual specialized functions
     return None
 
 
@@ -242,7 +233,7 @@ def compute_atc_specialized(
     # Merge with any additional kwargs
     config_dict.update(kwargs)
 
-    return generic_compute(prices, **config_dict)
+    return generic_compute(prices, **config_dict)  # type: ignore
 
 
 def is_config_specializable(config: ATCConfig, mode: str = "default") -> bool:

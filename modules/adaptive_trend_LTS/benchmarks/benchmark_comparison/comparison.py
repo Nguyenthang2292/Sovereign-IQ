@@ -1,9 +1,9 @@
 """Signal comparison and table generation utilities."""
 
-from typing import Dict
+from typing import Any, Dict
 
 import numpy as np
-from tabulate import tabulate
+from tabulate import tabulate  # type: ignore
 
 from modules.common.utils import log_info, log_success, log_warn
 
@@ -20,7 +20,7 @@ def compare_signals(
     rust_dask_results: Dict[str, Dict],
     cuda_dask_results: Dict[str, Dict],
     rust_cuda_dask_results: Dict[str, Dict],
-) -> Dict[str, any]:
+) -> Dict[str, Any]:
     """Compare signal outputs between all 10 versions.
 
     Args:
@@ -283,9 +283,8 @@ def compare_signals(
                 approx_self_mismatched.append((symbol, 0.0))
                 approx_self_diffs.append(0.0)
         else:
-            log_warn(
-                f"Approximate signal missing or empty for {symbol}: {approx_s is None}, len={len(approx_s) if approx_s is not None else 'None'}"
-            )
+            v_len = len(approx_s) if approx_s is not None else "None"
+            log_warn(f"Approximate signal missing or empty for {symbol}: {approx_s is None}, len={v_len}")
 
         # AdaptApprox Self-Consistency
         if adaptive_approx_s is not None and len(adaptive_approx_s) > 0:
@@ -297,9 +296,8 @@ def compare_signals(
                 adaptive_approx_self_mismatched.append((symbol, 0.0))
                 adaptive_approx_self_diffs.append(0.0)
         else:
-            log_warn(
-                f"Adaptive Approx signal missing or empty for {symbol}: {adaptive_approx_s is None}, len={len(adaptive_approx_s) if adaptive_approx_s is not None else 'None'}"
-            )
+            v_len = len(adaptive_approx_s) if adaptive_approx_s is not None else "None"
+            log_warn(f"Adaptive Approx signal missing or empty for {symbol}: {adaptive_approx_s is None}, len={v_len}")
 
         # AdaptApprox vs Approx
         if approx_s is not None and adaptive_approx_s is not None and len(approx_s) > 0 and len(adaptive_approx_s) > 0:

@@ -8,9 +8,9 @@ Bidirectional sync between Binance Open Orders API and Database:
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple, Union
 
+from modules.common.domain.order_type_codec import BinanceOrderType
 from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.domain.symbol_types import CcxtSymbol, DbSymbol, FuturesSymbol
-from modules.common.domain.order_type_codec import BinanceOrderType
 from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 

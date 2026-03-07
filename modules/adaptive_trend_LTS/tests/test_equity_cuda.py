@@ -7,6 +7,8 @@ Skips if PyCUDA/CUDA unavailable or kernel compile fails (e.g. PermissionError o
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -19,7 +21,7 @@ try:
     )
 except ImportError:
     EQUITY_CUDA_AVAILABLE = False
-    calculate_equity_cuda = None
+    calculate_equity_cuda: Any = None
 
 
 def _run_cuda(r: np.ndarray, sig: np.ndarray, start: float, decay: float, cutout: int):

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.common.ui.logging import log_error, log_info
 
 if TYPE_CHECKING:
     from .main_window import AutoTradeDashboard
@@ -27,7 +28,7 @@ class SettingsHandler:
             else:
                 ctk.set_appearance_mode("dark")
 
-            print(f"Applied settings: Theme={theme}, Font Size={font_size}")
+            log_info("Applied settings: Theme=%s, Font Size=%s", theme, font_size)
 
             all_settings = self.parent.settings_manager.get_all()
 
@@ -46,12 +47,12 @@ class SettingsHandler:
                 auto_trade_control.update_from_settings(self.parent.settings_manager.settings, status=status)
 
         except Exception as e:
-            print(f"Error applying settings: {e}")
+            log_error("Error applying settings: %s", e, exc_info=True)
 
     def handle_settings_change(self, setting_type: str, value=None):
         """Handle settings change from ConfigPanel."""
         try:
-            print(f"Settings changed: {setting_type} = {value}")
+            log_info("Settings changed: %s = %s", setting_type, value)
 
             config_panel = getattr(self.parent, "config_panel", None)
             if config_panel is not None:
@@ -71,11 +72,11 @@ class SettingsHandler:
                     self.refresh_theme_colors()
 
             if setting_type == "save_credentials" and value:
-                print("Credentials updated, restarting WebSocket service...")
+                log_info("Credentials updated, restarting WebSocket service...")
                 self.parent._restart_websocket_service()
 
         except Exception as e:
-            print(f"Error handling settings change: {e}")
+            log_error("Error handling settings change: %s", e, exc_info=True)
 
     def refresh_theme_colors(self):
         """Refresh all component colors when theme changes."""
@@ -115,6 +116,6 @@ class SettingsHandler:
             if config_panel is not None and hasattr(config_panel, "recovery_panel"):
                 _update_frame_colors(config_panel.recovery_panel)
 
-            print("Theme colors refreshed")
+            log_info("Theme colors refreshed")
         except Exception as e:
-            print(f"Error refreshing theme colors: {e}")
+            log_error("Error refreshing theme colors: %s", e, exc_info=True)

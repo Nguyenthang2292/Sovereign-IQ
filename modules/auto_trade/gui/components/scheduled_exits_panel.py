@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from tkinter import messagebox, simpledialog
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import customtkinter as ctk
-from modules.auto_trade.gui.utils.colors import Colors
 
 from modules.auto_trade.database import RepositoryContext
 from modules.auto_trade.execution.auto_close_timer import compute_deadline_utc, get_order_id, parse_utc_datetime
+from modules.auto_trade.gui.utils.colors import Colors
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 
@@ -17,10 +17,10 @@ class ScheduledExitsPanel(ctk.CTkFrame):
 
     def __init__(
         self,
-        parent,
-        settings_manager,
-        on_open_settings=None,
-    ):
+        parent: Any,
+        settings_manager: Any,
+        on_open_settings: Optional[Callable[[], None]] = None,
+    ) -> None:
         super().__init__(parent)
         self.settings_manager = settings_manager
         self.on_open_settings = on_open_settings
@@ -93,7 +93,7 @@ class ScheduledExitsPanel(ctk.CTkFrame):
         self.history_scroll = ctk.CTkScrollableFrame(history_wrap)
         self.history_scroll.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
-    def _open_settings(self):
+    def _open_settings(self) -> None:
         if callable(self.on_open_settings):
             self.on_open_settings()
 

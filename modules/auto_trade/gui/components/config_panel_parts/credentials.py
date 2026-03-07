@@ -1,4 +1,5 @@
 from modules.auto_trade.gui.utils.mask_utils import mask_api_key, mask_secret
+from modules.common.ui.logging import log_error
 
 
 def test_connection(panel):
@@ -139,4 +140,4 @@ def refresh_credentials_display(panel):
             panel.credentials_entry_frame.pack(fill="x")
 
     except Exception as e:
-        print(f"Error refreshing credentials display: {e}")
+        log_error("Error refreshing credentials display: %s", e)

@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, Optional
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.common.ui.logging import log_error, log_warn
 
 
 class ScannerControl(ctk.CTkFrame):
@@ -466,7 +467,7 @@ class ScannerControl(ctk.CTkFrame):
             self.last_scan_label.configure(text="Last scan: Scanning...")
 
         except Exception as e:
-            print(f"Error starting scanner: {e}")
+            log_error("Error starting scanner: %s", e)
 
     def _stop_scanner(self):
         """Stop scanner"""
@@ -490,7 +491,7 @@ class ScannerControl(ctk.CTkFrame):
             self.last_scan_label.configure(text=f"Last scan: Stopped at {now}")
 
         except Exception as e:
-            print(f"Error stopping scanner: {e}")
+            log_error("Error stopping scanner: %s", e)
 
     def _manual_scan(self):
         """Trigger manual scan"""
@@ -505,7 +506,7 @@ class ScannerControl(ctk.CTkFrame):
             self.after(3000, lambda: self.progress_label.configure(text=""))
 
         except Exception as e:
-            print(f"Error triggering manual scan: {e}")
+            log_error("Error triggering manual scan: %s", e)
 
     def _update_status_indicator(self, running: bool):
         """Update status display"""
@@ -564,7 +565,7 @@ class ScannerControl(ctk.CTkFrame):
                 self.on_config_change(config)
 
         except Exception as e:
-            print(f"Error updating config: {e}")
+            log_warn("Error updating config: %s", e)
 
     def update_last_scan_time(self):
         """Update last scan timestamp"""

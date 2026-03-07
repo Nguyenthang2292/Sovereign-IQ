@@ -7,6 +7,8 @@ profit/loss potential, and liquidation prices.
 
 from typing import Dict, Optional
 
+from modules.common.ui.logging import log_error
+
 
 class RiskCalculator:
     """
@@ -101,5 +103,5 @@ class RiskCalculator:
                 "risk_reward_ratio": risk_reward_ratio,
             }
         except Exception as e:
-            print(f"Error calculating risk: {e}")
+            log_error("Error calculating risk: %s", e)
             return None

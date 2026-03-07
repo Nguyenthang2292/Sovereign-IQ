@@ -58,7 +58,9 @@ class UpdaterManager:
                 if kind == "signals":
                     self.parent.signals_frame.update_signals(data)
                 elif kind == "positions":
-                    print(f"[UpdateQueue] Processing 'positions' update: {len(data) if data else 0} items")
+                    from modules.common.ui.logging import log_debug
+
+                    log_debug("[UpdateQueue] Processing 'positions' update: %d items", len(data) if data else 0)
                     self.parent.positions_frame.update_positions(data)
                     # Update open position count and refresh scanner status in real-time
                     new_count = len(data) if data else 0
@@ -133,7 +135,7 @@ class UpdaterManager:
                 else:
                     self.parent.scanner_countdown_label.configure(text="", text_color="#aaaaaa")
         except Exception as e:
-            print(f"Error in scanner status tick: {e}")
+            log_error("Error in scanner status tick: %s", e)
         self.parent.after(1000, self._update_scanner_status_tick)
 
     MAX_LOG_LINES = 500
@@ -155,8 +157,8 @@ class UpdaterManager:
                         # Fallback for raw LogRecord objects
                         log_msg = (
                             f"[{getattr(log_record, 'levelname', 'INFO')}] {getattr(log_record, 'getMessage', lambda: (
-                                    str(log_record)
-                                ))()}"
+                                        str(log_record)
+                                    ))()}"
                         )
                     if hasattr(self.parent, "logs_viewer"):
                         self.parent.logs_viewer.append_log(log_msg)
@@ -165,7 +167,7 @@ class UpdaterManager:
                 except queue.Empty:
                     break
         except Exception as e:
-            print(f"Error draining log queue: {e}")
+            log_error("Error draining log queue: %s", e)
 
         self.parent.after(100, self._drain_log_queue)
 
@@ -181,7 +183,7 @@ class UpdaterManager:
             tb.see("end")
             tb.configure(state="disabled")
         except Exception as e:
-            print(f"Error appending log to textbox: {e}")
+            log_error("Error appending log to textbox: %s", e)
 
     def _startup_reconcile(self):
         """One-shot reconcile: sync Binance positions and close stale DB entries.

@@ -1,3 +1,6 @@
+from modules.common.ui.logging import log_error
+
+
 def on_limit_steps_toggle(panel):
     """Show/hide max steps field based on checkbox."""
     try:
@@ -8,7 +11,7 @@ def on_limit_steps_toggle(panel):
             panel.max_steps_label.pack_forget()
             panel.max_steps_entry.pack_forget()
     except Exception as e:
-        print(f"Error toggling limit steps: {e}")
+        log_error("Error toggling limit steps: %s", e)
 
 
 def on_negative_be_toggle(panel):
@@ -21,7 +24,7 @@ def on_negative_be_toggle(panel):
             panel.negative_be_threshold_label.pack_forget()
             panel.negative_be_threshold_entry.pack_forget()
     except Exception as e:
-        print(f"Error toggling negative breakeven: {e}")
+        log_error("Error toggling negative breakeven: %s", e)
 
 
 def on_mode_change(panel, show_warning: bool = True):
@@ -66,4 +69,4 @@ def on_mode_change(panel, show_warning: bool = True):
             panel.on_settings_change("mode", mode)
 
     except Exception as e:
-        print(f"Error handling mode change: {e}")
+        log_error("Error handling mode change: %s", e)

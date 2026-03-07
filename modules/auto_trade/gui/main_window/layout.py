@@ -12,6 +12,7 @@ from modules.auto_trade.gui.components.stats_frame import StatsFrame
 from modules.auto_trade.gui.components.trade_form import TradeFormFrame
 from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.common.ui.logging import log_error
 
 
 class LayoutManager:
@@ -1026,7 +1027,7 @@ class LayoutManager:
             else:
                 subprocess.run(["xdg-open", str(log_path)])
         except Exception as e:
-            print(f"Error opening log file: {e}")
+            log_error("Error opening log file: %s", e)
 
     def _open_log_folder(self):
         """Open folder containing log file."""
@@ -1047,7 +1048,7 @@ class LayoutManager:
             else:
                 subprocess.run(["xdg-open", str(folder)])
         except Exception as e:
-            print(f"Error opening folder: {e}")
+            log_error("Error opening folder: %s", e)
 
     def _clear_logs(self):
         """Clear all logs from textbox."""
@@ -1058,7 +1059,7 @@ class LayoutManager:
                 self.parent.logs_textbox.insert("1.0", "🟢 Logs cleared. Waiting for new logs...\n")
                 self.parent.logs_textbox.configure(state="disabled")
         except Exception as e:
-            print(f"Error clearing logs: {e}")
+            log_error("Error clearing logs: %s", e)
 
     def _populate_trading_tab(self, parent):
         """Create trading interface."""

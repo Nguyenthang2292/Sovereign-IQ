@@ -17,10 +17,10 @@ from modules.auto_trade.execution.binance_client import BinanceClient
 from modules.auto_trade.execution.order_builder import OrderBuilder, OrderTicket
 from modules.auto_trade.execution.order_validator import OrderValidator
 from modules.auto_trade.execution.risk_manager import RiskManager
-from modules.common.domain.symbol_codec import SymbolCodec
-from modules.common.domain.symbol_types import DbSymbol, FuturesSymbol
 from modules.auto_trade.security.secret_string import SecretString
 from modules.common.core.data_fetcher import DataFetcher
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.domain.symbol_types import DbSymbol, FuturesSymbol
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 _SYMBOL_CODEC = SymbolCodec()
@@ -141,19 +141,36 @@ class OrderManager:
                 log_info("No open positions found")
                 return None
 
-            # Filter for positions with non-zero amount
-            open_positions: list = [p for p in positions if float(p.get("positionAmt", 0)) != 0]
+            # fetch_binance_futures_positions() normalises positions and returns
+            # "contracts" (not the raw Binance "positionAmt").  Fall back to
+            # "positionAmt" so the check still works if the caller ever passes
+            # raw Binance dicts directly.
+            def _nonzero(pos: dict) -> bool:
+                contracts = pos.get("contracts")
+                if contracts is not None:
+                    try:
+                        return float(contracts) != 0
+                    except (TypeError, ValueError):
+                        pass
+                # fallback for raw Binance format
+                position_amt = pos.get("positionAmt", 0)
+                try:
+                    return float(position_amt) != 0
+                except (TypeError, ValueError):
+                    return False
+
+            open_positions: list = [p for p in positions if _nonzero(p)]
 
             if open_positions:
                 log_info(f"Found {len(open_positions)} open position(s)")
                 for pos in open_positions:
                     symbol: str = str(pos.get("symbol", "Unknown"))
-                    amount: float = float(pos.get("positionAmt", 0))
-                    entry_price: float = float(pos.get("entryPrice", 0))
-                    unrpc: float = float(pos.get("unRealizedProfit", 0))
-                    log_info(f"  - {symbol}: amount={amount}, entry=${entry_price}, PnL=${unrpc}")
+                    amount: float = float(pos.get("contracts") or pos.get("positionAmt", 0))
+                    entry_price: float = float(pos.get("entry_price") or pos.get("entryPrice", 0))
+                    direction: str = str(pos.get("direction") or pos.get("side", "?"))
+                    log_info(f"  - {symbol} [{direction}]: contracts={amount}, entry=${entry_price}")
             else:
-                log_info("No active positions (all positions have zero amount)")
+                log_info("No active positions (all positions have zero contracts)")
                 return None
 
             return open_positions

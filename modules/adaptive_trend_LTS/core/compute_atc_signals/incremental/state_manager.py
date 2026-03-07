@@ -6,7 +6,7 @@ import datetime
 import threading
 from collections import deque
 from pathlib import Path
-from typing import Dict, Any, Union, Optional
+from typing import Any, Dict, Optional, Union
 
 import msgpack
 import numpy as np
@@ -16,11 +16,11 @@ try:
     from modules.common.utils import log_debug, log_warn
 except ImportError:
 
-    def log_debug(msg: str) -> None:
-        print(f"[DEBUG] {msg}")
+    def log_debug(msg: str, *args: object) -> None:
+        print(f"[DEBUG] {msg % args if args else msg}")
 
-    def log_warn(msg: str) -> None:
-        print(f"[WARN] {msg}")
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg % args if args else msg}")
 
 
 class StateManager:
@@ -216,6 +216,7 @@ class StateManager:
                 _layer1_signal_for_ma,
             )
             from modules.adaptive_trend_LTS.utils.rate_of_change import rate_of_change
+
             from .constants import get_scaled_params
 
             L_scaled, De_scaled = get_scaled_params(self.config)
@@ -267,11 +268,14 @@ class StateManager:
     def _reconstruct_hma_state(self, prices: pd.Series):
         """Reconstruct HMA internal state from price history."""
         try:
-            from modules.adaptive_trend_LTS.utils.diflen import diflen
             import pandas_ta as ta
 
+            from modules.adaptive_trend_LTS.utils.diflen import diflen
+
             length = self.ma_length["hma"]
-            L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=self.robustness)
+            diflen_res = diflen(length, robustness=self.robustness)
+            assert diflen_res is not None, "diflen returned None"
+            L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_res
             lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
             sqrt_lengths = [max(1, int(np.sqrt(ln))) for ln in lengths]
             half_lengths = [max(1, ln // 2) for ln in lengths]

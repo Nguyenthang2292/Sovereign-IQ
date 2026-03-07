@@ -12,6 +12,7 @@ from pathlib import Path
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.common.ui.logging import log_error
 
 
 class LogsViewer(ctk.CTkFrame):
@@ -213,7 +214,7 @@ class LogsViewer(ctk.CTkFrame):
             self.logs_textbox.configure(state="disabled")
 
         except Exception as e:
-            print(f"Error appending log: {e}")
+            log_error("Error appending log: %s", e)
 
     def clear_logs(self):
         """Clear all logs from the textbox."""
@@ -223,4 +224,4 @@ class LogsViewer(ctk.CTkFrame):
             self.logs_textbox.insert("1.0", "🟢 Logs cleared. Waiting for new logs...\n")
             self.logs_textbox.configure(state="disabled")
         except Exception as e:
-            print(f"Error clearing logs: {e}")
+            log_error("Error clearing logs: %s", e)

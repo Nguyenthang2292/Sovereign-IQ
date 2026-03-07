@@ -5,17 +5,17 @@ Compares batch vs individual calculation speed and measures memory usage.
 
 import time
 import tracemalloc
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS.core.compute_moving_averages.batch_approximate_mas import (
-    BatchApproximateMAScanner,
-)
 from modules.adaptive_trend_LTS.core.compute_moving_averages.approximate_mas import (
     fast_ema_approx,
     fast_hma_approx,
+)
+from modules.adaptive_trend_LTS.core.compute_moving_averages.batch_approximate_mas import (
+    BatchApproximateMAScanner,
 )
 
 
@@ -47,7 +47,7 @@ def benchmark_batch_vs_individual(num_symbols: int = 100, ma_type: str = "EMA", 
         Dictionary with benchmark results
     """
     print(f"\n{'=' * 60}")
-    print(f"Benchmark: Batch vs Individual Calculation")
+    print("Benchmark: Batch vs Individual Calculation")
     print(f"Symbols: {num_symbols}, MA Type: {ma_type}, Length: {length}")
     print(f"{'=' * 60}")
 
@@ -74,7 +74,7 @@ def benchmark_batch_vs_individual(num_symbols: int = 100, ma_type: str = "EMA", 
     _, individual_memory = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    print(f"Individual calculation:")
+    print("Individual calculation:")
     print(f"  Time: {individual_time:.4f}s")
     print(f"  Memory: {individual_memory / 1024 / 1024:.2f} MB")
 
@@ -87,13 +87,13 @@ def benchmark_batch_vs_individual(num_symbols: int = 100, ma_type: str = "EMA", 
     for symbol, prices in symbols.items():
         scanner.add_symbol(symbol, prices)
 
-    batch_results = scanner.calculate_all(ma_type, length, use_parallel=True)
+    _ = scanner.calculate_all(ma_type, length, use_parallel=True)
 
     batch_time = time.time() - start_time
     _, batch_memory = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    print(f"Batch calculation (parallel):")
+    print("Batch calculation (parallel):")
     print(f"  Time: {batch_time:.4f}s")
     print(f"  Memory: {batch_memory / 1024 / 1024:.2f} MB")
 
@@ -106,13 +106,13 @@ def benchmark_batch_vs_individual(num_symbols: int = 100, ma_type: str = "EMA", 
     for symbol, prices in symbols.items():
         scanner_serial.add_symbol(symbol, prices)
 
-    batch_serial_results = scanner_serial.calculate_all(ma_type, length, use_parallel=False)
+    _ = scanner_serial.calculate_all(ma_type, length, use_parallel=False)
 
     batch_serial_time = time.time() - start_time
     _, batch_serial_memory = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    print(f"Batch calculation (serial):")
+    print("Batch calculation (serial):")
     print(f"  Time: {batch_serial_time:.4f}s")
     print(f"  Memory: {batch_serial_memory / 1024 / 1024:.2f} MB")
 
@@ -120,7 +120,7 @@ def benchmark_batch_vs_individual(num_symbols: int = 100, ma_type: str = "EMA", 
     parallel_speedup = individual_time / batch_time if batch_time > 0 else 0
     serial_speedup = individual_time / batch_serial_time if batch_serial_time > 0 else 0
 
-    print(f"\nSpeedup:")
+    print("\nSpeedup:")
     print(f"  Parallel vs Individual: {parallel_speedup:.2f}x")
     print(f"  Serial vs Individual: {serial_speedup:.2f}x")
 
@@ -150,12 +150,12 @@ def benchmark_different_batch_sizes(
         Dictionary with benchmark results for each batch size
     """
     print(f"\n{'=' * 60}")
-    print(f"Benchmark: Different Batch Sizes")
+    print("Benchmark: Different Batch Sizes")
     print(f"MA Type: {ma_type}, Length: {length}")
     print(f"Batch Sizes: {batch_sizes}")
     print(f"{'=' * 60}")
 
-    results = {
+    results: dict[str, list[Any]] = {
         "batch_sizes": batch_sizes,
         "individual_times": [],
         "batch_parallel_times": [],
@@ -194,7 +194,7 @@ def benchmark_different_batch_sizes(
         results["parallel_speedups"].append(speedup)
 
     print(f"\n{'=' * 60}")
-    print(f"Summary:")
+    print("Summary:")
     for i, batch_size in enumerate(batch_sizes):
         print(f"  {batch_size:4d} symbols: {results['parallel_speedups'][i]:.2f}x speedup")
     print(f"{'=' * 60}")
@@ -213,7 +213,7 @@ def benchmark_all_ma_types(num_symbols: int = 50, length: int = 20) -> Dict[str,
         Dictionary with benchmark results for each MA type
     """
     print(f"\n{'=' * 60}")
-    print(f"Benchmark: All MA Types")
+    print("Benchmark: All MA Types")
     print(f"Symbols: {num_symbols}, Length: {length}")
     print(f"{'=' * 60}")
 
@@ -257,7 +257,7 @@ def benchmark_all_ma_types(num_symbols: int = 50, length: int = 20) -> Dict[str,
         }
 
     print(f"\n{'=' * 60}")
-    print(f"Summary:")
+    print("Summary:")
     for ma_type, result in results.items():
         print(f"  {ma_type}: {result['speedup']:.2f}x speedup")
     print(f"{'=' * 60}")
@@ -277,7 +277,7 @@ def benchmark_ma_sets(num_symbols: int = 50, base_length: int = 20, robustness: 
         Dictionary with benchmark results
     """
     print(f"\n{'=' * 60}")
-    print(f"Benchmark: MA Sets (9 MAs per symbol)")
+    print("Benchmark: MA Sets (9 MAs per symbol)")
     print(f"Symbols: {num_symbols}, Base Length: {base_length}, Robustness: {robustness}")
     print(f"{'=' * 60}")
 
@@ -301,7 +301,7 @@ def benchmark_ma_sets(num_symbols: int = 50, base_length: int = 20, robustness: 
     _, batch_memory = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    print(f"MA Sets calculation:")
+    print("MA Sets calculation:")
     print(f"  Time: {batch_time:.4f}s")
     print(f"  Memory: {batch_memory / 1024 / 1024:.2f} MB")
     print(f"  Symbols processed: {len(results) if results else 0}/{num_symbols}")
@@ -325,7 +325,7 @@ def benchmark_adaptive_mode(num_symbols: int = 50, ma_type: str = "EMA", length:
         Dictionary with benchmark results
     """
     print(f"\n{'=' * 60}")
-    print(f"Benchmark: Adaptive Mode vs Standard Mode")
+    print("Benchmark: Adaptive Mode vs Standard Mode")
     print(f"Symbols: {num_symbols}, MA Type: {ma_type}, Length: {length}")
     print(f"{'=' * 60}")
 
@@ -349,7 +349,7 @@ def benchmark_adaptive_mode(num_symbols: int = 50, ma_type: str = "EMA", length:
     _, standard_memory = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    print(f"Standard mode:")
+    print("Standard mode:")
     print(f"  Time: {standard_time:.4f}s")
     print(f"  Memory: {standard_memory / 1024 / 1024:.2f} MB")
 
@@ -368,13 +368,13 @@ def benchmark_adaptive_mode(num_symbols: int = 50, ma_type: str = "EMA", length:
     _, adaptive_memory = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    print(f"Adaptive mode:")
+    print("Adaptive mode:")
     print(f"  Time: {adaptive_time:.4f}s")
     print(f"  Memory: {adaptive_memory / 1024 / 1024:.2f} MB")
 
     overhead_ratio = adaptive_time / standard_time if standard_time > 0 else 0
 
-    print(f"\nOverhead:")
+    print("\nOverhead:")
     print(f"  Time overhead: {(overhead_ratio - 1) * 100:.2f}%")
     print(f"  Memory overhead: {(adaptive_memory / standard_memory - 1) * 100:.2f}%")
 

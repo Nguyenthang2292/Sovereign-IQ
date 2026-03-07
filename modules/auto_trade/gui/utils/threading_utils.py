@@ -8,6 +8,8 @@ import threading
 import time
 from typing import Callable, Optional
 
+from modules.common.ui.logging import log_error
+
 
 class PeriodicUpdater:
     """
@@ -18,7 +20,7 @@ class PeriodicUpdater:
     execution.  Stop signals are honoured within 0.5 s.
     """
 
-    def __init__(self, callback: Callable[[], None], interval: int = 30) -> None:
+    def __init__(self, callback: Callable[[], None], interval: float = 30) -> None:
         """
         Initialize periodic updater.
 
@@ -27,7 +29,7 @@ class PeriodicUpdater:
             interval: Interval in seconds between calls (default: 30)
         """
         self.callback: Callable[[], None] = callback
-        self.interval: int = interval
+        self.interval: float = float(interval)
         self.running: bool = False
         self.thread: Optional[threading.Thread] = None
         # Prevent overlapping executions when callback takes > interval seconds
@@ -55,14 +57,16 @@ class PeriodicUpdater:
             try:
                 self.callback()
             except Exception as exc:
-                print(f"Error in periodic update ({self.callback.__name__}): {exc}")
+                log_error("Error in periodic update (%s): %s", self.callback.__name__, exc, exc_info=True)
             finally:
                 self._executing.release()
         # else: already running, skip this tick silently
 
     def _run(self) -> None:
         """Internal loop that runs in background thread."""
-        _TICK = 0.5  # check stop() responsiveness
+        # Use a small adaptive tick so short test intervals (e.g. 0.1s)
+        # still trigger multiple callbacks deterministically.
+        _TICK = min(0.1, max(0.01, self.interval / 5.0))
         elapsed = 0.0
         first_run = True
         while self.running:

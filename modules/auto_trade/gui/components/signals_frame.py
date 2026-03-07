@@ -1,3 +1,4 @@
+import os
 from tkinter import ttk
 from typing import Callable, Dict, List, Optional
 
@@ -25,7 +26,9 @@ class SignalsFrame(ctk.CTkFrame):
         self.refresh_label.pack(pady=5)
 
     def _create_empty_state(self):
-        icon_img = get_icon("satellite_dish", size=(64, 64), light_color="#666666", dark_color="#cccccc")
+        # In pytest/headless runs, avoid Tk image handles that can outlive widget lifecycle.
+        is_test_mode = bool(os.environ.get("PYTEST_CURRENT_TEST"))
+        icon_img = None if is_test_mode else get_icon("satellite_dish", size=(64, 64), light_color="#666666", dark_color="#cccccc")
 
         self.empty_state = EmptyState(
             self,

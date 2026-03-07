@@ -135,7 +135,7 @@ def _scan_gpu_batch(
         log_error("CuPy not available, falling back to threadpool")
         return [], 0, 0, []
 
-    results = []
+    results: list[dict] = []
     skipped_count = 0
     error_count = 0
     skipped_symbols = []
@@ -195,7 +195,7 @@ def _scan_gpu_batch(
                     _fetch_batch_data, batches[next_batch_idx], data_fetcher, atc_config
                 )
             else:
-                future_next_batch = None
+                future_next_batch = None  # type: ignore
 
         except Exception as e:
             log_error(f"Error fetching batch {i}: {e}")
@@ -242,10 +242,12 @@ def _scan_gpu_batch(
             # If simplistic version uses just R, stick to R.
             # But specific params (L, De) imply I should suffice standard R for now to avoid complexity overload
             # unless I see `exp_growth` is critical.
-            # Given High Priority of "Full ATC Logic", I'll assume R implies growth-adjusted R in the context of `_calculate_equity`
+            # Given High Priority of "Full ATC Logic", I'll assume R implies
+            # growth-adjusted R in the context of `_calculate_equity`
             # Wait, `_calculate_equity_vectorized` took `r_values`.
             # In `_layer1` it passed `r = R * growth`.
-            # I will skip the complex `growth` curve for now and run with raw R, or apply a static scalar growth logic implicitly.
+            # I will skip the complex `growth` curve for now and run with raw R,
+            # or apply a static scalar growth logic implicitly.
             # Adding a detailed time-dependent growth array is easy:
             # indices = cp.arange(target_len)
             # growth = cp.power(1.0 + La_scaled, indices)
@@ -267,8 +269,10 @@ def _scan_gpu_batch(
                 # generate lengths using diflen
                 try:
                     L_offsets = diflen(base_len, atc_config.robustness)
+                    if L_offsets is None:
+                        continue
                     lengths = [base_len] + list(L_offsets)
-                except ValueError:
+                except Exception:
                     # Fallback or skip
                     continue
 
@@ -343,9 +347,9 @@ def _scan_gpu_batch(
                 sum_num = cp.zeros_like(prices_gpu)
                 sum_den = cp.zeros_like(prices_gpu)
 
-                for s, e in zip(type_signals, type_equities):
-                    sum_num += s * e
-                    sum_den += e
+                for s_val, eq_val in zip(type_signals, type_equities):
+                    sum_num += s_val * eq_val
+                    sum_den += eq_val
 
                 # Avoid div zero
                 mask_nonzero = sum_den != 0
@@ -376,11 +380,11 @@ def _scan_gpu_batch(
             final_sum_den = cp.zeros_like(prices_gpu)
 
             for ma_name in layer1_signals_gpu:
-                s = layer1_signals_gpu[ma_name]
-                e = layer2_equities_gpu[ma_name]
+                s_val = layer1_signals_gpu[ma_name]
+                eq_val = layer2_equities_gpu[ma_name]
 
-                final_sum_num += s * e
-                final_sum_den += e
+                final_sum_num += s_val * eq_val
+                final_sum_den += eq_val
 
             final_signal_gpu = cp.zeros_like(final_sum_num)
             mask_nz = final_sum_den != 0
@@ -396,9 +400,8 @@ def _scan_gpu_batch(
             final_sigs_last = final_signal_gpu[:, -1].get()  # .get() downloads to numpy
             trends_last = trend_gpu[:, -1].get()
 
-            # prices were batch_data (list of arrays)
-            # we need last price
-
+            # Make sure valid_symbols_meta is non-None
+            assert valid_symbols_meta is not None
             for i in range(num_valid):
                 sym, last_price, exchange = valid_symbols_meta[i]
                 sig_val = float(final_sigs_last[i])
@@ -414,8 +417,8 @@ def _scan_gpu_batch(
                         }
                     )
 
-        except Exception as e:
-            log_error(f"GPU Batch failed: {e}")  # Traceback will be shown by Python
+        except Exception as err:
+            log_error(f"GPU Batch failed: {err}")  # Traceback will be shown by Python
             error_count += num_valid
             skipped_symbols.extend([s[0] for s in valid_symbols_meta])
 

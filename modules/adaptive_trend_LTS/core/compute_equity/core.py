@@ -32,7 +32,7 @@ Typical Performance:
 from __future__ import annotations
 
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -42,7 +42,7 @@ try:
     from pandas.errors import PerformanceWarning
 except ImportError:
 
-    class PerformanceWarning(UserWarning):
+    class PerformanceWarning(UserWarning):  # type: ignore
         """Warning for performance-related issues."""
 
         pass
@@ -685,7 +685,7 @@ def calculate_equity(
                 f"force_strategy='{force_strategy}' ignored for single signal (using 'core')", UserWarning, stacklevel=2
             )
         # Convert scalar to float if needed
-        starting_eq = float(starting_equities) if np.isscalar(starting_equities) else float(starting_equities.item())
+        starting_eq = float(np.asarray(starting_equities).item())
         return _calculate_equity_core(r_values, sig_prev_values, starting_eq, decay_multiplier, cutout, out, floor_val)
 
     # Multiple signals case
@@ -766,12 +766,17 @@ def benchmark_strategies(
     """
     import time
 
-    results = {
+    core_times: list[Optional[float]] = []
+    vectorized_times: list[Optional[float]] = []
+    parallel_times: list[Optional[float]] = []
+    auto_times: list[Optional[float]] = []
+
+    results: dict[str, list[Any]] = {
         "n_signals": n_signals_list,
-        "core_times": [],
-        "vectorized_times": [],
-        "parallel_times": [],
-        "auto_times": [],
+        "core_times": core_times,
+        "vectorized_times": vectorized_times,
+        "parallel_times": parallel_times,
+        "auto_times": auto_times,
     }
 
     for n_signals in n_signals_list:
@@ -779,24 +784,28 @@ def benchmark_strategies(
 
         # Generate test data
         if n_signals == 1:
-            signals = np.random.choice([-1, 0, 1], size=n_bars)
-            starting_eq = 1.0
+            signals = np.random.choice([-1, 0, 1], size=n_bars).astype(np.float64)
+            starting_eq_1d = np.array(1.0)
+            st_eq_float = 1.0
         else:
-            signals = np.random.choice([-1, 0, 1], size=(n_signals, n_bars))
-            starting_eq = np.ones(n_signals)
+            signals = np.random.choice([-1, 0, 1], size=(n_signals, n_bars)).astype(np.float64)
+            starting_eq_nd = np.ones(n_signals)
 
         returns = np.random.randn(n_bars) * 0.01
         decay = 0.999
         cutout = 20
 
         # Warmup (JIT compilation)
-        _ = calculate_equity(starting_eq, signals, returns, decay, cutout)
+        if n_signals == 1:
+            _ = calculate_equity(starting_eq_1d, signals, returns, decay, cutout)
+        else:
+            _ = calculate_equity(starting_eq_nd, signals, returns, decay, cutout)
 
         # Benchmark core (only for single signal)
         if n_signals == 1:
             start = time.perf_counter()
             for _ in range(n_iterations):
-                _ = _calculate_equity_core(returns, signals, starting_eq, decay, cutout)
+                _ = _calculate_equity_core(returns, signals, st_eq_float, decay, cutout)
             elapsed = (time.perf_counter() - start) * 1000 / n_iterations
             results["core_times"].append(elapsed)
         else:
@@ -806,7 +815,7 @@ def benchmark_strategies(
         if n_signals > 1:
             start = time.perf_counter()
             for _ in range(n_iterations):
-                _ = _calculate_equity_vectorized(starting_eq, signals, returns, decay, cutout)
+                _ = _calculate_equity_vectorized(starting_eq_nd, signals, returns, decay, cutout)
             elapsed = (time.perf_counter() - start) * 1000 / n_iterations
             results["vectorized_times"].append(elapsed)
         else:
@@ -816,7 +825,7 @@ def benchmark_strategies(
         if n_signals > 1:
             start = time.perf_counter()
             for _ in range(n_iterations):
-                _ = _calculate_equities_parallel(starting_eq, signals, returns, decay, cutout)
+                _ = _calculate_equities_parallel(starting_eq_nd, signals, returns, decay, cutout)
             elapsed = (time.perf_counter() - start) * 1000 / n_iterations
             results["parallel_times"].append(elapsed)
         else:
@@ -825,7 +834,10 @@ def benchmark_strategies(
         # Benchmark auto-selection
         start = time.perf_counter()
         for _ in range(n_iterations):
-            _ = calculate_equity(starting_eq, signals, returns, decay, cutout)
+            if n_signals == 1:
+                _ = calculate_equity(starting_eq_1d, signals, returns, decay, cutout)
+            else:
+                _ = calculate_equity(starting_eq_nd, signals, returns, decay, cutout)
         elapsed = (time.perf_counter() - start) * 1000 / n_iterations
         results["auto_times"].append(elapsed)
 

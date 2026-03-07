@@ -77,4 +77,4 @@ class EmptyState(ctk.CTkFrame):
             try:
                 self.action_callback()
             except Exception as e:
-                log_error(f"Error in EmptyState action callback: {e}", exc_info=True)
+                log_error("Error in EmptyState action callback: %s", e, exc_info=True)

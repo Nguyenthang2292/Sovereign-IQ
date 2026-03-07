@@ -19,7 +19,7 @@ from modules.common.data.validation import validate_ohlcv_input
 from .base import IndicatorResult, collect_metadata
 
 try:
-    from modules.xgboost_LTS.rust_extensions import xgboost_rust
+    from modules.xgboost_LTS.rust_extensions import xgboost_rust  # type: ignore
 
     RUST_AVAILABLE = True
 except ImportError:

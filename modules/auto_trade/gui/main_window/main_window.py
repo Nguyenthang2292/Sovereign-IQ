@@ -12,10 +12,10 @@ from modules.common.ui.logging import log_info
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from modules.auto_trade.gui.components.status_bar import StatusBar
-from modules.auto_trade.gui.services.websocket_data_service import WebSocketDataService
 from modules.auto_trade.gui.services.data_service import DataService
-from modules.auto_trade.gui.utils.modes import TradingMode
 from modules.auto_trade.gui.services.settings_manager import SettingsManager
+from modules.auto_trade.gui.services.websocket_data_service import WebSocketDataService
+from modules.auto_trade.gui.utils.modes import TradingMode
 
 from .auto_trade import AutoTradeManager
 from .layout import LayoutManager

@@ -13,13 +13,13 @@ try:
     from modules.common.utils import log_error, log_info, log_warn
 except ImportError:
 
-    def log_info(msg: str) -> None:
+    def log_info(msg: str, *args: object) -> None:
         print(f"[INFO] {msg}")
 
-    def log_error(msg: str) -> None:
+    def log_error(msg: str, *args: object, exc_info: bool = False) -> None:
         print(f"[ERROR] {msg}")
 
-    def log_warn(msg: str) -> None:
+    def log_warn(msg: str, *args: object) -> None:
         print(f"[WARN] {msg}")
 
 

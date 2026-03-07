@@ -15,11 +15,11 @@ try:
     from modules.common.utils import log_info, log_warn
 except ImportError:
 
-    def log_info(message: str) -> None:
-        print(f"[INFO] {message}")
+    def log_info(msg: str, *args: object) -> None:
+        print(f"[INFO] {msg % args if args else msg}")
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg % args if args else msg}")
 
 
 def compress_pickle(

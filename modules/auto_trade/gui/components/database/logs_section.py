@@ -11,12 +11,13 @@ from modules.auto_trade.gui.utils.svg_icons import get_icon
 class LogsSection:
     """Activity logs section component."""
 
-    def __init__(self, parent: ctk.CTkFrame):
+    def __init__(self, parent: ctk.CTkFrame) -> None:
         self.parent = parent
-        self.logs_viewer: ctk.CTkTextbox = None
+        # Initialized in _create_ui(). Keep strict type for static analyzers.
+        self.logs_viewer: ctk.CTkTextbox
         self._create_ui()
 
-    def _create_ui(self):
+    def _create_ui(self) -> None:
         """Create the logs section UI."""
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="both", expand=True, padx=5, pady=5)
@@ -37,12 +38,12 @@ class LogsSection:
         self.logs_viewer = ctk.CTkTextbox(frame)
         self.logs_viewer.pack(fill="both", expand=True, padx=10, pady=5)
 
-    def log(self, message: str, level: str = "INFO"):
+    def log(self, message: str, level: str = "INFO") -> None:
         """Add a log entry."""
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.logs_viewer.insert("end", f"[{timestamp}] [{level}] {message}\n")
         self.logs_viewer.see("end")
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all logs."""
         self.logs_viewer.delete("1.0", "end")

@@ -6,6 +6,12 @@ from typing import Any, Dict
 
 import numpy as np
 
+try:
+    from modules.common.utils import log_warn
+except ImportError:
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg}")
+
 # Timeframe resolution mapping (minutes)
 TF_RESOLUTION_MAP = {
     "1m": 1,
@@ -73,13 +79,6 @@ def calculate_growth_factor(bar_index: int, cutout: int, lambda_val: float) -> f
     # in very long backtests. While 485M seems large, it prevents float64 overflow
     # and keeps equity values within manageable ranges.
     if exponent > MAX_EXPONENT:
-        try:
-            from modules.common.utils import log_warn
-        except ImportError:
-
-            def log_warn(msg: str) -> None:
-                print(f"[WARN] {msg}")
-
         log_warn(
             f"Growth factor exponent {exponent:.2f} exceeds maximum {MAX_EXPONENT}. "
             f"Capping to prevent overflow (bar_index={bar_index}, lambda_val={lambda_val})."
@@ -90,24 +89,10 @@ def calculate_growth_factor(bar_index: int, cutout: int, lambda_val: float) -> f
         growth = float(np.exp(exponent))
         # Additional safety check
         if not np.isfinite(growth):
-            try:
-                from modules.common.utils import log_warn
-            except ImportError:
-
-                def log_warn(msg: str) -> None:
-                    print(f"[WARN] {msg}")
-
             log_warn(f"Growth factor is not finite: {growth}, using max safe value")
             growth = np.exp(MAX_EXPONENT)
         return growth
     except OverflowError:
         # Fallback to max safe value
-        try:
-            from modules.common.utils import log_warn
-        except ImportError:
-
-            def log_warn(msg: str) -> None:
-                print(f"[WARN] {msg}")
-
         log_warn("OverflowError in growth factor calculation, using max safe value")
         return float(np.exp(MAX_EXPONENT))

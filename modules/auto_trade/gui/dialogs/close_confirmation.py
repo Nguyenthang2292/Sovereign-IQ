@@ -3,9 +3,10 @@ import os
 from typing import Callable, Dict, Optional
 
 import customtkinter as ctk
-from modules.auto_trade.gui.utils.colors import Colors
 
+from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
+from modules.common.ui.logging import log_warn
 
 
 class CloseConfirmationDialog(ctk.CTkToplevel):
@@ -26,7 +27,7 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
         on_cancel: Optional[Callable] = None,
     ):
         super().__init__(parent)
-        
+
         apply_dark_titlebar(self)
 
         self.position = position
@@ -74,7 +75,7 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
                     self.skip_confirmation = settings.get("skip_confirmation", False)
                     self.required_confirms = settings.get("required_confirms", 2)
         except Exception as e:
-            print(f"Error loading confirmation settings: {e}")
+            log_warn("Error loading confirmation settings: %s", e)
 
     def _save_settings(self):
         """Save confirmation settings to file"""
@@ -83,7 +84,7 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
             with open(self.CONFIRMATION_SETTINGS_FILE, "w") as f:
                 json.dump(settings, f)
         except Exception as e:
-            print(f"Error saving confirmation settings: {e}")
+            log_warn("Error saving confirmation settings: %s", e)
 
     def _should_skip_confirmation(self) -> bool:
         """Check if confirmation should be skipped"""

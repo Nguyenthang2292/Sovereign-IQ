@@ -10,6 +10,8 @@ from typing import Any, Dict, Optional, cast
 import ccxt
 from dotenv import find_dotenv, load_dotenv, set_key
 
+from modules.common.ui.logging import log_error, log_warn
+
 
 class CredentialManager:
     """Manages secure storage of API credentials"""
@@ -21,18 +23,18 @@ class CredentialManager:
 
     def _find_or_create_env_file(self) -> Path:
         """Find or create .env file in project root"""
-        # Prefer module-specific .env used by Auto Trade GUI
-        current_file = Path(__file__).resolve()
-        module_root = current_file.parent.parent.parent
-        module_env = module_root / ".env"
-        if module_env.exists():
-            return module_env
-
         # Try to find existing .env file
         env_path = find_dotenv()
 
         if env_path:
             return Path(env_path)
+
+        # Fallback to module-specific .env used by Auto Trade GUI
+        current_file = Path(__file__).resolve()
+        module_root = current_file.parent.parent.parent
+        module_env = module_root / ".env"
+        if module_env.exists():
+            return module_env
 
         # Create new .env file in project root
         # Navigate up from modules/auto_trade/gui/utils/ to project root
@@ -57,7 +59,7 @@ class CredentialManager:
             else:
                 gitignore_path.write_text("# Environment variables\n.env\n")
         except Exception as e:
-            print(f"Warning: Could not update .gitignore: {e}")
+            log_warn("Could not update .gitignore: %s", e)
 
     def save_credentials(self, exchange: str, api_key: str, api_secret: str) -> bool:
         """
@@ -85,7 +87,7 @@ class CredentialManager:
 
             return True
         except Exception as e:
-            print(f"Error saving credentials: {e}")
+            log_error("Error saving credentials: %s", e)
             return False
 
     def load_credentials(self, exchange: str) -> Dict[str, Optional[str]]:
@@ -142,7 +144,7 @@ class CredentialManager:
 
             return True
         except Exception as e:
-            print(f"Error clearing credentials: {e}")
+            log_error("Error clearing credentials: %s", e)
             return False
 
     def test_connection(self, exchange: str, api_key: str, api_secret: str) -> Dict[str, Any]:

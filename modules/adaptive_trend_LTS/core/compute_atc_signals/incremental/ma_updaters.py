@@ -39,7 +39,9 @@ def update_ema(
     from modules.adaptive_trend_LTS.utils.diflen import diflen
 
     # Get 8 offset lengths based on robustness
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    diflen_res = diflen(length, robustness=robustness)
+    assert diflen_res is not None, "diflen returned None"
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_res
 
     # All 9 lengths: base + 8 offsets
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
@@ -85,7 +87,9 @@ def update_wma(
 
     # If using O(1) MAs for primary wma, we still need to calculate variations separately
     # O(1) implementation only handles the primary length
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    diflen_res = diflen(length, robustness=robustness)
+    assert diflen_res is not None, "diflen returned None"
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_res
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     prices = list(state["price_history"])
@@ -125,7 +129,9 @@ def update_hma(state: Dict[str, Any], new_price: float, length: int, robustness:
     """
     from modules.adaptive_trend_LTS.utils.diflen import diflen
 
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    diflen_res = diflen(length, robustness=robustness)
+    assert diflen_res is not None, "diflen returned None"
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_res
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     sqrt_lengths = [max(1, int(np.sqrt(ln))) for ln in lengths]
@@ -197,7 +203,9 @@ def update_dema(
     """
     from modules.adaptive_trend_LTS.utils.diflen import diflen
 
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    diflen_res = diflen(length, robustness=robustness)
+    assert diflen_res is not None, "diflen returned None"
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_res
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     # Get previous EMAs and EMA2s for all variations
@@ -249,10 +257,12 @@ def update_lsma(state: Dict[str, Any], new_price: float, length: int, robustness
         from modules.common.utils import log_warn
     except ImportError:
 
-        def log_warn(msg: str) -> None:
-            print(f"[WARN] {msg}")
+        def log_warn(msg: str, *args: object) -> None:
+            print(f"[WARN] {msg % args if args else msg}")
 
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    diflen_res = diflen(length, robustness=robustness)
+    assert diflen_res is not None, "diflen returned None"
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_res
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     prices = list(state["price_history"])
@@ -284,7 +294,7 @@ def update_lsma(state: Dict[str, Any], new_price: float, length: int, robustness
 
         # FIX #6: Use epsilon-based comparison instead of == 0
         if abs(denom) < EPSILON:
-            log_warn(f"LSMA denominator near zero ({denom:.2e}) for length {ln}, " f"using fallback (current price)")
+            log_warn(f"LSMA denominator near zero ({denom:.2e}) for length {ln}, using fallback (current price)")
             new_lsmas.append(new_price)
             continue
 
@@ -316,7 +326,9 @@ def update_kama(state: Dict[str, Any], new_price: float, length: int, robustness
     """
     from modules.adaptive_trend_LTS.utils.diflen import diflen
 
-    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+    diflen_res = diflen(length, robustness=robustness)
+    assert diflen_res is not None, "diflen returned None"
+    L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_res
     lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
 
     prices = list(state["price_history"])

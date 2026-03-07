@@ -2,11 +2,14 @@
 Retry utilities for handling transient network errors
 Implements exponential backoff strategy
 """
+
 import functools
 import time
 from typing import Any, Callable, Optional, Tuple, Type
 
 import ccxt
+
+from modules.common.ui.logging import log_error, log_warn
 
 
 def retry_with_exponential_backoff(
@@ -14,7 +17,7 @@ def retry_with_exponential_backoff(
     base_delay: float = 1.0,
     max_delay: float = 10.0,
     backoff_factor: float = 2.0,
-    exceptions: Tuple[Type[Exception], ...] = (ccxt.NetworkError, ccxt.RequestTimeout, ConnectionError)
+    exceptions: Tuple[Type[Exception], ...] = (ccxt.NetworkError, ccxt.RequestTimeout, ConnectionError),
 ):
     """
     Decorator that retries a function with exponential backoff on specific exceptions
@@ -34,6 +37,7 @@ def retry_with_exponential_backoff(
         def fetch_data():
             return api.get_data()
     """
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -51,20 +55,21 @@ def retry_with_exponential_backoff(
                         break
 
                     # Calculate delay with exponential backoff
-                    delay: float = min(base_delay * (backoff_factor ** attempt), max_delay)
+                    delay: float = min(base_delay * (backoff_factor**attempt), max_delay)
 
-                    print(f"Attempt {attempt + 1}/{max_retries + 1} failed: {str(e)}")
-                    print(f"Retrying in {delay:.2f} seconds...")
+                    log_warn("Attempt %d/%d failed: %s", attempt + 1, max_retries + 1, str(e))
+                    log_warn("Retrying in %.2f seconds...", delay)
 
                     time.sleep(delay)
 
             # If we get here, all retries failed
-            print(f"All {max_retries + 1} attempts failed")
+            log_error("All %d attempts failed", max_retries + 1)
             if last_exception is not None:
                 raise last_exception
             raise RuntimeError(f"All {max_retries + 1} attempts failed")
 
         return wrapper
+
     return decorator
 
 
@@ -73,7 +78,7 @@ def retry_async_with_exponential_backoff(
     base_delay: float = 1.0,
     max_delay: float = 10.0,
     backoff_factor: float = 2.0,
-    exceptions: Tuple[Type[Exception], ...] = (ccxt.NetworkError, ccxt.RequestTimeout, ConnectionError)
+    exceptions: Tuple[Type[Exception], ...] = (ccxt.NetworkError, ccxt.RequestTimeout, ConnectionError),
 ) -> Callable:
     """
     Async version of retry decorator with exponential backoff
@@ -88,10 +93,12 @@ def retry_async_with_exponential_backoff(
     Returns:
         Decorated async function that retries on specified exceptions
     """
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             import asyncio
+
             last_exception: Optional[Exception] = None
 
             for attempt in range(max_retries + 1):
@@ -106,20 +113,21 @@ def retry_async_with_exponential_backoff(
                         break
 
                     # Calculate delay with exponential backoff
-                    delay: float = min(base_delay * (backoff_factor ** attempt), max_delay)
+                    delay: float = min(base_delay * (backoff_factor**attempt), max_delay)
 
-                    print(f"Attempt {attempt + 1}/{max_retries + 1} failed: {str(e)}")
-                    print(f"Retrying in {delay:.2f} seconds...")
+                    log_warn("Attempt %d/%d failed: %s", attempt + 1, max_retries + 1, str(e))
+                    log_warn("Retrying in %.2f seconds...", delay)
 
                     await asyncio.sleep(delay)
 
             # If we get here, all retries failed
-            print(f"All {max_retries + 1} attempts failed")
+            log_error("All %d attempts failed", max_retries + 1)
             if last_exception is not None:
                 raise last_exception
             raise RuntimeError(f"All {max_retries + 1} attempts failed")
 
         return wrapper
+
     return decorator
 
 
@@ -139,11 +147,7 @@ class RetryableOperation:
     """
 
     def __init__(
-        self,
-        max_retries: int = 3,
-        base_delay: float = 1.0,
-        max_delay: float = 10.0,
-        backoff_factor: float = 2.0
+        self, max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 10.0, backoff_factor: float = 2.0
     ) -> None:
         self.max_retries: int = max_retries
         self.base_delay: float = base_delay
@@ -181,6 +185,6 @@ class RetryableOperation:
 
         if self.attempt < self.max_retries + 1:
             delay: float = min(self.base_delay * (self.backoff_factor ** (self.attempt - 1)), self.max_delay)
-            print(f"Attempt {self.attempt}/{self.max_retries + 1} failed: {str(exception)}")
-            print(f"Retrying in {delay:.2f} seconds...")
+            log_warn("Attempt %d/%d failed: %s", self.attempt, self.max_retries + 1, str(exception))
+            log_warn("Retrying in %.2f seconds...", delay)
             time.sleep(delay)

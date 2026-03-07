@@ -1,10 +1,9 @@
 """Database Panel Component - Refactored as container."""
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
-
 import customtkinter as ctk
 
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
+from modules.common.ui.logging import log_debug
 
 from .database import (
     ActionsSection,

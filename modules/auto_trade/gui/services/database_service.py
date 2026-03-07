@@ -4,14 +4,14 @@ Extracts database operations from UI components to provide a clean service layer
 Supports DynamoDB (RepositoryContext) backend.
 """
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 import os
 from typing import Any, Dict, List, Optional, Tuple
+
 import boto3
 
 from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
-
+from modules.common.ui.logging import log_error, log_info
 
 # ---------------------------------------------------------------------------
 # Internal helpers

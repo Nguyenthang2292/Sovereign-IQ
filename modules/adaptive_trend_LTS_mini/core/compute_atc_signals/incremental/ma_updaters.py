@@ -259,7 +259,7 @@ def update_lsma(state: Dict[str, Any], new_price: float, length: int, robustness
         from modules.common.utils import log_warn
     except ImportError:
 
-        def log_warn(msg: str) -> None:
+        def log_warn(msg: str, *args: object) -> None:
             print(f"[WARN] {msg}")
 
     _d = diflen(length, robustness=robustness)

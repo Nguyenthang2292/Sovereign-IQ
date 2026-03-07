@@ -3,9 +3,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional, cast
 
 import customtkinter as ctk
-from modules.auto_trade.gui.utils.colors import Colors
 
 from modules.auto_trade.gui.components.empty_state import EmptyState
+from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.svg_icons import get_icon
 from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 from modules.auto_trade.strategies.gradual_recovery import (
@@ -13,6 +13,7 @@ from modules.auto_trade.strategies.gradual_recovery import (
     RecoveryConfig,
     create_recovery_plan,
 )
+from modules.common.ui.logging import log_error, log_info, log_warn
 
 
 class RecoveryPanel(ctk.CTkFrame):
@@ -934,7 +935,7 @@ class RecoveryPanel(ctk.CTkFrame):
                 self.on_config_change("recovery_started", config)
 
         except ValueError as e:
-            print(f"Invalid input: {e}")
+            log_warn("Invalid input: %s", e)
 
     def _on_reset(self):
         """Reset current recovery"""
@@ -1017,7 +1018,7 @@ class RecoveryPanel(ctk.CTkFrame):
             self.plan_risk_label.configure(text=f"Risk: {plan['risk_assessment']}")
 
         except ValueError as e:
-            print(f"Invalid input: {e}")
+            log_warn("Invalid input: %s", e)
 
     def record_trade(self, profit: float):
         """Record a trade result"""
@@ -1047,7 +1048,7 @@ class RecoveryPanel(ctk.CTkFrame):
 
     def _show_alert(self, message: str):
         """Show alert notification"""
-        print(f"ALERT: {message}")
+        log_info("ALERT: %s", message)
         if self.on_config_change:
             self.on_config_change("recovery_alert", message)
 
@@ -1096,4 +1097,4 @@ class RecoveryPanel(ctk.CTkFrame):
                 v = config["enable_streak_bonus"]
                 self.streak_bonus_var.set(v if isinstance(v, bool) else str(v).lower() in ("true", "1", "yes"))
         except Exception as e:
-            print(f"Error loading recovery config: {e}")
+            log_error("Error loading recovery config: %s", e)

@@ -96,7 +96,7 @@ class HealthRegistry:
                 "timestamp": time.time(),
             }
         except Exception as e:
-            log_error(f"Health check '{name}' failed with exception: {e}", exc_info=True)
+            log_error("Health check '%s' failed with exception: %s", name, e, exc_info=True)
             return {
                 "status": HealthStatus.UNHEALTHY.value,
                 "details": f"Check failed: {e}",
@@ -136,9 +136,9 @@ class HealthRegistry:
                         )
 
                         if status == HealthStatus.UNHEALTHY:
-                            log_warn(f"Health check '{name}' is UNHEALTHY: {details}")
+                            log_warn("Health check '%s' is UNHEALTHY: %s", name, details)
                         elif status == HealthStatus.DEGRADED:
-                            log_info(f"Health check '{name}' is DEGRADED: {details}")
+                            log_info("Health check '%s' is DEGRADED: %s", name, details)
 
                     except FutureTimeoutError:
                         results[name] = cast(
@@ -149,10 +149,10 @@ class HealthRegistry:
                                 "timestamp": time.time(),
                             },
                         )
-                        log_error(f"Health check '{name}' timed out after {timeout}s")
+                        log_error("Health check '%s' timed out after %ss", name, timeout)
 
                     except Exception as e:
-                        log_error(f"Health check '{name}' failed with exception: {e}", exc_info=True)
+                        log_error("Health check '%s' failed with exception: %s", name, e, exc_info=True)
                         results[name] = cast(
                             HealthCheckResult,
                             {
@@ -172,12 +172,12 @@ class HealthRegistry:
                     )
 
                     if status == HealthStatus.UNHEALTHY:
-                        log_warn(f"Health check '{name}' is UNHEALTHY: {details}")
+                        log_warn("Health check '%s' is UNHEALTHY: %s", name, details)
                     elif status == HealthStatus.DEGRADED:
-                        log_info(f"Health check '{name}' is DEGRADED: {details}")
+                        log_info("Health check '%s' is DEGRADED: %s", name, details)
 
                 except Exception as e:
-                    log_error(f"Health check '{name}' failed with exception: {e}", exc_info=True)
+                    log_error("Health check '%s' failed with exception: %s", name, e, exc_info=True)
                     results[name] = cast(
                         HealthCheckResult,
                         {

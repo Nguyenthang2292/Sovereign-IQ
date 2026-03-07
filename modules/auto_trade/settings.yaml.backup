@@ -7,8 +7,6 @@ risk:
 filters:
   timeframe: 15m
   min_signal_score: 0.7
-  enable_xgboost: true
-  atc_threshold: 0.19999999999999996
   symbol_whitelist: 'BTC/USDT
 
     ETH/USDT
@@ -16,6 +14,8 @@ filters:
     SOL/USDT
 
     '
+  enable_xgboost: true
+  atc_threshold: 0.19999999999999996
   min_volume: 50.0
   whitelist_symbols: []
 api:
@@ -50,12 +50,12 @@ scanner:
   sampling_strategy: stratified
   sample_percentage: 30
   auto_start: false
-  min_signal_score: 0.19
+  min_signal_score: 0.7
   min_volume: 5.0
   enable_xgboost: false
   atc_threshold: 0.21
-  enable_gann_square: true
-  gann_timeframe: 30m
+  enable_gann_square: false
+  gann_timeframe: 1h
   gann_candle_limit: 200
   gann_lookback: 5
   enable_order_book: false

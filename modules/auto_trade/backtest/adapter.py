@@ -5,14 +5,13 @@ Adapts the existing backtester module to work with auto-trade signal pipeline
 and position monitoring strategies.
 """
 
-from modules.common.ui.logging import log_info, log_error, log_warn, log_debug, log_success, log_system
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
 from modules.backtester.core.backtester import FullBacktester
 from modules.common.core.data_fetcher import DataFetcher
-
+from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 
 class AutoTradeBacktester:

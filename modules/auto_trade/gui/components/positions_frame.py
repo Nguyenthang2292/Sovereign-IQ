@@ -7,6 +7,7 @@ from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.gui.components.position_details import PositionDetails
 from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.formatters import format_asset_price, format_pnl, format_price
+from modules.common.ui.logging import log_debug, log_error
 
 
 class PositionCard(ctk.CTkFrame):
@@ -116,11 +117,18 @@ class PositionCard(ctk.CTkFrame):
         try:
             PositionDetails(self.winfo_toplevel(), self.position, on_action_callback=self.on_action_callback)
         except Exception as e:
-            print(f"Error opening position details: {e}")
+            log_error("Error opening position details: %s", e)
 
 
 class PositionsFrame(ctk.CTkFrame):
-    def __init__(self, parent, on_action_callback: Optional[Callable] = None, on_open_trade_callback: Optional[Callable] = None, on_refresh_callback: Optional[Callable] = None, on_sync_callback: Optional[Callable] = None):
+    def __init__(
+        self,
+        parent,
+        on_action_callback: Optional[Callable] = None,
+        on_open_trade_callback: Optional[Callable] = None,
+        on_refresh_callback: Optional[Callable] = None,
+        on_sync_callback: Optional[Callable] = None,
+    ):
         super().__init__(parent)
         self.on_action_callback = on_action_callback
         self.on_open_trade_callback = on_open_trade_callback
@@ -147,7 +155,7 @@ class PositionsFrame(ctk.CTkFrame):
                 height=24,
                 command=on_refresh_callback,
                 fg_color=Colors.BTN_PRIMARY,
-                hover_color=Colors.BTN_PRIMARY_HOVER
+                hover_color=Colors.BTN_PRIMARY_HOVER,
             )
             refresh_btn.pack(side="right", padx=(5, 0))
 
@@ -159,7 +167,7 @@ class PositionsFrame(ctk.CTkFrame):
                 height=24,
                 command=on_sync_callback,
                 fg_color=Colors.BTN_SUCCESS,  # Green color
-                hover_color=Colors.BTN_SUCCESS_HOVER
+                hover_color=Colors.BTN_SUCCESS_HOVER,
             )
             sync_btn.pack(side="right", padx=(5, 0))
 
@@ -167,7 +175,7 @@ class PositionsFrame(ctk.CTkFrame):
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
     def update_positions(self, positions: List[Dict]):
-        print(f"[PositionsFrame] update_positions called with {len(positions) if positions else 0} positions")
+        log_debug("[PositionsFrame] update_positions called with %s positions", len(positions) if positions else 0)
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 
@@ -178,7 +186,7 @@ class PositionsFrame(ctk.CTkFrame):
                 message="No open positions",
                 hint="Open a trade or wait for a signal.",
                 action_text="Open Trade" if self.on_open_trade_callback else "",
-                action_callback=self.on_open_trade_callback
+                action_callback=self.on_open_trade_callback,
             )
             self._empty_state.pack(pady=50, fill="x")
             return

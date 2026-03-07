@@ -35,9 +35,9 @@ def ansi_to_html(text: str) -> str:
         '37': '#d4d4d4',  # White
     }
 
-    result = []
+    result: list[str] = []
     i = 0
-    open_tags = []  # Track open HTML tags
+    open_tags: list[str] = []  # Track open HTML tags
 
     while i < len(text):
         # Check for ANSI escape sequence

@@ -9,7 +9,7 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
-from tabulate import tabulate
+from tabulate import tabulate  # type: ignore
 
 from modules.adaptive_trend_LTS.core.async_io.async_compute import run_batch_atc_async
 from modules.adaptive_trend_LTS.core.compute_atc_signals.compute_atc_signals import compute_atc_signals

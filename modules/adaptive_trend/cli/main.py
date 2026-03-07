@@ -87,7 +87,7 @@ class ATCAnalyzer:
         self.data_fetcher = data_fetcher
         self.selected_timeframe = args.timeframe
         self.mode = "manual"
-        self._atc_params = None
+        self._atc_params: dict | None = None
 
     def determine_mode_and_timeframe(self) -> Tuple[str, str]:
         """
@@ -104,16 +104,16 @@ class ATCAnalyzer:
         elif not self.args.no_menu:
             try:
                 menu_result = prompt_interactive_mode(default_timeframe=self.args.timeframe)
-                self.mode = menu_result.get("mode", "manual")
+                self.mode = str(menu_result.get("mode", "manual") or "manual")
                 # Use timeframe from menu if selected
                 if "timeframe" in menu_result:
                     self.selected_timeframe = menu_result["timeframe"]
 
                 # If user only selected timeframe, show menu again
-                if self.mode is None:
+                if self.mode is None or self.mode == "None":
                     try:
                         menu_result = prompt_interactive_mode(default_timeframe=self.selected_timeframe)
-                        self.mode = menu_result.get("mode", "manual")
+                        self.mode = str(menu_result.get("mode", "manual") or "manual")
                         if "timeframe" in menu_result:
                             self.selected_timeframe = menu_result["timeframe"]
                     except UserExitRequested:
@@ -141,30 +141,28 @@ class ATCAnalyzer:
                 "decay",
                 "cutout",
             ]
-            self._atc_params = extract_dict_from_namespace(self.args, atc_param_keys)
+            self._atc_params = dict(extract_dict_from_namespace(self.args, atc_param_keys))
         return self._atc_params
 
     def display_auto_mode_config(self) -> None:
         """Display configuration for auto mode."""
-        if log_analysis:
-            log_analysis("=" * 80)
-            log_analysis("ADAPTIVE TREND CLASSIFICATION (ATC) - AUTO SCAN MODE")
-            log_analysis("=" * 80)
-            log_analysis("Configuration:")
-        if log_data:
-            log_data("  Mode: AUTO (scan all symbols)")
-            log_data(f"  Timeframe: {self.selected_timeframe}")
-            log_data(f"  Limit: {self.args.limit} candles")
-            log_data(f"  Robustness: {self.args.robustness}")
-            log_data(
-                f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, "
-                f"WMA={self.args.wma_len}, DEMA={self.args.dema_len}, "
-                f"LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
-            )
-            log_data(f"  Lambda: {self.args.lambda_param}, Decay: {self.args.decay}, Cutout: {self.args.cutout}")
-            log_data(f"  Min Signal: {self.args.min_signal}")
-            if self.args.max_symbols:
-                log_data(f"  Max Symbols: {self.args.max_symbols}")
+        log_analysis("=" * 80)
+        log_analysis("ADAPTIVE TREND CLASSIFICATION (ATC) - AUTO SCAN MODE")
+        log_analysis("=" * 80)
+        log_analysis("Configuration:")
+        log_data("  Mode: AUTO (scan all symbols)")
+        log_data(f"  Timeframe: {self.selected_timeframe}")
+        log_data(f"  Limit: {self.args.limit} candles")
+        log_data(f"  Robustness: {self.args.robustness}")
+        log_data(
+            f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, "
+            f"WMA={self.args.wma_len}, DEMA={self.args.dema_len}, "
+            f"LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
+        )
+        log_data(f"  Lambda: {self.args.lambda_param}, Decay: {self.args.decay}, Cutout: {self.args.cutout}")
+        log_data(f"  Min Signal: {self.args.min_signal}")
+        if self.args.max_symbols:
+            log_data(f"  Max Symbols: {self.args.max_symbols}")
 
     def run_auto_scan(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
@@ -221,26 +219,30 @@ class ATCAnalyzer:
         if not symbol_input:
             symbol_input = DEFAULT_SYMBOL
 
-        return str(_SYMBOL_CODEC.to_ccxt(f"{symbol_input}/{quote}" if "/" not in symbol_input and not symbol_input.upper().endswith(quote) else symbol_input))
+        return str(
+            _SYMBOL_CODEC.to_ccxt(
+                f"{symbol_input}/{quote}"
+                if "/" not in symbol_input and not symbol_input.upper().endswith(quote)
+                else symbol_input
+            )
+        )
 
     def display_manual_mode_config(self, symbol: str) -> None:
         """Display configuration for manual mode."""
-        if log_analysis:
-            log_analysis("=" * 80)
-            log_analysis("ADAPTIVE TREND CLASSIFICATION (ATC) ANALYSIS")
-            log_analysis("=" * 80)
-            log_analysis("Configuration:")
-        if log_data:
-            log_data(f"  Symbol: {symbol}")
-            log_data(f"  Timeframe: {self.selected_timeframe}")
-            log_data(f"  Limit: {self.args.limit} candles")
-            log_data(f"  Robustness: {self.args.robustness}")
-            log_data(
-                f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, "
-                f"WMA={self.args.wma_len}, DEMA={self.args.dema_len}, "
-                f"LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
-            )
-            log_data(f"  Lambda: {self.args.lambda_param}, Decay: {self.args.decay}, Cutout: {self.args.cutout}")
+        log_analysis("=" * 80)
+        log_analysis("ADAPTIVE TREND CLASSIFICATION (ATC) ANALYSIS")
+        log_analysis("=" * 80)
+        log_analysis("Configuration:")
+        log_data(f"  Symbol: {symbol}")
+        log_data(f"  Timeframe: {self.selected_timeframe}")
+        log_data(f"  Limit: {self.args.limit} candles")
+        log_data(f"  Robustness: {self.args.robustness}")
+        log_data(
+            f"  MA Lengths: EMA={self.args.ema_len}, HMA={self.args.hma_len}, "
+            f"WMA={self.args.wma_len}, DEMA={self.args.dema_len}, "
+            f"LSMA={self.args.lsma_len}, KAMA={self.args.kama_len}"
+        )
+        log_data(f"  Lambda: {self.args.lambda_param}, Decay: {self.args.decay}, Cutout: {self.args.cutout}")
 
     def run_manual_mode(self) -> None:
         """Run manual mode: analyze specific symbol."""
@@ -304,7 +306,9 @@ class ATCAnalyzer:
 
                 symbol = str(
                     _SYMBOL_CODEC.to_ccxt(
-                        f"{symbol_input}/{quote}" if "/" not in symbol_input and not symbol_input.upper().endswith(quote) else symbol_input
+                        f"{symbol_input}/{quote}"
+                        if "/" not in symbol_input and not symbol_input.upper().endswith(quote)
+                        else symbol_input
                     )
                 )
 

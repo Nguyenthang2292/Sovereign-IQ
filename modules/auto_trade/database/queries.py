@@ -30,6 +30,11 @@ from .repository import RepositoryContext
 _ctx: Optional[RepositoryContext] = None
 
 
+def _is_sqlalchemy_session(obj: Any) -> bool:
+    """Return True when *obj* looks like a SQLAlchemy Session."""
+    return hasattr(obj, "query") and hasattr(obj, "commit")
+
+
 def _get_ctx() -> RepositoryContext:
     """Get or create RepositoryContext (singleton)."""
     global _ctx
@@ -48,6 +53,13 @@ def get_open_positions(symbol: Optional[str] = None) -> List[Dict[str, Any]]:
     Returns:
         List of open orders as dicts
     """
+    # Legacy compatibility: get_open_positions(session)
+    if _is_sqlalchemy_session(symbol):
+        session = symbol
+        from modules.auto_trade.database.models import Order
+
+        return session.query(Order).filter(Order.order_source == "PROGRAMMATIC", Order.status == "OPEN").all()
+
     ctx = _get_ctx()
     return ctx.orders.get_open_positions(symbol=symbol)
 
@@ -98,6 +110,7 @@ def get_orders_cursor(
     symbol: Optional[str] = None,
     limit: int = 50,
     last_key: Optional[Any] = None,
+    **kwargs: Any,
 ) -> List[Dict[str, Any]]:
     """
     Get paginated orders.
@@ -111,6 +124,32 @@ def get_orders_cursor(
     Returns:
         List of order dicts
     """
+    # Legacy compatibility:
+    #   get_orders_cursor(session, last_id=None, limit=50)
+    session = kwargs.pop("session", None)
+    last_id = kwargs.pop("last_id", None)
+
+    if session is None and _is_sqlalchemy_session(status):
+        session = status
+        status = kwargs.pop("status", None)
+        symbol = kwargs.pop("symbol", symbol)
+
+    if session is not None:
+        from sqlalchemy import desc
+
+        from modules.auto_trade.database.models import Order
+
+        query = session.query(Order).filter(Order.order_source == "PROGRAMMATIC")
+
+        if last_id:
+            query = query.filter(Order.id < int(last_id))
+        if status:
+            query = query.filter(Order.status == status)
+        if symbol:
+            query = query.filter(Order.symbol == symbol)
+
+        return query.order_by(desc(Order.id)).limit(limit).all()
+
     ctx = _get_ctx()
     return ctx.orders.get_orders_cursor(
         status=status,
@@ -136,7 +175,7 @@ def is_programmatic_order(order_id: str) -> bool:
     return False
 
 
-def get_order_by_id(order_id: str) -> Optional[Dict[str, Any]]:
+def get_order_by_id(order_id: str, maybe_order_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Get order by order_id (programmatic only by default).
 
@@ -146,11 +185,21 @@ def get_order_by_id(order_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         Order dict or None
     """
+    # Legacy compatibility: get_order_by_id(session, order_id)
+    if _is_sqlalchemy_session(order_id):
+        session = order_id
+        lookup_id = maybe_order_id
+        if not lookup_id:
+            return None
+        from modules.auto_trade.database.models import Order
+
+        return session.query(Order).filter(Order.order_id == str(lookup_id)).first()
+
     ctx = _get_ctx()
     return ctx.orders.get_order_by_id(order_id, verify_programmatic=True)
 
 
-def get_order_by_client_id(client_order_id: str) -> Optional[Dict[str, Any]]:
+def get_order_by_client_id(client_order_id: str, maybe_client_order_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Get order by client_order_id.
 
@@ -160,6 +209,16 @@ def get_order_by_client_id(client_order_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         Order dict or None
     """
+    # Legacy compatibility: get_order_by_client_id(session, client_order_id)
+    if _is_sqlalchemy_session(client_order_id):
+        session = client_order_id
+        lookup_client_id = maybe_client_order_id
+        if not lookup_client_id:
+            return None
+        from modules.auto_trade.database.models import Order
+
+        return session.query(Order).filter(Order.client_order_id == str(lookup_client_id)).first()
+
     ctx = _get_ctx()
     return ctx.orders.get_order_by_client_id(client_order_id)
 
@@ -188,6 +247,8 @@ def update_order_status_by_client_id(
     client_order_id: str,
     status: str,
     pnl: Optional[float] = None,
+    session: Optional[Any] = None,
+    closed_at: Optional[Any] = None,
 ) -> bool:
     """
     Update order status by client_order_id.
@@ -200,6 +261,25 @@ def update_order_status_by_client_id(
     Returns:
         True if updated successfully
     """
+    # Legacy compatibility: update_order_status_by_client_id(
+    #   session=session,
+    #   client_order_id=..., status=..., closed_at=..., pnl=...
+    # )
+    if session is not None and _is_sqlalchemy_session(session):
+        from modules.auto_trade.database.models import Order
+
+        order = session.query(Order).filter(Order.client_order_id == str(client_order_id)).first()
+        if not order:
+            return False
+
+        order.status = status
+        if pnl is not None:
+            order.pnl = pnl
+        if closed_at is not None:
+            order.closed_at = closed_at
+        session.commit()
+        return True
+
     ctx = _get_ctx()
     return ctx.orders.update_order_status_by_client_id(client_order_id, status, pnl=pnl)
 
@@ -231,7 +311,7 @@ def mark_be_moved(
     )
 
 
-def create_order(data: Dict[str, Any]) -> Dict[str, Any]:
+def create_order(data: Dict[str, Any], maybe_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Create a new order.
 
@@ -241,6 +321,18 @@ def create_order(data: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Created order dict
     """
+    # Legacy compatibility: create_order(session, data)
+    if _is_sqlalchemy_session(data):
+        session = data
+        order_data = maybe_data or {}
+        from modules.auto_trade.database.models import Order
+
+        order = Order(**order_data)
+        session.add(order)
+        session.commit()
+        session.refresh(order)
+        return order
+
     ctx = _get_ctx()
     return ctx.orders.create_order(data)
 
@@ -549,18 +641,76 @@ def get_daily_stats(date: Optional[str] = None) -> Dict[str, Any]:
     return {}
 
 
-def get_overall_stats() -> Dict[str, Any]:
+def get_overall_stats(session: Optional[Any] = None) -> Dict[str, Any]:
     """
     Get overall statistics.
 
-    Note: DynamoDB OrderRepository does not expose a dedicated get_overall_stats
-    method. This function returns an empty dict as a safe stub. Override by
-    querying get_all_programmatic_orders and aggregating in the caller if needed.
+    If a SQLAlchemy session is provided (legacy mode), compute stats via SQL
+    aggregation. Otherwise return a safe default for DynamoDB mode.
 
     Returns:
         Overall stats dict (empty – no dedicated implementation)
     """
-    return {}
+    if session is not None and _is_sqlalchemy_session(session):
+        from sqlalchemy import case, func
+
+        from modules.auto_trade.database.models import Order
+
+        result = (
+            session.query(
+                func.count(Order.id).label("total_trades"),
+                func.sum(case((Order.pnl > 0, 1), else_=0)).label("winning_trades"),
+                func.sum(case((Order.pnl < 0, 1), else_=0)).label("losing_trades"),
+                func.sum(Order.pnl).label("total_pnl"),
+                func.avg(Order.pnl).label("avg_pnl"),
+                func.sum(Order.commission).label("total_fees"),
+                func.max(Order.pnl).label("best_trade"),
+                func.min(Order.pnl).label("worst_trade"),
+            )
+            .filter(Order.order_source == "PROGRAMMATIC", Order.status == "CLOSED")
+            .first()
+        )
+
+        if not result or (result.total_trades or 0) == 0:
+            return {
+                "total_trades": 0,
+                "winning_trades": 0,
+                "losing_trades": 0,
+                "win_rate": 0.0,
+                "total_pnl": 0.0,
+                "avg_pnl": 0.0,
+                "total_fees": 0.0,
+                "best_trade": 0.0,
+                "worst_trade": 0.0,
+            }
+
+        total_trades = int(result.total_trades or 0)
+        winning_trades = int(result.winning_trades or 0)
+        losing_trades = int(result.losing_trades or 0)
+
+        return {
+            "total_trades": total_trades,
+            "winning_trades": winning_trades,
+            "losing_trades": losing_trades,
+            "win_rate": (winning_trades / total_trades) * 100 if total_trades > 0 else 0.0,
+            "total_pnl": float(result.total_pnl or 0.0),
+            "avg_pnl": float(result.avg_pnl or 0.0),
+            "total_fees": float(result.total_fees or 0.0),
+            "best_trade": float(result.best_trade or 0.0),
+            "worst_trade": float(result.worst_trade or 0.0),
+        }
+
+    return {
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0.0,
+        "total_pnl": 0.0,
+        "avg_pnl": 0.0,
+        "total_fees": 0.0,
+        "best_trade": 0.0,
+        "worst_trade": 0.0,
+    }
 
 
 # ============================================================================

@@ -76,7 +76,7 @@ class SymbolDiscovery:
                 progress.update()
                 continue
 
-            symbol = self.base.exchange_manager.to_ccxt_symbol(market.get("symbol", ""))
+            symbol = str(market.get("symbol", ""))
             if symbol in exclude_symbols or symbol in seen:
                 progress.update()
                 continue

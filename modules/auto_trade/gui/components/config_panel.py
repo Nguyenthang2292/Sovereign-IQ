@@ -19,8 +19,8 @@ from modules.auto_trade.gui.components.config_panel_parts.settings_io import (
     load_settings,
 )
 from modules.auto_trade.gui.components.config_panel_parts.tab_builders import (
-    create_auto_close_timer_tab,
     create_api_keys_tab,
+    create_auto_close_timer_tab,
     create_gradual_recovery_tab,
     create_risk_settings_tab,
 )

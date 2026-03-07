@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING, Optional
 
+from modules.common.ui.logging import log_error, log_warn
+
 if TYPE_CHECKING:
     from .main_window import AutoTradeDashboard
 
@@ -33,21 +35,21 @@ class RiskManager:
         try:
             positions = self.parent.data_service.get_positions()
             if positions is None:
-                print("Warning: Could not fetch positions for risk check")
+                log_warn("Could not fetch positions for risk check")
                 return False
 
             if not isinstance(positions, (list, tuple)):
-                print(f"Error: Invalid positions type: {type(positions)}")
+                log_error("Invalid positions type: %s", type(positions))
                 return False
 
             account_data = self.parent.data_service.get_account_data()
             if not account_data:
-                print("Warning: Could not fetch account data for risk check")
+                log_warn("Could not fetch account data for risk check")
                 return False
 
             balance = account_data.get("balance", 0)
             if balance <= 0:
-                print("Error: Invalid account balance")
+                log_error("Invalid account balance")
                 return False
 
             if not self._check_max_positions(list(positions)):
@@ -74,10 +76,7 @@ class RiskManager:
             return True
 
         except Exception as e:
-            print(f"Error checking risk limits: {e}")
-            import traceback
-
-            traceback.print_exc()
+            log_error("Error checking risk limits: %s", e, exc_info=True)
             return False
 
     def _check_max_positions(self, positions: list) -> bool:
@@ -85,11 +84,11 @@ class RiskManager:
         max_positions = self.parent.settings_manager.get("risk.max_open_positions", 3)
 
         if not isinstance(max_positions, int) or max_positions <= 0:
-            print(f"Error: Invalid max_positions setting: {max_positions}, using default 3")
+            log_warn("Invalid max_positions setting: %s, using default 3", max_positions)
             max_positions = 3
 
         if len(positions) >= max_positions:
-            print(f"Risk limit exceeded: Max positions reached ({len(positions)}/{max_positions})")
+            log_warn("Risk limit exceeded: Max positions reached (%d/%d)", len(positions), max_positions)
             return False
         return True
 
@@ -98,12 +97,12 @@ class RiskManager:
         max_daily_loss_pct = self.parent.settings_manager.get("risk.max_daily_loss_pct", 5.0)
 
         if not isinstance(max_daily_loss_pct, (int, float)) or max_daily_loss_pct <= 0:
-            print(f"Error: Invalid max_daily_loss_pct setting: {max_daily_loss_pct}, using default 5.0")
+            log_warn("Invalid max_daily_loss_pct setting: %s, using default 5.0", max_daily_loss_pct)
             max_daily_loss_pct = 5.0
 
         daily_pnl_pct = account_data.get("daily_pnl_pct", 0)
         if daily_pnl_pct <= -max_daily_loss_pct:
-            print(f"Risk limit exceeded: Daily loss limit hit ({daily_pnl_pct:.2f}% / -{max_daily_loss_pct}%)")
+            log_warn("Risk limit exceeded: Daily loss limit hit (%.2f%% / -%.1f%%)", daily_pnl_pct, max_daily_loss_pct)
             return False
         return True
 
@@ -114,7 +113,7 @@ class RiskManager:
         max_exposure_pct = self.parent.settings_manager.get("risk.max_exposure_pct", 30.0)
 
         if not isinstance(max_exposure_pct, (int, float)) or max_exposure_pct <= 0:
-            print(f"Error: Invalid max_exposure_pct setting: {max_exposure_pct}, using default 30.0")
+            log_warn("Invalid max_exposure_pct setting: %s, using default 30.0", max_exposure_pct)
             max_exposure_pct = 30.0
 
         total_exposure = sum(abs(float(p.get("notional", 0))) for p in positions)
@@ -124,7 +123,7 @@ class RiskManager:
 
         exposure_pct = (total_exposure / balance) * 100
         if exposure_pct >= max_exposure_pct:
-            print(f"Risk limit exceeded: Max exposure reached ({exposure_pct:.1f}% / {max_exposure_pct}%)")
+            log_warn("Risk limit exceeded: Max exposure reached (%.1f%% / %.1f%%)", exposure_pct, max_exposure_pct)
             return False
         return True
 
@@ -133,15 +132,16 @@ class RiskManager:
         max_position_size_pct = self.parent.settings_manager.get("risk.max_position_size_pct", 10.0)
 
         if not isinstance(max_position_size_pct, (int, float)) or max_position_size_pct <= 0:
-            print(f"Error: Invalid max_position_size_pct: {max_position_size_pct}, using default 10.0")
+            log_warn("Invalid max_position_size_pct: %s, using default 10.0", max_position_size_pct)
             max_position_size_pct = 10.0
 
         max_position_size = balance * (max_position_size_pct / 100)
         if position_size > max_position_size:
-            print(
-                f"Risk limit exceeded: Position size too large "
-                f"({position_size:.2f} USDT > {max_position_size:.2f} USDT / "
-                f"{max_position_size_pct}% of balance)"
+            log_warn(
+                "Risk limit exceeded: Position size too large (%.2f USDT > %.2f USDT / %.1f%% of balance)",
+                position_size,
+                max_position_size,
+                max_position_size_pct,
             )
             return False
         return True
@@ -154,7 +154,7 @@ class RiskManager:
         max_per_symbol = self.parent.settings_manager.get("risk.max_positions_per_symbol", 1)
 
         if not isinstance(max_per_symbol, int) or max_per_symbol <= 0:
-            print(f"Error: Invalid max_positions_per_symbol: {max_per_symbol}, using default 1")
+            log_warn("Invalid max_positions_per_symbol: %s, using default 1", max_per_symbol)
             max_per_symbol = 1
 
         # Normalize both sides for comparison (BTCUSDT and BTC/USDT should match)
@@ -162,7 +162,12 @@ class RiskManager:
         symbol_positions = [p for p in positions if _symbol_codec.to_db(p.get("symbol", "")) == normalized_input]
 
         if len(symbol_positions) >= max_per_symbol:
-            print(f"Risk limit exceeded: Max positions for {symbol} reached ({len(symbol_positions)}/{max_per_symbol})")
+            log_warn(
+                "Risk limit exceeded: Max positions for %s reached (%d/%d)",
+                symbol,
+                len(symbol_positions),
+                max_per_symbol,
+            )
             return False
         return True
 
@@ -171,11 +176,11 @@ class RiskManager:
         max_leverage = self.parent.settings_manager.get("risk.max_leverage", 5)
 
         if not isinstance(max_leverage, int) or max_leverage <= 0:
-            print(f"Error: Invalid max_leverage setting: {max_leverage}, using default 5")
+            log_warn("Invalid max_leverage setting: %s, using default 5", max_leverage)
             max_leverage = 5
 
         if leverage > max_leverage:
-            print(f"Risk limit exceeded: Leverage too high ({leverage}x > {max_leverage}x)")
+            log_warn("Risk limit exceeded: Leverage too high (%dx > %dx)", leverage, max_leverage)
             return False
         return True
 
@@ -184,10 +189,12 @@ class RiskManager:
         min_balance = self.parent.settings_manager.get("risk.min_account_balance", 10.0)
 
         if not isinstance(min_balance, (int, float)) or min_balance < 0:
-            print(f"Error: Invalid min_account_balance: {min_balance}, using default 10.0")
+            log_warn("Invalid min_account_balance: %s, using default 10.0", min_balance)
             min_balance = 10.0
 
         if balance < min_balance:
-            print(f"Risk limit exceeded: Account balance too low ({balance:.2f} USDT < {min_balance:.2f} USDT minimum)")
+            log_warn(
+                "Risk limit exceeded: Account balance too low (%.2f USDT < %.2f USDT minimum)", balance, min_balance
+            )
             return False
         return True

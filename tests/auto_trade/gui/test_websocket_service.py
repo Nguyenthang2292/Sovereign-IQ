@@ -3,13 +3,17 @@ Tests for WebSocket Data Service initialization, lifecycle, callbacks.
 """
 
 from datetime import datetime
+from importlib import import_module
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from modules.auto_trade.gui.utils.websocket_data_service import WebSocketDataService
 from modules.auto_trade.monitoring.account_monitor import BalanceSnapshot, OrderSnapshot
 from modules.auto_trade.monitoring.position_monitor import PositionSnapshot
+
+WebSocketDataService = import_module(
+    "modules.auto_trade.gui.utils.websocket_data_service"
+).WebSocketDataService
 
 
 class TestWebSocketServiceInit:
@@ -363,6 +367,27 @@ class TestWebSocketServiceThreadSafety:
 
         assert invocation_count[0] == 10
 
+    def test_get_close_lock_singleton_under_contention(self, service):
+        """Concurrent callers should always receive the same lock instance per symbol."""
+        import threading
+
+        lock_ids = []
+        lock = threading.Lock()
+
+        def resolve_lock_id():
+            symbol_lock = service._get_close_lock("BTCUSDT")
+            with lock:
+                lock_ids.append(id(symbol_lock))
+
+        threads = [threading.Thread(target=resolve_lock_id) for _ in range(20)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(lock_ids) == 20
+        assert len(set(lock_ids)) == 1
+
 
 class TestWebSocketServiceManualClosePnL:
     """Tests for manual close PnL fetch and fallback chain."""
@@ -430,3 +455,57 @@ class TestWebSocketServiceManualClosePnL:
             )
 
         mock_ctx.orders.update_order_status.assert_called_once_with("order_1", "CLOSED", pnl=-12.34)
+
+
+class TestWebSocketServicePositionClosedDedup:
+    """Tests for dedup-key generation and bounded dedup cache behavior."""
+
+    @pytest.fixture
+    def service_with_event_bus(self):
+        with patch("modules.auto_trade.gui.utils.websocket_data_service.CredentialManager"):
+            event_bus = MagicMock()
+            service = WebSocketDataService(mode="DRY_RUN", event_bus=event_bus)
+            yield service, event_bus
+
+    def test_generic_client_order_id_falls_back_to_order_id(self, service_with_event_bus):
+        """Generic SYNC_ client IDs must use order_id as dedup key to avoid false negatives."""
+        service, event_bus = service_with_event_bus
+
+        mock_ctx = MagicMock()
+        mock_ctx.orders.get_open_positions.return_value = [
+            {
+                "status": "OPEN",
+                "symbol": "BTCUSDT",
+                "order_id": "123456",
+                "client_order_id": "SYNC_BTCUSDT_1234567890",
+                "entry_price": 50000.0,
+                "leverage": 5,
+            }
+        ]
+
+        with patch("modules.auto_trade.database.repository.context.RepositoryContext.from_env", return_value=mock_ctx):
+            service._cancel_and_close_position(
+                symbol="BTCUSDT",
+                pnl=-10.0,
+                exit_price=49000.0,
+                entry_price=50000.0,
+                leverage=5,
+                source="test",
+            )
+
+        event_bus.publish.assert_called_once()
+        assert "order_123456" in service._published_closed_events
+        assert "SYNC_BTCUSDT_1234567890" not in service._published_closed_events
+
+    def test_published_closed_events_cache_is_bounded(self, service_with_event_bus):
+        """Dedup cache should evict oldest keys when over capacity."""
+        service, _ = service_with_event_bus
+
+        service._published_closed_events_max = 3
+        service._remember_closed_event_key("k1")
+        service._remember_closed_event_key("k2")
+        service._remember_closed_event_key("k3")
+        service._remember_closed_event_key("k4")
+
+        assert "k1" not in service._published_closed_events
+        assert service._published_closed_events == {"k2", "k3", "k4"}

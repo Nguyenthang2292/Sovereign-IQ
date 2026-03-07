@@ -15,10 +15,10 @@ try:
     from modules.common.utils import log_info, log_warn
 except ImportError:
 
-    def log_info(msg: str) -> None:
+    def log_info(msg: str, *args: object) -> None:
         print(f"[INFO] {msg}")
 
-    def log_warn(msg: str) -> None:
+    def log_warn(msg: str, *args: object) -> None:
         print(f"[WARN] {msg}")
 
 

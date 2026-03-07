@@ -80,7 +80,9 @@ def set_of_moving_averages_enhanced(
 
     try:
         # REMOVED: with track_memory("set_of_moving_averages"):
-        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen(length, robustness=robustness)
+        diflen_res = diflen(length, robustness=robustness)
+        assert diflen_res is not None, "diflen returned None"
+        L1, L2, L3, L4, L_1, L_2, L_3, L_4 = diflen_res
 
         ma_lengths = [length, L1, L2, L3, L4, L_1, L_2, L_3, L_4]
         ma_names = ["MA", "MA1", "MA2", "MA3", "MA4", "MA_1", "MA_2", "MA_3", "MA_4"]

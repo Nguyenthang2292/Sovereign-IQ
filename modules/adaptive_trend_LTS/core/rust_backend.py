@@ -5,6 +5,7 @@ Python wrapper for Rust extensions with fallback to Numba.
 from __future__ import annotations
 
 import warnings
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -12,12 +13,13 @@ import pandas_ta as ta
 
 # CPU (Rust) symbols are required; CUDA symbols are optional (e.g. when using LTS_mini CPU-only build).
 RUST_AVAILABLE = False
-CUDA_AVAILABLE = False
-calculate_ema_cuda = None
-calculate_wma_cuda = None
-calculate_hma_cuda = None
-calculate_kama_cuda = None
-calculate_equity_cuda = None
+import typing
+
+calculate_ema_cuda_impl: typing.Optional[typing.Any] = None
+calculate_wma_cuda_impl: typing.Optional[typing.Any] = None
+calculate_hma_cuda_impl: typing.Optional[typing.Any] = None
+calculate_kama_cuda_impl: typing.Optional[typing.Any] = None
+calculate_equity_cuda_impl: typing.Optional[typing.Any] = None
 
 try:
     from atc_rust import (
@@ -30,7 +32,7 @@ try:
         calculate_wma_rust,
         process_signal_persistence_rust,
     )
-    RUST_AVAILABLE = True
+
     try:
         from atc_rust import (
             calculate_ema_cuda,
@@ -39,7 +41,15 @@ try:
             calculate_kama_cuda,
             calculate_wma_cuda,
         )
+
         CUDA_AVAILABLE = True
+
+        calculate_ema_cuda_impl = calculate_ema_cuda
+        calculate_equity_cuda_impl = calculate_equity_cuda
+        calculate_hma_cuda_impl = calculate_hma_cuda
+        calculate_kama_cuda_impl = calculate_kama_cuda
+        calculate_wma_cuda_impl = calculate_wma_cuda
+
     except ImportError:
         pass  # CPU-only atc_rust (e.g. from LTS_mini build); Rust MA still used
 except ImportError:
@@ -86,9 +96,9 @@ def calculate_equity(
     if use_rust and RUST_AVAILABLE:
         # NOTE: Rust backend might not support floor_val yet,
         # it uses hardcoded 0.25 internally in most implementations
-        if use_cuda and CUDA_AVAILABLE and calculate_equity_cuda is not None:
+        if use_cuda and CUDA_AVAILABLE and calculate_equity_cuda_impl is not None:
             try:
-                return calculate_equity_cuda(r_values, sig_prev, starting_equity, decay_multiplier, cutout)
+                return calculate_equity_cuda_impl(r_values, sig_prev, starting_equity, decay_multiplier, cutout)
             except Exception as e:
                 warnings.warn(f"Rust CUDA failed, falling back to Rust CPU: {e}")
 
@@ -123,9 +133,9 @@ def calculate_kama(
     prices = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
-        if use_cuda and CUDA_AVAILABLE and calculate_kama_cuda is not None:
+        if use_cuda and CUDA_AVAILABLE and calculate_kama_cuda_impl is not None:
             try:
-                return calculate_kama_cuda(prices, length)
+                return calculate_kama_cuda_impl(prices, length)
             except Exception as e:
                 warnings.warn(f"CUDA KAMA failed, falling back to CPU: {e}")
         return calculate_kama_rust(prices, length)
@@ -188,9 +198,9 @@ def calculate_ema(
     prices = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
-        if use_cuda and CUDA_AVAILABLE and calculate_ema_cuda is not None:
+        if use_cuda and CUDA_AVAILABLE and calculate_ema_cuda_impl is not None:
             try:
-                return calculate_ema_cuda(prices, length)
+                return calculate_ema_cuda_impl(prices, length)
             except Exception as e:
                 warnings.warn(f"CUDA EMA failed, falling back to CPU: {e}")
         return calculate_ema_rust(prices, length)
@@ -222,9 +232,9 @@ def calculate_wma(
     prices = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
-        if use_cuda and CUDA_AVAILABLE and calculate_wma_cuda is not None:
+        if use_cuda and CUDA_AVAILABLE and calculate_wma_cuda_impl is not None:
             try:
-                return calculate_wma_cuda(prices, length)
+                return calculate_wma_cuda_impl(prices, length)
             except Exception as e:
                 warnings.warn(f"CUDA WMA failed, falling back to CPU: {e}")
         return calculate_wma_rust(prices, length)
@@ -310,9 +320,9 @@ def calculate_hma(
     prices = _ensure_numpy_array(prices)
 
     if use_rust and RUST_AVAILABLE:
-        if use_cuda and CUDA_AVAILABLE and calculate_hma_cuda is not None:
+        if use_cuda and CUDA_AVAILABLE and calculate_hma_cuda_impl is not None:
             try:
-                return calculate_hma_cuda(prices, length)
+                return calculate_hma_cuda_impl(prices, length)
             except Exception as e:
                 warnings.warn(f"CUDA HMA failed, falling back to CPU: {e}")
         return calculate_hma_rust(prices, length)

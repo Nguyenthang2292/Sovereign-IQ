@@ -3,18 +3,17 @@ Audit logging for critical system events.
 
 Records immutable trails of actions like order execution,
 configuration changes, and risk limit hits.
-
-Created: 2026-02-06
 """
 
 import hashlib
 import json
+import logging
+import logging.handlers
+import sys
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
-
-from modules.common.ui.logging import log_error, log_info, log_warn
 
 
 class AuditEventType(Enum):
@@ -57,6 +56,8 @@ class AuditLogger:
         "refresh_token",
     }
 
+    REDACTED_VALUE = "***REDACTED***"
+
     def __init__(self, log_dir: str = "logs") -> None:
         """
         Initialize audit logger.
@@ -79,7 +80,53 @@ class AuditLogger:
         except (OSError, PermissionError) as e:
             raise ValueError(f"Cannot create log directory '{log_dir}': {e}")
 
-    def _sanitize_details(self, details: Dict[str, Any]) -> Dict[str, Any]:
+        # Use a file-specific logger name so different paths don't share handlers.
+        logger_key = str(self.log_file.resolve()).lower()
+        self.logger = logging.getLogger(f"modules.auto_trade.audit.{hash(logger_key)}")
+        self.logger.setLevel(logging.INFO)
+        self.logger.propagate = False
+
+        self._ensure_file_handler()
+
+    def _ensure_file_handler(self) -> None:
+        """Ensure exactly one timed rotating file handler is configured."""
+        target = str(self.log_file.resolve()).lower()
+        has_target_handler = False
+
+        for handler in list(self.logger.handlers):
+            is_target = (
+                isinstance(handler, logging.handlers.TimedRotatingFileHandler)
+                and str(Path(handler.baseFilename).resolve()).lower() == target
+            )
+            if is_target:
+                has_target_handler = True
+                continue
+
+            # Keep this logger clean and deterministic for tests and runtime.
+            try:
+                handler.close()
+            finally:
+                self.logger.removeHandler(handler)
+
+        if has_target_handler:
+            return
+
+        file_handler = logging.handlers.TimedRotatingFileHandler(
+            filename=self.log_file,
+            when="midnight",
+            interval=1,
+            backupCount=30,
+            encoding="utf-8",
+        )
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter("%(message)s"))
+        self.logger.addHandler(file_handler)
+
+    def _sanitize_details(
+        self,
+        details: Dict[str, Any],
+        visited: Optional[Set[int]] = None,
+    ) -> Dict[str, Any]:
         """
         Redact sensitive information from log details.
 
@@ -89,23 +136,36 @@ class AuditLogger:
         Returns:
             Sanitized dictionary with sensitive values redacted
         """
+        if visited is None:
+            visited = set()
+
+        obj_id = id(details)
+        if obj_id in visited:
+            return {"_circular_reference": "detected"}
+
+        visited.add(obj_id)
         sanitized: Dict[str, Any] = {}
         for key, value in details.items():
             # Check for sensitive key names (case-insensitive)
             is_sensitive = any(s_key in key.lower() for s_key in self.SENSITIVE_KEYS)
 
             if is_sensitive and value:
-                # Mask value but preserve length to indicate it was set
-                sanitized[key] = f"***REDACTED({len(str(value))})***"
+                sanitized[key] = self.REDACTED_VALUE
             elif isinstance(value, dict):
                 # Recursively sanitize nested dictionaries
-                sanitized[key] = self._sanitize_details(value)
-            elif isinstance(value, list) and value and isinstance(value[0], dict):
-                # Sanitize lists of dictionaries
-                sanitized[key] = [self._sanitize_details(item) for item in value]
+                sanitized[key] = self._sanitize_details(value, visited)
+            elif isinstance(value, list):
+                sanitized_list: List[Any] = []
+                for item in value:
+                    if isinstance(item, dict):
+                        sanitized_list.append(self._sanitize_details(item, visited))
+                    else:
+                        sanitized_list.append(item)
+                sanitized[key] = sanitized_list
             else:
                 sanitized[key] = value
 
+        visited.remove(obj_id)
         return sanitized
 
     def _calculate_checksum(self, record: Dict[str, Any]) -> str:
@@ -201,34 +261,35 @@ class AuditLogger:
             if add_checksum:
                 record["checksum"] = self._calculate_checksum(record)
 
-            # Attempt to log
-            try:
-                msg = json.dumps(record)
-                with open(self.log_file, "a", encoding="utf-8") as f:
-                    f.write(msg + "\n")
-                log_info(msg)
-            except (TypeError, ValueError) as e:
-                # JSON serialization failed - try with safe fallback
-                fallback_record = {
-                    "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
-                    "event_type": event_type_str,
-                    "user": user,
-                    "details": {"error": f"Serialization failed: {e}", "original": str(details)},
-                }
-                if add_checksum:
-                    fallback_record["checksum"] = self._calculate_checksum(fallback_record)
-
-                msg = json.dumps(fallback_record)
-                with open(self.log_file, "a", encoding="utf-8") as f:
-                    f.write(msg + "\n")
-                log_warn(msg)
+            msg = json.dumps(record)
+            self.logger.info(msg)
 
         except Exception as e:
-            # Absolute fallback - try to record the failure itself
-            error_msg = f"CRITICAL: Audit logging failed entirely: {e} | Type: {event_type}"
-            log_error(error_msg, exc_info=True)
-            # We don't raise here to prevent bringing down the system over an audit failure
-            # but we ensure it's recorded to stderr
+            # Primary fallback: write an explicit failure audit event.
+            fallback_record = {
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+                "event_type": "AUDIT_LOGGING_FAILED",
+                "user": "system",
+                "details": {
+                    "error": str(e),
+                    "original_event_type": str(event_type),
+                },
+            }
+
+            if add_checksum:
+                fallback_record["checksum"] = self._calculate_checksum(fallback_record)
+
+            critical_msg = f"CRITICAL: Failed to write audit log: {e}"
+            print(critical_msg, file=sys.stderr)
+
+            try:
+                self.logger.error(json.dumps(fallback_record))
+            except Exception as fallback_error:
+                print(
+                    f"CRITICAL: Failed to write fallback audit log: {fallback_error}",
+                    file=sys.stderr,
+                )
+                raise RuntimeError("Audit logging completely failed") from fallback_error
 
     def verify_integrity(self, log_lines: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
@@ -297,11 +358,17 @@ class AuditLogger:
             # Catch unexpected errors during verification
             return [{"status": "error", "message": f"Verification process failed: {e}"}]
 
+    def close(self) -> None:
+        """Close and detach all handlers for this audit logger."""
+        for handler in list(self.logger.handlers):
+            try:
+                handler.close()
+            finally:
+                self.logger.removeHandler(handler)
+
     def cleanup(self) -> None:
-        """
-        Close file handlers. Used during system shutdown.
-        """
-        pass
+        """Compatibility alias for explicit shutdown cleanup."""
+        self.close()
 
 
 # Global instance for easy access

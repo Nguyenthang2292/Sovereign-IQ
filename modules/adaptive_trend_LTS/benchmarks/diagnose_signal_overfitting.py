@@ -16,7 +16,7 @@ sys.path.insert(0, str(project_root))
 
 import numpy as np
 import pandas as pd
-from tabulate import tabulate
+from tabulate import tabulate  # type: ignore
 
 from modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.data import fetch_symbols_data
 from modules.adaptive_trend_LTS.core.compute_atc_signals import compute_atc_signals
@@ -69,9 +69,9 @@ def analyze_signal_characteristics(symbol: str, result: dict, prices: pd.Series)
 
     if len(signal_values) > 1:
         for i in range(len(signal_values) - 1, 0, -1):
-            if not np.isnan(signal_values[i]) and not np.isnan(signal_values[i-1]):
+            if not np.isnan(signal_values[i]) and not np.isnan(signal_values[i - 1]):
                 # Check if signal direction changed
-                if abs(signal_values[i] - signal_values[i-1]) > 0.01:
+                if abs(signal_values[i] - signal_values[i - 1]) > 0.01:
                     bars_since_change = len(signal_values) - 1 - i
                     break
         else:
@@ -151,16 +151,18 @@ def main():
 
         except Exception as e:
             log_error(f"Error processing {symbol}: {e}")
-            diagnostics.append({
-                "symbol": symbol,
-                "has_signal": False,
-                "final_value": None,
-                "signal_type": "ERROR",
-                "bars_since_change": None,
-                "signal_strength": None,
-                "non_zero_bars": 0,
-                "zero_bars": 0,
-            })
+            diagnostics.append(
+                {
+                    "symbol": symbol,
+                    "has_signal": False,
+                    "final_value": None,
+                    "signal_type": "ERROR",
+                    "bars_since_change": None,
+                    "signal_strength": None,
+                    "non_zero_bars": 0,
+                    "zero_bars": 0,
+                }
+            )
 
     # Create summary table
     log_info("\n" + "=" * 80)
@@ -178,23 +180,27 @@ def main():
 
     print("\n### OVERALL STATISTICS ###")
     print(f"Total symbols: {total_symbols}")
-    print(f"Symbols with signal (non-neutral): {symbols_with_signal} ({symbols_with_signal/total_symbols*100:.1f}%)")
-    print(f"\nSignal Type Distribution:")
+    print(
+        f"Symbols with signal (non-neutral): {symbols_with_signal} ({symbols_with_signal / total_symbols * 100:.1f}%)"
+    )
+    print("\nSignal Type Distribution:")
     for sig_type, count in sorted(signal_types.items()):
-        print(f"  {sig_type}: {count} ({count/total_symbols*100:.1f}%)")
+        print(f"  {sig_type}: {count} ({count / total_symbols * 100:.1f}%)")
 
     # Detailed table
     print("\n### DETAILED SIGNAL ANALYSIS ###")
     table_data = []
     for d in diagnostics:
-        table_data.append([
-            d["symbol"][:15],  # Truncate long symbols
-            d["signal_type"],
-            f"{d['final_value']:.4f}" if d["final_value"] is not None else "N/A",
-            f"{d['signal_strength']:.4f}" if d["signal_strength"] is not None else "N/A",
-            d["bars_since_change"] if d["bars_since_change"] is not None else "N/A",
-            f"{d['non_zero_bars']}/{d['zero_bars']}",
-        ])
+        table_data.append(
+            [
+                d["symbol"][:15],  # Truncate long symbols
+                d["signal_type"],
+                f"{d['final_value']:.4f}" if d["final_value"] is not None else "N/A",
+                f"{d['signal_strength']:.4f}" if d["signal_strength"] is not None else "N/A",
+                d["bars_since_change"] if d["bars_since_change"] is not None else "N/A",
+                f"{d['non_zero_bars']}/{d['zero_bars']}",
+            ]
+        )
 
     headers = ["Symbol", "Type", "Final Value", "Strength", "Bars Since Change", "NonZero/Zero"]
     print(tabulate(table_data, headers=headers, tablefmt="grid"))
@@ -203,7 +209,7 @@ def main():
     stale_threshold = 50  # Consider signal stale if no change in 50+ bars
     stale_signals = [d for d in diagnostics if d["bars_since_change"] and d["bars_since_change"] > stale_threshold]
 
-    print(f"\n### STALE SIGNAL ANALYSIS ###")
+    print("\n### STALE SIGNAL ANALYSIS ###")
     print(f"Signals with no change in {stale_threshold}+ bars: {len(stale_signals)}")
     if stale_signals:
         print("\nStale signals may indicate overfitting (old crossovers persisting):")
@@ -211,7 +217,7 @@ def main():
             print(f"  - {d['symbol']}: {d['bars_since_change']} bars since change ({d['signal_type']})")
 
     # Threshold sensitivity analysis
-    print(f"\n### THRESHOLD SENSITIVITY ###")
+    print("\n### THRESHOLD SENSITIVITY ###")
     print("Current thresholds: LONG > 0.1, SHORT < -0.1")
 
     weak_signals = [d for d in diagnostics if d["signal_strength"] and 0.05 < d["signal_strength"] < 0.15]
@@ -219,7 +225,7 @@ def main():
     print("These signals are sensitive to threshold changes and may be unreliable.")
 
     # Recommendations
-    print(f"\n### RECOMMENDATIONS ###")
+    print("\n### RECOMMENDATIONS ###")
 
     if symbols_with_signal > total_symbols * 0.8:
         log_warn("⚠️  HIGH SIGNAL RATE DETECTED (>80%)")

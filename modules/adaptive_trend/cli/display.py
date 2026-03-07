@@ -21,7 +21,10 @@ Typical usage will involve fetching ATC results, then calling `display_atc_signa
 to present the results to the user.
 """
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from modules.common.core.data_fetcher import DataFetcher
 
 import pandas as pd
 from colorama import Fore, Style
@@ -253,7 +256,7 @@ def display_scan_results(long_signals: pd.DataFrame, short_signals: pd.DataFrame
     print(color_text("=" * 80, Fore.CYAN, Style.BRIGHT))
 
 
-def list_futures_symbols(data_fetcher: object, max_symbols: Optional[int] = None):
+def list_futures_symbols(data_fetcher: "DataFetcher", max_symbols: Optional[int] = None):
     """
     List available futures symbols from Binance.
 

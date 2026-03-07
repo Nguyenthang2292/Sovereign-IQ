@@ -4,7 +4,7 @@ import os
 import pickle
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -13,14 +13,14 @@ try:
     from modules.common.utils import log_error, log_info, log_warn
 except ImportError:
 
-    def log_info(message: str) -> None:
-        print(f"[INFO] {message}")
+    def log_info(msg: str, *args: object) -> None:
+        print(f"[INFO] {msg % args if args else msg}")
 
-    def log_error(message: str) -> None:
-        print(f"[ERROR] {message}")
+    def log_error(msg: str, *args: object, exc_info: bool = False) -> None:
+        print(f"[ERROR] {msg % args if args else msg}")
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg % args if args else msg}")
 
 
 @dataclass
@@ -91,8 +91,8 @@ class MemoryMappedDataManager:
             FileNotFoundError: If CSV file doesn't exist
             ValueError: If required columns are missing
         """
-        csv_path = Path(csv_path)
-        if not csv_path.exists():
+        csv_path_obj = Path(csv_path)
+        if not csv_path_obj.exists():
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
         # Generate cache key and paths

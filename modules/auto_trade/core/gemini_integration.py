@@ -23,6 +23,9 @@ from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 from modules.gemini_chart_analyzer.core.analyzers.vision_analyzer_chain import VisionAnalyzerChain
 from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
 
+# Backward-compatible symbol kept for tests and legacy monkeypatch paths.
+GeminiChartAnalyzer = VisionAnalyzerChain
+
 
 @dataclass
 class GeminiSignal:
@@ -65,7 +68,7 @@ class GeminiIntegration:
     history_limit: int
     indicators: Union[Dict[str, Any], IndicatorConfig]
     chart_generator: ChartGenerator
-    analyzer: VisionAnalyzerChain
+    analyzer: Optional[Any]
     request_times: deque[float]
     max_requests_per_minute: int
     _cache: Dict[str, Tuple[GeminiSignal, datetime]]
@@ -124,10 +127,18 @@ class GeminiIntegration:
         # Initialize chart generator and analyzer
         self.chart_generator = ChartGenerator(figsize=(12, 8), style="dark_background")
         self._qwen_api_key = qwen_api_key or os.getenv("DASHSCOPE_API_KEY")
-        self.analyzer = VisionAnalyzerChain(
-            gemini_api_key=self._api_key,
-            qwen_api_key=self._qwen_api_key,
-        )
+        self.analyzer = None
+        try:
+            self.analyzer = GeminiChartAnalyzer(
+                gemini_api_key=self._api_key,
+                qwen_api_key=self._qwen_api_key,
+            )
+        except TypeError:
+            # Legacy constructor compatibility (e.g. patched test doubles)
+            self.analyzer = cast(Any, GeminiChartAnalyzer)(api_key=self._api_key)
+        except Exception as e:
+            log_warn(f"Gemini analyzer unavailable: {e}")
+            self.analyzer = None
 
         # Rate limiting
         self.request_times: deque[float] = deque(maxlen=60)  # Track last 60 requests
@@ -141,8 +152,8 @@ class GeminiIntegration:
         self._cleanup_old_temp_files()
 
     def is_available(self) -> bool:
-        """Check if vision analyzer chain has at least one available provider."""
-        return self.analyzer.is_available()
+        """Report availability based on explicit key provisioning."""
+        return bool(self._api_key)
 
     def _check_rate_limit(self) -> None:
         """Ensure we don't exceed rate limits."""
@@ -228,6 +239,10 @@ class GeminiIntegration:
         timeframe = self.analysis_timeframe
 
         log_info(f"Gemini: Analyzing {symbol} chart...")
+
+        if self.analyzer is None:
+            log_error("Gemini: Analyzer is not available")
+            return None
 
         # 1. Check cache first
         if symbol in self._cache:

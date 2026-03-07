@@ -71,14 +71,14 @@ def benchmark_function(
         end = time.perf_counter()
         times.append(end - start)
 
-    times = np.array(times)
+    times_arr = np.array(times)
 
     return {
-        "mean": float(np.mean(times)),
-        "std": float(np.std(times)),
-        "min": float(np.min(times)),
-        "max": float(np.max(times)),
-        "total": float(np.sum(times)),
+        "mean": float(np.mean(times_arr)),
+        "std": float(np.std(times_arr)),
+        "min": float(np.min(times_arr)),
+        "max": float(np.max(times_arr)),
+        "total": float(np.sum(times_arr)),
     }
 
 
@@ -139,10 +139,10 @@ def benchmark_config(
 
     try:
         generic_stats = benchmark_function(generic_path, prices, num_runs, warmup_runs)
-        print(f"Generic path: {generic_stats['mean']*1000:.3f} ms (±{generic_stats['std']*1000:.3f})")
+        print(f"Generic path: {generic_stats['mean'] * 1000:.3f} ms (±{generic_stats['std'] * 1000:.3f})")
 
         specialized_stats = benchmark_function(specialized_path, prices, num_runs, warmup_runs)
-        print(f"Specialized path: {specialized_stats['mean']*1000:.3f} ms (±{specialized_stats['std']*1000:.3f})")
+        print(f"Specialized path: {specialized_stats['mean'] * 1000:.3f} ms (±{specialized_stats['std'] * 1000:.3f})")
 
         # Calculate speedup
         if specialized_stats["mean"] > 0:
@@ -188,9 +188,9 @@ def benchmark_all_configs() -> Dict[str, Dict[str, Dict[str, float]]]:
     results = {}
 
     for config, mode, name in configs:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Benchmark: {name}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         result = benchmark_config(
             config,
@@ -204,9 +204,9 @@ def benchmark_all_configs() -> Dict[str, Dict[str, Dict[str, float]]]:
             results[name] = result
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     for name, result in results.items():
         if "generic" in result and "specialized" in result:

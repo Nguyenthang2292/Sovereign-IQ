@@ -26,17 +26,17 @@ try:
     )
 except ImportError:
 
-    def log_error(message: str) -> None:
-        print(f"[ERROR] {message}")
+    def log_error(msg: str, *args: object, exc_info: bool = False) -> None:
+        print(f"[ERROR] {msg}")
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg}")
 
-    def log_success(message: str) -> None:
-        print(f"[SUCCESS] {message}")
+    def log_success(msg: str, *args: object) -> None:
+        print(f"[SUCCESS] {msg}")
 
-    def log_progress(message: str) -> None:
-        print(f"[PROGRESS] {message}")
+    def log_progress(msg: str, *args: object) -> None:
+        print(f"[PROGRESS] {msg}")
 
 
 from modules.adaptive_trend.core.compute_atc_signals import compute_atc_signals
@@ -282,10 +282,10 @@ def _process_symbol(
         # Get price source based on calculation_source config
         calculation_source = atc_config.calculation_source.lower()
         valid_sources = ["close", "open", "high", "low"]
-        
+
         if calculation_source not in valid_sources:
             calculation_source = "close"
-        
+
         if calculation_source not in df.columns:
             return None
 

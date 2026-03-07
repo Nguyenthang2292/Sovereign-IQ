@@ -14,13 +14,13 @@ try:
     from modules.common.utils import log_debug, log_error, log_warn
 except ImportError:
     # Fallback logging if common utils not available
-    def log_debug(msg: str) -> None:  # pragma: no cover
+    def log_debug(msg: str, *args: object) -> None:  # pragma: no cover
         print(f"[DEBUG] {msg}")
 
-    def log_warn(msg: str) -> None:  # pragma: no cover
+    def log_warn(msg: str, *args: object) -> None:  # pragma: no cover
         print(f"[WARN] {msg}")
 
-    def log_error(msg: str) -> None:  # pragma: no cover
+    def log_error(msg: str, *args: object, exc_info: bool = False) -> None:  # pragma: no cover
         print(f"[ERROR] {msg}")
 
 

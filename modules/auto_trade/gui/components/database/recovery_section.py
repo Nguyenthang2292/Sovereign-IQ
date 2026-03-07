@@ -4,10 +4,10 @@ import tkinter.messagebox as messagebox
 from typing import Callable, cast
 
 import customtkinter as ctk
-from modules.auto_trade.gui.utils.colors import Colors
 
 from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
+from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.svg_icons import get_icon
 from modules.common.ui.logging import log_warn
 
@@ -15,7 +15,12 @@ from modules.common.ui.logging import log_warn
 class RecoverySection:
     """Recovery testing section component."""
 
-    def __init__(self, parent: ctk.CTkFrame, log_callback: Callable, data_viewer: ctk.CTkTextbox):
+    def __init__(
+        self,
+        parent: ctk.CTkFrame | ctk.CTkScrollableFrame,
+        log_callback: Callable,
+        data_viewer: ctk.CTkTextbox,
+    ):
         self.parent = parent
         self.log_callback = log_callback
         self.data_viewer = data_viewer
@@ -213,6 +218,8 @@ class RecoverySection:
             cancelled = 0
             for r in recoveries:
                 rid = r.get("recovery_id")
+                if not isinstance(rid, str) or not rid:
+                    continue
                 try:
                     ctx.gradual_recovery.cancel_gradual_recovery(rid)
                     cancelled += 1

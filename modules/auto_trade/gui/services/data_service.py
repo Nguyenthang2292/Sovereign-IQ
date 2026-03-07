@@ -18,7 +18,6 @@ TP_SL_PUSH_COOLDOWN_SEC = 300  # 5 min cooldown to avoid duplicate conditional o
 # Local imports
 from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
 
-
 _SYMBOL_CODEC = SymbolCodec()
 
 

@@ -11,6 +11,7 @@ Useful when:
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from modules.auto_trade.execution.binance.order_management import _ccxt_futures_symbol
 from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.domain.symbol_types import DbSymbol
 from modules.common.ui.logging import log_error, log_info, log_warn
@@ -241,24 +242,20 @@ class PositionSyncService:
                                 stats["closed"] += 1
                                 log_info(f"[PositionSync] 🔴 Closed stale DB order: {db_symbol} (order_id={order_id})")
                                 # Cancel any orphaned conditional orders (TP/SL) still open on Binance.
-                                # db_symbol is in plain format (BTCUSDT); cancel_open_orders internally
-                                # converts to CCXT format and cancels both basic AND conditional orders.
+                                # db_symbol is in plain format (BTCUSDT); we must convert to CCXT format (BTC/USDT:USDT).
                                 try:
-                                    # First try cancel_all_orders (single API call, most reliable)
-                                    ccxt_sym = db_symbol  # _ccxt_futures_symbol handles conversion
+                                    ccxt_sym = _ccxt_futures_symbol(client.exchange, db_symbol)
                                     try:
                                         client.exchange.cancel_all_orders(ccxt_sym)
-                                        log_info(f"[PositionSync] cancel_all_orders succeeded for {db_symbol}")
-                                    except Exception:
-                                        pass
-                                    # Always also cancel conditional orders (TP/SL) which are on
-                                    # a different Binance endpoint than basic orders.
+                                        log_info(f"[PositionSync] cancel_all_orders succeeded for {db_symbol} (ccxt={ccxt_sym})")
+                                    except Exception as cancel_all_err:
+                                        log_warn(f"[PositionSync] cancel_all_orders failed for {db_symbol}: {cancel_all_err}. Trying per-order cancel...")
                                     cancel_res = client.cancel_open_orders(db_symbol)
                                     log_info(
                                         f"[PositionSync] Cancelled orphaned conditional orders for {db_symbol}: {cancel_res}"
                                     )
                                 except Exception as exc:
-                                    log_warn(
+                                    log_error(
                                         f"[PositionSync] Error cancelling orphaned conditional orders for {db_symbol}: {exc}"
                                     )
                             else:

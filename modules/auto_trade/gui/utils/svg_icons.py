@@ -25,6 +25,8 @@ from typing import Tuple
 import customtkinter as ctk
 from PIL import Image
 
+from modules.common.ui.logging import log_warn
+
 # ---------------------------------------------------------------------------
 # SVG source strings (Lucide icon set — MIT licence)
 # Each string is the *inner* SVG markup; the wrapper <svg> tag is added by
@@ -262,9 +264,7 @@ def get_icon(
         return icon
     except Exception as exc:  # noqa: BLE001
         # Graceful degradation — fall back to text-only button
-        import logging
-
-        logging.getLogger(__name__).warning("svg_icons: failed to render '%s': %s", key, exc)
+        log_warn("svg_icons: failed to render '%s': %s", key, exc)
         return None
 
 

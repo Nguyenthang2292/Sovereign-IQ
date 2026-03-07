@@ -13,7 +13,12 @@ from modules.auto_trade.gui.utils.svg_icons import get_icon
 class SignalsSection:
     """Signals testing section component."""
 
-    def __init__(self, parent: ctk.CTkFrame, log_callback: Callable, refresh_callback: Callable):
+    def __init__(
+        self,
+        parent: ctk.CTkFrame | ctk.CTkScrollableFrame,
+        log_callback: Callable,
+        refresh_callback: Callable,
+    ):
         self.parent = parent
         self.log_callback = log_callback
         self.refresh_callback = refresh_callback
@@ -179,5 +184,6 @@ class SignalsSection:
 
     def _show_in_data_viewer(self, content: str):
         """Show content in data viewer."""
-        if hasattr(self.parent, "data_viewer_callback"):
-            self.parent.data_viewer_callback(content)
+        callback = getattr(self.parent, "data_viewer_callback", None)
+        if callable(callback):
+            callback(content)

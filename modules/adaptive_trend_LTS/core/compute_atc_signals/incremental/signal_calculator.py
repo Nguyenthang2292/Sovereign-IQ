@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+from typing import Any, Dict, Optional
+
 import numpy as np
-from typing import Dict, Any, Tuple
-from .constants import calculate_growth_factor, get_scaled_params, get_initial_weights
+
+from .constants import calculate_growth_factor, get_initial_weights, get_scaled_params
 
 try:
     from modules.common.utils import log_warn
 except ImportError:
 
-    def log_warn(msg: str) -> None:
-        print(f"[WARN] {msg}")
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg % args if args else msg}")
 
 
 def update_layer1_signals(
@@ -187,7 +189,7 @@ def update_layer2_equities(
             # total bankruptcy (equity <= 0) which would permanently zero out a component.
             # It acts as a "refund" mechanism to keep all strategies in the game.
             if eq2 < 0.0:
-                log_warn(f"Negative Layer 2 equity detected for {ma_type}: {eq2:.6f}. " f"Resetting to floor value.")
+                log_warn(f"Negative Layer 2 equity detected for {ma_type}: {eq2:.6f}. Resetting to floor value.")
                 eq2 = 0.25
             elif eq2 < 0.25:
                 eq2 = 0.25

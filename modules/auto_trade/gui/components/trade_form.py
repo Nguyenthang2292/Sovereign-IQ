@@ -5,6 +5,7 @@ import customtkinter as ctk
 from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.svg_icons import get_icon
 from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
+from modules.common.ui.logging import log_error, log_success
 
 
 class TradeFormFrame(ctk.CTkFrame):
@@ -170,7 +171,7 @@ class TradeFormFrame(ctk.CTkFrame):
             # Recalculate risk if form is filled
             self._calculate_risk()
         except Exception as e:
-            print(f"Error fetching price: {e}")
+            log_error("Error fetching price: %s", e)
             self.current_price_label.configure(text="Price: N/A")
 
     def _calculate_risk(self):
@@ -224,7 +225,7 @@ class TradeFormFrame(ctk.CTkFrame):
                 self.leverage_warning.grid_remove()
 
         except Exception as e:
-            print(f"Error in risk calculation: {e}")
+            log_error("Error in risk calculation: %s", e)
 
     def _update_risk_display(self, risk, symbol: str):
         """Update risk labels with calculated values"""
@@ -331,9 +332,9 @@ class TradeFormFrame(ctk.CTkFrame):
             # Create confirmation dialog
             dialog = ctk.CTkToplevel(self)
             dialog.title("Confirm Trade")
-            
+
             apply_dark_titlebar(dialog)
-            
+
             dialog.geometry("400x300")
             dialog.transient(self.winfo_toplevel())
             dialog.grab_set()
@@ -509,7 +510,7 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
 
             messagebox.showinfo("Trade Success", message)
         except Exception:
-            print(f"SUCCESS: {message}")
+            log_success("SUCCESS: %s", message)
 
     def _show_error(self, message: str):
         """Show error notification"""
@@ -518,7 +519,7 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
 
             messagebox.showerror("Trade Error", message)
         except Exception:
-            print(f"ERROR: {message}")
+            log_error("ERROR: %s", message)
 
     def _reset_form(self):
         """Reset form to default values"""

@@ -6,6 +6,7 @@ from modules.auto_trade.gui.components.position_actions import PositionActions
 from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.formatters import format_asset_price, format_price
 from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
+from modules.common.ui.logging import log_error
 
 
 class PositionDetails(ctk.CTkToplevel):
@@ -23,7 +24,7 @@ class PositionDetails(ctk.CTkToplevel):
         on_action_callback: Optional[Callable] = None,
     ):
         super().__init__(parent)
-        
+
         apply_dark_titlebar(self)
 
         self.position = position
@@ -173,7 +174,7 @@ class PositionDetails(ctk.CTkToplevel):
             else:
                 self.metric_labels["liquidation_price"].configure(text="N/A")
         except Exception as e:
-            print(f"Error updating metrics: {e}")
+            log_error("Error updating metrics: %s", e)
 
     def _create_tp_sl_visualization(self, parent):
         """Create visual representation of TP/SL relative to entry"""
@@ -308,7 +309,7 @@ class PositionDetails(ctk.CTkToplevel):
                 )
                 distance_label.pack(pady=(0, 10))
         except Exception as e:
-            print(f"Error calculating liquidation distance: {e}")
+            log_error("Error calculating liquidation distance: %s", e)
 
     def _create_pnl_section(self):
         """Create P&L display section"""

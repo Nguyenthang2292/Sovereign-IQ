@@ -20,11 +20,11 @@ try:
     from modules.common.utils import log_progress, log_warn
 except ImportError:
 
-    def log_warn(message: str) -> None:
-        print(f"[WARN] {message}")
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg % args if args else msg}")
 
-    def log_progress(message: str) -> None:
-        print(f"[PROGRESS] {message}")
+    def log_progress(msg: str, *args: object) -> None:
+        print(f"[PROGRESS] {msg % args if args else msg}")
 
 
 try:
@@ -33,7 +33,7 @@ try:
     HAS_DASK_CALLBACKS = True
 except ImportError:
 
-    class Callback:
+    class Callback:  # type: ignore
         pass
 
     HAS_DASK_CALLBACKS = False

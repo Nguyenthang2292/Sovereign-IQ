@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -13,17 +13,15 @@ try:
     from modules.common.utils import log_debug, log_warn
 except ImportError:
 
-    def log_debug(msg: str) -> None:
-        print(f"[DEBUG] {msg}")
+    def log_debug(msg: str, *args: object) -> None:
+        print(f"[DEBUG] {msg % args if args else msg}")
 
-    def log_warn(msg: str) -> None:
-        print(f"[WARN] {msg}")
+    def log_warn(msg: str, *args: object) -> None:
+        print(f"[WARN] {msg % args if args else msg}")
 
 
+from . import ma_updaters, signal_calculator
 from .state_manager import StateManager
-from . import ma_updaters
-from . import signal_calculator
-from .constants import ROBUSTNESS_OFFSETS
 
 
 class IncrementalATC:
@@ -116,12 +114,13 @@ class IncrementalATC:
         from modules.adaptive_trend_LTS.core.compute_moving_averages import (
             set_of_moving_averages,
         )
+
         from ..compute_atc_signals import compute_atc_signals
 
         log_debug("Initializing incremental ATC with full calculation")
 
         # Compute MAs directly to get actual MA values
-        ma_tuples = {}
+        ma_tuples: Dict[str, Any] = {}
         for ma_type in ["EMA", "HMA", "WMA", "DEMA", "LSMA", "KAMA"]:
             length = self.ma_length[ma_type.lower()]
             ma_tuple = set_of_moving_averages(

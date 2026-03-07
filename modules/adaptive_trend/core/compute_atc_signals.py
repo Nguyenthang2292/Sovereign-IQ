@@ -44,16 +44,16 @@ try:
     from modules.common.utils import log_debug, log_error, log_info, log_warn
 except ImportError:
     # Fallback logging if common utils not available
-    def log_debug(msg: str) -> None:
+    def log_debug(msg: str, *args: object) -> None:
         print(f"[DEBUG] {msg}")
 
-    def log_info(msg: str) -> None:
+    def log_info(msg: str, *args: object) -> None:
         print(f"[INFO] {msg}")
 
-    def log_warn(msg: str) -> None:
+    def log_warn(msg: str, *args: object) -> None:
         print(f"[WARN] {msg}")
 
-    def log_error(msg: str) -> None:
+    def log_error(msg: str, *args: object, exc_info: bool = False) -> None:
         print(f"[ERROR] {msg}")
 
 
@@ -213,7 +213,9 @@ def compute_atc_signals(
     La_scaled = La / 1000.0
     De_scaled = De / 100.0
 
-    log_info(f"Parameters: robustness={robustness}, La_scaled={La_scaled}, De_scaled={De_scaled}, cutout={cutout}, strategy_mode={strategy_mode}")
+    log_info(
+        f"Parameters: robustness={robustness}, La_scaled={La_scaled}, De_scaled={De_scaled}, cutout={cutout}, strategy_mode={strategy_mode}"
+    )
 
     # Define configuration for each MA type
     ma_configs = [

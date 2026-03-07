@@ -21,7 +21,6 @@ from .base import (
     SystemStateRepository,
 )
 
-
 _INSTANCE: Optional["RepositoryContext"] = None
 
 

@@ -25,11 +25,11 @@ try:
     )
 except ImportError:
 
-    def log_error(message: str) -> None:
-        print(f"[ERROR] {message}")
+    def log_error(msg: str, *args: object, exc_info: bool = False) -> None:
+        print(f"[ERROR] {msg % args if args else msg}")
 
-    def log_progress(message: str) -> None:
-        print(f"[PROGRESS] {message}")
+    def log_progress(msg: str, *args: object) -> None:
+        print(f"[PROGRESS] {msg % args if args else msg}")
 
 
 def analyze_symbol(

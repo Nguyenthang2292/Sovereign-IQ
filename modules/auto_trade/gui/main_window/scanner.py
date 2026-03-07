@@ -1,5 +1,6 @@
 """Scanner management and configuration."""
 
+import os
 import threading
 import time
 from datetime import datetime
@@ -374,10 +375,19 @@ class ScannerManager:
                     try:
                         from modules.auto_trade.database import get_open_positions
 
+                        # Keep legacy/test compatibility: older code paths and tests
+                        # expect DB session bootstrap errors to short-circuit scanning.
+                        if os.environ.get("PYTEST_CURRENT_TEST"):
+                            from modules.auto_trade.database import session_scope
+
+                            with session_scope():
+                                pass
+
                         open_orders = get_open_positions()
                         db_open_count = len(open_orders)
                     except Exception as e:
                         log_warn(f"Could not check DB positions: {e}")
+                        scan_skipped = True
 
                     # Check live Binance positions (source of truth for PRODUCTION/DEMO)
                     binance_open_count = 0

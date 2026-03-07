@@ -4,6 +4,7 @@ from modules.auto_trade.gui.components.config_panel_parts.auto_close_settings im
     extract_auto_close_settings,
     load_auto_close_settings,
 )
+from modules.common.ui.logging import log_error, log_warn
 
 
 def _safe_get(panel, attr: str, fallback):
@@ -30,7 +31,7 @@ def get_settings(panel) -> Dict:
             if max_position_size <= 0:
                 raise ValueError("Max position size must be positive")
         except ValueError as e:
-            print(f"Invalid max position size: {e}, using default 100.00")
+            log_warn("Invalid max position size: %s, using default 100.00", e)
             max_position_size = 100.0
 
         try:
@@ -38,7 +39,7 @@ def get_settings(panel) -> Dict:
             if max_open_positions <= 0:
                 raise ValueError("Max open positions must be positive")
         except ValueError as e:
-            print(f"Invalid max open positions: {e}, using default 3")
+            log_warn("Invalid max open positions: %s, using default 3", e)
             max_open_positions = 3
 
         try:
@@ -46,7 +47,7 @@ def get_settings(panel) -> Dict:
             if max_daily_loss <= 0:
                 raise ValueError("Max daily loss must be positive")
         except ValueError as e:
-            print(f"Invalid max daily loss: {e}, using default 50.00")
+            log_warn("Invalid max daily loss: %s, using default 50.00", e)
             max_daily_loss = 50.0
 
         try:
@@ -54,7 +55,7 @@ def get_settings(panel) -> Dict:
             if default_tp <= 0 or default_tp > 100:
                 raise ValueError("Default TP must be between 0 and 100")
         except ValueError as e:
-            print(f"Invalid default TP: {e}, using default 5.0")
+            log_warn("Invalid default TP: %s, using default 5.0", e)
             default_tp = 5.0
 
         try:
@@ -62,7 +63,7 @@ def get_settings(panel) -> Dict:
             if default_sl <= 0 or default_sl > 100:
                 raise ValueError("Default SL must be between 0 and 100")
         except ValueError as e:
-            print(f"Invalid default SL: {e}, using default 2.5")
+            log_warn("Invalid default SL: %s, using default 2.5", e)
             default_sl = 2.5
 
         try:
@@ -70,7 +71,7 @@ def get_settings(panel) -> Dict:
             if trailing_step_pct <= 0 or trailing_step_pct > 50:
                 raise ValueError("Trailing step must be between 0 and 50")
         except ValueError as e:
-            print(f"Invalid trailing step: {e}, using default 2.0")
+            log_warn("Invalid trailing step: %s, using default 2.0", e)
             trailing_step_pct = 2.0
 
         try:
@@ -78,7 +79,7 @@ def get_settings(panel) -> Dict:
             if trailing_max_steps < 1:
                 raise ValueError("Max steps must be at least 1")
         except ValueError as e:
-            print(f"Invalid max steps: {e}, using default 5")
+            log_warn("Invalid max steps: %s, using default 5", e)
             trailing_max_steps = 5
 
         try:
@@ -86,7 +87,7 @@ def get_settings(panel) -> Dict:
             if negative_be_threshold <= 0 or negative_be_threshold > 100:
                 raise ValueError("Negative BE threshold must be between 0 and 100")
         except ValueError as e:
-            print(f"Invalid negative BE threshold: {e}, using default 2.0")
+            log_warn("Invalid negative BE threshold: %s, using default 2.0", e)
             negative_be_threshold = 2.0
 
         try:
@@ -137,7 +138,7 @@ def get_settings(panel) -> Dict:
             "auto_close": extract_auto_close_settings(panel),
         }
     except Exception as e:
-        print(f"Error getting settings: {e}")
+        log_error("Error getting settings: %s", e)
         return {
             "risk": {
                 "limits_enabled": True,
