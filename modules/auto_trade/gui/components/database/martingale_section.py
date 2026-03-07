@@ -3,10 +3,12 @@
 from typing import Callable
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 
 from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon, get_icon
 
 
 class MartingaleSection:
@@ -34,22 +36,24 @@ class MartingaleSection:
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
-        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         btn_frame.pack(fill="x", padx=10, pady=5)
 
         ctk.CTkButton(
             btn_frame,
-            text="  Get Active Chains",
+            text="GET ACTIVE CHAINS",
+            font=Fonts.BUTTON_SM,
             command=self._get_active_chains,
-            image=get_icon("link", size=(16, 16)),
+            image=get_button_icon("link", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(side="left", padx=(0, 5), fill="x", expand=True)
 
         ctk.CTkButton(
             btn_frame,
-            text="  Chain Statistics",
+            text="CHAIN STATISTICS",
+            font=Fonts.BUTTON_SM,
             command=self._get_chain_stats,
-            image=get_icon("bar_chart_2", size=(16, 16)),
+            image=get_button_icon("bar_chart_2", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(side="left", padx=(5, 0), fill="x", expand=True)
 

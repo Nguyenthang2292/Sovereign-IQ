@@ -4,6 +4,7 @@ import customtkinter as ctk
 
 from modules.auto_trade.gui.components.position_actions import PositionActions
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 from modules.auto_trade.gui.utils.formatters import format_asset_price, format_price
 from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 from modules.common.ui.logging import log_error
@@ -51,25 +52,25 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_header(self):
         """Create position header with symbol and side"""
-        header_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
+        header_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=0)
         header_frame.pack(fill="x", padx=15, pady=(15, 10))
 
         # Symbol and side
-        info_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        info_frame = ctk.CTkFrame(header_frame, fg_color=Colors.TRANSPARENT)
         info_frame.pack(fill="x", padx=15, pady=10)
 
-        symbol_label = ctk.CTkLabel(info_frame, text=self.position.get("symbol", "N/A"), font=("Arial", 20, "bold"))
+        symbol_label = ctk.CTkLabel(info_frame, text=self.position.get("symbol", "N/A"), font=Fonts.H1)
         symbol_label.pack(side="left")
 
         side = self.position.get("side", "LONG")
-        side_color = "#00ff88" if side == "LONG" else "#ff4444"
+        side_color = Colors.PROFIT if side == "LONG" else Colors.LOSS
         side_label = ctk.CTkLabel(
             info_frame,
             text=side,
-            font=("Arial", 16, "bold"),
+            font=Fonts.H1,
             text_color=side_color,
-            fg_color="#1a1a1a",
-            corner_radius=5,
+            fg_color=Colors.CARD_MUTED,
+            corner_radius=0,
             padx=10,
             pady=5,
         )
@@ -77,7 +78,7 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_main_content(self):
         """Create main content area with position details"""
-        content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        content_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         content_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
         # Position metrics grid
@@ -91,14 +92,14 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_metrics_grid(self, parent):
         """Create grid of position metrics"""
-        metrics_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
+        metrics_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=0)
         metrics_frame.pack(fill="x", pady=(0, 10))
 
-        title = ctk.CTkLabel(metrics_frame, text="📊 Position Metrics", font=("Arial", 14, "bold"))
+        title = ctk.CTkLabel(metrics_frame, text="📊 Position Metrics", font=Fonts.H2)
         title.pack(pady=(10, 5))
 
         # Metrics grid
-        grid_frame = ctk.CTkFrame(metrics_frame, fg_color="transparent")
+        grid_frame = ctk.CTkFrame(metrics_frame, fg_color=Colors.TRANSPARENT)
         grid_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         self.metric_labels = {}
@@ -117,10 +118,10 @@ class PositionDetails(ctk.CTkToplevel):
             row = i // 2
             col = (i % 2) * 2
 
-            label_widget = ctk.CTkLabel(grid_frame, text=label, font=("Arial", 11), text_color="gray")
+            label_widget = ctk.CTkLabel(grid_frame, text=label, font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
             label_widget.grid(row=row, column=col, sticky="w", pady=5, padx=(0, 10))
 
-            value_widget = ctk.CTkLabel(grid_frame, text=default, font=("Arial", 11, "bold"))
+            value_widget = ctk.CTkLabel(grid_frame, text=default, font=Fonts.H3)
             value_widget.grid(row=row, column=col + 1, sticky="e", pady=5)
 
             self.metric_labels[key] = value_widget
@@ -141,9 +142,9 @@ class PositionDetails(ctk.CTkToplevel):
 
             # Mark price (if available, otherwise use current price)
             mark_price = self.position.get("mark_price") or self.position.get("current_price", entry_price)
-            mp_color = "#00ff88" if mark_price > entry_price else "#ff4444"
+            mp_color = Colors.PROFIT if mark_price > entry_price else Colors.LOSS
             if self.position.get("side") == "SHORT":
-                mp_color = "#00ff88" if mark_price < entry_price else "#ff4444"
+                mp_color = Colors.PROFIT if mark_price < entry_price else Colors.LOSS
 
             self.metric_labels["mark_price"].configure(
                 text=format_asset_price(float(mark_price)),
@@ -169,7 +170,7 @@ class PositionDetails(ctk.CTkToplevel):
             if liq_price is not None and float(liq_price) > 0:
                 self.metric_labels["liquidation_price"].configure(
                     text=format_asset_price(float(liq_price)),
-                    text_color="#ff4444",
+                    text_color=Colors.LOSS,
                 )
             else:
                 self.metric_labels["liquidation_price"].configure(text="N/A")
@@ -178,14 +179,14 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_tp_sl_visualization(self, parent):
         """Create visual representation of TP/SL relative to entry"""
-        viz_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
+        viz_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=0)
         viz_frame.pack(fill="x", pady=(0, 10))
 
-        title = ctk.CTkLabel(viz_frame, text="🎯 TP/SL Visualization", font=("Arial", 14, "bold"))
+        title = ctk.CTkLabel(viz_frame, text="🎯 TP/SL Visualization", font=Fonts.H2)
         title.pack(pady=(10, 5))
 
         # Visualization canvas
-        canvas_frame = ctk.CTkFrame(viz_frame, fg_color="transparent")
+        canvas_frame = ctk.CTkFrame(viz_frame, fg_color=Colors.TRANSPARENT)
         canvas_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         # Get prices
@@ -199,7 +200,7 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_price_visual(self, parent, entry_price: float, tp_price: float, sl_price: float, current_price: float):
         """Create visual bar showing price levels"""
-        viz_container = ctk.CTkFrame(parent, fg_color="transparent")
+        viz_container = ctk.CTkFrame(parent, fg_color=Colors.TRANSPARENT)
         viz_container.pack(fill="x")
 
         # Calculate relative positions
@@ -211,35 +212,35 @@ class PositionDetails(ctk.CTkToplevel):
         # Define price levels to display
         levels = []
         if tp_price > 0:
-            levels.append(("TP", tp_price, "#00ff88"))
+            levels.append(("TP", tp_price, Colors.PROFIT))
         if entry_price > 0:
-            levels.append(("Entry", entry_price, "#ffffff"))
+            levels.append(("Entry", entry_price, Colors.WHITE))
         if sl_price > 0:
-            levels.append(("SL", sl_price, "#ff4444"))
+            levels.append(("SL", sl_price, Colors.LOSS))
         if current_price > 0:
-            levels.append(("Current", current_price, "#ffaa00"))
+            levels.append(("Current", current_price, Colors.BTN_WARNING))
 
         # Sort by price
         levels.sort(key=lambda x: x[1])
 
         # Display levels
         for label, price, color in levels:
-            level_frame = ctk.CTkFrame(viz_container, fg_color="transparent")
+            level_frame = ctk.CTkFrame(viz_container, fg_color=Colors.TRANSPARENT)
             level_frame.pack(fill="x", pady=2)
 
             label_widget = ctk.CTkLabel(
-                level_frame, text=label, font=("Arial", 10), text_color="gray", width=50, anchor="w"
+                level_frame, text=label, font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, width=50, anchor="w"
             )
             label_widget.pack(side="left")
 
             # Price label
             price_widget = ctk.CTkLabel(
-                level_frame, text=f"${price:,.2f}", font=("Arial", 11, "bold"), text_color=color
+                level_frame, text=f"${price:,.2f}", font=Fonts.H3, text_color=color
             )
             price_widget.pack(side="right")
 
             # Visual bar
-            bar_frame = ctk.CTkFrame(viz_container, fg_color="#1a1a1a", height=20)
+            bar_frame = ctk.CTkFrame(viz_container, fg_color=Colors.CARD_MUTED, height=20)
             bar_frame.pack(fill="x", pady=(0, 5))
 
             if price_range > 0:
@@ -248,16 +249,16 @@ class PositionDetails(ctk.CTkToplevel):
             else:
                 position = 50
 
-            marker = ctk.CTkLabel(bar_frame, text="◆", font=("Arial", 14), text_color=color, width=20)
+            marker = ctk.CTkLabel(bar_frame, text="◆", font=Fonts.H2, text_color=color, width=20)
             marker.place(x=position, rely=0.5, anchor="center")
 
     def _create_liquidation_warning(self, parent):
         """Create liquidation distance warning"""
-        warning_frame = ctk.CTkFrame(parent, fg_color="#3d2a1a", corner_radius=10)
+        warning_frame = ctk.CTkFrame(parent, fg_color=Colors.WARNING_BG, corner_radius=0)
         warning_frame.pack(fill="x", pady=(0, 10))
 
         warning_title = ctk.CTkLabel(
-            warning_frame, text="⚠️ Liquidation Risk", font=("Arial", 12, "bold"), text_color="#ffaa00"
+            warning_frame, text="⚠️ Liquidation Risk", font=Fonts.H3, text_color=Colors.BTN_WARNING
         )
         warning_title.pack(pady=(10, 5))
 
@@ -279,33 +280,33 @@ class PositionDetails(ctk.CTkToplevel):
 
                 # Color coding based on risk level
                 if distance_pct < 2:
-                    risk_color = "#ff0000"
+                    risk_color = Colors.DANGER_CRITICAL
                     risk_level = "CRITICAL"
                 elif distance_pct < 5:
-                    risk_color = "#ff4444"
+                    risk_color = Colors.LOSS
                     risk_level = "HIGH"
                 elif distance_pct < 10:
-                    risk_color = "#ffaa00"
+                    risk_color = Colors.BTN_WARNING
                     risk_level = "MEDIUM"
                 else:
-                    risk_color = "#00ff88"
+                    risk_color = Colors.PROFIT
                     risk_level = "LOW"
 
                 distance_label = ctk.CTkLabel(
                     parent,
                     text=f"Distance to Liquidation: {distance_pct:.2f}% | Risk Level: {risk_level}",
-                    font=("Arial", 11, "bold"),
+                    font=Fonts.H3,
                     text_color=risk_color,
                 )
                 distance_label.pack(pady=(0, 5))
 
                 # Tooltip/Explanation
                 tooltip_text = "Distance = (Current - Liq) / Current"
-                tooltip = ctk.CTkLabel(parent, text=tooltip_text, font=("Arial", 10), text_color="gray")
+                tooltip = ctk.CTkLabel(parent, text=tooltip_text, font=Fonts.SMALL, text_color=Colors.TEXT_MUTED)
                 tooltip.pack(pady=(0, 10))
             else:
                 distance_label = ctk.CTkLabel(
-                    parent, text="Liquidation data not available", font=("Arial", 11), text_color="gray"
+                    parent, text="Liquidation data not available", font=Fonts.BODY, text_color=Colors.TEXT_MUTED
                 )
                 distance_label.pack(pady=(0, 10))
         except Exception as e:
@@ -313,26 +314,26 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_pnl_section(self):
         """Create P&L display section"""
-        pnl_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
+        pnl_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=0)
         pnl_frame.pack(fill="x", padx=15, pady=10)
 
-        title = ctk.CTkLabel(pnl_frame, text="💰 Profit & Loss", font=("Arial", 14, "bold"))
+        title = ctk.CTkLabel(pnl_frame, text="💰 Profit & Loss", font=Fonts.H2)
         title.pack(pady=(10, 5))
 
         # P&L grid
-        grid_frame = ctk.CTkFrame(pnl_frame, fg_color="transparent")
+        grid_frame = ctk.CTkFrame(pnl_frame, fg_color=Colors.TRANSPARENT)
         grid_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         # Unrealized P&L
         unrealized_pnl = self.position.get("unrealized_pnl", 0)
-        pnl_color = "#00ff88" if unrealized_pnl >= 0 else "#ff4444"
+        pnl_color = Colors.PROFIT if unrealized_pnl >= 0 else Colors.LOSS
         pnl_sign = "+" if unrealized_pnl >= 0 else ""
 
-        u_pnl_label = ctk.CTkLabel(grid_frame, text="Unrealized P&L:", font=("Arial", 11), text_color="gray")
+        u_pnl_label = ctk.CTkLabel(grid_frame, text="Unrealized P&L:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         u_pnl_label.grid(row=0, column=0, sticky="w", pady=5)
 
         u_pnl_value = ctk.CTkLabel(
-            grid_frame, text=f"{pnl_sign}${unrealized_pnl:,.2f}", font=("Arial", 14, "bold"), text_color=pnl_color
+            grid_frame, text=f"{pnl_sign}${unrealized_pnl:,.2f}", font=Fonts.H2, text_color=pnl_color
         )
         u_pnl_value.grid(row=0, column=1, sticky="e", pady=5)
 
@@ -340,14 +341,14 @@ class PositionDetails(ctk.CTkToplevel):
         if unrealized_pnl != 0:
             margin = self.position.get("margin_used", 1)
             roi_pct = (unrealized_pnl / margin) * 100
-            roi_color = "#00ff88" if roi_pct >= 0 else "#ff4444"
+            roi_color = Colors.PROFIT if roi_pct >= 0 else Colors.LOSS
             roi_sign = "+" if roi_pct >= 0 else ""
 
-            roi_label = ctk.CTkLabel(grid_frame, text="ROI:", font=("Arial", 11), text_color="gray")
+            roi_label = ctk.CTkLabel(grid_frame, text="ROI:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
             roi_label.grid(row=1, column=0, sticky="w", pady=5)
 
             roi_value = ctk.CTkLabel(
-                grid_frame, text=f"{roi_sign}{roi_pct:.2f}%", font=("Arial", 12, "bold"), text_color=roi_color
+                grid_frame, text=f"{roi_sign}{roi_pct:.2f}%", font=Fonts.H3, text_color=roi_color
             )
             roi_value.grid(row=1, column=1, sticky="e", pady=5)
 
@@ -355,7 +356,7 @@ class PositionDetails(ctk.CTkToplevel):
 
     def _create_actions(self):
         """Create action buttons section"""
-        actions_frame = ctk.CTkFrame(self, fg_color="transparent")
+        actions_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         actions_frame.pack(fill="x", padx=15, pady=(10, 15))
 
         # Position Actions Panel
@@ -365,10 +366,10 @@ class PositionDetails(ctk.CTkToplevel):
         # Close button
         close_btn = ctk.CTkButton(
             actions_frame,
-            text="❌ Close Details",
-            font=("Arial", 12),
-            fg_color="gray",
-            hover_color="darkgray",
+            text="❌ CLOSE DETAILS",
+            font=Fonts.BUTTON_SM,
+            fg_color=Colors.TEXT_MUTED,
+            hover_color=Colors.TEXT_MUTED_DARK,
             command=self._close_window,
             height=35,
         )

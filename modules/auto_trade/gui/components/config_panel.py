@@ -24,6 +24,7 @@ from modules.auto_trade.gui.components.config_panel_parts.tab_builders import (
     create_gradual_recovery_tab,
     create_risk_settings_tab,
 )
+from modules.auto_trade.gui.utils.fonts import Fonts
 
 
 class ConfigPanel(ctk.CTkFrame):
@@ -44,7 +45,7 @@ class ConfigPanel(ctk.CTkFrame):
         self._editing_credentials = False
         self._suppress_mode_notify = True
 
-        title = ctk.CTkLabel(self, text="⚙️ Configuration", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(self, text="⚙️ Configuration", font=Fonts.H1)
         title.pack(pady=(10, 15))
 
         self.tabview = ctk.CTkTabview(self)
@@ -76,8 +77,6 @@ class ConfigPanel(ctk.CTkFrame):
 
     def _create_ui_preferences_tab(self):
         return None
-
-
 
     def _test_connection(self):
         test_connection(self)

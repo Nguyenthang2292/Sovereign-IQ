@@ -5,6 +5,7 @@ from typing import Callable, Dict, Optional
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 from modules.common.ui.logging import log_warn
 
@@ -96,7 +97,7 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
     def _create_ui(self):
         """Create dialog UI"""
         # Main content frame
-        content_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=10)
+        content_frame = ctk.CTkFrame(self, fg_color=Colors.CARD_DIALOG, corner_radius=0)
         content_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
         # Header with warning icon
@@ -119,16 +120,16 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
 
     def _create_header(self, parent):
         """Create dialog header"""
-        header = ctk.CTkFrame(parent, fg_color="transparent")
+        header = ctk.CTkFrame(parent, fg_color=Colors.TRANSPARENT)
         header.pack(fill="x", pady=(0, 15))
 
         # Warning icon
-        icon_label = ctk.CTkLabel(header, text="⚠️", font=("Arial", 32), text_color="#ffaa00")
+        icon_label = ctk.CTkLabel(header, text="⚠️", font=(Fonts.FAMILY, 32), text_color=Colors.BTN_WARNING)
         icon_label.pack(side="left", padx=(0, 15))
 
         # Title
         title_text = f"Confirm {self._get_action_title()}"
-        title_label = ctk.CTkLabel(header, text=title_text, font=("Arial", 18, "bold"), text_color="#ff4444")
+        title_label = ctk.CTkLabel(header, text=title_text, font=(Fonts.FAMILY, 18, "bold"), text_color=Colors.LOSS)
         title_label.pack(side="left")
 
     def _get_action_title(self) -> str:
@@ -144,11 +145,11 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
 
     def _create_trade_summary(self, parent):
         """Create trade summary section"""
-        summary_frame = ctk.CTkFrame(parent, fg_color="#1a1a1a", corner_radius=8)
+        summary_frame = ctk.CTkFrame(parent, fg_color=Colors.CARD_MUTED, corner_radius=0)
         summary_frame.pack(fill="x", pady=(0, 10))
 
         # Title
-        title = ctk.CTkLabel(summary_frame, text="📋 Trade Summary", font=("Arial", 12, "bold"))
+        title = ctk.CTkLabel(summary_frame, text="📋 Trade Summary", font=Fonts.H3)
         title.pack(pady=(10, 8))
 
         # Summary items
@@ -156,40 +157,40 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
 
     def _create_summary_items(self, parent):
         """Create summary item rows"""
-        items_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        items_frame = ctk.CTkFrame(parent, fg_color=Colors.TRANSPARENT)
         items_frame.pack(fill="x", padx=10, pady=(0, 10))
 
         # Define summary items based on action type
         items = self._get_summary_items()
 
         for label, value, color in items:
-            row = ctk.CTkFrame(items_frame, fg_color="transparent")
+            row = ctk.CTkFrame(items_frame, fg_color=Colors.TRANSPARENT)
             row.pack(fill="x", pady=3)
 
-            label_widget = ctk.CTkLabel(row, text=label, font=("Arial", 11), text_color="gray", width=120, anchor="w")
+            label_widget = ctk.CTkLabel(row, text=label, font=Fonts.BODY, text_color=Colors.TEXT_MUTED, width=120, anchor="w")
             label_widget.pack(side="left")
 
-            value_widget = ctk.CTkLabel(row, text=value, font=("Arial", 11, "bold"), text_color=color)
+            value_widget = ctk.CTkLabel(row, text=value, font=(Fonts.FAMILY, 11, "bold"), text_color=color)
             value_widget.pack(side="right")
 
     def _get_summary_items(self) -> list:
         """Get summary items based on action type"""
         symbol = self.position.get("symbol", "N/A")
         side = self.position.get("side", "LONG")
-        side_color = "#00ff88" if side == "LONG" else "#ff4444"
+        side_color = Colors.PROFIT if side == "LONG" else Colors.LOSS
 
-        base_items = [("Symbol:", symbol, "#ffffff"), ("Side:", side, side_color)]
+        base_items = [("Symbol:", symbol, Colors.WHITE), ("Side:", side, side_color)]
 
         if self.action_type == "close_position":
             size = self.position.get("size", 0)
-            base_items.append(("Size:", f"{size:.4f}", "#ffffff"))
+            base_items.append(("Size:", f"{size:.4f}", Colors.WHITE))
 
             close_type = self.close_details.get("type", "market").title()
-            base_items.append(("Type:", close_type, "#00aaff"))
+            base_items.append(("Type:", close_type, Colors.INFO))
 
             if close_type == "Limit":
                 limit_price = self.close_details.get("limit_price", 0)
-                base_items.append(("Limit Price:", f"${limit_price:,.2f}", "#00aaff"))
+                base_items.append(("Limit Price:", f"${limit_price:,.2f}", Colors.INFO))
 
         elif self.action_type == "partial_close":
             total_size = self.position.get("size", 0)
@@ -199,40 +200,40 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
 
             base_items.extend(
                 [
-                    ("Total Size:", f"{total_size:.4f}", "#ffffff"),
-                    ("Close:", f"{close_size:.4f} ({close_pct}%)", "#ffaa00"),
-                    ("Remaining:", f"{remaining_size:.4f}", "#00aaff"),
+                    ("Total Size:", f"{total_size:.4f}", Colors.WHITE),
+                    ("Close:", f"{close_size:.4f} ({close_pct}%)", Colors.BTN_WARNING),
+                    ("Remaining:", f"{remaining_size:.4f}", Colors.INFO),
                 ]
             )
 
         elif self.action_type in ["modify_tp_sl", "breakeven"]:
             entry_price = self.position.get("entry_price", 0)
-            base_items.append(("Entry Price:", f"${entry_price:,.2f}", "#ffffff"))
+            base_items.append(("Entry Price:", f"${entry_price:,.2f}", Colors.WHITE))
 
             if self.action_type == "breakeven":
-                base_items.append(("New SL:", f"${entry_price:,.2f}", "#00ff88"))
+                base_items.append(("New SL:", f"${entry_price:,.2f}", Colors.PROFIT))
             else:
                 new_tp = self.close_details.get("take_profit", 0)
                 new_sl = self.close_details.get("stop_loss", 0)
 
                 if new_tp > 0:
-                    base_items.append(("New TP:", f"${new_tp:,.2f}", "#00ff88"))
+                    base_items.append(("New TP:", f"${new_tp:,.2f}", Colors.PROFIT))
                 if new_sl > 0:
-                    base_items.append(("New SL:", f"${new_sl:,.2f}", "#ff4444"))
+                    base_items.append(("New SL:", f"${new_sl:,.2f}", Colors.LOSS))
 
         return base_items
 
     def _create_pnl_summary(self, parent):
         """Create P&L summary section"""
-        pnl_frame = ctk.CTkFrame(parent, fg_color="#1a1a1a", corner_radius=8)
+        pnl_frame = ctk.CTkFrame(parent, fg_color=Colors.CARD_MUTED, corner_radius=0)
         pnl_frame.pack(fill="x", pady=(0, 10))
 
         # Title
-        title = ctk.CTkLabel(pnl_frame, text="💰 Estimated P&L", font=("Arial", 12, "bold"))
+        title = ctk.CTkLabel(pnl_frame, text="💰 Estimated P&L", font=Fonts.H3)
         title.pack(pady=(10, 8))
 
         # P&L items
-        items_frame = ctk.CTkFrame(pnl_frame, fg_color="transparent")
+        items_frame = ctk.CTkFrame(pnl_frame, fg_color=Colors.TRANSPARENT)
         items_frame.pack(fill="x", padx=10, pady=(0, 10))
 
         # Unrealized P&L
@@ -241,18 +242,18 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
             close_pct = self.close_details.get("percentage", 0)
             unrealized_pnl = unrealized_pnl * (close_pct / 100)
 
-        pnl_color = "#00ff88" if unrealized_pnl >= 0 else "#ff4444"
+        pnl_color = Colors.PROFIT if unrealized_pnl >= 0 else Colors.LOSS
         pnl_sign = "+" if unrealized_pnl >= 0 else ""
 
         # Calculate estimated P&L
-        row1 = ctk.CTkFrame(items_frame, fg_color="transparent")
+        row1 = ctk.CTkFrame(items_frame, fg_color=Colors.TRANSPARENT)
         row1.pack(fill="x", pady=3)
 
-        label1 = ctk.CTkLabel(row1, text="Estimated P&L:", font=("Arial", 11), text_color="gray", width=120, anchor="w")
+        label1 = ctk.CTkLabel(row1, text="Estimated P&L:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED, width=120, anchor="w")
         label1.pack(side="left")
 
         value1 = ctk.CTkLabel(
-            row1, text=f"{pnl_sign}${unrealized_pnl:,.2f}", font=("Arial", 14, "bold"), text_color=pnl_color
+            row1, text=f"{pnl_sign}${unrealized_pnl:,.2f}", font=Fonts.H2, text_color=pnl_color
         )
         value1.pack(side="right")
 
@@ -261,32 +262,32 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
             margin = self.position.get("margin_used", 1)
             roi_pct = (unrealized_pnl / margin) * 100
             roi_sign = "+" if roi_pct >= 0 else ""
-            roi_color = "#00ff88" if roi_pct >= 0 else "#ff4444"
+            roi_color = Colors.PROFIT if roi_pct >= 0 else Colors.LOSS
 
-            row2 = ctk.CTkFrame(items_frame, fg_color="transparent")
+            row2 = ctk.CTkFrame(items_frame, fg_color=Colors.TRANSPARENT)
             row2.pack(fill="x", pady=3)
 
             label2 = ctk.CTkLabel(
-                row2, text="Estimated ROI:", font=("Arial", 11), text_color="gray", width=120, anchor="w"
+                row2, text="Estimated ROI:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED, width=120, anchor="w"
             )
             label2.pack(side="left")
 
             value2 = ctk.CTkLabel(
-                row2, text=f"{roi_sign}{roi_pct:.2f}%", font=("Arial", 12, "bold"), text_color=roi_color
+                row2, text=f"{roi_sign}{roi_pct:.2f}%", font=Fonts.H3, text_color=roi_color
             )
             value2.pack(side="right")
 
     def _create_final_return(self, parent):
         """Create final return section with fees"""
-        return_frame = ctk.CTkFrame(parent, fg_color="#1a1a1a", corner_radius=8)
+        return_frame = ctk.CTkFrame(parent, fg_color=Colors.CARD_MUTED, corner_radius=0)
         return_frame.pack(fill="x", pady=(0, 10))
 
         # Title
-        title = ctk.CTkLabel(return_frame, text="📦 Final Return", font=("Arial", 12, "bold"))
+        title = ctk.CTkLabel(return_frame, text="📦 Final Return", font=Fonts.H3)
         title.pack(pady=(10, 8))
 
         # Return items
-        items_frame = ctk.CTkFrame(return_frame, fg_color="transparent")
+        items_frame = ctk.CTkFrame(return_frame, fg_color=Colors.TRANSPARENT)
         items_frame.pack(fill="x", padx=10, pady=(0, 10))
 
         # Calculate final return
@@ -301,54 +302,54 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
 
         # Display items
         # P&L before fees
-        row1 = ctk.CTkFrame(items_frame, fg_color="transparent")
+        row1 = ctk.CTkFrame(items_frame, fg_color=Colors.TRANSPARENT)
         row1.pack(fill="x", pady=3)
 
-        label1 = ctk.CTkLabel(row1, text="P&L:", font=("Arial", 11), text_color="gray", width=120, anchor="w")
+        label1 = ctk.CTkLabel(row1, text="P&L:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED, width=120, anchor="w")
         label1.pack(side="left")
 
         pnl_sign = "+" if unrealized_pnl >= 0 else ""
-        pnl_color = "#00ff88" if unrealized_pnl >= 0 else "#ff4444"
-        value1 = ctk.CTkLabel(row1, text=f"{pnl_sign}${unrealized_pnl:,.2f}", font=("Arial", 11), text_color=pnl_color)
+        pnl_color = Colors.PROFIT if unrealized_pnl >= 0 else Colors.LOSS
+        value1 = ctk.CTkLabel(row1, text=f"{pnl_sign}${unrealized_pnl:,.2f}", font=Fonts.BODY, text_color=pnl_color)
         value1.pack(side="right")
 
         # Estimated fees
-        row2 = ctk.CTkFrame(items_frame, fg_color="transparent")
+        row2 = ctk.CTkFrame(items_frame, fg_color=Colors.TRANSPARENT)
         row2.pack(fill="x", pady=3)
 
-        label2 = ctk.CTkLabel(row2, text="Est. Fees:", font=("Arial", 11), text_color="gray", width=120, anchor="w")
+        label2 = ctk.CTkLabel(row2, text="Est. Fees:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED, width=120, anchor="w")
         label2.pack(side="left")
 
-        value2 = ctk.CTkLabel(row2, text=f"-${estimated_fees:,.2f}", font=("Arial", 11), text_color="#ff4444")
+        value2 = ctk.CTkLabel(row2, text=f"-${estimated_fees:,.2f}", font=Fonts.BODY, text_color=Colors.LOSS)
         value2.pack(side="right")
 
         # Final return (larger font)
-        row3 = ctk.CTkFrame(items_frame, fg_color="transparent")
+        row3 = ctk.CTkFrame(items_frame, fg_color=Colors.TRANSPARENT)
         row3.pack(fill="x", pady=(10, 0))
 
         label3 = ctk.CTkLabel(
-            row3, text="Final Return:", font=("Arial", 12, "bold"), text_color="gray", width=120, anchor="w"
+            row3, text="Final Return:", font=Fonts.H3, text_color=Colors.TEXT_MUTED, width=120, anchor="w"
         )
         label3.pack(side="left")
 
         final_sign = "+" if final_return >= 0 else ""
-        final_color = "#00ff88" if final_return >= 0 else "#ff4444"
+        final_color = Colors.PROFIT if final_return >= 0 else Colors.LOSS
         value3 = ctk.CTkLabel(
-            row3, text=f"{final_sign}${final_return:,.2f}", font=("Arial", 16, "bold"), text_color=final_color
+            row3, text=f"{final_sign}${final_return:,.2f}", font=Fonts.H1, text_color=final_color
         )
         value3.pack(side="right")
 
     def _create_confirmation_controls(self, parent):
         """Create confirmation controls section"""
-        controls_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        controls_frame = ctk.CTkFrame(parent, fg_color=Colors.TRANSPARENT)
         controls_frame.pack(fill="x", pady=(0, 10))
 
         # Confirmation counter
         self.confirm_label = ctk.CTkLabel(
             controls_frame,
             text=f"Press Confirm {self.required_confirms} times to proceed",
-            font=("Arial", 12),
-            text_color="#ffaa00",
+            font=Fonts.INPUT,
+            text_color=Colors.BTN_WARNING,
         )
         self.confirm_label.pack(pady=(0, 10))
 
@@ -359,7 +360,7 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
 
         # Don't ask again checkbox
         if self.action_type not in ["close_position", "partial_close"]:
-            skip_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
+            skip_frame = ctk.CTkFrame(controls_frame, fg_color=Colors.TRANSPARENT)
             skip_frame.pack(fill="x", pady=(15, 0))
 
             self.skip_var = ctk.BooleanVar(value=False)
@@ -369,8 +370,8 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
                 text="Don't ask again for this action",
                 variable=self.skip_var,
                 command=self._on_skip_changed,
-                font=("Arial", 10),
-                text_color="gray",
+                font=Fonts.SMALL,
+                text_color=Colors.TEXT_MUTED,
             )
             skip_checkbox.pack(anchor="center")
 
@@ -380,14 +381,14 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
 
     def _create_action_buttons(self, parent):
         """Create action buttons"""
-        btn_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(parent, fg_color=Colors.TRANSPARENT)
         btn_frame.pack(fill="x", pady=(0, 10))
 
         # Confirm button
         self.confirm_btn = ctk.CTkButton(
             btn_frame,
             text=f"Confirm ({self.required_confirms - self.confirm_count})",
-            font=("Arial", 13, "bold"),
+            font=Fonts.BUTTON_SM,
             height=40,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
@@ -398,11 +399,11 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
         # Cancel button
         cancel_btn = ctk.CTkButton(
             btn_frame,
-            text="❌ Cancel",
-            font=("Arial", 13, "bold"),
+            text="❌ CANCEL",
+            font=Fonts.BUTTON_SM,
             height=40,
-            fg_color="gray",
-            hover_color="darkgray",
+            fg_color=Colors.TEXT_MUTED,
+            hover_color=Colors.TEXT_MUTED_DARK,
             command=self._on_cancel,
         )
         cancel_btn.pack(side="left", fill="x", expand=True, padx=(10, 0))
@@ -474,3 +475,4 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
 
         parent.wait_window(dialog)
         return confirmed[0]
+

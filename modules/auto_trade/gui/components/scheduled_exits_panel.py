@@ -9,6 +9,7 @@ import customtkinter as ctk
 from modules.auto_trade.database import RepositoryContext
 from modules.auto_trade.execution.auto_close_timer import compute_deadline_utc, get_order_id, parse_utc_datetime
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 
@@ -44,7 +45,7 @@ class ScheduledExitsPanel(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        top = ctk.CTkFrame(self, fg_color="transparent")
+        top = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         top.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
         top.grid_columnconfigure(1, weight=1)
 
@@ -57,10 +58,11 @@ class ScheduledExitsPanel(ctk.CTkFrame):
         )
         self.enabled_checkbox.grid(row=0, column=0, sticky="w")
 
-        self.status_label = ctk.CTkLabel(top, text="", text_color="gray")
+        self.status_label = ctk.CTkLabel(top, text="", text_color=Colors.TEXT_MUTED)
         self.status_label.grid(row=0, column=1, sticky="w", padx=(12, 0))
 
-        open_settings_btn = ctk.CTkButton(top, text="Open Settings", width=120, command=self._open_settings)
+        open_settings_btn = ctk.CTkButton(top, text="OPEN SETTINGS", width=120, command=self._open_settings)
+        font=Fonts.BUTTON_SM,
         open_settings_btn.grid(row=0, column=2, sticky="e")
 
         content = ctk.CTkFrame(self)
@@ -74,7 +76,7 @@ class ScheduledExitsPanel(ctk.CTkFrame):
         pending_wrap.grid_rowconfigure(1, weight=1)
         pending_wrap.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(pending_wrap, text="Pending Exits", font=("Arial", 14, "bold")).grid(
+        ctk.CTkLabel(pending_wrap, text="Pending Exits", font=Fonts.H2).grid(
             row=0, column=0, sticky="w", padx=10, pady=(10, 5)
         )
 
@@ -86,7 +88,7 @@ class ScheduledExitsPanel(ctk.CTkFrame):
         history_wrap.grid_rowconfigure(1, weight=1)
         history_wrap.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(history_wrap, text="Close History", font=("Arial", 14, "bold")).grid(
+        ctk.CTkLabel(history_wrap, text="Close History", font=Fonts.H2).grid(
             row=0, column=0, sticky="w", padx=10, pady=(10, 5)
         )
 
@@ -200,7 +202,7 @@ class ScheduledExitsPanel(ctk.CTkFrame):
         self._pending_rows = pending_rows
 
         if not pending_rows:
-            ctk.CTkLabel(self.pending_scroll, text="No pending scheduled exits", text_color="gray").pack(
+            ctk.CTkLabel(self.pending_scroll, text="No pending scheduled exits", text_color=Colors.TEXT_MUTED).pack(
                 anchor="w", padx=4, pady=4
             )
             return
@@ -221,23 +223,25 @@ class ScheduledExitsPanel(ctk.CTkFrame):
             meta = ctk.CTkLabel(
                 item,
                 text=f"deadline_utc={row['deadline'].isoformat() if row['deadline'] else '—'} | pnl={row['pnl']}",
-                text_color="gray",
+                text_color=Colors.TEXT_MUTED,
                 anchor="w",
-                font=("Arial", 11),
+                font=Fonts.BODY,
             )
             meta.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 8))
 
-            btns = ctk.CTkFrame(item, fg_color="transparent")
+            btns = ctk.CTkFrame(item, fg_color=Colors.TRANSPARENT)
             btns.grid(row=0, column=1, rowspan=2, sticky="e", padx=8)
             ctk.CTkButton(
                 btns,
-                text="Override Deadline",
+                text="OVERRIDE DEADLINE",
+                font=Fonts.BUTTON_SM,
                 width=130,
                 command=lambda oid=row["order_id"]: self._override_deadline(oid),
             ).pack(side="top", pady=(0, 4))
             ctk.CTkButton(
                 btns,
-                text="Cancel Auto-Close",
+                text="CANCEL AUTO-CLOSE",
+                font=Fonts.BUTTON_SM,
                 width=130,
                 fg_color=Colors.BTN_DANGER_ALT,
                 hover_color=Colors.BTN_DANGER_ALT_HOVER,
@@ -250,7 +254,7 @@ class ScheduledExitsPanel(ctk.CTkFrame):
 
         rows = self._fetch_closed_orders()
         if not rows:
-            ctk.CTkLabel(self.history_scroll, text="No auto-close history", text_color="gray").pack(
+            ctk.CTkLabel(self.history_scroll, text="No auto-close history", text_color=Colors.TEXT_MUTED).pack(
                 anchor="w", padx=4, pady=4
             )
             return
@@ -272,9 +276,9 @@ class ScheduledExitsPanel(ctk.CTkFrame):
             ctk.CTkLabel(
                 item,
                 text=f"triggered_at={triggered_at}",
-                text_color="gray",
+                text_color=Colors.TEXT_MUTED,
                 anchor="w",
-                font=("Arial", 11),
+                font=Fonts.BODY,
             ).pack(anchor="w", padx=8, pady=(0, 8))
 
     def _refresh_countdowns(self) -> None:

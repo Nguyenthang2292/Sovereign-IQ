@@ -3,7 +3,8 @@ from typing import Any, Callable, Optional
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.fonts import Fonts
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon, get_icon
 
 
 class AutoTradeControl(ctk.CTkFrame):
@@ -19,7 +20,13 @@ class AutoTradeControl(ctk.CTkFrame):
         on_reload_settings: Optional[Callable[..., Any]] = None,
         on_risk_limits_toggle: Optional[Callable[[bool], Any]] = None,
     ):
-        super().__init__(parent)
+        super().__init__(
+            parent,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
 
         self.on_toggle_callback = on_toggle_callback
         self.on_reload_settings = on_reload_settings
@@ -29,9 +36,9 @@ class AutoTradeControl(ctk.CTkFrame):
         self.risk_limits_enabled_var = ctk.BooleanVar(value=True)
 
         # Title
-        icon_bot = get_icon("bot", size=(20, 20), light_color="white", dark_color="white")
+        icon_bot = get_icon("bot", size=(20, 20))
         title = ctk.CTkLabel(
-            self, text=" Auto-Trade System", image=icon_bot, compound="left", font=("Arial", 16, "bold")
+            self, text=" Auto-Trade System", image=icon_bot, compound="left", font=Fonts.H1
         )
         title.pack(pady=(10, 15))
 
@@ -46,28 +53,34 @@ class AutoTradeControl(ctk.CTkFrame):
 
     def _create_status_indicator(self):
         """Visual status indicator with animation"""
-        status_frame = ctk.CTkFrame(self, fg_color="transparent")
+        status_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         status_frame.pack(fill="x", padx=15, pady=10)
 
         # Status circle + text
         self.status_label = ctk.CTkLabel(
-            status_frame, text="🔴 Auto-Trade: DISABLED", font=("Arial", 14, "bold"), text_color="gray"
+            status_frame,
+            text="🔴 Auto-Trade: DISABLED",
+            font=Fonts.H2,
+            text_color=Colors.TEXT_SECONDARY_DARK,
         )
         self.status_label.pack()
 
         # Last action timestamp
         self.last_action_label = ctk.CTkLabel(
-            status_frame, text="Last action: Never", font=("Arial", 10), text_color="gray"
+            status_frame,
+            text="Last action: Never",
+            font=Fonts.SMALL,
+            text_color=Colors.TEXT_SECONDARY_DARK,
         )
         self.last_action_label.pack(pady=(5, 0))
 
     def _update_status_indicator(self, enabled: bool):
         """Update status display"""
         if enabled:
-            self.status_label.configure(text="🟢 Auto-Trade: ACTIVE", text_color="#00ff88")
+            self.status_label.configure(text="🟢 Auto-Trade: ACTIVE", text_color=Colors.PROFIT)
             self._animate_status()
         else:
-            self.status_label.configure(text="🔴 Auto-Trade: DISABLED", text_color="gray")
+            self.status_label.configure(text="🔴 Auto-Trade: DISABLED", text_color=Colors.TEXT_SECONDARY_DARK)
 
     def _animate_status(self):
         """Pulse animation when active"""
@@ -75,22 +88,22 @@ class AutoTradeControl(ctk.CTkFrame):
             return
 
         current_color = self.status_label.cget("text_color")
-        new_color = "#00ff88" if current_color == "#00cc66" else "#00cc66"
+        new_color = Colors.PROFIT if current_color == Colors.SUCCESS_ALT else Colors.SUCCESS_ALT
         self.status_label.configure(text_color=new_color)
 
         self.after(1000, self._animate_status)
 
     def _create_controls(self):
         """Enable/Disable buttons"""
-        controls_frame = ctk.CTkFrame(self, fg_color="transparent")
+        controls_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         controls_frame.pack(fill="x", padx=15, pady=10)
 
         # Enable button
         self.enable_button = ctk.CTkButton(
             controls_frame,
-            text="▶️ Enable Auto-Trade",
-            font=("Arial", 12, "bold"),
-            text_color="black",
+            text="▶️ ENABLE AUTO-TRADE",
+            font=Fonts.BUTTON,
+            text_color=Colors.WHITE,
             fg_color=Colors.BTN_SUCCESS,
             hover_color=Colors.BTN_SUCCESS_HOVER,
             command=self._enable_auto_trade,
@@ -100,8 +113,8 @@ class AutoTradeControl(ctk.CTkFrame):
         # Disable button (hidden initially)
         self.disable_button = ctk.CTkButton(
             controls_frame,
-            text="⏸️ Disable Auto-Trade",
-            font=("Arial", 12, "bold"),
+            text="⏸️ DISABLE AUTO-TRADE",
+            font=Fonts.BUTTON,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
             command=self._disable_auto_trade,
@@ -182,26 +195,33 @@ class AutoTradeControl(ctk.CTkFrame):
 
     def _create_settings_display(self):
         """Display current auto-trade configuration"""
-        settings_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
+        settings_frame = ctk.CTkFrame(
+            self,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
         settings_frame.pack(fill="x", padx=15, pady=10)
+        settings_frame.bind("<Button-1>", lambda _e: settings_frame.configure(border_color=Colors.BORDER_ACTIVE))
 
         # Title row: "Current Settings" + Force reload button
-        title_row = ctk.CTkFrame(settings_frame, fg_color="transparent")
+        title_row = ctk.CTkFrame(settings_frame, fg_color=Colors.TRANSPARENT)
         title_row.pack(fill="x", padx=10, pady=(10, 2))
         title_row.grid_columnconfigure(0, weight=1)
-        settings_title = ctk.CTkLabel(title_row, text=" Current Settings", font=("Arial", 12, "bold"))
-        icon_settings = get_icon("settings", size=(16, 16), light_color="white", dark_color="white")
+        settings_title = ctk.CTkLabel(title_row, text=" Current Settings", font=Fonts.H3)
+        icon_settings = get_icon("settings", size=(16, 16))
         if icon_settings:
             settings_title.configure(image=icon_settings, compound="left")
         settings_title.grid(row=0, column=0, sticky="w")
 
-        icon_refresh = get_icon("refresh", size=(14, 14), light_color="white", dark_color="white")
+        icon_refresh = get_button_icon("refresh", size=(14, 14), variant="primary")
         self.reload_settings_btn = ctk.CTkButton(
             title_row,
-            text=" Force reload",
+            text="FORCE RELOAD",
             image=icon_refresh,
             compound="left",
-            font=("Arial", 10),
+            font=Fonts.BUTTON_SM,
             width=100,
             height=28,
             fg_color=Colors.BTN_PRIMARY,
@@ -211,7 +231,7 @@ class AutoTradeControl(ctk.CTkFrame):
         self.reload_settings_btn.grid(row=0, column=1, padx=(8, 0), sticky="e")
 
         # Settings list (scrollable so all settings fit)
-        settings_list_frame = ctk.CTkScrollableFrame(settings_frame, fg_color="transparent", height=420)
+        settings_list_frame = ctk.CTkScrollableFrame(settings_frame, fg_color=Colors.TRANSPARENT, height=420)
         settings_list_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         # Organized settings by sections
@@ -276,28 +296,37 @@ class AutoTradeControl(ctk.CTkFrame):
 
         for section in settings_sections:
             # Section container with subtle background
-            section_frame = ctk.CTkFrame(settings_list_frame, fg_color=Colors.get_hover_bg(), corner_radius=8)
+            section_frame = ctk.CTkFrame(
+                settings_list_frame,
+                fg_color=Colors.get_hover_bg(),
+                corner_radius=0,
+                border_width=1,
+                border_color=Colors.BORDER_NEON,
+            )
             section_frame.pack(fill="x", pady=(0, 8), padx=2)
+            section_frame.bind(
+                "<Button-1>", lambda _e, sf=section_frame: sf.configure(border_color=Colors.BORDER_ACTIVE)
+            )
 
             # Section header
             header = ctk.CTkLabel(
-                section_frame, text=section["title"], font=("Arial", 11, "bold"), text_color=Colors.get_accent()
+                section_frame, text=section["title"], font=Fonts.BODY, text_color=Colors.get_accent()
             )
-            icon_img = get_icon(
-                section["icon"], size=(14, 14), light_color=Colors.get_accent(), dark_color=Colors.get_accent()
-            )
+            icon_img = get_icon(section["icon"], size=(14, 14))
             if icon_img:
                 header.configure(image=icon_img, compound="left")
             header.pack(anchor="w", padx=10, pady=(8, 5))
 
             # Section settings
             for label_text, value_text, key in section["settings"]:
-                row_frame = ctk.CTkFrame(section_frame, fg_color="transparent")
+                row_frame = ctk.CTkFrame(section_frame, fg_color=Colors.TRANSPARENT)
                 row_frame.pack(fill="x", padx=10, pady=2)
 
-                ctk.CTkLabel(row_frame, text=label_text, font=("Arial", 10), text_color="gray").pack(side="left")
+                ctk.CTkLabel(row_frame, text=label_text, font=Fonts.SMALL, text_color=Colors.TEXT_SECONDARY_DARK).pack(
+                    side="left"
+                )
 
-                value = ctk.CTkLabel(row_frame, text=value_text, font=("Arial", 10, "bold"))
+                value = ctk.CTkLabel(row_frame, text=value_text, font=Fonts.H3)
                 value.pack(side="right")
                 self.settings_labels[key] = value
 

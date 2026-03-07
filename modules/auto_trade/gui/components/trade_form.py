@@ -3,7 +3,8 @@ from typing import Any, Callable, Optional
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.fonts import Fonts
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon, get_icon
 from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 from modules.common.ui.logging import log_error, log_success
 
@@ -20,10 +21,8 @@ class TradeFormFrame(ctk.CTkFrame):
         self.on_trade_callback = on_trade_callback
 
         # Title
-        icon_crosshair = get_icon("crosshair", size=(20, 20), light_color="white", dark_color="white")
-        title = ctk.CTkLabel(
-            self, text=" Manual Trade", image=icon_crosshair, compound="left", font=("Arial", 16, "bold")
-        )
+        icon_crosshair = get_icon("crosshair", size=(20, 20))
+        title = ctk.CTkLabel(self, text=" Manual Trade", image=icon_crosshair, compound="left", font=Fonts.H1)
         title.pack(pady=(10, 15))
 
         # Form fields
@@ -36,11 +35,11 @@ class TradeFormFrame(ctk.CTkFrame):
         self._create_trade_button()
 
     def _create_form(self):
-        form_frame = ctk.CTkFrame(self, fg_color="transparent")
+        form_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         form_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
         # Symbol selection
-        symbol_label = ctk.CTkLabel(form_frame, text="Symbol:", font=("Arial", 12))
+        symbol_label = ctk.CTkLabel(form_frame, text="Symbol:", font=Fonts.INPUT)
         symbol_label.grid(row=0, column=0, sticky="w", pady=5)
 
         # Dropdown with popular symbols
@@ -55,17 +54,17 @@ class TradeFormFrame(ctk.CTkFrame):
         self.symbol_dropdown.grid(row=0, column=1, sticky="ew", pady=5, padx=(10, 0))
 
         # Current price display
-        self.current_price_label = ctk.CTkLabel(form_frame, text="Price: $0.00", font=("Arial", 11), text_color="gray")
+        self.current_price_label = ctk.CTkLabel(form_frame, text="Price: $0.00", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         self.current_price_label.grid(row=0, column=2, sticky="w", pady=5, padx=(10, 0))
 
         # Configure grid columns
         form_frame.grid_columnconfigure(1, weight=1)
 
         # Side selection (LONG/SHORT)
-        side_label = ctk.CTkLabel(form_frame, text="Side:", font=("Arial", 12))
+        side_label = ctk.CTkLabel(form_frame, text="Side:", font=Fonts.INPUT)
         side_label.grid(row=1, column=0, sticky="w", pady=5)
 
-        side_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        side_frame = ctk.CTkFrame(form_frame, fg_color=Colors.TRANSPARENT)
         side_frame.grid(row=1, column=1, sticky="w", pady=5, padx=(10, 0))
 
         self.side_var = ctk.StringVar(value="LONG")
@@ -75,7 +74,7 @@ class TradeFormFrame(ctk.CTkFrame):
             text="LONG",
             variable=self.side_var,
             value="LONG",
-            text_color="#00ff88",
+            text_color=Colors.PROFIT,
             command=self._calculate_risk,
         )
         long_radio.pack(side="left", padx=(0, 20))
@@ -85,13 +84,13 @@ class TradeFormFrame(ctk.CTkFrame):
             text="SHORT",
             variable=self.side_var,
             value="SHORT",
-            text_color="#ff4444",
+            text_color=Colors.LOSS,
             command=self._calculate_risk,
         )
         short_radio.pack(side="left")
 
         # Amount (USDT)
-        amount_label = ctk.CTkLabel(form_frame, text="Amount (USDT):", font=("Arial", 12))
+        amount_label = ctk.CTkLabel(form_frame, text="Amount (USDT):", font=Fonts.INPUT)
         amount_label.grid(row=2, column=0, sticky="w", pady=5)
 
         self.amount_entry = ctk.CTkEntry(form_frame, placeholder_text="10.00", width=200)
@@ -99,7 +98,7 @@ class TradeFormFrame(ctk.CTkFrame):
         self.amount_entry.bind("<KeyRelease>", lambda e: self._calculate_risk())
 
         # Quick amount buttons
-        quick_amounts_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        quick_amounts_frame = ctk.CTkFrame(form_frame, fg_color=Colors.TRANSPARENT)
         quick_amounts_frame.grid(row=2, column=2, sticky="w", pady=5, padx=(10, 0))
 
         for amount in [5, 10, 20, 50]:
@@ -113,7 +112,7 @@ class TradeFormFrame(ctk.CTkFrame):
             btn.pack(side="left", padx=2)
 
         # Leverage
-        leverage_label = ctk.CTkLabel(form_frame, text="Leverage:", font=("Arial", 12))
+        leverage_label = ctk.CTkLabel(form_frame, text="Leverage:", font=Fonts.INPUT)
         leverage_label.grid(row=3, column=0, sticky="w", pady=5)
 
         self.leverage_var = ctk.StringVar(value="10x")
@@ -128,13 +127,13 @@ class TradeFormFrame(ctk.CTkFrame):
 
         # Warning for high leverage
         self.leverage_warning = ctk.CTkLabel(
-            form_frame, text="⚠️ High leverage = High risk", font=("Arial", 10), text_color="orange"
+            form_frame, text="⚠️ High leverage = High risk", font=Fonts.SMALL, text_color=Colors.BTN_WARNING
         )
         self.leverage_warning.grid(row=3, column=2, sticky="w", pady=5, padx=(10, 0))
         self.leverage_warning.grid_remove()  # Hide initially
 
         # Stop Loss
-        sl_label = ctk.CTkLabel(form_frame, text="Stop Loss (%):", font=("Arial", 12))
+        sl_label = ctk.CTkLabel(form_frame, text="Stop Loss (%):", font=Fonts.INPUT)
         sl_label.grid(row=4, column=0, sticky="w", pady=5)
 
         self.sl_entry = ctk.CTkEntry(form_frame, placeholder_text="2.5", width=200)
@@ -143,11 +142,11 @@ class TradeFormFrame(ctk.CTkFrame):
         self.sl_entry.bind("<KeyRelease>", lambda e: self._calculate_risk())
 
         # SL price display
-        self.sl_price_label = ctk.CTkLabel(form_frame, text="Price: $0.00", font=("Arial", 10), text_color="red")
+        self.sl_price_label = ctk.CTkLabel(form_frame, text="Price: $0.00", font=Fonts.SMALL, text_color=Colors.LOSS)
         self.sl_price_label.grid(row=4, column=2, sticky="w", pady=5, padx=(10, 0))
 
         # Take Profit
-        tp_label = ctk.CTkLabel(form_frame, text="Take Profit (%):", font=("Arial", 12))
+        tp_label = ctk.CTkLabel(form_frame, text="Take Profit (%):", font=Fonts.INPUT)
         tp_label.grid(row=5, column=0, sticky="w", pady=5)
 
         self.tp_entry = ctk.CTkEntry(form_frame, placeholder_text="5.0", width=200)
@@ -156,7 +155,7 @@ class TradeFormFrame(ctk.CTkFrame):
         self.tp_entry.bind("<KeyRelease>", lambda e: self._calculate_risk())
 
         # TP price display
-        self.tp_price_label = ctk.CTkLabel(form_frame, text="Price: $0.00", font=("Arial", 10), text_color="green")
+        self.tp_price_label = ctk.CTkLabel(form_frame, text="Price: $0.00", font=Fonts.SMALL, text_color=Colors.PROFIT)
         self.tp_price_label.grid(row=5, column=2, sticky="w", pady=5, padx=(10, 0))
 
     def _on_symbol_change(self, choice: str):
@@ -237,18 +236,18 @@ class TradeFormFrame(ctk.CTkFrame):
         self.risk_labels["margin_required"].configure(text=f"${risk['margin_required']:.2f}")
 
         # Max profit (green)
-        self.risk_labels["max_profit"].configure(text=f"+${risk['max_profit']:.2f}", text_color="#00ff88")
+        self.risk_labels["max_profit"].configure(text=f"+${risk['max_profit']:.2f}", text_color=Colors.PROFIT)
 
         # Max loss (red)
-        self.risk_labels["max_loss"].configure(text=f"-${risk['max_loss']:.2f}", text_color="#ff4444")
+        self.risk_labels["max_loss"].configure(text=f"-${risk['max_loss']:.2f}", text_color=Colors.LOSS)
 
         # Risk/Reward ratio
         rr = risk["risk_reward_ratio"]
-        color = "#00ff88" if rr >= 2.0 else "orange" if rr >= 1.5 else "#ff4444"
+        color = Colors.PROFIT if rr >= 2.0 else Colors.BTN_WARNING if rr >= 1.5 else Colors.LOSS
         self.risk_labels["risk_reward"].configure(text=f"{rr:.2f}:1", text_color=color)
 
         # Liquidation price
-        self.risk_labels["liquidation"].configure(text=f"${risk['liquidation_price']:,.2f}", text_color="orange")
+        self.risk_labels["liquidation"].configure(text=f"${risk['liquidation_price']:,.2f}", text_color=Colors.BTN_WARNING)
 
         # Update TP/SL price labels
         self.sl_price_label.configure(text=f"Price: ${risk['sl_price']:,.2f}")
@@ -262,18 +261,16 @@ class TradeFormFrame(ctk.CTkFrame):
 
     def _create_risk_display(self):
         """Display calculated risk metrics"""
-        risk_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
+        risk_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=0)
         risk_frame.pack(fill="x", padx=15, pady=10)
 
         # Title
-        icon_calc = get_icon("calculator", size=(18, 18), light_color="white", dark_color="white")
-        risk_title = ctk.CTkLabel(
-            risk_frame, text=" Calculated Risk", image=icon_calc, compound="left", font=("Arial", 13, "bold")
-        )
+        icon_calc = get_icon("calculator", size=(18, 18))
+        risk_title = ctk.CTkLabel(risk_frame, text=" Calculated Risk", image=icon_calc, compound="left", font=Fonts.H2)
         risk_title.pack(pady=(10, 5))
 
         # Grid for metrics
-        metrics_frame = ctk.CTkFrame(risk_frame, fg_color="transparent")
+        metrics_frame = ctk.CTkFrame(risk_frame, fg_color=Colors.TRANSPARENT)
         metrics_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         # Metric rows
@@ -289,11 +286,11 @@ class TradeFormFrame(ctk.CTkFrame):
 
         for i, (key, label_text, default_value) in enumerate(metrics):
             # Label
-            label = ctk.CTkLabel(metrics_frame, text=label_text, font=("Arial", 11), text_color="gray")
+            label = ctk.CTkLabel(metrics_frame, text=label_text, font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
             label.grid(row=i, column=0, sticky="w", pady=2)
 
             # Value
-            value_label = ctk.CTkLabel(metrics_frame, text=default_value, font=("Arial", 11, "bold"))
+            value_label = ctk.CTkLabel(metrics_frame, text=default_value, font=Fonts.H3)
             value_label.grid(row=i, column=1, sticky="e", pady=2)
 
             self.risk_labels[key] = value_label
@@ -302,13 +299,13 @@ class TradeFormFrame(ctk.CTkFrame):
 
     def _create_trade_button(self):
         """Create the main trade execution button"""
-        icon_rocket = get_icon("rocket", size=(20, 20), light_color="white", dark_color="white")
+        icon_rocket = get_button_icon("rocket", size=(20, 20), variant="danger")
         self.trade_button = ctk.CTkButton(
             self,
-            text=" Place Order",
+            text=" PLACE ORDER",
             image=icon_rocket,
             compound="left",
-            font=("Arial", 14, "bold"),
+            font=Fonts.BUTTON,
             height=40,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
@@ -349,7 +346,7 @@ class TradeFormFrame(ctk.CTkFrame):
             msg_frame = ctk.CTkFrame(dialog)
             msg_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-            title = ctk.CTkLabel(msg_frame, text="⚠️ Confirm Trade", font=("Arial", 16, "bold"))
+            title = ctk.CTkLabel(msg_frame, text="⚠️ Confirm Trade", font=Fonts.H1)
             title.pack(pady=(10, 15))
 
             details = f"""
@@ -365,16 +362,17 @@ Max Profit: +${self.risk_labels["max_profit"].cget("text")}
 Max Loss: -{self.risk_labels["max_loss"].cget("text")}
             """
 
-            details_label = ctk.CTkLabel(msg_frame, text=details.strip(), font=("Arial", 12), justify="left")
+            details_label = ctk.CTkLabel(msg_frame, text=details.strip(), font=Fonts.INPUT, justify="left")
             details_label.pack(pady=10)
 
             # Buttons
-            btn_frame = ctk.CTkFrame(msg_frame, fg_color="transparent")
+            btn_frame = ctk.CTkFrame(msg_frame, fg_color=Colors.TRANSPARENT)
             btn_frame.pack(side="bottom", pady=10)
 
             confirm_btn = ctk.CTkButton(
                 btn_frame,
-                text="✅ Execute Trade",
+                text="✅ EXECUTE TRADE",
+                font=Fonts.BUTTON,
                 fg_color=Colors.BTN_SUCCESS,
                 hover_color=Colors.BTN_SUCCESS_HOVER,
                 command=lambda: self._execute_trade(dialog),
@@ -382,7 +380,12 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
             confirm_btn.pack(side="left", padx=5)
 
             cancel_btn = ctk.CTkButton(
-                btn_frame, text="❌ Cancel", fg_color="gray", hover_color="darkgray", command=dialog.destroy
+                btn_frame,
+                text="❌ CANCEL",
+                font=Fonts.BUTTON_SM,
+                fg_color=Colors.TEXT_MUTED,
+                hover_color=Colors.TEXT_MUTED_DARK,
+                command=dialog.destroy,
             )
             cancel_btn.pack(side="left", padx=5)
 

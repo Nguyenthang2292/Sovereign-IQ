@@ -3,6 +3,8 @@
 from datetime import datetime
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 from modules.auto_trade.gui.utils.svg_icons import get_icon
@@ -22,7 +24,7 @@ class LogsSection:
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="both", expand=True, padx=5, pady=5)
 
-        header = ctk.CTkFrame(frame, fg_color="transparent")
+        header = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         header.pack(fill="x", padx=10, pady=(10, 5))
 
         ctk.CTkLabel(
@@ -33,7 +35,8 @@ class LogsSection:
             compound="left",
         ).pack(side="left")
 
-        ctk.CTkButton(header, text="Clear", width=60, height=24, command=self.clear).pack(side="right")
+        ctk.CTkButton(header, text="CLEAR", width=60, height=24, command=self.clear).pack(side="right")
+        font=Fonts.BUTTON_SM,
 
         self.logs_viewer = ctk.CTkTextbox(frame)
         self.logs_viewer.pack(fill="both", expand=True, padx=10, pady=5)

@@ -25,6 +25,7 @@ from typing import Tuple
 import customtkinter as ctk
 from PIL import Image
 
+from modules.auto_trade.gui.utils.colors import Colors
 from modules.common.ui.logging import log_warn
 
 # ---------------------------------------------------------------------------
@@ -197,6 +198,17 @@ ICONS = _SVG_DEFS  # same dict, just re-exported
 
 # Cache: (icon_key, size_tuple, color_str) -> CTkImage
 _cache: dict[tuple, ctk.CTkImage] = {}
+DEFAULT_ICON_COLOR = Colors.ACCENT
+
+# Button icon colors are unified to white for all variants.
+_BUTTON_VARIANT_ICON_COLOR: dict[str, str] = {
+    "primary": Colors.WHITE,
+    "success": Colors.WHITE,
+    "warning": Colors.WHITE,
+    "danger": Colors.WHITE,
+    "danger_alt": Colors.WHITE,
+    "neutral": Colors.WHITE,
+}
 
 
 def _build_svg(inner: str, size: Tuple[int, int], color: str) -> str:
@@ -220,7 +232,10 @@ def _svg_to_pil(svg_str: str, size: Tuple[int, int]) -> Image.Image:
             output_width=size[0],
             output_height=size[1],
         )
-        return Image.open(io.BytesIO(png_bytes)).convert("RGBA")
+        if not isinstance(png_bytes, (bytes, bytearray, memoryview)):
+            raise TypeError("cairosvg.svg2png returned non-buffer data")
+
+        return Image.open(io.BytesIO(bytes(png_bytes))).convert("RGBA")
     except ImportError as exc:
         raise ImportError("cairosvg is required for SVG icon rendering. Install it with: pip install cairosvg") from exc
 
@@ -228,8 +243,8 @@ def _svg_to_pil(svg_str: str, size: Tuple[int, int]) -> Image.Image:
 def get_icon(
     key: str,
     size: Tuple[int, int] = (18, 18),
-    light_color: str = "#1a1a2e",
-    dark_color: str = "#e0e0e0",
+    light_color: str = DEFAULT_ICON_COLOR,
+    dark_color: str = DEFAULT_ICON_COLOR,
 ) -> ctk.CTkImage | None:
     """Return a ``CTkImage`` for the named icon, with disk-level caching.
 
@@ -266,6 +281,21 @@ def get_icon(
         # Graceful degradation — fall back to text-only button
         log_warn("svg_icons: failed to render '%s': %s", key, exc)
         return None
+
+
+def get_button_icon(
+    key: str,
+    size: Tuple[int, int] = (18, 18),
+    variant: str = "neutral",
+) -> ctk.CTkImage | None:
+    """Return an icon with contrast color tuned for a button variant."""
+    color = _BUTTON_VARIANT_ICON_COLOR.get(variant, DEFAULT_ICON_COLOR)
+    img = get_icon(key, size=size, light_color=color, dark_color=color)
+    if img:
+        # Pre-generate hover variant for the monkey-patch to pick up
+        hover_img = get_icon(key, size=size, light_color="#1a1a1a", dark_color="#1a1a1a")
+        setattr(img, "_hover_variant", hover_img)
+    return img
 
 
 def clear_cache() -> None:

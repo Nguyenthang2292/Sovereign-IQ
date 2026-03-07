@@ -11,7 +11,9 @@ from pathlib import Path
 
 import customtkinter as ctk
 
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon
+from modules.auto_trade.gui.utils.fonts import Fonts
 from modules.common.ui.logging import log_error
 
 
@@ -26,7 +28,7 @@ class LogsViewer(ctk.CTkFrame):
             parent: Parent widget
             log_file_path: Path to log file
         """
-        super().__init__(parent, fg_color="transparent")
+        super().__init__(parent, fg_color=Colors.TRANSPARENT)
 
         self.log_file_path = Path(log_file_path)
 
@@ -39,21 +41,19 @@ class LogsViewer(ctk.CTkFrame):
         Live Stream left = Scanner Configuration width (1/2),
         System Logs right = Current Settings (1/2).
         """
-        from modules.auto_trade.gui.utils.colors import Colors
-
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
         # Add padding wrapper to match ScannerControl's layout
-        wrapper = ctk.CTkFrame(self, fg_color="transparent")
+        wrapper = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         wrapper.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=15, pady=10)
         wrapper.grid_columnconfigure(0, weight=1)
         wrapper.grid_columnconfigure(1, weight=1)
         wrapper.grid_rowconfigure(0, weight=1)
 
         # Left: Live Stream Logs (square box area)
-        left_frame = ctk.CTkFrame(wrapper, fg_color="transparent")
+        left_frame = ctk.CTkFrame(wrapper, fg_color=Colors.TRANSPARENT)
         left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         left_frame.grid_columnconfigure(0, weight=1)
         left_frame.grid_rowconfigure(1, weight=1)
@@ -61,7 +61,7 @@ class LogsViewer(ctk.CTkFrame):
         logs_label = ctk.CTkLabel(
             left_frame,
             text="📡 Live Stream Logs:",
-            font=("Arial", 12, "bold"),
+            font=Fonts.H3,
             anchor="w",
         )
         logs_label.grid(row=0, column=0, sticky="w", pady=(0, 5))
@@ -77,61 +77,64 @@ class LogsViewer(ctk.CTkFrame):
         system_logs_box = ctk.CTkFrame(
             wrapper,
             fg_color=Colors.get_card_bg(),
-            corner_radius=10,
+            corner_radius=0,
             border_width=1,
-            border_color="#404040",
+            border_color=Colors.BORDER_SUBTLE,
         )
         system_logs_box.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
-        inner = ctk.CTkFrame(system_logs_box, fg_color="transparent")
+        inner = ctk.CTkFrame(system_logs_box, fg_color=Colors.TRANSPARENT)
         inner.pack(fill="x", padx=15, pady=15)
 
-        title = ctk.CTkLabel(inner, text="System Logs", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(inner, text="System Logs", font=Fonts.H1)
         title.pack(pady=(0, 10))
 
         info = ctk.CTkLabel(
             inner,
             text=f"Logs are saved to:\n{self.log_file_path}",
-            font=("Arial", 11),
-            text_color="gray",
+            font=Fonts.BODY,
+            text_color=Colors.TEXT_MUTED,
             justify="center",
         )
         info.pack(pady=10)
 
         # Stack buttons vertically for compact layout
-        btn_frame = ctk.CTkFrame(inner, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(inner, fg_color=Colors.TRANSPARENT)
         btn_frame.pack(pady=20)
 
         open_btn = ctk.CTkButton(
             btn_frame,
-            text="  Open Log File",
+            text="OPEN LOG FILE",
+            font=Fonts.BUTTON_SM,
             width=160,
             command=self._open_log_file,
-            image=get_icon("file_text", size=(16, 16)),
+            image=get_button_icon("file_text", size=(16, 16), variant="primary"),
             compound="left",
         )
         open_btn.pack(pady=(0, 8))
 
         folder_btn = ctk.CTkButton(
             btn_frame,
-            text="  Open Folder",
+            text="OPEN FOLDER",
+            font=Fonts.BUTTON_SM,
             width=160,
             fg_color=Colors.BTN_NEUTRAL,
-            hover_color="#666666",
+            hover_color=Colors.TEXT_DISABLED,
             command=self._open_log_folder,
-            image=get_icon("folder_open", size=(16, 16)),
+            image=get_button_icon("folder_open", size=(16, 16), variant="neutral"),
             compound="left",
         )
         folder_btn.pack(pady=8)
 
         clear_btn = ctk.CTkButton(
             btn_frame,
-            text="  Clear Logs",
+            text="CLEAR LOGS",
+            font=Fonts.BUTTON_SM,
             width=160,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
             command=self.clear_logs,
-            image=get_icon("trash", size=(16, 16)),
+            image=get_button_icon("trash", size=(16, 16), variant="danger"),
             compound="left",
         )
         clear_btn.pack(pady=(8, 0))
@@ -139,8 +142,8 @@ class LogsViewer(ctk.CTkFrame):
         self.status_label = ctk.CTkLabel(
             inner,
             text="Click 'Open Log File' to view logs in your text editor",
-            font=("Arial", 10),
-            text_color="gray",
+            font=Fonts.SMALL,
+            text_color=Colors.TEXT_MUTED,
         )
         self.status_label.pack(pady=10)
 
@@ -155,7 +158,7 @@ class LogsViewer(ctk.CTkFrame):
         """Open log file in default text editor."""
         try:
             if not self.log_file_path.exists():
-                self.status_label.configure(text="Log file not found", text_color="#ff6666")
+                self.status_label.configure(text="Log file not found", text_color=Colors.BTN_DANGER_HOVER)
                 return
 
             if sys.platform == "win32":
@@ -165,9 +168,9 @@ class LogsViewer(ctk.CTkFrame):
             else:
                 subprocess.run(["xdg-open", str(self.log_file_path)])
 
-            self.status_label.configure(text="Log file opened", text_color="#66ff66")
+            self.status_label.configure(text="Log file opened", text_color=Colors.SUCCESS_BRIGHT)
         except Exception as e:
-            self.status_label.configure(text=f"Error: {e}", text_color="#ff6666")
+            self.status_label.configure(text=f"Error: {e}", text_color=Colors.BTN_DANGER_HOVER)
 
     def _open_log_folder(self):
         """Open folder containing log file."""
@@ -183,9 +186,9 @@ class LogsViewer(ctk.CTkFrame):
             else:
                 subprocess.run(["xdg-open", str(folder)])
 
-            self.status_label.configure(text="Folder opened", text_color="#66ff66")
+            self.status_label.configure(text="Folder opened", text_color=Colors.SUCCESS_BRIGHT)
         except Exception as e:
-            self.status_label.configure(text=f"Error: {e}", text_color="#ff6666")
+            self.status_label.configure(text=f"Error: {e}", text_color=Colors.BTN_DANGER_HOVER)
 
     def append_log(self, log_message: str):
         """

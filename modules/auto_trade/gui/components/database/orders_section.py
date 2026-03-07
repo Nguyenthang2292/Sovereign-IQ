@@ -5,10 +5,12 @@ from datetime import datetime
 from typing import Any, Callable
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 
 from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon, get_icon
 
 
 class OrdersSection:
@@ -42,7 +44,7 @@ class OrdersSection:
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
-        input_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        input_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         input_frame.pack(fill="x", padx=10, pady=5)
 
         ctk.CTkLabel(input_frame, text="Symbol:").pack(side="left", padx=(0, 5))
@@ -54,32 +56,36 @@ class OrdersSection:
         self.order_side = ctk.CTkOptionMenu(input_frame, values=["LONG", "SHORT"], width=100)
         self.order_side.pack(side="left", padx=(0, 10))
 
-        ctk.CTkButton(input_frame, text="Create Test Order", command=self._create_test_order).pack(side="right")
+        ctk.CTkButton(input_frame, text="CREATE TEST ORDER", command=self._create_test_order).pack(side="right")
+        font=Fonts.BUTTON_SM,
 
-        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         btn_frame.pack(fill="x", padx=10, pady=5)
 
         ctk.CTkButton(
             btn_frame,
-            text="  Query Open Positions",
+            text="QUERY OPEN POSITIONS",
+            font=Fonts.BUTTON_SM,
             command=self._query_open_positions,
-            image=get_icon("database", size=(16, 16)),
+            image=get_button_icon("database", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(side="left", padx=(0, 5), fill="x", expand=True)
 
         ctk.CTkButton(
             btn_frame,
-            text="  Get Overall Stats",
+            text="GET OVERALL STATS",
+            font=Fonts.BUTTON_SM,
             command=self._get_overall_stats,
-            image=get_icon("bar_chart_2", size=(16, 16)),
+            image=get_button_icon("bar_chart_2", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(side="left", padx=5, fill="x", expand=True)
 
         ctk.CTkButton(
             btn_frame,
-            text="  Get Daily Stats (30d)",
+            text="GET DAILY STATS (30D)",
+            font=Fonts.BUTTON_SM,
             command=self._get_daily_stats,
-            image=get_icon("calendar", size=(16, 16)),
+            image=get_button_icon("calendar", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(side="left", padx=(5, 0), fill="x", expand=True)
 

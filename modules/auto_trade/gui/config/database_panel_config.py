@@ -6,6 +6,8 @@ and its associated sections to avoid magic numbers and enable easy customization
 
 from typing import Tuple
 
+from modules.auto_trade.gui.utils.fonts import Fonts
+
 
 class DatabasePanelConfig:
     """Configuration constants for Database Panel components.
@@ -33,9 +35,9 @@ class DatabasePanelConfig:
     STATS_REFRESH_INTERVAL_MS: int = 30000  # 30 seconds
 
     # Font configurations
-    TEXTBOX_FONT: Tuple[str, int] = ("Consolas", 12)
-    TITLE_FONT: Tuple[str, int, str] = ("Roboto", 14, "bold")
-    HEADER_FONT: Tuple[str, int, str] = ("Roboto", 16, "bold")
+    TEXTBOX_FONT: Tuple[str, int] = Fonts.INPUT
+    TITLE_FONT: Tuple[str, int, str] = Fonts.H2
+    HEADER_FONT: Tuple[str, int, str] = Fonts.H1
 
     # Layout weights for grid configuration
     LEFT_PANEL_WEIGHT: int = 3  # 60%

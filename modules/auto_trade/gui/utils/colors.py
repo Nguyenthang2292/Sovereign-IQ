@@ -1,95 +1,159 @@
-import customtkinter as ctk
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+
+def _load_theme_data() -> dict[str, Any]:
+    theme_path = Path(__file__).resolve().parent.parent / "config" / "matrix_theme.json"
+    try:
+        with theme_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+_THEME_DATA: dict[str, Any] = _load_theme_data()
+_APP_COLORS: dict[str, Any] = (
+    _THEME_DATA.get("AppColors", {}) if isinstance(_THEME_DATA.get("AppColors"), dict) else {}
+)
+
+
+def _app_color(name: str) -> str:
+    value = _APP_COLORS.get(name)
+    return value if isinstance(value, str) else ""
+
+
+def _theme_color(widget: str, key: str) -> str:
+    widget_data = _THEME_DATA.get(widget, {})
+    if not isinstance(widget_data, dict):
+        return ""
+
+    value = widget_data.get(key)
+    if isinstance(value, list) and value:
+        return value[0] if isinstance(value[0], str) else ""
+    return value if isinstance(value, str) else ""
 
 
 class Colors:
-    """Theme-aware color system for Auto Trade GUI"""
+    """Theme color registry loaded from matrix_theme.json."""
 
-    # Static colors (theme-independent)
-    LONG: str = "#00ff88"
-    SHORT: str = "#ff4444"
-    NEUTRAL: str = "#888888"
-    PROFIT: str = "#00ff88"
-    LOSS: str = "#ff4444"
-    PRODUCTION: str = "#ff4444"
-    DEMO: str = "#ffaa00"
-    DRY_RUN: str = "#4488ff"
+    TRANSPARENT: str = _app_color("TRANSPARENT")
+    BLACK: str = _app_color("BLACK")
+    WHITE: str = _app_color("WHITE")
 
-    # Button Colors
-    BTN_SUCCESS: str = "#00a855"  # Medium green – white text legible (WCAG AA ~4.5:1)
-    BTN_SUCCESS_HOVER: str = "#007a3d"  # Darker green on hover
-    BTN_SUCCESS_TEXT: str = "white"  # Always white on BTN_SUCCESS background
-    BTN_DANGER: str = "#ff4444"
-    BTN_DANGER_HOVER: str = "#cc0000"
-    BTN_DANGER_ALT: str = "#7f1d1d"
-    BTN_DANGER_ALT_HOVER: str = "#991b1b"
-    BTN_PRIMARY: str = "#4488ff"
-    BTN_PRIMARY_HOVER: str = "#0066ff"
-    BTN_NEUTRAL: str = "#555555"
-    BTN_NEUTRAL_HOVER: str = "#333333"
-    BTN_WARNING: str = "#ffaa00"
-    BTN_WARNING_HOVER: str = "#cc8800"
+    TEXT_MUTED: str = _app_color("TEXT_MUTED")
+    TEXT_MUTED_DARK: str = _app_color("TEXT_MUTED_DARK")
+    TEXT_DISABLED: str = _app_color("TEXT_DISABLED")
+    TEXT_SECONDARY_ALT: str = _app_color("TEXT_SECONDARY_ALT")
+    TEXT_FAINT: str = _app_color("TEXT_FAINT")
 
-    # Dark theme colors
-    BG_DARK: str = "#1a1a1a"
-    BG_CARD_DARK: str = "#2b2b2b"
-    BG_HEADER_DARK: str = "#1e1e1e"
-    TEXT_PRIMARY_DARK: str = "#ffffff"
-    TEXT_SECONDARY_DARK: str = "#888888"
+    SEPARATOR_DARK: str = _app_color("SEPARATOR_DARK")
+    SEPARATOR_LIGHT: str = _app_color("SEPARATOR_LIGHT")
 
-    # Light theme colors
-    BG_LIGHT: str = "#f0f0f0"
-    BG_CARD_LIGHT: str = "#ffffff"
-    BG_HEADER_LIGHT: str = "#e8e8e8"
-    TEXT_PRIMARY_LIGHT: str = "#000000"
-    TEXT_SECONDARY_LIGHT: str = "#666666"
+    CARD_MUTED: str = _app_color("CARD_MUTED")
+    CARD_ELEVATED: str = _app_color("CARD_ELEVATED")
+    CARD_DIALOG: str = _app_color("CARD_DIALOG")
+    BORDER_SUBTLE: str = _app_color("BORDER_SUBTLE")
+    WARNING_BG: str = _app_color("WARNING_BG")
 
-    @staticmethod
-    def get_current_theme() -> str:
-        """Get current CustomTkinter appearance mode"""
-        return ctk.get_appearance_mode()
+    TAB_SELECTED_HOVER: str = _app_color("TAB_SELECTED_HOVER")
+    INFO: str = _app_color("INFO")
+    SUCCESS_BRIGHT: str = _app_color("SUCCESS_BRIGHT")
+    SUCCESS_DIM: str = _app_color("SUCCESS_DIM")
+    WARNING_DIM: str = _app_color("WARNING_DIM")
+    DANGER_ALT_HOVER: str = _app_color("DANGER_ALT_HOVER")
+    DANGER_CRITICAL: str = _app_color("DANGER_CRITICAL")
+    LOSS_SOFT: str = _app_color("LOSS_SOFT")
+    WARNING_ORANGE: str = _app_color("WARNING_ORANGE")
+    WARNING_BRIGHT: str = _app_color("WARNING_BRIGHT")
+    TOAST_INFO: str = _app_color("TOAST_INFO")
+    TOAST_ERROR: str = _app_color("TOAST_ERROR")
+    TOAST_WARNING: str = _app_color("TOAST_WARNING")
+    SUCCESS_ALT: str = _app_color("SUCCESS_ALT")
 
-    @staticmethod
-    def is_dark_mode() -> bool:
-        """Check if current theme is dark mode"""
-        return Colors.get_current_theme().lower() == "dark"
+    LONG: str = _app_color("LONG")
+    SHORT: str = _app_color("SHORT")
+    NEUTRAL: str = _app_color("NEUTRAL")
+    PROFIT: str = _app_color("PROFIT")
+    LOSS: str = _app_color("LOSS")
+    PRODUCTION: str = _app_color("PRODUCTION")
+    DEMO: str = _app_color("DEMO")
+    DRY_RUN: str = _app_color("DRY_RUN")
+
+    BTN_SUCCESS: str = _app_color("BTN_SUCCESS")
+    BTN_SUCCESS_HOVER: str = _app_color("BTN_SUCCESS_HOVER")
+    BTN_SUCCESS_TEXT: str = _app_color("BTN_SUCCESS_TEXT")
+    BTN_DANGER: str = _app_color("BTN_DANGER")
+    BTN_DANGER_HOVER: str = _app_color("BTN_DANGER_HOVER")
+    BTN_DANGER_ALT: str = _app_color("BTN_DANGER_ALT")
+    BTN_DANGER_ALT_TEXT: str = _app_color("BTN_DANGER_ALT_TEXT")
+    BTN_DANGER_ALT_HOVER: str = _app_color("BTN_DANGER_ALT_HOVER")
+    BTN_DANGER_ALT_HOVER_TEXT: str = _app_color("BTN_DANGER_ALT_HOVER_TEXT")
+    BTN_PRIMARY: str = _theme_color("CTkButton", "fg_color") or _app_color("BTN_PRIMARY")
+    BTN_PRIMARY_HOVER: str = _theme_color("CTkButton", "hover_color") or _app_color("BTN_PRIMARY_HOVER")
+    BTN_PRIMARY_TEXT: str = _theme_color("CTkButton", "text_color") or _app_color("BTN_PRIMARY_TEXT")
+    BTN_NEUTRAL: str = _app_color("BTN_NEUTRAL")
+    BTN_NEUTRAL_TEXT: str = _app_color("BTN_NEUTRAL_TEXT")
+    BTN_NEUTRAL_HOVER: str = _app_color("BTN_NEUTRAL_HOVER")
+    BTN_NEUTRAL_HOVER_TEXT: str = _app_color("BTN_NEUTRAL_HOVER_TEXT")
+    BTN_WARNING: str = _app_color("BTN_WARNING")
+    BTN_WARNING_HOVER: str = _app_color("BTN_WARNING_HOVER")
+
+    BG_DARK: str = _theme_color("CTk", "fg_color") or _app_color("BG_DARK")
+    BG_CARD_DARK: str = _theme_color("CTkFrame", "fg_color") or _app_color("BG_CARD_DARK")
+    BG_HEADER_DARK: str = _app_color("BG_HEADER_DARK")
+    TEXT_PRIMARY_DARK: str = _theme_color("CTkLabel", "text_color") or _app_color("TEXT_PRIMARY_DARK")
+    TEXT_SECONDARY_DARK: str = _app_color("TEXT_SECONDARY_DARK")
+    BG_HIGHLIGHT: str = _app_color("BG_HIGHLIGHT")
+    BG_INPUT: str = _theme_color("CTkEntry", "fg_color") or _app_color("BG_INPUT")
+    TEXT_DIM: str = _app_color("TEXT_DIM")
+    TEXT_BRIGHT: str = _app_color("TEXT_BRIGHT")
+    BORDER_NEON: str = _theme_color("CTkFrame", "border_color") or _app_color("BORDER_NEON")
+    BORDER_ACTIVE: str = _app_color("BORDER_ACTIVE")
+    ACCENT: str = _app_color("ACCENT")
+    ACCENT_DIM: str = _app_color("ACCENT_DIM")
+    ICON_ON_DARK: str = _app_color("ICON_ON_DARK")
+    ICON_ON_LIGHT: str = _app_color("ICON_ON_LIGHT")
+
+    @classmethod
+    def get_current_theme(cls) -> str:
+        return "Dark"
+
+    @classmethod
+    def is_dark_mode(cls) -> bool:
+        return True
 
     @classmethod
     def get_bg(cls) -> str:
-        """Get background color for current theme"""
-        return cls.BG_DARK if cls.is_dark_mode() else cls.BG_LIGHT
+        return cls.BG_DARK
 
     @classmethod
     def get_card_bg(cls) -> str:
-        """Get card background color for current theme"""
-        return cls.BG_CARD_DARK if cls.is_dark_mode() else cls.BG_CARD_LIGHT
+        return cls.BG_CARD_DARK
 
     @classmethod
     def get_header_bg(cls) -> str:
-        """Get header background color for current theme"""
-        return cls.BG_HEADER_DARK if cls.is_dark_mode() else cls.BG_HEADER_LIGHT
+        return cls.BG_HEADER_DARK
 
     @classmethod
     def get_text_primary(cls) -> str:
-        """Get primary text color for current theme"""
-        return cls.TEXT_PRIMARY_DARK if cls.is_dark_mode() else cls.TEXT_PRIMARY_LIGHT
+        return cls.TEXT_PRIMARY_DARK
 
     @classmethod
     def get_text_secondary(cls) -> str:
-        """Get secondary text color for current theme"""
-        return cls.TEXT_SECONDARY_DARK if cls.is_dark_mode() else cls.TEXT_SECONDARY_LIGHT
+        return cls.TEXT_SECONDARY_DARK
 
     @classmethod
     def get_hover_bg(cls) -> str:
-        """Get hover/section background color for current theme"""
-        # Slightly lighter than card background for visual separation
-        return "#333333" if cls.is_dark_mode() else "#f8f8f8"
+        return cls.BG_HIGHLIGHT
 
     @classmethod
     def get_accent(cls) -> str:
-        """Get accent color for headers and highlights"""
-        return "#4488ff"  # Blue accent color that works in both themes
+        return cls.ACCENT
 
-    # Legacy properties for backward compatibility
     @property
     def BG_CARD(self) -> str:
         return self.get_card_bg()

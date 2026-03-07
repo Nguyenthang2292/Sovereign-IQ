@@ -5,6 +5,7 @@ import ccxt
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 from modules.auto_trade.gui.utils.retry_utils import retry_with_exponential_backoff
 from modules.auto_trade.gui.utils.toast import show_toast
 
@@ -27,7 +28,7 @@ class PositionActions(ctk.CTkFrame):
         self.on_action_callback = on_action_callback
 
         # Title
-        title = ctk.CTkLabel(self, text="⚡ Position Actions", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(self, text="⚡ Position Actions", font=Fonts.H1)
         title.pack(pady=(10, 15))
 
         # Create sections
@@ -42,17 +43,17 @@ class PositionActions(ctk.CTkFrame):
         # Assuming position has 'isolated' or similar flag
         # If unknown, show it anyway but it might fail on backend
 
-        margin_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
+        margin_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=0)
         margin_frame.pack(fill="x", padx=15, pady=10)
 
-        title = ctk.CTkLabel(margin_frame, text="Add Margin (Isolated)", font=("Arial", 13, "bold"))
+        title = ctk.CTkLabel(margin_frame, text="Add Margin (Isolated)", font=Fonts.H2)
         title.pack(pady=(10, 5))
 
         # Input frame
-        input_frame = ctk.CTkFrame(margin_frame, fg_color="transparent")
+        input_frame = ctk.CTkFrame(margin_frame, fg_color=Colors.TRANSPARENT)
         input_frame.pack(fill="x", padx=10, pady=(5, 10))
 
-        label = ctk.CTkLabel(input_frame, text="Amount (USDT):", font=("Arial", 11), text_color="gray")
+        label = ctk.CTkLabel(input_frame, text="Amount (USDT):", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         label.pack(side="left")
 
         self.margin_entry = ctk.CTkEntry(input_frame, width=120, placeholder_text="Enter amount")
@@ -61,8 +62,8 @@ class PositionActions(ctk.CTkFrame):
         # Add button
         self.add_margin_btn = ctk.CTkButton(
             margin_frame,
-            text="➕ Add Margin",
-            font=("Arial", 12, "bold"),
+            text="➕ ADD MARGIN",
+            font=Fonts.BUTTON_SM,
             height=35,
             fg_color=Colors.BTN_NEUTRAL,
             hover_color=Colors.BTN_NEUTRAL_HOVER,
@@ -164,14 +165,14 @@ This will increase the margin for this isolated position.
 
     def _create_close_section(self):
         """Create close position controls"""
-        close_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
+        close_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=0)
         close_frame.pack(fill="x", padx=15, pady=(0, 10))
 
-        title = ctk.CTkLabel(close_frame, text="Close Position", font=("Arial", 13, "bold"))
+        title = ctk.CTkLabel(close_frame, text="Close Position", font=Fonts.H2)
         title.pack(pady=(10, 5))
 
         # Close type selection
-        type_frame = ctk.CTkFrame(close_frame, fg_color="transparent")
+        type_frame = ctk.CTkFrame(close_frame, fg_color=Colors.TRANSPARENT)
         type_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         self.close_type_var = ctk.StringVar(value="market")
@@ -195,11 +196,11 @@ This will increase the margin for this isolated position.
         limit_radio.pack(side="left")
 
         # Limit price input (hidden by default)
-        self.limit_price_frame = ctk.CTkFrame(close_frame, fg_color="transparent")
+        self.limit_price_frame = ctk.CTkFrame(close_frame, fg_color=Colors.TRANSPARENT)
         self.limit_price_frame.pack(fill="x", padx=10, pady=(0, 10))
         self.limit_price_frame.pack_forget()
 
-        limit_label = ctk.CTkLabel(self.limit_price_frame, text="Limit Price:", font=("Arial", 11), text_color="gray")
+        limit_label = ctk.CTkLabel(self.limit_price_frame, text="Limit Price:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         limit_label.pack(side="left")
 
         self.limit_price_entry = ctk.CTkEntry(self.limit_price_frame, width=150, placeholder_text="Enter price")
@@ -208,8 +209,8 @@ This will increase the margin for this isolated position.
         # Close button
         self.close_btn = ctk.CTkButton(
             close_frame,
-            text="🔴 Close Position",
-            font=("Arial", 12, "bold"),
+            text="🔴 CLOSE POSITION",
+            font=Fonts.BUTTON,
             height=35,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
@@ -236,14 +237,14 @@ This will increase the margin for this isolated position.
 
     def _create_partial_close_section(self):
         """Create partial close controls"""
-        partial_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
+        partial_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=0)
         partial_frame.pack(fill="x", padx=15, pady=10)
 
-        title = ctk.CTkLabel(partial_frame, text="Partial Close", font=("Arial", 13, "bold"))
+        title = ctk.CTkLabel(partial_frame, text="Partial Close", font=Fonts.H2)
         title.pack(pady=(10, 5))
 
         # Percentage buttons
-        pct_frame = ctk.CTkFrame(partial_frame, fg_color="transparent")
+        pct_frame = ctk.CTkFrame(partial_frame, fg_color=Colors.TRANSPARENT)
         pct_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         self.partial_pct_var = ctk.StringVar(value="25")
@@ -261,10 +262,10 @@ This will increase the margin for this isolated position.
             btn.pack(side="left", padx=2)
 
         # Custom percentage input
-        custom_frame = ctk.CTkFrame(partial_frame, fg_color="transparent")
+        custom_frame = ctk.CTkFrame(partial_frame, fg_color=Colors.TRANSPARENT)
         custom_frame.pack(fill="x", padx=10, pady=(0, 5))
 
-        custom_label = ctk.CTkLabel(custom_frame, text="Custom %:", font=("Arial", 11), text_color="gray")
+        custom_label = ctk.CTkLabel(custom_frame, text="Custom %:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         custom_label.pack(side="left")
 
         self.custom_pct_entry = ctk.CTkEntry(custom_frame, width=80, placeholder_text="50")
@@ -274,8 +275,8 @@ This will increase the margin for this isolated position.
         # Partial close button
         self.partial_btn = ctk.CTkButton(
             partial_frame,
-            text="⚡ Partial Close",
-            font=("Arial", 12, "bold"),
+            text="⚡ PARTIAL CLOSE",
+            font=Fonts.BUTTON_SM,
             height=35,
             fg_color=Colors.BTN_WARNING,
             hover_color=Colors.BTN_WARNING_HOVER,
@@ -297,65 +298,65 @@ This will increase the margin for this isolated position.
 
     def _create_modify_tp_sl_section(self):
         """Create TP/SL modification controls"""
-        modify_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=10)
+        modify_frame = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=0)
         modify_frame.pack(fill="x", padx=15, pady=10)
 
-        title = ctk.CTkLabel(modify_frame, text="Modify TP/SL", font=("Arial", 13, "bold"))
+        title = ctk.CTkLabel(modify_frame, text="Modify TP/SL", font=Fonts.H2)
         title.pack(pady=(10, 5))
 
         # Current TP/SL display
-        current_frame = ctk.CTkFrame(modify_frame, fg_color="transparent")
+        current_frame = ctk.CTkFrame(modify_frame, fg_color=Colors.TRANSPARENT)
         current_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         current_tp = self.position.get("take_profit", 0)
         current_sl = self.position.get("stop_loss", 0)
 
-        ct_label = ctk.CTkLabel(current_frame, text="Current:", font=("Arial", 11), text_color="gray")
+        ct_label = ctk.CTkLabel(current_frame, text="Current:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         ct_label.grid(row=0, column=0, sticky="w", pady=2)
 
         ct_tp = ctk.CTkLabel(
             current_frame,
             text=f"TP: ${current_tp:,.2f}" if current_tp > 0 else "TP: Not set",
-            font=("Arial", 11),
-            text_color="#00ff88",
+            font=Fonts.BODY,
+            text_color=Colors.PROFIT,
         )
         ct_tp.grid(row=0, column=1, sticky="w", pady=2, padx=(10, 20))
 
         ct_sl = ctk.CTkLabel(
             current_frame,
             text=f"SL: ${current_sl:,.2f}" if current_sl > 0 else "SL: Not set",
-            font=("Arial", 11),
-            text_color="#ff4444",
+            font=Fonts.BODY,
+            text_color=Colors.LOSS,
         )
         ct_sl.grid(row=0, column=2, sticky="w", pady=2)
 
         # New TP/SL inputs
-        input_frame = ctk.CTkFrame(modify_frame, fg_color="transparent")
+        input_frame = ctk.CTkFrame(modify_frame, fg_color=Colors.TRANSPARENT)
         input_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         # TP input
-        tp_label = ctk.CTkLabel(input_frame, text="New TP Price:", font=("Arial", 11), text_color="gray")
+        tp_label = ctk.CTkLabel(input_frame, text="New TP Price:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         tp_label.grid(row=0, column=0, sticky="w", pady=5)
 
         self.tp_entry = ctk.CTkEntry(input_frame, width=120, placeholder_text="Enter TP price")
         self.tp_entry.grid(row=0, column=1, sticky="w", pady=5, padx=(10, 20))
 
         # SL input
-        sl_label = ctk.CTkLabel(input_frame, text="New SL Price:", font=("Arial", 11), text_color="gray")
+        sl_label = ctk.CTkLabel(input_frame, text="New SL Price:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         sl_label.grid(row=1, column=0, sticky="w", pady=5)
 
         self.sl_entry = ctk.CTkEntry(input_frame, width=120, placeholder_text="Enter SL price")
         self.sl_entry.grid(row=1, column=1, sticky="w", pady=5, padx=(10, 20))
 
         # Action buttons
-        btn_frame = ctk.CTkFrame(modify_frame, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(modify_frame, fg_color=Colors.TRANSPARENT)
         btn_frame.pack(fill="x", padx=10, pady=(0, 10))
 
         # Modify button
         self.modify_btn = ctk.CTkButton(
             btn_frame,
-            text="✏️ Apply Changes",
-            font=("Arial", 12, "bold"),
+            text="✏️ APPLY CHANGES",
+            font=Fonts.BUTTON_SM,
             height=35,
             fg_color=Colors.BTN_PRIMARY,
             hover_color=Colors.BTN_PRIMARY_HOVER,
@@ -366,8 +367,8 @@ This will increase the margin for this isolated position.
         # Breakeven button
         self.be_btn = ctk.CTkButton(
             btn_frame,
-            text="🎯 Breakeven",
-            font=("Arial", 12, "bold"),
+            text="🎯 BREAKEVEN",
+            font=Fonts.BUTTON_SM,
             height=35,
             fg_color=Colors.BTN_SUCCESS,
             hover_color=Colors.BTN_SUCCESS_HOVER,
@@ -378,11 +379,11 @@ This will increase the margin for this isolated position.
         # Cancel orders button
         self.cancel_btn = ctk.CTkButton(
             modify_frame,
-            text="🚫 Cancel Open Orders",
-            font=("Arial", 12),
+            text="🚫 CANCEL OPEN ORDERS",
+            font=Fonts.BUTTON_SM,
             height=35,
-            fg_color="gray",
-            hover_color="darkgray",
+            fg_color=Colors.TEXT_MUTED,
+            hover_color=Colors.TEXT_MUTED_DARK,
             command=self._confirm_cancel_orders,
         )
         self.cancel_btn.pack(fill="x", padx=10, pady=(0, 10))

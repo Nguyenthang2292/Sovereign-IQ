@@ -4,10 +4,12 @@ import uuid
 from typing import Callable
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 
 from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon, get_icon
 
 
 class SignalsSection:
@@ -41,7 +43,7 @@ class SignalsSection:
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
-        input_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        input_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         input_frame.pack(fill="x", padx=10, pady=5)
 
         ctk.CTkLabel(input_frame, text="Symbol:").pack(side="left", padx=(0, 5))
@@ -54,24 +56,27 @@ class SignalsSection:
         self.signal_confidence.pack(side="left", padx=(0, 10))
         self.signal_confidence.insert(0, "0.85")
 
-        ctk.CTkButton(input_frame, text="Create Test Signal", command=self._create_test_signal).pack(side="right")
+        ctk.CTkButton(input_frame, text="CREATE TEST SIGNAL", command=self._create_test_signal).pack(side="right")
+        font=Fonts.BUTTON_SM,
 
-        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         btn_frame.pack(fill="x", padx=10, pady=5)
 
         ctk.CTkButton(
             btn_frame,
-            text="  Get Recent Signals",
+            text="GET RECENT SIGNALS",
+            font=Fonts.BUTTON_SM,
             command=self._get_recent_signals,
-            image=get_icon("database", size=(16, 16)),
+            image=get_button_icon("database", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(side="left", padx=(0, 5), fill="x", expand=True)
 
         ctk.CTkButton(
             btn_frame,
-            text="  Signal Performance Stats",
+            text="SIGNAL PERFORMANCE STATS",
+            font=Fonts.BUTTON_SM,
             command=self._get_signal_stats,
-            image=get_icon("bar_chart_2", size=(16, 16)),
+            image=get_button_icon("bar_chart_2", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(side="left", padx=(5, 0), fill="x", expand=True)
 

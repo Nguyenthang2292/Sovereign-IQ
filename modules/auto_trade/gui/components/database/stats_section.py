@@ -3,6 +3,7 @@
 from typing import Dict
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
 
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 from modules.auto_trade.gui.services.database_service import DatabaseService
@@ -45,7 +46,7 @@ class StatsSection:
         ]
 
         for key, label in stats_items:
-            row = ctk.CTkFrame(frame, fg_color="transparent")
+            row = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
             row.pack(fill="x", padx=10, pady=2)
 
             ctk.CTkLabel(row, text=f"{label}:").pack(side="left")

@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, Optional
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 from modules.common.ui.logging import log_error, log_warn
 
 
@@ -19,14 +20,20 @@ class ScannerControl(ctk.CTkFrame):
         on_scan_toggle: Optional[Callable[..., Any]] = None,
         on_config_change: Optional[Callable[..., Any]] = None,
     ):
-        super().__init__(parent)
+        super().__init__(
+            parent,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
 
         self.on_scan_toggle = on_scan_toggle
         self.on_config_change = on_config_change
         self.scanner_running = False
 
         # Title
-        title = ctk.CTkLabel(self, text="🔍 Scanner Control", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(self, text="🔍 Scanner Control", font=Fonts.H1)
         title.pack(pady=(10, 15))
 
         # Status indicator
@@ -40,35 +47,35 @@ class ScannerControl(ctk.CTkFrame):
 
     def _create_status_indicator(self):
         """Create scanner status indicator"""
-        status_frame = ctk.CTkFrame(self, fg_color="transparent")
+        status_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         status_frame.pack(fill="x", padx=15, pady=10)
 
         # Status label with emoji
         self.status_label = ctk.CTkLabel(
-            status_frame, text="🔴 Scanner: STOPPED", font=("Arial", 14, "bold"), text_color="gray"
+            status_frame, text="🔴 Scanner: STOPPED", font=Fonts.H2, text_color=Colors.TEXT_MUTED
         )
         self.status_label.pack()
 
         # Last scan timestamp
         self.last_scan_label = ctk.CTkLabel(
-            status_frame, text="Last scan: Never", font=("Arial", 10), text_color="gray"
+            status_frame, text="Last scan: Never", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED
         )
         self.last_scan_label.pack(pady=(5, 0))
 
         # Scan progress
-        self.progress_label = ctk.CTkLabel(status_frame, text="", font=("Arial", 10), text_color="#00ff88")
+        self.progress_label = ctk.CTkLabel(status_frame, text="", font=Fonts.SMALL, text_color=Colors.PROFIT)
         self.progress_label.pack(pady=(2, 0))
 
     def _create_controls(self):
         """Create start/stop control buttons"""
-        controls_frame = ctk.CTkFrame(self, fg_color="transparent")
+        controls_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         controls_frame.pack(fill="x", padx=15, pady=10)
 
         # Start button
         self.start_button = ctk.CTkButton(
             controls_frame,
-            text="▶️ Start Scanner",
-            font=("Arial", 12, "bold"),
+            text="▶️ START SCANNER",
+            font=Fonts.BUTTON,
             fg_color=Colors.BTN_SUCCESS,
             hover_color=Colors.BTN_SUCCESS_HOVER,
             command=self._start_scanner,
@@ -78,8 +85,8 @@ class ScannerControl(ctk.CTkFrame):
         # Stop button (hidden initially)
         self.stop_button = ctk.CTkButton(
             controls_frame,
-            text="⏸️ Stop Scanner",
-            font=("Arial", 12, "bold"),
+            text="⏸️ STOP SCANNER",
+            font=Fonts.BUTTON,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
             command=self._stop_scanner,
@@ -90,8 +97,8 @@ class ScannerControl(ctk.CTkFrame):
         # Manual scan button
         self.manual_scan_button = ctk.CTkButton(
             controls_frame,
-            text="🔄 Manual Scan",
-            font=("Arial", 12),
+            text="🔄 MANUAL SCAN",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_PRIMARY,
             hover_color=Colors.BTN_PRIMARY_HOVER,
             command=self._manual_scan,
@@ -101,27 +108,33 @@ class ScannerControl(ctk.CTkFrame):
     def _create_configuration(self):
         """Create scanner configuration and settings display side-by-side"""
         # Container frame for 2-column layout
-        container = ctk.CTkFrame(self, fg_color="transparent")
+        container = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         container.pack(fill="both", expand=True, padx=15, pady=10)
 
         container.grid_columnconfigure(0, weight=1)
         container.grid_columnconfigure(1, weight=1)
 
         # ===== LEFT: Scanner Configuration =====
-        config_frame = ctk.CTkFrame(container, fg_color=Colors.get_card_bg(), corner_radius=10)
+        config_frame = ctk.CTkFrame(
+            container,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
         config_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
 
         # Title
-        config_title = ctk.CTkLabel(config_frame, text="⚙️ Scanner Configuration", font=("Arial", 12, "bold"))
+        config_title = ctk.CTkLabel(config_frame, text="⚙️ Scanner Configuration", font=Fonts.H3)
         config_title.pack(pady=(10, 5))
 
         # Configuration inputs
-        inputs_frame = ctk.CTkScrollableFrame(config_frame, fg_color="transparent")
+        inputs_frame = ctk.CTkScrollableFrame(config_frame, fg_color=Colors.TRANSPARENT)
         inputs_frame.pack(fill="both", expand=True, padx=5, pady=(5, 10))
 
         # Scan interval
         interval_label = ctk.CTkLabel(
-            inputs_frame, text="Scan Interval (minutes):", font=("Arial", 11), text_color="gray"
+            inputs_frame, text="Scan Interval (minutes):", font=Fonts.BODY, text_color=Colors.TEXT_MUTED
         )
         interval_label.grid(row=0, column=0, sticky="w", pady=5)
 
@@ -130,7 +143,7 @@ class ScannerControl(ctk.CTkFrame):
         self.scan_interval_entry.insert(0, "5")
 
         # Timeframe selector
-        timeframe_label = ctk.CTkLabel(inputs_frame, text="Timeframe:", font=("Arial", 11), text_color="gray")
+        timeframe_label = ctk.CTkLabel(inputs_frame, text="Timeframe:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         timeframe_label.grid(row=1, column=0, sticky="w", pady=5)
 
         self.timeframe_var = ctk.StringVar(value="1h")
@@ -144,7 +157,7 @@ class ScannerControl(ctk.CTkFrame):
         timeframe_dropdown.grid(row=1, column=1, sticky="e", pady=5, padx=(10, 0))
 
         # Sampling strategy selector
-        strategy_label = ctk.CTkLabel(inputs_frame, text="Sampling Strategy:", font=("Arial", 11), text_color="gray")
+        strategy_label = ctk.CTkLabel(inputs_frame, text="Sampling Strategy:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         strategy_label.grid(row=2, column=0, sticky="w", pady=5)
 
         self.sampling_strategy_var = ctk.StringVar(value="stratified")
@@ -158,7 +171,7 @@ class ScannerControl(ctk.CTkFrame):
         strategy_dropdown.grid(row=2, column=1, sticky="e", pady=5, padx=(10, 0))
 
         # Sample percentage field
-        percentage_label = ctk.CTkLabel(inputs_frame, text="Sample (%):", font=("Arial", 11), text_color="gray")
+        percentage_label = ctk.CTkLabel(inputs_frame, text="Sample (%):", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         percentage_label.grid(row=3, column=0, sticky="w", pady=5)
 
         self.sample_percentage_entry = ctk.CTkEntry(inputs_frame, placeholder_text="20", width=150)
@@ -176,7 +189,7 @@ class ScannerControl(ctk.CTkFrame):
         auto_scan_checkbox.grid(row=4, column=0, columnspan=2, sticky="w", pady=5)
 
         # Min Signal Score
-        min_score_label = ctk.CTkLabel(inputs_frame, text="Min Signal Score:", font=("Arial", 11), text_color="gray")
+        min_score_label = ctk.CTkLabel(inputs_frame, text="Min Signal Score:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         min_score_label.grid(row=5, column=0, sticky="w", pady=5)
 
         self.min_score_var = ctk.DoubleVar(value=0.7)
@@ -186,7 +199,7 @@ class ScannerControl(ctk.CTkFrame):
         min_score_slider.grid(row=5, column=1, sticky="e", pady=5, padx=(10, 0))
 
         self.min_score_value_label = ctk.CTkLabel(
-            inputs_frame, text=f"{self.min_score_var.get():.2f}", font=("Arial", 10), text_color="gray"
+            inputs_frame, text=f"{self.min_score_var.get():.2f}", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED
         )
         self.min_score_value_label.grid(row=6, column=1, sticky="e", pady=(0, 3), padx=(10, 0))
 
@@ -194,8 +207,8 @@ class ScannerControl(ctk.CTkFrame):
         min_score_desc_label = ctk.CTkLabel(
             inputs_frame,
             text="(High score = stricter filtering.\nE.g. >0.4 means fewer but stronger signals)",
-            font=("Arial", 9, "italic"),
-            text_color="gray",
+            font=Fonts.TINY,
+            text_color=Colors.TEXT_MUTED,
             justify="left",
             anchor="w",
         )
@@ -212,7 +225,7 @@ class ScannerControl(ctk.CTkFrame):
         self.min_score_var.trace_add("write", _on_min_score_change)
 
         # Min 24h Volume
-        volume_label = ctk.CTkLabel(inputs_frame, text="Min 24h Volume (M):", font=("Arial", 11), text_color="gray")
+        volume_label = ctk.CTkLabel(inputs_frame, text="Min 24h Volume (M):", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         volume_label.grid(row=8, column=0, sticky="w", pady=5)
 
         self.min_volume_entry = ctk.CTkEntry(inputs_frame, placeholder_text="50", width=150)
@@ -220,10 +233,10 @@ class ScannerControl(ctk.CTkFrame):
         self.min_volume_entry.insert(0, "50")
 
         # ---- Model Filters group (XGBoost + ATC) ----
-        model_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        model_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=0)
         model_group.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(10, 5))
 
-        model_title = ctk.CTkLabel(model_group, text="Model Filters", font=("Arial", 11, "bold"))
+        model_title = ctk.CTkLabel(model_group, text="Model Filters", font=Fonts.H3)
         model_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
 
         # XGBoost checkbox
@@ -237,7 +250,7 @@ class ScannerControl(ctk.CTkFrame):
         xgboost_checkbox.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
 
         # ATC base threshold
-        atc_label = ctk.CTkLabel(model_group, text="ATC base threshold:", font=("Arial", 11), text_color="gray")
+        atc_label = ctk.CTkLabel(model_group, text="ATC base threshold:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         atc_label.grid(row=2, column=0, sticky="w", padx=10, pady=4)
 
         self.atc_threshold_var = ctk.DoubleVar(value=0.6)
@@ -247,15 +260,15 @@ class ScannerControl(ctk.CTkFrame):
         atc_slider.grid(row=2, column=1, sticky="e", padx=10, pady=4)
 
         self.atc_value_label = ctk.CTkLabel(
-            model_group, text=f"{self.atc_threshold_var.get():.2f}", font=("Arial", 10), text_color="gray"
+            model_group, text=f"{self.atc_threshold_var.get():.2f}", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED
         )
         self.atc_value_label.grid(row=3, column=1, sticky="e", padx=10, pady=(0, 4))
 
         atc_tooltip = ctk.CTkLabel(
             model_group,
             text="Scaled down when some timeframes fail.",
-            font=("Arial", 9, "italic"),
-            text_color="gray",
+            font=Fonts.TINY,
+            text_color=Colors.TEXT_MUTED,
         )
         atc_tooltip.grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
 
@@ -270,10 +283,10 @@ class ScannerControl(ctk.CTkFrame):
         self.atc_threshold_var.trace_add("write", _on_atc_change)
 
         # ---- Gann Square Filter group ----
-        gann_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        gann_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=0)
         gann_group.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(10, 5))
 
-        gann_title = ctk.CTkLabel(gann_group, text="Gann Square Filter", font=("Arial", 11, "bold"))
+        gann_title = ctk.CTkLabel(gann_group, text="Gann Square Filter", font=Fonts.H3)
         gann_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
 
         # Enable Gann Square checkbox
@@ -287,12 +300,12 @@ class ScannerControl(ctk.CTkFrame):
         gann_checkbox.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
 
         # Gann sub-frame (only shown when checkbox is ON)
-        self.gann_sub_frame = ctk.CTkFrame(gann_group, fg_color="transparent")
+        self.gann_sub_frame = ctk.CTkFrame(gann_group, fg_color=Colors.TRANSPARENT)
         self.gann_sub_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 8))
         self.gann_sub_frame.grid_remove()
 
         # Gann timeframe selector
-        gann_tf_label = ctk.CTkLabel(self.gann_sub_frame, text="Gann TF:", font=("Arial", 11), text_color="gray")
+        gann_tf_label = ctk.CTkLabel(self.gann_sub_frame, text="Gann TF:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         gann_tf_label.grid(row=0, column=0, sticky="w", pady=4)
 
         self.gann_tf_var = ctk.StringVar(value="1h")
@@ -306,7 +319,7 @@ class ScannerControl(ctk.CTkFrame):
         gann_tf_dropdown.grid(row=0, column=1, sticky="e", pady=4, padx=(10, 0))
 
         # Gann candle limit
-        gann_candle_label = ctk.CTkLabel(self.gann_sub_frame, text="Candles:", font=("Arial", 11), text_color="gray")
+        gann_candle_label = ctk.CTkLabel(self.gann_sub_frame, text="Candles:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         gann_candle_label.grid(row=1, column=0, sticky="w", pady=4)
 
         self.gann_candle_limit_entry = ctk.CTkEntry(self.gann_sub_frame, placeholder_text="200", width=100)
@@ -314,7 +327,7 @@ class ScannerControl(ctk.CTkFrame):
         self.gann_candle_limit_entry.insert(0, "200")
 
         # Gann lookback
-        gann_lookback_label = ctk.CTkLabel(self.gann_sub_frame, text="Lookback:", font=("Arial", 11), text_color="gray")
+        gann_lookback_label = ctk.CTkLabel(self.gann_sub_frame, text="Lookback:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         gann_lookback_label.grid(row=2, column=0, sticky="w", pady=4)
 
         self.gann_lookback_entry = ctk.CTkEntry(self.gann_sub_frame, placeholder_text="5", width=100)
@@ -325,10 +338,10 @@ class ScannerControl(ctk.CTkFrame):
         self.gann_sub_frame.grid_columnconfigure(1, weight=1)
 
         # ---- Order Book Filter group ----
-        ob_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        ob_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=0)
         ob_group.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(10, 5))
 
-        ob_title = ctk.CTkLabel(ob_group, text="Order Book Filter", font=("Arial", 11, "bold"))
+        ob_title = ctk.CTkLabel(ob_group, text="Order Book Filter", font=Fonts.H3)
         ob_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
 
         # Enable Order Book checkbox
@@ -342,12 +355,12 @@ class ScannerControl(ctk.CTkFrame):
         ob_checkbox.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
 
         # Order Book sub-frame (only shown when checkbox is ON)
-        self.ob_sub_frame = ctk.CTkFrame(ob_group, fg_color="transparent")
+        self.ob_sub_frame = ctk.CTkFrame(ob_group, fg_color=Colors.TRANSPARENT)
         self.ob_sub_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 8))
         self.ob_sub_frame.grid_remove()
 
         # Depth levels
-        ob_depth_label = ctk.CTkLabel(self.ob_sub_frame, text="Depth levels:", font=("Arial", 11), text_color="gray")
+        ob_depth_label = ctk.CTkLabel(self.ob_sub_frame, text="Depth levels:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         ob_depth_label.grid(row=0, column=0, sticky="w", pady=4)
 
         self.ob_depth_entry = ctk.CTkEntry(self.ob_sub_frame, placeholder_text="20", width=100)
@@ -356,7 +369,7 @@ class ScannerControl(ctk.CTkFrame):
 
         # Imbalance threshold
         ob_thresh_label = ctk.CTkLabel(
-            self.ob_sub_frame, text="Imbalance threshold:", font=("Arial", 11), text_color="gray"
+            self.ob_sub_frame, text="Imbalance threshold:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED
         )
         ob_thresh_label.grid(row=1, column=0, sticky="w", pady=4)
 
@@ -374,16 +387,16 @@ class ScannerControl(ctk.CTkFrame):
         self.ob_threshold_value_label = ctk.CTkLabel(
             self.ob_sub_frame,
             text=f"{self.ob_imbalance_threshold_var.get():.2f}",
-            font=("Arial", 10),
-            text_color="gray",
+            font=Fonts.SMALL,
+            text_color=Colors.TEXT_MUTED,
         )
         self.ob_threshold_value_label.grid(row=2, column=1, sticky="e", padx=10, pady=(0, 4))
 
         ob_tooltip = ctk.CTkLabel(
             self.ob_sub_frame,
             text="Min bid/ask imbalance ratio to confirm signal.",
-            font=("Arial", 9, "italic"),
-            text_color="gray",
+            font=Fonts.TINY,
+            text_color=Colors.TEXT_MUTED,
         )
         ob_tooltip.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 4))
 
@@ -405,15 +418,21 @@ class ScannerControl(ctk.CTkFrame):
         inputs_frame.grid_columnconfigure(1, weight=1)
 
         # ===== RIGHT: Current Settings =====
-        settings_frame = ctk.CTkFrame(container, fg_color=Colors.get_card_bg(), corner_radius=10)
+        settings_frame = ctk.CTkFrame(
+            container,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
         settings_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
         # Title
-        settings_title = ctk.CTkLabel(settings_frame, text="📊 Current Settings", font=("Arial", 12, "bold"))
+        settings_title = ctk.CTkLabel(settings_frame, text="📊 Current Settings", font=Fonts.H3)
         settings_title.pack(pady=(10, 5))
 
         # Settings list
-        settings_list_frame = ctk.CTkFrame(settings_frame, fg_color="transparent")
+        settings_list_frame = ctk.CTkFrame(settings_frame, fg_color=Colors.TRANSPARENT)
         settings_list_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         settings = [
@@ -425,13 +444,13 @@ class ScannerControl(ctk.CTkFrame):
         ]
 
         for i, (label_text, value_text) in enumerate(settings):
-            row_frame = ctk.CTkFrame(settings_list_frame, fg_color="transparent")
+            row_frame = ctk.CTkFrame(settings_list_frame, fg_color=Colors.TRANSPARENT)
             row_frame.pack(fill="x", pady=2)
 
-            label = ctk.CTkLabel(row_frame, text=label_text, font=("Arial", 10), text_color="gray")
+            label = ctk.CTkLabel(row_frame, text=label_text, font=Fonts.SMALL, text_color=Colors.TEXT_MUTED)
             label.pack(side="left")
 
-            value = ctk.CTkLabel(row_frame, text=value_text, font=("Arial", 10, "bold"))
+            value = ctk.CTkLabel(row_frame, text=value_text, font=Fonts.BODY)
             value.pack(side="right")
 
             # Store reference for updates
@@ -511,12 +530,12 @@ class ScannerControl(ctk.CTkFrame):
     def _update_status_indicator(self, running: bool):
         """Update status display"""
         if running:
-            self.status_label.configure(text="🟢 Scanner: RUNNING", text_color="#00ff88")
-            self.setting_status.configure(text="Running", text_color="#00ff88")
+            self.status_label.configure(text="🟢 Scanner: RUNNING", text_color=Colors.PROFIT)
+            self.setting_status.configure(text="Running", text_color=Colors.PROFIT)
             self._animate_status()
         else:
-            self.status_label.configure(text="🔴 Scanner: STOPPED", text_color="gray")
-            self.setting_status.configure(text="Stopped", text_color="gray")
+            self.status_label.configure(text="🔴 Scanner: STOPPED", text_color=Colors.TEXT_MUTED)
+            self.setting_status.configure(text="Stopped", text_color=Colors.TEXT_MUTED)
 
     def _animate_status(self):
         """Pulse animation when running"""

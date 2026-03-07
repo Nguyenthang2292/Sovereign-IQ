@@ -23,34 +23,34 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│  Account Overview                        │
-│  • Balance: $0.89 USDT                   │
-│  • Available: $0.89                      │
-│  • Margin Used: $0.00                    │
+│  Account Overview                       │
+│  • Balance: $0.89 USDT                  │
+│  • Available: $0.89                     │
+│  • Margin Used: $0.00                   │
 │  • Unrealized P&L: $0.00                │
 │  • Daily P&L: +$0.00 (0%)               │
 └─────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────┐
-│  Quick Stats                             │
-│  • Open Positions: 0                     │
-│  • Today's Trades: 0                     │
-│  • Win Rate: 0%                          │
-│  • Mode: 🔴 PRODUCTION                   │
+│  Quick Stats                            │
+│  • Open Positions: 0                    │
+│  • Today's Trades: 0                    │
+│  • Win Rate: 0%                         │
+│  • Mode: 🔴 PRODUCTION                  │
 └─────────────────────────────────────────┘
 ```
 
 ### 2. Live Signal Monitor (Quan Trọng!)
 
 ```
-┌─────────────────────────────────────────┐
-│  Live Signals (Auto-refresh 30s)        │
-├─────────────────────────────────────────┤
+┌───────────────────────────────────────── ┐
+│  Live Signals (Auto-refresh 30s)         │
+├───────────────────────────────────────── ┤
 │  Symbol  │ Signal │ Score │ Time │ Action│
 │  BTC/USDT│ LONG  │ 0.85  │ 14:30│ [Trade]│
 │  ETH/USDT│ SHORT │ 0.72  │ 14:28│ [Trade]│
-│  SOL/USDT│ NEUTRAL│ 0.45 │ 14:25│   -   │
-└─────────────────────────────────────────┘
+│  SOL/USDT│ NEUTRAL│ 0.45 │ 14:25│   -    │
+└───────────────────────────────────────── ┘
 ```
 
 **Filters:**
@@ -63,7 +63,7 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│  Open Positions                          │
+│  Open Positions                         │
 ├─────────────────────────────────────────┤
 │ Symbol    │ Side │ Size │ Entry │ P&L   │
 │ BTC/USDT  │ LONG │ 0.01 │ 78000 │ +$50  │
@@ -84,9 +84,9 @@
 ┌─────────────────────────────────────────┐
 │  Trade History (Last 30 days)           │
 ├─────────────────────────────────────────┤
-│ Date  │ Symbol │ Side │ P&L │ ROI      │
-│ 02/03 │ BTC/USDT│ LONG│ +$10│ +12.5%   │
-│ 02/02 │ ETH/USDT│ SHORT│ -$5│ -3.2%    │
+│ Date  │ Symbol │ Side │ P&L │ ROI       │
+│ 02/03 │ BTC/USDT│ LONG│ +$10│ +12.5%    │
+│ 02/02 │ ETH/USDT│ SHORT│ -$5│ -3.2%     │
 └─────────────────────────────────────────┘
 ```
 
@@ -103,23 +103,23 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│  Trading Configuration                   │
+│  Trading Configuration                  │
 ├─────────────────────────────────────────┤
 │  Mode: ○ Demo  ● Production  ○ Dry Run  │
-│                                          │
-│  Risk Management:                        │
+│                                         │
+│  Risk Management:                       │
 │  • Max Position Size: [10] USDT         │
-│  • Max Risk Per Trade: [2] %             │
-│  • Max Open Positions: [3]               │
-│  • Stop Loss: [2.5] %                    │
-│  • Take Profit: [5] %                    │
-│                                          │
-│  Signal Filters:                         │
+│  • Max Risk Per Trade: [2] %            │
+│  • Max Open Positions: [3]              │
+│  • Stop Loss: [2.5] %                   │
+│  • Take Profit: [5] %                   │
+│                                         │
+│  Signal Filters:                        │
 │  ☑ Enable XGBoost Filter                │
-│  ☑ Min Confidence: [0.7]                 │
-│  ☑ Volume Filter                         │
-│                                          │
-│  [Save Config]  [Reset]                  │
+│  ☑ Min Confidence: [0.7]                │
+│  ☑ Volume Filter                        │
+│                                         │
+│  [Save Config]  [Reset]                 │
 └─────────────────────────────────────────┘
 ```
 
@@ -127,16 +127,16 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│  Scanner Control                         │
+│  Scanner Control                        │
 ├─────────────────────────────────────────┤
-│  Status: 🟢 Running                      │
-│  Last Scan: 2 minutes ago                │
-│  Symbols Scanned: 150                    │
-│  Signals Found: 5                        │
-│                                          │
-│  [⏸ Pause] [▶ Resume] [⚙ Settings]      │
-│                                          │
-│  Scan Interval: [30] seconds             │
+│  Status: 🟢 Running                     │
+│  Last Scan: 2 minutes ago               │
+│  Symbols Scanned: 150                   │
+│  Signals Found: 5                       │
+│                                         │
+│  [⏸ Pause] [▶ Resume] [⚙ Settings]    │
+│                                         │
+│  Scan Interval: [30] seconds            │
 │  Symbols: [Auto-detect ▼]               │
 └─────────────────────────────────────────┘
 ```
@@ -144,9 +144,9 @@
 ### 7. Backtest Module (Integrated)
 
 ```
-┌─────────────────────────────────────────┐
+┌───────────────────────────────────────── ┐
 │  Backtesting                             │
-├─────────────────────────────────────────┤
+├───────────────────────────────────────── ┤
 │  Symbol: [BTC/USDT ▼]                    │
 │  Timeframe: [1h ▼]                       │
 │  Period: [2024-01-01] to [2024-12-31]    │
@@ -165,21 +165,21 @@
 │  • Win Rate: 58%                         │
 │  • Trades: 120                           │
 │  [📊 View Charts]                        │
-└─────────────────────────────────────────┘
+└──────────────────────────────────────── ─┘
 ```
 
 ### 8. Live Logs Viewer
 
 ```
 ┌─────────────────────────────────────────┐
-│  System Logs (Live)                      │
+│  System Logs (Live)                     │
 ├─────────────────────────────────────────┤
-│ [14:30:25] ✅ Signal detected: BTC LONG  │
-│ [14:30:26] 🔄 Creating order...          │
-│ [14:30:27] ✅ Order filled at $78,500    │
-│ [14:30:28] 📊 TP/SL orders placed        │
-│ [14:25:10] ⚠️  Low balance warning       │
-│ [14:20:05] 🔄 Scanner cycle completed    │
+│ [14:30:25] ✅ Signal detected: BTC LONG │
+│ [14:30:26] 🔄 Creating order...         │
+│ [14:30:27] ✅ Order filled at $78,500   │
+│ [14:30:28] 📊 TP/SL orders placed       │
+│ [14:25:10] ⚠️  Low balance warning      │
+│ [14:20:05] 🔄 Scanner cycle completed   │
 └─────────────────────────────────────────┘
 ```
 
@@ -190,7 +190,7 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│  Manual Trade                            │
+│  Manual Trade                           │
 ├─────────────────────────────────────────┤
 │  Symbol: [BTC/USDT ▼]                    │
 │  Current Price: $78,756.80               │
@@ -208,7 +208,7 @@
 │  • Max Loss: -$3.50                      │
 │  • Max Profit: +$4.10                    │
 │                                          │
-│  [🔴 Place Order]                        │
+│  [🔴 Place Order]                       │
 └─────────────────────────────────────────┘
 ```
 
@@ -216,7 +216,7 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│  Risk Metrics                            │
+│  Risk Metrics                           │
 ├─────────────────────────────────────────┤
 │  Portfolio Risk: Low                     │
 │  [████░░░░░░] 40%                        │
@@ -227,8 +227,8 @@
 │  • Max Drawdown: 0%                      │
 │                                          │
 │  Warnings:                               │
-│  ⚠️  Low account balance ($0.89)         │
-│  ℹ️  No open positions                   │
+│  ⚠️  Low account balance ($0.89)        │
+│  ℹ️  No open positions                  │
 └─────────────────────────────────────────┘
 ```
 
@@ -240,14 +240,14 @@
 ├────────┬────────────────────────────────────────────────┤
 │ 📊 Dash│  ┌─ Account Overview ──────────────────────┐   │
 │ 🎯 Sig │  │ Balance: $0.89  P&L: $0.00  Pos: 0      │   │
-│ 📈 Pos │  └──────────────────────────────────────────┘   │
-│ 📜 Hist│                                                 │
-│ ⚙️  Cfg │  ┌─ Live Signals ──────────────────────────┐   │
+│ 📈 Pos │  └─────────────────────────────────────────┘   │
+│ 📜 Hist│                                                │
+│ ⚙️  Cfg │  ┌─ Live Signals ──────────────────────────┐  │
 │ 🤖 Scan│  │ BTC/USDT  LONG  0.85  14:30  [Trade]   │ │
 │ 🧪 Back│  │ ETH/USDT  SHORT 0.72  14:28  [Trade]   │ │
 │ 📝 Logs│  └──────────────────────────────────────────┘ │
-│ 💱 Trade│                                               │
-│ 🛡️  Risk│  ┌─ Open Positions ────────────────────────┐ │
+│ 💱 Trade│                                              │
+│ 🛡️  Risk│  ┌─ Open Positions ───────────────────────┐  │
 │        │  │ (No open positions)                      │ │
 │        │  └──────────────────────────────────────────┘ │
 └────────┴────────────────────────────────────────────────┘
@@ -304,4 +304,3 @@
 - **Portable:** Package thành .exe standalone (PyInstaller)
 - **Multi-language:** English + Tiếng Việt (dễ implement)
 - **Offline:** Hoạt động hoàn toàn offline, chỉ cần API key
-

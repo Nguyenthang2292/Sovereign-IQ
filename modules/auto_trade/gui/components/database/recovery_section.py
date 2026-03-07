@@ -4,11 +4,12 @@ import tkinter.messagebox as messagebox
 from typing import Callable, cast
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.fonts import Fonts
 
 from modules.auto_trade.database.repository.context import RepositoryContext
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 from modules.auto_trade.gui.utils.colors import Colors
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon, get_icon
 from modules.common.ui.logging import log_warn
 
 
@@ -43,7 +44,7 @@ class RecoverySection:
             pady=(DatabasePanelConfig.PADX_MEDIUM, DatabasePanelConfig.PADY_SMALL),
         )
 
-        input_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        input_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         input_frame.pack(fill="x", padx=10, pady=5)
 
         ctk.CTkLabel(input_frame, text="Initial Loss $:").pack(side="left", padx=(0, 5))
@@ -59,34 +60,37 @@ class RecoverySection:
         self.recovery_sequence = ctk.CTkOptionMenu(input_frame, values=["win_streak", "mixed", "loss_heavy"], width=100)
         self.recovery_sequence.pack(side="left")
 
-        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         btn_frame.pack(fill="x", padx=10, pady=5)
 
         ctk.CTkButton(
             btn_frame,
-            text="  Run Test Sequence",
+            text="RUN TEST SEQUENCE",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_PRIMARY,
             hover_color=Colors.BTN_PRIMARY_HOVER,
             command=self._run_recovery_test_sequence,
-            image=get_icon("play", size=(16, 16)),
+            image=get_button_icon("play", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(side="left", padx=(0, 5), fill="x", expand=True)
 
         ctk.CTkButton(
             btn_frame,
-            text="  View Recovery Stats",
+            text="VIEW RECOVERY STATS",
+            font=Fonts.BUTTON_SM,
             command=self._view_recovery_stats,
-            image=get_icon("bar_chart_2", size=(16, 16)),
+            image=get_button_icon("bar_chart_2", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(side="left", padx=5, fill="x", expand=True)
 
         ctk.CTkButton(
             btn_frame,
-            text="  Clear Recovery Data",
+            text="CLEAR RECOVERY DATA",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
             command=self._clear_recovery_data,
-            image=get_icon("trash", size=(16, 16)),
+            image=get_button_icon("trash", size=(16, 16), variant="danger"),
             compound="left",
         ).pack(side="left", padx=(5, 0), fill="x", expand=True)
 

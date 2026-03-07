@@ -6,7 +6,8 @@ import customtkinter as ctk
 
 from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.gui.utils.colors import Colors
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.fonts import Fonts
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon, get_icon
 from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 from modules.auto_trade.strategies.gradual_recovery import (
     GradualRecoveryStrategy,
@@ -35,7 +36,7 @@ class RecoveryPanel(ctk.CTkFrame):
         title = ctk.CTkLabel(
             self,
             text="  Gradual Recovery",
-            font=("Arial", 16, "bold"),
+            font=Fonts.H1,
             image=get_icon("repeat", size=(20, 20)),
             compound="left",
         )
@@ -61,17 +62,18 @@ class RecoveryPanel(ctk.CTkFrame):
 
     def _add_expand_button(self):
         """Add expand button for compact mode"""
-        expand_frame = ctk.CTkFrame(self, fg_color="transparent")
+        expand_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         expand_frame.pack(fill="x", padx=10, pady=(0, 5))
 
         ctk.CTkButton(
             expand_frame,
-            text="  Expand Full View",
+            text="  EXPAND FULL VIEW",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_PRIMARY,
             hover_color=Colors.BTN_PRIMARY_HOVER,
             command=self._open_expanded_modal,
             height=28,
-            image=get_icon("zoom_in", size=(16, 16)),
+            image=get_button_icon("zoom_in", size=(16, 16), variant="primary"),
             compound="left",
         ).pack(fill="x")
 
@@ -101,7 +103,8 @@ class RecoveryPanel(ctk.CTkFrame):
         # Close button
         ctk.CTkButton(
             modal,
-            text="Close",
+            text="CLOSE",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_NEUTRAL,
             hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=modal.destroy,
@@ -120,7 +123,7 @@ class RecoveryPanel(ctk.CTkFrame):
         """Create Status tab showing current recovery state"""
         tab = self.tabview.add("Status")
 
-        status_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        status_frame = ctk.CTkFrame(tab, fg_color=Colors.TRANSPARENT)
         status_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Empty State
@@ -135,22 +138,22 @@ class RecoveryPanel(ctk.CTkFrame):
         self.empty_state_widget.pack(fill="both", expand=True, padx=20, pady=20)
 
         # Frame to hold active recovery details
-        self.active_recovery_frame = ctk.CTkFrame(status_frame, fg_color="transparent")
+        self.active_recovery_frame = ctk.CTkFrame(status_frame, fg_color=Colors.TRANSPARENT)
 
         # Initial Loss
         self.initial_loss_label = ctk.CTkLabel(
-            self.active_recovery_frame, text="Initial Loss: $0.00", font=("Arial", 12)
+            self.active_recovery_frame, text="Initial Loss: $0.00", font=Fonts.INPUT
         )
         self.initial_loss_label.pack(anchor="w", pady=(5, 2))
 
         # Remaining Loss
         self.remaining_loss_label = ctk.CTkLabel(
-            self.active_recovery_frame, text="Remaining Loss: $0.00", font=("Arial", 14, "bold"), text_color="#ff6b6b"
+            self.active_recovery_frame, text="Remaining Loss: $0.00", font=Fonts.H2, text_color=Colors.LOSS_SOFT
         )
         self.remaining_loss_label.pack(anchor="w", pady=(5, 2))
 
         # Progress Bar (widget + percentage label on one row, no floating)
-        progress_frame = ctk.CTkFrame(self.active_recovery_frame, fg_color="transparent")
+        progress_frame = ctk.CTkFrame(self.active_recovery_frame, fg_color=Colors.TRANSPARENT)
         progress_frame.pack(fill="x", pady=(15, 5), expand=False)
 
         self.progress_bar_widget = ctk.CTkProgressBar(progress_frame, height=10)
@@ -158,65 +161,66 @@ class RecoveryPanel(ctk.CTkFrame):
         self.progress_bar_widget.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         self.progress_bar_label = ctk.CTkLabel(
-            progress_frame, text="0%", font=("Arial", 11), text_color="#888", width=36
+            progress_frame, text="0%", font=Fonts.BODY, text_color=Colors.TEXT_FAINT, width=36
         )
         self.progress_bar_label.pack(side="left", anchor="w")
 
         # Recovery Percentage
-        self.recovery_pct_label = ctk.CTkLabel(self.active_recovery_frame, text="Recovery: 0.0%", font=("Arial", 12))
+        self.recovery_pct_label = ctk.CTkLabel(self.active_recovery_frame, text="Recovery: 0.0%", font=Fonts.INPUT)
         self.recovery_pct_label.pack(anchor="w", pady=(5, 2))
 
         # Separator
-        separator = ctk.CTkFrame(self.active_recovery_frame, height=2, fg_color="#444")
+        separator = ctk.CTkFrame(self.active_recovery_frame, height=2, fg_color=Colors.SEPARATOR_DARK)
         separator.pack(fill="x", pady=(15, 15))
 
         # Trades Count
-        self.trades_count_label = ctk.CTkLabel(self.active_recovery_frame, text="Trades: 0", font=("Arial", 11))
+        self.trades_count_label = ctk.CTkLabel(self.active_recovery_frame, text="Trades: 0", font=Fonts.BODY)
         self.trades_count_label.pack(anchor="w", pady=2)
 
         # Win Streak
         self.win_streak_label = ctk.CTkLabel(
-            self.active_recovery_frame, text="Win Streak: 0", font=("Arial", 11), text_color="#00ff88"
+            self.active_recovery_frame, text="Win Streak: 0", font=Fonts.BODY, text_color=Colors.PROFIT
         )
         self.win_streak_label.pack(anchor="w", pady=2)
 
         # Estimated Trades Remaining
-        self.est_trades_label = ctk.CTkLabel(self.active_recovery_frame, text="Est. Remaining: 0", font=("Arial", 11))
+        self.est_trades_label = ctk.CTkLabel(self.active_recovery_frame, text="Est. Remaining: 0", font=Fonts.BODY)
         self.est_trades_label.pack(anchor="w", pady=2)
 
         # Separator
-        separator2 = ctk.CTkFrame(self.active_recovery_frame, height=2, fg_color="#444")
+        separator2 = ctk.CTkFrame(self.active_recovery_frame, height=2, fg_color=Colors.SEPARATOR_DARK)
         separator2.pack(fill="x", pady=(15, 15))
 
         # Next Trade Recommendations
-        rec_frame = ctk.CTkFrame(self.active_recovery_frame, fg_color="#2a2a2a")
+        rec_frame = ctk.CTkFrame(self.active_recovery_frame, fg_color=Colors.CARD_ELEVATED)
         rec_frame.pack(fill="x", pady=(5, 10))
 
-        rec_title = ctk.CTkLabel(rec_frame, text="Next Trade Recommendations", font=("Arial", 11, "bold"))
+        rec_title = ctk.CTkLabel(rec_frame, text="Next Trade Recommendations", font=Fonts.H3)
         rec_title.pack(anchor="w", pady=(10, 5), padx=10)
 
         # Margin
-        self.margin_label = ctk.CTkLabel(rec_frame, text="Margin: $0.00", font=("Arial", 11))
+        self.margin_label = ctk.CTkLabel(rec_frame, text="Margin: $0.00", font=Fonts.BODY)
         self.margin_label.pack(anchor="w", pady=2, padx=10)
 
         # Leverage
-        self.leverage_label = ctk.CTkLabel(rec_frame, text="Leverage: 0x", font=("Arial", 11))
+        self.leverage_label = ctk.CTkLabel(rec_frame, text="Leverage: 0x", font=Fonts.BODY)
         self.leverage_label.pack(anchor="w", pady=(2, 10), padx=10)
 
         # Status Message (this will be handled by EmptyState or updated based on recovery_strategy)
         self.status_label = ctk.CTkLabel(
-            self.active_recovery_frame, text="No active recovery", font=("Arial", 11), text_color="gray"
+            self.active_recovery_frame, text="No active recovery", font=Fonts.BODY, text_color=Colors.TEXT_MUTED
         )
         self.status_label.pack(pady=(10, 5))
 
         # Reset Button
         reset_btn = ctk.CTkButton(
             self.active_recovery_frame,
-            text="  Reset Recovery",
+            text="  RESET RECOVERY",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
             command=self._on_reset,
-            image=get_icon("repeat", size=(16, 16)),
+            image=get_button_icon("repeat", size=(16, 16), variant="danger"),
             compound="left",
         )
         reset_btn.pack(fill="x", pady=(5, 5))
@@ -224,11 +228,12 @@ class RecoveryPanel(ctk.CTkFrame):
         # Stop Button
         stop_btn = ctk.CTkButton(
             self.active_recovery_frame,
-            text="  Stop Recovery",
+            text="  STOP RECOVERY",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_NEUTRAL,
             hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=self._on_stop_recovery,
-            image=get_icon("square", size=(16, 16)),
+            image=get_button_icon("square", size=(16, 16), variant="neutral"),
             compound="left",
         )
         stop_btn.pack(fill="x", pady=(0, 10))
@@ -237,7 +242,7 @@ class RecoveryPanel(ctk.CTkFrame):
         """Create Configuration tab for recovery settings"""
         tab = self.tabview.add("Config")
 
-        config_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        config_frame = ctk.CTkFrame(tab, fg_color=Colors.TRANSPARENT)
         config_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Configure grid for 2 columns
@@ -251,7 +256,7 @@ class RecoveryPanel(ctk.CTkFrame):
             text="Enable Auto-Recovery",
             variable=self.recovery_enabled_var,
             command=self._on_enabled_changed,
-            font=("Arial", 12, "bold"),
+            font=Fonts.H3,
             fg_color=Colors.BTN_SUCCESS,
             hover_color=Colors.BTN_SUCCESS_HOVER,
         )
@@ -259,7 +264,7 @@ class RecoveryPanel(ctk.CTkFrame):
 
         # Row 1-2: Initial Loss | Target Profit Per Trade
         # Left: Initial Loss
-        label = ctk.CTkLabel(config_frame, text="Initial Loss ($):", font=("Arial", 11))
+        label = ctk.CTkLabel(config_frame, text="Initial Loss ($):", font=Fonts.BODY)
         label.grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
 
         self.initial_loss_entry = ctk.CTkEntry(config_frame, placeholder_text="500.00")
@@ -267,7 +272,7 @@ class RecoveryPanel(ctk.CTkFrame):
         self.initial_loss_entry.insert(0, "500.00")
 
         # Right: Target Profit Per Trade
-        label = ctk.CTkLabel(config_frame, text="Target Profit Per Trade (%):", font=("Arial", 11))
+        label = ctk.CTkLabel(config_frame, text="Target Profit Per Trade (%):", font=Fonts.BODY)
         label.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(5, 2))
 
         self.target_profit_entry = ctk.CTkEntry(config_frame, placeholder_text="5.0")
@@ -275,7 +280,7 @@ class RecoveryPanel(ctk.CTkFrame):
         self.target_profit_entry.insert(0, "5.0")
 
         # Row 3-4: Max Recovery Trades
-        label = ctk.CTkLabel(config_frame, text="Max Recovery Trades:", font=("Arial", 11))
+        label = ctk.CTkLabel(config_frame, text="Max Recovery Trades:", font=Fonts.BODY)
         label.grid(row=3, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
 
         self.max_trades_entry = ctk.CTkEntry(config_frame, placeholder_text="20")
@@ -284,7 +289,7 @@ class RecoveryPanel(ctk.CTkFrame):
 
         # Row 5-6: Margin Scaling Mode | Leverage Scaling Mode
         # Left: Margin Scaling Mode
-        label = ctk.CTkLabel(config_frame, text="Margin Scaling Mode:", font=("Arial", 11))
+        label = ctk.CTkLabel(config_frame, text="Margin Scaling Mode:", font=Fonts.BODY)
         label.grid(row=5, column=0, sticky="w", padx=(0, 5), pady=(5, 2))
 
         self.margin_mode_var = ctk.StringVar(value="fixed")
@@ -296,7 +301,7 @@ class RecoveryPanel(ctk.CTkFrame):
         margin_mode_dropdown.grid(row=6, column=0, sticky="ew", padx=(0, 5), pady=(2, 10))
 
         # Right: Leverage Scaling Mode
-        label = ctk.CTkLabel(config_frame, text="Leverage Scaling Mode:", font=("Arial", 11))
+        label = ctk.CTkLabel(config_frame, text="Leverage Scaling Mode:", font=Fonts.BODY)
         label.grid(row=5, column=1, sticky="w", padx=(5, 0), pady=(5, 2))
 
         self.leverage_mode_var = ctk.StringVar(value="fixed")
@@ -308,17 +313,17 @@ class RecoveryPanel(ctk.CTkFrame):
         leverage_mode_dropdown.grid(row=6, column=1, sticky="ew", padx=(5, 0), pady=(2, 10))
 
         # Row 7: Leverage Range (Min/Max on same row, spans both columns)
-        leverage_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
+        leverage_frame = ctk.CTkFrame(config_frame, fg_color=Colors.TRANSPARENT)
         leverage_frame.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(5, 10))
 
-        label = ctk.CTkLabel(leverage_frame, text="Min:", font=("Arial", 11), text_color="gray")
+        label = ctk.CTkLabel(leverage_frame, text="Min:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         label.pack(side="left")
 
         self.min_leverage_entry = ctk.CTkEntry(leverage_frame, placeholder_text="2", width=80)
         self.min_leverage_entry.pack(side="left", padx=(5, 15))
         self.min_leverage_entry.insert(0, "2")
 
-        label = ctk.CTkLabel(leverage_frame, text="Max:", font=("Arial", 11), text_color="gray")
+        label = ctk.CTkLabel(leverage_frame, text="Max:", font=Fonts.BODY, text_color=Colors.TEXT_MUTED)
         label.pack(side="left")
 
         self.max_leverage_entry = ctk.CTkEntry(leverage_frame, placeholder_text="10", width=80)
@@ -333,18 +338,19 @@ class RecoveryPanel(ctk.CTkFrame):
         streak_bonus_checkbox.grid(row=8, column=0, columnspan=2, sticky="w", pady=(5, 10))
 
         # Row 9-10: Presets (spans both columns)
-        preset_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
+        preset_frame = ctk.CTkFrame(config_frame, fg_color=Colors.TRANSPARENT)
         preset_frame.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(15, 5))
 
-        preset_label = ctk.CTkLabel(preset_frame, text="Presets:", font=("Arial", 11, "bold"))
+        preset_label = ctk.CTkLabel(preset_frame, text="Presets:", font=Fonts.H3)
         preset_label.pack(anchor="w", pady=(0, 5))
 
-        button_frame = ctk.CTkFrame(preset_frame, fg_color="transparent")
+        button_frame = ctk.CTkFrame(preset_frame, fg_color=Colors.TRANSPARENT)
         button_frame.pack(fill="x")
 
         conservative_btn = ctk.CTkButton(
             button_frame,
-            text="Conservative",
+            text="CONSERVATIVE",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_NEUTRAL,
             hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=lambda: self._apply_preset("conservative"),
@@ -354,7 +360,8 @@ class RecoveryPanel(ctk.CTkFrame):
 
         moderate_btn = ctk.CTkButton(
             button_frame,
-            text="Moderate",
+            text="MODERATE",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_PRIMARY,
             hover_color=Colors.BTN_PRIMARY_HOVER,
             command=lambda: self._apply_preset("moderate"),
@@ -364,7 +371,8 @@ class RecoveryPanel(ctk.CTkFrame):
 
         aggressive_btn = ctk.CTkButton(
             button_frame,
-            text="Aggressive",
+            text="AGGRESSIVE",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
             command=lambda: self._apply_preset("aggressive"),
@@ -375,35 +383,37 @@ class RecoveryPanel(ctk.CTkFrame):
         # Row 11: Start Recovery Button (spans both columns)
         start_btn = ctk.CTkButton(
             config_frame,
-            text="  Start Recovery",
+            text="  START RECOVERY",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_SUCCESS,
             hover_color=Colors.BTN_SUCCESS_HOVER,
             command=self._on_start_recovery,
-            image=get_icon("rocket", size=(16, 16)),
+            image=get_button_icon("rocket", size=(16, 16), variant="success"),
             compound="left",
         )
         start_btn.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(15, 10))
 
         # Row 12: Recovery Plan Preview (spans both columns)
-        plan_frame = ctk.CTkFrame(config_frame, fg_color="#2a2a2a")
+        plan_frame = ctk.CTkFrame(config_frame, fg_color=Colors.CARD_ELEVATED)
         plan_frame.grid(row=12, column=0, columnspan=2, sticky="ew", pady=(5, 10))
 
-        plan_title = ctk.CTkLabel(plan_frame, text="Recovery Plan Preview", font=("Arial", 11, "bold"))
+        plan_title = ctk.CTkLabel(plan_frame, text="Recovery Plan Preview", font=Fonts.H3)
         plan_title.pack(anchor="w", pady=(10, 5), padx=10)
 
-        self.plan_estimated_trades_label = ctk.CTkLabel(plan_frame, text="Est. Trades: 0", font=("Arial", 10))
+        self.plan_estimated_trades_label = ctk.CTkLabel(plan_frame, text="Est. Trades: 0", font=Fonts.SMALL)
         self.plan_estimated_trades_label.pack(anchor="w", pady=2, padx=10)
 
-        self.plan_risk_label = ctk.CTkLabel(plan_frame, text="Risk: -", font=("Arial", 10))
+        self.plan_risk_label = ctk.CTkLabel(plan_frame, text="Risk: -", font=Fonts.SMALL)
         self.plan_risk_label.pack(anchor="w", pady=(2, 10), padx=10)
 
         preview_btn = ctk.CTkButton(
             config_frame,
-            text="  Preview Plan",
-            fg_color="#888888",
-            hover_color="#666666",
+            text="  PREVIEW PLAN",
+            font=Fonts.BUTTON_SM,
+            fg_color=Colors.BTN_NEUTRAL,
+            hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=self._update_plan_preview,
-            image=get_icon("bar_chart_2", size=(16, 16)),
+            image=get_button_icon("bar_chart_2", size=(16, 16), variant="neutral"),
             compound="left",
         )
         preview_btn.grid(row=13, column=0, columnspan=2, sticky="ew", pady=(0, 10))
@@ -418,15 +428,15 @@ class RecoveryPanel(ctk.CTkFrame):
         """Create History tab showing recovery progress over time"""
         tab = self.tabview.add("History")
 
-        history_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        history_frame = ctk.CTkFrame(tab, fg_color=Colors.TRANSPARENT)
         history_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Placeholder for chart
         chart_placeholder = ctk.CTkLabel(
             history_frame,
             text="📈 Recovery History Chart\n(Coming Soon)",
-            font=("Arial", 14),
-            text_color="gray",
+            font=Fonts.H2,
+            text_color=Colors.TEXT_MUTED,
         )
         chart_placeholder.pack(expand=True)
 
@@ -435,43 +445,44 @@ class RecoveryPanel(ctk.CTkFrame):
         tab = self.tabview.add("Test")
 
         # Scrollable frame for all test content
-        scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
+        scroll_frame = ctk.CTkScrollableFrame(tab, fg_color=Colors.TRANSPARENT)
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
         # Mode Info
         mode_label = ctk.CTkLabel(
             scroll_frame,
             text=f"🧪 Test Mode: {self.margin_mode_var.get()}/{self.leverage_mode_var.get()}",
-            font=("Arial", 11),
-            text_color="#ffaa00",
+            font=Fonts.BODY,
+            text_color=Colors.BTN_WARNING,
         )
         mode_label.pack(anchor="w", pady=(5, 10))
         self.test_mode_label = mode_label
 
         # ========== Manual Entry Section ==========
-        manual_frame = ctk.CTkFrame(scroll_frame, fg_color="#2a2a2a", corner_radius=8)
+        manual_frame = ctk.CTkFrame(scroll_frame, fg_color=Colors.CARD_ELEVATED, corner_radius=0)
         manual_frame.pack(fill="x", pady=(0, 10))
 
-        ctk.CTkLabel(manual_frame, text="📝 Manual Trade Entry", font=("Arial", 12, "bold")).pack(
+        ctk.CTkLabel(manual_frame, text="📝 Manual Trade Entry", font=Fonts.H3).pack(
             anchor="w", pady=(10, 5), padx=10
         )
 
         # Amount input
-        amount_frame = ctk.CTkFrame(manual_frame, fg_color="transparent")
+        amount_frame = ctk.CTkFrame(manual_frame, fg_color=Colors.TRANSPARENT)
         amount_frame.pack(fill="x", padx=10, pady=5)
 
-        ctk.CTkLabel(amount_frame, text="Amount ($):", font=("Arial", 11)).pack(side="left")
+        ctk.CTkLabel(amount_frame, text="Amount ($):", font=Fonts.BODY).pack(side="left")
         self.test_amount_entry = ctk.CTkEntry(amount_frame, width=100, placeholder_text="10.00")
         self.test_amount_entry.pack(side="left", padx=(10, 0))
         self.test_amount_entry.insert(0, "10.00")
 
         # Profit/Loss buttons
-        btn_frame = ctk.CTkFrame(manual_frame, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(manual_frame, fg_color=Colors.TRANSPARENT)
         btn_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         ctk.CTkButton(
             btn_frame,
-            text="✅ Record Profit",
+            text="✅ RECORD PROFIT",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_SUCCESS,
             hover_color=Colors.BTN_SUCCESS_HOVER,
             command=self._test_record_profit,
@@ -480,7 +491,8 @@ class RecoveryPanel(ctk.CTkFrame):
 
         ctk.CTkButton(
             btn_frame,
-            text="❌ Record Loss",
+            text="❌ RECORD LOSS",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
             command=self._test_record_loss,
@@ -488,67 +500,69 @@ class RecoveryPanel(ctk.CTkFrame):
         ).pack(side="left")
 
         # ========== Sequence Generator Section ==========
-        seq_frame = ctk.CTkFrame(scroll_frame, fg_color="#2a2a2a", corner_radius=8)
+        seq_frame = ctk.CTkFrame(scroll_frame, fg_color=Colors.CARD_ELEVATED, corner_radius=0)
         seq_frame.pack(fill="x", pady=(0, 10))
 
-        ctk.CTkLabel(seq_frame, text="🎲 Random Sequence Generator", font=("Arial", 12, "bold")).pack(
+        ctk.CTkLabel(seq_frame, text="🎲 Random Sequence Generator", font=Fonts.H3).pack(
             anchor="w", pady=(10, 5), padx=10
         )
 
         # Sequence parameters grid
-        params_frame = ctk.CTkFrame(seq_frame, fg_color="transparent")
+        params_frame = ctk.CTkFrame(seq_frame, fg_color=Colors.TRANSPARENT)
         params_frame.pack(fill="x", padx=10, pady=5)
 
         # Row 1: Number of trades and Win rate
-        row1 = ctk.CTkFrame(params_frame, fg_color="transparent")
+        row1 = ctk.CTkFrame(params_frame, fg_color=Colors.TRANSPARENT)
         row1.pack(fill="x", pady=2)
 
-        ctk.CTkLabel(row1, text="Trades:", font=("Arial", 10)).pack(side="left")
+        ctk.CTkLabel(row1, text="Trades:", font=Fonts.SMALL).pack(side="left")
         self.test_num_trades_entry = ctk.CTkEntry(row1, width=50, placeholder_text="10")
         self.test_num_trades_entry.pack(side="left", padx=(5, 15))
         self.test_num_trades_entry.insert(0, "10")
 
-        ctk.CTkLabel(row1, text="Win Rate %:", font=("Arial", 10)).pack(side="left")
+        ctk.CTkLabel(row1, text="Win Rate %:", font=Fonts.SMALL).pack(side="left")
         self.test_win_rate_entry = ctk.CTkEntry(row1, width=50, placeholder_text="60")
         self.test_win_rate_entry.pack(side="left", padx=(5, 0))
         self.test_win_rate_entry.insert(0, "60")
 
         # Row 2: Avg profit and Avg loss
-        row2 = ctk.CTkFrame(params_frame, fg_color="transparent")
+        row2 = ctk.CTkFrame(params_frame, fg_color=Colors.TRANSPARENT)
         row2.pack(fill="x", pady=2)
 
-        ctk.CTkLabel(row2, text="Avg Profit $:", font=("Arial", 10)).pack(side="left")
+        ctk.CTkLabel(row2, text="Avg Profit $:", font=Fonts.SMALL).pack(side="left")
         self.test_avg_profit_entry = ctk.CTkEntry(row2, width=50, placeholder_text="15")
         self.test_avg_profit_entry.pack(side="left", padx=(5, 15))
         self.test_avg_profit_entry.insert(0, "15")
 
-        ctk.CTkLabel(row2, text="Avg Loss $:", font=("Arial", 10)).pack(side="left")
+        ctk.CTkLabel(row2, text="Avg Loss $:", font=Fonts.SMALL).pack(side="left")
         self.test_avg_loss_entry = ctk.CTkEntry(row2, width=50, placeholder_text="10")
         self.test_avg_loss_entry.pack(side="left", padx=(5, 0))
         self.test_avg_loss_entry.insert(0, "10")
 
         ctk.CTkButton(
             seq_frame,
-            text="🎲 Generate Random Sequence",
+            text="🎲 GENERATE RANDOM SEQUENCE",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_PRIMARY,
             hover_color=Colors.BTN_PRIMARY_HOVER,
             command=self._test_run_random_sequence,
         ).pack(fill="x", padx=10, pady=(5, 10))
 
         # ========== Preset Scenarios Section ==========
-        preset_frame = ctk.CTkFrame(scroll_frame, fg_color="#2a2a2a", corner_radius=8)
+        preset_frame = ctk.CTkFrame(scroll_frame, fg_color=Colors.CARD_ELEVATED, corner_radius=0)
         preset_frame.pack(fill="x", pady=(0, 10))
 
-        ctk.CTkLabel(preset_frame, text="📋 Preset Scenarios", font=("Arial", 12, "bold")).pack(
+        ctk.CTkLabel(preset_frame, text="📋 Preset Scenarios", font=Fonts.H3).pack(
             anchor="w", pady=(10, 5), padx=10
         )
 
-        preset_btn_frame = ctk.CTkFrame(preset_frame, fg_color="transparent")
+        preset_btn_frame = ctk.CTkFrame(preset_frame, fg_color=Colors.TRANSPARENT)
         preset_btn_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         ctk.CTkButton(
             preset_btn_frame,
-            text="📈 Perfect Recovery",
+            text="📈 PERFECT RECOVERY",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_SUCCESS,
             hover_color=Colors.BTN_SUCCESS_HOVER,
             command=lambda: self._test_run_preset("perfect"),
@@ -557,7 +571,8 @@ class RecoveryPanel(ctk.CTkFrame):
 
         ctk.CTkButton(
             preset_btn_frame,
-            text="📉 Struggle",
+            text="📉 STRUGGLE",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_WARNING,
             hover_color=Colors.BTN_WARNING_HOVER,
             command=lambda: self._test_run_preset("struggle"),
@@ -566,7 +581,8 @@ class RecoveryPanel(ctk.CTkFrame):
 
         ctk.CTkButton(
             preset_btn_frame,
-            text="💥 Failed",
+            text="💥 FAILED",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_DANGER,
             hover_color=Colors.BTN_DANGER_HOVER,
             command=lambda: self._test_run_preset("failed"),
@@ -574,40 +590,42 @@ class RecoveryPanel(ctk.CTkFrame):
         ).pack(side="left", padx=5)
 
         # ========== Mode Comparison Section ==========
-        compare_frame = ctk.CTkFrame(scroll_frame, fg_color="#2a2a2a", corner_radius=8)
+        compare_frame = ctk.CTkFrame(scroll_frame, fg_color=Colors.CARD_ELEVATED, corner_radius=0)
         compare_frame.pack(fill="x", pady=(0, 10))
 
-        ctk.CTkLabel(compare_frame, text="🔬 Mode Comparison Test", font=("Arial", 12, "bold")).pack(
+        ctk.CTkLabel(compare_frame, text="🔬 Mode Comparison Test", font=Fonts.H3).pack(
             anchor="w", pady=(10, 5), padx=10
         )
 
         ctk.CTkLabel(
             compare_frame,
             text="Run identical sequence across fixed/progressive/adaptive modes",
-            font=("Arial", 10),
-            text_color="gray",
+            font=Fonts.SMALL,
+            text_color=Colors.TEXT_MUTED,
         ).pack(anchor="w", padx=10, pady=(0, 5))
 
         ctk.CTkButton(
             compare_frame,
-            text="🔬 Run Mode Comparison",
+            text="🔬 RUN MODE COMPARISON",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_NEUTRAL,
             hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=self._test_run_mode_comparison,
         ).pack(fill="x", padx=10, pady=(0, 10))
 
         # ========== Results Log ==========
-        log_frame = ctk.CTkFrame(scroll_frame, fg_color="#1a1a1a", corner_radius=8)
+        log_frame = ctk.CTkFrame(scroll_frame, fg_color=Colors.CARD_MUTED, corner_radius=0)
         log_frame.pack(fill="both", expand=True, pady=(0, 5))
 
-        log_header = ctk.CTkFrame(log_frame, fg_color="transparent")
+        log_header = ctk.CTkFrame(log_frame, fg_color=Colors.TRANSPARENT)
         log_header.pack(fill="x", padx=10, pady=(10, 5))
 
-        ctk.CTkLabel(log_header, text="📋 Test Results Log", font=("Arial", 12, "bold")).pack(side="left")
+        ctk.CTkLabel(log_header, text="📋 Test Results Log", font=Fonts.H3).pack(side="left")
 
         ctk.CTkButton(
             log_header,
-            text="Clear",
+            text="CLEAR",
+            font=Fonts.BUTTON_SM,
             fg_color=Colors.BTN_NEUTRAL,
             hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=self._test_clear_log,
@@ -974,7 +992,7 @@ class RecoveryPanel(ctk.CTkFrame):
         self.progress_bar_widget.set(min(1.0, max(0.0, pct)))
         self.progress_bar_label.configure(
             text=f"{state.recovery_percentage:.0f}%",
-            text_color="#00ff88" if state.recovery_percentage >= 50 else "#ffaa00",
+            text_color=Colors.PROFIT if state.recovery_percentage >= 50 else Colors.BTN_WARNING,
         )
         self.recovery_pct_label.configure(text=f"Recovery: {state.recovery_percentage:.1f}%")
         self.trades_count_label.configure(text=f"Trades: {state.trades_count}")
@@ -989,11 +1007,11 @@ class RecoveryPanel(ctk.CTkFrame):
 
         # Update status
         if state.is_complete:
-            self.status_label.configure(text="✅ Recovery Complete!", text_color="#00ff88")
+            self.status_label.configure(text="✅ Recovery Complete!", text_color=Colors.PROFIT)
         elif self.recovery_strategy.should_stop():
-            self.status_label.configure(text="⚠️ Limit Reached", text_color="#ff6b6b")
+            self.status_label.configure(text="⚠️ Limit Reached", text_color=Colors.LOSS_SOFT)
         else:
-            self.status_label.configure(text="🔄 In Progress...", text_color="#ffaa00")
+            self.status_label.configure(text="🔄 In Progress...", text_color=Colors.BTN_WARNING)
 
     def _update_plan_preview(self) -> None:
         """Update plan preview with current config"""

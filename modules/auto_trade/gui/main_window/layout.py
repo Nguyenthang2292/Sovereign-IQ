@@ -11,7 +11,8 @@ from modules.auto_trade.gui.components.signals_frame import SignalsFrame
 from modules.auto_trade.gui.components.stats_frame import StatsFrame
 from modules.auto_trade.gui.components.trade_form import TradeFormFrame
 from modules.auto_trade.gui.utils.colors import Colors
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.fonts import Fonts
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon, get_icon
 from modules.common.ui.logging import log_error
 
 
@@ -36,6 +37,15 @@ class LayoutManager:
 
         # Create tabview
         self.parent.tabview = ctk.CTkTabview(content_frame)
+        self.parent.tabview.configure(
+            fg_color=Colors.BG_DARK,
+            segmented_button_fg_color=Colors.BG_CARD_DARK,
+            segmented_button_selected_color=Colors.ACCENT_DIM,
+            segmented_button_selected_hover_color=Colors.TAB_SELECTED_HOVER,
+            segmented_button_unselected_color=Colors.BG_CARD_DARK,
+            segmented_button_unselected_hover_color=Colors.BTN_NEUTRAL_HOVER,
+            text_color=Colors.TEXT_PRIMARY_DARK,
+        )
         self.parent.tabview.pack(fill="both", expand=True)
 
         # Dashboard tab
@@ -69,17 +79,17 @@ class LayoutManager:
         header_frame = ctk.CTkFrame(self.parent, height=60)
         header_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 0))
 
-        title_label = ctk.CTkLabel(header_frame, text="Auto Trade Dashboard", font=("Arial", 20, "bold"))
+        title_label = ctk.CTkLabel(header_frame, text="Auto Trade Dashboard", font=Fonts.H1)
         title_label.pack(side="left", padx=20)
 
-        icon_kb = get_icon("keyboard", size=(16, 16), light_color="white", dark_color="white")
+        icon_kb = get_button_icon("keyboard", size=(16, 16), variant="primary")
         shortcuts_btn = ctk.CTkButton(
             header_frame,
-            text=" Shortcuts",
+            text="SHORTCUTS",
             image=icon_kb,
             compound="left",
             width=90,
-            font=("Arial", 11),
+            font=Fonts.BUTTON_SM,
             command=lambda: (
                 self.parent._show_shortcuts_help() if hasattr(self.parent, "_show_shortcuts_help") else None
             ),
@@ -147,62 +157,62 @@ class LayoutManager:
         parent.grid_columnconfigure(3, weight=2)  # Live Stream Logs (wider)
 
         # Row 0: Scanner Control Buttons (spans all 4 columns)
-        control_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        control_frame = ctk.CTkFrame(parent, fg_color=Colors.TRANSPARENT)
         control_frame.grid(row=0, column=0, columnspan=4, sticky="ew", padx=10, pady=10)
         control_frame.grid_columnconfigure(0, weight=1)
 
         # Title
-        title = ctk.CTkLabel(control_frame, text="Scanner Control", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(control_frame, text="Scanner Control", font=Fonts.H1)
         title.pack(pady=(0, 10))
 
         # Status and buttons container
-        status_btn_frame = ctk.CTkFrame(control_frame, fg_color="transparent")
+        status_btn_frame = ctk.CTkFrame(control_frame, fg_color=Colors.TRANSPARENT)
         status_btn_frame.pack(fill="x", padx=20)
 
         # Status indicator (top)
-        status_container = ctk.CTkFrame(status_btn_frame, fg_color="transparent")
+        status_container = ctk.CTkFrame(status_btn_frame, fg_color=Colors.TRANSPARENT)
         status_container.pack(fill="x", pady=(0, 10))
 
         self.parent.scanner_status_label = ctk.CTkLabel(
-            status_container, text="🔴 Scanner: STOPPED", font=("Arial", 14, "bold"), text_color="gray"
+            status_container, text="🔴 Scanner: STOPPED", font=Fonts.H2, text_color=Colors.TEXT_MUTED
         )
         self.parent.scanner_status_label.pack(anchor="w")
 
         self.parent.scanner_last_scan_label = ctk.CTkLabel(
-            status_container, text="Last scan: Never", font=("Arial", 10), text_color="gray"
+            status_container, text="Last scan: Never", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED
         )
         self.parent.scanner_last_scan_label.pack(anchor="w", pady=(2, 0))
 
         self.parent.scanner_progress_label = ctk.CTkLabel(
-            status_container, text="", font=("Arial", 10), text_color="#00ff88"
+            status_container, text="", font=Fonts.SMALL, text_color=Colors.PROFIT
         )
         self.parent.scanner_progress_label.pack(anchor="w", pady=(2, 0))
 
         self.parent.scanner_countdown_label = ctk.CTkLabel(
-            status_container, text="", font=("Arial", 14, "bold"), text_color="#aaaaaa"
+            status_container, text="", font=Fonts.H2, text_color=Colors.TEXT_SECONDARY_ALT
         )
         self.parent.scanner_countdown_label.pack(anchor="w", pady=(2, 0))
 
         # Buttons container (vertical stack)
-        buttons_container = ctk.CTkFrame(status_btn_frame, fg_color="transparent")
+        buttons_container = ctk.CTkFrame(status_btn_frame, fg_color=Colors.TRANSPARENT)
         buttons_container.pack(fill="x")
 
-        from modules.auto_trade.gui.utils.svg_icons import get_icon
+        from modules.auto_trade.gui.utils.svg_icons import get_button_icon, get_icon
 
-        play_icon = get_icon("play", size=(18, 18), light_color="black", dark_color="black")
-        stop_icon = get_icon("square", size=(18, 18), light_color="white", dark_color="white")
-        next_scan_icon = get_icon("refresh", size=(16, 16), light_color="#aaaaaa", dark_color="#aaaaaa")
+        play_icon = get_button_icon("play", size=(18, 18), variant="success")
+        stop_icon = get_button_icon("square", size=(18, 18), variant="danger")
+        next_scan_icon = get_icon("refresh", size=(16, 16))
         self.parent.scanner_countdown_label.configure(image=next_scan_icon, compound="left")
         self.parent._next_scan_icon = next_scan_icon
 
         # Start/Stop button (full width)
         self.parent.scanner_start_button = ctk.CTkButton(
             buttons_container,
-            text=" Start Scanner",
+            text=" START SCANNER",
             image=play_icon,
             compound="left",
-            font=("Arial", 13, "bold"),
-            text_color="black",
+            font=Fonts.BUTTON,
+            text_color=Colors.WHITE,
             fg_color=Colors.BTN_SUCCESS,
             hover_color=Colors.BTN_SUCCESS_HOVER,
             height=40,
@@ -220,7 +230,7 @@ class LayoutManager:
                 self.parent.scanner_start_button.configure(
                     text=" Stop Scanner",
                     image=stop_icon,
-                    text_color="white",
+                    text_color=Colors.WHITE,
                     fg_color=Colors.BTN_DANGER,
                     hover_color=Colors.BTN_DANGER_HOVER,
                 )
@@ -228,13 +238,13 @@ class LayoutManager:
                 self.parent.scanner_start_button.configure(
                     text=" Start Scanner",
                     image=play_icon,
-                    text_color="black",
+                    text_color=Colors.WHITE,
                     fg_color=Colors.BTN_SUCCESS,
                     hover_color=Colors.BTN_SUCCESS_HOVER,
                 )
                 # Clear countdown when scanner is stopped
                 if hasattr(self.parent, "scanner_countdown_label"):
-                    self.parent.scanner_countdown_label.configure(text="", text_color="#aaaaaa")
+                    self.parent.scanner_countdown_label.configure(text="", text_color=Colors.TEXT_SECONDARY_ALT)
 
             # Delegate status label refresh to updater_manager (knows current position count)
             um = getattr(self.parent, "updater_manager", None)
@@ -488,25 +498,31 @@ class LayoutManager:
 
         # Column 0: Scanner Configuration
 
-        config_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
+        config_frame = ctk.CTkFrame(
+            parent,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
         config_frame.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=(0, 10))
 
-        config_title = ctk.CTkLabel(config_frame, text="Scanner Configuration", font=("Arial", 14, "bold"))
+        config_title = ctk.CTkLabel(config_frame, text="Scanner Configuration", font=Fonts.H2)
         config_title.pack(pady=(10, 5))
 
         # Configuration inputs (scrollable to fit all controls)
-        inputs_frame = ctk.CTkScrollableFrame(config_frame, fg_color="transparent")
+        inputs_frame = ctk.CTkScrollableFrame(config_frame, fg_color=Colors.TRANSPARENT)
         inputs_frame.pack(fill="both", expand=True, padx=10, pady=(5, 10))
 
         # ═══════════════════════════════════════════════
         # GROUP 1: Scan Settings
         # ═══════════════════════════════════════════════
-        scan_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        scan_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=0)
         scan_group.pack(fill="x", pady=(0, 8))
         scan_group.grid_columnconfigure(0, weight=0, minsize=130)
         scan_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(scan_group, text="Scan Settings", font=("Arial", 14, "bold")).grid(
+        ctk.CTkLabel(scan_group, text="Scan Settings", font=Fonts.H2).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
@@ -520,7 +536,7 @@ class LayoutManager:
         ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(4, 8))
 
         # Scan interval
-        ctk.CTkLabel(scan_group, text="Interval (min):", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(scan_group, text="Interval (min):", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=2, column=0, sticky="w", padx=(10, 5), pady=4
         )
         self.parent.scan_interval_entry = ctk.CTkEntry(scan_group, placeholder_text="5")
@@ -530,7 +546,7 @@ class LayoutManager:
         self.parent.scan_interval_entry.bind("<Return>", lambda e: self._push_scanner_config())
 
         # Timeframe
-        ctk.CTkLabel(scan_group, text="Timeframe:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(scan_group, text="Timeframe:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=3, column=0, sticky="w", padx=(10, 5), pady=4
         )
         self.parent.timeframe_var = ctk.StringVar(value="15m")
@@ -542,7 +558,7 @@ class LayoutManager:
         ).grid(row=3, column=1, sticky="ew", padx=(0, 10), pady=4)
 
         # Sampling strategy
-        ctk.CTkLabel(scan_group, text="Strategy:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(scan_group, text="Strategy:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=4, column=0, sticky="w", padx=(10, 5), pady=4
         )
         self.parent.sampling_strategy_var = ctk.StringVar(value="stratified")
@@ -554,7 +570,7 @@ class LayoutManager:
         ).grid(row=4, column=1, sticky="ew", padx=(0, 10), pady=4)
 
         # Sample percentage
-        ctk.CTkLabel(scan_group, text="Sample (%):", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(scan_group, text="Sample (%):", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=5, column=0, sticky="w", padx=(10, 5), pady=(4, 10)
         )
         self.parent.sample_percentage_entry = ctk.CTkEntry(scan_group, placeholder_text="20")
@@ -566,21 +582,21 @@ class LayoutManager:
         # ═══════════════════════════════════════════════
         # GROUP 2: Signal Filters
         # ═══════════════════════════════════════════════
-        signal_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        signal_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=0)
         signal_group.pack(fill="x", pady=(0, 8))
         signal_group.grid_columnconfigure(0, weight=0, minsize=130)
         signal_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(signal_group, text="Signal Filters", font=("Arial", 14, "bold")).grid(
+        ctk.CTkLabel(signal_group, text="Signal Filters", font=Fonts.H2).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
         # Min Signal Score
-        ctk.CTkLabel(signal_group, text="Min Signal Score:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(signal_group, text="Min Signal Score:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=1, column=0, sticky="w", padx=(10, 5), pady=4
         )
 
-        slider_frame1 = ctk.CTkFrame(signal_group, fg_color="transparent")
+        slider_frame1 = ctk.CTkFrame(signal_group, fg_color=Colors.TRANSPARENT)
         slider_frame1.grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=4)
         slider_frame1.grid_columnconfigure(0, weight=1)
         slider_frame1.grid_columnconfigure(1, weight=0)
@@ -596,7 +612,7 @@ class LayoutManager:
         ).grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
         self.parent.min_signal_score_label = ctk.CTkLabel(
-            slider_frame1, text="0.70", font=("Arial", 9), text_color="gray", width=30
+            slider_frame1, text="0.70", font=Fonts.TINY, text_color=Colors.TEXT_MUTED, width=30
         )
         self.parent.min_signal_score_label.grid(row=0, column=1, sticky="e")
 
@@ -614,14 +630,14 @@ class LayoutManager:
         ctk.CTkLabel(
             signal_group,
             text="(High score = stricter filtering.\nE.g. >0.4 means fewer but stronger signals)",
-            font=("Arial", 9, "italic"),
-            text_color="gray",
+            font=Fonts.TINY,
+            text_color=Colors.TEXT_MUTED,
             justify="left",
             anchor="w",
         ).grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
 
         # Min 24h Volume
-        ctk.CTkLabel(signal_group, text="Min 24h Vol (M):", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(signal_group, text="Min 24h Vol (M):", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=3, column=0, sticky="w", padx=(10, 5), pady=(4, 8)
         )
         self.parent.min_volume_entry = ctk.CTkEntry(signal_group, placeholder_text="50")
@@ -633,17 +649,17 @@ class LayoutManager:
         # ═══════════════════════════════════════════════
         # GROUP 3: ATC Configuration
         # ═══════════════════════════════════════════════
-        atc_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        atc_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=0)
         atc_group.pack(fill="x", pady=(0, 8))
         atc_group.grid_columnconfigure(0, weight=0, minsize=130)
         atc_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(atc_group, text="ATC Configuration", font=("Arial", 14, "bold")).grid(
+        ctk.CTkLabel(atc_group, text="ATC Configuration", font=Fonts.H2).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
         # ATC backend switch
-        ctk.CTkLabel(atc_group, text="Backend:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(atc_group, text="Backend:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=1, column=0, sticky="w", padx=(10, 5), pady=4
         )
         self.parent.atc_backend_var = ctk.StringVar(value="local")
@@ -655,11 +671,11 @@ class LayoutManager:
         ).grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=4)
 
         # ATC base threshold
-        ctk.CTkLabel(atc_group, text="Base threshold:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(atc_group, text="Base threshold:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=2, column=0, sticky="w", padx=(10, 5), pady=4
         )
 
-        slider_frame2 = ctk.CTkFrame(atc_group, fg_color="transparent")
+        slider_frame2 = ctk.CTkFrame(atc_group, fg_color=Colors.TRANSPARENT)
         slider_frame2.grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=4)
         slider_frame2.grid_columnconfigure(0, weight=1)
         slider_frame2.grid_columnconfigure(1, weight=0)
@@ -675,15 +691,15 @@ class LayoutManager:
         ).grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
         self.parent.atc_threshold_label = ctk.CTkLabel(
-            slider_frame2, text="0.60", font=("Arial", 9), text_color="gray", width=30
+            slider_frame2, text="0.60", font=Fonts.TINY, text_color=Colors.TEXT_MUTED, width=30
         )
         self.parent.atc_threshold_label.grid(row=0, column=1, sticky="e")
 
         ctk.CTkLabel(
             atc_group,
             text="Scaled down when some timeframes fail.",
-            font=("Arial", 9, "italic"),
-            text_color="gray",
+            font=Fonts.TINY,
+            text_color=Colors.TEXT_MUTED,
             anchor="w",
         ).grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
 
@@ -700,12 +716,12 @@ class LayoutManager:
         # ═══════════════════════════════════════════════
         # GROUP 4: XGBoost Configuration
         # ═══════════════════════════════════════════════
-        xgb_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        xgb_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=0)
         xgb_group.pack(fill="x", pady=(0, 8))
         xgb_group.grid_columnconfigure(0, weight=0, minsize=130)
         xgb_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(xgb_group, text="XGBoost Configuration", font=("Arial", 14, "bold")).grid(
+        ctk.CTkLabel(xgb_group, text="XGBoost Configuration", font=Fonts.H2).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
@@ -719,7 +735,7 @@ class LayoutManager:
         ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
 
         # XGBoost backend switch
-        ctk.CTkLabel(xgb_group, text="Backend:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(xgb_group, text="Backend:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=2, column=0, sticky="w", padx=(10, 5), pady=(4, 8)
         )
         self.parent.xgboost_backend_var = ctk.StringVar(value="local")
@@ -733,12 +749,12 @@ class LayoutManager:
         # ═══════════════════════════════════════════════
         # GROUP 5: Gann Square Configuration
         # ═══════════════════════════════════════════════
-        gann_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        gann_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=0)
         gann_group.pack(fill="x", pady=(0, 8))
         gann_group.grid_columnconfigure(0, weight=0, minsize=130)
         gann_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(gann_group, text="Gann Square Configuration", font=("Arial", 14, "bold")).grid(
+        ctk.CTkLabel(gann_group, text="Gann Square Configuration", font=Fonts.H2).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
@@ -750,7 +766,7 @@ class LayoutManager:
             command=self._push_scanner_config,
         ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
 
-        ctk.CTkLabel(gann_group, text="Timeframe:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(gann_group, text="Timeframe:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=2, column=0, sticky="w", padx=(10, 5), pady=4
         )
         self.parent.gann_timeframe_var = ctk.StringVar(value="1h")
@@ -761,7 +777,7 @@ class LayoutManager:
             command=lambda _: self._push_scanner_config(),
         ).grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=4)
 
-        ctk.CTkLabel(gann_group, text="Candles Limit:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(gann_group, text="Candles Limit:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=3, column=0, sticky="w", padx=(10, 5), pady=4
         )
         self.parent.gann_candle_limit_entry = ctk.CTkEntry(gann_group, placeholder_text="200")
@@ -770,7 +786,7 @@ class LayoutManager:
         self.parent.gann_candle_limit_entry.bind("<FocusOut>", lambda e: self._push_scanner_config())
         self.parent.gann_candle_limit_entry.bind("<Return>", lambda e: self._push_scanner_config())
 
-        ctk.CTkLabel(gann_group, text="Lookback:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(gann_group, text="Lookback:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=4, column=0, sticky="w", padx=(10, 5), pady=(4, 8)
         )
         self.parent.gann_lookback_entry = ctk.CTkEntry(gann_group, placeholder_text="5")
@@ -782,12 +798,12 @@ class LayoutManager:
         # ═══════════════════════════════════════════════
         # GROUP 6: Order Book Configuration
         # ═══════════════════════════════════════════════
-        ob_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        ob_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=0)
         ob_group.pack(fill="x", pady=(0, 8))
         ob_group.grid_columnconfigure(0, weight=0, minsize=130)
         ob_group.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(ob_group, text="Order Book Configuration", font=("Arial", 14, "bold")).grid(
+        ctk.CTkLabel(ob_group, text="Order Book Configuration", font=Fonts.H2).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
         )
 
@@ -801,7 +817,7 @@ class LayoutManager:
         ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
 
         # Depth levels
-        ctk.CTkLabel(ob_group, text="Depth levels:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(ob_group, text="Depth levels:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=2, column=0, sticky="w", padx=(10, 5), pady=4
         )
         self.parent.ob_depth_entry = ctk.CTkEntry(ob_group, placeholder_text="20")
@@ -811,11 +827,11 @@ class LayoutManager:
         self.parent.ob_depth_entry.bind("<Return>", lambda e: self._push_scanner_config())
 
         # Imbalance threshold
-        ctk.CTkLabel(ob_group, text="Imbalance threshold:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+        ctk.CTkLabel(ob_group, text="Imbalance threshold:", font=Fonts.SMALL, text_color=Colors.TEXT_MUTED, anchor="w").grid(
             row=3, column=0, sticky="w", padx=(10, 5), pady=4
         )
 
-        slider_ob = ctk.CTkFrame(ob_group, fg_color="transparent")
+        slider_ob = ctk.CTkFrame(ob_group, fg_color=Colors.TRANSPARENT)
         slider_ob.grid(row=3, column=1, sticky="ew", padx=(0, 10), pady=4)
         slider_ob.grid_columnconfigure(0, weight=1)
         slider_ob.grid_columnconfigure(1, weight=0)
@@ -831,15 +847,15 @@ class LayoutManager:
         ).grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
         self.parent.ob_threshold_label = ctk.CTkLabel(
-            slider_ob, text="0.20", font=("Arial", 9), text_color="gray", width=30
+            slider_ob, text="0.20", font=Fonts.TINY, text_color=Colors.TEXT_MUTED, width=30
         )
         self.parent.ob_threshold_label.grid(row=0, column=1, sticky="e")
 
         ctk.CTkLabel(
             ob_group,
             text="Min bid/ask imbalance ratio to confirm signal.",
-            font=("Arial", 9, "italic"),
-            text_color="gray",
+            font=Fonts.TINY,
+            text_color=Colors.TEXT_MUTED,
             anchor="w",
         ).grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
 
@@ -854,16 +870,22 @@ class LayoutManager:
         self.parent.ob_imbalance_threshold_var.trace_add("write", _on_ob_threshold_change)
 
         # Column 1: Current Settings
-        settings_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
+        settings_frame = ctk.CTkFrame(
+            parent,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
         settings_frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=(0, 10))
 
-        settings_title = ctk.CTkLabel(settings_frame, text="Current Settings", font=("Arial", 14, "bold"))
+        settings_title = ctk.CTkLabel(settings_frame, text="Current Settings", font=Fonts.H2)
         settings_title.pack(pady=(10, 5))
 
         # We need a reference to update these settings
         self.parent.settings_labels = {}
 
-        settings_list = ctk.CTkScrollableFrame(settings_frame, fg_color="transparent")
+        settings_list = ctk.CTkScrollableFrame(settings_frame, fg_color=Colors.TRANSPARENT)
         settings_list.pack(fill="both", expand=True, padx=5, pady=(5, 10))
 
         # Grouped settings structure: (group_title, [(label, default_value, key), ...])
@@ -922,70 +944,84 @@ class LayoutManager:
             group_header = ctk.CTkLabel(
                 settings_list,
                 text=group_title,
-                font=("Arial", 12, "bold"),
-                text_color="#888888",
+                font=Fonts.H3,
+                text_color=Colors.TEXT_SECONDARY_DARK,
                 anchor="w",
             )
             group_header.pack(fill="x", pady=(8, 2))
             # Separator line
-            sep = ctk.CTkFrame(settings_list, height=1, fg_color=("#cccccc", "#444444"))
+            sep = ctk.CTkFrame(settings_list, height=1, fg_color=(Colors.SEPARATOR_LIGHT, Colors.SEPARATOR_DARK))
             sep.pack(fill="x", pady=(0, 4))
             # Items
             for label_text, value_text, key in items:
-                row = ctk.CTkFrame(settings_list, fg_color="transparent")
+                row = ctk.CTkFrame(settings_list, fg_color=Colors.TRANSPARENT)
                 row.pack(fill="x", pady=1)
-                ctk.CTkLabel(row, text=label_text, font=("Arial", 10), text_color="gray").pack(side="left")
-                val_label = ctk.CTkLabel(row, text=value_text, font=("Arial", 10, "bold"))
+                ctk.CTkLabel(row, text=label_text, font=Fonts.SMALL, text_color=Colors.TEXT_MUTED).pack(side="left")
+                val_label = ctk.CTkLabel(row, text=value_text, font=Fonts.BODY)
                 val_label.pack(side="right")
                 self.parent.settings_labels[key] = val_label
 
         # Column 2: System Logs
-        system_logs_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
+        system_logs_frame = ctk.CTkFrame(
+            parent,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
         system_logs_frame.grid(row=1, column=2, sticky="nsew", padx=5, pady=(0, 10))
 
-        inner = ctk.CTkFrame(system_logs_frame, fg_color="transparent")
+        inner = ctk.CTkFrame(system_logs_frame, fg_color=Colors.TRANSPARENT)
         inner.pack(fill="both", expand=True, padx=10, pady=10)
 
-        system_title = ctk.CTkLabel(inner, text="System Logs", font=("Arial", 14, "bold"))
+        system_title = ctk.CTkLabel(inner, text="System Logs", font=Fonts.H2)
         system_title.pack(pady=(0, 8))
 
         info = ctk.CTkLabel(
             inner,
             text=f"Logs saved to:\n{self.parent.log_file_path.name}",
-            font=("Arial", 9),
-            text_color="gray",
+            font=Fonts.TINY,
+            text_color=Colors.TEXT_MUTED,
             justify="center",
         )
         info.pack(pady=5)
 
         # Stack buttons vertically
-        btn_frame = ctk.CTkFrame(inner, fg_color="transparent")
+        btn_frame = ctk.CTkFrame(inner, fg_color=Colors.TRANSPARENT)
         btn_frame.pack(pady=10)
 
         from modules.auto_trade.gui.utils.svg_icons import get_icon
 
-        folder_icon = get_icon("folder_open", size=(16, 16), light_color="white", dark_color="white")
-        file_icon = get_icon("file_text", size=(16, 16), light_color="white", dark_color="white")
-        trash_icon = get_icon("trash", size=(16, 16), light_color="white", dark_color="white")
+        folder_icon = get_button_icon("folder_open", size=(16, 16), variant="neutral")
+        file_icon = get_button_icon("file_text", size=(16, 16), variant="primary")
+        trash_icon = get_button_icon("trash", size=(16, 16), variant="danger")
 
         ctk.CTkButton(
-            btn_frame, text=" Open Log File", image=file_icon, compound="left", width=130, command=self._open_log_file
+            btn_frame,
+            text="OPEN LOG FILE",
+            font=Fonts.BUTTON_SM,
+            image=file_icon,
+            compound="left",
+            width=130,
+            command=self._open_log_file,
         ).pack(pady=(0, 6))
 
         ctk.CTkButton(
             btn_frame,
-            text=" Open Folder",
+            text="OPEN FOLDER",
+            font=Fonts.BUTTON_SM,
             image=folder_icon,
             compound="left",
             width=130,
             fg_color=Colors.BTN_NEUTRAL,
-            hover_color="#666666",
+            hover_color=Colors.TEXT_DISABLED,
             command=self._open_log_folder,
         ).pack(pady=6)
 
         ctk.CTkButton(
             btn_frame,
-            text=" Clear Logs",
+            text="CLEAR LOGS",
+            font=Fonts.BUTTON_SM,
             image=trash_icon,
             compound="left",
             width=130,
@@ -995,12 +1031,21 @@ class LayoutManager:
         ).pack(pady=(6, 0))
 
         # Column 3: Live Stream Logs
-        live_logs_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
+        live_logs_frame = ctk.CTkFrame(
+            parent,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
         live_logs_frame.grid(row=1, column=3, sticky="nsew", padx=(5, 10), pady=(0, 10))
         live_logs_frame.grid_columnconfigure(0, weight=1)
         live_logs_frame.grid_rowconfigure(1, weight=1)
 
-        logs_label = ctk.CTkLabel(live_logs_frame, text="Live Stream Logs", font=("Arial", 14, "bold"))
+        for panel in (config_frame, settings_frame, system_logs_frame, live_logs_frame):
+            panel.bind("<Button-1>", lambda _e, p=panel: p.configure(border_color=Colors.BORDER_ACTIVE))
+
+        logs_label = ctk.CTkLabel(live_logs_frame, text="Live Stream Logs", font=Fonts.H2)
         logs_label.grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
 
         self.parent.logs_textbox = ctk.CTkTextbox(live_logs_frame, font=("Consolas", 9), wrap="word")
@@ -1097,14 +1142,14 @@ class LayoutManager:
         )
         self.parent.config_panel.grid(row=0, column=0, sticky="new", padx=10, pady=10)
 
-        apply_btn_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        apply_btn_frame = ctk.CTkFrame(scroll_frame, fg_color=Colors.TRANSPARENT)
         apply_btn_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 15))
         apply_btn_frame.grid_columnconfigure(0, weight=1)
 
         self.parent.apply_settings_btn = ctk.CTkButton(
             apply_btn_frame,
-            text="Apply Settings",
-            font=("Arial", 14, "bold"),
+            text="APPLY SETTINGS",
+            font=Fonts.BUTTON,
             fg_color=Colors.BTN_PRIMARY,
             hover_color=Colors.BTN_PRIMARY_HOVER,
             height=40,

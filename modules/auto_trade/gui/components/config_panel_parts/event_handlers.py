@@ -1,3 +1,5 @@
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 from modules.common.ui.logging import log_error
 
 
@@ -32,9 +34,6 @@ def on_mode_change(panel, show_warning: bool = True):
     try:
         from tkinter import messagebox
 
-        from modules.auto_trade.gui.utils.colors import Colors
-        from modules.auto_trade.gui.utils.svg_icons import get_icon
-
         mode = panel.mode_var.get()
 
         mode_descriptions = {
@@ -46,7 +45,7 @@ def on_mode_change(panel, show_warning: bool = True):
         description, color, icon_key = mode_descriptions.get(
             mode, ("  Safe local simulation", Colors.DRY_RUN, "shield_check")
         )
-        icon = get_icon(icon_key, size=(16, 16), light_color=color, dark_color=color)
+        icon = get_icon(icon_key, size=(16, 16))
 
         panel.mode_description_label.configure(text=description, text_color=color, image=icon, compound="left")
 

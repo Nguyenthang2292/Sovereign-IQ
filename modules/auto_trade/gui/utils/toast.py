@@ -7,6 +7,8 @@ Provides temporary popup notifications for the GUI.
 from typing import Literal, Union
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 
 # Any CTk widget that can host a toplevel (has winfo_rootx etc.)
 ToastParent = Union[ctk.CTk, ctk.CTkFrame]
@@ -30,8 +32,8 @@ class ToastNotification(ctk.CTkToplevel):
         parent: ToastParent,
         message: str,
         duration: int = 3000,
-        fg_color: str = "#333333",
-        text_color: str = "white",
+        fg_color: str = Colors.TOAST_INFO,
+        text_color: str = Colors.WHITE,
     ) -> None:
         """
         Initialize toast notification.
@@ -68,7 +70,7 @@ class ToastNotification(ctk.CTkToplevel):
 
         # Content
         self.label: ctk.CTkLabel = ctk.CTkLabel(
-            self, text=message, font=("Arial", 14, "bold"), text_color=text_color, fg_color="transparent"
+            self, text=message, font=Fonts.H2, text_color=text_color, fg_color=Colors.TRANSPARENT
         )
         self.label.pack(expand=True, fill="both", padx=20, pady=10)
 
@@ -114,10 +116,10 @@ def show_toast(
         duration: Duration in milliseconds before auto-dismiss
     """
     colors = {
-        "info": "#333333",
-        "success": "#228822",
-        "error": "#aa2222",
-        "warning": "#aa8822",
+        "info": Colors.TOAST_INFO,
+        "success": Colors.SUCCESS_DIM,
+        "error": Colors.TOAST_ERROR,
+        "warning": Colors.TOAST_WARNING,
     }
-    color = colors.get(type, "#333333")
+    color = colors.get(type, Colors.TOAST_INFO)
     ToastNotification(parent, message, duration, fg_color=color)

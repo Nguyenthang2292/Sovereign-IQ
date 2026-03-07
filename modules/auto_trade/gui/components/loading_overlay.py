@@ -3,6 +3,7 @@
 from typing import Any, Optional
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.fonts import Fonts
 
 
 class LoadingOverlay:
@@ -31,7 +32,7 @@ class LoadingOverlay:
         self.overlay = ctk.CTkFrame(
             self.parent,
             fg_color=("gray80", "gray20"),
-            corner_radius=10,
+            corner_radius=0,
         )
         self.overlay.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -39,7 +40,7 @@ class LoadingOverlay:
         self.label = ctk.CTkLabel(
             self.overlay,
             text=f"⏳ {message}",
-            font=("Arial", 16),
+            font=Fonts.H1,
         )
         self.label.pack(padx=40, pady=20)
 

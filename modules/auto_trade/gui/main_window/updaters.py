@@ -4,6 +4,7 @@ import queue
 import threading
 import time
 
+from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.threading_utils import PeriodicUpdater
 from modules.common.ui.logging import log_error, log_info
 
@@ -95,19 +96,19 @@ class UpdaterManager:
         sm = getattr(self.parent, "scanner_manager", None)
         is_running = sm is not None and sm.updater is not None
         if not is_running:
-            self.parent.scanner_status_label.configure(text="🔴 Scanner: STOPPED", text_color="gray")
+            self.parent.scanner_status_label.configure(text="🔴 Scanner: STOPPED", text_color=Colors.TEXT_MUTED)
             return
         n = self._open_positions_count
         if n > 0:
             pos_word = "position" if n == 1 else "positions"
             self.parent.scanner_status_label.configure(
                 text=f"🟢 Scanner: RUNNING (scan skipped – {n} open {pos_word})",
-                text_color="#00ff88",
+                text_color=Colors.PROFIT,
             )
         else:
             self.parent.scanner_status_label.configure(
                 text="🟢 Scanner: RUNNING",
-                text_color="#00ff88",
+                text_color=Colors.PROFIT,
             )
 
     def _update_scanner_status_tick(self):
@@ -126,14 +127,14 @@ class UpdaterManager:
                             countdown_text = f" Next scan in: {mins}m {secs:02d}s"
                         else:
                             countdown_text = f" Next scan in: {secs}s"
-                        self.parent.scanner_countdown_label.configure(text=countdown_text, text_color="#aaaaaa")
+                        self.parent.scanner_countdown_label.configure(text=countdown_text, text_color=Colors.TEXT_SECONDARY_ALT)
                     else:
-                        self.parent.scanner_countdown_label.configure(text="Scanning now...", text_color="#00ff88")
+                        self.parent.scanner_countdown_label.configure(text="Scanning now...", text_color=Colors.PROFIT)
                 elif is_running:
                     # Scanner running but we don't know next scan time yet
-                    self.parent.scanner_countdown_label.configure(text="", text_color="#aaaaaa")
+                    self.parent.scanner_countdown_label.configure(text="", text_color=Colors.TEXT_SECONDARY_ALT)
                 else:
-                    self.parent.scanner_countdown_label.configure(text="", text_color="#aaaaaa")
+                    self.parent.scanner_countdown_label.configure(text="", text_color=Colors.TEXT_SECONDARY_ALT)
         except Exception as e:
             log_error("Error in scanner status tick: %s", e)
         self.parent.after(1000, self._update_scanner_status_tick)

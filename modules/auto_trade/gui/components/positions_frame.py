@@ -6,13 +6,20 @@ import customtkinter as ctk
 from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.gui.components.position_details import PositionDetails
 from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 from modules.auto_trade.gui.utils.formatters import format_asset_price, format_pnl, format_price
 from modules.common.ui.logging import log_debug, log_error
 
 
 class PositionCard(ctk.CTkFrame):
     def __init__(self, parent, position: Dict, on_action_callback: Optional[Callable] = None):
-        super().__init__(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
+        super().__init__(
+            parent,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
         self.position = position
         self.on_action_callback = on_action_callback
 
@@ -20,18 +27,20 @@ class PositionCard(ctk.CTkFrame):
         self.bind("<Button-1>", self._on_click)
         self.bind("<Button-3>", self._show_context_menu)
 
-        header = ctk.CTkFrame(self, fg_color="transparent")
+        header = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         header.pack(fill="x", padx=10, pady=(10, 5))
         header.bind("<Button-1>", self._on_click)
         header.bind("<Button-3>", self._show_context_menu)
 
-        symbol_label = ctk.CTkLabel(header, text=position["symbol"], font=("Arial", 14, "bold"))
+        symbol_label = ctk.CTkLabel(
+            header, text=position["symbol"], font=Fonts.H2, text_color=Colors.get_text_primary()
+        )
         symbol_label.pack(side="left")
         symbol_label.bind("<Button-1>", self._on_click)
         symbol_label.bind("<Button-3>", self._show_context_menu)
 
         side_color = Colors.LONG if position["side"] == "LONG" else Colors.SHORT
-        side_label = ctk.CTkLabel(header, text=position["side"], font=("Arial", 12, "bold"), text_color=side_color)
+        side_label = ctk.CTkLabel(header, text=position["side"], font=Fonts.H3, text_color=side_color)
         side_label.pack(side="right")
         side_label.bind("<Button-1>", self._on_click)
         side_label.bind("<Button-3>", self._show_context_menu)
@@ -40,7 +49,7 @@ class PositionCard(ctk.CTkFrame):
         self._create_context_menu()
 
     def _create_details(self, position: Dict):
-        details_frame = ctk.CTkFrame(self, fg_color="transparent")
+        details_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         details_frame.pack(fill="x", padx=10, pady=5)
         details_frame.bind("<Button-1>", self._on_click)
         details_frame.bind("<Button-3>", self._show_context_menu)
@@ -62,25 +71,41 @@ class PositionCard(ctk.CTkFrame):
         ]
 
         for i, (label, value) in enumerate(rows):
-            label_widget = ctk.CTkLabel(details_frame, text=label, font=("Arial", 11), text_color="gray")
-            label_widget.grid(row=i, column=0, sticky="w", pady=2)
+            is_pnl_row = i == len(rows) - 1
+            row_frame = ctk.CTkFrame(
+                details_frame,
+                fg_color=Colors.BG_HIGHLIGHT if is_pnl_row else Colors.TRANSPARENT,
+                border_width=1 if is_pnl_row else 0,
+                border_color=Colors.BORDER_NEON,
+                corner_radius=0 if is_pnl_row else 0,
+            )
+            row_frame.grid(row=i, column=0, columnspan=2, sticky="ew", pady=2)
+            row_frame.grid_columnconfigure(1, weight=1)
+
+            label_widget = ctk.CTkLabel(
+                row_frame,
+                text=label,
+                font=Fonts.BODY,
+                text_color=Colors.TEXT_SECONDARY_DARK,
+            )
+            label_widget.grid(row=0, column=0, sticky="w", pady=2)
             label_widget.bind("<Button-1>", self._on_click)
             label_widget.bind("<Button-3>", self._show_context_menu)
 
             # Color coding for different rows
-            if i == len(rows) - 1:  # P&L row
+            if is_pnl_row:  # P&L row
                 text_color = Colors.PROFIT if position["pnl"] >= 0 else Colors.LOSS
             elif i == 3:  # TP row
-                text_color = Colors.PROFIT if value != "N/A" else "gray"
+                text_color = Colors.PROFIT if value != "N/A" else Colors.TEXT_MUTED
             elif i == 4:  # SL row
-                text_color = Colors.LOSS if value != "N/A" else "gray"
+                text_color = Colors.LOSS if value != "N/A" else Colors.TEXT_MUTED
             elif i == 5:  # BE row
-                text_color = "#FFA500" if value != "N/A" else "gray"  # Orange for BE
+                text_color = Colors.WARNING_ORANGE if value != "N/A" else Colors.TEXT_MUTED  # Orange for BE
             else:
-                text_color = "white"
+                text_color = Colors.get_text_primary()
 
-            value_widget = ctk.CTkLabel(details_frame, text=value, font=("Arial", 11, "bold"), text_color=text_color)
-            value_widget.grid(row=i, column=1, sticky="e", pady=2)
+            value_widget = ctk.CTkLabel(row_frame, text=value, font=Fonts.H3, text_color=text_color)
+            value_widget.grid(row=0, column=1, sticky="e", pady=2)
             value_widget.bind("<Button-1>", self._on_click)
             value_widget.bind("<Button-3>", self._show_context_menu)
 
@@ -115,6 +140,7 @@ class PositionCard(ctk.CTkFrame):
     def _on_click(self, event):
         """Handle click event to show position details"""
         try:
+            self.configure(border_color=Colors.BORDER_ACTIVE)
             PositionDetails(self.winfo_toplevel(), self.position, on_action_callback=self.on_action_callback)
         except Exception as e:
             log_error("Error opening position details: %s", e)
@@ -129,7 +155,13 @@ class PositionsFrame(ctk.CTkFrame):
         on_refresh_callback: Optional[Callable] = None,
         on_sync_callback: Optional[Callable] = None,
     ):
-        super().__init__(parent)
+        super().__init__(
+            parent,
+            fg_color=Colors.get_card_bg(),
+            corner_radius=0,
+            border_width=1,
+            border_color=Colors.BORDER_NEON,
+        )
         self.on_action_callback = on_action_callback
         self.on_open_trade_callback = on_open_trade_callback
         self.on_refresh_callback = on_refresh_callback
@@ -137,37 +169,49 @@ class PositionsFrame(ctk.CTkFrame):
         self._empty_state: Optional[EmptyState] = None
 
         # Header with title and action buttons
-        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame = ctk.CTkFrame(self, fg_color=Colors.TRANSPARENT)
         header_frame.pack(fill="x", pady=(10, 5), padx=10)
 
-        title = ctk.CTkLabel(header_frame, text="Open Positions", font=("Arial", 16, "bold"))
+        title = ctk.CTkLabel(header_frame, text="Open Positions", font=Fonts.H1, text_color=Colors.get_accent())
         title.pack(side="left")
 
         # Button container for right-aligned buttons
-        button_container = ctk.CTkFrame(header_frame, fg_color="transparent")
+        button_container = ctk.CTkFrame(header_frame, fg_color=Colors.TRANSPARENT)
         button_container.pack(side="right")
 
+        from modules.auto_trade.gui.utils.svg_icons import get_button_icon
+
         if on_refresh_callback:
+            refresh_icon = get_button_icon("refresh", size=(16, 16), variant="primary")
             refresh_btn = ctk.CTkButton(
                 button_container,
-                text="🔄 Refresh",
+                text="REFRESH",
+                image=refresh_icon,
+                compound="left",
                 width=80,
                 height=24,
+                font=Fonts.BUTTON_SM,
                 command=on_refresh_callback,
                 fg_color=Colors.BTN_PRIMARY,
                 hover_color=Colors.BTN_PRIMARY_HOVER,
+                text_color=Colors.BTN_PRIMARY_TEXT,
             )
             refresh_btn.pack(side="right", padx=(5, 0))
 
         if on_sync_callback:
+            sync_icon = get_button_icon("refresh", size=(16, 16), variant="success")
             sync_btn = ctk.CTkButton(
                 button_container,
-                text="🔄 Sync from Binance",
+                text="SYNC FROM BINANCE",
+                image=sync_icon,
+                compound="left",
                 width=140,
                 height=24,
+                font=Fonts.BUTTON_SM,
                 command=on_sync_callback,
                 fg_color=Colors.BTN_SUCCESS,  # Green color
                 hover_color=Colors.BTN_SUCCESS_HOVER,
+                text_color=Colors.BTN_SUCCESS_TEXT,
             )
             sync_btn.pack(side="right", padx=(5, 0))
 

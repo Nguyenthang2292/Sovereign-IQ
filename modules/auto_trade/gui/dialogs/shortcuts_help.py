@@ -1,7 +1,9 @@
 """Keyboard shortcuts help dialog - lists all implemented shortcuts."""
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
 
+from modules.auto_trade.gui.utils.fonts import Fonts
 from modules.auto_trade.gui.utils.shortcuts import SHORTCUTS_LIST
 from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 
@@ -31,11 +33,11 @@ class ShortcutsHelpDialog(ctk.CTkToplevel):
         header = ctk.CTkLabel(
             self,
             text="⌨ Keyboard Shortcuts",
-            font=("Arial", 16, "bold"),
+            font=Fonts.H1,
         )
         header.pack(pady=(16, 8))
 
-        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        scroll = ctk.CTkScrollableFrame(self, fg_color=Colors.TRANSPARENT)
         scroll.pack(fill="both", expand=True, padx=20, pady=(0, 16))
 
         # Group by context
@@ -49,19 +51,19 @@ class ShortcutsHelpDialog(ctk.CTkToplevel):
             section_label = ctk.CTkLabel(
                 scroll,
                 text=context,
-                font=("Arial", 12, "bold"),
+                font=Fonts.H3,
                 text_color=("gray50", "gray70"),
             )
             section_label.pack(anchor="w", pady=(12, 4))
 
             for key_display, description in by_context[context]:
-                row = ctk.CTkFrame(scroll, fg_color="transparent")
+                row = ctk.CTkFrame(scroll, fg_color=Colors.TRANSPARENT)
                 row.pack(fill="x", pady=2)
 
                 key_lbl = ctk.CTkLabel(
                     row,
                     text=key_display,
-                    font=("Consolas", 11, "bold"),
+                    font=(Fonts.FAMILY, 11, "bold"),
                     width=120,
                     anchor="w",
                 )
@@ -70,15 +72,17 @@ class ShortcutsHelpDialog(ctk.CTkToplevel):
                 desc_lbl = ctk.CTkLabel(
                     row,
                     text=description,
-                    font=("Arial", 11),
+                    font=Fonts.BODY,
                     anchor="w",
                 )
                 desc_lbl.pack(side="left", fill="x", expand=True)
 
         close_btn = ctk.CTkButton(
             self,
-            text="Close",
+            text="CLOSE",
+            font=Fonts.BUTTON_SM,
             width=100,
             command=self.destroy,
         )
         close_btn.pack(pady=(0, 16))
+

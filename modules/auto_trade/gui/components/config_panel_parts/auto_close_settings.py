@@ -1,16 +1,18 @@
 from typing import Any, Dict
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
+from modules.auto_trade.gui.utils.fonts import Fonts
 
 
 def build_auto_close_section(panel, parent_frame, *, show_separator: bool = True, show_title: bool = True) -> None:
     """Build Auto-Close settings UI section inside TP/SL area."""
     if show_separator:
-        separator = ctk.CTkLabel(parent_frame, text="─────────────────────────", text_color="gray")
+        separator = ctk.CTkLabel(parent_frame, text="─────────────────────────", text_color=Colors.TEXT_MUTED)
         separator.pack(anchor="w", pady=(12, 5))
 
     if show_title:
-        ctk.CTkLabel(parent_frame, text="Auto-Close Timer", font=("Arial", 13, "bold")).pack(anchor="w", pady=(0, 8))
+        ctk.CTkLabel(parent_frame, text="Auto-Close Timer", font=Fonts.H2).pack(anchor="w", pady=(0, 8))
 
     panel.auto_close_enabled_var = ctk.BooleanVar(value=False)
     ctk.CTkCheckBox(
@@ -26,7 +28,7 @@ def build_auto_close_section(panel, parent_frame, *, show_separator: bool = True
         variable=panel.auto_close_max_duration_enabled_var,
     ).pack(anchor="w", pady=(0, 4))
 
-    ctk.CTkLabel(parent_frame, text="Max duration (hours):", font=("Arial", 12)).pack(anchor="w", pady=(5, 2))
+    ctk.CTkLabel(parent_frame, text="Max duration (hours):", font=Fonts.INPUT).pack(anchor="w", pady=(5, 2))
     panel.auto_close_max_duration_hours_entry = ctk.CTkEntry(parent_frame, placeholder_text="4.0")
     panel.auto_close_max_duration_hours_entry.pack(fill="x", pady=(2, 8))
     panel.auto_close_max_duration_hours_entry.insert(0, "4.0")
@@ -38,22 +40,22 @@ def build_auto_close_section(panel, parent_frame, *, show_separator: bool = True
         variable=panel.auto_close_daily_enabled_var,
     ).pack(anchor="w", pady=(0, 4))
 
-    ctk.CTkLabel(parent_frame, text="Daily close time (UTC HH:MM):", font=("Arial", 12)).pack(anchor="w", pady=(5, 2))
+    ctk.CTkLabel(parent_frame, text="Daily close time (UTC HH:MM):", font=Fonts.INPUT).pack(anchor="w", pady=(5, 2))
     panel.auto_close_daily_time_entry = ctk.CTkEntry(parent_frame, placeholder_text="22:00")
     panel.auto_close_daily_time_entry.pack(fill="x", pady=(2, 8))
     panel.auto_close_daily_time_entry.insert(0, "22:00")
 
-    ctk.CTkLabel(parent_frame, text="Daily close days (1=Mon...7=Sun):", font=("Arial", 12)).pack(anchor="w", pady=(5, 2))
+    ctk.CTkLabel(parent_frame, text="Daily close days (1=Mon...7=Sun):", font=Fonts.INPUT).pack(anchor="w", pady=(5, 2))
     panel.auto_close_daily_days_entry = ctk.CTkEntry(parent_frame, placeholder_text="1234567")
     panel.auto_close_daily_days_entry.pack(fill="x", pady=(2, 8))
     panel.auto_close_daily_days_entry.insert(0, "1234567")
 
-    ctk.CTkLabel(parent_frame, text="Grace period (minutes):", font=("Arial", 12)).pack(anchor="w", pady=(5, 2))
+    ctk.CTkLabel(parent_frame, text="Grace period (minutes):", font=Fonts.INPUT).pack(anchor="w", pady=(5, 2))
     panel.auto_close_grace_minutes_entry = ctk.CTkEntry(parent_frame, placeholder_text="5")
     panel.auto_close_grace_minutes_entry.pack(fill="x", pady=(2, 8))
     panel.auto_close_grace_minutes_entry.insert(0, "5")
 
-    ctk.CTkLabel(parent_frame, text="TP offset (%) for quasi-market close:", font=("Arial", 12)).pack(anchor="w", pady=(5, 2))
+    ctk.CTkLabel(parent_frame, text="TP offset (%) for quasi-market close:", font=Fonts.INPUT).pack(anchor="w", pady=(5, 2))
     panel.auto_close_tp_offset_pct_entry = ctk.CTkEntry(parent_frame, placeholder_text="0.05")
     panel.auto_close_tp_offset_pct_entry.pack(fill="x", pady=(2, 8))
     panel.auto_close_tp_offset_pct_entry.insert(0, "0.05")

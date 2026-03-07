@@ -27,9 +27,44 @@ if _auto_trade_env.exists():
 # Fallback: project-root .env for any missing variables
 load_dotenv(dotenv_path=_root / ".env", override=False)
 
-from modules.auto_trade.run_gui import main  # noqa: E402
+import customtkinter as ctk  # noqa: E402
+
+# ------------- Monkey Patch CTkButton Hover Text Color -------------
+original_on_enter = ctk.CTkButton._on_enter
+original_on_leave = ctk.CTkButton._on_leave
+
+
+def patched_on_enter(self, *args, **kwargs):
+    if getattr(self, "_state", "normal") == "normal":
+        if not hasattr(self, "_original_text_color"):
+            self._original_text_color = self.cget("text_color")
+        self.configure(text_color="#1a1a1a")
+
+        current_img = self.cget("image")
+        if current_img is not None and getattr(current_img, "_hover_variant", None) is not None:
+            if not hasattr(self, "_original_image"):
+                self._original_image = current_img
+            self.configure(image=current_img._hover_variant)
+
+    original_on_enter(self, *args, **kwargs)
+
+
+def patched_on_leave(self, *args, **kwargs):
+    if hasattr(self, "_original_text_color"):
+        self.configure(text_color=self._original_text_color)
+
+    if hasattr(self, "_original_image"):
+        self.configure(image=self._original_image)
+
+    original_on_leave(self, *args, **kwargs)
+
+
+ctk.CTkButton._on_enter = patched_on_enter
+ctk.CTkButton._on_leave = patched_on_leave
+# -------------------------------------------------------------------
 
 if __name__ == "__main__":
     mp.freeze_support()
-    main()
+    from modules.auto_trade.run_gui import main  # noqa: E402
 
+    main()

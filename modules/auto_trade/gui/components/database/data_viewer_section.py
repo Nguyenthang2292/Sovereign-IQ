@@ -10,7 +10,8 @@ from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
 from modules.auto_trade.gui.services.database_service import DataViewerService
 from modules.auto_trade.gui.utils.colors import Colors
-from modules.auto_trade.gui.utils.svg_icons import clear_cache, get_icon
+from modules.auto_trade.gui.utils.fonts import Fonts
+from modules.auto_trade.gui.utils.svg_icons import clear_cache, get_button_icon, get_icon
 from modules.common.ui.logging import log_debug, log_error
 
 
@@ -50,10 +51,15 @@ class DataViewerSection:
                 return None
             return get_icon(name, size=size)
 
+        def _safe_button_icon(name: str, size: tuple[int, int], variant: str):
+            if self._test_mode:
+                return None
+            return get_button_icon(name, size=size, variant=variant)
+
         frame = ctk.CTkFrame(self.parent)
         frame.pack(fill="both", expand=True, padx=5, pady=5)
 
-        header_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        header_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         header_frame.pack(fill="x", padx=10, pady=(10, 5))
 
         ctk.CTkLabel(
@@ -70,7 +76,7 @@ class DataViewerSection:
         self.table_selector.set(self.current_table)  # Set initial value to match current_table
         self.table_selector.pack(side="right")
 
-        self.content_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        self.content_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         self.content_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
         self.data_viewer = ctk.CTkTextbox(
@@ -91,15 +97,16 @@ class DataViewerSection:
         except Exception as e:
             log_error("[DataViewer] ERROR in initial test insert: %s", e)
 
-        pagination_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        pagination_frame = ctk.CTkFrame(frame, fg_color=Colors.TRANSPARENT)
         pagination_frame.pack(fill="x", padx=10, pady=5)
 
         self.prev_btn = ctk.CTkButton(
             pagination_frame,
-            text=" Prev",
+            text=" PREV",
+            font=Fonts.BUTTON_SM,
             width=80,
             command=self._prev_page,
-            image=_safe_icon("chevron_left", (16, 16)),
+            image=_safe_button_icon("chevron_left", (16, 16), "primary"),
             compound="left",
         )
         self.prev_btn.pack(side="left")
@@ -110,22 +117,24 @@ class DataViewerSection:
         # Force Reload button for debugging
         self.reload_btn = ctk.CTkButton(
             pagination_frame,
-            text=" Force Reload",
+            text="FORCE RELOAD",
+            font=Fonts.BUTTON_SM,
             width=120,
             command=self._force_reload,
             fg_color=Colors.BTN_PRIMARY,
             hover_color=Colors.BTN_PRIMARY_HOVER,
-            image=_safe_icon("refresh", (16, 16)),
+            image=_safe_button_icon("refresh", (16, 16), "primary"),
             compound="left",
         )
         self.reload_btn.pack(side="left", padx=5)
 
         self.next_btn = ctk.CTkButton(
             pagination_frame,
-            text="Next ",
+            text="NEXT ",
+            font=Fonts.BUTTON_SM,
             width=80,
             command=self._next_page,
-            image=_safe_icon("chevron_right", (16, 16)),
+            image=_safe_button_icon("chevron_right", (16, 16), "primary"),
             compound="right",
         )
         self.next_btn.pack(side="right")

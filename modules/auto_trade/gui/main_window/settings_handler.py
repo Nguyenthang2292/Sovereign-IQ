@@ -20,13 +20,9 @@ class SettingsHandler:
     def apply_settings(self):
         """Apply loaded settings to application."""
         try:
-            theme = self.parent.settings_manager.get("ui.theme", "dark")
+            theme = "dark"
             font_size = self.parent.settings_manager.get("ui.font_size", 12)
-
-            if theme == "light":
-                ctk.set_appearance_mode("light")
-            else:
-                ctk.set_appearance_mode("dark")
+            ctk.set_appearance_mode("dark")
 
             log_info("Applied settings: Theme=%s, Font Size=%s", theme, font_size)
 
@@ -67,7 +63,10 @@ class SettingsHandler:
                     self.parent._update_mode_display()
                     self.parent._restart_websocket_service()
 
-                new_theme = current_settings.get("ui", {}).get("theme")
+                # Matrix theme is dark-only: ignore light mode switches.
+                ui_settings = current_settings.setdefault("ui", {})
+                ui_settings["theme"] = "dark"
+                new_theme = ui_settings.get("theme")
                 if new_theme:
                     self.refresh_theme_colors()
 
@@ -86,7 +85,7 @@ class SettingsHandler:
             try:
                 if isinstance(widget, ctk.CTkFrame):
                     current_fg = widget.cget("fg_color")
-                    if current_fg and current_fg != "transparent":
+                    if current_fg and current_fg != Colors.TRANSPARENT:
                         widget.configure(fg_color=Colors.get_card_bg())
                 for child in widget.winfo_children():
                     _update_frame_colors(child)

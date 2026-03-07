@@ -63,7 +63,8 @@ class AutoTradeDashboard(
         self.minsize(800, 600)
 
         ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        matrix_theme_path = Path(__file__).resolve().parent.parent / "config" / "matrix_theme.json"
+        ctk.set_default_color_theme(str(matrix_theme_path))
 
         self._update_queue: queue.Queue = queue.Queue()
         self.log_queue: queue.Queue = queue.Queue(maxsize=500)

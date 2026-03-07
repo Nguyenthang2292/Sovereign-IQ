@@ -15,7 +15,7 @@ from modules.auto_trade.gui.services.database_service import (
     DatabaseService,
     DataViewerService,
 )
-from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.svg_icons import get_button_icon
 from modules.common.ui.logging import log_warn
 
 
@@ -61,7 +61,7 @@ class ActionsSection:
         ]
 
         for text, command, icon_key in actions:
-            icon = get_icon(icon_key, size=(16, 16))
+            icon = get_button_icon(icon_key, size=(16, 16), variant="primary")
             ctk.CTkButton(
                 frame,
                 text=f"  {text}",
