@@ -9,6 +9,8 @@ This module tests:
 Ensure that utils functions remain robust and handle edge cases as expected.
 """
 
+import pytest
+
 from modules.common.utils import format_price, normalize_symbol, timeframe_to_minutes
 
 
@@ -25,6 +27,11 @@ def test_normalize_symbol_preserves_existing_pairs():
 def test_normalize_symbol_adds_quote_suffix():
     assert normalize_symbol("adausdt") == "ADA/USDT"
     assert normalize_symbol("sol", quote="BUSD") == "SOL/BUSD"
+
+
+def test_normalize_symbol_rejects_quote_only_input():
+    with pytest.raises(ValueError, match="missing base currency"):
+        normalize_symbol("USDT")
 
 
 def test_timeframe_to_minutes_handles_units():

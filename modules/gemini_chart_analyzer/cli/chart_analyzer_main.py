@@ -34,6 +34,7 @@ import json
 from colorama import Fore
 from colorama import init as colorama_init
 
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import (
@@ -155,7 +156,7 @@ def save_and_open_reports(
         cleanup_old_files(output_dir)
 
     timestamp = report_datetime.strftime("%Y%m%d_%H%M%S")
-    safe_symbol = symbol.replace("/", "_").replace(":", "_")
+    safe_symbol = SymbolCodec.sanitize_for_filename(symbol)
 
     if is_multi_tf:
         results = results_or_analysis

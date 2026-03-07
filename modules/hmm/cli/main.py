@@ -31,12 +31,15 @@ from config import (
 )
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.utils import color_text, normalize_symbol
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.utils import color_text
 from modules.hmm.signals.combiner import Signal, combine_signals
 from modules.hmm.signals.resolution import HOLD, LONG, SHORT
 
 warnings.filterwarnings("ignore")
 colorama_init(autoreset=True)
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 SIGNAL_TEXT = {
@@ -299,7 +302,7 @@ def main() -> None:
     params_override = _build_param_overrides(args)
 
     def run_once(raw_symbol: str) -> None:
-        symbol = normalize_symbol(raw_symbol, quote)
+        symbol = str(_SYMBOL_CODEC.to_ccxt(raw_symbol if "/" in raw_symbol else f"{raw_symbol}/{quote}"))
         df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
             symbol,
             limit=limit,

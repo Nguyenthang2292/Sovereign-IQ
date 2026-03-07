@@ -73,7 +73,7 @@ class AutoTradeManager:
         updater = UpdaterManager(self.parent)
         self.updater = updater
         updater.create_auto_trade_updater(self._auto_trade_cycle, interval=60)
-        updater.create_reconcile_updater(self._reconcile_cycle, interval=3600)
+        updater.create_reconcile_updater(self._reconcile_cycle, interval=300)  # 5 min (was 3600)
         updater.create_trailing_stop_updater(self._trailing_stop_cycle, interval=30)
         updater.create_negative_breakeven_updater(self._negative_breakeven_cycle, interval=30)
         updater.create_ensure_tp_sl_updater(self._ensure_tp_sl_cycle, interval=60)
@@ -316,12 +316,17 @@ class AutoTradeManager:
             from .risk_manager import RiskManager
 
             ds = self.parent.data_service
+            _ob_cfg = self.parent.settings_manager.get("order_book_imbalance", None)
+            # Only pass config when the gate is explicitly enabled; otherwise
+            # OrderExecutor won't instantiate the gate at all.
+            order_book_imbalance_config = _ob_cfg if (_ob_cfg and _ob_cfg.get("enabled")) else None
             executor = OrderExecutor(
                 api_key=ds.api_key,
                 api_secret=ds.api_secret,
                 testnet=ds.testnet,
                 dry_run=(getattr(self.parent, "mode", "DRY_RUN") == "DRY_RUN"),
                 recovery_manager=getattr(self.parent, "recovery_manager", None),
+                order_book_imbalance_config=order_book_imbalance_config,
             )
             tp_sl = self.parent.settings_manager.get("tp_sl", {}) or {}
 

@@ -22,6 +22,7 @@ from modules.common.indicators import (
     calculate_macd_series,
     calculate_rsi_series,
 )
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_success, log_warn
 from modules.gemini_chart_analyzer.core.plotting_utils import (
     calculate_candle_width,
@@ -65,7 +66,7 @@ class ChartGenerator:
         # Generate output path if not provided
         if output_path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            safe_symbol = symbol.replace("/", "_").replace(":", "_")
+            safe_symbol = SymbolCodec.sanitize_for_filename(symbol)
             charts_dir = get_charts_dir()
             os.makedirs(str(charts_dir), exist_ok=True)
             output_path = os.path.join(str(charts_dir), f"{safe_symbol}_{timeframe}_{timestamp}.png")

@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union, cast
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
-from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
+from modules.gemini_chart_analyzer.core.analyzers.vision_analyzer_chain import VisionAnalyzerChain
 from modules.gemini_chart_analyzer.core.generators.chart_generator import ChartGenerator
 
 
@@ -65,7 +65,7 @@ class GeminiIntegration:
     history_limit: int
     indicators: Union[Dict[str, Any], IndicatorConfig]
     chart_generator: ChartGenerator
-    analyzer: GeminiChartAnalyzer
+    analyzer: VisionAnalyzerChain
     request_times: deque[float]
     max_requests_per_minute: int
     _cache: Dict[str, Tuple[GeminiSignal, datetime]]
@@ -75,6 +75,7 @@ class GeminiIntegration:
         self,
         data_fetcher: DataFetcher,
         api_key: Optional[str] = None,
+        qwen_api_key: Optional[str] = None,
         analysis_timeframe: str = "1h",
         history_limit: int = 200,
         indicators: Optional[Union[Dict[str, Any], IndicatorConfig]] = None,
@@ -122,7 +123,11 @@ class GeminiIntegration:
 
         # Initialize chart generator and analyzer
         self.chart_generator = ChartGenerator(figsize=(12, 8), style="dark_background")
-        self.analyzer = GeminiChartAnalyzer(api_key=self._api_key)
+        self._qwen_api_key = qwen_api_key or os.getenv("DASHSCOPE_API_KEY")
+        self.analyzer = VisionAnalyzerChain(
+            gemini_api_key=self._api_key,
+            qwen_api_key=self._qwen_api_key,
+        )
 
         # Rate limiting
         self.request_times: deque[float] = deque(maxlen=60)  # Track last 60 requests
@@ -136,8 +141,8 @@ class GeminiIntegration:
         self._cleanup_old_temp_files()
 
     def is_available(self) -> bool:
-        """Check if Gemini integration is available (has API key)."""
-        return self._api_key is not None and len(self._api_key) > 0
+        """Check if vision analyzer chain has at least one available provider."""
+        return self.analyzer.is_available()
 
     def _check_rate_limit(self) -> None:
         """Ensure we don't exceed rate limits."""

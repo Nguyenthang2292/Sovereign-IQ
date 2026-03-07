@@ -13,10 +13,10 @@ SECURITY NOTES:
 - If this file has been committed with keys, rotate (change) the keys immediately
 """
 
-from contextlib import contextmanager
+import logging
 import os
 import threading
-import logging
+from contextlib import contextmanager
 
 # Set up logger for security-related warnings
 _logger = logging.getLogger(__name__)
@@ -40,6 +40,7 @@ except ImportError:
 # These functions acquire the lock before reading, ensuring consistency.
 _api_keys_lock = threading.Lock()
 
+
 # Context manager for Windows registry keys that automatically closes them
 @contextmanager
 def open_registry_key(hkey, subkey):
@@ -54,6 +55,7 @@ def open_registry_key(hkey, subkey):
         if key is not None:
             winreg.CloseKey(key)
 
+
 # Helper function to read from Windows Registry (for cases where env var was set via [Environment]::SetEnvironmentVariable)
 # This handles the case where Python process doesn't see newly set environment variables
 def _read_from_registry(env_var_name):
@@ -65,7 +67,7 @@ def _read_from_registry(env_var_name):
     if winreg is None:
         # winreg not available (non-Windows system or Python < 3.2)
         return None
-    
+
     # Try User environment first (HKEY_CURRENT_USER\Environment)
     try:
         with open_registry_key(winreg.HKEY_CURRENT_USER, r"Environment") as key:
@@ -85,16 +87,18 @@ def _read_from_registry(env_var_name):
         # Other registry errors - log for debugging but don't fail
         # Common cases: key doesn't exist (error code 2), which is handled above
         # But we log other OSError cases that might indicate issues
-        winerror = getattr(e, 'winerror', None)
+        winerror = getattr(e, "winerror", None)
         if winerror is not None and winerror != 2:  # 2 = ERROR_FILE_NOT_FOUND, which is expected
             _logger.debug(
                 f"OSError when reading '{env_var_name}' from Windows Registry "
                 f"(HKEY_CURRENT_USER\\Environment): {e} (error code: {winerror})"
             )
-    
+
     # If still None, try Machine environment (HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment)
     try:
-        with open_registry_key(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment") as key:
+        with open_registry_key(
+            winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+        ) as key:
             value = winreg.QueryValueEx(key, env_var_name)[0] or None
             if value is not None:
                 return value
@@ -104,34 +108,33 @@ def _read_from_registry(env_var_name):
     except PermissionError as e:
         # Access denied - this is a security issue and should be logged
         _logger.warning(
-            f"Access denied when reading '{env_var_name}' from Windows Registry "
-            f"(HKEY_LOCAL_MACHINE): {e}"
+            f"Access denied when reading '{env_var_name}' from Windows Registry " f"(HKEY_LOCAL_MACHINE): {e}"
         )
     except OSError as e:
         # Other registry errors - log for debugging but don't fail
         # Common cases: key doesn't exist (error code 2), which is handled above
         # But we log other OSError cases that might indicate issues
-        winerror = getattr(e, 'winerror', None)
+        winerror = getattr(e, "winerror", None)
         if winerror is not None and winerror != 2:  # 2 = ERROR_FILE_NOT_FOUND, which is expected
             _logger.debug(
                 f"OSError when reading '{env_var_name}' from Windows Registry "
                 f"(HKEY_LOCAL_MACHINE): {e} (error code: {winerror})"
             )
-    
+
     return None
 
 
 def _get_key(env_var_name):
     """
     Read API key from environment variable, falling back to Windows Registry if not found.
-    
+
     Empty string values are normalized to None (empty API keys are invalid and treated
     as missing). Downstream code should check for None and handle it appropriately
     (typically raising ValueError or using fallback authentication methods).
-    
+
     Args:
         env_var_name: Name of the environment variable to read
-        
+
     Returns:
         str or None: The API key value, or None if not found or empty
     """
@@ -176,62 +179,46 @@ with _api_keys_lock:
 def load_api_keys():
     """
     Reload API keys from environment variables and Windows Registry.
-    
+
     This function reads API keys from environment variables first,
     then falls back to Windows Registry if not found. It updates
     the module-level constants and returns a dictionary of the loaded keys.
-    
+
     Thread-safety: The lock (_api_keys_lock) only serializes writes/updates
     to module-level constants. It does NOT protect concurrent reads of the
     module-level constants. For thread-safe reads, use get_api_keys() or
     the individual getter functions (get_binance_api_key(), etc.).
-    
+
     Returns:
-        dict: Dictionary with keys 'BINANCE_API_KEY', 'BINANCE_API_SECRET', 'GEMINI_API_KEY'
+        dict: Dictionary with keys 'BINANCE_API_KEY', 'BINANCE_API_SECRET', 'GEMINI_API_KEY', 'DASHSCOPE_API_KEY'
     """
-    global BINANCE_API_KEY, BINANCE_API_SECRET, GEMINI_API_KEY
-    
+    global BINANCE_API_KEY, BINANCE_API_SECRET, GEMINI_API_KEY, DASHSCOPE_API_KEY
+
     # Use helper to read keys (env -> registry fallback)
     binance_key = _get_key("BINANCE_API_KEY")
     binance_secret = _get_key("BINANCE_API_SECRET")
     gemini_key = _get_key("GEMINI_API_KEY")
-    
+    dashscope_key = _get_key("DASHSCOPE_API_KEY")
+
     # Thread-safe update of module-level constants
     with _api_keys_lock:
         BINANCE_API_KEY = binance_key
         BINANCE_API_SECRET = binance_secret
         GEMINI_API_KEY = gemini_key
-    
+        DASHSCOPE_API_KEY = dashscope_key
+
     return {
-        'BINANCE_API_KEY': binance_key,
-        'BINANCE_API_SECRET': binance_secret,
-        'GEMINI_API_KEY': gemini_key
+        "BINANCE_API_KEY": binance_key,
+        "BINANCE_API_SECRET": binance_secret,
+        "GEMINI_API_KEY": gemini_key,
+        "DASHSCOPE_API_KEY": dashscope_key,
     }
-
-
-def get_api_keys():
-    """
-    Get all API keys in a thread-safe manner.
-    
-    This function acquires the lock before reading the module-level constants,
-    ensuring thread-safe access when multiple threads may be reading or updating
-    the keys concurrently.
-    
-    Returns:
-        dict: Dictionary with keys 'BINANCE_API_KEY', 'BINANCE_API_SECRET', 'GEMINI_API_KEY'
-    """
-    with _api_keys_lock:
-        return {
-            'BINANCE_API_KEY': BINANCE_API_KEY,
-            'BINANCE_API_SECRET': BINANCE_API_SECRET,
-            'GEMINI_API_KEY': GEMINI_API_KEY
-        }
 
 
 def get_binance_api_key():
     """
     Get Binance API key in a thread-safe manner.
-    
+
     Returns:
         str or None: The Binance API key, or None if not set
     """
@@ -242,7 +229,7 @@ def get_binance_api_key():
 def get_binance_api_secret():
     """
     Get Binance API secret in a thread-safe manner.
-    
+
     Returns:
         str or None: The Binance API secret, or None if not set
     """
@@ -253,9 +240,32 @@ def get_binance_api_secret():
 def get_gemini_api_key():
     """
     Get Google Gemini API key in a thread-safe manner.
-    
+
     Returns:
         str or None: The Gemini API key, or None if not set
     """
     with _api_keys_lock:
         return GEMINI_API_KEY
+
+
+# DashScope (Qwen VL) API Configuration
+# Get API key from: https://dashscope.console.aliyun.com/
+# Prefer to read from environment variables; if not present, set to None
+# For security, always use environment variables:
+#   export DASHSCOPE_API_KEY='your-api-key-here'
+#
+# WARNING: Direct access to this constant is NOT thread-safe.
+# Use get_dashscope_api_key() for thread-safe access.
+with _api_keys_lock:
+    DASHSCOPE_API_KEY = _get_key("DASHSCOPE_API_KEY")
+
+
+def get_dashscope_api_key() -> str | None:
+    """
+    Get DashScope (Qwen VL) API key in a thread-safe manner.
+
+    Returns:
+        str or None: The DashScope API key, or None if not set
+    """
+    with _api_keys_lock:
+        return DASHSCOPE_API_KEY

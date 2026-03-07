@@ -146,8 +146,8 @@ class PositionsFrame(ctk.CTkFrame):
                 width=80,
                 height=24,
                 command=on_refresh_callback,
-                fg_color="#2B6CB0",
-                hover_color="#3182CE"
+                fg_color=Colors.BTN_PRIMARY,
+                hover_color=Colors.BTN_PRIMARY_HOVER
             )
             refresh_btn.pack(side="right", padx=(5, 0))
 
@@ -158,8 +158,8 @@ class PositionsFrame(ctk.CTkFrame):
                 width=140,
                 height=24,
                 command=on_sync_callback,
-                fg_color="#10B981",  # Green color
-                hover_color="#059669"
+                fg_color=Colors.BTN_SUCCESS,  # Green color
+                hover_color=Colors.BTN_SUCCESS_HOVER
             )
             sync_btn.pack(side="right", padx=(5, 0))
 

@@ -14,17 +14,15 @@ from typing import Any, Dict, List, Optional
 from modules.auto_trade.database import get_open_positions
 from modules.auto_trade.execution.binance_client import BinanceClient
 from modules.auto_trade.execution.trailing_stop import TrailingStopResult, calculate_trailing_stop
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_error, log_info, log_warn
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 def _symbol_for_ccxt(symbol: str) -> str:
-    """Convert DB symbol (e.g. SKLUSDT) to CCXT format (SKL/USDT) for API calls."""
-    s = (symbol or "").strip()
-    if "/" in s:
-        return s
-    if s.endswith("USDT"):
-        return s[:-4] + "/USDT"
-    return s + "/USDT" if s else s
+    """Convert any symbol format to CCXT spot format for API calls."""
+    return str(_SYMBOL_CODEC.to_ccxt(symbol))
 
 
 class WebSocketTrailingStopHandler:
@@ -91,7 +89,7 @@ class WebSocketTrailingStopHandler:
                 return
 
             # Find open orders for this symbol
-            open_orders: Optional[List[Any]] = get_open_positions(symbol=symbol.replace("/", ""))
+            open_orders: Optional[List[Any]] = get_open_positions(symbol=_SYMBOL_CODEC.to_db(symbol))
 
             if not open_orders:
                 return

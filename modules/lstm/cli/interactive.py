@@ -12,13 +12,14 @@ from typing import List, Tuple
 
 from colorama import Fore, Style
 
+from config import ENABLE_KALMAN_FILTER, KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE, WINDOW_SIZE_LSTM
 from config.common import (
     DEFAULT_CRYPTO_SYMBOLS_FOR_TRAINING_DL,
     DEFAULT_SYMBOL,
     DEFAULT_TIMEFRAME,
     DEFAULT_TIMEFRAMES_FOR_TRAINING_DL,
 )
-from config import ENABLE_KALMAN_FILTER, KALMAN_OBSERVATION_VARIANCE, KALMAN_PROCESS_VARIANCE, WINDOW_SIZE_LSTM
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.system import PyTorchGPUManager
 from modules.common.ui.logging import log_error, log_info, log_warn
 from modules.common.utils import color_text, prompt_user_input
@@ -28,6 +29,8 @@ from modules.lstm.cli.main import (
     prepare_training_dataset,
     train_model_configuration,
 )
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 def prompt_symbol() -> str:
@@ -109,26 +112,20 @@ def select_model_components() -> ModelConfiguration:
         name_parts.append("Attention")
     model_name = "-".join(name_parts)
 
-    # Create configuration
-    config_kwargs = {
-        "name": model_name,
-        "use_cnn": use_cnn,
-        "use_attention": use_attention,
-        "look_back": 50 if use_cnn else WINDOW_SIZE_LSTM,
-        "output_mode": "classification",
-    }
-
-    # Only add attention_heads if attention is enabled
-    if use_attention:
-        config_kwargs["attention_heads"] = 8
-
-    config = ModelConfiguration(**config_kwargs)
+    config = ModelConfiguration(
+        name=model_name,
+        use_cnn=use_cnn,
+        use_attention=use_attention,
+        look_back=50 if use_cnn else WINDOW_SIZE_LSTM,
+        output_mode="classification",
+        **({"attention_heads": 8} if use_attention else {}),
+    )
 
     log_info(f"\nSelected configuration: {model_name}")
     return config
 
 
-def _normalize_symbol(symbol: str) -> str:
+def _format_symbol(symbol: str) -> str:
     """
     Normalize symbol name: uppercase and add USDT suffix if not present.
 
@@ -138,13 +135,13 @@ def _normalize_symbol(symbol: str) -> str:
     Returns:
         Normalized symbol (e.g., "ACTUSDT", "BTCUSDT", "1000BONKUSDT")
     """
-    symbol = symbol.strip().upper()
+    normalized = str(_SYMBOL_CODEC.to_db(symbol.strip().upper()))
+    if not normalized:
+        return ""
 
-    # Add USDT suffix if not already present
-    if not symbol.endswith("USDT"):
-        symbol = symbol + "USDT"
-
-    return symbol
+    ccxt_symbol = str(_SYMBOL_CODEC.to_ccxt(normalized))
+    base = ccxt_symbol.partition("/")[0] if ccxt_symbol else normalized
+    return str(_SYMBOL_CODEC.to_db(f"{base}/USDT"))
 
 
 def manage_symbols_menu(initial_symbols: List[str]) -> List[str]:
@@ -201,7 +198,7 @@ def manage_symbols_menu(initial_symbols: List[str]) -> List[str]:
             skipped_count = 0
             for symbol_raw in symbol_list:
                 try:
-                    normalized_symbol = _normalize_symbol(symbol_raw)
+                    normalized_symbol = _format_symbol(symbol_raw)
 
                     # Check if already exists
                     if normalized_symbol in symbols:

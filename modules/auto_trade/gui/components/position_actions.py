@@ -64,8 +64,8 @@ class PositionActions(ctk.CTkFrame):
             text="➕ Add Margin",
             font=("Arial", 12, "bold"),
             height=35,
-            fg_color="#555555",
-            hover_color="#777777",
+            fg_color=Colors.BTN_NEUTRAL,
+            hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=self._confirm_add_margin,
         )
         self.add_margin_btn.pack(fill="x", padx=10, pady=(0, 10))
@@ -211,8 +211,8 @@ This will increase the margin for this isolated position.
             text="🔴 Close Position",
             font=("Arial", 12, "bold"),
             height=35,
-            fg_color="#ff4444",
-            hover_color="#cc0000",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=self._confirm_close_position,
         )
         self.close_btn.pack(fill="x", padx=10, pady=(0, 10))
@@ -277,8 +277,8 @@ This will increase the margin for this isolated position.
             text="⚡ Partial Close",
             font=("Arial", 12, "bold"),
             height=35,
-            fg_color="#ffaa00",
-            hover_color="#cc8800",
+            fg_color=Colors.BTN_WARNING,
+            hover_color=Colors.BTN_WARNING_HOVER,
             command=self._confirm_partial_close,
         )
         self.partial_btn.pack(fill="x", padx=10, pady=(0, 10))
@@ -357,8 +357,8 @@ This will increase the margin for this isolated position.
             text="✏️ Apply Changes",
             font=("Arial", 12, "bold"),
             height=35,
-            fg_color="#00aaff",
-            hover_color="#0088cc",
+            fg_color=Colors.BTN_PRIMARY,
+            hover_color=Colors.BTN_PRIMARY_HOVER,
             command=self._confirm_modify_tp_sl,
         )
         self.modify_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
@@ -369,8 +369,8 @@ This will increase the margin for this isolated position.
             text="🎯 Breakeven",
             font=("Arial", 12, "bold"),
             height=35,
-            fg_color="#00ff88",
-            hover_color="#00cc66",
+            fg_color=Colors.BTN_SUCCESS,
+            hover_color=Colors.BTN_SUCCESS_HOVER,
             command=self._confirm_breakeven,
         )
         self.be_btn.pack(side="left", fill="x", expand=True, padx=(5, 0))

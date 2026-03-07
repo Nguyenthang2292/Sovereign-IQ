@@ -7,11 +7,15 @@ from typing import TYPE_CHECKING, Optional, Tuple
 import pandas as pd
 
 from modules.common.data import dataframe_to_close_series
-from modules.common.domain import normalize_symbol, timeframe_to_minutes
+from modules.common.domain import timeframe_to_minutes
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_data, log_error, log_info, log_success, log_warn
 
 if TYPE_CHECKING:
     from .base import DataFetcherBase
+
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class OHLCVFetcher:
@@ -67,7 +71,7 @@ class OHLCVFetcher:
             ['timestamp', 'open', 'high', 'low', 'close', 'volume'] and exchange_id string.
             Returns (None, None) if data cannot be fetched.
         """
-        normalized_symbol = normalize_symbol(symbol)
+        normalized_symbol = _SYMBOL_CODEC.to_ccxt(symbol)
         cache_key = (normalized_symbol.upper(), timeframe, int(limit))
 
         # Calculate TTL based on timeframe

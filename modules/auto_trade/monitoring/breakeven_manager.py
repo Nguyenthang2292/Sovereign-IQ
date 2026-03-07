@@ -16,7 +16,7 @@ from typing import Any
 
 from modules.auto_trade.monitoring.position_monitor import PositionSnapshot
 from modules.auto_trade.websocket.client import BinanceWebSocketClient
-
+from modules.common.domain.order_type_codec import BinanceOrderType
 
 
 class BreakEvenManager:
@@ -170,17 +170,18 @@ class BreakEvenManager:
             # Fetch open orders via REST
             open_orders = await self.ws_client.exchange.fetch_open_orders(symbol)
 
-            # Find and cancel TP orders
+            # Find and cancel TP orders using BinanceOrderType for proper classification
             tp_orders = [
                 order
                 for order in open_orders
-                if order.get("type", "").upper() in ["TAKE_PROFIT", "TAKE_PROFIT_MARKET"]
+                if BinanceOrderType.resolve(order) in ["TAKE_PROFIT", "TAKE_PROFIT_MARKET"]
             ]
 
             for order in tp_orders:
                 order_id = order.get("id")
                 try:
-                    await self.ws_client.exchange.cancel_order(order_id, symbol)
+                    params = BinanceOrderType.cancel_params(order)
+                    await self.ws_client.exchange.cancel_order(order_id, symbol, params=params)
                     log_info(f"Cancelled TP order: {order_id}")
                 except Exception as e:
                     log_warn(f"Failed to cancel order {order_id}: {e}")

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Optional
 
 from modules.common.ui.logging import log_error, log_info, log_warn
-from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import GeminiChartAnalyzer
+from modules.gemini_chart_analyzer.core.analyzers.vision_analyzer_chain import VisionAnalyzerChain
 
 from .gann_calculator import GannCalculator, GannSquareResult, SignalCode
 from .gann_chart_generator import GannChartGenerator
@@ -124,6 +124,7 @@ class GannSignalEngine:
         self,
         lookback: int = 5,
         gemini_api_key: Optional[str] = None,
+        qwen_api_key: Optional[str] = None,
         chart_output_dir: str = "charts",
     ) -> None:
         """
@@ -132,12 +133,16 @@ class GannSignalEngine:
         Args:
             lookback: Zigzag pivot lookback window (default 5).
             gemini_api_key: Optional Gemini API key (falls back to config).
+            qwen_api_key: Optional Qwen (Dashscope) API key (falls back to config).
             chart_output_dir: Directory to save chart PNGs.
         """
         self.swing_detector = SwingDetector(lookback=lookback)
         self.gann_calculator = GannCalculator()
         self.chart_generator = GannChartGenerator(output_dir=chart_output_dir)
-        self.gemini_analyzer = GeminiChartAnalyzer(api_key=gemini_api_key)
+        self.gemini_analyzer = VisionAnalyzerChain(
+            gemini_api_key=gemini_api_key,
+            qwen_api_key=qwen_api_key,
+        )
 
     def analyze(
         self,

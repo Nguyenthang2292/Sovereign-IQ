@@ -14,6 +14,21 @@ class Colors:
     DEMO: str = "#ffaa00"
     DRY_RUN: str = "#4488ff"
 
+    # Button Colors
+    BTN_SUCCESS: str = "#00a855"  # Medium green – white text legible (WCAG AA ~4.5:1)
+    BTN_SUCCESS_HOVER: str = "#007a3d"  # Darker green on hover
+    BTN_SUCCESS_TEXT: str = "white"  # Always white on BTN_SUCCESS background
+    BTN_DANGER: str = "#ff4444"
+    BTN_DANGER_HOVER: str = "#cc0000"
+    BTN_DANGER_ALT: str = "#7f1d1d"
+    BTN_DANGER_ALT_HOVER: str = "#991b1b"
+    BTN_PRIMARY: str = "#4488ff"
+    BTN_PRIMARY_HOVER: str = "#0066ff"
+    BTN_NEUTRAL: str = "#555555"
+    BTN_NEUTRAL_HOVER: str = "#333333"
+    BTN_WARNING: str = "#ffaa00"
+    BTN_WARNING_HOVER: str = "#cc8800"
+
     # Dark theme colors
     BG_DARK: str = "#1a1a1a"
     BG_CARD_DARK: str = "#2b2b2b"

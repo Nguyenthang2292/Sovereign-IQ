@@ -58,6 +58,17 @@ class SettingsManager:
             "enable_xgboost": True,
             "atc_threshold": 0.2,
             "min_volume": 5.0,
+            # Order Book Gate
+            "enable_order_book": False,
+            "ob_depth": 20,
+            "ob_imbalance_threshold": 0.2,
+        },
+        "order_book_imbalance": {
+            "enabled": False,
+            "threshold": 0.15,
+            "retry_wait_seconds": 30,
+            "max_retries": 2,
+            "delta_window_minutes": 5,
         },
         "ui": {
             "theme": "dark",

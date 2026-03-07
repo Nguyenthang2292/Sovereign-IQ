@@ -1,191 +1,232 @@
+from typing import List, cast
+
 import pandas as pd
-from typing import List
 
-from ..models.pivot import Pivot
 from ..models.order_block import OrderBlock
+from .constants import BEARISH, BULLISH
 
-# Constants
-BULLISH = 1
-BEARISH = -1
-NEUTRAL = 0
 
-def process_swings(df: pd.DataFrame, swings: List[Pivot], bias: int) -> List[OrderBlock]:
+def _calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
+    """Calculate ATR for volatility filter."""
+    high = df["High"]
+    low = df["Low"]
+    close = df["Close"]
+
+    tr1 = high - low
+    tr2 = abs(high - close.shift(1))
+    tr3 = abs(low - close.shift(1))
+
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr = tr.rolling(window=period).mean()
+    return atr  # type: ignore[return-value]
+
+
+def _apply_volatility_filter(df: pd.DataFrame, atr: pd.Series, idx: pd.Timestamp) -> tuple:
     """
-    Create OrderBlock from the list of swings (can be used for BULLISH, BEARISH, or NEUTRAL).
-    Apply logic that prioritizes 3 swings if available, then process adjacent 2 swings.
+    Apply volatility filter to determine parsedHigh and parsedLow.
+    parsedHigh = low if (high-low) >= 2*atr else high
+    parsedLow = high if (high-low) >= 2*atr else low
     """
-    blocks = []
-    i = len(swings) - 1
-    while i >= 1:
-        if i >= 2:
-            recent = swings[i]
-            mid = swings[i - 1]
-            prev = swings[i - 2]
-            if bias == BULLISH and (recent.bar_time > prev.bar_time) and (mid.level > recent.level and mid.level > prev.level):
-                s_time, e_time = sorted([recent.bar_time, prev.bar_time])
-                dfrange = df[(df.index >= s_time) & (df.index <= e_time)]
-                if not dfrange.empty:
-                    index, row = dfrange['Low'].idxmin(), dfrange.loc[dfrange['Low'].idxmin()]
-                    ob = OrderBlock(
-                        start=index,
-                        end=e_time,
-                        level_y0=row["Low"],
-                        level_y1=row["High"],
-                        bias=bias
-                    )
-                    blocks.append(ob)
-                i -= 2
-                continue
-            elif bias == BEARISH and (recent.bar_time > prev.bar_time) and (mid.level < recent.level and mid.level < prev.level):
-                s_time, e_time = sorted([recent.bar_time, prev.bar_time])
-                dfrange = df[(df.index >= s_time) & (df.index <= e_time)]
-                if not dfrange.empty:
-                    index, row = dfrange['High'].idxmax(), dfrange.loc[dfrange['High'].idxmax()]
-                    ob = OrderBlock(
-                        start=index,
-                        end=e_time,
-                        level_y0=row["Low"],
-                        level_y1=row["High"],
-                        bias=bias
-                    )
-                    blocks.append(ob)
-                i -= 2
-                continue
+    row = df.loc[idx]
+    high = row["High"]
+    low = row["Low"]
+    atr_value = atr.loc[idx]
 
-        # Process with 2 adjacent swings
-        current = swings[i]
-        adjacent = swings[i - 1]
-        s_time, e_time = sorted([current.bar_time, adjacent.bar_time])
-        dfrange = df[(df.index >= s_time) & (df.index <= e_time)]
-        
-        if not dfrange.empty:
-            index_low, row_low = dfrange['Low'].idxmin(), dfrange.loc[dfrange['Low'].idxmin()]
-            index_high, row_high = dfrange['High'].idxmax(), dfrange.loc[dfrange['High'].idxmax()]
-            
-            if bias == BULLISH:
+    range_size = high - low
+
+    if range_size >= 2 * atr_value:
+        parsed_high = low
+        parsed_low = high
+    else:
+        parsed_high = high
+        parsed_low = low
+
+    return parsed_high, parsed_low
+
+
+def _normalize_timestamp(ts: pd.Timestamp, target_tz) -> pd.Timestamp:
+    """Normalize timestamp to match target timezone."""
+    if pd.isna(ts):
+        return ts
+    if target_tz is not None and ts.tzinfo is not None:
+        return ts.tz_convert(target_tz)
+    elif target_tz is not None:
+        return ts.tz_localize(target_tz)
+    elif ts.tzinfo is not None:
+        return ts.tz_localize(None)
+    return ts
+
+
+def _create_ob_from_structure_events(
+    df: pd.DataFrame,
+    structure_events: pd.DataFrame,
+    bias: int,
+) -> List[OrderBlock]:
+    """
+    Create OrderBlocks from structure break events (BOS/CHoCH).
+    For bullish: find bar with min parsedLow in range [pivot_time → crossing_time]
+    For bearish: find bar with max parsedHigh in range [pivot_time → crossing_time]
+    """
+    blocks: List[OrderBlock] = []
+
+    if structure_events.empty:
+        return blocks
+
+    df_index_tz = df.index.tz  # type: ignore[union-attr]
+    atr = _calculate_atr(df)
+
+    for _, event in structure_events.iterrows():
+        pivot_col = None
+        for col in [
+            "Pivot_bullishBos_Time",
+            "Pivot_bearishBos_Time",
+            "Pivot_bullishChoch_Time",
+            "Pivot_bearishChoch_Time",
+        ]:
+            if col in event.index and pd.notna(event[col]):  # type: ignore[union-attr]
+                pivot_col = col
+                break
+
+        if pivot_col is None:
+            continue
+
+        pivot_time = _normalize_timestamp(pd.Timestamp(event[pivot_col]), df_index_tz)  # type: ignore[arg-type]
+        crossing_time = _normalize_timestamp(pd.Timestamp(event["Crossing_Time"]), df_index_tz)  # type: ignore[arg-type]
+
+        if pd.isna(pivot_time) or pd.isna(crossing_time):
+            continue
+
+        if pivot_time >= crossing_time:
+            continue
+
+        df_range = df[(df.index >= pivot_time) & (df.index <= crossing_time)]
+
+        if df_range.empty:  # type: ignore[union-attr]
+            continue
+
+        if bias == BULLISH:
+            min_parsed_low = float("inf")
+            min_bar: pd.Timestamp | None = None
+            for idx in df_range.index:
+                idx_ts = cast(pd.Timestamp, idx)
+                parsed_high, parsed_low = _apply_volatility_filter(df, atr, idx_ts)
+                if parsed_low < min_parsed_low:
+                    min_parsed_low = parsed_low
+                    min_bar = idx_ts
+
+            if min_bar is not None:
+                row = df.loc[min_bar]
                 ob = OrderBlock(
-                    start=index_low,
-                    end=e_time,
-                    level_y0=row_low["Low"],
-                    level_y1=row_low["High"],
-                    bias=bias
+                    start=min_bar,  # type: ignore[arg-type]
+                    end=crossing_time,
+                    level_y0=row["Low"],
+                    level_y1=row["High"],
+                    bias=bias,
+                    bar_low=row["Low"],
+                    bar_high=row["High"],
                 )
                 blocks.append(ob)
-            elif bias == BEARISH:
+
+        else:  # BEARISH
+            max_parsed_high = float("-inf")
+            max_bar: pd.Timestamp | None = None
+            for idx in df_range.index:
+                idx_ts = cast(pd.Timestamp, idx)
+                parsed_high, parsed_low = _apply_volatility_filter(df, atr, idx_ts)
+                if parsed_high > max_parsed_high:
+                    max_parsed_high = parsed_high
+                    max_bar = idx_ts
+
+            if max_bar is not None:
+                row = df.loc[max_bar]
                 ob = OrderBlock(
-                    start=index_high,
-                    end=e_time,
-                    level_y0=row_high["Low"],
-                    level_y1=row_high["High"],
-                    bias=bias
+                    start=max_bar,  # type: ignore[arg-type]
+                    end=crossing_time,
+                    level_y0=row["Low"],
+                    level_y1=row["High"],
+                    bias=bias,
+                    bar_low=row["Low"],
+                    bar_high=row["High"],
                 )
                 blocks.append(ob)
-            else:
-                ob = OrderBlock(
-                    start=index_low,
-                    end=e_time,
-                    level_y0=row_low["Low"],
-                    level_y1=row_low["High"],
-                    bias=bias
-                )
-                blocks.append(ob)
-                ob_high = OrderBlock(
-                    start=index_high,
-                    end=e_time,
-                    level_y0=row_high["Low"],
-                    level_y1=row_high["High"],
-                    bias=bias
-                )
-                blocks.append(ob_high)
-        i -= 1
+
     return blocks
 
-def filter_order_blocks(df: pd.DataFrame, blocks: List[OrderBlock]) -> List[OrderBlock]:
+
+def _filter_ob_mitigation(df: pd.DataFrame, blocks: List[OrderBlock]) -> List[OrderBlock]:
     """
-    Lọc bỏ các OrderBlock không đạt yêu cầu theo tiêu chí giá trị.
+    Filter OrderBlocks based on mitigation.
+    Bullish OB removed when low < ob.bar_low
+    Bearish OB removed when high > ob.bar_high
     """
-    filtered = []
+    filtered: List[OrderBlock] = []
+
     for ob in blocks:
-        df_slice = df.loc[ob.end:df.index[-1]].sort_index(ascending=False)
+        if ob.end is None:
+            continue
+        df_slice = df.loc[ob.end :]  # type: ignore[index]
         remove = False
+
         if ob.bias == BULLISH:
             for idx, row in df_slice.iterrows():
-                if row["Low"] < ob.level_y0 or row["Low"] < ob.level_y1:
+                if row["Low"] < ob.bar_low:
                     remove = True
                     break
         elif ob.bias == BEARISH:
             for idx, row in df_slice.iterrows():
-                if row["High"] > ob.level_y0 or row["High"] > ob.level_y1:
+                if row["High"] > ob.bar_high:
                     remove = True
                     break
-        elif ob.bias == NEUTRAL:
-            for idx, row in df_slice.iterrows():
-                if (row["Low"] < ob.level_y0 or row["Low"] < ob.level_y1) and (row["High"] > ob.level_y0 or row["High"] > ob.level_y1):
-                    remove = True
-                    break
+
         if not remove:
             filtered.append(ob)
+
     return filtered
 
-def update_order_blocks(df: pd.DataFrame, blocks: List[OrderBlock], last_candle_time) -> List[OrderBlock]:
+
+def _update_ob_end(df: pd.DataFrame, blocks: List[OrderBlock], last_candle_time) -> List[OrderBlock]:
     """
-    Cập nhật lại end của các OrderBlock nếu điều kiện thị trường thay đổi.
+    Update end of OrderBlocks based on market conditions.
     """
     last_low = df["Low"].iloc[-1]
     last_high = df["High"].iloc[-1]
+
     for idx, ob in enumerate(blocks):
         if ob.bias == BULLISH and last_low > ob.level_y1:
             ob.end = last_candle_time
         elif ob.bias == BEARISH and last_high < ob.level_y0:
             ob.end = last_candle_time
-        elif ob.bias == NEUTRAL and (last_low < ob.level_y0 or last_high > ob.level_y1):
-            ob.end = last_candle_time
         blocks[idx] = ob
+
     return blocks
 
 
-def build_internal_order_blocks(
+def identify_order_blocks_from_structure(
     df: pd.DataFrame,
-    highs: List[Pivot],
-    lows: List[Pivot],
-    trend: int,
-    last_candle_time,
+    bullish_events: pd.DataFrame,
+    bearish_events: pd.DataFrame,
 ) -> List[OrderBlock]:
-    blocks: List[OrderBlock] = []
-
-    if trend == BULLISH:
-        if len(lows) < 2:
-            return blocks
-        blocks = process_swings(df, lows, BULLISH)
-    elif trend == BEARISH:
-        if len(highs) < 2:
-            return blocks
-        blocks = process_swings(df, highs, BEARISH)
-    elif trend == NEUTRAL:
-        blocks_lows = process_swings(df, lows, NEUTRAL) if len(lows) >= 2 else []
-        blocks_highs = process_swings(df, highs, NEUTRAL) if len(highs) >= 2 else []
-        blocks = blocks_lows + blocks_highs
-
-    blocks = [ob for ob in blocks if ob.start != ob.end]
-    blocks = filter_order_blocks(df, blocks)
-    blocks = update_order_blocks(df, blocks, last_candle_time)
-    return blocks
-
-
-def build_swing_order_blocks(
-    df: pd.DataFrame,
-    highs: List[Pivot],
-    lows: List[Pivot],
-    trend: int,
-    last_candle_time,
-) -> List[OrderBlock]:
-    return build_internal_order_blocks(df, highs, lows, trend, last_candle_time)
-
-def identify_order_blocks(df: pd.DataFrame, highs: List[Pivot], lows: List[Pivot], trend: int) -> List[OrderBlock]:
     """
-    Identify and build order blocks from the provided swings.
+    Create OrderBlocks from structure break events (BOS/CHoCH).
+
+    Args:
+        df: DataFrame with OHLC data
+        bullish_events: DataFrame with bullish BOS/CHoCH events (must have 'Pivot_level' and 'Crossing_Time')
+        bearish_events: DataFrame with bearish BOS/CHoCH events (must have 'Pivot_level' and 'Crossing_Time')
+
+    Returns:
+        List of OrderBlock objects
     """
     last_candle_time = df.index[-1]
+    blocks: List[OrderBlock] = []
 
-    # Public API keeps generic name and delegates to internal builder.
-    return build_internal_order_blocks(df, highs, lows, trend, last_candle_time)
+    bullish_blocks = _create_ob_from_structure_events(df, bullish_events, BULLISH)
+    bearish_blocks = _create_ob_from_structure_events(df, bearish_events, BEARISH)
+
+    blocks = bullish_blocks + bearish_blocks
+
+    blocks = [ob for ob in blocks if ob.start != ob.end]
+    blocks = _filter_ob_mitigation(df, blocks)
+    blocks = _update_ob_end(df, blocks, last_candle_time)
+
+    return blocks

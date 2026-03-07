@@ -32,9 +32,11 @@ except ImportError:
 
 
 from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.domain.symbol_validation import filter_valid_symbols
-from modules.common.domain.symbols import normalize_symbol_key
 from modules.common.system import get_hardware_manager, get_memory_manager
+
+_SYMBOL_CODEC = SymbolCodec()
 
 from .asyncio_scan import _scan_asyncio
 from .dask_scan import _scan_dask
@@ -175,7 +177,7 @@ def scan_all_symbols(
                 log_error("symbols list is empty")
                 return pd.DataFrame(), pd.DataFrame()
             # Normalize CCXT format (BTC/USDT) to ticker (BTCUSDT) so validation accepts
-            symbols = list(dict.fromkeys(normalize_symbol_key(s) for s in symbols))
+            symbols = list(dict.fromkeys(_SYMBOL_CODEC.to_db(s) for s in symbols))
             symbols = filter_valid_symbols(symbols)
             if not symbols:
                 log_error("No valid symbols after format validation (2–30 alphanumeric chars)")
@@ -193,7 +195,7 @@ def scan_all_symbols(
                 return pd.DataFrame(), pd.DataFrame()
 
             # Normalize CCXT format (BTC/USDT) to ticker (BTCUSDT) so validation accepts
-            all_symbols = list(dict.fromkeys(normalize_symbol_key(s) for s in all_symbols))
+            all_symbols = list(dict.fromkeys(_SYMBOL_CODEC.to_db(s) for s in all_symbols))
             symbols = filter_valid_symbols(all_symbols)
             dropped = len(all_symbols) - len(symbols)
             if dropped:

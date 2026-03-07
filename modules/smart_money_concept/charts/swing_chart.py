@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from ..analyzer import SMCState
-from ..core.order_block import BEARISH, BULLISH, NEUTRAL
+from ..core.constants import BEARISH, BULLISH, NEUTRAL
 from ..core.swing import classify_swing_types
 
 

@@ -17,7 +17,10 @@ from modules.auto_trade.execution.order_manager import OrderManager
 from modules.auto_trade.security.secret_string import SecretString
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_error, log_info, log_warn
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class OrderExecutor:
@@ -35,6 +38,7 @@ class OrderExecutor:
         testnet: Optional[bool] = None,
         dry_run: bool = False,
         recovery_manager: Optional[Any] = None,
+        order_book_imbalance_config: Optional[Dict[str, Any]] = None,
     ):
         resolved_api_key = api_key if api_key is not None else (os.getenv("BINANCE_API_KEY", "") or "")
         resolved_api_secret = api_secret if api_secret is not None else (os.getenv("BINANCE_API_SECRET", "") or "")
@@ -50,6 +54,19 @@ class OrderExecutor:
             testnet=self._testnet,
             dry_run=self._dry_run,
         )
+
+        self._order_book_imbalance_gate: Optional[Any] = None
+
+        if order_book_imbalance_config is not None:
+            from modules.order_book.order_book_imbalance_gate import OrderBookImbalanceGate
+
+            gate_config: Dict[str, Any] = dict(order_book_imbalance_config)
+            gate_config.setdefault("testnet", self._testnet)
+            # Only keep kwargs that OrderBookImbalanceGate.__init__ accepts;
+            # the GUI may inject extra keys (e.g. "depth") that would crash.
+            _allowed = {"threshold", "retry_wait_seconds", "max_retries", "delta_window_minutes", "testnet", "enabled"}
+            gate_config = {k: v for k, v in gate_config.items() if k in _allowed}
+            self._order_book_imbalance_gate = OrderBookImbalanceGate(**gate_config)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     def _fetch_ticker(self, symbol: str) -> Dict[str, Any]:
@@ -78,10 +95,8 @@ class OrderExecutor:
                 log_error("[OrderExecutor] ERROR: API credentials not set")
                 return {"success": False, "error": "API credentials not set"}
 
-            from modules.common.domain.symbols import normalize_symbol
-
             # Normalize symbol to CCXT format (BTC/USDT)
-            symbol: str = normalize_symbol(signal_dict.get("symbol", ""))
+            symbol: str = _SYMBOL_CODEC.to_ccxt(signal_dict.get("symbol", ""))
 
             signal_type: str = (signal_dict.get("signal") or "LONG").upper()
             if signal_type not in ("LONG", "SHORT"):
@@ -100,6 +115,22 @@ class OrderExecutor:
             if entry <= 0:
                 log_error(f"[OrderExecutor] ERROR: Could not get current price for {symbol}")
                 return {"success": False, "error": "Could not get current price"}
+
+            if self._order_book_imbalance_gate is not None:
+                from modules.order_book.models import OBIDecision
+
+                decision, combined_result = self._order_book_imbalance_gate.check(symbol, signal_type)
+                if decision == OBIDecision.SKIP:
+                    score_str = f"{combined_result.combined_score:.3f}" if combined_result is not None else "N/A"
+                    log_warn(
+                        f"[OrderBookImbalanceGate] {symbol} {signal_type} SKIPPED after retry. "
+                        f"Combined Score={score_str} opposes direction."
+                    )
+                    return {
+                        "success": False,
+                        "skipped": True,
+                        "reason": "ORDER_BOOK_IMBALANCE_CONFLICT",
+                    }
 
             tp_pct: float = 5.0
             sl_pct: float = 2.0
@@ -198,10 +229,8 @@ class OrderExecutor:
             if not self._api_key or not self._api_secret:
                 return {"success": False, "error": "API credentials not set"}
 
-            from modules.common.domain.symbols import normalize_symbol
-
             # Normalize symbol to CCXT format
-            sym: str = normalize_symbol(symbol)
+            sym: str = _SYMBOL_CODEC.to_ccxt(symbol)
             side_lower: str = side.lower()
             side_val: Literal["BUY", "SELL"] = "BUY" if side_lower in ("long", "buy") else "SELL"
 
@@ -228,7 +257,7 @@ class OrderExecutor:
                     order_data: Dict[str, Any] = {
                         "order_id": order_id_binance,
                         "client_order_id": market.get("clientOrderId"),
-                        "symbol": sym.replace("/", ""),
+                        "symbol": _SYMBOL_CODEC.to_db(sym),
                         "side": "LONG" if side_val == "BUY" else "SHORT",
                         "entry_price": entry_price,
                         "amount": float(amount),

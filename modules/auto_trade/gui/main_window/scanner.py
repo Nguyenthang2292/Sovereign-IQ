@@ -45,6 +45,18 @@ class ScannerManager:
         try:
             log_info(f"Scanner config changed: {config}")
             self.parent.settings_manager.set("scanner", config)
+
+            # Keep order_book_imbalance section in sync with the scanner toggle so
+            # order_executor.py (which reads `order_book_imbalance.enabled`) respects
+            # the GUI checkbox without needing a full pipeline restart.
+            if "enable_order_book" in config:
+                ob_cfg = dict(self.parent.settings_manager.get("order_book_imbalance", {}))
+                ob_cfg["enabled"] = bool(config["enable_order_book"])
+                # Sync threshold from scanner GUI; do NOT inject "depth" –
+                # OrderBookImbalanceGate does not accept that keyword.
+                ob_cfg["threshold"] = float(config.get("ob_imbalance_threshold", ob_cfg.get("threshold", 0.2)))
+                self.parent.settings_manager.set("order_book_imbalance", ob_cfg)
+
             self.parent.settings_manager.save()
             # Reset pipeline so it picks up new config on next scan
             self._pipeline_initialized = False

@@ -3,9 +3,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional, cast
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
 
 from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 from modules.auto_trade.strategies.gradual_recovery import (
     GradualRecoveryStrategy,
     RecoveryConfig,
@@ -64,8 +66,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             expand_frame,
             text="  Expand Full View",
-            fg_color="#4488ff",
-            hover_color="#2266cc",
+            fg_color=Colors.BTN_PRIMARY,
+            hover_color=Colors.BTN_PRIMARY_HOVER,
             command=self._open_expanded_modal,
             height=28,
             image=get_icon("zoom_in", size=(16, 16)),
@@ -76,6 +78,7 @@ class RecoveryPanel(ctk.CTkFrame):
         """Open expanded recovery panel in a modal window"""
         modal = ctk.CTkToplevel(self)
         modal.title("Gradual Recovery - Full View")
+        apply_dark_titlebar(modal)
         modal.geometry("500x700")
         modal.transient(self.winfo_toplevel())
         modal.grab_set()
@@ -98,8 +101,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             modal,
             text="Close",
-            fg_color="#666666",
-            hover_color="#444444",
+            fg_color=Colors.BTN_NEUTRAL,
+            hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=modal.destroy,
         ).pack(fill="x", padx=20, pady=(0, 10))
 
@@ -209,8 +212,8 @@ class RecoveryPanel(ctk.CTkFrame):
         reset_btn = ctk.CTkButton(
             self.active_recovery_frame,
             text="  Reset Recovery",
-            fg_color="#ff6644",
-            hover_color="#cc4422",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=self._on_reset,
             image=get_icon("repeat", size=(16, 16)),
             compound="left",
@@ -221,8 +224,8 @@ class RecoveryPanel(ctk.CTkFrame):
         stop_btn = ctk.CTkButton(
             self.active_recovery_frame,
             text="  Stop Recovery",
-            fg_color="#444444",
-            hover_color="#333333",
+            fg_color=Colors.BTN_NEUTRAL,
+            hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=self._on_stop_recovery,
             image=get_icon("square", size=(16, 16)),
             compound="left",
@@ -248,8 +251,8 @@ class RecoveryPanel(ctk.CTkFrame):
             variable=self.recovery_enabled_var,
             command=self._on_enabled_changed,
             font=("Arial", 12, "bold"),
-            fg_color="#00ff88",
-            hover_color="#00cc66",
+            fg_color=Colors.BTN_SUCCESS,
+            hover_color=Colors.BTN_SUCCESS_HOVER,
         )
         enabled_checkbox.grid(row=0, column=0, columnspan=2, sticky="w", pady=(5, 15))
 
@@ -341,8 +344,8 @@ class RecoveryPanel(ctk.CTkFrame):
         conservative_btn = ctk.CTkButton(
             button_frame,
             text="Conservative",
-            fg_color="#44aa88",
-            hover_color="#338866",
+            fg_color=Colors.BTN_NEUTRAL,
+            hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=lambda: self._apply_preset("conservative"),
             width=90,
         )
@@ -351,8 +354,8 @@ class RecoveryPanel(ctk.CTkFrame):
         moderate_btn = ctk.CTkButton(
             button_frame,
             text="Moderate",
-            fg_color="#4488ff",
-            hover_color="#2266cc",
+            fg_color=Colors.BTN_PRIMARY,
+            hover_color=Colors.BTN_PRIMARY_HOVER,
             command=lambda: self._apply_preset("moderate"),
             width=90,
         )
@@ -361,8 +364,8 @@ class RecoveryPanel(ctk.CTkFrame):
         aggressive_btn = ctk.CTkButton(
             button_frame,
             text="Aggressive",
-            fg_color="#ff6644",
-            hover_color="#cc4422",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=lambda: self._apply_preset("aggressive"),
             width=90,
         )
@@ -372,8 +375,8 @@ class RecoveryPanel(ctk.CTkFrame):
         start_btn = ctk.CTkButton(
             config_frame,
             text="  Start Recovery",
-            fg_color="#00ff88",
-            hover_color="#00cc66",
+            fg_color=Colors.BTN_SUCCESS,
+            hover_color=Colors.BTN_SUCCESS_HOVER,
             command=self._on_start_recovery,
             image=get_icon("rocket", size=(16, 16)),
             compound="left",
@@ -468,8 +471,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             btn_frame,
             text="✅ Record Profit",
-            fg_color="#00ff88",
-            hover_color="#00cc66",
+            fg_color=Colors.BTN_SUCCESS,
+            hover_color=Colors.BTN_SUCCESS_HOVER,
             command=self._test_record_profit,
             width=120,
         ).pack(side="left", padx=(0, 10))
@@ -477,8 +480,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             btn_frame,
             text="❌ Record Loss",
-            fg_color="#ff4444",
-            hover_color="#cc0000",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=self._test_record_loss,
             width=120,
         ).pack(side="left")
@@ -526,8 +529,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             seq_frame,
             text="🎲 Generate Random Sequence",
-            fg_color="#4488ff",
-            hover_color="#2266cc",
+            fg_color=Colors.BTN_PRIMARY,
+            hover_color=Colors.BTN_PRIMARY_HOVER,
             command=self._test_run_random_sequence,
         ).pack(fill="x", padx=10, pady=(5, 10))
 
@@ -545,8 +548,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             preset_btn_frame,
             text="📈 Perfect Recovery",
-            fg_color="#00aa66",
-            hover_color="#008855",
+            fg_color=Colors.BTN_SUCCESS,
+            hover_color=Colors.BTN_SUCCESS_HOVER,
             command=lambda: self._test_run_preset("perfect"),
             width=100,
         ).pack(side="left", padx=(0, 5))
@@ -554,8 +557,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             preset_btn_frame,
             text="📉 Struggle",
-            fg_color="#ff8844",
-            hover_color="#cc6622",
+            fg_color=Colors.BTN_WARNING,
+            hover_color=Colors.BTN_WARNING_HOVER,
             command=lambda: self._test_run_preset("struggle"),
             width=80,
         ).pack(side="left", padx=5)
@@ -563,8 +566,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             preset_btn_frame,
             text="💥 Failed",
-            fg_color="#ff4444",
-            hover_color="#cc0000",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=lambda: self._test_run_preset("failed"),
             width=80,
         ).pack(side="left", padx=5)
@@ -587,8 +590,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             compare_frame,
             text="🔬 Run Mode Comparison",
-            fg_color="#aa44ff",
-            hover_color="#8822cc",
+            fg_color=Colors.BTN_NEUTRAL,
+            hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=self._test_run_mode_comparison,
         ).pack(fill="x", padx=10, pady=(0, 10))
 
@@ -604,8 +607,8 @@ class RecoveryPanel(ctk.CTkFrame):
         ctk.CTkButton(
             log_header,
             text="Clear",
-            fg_color="#666666",
-            hover_color="#444444",
+            fg_color=Colors.BTN_NEUTRAL,
+            hover_color=Colors.BTN_NEUTRAL_HOVER,
             command=self._test_clear_log,
             width=60,
             height=24,

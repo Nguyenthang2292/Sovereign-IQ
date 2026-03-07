@@ -36,8 +36,8 @@ from modules.common.utils import (
     color_text,
     format_price,
     log_error,
-    normalize_symbol,
 )
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.xgboost_LTS.utils.utils import get_prediction_window
 
 cli_file_path = Path(__file__).parent / "argument_parser.py"
@@ -64,6 +64,8 @@ from modules.xgboost_LTS.utils.batch_symbols import batch_train_symbols
 warnings.filterwarnings("ignore")
 colorama_init(autoreset=True)
 
+_SYMBOL_CODEC = SymbolCodec()
+
 
 def main():
     args = parse_args()
@@ -85,7 +87,7 @@ def main():
         exchange_manager.public.exchange_priority_for_fallback = exchanges
 
     def _prepare_symbol_data(raw_symbol):
-        symbol = normalize_symbol(raw_symbol, quote)
+        symbol = str(_SYMBOL_CODEC.to_ccxt(raw_symbol if "/" in raw_symbol else f"{raw_symbol}/{quote}"))
         df, exchange_id = data_fetcher.fetch_ohlcv_with_fallback_exchange(
             symbol,
             limit=limit,
@@ -290,7 +292,7 @@ def main():
         deduped = []
         seen = set()
         for s in symbols:
-            ns = normalize_symbol(s, quote)
+            ns = str(_SYMBOL_CODEC.to_ccxt(s if "/" in s else f"{s}/{quote}"))
             if ns not in seen:
                 seen.add(ns)
                 deduped.append(ns)

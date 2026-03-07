@@ -15,9 +15,9 @@ from config import DEFAULT_QUOTE
 from modules.adaptive_trend_LTS_mini.cli.config_manager import ConfigManager
 from modules.adaptive_trend_LTS_mini.cli.display import display_atc_signals
 from modules.adaptive_trend_LTS_mini.core.analyzer import analyze_symbol
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.utils import (
     color_text,
-    normalize_symbol,
     prompt_user_input,
 )
 
@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
 
 __all__ = ["InteractiveLoop"]
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 def prompt_interactive_mode(default_symbol: str) -> str:
@@ -106,7 +108,9 @@ class InteractiveLoop:
                 if not symbol_input:
                     break
 
-                symbol = normalize_symbol(symbol_input, quote)
+                if "/" not in symbol_input and not symbol_input.upper().endswith(quote):
+                    symbol_input = f"{symbol_input}/{quote}"
+                symbol = str(_SYMBOL_CODEC.to_ccxt(symbol_input))
 
         except KeyboardInterrupt:
             print(color_text("\nExiting program by user request.", Fore.YELLOW))

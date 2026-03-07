@@ -91,8 +91,8 @@ class AutoTradeControl(ctk.CTkFrame):
             text="▶️ Enable Auto-Trade",
             font=("Arial", 12, "bold"),
             text_color="black",
-            fg_color="#00ff88",
-            hover_color="#00cc66",
+            fg_color=Colors.BTN_SUCCESS,
+            hover_color=Colors.BTN_SUCCESS_HOVER,
             command=self._enable_auto_trade,
         )
         self.enable_button.pack(fill="x", pady=5)
@@ -102,8 +102,8 @@ class AutoTradeControl(ctk.CTkFrame):
             controls_frame,
             text="⏸️ Disable Auto-Trade",
             font=("Arial", 12, "bold"),
-            fg_color="#ff4444",
-            hover_color="#cc0000",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=self._disable_auto_trade,
         )
         self.disable_button.pack(fill="x", pady=5)
@@ -204,8 +204,8 @@ class AutoTradeControl(ctk.CTkFrame):
             font=("Arial", 10),
             width=100,
             height=28,
-            fg_color="#1f538d",
-            hover_color="#2a6bb5",
+            fg_color=Colors.BTN_PRIMARY,
+            hover_color=Colors.BTN_PRIMARY_HOVER,
             command=self._on_reload_settings,
         )
         self.reload_settings_btn.grid(row=0, column=1, padx=(8, 0), sticky="e")

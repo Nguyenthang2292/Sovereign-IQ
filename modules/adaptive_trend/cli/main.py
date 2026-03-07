@@ -48,6 +48,7 @@ from modules.adaptive_trend.core.scanner import scan_all_symbols
 from modules.adaptive_trend.utils.config import create_atc_config_from_dict
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.utils import (
     color_text,
     extract_dict_from_namespace,
@@ -56,13 +57,14 @@ from modules.common.utils import (
     log_error,
     log_progress,
     log_warn,
-    normalize_symbol,
     prompt_user_input,
 )
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
 colorama_init(autoreset=True)
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class ATCAnalyzer:
@@ -219,7 +221,7 @@ class ATCAnalyzer:
         if not symbol_input:
             symbol_input = DEFAULT_SYMBOL
 
-        return normalize_symbol(symbol_input, quote)
+        return str(_SYMBOL_CODEC.to_ccxt(f"{symbol_input}/{quote}" if "/" not in symbol_input and not symbol_input.upper().endswith(quote) else symbol_input))
 
     def display_manual_mode_config(self, symbol: str) -> None:
         """Display configuration for manual mode."""
@@ -300,7 +302,11 @@ class ATCAnalyzer:
                     default=symbol,
                 )
 
-                symbol = normalize_symbol(symbol_input, quote)
+                symbol = str(
+                    _SYMBOL_CODEC.to_ccxt(
+                        f"{symbol_input}/{quote}" if "/" not in symbol_input and not symbol_input.upper().endswith(quote) else symbol_input
+                    )
+                )
 
                 # Create ATCConfig
                 atc_config = create_atc_config_from_dict(atc_params, timeframe=self.selected_timeframe)

@@ -19,6 +19,17 @@ from .connection_factory import ExchangeConnectionFactory
 
 logger = logging.getLogger(__name__)
 
+# Default values
+DEFAULT_REQUEST_PAUSE = 0.2
+DEFAULT_CONTRACT_TYPE = "future"
+
+# Fallback getter functions if config_api is not available
+def get_binance_api_key() -> Optional[str]:  # type: ignore[misc]
+    return None
+
+def get_binance_api_secret() -> Optional[str]:  # type: ignore[misc]
+    return None
+
 try:
     from config import (
         DEFAULT_CONTRACT_TYPE,
@@ -29,28 +40,27 @@ try:
         get_binance_api_secret,
     )
 except ImportError:
-    DEFAULT_REQUEST_PAUSE = 0.2
-    DEFAULT_CONTRACT_TYPE = "future"
-
-    # Fallback getter functions if config_api is not available
-    def get_binance_api_key():
-        return None
-
-    def get_binance_api_secret():
-        return None
+    pass
 
 
 class AuthenticatedExchangeManager:
     """Manages authenticated exchange connections (requires API credentials)."""
 
+    @staticmethod
+    def _close_if_supported(exchange_obj: object) -> None:
+        """Close exchange object when a callable close method is available."""
+        close_method = getattr(exchange_obj, "close", None)
+        if callable(close_method):
+            close_method()
+
     def __init__(
         self,
-        api_key=None,
-        api_secret=None,
-        testnet=False,
-        request_pause=None,
-        contract_type=None,
-    ):
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        testnet: bool = False,
+        request_pause: Optional[float] = None,
+        contract_type: Optional[str] = None,
+    ) -> None:
         """
         Initialize AuthenticatedExchangeManager.
 
@@ -77,7 +87,8 @@ class AuthenticatedExchangeManager:
         # Store timestamps for exchange creation (key: cache_key, value: creation timestamp)
         self._exchange_timestamps: Dict[str, float] = {}
 
-        self.request_pause = float(request_pause or os.getenv("BINANCE_REQUEST_SLEEP", DEFAULT_REQUEST_PAUSE))
+        _pause_raw = request_pause or os.getenv("BINANCE_REQUEST_SLEEP") or DEFAULT_REQUEST_PAUSE
+        self.request_pause = float(_pause_raw)
         self._request_lock = threading.Lock()
         self._last_request_ts = 0.0
 
@@ -153,7 +164,7 @@ class AuthenticatedExchangeManager:
             api_key=cred_key,
             api_secret=cred_secret,
             testnet=testnet,
-            contract_type=contract_type,
+            contract_type=contract_type or self.contract_type or "future",
         )
 
         # Wrap exchange and set initial refcount to 1 (since we're returning it)
@@ -166,11 +177,10 @@ class AuthenticatedExchangeManager:
                 existing_wrapper = self._authenticated_exchanges[cache_key]
                 existing_wrapper.increment_refcount()
                 # Try to close the exchange we just created to avoid resource leak
-                if hasattr(exchange_instance, "close"):
-                    try:
-                        exchange_instance.close()
-                    except Exception:
-                        pass  # Ignore errors during cleanup
+                try:
+                    self._close_if_supported(exchange_instance)
+                except Exception:
+                    pass  # Ignore errors during cleanup
                 return existing_wrapper.exchange
             else:
                 # Store our newly created exchange
@@ -209,11 +219,10 @@ class AuthenticatedExchangeManager:
                 if key in self._exchange_timestamps:
                     del self._exchange_timestamps[key]
                 # Try to close exchange if it has a close method
-                if hasattr(wrapper.exchange, "close"):
-                    try:
-                        wrapper.exchange.close()
-                    except Exception as e:
-                        logger.warning(f"Error closing exchange {key}: {e}")
+                try:
+                    self._close_if_supported(wrapper.exchange)
+                except Exception as e:
+                    logger.warning(f"Error closing exchange {key}: {e}")
 
     def update_default_credentials(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
         """
@@ -244,11 +253,10 @@ class AuthenticatedExchangeManager:
                     # Remove timestamp if exists
                     if key in self._exchange_timestamps:
                         del self._exchange_timestamps[key]
-                    if hasattr(wrapper.exchange, "close"):
-                        try:
-                            wrapper.exchange.close()
-                        except Exception as e:
-                            logger.warning(f"Error closing exchange {key}: {e}")
+                    try:
+                        self._close_if_supported(wrapper.exchange)
+                    except Exception as e:
+                        logger.warning(f"Error closing exchange {key}: {e}")
 
     def cleanup_unused_exchanges(self, max_age_hours: Optional[float] = None):
         """
@@ -297,11 +305,10 @@ class AuthenticatedExchangeManager:
                     del self._exchange_timestamps[cache_key]
                 cleared_count += 1
                 # Close exchange before removing from cache
-                if hasattr(wrapper.exchange, "close"):
-                    try:
-                        wrapper.exchange.close()
-                    except Exception as e:
-                        logger.warning(f"Error closing exchange {cache_key}: {e}")
+                try:
+                    self._close_if_supported(wrapper.exchange)
+                except Exception as e:
+                    logger.warning(f"Error closing exchange {cache_key}: {e}")
 
             if cleared_count > 0:
                 if max_age_hours is not None:
@@ -333,11 +340,10 @@ class AuthenticatedExchangeManager:
 
             for cache_key, wrapper in list(self._authenticated_exchanges.items()):
                 # Close exchange before removing from cache
-                if hasattr(wrapper.exchange, "close"):
-                    try:
-                        wrapper.exchange.close()
-                    except Exception as e:
-                        logger.warning(f"Error closing exchange {cache_key}: {e}")
+                try:
+                    self._close_if_supported(wrapper.exchange)
+                except Exception as e:
+                    logger.warning(f"Error closing exchange {cache_key}: {e}")
 
             # Clear all caches
             self._authenticated_exchanges.clear()
@@ -348,7 +354,7 @@ class AuthenticatedExchangeManager:
 
             return cleared_count
 
-    def close_exchange(self, exchange_id: str, testnet: bool = False, contract_type: str = None):
+    def close_exchange(self, exchange_id: str, testnet: bool = False, contract_type: Optional[str] = None):
         """
         Close and remove a specific exchange connection.
 
@@ -377,14 +383,13 @@ class AuthenticatedExchangeManager:
                 if cache_key in self._exchange_timestamps:
                     del self._exchange_timestamps[cache_key]
                 # Try to close exchange if it has a close method
-                if hasattr(wrapper.exchange, "close"):
-                    try:
-                        wrapper.exchange.close()
-                    except Exception as e:
-                        logger.warning(f"Error closing exchange {exchange_id}: {e}")
+                try:
+                    self._close_if_supported(wrapper.exchange)
+                except Exception as e:
+                    logger.warning(f"Error closing exchange {exchange_id}: {e}")
                 logger.debug(f"Closed exchange connection: {cache_key}")
 
-    def release_exchange(self, exchange_id: str, testnet: bool = False, contract_type: str = None):
+    def release_exchange(self, exchange_id: str, testnet: bool = False, contract_type: Optional[str] = None):
         """
         Release a reference to an exchange, decrementing its reference count.
 
@@ -463,6 +468,7 @@ class AuthenticatedExchangeManager:
                     # Log but don't raise - we're in cleanup
                     logger.warning(f"Error releasing exchange {exchange_id}: {e}")
 
+    @staticmethod
     def _create_convenience_method(exchange_id: str):
         """Factory to generate convenience connection methods."""
 
@@ -493,7 +499,8 @@ class AuthenticatedExchangeManager:
             return self.connect_to_exchange_with_credentials(exchange_id, api_key, api_secret, testnet, contract_type)
 
         connect.__name__ = f"connect_to_{exchange_id}_with_credentials"
-        connect.__doc__ = connect.__doc__.format(exchange_id=exchange_id, exchange_id_title=exchange_id.title())
+        if connect.__doc__ is not None:
+            connect.__doc__ = connect.__doc__.format(exchange_id=exchange_id, exchange_id_title=exchange_id.title())
         return connect
 
     # Dynamic generation of convenience methods

@@ -13,6 +13,7 @@ from modules.auto_trade.execution.binance.order_execution import OrderExecution
 from modules.auto_trade.execution.binance.order_management import OrderManagement
 from modules.auto_trade.execution.binance.position_management import PositionManagement
 from modules.auto_trade.execution.order_builder import OrderTicket
+from modules.common.domain.symbol_types import DbSymbol
 from modules.auto_trade.security.secret_string import SecretString
 
 
@@ -125,13 +126,13 @@ class BinanceClient:
         self, symbol: str, position_id: Optional[str], take_profit_price: Optional[float] = None
     ) -> Optional[dict]:
         """Modify TP. Delegates to OrderManagement."""
-        return self.order_management.modify_take_profit(symbol, position_id, take_profit_price)
+        return self.order_management.modify_take_profit(DbSymbol(symbol), position_id, take_profit_price)
 
     def modify_stop_loss(
         self, symbol: str, position_id: Optional[str], stop_loss_price: Optional[float] = None
     ) -> Optional[dict]:
         """Modify SL. Delegates to OrderManagement."""
-        return self.order_management.modify_stop_loss(symbol, position_id, stop_loss_price)
+        return self.order_management.modify_stop_loss(DbSymbol(symbol), position_id, stop_loss_price)
 
     def modify_tp_sl(
         self,
@@ -141,8 +142,10 @@ class BinanceClient:
         stop_loss_price: Optional[float] = None,
     ) -> Optional[dict]:
         """Modify TP/SL. Delegates to OrderManagement."""
-        return self.order_management.modify_tp_sl(symbol, position_id, take_profit_price, stop_loss_price)
+        return self.order_management.modify_tp_sl(
+            DbSymbol(symbol), position_id, take_profit_price, stop_loss_price
+        )
 
     def cancel_open_orders(self, symbol: str) -> Optional[dict]:
         """Cancel open orders. Delegates to OrderManagement."""
-        return self.order_management.cancel_open_orders(symbol)
+        return self.order_management.cancel_open_orders(DbSymbol(symbol))

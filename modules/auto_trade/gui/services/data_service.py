@@ -9,6 +9,7 @@ import os
 from datetime import datetime as _datetime
 from typing import Any, Dict, List, Optional, TypedDict, Union, cast
 
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 # Cooldown (seconds) before pushing TP/SL again for the same symbol (avoids duplicate orders)
@@ -16,6 +17,9 @@ TP_SL_PUSH_COOLDOWN_SEC = 300  # 5 min cooldown to avoid duplicate conditional o
 
 # Local imports
 from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
+
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class TpSlResult(TypedDict):
@@ -139,7 +143,7 @@ class DataService:
                 return self._get_mock_price_feed().get_current_price(symbol)
 
             if self.data_fetcher:
-                normalized_symbol = symbol.replace("/", "")
+                normalized_symbol = _SYMBOL_CODEC.to_db(symbol)
                 ticker = self.data_fetcher.fetch_ticker(normalized_symbol)
                 if ticker and "last" in ticker:
                     return float(ticker["last"])
@@ -217,7 +221,7 @@ class DataService:
                 entry_price = None
                 db_orders = self.repo_context.orders.get_open_positions(symbol=symbol)
                 if not db_orders:
-                    symbol_normalized = symbol.replace("/", "").split(":")[0]
+                    symbol_normalized = _SYMBOL_CODEC.to_db(symbol)
                     db_orders = self.repo_context.orders.get_open_positions(symbol=symbol_normalized)
 
                 if db_orders:

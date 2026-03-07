@@ -16,6 +16,16 @@ class ImageValidationConfig:
     supported_formats: tuple = ("PNG", "JPEG", "JPG", "WEBP", "GIF")
 
 
+# Stable models used as emergency fallback when preview quota is exhausted.
+# These models have independent quotas and reliably support image input.
+_RATE_LIMIT_FALLBACK_NAMES: list[str] = [
+    "models/gemini-2.0-flash",
+    "models/gemini-2.0-flash-lite",
+    "models/gemini-1.5-flash",
+    "models/gemini-1.5-pro",
+]
+
+
 class GeminiModelType(Enum):
     """Enum for Gemini model types with priority."""
 
@@ -75,10 +85,19 @@ class GeminiModelType(Enum):
 
     @classmethod
     def get_fallback_models(cls, primary_model):
-        """Get fallback models ordered by priority."""
+        """Get fallback models ordered by priority (excludes primary)."""
         fallbacks = []
         for model_type in cls:
             if model_type == primary_model:
                 continue
             fallbacks.append(model_type)
         return fallbacks
+
+    @classmethod
+    def get_rate_limit_fallbacks(cls) -> list[str]:
+        """Return stable model names for emergency fallback on 429/quota errors.
+
+        These models have independent quotas from preview/experimental models
+        and reliably support multimodal (image) input.
+        """
+        return list(_RATE_LIMIT_FALLBACK_NAMES)

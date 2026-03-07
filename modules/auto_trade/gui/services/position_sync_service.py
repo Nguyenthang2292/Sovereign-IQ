@@ -11,6 +11,8 @@ Useful when:
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.domain.symbol_types import DbSymbol
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 
@@ -50,7 +52,8 @@ class PositionSyncService:
                     # CCXT futures symbols look like "DOGE/USDT:USDT" or "BTC/USDT:USDT".
                     # Normalise to plain Binance format ("DOGEUSDT") so the symbol is
                     # consistent with what the rest of the system stores in DynamoDB.
-                    symbol = symbol_raw.split(":")[0].replace("/", "")  # DOGE/USDT:USDT → DOGEUSDT
+                    _codec = SymbolCodec()
+                    symbol = _codec.to_db(symbol_raw)
 
                     side = pos.get("side", "").upper()
                     entry_price = float(pos.get("entryPrice", 0) or pos.get("info", {}).get("entryPrice", 0) or 0)
@@ -60,8 +63,8 @@ class PositionSyncService:
                     leverage_raw = pos.get("leverage")
                     leverage = int(leverage_raw) if leverage_raw is not None else 1
 
-                    # Fetch TP/SL from open orders (use raw CCXT symbol for the API call)
-                    tp_price, sl_price = PositionSyncService._fetch_tp_sl_orders(client, symbol_raw)
+                    # Fetch TP/SL from open orders
+                    tp_price, sl_price = PositionSyncService._fetch_tp_sl_orders(client, symbol)
 
                     open_positions.append(
                         {
@@ -89,7 +92,7 @@ class PositionSyncService:
             return []
 
     @staticmethod
-    def _fetch_tp_sl_orders(client, symbol: str) -> tuple[Optional[float], Optional[float]]:
+    def _fetch_tp_sl_orders(client, symbol: DbSymbol) -> tuple[Optional[float], Optional[float]]:
         """
         Fetch TP/SL prices from open orders.
 
@@ -128,7 +131,8 @@ class PositionSyncService:
         try:
             symbol = position["symbol"]
             side = position["side"]
-            symbol_normalized = symbol.replace("/", "")
+            _codec = SymbolCodec()
+            symbol_normalized = _codec.to_db(symbol)
 
             # Check if position already exists in DB.
             # get_open_positions only returns PROGRAMMATIC orders; that covers both
@@ -207,8 +211,9 @@ class PositionSyncService:
 
             # ── Phase 1: Insert missing positions into DB ──────────────────
             binance_open_symbols: set[str] = set()
+            _codec = SymbolCodec()
             for pos in binance_positions:
-                symbol = pos.get("symbol", "").replace("/", "")
+                symbol = _codec.to_db(pos.get("symbol", ""))
                 if symbol:
                     binance_open_symbols.add(symbol)
 
@@ -227,7 +232,7 @@ class PositionSyncService:
             try:
                 db_open_orders = ctx.orders.get_open_positions()  # GSI3: PROGRAMMATIC#OPEN
                 for order in db_open_orders:
-                    db_symbol = (order.get("symbol") or "").replace("/", "")
+                    db_symbol = _codec.to_db(order.get("symbol") or "")
                     if db_symbol and db_symbol not in binance_open_symbols:
                         order_id = order.get("order_id")
                         if order_id:
@@ -235,12 +240,27 @@ class PositionSyncService:
                             if ok:
                                 stats["closed"] += 1
                                 log_info(f"[PositionSync] 🔴 Closed stale DB order: {db_symbol} (order_id={order_id})")
-                                # Cancel any orphaned conditional orders on Binance
+                                # Cancel any orphaned conditional orders (TP/SL) still open on Binance.
+                                # db_symbol is in plain format (BTCUSDT); cancel_open_orders internally
+                                # converts to CCXT format and cancels both basic AND conditional orders.
                                 try:
+                                    # First try cancel_all_orders (single API call, most reliable)
+                                    ccxt_sym = db_symbol  # _ccxt_futures_symbol handles conversion
+                                    try:
+                                        client.exchange.cancel_all_orders(ccxt_sym)
+                                        log_info(f"[PositionSync] cancel_all_orders succeeded for {db_symbol}")
+                                    except Exception:
+                                        pass
+                                    # Always also cancel conditional orders (TP/SL) which are on
+                                    # a different Binance endpoint than basic orders.
                                     cancel_res = client.cancel_open_orders(db_symbol)
-                                    log_info(f"[PositionSync] Cancelled orphaned conditional orders for {db_symbol}: {cancel_res}")
+                                    log_info(
+                                        f"[PositionSync] Cancelled orphaned conditional orders for {db_symbol}: {cancel_res}"
+                                    )
                                 except Exception as exc:
-                                    log_warn(f"[PositionSync] Error cancelling orphaned conditional orders for {db_symbol}: {exc}")
+                                    log_warn(
+                                        f"[PositionSync] Error cancelling orphaned conditional orders for {db_symbol}: {exc}"
+                                    )
                             else:
                                 log_warn(f"[PositionSync] Could not close stale order {order_id} for {db_symbol}")
             except Exception as close_err:

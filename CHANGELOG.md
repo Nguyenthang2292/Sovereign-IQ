@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Reviewed
+- **smart_money_concept**: Full codex-review completed (2026-03-02) — `modules/smart_money_concept/docs/2026-03-02-smc-codex-review.md`
+  - ✅ **Ship-ready** — 53/53 tests pass (0 warnings, `-W error::FutureWarning` clean)
+  - ✅ All 8 fix-plan tasks from PineScript translation audit verified implemented correctly
+  - 🟢 8 strengths: clean 3-layer architecture, stateless core, PineScript fidelity, BosChochResult unification, volatility-filtered OBs, rich Pivot model, comprehensive test suite, legacy backward compat
+  - 🟡 7 medium issues (non-blocking): ATR recomputation hotpath in OB (M-01), Pyright type warnings (M-02/M-03), inconsistent absolute imports in bos.py (M-04/M-05), bare except in choch_chart (M-06), print() instead of log_warn in equal_hl (M-07)
+  - 🔵 6 low issues: scipy stubs noise, incomplete `core/__init__` exports, duplicated chart rendering code, constant duplication across files, fragile sys.path in CLI
+  - ⚠️ Test coverage gaps: no dedicated tests for `order_block.py` or `equal_hl.py`
+
+### Fixed
+- **smart_money_concept**: Mismatch fixes applied (2026-03-02)
+  - ✅ `core/swing.py`: Docstring `external_order` default corrected from 30 → 50 to match actual code
+  - ✅ `core/analyzer.py`: Extracted `_merge_structure_events()` helper to eliminate `FutureWarning` from `pd.concat` with empty/all-NA DataFrames
+  - ✅ `core/order_block.py`: Removed dead code function `_get_pivot_time_from_event()` that referenced undefined `df` variable (would crash if ever called)
+
 ### Fixed
 - **xgboost_LTS**: Post-review fixes applied (2026-02-27) — all items verified by `pytest tests/xgboost_LTS`
   - ✅ **F-01 FIXED** (`core/__init__.py`): All three imports now reference `modules.xgboost_LTS`; critical silent-export bug resolved.

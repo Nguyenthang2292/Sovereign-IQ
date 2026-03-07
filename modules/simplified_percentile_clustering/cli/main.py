@@ -29,13 +29,13 @@ from config import (
 )
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.utils import (
     color_text,
     log_analysis,
     log_data,
     log_error,
     log_progress,
-    normalize_symbol,
     prompt_user_input,
 )
 from modules.simplified_percentile_clustering.config import (
@@ -57,6 +57,8 @@ from modules.simplified_percentile_clustering.strategies import (
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
 colorama_init(autoreset=True)
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 def parse_args() -> argparse.Namespace:
@@ -564,7 +566,7 @@ class SPCAnalyzer:
         if not symbol_input:
             symbol_input = DEFAULT_SYMBOL
 
-        return normalize_symbol(symbol_input, quote)
+        return str(_SYMBOL_CODEC.to_ccxt(symbol_input if "/" in symbol_input else f"{symbol_input}/{quote}"))
 
     def run_analysis(self) -> None:
         """Run SPC analysis for a symbol."""
@@ -637,7 +639,7 @@ class SPCAnalyzer:
                     default=symbol,
                 )
 
-                symbol = normalize_symbol(symbol_input, quote)
+                symbol = str(_SYMBOL_CODEC.to_ccxt(symbol_input if "/" in symbol_input else f"{symbol_input}/{quote}"))
 
                 result = analyze_symbol(
                     symbol=symbol,

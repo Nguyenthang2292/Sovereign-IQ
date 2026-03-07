@@ -68,8 +68,8 @@ class ScannerControl(ctk.CTkFrame):
             controls_frame,
             text="▶️ Start Scanner",
             font=("Arial", 12, "bold"),
-            fg_color="#00ff88",
-            hover_color="#00cc66",
+            fg_color=Colors.BTN_SUCCESS,
+            hover_color=Colors.BTN_SUCCESS_HOVER,
             command=self._start_scanner,
         )
         self.start_button.pack(fill="x", pady=(0, 8))
@@ -79,8 +79,8 @@ class ScannerControl(ctk.CTkFrame):
             controls_frame,
             text="⏸️ Stop Scanner",
             font=("Arial", 12, "bold"),
-            fg_color="#ff4444",
-            hover_color="#cc0000",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=self._stop_scanner,
         )
         self.stop_button.pack(fill="x", pady=(0, 8))
@@ -91,8 +91,8 @@ class ScannerControl(ctk.CTkFrame):
             controls_frame,
             text="🔄 Manual Scan",
             font=("Arial", 12),
-            fg_color="#4488ff",
-            hover_color="#0066ff",
+            fg_color=Colors.BTN_PRIMARY,
+            hover_color=Colors.BTN_PRIMARY_HOVER,
             command=self._manual_scan,
         )
         self.manual_scan_button.pack(fill="x", pady=(0, 5))
@@ -189,6 +189,17 @@ class ScannerControl(ctk.CTkFrame):
         )
         self.min_score_value_label.grid(row=6, column=1, sticky="e", pady=(0, 3), padx=(10, 0))
 
+        # Explanation for Min Signal Score
+        min_score_desc_label = ctk.CTkLabel(
+            inputs_frame,
+            text="(High score = stricter filtering.\nE.g. >0.4 means fewer but stronger signals)",
+            font=("Arial", 9, "italic"),
+            text_color="gray",
+            justify="left",
+            anchor="w",
+        )
+        min_score_desc_label.grid(row=7, column=0, columnspan=2, sticky="w", pady=(0, 5))
+
         def _on_min_score_change(*args):
             try:
                 v = self.min_score_var.get()
@@ -201,15 +212,15 @@ class ScannerControl(ctk.CTkFrame):
 
         # Min 24h Volume
         volume_label = ctk.CTkLabel(inputs_frame, text="Min 24h Volume (M):", font=("Arial", 11), text_color="gray")
-        volume_label.grid(row=7, column=0, sticky="w", pady=5)
+        volume_label.grid(row=8, column=0, sticky="w", pady=5)
 
         self.min_volume_entry = ctk.CTkEntry(inputs_frame, placeholder_text="50", width=150)
-        self.min_volume_entry.grid(row=7, column=1, sticky="e", pady=5, padx=(10, 0))
+        self.min_volume_entry.grid(row=8, column=1, sticky="e", pady=5, padx=(10, 0))
         self.min_volume_entry.insert(0, "50")
 
         # ---- Model Filters group (XGBoost + ATC) ----
         model_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        model_group.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(10, 5))
+        model_group.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(10, 5))
 
         model_title = ctk.CTkLabel(model_group, text="Model Filters", font=("Arial", 11, "bold"))
         model_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
@@ -242,7 +253,7 @@ class ScannerControl(ctk.CTkFrame):
         atc_tooltip = ctk.CTkLabel(
             model_group,
             text="Scaled down when some timeframes fail.",
-            font=("Arial", 9),
+            font=("Arial", 9, "italic"),
             text_color="gray",
         )
         atc_tooltip.grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
@@ -259,7 +270,7 @@ class ScannerControl(ctk.CTkFrame):
 
         # ---- Gann Square Filter group ----
         gann_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
-        gann_group.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(10, 5))
+        gann_group.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(10, 5))
 
         gann_title = ctk.CTkLabel(gann_group, text="Gann Square Filter", font=("Arial", 11, "bold"))
         gann_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
@@ -311,6 +322,82 @@ class ScannerControl(ctk.CTkFrame):
 
         self.gann_sub_frame.grid_columnconfigure(0, weight=0, minsize=80)
         self.gann_sub_frame.grid_columnconfigure(1, weight=1)
+
+        # ---- Order Book Filter group ----
+        ob_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        ob_group.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(10, 5))
+
+        ob_title = ctk.CTkLabel(ob_group, text="Order Book Filter", font=("Arial", 11, "bold"))
+        ob_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
+
+        # Enable Order Book checkbox
+        self.enable_order_book_var = ctk.BooleanVar(value=False)
+        ob_checkbox = ctk.CTkCheckBox(
+            ob_group,
+            text="Enable Order Book Gate",
+            variable=self.enable_order_book_var,
+            command=self._on_order_book_toggle,
+        )
+        ob_checkbox.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
+
+        # Order Book sub-frame (only shown when checkbox is ON)
+        self.ob_sub_frame = ctk.CTkFrame(ob_group, fg_color="transparent")
+        self.ob_sub_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 8))
+        self.ob_sub_frame.grid_remove()
+
+        # Depth levels
+        ob_depth_label = ctk.CTkLabel(self.ob_sub_frame, text="Depth levels:", font=("Arial", 11), text_color="gray")
+        ob_depth_label.grid(row=0, column=0, sticky="w", pady=4)
+
+        self.ob_depth_entry = ctk.CTkEntry(self.ob_sub_frame, placeholder_text="20", width=100)
+        self.ob_depth_entry.grid(row=0, column=1, sticky="e", pady=4, padx=(10, 0))
+        self.ob_depth_entry.insert(0, "20")
+
+        # Imbalance threshold
+        ob_thresh_label = ctk.CTkLabel(
+            self.ob_sub_frame, text="Imbalance threshold:", font=("Arial", 11), text_color="gray"
+        )
+        ob_thresh_label.grid(row=1, column=0, sticky="w", pady=4)
+
+        self.ob_imbalance_threshold_var = ctk.DoubleVar(value=0.2)
+        ob_slider = ctk.CTkSlider(
+            self.ob_sub_frame,
+            from_=0.0,
+            to=1.0,
+            number_of_steps=100,
+            variable=self.ob_imbalance_threshold_var,
+            width=100,
+        )
+        ob_slider.grid(row=1, column=1, sticky="e", pady=4, padx=(10, 0))
+
+        self.ob_threshold_value_label = ctk.CTkLabel(
+            self.ob_sub_frame,
+            text=f"{self.ob_imbalance_threshold_var.get():.2f}",
+            font=("Arial", 10),
+            text_color="gray",
+        )
+        self.ob_threshold_value_label.grid(row=2, column=1, sticky="e", padx=10, pady=(0, 4))
+
+        ob_tooltip = ctk.CTkLabel(
+            self.ob_sub_frame,
+            text="Min bid/ask imbalance ratio to confirm signal.",
+            font=("Arial", 9, "italic"),
+            text_color="gray",
+        )
+        ob_tooltip.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 4))
+
+        def _on_ob_threshold_change(*args):
+            try:
+                v = self.ob_imbalance_threshold_var.get()
+                self.ob_threshold_value_label.configure(text=f"{v:.2f}")
+                self._on_config_change()
+            except Exception:
+                pass
+
+        self.ob_imbalance_threshold_var.trace_add("write", _on_ob_threshold_change)
+
+        self.ob_sub_frame.grid_columnconfigure(0, weight=0, minsize=110)
+        self.ob_sub_frame.grid_columnconfigure(1, weight=1)
 
         # Configure grid columns - column 0 for labels needs minimum width
         inputs_frame.grid_columnconfigure(0, weight=0, minsize=140)
@@ -449,6 +536,14 @@ class ScannerControl(ctk.CTkFrame):
             self.gann_sub_frame.grid_remove()
         self._on_config_change()
 
+    def _on_order_book_toggle(self):
+        """Handle Order Book Gate checkbox toggle."""
+        if self.enable_order_book_var.get():
+            self.ob_sub_frame.grid()
+        else:
+            self.ob_sub_frame.grid_remove()
+        self._on_config_change()
+
     def _on_config_change(self, choice=None):
         """Handle configuration change"""
         try:
@@ -484,6 +579,12 @@ class ScannerControl(ctk.CTkFrame):
                 min_volume = 50.0
         except (ValueError, AttributeError):
             min_volume = 50.0
+        try:
+            ob_depth = int(self.ob_depth_entry.get())
+            if ob_depth <= 0:
+                ob_depth = 20
+        except (ValueError, AttributeError):
+            ob_depth = 20
         return {
             "scan_interval": int(self.scan_interval_entry.get()),
             "timeframe": self.timeframe_var.get(),
@@ -501,6 +602,10 @@ class ScannerControl(ctk.CTkFrame):
             "gann_lookback": int(self.gann_lookback_entry.get())
             if getattr(self, "gann_lookback_entry", None) and self.gann_lookback_entry.get()
             else 5,
+            # Order Book Gate
+            "enable_order_book": self.enable_order_book_var.get(),
+            "ob_depth": ob_depth,
+            "ob_imbalance_threshold": self.ob_imbalance_threshold_var.get(),
         }
 
     def load_config(self, config: Dict):
@@ -536,6 +641,20 @@ class ScannerControl(ctk.CTkFrame):
             self.gann_sub_frame.grid()
         else:
             self.gann_sub_frame.grid_remove()
+
+        # Load Order Book Gate settings
+        self.enable_order_book_var.set(config.get("enable_order_book", False))
+        if hasattr(self, "ob_depth_entry"):
+            self.ob_depth_entry.delete(0, "end")
+            self.ob_depth_entry.insert(0, str(config.get("ob_depth", 20)))
+        if hasattr(self, "ob_imbalance_threshold_var"):
+            self.ob_imbalance_threshold_var.set(config.get("ob_imbalance_threshold", 0.2))
+        if hasattr(self, "ob_threshold_value_label"):
+            self.ob_threshold_value_label.configure(text=f"{self.ob_imbalance_threshold_var.get():.2f}")
+        if self.enable_order_book_var.get():
+            self.ob_sub_frame.grid()
+        else:
+            self.ob_sub_frame.grid_remove()
 
         # Update settings display
         self.setting_interval.configure(text=f"{config.get('scan_interval', 5)} min")

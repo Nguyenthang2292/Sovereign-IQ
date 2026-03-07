@@ -8,6 +8,9 @@ from typing import Any, Optional, cast
 
 import ccxt
 
+from modules.common.domain.order_type_codec import BinanceOrderType
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.domain.symbol_types import DbSymbol, FuturesSymbol
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 
@@ -23,57 +26,25 @@ def _log_sl_error(symbol: str, stop_loss_price: Optional[float], e: Exception) -
         log_error(f"Failed to modify SL: {e}")
 
 
+def _tp_would_immediately_trigger(side: str, take_profit_price: float, mark_price: float) -> bool:
+    """Return True when TP trigger price violates Binance trigger constraints."""
+    if side == "long":
+        # LONG TP (SELL TAKE_PROFIT_MARKET) must be above current mark.
+        return take_profit_price <= mark_price
+    # SHORT TP (BUY TAKE_PROFIT_MARKET) must be below current mark.
+    return take_profit_price >= mark_price
+
+
 def _classify_order_kind(order: dict, entry_price: float = 0.0, side: str = "") -> str:
     """
     Classify a conditional order as 'tp', 'sl', or 'unknown'.
 
-    Strategy:
-    1. Try explicit type string first (TAKE_PROFIT_MARKET, STOP_MARKET, etc.).
-    2. When CCXT normalises the type to 'market' / '', fall back to price comparison:
-       - LONG:  stopPrice > entry → TP,  stopPrice <= entry → SL
-       - SHORT: stopPrice < entry → TP,  stopPrice >= entry → SL
-
-    Args:
-        order:       CCXT order dict.
-        entry_price: Position entry price (for fallback classification).
-        side:        'long' or 'short' (for fallback classification).
-
-    Returns:
-        'tp' | 'sl' | 'unknown'
+    Delegates to BinanceOrderType.classify() which handles all CCXT normalization quirks.
     """
-    info = order.get("info") or {}
-    if not isinstance(info, dict):
-        info = {}
-
-    otype = (info.get("type") or info.get("origType") or order.get("type") or "").upper()
-
-    if "TAKE_PROFIT" in otype:
-        return "tp"
-    if ("STOP" in otype or "LOSS" in otype) and "TAKE_PROFIT" not in otype:
-        return "sl"
-
-    # ── Fallback: type is ambiguous (CCXT normalises to 'MARKET') ───────────
-    sp_raw = order.get("stopPrice") or order.get("triggerPrice") or info.get("stopPrice") or info.get("triggerPrice")
-    if not sp_raw:
-        return "unknown"  # no stopPrice → not a conditional order at all
-
-    try:
-        sp = float(sp_raw)
-    except (TypeError, ValueError):
-        return "unknown"
-
-    if entry_price > 0 and side:
-        s = side.lower()
-        if s == "long":
-            return "tp" if sp > entry_price else "sl"
-        if s == "short":
-            return "tp" if sp < entry_price else "sl"
-
-    # No context — can't distinguish safely; flag as 'unknown' so caller skips
-    return "unknown"
+    return BinanceOrderType.classify(order, entry_price, side)
 
 
-def _get_mark_price_from_exchange(exchange: ccxt.binance, symbol: str) -> Optional[float]:
+def _get_mark_price_from_exchange(exchange: ccxt.binance, symbol: FuturesSymbol) -> Optional[float]:
     """Fetch current mark price for symbol (futures). Returns None if unavailable."""
     try:
         ticker = cast(dict, exchange.fetch_ticker(symbol))
@@ -88,54 +59,23 @@ def _get_mark_price_from_exchange(exchange: ccxt.binance, symbol: str) -> Option
         return None
 
 
-def _ccxt_futures_symbol(exchange: ccxt.binance, symbol: str) -> str:
+def _ccxt_futures_symbol(exchange: ccxt.binance, symbol: str) -> FuturesSymbol:
     """
     Return the symbol format CCXT/Binance futures uses so fetch_open_orders finds orders.
     With defaultType 'future', markets are often BASE/QUOTE:USDT (e.g. SKL/USDT:USDT).
     If we pass only SKL/USDT, fetch_open_orders may return [] and we'd never cancel existing SL.
     """
     if not symbol:
-        return symbol
+        return FuturesSymbol("")
 
     try:
-        if not getattr(exchange, "markets", None):
-            exchange.load_markets()
+        codec = SymbolCodec(exchange)
+        return FuturesSymbol(str(codec.to_futures(symbol)))
     except Exception:
-        pass
-
-    try:
-        market = exchange.market(symbol)
-        if market and market.get("symbol"):
-            return str(market["symbol"])
-    except Exception:
-        pass
-
-    normalized_id = symbol.replace("/", "").split(":")[0].upper()
-    try:
-        by_id = getattr(exchange, "markets_by_id", {}) or {}
-        market_by_id = by_id.get(normalized_id)
-        if isinstance(market_by_id, list) and market_by_id:
-            first_market = market_by_id[0]
-            if isinstance(first_market, dict) and first_market.get("symbol"):
-                return str(first_market["symbol"])
-        if isinstance(market_by_id, dict) and market_by_id.get("symbol"):
-            return str(market_by_id["symbol"])
-    except Exception:
-        pass
-
-    if ":" not in symbol and "/" in symbol:
-        return f"{symbol}:USDT"
-
-    if ":" not in symbol and "/" not in symbol:
-        for quote in ("USDT", "BUSD", "USDC", "FDUSD", "BTC", "ETH", "BNB"):
-            if normalized_id.endswith(quote) and len(normalized_id) > len(quote):
-                base = normalized_id[: -len(quote)]
-                return f"{base}/{quote}:{quote}"
-
-    return symbol
+        return FuturesSymbol(symbol)
 
 
-def _fetch_all_open_orders(exchange: ccxt.binance, symbol: str) -> list:
+def _fetch_all_open_orders(exchange: ccxt.binance, symbol: FuturesSymbol) -> list:
     """Fetch BOTH Basic AND Conditional (stop) open orders for a symbol.
 
     Binance Futures separates orders into two categories:
@@ -204,12 +144,12 @@ class OrderManagement:
         self.retry_delay = retry_delay
         self.dry_run = dry_run
 
-    def _get_mark_price(self, symbol: str) -> Optional[float]:
+    def _get_mark_price(self, symbol: FuturesSymbol) -> Optional[float]:
         """Current mark price for symbol (futures). Returns None if unavailable."""
         return _get_mark_price_from_exchange(self.exchange, symbol)
 
     def modify_take_profit(
-        self, symbol: str, position_id: Optional[str], take_profit_price: Optional[float] = None
+        self, symbol: DbSymbol, position_id: Optional[str], take_profit_price: Optional[float] = None
     ) -> Optional[dict]:
         """
         Modify take profit order for a position.
@@ -258,7 +198,7 @@ class OrderManagement:
 
             tp_side: str = "sell" if side == "long" else "buy"
 
-            ccxt_symbol_tp: str = _ccxt_futures_symbol(self.exchange, symbol)
+            ccxt_symbol_tp: FuturesSymbol = _ccxt_futures_symbol(self.exchange, symbol)
 
             # 2. Cancel existing TP orders only (NOT SL orders).
             # Use _classify_order_kind so CCXT-normalised 'market' typed orders
@@ -274,7 +214,8 @@ class OrderManagement:
                 kind = _classify_order_kind(order, entry_price_tp, side)
                 if kind == "tp":
                     try:
-                        self.exchange.cancel_order(order["id"], ccxt_symbol_tp)
+                        params = BinanceOrderType.cancel_params(order)
+                        self.exchange.cancel_order(order["id"], ccxt_symbol_tp, params=params)
                         cancelled_count += 1
                         log_info(f"Cancelled existing TP order: {order['id']}")
                     except Exception as e:
@@ -282,6 +223,15 @@ class OrderManagement:
 
             # 3. Place new TP order if price provided
             if take_profit_price:
+                mark_price: Optional[float] = self._get_mark_price(FuturesSymbol(ccxt_symbol_tp))
+                if mark_price is not None and mark_price > 0 and _tp_would_immediately_trigger(side, take_profit_price, mark_price):
+                    err = (
+                        f"TP would immediately trigger for {symbol} {side} "
+                        f"(tp=${take_profit_price:,.2f}, mark=${mark_price:,.2f}, Binance -2021)"
+                    )
+                    log_warn(err)
+                    return {"success": False, "error": err, "code": -2021}
+
                 log_info(f"Setting new TP for {symbol} at ${take_profit_price:,.2f}")
 
                 tp_order = cast(
@@ -306,10 +256,10 @@ class OrderManagement:
 
         except Exception as e:
             log_error(f"Failed to modify TP: {e}")
-            return None
+            return {"success": False, "error": str(e)}
 
     def modify_stop_loss(
-        self, symbol: str, position_id: Optional[str], stop_loss_price: Optional[float] = None
+        self, symbol: DbSymbol, position_id: Optional[str], stop_loss_price: Optional[float] = None
     ) -> Optional[dict]:
         """
         Modify stop loss order for a position.
@@ -359,7 +309,7 @@ class OrderManagement:
             sl_side: str = "sell" if side == "long" else "buy"
 
             # Use CCXT futures symbol so we find and cancel existing conditional orders (avoid duplicates)
-            ccxt_symbol: str = _ccxt_futures_symbol(self.exchange, symbol)
+            ccxt_symbol: FuturesSymbol = _ccxt_futures_symbol(self.exchange, symbol)
 
             # 2. Cancel existing SL orders only (NOT TP orders).
             # Use _classify_order_kind so CCXT-normalised 'market' typed orders
@@ -375,7 +325,8 @@ class OrderManagement:
                 kind = _classify_order_kind(order, entry_price_sl, side)
                 if kind == "sl":
                     try:
-                        self.exchange.cancel_order(order["id"], ccxt_symbol)
+                        params = BinanceOrderType.cancel_params(order)
+                        self.exchange.cancel_order(order["id"], ccxt_symbol, params=params)
                         cancelled_count += 1
                         log_info(f"Cancelled existing SL order: {order['id']}")
                     except Exception as e:
@@ -383,7 +334,7 @@ class OrderManagement:
 
             # 3. Place new SL order if price provided (validate to avoid -2021 "Order would immediately trigger")
             if stop_loss_price:
-                mark_price: Optional[float] = self._get_mark_price(symbol)
+                mark_price: Optional[float] = self._get_mark_price(FuturesSymbol(ccxt_symbol))
                 if mark_price is not None and mark_price > 0:
                     would_trigger = (side == "long" and stop_loss_price >= mark_price) or (
                         side == "short" and stop_loss_price <= mark_price
@@ -428,7 +379,7 @@ class OrderManagement:
 
     def modify_tp_sl(
         self,
-        symbol: str,
+        symbol: DbSymbol,
         position_id: Optional[str] = None,
         take_profit_price: Optional[float] = None,
         stop_loss_price: Optional[float] = None,
@@ -457,7 +408,7 @@ class OrderManagement:
 
         return results if results else None
 
-    def cancel_open_orders(self, symbol: str) -> Optional[dict]:
+    def cancel_open_orders(self, symbol: DbSymbol) -> Optional[dict]:
         """
         Cancel all open orders for a symbol (TP, SL, limit orders).
 
@@ -473,17 +424,24 @@ class OrderManagement:
 
         try:
             log_info(f"Cancelling all open orders for {symbol}")
-            ccxt_sym: str = _ccxt_futures_symbol(self.exchange, symbol)
+            ccxt_sym: FuturesSymbol = _ccxt_futures_symbol(self.exchange, symbol)
             open_orders: list = _fetch_all_open_orders(self.exchange, ccxt_sym)
 
             cancelled_count: int = 0
             for order in open_orders:
+                order_id = order["id"]
+                params = BinanceOrderType.cancel_params(order)
+                is_conditional = bool(params)
                 try:
-                    self.exchange.cancel_order(order["id"], ccxt_sym)
+                    self.exchange.cancel_order(order_id, ccxt_sym, params=params)
                     cancelled_count += 1
-                    log_info(f"  Cancelled order: {order['id']} ({order.get('type', 'N/A')})")
+                    order_type = BinanceOrderType.resolve(order)
+                    log_info(
+                        f"  Cancelled {'conditional ' if is_conditional else ''}order: {order_id} ({order_type or 'N/A'})"
+                    )
                 except Exception as e:
-                    log_warn(f"Failed to cancel order {order['id']}: {e}")
+                    order_type = BinanceOrderType.resolve(order)
+                    log_warn(f"Failed to cancel order {order_id} (type={order_type}): {e}")
 
             log_info(f"✅ Cancelled {cancelled_count} open orders for {symbol}")
             return {"symbol": symbol, "cancelled_count": cancelled_count, "success": True}

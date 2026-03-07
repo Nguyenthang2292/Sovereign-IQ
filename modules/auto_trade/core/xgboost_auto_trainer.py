@@ -75,6 +75,7 @@ _TRAINER_REGION = os.environ.get("AWS_REGION", os.environ.get("AWS_DEFAULT_REGIO
 def _boto3_lambda(region: str = _TRAINER_REGION):
     """Create a boto3 Lambda client with explicit env credentials."""
     import boto3
+
     return boto3.client(
         "lambda",
         region_name=region,
@@ -86,6 +87,7 @@ def _boto3_lambda(region: str = _TRAINER_REGION):
 def _boto3_s3(region: str = _TRAINER_REGION):
     """Create a boto3 S3 client with explicit env credentials."""
     import boto3
+
     return boto3.client(
         "s3",
         region_name=region,
@@ -134,12 +136,16 @@ def get_training_status(cache_key: str) -> Optional[str]:
     return entry["status"]
 
 
-# ── Normalizer (mirrors common.domain.symbols.normalize_symbol_key) ──────────
+# ── Normalizer (uses SymbolCodec) ──────────
+
+from modules.common.domain.symbol_codec import SymbolCodec
+
+_CODEC = SymbolCodec()
 
 
 def _normalize(symbol: str) -> str:
-    """Strip separators and uppercase: 'BTC/USDT' → 'BTCUSDT'."""
-    return "".join(ch for ch in symbol.upper() if ch.isalnum())
+    """Convert symbol to DB format: 'BTC/USDT' → 'BTCUSDT'."""
+    return str(_CODEC.to_db(symbol))
 
 
 # ── S3 Check Helper ───────────────────────────────────────────────────────────
@@ -179,7 +185,9 @@ def _model_exists_in_s3(symbol: str, timeframe: str, version: str, bucket: str) 
                         log_warn(
                             "XGBoostAutoTrainer: [%s] model is %.1f days old (limit=%.1f days) — "
                             "will schedule background retrain",
-                            symbol, age_days, _MODEL_AGE_DAYS,
+                            symbol,
+                            age_days,
+                            _MODEL_AGE_DAYS,
                         )
                         # Clear in-memory "ready" status so request_training() re-evaluates
                         with _LOCK:

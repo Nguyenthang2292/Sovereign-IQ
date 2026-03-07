@@ -60,7 +60,7 @@ def train_and_upload(symbol, timeframe, version, bucket):
     model = train_model_with_cv(symbol, timeframe, data)
 
     # Normalize symbol to match Lambda's expected S3 key format
-    # normalize_symbol_key("BTC/USDT") → "BTCUSDT"  (matches handler.rs model_s3_key lookup)
+    # Example: BTC/USDT -> BTCUSDT (matches handler.rs model_s3_key lookup)
     normalized_symbol = "".join(ch for ch in symbol.upper() if ch.isalnum())
     model_filename = f"{normalized_symbol}_{timeframe}_{version}.json"
 

@@ -29,7 +29,6 @@ try:
         log_progress,
         log_success,
         log_warn,
-        normalize_symbol,
         timeframe_to_minutes,
     )
 except ImportError:
@@ -39,7 +38,6 @@ except ImportError:
     PAIRS_TRADING_TIMEFRAME = "1h"
     PAIRS_TRADING_LIMIT = 200
     color_text = None
-    normalize_symbol = None
 
     def log_info(message: str) -> None:
         print(f"[INFO] {message}")

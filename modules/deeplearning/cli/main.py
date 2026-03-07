@@ -60,7 +60,8 @@ from config import (
 )
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
-from modules.common.utils import color_text, normalize_symbol
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.utils import color_text
 from modules.deeplearning.data_pipeline import DeepLearningDataPipeline
 from modules.deeplearning.dataset import create_tft_datamodule
 from modules.deeplearning.model import (
@@ -70,6 +71,8 @@ from modules.deeplearning.model import (
     optimize_tft_hyperparameters,
     save_model_config,
 )
+
+_SYMBOL_CODEC = SymbolCodec()
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -879,7 +882,7 @@ def main():
 
     # Parse symbols
     if args.symbols:
-        symbols = [normalize_symbol(s, args.quote) for s in args.symbols]
+        symbols = [str(_SYMBOL_CODEC.to_ccxt(s)) for s in args.symbols]
     else:
         symbols = [DEFAULT_SYMBOL]
 

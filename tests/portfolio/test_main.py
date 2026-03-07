@@ -70,7 +70,7 @@ def portfolio_manager(mock_exchange_manager, mock_data_fetcher, mock_risk_calcul
     with (
         patch("modules.common.ExchangeManager", return_value=mock_exchange_manager),
         patch("modules.common.DataFetcher", return_value=mock_data_fetcher),
-        patch("modules.portfolio.risk_calculator.PortfolioRiskCalculator", return_value=mock_risk_calculator),
+        patch("modules.portfolio.core.risk_calculator.PortfolioRiskCalculator", return_value=mock_risk_calculator),
     ):
         pm = PortfolioManager()
         pm.data_fetcher = mock_data_fetcher
@@ -255,8 +255,8 @@ def test_portfolio_manager_find_best_hedge_candidate(portfolio_manager, mock_dat
     mock_data_fetcher.list_binance_futures_symbols.return_value = ["ETH/USDT", "BNB/USDT"]
 
     with (
-        patch("modules.portfolio.correlation_analyzer.PortfolioCorrelationAnalyzer"),
-        patch("modules.portfolio.hedge_finder.HedgeFinder") as MockHedgeFinder,
+        patch("modules.portfolio.core.correlation_analyzer.PortfolioCorrelationAnalyzer"),
+        patch("modules.portfolio.core.hedge_finder.HedgeFinder") as MockHedgeFinder,
     ):
         mock_finder_instance = Mock()
         mock_finder_instance.find_best_hedge_candidate.return_value = {"symbol": "ETH/USDT", "correlation": -0.9}
@@ -280,14 +280,14 @@ def test_portfolio_manager_analyze_new_trade(portfolio_manager, mock_data_fetche
     mock_data_fetcher.dataframe_to_close_series.return_value = mock_df["close"]
 
     # Patch correlation analyzer to avoid calling real methods
-    with patch("modules.portfolio.correlation_analyzer.PortfolioCorrelationAnalyzer") as MockAnalyzer:
+    with patch("modules.portfolio.core.correlation_analyzer.PortfolioCorrelationAnalyzer") as MockAnalyzer:
         mock_analyzer_instance = Mock()
         mock_analyzer_instance.calculate_weighted_correlation_with_new_symbol.return_value = (0.8, {})
         mock_analyzer_instance.calculate_portfolio_return_correlation.return_value = (0.75, {})
         MockAnalyzer.return_value = mock_analyzer_instance
 
         # Patch HedgeFinder to return expected values
-        with patch("modules.portfolio.hedge_finder.HedgeFinder") as MockHedgeFinder:
+        with patch("modules.portfolio.core.hedge_finder.HedgeFinder") as MockHedgeFinder:
             mock_finder_instance = Mock()
             mock_finder_instance.analyze_new_trade.return_value = ("SHORT", 500.0, -0.85)
             MockHedgeFinder.return_value = mock_finder_instance
@@ -325,7 +325,7 @@ def test_display_portfolio_analysis(mock_print, portfolio_manager, mock_risk_cal
     mock_risk_calculator.last_var_value = 200.0
     mock_risk_calculator.last_var_confidence = 0.95
 
-    with patch("modules.portfolio.correlation_analyzer.PortfolioCorrelationAnalyzer") as MockAnalyzer:
+    with patch("modules.portfolio.core.correlation_analyzer.PortfolioCorrelationAnalyzer") as MockAnalyzer:
         mock_analyzer_instance = Mock()
         mock_analyzer_instance.calculate_weighted_correlation.return_value = (0.5, {"BTC/USDT": 0.6})
         MockAnalyzer.return_value = mock_analyzer_instance
@@ -351,8 +351,8 @@ def test_display_portfolio_with_hedge_analysis(mock_print, portfolio_manager, mo
     mock_risk_calculator.last_var_confidence = 0.95
 
     with (
-        patch("modules.portfolio.correlation_analyzer.PortfolioCorrelationAnalyzer"),
-        patch("modules.portfolio.hedge_finder.HedgeFinder") as MockHedgeFinder,
+        patch("modules.portfolio.core.correlation_analyzer.PortfolioCorrelationAnalyzer"),
+        patch("modules.portfolio.core.hedge_finder.HedgeFinder") as MockHedgeFinder,
     ):
         mock_finder_instance = Mock()
         mock_finder_instance.find_best_hedge_candidate.return_value = {"symbol": "ETH/USDT", "correlation": -0.9}

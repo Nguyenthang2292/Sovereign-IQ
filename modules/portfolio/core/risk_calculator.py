@@ -22,19 +22,19 @@ try:
         DEFAULT_VAR_MIN_HISTORY_DAYS,
         DEFAULT_VAR_MIN_PNL_SAMPLES,
     )
+    from modules.common.domain.symbol_codec import SymbolCodec
     from modules.common.models.position import Position
     from modules.common.utils import (
         log_analysis,
         log_model,
         log_warn,
-        normalize_symbol,
     )
 except ImportError:
     Position = None
     log_warn = None
     log_analysis = None
     log_model = None
-    normalize_symbol = None
+    SymbolCodec = None
     DEFAULT_BETA_MIN_POINTS = 50
     DEFAULT_BETA_LIMIT = 1000
     DEFAULT_BETA_TIMEFRAME = "1h"
@@ -175,7 +175,7 @@ class PortfolioRiskCalculator:
         """
         benchmark_symbol = benchmark_symbol or self.benchmark_symbol
 
-        # Use normalize_symbol from utils if available, otherwise define fallback
+        # Use SymbolCodec if available, otherwise define fallback
         def normalize_symbol_fallback(user_input: str, quote: str = "USDT") -> str:
             """Fallback normalize_symbol function if import fails."""
             if not user_input:
@@ -187,7 +187,11 @@ class PortfolioRiskCalculator:
                 return f"{norm[: -len(quote)]}/{quote}"
             return f"{norm}/{quote}"
 
-        normalize_func = normalize_symbol if normalize_symbol is not None else normalize_symbol_fallback
+        if SymbolCodec is not None:
+            codec = SymbolCodec()
+            normalize_func = codec.to_ccxt
+        else:
+            normalize_func = normalize_symbol_fallback
 
         normalized_symbol = normalize_func(symbol)
         normalized_benchmark = normalize_func(benchmark_symbol)

@@ -38,7 +38,7 @@ def get_symbol_volumes(symbols: List[str], data_fetcher) -> Dict[str, float]:
     symbol_set = set(symbols)
 
     for market in markets.values():
-        symbol = data_fetcher.exchange_manager.normalize_symbol(market.get("symbol", ""))
+        symbol = data_fetcher.exchange_manager.to_ccxt_symbol(market.get("symbol", ""))
 
         if symbol not in symbol_set:
             continue

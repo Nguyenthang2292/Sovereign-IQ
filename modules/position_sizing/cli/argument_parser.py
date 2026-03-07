@@ -16,14 +16,17 @@ from config import (
     DEFAULT_TIMEFRAME,
     SIGNAL_CALCULATION_MODE,
 )
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.formatting import prompt_user_input_with_backspace
 from modules.common.utils import (
     color_text,
     prompt_user_input,
 )
 
+_SYMBOL_CODEC = SymbolCodec()
 
-def normalize_symbol(symbol: str) -> str:
+
+def format_symbol_input(symbol: str) -> str:
     """
     Normalize symbol input to standard format (BASE/USDT).
 
@@ -43,21 +46,10 @@ def normalize_symbol(symbol: str) -> str:
         return ""
 
     cleaned = symbol.strip().upper()
-
-    # If already has "/", just ensure quote is USDT
-    if "/" in cleaned:
-        base, quote = cleaned.split("/", 1)
-        base = base.strip()
-        quote = quote.strip() or "USDT"
-        return f"{base}/{quote}"
-
-    # If ends with USDT (like "BTCUSDT"), extract base
-    if cleaned.endswith("USDT") and len(cleaned) > 4:
-        base = cleaned[:-4]
-        return f"{base}/USDT"
-
-    # Otherwise, assume it's just the base currency
-    return f"{cleaned}/USDT"
+    normalized = str(_SYMBOL_CODEC.to_ccxt(cleaned))
+    if "/" in normalized:
+        return normalized
+    return str(_SYMBOL_CODEC.to_ccxt(f"{cleaned}USDT"))
 
 
 def parse_symbols_string(symbols_str: str) -> List[str]:
@@ -74,7 +66,7 @@ def parse_symbols_string(symbols_str: str) -> List[str]:
         return []
 
     symbols = [s.strip() for s in symbols_str.split(",") if s.strip()]
-    return [normalize_symbol(s) for s in symbols]
+    return [format_symbol_input(s) for s in symbols]
 
 
 def parse_args():

@@ -9,11 +9,14 @@ from typing import Any, Tuple
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.gemini_chart_analyzer.core.plotting_utils import (
     calculate_candle_width,
     plot_candlesticks,
     prepare_dataframe_for_plotting,
 )
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class SimpleChartGenerator:
@@ -57,7 +60,9 @@ class SimpleChartGenerator:
 
             # Add symbol label if requested
             if show_symbol_label:
-                label = symbol.replace("/USDT", "").replace("/", "_")
+                label_db = str(_SYMBOL_CODEC.to_db(symbol))
+                label = label_db[:-4] if label_db.endswith("USDT") else label_db
+                label = SymbolCodec.sanitize_for_filename(label)
                 ax.text(
                     0.02,
                     0.98,

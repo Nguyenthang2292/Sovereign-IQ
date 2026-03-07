@@ -11,11 +11,14 @@ from typing import Optional, Union
 from colorama import Fore, Style
 
 from config import MODELS_DIR
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_error, log_info
 from modules.common.utils import color_text, initialize_components
 from modules.common.utils.data import fetch_ohlcv_data_dict
 from modules.lstm.cli.interactive import prompt_symbol, prompt_timeframe
 from modules.lstm.models.model_utils import get_latest_signal, load_model_and_scaler
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 def generate_signal_workflow(
@@ -41,7 +44,7 @@ def generate_signal_workflow(
         timeframe = prompt_timeframe()
 
     # Normalize symbol format (remove / if present)
-    symbol = symbol.replace("/", "").upper()
+    symbol = _SYMBOL_CODEC.to_db(symbol)
 
     log_info("=" * 80)
     log_info("LSTM SIGNAL GENERATOR")

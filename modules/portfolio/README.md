@@ -55,4 +55,3 @@ Tất cả config được định nghĩa trong `modules/config.py` section **Po
 
 - [Common Utilities](../common/) - DataFetcher, ExchangeManager
 - [Config](../../modules/config.py) - Portfolio configuration
-

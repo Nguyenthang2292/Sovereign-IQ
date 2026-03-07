@@ -8,7 +8,10 @@ from typing import Optional, cast
 
 import ccxt
 
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_error, log_info, log_warn
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class PositionManagement:
@@ -41,13 +44,11 @@ class PositionManagement:
             return {"symbol": symbol, "contracts": 0, "side": "long", "notional": 0}
 
         try:
-            from modules.common.domain.symbols import normalize_symbol_key
-
             # Normalize input symbol for comparison (e.g. SKL/USDT -> SKLUSDT)
-            normalized_input = normalize_symbol_key(symbol)
+            normalized_input = _SYMBOL_CODEC.to_db(symbol)
 
             def _position_key_for_compare(key: str) -> str:
-                # CCXT futures returns symbol "SKL/USDT:USDT" -> normalize_symbol_key -> "SKLUSDTUSDT".
+                # CCXT futures returns symbol "SKL/USDT:USDT" -> to_db -> "SKLUSDTUSDT".
                 # Collapse trailing duplicate quote so it matches "SKLUSDT".
                 if not key:
                     return key
@@ -61,9 +62,13 @@ class PositionManagement:
 
             for pos in positions:
                 # CCXT may put symbol in top-level or in info
-                pos_symbol = pos.get("symbol") or (pos.get("info") or {}).get("symbol") if isinstance(pos.get("info"), dict) else ""
+                pos_symbol = (
+                    pos.get("symbol") or (pos.get("info") or {}).get("symbol")
+                    if isinstance(pos.get("info"), dict)
+                    else ""
+                )
                 pos_symbol = pos_symbol or ""
-                pos_key = normalize_symbol_key(pos_symbol)
+                pos_key = _SYMBOL_CODEC.to_db(pos_symbol)
                 seen_symbols.append(pos_key)
 
                 if _position_key_for_compare(pos_key) != _position_key_for_compare(normalized_input):

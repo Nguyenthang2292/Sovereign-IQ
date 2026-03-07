@@ -202,8 +202,8 @@ class LayoutManager:
             compound="left",
             font=("Arial", 13, "bold"),
             text_color="black",
-            fg_color="#00ff88",
-            hover_color="#00cc66",
+            fg_color=Colors.BTN_SUCCESS,
+            hover_color=Colors.BTN_SUCCESS_HOVER,
             height=40,
         )
         self.parent.scanner_start_button.pack(fill="x", pady=(0, 8))
@@ -217,15 +217,19 @@ class LayoutManager:
             # Update Scanner Button appearance
             if sm.updater is not None:
                 self.parent.scanner_start_button.configure(
-                    text=" Stop Scanner", image=stop_icon, text_color="white", fg_color="#ff4444", hover_color="#cc0000"
+                    text=" Stop Scanner",
+                    image=stop_icon,
+                    text_color="white",
+                    fg_color=Colors.BTN_DANGER,
+                    hover_color=Colors.BTN_DANGER_HOVER,
                 )
             else:
                 self.parent.scanner_start_button.configure(
                     text=" Start Scanner",
                     image=play_icon,
                     text_color="black",
-                    fg_color="#00ff88",
-                    hover_color="#00cc66",
+                    fg_color=Colors.BTN_SUCCESS,
+                    hover_color=Colors.BTN_SUCCESS_HOVER,
                 )
                 # Clear countdown when scanner is stopped
                 if hasattr(self.parent, "scanner_countdown_label"):
@@ -305,6 +309,16 @@ class LayoutManager:
                 if hasattr(p, "gann_lookback_entry"):
                     p.gann_lookback_entry.delete(0, "end")
                     p.gann_lookback_entry.insert(0, str(config.get("gann_lookback", 5)))
+                # Order Book Gate
+                if hasattr(p, "enable_order_book_var"):
+                    p.enable_order_book_var.set(config.get("enable_order_book", False))
+                if hasattr(p, "ob_depth_entry"):
+                    p.ob_depth_entry.delete(0, "end")
+                    p.ob_depth_entry.insert(0, str(config.get("ob_depth", 20)))
+                if hasattr(p, "ob_imbalance_threshold_var"):
+                    p.ob_imbalance_threshold_var.set(config.get("ob_imbalance_threshold", 0.2))
+                    if hasattr(p, "ob_threshold_label"):
+                        p.ob_threshold_label.configure(text=f"{config.get('ob_imbalance_threshold', 0.2):.2f}")
 
                 if hasattr(p, "settings_labels") and isinstance(p.settings_labels, dict):
                     labels = p.settings_labels
@@ -405,6 +419,19 @@ class LayoutManager:
                     config["gann_lookback"] = int(p.gann_lookback_entry.get())
                 except (AttributeError, ValueError, TypeError):
                     pass
+                # Order Book Gate
+                try:
+                    config["enable_order_book"] = bool(p.enable_order_book_var.get())
+                except (AttributeError, Exception):
+                    pass
+                try:
+                    config["ob_depth"] = max(1, int(p.ob_depth_entry.get() or "20"))
+                except (AttributeError, ValueError, TypeError):
+                    pass
+                try:
+                    config["ob_imbalance_threshold"] = round(float(p.ob_imbalance_threshold_var.get()), 2)
+                except (AttributeError, TypeError, ValueError):
+                    pass
 
                 if hasattr(p, "on_scanner_config_change"):
                     p.on_scanner_config_change(config)
@@ -443,6 +470,16 @@ class LayoutManager:
                         labels["gann_candle_limit"].configure(text=str(config.get("gann_candle_limit", 200)))
                     if "gann_lookback" in labels:
                         labels["gann_lookback"].configure(text=str(config.get("gann_lookback", 5)))
+                    if "enable_order_book" in labels:
+                        labels["enable_order_book"].configure(
+                            text="Enabled" if config.get("enable_order_book", False) else "Disabled"
+                        )
+                    if "ob_depth" in labels:
+                        labels["ob_depth"].configure(text=str(config.get("ob_depth", 20)))
+                    if "ob_imbalance_threshold" in labels:
+                        labels["ob_imbalance_threshold"].configure(
+                            text=f"{config.get('ob_imbalance_threshold', 0.2):.2f}"
+                        )
             except Exception:
                 pass
 
@@ -572,12 +609,22 @@ class LayoutManager:
 
         self.parent.min_signal_score_var.trace_add("write", _on_score_change)
 
+        # Explanation for Min Signal Score
+        ctk.CTkLabel(
+            signal_group,
+            text="(High score = stricter filtering.\nE.g. >0.4 means fewer but stronger signals)",
+            font=("Arial", 9, "italic"),
+            text_color="gray",
+            justify="left",
+            anchor="w",
+        ).grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
+
         # Min 24h Volume
         ctk.CTkLabel(signal_group, text="Min 24h Vol (M):", font=("Arial", 10), text_color="gray", anchor="w").grid(
-            row=2, column=0, sticky="w", padx=(10, 5), pady=(4, 8)
+            row=3, column=0, sticky="w", padx=(10, 5), pady=(4, 8)
         )
         self.parent.min_volume_entry = ctk.CTkEntry(signal_group, placeholder_text="50")
-        self.parent.min_volume_entry.grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=(4, 8))
+        self.parent.min_volume_entry.grid(row=3, column=1, sticky="ew", padx=(0, 10), pady=(4, 8))
         self.parent.min_volume_entry.insert(0, "50")
         self.parent.min_volume_entry.bind("<FocusOut>", lambda e: self._push_scanner_config())
         self.parent.min_volume_entry.bind("<Return>", lambda e: self._push_scanner_config())
@@ -634,7 +681,7 @@ class LayoutManager:
         ctk.CTkLabel(
             atc_group,
             text="Scaled down when some timeframes fail.",
-            font=("Arial", 9),
+            font=("Arial", 9, "italic"),
             text_color="gray",
             anchor="w",
         ).grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
@@ -731,6 +778,80 @@ class LayoutManager:
         self.parent.gann_lookback_entry.bind("<FocusOut>", lambda e: self._push_scanner_config())
         self.parent.gann_lookback_entry.bind("<Return>", lambda e: self._push_scanner_config())
 
+        # ═══════════════════════════════════════════════
+        # GROUP 6: Order Book Configuration
+        # ═══════════════════════════════════════════════
+        ob_group = ctk.CTkFrame(inputs_frame, fg_color=("gray85", "gray20"), corner_radius=8)
+        ob_group.pack(fill="x", pady=(0, 8))
+        ob_group.grid_columnconfigure(0, weight=0, minsize=130)
+        ob_group.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(ob_group, text="Order Book Configuration", font=("Arial", 14, "bold")).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4)
+        )
+
+        # Enable checkbox
+        self.parent.enable_order_book_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(
+            ob_group,
+            text="Enable Order Book Gate",
+            variable=self.parent.enable_order_book_var,
+            command=self._push_scanner_config,
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 4))
+
+        # Depth levels
+        ctk.CTkLabel(ob_group, text="Depth levels:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=2, column=0, sticky="w", padx=(10, 5), pady=4
+        )
+        self.parent.ob_depth_entry = ctk.CTkEntry(ob_group, placeholder_text="20")
+        self.parent.ob_depth_entry.grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=4)
+        self.parent.ob_depth_entry.insert(0, "20")
+        self.parent.ob_depth_entry.bind("<FocusOut>", lambda e: self._push_scanner_config())
+        self.parent.ob_depth_entry.bind("<Return>", lambda e: self._push_scanner_config())
+
+        # Imbalance threshold
+        ctk.CTkLabel(ob_group, text="Imbalance threshold:", font=("Arial", 10), text_color="gray", anchor="w").grid(
+            row=3, column=0, sticky="w", padx=(10, 5), pady=4
+        )
+
+        slider_ob = ctk.CTkFrame(ob_group, fg_color="transparent")
+        slider_ob.grid(row=3, column=1, sticky="ew", padx=(0, 10), pady=4)
+        slider_ob.grid_columnconfigure(0, weight=1)
+        slider_ob.grid_columnconfigure(1, weight=0)
+
+        self.parent.ob_imbalance_threshold_var = ctk.DoubleVar(value=0.2)
+        ctk.CTkSlider(
+            slider_ob,
+            from_=0.0,
+            to=1.0,
+            number_of_steps=100,
+            variable=self.parent.ob_imbalance_threshold_var,
+            command=lambda _: self._push_scanner_config(),
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 5))
+
+        self.parent.ob_threshold_label = ctk.CTkLabel(
+            slider_ob, text="0.20", font=("Arial", 9), text_color="gray", width=30
+        )
+        self.parent.ob_threshold_label.grid(row=0, column=1, sticky="e")
+
+        ctk.CTkLabel(
+            ob_group,
+            text="Min bid/ask imbalance ratio to confirm signal.",
+            font=("Arial", 9, "italic"),
+            text_color="gray",
+            anchor="w",
+        ).grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
+
+        def _on_ob_threshold_change(*_args):
+            try:
+                v = self.parent.ob_imbalance_threshold_var.get()
+                self.parent.ob_threshold_label.configure(text=f"{v:.2f}")
+                self._push_scanner_config()
+            except Exception:
+                pass
+
+        self.parent.ob_imbalance_threshold_var.trace_add("write", _on_ob_threshold_change)
+
         # Column 1: Current Settings
         settings_frame = ctk.CTkFrame(parent, fg_color=Colors.get_card_bg(), corner_radius=10)
         settings_frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=(0, 10))
@@ -783,6 +904,14 @@ class LayoutManager:
                     ("Timeframe:", "1h", "gann_timeframe"),
                     ("Candles Limit:", "200", "gann_candle_limit"),
                     ("Lookback:", "5", "gann_lookback"),
+                ],
+            ),
+            (
+                "Order Book Config",
+                [
+                    ("OB Gate:", "Disabled", "enable_order_book"),
+                    ("Depth levels:", "20", "ob_depth"),
+                    ("Imbalance:", "0.20", "ob_imbalance_threshold"),
                 ],
             ),
         ]
@@ -848,7 +977,7 @@ class LayoutManager:
             image=folder_icon,
             compound="left",
             width=130,
-            fg_color="#555555",
+            fg_color=Colors.BTN_NEUTRAL,
             hover_color="#666666",
             command=self._open_log_folder,
         ).pack(pady=6)
@@ -859,8 +988,8 @@ class LayoutManager:
             image=trash_icon,
             compound="left",
             width=130,
-            fg_color="#ff6644",
-            hover_color="#cc4422",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=self._clear_logs,
         ).pack(pady=(6, 0))
 
@@ -975,8 +1104,8 @@ class LayoutManager:
             apply_btn_frame,
             text="Apply Settings",
             font=("Arial", 14, "bold"),
-            fg_color="#1f538d",
-            hover_color="#2a6bb5",
+            fg_color=Colors.BTN_PRIMARY,
+            hover_color=Colors.BTN_PRIMARY_HOVER,
             height=40,
             command=self.parent.on_apply_settings,
         )

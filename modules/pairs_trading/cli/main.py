@@ -15,6 +15,7 @@ from colorama import Fore
 from colorama import init as colorama_init
 
 from modules.common import DataFetcher, ExchangeManager
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.utils import (
     color_text,
     configure_windows_stdio,
@@ -25,7 +26,6 @@ from modules.common.utils import (
     log_progress,
     log_success,
     log_warn,
-    normalize_symbol_key,
 )
 from modules.pairs_trading.analysis import PerformanceAnalyzer
 from modules.pairs_trading.cli.argument_parser import PAIRS_TRADING_OPPORTUNITY_PRESETS, parse_args
@@ -53,6 +53,8 @@ configure_windows_stdio()
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
 colorama_init(autoreset=True)
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 def main() -> None:
@@ -260,12 +262,12 @@ def main() -> None:
         return
 
     if target_symbol_inputs:
-        available_lookup = {normalize_symbol_key(sym): sym for sym in symbols}
+        available_lookup = {str(_SYMBOL_CODEC.to_db(sym)): sym for sym in symbols}
         missing_targets = []
         mapped_targets = []
         newly_added_symbols = []
         for sym in parsed_target_symbols:
-            normalized_key = normalize_symbol_key(sym)
+            normalized_key = str(_SYMBOL_CODEC.to_db(sym))
             actual_symbol = available_lookup.get(normalized_key)
             if actual_symbol:
                 mapped_targets.append(actual_symbol)

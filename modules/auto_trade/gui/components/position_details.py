@@ -5,6 +5,7 @@ import customtkinter as ctk
 from modules.auto_trade.gui.components.position_actions import PositionActions
 from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.formatters import format_asset_price, format_price
+from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 
 
 class PositionDetails(ctk.CTkToplevel):
@@ -22,6 +23,8 @@ class PositionDetails(ctk.CTkToplevel):
         on_action_callback: Optional[Callable] = None,
     ):
         super().__init__(parent)
+        
+        apply_dark_titlebar(self)
 
         self.position = position
         self.on_close_callback = on_close_callback

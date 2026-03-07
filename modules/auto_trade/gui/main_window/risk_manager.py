@@ -148,8 +148,9 @@ class RiskManager:
 
     def _check_symbol_limit(self, positions: list, symbol: str) -> bool:
         """Check per-symbol position limit."""
-        from modules.common.domain.symbols import normalize_symbol_key
+        from modules.common.domain.symbol_codec import SymbolCodec
 
+        _symbol_codec = SymbolCodec()
         max_per_symbol = self.parent.settings_manager.get("risk.max_positions_per_symbol", 1)
 
         if not isinstance(max_per_symbol, int) or max_per_symbol <= 0:
@@ -157,11 +158,8 @@ class RiskManager:
             max_per_symbol = 1
 
         # Normalize both sides for comparison (BTCUSDT and BTC/USDT should match)
-        normalized_input = normalize_symbol_key(symbol)
-        symbol_positions = [
-            p for p in positions
-            if normalize_symbol_key(p.get("symbol", "")) == normalized_input
-        ]
+        normalized_input = _symbol_codec.to_db(symbol)
+        symbol_positions = [p for p in positions if _symbol_codec.to_db(p.get("symbol", "")) == normalized_input]
 
         if len(symbol_positions) >= max_per_symbol:
             print(f"Risk limit exceeded: Max positions for {symbol} reached ({len(symbol_positions)}/{max_per_symbol})")

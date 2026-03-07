@@ -1,53 +1,49 @@
-from pathlib import Path
-import sys
+from modules.common.data.fetchers import fetch_ohlcv_data_dict
+from modules.common.ui.logging import log_error
 
-import pandas as pd
+from .analyzer import SMCAnalyzer
+from .charts.renderer import SMCChartRenderer
 
-try:
-    from .analyzer import SMCAnalyzer
-    from .charts.renderer import SMCChartRenderer
-except ImportError:
-    project_root = Path(__file__).resolve().parents[2]
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
-    from modules.smart_money_concept.analyzer import SMCAnalyzer
-    from modules.smart_money_concept.charts.renderer import SMCChartRenderer
+_DEFAULT_SYMBOL = "BTCUSDT"
+_DEFAULT_TIMEFRAME = "4h"
+_DEFAULT_LIMIT = 500
+
 
 def main():
-    try:
-        import yfinance as yf
-    except ImportError:
-        print("Thiếu dependency 'yfinance'. Cài bằng: pip install yfinance")
+    symbol = (
+        input(f"Nhập symbol để phân tích SMC (ví dụ: BTCUSDT, ETHUSDT) [{_DEFAULT_SYMBOL}]: ").strip()
+        or _DEFAULT_SYMBOL
+    )
+
+    timeframe = input(f"Nhập timeframe (ví dụ: 1h, 4h, 1d) [{_DEFAULT_TIMEFRAME}]: ").strip() or _DEFAULT_TIMEFRAME
+
+    print(f"Đang tải dữ liệu cho {symbol} / {timeframe}...")
+
+    data = fetch_ohlcv_data_dict(
+        symbols=[symbol],
+        timeframes=[timeframe],
+        limit=_DEFAULT_LIMIT,
+    )
+
+    if not data or symbol not in data or timeframe not in data[symbol]:
+        log_error(f"Không tải được dữ liệu cho {symbol} {timeframe}.")
+        print(f"Lỗi: Không tải được dữ liệu cho {symbol} {timeframe}.")
         return
 
-    ticker = input("Nhập Ticker để phân tích SMC (ví dụ: AAPL, BTC-USD): ").strip()
-    if not ticker:
-        ticker = "AAPL"
-        
-    print(f"Đang tải dữ liệu cho {ticker}...")
-    try:
-        df = yf.download(ticker, start="2023-01-01", end="2024-01-01", auto_adjust=True)
-    except Exception as e:
-        print(f"Lỗi khi tải dữ liệu: {e}")
-        return
+    df = data[symbol][timeframe]
 
     if df.empty:
-        print(f"Không tìm thấy dữ liệu cho {ticker}.")
+        print(f"Không tìm thấy dữ liệu cho {symbol} {timeframe}.")
         return
-
-    # Normalize DataFrame
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.droplevel(1)
-        
-    df.reset_index(inplace=True)
 
     analyzer = SMCAnalyzer()
     state = analyzer.run(df)
 
     renderer = SMCChartRenderer()
-    fig = renderer.render(state, ticker)
-    
+    fig = renderer.render(state, f"{symbol} {timeframe}")
+
     fig.show()
+
 
 if __name__ == "__main__":
     main()

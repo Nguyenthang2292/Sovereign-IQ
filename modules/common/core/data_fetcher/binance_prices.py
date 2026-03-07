@@ -2,12 +2,15 @@
 
 from typing import TYPE_CHECKING
 
-from modules.common.domain import normalize_symbol
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_error, log_exchange, log_success, log_warn
 from modules.common.ui.progress_bar import ProgressBar
 
 if TYPE_CHECKING:
     from .base import DataFetcherBase
+
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class BinancePriceFetcher:
@@ -52,7 +55,7 @@ class BinancePriceFetcher:
             if self.base.should_stop():
                 log_warn("Price fetch aborted due to shutdown signal.")
                 break
-            normalized_symbol = normalize_symbol(symbol)
+            normalized_symbol = _SYMBOL_CODEC.to_ccxt(symbol)
             try:
                 # Use authenticated manager's throttled_call
                 ticker = self.base.exchange_manager.authenticated.throttled_call(

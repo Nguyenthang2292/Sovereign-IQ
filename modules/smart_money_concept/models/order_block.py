@@ -8,9 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-BULLISH = 1
-NEUTRAL = 0
-BEARISH = -1
+from ..core.constants import BULLISH, BEARISH, NEUTRAL
 
 
 @dataclass
@@ -24,6 +22,8 @@ class OrderBlock:
         level_y0: The lower price level of the block (typically Low)
         level_y1: The upper price level of the block (typically High)
         bias: Direction bias - BULLISH (1), BEARISH (-1), or NEUTRAL (0)
+        bar_low: The Low price of the bar that formed the OB (for mitigation)
+        bar_high: The High price of the bar that formed the OB (for mitigation)
     """
 
     start: Optional[datetime] = None
@@ -31,6 +31,8 @@ class OrderBlock:
     level_y0: float = 0.0
     level_y1: float = 0.0
     bias: int = NEUTRAL
+    bar_low: float = 0.0
+    bar_high: float = 0.0
 
     def __post_init__(self):
         if self.level_y0 < 0:
@@ -49,7 +51,8 @@ class OrderBlock:
     def __repr__(self) -> str:
         return (
             f"OrderBlock(start={self.start}, end={self.end}, "
-            f"level_y0={self.level_y0}, level_y1={self.level_y1}, bias={self.bias})"
+            f"level_y0={self.level_y0}, level_y1={self.level_y1}, bias={self.bias}, "
+            f"bar_low={self.bar_low}, bar_high={self.bar_high})"
         )
 
     @property

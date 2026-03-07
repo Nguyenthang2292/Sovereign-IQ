@@ -7,6 +7,8 @@ weights, symbols, and other configuration parameters.
 
 from typing import Dict, Optional, Tuple
 
+from modules.common.domain.symbol_codec import SymbolCodec
+
 try:
     from config import (
         PAIRS_TRADING_WEIGHT_PRESETS,
@@ -42,16 +44,11 @@ def standardize_symbol_input(symbol: str) -> str:
     if not symbol:
         return ""
     cleaned = symbol.strip().upper()
-    if "/" in cleaned:
-        base, quote = cleaned.split("/", 1)
-        base = base.strip()
-        quote = quote.strip() or "USDT"
-        return f"{base}/{quote}"
-    if cleaned.endswith("USDT"):
-        base = cleaned[:-4]
-        base = base.strip()
-        return f"{base}/USDT"
-    return f"{cleaned}/USDT"
+    codec = SymbolCodec()
+    normalized = str(codec.to_ccxt(cleaned))
+    if "/" in normalized:
+        return normalized
+    return str(codec.to_ccxt(f"{cleaned}USDT"))
 
 
 def parse_weights(weights_str: Optional[str], preset_key: Optional[str] = None) -> Dict[str, float]:

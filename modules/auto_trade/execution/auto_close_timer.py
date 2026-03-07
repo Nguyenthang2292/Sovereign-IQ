@@ -15,7 +15,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Tuple
 
 from modules.auto_trade.execution.binance_client import BinanceClient
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_error, log_info, log_warn
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 @dataclass
@@ -66,13 +69,8 @@ def to_utc_iso(dt: datetime) -> str:
 
 
 def symbol_for_ccxt(symbol: str) -> str:
-    """Convert DB symbol (e.g. BTCUSDT) to CCXT format (BTC/USDT)."""
-    s = (symbol or "").strip()
-    if "/" in s:
-        return s
-    if s.endswith("USDT"):
-        return s[:-4] + "/USDT"
-    return s + "/USDT" if s else s
+    """Convert any symbol format to CCXT spot format."""
+    return str(_SYMBOL_CODEC.to_ccxt(symbol))
 
 
 def get_order_id(order: Dict[str, Any]) -> str:
@@ -203,7 +201,7 @@ def execute_auto_close(
     binance_client: Optional[BinanceClient],
     tp_offset_pct: float,
 ) -> AutoCloseExecutionResult:
-    """Execute auto-close by updating TP to a near-market trigger price."""
+    """Execute auto-close by attempting near-market TP first, then market-close fallback."""
     now_utc = datetime.now(timezone.utc)
     symbol = str(order.get("symbol", "") or "")
     side = str(order.get("side", "LONG") or "LONG").upper()
@@ -224,24 +222,85 @@ def execute_auto_close(
 
     target_tp = _calc_quasi_market_tp(mark_price, side, tp_offset_pct)
 
+    ccxt_symbol = symbol_for_ccxt(symbol)
+
+    # Step 1: best effort via TP modification (existing behavior).
     try:
-        ccxt_symbol = symbol_for_ccxt(symbol)
-        result = binance_client.modify_take_profit(
+        tp_result = binance_client.modify_take_profit(
             symbol=ccxt_symbol,
             position_id=None,
             take_profit_price=target_tp,
         )
-        success = result is not None and (
-            bool(result.get("success")) or bool(result.get("id")) or bool(result.get("dry_run"))
-        )
-        if not success:
-            err = str((result or {}).get("error", "Unknown error"))
-            return AutoCloseExecutionResult(False, f"Failed to place TP close order: {err}", target_tp, now_utc)
+    except Exception as exc:
+        tp_result = {"success": False, "error": f"{exc}"}
 
+    tp_success = tp_result is not None and (
+        bool(tp_result.get("success")) or bool(tp_result.get("id")) or bool(tp_result.get("dry_run"))
+    )
+    if tp_success:
         log_info(
             f"[AutoClose] Triggered {symbol} {side} | reason={reason} | mark={mark_price:.6f} | target_tp={target_tp:.6f}"
         )
-        return AutoCloseExecutionResult(True, "Auto-close trigger sent", target_tp, now_utc)
+        return AutoCloseExecutionResult(True, "Auto-close trigger sent via TP", target_tp, now_utc)
+
+    tp_error = str((tp_result or {}).get("error", "TP update failed"))
+    log_warn(f"[AutoClose] TP update failed for {symbol}, fallback to market close: {tp_error}")
+
+    can_fallback_market = hasattr(binance_client, "get_position") and hasattr(binance_client, "close_position")
+    if not can_fallback_market:
+        return AutoCloseExecutionResult(False, f"Failed to place TP close order: {tp_error}", target_tp, now_utc)
+
+    # Step 2: robust fallback via reduceOnly market close.
+    try:
+        position = binance_client.get_position(symbol)
+        if not position:
+            return AutoCloseExecutionResult(False, f"Failed TP and no open position: {tp_error}", target_tp, now_utc)
+
+        raw_size = position.get("contracts")
+        if raw_size is None:
+            raw_size = position.get("positionAmt")
+        if raw_size is None and isinstance(position.get("info"), dict):
+            raw_size = position.get("info", {}).get("positionAmt")
+
+        try:
+            size = abs(float(raw_size or 0))
+        except (TypeError, ValueError):
+            size = 0.0
+        if size <= 0:
+            return AutoCloseExecutionResult(False, f"Failed TP and invalid position size: {tp_error}", target_tp, now_utc)
+
+        pos_side = str(position.get("side") or "").lower()
+        if pos_side not in {"long", "short"}:
+            try:
+                amt = float(position.get("positionAmt") or (position.get("info") or {}).get("positionAmt") or 0)
+            except (TypeError, ValueError):
+                amt = 0.0
+            pos_side = "long" if amt > 0 else "short"
+
+        close_symbol = str(position.get("symbol") or ccxt_symbol)
+        close_result = binance_client.close_position(
+            symbol=close_symbol,
+            side=pos_side,
+            size=size,
+            order_type="market",
+        )
+        close_success = close_result is not None and (
+            bool(close_result.get("id")) or bool(close_result.get("dry_run")) or bool(close_result.get("success"))
+        )
+        if not close_success:
+            close_err = str((close_result or {}).get("error", "Unknown error"))
+            return AutoCloseExecutionResult(
+                False,
+                f"Failed TP ({tp_error}) and market close failed: {close_err}",
+                target_tp,
+                now_utc,
+            )
+
+        log_info(
+            f"[AutoClose] Fallback market close sent for {symbol} {pos_side} | "
+            f"reason={reason} | size={size:.8f} | tp_error={tp_error}"
+        )
+        return AutoCloseExecutionResult(True, "Auto-close executed via market fallback", target_tp, now_utc)
     except Exception as exc:
         log_error(f"[AutoClose] Execute failed for {symbol}: {exc}")
         return AutoCloseExecutionResult(False, f"Execute failed: {exc}", target_tp, now_utc)

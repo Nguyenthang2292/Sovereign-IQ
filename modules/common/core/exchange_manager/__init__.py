@@ -41,7 +41,9 @@ import logging
 import os
 from typing import Optional
 
-from modules.common.domain import normalize_symbol
+from modules.common.domain.symbol_codec import SymbolCodec
+
+_SYMBOL_CODEC = SymbolCodec()
 
 # Import config with fallbacks
 try:
@@ -54,9 +56,10 @@ except ImportError:
     def get_binance_api_secret():
         return None
 
+
 # Import modular components
-from .base import ExchangeWrapper
 from .authenticated import AuthenticatedExchangeManager
+from .base import ExchangeWrapper
 from .public import PublicExchangeManager
 
 logger = logging.getLogger(__name__)
@@ -124,7 +127,7 @@ class ExchangeManager:
         self.api_secret = api_secret or os.getenv("BINANCE_API_SECRET") or get_binance_api_secret()
         self.testnet = testnet
 
-    def normalize_symbol(self, market_symbol: str) -> str:
+    def to_ccxt_symbol(self, market_symbol: str) -> str:
         """
         Normalize market symbol by converting exchange-specific formats to standard format.
 
@@ -144,14 +147,12 @@ class ExchangeManager:
 
         Example:
             >>> manager = ExchangeManager()
-            >>> manager.normalize_symbol('BTC/USDT:USDT')
+            >>> manager.to_ccxt_symbol('BTC/USDT:USDT')
             'BTC/USDT'
-            >>> manager.normalize_symbol('ETHUSDT')
+            >>> manager.to_ccxt_symbol('ETHUSDT')
             'ETH/USDT'
         """
-        if ":" in market_symbol:
-            market_symbol = market_symbol.split(":")[0]
-        return normalize_symbol(market_symbol)
+        return _SYMBOL_CODEC.to_ccxt(market_symbol)
 
     @property
     def exchange_priority_for_fallback(self):
@@ -220,7 +221,7 @@ class ExchangeManager:
         self.authenticated.cleanup_unused_exchanges(max_age_hours)
         self.public.cleanup_unused_exchanges(max_age_hours)
 
-    def close_exchange(self, exchange_id: str, testnet: bool = False, contract_type: str = None):
+    def close_exchange(self, exchange_id: str, testnet: bool = False, contract_type: Optional[str] = None):
         """
         Close and remove a specific exchange connection (both authenticated and public).
 

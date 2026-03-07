@@ -5,11 +5,20 @@ from unittest.mock import MagicMock, patch
 
 def _make_parent(*, signals, tp_sl=None):
     tp_sl = tp_sl or {"default_tp": 7.0, "default_sl": 3.0}
+    obi_cfg = {
+        "enabled": True,
+        "threshold": 0.15,
+        "retry_wait_seconds": 0,
+        "max_retries": 1,
+        "delta_window_minutes": 5,
+    }
 
     class _Settings:
         def get(self, key, default=None):
             if key == "tp_sl":
                 return tp_sl
+            if key == "order_book_imbalance":
+                return obi_cfg
             if key == "trading.default_position_size":
                 return 100.0
             if key == "trading.default_leverage":
@@ -19,7 +28,12 @@ def _make_parent(*, signals, tp_sl=None):
             return default
 
     parent = SimpleNamespace()
-    parent.data_service = SimpleNamespace(get_signals=MagicMock(return_value=signals))
+    parent.data_service = SimpleNamespace(
+        get_signals=MagicMock(return_value=signals),
+        api_key="test_key",
+        api_secret="test_secret",
+        testnet=True,
+    )
     parent.settings_manager = _Settings()
     parent.after = MagicMock()
     parent.refresh_positions = MagicMock()
@@ -44,12 +58,20 @@ def test_auto_trade_picks_best_fresh_signal_by_score_and_passes_tp_sl():
 
         # Capture executor call
         with patch("modules.auto_trade.execution.order_executor.OrderExecutor") as MockExecutor:
-            MockExecutor.return_value.execute_from_signal.return_value = {"success": False}
+            MockExecutor.return_value.execute_from_signal.return_value = {"success": True}
 
             with patch.object(time, "time", return_value=now):
                 AutoTradeManager(parent)._auto_trade_cycle()
 
             MockExecutor.return_value.execute_from_signal.assert_called_once()
+            _, executor_kwargs = MockExecutor.call_args
+            assert executor_kwargs["order_book_imbalance_config"] == {
+                "enabled": True,
+                "threshold": 0.15,
+                "retry_wait_seconds": 0,
+                "max_retries": 1,
+                "delta_window_minutes": 5,
+            }
             args, kwargs = MockExecutor.return_value.execute_from_signal.call_args
             assert args[0]["symbol"] == "CCCUSDT", "Expected best signal symbol to be selected"
             assert args[0]["signal"] == "LONG", "Expected best signal type to be used"

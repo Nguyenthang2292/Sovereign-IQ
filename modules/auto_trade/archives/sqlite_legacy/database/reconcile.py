@@ -22,7 +22,7 @@ _reconcile_lock = threading.Lock()
 DEFAULT_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT"]
 
 
-def _normalize_symbol(s: Optional[str]) -> str:
+def _symbol_to_ccxt(s: Optional[str]) -> str:
     """Ensure symbol is in CCXT form (e.g. BTC/USDT)."""
     s = (s or "").strip()
     if not s:
@@ -87,7 +87,7 @@ def reconcile_orders_with_binance(
     if symbols is not None:
         if isinstance(symbols, str):
             symbols = [s.strip() for s in symbols.replace("\n", ",").split(",") if s.strip()]
-        symbols = [x for x in (_normalize_symbol(s) for s in (symbols or [])) if x]
+        symbols = [x for x in (_symbol_to_ccxt(s) for s in (symbols or [])) if x]
     symbols = symbols or DEFAULT_SYMBOLS
     since_ts = int((time.time() - since_hours * 3600) * 1000)
 
@@ -414,7 +414,7 @@ def reconcile_orders_with_binance(
 
                     for order_dict in open_orders:
                         db_symbol = str(order_dict.get("symbol", ""))  # e.g., BTCUSDT
-                        ccxt_symbol = _normalize_symbol(db_symbol)  # e.g., BTC/USDT
+                        ccxt_symbol = _symbol_to_ccxt(db_symbol)  # e.g., BTC/USDT
                         symbol_map[db_symbol] = ccxt_symbol
                         if ccxt_symbol not in db_orders_by_symbol:
                             db_orders_by_symbol[ccxt_symbol] = []

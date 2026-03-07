@@ -21,6 +21,7 @@ import pandas as pd
 
 matplotlib.use("Agg")  # Non-interactive backend
 
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_success
 from modules.gemini_chart_analyzer.core.plotting_utils import (
     calculate_candle_width,
@@ -273,6 +274,6 @@ class GannChartGenerator:
     def _auto_output_path(self, symbol: str, timeframe: str) -> str:
         """Generate automatic output path."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_symbol = symbol.replace("/", "_").replace(":", "_")
+        safe_symbol = SymbolCodec.sanitize_for_filename(symbol)
         os.makedirs(self.output_dir, exist_ok=True)
         return os.path.join(self.output_dir, f"gann_{safe_symbol}_{timeframe}_{timestamp}.png")

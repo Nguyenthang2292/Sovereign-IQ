@@ -11,7 +11,12 @@ import ccxt
 
 from modules.auto_trade.execution.binance.order_management import _ccxt_futures_symbol, _fetch_all_open_orders
 from modules.auto_trade.execution.order_builder import OrderBuilder, OrderTicket
+from modules.common.domain.order_type_codec import BinanceOrderType
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.domain.symbol_types import DbSymbol, FuturesSymbol
 from modules.common.ui.logging import log_error, log_info, log_warn
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class OrderExecution:
@@ -41,13 +46,16 @@ class OrderExecution:
         self.dry_run = dry_run
 
     def create_market_order(
-        self, order: OrderTicket, api_key: Optional[str] = None, api_secret: Optional[str] = None
+        self,
+        order: OrderTicket,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
     ) -> Optional[dict]:
         """
         Create a market order on Binance Futures.
 
         Args:
-            order: Order ticket with all parameters
+            order: Order ticket with all parameters (symbol is DbSymbol format)
             api_key: Optional API key override
             api_secret: Optional API secret override
 
@@ -184,7 +192,7 @@ class OrderExecution:
 
         # Step 5: Cancel any existing TP/SL conditional orders before placing new ones
         # This prevents duplicate conditional orders (the root cause of the 10-order bug)
-        ccxt_symbol: str = _ccxt_futures_symbol(self.exchange, order.symbol)
+        ccxt_symbol: FuturesSymbol = _ccxt_futures_symbol(self.exchange, order.symbol)
         self._cancel_existing_tp_sl(ccxt_symbol)
 
         # Step 6: Place TP/SL orders using the correct futures symbol
@@ -229,7 +237,7 @@ class OrderExecution:
         log_error(f"Failed to set leverage after {self.max_retries} attempts")
         return False
 
-    def _cancel_existing_tp_sl(self, ccxt_symbol: str) -> None:
+    def _cancel_existing_tp_sl(self, ccxt_symbol: FuturesSymbol) -> None:
         """
         Cancel all existing TP/SL conditional orders for a symbol.
         This prevents duplicate conditional orders when placing new TP/SL.
@@ -243,12 +251,12 @@ class OrderExecution:
         try:
             open_orders: list = _fetch_all_open_orders(self.exchange, ccxt_symbol)
             for order in open_orders:
-                info = order.get("info") or {}
-                order_type = (info.get("type") or info.get("origType") or order.get("type") or "").upper()
                 # Cancel TP and SL conditional orders
-                if "TAKE_PROFIT" in order_type or "STOP" in order_type:
+                if BinanceOrderType.is_conditional(order):
                     try:
-                        self.exchange.cancel_order(order["id"], ccxt_symbol)
+                        params = BinanceOrderType.cancel_params(order)
+                        order_type = BinanceOrderType.resolve(order)
+                        self.exchange.cancel_order(order["id"], ccxt_symbol, params=params)
                         log_info(f"Cancelled existing conditional order: {order['id']} ({order_type})")
                     except Exception as e:
                         log_warn(f"Failed to cancel conditional order {order['id']}: {e}")

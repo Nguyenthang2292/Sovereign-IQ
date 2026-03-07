@@ -6,6 +6,7 @@ from typing import List, Tuple
 from ..models.pivot import Pivot
 from .trend import compute_atr
 from .swing import _detect_swing_pivots
+from modules.common.ui.logging import log_warn
 
 
 @dataclass
@@ -28,7 +29,7 @@ def identify_equal_hl(
     """
     atr = compute_atr(highs_arr, lows_arr, closes_arr, period=200)
     if atr is None:
-        print("Unable to compute ATR, returning two empty lists.")
+        log_warn("Unable to compute ATR, returning two empty lists.")
         return EqualHLResult([], [])
 
     threshold_value = equal_high_low_threshold * atr

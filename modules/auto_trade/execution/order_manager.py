@@ -8,7 +8,7 @@ and optionally RecoveryManager for gradual recovery parameters.
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -17,9 +17,13 @@ from modules.auto_trade.execution.binance_client import BinanceClient
 from modules.auto_trade.execution.order_builder import OrderBuilder, OrderTicket
 from modules.auto_trade.execution.order_validator import OrderValidator
 from modules.auto_trade.execution.risk_manager import RiskManager
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.domain.symbol_types import DbSymbol, FuturesSymbol
 from modules.auto_trade.security.secret_string import SecretString
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.ui.logging import log_error, log_info, log_warn
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class OrderManager:
@@ -111,10 +115,9 @@ class OrderManager:
         )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
-    def _fetch_ticker(self, symbol: str) -> dict:
+    def _fetch_ticker(self, symbol: FuturesSymbol) -> Any:
         return self.binance_client.exchange.fetch_ticker(symbol)
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     def _create_market_order(self, order: OrderTicket) -> Optional[dict]:
         return self.binance_client.create_market_order(order)
 
@@ -239,9 +242,8 @@ class OrderManager:
         )
         # Set client_order_id (AT_ prefix) for Binance and DB sync
         from modules.auto_trade.execution.order_tagging import OrderTagger
-        from modules.common.domain.symbols import normalize_symbol_key
 
-        symbol_ccxt = normalize_symbol_key(order.symbol or "")
+        symbol_ccxt = _SYMBOL_CODEC.to_db(order.symbol or "")
         order.client_order_id = OrderTagger.generate_client_order_id(symbol_ccxt)
 
         log_info(f"Built order ticket: {order.symbol} {order.side} ${order.amount:.2f} @ {order.leverage}x")
@@ -249,7 +251,7 @@ class OrderManager:
         # Step 5: Fetch current price
         try:
             # Use DataFetcher or directly from CCXT
-            ticker: dict = self._fetch_ticker(signal.symbol)
+            ticker: dict = self._fetch_ticker(FuturesSymbol(signal.symbol))
             current_price: float = ticker["last"]
             log_info(f"Current price for {signal.symbol}: ${current_price:,.2f}")
         except Exception as e:
@@ -294,7 +296,8 @@ class OrderManager:
                 entry_price: float = float(order_result.get("entry_price") or order.entry_price or 0)
                 ticket: dict = order_result.get("order_ticket") or order.to_dict()
                 side_long_short: str = "LONG" if (order.side or "").upper() == "BUY" else "SHORT"
-                symbol_db: str = (order.symbol or "").replace("/", "")
+                _codec = SymbolCodec()
+                symbol_db: DbSymbol = DbSymbol(_codec.to_db(order.symbol or ""))
                 order_data: dict = {
                     "order_id": order_id_binance,
                     "client_order_id": client_order_id

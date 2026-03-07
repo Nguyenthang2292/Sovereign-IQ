@@ -3,6 +3,7 @@
 import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.shortcuts import SHORTCUTS_LIST
+from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 
 
 class ShortcutsHelpDialog(ctk.CTkToplevel):
@@ -14,6 +15,8 @@ class ShortcutsHelpDialog(ctk.CTkToplevel):
         self.geometry("560x420")
         self.minsize(400, 300)
         self.transient(parent)
+        
+        apply_dark_titlebar(self)
 
         self.update_idletasks()
         x = (self.winfo_screenwidth() // 2) - (560 // 2)

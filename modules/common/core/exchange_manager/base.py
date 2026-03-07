@@ -9,16 +9,14 @@ AuthenticatedExchangeManager and PublicExchangeManager:
 """
 
 import logging
-import os
 import threading
-from typing import Optional
 
 import ccxt
 
 logger = logging.getLogger(__name__)
 
-# Import normalize_symbol from utils (core module, should always be available)
-from modules.common.domain import normalize_symbol
+# SymbolCodec is handled by the higher level wrappers if needed
+
 
 # Configuration imports with fallbacks
 try:

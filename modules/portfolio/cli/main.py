@@ -2,46 +2,80 @@
 Portfolio Manager - Refactored version using modular components.
 """
 
+from __future__ import (
+    annotations,
+)  # all annotations are lazy strings — fixes "Not valid as type" for Optional import vars
+
 import signal
 import sys
 import threading
-from typing import List, Optional
+from types import ModuleType
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from colorama import Fore, Style
 from colorama import init as colorama_init
 
-try:
-    from config import (
-        BENCHMARK_SYMBOL,
-        DEFAULT_VAR_CONFIDENCE,
-        DEFAULT_VAR_LOOKBACK_DAYS,
-    )
+if TYPE_CHECKING:
+    # Only used by type-checkers; never imported at runtime.
     from modules.common.core.data_fetcher import DataFetcher
     from modules.common.core.exchange_manager import ExchangeManager
     from modules.common.models.position import Position
-    from modules.common.utils import color_text, safe_input
-    from modules.portfolio import correlation_analyzer as _correlation_analyzer_mod
-    from modules.portfolio import hedge_finder as _hedge_finder_mod
-    from modules.portfolio.risk_calculator import PortfolioRiskCalculator
-except ImportError:
-    Position = None
-    color_text = None
-    safe_input = None
-    ExchangeManager = None
-    DataFetcher = None
-    PortfolioRiskCalculator = None
-    _correlation_analyzer_mod = None
-    _hedge_finder_mod = None
+    from modules.portfolio.core.risk_calculator import PortfolioRiskCalculator
 
+# ---------------------------------------------------------------------------
+# Optional runtime imports — all default to None so the except branch simply
+# does nothing (pass).  `from __future__ import annotations` means that using
+# `List[Position]` in a type annotation is fine even though Position is None
+# here at import time.
+# ---------------------------------------------------------------------------
+_Position: type | None = None
+_color_text: Callable[..., str] | None = None
+_safe_input: Callable[..., str] | None = None
+_ExchangeManager: type | None = None
+_DataFetcher: type | None = None
+_PortfolioRiskCalculator: type | None = None
+_correlation_analyzer_mod: ModuleType | None = None
+_hedge_finder_mod: ModuleType | None = None
 
 BENCHMARK_SYMBOL = "BTC/USDT"
 DEFAULT_VAR_CONFIDENCE = 0.95
 DEFAULT_VAR_LOOKBACK_DAYS = 90
 
+try:
+    from config import (  # type: ignore[assignment]
+        BENCHMARK_SYMBOL,
+        DEFAULT_VAR_CONFIDENCE,
+        DEFAULT_VAR_LOOKBACK_DAYS,
+    )
+    from modules.common.core.data_fetcher import DataFetcher as _DataFetcher  # type: ignore[assignment]
+    from modules.common.core.exchange_manager import ExchangeManager as _ExchangeManager  # type: ignore[assignment]
+    from modules.common.models.position import Position as _Position  # type: ignore[assignment]
+    from modules.common.utils import color_text as _color_text  # type: ignore[assignment]
+    from modules.common.utils import safe_input as _safe_input
+    from modules.portfolio.core import correlation_analyzer as _correlation_analyzer_mod  # type: ignore[assignment]
+    from modules.portfolio.core import hedge_finder as _hedge_finder_mod  # type: ignore[assignment]
+    from modules.portfolio.core.risk_calculator import (
+        PortfolioRiskCalculator as _PortfolioRiskCalculator,  # type: ignore[assignment]
+    )
+except ImportError:
+    pass
+
 colorama_init(autoreset=True)
 
 
+# ---------------------------------------------------------------------------
+# Thin helper so callers don't have to guard every print against None.
+# Falls back to plain string when the module isn't available.
+# ---------------------------------------------------------------------------
+def _ct(text: str, *args, **kwargs) -> str:  # type: ignore[no-untyped-def]
+    if _color_text is not None:
+        return _color_text(text, *args, **kwargs)
+    return text
+
+
 class PortfolioManager:
+    """Main portfolio manager orchestrating all components."""
+
     def _create_correlation_analyzer(self):
         if _correlation_analyzer_mod is None:
             raise RuntimeError("PortfolioCorrelationAnalyzer module not available")
@@ -66,8 +100,6 @@ class PortfolioManager:
             self.data_fetcher,
         )
 
-    """Main portfolio manager orchestrating all components."""
-
     def __init__(
         self,
         api_key=None,
@@ -82,19 +114,28 @@ class PortfolioManager:
         if install_signal_handlers:
             self.install_signal_handlers()
 
-        # Initialize components
-        self.exchange_manager = ExchangeManager(api_key, api_secret, testnet)
-        self.data_fetcher = DataFetcher(self.exchange_manager, self.shutdown_event)
-        self.risk_calculator = PortfolioRiskCalculator(self.data_fetcher, self.benchmark_symbol)
+        # Initialize components — fail fast with a clear message if deps missing
+        if _ExchangeManager is None or _DataFetcher is None or _PortfolioRiskCalculator is None:
+            raise ImportError(
+                "Required modules (ExchangeManager, DataFetcher, PortfolioRiskCalculator) "
+                "could not be imported. Check your environment setup."
+            )
+        self.exchange_manager: ExchangeManager = _ExchangeManager(api_key, api_secret, testnet)
+        self.data_fetcher: DataFetcher = _DataFetcher(self.exchange_manager, self.shutdown_event)
+        self.risk_calculator: PortfolioRiskCalculator = _PortfolioRiskCalculator(
+            self.data_fetcher, self.benchmark_symbol
+        )
 
     def add_position(self, symbol: str, direction: str, entry_price: float, size_usdt: float):
         """Add a position to the portfolio."""
-        self.positions.append(Position(symbol.upper(), direction.upper(), entry_price, size_usdt))
+        if _Position is None:
+            raise ImportError("Position model not available")
+        self.positions.append(_Position(symbol.upper(), direction.upper(), entry_price, size_usdt))
 
     def _handle_shutdown(self, signum, frame):
         """Handle shutdown signal."""
         if not self.shutdown_event.is_set():
-            print(color_text("\nInterrupt received. Cancelling ongoing tasks...", Fore.YELLOW))
+            print(_ct("\nInterrupt received. Cancelling ongoing tasks...", Fore.YELLOW))
             self.shutdown_event.set()
         sys.exit(0)
 
@@ -129,12 +170,15 @@ class PortfolioManager:
             raise ValueError(f"Error loading positions from Binance: {exc}")
 
         if not binance_positions:
-            print(color_text("No open positions found on Binance.", Fore.YELLOW))
+            print(_ct("No open positions found on Binance.", Fore.YELLOW))
             self.positions = []
             return
 
+        if _Position is None:
+            raise ImportError("Position model not available")
+
         self.positions = [
-            Position(
+            _Position(
                 symbol=pos["symbol"].upper(),
                 direction=pos["direction"].upper(),
                 entry_price=pos["entry_price"],
@@ -236,41 +280,41 @@ def display_portfolio_analysis(pm: PortfolioManager):
     """
     Tính năng 1: Hiển thị Portfolio Correlation và VaR hiện có.
     """
-    print("\n" + color_text("=== PORTFOLIO ANALYSIS ===", Fore.CYAN, Style.BRIGHT))
+    print("\n" + _ct("=== PORTFOLIO ANALYSIS ===", Fore.CYAN, Style.BRIGHT))
 
     # Fetch prices and calculate stats
     pm.fetch_prices()
     df, total_pnl, total_delta, total_beta_delta = pm.calculate_stats()
 
     # Display portfolio status
-    print("\n" + color_text("=== PORTFOLIO STATUS ===", Fore.WHITE, Style.BRIGHT))
+    print("\n" + _ct("=== PORTFOLIO STATUS ===", Fore.WHITE, Style.BRIGHT))
     print(df.to_string(index=False))
     print("-" * 50)
-    print(f"Total PnL: {color_text(f'{total_pnl:.2f} USDT', Fore.GREEN if total_pnl >= 0 else Fore.RED)}")
-    print(f"Total Delta: {color_text(f'{total_delta:.2f} USDT', Fore.YELLOW)}")
-    print(f"Total Beta Delta (vs {pm.benchmark_symbol}): {color_text(f'{total_beta_delta:.2f} USDT', Fore.YELLOW)}")
+    print(f"Total PnL: {_ct(f'{total_pnl:.2f} USDT', Fore.GREEN if total_pnl >= 0 else Fore.RED)}")
+    print(f"Total Delta: {_ct(f'{total_delta:.2f} USDT', Fore.YELLOW)}")
+    print(f"Total Beta Delta (vs {pm.benchmark_symbol}): {_ct(f'{total_beta_delta:.2f} USDT', Fore.YELLOW)}")
 
     # Calculate and display VaR
-    print("\n" + color_text("=== VALUE AT RISK (VaR) ===", Fore.CYAN, Style.BRIGHT))
+    print("\n" + _ct("=== VALUE AT RISK (VaR) ===", Fore.CYAN, Style.BRIGHT))
     var_value = pm.calculate_portfolio_var(confidence=DEFAULT_VAR_CONFIDENCE, lookback_days=DEFAULT_VAR_LOOKBACK_DAYS)
     if var_value is not None:
         conf_pct = int((pm.last_var_confidence or 0) * 100)
         print(
-            color_text(
+            _ct(
                 f"With {conf_pct}% confidence, daily loss should stay within {var_value:.2f} USDT.",
                 Fore.WHITE,
             )
         )
     else:
         print(
-            color_text(
+            _ct(
                 "Not enough history for a reliable VaR estimate.",
                 Fore.YELLOW,
             )
         )
 
     # Calculate and display Portfolio Internal Correlation
-    print("\n" + color_text("=== PORTFOLIO CORRELATION ===", Fore.CYAN, Style.BRIGHT))
+    print("\n" + _ct("=== PORTFOLIO CORRELATION ===", Fore.CYAN, Style.BRIGHT))
     if len(pm.positions) >= 2:
         try:
             analyzer = pm._create_correlation_analyzer()
@@ -282,22 +326,22 @@ def display_portfolio_analysis(pm: PortfolioManager):
 
             if internal_corr is not None:
                 if abs(internal_corr) > 0.7:
-                    status = color_text("HIGH - Consider diversification", Fore.RED)
+                    status = _ct("HIGH - Consider diversification", Fore.RED)
                 elif abs(internal_corr) > 0.4:
-                    status = color_text("MODERATE", Fore.YELLOW)
+                    status = _ct("MODERATE", Fore.YELLOW)
                 else:
-                    status = color_text("LOW - Good diversification", Fore.GREEN)
+                    status = _ct("LOW - Good diversification", Fore.GREEN)
                 print(f"\nPortfolio Correlation Status: {status}")
         else:
             print(
-                color_text(
+                _ct(
                     "Correlation analyzer unavailable; skipping correlation section.",
                     Fore.YELLOW,
                 )
             )
     else:
         print(
-            color_text(
+            _ct(
                 "Need at least 2 positions to calculate portfolio correlation.",
                 Fore.YELLOW,
             )
@@ -312,7 +356,7 @@ def display_portfolio_with_hedge_analysis(pm: PortfolioManager):
     display_portfolio_analysis(pm)
 
     # Thêm phần auto hedge
-    print("\n" + color_text("=== AUTO HEDGE ANALYSIS ===", Fore.MAGENTA, Style.BRIGHT))
+    print("\n" + _ct("=== AUTO HEDGE ANALYSIS ===", Fore.MAGENTA, Style.BRIGHT))
 
     pm.fetch_prices()
     _, total_pnl, total_delta, total_beta_delta = pm.calculate_stats()
@@ -325,7 +369,7 @@ def display_portfolio_with_hedge_analysis(pm: PortfolioManager):
         )
         if recommended_direction and recommended_size is not None:
             print(
-                color_text(
+                _ct(
                     f"\n✓ Auto-selected hedge: {symbol} | {recommended_direction} {recommended_size:.2f} USDT",
                     Fore.GREEN,
                     Style.BRIGHT,
@@ -333,14 +377,14 @@ def display_portfolio_with_hedge_analysis(pm: PortfolioManager):
             )
         else:
             print(
-                color_text(
+                _ct(
                     f"\n{symbol}: Portfolio already neutral, no trade required.",
                     Fore.WHITE,
                 )
             )
     else:
         print(
-            color_text(
+            _ct(
                 "\nCould not determine a suitable hedge candidate automatically.",
                 Fore.YELLOW,
             )
@@ -349,7 +393,7 @@ def display_portfolio_with_hedge_analysis(pm: PortfolioManager):
 
 def main():
     print(
-        color_text(
+        _ct(
             "=== Crypto Portfolio Manager (Binance Integration) ===",
             Fore.MAGENTA,
             Style.BRIGHT,
@@ -360,24 +404,24 @@ def main():
         pm = PortfolioManager()
         pm.install_signal_handlers()
     except Exception as e:
-        print(color_text(f"Error initializing PortfolioManager: {e}", Fore.RED))
+        print(_ct(f"Error initializing PortfolioManager: {e}", Fore.RED))
         return
 
-    print("\n" + color_text("Loading positions from Binance...", Fore.CYAN))
+    print("\n" + _ct("Loading positions from Binance...", Fore.CYAN))
     try:
         pm.load_from_binance()
     except Exception as e:
-        print(color_text(f"Error loading from Binance: {e}", Fore.RED))
-        print(color_text("Please check your API credentials and try again.", Fore.YELLOW))
+        print(_ct(f"Error loading from Binance: {e}", Fore.RED))
+        print(_ct("Please check your API credentials and try again.", Fore.YELLOW))
         return
 
     if not pm.positions:
-        print(color_text("No positions available. Exiting.", Fore.YELLOW))
+        print(_ct("No positions available. Exiting.", Fore.YELLOW))
         return
 
     # Interactive menu
     print("\n" + "=" * 60)
-    print(color_text("Select Analysis Mode:", Fore.CYAN, Style.BRIGHT))
+    print(_ct("Select Analysis Mode:", Fore.CYAN, Style.BRIGHT))
     print("=" * 60)
     print("1. Portfolio Analysis (Correlation + VaR)")
     print("2. Portfolio Analysis + Auto Hedge")
@@ -386,7 +430,10 @@ def main():
 
     while True:
         try:
-            choice = safe_input("\nEnter choice (1-3): ", default="").strip()
+            choice = _safe_input("\nEnter choice (1-3): ", default="")
+            if choice is None:
+                choice = ""
+            choice = choice.strip()
 
             if choice == "1":
                 display_portfolio_analysis(pm)
@@ -395,15 +442,15 @@ def main():
                 display_portfolio_with_hedge_analysis(pm)
                 break
             elif choice == "3":
-                print(color_text("\nExiting...", Fore.YELLOW))
+                print(_ct("\nExiting...", Fore.YELLOW))
                 break
             else:
-                print(color_text("Invalid choice. Please enter 1, 2, or 3.", Fore.RED))
+                print(_ct("Invalid choice. Please enter 1, 2, or 3.", Fore.RED))
         except KeyboardInterrupt:
-            print(color_text("\n\nInterrupted by user. Exiting...", Fore.YELLOW))
+            print(_ct("\n\nInterrupted by user. Exiting...", Fore.YELLOW))
             break
         except EOFError:
-            print(color_text("\n\nExiting...", Fore.YELLOW))
+            print(_ct("\n\nExiting...", Fore.YELLOW))
             break
 
 

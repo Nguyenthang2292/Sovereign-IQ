@@ -16,12 +16,15 @@ from modules.adaptive_trend_LTS_mini.cli.display import (
     display_manual_mode_config,
 )
 from modules.adaptive_trend_LTS_mini.core.analyzer import analyze_symbol
-from modules.common.utils import log_error, normalize_symbol, prompt_user_input
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.utils import log_error, prompt_user_input
 
 if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
 
 __all__ = ["ManualModeExecutor"]
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 def prompt_interactive_mode(default_symbol: str) -> str:
@@ -120,7 +123,9 @@ class ManualModeExecutor:
             symbol = DEFAULT_SYMBOL
 
         quote = self.args.quote.upper() if self.args.quote else DEFAULT_QUOTE
-        symbol = normalize_symbol(symbol, quote)
+        if "/" not in symbol and not symbol.upper().endswith(quote):
+            symbol = f"{symbol}/{quote}"
+        symbol = str(_SYMBOL_CODEC.to_ccxt(symbol))
 
         # Display configuration
         display_manual_mode_config(symbol, timeframe, self.args)

@@ -21,12 +21,15 @@ from typing import Optional, Tuple
 
 import pandas as pd
 
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import (
     log_error,
     log_info,
     log_success,
     log_warn,
 )
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class ForexDataFetcher:
@@ -145,8 +148,7 @@ class ForexDataFetcher:
         Returns:
             TradingView exchange_symbol format (e.g., 'OANDA:EURUSD')
         """
-        # Remove '/' from symbol (EUR/USD -> EURUSD)
-        clean_symbol = symbol.replace("/", "").replace("-", "")
+        clean_symbol = str(_SYMBOL_CODEC.to_db(symbol))
         return f"{exchange}:{clean_symbol}"
 
     def _convert_timeframe(self, timeframe: str, target_format: str = "tradingview"):
@@ -254,8 +256,7 @@ class ForexDataFetcher:
         Returns:
             Tuple[symbol, exchange]: Symbol and exchange for tvDatafeed
         """
-        # Remove '/' from symbol (EUR/USD -> EURUSD)
-        clean_symbol = symbol.replace("/", "").replace("-", "")
+        clean_symbol = str(_SYMBOL_CODEC.to_db(symbol))
         # Normalize exchange name for tvDatafeed
         # Some exchanges might need normalization (e.g., "IC MARKETS" -> "ICMARKETS")
         normalized_exchange = exchange.replace(" ", "").upper()

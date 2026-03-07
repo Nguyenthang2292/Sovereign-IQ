@@ -3,11 +3,13 @@
 import os
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-from modules.common.domain import normalize_symbol
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_debug, log_error, log_warn
 
 if TYPE_CHECKING:
     from .base import DataFetcherBase
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class BinanceFuturesFetcher:
@@ -115,12 +117,8 @@ class BinanceFuturesFetcher:
     def _resolve_binance_credentials(self, api_key: Optional[str], api_secret: Optional[str]) -> Tuple[str, str]:
         """Resolve Binance API credentials from multiple sources."""
         auth = self.base.exchange_manager.authenticated
-        resolved_key = (
-            api_key or os.getenv("BINANCE_API_KEY") or getattr(auth, "default_api_key", None)
-        )
-        resolved_secret = (
-            api_secret or os.getenv("BINANCE_API_SECRET") or getattr(auth, "default_api_secret", None)
-        )
+        resolved_key = api_key or os.getenv("BINANCE_API_KEY") or getattr(auth, "default_api_key", None)
+        resolved_secret = api_secret or os.getenv("BINANCE_API_SECRET") or getattr(auth, "default_api_secret", None)
 
         if not resolved_key or not resolved_secret:
             raise ValueError(
@@ -258,14 +256,13 @@ class BinanceFuturesFetcher:
     @staticmethod
     def _normalize_position_symbol(symbol: str) -> str:
         """Normalize position symbol to standard format."""
-        if ":" in symbol:
-            symbol = symbol.split(":")[0]
-        return normalize_symbol(symbol, quote="USDT")
+        return _SYMBOL_CODEC.to_ccxt(symbol)
 
     @staticmethod
     def _is_usdtm_symbol(symbol: str) -> bool:
         """Check if symbol is a USDT-M futures symbol."""
-        return "/USDT" in symbol or symbol.endswith("USDT")
+        normalized = str(_SYMBOL_CODEC.to_ccxt(symbol))
+        return normalized.endswith("/USDT")
 
     def _determine_position_direction(self, position: Dict, contracts: float) -> str:
         """Determine position direction (LONG/SHORT)."""

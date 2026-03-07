@@ -44,13 +44,15 @@ import pandas as pd
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.auto_trade.core.xgboost_auto_trainer import request_training
 from modules.common.core.data_fetcher import DataFetcher
-from modules.common.domain.symbols import normalize_symbol_key
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import (
     log_debug,
     log_error,
     log_info,
     log_warn,
 )
+
+_SYMBOL_CODEC = SymbolCodec()
 
 # ── Default constants ────────────────────────────────────────────────────────
 
@@ -485,7 +487,7 @@ class XGBoostServerlessFilter:
                 log_warn(f"XGBoostServerlessFilter: skipping {sym} (no OHLCV data)")
                 continue
 
-            normalized = normalize_symbol_key(sym)
+            normalized = _SYMBOL_CODEC.to_db(sym)
             s3_key = f"{normalized}_{self.timeframe}_{self.model_version}.json"
             request_items.append(
                 {

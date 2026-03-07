@@ -4,6 +4,7 @@ import customtkinter as ctk
 
 from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.svg_icons import get_icon
+from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 
 
 class TradeFormFrame(ctk.CTkFrame):
@@ -308,8 +309,8 @@ class TradeFormFrame(ctk.CTkFrame):
             compound="left",
             font=("Arial", 14, "bold"),
             height=40,
-            fg_color="#ff4444",
-            hover_color="#cc0000",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=self._confirm_trade,
         )
         self.trade_button.pack(fill="x", padx=15, pady=(5, 15))
@@ -330,6 +331,9 @@ class TradeFormFrame(ctk.CTkFrame):
             # Create confirmation dialog
             dialog = ctk.CTkToplevel(self)
             dialog.title("Confirm Trade")
+            
+            apply_dark_titlebar(dialog)
+            
             dialog.geometry("400x300")
             dialog.transient(self.winfo_toplevel())
             dialog.grab_set()
@@ -370,8 +374,8 @@ Max Loss: -{self.risk_labels["max_loss"].cget("text")}
             confirm_btn = ctk.CTkButton(
                 btn_frame,
                 text="✅ Execute Trade",
-                fg_color="#00ff88",
-                hover_color="#00cc66",
+                fg_color=Colors.BTN_SUCCESS,
+                hover_color=Colors.BTN_SUCCESS_HOVER,
                 command=lambda: self._execute_trade(dialog),
             )
             confirm_btn.pack(side="left", padx=5)

@@ -3,6 +3,9 @@ import os
 from typing import Callable, Dict, Optional
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
+
+from modules.auto_trade.gui.utils.windows_utils import apply_dark_titlebar
 
 
 class CloseConfirmationDialog(ctk.CTkToplevel):
@@ -23,6 +26,8 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
         on_cancel: Optional[Callable] = None,
     ):
         super().__init__(parent)
+        
+        apply_dark_titlebar(self)
 
         self.position = position
         self.action_type = action_type
@@ -383,8 +388,8 @@ class CloseConfirmationDialog(ctk.CTkToplevel):
             text=f"Confirm ({self.required_confirms - self.confirm_count})",
             font=("Arial", 13, "bold"),
             height=40,
-            fg_color="#ff4444",
-            hover_color="#cc0000",
+            fg_color=Colors.BTN_DANGER,
+            hover_color=Colors.BTN_DANGER_HOVER,
             command=self._on_confirm_click,
         )
         self.confirm_btn.pack(side="left", fill="x", expand=True, padx=(0, 10))

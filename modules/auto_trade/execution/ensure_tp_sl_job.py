@@ -23,12 +23,15 @@ from modules.auto_trade.execution.binance.order_management import (
     _fetch_all_open_orders,
 )
 from modules.auto_trade.execution.binance_client import BinanceClient
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.domain.symbol_types import DbSymbol, FuturesSymbol
 from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 # Maximum conditional orders allowed per symbol before we refuse to create more.
 # Valid state is exactly 1 TP + 1 SL = 2. Allow a tiny buffer (e.g. 4) for
 # race conditions, but reject anything much higher to prevent order floods.
 _MAX_CONDITIONAL_ORDERS_PER_SYMBOL = 4
+_SYMBOL_CODEC = SymbolCodec()
 
 
 def _tp_sl_prices_from_pct(
@@ -156,8 +159,8 @@ class EnsureTPSLJob:
                     # If the position is no longer live on Binance (e.g. TP was hit),
                     # cancel any remaining TP/SL orders and close it in the DB so they
                     # don't stay hanging indefinitely.
-                    if self.binance_client and self._is_position_closed_on_binance(symbol):
-                        self._cleanup_closed_position(symbol, order)
+                    if self.binance_client and self._is_position_closed_on_binance(DbSymbol(symbol)):
+                        self._cleanup_closed_position(DbSymbol(symbol), order)
                         results.setdefault("stale_cleaned", []).append(symbol)
                         continue
                     # ────────────────────────────────────────────────────────────────────
@@ -179,12 +182,16 @@ class EnsureTPSLJob:
 
         return results
 
-    def _is_position_closed_on_binance(self, symbol: str) -> bool:
+    def _is_position_closed_on_binance(self, symbol: DbSymbol) -> bool:
         """Return True if the symbol has NO open position on Binance (contracts == 0)."""
         try:
+            client = self.binance_client
+            if client is None:
+                return False
+
             from modules.auto_trade.execution.binance.position_management import PositionManagement
 
-            pos_mgr = PositionManagement(self.binance_client.exchange)
+            pos_mgr = PositionManagement(client.exchange)
             pos = pos_mgr.get_position(symbol)
             if pos is None:
                 return True
@@ -194,23 +201,41 @@ class EnsureTPSLJob:
             log_warn(f"[EnsureTPSL] Could not verify position on Binance for {symbol}: {e}")
             return False  # Fail-safe: assume still open
 
-    def _cleanup_closed_position(self, symbol: str, db_order: Dict[str, Any]) -> None:
+    def _cleanup_closed_position(self, symbol: DbSymbol, db_order: Dict[str, Any]) -> None:
         """Cancel all hanging TP/SL orders on Binance and mark the DB record as closed."""
         log_info(f"[EnsureTPSL] Position {symbol} is CLOSED on Binance but DB record is still OPEN. Cleaning up...")
 
-        # 1. Cancel all pending orders on Binance
-        if self.binance_client:
+        # 1. Cancel all pending orders on Binance (basic + conditional/stop orders)
+        client = self.binance_client
+        if client:
             try:
                 from modules.auto_trade.execution.binance.order_management import (
                     OrderManagement,
                     _ccxt_futures_symbol,
                 )
 
-                om = OrderManagement(self.binance_client.exchange)
-                ccxt_sym = _ccxt_futures_symbol(self.binance_client.exchange, symbol)
-                result = om.cancel_open_orders(ccxt_sym)
-                cancelled = result.get("cancelled_count", 0) if result else 0
-                log_info(f"[EnsureTPSL] Cancelled {cancelled} hanging order(s) for {symbol}")
+                ccxt_sym: FuturesSymbol = _ccxt_futures_symbol(client.exchange, symbol)
+
+                # Strategy A: cancel_all_orders is a single Binance API call that covers
+                # both basic and conditional (STOP_MARKET / TAKE_PROFIT_MARKET) orders.
+                cancelled = 0
+                try:
+                    client.exchange.cancel_all_orders(ccxt_sym)
+                    log_info(f"[EnsureTPSL] cancel_all_orders succeeded for {symbol} (ccxt={ccxt_sym})")
+                    cancelled = -1  # indicate success without count
+                except Exception as cancel_all_err:
+                    log_warn(
+                        f"[EnsureTPSL] cancel_all_orders failed for {symbol}: {cancel_all_err}. Trying per-order cancel..."
+                    )
+                    # Strategy B: per-order cancel loop (handles conditional via stop=True)
+                    om = OrderManagement(client.exchange)
+                    result = om.cancel_open_orders(DbSymbol(symbol))
+                    cancelled = result.get("cancelled_count", 0) if result else 0
+
+                if cancelled != 0:
+                    log_info(
+                        f"[EnsureTPSL] Hanging orders cancelled for {symbol} (count={'all' if cancelled == -1 else cancelled})"
+                    )
             except Exception as e:
                 log_warn(f"[EnsureTPSL] Failed to cancel orders for {symbol}: {e}")
 
@@ -251,28 +276,29 @@ class EnsureTPSLJob:
         has_tp: bool = False
         has_sl: bool = False
 
-        if not self.binance_client:
+        client = self.binance_client
+        if client is None:
             return None, None, False, False, True
 
         try:
-            ccxt_sym = _ccxt_futures_symbol(self.binance_client.exchange, symbol)
+            ccxt_sym = _ccxt_futures_symbol(client.exchange, symbol)
             # Use _fetch_all_open_orders to get BOTH Basic AND Conditional orders.
             # This is critical: Binance separates these into different endpoints.
             # Without this, conditional orders (STOP_MARKET, TAKE_PROFIT_MARKET)
             # would be invisible, causing duplicate order creation.
-            open_orders_list = _fetch_all_open_orders(self.binance_client.exchange, ccxt_sym)
+            open_orders_list = _fetch_all_open_orders(client.exchange, ccxt_sym)
 
             # Fallback: if combined query returned nothing, try broad symbol filter
             if not open_orders_list:
                 try:
-                    all_orders = self.binance_client.exchange.fetch_open_orders()
+                    all_orders = client.exchange.fetch_open_orders()
                     # Filter by symbol id
-                    target_id = symbol.replace("/", "").split(":")[0].upper()
+                    target_id = _SYMBOL_CODEC.to_db(symbol)
                     open_orders_list = []
                     for o in all_orders:
                         info = o.get("info") or {}
-                        o_sym = str(o.get("symbol") or "").replace("/", "").split(":")[0].upper()
-                        i_sym = (str(info.get("symbol") or "").upper()) if isinstance(info, dict) else ""
+                        o_sym = _SYMBOL_CODEC.to_db(str(o.get("symbol") or ""))
+                        i_sym = _SYMBOL_CODEC.to_db(str(info.get("symbol") or "")) if isinstance(info, dict) else ""
                         if o_sym == target_id or i_sym == target_id:
                             open_orders_list.append(o)
                     if open_orders_list:
@@ -334,11 +360,12 @@ class EnsureTPSLJob:
         # the position was opened. Always read the real leverage from the live
         # position object so TP/SL prices are scaled correctly.
         actual_leverage: float = float(order.get("leverage") or 1.0)
-        if self.binance_client and actual_leverage <= 1.0:
+        client = self.binance_client
+        if client and actual_leverage <= 1.0:
             try:
                 from modules.auto_trade.execution.binance.position_management import PositionManagement
 
-                pos_mgr = PositionManagement(self.binance_client.exchange)
+                pos_mgr = PositionManagement(client.exchange)
                 pos = pos_mgr.get_position(symbol)
                 if pos:
                     # CCXT top-level 'leverage', or info.leverage
@@ -391,14 +418,14 @@ class EnsureTPSLJob:
         )
 
         # Convert DB symbol to CCXT format for BinanceClient methods
-        ccxt_sym = _ccxt_futures_symbol(self.binance_client.exchange, symbol) if self.binance_client else symbol
+        ccxt_sym = _ccxt_futures_symbol(client.exchange, symbol) if client else symbol
 
         if tp_missing and tp_price > 0:
-            if self.binance_client:
+            if client:
                 try:
                     # Use modify_take_profit which: cancels existing TP → places new
                     # TAKE_PROFIT_MARKET order → validates price. Idempotent.
-                    tp_result = self.binance_client.modify_take_profit(
+                    tp_result = client.modify_take_profit(
                         symbol=ccxt_sym,
                         position_id=None,
                         take_profit_price=tp_price,
@@ -416,11 +443,11 @@ class EnsureTPSLJob:
                 results["tp_added"] += 1
 
         if sl_missing and sl_price > 0:
-            if self.binance_client:
+            if client:
                 try:
                     # Use modify_stop_loss which: cancels existing SL → places new
                     # STOP_MARKET order → validates against mark price. Idempotent.
-                    sl_result = self.binance_client.modify_stop_loss(
+                    sl_result = client.modify_stop_loss(
                         symbol=ccxt_sym,
                         position_id=None,
                         stop_loss_price=sl_price,

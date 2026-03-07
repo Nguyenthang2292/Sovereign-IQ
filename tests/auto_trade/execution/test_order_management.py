@@ -5,21 +5,38 @@ Tests for Binance OrderManagement (TP/SL, -2021 validation).
 - LONG: SL must be below mark price; SHORT: SL must be above mark price.
 """
 
+import importlib.util
 import sys
+from contextlib import contextmanager
 from pathlib import Path
-
-project_root = Path(__file__).parent.parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from modules.auto_trade.execution.binance.order_management import (
-    OrderManagement,
-    _get_mark_price_from_exchange,
+_ORDER_MANAGEMENT_PATH = (
+    Path(__file__).resolve().parents[3] / "modules" / "auto_trade" / "execution" / "binance" / "order_management.py"
 )
+_spec = importlib.util.spec_from_file_location("_order_management_real", _ORDER_MANAGEMENT_PATH)
+if _spec is None or _spec.loader is None:
+    raise RuntimeError(f"Could not load order_management module from {_ORDER_MANAGEMENT_PATH}")
+
+_order_management = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_order_management)
+OrderManagement = _order_management.OrderManagement
+_get_mark_price_from_exchange = _order_management._get_mark_price_from_exchange
+
+
+@contextmanager
+def _patch_position_management():
+    pm_module = ModuleType("modules.auto_trade.execution.binance.position_management")
+    pm_cls = MagicMock(name="PositionManagement")
+    pm_module.PositionManagement = pm_cls
+    with patch.dict(
+        sys.modules,
+        {"modules.auto_trade.execution.binance.position_management": pm_module},
+    ):
+        yield pm_cls
 
 # -----------------------------------------------------------------------------
 # _get_mark_price_from_exchange
@@ -82,9 +99,7 @@ def mock_position_short():
 
 def test_modify_stop_loss_skips_when_long_and_sl_above_mark(mock_exchange, mock_position_long):
     """LONG position: SL at 0.01 with mark 0.00668 would trigger immediately → skip."""
-    with patch(
-        "modules.auto_trade.execution.binance.position_management.PositionManagement"
-    ) as pm_cls:
+    with _patch_position_management() as pm_cls:
         pm_cls.return_value.get_position.return_value = mock_position_long
         mock_exchange.fetch_ticker.return_value = {
             "info": {"markPrice": "0.00668"},
@@ -100,9 +115,7 @@ def test_modify_stop_loss_skips_when_long_and_sl_above_mark(mock_exchange, mock_
 
 def test_modify_stop_loss_skips_when_short_and_sl_below_mark(mock_exchange, mock_position_short):
     """SHORT position: SL at 0.005 with mark 0.00668 would trigger immediately → skip."""
-    with patch(
-        "modules.auto_trade.execution.binance.position_management.PositionManagement"
-    ) as pm_cls:
+    with _patch_position_management() as pm_cls:
         pm_cls.return_value.get_position.return_value = mock_position_short
         mock_exchange.fetch_ticker.return_value = {
             "info": {"markPrice": "0.00668"},
@@ -118,9 +131,7 @@ def test_modify_stop_loss_skips_when_short_and_sl_below_mark(mock_exchange, mock
 
 def test_modify_stop_loss_places_when_long_and_sl_below_mark(mock_exchange, mock_position_long):
     """LONG: SL at 0.006 below mark 0.00668 is valid → place order."""
-    with patch(
-        "modules.auto_trade.execution.binance.position_management.PositionManagement"
-    ) as pm_cls:
+    with _patch_position_management() as pm_cls:
         pm_cls.return_value.get_position.return_value = mock_position_long
         mock_exchange.fetch_ticker.return_value = {
             "info": {"markPrice": "0.00668"},
@@ -141,9 +152,7 @@ def test_modify_stop_loss_places_when_long_and_sl_below_mark(mock_exchange, mock
 
 def test_modify_stop_loss_places_when_short_and_sl_above_mark(mock_exchange, mock_position_short):
     """SHORT: SL at 0.008 above mark 0.00668 is valid → place order."""
-    with patch(
-        "modules.auto_trade.execution.binance.position_management.PositionManagement"
-    ) as pm_cls:
+    with _patch_position_management() as pm_cls:
         pm_cls.return_value.get_position.return_value = mock_position_short
         mock_exchange.fetch_ticker.return_value = {
             "info": {"markPrice": "0.00668"},
@@ -164,9 +173,7 @@ def test_modify_stop_loss_places_when_short_and_sl_above_mark(mock_exchange, moc
 
 def test_modify_stop_loss_places_when_mark_unavailable_long(mock_exchange, mock_position_long):
     """When mark price cannot be fetched, do not block placement (legacy behavior)."""
-    with patch(
-        "modules.auto_trade.execution.binance.position_management.PositionManagement"
-    ) as pm_cls:
+    with _patch_position_management() as pm_cls:
         pm_cls.return_value.get_position.return_value = mock_position_long
         mock_exchange.fetch_ticker.side_effect = Exception("ticker error")
 

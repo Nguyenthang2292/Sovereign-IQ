@@ -6,25 +6,23 @@ Bidirectional sync between Binance Open Orders API and Database:
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.domain.symbol_types import CcxtSymbol, DbSymbol, FuturesSymbol
+from modules.common.domain.order_type_codec import BinanceOrderType
 from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
 
 
 class TPSLSyncService:
     """Service to sync TP/SL between Binance and Database."""
 
-    @staticmethod
-    def _symbol_id(symbol: str) -> str:
-        """Convert symbol formats to canonical Binance id, e.g. DOGE/USDT:USDT -> DOGEUSDT."""
-        if not symbol:
-            return ""
-        return symbol.replace("/", "").split(":")[0].upper()
+    _codec = SymbolCodec()
 
     @staticmethod
-    def _filter_orders_for_symbol(open_orders: list, symbol: str) -> list:
+    def _filter_orders_for_symbol(open_orders: list, symbol: Union[str, DbSymbol, FuturesSymbol]) -> list:
         """Filter open orders by symbol using both CCXT symbol and Binance raw symbol id."""
-        target_id = TPSLSyncService._symbol_id(symbol)
+        target_id = TPSLSyncService._codec.to_db(symbol)
         matched_orders = []
         for order in open_orders:
             if not isinstance(order, dict):
@@ -32,41 +30,20 @@ class TPSLSyncService:
             info = order.get("info") or {}
             order_symbol = str(order.get("symbol") or "")
             info_symbol = str(info.get("symbol") or "") if isinstance(info, dict) else ""
-            if TPSLSyncService._symbol_id(order_symbol) == target_id or info_symbol.upper() == target_id:
+            if TPSLSyncService._codec.to_db(order_symbol) == target_id or info_symbol.upper() == target_id:
                 matched_orders.append(order)
         return matched_orders
 
     @staticmethod
-    def _normalize_symbol_for_db(symbol: str) -> str:
-        """
-        Normalize symbol format for database query.
-
-        Binance API returns various formats:
-        - "SKL/USDT" → "SKLUSDT"
-        - "SKL/USDT:USDT" → "SKLUSDT"
-        - "SKLUSDT" → "SKLUSDT"
-
-        Database might store as:
-        - "SKLUSDT" or "SKLUSDT:USDT"
-
-        Args:
-            symbol: Symbol in any format
-
-        Returns:
-            Base symbol without separators (e.g., "SKLUSDT")
-        """
-        # Remove slash and colon suffixes
-        normalized = symbol.replace("/", "").split(":")[0]
-        return normalized
-
-    @staticmethod
-    def fetch_tp_sl_from_binance(client, symbol: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    def fetch_tp_sl_from_binance(
+        client, symbol: Union[str, DbSymbol, CcxtSymbol, FuturesSymbol]
+    ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         """
         Fetch TP/SL/BE from Binance Open Orders API.
 
         Args:
             client: BinanceClient instance
-            symbol: Trading symbol (e.g., "BTC/USDT")
+            symbol: Trading symbol in any format (DbSymbol: "BTCUSDT", CcxtSymbol: "BTC/USDT", etc.)
 
         Returns:
             Tuple of (take_profit, stop_loss, break_even)
@@ -106,14 +83,11 @@ class TPSLSyncService:
             log_info(f"[TPSLSync] Found {len(open_orders)} open orders for {symbol}")
 
             for order in open_orders:
-                # Binance returns type in info.type (and sometimes origType); CCXT top-level type
-                # is often normalized to generic "market". Use info first so we see TAKE_PROFIT_MARKET / STOP_MARKET.
+                # Use BinanceOrderType.resolve for consistent order type detection
+                order_type = BinanceOrderType.resolve(order)
                 info = order.get("info") or {}
                 if not isinstance(info, dict):
                     info = {}
-                order_type_main = (order.get("type") or "").upper()
-                order_type_info = (info.get("type") or info.get("origType") or "").upper()
-                order_type = order_type_info if order_type_info else order_type_main
 
                 stop_price = order.get("stopPrice") or order.get("triggerPrice") or order.get("price", 0)
                 if not stop_price and isinstance(info, dict):
@@ -121,9 +95,10 @@ class TPSLSyncService:
 
                 log_debug(f"[TPSLSync] Order id={order.get('id')} type={order_type} stopPrice={stop_price}")
 
-                # Classify the order — explicit type wins; fall back to stopPrice vs entry.
-                is_tp = "TAKE_PROFIT" in order_type
-                is_sl = ("STOP" in order_type or "LOSS" in order_type) and not is_tp
+                # Classify the order using BinanceOrderType.classify for consistency
+                kind = BinanceOrderType.classify(order)
+                is_tp = kind == "tp"
+                is_sl = kind == "sl"
 
                 if not is_tp and not is_sl and stop_price:
                     # CCXT normalized type='MARKET' for a conditional order → classify by price
@@ -194,7 +169,7 @@ class TPSLSyncService:
     _SL_MARK_BUFFER_PCT = 0.005  # 0.5%
 
     @staticmethod
-    def _get_mark_price(client, symbol: str) -> Optional[float]:
+    def _get_mark_price(client, symbol: FuturesSymbol) -> Optional[float]:
         """Get current mark price for symbol (futures). Returns None if unavailable."""
         try:
             exchange = getattr(client, "exchange", None)
@@ -210,13 +185,18 @@ class TPSLSyncService:
             return None
 
     @staticmethod
-    def sync_to_database(repo_context, symbol: str, take_profit: Optional[float], stop_loss: Optional[float]) -> bool:
+    def sync_to_database(
+        repo_context,
+        symbol: Union[str, DbSymbol, CcxtSymbol, FuturesSymbol],
+        take_profit: Optional[float],
+        stop_loss: Optional[float],
+    ) -> bool:
         """
         Sync TP/SL values to database order.
 
         Args:
             repo_context: RepositoryContext
-            symbol: Trading symbol
+            symbol: Trading symbol (any format: DbSymbol, CcxtSymbol, etc.)
             take_profit: TP price from Binance
             stop_loss: SL price from Binance
 
@@ -225,7 +205,7 @@ class TPSLSyncService:
         """
         try:
             # Normalize symbol for DB query (handle SKL/USDT, SKL/USDT:USDT, SKLUSDT)
-            symbol_normalized = TPSLSyncService._normalize_symbol_for_db(symbol)
+            symbol_normalized = TPSLSyncService._codec.to_db(symbol)
 
             # Try to find order
             orders = repo_context.orders.get_open_positions(symbol=symbol_normalized)
@@ -291,7 +271,7 @@ class TPSLSyncService:
 
     @staticmethod
     def sync_position_tp_sl(
-        client, repo_context, symbol: str, side: str, entry_price: float
+        client, repo_context, symbol: DbSymbol, side: str, entry_price: float
     ) -> Dict[str, Optional[float]]:
         """
         Complete sync: Fetch from Binance → Update DB → Return values.
@@ -325,7 +305,7 @@ class TPSLSyncService:
     @staticmethod
     def ensure_tp_sl_on_binance(
         client,
-        symbol: str,
+        symbol: DbSymbol,
         side: str,
         entry_price: float,
         default_tp_pct: float,
@@ -387,18 +367,19 @@ class TPSLSyncService:
 
                 open_orders = _fetch_all_open_orders(client.exchange, ccxt_sym)
                 for order_item in open_orders:
-                    info_item = order_item.get("info") or {}
-                    otype = (info_item.get("type") or info_item.get("origType") or order_item.get("type") or "").upper()
-                    if "TAKE_PROFIT" in otype:
+                    kind = BinanceOrderType.classify(order_item)
+                    if kind == "tp":
                         has_tp_conditional = True
                         if take_profit is None:
+                            info_item = order_item.get("info") or {}
                             sp = order_item.get("stopPrice") or (
                                 info_item.get("stopPrice") if isinstance(info_item, dict) else None
                             )
                             take_profit = float(sp) if sp else None
-                    elif "STOP" in otype and "TAKE_PROFIT" not in otype:
+                    elif kind == "sl":
                         has_sl_conditional = True
                         if stop_loss is None:
+                            info_item = order_item.get("info") or {}
                             sp = order_item.get("stopPrice") or (
                                 info_item.get("stopPrice") if isinstance(info_item, dict) else None
                             )
@@ -428,7 +409,7 @@ class TPSLSyncService:
 
         # Clamp SL so it is valid vs mark price (avoid Binance -2021 "Order would immediately trigger")
         if need_sl:
-            mark_price = TPSLSyncService._get_mark_price(client, symbol)
+            mark_price = TPSLSyncService._get_mark_price(client, FuturesSymbol(ccxt_sym))
             if mark_price is not None and mark_price > 0:
                 if side_upper == "LONG" and sl_price >= mark_price:
                     sl_price = mark_price * (1.0 - TPSLSyncService._SL_MARK_BUFFER_PCT)

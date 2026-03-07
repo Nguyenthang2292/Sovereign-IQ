@@ -263,7 +263,7 @@ class SettingsRecoveryMixin:
                         new_tp_price = entry_price * (1.0 - tp_price_pct / 100.0)
                         new_sl_price = entry_price * (1.0 + sl_price_pct / 100.0)
 
-                    mark_price = TPSLSyncService._get_mark_price(client, symbol)
+                    mark_price = TPSLSyncService._get_mark_price(client, TPSLSyncService._codec.to_futures(symbol))
                     sl_buffer = TPSLSyncService._SL_MARK_BUFFER_PCT
                     if mark_price and mark_price > 0:
                         if side == "LONG" and new_sl_price >= mark_price:

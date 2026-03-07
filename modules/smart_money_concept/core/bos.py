@@ -8,8 +8,8 @@ from typing import List, cast
 
 import pandas as pd
 
-from modules.smart_money_concept.core.trend import BEARISH, BULLISH, NEUTRAL
-from modules.smart_money_concept.models import Pivot
+from .constants import BEARISH, BULLISH, NEUTRAL
+from ..models import Pivot
 
 
 @dataclass

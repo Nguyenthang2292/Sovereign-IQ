@@ -24,7 +24,12 @@ from modules.auto_trade.gui.utils.mock_price_feed import MockPriceFeed
 from modules.auto_trade.monitoring.account_monitor import BalanceMonitor, BalanceSnapshot, OrderMonitor, OrderSnapshot
 from modules.auto_trade.monitoring.position_monitor import PositionMonitor, PositionSnapshot
 from modules.auto_trade.websocket.client import BinanceWebSocketClient
+from modules.common.domain.symbol_codec import SymbolCodec
+from modules.common.domain.order_type_codec import BinanceOrderType
 from modules.common.ui.logging import log_debug, log_error, log_info, log_warn
+
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class WebSocketDataService:
@@ -374,7 +379,7 @@ class WebSocketDataService:
         # _handle_order_update already handles TP/SL fill (with real PnL).
         # This block acts as a SAFETY NET for manual closes where no TP/SL fill event arrives.
         if position.position_amt == 0:
-            symbol_normalized = position.symbol.replace("/", "").split(":")[0]
+            symbol_normalized = _SYMBOL_CODEC.to_db(position.symbol)
             log_info(f"[WS Data] Position {symbol_normalized} closed (size→0). Checking DB...")
             try:
                 from modules.auto_trade.database.repository.context import RepositoryContext
@@ -492,19 +497,20 @@ class WebSocketDataService:
         try:
             from modules.auto_trade.execution.order_tagging import OrderTagger
 
-            order_type_raw = order.type.lower()  # 'take_profit_market', 'stop_market', 'market', 'limit', ...
-            # Detect if this is a TP/SL conditional order that just filled
-            is_tp_sl_fill = order.status == "closed" and any(
-                t in order_type_raw for t in ("take_profit", "stop_market", "stop_loss")
-            )
+            # Detect if this is a TP/SL conditional order that just filled using BinanceOrderType
+            # OrderSnapshot.raw_info contains the raw CCXT order dict
+            raw_info: dict = getattr(order, "raw_info", {}) or {}
+            order_type_resolved: str = BinanceOrderType.resolve(raw_info)
+            is_conditional: bool = BinanceOrderType.is_conditional(raw_info)
+            is_tp_sl_fill: bool = order.status == "closed" and is_conditional
 
             if is_tp_sl_fill:
                 # ── TP or SL order was filled → position is now closed ───────────────
-                symbol_normalized = order.symbol.replace("/", "").split(":")[0]
+                symbol_normalized = _SYMBOL_CODEC.to_db(order.symbol)
                 pnl_from_ws: Optional[float] = order.realized_pnl  # Real PnL from Binance WS event
 
                 log_info(
-                    f"[WS Data] TP/SL fill detected for {symbol_normalized} (type={order.type}, pnl={pnl_from_ws})"
+                    f"[WS Data] TP/SL fill detected for {symbol_normalized} (type={order_type_resolved}, pnl={pnl_from_ws})"
                 )
 
                 # 1. Cancel any remaining sibling conditional orders (the paired TP or SL)

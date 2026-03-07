@@ -14,13 +14,13 @@ from typing import Dict, Optional
 
 import ccxt
 
-from .base import ExchangeWrapper, DEFAULT_REQUEST_PAUSE
+from .base import DEFAULT_REQUEST_PAUSE
 
 logger = logging.getLogger(__name__)
 
 # Import fallback defaults
 try:
-    from config import DEFAULT_EXCHANGE_STRING, DEFAULT_CONTRACT_TYPE
+    from config import DEFAULT_CONTRACT_TYPE, DEFAULT_EXCHANGE_STRING
 except ImportError:
     DEFAULT_EXCHANGE_STRING = "binance,kraken,kucoin,gate,okx,bybit,mexc,huobi"
     DEFAULT_CONTRACT_TYPE = "future"

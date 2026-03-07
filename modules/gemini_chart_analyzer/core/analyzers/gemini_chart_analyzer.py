@@ -110,6 +110,9 @@ class GeminiChartAnalyzer:
 
     MAX_RETRIES: int = 3
     RETRY_DELAY: int = 1  # seconds
+    MODEL_LIST_CACHE_TTL_SECONDS: int = 3600
+    _MODEL_LIST_CACHE: Optional[List[str]] = None
+    _MODEL_LIST_CACHE_AT: float = 0.0
 
     def __init__(self, api_key: Optional[str] = None, image_config: Optional[ImageValidationConfig] = None):
         """
@@ -144,18 +147,8 @@ class GeminiChartAnalyzer:
             # Use new Client API of google-genai
             self.client = genai.Client(api_key=api_key)
 
-            # Try to list available models to find the right one
-            available_models = None
-            try:
-                models = self.client.models.list()
-                available_models = [
-                    str(m.name) for m in models if m.name and ("flash" in m.name.lower() or "pro" in m.name.lower())
-                ]
-                # Sort to prioritize models using the same logic as select_best_model
-                # This ensures consistency between sorting and selection
-            except Exception as e:
-                # If unable to list models, will use default via helper
-                log_error(f"Failed to list available Gemini models: {e}, falling back to default model")
+            # Try to list available models to find the right one (with cache)
+            available_models = self._get_cached_available_models()
 
             # Store available models for fallback filtering
             self._available_models = available_models
@@ -205,6 +198,109 @@ class GeminiChartAnalyzer:
             raise AttributeError("genai module is missing Client, configure, or GenerativeModel")
 
         log_success("Successfully connected to the Google Gemini API")
+
+    @staticmethod
+    def _normalize_model_name(model_name: str) -> str:
+        name = model_name.strip()
+        if not name:
+            return ""
+        return name if name.startswith("models/") else f"models/{name}"
+
+    @staticmethod
+    def _is_vision_candidate(model_name: str) -> bool:
+        """Heuristic filter for Gemini multimodal chart-analysis models."""
+        normalized = model_name.lower()
+        if "embedding" in normalized or "imagen" in normalized or "tts" in normalized:
+            return False
+        return "gemini" in normalized and ("flash" in normalized or "pro" in normalized)
+
+    @staticmethod
+    def _supports_generate_content(model_obj: object) -> bool:
+        """Best-effort capability check across SDK/REST field naming variants."""
+        for field_name in ("supported_actions", "supportedGenerationMethods", "supported_generation_methods"):
+            actions = getattr(model_obj, field_name, None)
+            if not actions:
+                continue
+            lowered = [str(action).lower() for action in actions]
+            if any("generatecontent" in action for action in lowered):
+                return True
+        # If capability fields are missing, keep backward compatibility by allowing name-based filtering.
+        return True
+
+    def _fetch_available_models_from_api(self) -> Optional[List[str]]:
+        """Fetch Gemini model list from Google API and keep only vision-capable candidates."""
+        models = self.client.models.list()
+        filtered_models: List[str] = []
+        seen: set[str] = set()
+
+        for model_obj in models:
+            model_name_raw = getattr(model_obj, "name", None)
+            if not isinstance(model_name_raw, str):
+                continue
+            model_name = self._normalize_model_name(model_name_raw)
+            if not model_name:
+                continue
+            if not self._supports_generate_content(model_obj):
+                continue
+            if not self._is_vision_candidate(model_name):
+                continue
+            if model_name in seen:
+                continue
+            filtered_models.append(model_name)
+            seen.add(model_name)
+
+        return filtered_models or None
+
+    def _get_cached_available_models(self) -> Optional[List[str]]:
+        """Return cached model list if fresh; otherwise refresh from API."""
+        now = time.time()
+        cache_age = now - self.__class__._MODEL_LIST_CACHE_AT
+        if self.__class__._MODEL_LIST_CACHE and cache_age < self.MODEL_LIST_CACHE_TTL_SECONDS:
+            return list(self.__class__._MODEL_LIST_CACHE)
+
+        try:
+            models = self._fetch_available_models_from_api()
+            if models:
+                self.__class__._MODEL_LIST_CACHE = list(models)
+                self.__class__._MODEL_LIST_CACHE_AT = now
+                log_info(f"Loaded {len(models)} Gemini models from API list (cached)")
+            return models
+        except Exception as e:
+            log_error(f"Failed to list available Gemini models: {e}, falling back to defaults")
+            return list(self.__class__._MODEL_LIST_CACHE) if self.__class__._MODEL_LIST_CACHE else None
+
+    def _build_model_chain(self, current_model: Optional[str]) -> List[str]:
+        """Build model try-order using dynamic API list first, then safe static fallbacks."""
+        fallback_models: List[str] = []
+        available = getattr(self, "_available_models", None)
+
+        if current_model:
+            model_type = GeminiModelType.from_name(current_model)
+            if model_type:
+                fallback_models = [
+                    m.name
+                    for m in GeminiModelType.get_fallback_models(model_type)
+                    if available is None or m.name in available
+                ]
+
+        # Prefer dynamic model list order from API.
+        if available:
+            for dynamic_model in available:
+                if dynamic_model != current_model and dynamic_model not in fallback_models:
+                    fallback_models.append(dynamic_model)
+
+        # Keep static emergency fallbacks to preserve reliability if API list is incomplete.
+        stable_fallbacks = GeminiModelType.get_rate_limit_fallbacks()
+        for stable in stable_fallbacks:
+            if stable != current_model and stable not in fallback_models:
+                fallback_models.append(stable)
+
+        if not current_model:
+            return []
+
+        models_to_try: List[str] = [current_model]
+        models_to_try.extend(fallback_models)
+        return models_to_try
 
     def validate_image(self, image_path: str) -> tuple[bool, Optional[str]]:
         """Validate image file using analyzer's configured validation rules."""
@@ -276,20 +372,13 @@ class GeminiChartAnalyzer:
         last_error: Optional[GeminiAPIError] = None
         response = None
 
-        # Get current model and fallback models (filtered to only available ones)
+        # Get current model and fallback models
         current_model = self._resolve_current_model()
-        fallback_models = []
-        if current_model:
-            model_type = GeminiModelType.from_name(current_model)
-            if model_type:
-                available = getattr(self, "_available_models", None)
-                fallback_models = [
-                    m.name
-                    for m in GeminiModelType.get_fallback_models(model_type)
-                    if available is None or m.name in available
-                ]
-
-        models_to_try = [current_model] + fallback_models if current_model else [None]
+        built_model_chain = self._build_model_chain(current_model)
+        models_to_try: list[str | None] = []
+        models_to_try.extend(built_model_chain)
+        if not models_to_try:
+            models_to_try.append(None)
 
         for model_idx, model_to_use in enumerate(models_to_try):
             if model_to_use is None and getattr(self, "use_new_api", False):
@@ -356,18 +445,26 @@ class GeminiChartAnalyzer:
                     else:
                         last_error = GeminiAPIError(f"API error ({error_code}): {error_message}")
 
-                    # Check if error is retryable (503, 429, or network errors)
+                    # Check if error is retryable (503, or network/overloaded errors only)
+                    # 429 is handled separately via is_rate_limited above.
+                    is_rate_limited = error_code == 429 or "quota" in error_message.lower()
                     is_retryable = (
-                        error_code in [503, 429]
+                        error_code in [503]
                         or "overloaded" in error_message.lower()
-                        or "rate limit" in error_message.lower()
                         or "unavailable" in error_message.lower()
                     )
 
-                    if is_retryable and attempt < max_retries - 1:
-                        # Exponential backoff
+                    if is_rate_limited:
+                        # 429 / quota: do NOT retry same model — jump to next immediately.
+                        log_warn(
+                            f"Rate limit / quota exceeded for model {model_identifier} "
+                            f"(attempt {attempt + 1}/{max_retries}): {error_message}. "
+                            f"Switching to next model immediately."
+                        )
+                        break  # Skip remaining retries for this model
+                    elif is_retryable and attempt < max_retries - 1:
+                        # Exponential backoff for transient errors (503, overloaded)
                         wait_time = retry_delay * (2**attempt)
-                        # Log retryable errors with attempt number and computed wait_time before sleeping
                         log_warn(
                             f"Retryable error with model {model_identifier}, "
                             f"attempt {attempt + 1}/{max_retries}: {error_message}. "
@@ -377,7 +474,6 @@ class GeminiChartAnalyzer:
                         continue
                     elif not is_retryable:
                         # Non-retryable error, try next model
-                        # Log non-retryable errors with the model name when breaking to the next model
                         log_error(
                             f"Non-retryable error with model {model_identifier}: {error_message}. "
                             f"Switching to next model"
@@ -385,7 +481,6 @@ class GeminiChartAnalyzer:
                         break  # Exit retry loop, try next model
                     else:
                         # Max retries reached for this model, try next model
-                        # Log when max retries are reached and the code is falling back to the next model
                         if model_idx < len(models_to_try) - 1:
                             log_warn(
                                 f"Max retries ({max_retries}) reached with model {model_identifier}: {error_message}. "

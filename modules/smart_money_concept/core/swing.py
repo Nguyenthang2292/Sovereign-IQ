@@ -8,9 +8,9 @@ from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
-from scipy.signal import argrelextrema
+from scipy.signal import argrelextrema  # type: ignore[import-untyped]
 
-from modules.smart_money_concept.models import Pivot
+from ..models import Pivot
 
 
 @dataclass
@@ -30,7 +30,7 @@ def detect_swings(df: pd.DataFrame, internal_order: int = 5, external_order: int
     Args:
         df: DataFrame with 'High' and 'Low' columns and datetime index
         internal_order: Order for internal swing detection (default 5)
-        external_order: Order for external swing detection (default 30)
+        external_order: Order for external swing detection (default 50)
 
     Returns:
         SwingResult containing internal and swing pivots

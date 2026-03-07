@@ -14,11 +14,13 @@ from modules.adaptive_trend_LTS_mini.cli.interactive_prompts import (
     UserExitRequested,
     prompt_interactive_mode,
 )
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.utils import (
     log_warn,
-    normalize_symbol,
     prompt_user_input,
 )
+
+_SYMBOL_CODEC = SymbolCodec()
 
 
 def determine_mode_and_timeframe(args: Namespace) -> Tuple[str, str]:
@@ -82,4 +84,6 @@ def get_symbol_input(args: Namespace) -> str:
         log_warn(f"Invalid characters in symbol input: {symbol_input}. Using default.")
         symbol_input = DEFAULT_SYMBOL
 
-    return normalize_symbol(symbol_input, quote)
+    if "/" not in symbol_input and not symbol_input.upper().endswith(quote):
+        symbol_input = f"{symbol_input}/{quote}"
+    return str(_SYMBOL_CODEC.to_ccxt(symbol_input))

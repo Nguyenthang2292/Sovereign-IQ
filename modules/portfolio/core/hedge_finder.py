@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from modules.common.core.data_fetcher import DataFetcher
     from modules.common.core.exchange_manager import ExchangeManager
     from modules.common.models.position import Position
-    from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
-    from modules.portfolio.risk_calculator import PortfolioRiskCalculator
+    from modules.portfolio.core.correlation_analyzer import PortfolioCorrelationAnalyzer
+    from modules.portfolio.core.risk_calculator import PortfolioRiskCalculator
 
 try:
     from config import (
@@ -29,6 +29,7 @@ try:
     )
     from modules.common.core.data_fetcher import DataFetcher
     from modules.common.core.exchange_manager import ExchangeManager
+    from modules.common.domain.symbol_codec import SymbolCodec
     from modules.common.models.position import Position
     from modules.common.ui.progress_bar import ProgressBar
     from modules.common.utils import (
@@ -40,13 +41,12 @@ try:
         log_success,
         log_system,
         log_warn,
-        normalize_symbol,
     )
-    from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
-    from modules.portfolio.risk_calculator import PortfolioRiskCalculator
+    from modules.portfolio.core.correlation_analyzer import PortfolioCorrelationAnalyzer
+    from modules.portfolio.core.risk_calculator import PortfolioRiskCalculator
 except ImportError:
     Position = None
-    normalize_symbol = None
+    SymbolCodec = None
     log_warn = None
     log_error = None
     log_info = None
@@ -64,6 +64,8 @@ except ImportError:
     HEDGE_CORRELATION_HIGH_THRESHOLD = 0.7
     HEDGE_CORRELATION_MEDIUM_THRESHOLD = 0.4
     HEDGE_CORRELATION_DIFF_THRESHOLD = 0.1
+
+_symbol_codec = SymbolCodec() if SymbolCodec else None
 
 
 class HedgeFinder:
@@ -208,9 +210,9 @@ class HedgeFinder:
                 log_warn("No positions loaded. Cannot search for hedge candidates.")
             return None
 
-        existing_symbols = {normalize_symbol(p.symbol) for p in self.positions} if normalize_symbol else set()
-        if normalize_symbol:
-            existing_symbols.add(normalize_symbol(self.benchmark_symbol))
+        existing_symbols = {_symbol_codec.to_ccxt(p.symbol) for p in self.positions} if _symbol_codec else set()
+        if _symbol_codec:
+            existing_symbols.add(_symbol_codec.to_ccxt(self.benchmark_symbol))
         candidate_symbols = self._list_candidate_symbols(existing_symbols, max_candidates=None)
 
         if not candidate_symbols:
@@ -328,10 +330,10 @@ class HedgeFinder:
                 - Recommended size in USDT or None
                 - Final correlation value (weighted or portfolio return) or None
         """
-        if normalize_symbol is None:
+        if _symbol_codec is None:
             normalized_symbol = new_symbol
         else:
-            normalized_symbol = normalize_symbol(new_symbol)
+            normalized_symbol = str(_symbol_codec.to_ccxt(new_symbol))
         if normalized_symbol != new_symbol:
             if log_info:
                 log_info(f"Symbol normalized: '{new_symbol}' -> '{normalized_symbol}'")

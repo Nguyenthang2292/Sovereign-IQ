@@ -25,9 +25,11 @@ import polars as pl
 from modules.adaptive_trend_LTS_mini.core.scanner.scan_all_symbols import scan_all_symbols
 from modules.adaptive_trend_LTS_mini.utils.config import create_atc_config_from_dict
 from modules.common.core.data_fetcher import DataFetcher
-from modules.common.domain.symbols import normalize_symbol_key
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.system import get_hardware_manager
 from modules.common.ui.logging import log_error, log_info, log_warn
+
+_SYMBOL_CODEC = SymbolCodec()
 
 try:
     import atc_rust
@@ -554,7 +556,7 @@ class ATCScanner:
 
         # Normalize symbols for aggregation: scan results use ticker format (BTCUSDT),
         # so we must use the same format for lookups; then map back to original (e.g. BTC/USDT) for downstream.
-        key_to_original: Dict[str, str] = {normalize_symbol_key(s): s for s in symbols}
+        key_to_original: Dict[str, str] = {_SYMBOL_CODEC.to_db(s): s for s in symbols}
         normalized_symbols: List[str] = list(key_to_original.keys())
 
         # Aggregate results using weighted voting

@@ -18,7 +18,7 @@ from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.models.position import Position
 from modules.common.utils import color_text
-from modules.portfolio.correlation_analyzer import PortfolioCorrelationAnalyzer
+from modules.portfolio.core.correlation_analyzer import PortfolioCorrelationAnalyzer
 
 # Suppress warnings
 warnings.filterwarnings("ignore")

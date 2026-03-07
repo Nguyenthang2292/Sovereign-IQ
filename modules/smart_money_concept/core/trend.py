@@ -8,10 +8,7 @@ from typing import List, Optional
 import numpy as np
 
 from modules.smart_money_concept.models import Pivot
-
-BULLISH = 1
-NEUTRAL = 0
-BEARISH = -1
+from .constants import BULLISH, BEARISH, NEUTRAL
 
 
 def detect_trend(swing_highs: List[Pivot], swing_lows: List[Pivot], last_structure_break: Optional[int] = None) -> int:

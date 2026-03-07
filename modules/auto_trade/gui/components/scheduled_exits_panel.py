@@ -5,6 +5,7 @@ from tkinter import messagebox, simpledialog
 from typing import Any, Dict, List, Optional
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
 
 from modules.auto_trade.database import RepositoryContext
 from modules.auto_trade.execution.auto_close_timer import compute_deadline_utc, get_order_id, parse_utc_datetime
@@ -238,8 +239,8 @@ class ScheduledExitsPanel(ctk.CTkFrame):
                 btns,
                 text="Cancel Auto-Close",
                 width=130,
-                fg_color="#7f1d1d",
-                hover_color="#991b1b",
+                fg_color=Colors.BTN_DANGER_ALT,
+                hover_color=Colors.BTN_DANGER_ALT_HOVER,
                 command=lambda oid=row["order_id"]: self._cancel_auto_close(oid),
             ).pack(side="top")
 

@@ -4,6 +4,7 @@ import threading
 from typing import Any, Callable, Dict, List, Optional
 
 import customtkinter as ctk
+from modules.auto_trade.gui.utils.colors import Colors
 
 from modules.auto_trade.gui.components.empty_state import EmptyState
 from modules.auto_trade.gui.config.database_panel_config import DatabasePanelConfig
@@ -97,8 +98,8 @@ class DataViewerSection:
             text=" Force Reload",
             width=120,
             command=self._force_reload,
-            fg_color="#2B6CB0",
-            hover_color="#3182CE",
+            fg_color=Colors.BTN_PRIMARY,
+            hover_color=Colors.BTN_PRIMARY_HOVER,
             image=get_icon("refresh", size=(16, 16)),
             compound="left",
         )

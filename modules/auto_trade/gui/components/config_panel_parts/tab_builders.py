@@ -1,7 +1,7 @@
 import customtkinter as ctk
 
-from modules.auto_trade.gui.utils.svg_icons import get_icon
 from modules.auto_trade.gui.components.config_panel_parts.auto_close_settings import build_auto_close_section
+from modules.auto_trade.gui.utils.svg_icons import get_icon
 
 
 def create_risk_settings_tab(panel):
@@ -165,6 +165,8 @@ def create_auto_close_timer_tab(panel):
 
 def create_api_keys_tab(panel):
     """Create API Keys tab."""
+    from modules.auto_trade.gui.utils.colors import Colors
+
     tab = panel.tabview.add("API Keys")
     api_frame = ctk.CTkFrame(tab, fg_color="transparent")
     api_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -273,8 +275,8 @@ def create_api_keys_tab(panel):
     test_btn = ctk.CTkButton(
         entry_buttons_frame,
         text="  Test Connection",
-        fg_color="#00ff88",
-        hover_color="#00cc66",
+        fg_color=Colors.BTN_SUCCESS,
+        hover_color=Colors.BTN_SUCCESS_HOVER,
         command=panel._test_connection,
         image=get_icon("link", size=(16, 16), light_color="black", dark_color="black"),
         compound="left",
@@ -284,8 +286,8 @@ def create_api_keys_tab(panel):
     save_btn = ctk.CTkButton(
         entry_buttons_frame,
         text="  Save Credentials",
-        fg_color="#4488ff",
-        hover_color="#0066ff",
+        fg_color=Colors.BTN_PRIMARY,
+        hover_color=Colors.BTN_PRIMARY_HOVER,
         command=panel._save_credentials,
         image=get_icon("save", size=(16, 16)),
         compound="left",
@@ -295,7 +297,7 @@ def create_api_keys_tab(panel):
     panel.cancel_credentials_btn = ctk.CTkButton(
         entry_buttons_frame,
         text="  Cancel",
-        fg_color="#ff4444",
+        fg_color=Colors.BTN_DANGER,
         hover_color="#cc3333",
         command=panel._on_cancel_credentials,
         image=get_icon("x", size=(16, 16)),

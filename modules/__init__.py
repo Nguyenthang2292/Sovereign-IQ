@@ -38,12 +38,12 @@ _ALIASES = {
     "modules.pairs_trading_risk_metrics": "modules.common.quantitative_metrics.risk.max_drawdown",
     "modules.pairs_trading_zscore_metrics": "modules.common.quantitative_metrics.classification.direction_metrics",
     # portfolio subpackage
-    "modules.portfolio_correlation_analyzer": "modules.portfolio.correlation_analyzer",
-    "modules.portfolio_hedge_finder": "modules.portfolio.hedge_finder",
-    "modules.portfolio_risk_calculator": "modules.portfolio.risk_calculator",
-    "modules.PortfolioCorrelationAnalyzer": "modules.portfolio.correlation_analyzer",
-    "modules.HedgeFinder": "modules.portfolio.hedge_finder",
-    "modules.PortfolioRiskCalculator": "modules.portfolio.risk_calculator",
+    "modules.portfolio_correlation_analyzer": "modules.portfolio.core.correlation_analyzer",
+    "modules.portfolio_hedge_finder": "modules.portfolio.core.hedge_finder",
+    "modules.portfolio_risk_calculator": "modules.portfolio.core.risk_calculator",
+    "modules.PortfolioCorrelationAnalyzer": "modules.portfolio.core.correlation_analyzer",
+    "modules.HedgeFinder": "modules.portfolio.core.hedge_finder",
+    "modules.PortfolioRiskCalculator": "modules.portfolio.core.risk_calculator",
     # xgboost subpackage
     "modules.xgboost_prediction_cli": "modules.xgboost.cli",
     "modules.xgboost_prediction_display": "modules.xgboost.display",

@@ -1,5 +1,6 @@
 """Tests for GeminiChartAnalyzer."""
 
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,7 +8,7 @@ import pytest
 from modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer import (
     GeminiChartAnalyzer,
 )
-from modules.gemini_chart_analyzer.core.exceptions import (
+from modules.gemini_chart_analyzer.core.analyzers.components.exceptions import (
     GeminiImageValidationError,
 )
 
@@ -138,3 +139,39 @@ class TestGeminiChartAnalyzer:
         result = analyzer.analyze_chart("test.png", "BTC/USDT", "1h")
 
         assert "LONG" in result or "SHORT" in result or "NONE" in result
+
+    @patch("modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai")
+    def test_build_model_chain_prefers_dynamic_models(self, mock_genai):
+        """Dynamic API model list should be tried before static emergency fallbacks."""
+        GeminiChartAnalyzer._MODEL_LIST_CACHE = None
+        GeminiChartAnalyzer._MODEL_LIST_CACHE_AT = 0.0
+
+        mock_client = MagicMock()
+        mock_model = MagicMock()
+        mock_model.name = "models/gemini-3-flash"
+        mock_model.supported_actions = ["generateContent"]
+        mock_client.models.list.return_value = [mock_model]
+        mock_genai.Client.return_value = mock_client
+
+        analyzer = GeminiChartAnalyzer(api_key="test_key")
+        analyzer._available_models = ["models/gemini-3-flash", "models/gemini-2.5-pro"]
+
+        chain = analyzer._build_model_chain("models/gemini-3-flash")
+
+        assert chain[0] == "models/gemini-3-flash"
+        assert "models/gemini-2.5-pro" in chain[1:]
+
+    @patch("modules.gemini_chart_analyzer.core.analyzers.gemini_chart_analyzer.genai")
+    def test_get_cached_available_models_uses_cache(self, mock_genai):
+        """Cached model list should be reused without calling API again."""
+        GeminiChartAnalyzer._MODEL_LIST_CACHE = ["models/gemini-2.5-pro"]
+        GeminiChartAnalyzer._MODEL_LIST_CACHE_AT = time.time()
+
+        mock_client = MagicMock()
+        mock_genai.Client.return_value = mock_client
+
+        analyzer = GeminiChartAnalyzer(api_key="test_key")
+        cached_models = analyzer._get_cached_available_models()
+
+        assert cached_models == ["models/gemini-2.5-pro"]
+        mock_client.models.list.assert_not_called()

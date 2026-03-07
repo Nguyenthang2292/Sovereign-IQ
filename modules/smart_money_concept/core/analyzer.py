@@ -6,7 +6,7 @@ import pandas as pd
 from ..models.order_block import OrderBlock
 from .bos import BosChochResult, identify_bos_choch
 from .equal_hl import EqualHLResult, identify_equal_hl
-from .order_block import identify_order_blocks
+from .order_block import identify_order_blocks_from_structure
 from .swing import SwingResult, detect_swings
 from .trend import BULLISH, BEARISH, detect_trend
 
@@ -47,6 +47,13 @@ def _last_break_direction(structure: BosChochResult) -> Optional[int]:
 
     events.sort(key=lambda item: item[0])
     return events[-1][1]
+
+
+def _merge_structure_events(*frames: pd.DataFrame) -> pd.DataFrame:
+    non_empty_frames = [frame for frame in frames if not frame.empty]
+    if not non_empty_frames:
+        return pd.DataFrame()
+    return pd.concat(non_empty_frames).sort_values("Crossing_Time")
 
 
 class SMCAnalyzer:
@@ -93,8 +100,29 @@ class SMCAnalyzer:
             closes,
         )
 
-        ob_internal = identify_order_blocks(df_filtered, swings.internal_highs, swings.internal_lows, trend)
-        ob_swing = identify_order_blocks(df_filtered, swings.swing_highs, swings.swing_lows, trend)
+        bullish_events_internal = _merge_structure_events(
+            internal_structure.bullish_bos,
+            internal_structure.bullish_choch,
+        )
+        bearish_events_internal = _merge_structure_events(
+            internal_structure.bearish_bos,
+            internal_structure.bearish_choch,
+        )
+
+        ob_internal = identify_order_blocks_from_structure(
+            df_filtered, bullish_events_internal, bearish_events_internal
+        )
+
+        bullish_events_swing = _merge_structure_events(
+            swing_structure.bullish_bos,
+            swing_structure.bullish_choch,
+        )
+        bearish_events_swing = _merge_structure_events(
+            swing_structure.bearish_bos,
+            swing_structure.bearish_choch,
+        )
+
+        ob_swing = identify_order_blocks_from_structure(df_filtered, bullish_events_swing, bearish_events_swing)
 
         return SMCState(
             ohlcv=df_filtered,

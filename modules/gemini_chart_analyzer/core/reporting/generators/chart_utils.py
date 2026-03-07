@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from modules.common.domain.symbol_codec import SymbolCodec
 from modules.common.ui.logging import log_warn
 
 
@@ -81,7 +82,7 @@ def find_chart_paths_for_timeframes(symbol: str, timeframes: List[str], charts_d
     if not os.path.exists(charts_dir):
         return results
 
-    safe_symbol = symbol.replace("/", "_").replace(":", "_")
+    safe_symbol = SymbolCodec.sanitize_for_filename(symbol)
     all_files = os.listdir(charts_dir)
 
     for tf in timeframes:
@@ -105,4 +106,4 @@ def sanitize_symbol_for_filename(symbol: str) -> str:
     Returns:
         Filename-safe symbol string
     """
-    return symbol.replace("/", "_").replace(":", "_")
+    return SymbolCodec.sanitize_for_filename(symbol)

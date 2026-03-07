@@ -11,8 +11,9 @@ import pandas as pd
 from modules.adaptive_trend_LTS_serverless import DEFAULT_ATC_CONFIG, ATCLambdaClient
 from modules.auto_trade.core.atc_scanner import SignalResult
 from modules.common.core.data_fetcher import DataFetcher
-from modules.common.domain.symbols import normalize_symbol_key
+from modules.common.domain.symbol_codec import SymbolCodec
 
+_SYMBOL_CODEC = SymbolCodec()
 
 
 class ATCServerlessScanner:
@@ -125,7 +126,7 @@ class ATCServerlessScanner:
         return merged
 
     def _build_symbol_payload(self, symbol: str) -> Optional[Dict[str, Any]]:
-        normalized_symbol = normalize_symbol_key(symbol)
+        normalized_symbol = _SYMBOL_CODEC.to_db(symbol)
         timeframe_payload: Dict[str, Dict[str, List[float]]] = {}
 
         for timeframe in self.timeframes:
