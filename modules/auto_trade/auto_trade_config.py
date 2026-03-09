@@ -128,7 +128,8 @@ class AutoTradeConfig:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
     # System settings
-    dry_run: bool = field(default_factory=lambda: os.getenv("DRY_RUN", "False").lower() == "true")
+    # Safe-by-default: real trading requires explicit DRY_RUN=False.
+    dry_run: bool = field(default_factory=lambda: os.getenv("DRY_RUN", "True").lower() == "true")
     enable_telegram: bool = False
     telegram_token: str = field(default_factory=lambda: os.getenv("TELEGRAM_TOKEN", ""))
     telegram_chat_id: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_ID", ""))
@@ -228,7 +229,7 @@ class AutoTradeConfig:
             database=DatabaseConfig(**data.get("database", {})),
             binance=BinanceConfig(**data.get("binance", {})),
             logging=LoggingConfig(**data.get("logging", {})),
-            dry_run=data.get("dry_run", False),
+            dry_run=data.get("dry_run", True),
             enable_telegram=data.get("enable_telegram", False),
             telegram_token=data.get("telegram_token", ""),
             telegram_chat_id=data.get("telegram_chat_id", ""),

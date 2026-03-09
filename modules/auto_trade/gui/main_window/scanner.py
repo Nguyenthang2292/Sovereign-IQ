@@ -17,6 +17,22 @@ if TYPE_CHECKING:
 # Scanner manager handles the trading loop and signal generation
 
 
+class _ScannerLogger:
+    """Compatibility logger shim for tests patching scanner.logger."""
+
+    def info(self, message: str, *args, **kwargs) -> None:
+        log_info(message, *args, **kwargs)
+
+    def warning(self, message: str, *args, **kwargs) -> None:
+        log_warn(message, *args, **kwargs)
+
+    def error(self, message: str, *args, **kwargs) -> None:
+        log_error(message, *args, **kwargs)
+
+
+logger = _ScannerLogger()
+
+
 class ScannerManager:
     """Manages market scanner operations with full SignalPipeline integration."""
 
@@ -352,7 +368,7 @@ class ScannerManager:
         start_time = None
         with self._scan_lock:
             if self._scan_running:
-                log_warn("Scanner cycle already in progress, skipping...")
+                logger.warning("Scanner cycle already in progress, skipping...")
                 return
             self._scan_running = True
         start_time = time.perf_counter()
@@ -472,7 +488,7 @@ class ScannerManager:
                 self._scan_running = False
             if start_time is not None:
                 duration = time.perf_counter() - start_time
-                log_info("Scanner cycle completed in %.1fs", duration)
+                logger.info("Scanner cycle completed in %.1fs", duration)
 
     def _run_signal_scan(self):
         """Run actual signal pipeline scan.

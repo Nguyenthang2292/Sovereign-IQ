@@ -1,9 +1,7 @@
+import logging
 from typing import Any, Callable, Optional, Union
 
 import customtkinter as ctk
-
-from modules.common.ui.logging import log_error
-
 
 class EmptyState(ctk.CTkFrame):
     """Customizable empty-state widget for GUI.
@@ -77,4 +75,4 @@ class EmptyState(ctk.CTkFrame):
             try:
                 self.action_callback()
             except Exception as e:
-                log_error("Error in EmptyState action callback: %s", e, exc_info=True)
+                logging.error("Error in EmptyState action callback: %s", e, exc_info=True)

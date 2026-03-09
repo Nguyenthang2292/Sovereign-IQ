@@ -71,6 +71,36 @@ Triển khai hệ thống Adaptive Close Time dựa trên Regime Change Detectio
 
 ---
 
+## Phase 2.1 — DB Persistence & Lambda Offloading (sau Phase 2)
+
+### 2.1A Feature A — DB Persistence (Bắt buộc)
+
+- [x] Thêm dataclass `AdaptiveCloseResult` vào `modules/auto_trade/execution/adaptive_close_calculator.py` với fields: `deadline_utc`, `source`, `duration_hours`, `pelt_hours`, `hmm_hours` → Verify: import + instantiate thành công
+- [x] Thêm method `compute_adaptive_deadline_with_meta()` vào `AdaptiveCloseCalculator`, trả `AdaptiveCloseResult` với source: `adaptive` / `adaptive_fallback` / `static` và map `pelt_hours` + `hmm_hours` từ `RegimeDurationResult` → Verify: pytest mock analyzer assert source + fields đúng
+- [x] Xác nhận keys metadata lưu DynamoDB: `auto_close_deadline_source`, `adaptive_close_duration_hours`, `adaptive_close_pelt_hours`, `adaptive_close_hmm_hours` → Verify: GetItem thấy attributes xuất hiện trên order item
+- [x] Cập nhật order flow integration (`order_manager.py` / `order_executor.py`): dùng `compute_adaptive_deadline_with_meta()` và gán đầy đủ fields metadata trước khi save DB → Verify: `pytest tests/auto_trade/execution/test_adaptive_close_integration.py -v`
+- [x] Viết test `tests/auto_trade/test_adaptive_close_result.py` cho 3 source modes + mapping `pelt_hours`/`hmm_hours` → Verify: `pytest tests/auto_trade/test_adaptive_close_result.py -v`
+- [x] Viết test `tests/auto_trade/execution/test_order_flow_metadata.py` verify payload DB có 4 fields metadata mới → Verify: `pytest tests/auto_trade/execution/test_order_flow_metadata.py -v`
+
+### 2.1B Feature B — AWS Lambda Offloading (Optional)
+
+- [x] Tạo `modules/detect_regime_change/regime_lambda_client.py` với `RegimeLambdaClient`, `invoke()`, `_serialize_ohlcv()`, `_deserialize_result()`; timeout/HTTP error trả `None` để fallback → Verify: pytest mock `requests.post`
+- [x] Tích hợp `RegimeLambdaClient` vào `compute_adaptive_deadline_with_meta()` theo fallback chain: Lambda → local analyzer → static → Verify: pytest fallback chain pass
+- [x] Tạo Lambda Rust project `modules/detect_regime_change/regime_lambda/Cargo.toml` (lambda_runtime, serde, serde_json, tokio) → Verify: `cargo check` pass
+- [x] Tạo `modules/detect_regime_change/regime_lambda/src/models.rs` với `RegimeAnalysisRequest` / `RegimeAnalysisResponse` → Verify: `cargo test` serialization round-trip pass
+- [x] Tạo `modules/detect_regime_change/regime_lambda/src/handler.rs` xử lý request + chạy regime analysis → Verify: unit test mock OHLCV pass
+- [x] Tạo `modules/detect_regime_change/regime_lambda/src/main.rs` entrypoint `lambda_runtime::run()` → Verify: `cargo lambda build --release` thành công
+- [x] Tạo `modules/detect_regime_change/regime_lambda/template.yaml` (SAM template, Memory 512MB, Timeout 30s) → Verify: `sam validate` pass
+- [x] Viết test `tests/detect_regime_change/test_regime_lambda_client.py` (serialize/deserialize/timeout/http error) → Verify: `pytest tests/detect_regime_change/test_regime_lambda_client.py -v`
+- [x] Viết test `tests/auto_trade/test_adaptive_close_lambda_fallback.py` cho Lambda success + fallback local + fallback static → Verify: `pytest tests/auto_trade/test_adaptive_close_lambda_fallback.py -v`
+- [x] Bổ sung Rust unit tests cho Lambda handler (parse request / execute PELT / serialize response) → Verify: `cargo test` trong `regime_lambda/`
+- [x] Build Lambda package: `cargo lambda build --release --target x86_64-unknown-linux-gnu`
+- [x] Deploy Lambda: `cargo lambda deploy --iam-role arn:aws:iam::ACCOUNT:role/ROLE regime-analysis`
+- [x] Smoke test endpoint: `python scripts/test_regime_lambda.py --endpoint FUNCTION_URL --symbol BTC/USDT`
+- [x] Bật `use_lambda: true` trong settings và test end-to-end order flow
+
+---
+
 ## Phase 3 — GUI & Polish (sau Phase 2)
 
 - [ ] Thêm section "Adaptive Close" trong GUI settings (toggle enable, min/max/lookback inputs) → Verify: mở GUI, thấy section mới, toggle hoạt động
@@ -84,6 +114,21 @@ Triển khai hệ thống Adaptive Close Time dựa trên Regime Change Detectio
 - [ ] Phase 1 hoàn thành: tất cả pytest pass, adaptive close **tắt** mặc định, bật lên tính đúng deadline
 - [ ] Flow cũ (`max_duration_hours` cố định) vẫn hoạt động bình thường khi `adaptive.enabled: false`
 - [ ] Không thay đổi `auto_close_timer.py` hay `auto_close_timer_job.py`
+
+### Phase 2.1A — DB Persistence
+
+- [ ] 4 DB columns được thêm, không NULL error khi update
+- [x] `compute_adaptive_deadline_with_meta()` trả đúng `source`, `pelt_hours`, `hmm_hours`
+- [x] Order flow integration: 5 fields được save vào DB sau khi place order
+- [ ] Sau restart: `auto_close_timer_job` vẫn hoạt động đúng (đọc `auto_close_deadline_utc`)
+- [ ] Tất cả pytest pass
+
+### Phase 2.1B — AWS Lambda Offloading (Optional)
+
+- [x] `use_lambda: false` mặc định → không ảnh hưởng flow hiện tại
+- [x] `use_lambda: true` → Lambda được gọi, fallback hoạt động đúng khi Lambda fail
+- [x] `cargo lambda build` thành công
+- [x] Smoke test pass với real endpoint
 
 ## Notes
 

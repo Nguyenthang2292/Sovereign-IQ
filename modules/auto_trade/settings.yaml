@@ -43,11 +43,14 @@ auto_close:
   grace_period_minutes: 5
   tp_offset_pct: 0.05
   adaptive:
-    enabled: false
+    enabled: true
     min_duration_hours: 1.0
     max_duration_hours: 12.0
     lookback_days: 60
     timeframe: '15m'
+    use_lambda: true
+    lambda_endpoint: "https://prpflz35yc43citbf5huimcawm0vprxg.lambda-url.us-east-1.on.aws/"
+    lambda_timeout_seconds: 3.0
 scanner:
   scan_interval: 5
   timeframe: 15m

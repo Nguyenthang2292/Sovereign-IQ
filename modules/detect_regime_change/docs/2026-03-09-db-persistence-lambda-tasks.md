@@ -84,7 +84,7 @@ Các order items cũ trong table `AutoTrade` đơn giản là không có 4 attri
 
 ### B.2 `RegimeLambdaClient` — Local HTTP Client
 
-- [ ] Tạo `modules/detect_regime_change/regime_lambda_client.py`:
+- [x] Tạo `modules/detect_regime_change/regime_lambda_client.py`:
   - Class `RegimeLambdaClient(endpoint, timeout_seconds=3.0)`
   - Method `invoke(ohlcv_df, symbol, config) -> Optional[RegimeDurationResult]`
   - Method `_serialize_ohlcv(df) -> dict` — chuyển DataFrame → JSON dict
@@ -94,7 +94,7 @@ Các order items cũ trong table `AutoTrade` đơn giản là không có 4 attri
 
 ### B.3 Tích hợp `RegimeLambdaClient` vào `AdaptiveCloseCalculator`
 
-- [ ] Cập nhật `compute_adaptive_deadline_with_meta()`:
+- [x] Cập nhật `compute_adaptive_deadline_with_meta()`:
   - Kiểm tra `cfg["use_lambda"]` và `cfg["lambda_endpoint"]`
   - Nếu True: gọi `RegimeLambdaClient.invoke()` trước
   - Nếu Lambda trả `None` → fallback về local `RegimeDurationAnalyzer`
@@ -102,46 +102,46 @@ Các order items cũ trong table `AutoTrade` đơn giản là không có 4 attri
 
 ### B.4 Lambda Handler (Rust)
 
-- [ ] Tạo `modules/detect_regime_change/regime_lambda/Cargo.toml`:
+- [x] Tạo `modules/detect_regime_change/regime_lambda/Cargo.toml`:
   - Dependency: `lambda_runtime`, `serde`, `serde_json`, `tokio`
   - Reuse Rust PELT logic từ `modules/detect_regime_change/rust_extensions/`
   - Verify: `cargo check` pass
 
-- [ ] Tạo `modules/detect_regime_change/regime_lambda/src/models.rs`:
+- [x] Tạo `modules/detect_regime_change/regime_lambda/src/models.rs`:
   - Struct `RegimeAnalysisRequest` (deserialize từ JSON)
   - Struct `RegimeAnalysisResponse` (serialize sang JSON)
   - Verify: `cargo test` pass cho serialization round-trip
 
-- [ ] Tạo `modules/detect_regime_change/regime_lambda/src/handler.rs`:
+- [x] Tạo `modules/detect_regime_change/regime_lambda/src/handler.rs`:
   - Nhận request, parse OHLCV, chạy PELT + HMM logic
   - Trả `RegimeAnalysisResponse`
   - Verify: unit test với mock OHLCV data
 
-- [ ] Tạo `modules/detect_regime_change/regime_lambda/src/main.rs`:
+- [x] Tạo `modules/detect_regime_change/regime_lambda/src/main.rs`:
   - Lambda entry point với `lambda_runtime::run()`
   - Verify: `cargo lambda build --release` thành công
 
-- [ ] Tạo `modules/detect_regime_change/regime_lambda/template.yaml`:
+- [x] Tạo `modules/detect_regime_change/regime_lambda/template.yaml`:
   - SAM template, follow pattern `adaptive_trend_LTS_serverless/template.yaml`
   - Memory: 512MB, Timeout: 30s
   - Verify: `sam validate` pass
 
 ### B.5 Tests
 
-- [ ] Viết pytest `tests/detect_regime_change/test_regime_lambda_client.py`:
+- [x] Viết pytest `tests/detect_regime_change/test_regime_lambda_client.py`:
   - Test serialization OHLCV DataFrame → JSON
   - Test deserialization JSON → RegimeDurationResult
   - Test timeout handling (mock requests timeout)
   - Test HTTP error handling (mock 500 response)
   - Verify: `pytest tests/detect_regime_change/test_regime_lambda_client.py -v`
 
-- [ ] Viết pytest `tests/auto_trade/test_adaptive_close_lambda_fallback.py`:
+- [x] Viết pytest `tests/auto_trade/test_adaptive_close_lambda_fallback.py`:
   - Test: Lambda thành công → dùng Lambda result, source="adaptive"
   - Test: Lambda timeout → fallback local, source="adaptive"
   - Test: Lambda + local fail → static fallback, source="adaptive_fallback"
   - Verify: `pytest tests/auto_trade/test_adaptive_close_lambda_fallback.py -v`
 
-- [ ] Rust unit tests cho Lambda handler:
+- [x] Rust unit tests cho Lambda handler:
   - Test parse request JSON
   - Test PELT execution trên mock data
   - Test response serialization
@@ -149,20 +149,20 @@ Các order items cũ trong table `AutoTrade` đơn giản là không có 4 attri
 
 ### B.6 Deploy & Smoke Test
 
-- [ ] Build Lambda package:
+- [X] Build Lambda package:
   ```bash
   cd modules/detect_regime_change/regime_lambda
   cargo lambda build --release --target x86_64-unknown-linux-gnu
   ```
-- [ ] Deploy lên AWS Lambda:
+- [X] Deploy lên AWS Lambda:
   ```bash
   cargo lambda deploy --iam-role arn:aws:iam::ACCOUNT:role/ROLE regime-analysis
   ```
-- [ ] Smoke test với real OHLCV data:
+- [X] Smoke test với real OHLCV data:
   ```bash
   python scripts/test_regime_lambda.py --endpoint FUNCTION_URL --symbol BTC/USDT
   ```
-- [ ] Bật `use_lambda: true` trong settings, test end-to-end với order flow
+- [X] Bật `use_lambda: true` trong settings, test end-to-end với order flow
 
 ---
 
@@ -176,10 +176,10 @@ Các order items cũ trong table `AutoTrade` đơn giản là không có 4 attri
 - [ ] Tất cả pytest pass
 
 ### Feature B (nếu implement)
-- [ ] `use_lambda: false` mặc định → không ảnh hưởng flow hiện tại
-- [ ] `use_lambda: true` → Lambda được gọi, fallback hoạt động đúng khi Lambda fail
-- [ ] `cargo lambda build` thành công
-- [ ] Smoke test pass với real endpoint
+- [X] `use_lambda: false` mặc định → không ảnh hưởng flow hiện tại
+- [X] `use_lambda: true` → Lambda được gọi, fallback hoạt động đúng khi Lambda fail
+- [X] `cargo lambda build` thành công
+- [X] Smoke test pass với real endpoint
 
 ---
 

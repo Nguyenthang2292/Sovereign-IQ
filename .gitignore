@@ -109,3 +109,5 @@ modules/adaptive_trend_LTS_serverless/target/
 # uv lock file
 uv.lock
 
+# Regime Lambda Rust build output
+modules/detect_regime_change/regime_lambda/target/

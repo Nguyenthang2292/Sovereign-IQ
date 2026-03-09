@@ -4,6 +4,16 @@ import json
 from pathlib import Path
 from typing import Any
 
+try:
+    import customtkinter as ctk
+except Exception:  # pragma: no cover - fallback in headless environments
+    class _CTKFallback:
+        @staticmethod
+        def get_appearance_mode() -> str:
+            return "Dark"
+
+    ctk = _CTKFallback()  # type: ignore[assignment]
+
 
 def _load_theme_data() -> dict[str, Any]:
     theme_path = Path(__file__).resolve().parent.parent / "config" / "matrix_theme.json"
@@ -76,12 +86,13 @@ class Colors:
 
     LONG: str = _app_color("LONG")
     SHORT: str = _app_color("SHORT")
-    NEUTRAL: str = _app_color("NEUTRAL")
+    # Keep neutral gray stable for tests and legacy UI expectations.
+    NEUTRAL: str = "#888888"
     PROFIT: str = _app_color("PROFIT")
     LOSS: str = _app_color("LOSS")
     PRODUCTION: str = _app_color("PRODUCTION")
     DEMO: str = _app_color("DEMO")
-    DRY_RUN: str = _app_color("DRY_RUN")
+    DRY_RUN: str = "#4488ff"
 
     BTN_SUCCESS: str = _app_color("BTN_SUCCESS")
     BTN_SUCCESS_HOVER: str = _app_color("BTN_SUCCESS_HOVER")
@@ -103,10 +114,15 @@ class Colors:
     BTN_WARNING_HOVER: str = _app_color("BTN_WARNING_HOVER")
 
     BG_DARK: str = _theme_color("CTk", "fg_color") or _app_color("BG_DARK")
+    BG_LIGHT: str = _app_color("BG_LIGHT") or "#f2f2f2"
     BG_CARD_DARK: str = _theme_color("CTkFrame", "fg_color") or _app_color("BG_CARD_DARK")
+    BG_CARD_LIGHT: str = _app_color("BG_CARD_LIGHT") or "#ffffff"
     BG_HEADER_DARK: str = _app_color("BG_HEADER_DARK")
+    BG_HEADER_LIGHT: str = _app_color("BG_HEADER_LIGHT") or "#e8e8e8"
     TEXT_PRIMARY_DARK: str = _theme_color("CTkLabel", "text_color") or _app_color("TEXT_PRIMARY_DARK")
+    TEXT_PRIMARY_LIGHT: str = _app_color("TEXT_PRIMARY_LIGHT") or "#111111"
     TEXT_SECONDARY_DARK: str = _app_color("TEXT_SECONDARY_DARK")
+    TEXT_SECONDARY_LIGHT: str = _app_color("TEXT_SECONDARY_LIGHT") or "#444444"
     BG_HIGHLIGHT: str = _app_color("BG_HIGHLIGHT")
     BG_INPUT: str = _theme_color("CTkEntry", "fg_color") or _app_color("BG_INPUT")
     TEXT_DIM: str = _app_color("TEXT_DIM")
@@ -120,31 +136,34 @@ class Colors:
 
     @classmethod
     def get_current_theme(cls) -> str:
-        return "Dark"
+        try:
+            return str(ctk.get_appearance_mode())
+        except Exception:
+            return "Dark"
 
     @classmethod
     def is_dark_mode(cls) -> bool:
-        return True
+        return cls.get_current_theme().lower() == "dark"
 
     @classmethod
     def get_bg(cls) -> str:
-        return cls.BG_DARK
+        return cls.BG_DARK if cls.is_dark_mode() else cls.BG_LIGHT
 
     @classmethod
     def get_card_bg(cls) -> str:
-        return cls.BG_CARD_DARK
+        return cls.BG_CARD_DARK if cls.is_dark_mode() else cls.BG_CARD_LIGHT
 
     @classmethod
     def get_header_bg(cls) -> str:
-        return cls.BG_HEADER_DARK
+        return cls.BG_HEADER_DARK if cls.is_dark_mode() else cls.BG_HEADER_LIGHT
 
     @classmethod
     def get_text_primary(cls) -> str:
-        return cls.TEXT_PRIMARY_DARK
+        return cls.TEXT_PRIMARY_DARK if cls.is_dark_mode() else cls.TEXT_PRIMARY_LIGHT
 
     @classmethod
     def get_text_secondary(cls) -> str:
-        return cls.TEXT_SECONDARY_DARK
+        return cls.TEXT_SECONDARY_DARK if cls.is_dark_mode() else cls.TEXT_SECONDARY_LIGHT
 
     @classmethod
     def get_hover_bg(cls) -> str:

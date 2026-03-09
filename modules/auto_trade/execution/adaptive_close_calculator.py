@@ -17,6 +17,16 @@ from typing import Any, Dict, Literal, Optional
 
 from modules.common.ui.logging import log_error, log_info, log_warn
 
+# Import RegimeLambdaClient for optional Lambda offloading
+try:
+    from modules.detect_regime_change.regime_lambda_client import (
+        RegimeLambdaClient,
+        RegimeDurationResult as LambdaRegimeResult,
+    )
+except Exception:
+    RegimeLambdaClient = None
+    LambdaRegimeResult = None
+
 # Keep a module-level symbol so tests can patch
 # `modules.auto_trade.execution.adaptive_close_calculator.RegimeDurationAnalyzer`.
 try:
@@ -80,6 +90,10 @@ class AdaptiveCloseCalculator:
             "fallback_duration_hours": float(cfg.get("max_duration_hours", DEFAULT_FALLBACK_DURATION_HOURS)),
             "lookback_days": int(adaptive.get("lookback_days", DEFAULT_LOOKBACK_DAYS)),
             "timeframe": str(adaptive.get("timeframe", "") or cfg.get("timeframe", "15m")),
+            # Lambda offloading config (Feature B)
+            "use_lambda": bool(adaptive.get("use_lambda", False)),
+            "lambda_endpoint": str(adaptive.get("lambda_endpoint", "")),
+            "lambda_timeout_seconds": float(adaptive.get("lambda_timeout_seconds", 3.0)),
         }
 
     def compute_adaptive_deadline(
@@ -138,7 +152,7 @@ class AdaptiveCloseCalculator:
                 timeframe=cfg["timeframe"],
             )
 
-            # === 3. Extract and clamp ===
+            # === 4. Extract and clamp ===
             if analysis.is_valid and analysis.recommended_duration_hours is not None:
                 raw_hours = analysis.recommended_duration_hours
                 clamped_hours = max(
@@ -253,23 +267,48 @@ class AdaptiveCloseCalculator:
                     hmm_hours=None,
                 )
 
-            # === 2. Run regime analysis ===
-            if RegimeDurationAnalyzer is None:
-                raise ImportError(
-                    "RegimeDurationAnalyzer is unavailable "
-                    "(modules.detect_regime_change.regime_duration_analyzer import failed)"
+            # === 2. Try Lambda first if enabled ===
+            analysis = None
+            if cfg["use_lambda"] and cfg["lambda_endpoint"] and RegimeLambdaClient is not None:
+                client = RegimeLambdaClient(
+                    endpoint=cfg["lambda_endpoint"],
+                    timeout_seconds=cfg["lambda_timeout_seconds"],
                 )
+                lambda_result = client.invoke(ohlcv_df, symbol, cfg)
 
-            analyzer = RegimeDurationAnalyzer(
-                lookback_days=cfg["lookback_days"],
-            )
-            analysis = analyzer.analyze(
-                df=ohlcv_df,
-                symbol=symbol,
-                timeframe=cfg["timeframe"],
-            )
+                if (
+                    lambda_result is not None
+                    and lambda_result.is_valid
+                    and lambda_result.recommended_duration_hours is not None
+                ):
+                    # Use Lambda result
+                    analysis = lambda_result
+                    log_info(f"Adaptive close [{symbol}]: Using Lambda result")
+                elif lambda_result is not None:
+                    log_warn(
+                        f"Adaptive close [{symbol}]: Lambda returned invalid result "
+                        f"(error={lambda_result.error}), falling back to local analyzer"
+                    )
 
-            # === 3. Extract and clamp ===
+            # === 3. Fallback to local analyzer if Lambda failed or not enabled ===
+            if analysis is None:
+                if RegimeDurationAnalyzer is None:
+                    raise ImportError(
+                        "RegimeDurationAnalyzer is unavailable "
+                        "(modules.detect_regime_change.regime_duration_analyzer import failed)"
+                    )
+
+                analyzer = RegimeDurationAnalyzer(
+                    lookback_days=cfg["lookback_days"],
+                )
+                analysis = analyzer.analyze(
+                    df=ohlcv_df,
+                    symbol=symbol,
+                    timeframe=cfg["timeframe"],
+                )
+                log_info(f"Adaptive close [{symbol}]: Using local analyzer result")
+
+            # === 4. Extract and clamp ===
             if analysis.is_valid and analysis.recommended_duration_hours is not None:
                 raw_hours = analysis.recommended_duration_hours
                 clamped_hours = max(
@@ -292,7 +331,7 @@ class AdaptiveCloseCalculator:
                     hmm_hours=analysis.hmm_next_state_duration_hours,
                 )
 
-            # === 4. Fallback when analysis invalid ===
+            # === 5. Fallback when analysis invalid ===
             log_warn(
                 f"Adaptive close [{symbol}]: analysis invalid "
                 f"(error={analysis.error}), falling back to {cfg['fallback_duration_hours']}h"

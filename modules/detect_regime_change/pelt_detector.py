@@ -9,12 +9,11 @@ where each interval between two breakpoints is a regime segment.
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, cast
 
 import numpy as np
 
 from modules.detect_regime_change.models import ChangePoint, RegimeSegment
-
 
 # Rust backend currently implements L2 and Normal cost.
 # Keep RBF on ruptures for parity until a dedicated Rust implementation is added.
@@ -48,20 +47,27 @@ def detect_change_points_pelt(
     normalized_model = model.lower()
 
     # Auto-penalty via BIC if not provided
-    if penalty is None:
-        penalty = np.log(n) * returns.var()
+    effective_penalty = float(np.log(n) * returns.var()) if penalty is None else float(penalty)
 
     breakpoints: Optional[List[int]] = None
 
     # Try Rust first for supported models.
     if normalized_model in RUST_SUPPORTED_MODELS:
         try:
-            from rust_extensions import detect_change_points_pelt_rs
+            rust_module_name = "rust_extensions"
+            rust_module = __import__(rust_module_name)
+            detect_change_points_pelt_rs = getattr(rust_module, "detect_change_points_pelt_rs", None)
+            if not callable(detect_change_points_pelt_rs):
+                raise AttributeError("detect_change_points_pelt_rs not found")
+            rust_detector = cast(
+                Callable[[List[float], float, int, str], List[int]],
+                detect_change_points_pelt_rs,
+            )
 
             # Rust-only ABI (model-aware): (returns, penalty, min_size, model)
-            breakpoints = detect_change_points_pelt_rs(
+            breakpoints = rust_detector(
                 returns.tolist(),
-                float(penalty),
+                effective_penalty,
                 int(min_segment_length),
                 normalized_model,
             )
@@ -72,11 +78,15 @@ def detect_change_points_pelt(
             breakpoints = None
 
     if breakpoints is None:
-        import ruptures as rpt
+        ruptures_module_name = "ruptures"
+        rpt = __import__(ruptures_module_name)
 
         # Fallback to Python ruptures
         algo = rpt.Pelt(model=normalized_model, min_size=min_segment_length).fit(returns)
-        breakpoints = algo.predict(pen=penalty)
+        breakpoints = algo.predict(pen=effective_penalty)
+
+    if breakpoints is None:
+        return [], []
 
     # Build change points
     change_points: List[ChangePoint] = []
@@ -94,8 +104,8 @@ def detect_change_points_pelt(
 
         # Duration calculation
         if timestamps is not None and len(timestamps) > e - 1:
-            t_start = np.datetime64(timestamps[s], "s")
-            t_end = np.datetime64(timestamps[min(e, len(timestamps)) - 1], "s")
+            t_start = np.datetime64(str(timestamps[s]), "s")
+            t_end = np.datetime64(str(timestamps[min(e, len(timestamps)) - 1]), "s")
             duration_seconds = float((t_end - t_start) / np.timedelta64(1, "s"))
         else:
             # Fallback: estimate from candle count

@@ -28,7 +28,12 @@ class SignalsFrame(ctk.CTkFrame):
         self._create_header()
         self._create_table()
         self._create_empty_state()
-        self.bind("<Button-1>", lambda _e: self.configure(border_color=Colors.BORDER_ACTIVE))
+        try:
+            self.bind("<Button-1>", lambda _e: self.configure(border_color=Colors.BORDER_ACTIVE))
+        except (AttributeError, TypeError):
+            # Headless tests may replace CTk base widgets with MagicMock subclasses.
+            # Accessing event APIs can trigger mock child-construction edge cases.
+            pass
 
         self.refresh_label = ctk.CTkLabel(
             self,

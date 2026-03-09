@@ -14,6 +14,22 @@ from typing import Callable, Dict, Literal, Optional, Tuple, TypedDict, cast
 from modules.common.ui.logging import log_error, log_info, log_warn
 
 
+class _HealthLogger:
+    """Compatibility logger shim for tests patching `health.logger`."""
+
+    def error(self, message: str, *args, **kwargs) -> None:
+        log_error(message, *args, **kwargs)
+
+    def warning(self, message: str, *args, **kwargs) -> None:
+        log_warn(message, *args, **kwargs)
+
+    def info(self, message: str, *args, **kwargs) -> None:
+        log_info(message, *args, **kwargs)
+
+
+logger = _HealthLogger()
+
+
 class HealthStatus(Enum):
     HEALTHY = "HEALTHY"
     DEGRADED = "DEGRADED"
@@ -96,7 +112,7 @@ class HealthRegistry:
                 "timestamp": time.time(),
             }
         except Exception as e:
-            log_error("Health check '%s' failed with exception: %s", name, e, exc_info=True)
+            logger.error("Health check '%s' failed with exception: %s", name, e, exc_info=True)
             return {
                 "status": HealthStatus.UNHEALTHY.value,
                 "details": f"Check failed: {e}",
@@ -136,9 +152,9 @@ class HealthRegistry:
                         )
 
                         if status == HealthStatus.UNHEALTHY:
-                            log_warn("Health check '%s' is UNHEALTHY: %s", name, details)
+                            logger.warning("Health check '%s' is UNHEALTHY: %s", name, details)
                         elif status == HealthStatus.DEGRADED:
-                            log_info("Health check '%s' is DEGRADED: %s", name, details)
+                            logger.info("Health check '%s' is DEGRADED: %s", name, details)
 
                     except FutureTimeoutError:
                         results[name] = cast(
@@ -149,10 +165,10 @@ class HealthRegistry:
                                 "timestamp": time.time(),
                             },
                         )
-                        log_error("Health check '%s' timed out after %ss", name, timeout)
+                        logger.error("Health check '%s' timed out after %ss", name, timeout)
 
                     except Exception as e:
-                        log_error("Health check '%s' failed with exception: %s", name, e, exc_info=True)
+                        logger.error("Health check '%s' failed with exception: %s", name, e, exc_info=True)
                         results[name] = cast(
                             HealthCheckResult,
                             {
@@ -172,12 +188,12 @@ class HealthRegistry:
                     )
 
                     if status == HealthStatus.UNHEALTHY:
-                        log_warn("Health check '%s' is UNHEALTHY: %s", name, details)
+                        logger.warning("Health check '%s' is UNHEALTHY: %s", name, details)
                     elif status == HealthStatus.DEGRADED:
-                        log_info("Health check '%s' is DEGRADED: %s", name, details)
+                        logger.info("Health check '%s' is DEGRADED: %s", name, details)
 
                 except Exception as e:
-                    log_error("Health check '%s' failed with exception: %s", name, e, exc_info=True)
+                    logger.error("Health check '%s' failed with exception: %s", name, e, exc_info=True)
                     results[name] = cast(
                         HealthCheckResult,
                         {
