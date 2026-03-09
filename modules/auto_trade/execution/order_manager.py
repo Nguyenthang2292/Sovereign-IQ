@@ -7,12 +7,14 @@ and optionally RecoveryManager for gradual recovery parameters.
 """
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from modules.auto_trade.core.signal_selector import FinalSignal
+from modules.auto_trade.execution.adaptive_close_calculator import AdaptiveCloseCalculator, AdaptiveCloseResult
 from modules.auto_trade.execution.binance_client import BinanceClient
 from modules.auto_trade.execution.order_builder import OrderBuilder, OrderTicket
 from modules.auto_trade.execution.order_validator import OrderValidator
@@ -103,10 +105,34 @@ class OrderManager:
             testnet=testnet,
             dry_run=dry_run,
         )
+        self._adaptive_close_calculator = self._init_adaptive_close_calculator()
 
         log_info(
             f"OrderManager initialized ({'DRY RUN' if dry_run else 'LIVE'} mode, {'testnet' if testnet else 'mainnet'})"
         )
+
+    @staticmethod
+    def _extract_opened_at_utc(market_order: dict) -> datetime:
+        """Best-effort extraction of order open time from exchange payload."""
+        timestamp_ms = market_order.get("timestamp")
+        if timestamp_ms is not None:
+            try:
+                return datetime.fromtimestamp(float(timestamp_ms) / 1000.0, tz=timezone.utc)
+            except (TypeError, ValueError, OSError, OverflowError):
+                pass
+        return datetime.now(timezone.utc)
+
+    def _init_adaptive_close_calculator(self) -> Optional[AdaptiveCloseCalculator]:
+        """Initialize adaptive calculator once; fail open if settings are unavailable."""
+        try:
+            from modules.auto_trade.gui.services.settings_manager import SettingsManager
+
+            settings_manager = SettingsManager()
+            settings_manager.load()
+            return AdaptiveCloseCalculator(settings_manager)
+        except Exception as e:
+            log_warn(f"Adaptive close calculator unavailable: {e}")
+            return None
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     def _fetch_open_positions(self) -> Optional[list]:
@@ -315,6 +341,7 @@ class OrderManager:
                 side_long_short: str = "LONG" if (order.side or "").upper() == "BUY" else "SHORT"
                 _codec = SymbolCodec()
                 symbol_db: DbSymbol = DbSymbol(_codec.to_db(order.symbol or ""))
+                opened_at = self._extract_opened_at_utc(market)
                 order_data: dict = {
                     "order_id": order_id_binance,
                     "client_order_id": client_order_id
@@ -330,6 +357,20 @@ class OrderManager:
                     "order_source": "PROGRAMMATIC",
                     "execution_mode": "AUTO",
                 }
+
+                if self._adaptive_close_calculator is not None:
+                    adaptive_result = self._adaptive_close_calculator.compute_adaptive_deadline_with_meta(
+                        symbol=order.symbol,
+                        opened_at=opened_at,
+                    )
+                    if adaptive_result.deadline_utc is not None:
+                        order_data["auto_close_deadline_utc"] = adaptive_result.deadline_utc.isoformat().replace("+00:00", "Z")
+                        order_data["auto_close_deadline_source"] = adaptive_result.source
+                        order_data["adaptive_close_duration_hours"] = adaptive_result.duration_hours
+                        if adaptive_result.pelt_hours is not None:
+                            order_data["adaptive_close_pelt_hours"] = adaptive_result.pelt_hours
+                        if adaptive_result.hmm_hours is not None:
+                            order_data["adaptive_close_hmm_hours"] = adaptive_result.hmm_hours
 
                 ctx = RepositoryContext.from_env()
                 ctx.orders.create_order(order_data)

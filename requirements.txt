@@ -6,6 +6,7 @@ xgboost>=2.0.0,<2.1.0
 scikit-learn>=1.5.0
 statsmodels>=0.14.0,<0.15.0
 pykalman>=0.9.5,<0.10.0
+ruptures>=1.1.0,<2.0.0  # Change point detection for regime analysis
 colorama>=0.4.6,<0.5.0
 imbalanced-learn>=0.12.3
 hmmlearn>=0.3.0,<0.4.0

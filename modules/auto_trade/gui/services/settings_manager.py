@@ -48,6 +48,13 @@ class SettingsManager:
             "daily_close_days": "1234567",
             "grace_period_minutes": 5,
             "tp_offset_pct": 0.05,
+            "adaptive": {
+                "enabled": False,
+                "min_duration_hours": 1.0,
+                "max_duration_hours": 12.0,
+                "lookback_days": 60,
+                "timeframe": "15m",
+            },
         },
         "scanner": {
             "scan_interval": 5,

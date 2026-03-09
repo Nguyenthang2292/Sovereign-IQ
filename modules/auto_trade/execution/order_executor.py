@@ -6,11 +6,13 @@ Resolves credentials from env when not passed.
 """
 
 import os
+from datetime import datetime, timezone
 from typing import Any, Dict, Literal, Optional
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from modules.auto_trade.core.signal_selector import FinalSignal
+from modules.auto_trade.execution.adaptive_close_calculator import AdaptiveCloseCalculator
 from modules.auto_trade.execution.binance_client import BinanceClient
 from modules.auto_trade.execution.order_builder import OrderTicket
 from modules.auto_trade.execution.order_manager import OrderManager
@@ -80,6 +82,31 @@ class OrderExecutor:
             }
             gate_config = {k: v for k, v in gate_config.items() if k in _allowed}
             self._order_book_imbalance_gate = OrderBookImbalanceGate(**gate_config)
+
+        self._adaptive_close_calculator = self._init_adaptive_close_calculator()
+
+    @staticmethod
+    def _extract_opened_at_utc(market_order: Dict[str, Any]) -> datetime:
+        """Best-effort extraction of order open time from exchange payload."""
+        timestamp_ms = market_order.get("timestamp")
+        if timestamp_ms is not None:
+            try:
+                return datetime.fromtimestamp(float(timestamp_ms) / 1000.0, tz=timezone.utc)
+            except (TypeError, ValueError, OSError, OverflowError):
+                pass
+        return datetime.now(timezone.utc)
+
+    def _init_adaptive_close_calculator(self) -> Optional[AdaptiveCloseCalculator]:
+        """Initialize adaptive calculator once; fail open if settings are unavailable."""
+        try:
+            from modules.auto_trade.gui.services.settings_manager import SettingsManager
+
+            settings_manager = SettingsManager()
+            settings_manager.load()
+            return AdaptiveCloseCalculator(settings_manager)
+        except Exception as e:
+            log_warn(f"[OrderExecutor] Adaptive close calculator unavailable: {e}")
+            return None
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=10))
     def _fetch_ticker(self, symbol: str) -> Dict[str, Any]:
@@ -267,6 +294,7 @@ class OrderExecutor:
                     market: Dict[str, Any] = result["market_order"]
                     order_id_binance = str(market.get("id") or "")
                     entry_price = float(result.get("entry_price") or market.get("average") or 0.0)
+                    opened_at = self._extract_opened_at_utc(market)
 
                     order_data: Dict[str, Any] = {
                         "order_id": order_id_binance,
@@ -282,6 +310,22 @@ class OrderExecutor:
                         "order_source": "PROGRAMMATIC",
                         "execution_mode": "MANUAL",
                     }
+
+                    if self._adaptive_close_calculator is not None:
+                        adaptive_result = self._adaptive_close_calculator.compute_adaptive_deadline_with_meta(
+                            symbol=sym,
+                            opened_at=opened_at,
+                        )
+                        if adaptive_result.deadline_utc is not None:
+                            order_data["auto_close_deadline_utc"] = adaptive_result.deadline_utc.isoformat().replace(
+                                "+00:00", "Z"
+                            )
+                            order_data["auto_close_deadline_source"] = adaptive_result.source
+                            order_data["adaptive_close_duration_hours"] = adaptive_result.duration_hours
+                            if adaptive_result.pelt_hours is not None:
+                                order_data["adaptive_close_pelt_hours"] = adaptive_result.pelt_hours
+                            if adaptive_result.hmm_hours is not None:
+                                order_data["adaptive_close_hmm_hours"] = adaptive_result.hmm_hours
 
                     ctx = RepositoryContext.from_env()
                     ctx.orders.create_order(order_data)

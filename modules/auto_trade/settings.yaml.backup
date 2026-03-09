@@ -54,15 +54,15 @@ scanner:
   min_volume: 5.0
   enable_xgboost: false
   atc_threshold: 0.21
-  enable_gann_square: true
-  gann_timeframe: 30m
+  enable_gann_square: false
+  gann_timeframe: 1h
   gann_candle_limit: 200
   gann_lookback: 5
-  enable_order_book: true
+  enable_order_book: false
   ob_depth: 20
   ob_imbalance_threshold: 0.2
 order_book_imbalance:
-  enabled: true
+  enabled: false
   threshold: 0.2
   retry_wait_seconds: 30
   max_retries: 2
