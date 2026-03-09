@@ -20,7 +20,7 @@ This is a high-quality module overall. The architecture, naming, documentation, 
 
 **[x] 1. BUG (Medium) — `_parse_gemini_response` doesn't validate `signal` field type**
 
-In [gann_signal_engine.py](modules/gemini_gann_square/core/gann_signal_engine.py#L296), the parsed `signal` is cast via `str()` but never validated against the `SignalCode` literal (`"LONG" | "SHORT" | "SKIP"`). If Gemini returns `"signal": "BUY"` or any other string, it passes through silently and `is_tradeable()` would return `False` (correct by accident), but `display()` would show an unknown signal icon.
+In [gann_signal_engine.py](modules/gemini_gann_square/core/gann_signal_engine.py#L296), the parsed `signal` is cast via `str()` but never validated against the `SignalCode` literal (`"LONG" | "SHORT" | "SKIP"`). If Gemini returns `"signal": "HOLD"` or any other string, it passes through silently and `is_tradeable()` would return `False` (correct by accident), but `display()` would show an unknown signal icon.
 
 ```python
 # Current — accepts any string:

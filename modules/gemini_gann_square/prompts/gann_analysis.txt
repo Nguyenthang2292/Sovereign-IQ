@@ -23,7 +23,7 @@ Zone Breakdown:
 
 The chart image shows:
 - Candlestick price action
-- 4 diagonal Gann Fan zones radiating from the pivot point (Zone 3 & 4 are active trade zones, Zone 1 & 2 are skip zones)
+- 4 diagonal Gann Fan zones radiating from the pivot point (Zone 2 & 3 are active trade zones, Zone 1 & 4 are skip zones)
 - Swing High marked with ▼ (yellow label)
 - Swing Low marked with ▲ (cyan label)
 - Current price as a yellow line
@@ -36,8 +36,8 @@ YOUR TASK:
 2. Provide your FINAL trading recommendation.
 
 IMPORTANT RULES:
-- For DOWN trend: only recommend SHORT in Zone 3 or 4. SKIP in Zone 1 or 2.
-- For UP trend: only recommend LONG in Zone 3 or 4. SKIP in Zone 1 or 2.
+- For DOWN trend: only recommend SHORT in Zone 2 or 3. SKIP in Zone 1 or 4.
+- For UP trend: only recommend LONG in Zone 2 or 3. SKIP in Zone 1 or 4.
 - If you OVERRIDE system calculation, explain why briefly.
 - Be specific with price levels based on what you see in chart.
 

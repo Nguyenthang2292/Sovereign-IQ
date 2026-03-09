@@ -127,7 +127,9 @@ class UpdaterManager:
                             countdown_text = f" Next scan in: {mins}m {secs:02d}s"
                         else:
                             countdown_text = f" Next scan in: {secs}s"
-                        self.parent.scanner_countdown_label.configure(text=countdown_text, text_color=Colors.TEXT_SECONDARY_ALT)
+                        self.parent.scanner_countdown_label.configure(
+                            text=countdown_text, text_color=Colors.TEXT_SECONDARY_ALT
+                        )
                     else:
                         self.parent.scanner_countdown_label.configure(text="Scanning now...", text_color=Colors.PROFIT)
                 elif is_running:
@@ -143,6 +145,8 @@ class UpdaterManager:
 
     def _drain_log_queue(self):
         """Process log messages from log_queue and display in logs_viewer or logs_textbox."""
+        from datetime import datetime
+
         try:
             if not hasattr(self.parent, "log_queue"):
                 self.parent.after(100, self._drain_log_queue)
@@ -153,14 +157,17 @@ class UpdaterManager:
                     if isinstance(log_record, dict):
                         level = log_record.get("level", "INFO")
                         msg = log_record.get("message", "")
-                        log_msg = f"[{level}] {msg}"
+                        ts = log_record.get("timestamp")
+                        ts_str = (
+                            ts.strftime("%H:%M:%S") if isinstance(ts, datetime) else datetime.now().strftime("%H:%M:%S")
+                        )
+                        log_msg = f"{ts_str} [{level}] {msg}"
                     else:
                         # Fallback for raw LogRecord objects
-                        log_msg = (
-                            f"[{getattr(log_record, 'levelname', 'INFO')}] {getattr(log_record, 'getMessage', lambda: (
-                                        str(log_record)
-                                    ))()}"
-                        )
+                        ts_str = datetime.now().strftime("%H:%M:%S")
+                        levelname = getattr(log_record, "levelname", "INFO")
+                        raw_msg = getattr(log_record, "getMessage", lambda: str(log_record))()
+                        log_msg = f"{ts_str} [{levelname}] {raw_msg}"
                     if hasattr(self.parent, "logs_viewer"):
                         self.parent.logs_viewer.append_log(log_msg)
                     elif hasattr(self.parent, "logs_textbox"):

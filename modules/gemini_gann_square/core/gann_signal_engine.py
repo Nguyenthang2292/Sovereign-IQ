@@ -300,7 +300,7 @@ class GannSignalEngine:
 
             data = json.loads(json_match.group())
 
-            raw_signal = str(data.get("signal", gann.signal_code)).upper()
+            raw_signal = str(data.get("signal", gann.signal_code)).upper().strip()
             signal: SignalCode = raw_signal if raw_signal in ("LONG", "SHORT", "SKIP") else gann.signal_code
 
             zone_confirmed = self._safe_int(data.get("zone_confirmed", gann.current_zone), fallback=gann.current_zone)

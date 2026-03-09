@@ -37,16 +37,16 @@ from .swing_detector import SwingPoint
 # Zone colors: index 0=Zone1, 1=Zone2, 2=Zone3, 3=Zone4
 _DOWN_ZONE_COLORS = [
     "#333333",  # Zone 1 – darker gray (SKIP, steepest)
-    "#555555",  # Zone 2 – dark gray (SKIP)
-    "#ff7777",  # Zone 3 – light red (SHORT)
-    "#ff2d2d",  # Zone 4 – deep red (SHORT, shallowest)
+    "#ff7777",  # Zone 2 – light red (SHORT)
+    "#ff2d2d",  # Zone 3 – deep red (SHORT)
+    "#555555",  # Zone 4 – dark gray (SKIP, shallowest)
 ]
 
 _UP_ZONE_COLORS = [
     "#333333",  # Zone 1 – darker gray (SKIP, steepest)
-    "#555555",  # Zone 2 – dark gray (SKIP)
-    "#33cc66",  # Zone 3 – light green (LONG)
-    "#00a63a",  # Zone 4 – deep green (LONG, shallowest)
+    "#33cc66",  # Zone 2 – light green (LONG)
+    "#00a63a",  # Zone 3 – deep green (LONG)
+    "#555555",  # Zone 4 – dark gray (SKIP, shallowest)
 ]
 
 _ZONE_ALPHA = 0.18  # transparency for zone bands

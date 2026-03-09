@@ -23,6 +23,7 @@ class OrderBookImbalanceGate:
         threshold: float = 0.15,
         retry_wait_seconds: int = 30,
         max_retries: int = 2,
+        depth_limit: int = 100,
         delta_window_minutes: int = 5,
         testnet: bool = False,
         enabled: bool = True,
@@ -30,6 +31,7 @@ class OrderBookImbalanceGate:
         self.threshold = float(threshold)
         self.retry_wait_seconds = int(max(retry_wait_seconds, 0))
         self.max_retries = int(max(max_retries, 0))
+        self.depth_limit = int(max(depth_limit, 1))
         self.delta_window_minutes = int(max(delta_window_minutes, 1))
         self.testnet = bool(testnet)
         self.enabled = bool(enabled)
@@ -57,7 +59,7 @@ class OrderBookImbalanceGate:
             if attempt_idx > 0:
                 time.sleep(self.retry_wait_seconds)
 
-            snapshot = fetch_depth(symbol=symbol, limit=100, testnet=self.testnet)
+            snapshot = fetch_depth(symbol=symbol, limit=self.depth_limit, testnet=self.testnet)
             trades = fetch_agg_trades(
                 symbol=symbol,
                 window_minutes=self.delta_window_minutes,
@@ -88,12 +90,26 @@ class OrderBookImbalanceGate:
 
             if _is_aligned_or_neutral(normalized_signal, score, self.threshold):
                 log_info(
-                    "[OrderBookImbalanceGate] %s %s PASSED (Combined Score=%.3f, attempt=%d/%d)",
+                    "[OrderBookImbalanceGate] %s %s PASSED (Combined=%.3f, attempt=%d/%d)",
                     symbol,
                     normalized_signal,
                     score,
                     attempt_idx + 1,
                     total_attempts,
+                )
+                log_info(
+                    "[OrderBook] +- OBI   : %+.4f (raw=%+.4f)",
+                    result.obi_score,
+                    result.obi_raw,
+                )
+                log_info(
+                    "[OrderBook] +- Delta : %+.4f (raw=%+.4f)",
+                    result.delta_score,
+                    result.delta_raw,
+                )
+                log_info(
+                    "[OrderBook] -- Mid   : %.4f (weighted)",
+                    result.weighted_mid,
                 )
                 return OBIDecision.PASS, result
 
@@ -108,12 +124,28 @@ class OrderBookImbalanceGate:
                     self.retry_wait_seconds,
                 )
 
+        final_score = last_result.combined_score if last_result is not None else 0.0
         log_warn(
-            "[OrderBookImbalanceGate] %s %s SKIPPED after retry (Combined Score=%.3f)",
+            "[OrderBookImbalanceGate] %s %s SKIPPED after retry (Combined=%.3f)",
             symbol,
             normalized_signal,
-            last_result.combined_score if last_result is not None else 0.0,
+            final_score,
         )
+        if last_result is not None:
+            log_warn(
+                "[OrderBook] +- OBI   : %+.4f (raw=%+.4f)",
+                last_result.obi_score,
+                last_result.obi_raw,
+            )
+            log_warn(
+                "[OrderBook] +- Delta : %+.4f (raw=%+.4f)",
+                last_result.delta_score,
+                last_result.delta_raw,
+            )
+            log_warn(
+                "[OrderBook] -- Mid   : %.4f (weighted)",
+                last_result.weighted_mid,
+            )
         return OBIDecision.SKIP, last_result
 
 

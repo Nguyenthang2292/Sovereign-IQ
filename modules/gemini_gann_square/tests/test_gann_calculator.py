@@ -56,9 +56,9 @@ class TestGannZoneBoundariesDown:
 
     Boundary slopes: [0, -0.5, -1.0, -1.5, -2.0] × ppc
       Zone 1 (steepest, SKIP):    upper=-1.5×ppc  lower=-2.0×ppc
-      Zone 2 (SKIP):              upper=-1.0×ppc  lower=-1.5×ppc
+      Zone 2 (SHORT):             upper=-1.0×ppc  lower=-1.5×ppc
       Zone 3 (SHORT):             upper=-0.5×ppc  lower=-1.0×ppc
-      Zone 4 (shallowest, SHORT): upper=0         lower=-0.5×ppc
+      Zone 4 (shallowest, SKIP):  upper=0         lower=-0.5×ppc
     """
 
     @pytest.fixture
@@ -80,21 +80,21 @@ class TestGannZoneBoundariesDown:
         slopes = [z.slope for z in down_result.zones]
         assert slopes[0] < slopes[3]  # zone 1 slope is more negative than zone 4
 
-    def test_zone_3_4_are_short(self, down_result):
+    def test_zone_2_3_are_short(self, down_result):
+        assert down_result.zones[1].signal == "SHORT"
         assert down_result.zones[2].signal == "SHORT"
-        assert down_result.zones[3].signal == "SHORT"
 
-    def test_zone_1_2_are_skip(self, down_result):
+    def test_zone_1_4_are_skip(self, down_result):
         assert down_result.zones[0].signal == "SKIP"
-        assert down_result.zones[1].signal == "SKIP"
+        assert down_result.zones[3].signal == "SKIP"
 
-    def test_zone_3_4_tradeable(self, down_result):
+    def test_zone_2_3_tradeable(self, down_result):
+        assert down_result.zones[1].is_tradeable is True
         assert down_result.zones[2].is_tradeable is True
-        assert down_result.zones[3].is_tradeable is True
 
-    def test_zone_1_2_not_tradeable(self, down_result):
+    def test_zone_1_4_not_tradeable(self, down_result):
         assert down_result.zones[0].is_tradeable is False
-        assert down_result.zones[1].is_tradeable is False
+        assert down_result.zones[3].is_tradeable is False
 
 
 # ──────────────────────────────────────────────
@@ -109,9 +109,9 @@ class TestGannZoneBoundariesUp:
 
     Boundary slopes: [0, 0.5, 1.0, 1.5, 2.0] × ppc
       Zone 1 (steepest, SKIP): upper=+2.0×ppc  lower=+1.5×ppc
-      Zone 2 (SKIP):           upper=+1.5×ppc  lower=+1.0×ppc
+      Zone 2 (LONG):           upper=+1.5×ppc  lower=+1.0×ppc
       Zone 3 (LONG):           upper=+1.0×ppc  lower=+0.5×ppc
-      Zone 4 (shallowest, LONG): upper=+0.5×ppc lower=0
+      Zone 4 (shallowest, SKIP): upper=+0.5×ppc lower=0
     """
 
     @pytest.fixture
@@ -123,13 +123,13 @@ class TestGannZoneBoundariesUp:
     def test_trend_is_up(self, up_result):
         assert up_result.trend == "UP"
 
-    def test_zone_3_4_are_long(self, up_result):
+    def test_zone_2_3_are_long(self, up_result):
+        assert up_result.zones[1].signal == "LONG"
         assert up_result.zones[2].signal == "LONG"
-        assert up_result.zones[3].signal == "LONG"
 
-    def test_zone_1_2_are_skip(self, up_result):
+    def test_zone_1_4_are_skip(self, up_result):
         assert up_result.zones[0].signal == "SKIP"
-        assert up_result.zones[1].signal == "SKIP"
+        assert up_result.zones[3].signal == "SKIP"
 
 
 # ──────────────────────────────────────────────
@@ -153,10 +153,10 @@ class TestCurrentZone:
 
     def test_price_in_zone_4(self, down_calc):
         calc, high, low = down_calc
-        # Zone 4 (shallowest, SHORT): (97.78, 100.0] at index 10
+        # Zone 4 (shallowest, SKIP): (97.78, 100.0] at index 10
         result = calc.calculate(high, low, current_price=99.0, current_index=10)
         assert result.current_zone == 4
-        assert result.signal_code == "SHORT"
+        assert result.signal_code == "SKIP"
 
     def test_price_in_zone_3(self, down_calc):
         calc, high, low = down_calc
@@ -167,10 +167,10 @@ class TestCurrentZone:
 
     def test_price_in_zone_2(self, down_calc):
         calc, high, low = down_calc
-        # Zone 2 (SKIP): (93.33, 95.56] at index 10
+        # Zone 2 (SHORT): (93.33, 95.56] at index 10
         result = calc.calculate(high, low, current_price=94.5, current_index=10)
         assert result.current_zone == 2
-        assert result.signal_code == "SKIP"
+        assert result.signal_code == "SHORT"
 
     def test_price_in_zone_1(self, down_calc):
         calc, high, low = down_calc

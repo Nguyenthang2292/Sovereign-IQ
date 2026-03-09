@@ -149,7 +149,7 @@ class TestGannSignalEngineAnalyze:
             "zone_confirmed": 1,
             "trend_confirmed": "DOWN",
             "override_reason": "",
-            "signal": "BUY",
+            "signal": "HOLD",
             "entry_price": 95.0,
             "stop_loss": 102.0,
             "take_profit_1": 88.0,

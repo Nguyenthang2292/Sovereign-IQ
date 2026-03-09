@@ -86,8 +86,8 @@ def test_auto_trade_skips_when_no_fresh_signals():
 
     now = 1000.0
     signals = [
-        {"symbol": "AAAUSDT", "signal": "LONG", "score": 0.80, "created_at_ts": now - 301},
-        {"symbol": "BBBUSDT", "signal": "SHORT", "score": 0.90, "created_at_ts": now - 600},
+        {"symbol": "AAAUSDT", "signal": "LONG", "score": 0.80, "created_at_ts": now - 901},
+        {"symbol": "BBBUSDT", "signal": "SHORT", "score": 0.90, "created_at_ts": now - 1200},
     ]
     parent = _make_parent(signals=signals)
 

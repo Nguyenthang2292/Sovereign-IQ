@@ -61,10 +61,23 @@ class OrderExecutor:
             from modules.order_book.order_book_imbalance_gate import OrderBookImbalanceGate
 
             gate_config: Dict[str, Any] = dict(order_book_imbalance_config)
+            if "depth_limit" not in gate_config:
+                for legacy_depth_key in ("depth", "ob_depth"):
+                    if legacy_depth_key in gate_config:
+                        gate_config["depth_limit"] = gate_config[legacy_depth_key]
+                        break
             gate_config.setdefault("testnet", self._testnet)
             # Only keep kwargs that OrderBookImbalanceGate.__init__ accepts;
-            # the GUI may inject extra keys (e.g. "depth") that would crash.
-            _allowed = {"threshold", "retry_wait_seconds", "max_retries", "delta_window_minutes", "testnet", "enabled"}
+            # the GUI may inject extra keys that gate does not accept.
+            _allowed = {
+                "threshold",
+                "retry_wait_seconds",
+                "max_retries",
+                "depth_limit",
+                "delta_window_minutes",
+                "testnet",
+                "enabled",
+            }
             gate_config = {k: v for k, v in gate_config.items() if k in _allowed}
             self._order_book_imbalance_gate = OrderBookImbalanceGate(**gate_config)
 

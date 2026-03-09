@@ -26,7 +26,7 @@ class GannZone:
     pivot_price: float  # price at pivot point
     slope: float  # price change per candle (negative for downtrend fan)
     label: str  # e.g. "Zone 1 (SHORT)"
-    is_tradeable: bool  # True for Zone 1 & 2, False for Zone 3 & 4
+    is_tradeable: bool  # True if this zone is tradeable under current strategy
     signal: SignalCode  # LONG / SHORT / SKIP
     _upper_slope: float = 0.0  # slope of upper boundary (for zone 1-3)
     _lower_slope: float = 0.0  # slope of lower boundary (for zone 2-4)
@@ -113,16 +113,16 @@ class GannCalculator:
     The 1×1 line (1.0 × ppc) passes exactly through swing_low/high.
 
     DOWN Trend (fan radiates downward from swing_high):
-        Zone 4 (shallowest):  0 → −0.5×ppc          → SHORT
+        Zone 4 (shallowest):  0 → −0.5×ppc          → SKIP
         Zone 3:               −0.5×ppc → −1.0×ppc    → SHORT
-        Zone 2:               −1.0×ppc → −1.5×ppc    → SKIP
+        Zone 2:               −1.0×ppc → −1.5×ppc    → SHORT
         Zone 1 (steepest):    −1.5×ppc → −2.0×ppc    → SKIP
 
     UP Trend (fan radiates upward from swing_low):
         Zone 1 (steepest):    +1.5×ppc → +2.0×ppc    → SKIP
-        Zone 2:               +1.0×ppc → +1.5×ppc    → SKIP
+        Zone 2:               +1.0×ppc → +1.5×ppc    → LONG
         Zone 3:               +0.5×ppc → +1.0×ppc    → LONG
-        Zone 4 (shallowest):  0 → +0.5×ppc            → LONG
+        Zone 4 (shallowest):  0 → +0.5×ppc            → SKIP
     ─────────────────────────────────────────────────────────────
     """
 
@@ -209,9 +209,9 @@ class GannCalculator:
             # Zone definitions: (zone_num, upper_slope, lower_slope, signal, tradeable)
             zone_defs: list[tuple[int, float, float, SignalCode, bool]] = [
                 (1, -b[3], -b[4], "SKIP",  False),   # steepest
-                (2, -b[2], -b[3], "SKIP",  False),
+                (2, -b[2], -b[3], "SHORT", True),
                 (3, -b[1], -b[2], "SHORT", True),
-                (4,  b[0], -b[1], "SHORT", True),    # shallowest
+                (4,  b[0], -b[1], "SKIP",  False),   # shallowest
             ]
         else:
             # UP trend: Fan radiates UPWARD from swing_low
@@ -219,9 +219,9 @@ class GannCalculator:
             pivot_pr = swing_low.price
             zone_defs = [
                 (1,  b[4],  b[3], "SKIP", False),    # steepest (top)
-                (2,  b[3],  b[2], "SKIP", False),
+                (2,  b[3],  b[2], "LONG", True),
                 (3,  b[2],  b[1], "LONG", True),
-                (4,  b[1],  b[0], "LONG", True),     # shallowest (bottom)
+                (4,  b[1],  b[0], "SKIP", False),    # shallowest (bottom)
             ]
 
         zones: List[GannZone] = []

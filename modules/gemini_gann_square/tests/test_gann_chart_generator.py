@@ -50,9 +50,9 @@ def _make_gann_result() -> GannSquareResult:
         slope=-2.5,            # midpoint of -2.0 and -3.0
         _upper_slope=-2.0,
         _lower_slope=-3.0,
-        label="Zone 2 (SKIP)",
-        is_tradeable=False,
-        signal="SKIP",
+        label="Zone 2 (SHORT)",
+        is_tradeable=True,
+        signal="SHORT",
     )
     zone3 = GannZone(
         zone_number=3,
@@ -72,9 +72,9 @@ def _make_gann_result() -> GannSquareResult:
         slope=-0.5,            # midpoint of 0.0 and -1.0
         _upper_slope=0.0,
         _lower_slope=-1.0,
-        label="Zone 4 (SHORT)",
-        is_tradeable=True,
-        signal="SHORT",
+        label="Zone 4 (SKIP)",
+        is_tradeable=False,
+        signal="SKIP",
     )
 
     swing_high = SwingPoint(index=5, timestamp=pd.Timestamp("2024-01-01 05:00:00"), price=100.0, kind="high")  # type: ignore[arg-type]

@@ -48,24 +48,25 @@ scanner:
   atc_backend: serverless
   xgboost_backend: serverless
   sampling_strategy: stratified
-  sample_percentage: 30
+  sample_percentage: 70
   auto_start: false
   min_signal_score: 0.7
   min_volume: 5.0
   enable_xgboost: false
   atc_threshold: 0.21
-  enable_gann_square: false
-  gann_timeframe: 1h
+  enable_gann_square: true
+  gann_timeframe: 30m
   gann_candle_limit: 200
   gann_lookback: 5
-  enable_order_book: false
+  enable_order_book: true
   ob_depth: 20
   ob_imbalance_threshold: 0.2
 order_book_imbalance:
-  enabled: false
+  enabled: true
   threshold: 0.2
   retry_wait_seconds: 30
   max_retries: 2
+  depth_limit: 20
   delta_window_minutes: 5
 ui:
   theme: dark

@@ -222,3 +222,22 @@ class TestOrderBookImbalanceGate:
                 decision, result = gate.check("BTCUSDT", "LONG")
 
         assert decision == OBIDecision.SKIP
+
+    def test_depth_limit_configuration_is_used_for_depth_fetch(self):
+        gate = OrderBookImbalanceGate(
+            threshold=0.15,
+            retry_wait_seconds=0,
+            max_retries=0,
+            depth_limit=42,
+            testnet=True,
+        )
+        snapshot = _create_snapshot(bid_qty=100.0, ask_qty=10.0)
+        trades = _create_trades(buy_qty=10.0, sell_qty=1.0)
+
+        with patch("modules.order_book.order_book_imbalance_gate.fetch_depth", return_value=snapshot) as mock_depth:
+            with patch("modules.order_book.order_book_imbalance_gate.fetch_agg_trades", return_value=trades):
+                decision, result = gate.check("BTCUSDT", "LONG")
+
+        assert decision == OBIDecision.PASS
+        assert result is not None
+        mock_depth.assert_called_once_with(symbol="BTCUSDT", limit=42, testnet=True)

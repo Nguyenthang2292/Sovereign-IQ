@@ -138,6 +138,25 @@ def test_execute_from_signal_continues_when_order_book_gate_passes():
     assert manager.last_signal is not None
 
 
+def test_order_executor_maps_ob_depth_to_depth_limit_for_gate():
+    from modules.auto_trade.execution.order_executor import OrderExecutor
+
+    with patch("modules.auto_trade.execution.order_executor.BinanceClient", _DummyClient), patch(
+        "modules.order_book.order_book_imbalance_gate.OrderBookImbalanceGate"
+    ) as mock_gate:
+        OrderExecutor(
+            api_key="k",
+            api_secret="s",
+            testnet=True,
+            dry_run=True,
+            order_book_imbalance_config={"enabled": True, "ob_depth": 55},
+        )
+
+    gate_kwargs = mock_gate.call_args.kwargs
+    assert gate_kwargs["depth_limit"] == 55
+    assert "ob_depth" not in gate_kwargs
+
+
 def test_execute_from_signal_dry_run_with_real_gate_passes_on_positive_score():
     from modules.auto_trade.execution.order_executor import OrderExecutor
 

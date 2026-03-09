@@ -53,9 +53,14 @@ class ScannerManager:
             if "enable_order_book" in config:
                 ob_cfg = dict(self.parent.settings_manager.get("order_book_imbalance", {}))
                 ob_cfg["enabled"] = bool(config["enable_order_book"])
-                # Sync threshold from scanner GUI; do NOT inject "depth" –
-                # OrderBookImbalanceGate does not accept that keyword.
+                # Sync threshold/depth from scanner GUI into gate config.
                 ob_cfg["threshold"] = float(config.get("ob_imbalance_threshold", ob_cfg.get("threshold", 0.2)))
+                raw_depth = config.get("ob_depth", ob_cfg.get("depth_limit", 20))
+                try:
+                    depth_limit = int(raw_depth)
+                except (TypeError, ValueError):
+                    depth_limit = int(ob_cfg.get("depth_limit", 20))
+                ob_cfg["depth_limit"] = max(depth_limit, 1)
                 self.parent.settings_manager.set("order_book_imbalance", ob_cfg)
 
             self.parent.settings_manager.save()

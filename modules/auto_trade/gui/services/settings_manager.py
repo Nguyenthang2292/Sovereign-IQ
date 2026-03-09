@@ -72,6 +72,7 @@ class SettingsManager:
             "threshold": 0.15,
             "retry_wait_seconds": 30,
             "max_retries": 2,
+            "depth_limit": 20,
             "delta_window_minutes": 5,
         },
         "ui": {
