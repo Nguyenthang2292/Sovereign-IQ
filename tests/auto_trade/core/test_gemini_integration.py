@@ -35,6 +35,37 @@ def mock_analyzer():
         yield analyzer
 
 
+# ---------------------------------------------------------------------------
+# Module-scoped fixtures shared across TestGeminiIntegrationConfiguration.
+# ChartGenerator and GeminiChartAnalyzer patches are expensive to set up per
+# test; hoisting them to module scope avoids repeated patch/unpatch overhead.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def module_mock_data_fetcher():
+    df = MagicMock()
+    df.fetch_ohlcv_with_fallback_exchange.return_value = (pd.DataFrame({"close": [100.0] * 200}), "binance")
+    return df
+
+
+@pytest.fixture(scope="module")
+def module_mock_chart_generator():
+    with mock_patch("modules.auto_trade.core.gemini_integration.ChartGenerator") as mock:
+        generator = MagicMock()
+        mock.return_value = generator
+        generator.create_chart.return_value = "temp_chart.png"
+        yield generator
+
+
+@pytest.fixture(scope="module")
+def module_mock_analyzer():
+    with mock_patch("modules.auto_trade.core.gemini_integration.GeminiChartAnalyzer") as mock:
+        analyzer = MagicMock()
+        mock.return_value = analyzer
+        yield analyzer
+
+
 @pytest.fixture
 def sample_gemini_json():
     return json.dumps(
@@ -156,59 +187,64 @@ def test_analyze_candidate_retry_logic(mock_data_fetcher, mock_chart_generator, 
 
 
 class TestGeminiIntegrationConfiguration:
-    """Tests for configuration and initialization."""
+    """Tests for configuration and initialization.
 
-    def test_init_with_defaults(self, mock_data_fetcher):
+    Uses module-scoped fixtures (module_mock_data_fetcher, module_mock_chart_generator,
+    module_mock_analyzer) so that ChartGenerator / GeminiChartAnalyzer patches are set
+    up only once for the entire class instead of per-test.
+    """
+
+    def test_init_with_defaults(self, module_mock_data_fetcher, module_mock_chart_generator, module_mock_analyzer):
         """Test initialization with default parameters."""
-        integration = GeminiIntegration(mock_data_fetcher)
+        integration = GeminiIntegration(module_mock_data_fetcher)
 
         assert integration.analysis_timeframe == "1h"
         assert integration.history_limit == 200
         assert integration.indicators == GeminiIntegration.DEFAULT_INDICATORS
         assert integration.cache_ttl.total_seconds() == 3600  # 1 hour
 
-    def test_init_with_custom_timeframe(self, mock_data_fetcher):
+    def test_init_with_custom_timeframe(self, module_mock_data_fetcher, module_mock_chart_generator, module_mock_analyzer):
         """Test initialization with custom timeframe."""
-        integration = GeminiIntegration(mock_data_fetcher, analysis_timeframe="15m")
+        integration = GeminiIntegration(module_mock_data_fetcher, analysis_timeframe="15m")
 
         assert integration.analysis_timeframe == "15m"
 
-    def test_init_with_invalid_timeframe_raises_error(self, mock_data_fetcher):
+    def test_init_with_invalid_timeframe_raises_error(self, module_mock_data_fetcher, module_mock_chart_generator, module_mock_analyzer):
         """Test invalid timeframe raises ValueError."""
         with pytest.raises(ValueError, match="Invalid timeframe"):
-            GeminiIntegration(mock_data_fetcher, analysis_timeframe="3m")
+            GeminiIntegration(module_mock_data_fetcher, analysis_timeframe="3m")
 
-    def test_init_with_invalid_history_limit_raises_error(self, mock_data_fetcher):
+    def test_init_with_invalid_history_limit_raises_error(self, module_mock_data_fetcher, module_mock_chart_generator, module_mock_analyzer):
         """Test invalid history limit raises ValueError."""
         with pytest.raises(ValueError, match="history_limit must be positive"):
-            GeminiIntegration(mock_data_fetcher, history_limit=-10)
+            GeminiIntegration(module_mock_data_fetcher, history_limit=-10)
 
-    def test_init_with_custom_indicators(self, mock_data_fetcher):
+    def test_init_with_custom_indicators(self, module_mock_data_fetcher, module_mock_chart_generator, module_mock_analyzer):
         """Test initialization with custom indicators."""
         custom_indicators = {"MA": {"periods": [10, 20]}, "RSI": {"period": 7}}
-        integration = GeminiIntegration(mock_data_fetcher, indicators=custom_indicators)
+        integration = GeminiIntegration(module_mock_data_fetcher, indicators=custom_indicators)
 
         assert integration.indicators == custom_indicators
 
-    def test_is_available_with_api_key(self, mock_data_fetcher):
+    def test_is_available_with_api_key(self, module_mock_data_fetcher, module_mock_chart_generator, module_mock_analyzer):
         """Test is_available returns True when API key is set."""
         with mock_patch("os.getenv", return_value="test_api_key"):
-            integration = GeminiIntegration(mock_data_fetcher)
+            integration = GeminiIntegration(module_mock_data_fetcher)
 
             assert integration.is_available() is True
 
-    def test_is_available_without_api_key(self, mock_data_fetcher):
+    def test_is_available_without_api_key(self, module_mock_data_fetcher, module_mock_chart_generator, module_mock_analyzer):
         """Test is_available returns False when no API key."""
         with mock_patch("os.getenv", return_value=None):
-            integration = GeminiIntegration(mock_data_fetcher)
+            integration = GeminiIntegration(module_mock_data_fetcher)
 
             assert integration.is_available() is False
 
-    def test_temp_directory_created(self, mock_data_fetcher):
+    def test_temp_directory_created(self, module_mock_data_fetcher, module_mock_chart_generator, module_mock_analyzer):
         """Test temp directory is created during initialization."""
         with tempfile.TemporaryDirectory() as base_temp:
             with mock_patch("tempfile.gettempdir", return_value=base_temp):
-                integration = GeminiIntegration(mock_data_fetcher)
+                integration = GeminiIntegration(module_mock_data_fetcher)
 
                 # Check temp_dir is set correctly
                 expected_path = Path(base_temp) / "gemini_charts"
@@ -217,9 +253,9 @@ class TestGeminiIntegrationConfiguration:
                 # Check directory was created
                 assert expected_path.exists()
 
-    def test_init_with_custom_cache_ttl(self, mock_data_fetcher):
+    def test_init_with_custom_cache_ttl(self, module_mock_data_fetcher, module_mock_chart_generator, module_mock_analyzer):
         """Test initialization with custom cache TTL."""
-        integration = GeminiIntegration(mock_data_fetcher, cache_ttl_seconds=1800)
+        integration = GeminiIntegration(module_mock_data_fetcher, cache_ttl_seconds=1800)
         assert integration.cache_ttl.total_seconds() == 1800
 
 

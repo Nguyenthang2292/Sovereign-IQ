@@ -81,9 +81,10 @@ class TestScanCache:
         # Non-existent key
         assert not cache.contains("other_key")
 
+    @pytest.mark.unit_fast
     def test_cache_ttl_expiration(self):
         """Test that entries expire after TTL."""
-        cache = atc_rust.ScanCache(ttl_seconds=1.0)  # 1 second TTL
+        cache = atc_rust.ScanCache(ttl_seconds=0.05)
 
         # Add entry
         cache.set("test_key", {"BTC/USDT"}, set(), {"BTC/USDT": 0.8})
@@ -94,7 +95,7 @@ class TestScanCache:
         assert result is not None
 
         # Wait for expiration
-        time.sleep(1.5)
+        time.sleep(0.1)
 
         # Should be expired
         assert not cache.contains("test_key")
@@ -141,9 +142,10 @@ class TestScanCache:
         assert cache.get("key_3") is not None
         assert cache.get("key_4") is not None
 
+    @pytest.mark.unit_fast
     def test_cache_remove_expired(self):
         """Test manual removal of expired entries."""
-        cache = atc_rust.ScanCache(ttl_seconds=1.0)
+        cache = atc_rust.ScanCache(ttl_seconds=0.05)
 
         # Add entries
         cache.set("key_1", {"SYM_1"}, set(), {"SYM_1": 0.8})
@@ -152,23 +154,24 @@ class TestScanCache:
         assert cache.len() == 3
 
         # Wait for expiration
-        time.sleep(1.5)
+        time.sleep(0.1)
 
         # Manually remove expired entries
         removed_count = cache.remove_expired()
         assert removed_count == 3
         assert cache.len() == 0
 
+    @pytest.mark.unit_fast
     def test_cache_mixed_expiration(self):
         """Test with some expired and some valid entries."""
-        cache = atc_rust.ScanCache(ttl_seconds=2.0)
+        cache = atc_rust.ScanCache(ttl_seconds=0.15)  # TTL > first sleep, < total sleep
 
         # Add initial entries
         cache.set("old_1", {"SYM_1"}, set(), {"SYM_1": 0.8})
         cache.set("old_2", {"SYM_2"}, set(), {"SYM_2": 0.8})
 
-        # Wait 1.5 seconds
-        time.sleep(1.5)
+        # Wait 0.1s (old entries NOT yet expired: 0.1 < 0.15 TTL)
+        time.sleep(0.1)
 
         # Add new entries
         cache.set("new_1", {"SYM_3"}, set(), {"SYM_3": 0.8})
@@ -176,8 +179,8 @@ class TestScanCache:
 
         assert cache.len() == 4
 
-        # Wait for old entries to expire (0.5s more = 2s total)
-        time.sleep(0.6)
+        # Wait for old entries to expire (total 0.2s > 0.15 TTL); new entries age 0.1s < 0.15 TTL
+        time.sleep(0.1)
 
         # Remove expired (should remove old_1 and old_2)
         removed_count = cache.remove_expired()

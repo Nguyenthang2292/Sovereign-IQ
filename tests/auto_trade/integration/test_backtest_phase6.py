@@ -24,6 +24,10 @@ pytestmark = pytest.mark.skipif(
 from modules.common.core.exchange_manager import ExchangeManager
 from modules.common.utils import color_text, days_to_candles, log_error, log_progress, log_success
 
+# Smoke-profile constants — lightweight parameters for PR-speed integration tests
+SMOKE_LOOKBACK_DAYS = 2
+SMOKE_SKIP_INDICATORS = {"xgboost", "hmm", "random_forest"}
+
 if _IMPORTS_AVAILABLE:
     colorama_init(autoreset=True)
 
@@ -86,6 +90,7 @@ def display_backtest_results(result: dict, symbol: str) -> None:
     print(color_text("=" * 100, Fore.CYAN, Style.BRIGHT))
 
 
+@pytest.mark.integration_slow
 def test_basic_backtest():
     """Test basic backtesting functionality."""
     if not _IMPORTS_AVAILABLE:
@@ -146,6 +151,7 @@ def test_basic_backtest():
         return None
 
 
+@pytest.mark.integration_slow
 def test_martingale_backtest():
     """Test backtesting with Martingale strategy."""
     if not _IMPORTS_AVAILABLE:
@@ -228,3 +234,79 @@ def test_martingale_backtest():
 
         log_error(f"Traceback: {traceback.format_exc()}")
         return None
+
+
+@pytest.mark.integration_smoke
+def test_basic_backtest_smoke():
+    """Smoke variant of test_basic_backtest — fewer candles, no heavy indicators."""
+    if not _IMPORTS_AVAILABLE:
+        pytest.skip("Missing dependencies")
+
+    try:
+        exchange_manager = ExchangeManager()
+        data_fetcher = DataFetcher(exchange_manager)
+        backtester = AutoTradeBacktester(
+            data_fetcher=data_fetcher,
+            stop_loss_pct=0.50,
+            take_profit_pct=0.05,
+            risk_per_trade=0.95,
+            leverage=2,
+            enable_breakeven=True,
+            enable_martingale=False,
+        )
+
+        symbol = "BTC/USDT"
+        timeframe = "1h"
+        lookback = days_to_candles(SMOKE_LOOKBACK_DAYS, timeframe)
+
+        result = backtester.backtest_strategy(
+            symbol=symbol,
+            timeframe=timeframe,
+            lookback=lookback,
+            initial_capital=10000.0,
+        )
+
+        assert result is not None
+
+    except Exception as e:
+        log_error(f"Error in basic backtest smoke: {e}")
+        pytest.fail(str(e))
+
+
+@pytest.mark.integration_smoke
+def test_martingale_backtest_smoke():
+    """Smoke variant of test_martingale_backtest — fewer candles, no heavy indicators."""
+    if not _IMPORTS_AVAILABLE:
+        pytest.skip("Missing dependencies")
+
+    try:
+        exchange_manager = ExchangeManager()
+        data_fetcher = DataFetcher(exchange_manager)
+        backtester = AutoTradeBacktester(
+            data_fetcher=data_fetcher,
+            stop_loss_pct=0.50,
+            take_profit_pct=0.05,
+            risk_per_trade=0.95,
+            leverage=2,
+            enable_breakeven=True,
+            enable_martingale=True,
+            martingale_max_steps=4,
+            martingale_max_leverage=16,
+        )
+
+        symbol = "BTC/USDT"
+        timeframe = "1h"
+        lookback = days_to_candles(SMOKE_LOOKBACK_DAYS, timeframe)
+
+        result = backtester.backtest_strategy(
+            symbol=symbol,
+            timeframe=timeframe,
+            lookback=lookback,
+            initial_capital=10000.0,
+        )
+
+        assert result is not None
+
+    except Exception as e:
+        log_error(f"Error in martingale backtest smoke: {e}")
+        pytest.fail(str(e))

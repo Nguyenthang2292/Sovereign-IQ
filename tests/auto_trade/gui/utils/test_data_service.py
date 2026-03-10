@@ -20,6 +20,7 @@ from modules.auto_trade.gui.utils.data_service import DataService
 class TestDataService:
     """Test DataService functionality."""
 
+    @pytest.mark.unit_fast
     def test_init_dry_run_mode(self):
         """Test initialization in DRY_RUN mode."""
         service = DataService(mode="DRY_RUN")
@@ -44,6 +45,7 @@ class TestDataService:
         assert service.mode == "PRODUCTION"
         assert service.mock_price_feed is not None
 
+    @pytest.mark.unit_fast
     def test_get_current_price_dry_run(self):
         """Test getting current price in DRY_RUN mode."""
         service = DataService(mode="DRY_RUN")
@@ -108,6 +110,7 @@ class TestDataService:
         assert account_data is not None
         assert account_data["balance"] == 5000.0
 
+    @pytest.mark.unit_fast
     def test_get_quick_stats_dry_run(self):
         """Test getting quick stats in DRY_RUN mode."""
         service = DataService(mode="DRY_RUN")
@@ -121,6 +124,7 @@ class TestDataService:
         assert "mode" in stats
         assert stats["mode"] == "DRY_RUN"
 
+    @pytest.mark.unit_fast
     def test_get_signals(self):
         """Test getting signals from database."""
         service = DataService(mode="DRY_RUN")
@@ -133,10 +137,11 @@ class TestDataService:
         assert "created_at_ts" in signals[0]
         assert isinstance(signals[0]["created_at_ts"], (int, float))
 
+    @pytest.mark.unit_fast
     def test_get_signals_fallback(self):
         """Test getting signals fallback to demo data."""
         service = DataService(mode="DRY_RUN")
-        service.database_manager = None  # No database
+        service.repo_context = None  # No database
 
         signals = service.get_signals()
 
@@ -146,6 +151,7 @@ class TestDataService:
         assert "created_at" in signals[0]
         assert "created_at_ts" in signals[0]
 
+    @pytest.mark.unit_fast
     def test_get_positions_dry_run(self):
         """Test getting positions in DRY_RUN mode."""
         service = DataService(mode="DRY_RUN")
@@ -178,6 +184,7 @@ class TestDataService:
 
         assert len(positions) > 0
 
+    @pytest.mark.unit_fast
     def test_mock_price_feed_centralization(self):
         """Test that mock price feed is centralized."""
         service = DataService(mode="DRY_RUN")
@@ -190,6 +197,7 @@ class TestDataService:
         assert isinstance(price1, float)
         assert isinstance(price2, float)
 
+    @pytest.mark.unit_fast
     def test_error_handling_in_price_fetch(self):
         """Test error handling in price fetching."""
         service = DataService(mode="DRY_RUN")

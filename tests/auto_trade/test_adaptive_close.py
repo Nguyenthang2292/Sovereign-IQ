@@ -247,7 +247,9 @@ class TestAdaptiveCloseCalculator:
         assert result is not None
         assert abs((result - opened_at).total_seconds() - 4.0 * 3600) < 1
 
-    def test_fallback_no_data(self):
+    @pytest.mark.unit_fast
+    @patch("modules.auto_trade.execution.adaptive_close_calculator.AdaptiveCloseCalculator._fetch_ohlcv", return_value=None)
+    def test_fallback_no_data(self, _mock_fetch):
         """Test fallback when no OHLCV data available."""
         settings = MockSettingsManager({
             "auto_close": {
@@ -260,18 +262,17 @@ class TestAdaptiveCloseCalculator:
             }
         })
         calculator = AdaptiveCloseCalculator(settings)
-        
+
         opened_at = datetime.now(timezone.utc)
         result = calculator.compute_adaptive_deadline(
             symbol="BTC/USDT",
             opened_at=opened_at,
-            ohlcv_df=None,  # No data provided
+            ohlcv_df=None,  # No data provided — _fetch_ohlcv patched to return None
         )
-        
-        # Should fallback to 4.0 hours (fetch will fail in test)
-        # Actually fetch is mocked so this depends on implementation
-        # For this test we check it doesn't crash
+
+        # No data → fallback to 4.0 hours
         assert result is not None
+        assert abs((result - opened_at).total_seconds() - 4.0 * 3600) < 1
 
     @patch("modules.auto_trade.execution.adaptive_close_calculator.RegimeDurationAnalyzer")
     def test_exception_handling(self, mock_analyzer_class):
