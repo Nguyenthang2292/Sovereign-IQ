@@ -137,12 +137,13 @@ class TestHealthRegistry:
         assert "check2" in checks
         assert "check3" in checks
 
+    @pytest.mark.unit_fast
     def test_check_timeout(self):
         """Test that checks timeout correctly."""
         registry = HealthRegistry(default_timeout=0.1)
 
         def slow_check():
-            time.sleep(5)
+            time.sleep(0.3)  # Longer than 0.1s timeout — registry fires first; thread exits fast
             return HealthStatus.HEALTHY, "Should timeout"
 
         registry.register_check("slow", slow_check)

@@ -47,6 +47,18 @@ Write-ColorOutput Green "Running tests..."
 Write-ColorOutput Yellow "================================================"
 Write-Output ""
 
+# ---------------------------------------------------------------------------
+# PR fast check  (uncomment to use in CI):
+# Runs unit_fast + integration_smoke — suitable for every pull request.
+# ---------------------------------------------------------------------------
+# & python -m pytest -m "unit_fast or integration_smoke" --durations=20
+
+# ---------------------------------------------------------------------------
+# Nightly full run  (uncomment to use in CI):
+# Runs integration_slow — suitable for scheduled nightly CI jobs.
+# ---------------------------------------------------------------------------
+# & python -m pytest -m integration_slow --durations=20
+
 # Run pytest with all arguments passed to this script
 if ($args.Count -eq 0) {
     # Default: run all tests with coverage

@@ -36,6 +36,18 @@ echo 🧪 Running tests...
 echo ========================================
 echo.
 
+REM ---------------------------------------------------------------------------
+REM PR fast check  (uncomment to use in CI):
+REM Runs unit_fast + integration_smoke - suitable for every pull request.
+REM ---------------------------------------------------------------------------
+REM python -m pytest -m "unit_fast or integration_smoke" --durations=20
+
+REM ---------------------------------------------------------------------------
+REM Nightly full run  (uncomment to use in CI):
+REM Runs integration_slow - suitable for scheduled nightly CI jobs.
+REM ---------------------------------------------------------------------------
+REM python -m pytest -m integration_slow --durations=20
+
 REM Run pytest with all arguments passed to this script
 if "%*"=="" (
     REM Default: run all tests
