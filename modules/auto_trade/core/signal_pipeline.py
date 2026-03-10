@@ -82,6 +82,7 @@ class PipelineConfig(TypedDict, total=False):
         max_ai_candidates: Maximum candidates for AI analysis (default: 5)
         xgboost_mode: XGBoost filter mode - "per_symbol" or "pretrained" (default: "per_symbol")
         enable_gann_square: Enable Gann Square filter (default: False)
+        allowed_directions: List of allowed trade directions (default: ["LONG", "SHORT"])
     """
 
     max_symbols_to_scan: int
@@ -89,6 +90,7 @@ class PipelineConfig(TypedDict, total=False):
     max_ai_candidates: int
     xgboost_mode: str  # "per_symbol" (train fresh) or "pretrained" (use existing model)
     enable_gann_square: bool
+    allowed_directions: List[str]  # e.g., ["LONG"], ["SHORT"], or ["LONG", "SHORT"]
 
 
 class SignalPipeline:
@@ -254,6 +256,32 @@ class SignalPipeline:
             timestamp=original.timestamp,
         )
 
+    def _filter_by_direction(self, signals: List[SignalResult], allowed_directions: List[str]) -> List[SignalResult]:
+        """
+        Filter signals by allowed trading directions.
+
+        Args:
+            signals: List of signals from ATC scanner
+            allowed_directions: List of allowed directions ["LONG", "SHORT"]
+
+        Returns:
+            Filtered list of signals matching allowed directions
+        """
+        if not allowed_directions or set(allowed_directions) == {"LONG", "SHORT"}:
+            # No filtering needed - both directions allowed
+            return signals
+
+        filtered = [s for s in signals if s.signal_type in allowed_directions]
+
+        if len(filtered) < len(signals):
+            removed_count = len(signals) - len(filtered)
+            log_info(
+                f"Direction filter: Removed {removed_count} signal(s). "
+                f"Allowed: {allowed_directions}, Kept: {len(filtered)}"
+            )
+
+        return filtered
+
     def run_pipeline(self) -> Optional[FinalSignal]:
         """
         Execute the full trading pipeline to find the single best trading opportunity.
@@ -316,9 +344,17 @@ class SignalPipeline:
 
             log_info(f"ATC Found {len(atc_signals)} candidates.")
 
-            # 3. XGBoost Filter
+            # 3. Filter by direction
+            allowed_dirs = self.config.get("allowed_directions", ["LONG", "SHORT"])
+            atc_signals = self._filter_by_direction(atc_signals, allowed_dirs)
+
+            if not atc_signals:
+                log_info("No signals passed direction filter.")
+                return None
+
+            # 4. XGBoost Filter
             xgboost_mode_label = "per-symbol training" if self.xgboost_mode == "per_symbol" else "pre-trained model"
-            log_info(f"Step 3: XGBoost Filter ({xgboost_mode_label})...")
+            log_info(f"Step 4: XGBoost Filter ({xgboost_mode_label})...")
             xgboost_signals = self.xgboost_filter.filter_signals(atc_signals)
 
             self.metrics.gauge("xgboost_signals_passed", len(xgboost_signals))

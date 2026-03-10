@@ -1,12 +1,9 @@
-﻿"""
+"""
 auto_trade/execution/adaptive_close_calculator.py
 ==================================================
 Adaptive Close Time Calculator.
 
-Táº¡i thá»i Ä‘iá»ƒm má»Ÿ order, gá»i RegimeDurationAnalyzer Ä‘á»ƒ tÃ­nh
-adaptive_duration_hours cho symbol Ä‘Ã³, rá»“i set lÃªn order record.
-
-TÃ­ch há»£p vÃ o flow má»Ÿ order hiá»‡n cÃ³.
+At order-open time, run regime analysis and compute adaptive deadline.
 """
 
 from __future__ import annotations
@@ -35,7 +32,7 @@ except Exception:
     RegimeDurationAnalyzer = None
 
 
-# â”€â”€â”€ Configuration defaults â”€â”€â”€
+# Configuration defaults
 DEFAULT_MIN_DURATION_HOURS = 1.0
 DEFAULT_MAX_DURATION_HOURS = 12.0
 DEFAULT_FALLBACK_DURATION_HOURS = 4.0
@@ -54,6 +51,7 @@ class AdaptiveCloseResult:
         pelt_hours: PELT average duration from analysis (None if not available)
         hmm_hours: HMM next state duration from analysis (None if not available)
     """
+
     deadline_utc: Optional[datetime]
     source: Literal["adaptive", "static", "adaptive_fallback"]
     duration_hours: float
@@ -96,6 +94,34 @@ class AdaptiveCloseCalculator:
             "lambda_timeout_seconds": float(adaptive.get("lambda_timeout_seconds", 3.0)),
         }
 
+    @staticmethod
+    def _log_regime_details(symbol: str, analysis: Any, analyzer_source: str) -> None:
+        """Emit detailed regime analysis logs for Live Stream panel."""
+        if analysis is None:
+            return
+
+        pelt_hours = getattr(analysis, "pelt_avg_duration_hours", None)
+        hmm_hours = getattr(analysis, "hmm_next_state_duration_hours", None)
+        recommended_hours = getattr(analysis, "recommended_duration_hours", None)
+        hmm_state = getattr(analysis, "hmm_state", None)
+        hmm_prob = getattr(analysis, "hmm_state_probability", None)
+        is_valid = bool(getattr(analysis, "is_valid", False))
+        error = getattr(analysis, "error", None)
+
+        log_info(
+            "[AdaptiveClose][Regime][%s] source=%s valid=%s pelt_hours=%s "
+            "hmm_hours=%s hmm_state=%s hmm_prob=%s recommended_hours=%s error=%s",
+            symbol,
+            analyzer_source,
+            is_valid,
+            f"{float(pelt_hours):.3f}" if pelt_hours is not None else "None",
+            f"{float(hmm_hours):.3f}" if hmm_hours is not None else "None",
+            str(hmm_state) if hmm_state is not None else "None",
+            f"{float(hmm_prob):.4f}" if hmm_prob is not None else "None",
+            f"{float(recommended_hours):.3f}" if recommended_hours is not None else "None",
+            str(error) if error else "None",
+        )
+
     def compute_adaptive_deadline(
         self,
         symbol: str,
@@ -120,7 +146,7 @@ class AdaptiveCloseCalculator:
             return None
 
         try:
-            # === 1. Fetch data if not provided ===
+            # 1) Fetch data if not provided
             if ohlcv_df is None:
                 ohlcv_df = self._fetch_ohlcv(
                     symbol=symbol,
@@ -130,29 +156,29 @@ class AdaptiveCloseCalculator:
 
             if ohlcv_df is None or len(ohlcv_df) < 100:
                 log_warn(
-                    f"Adaptive close: insufficient data for {symbol} "
-                    f"({len(ohlcv_df) if ohlcv_df is not None else 0} candles), "
-                    f"falling back to static {cfg['fallback_duration_hours']}h"
+                    "[AdaptiveClose][Regime][%s] insufficient_data candles=%s fallback_hours=%.2f",
+                    symbol,
+                    len(ohlcv_df) if ohlcv_df is not None else 0,
+                    cfg["fallback_duration_hours"],
                 )
                 return opened_at + timedelta(hours=cfg["fallback_duration_hours"])
 
-            # === 2. Run regime analysis ===
+            # 2) Run regime analysis
             if RegimeDurationAnalyzer is None:
                 raise ImportError(
                     "RegimeDurationAnalyzer is unavailable "
                     "(modules.detect_regime_change.regime_duration_analyzer import failed)"
                 )
 
-            analyzer = RegimeDurationAnalyzer(
-                lookback_days=cfg["lookback_days"],
-            )
+            analyzer = RegimeDurationAnalyzer(lookback_days=cfg["lookback_days"])
             analysis = analyzer.analyze(
                 df=ohlcv_df,
                 symbol=symbol,
                 timeframe=cfg["timeframe"],
             )
+            self._log_regime_details(symbol, analysis, "local")
 
-            # === 4. Extract and clamp ===
+            # 3) Extract and clamp
             if analysis.is_valid and analysis.recommended_duration_hours is not None:
                 raw_hours = analysis.recommended_duration_hours
                 clamped_hours = max(
@@ -161,55 +187,54 @@ class AdaptiveCloseCalculator:
                 )
 
                 log_info(
-                    f"Adaptive close [{symbol}]: "
-                    f"raw={raw_hours:.2f}h â†’ clamped={clamped_hours:.2f}h "
-                    f"(min={cfg['min_duration_hours']}h, max={cfg['max_duration_hours']}h)"
+                    "Adaptive close [%s]: raw=%.2fh -> clamped=%.2fh (min=%.2fh, max=%.2fh)",
+                    symbol,
+                    raw_hours,
+                    clamped_hours,
+                    cfg["min_duration_hours"],
+                    cfg["max_duration_hours"],
                 )
 
                 return opened_at + timedelta(hours=clamped_hours)
 
-            # === 4. Fallback ===
+            # 4) Fallback
             log_warn(
-                f"Adaptive close [{symbol}]: analysis invalid "
-                f"(error={analysis.error}), falling back to {cfg['fallback_duration_hours']}h"
+                "Adaptive close [%s]: analysis invalid (error=%s), falling back to %.2fh",
+                symbol,
+                analysis.error,
+                cfg["fallback_duration_hours"],
             )
             return opened_at + timedelta(hours=cfg["fallback_duration_hours"])
 
-        except Exception as e:
-            log_error(f"Adaptive close calculation failed for {symbol}: {e}")
+        except Exception as exc:
+            log_error("Adaptive close calculation failed for %s: %s", symbol, exc)
             return opened_at + timedelta(hours=cfg["fallback_duration_hours"])
 
     def _fetch_ohlcv(self, symbol: str, timeframe: str, lookback_days: int):
         """
         Fetch historical OHLCV data for regime analysis.
 
-        Sá»­ dá»¥ng data fetcher Ä‘Ã£ cÃ³ trong project.
+        Uses existing project data path.
         """
         try:
             import ccxt
             import pandas as pd
 
             exchange = ccxt.binance({"enableRateLimit": True})
-            since_ms = int(
-                (datetime.now(timezone.utc) - timedelta(days=lookback_days)).timestamp() * 1000
-            )
+            since_ms = int((datetime.now(timezone.utc) - timedelta(days=lookback_days)).timestamp() * 1000)
 
-            ohlcv = exchange.fetch_ohlcv(
-                symbol, timeframe=timeframe, since=since_ms, limit=1000
-            )
+            ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since_ms, limit=1000)
 
             if not ohlcv:
                 return None
 
-            df = pd.DataFrame(
-                ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"]
-            )
+            df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
             df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
             df.set_index("timestamp", inplace=True)
             return df
 
-        except Exception as e:
-            log_error(f"Failed to fetch OHLCV for {symbol}: {e}")
+        except Exception as exc:
+            log_error("Failed to fetch OHLCV for %s: %s", symbol, exc)
             return None
 
     def compute_adaptive_deadline_with_meta(
@@ -234,17 +259,17 @@ class AdaptiveCloseCalculator:
 
         # If adaptive is disabled, return static result
         if not cfg["enabled"]:
-            static_deadline = opened_at + timedelta(hours=cfg['fallback_duration_hours'])
+            static_deadline = opened_at + timedelta(hours=cfg["fallback_duration_hours"])
             return AdaptiveCloseResult(
                 deadline_utc=static_deadline,
                 source="static",
-                duration_hours=cfg['fallback_duration_hours'],
+                duration_hours=cfg["fallback_duration_hours"],
                 pelt_hours=None,
                 hmm_hours=None,
             )
 
         try:
-            # === 1. Fetch data if not provided ===
+            # 1) Fetch data if not provided
             if ohlcv_df is None:
                 ohlcv_df = self._fetch_ohlcv(
                     symbol=symbol,
@@ -254,21 +279,24 @@ class AdaptiveCloseCalculator:
 
             if ohlcv_df is None or len(ohlcv_df) < 100:
                 log_warn(
-                    f"Adaptive close: insufficient data for {symbol} "
-                    f"({len(ohlcv_df) if ohlcv_df is not None else 0} candles), "
-                    f"falling back to static {cfg['fallback_duration_hours']}h"
+                    "[AdaptiveClose][Regime][%s] insufficient_data candles=%s fallback_hours=%.2f",
+                    symbol,
+                    len(ohlcv_df) if ohlcv_df is not None else 0,
+                    cfg["fallback_duration_hours"],
                 )
-                fallback_deadline = opened_at + timedelta(hours=cfg['fallback_duration_hours'])
+                fallback_deadline = opened_at + timedelta(hours=cfg["fallback_duration_hours"])
                 return AdaptiveCloseResult(
                     deadline_utc=fallback_deadline,
                     source="adaptive_fallback",
-                    duration_hours=cfg['fallback_duration_hours'],
+                    duration_hours=cfg["fallback_duration_hours"],
                     pelt_hours=None,
                     hmm_hours=None,
                 )
 
-            # === 2. Try Lambda first if enabled ===
+            # 2) Try Lambda first if enabled
             analysis = None
+            analyzer_source = "local"
+
             if cfg["use_lambda"] and cfg["lambda_endpoint"] and RegimeLambdaClient is not None:
                 client = RegimeLambdaClient(
                     endpoint=cfg["lambda_endpoint"],
@@ -276,21 +304,19 @@ class AdaptiveCloseCalculator:
                 )
                 lambda_result = client.invoke(ohlcv_df, symbol, cfg)
 
-                if (
-                    lambda_result is not None
-                    and lambda_result.is_valid
-                    and lambda_result.recommended_duration_hours is not None
-                ):
-                    # Use Lambda result
+                if lambda_result is not None and lambda_result.is_valid and lambda_result.recommended_duration_hours is not None:
                     analysis = lambda_result
-                    log_info(f"Adaptive close [{symbol}]: Using Lambda result")
+                    analyzer_source = "lambda"
+                    log_info("Adaptive close [%s]: Using Lambda result", symbol)
                 elif lambda_result is not None:
+                    self._log_regime_details(symbol, lambda_result, "lambda")
                     log_warn(
-                        f"Adaptive close [{symbol}]: Lambda returned invalid result "
-                        f"(error={lambda_result.error}), falling back to local analyzer"
+                        "Adaptive close [%s]: Lambda returned invalid result (error=%s), falling back to local analyzer",
+                        symbol,
+                        lambda_result.error,
                     )
 
-            # === 3. Fallback to local analyzer if Lambda failed or not enabled ===
+            # 3) Fallback to local analyzer if Lambda failed or not enabled
             if analysis is None:
                 if RegimeDurationAnalyzer is None:
                     raise ImportError(
@@ -298,17 +324,18 @@ class AdaptiveCloseCalculator:
                         "(modules.detect_regime_change.regime_duration_analyzer import failed)"
                     )
 
-                analyzer = RegimeDurationAnalyzer(
-                    lookback_days=cfg["lookback_days"],
-                )
+                analyzer = RegimeDurationAnalyzer(lookback_days=cfg["lookback_days"])
                 analysis = analyzer.analyze(
                     df=ohlcv_df,
                     symbol=symbol,
                     timeframe=cfg["timeframe"],
                 )
-                log_info(f"Adaptive close [{symbol}]: Using local analyzer result")
+                analyzer_source = "local"
+                log_info("Adaptive close [%s]: Using local analyzer result", symbol)
 
-            # === 4. Extract and clamp ===
+            self._log_regime_details(symbol, analysis, analyzer_source)
+
+            # 4) Extract and clamp
             if analysis.is_valid and analysis.recommended_duration_hours is not None:
                 raw_hours = analysis.recommended_duration_hours
                 clamped_hours = max(
@@ -317,9 +344,12 @@ class AdaptiveCloseCalculator:
                 )
 
                 log_info(
-                    f"Adaptive close [{symbol}]: "
-                    f"raw={raw_hours:.2f}h → clamped={clamped_hours:.2f}h "
-                    f"(min={cfg['min_duration_hours']}h, max={cfg['max_duration_hours']}h)"
+                    "Adaptive close [%s]: raw=%.2fh -> clamped=%.2fh (min=%.2fh, max=%.2fh)",
+                    symbol,
+                    raw_hours,
+                    clamped_hours,
+                    cfg["min_duration_hours"],
+                    cfg["max_duration_hours"],
                 )
 
                 deadline = opened_at + timedelta(hours=clamped_hours)
@@ -331,27 +361,29 @@ class AdaptiveCloseCalculator:
                     hmm_hours=analysis.hmm_next_state_duration_hours,
                 )
 
-            # === 5. Fallback when analysis invalid ===
+            # 5) Fallback when analysis invalid
             log_warn(
-                f"Adaptive close [{symbol}]: analysis invalid "
-                f"(error={analysis.error}), falling back to {cfg['fallback_duration_hours']}h"
+                "Adaptive close [%s]: analysis invalid (error=%s), falling back to %.2fh",
+                symbol,
+                analysis.error,
+                cfg["fallback_duration_hours"],
             )
-            fallback_deadline = opened_at + timedelta(hours=cfg['fallback_duration_hours'])
+            fallback_deadline = opened_at + timedelta(hours=cfg["fallback_duration_hours"])
             return AdaptiveCloseResult(
                 deadline_utc=fallback_deadline,
                 source="adaptive_fallback",
-                duration_hours=cfg['fallback_duration_hours'],
+                duration_hours=cfg["fallback_duration_hours"],
                 pelt_hours=analysis.pelt_avg_duration_hours,
                 hmm_hours=analysis.hmm_next_state_duration_hours,
             )
 
-        except Exception as e:
-            log_error(f"Adaptive close calculation failed for {symbol}: {e}")
-            fallback_deadline = opened_at + timedelta(hours=cfg['fallback_duration_hours'])
+        except Exception as exc:
+            log_error("Adaptive close calculation failed for %s: %s", symbol, exc)
+            fallback_deadline = opened_at + timedelta(hours=cfg["fallback_duration_hours"])
             return AdaptiveCloseResult(
                 deadline_utc=fallback_deadline,
                 source="adaptive_fallback",
-                duration_hours=cfg['fallback_duration_hours'],
+                duration_hours=cfg["fallback_duration_hours"],
                 pelt_hours=None,
                 hmm_hours=None,
             )

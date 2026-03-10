@@ -100,6 +100,7 @@ class TestSettingsManager:
         manager.settings["risk"]["max_position_size"] = -100  # Invalid (negative)
         manager.settings["risk"]["max_open_positions"] = 100  # Invalid (too high)
         manager.settings["filters"]["min_signal_score"] = 2.0  # Invalid (> 1)
+        manager.settings["scanner"]["trading_direction"] = "INVALID_DIR"
 
         # Validate
         manager._validate_settings()
@@ -108,6 +109,7 @@ class TestSettingsManager:
         assert manager.settings["risk"]["max_position_size"] > 0
         assert 1 <= manager.settings["risk"]["max_open_positions"] <= 10
         assert 0 <= manager.settings["filters"]["min_signal_score"] <= 1
+        assert manager.settings["scanner"]["trading_direction"] == "BOTH"
 
     def test_merge_settings(self, temp_settings_file):
         """Test merging loaded settings with defaults."""
@@ -332,3 +334,26 @@ class TestSettingsManager:
         # Check that invalid values were fixed
         assert manager.settings["risk"]["max_position_size"] > 0
         assert 0 <= manager.settings["filters"]["min_signal_score"] <= 1
+
+    def test_trading_direction_saved_and_loaded(self, temp_settings_file):
+        """Test scanner.trading_direction persists across save/load cycles."""
+        manager = SettingsManager(settings_file=str(temp_settings_file))
+        manager.load()
+
+        manager.set("scanner.trading_direction", "LONG_ONLY")
+        assert manager.save() is True
+
+        manager2 = SettingsManager(settings_file=str(temp_settings_file))
+        manager2.load()
+
+        assert manager2.get("scanner.trading_direction") == "LONG_ONLY"
+
+    def test_invalid_direction_defaults_to_both(self, temp_settings_file):
+        """Test invalid trading direction is sanitized to BOTH."""
+        manager = SettingsManager(settings_file=str(temp_settings_file))
+        manager.load()
+
+        manager.settings["scanner"]["trading_direction"] = "INVALID_VALUE"
+        manager._validate_settings()
+
+        assert manager.settings["scanner"]["trading_direction"] == "BOTH"

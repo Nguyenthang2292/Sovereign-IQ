@@ -13,6 +13,8 @@ class SettingsManager:
     Load/save settings from/to YAML file (settings.yaml).
     """
 
+    VALID_DIRECTIONS = {"LONG_ONLY", "SHORT_ONLY", "BOTH"}
+
     DEFAULT_SETTINGS = {
         "risk": {
             "limits_enabled": True,
@@ -73,6 +75,7 @@ class SettingsManager:
             "enable_order_book": False,
             "ob_depth": 20,
             "ob_imbalance_threshold": 0.2,
+            "trading_direction": "BOTH",
         },
         "order_book_imbalance": {
             "enabled": False,
@@ -385,6 +388,10 @@ class SettingsManager:
                 self.settings["scanner"]["xgboost_backend"] = "local"
             else:
                 self.settings["scanner"]["xgboost_backend"] = xgb_backend
+
+            direction = self.settings["scanner"].get("trading_direction")
+            if direction not in self.VALID_DIRECTIONS:
+                self.settings["scanner"]["trading_direction"] = "BOTH"
 
         except Exception as e:
             log_error(f"Settings validation error: {e}, using defaults")

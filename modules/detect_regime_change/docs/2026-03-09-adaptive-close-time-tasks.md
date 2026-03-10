@@ -103,9 +103,9 @@ Triển khai hệ thống Adaptive Close Time dựa trên Regime Change Detectio
 
 ## Phase 3 — GUI & Polish (sau Phase 2)
 
-- [ ] Thêm section "Adaptive Close" trong GUI settings (toggle enable, min/max/lookback inputs) → Verify: mở GUI, thấy section mới, toggle hoạt động
-- [ ] Hiển thị adaptive deadline trên Scheduled Exits panel (cột "Deadline Source: adaptive/static") → Verify: mở order với adaptive on, panel hiện "adaptive"
-- [ ] Log chi tiết regime analysis trong live log panel → Verify: log hiện PELT/HMM/combined results khi order mở
+- [x] Thêm section "Adaptive Close" trong GUI settings (toggle enable, min/max/lookback inputs) → Verify: mở GUI, thấy section mới, toggle hoạt động
+- [x] Hiển thị adaptive deadline trên Scheduled Exits panel (cột "Deadline Source: adaptive/static") → Verify: mở order với adaptive on, panel hiện "adaptive"
+- [x] Log chi tiết regime analysis trong live log panel → Verify: log hiện PELT/HMM/combined results khi order mở
 
 ---
 
@@ -136,3 +136,4 @@ Triển khai hệ thống Adaptive Close Time dựa trên Regime Change Detectio
 - `detect_regime_change` **không biết** về orders, auto-close, hay trading logic
 - Safety: 4 layers — clamp boundary, fallback tĩnh, data sufficiency check, exception handling
 - `adaptive.enabled: false` mặc định → zero-risk deploy
+

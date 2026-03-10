@@ -175,6 +175,13 @@ def get_settings(panel) -> Dict:
                 "daily_close_days": "1234567",
                 "grace_period_minutes": 5,
                 "tp_offset_pct": 0.05,
+                "adaptive": {
+                    "enabled": False,
+                    "min_duration_hours": 1.0,
+                    "max_duration_hours": 12.0,
+                    "lookback_days": 60,
+                    "timeframe": "15m",
+                },
             },
         }
 
@@ -227,3 +234,5 @@ def load_settings(panel, settings: Dict):
 
     if "recovery" in settings and hasattr(panel, "recovery_panel"):
         panel.recovery_panel.load_config(settings["recovery"])
+
+

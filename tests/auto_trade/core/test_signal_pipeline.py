@@ -192,3 +192,52 @@ class TestSignalPipeline:
                 config={"max_symbols_to_scan": -1},
             )
 
+    def test_filter_by_direction_both(self, pipeline, sample_signal_result):
+        """Test _filter_by_direction when allowed is LONG and SHORT."""
+        pipeline.config["allowed_directions"] = ["LONG", "SHORT"]
+
+        signals = [
+            sample_signal_result(symbol="BTC/USDT", signal_type="LONG"),
+            sample_signal_result(symbol="ETH/USDT", signal_type="SHORT"),
+            sample_signal_result(symbol="BNB/USDT", signal_type="NEUTRAL"),
+        ]
+
+        filtered = pipeline._filter_by_direction(signals, pipeline.config["allowed_directions"])
+        assert len(filtered) == 3
+
+    def test_filter_by_direction_long_only(self, pipeline, sample_signal_result):
+        """Test _filter_by_direction when allowed is LONG only."""
+        pipeline.config["allowed_directions"] = ["LONG"]
+
+        signals = [
+            sample_signal_result(symbol="BTC/USDT", signal_type="LONG"),
+            sample_signal_result(symbol="ETH/USDT", signal_type="SHORT"),
+            sample_signal_result(symbol="ADA/USDT", signal_type="LONG"),
+        ]
+
+        filtered = pipeline._filter_by_direction(signals, pipeline.config["allowed_directions"])
+        assert len(filtered) == 2
+        assert all(s.signal_type == "LONG" for s in filtered)
+
+    def test_filter_by_direction_short_only(self, pipeline, sample_signal_result):
+        """Test _filter_by_direction when allowed is SHORT only."""
+        pipeline.config["allowed_directions"] = ["SHORT"]
+
+        signals = [
+            sample_signal_result(symbol="BTC/USDT", signal_type="LONG"),
+            sample_signal_result(symbol="ETH/USDT", signal_type="SHORT"),
+            sample_signal_result(symbol="ADA/USDT", signal_type="LONG"),
+        ]
+
+        filtered = pipeline._filter_by_direction(signals, pipeline.config["allowed_directions"])
+        assert len(filtered) == 1
+        assert filtered[0].symbol == "ETH/USDT"
+        assert filtered[0].signal_type == "SHORT"
+
+    def test_filter_by_direction_empty_list(self, pipeline):
+        """Test _filter_by_direction handles empty input list."""
+        pipeline.config["allowed_directions"] = ["LONG"]
+
+        filtered = pipeline._filter_by_direction([], pipeline.config["allowed_directions"])
+
+        assert filtered == []

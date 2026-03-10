@@ -5,10 +5,19 @@ from modules.auto_trade.gui.utils.colors import Colors
 from modules.auto_trade.gui.utils.fonts import Fonts
 
 
+_ADAPTIVE_MANAGED_KEYS = {
+    "enabled",
+    "min_duration_hours",
+    "max_duration_hours",
+    "lookback_days",
+    "timeframe",
+}
+
+
 def build_auto_close_section(panel, parent_frame, *, show_separator: bool = True, show_title: bool = True) -> None:
     """Build Auto-Close settings UI section inside TP/SL area."""
     if show_separator:
-        separator = ctk.CTkLabel(parent_frame, text="─────────────────────────", text_color=Colors.TEXT_MUTED)
+        separator = ctk.CTkLabel(parent_frame, text="-------------------------", text_color=Colors.TEXT_MUTED)
         separator.pack(anchor="w", pady=(12, 5))
 
     if show_title:
@@ -60,6 +69,40 @@ def build_auto_close_section(panel, parent_frame, *, show_separator: bool = True
     panel.auto_close_tp_offset_pct_entry.pack(fill="x", pady=(2, 8))
     panel.auto_close_tp_offset_pct_entry.insert(0, "0.05")
 
+    separator_adaptive = ctk.CTkLabel(parent_frame, text="-------------------------", text_color=Colors.TEXT_MUTED)
+    separator_adaptive.pack(anchor="w", pady=(12, 5))
+
+    ctk.CTkLabel(parent_frame, text="Adaptive Close", font=Fonts.H2).pack(anchor="w", pady=(0, 8))
+
+    panel.adaptive_close_enabled_var = ctk.BooleanVar(value=False)
+    ctk.CTkCheckBox(
+        parent_frame,
+        text="Enable adaptive deadline from regime analysis",
+        variable=panel.adaptive_close_enabled_var,
+    ).pack(anchor="w", pady=(0, 8))
+
+    ctk.CTkLabel(parent_frame, text="Adaptive min duration (hours):", font=Fonts.INPUT).pack(anchor="w", pady=(5, 2))
+    panel.adaptive_close_min_duration_hours_entry = ctk.CTkEntry(parent_frame, placeholder_text="1.0")
+    panel.adaptive_close_min_duration_hours_entry.pack(fill="x", pady=(2, 8))
+    panel.adaptive_close_min_duration_hours_entry.insert(0, "1.0")
+
+    ctk.CTkLabel(parent_frame, text="Adaptive max duration (hours):", font=Fonts.INPUT).pack(anchor="w", pady=(5, 2))
+    panel.adaptive_close_max_duration_hours_entry = ctk.CTkEntry(parent_frame, placeholder_text="12.0")
+    panel.adaptive_close_max_duration_hours_entry.pack(fill="x", pady=(2, 8))
+    panel.adaptive_close_max_duration_hours_entry.insert(0, "12.0")
+
+    ctk.CTkLabel(parent_frame, text="Lookback days:", font=Fonts.INPUT).pack(anchor="w", pady=(5, 2))
+    panel.adaptive_close_lookback_days_entry = ctk.CTkEntry(parent_frame, placeholder_text="60")
+    panel.adaptive_close_lookback_days_entry.pack(fill="x", pady=(2, 8))
+    panel.adaptive_close_lookback_days_entry.insert(0, "60")
+
+    ctk.CTkLabel(parent_frame, text="Adaptive timeframe:", font=Fonts.INPUT).pack(anchor="w", pady=(5, 2))
+    panel.adaptive_close_timeframe_entry = ctk.CTkEntry(parent_frame, placeholder_text="15m")
+    panel.adaptive_close_timeframe_entry.pack(fill="x", pady=(2, 8))
+    panel.adaptive_close_timeframe_entry.insert(0, "15m")
+
+    panel._adaptive_close_extra = {}
+
 
 def extract_auto_close_settings(panel) -> Dict[str, Any]:
     """Extract and validate auto_close settings from UI widgets."""
@@ -100,6 +143,44 @@ def extract_auto_close_settings(panel) -> Dict[str, Any]:
     except ValueError:
         tp_offset_pct = 0.05
 
+    try:
+        adaptive_min = float(panel.adaptive_close_min_duration_hours_entry.get())
+        if adaptive_min <= 0:
+            raise ValueError("adaptive_min")
+    except ValueError:
+        adaptive_min = 1.0
+
+    try:
+        adaptive_max = float(panel.adaptive_close_max_duration_hours_entry.get())
+        if adaptive_max <= 0:
+            raise ValueError("adaptive_max")
+    except ValueError:
+        adaptive_max = 12.0
+
+    if adaptive_max < adaptive_min:
+        adaptive_max = adaptive_min
+
+    try:
+        adaptive_lookback_days = int(panel.adaptive_close_lookback_days_entry.get())
+        if adaptive_lookback_days < 1:
+            raise ValueError("adaptive_lookback_days")
+    except ValueError:
+        adaptive_lookback_days = 60
+
+    adaptive_timeframe = str(panel.adaptive_close_timeframe_entry.get() or "15m").strip() or "15m"
+    adaptive_extra = getattr(panel, "_adaptive_close_extra", {})
+    if not isinstance(adaptive_extra, dict):
+        adaptive_extra = {}
+
+    adaptive_cfg = {
+        **adaptive_extra,
+        "enabled": panel.adaptive_close_enabled_var.get(),
+        "min_duration_hours": adaptive_min,
+        "max_duration_hours": adaptive_max,
+        "lookback_days": adaptive_lookback_days,
+        "timeframe": adaptive_timeframe,
+    }
+
     return {
         "enabled": panel.auto_close_enabled_var.get(),
         "max_duration_enabled": panel.auto_close_max_duration_enabled_var.get(),
@@ -109,6 +190,7 @@ def extract_auto_close_settings(panel) -> Dict[str, Any]:
         "daily_close_days": daily_days,
         "grace_period_minutes": grace_period_minutes,
         "tp_offset_pct": tp_offset_pct,
+        "adaptive": adaptive_cfg,
     }
 
 
@@ -133,3 +215,25 @@ def load_auto_close_settings(panel, settings: Dict[str, Any]) -> None:
 
     panel.auto_close_tp_offset_pct_entry.delete(0, "end")
     panel.auto_close_tp_offset_pct_entry.insert(0, str(auto_close.get("tp_offset_pct", 0.05)))
+
+    adaptive = auto_close.get("adaptive", {})
+    if not isinstance(adaptive, dict):
+        adaptive = {}
+
+    panel._adaptive_close_extra = {
+        key: value for key, value in adaptive.items() if key not in _ADAPTIVE_MANAGED_KEYS
+    }
+
+    panel.adaptive_close_enabled_var.set(bool(adaptive.get("enabled", False)))
+
+    panel.adaptive_close_min_duration_hours_entry.delete(0, "end")
+    panel.adaptive_close_min_duration_hours_entry.insert(0, str(adaptive.get("min_duration_hours", 1.0)))
+
+    panel.adaptive_close_max_duration_hours_entry.delete(0, "end")
+    panel.adaptive_close_max_duration_hours_entry.insert(0, str(adaptive.get("max_duration_hours", 12.0)))
+
+    panel.adaptive_close_lookback_days_entry.delete(0, "end")
+    panel.adaptive_close_lookback_days_entry.insert(0, str(adaptive.get("lookback_days", 60)))
+
+    panel.adaptive_close_timeframe_entry.delete(0, "end")
+    panel.adaptive_close_timeframe_entry.insert(0, str(adaptive.get("timeframe", "15m")))

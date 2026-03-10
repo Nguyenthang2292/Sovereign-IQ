@@ -37,13 +37,14 @@ class AutoTradeControl(ctk.CTkFrame):
 
         # Title
         icon_bot = get_icon("bot", size=(20, 20))
-        title = ctk.CTkLabel(
-            self, text=" Auto-Trade System", image=icon_bot, compound="left", font=Fonts.H1
-        )
+        title = ctk.CTkLabel(self, text=" Auto-Trade System", image=icon_bot, compound="left", font=Fonts.H1)
         title.pack(pady=(10, 15))
 
         # Status indicator
         self._create_status_indicator()
+
+        # Trading Direction
+        self._create_direction_control()
 
         # Control buttons
         self._create_controls()
@@ -92,6 +93,63 @@ class AutoTradeControl(ctk.CTkFrame):
         self.status_label.configure(text_color=new_color)
 
         self.after(1000, self._animate_status)
+
+    def _create_direction_control(self):
+        """Visual direction filter section"""
+        # Trading Direction Section
+        direction_section = ctk.CTkFrame(self, fg_color=Colors.get_card_bg(), corner_radius=8)
+        direction_section.pack(fill="x", padx=10, pady=(10, 5))
+
+        direction_inner = ctk.CTkFrame(direction_section, fg_color=Colors.TRANSPARENT)
+        direction_inner.pack(fill="x", padx=15, pady=12)
+
+        # Section title
+        ctk.CTkLabel(direction_inner, text="📊 Trading Direction", font=Fonts.H3, anchor="w").pack(
+            anchor="w", pady=(0, 8)
+        )
+
+        # Radio button variable
+        self.trading_direction_var = ctk.StringVar(value="BOTH")
+
+        # Radio buttons
+        radio_container = ctk.CTkFrame(direction_inner, fg_color=Colors.TRANSPARENT)
+        radio_container.pack(fill="x")
+
+        ctk.CTkRadioButton(
+            radio_container,
+            text="⬆️ Long Only",
+            variable=self.trading_direction_var,
+            value="LONG_ONLY",
+            command=self._on_direction_change,
+        ).pack(anchor="w", pady=2)
+
+        ctk.CTkRadioButton(
+            radio_container,
+            text="⬇️ Short Only",
+            variable=self.trading_direction_var,
+            value="SHORT_ONLY",
+            command=self._on_direction_change,
+        ).pack(anchor="w", pady=2)
+
+        ctk.CTkRadioButton(
+            radio_container,
+            text="↕️ Both Directions",
+            variable=self.trading_direction_var,
+            value="BOTH",
+            command=self._on_direction_change,
+        ).pack(anchor="w", pady=2)
+
+    def _on_direction_change(self):
+        val = self.trading_direction_var.get()
+        if hasattr(self.parent, "settings_manager"):
+            self.parent.settings_manager.set("scanner.trading_direction", val)
+            self.parent.settings_manager.save()
+
+        # Let ScannerManager know the config has changed
+        if hasattr(self.parent, "scanner_manager"):
+            # Update the scanner settings mapping
+            scanner_config = self.parent.settings_manager.get("scanner", {})
+            self.parent.scanner_manager.handle_config_change(scanner_config)
 
     def _create_controls(self):
         """Enable/Disable buttons"""
@@ -309,9 +367,7 @@ class AutoTradeControl(ctk.CTkFrame):
             )
 
             # Section header
-            header = ctk.CTkLabel(
-                section_frame, text=section["title"], font=Fonts.BODY, text_color=Colors.get_accent()
-            )
+            header = ctk.CTkLabel(section_frame, text=section["title"], font=Fonts.BODY, text_color=Colors.get_accent())
             icon_img = get_icon(section["icon"], size=(14, 14))
             if icon_img:
                 header.configure(image=icon_img, compound="left")
@@ -397,6 +453,11 @@ class AutoTradeControl(ctk.CTkFrame):
         _safe_configure("database_status", str(st.get("database", "—")))
         _safe_configure("api_mode", str(st.get("api_mode", api.get("mode", "DRY_RUN"))))
         _safe_configure("api_connection", str(st.get("api_connection", "—")))
+
+        # Trading Direction Sync
+        direction = scanner.get("trading_direction", "BOTH")
+        if direction in {"LONG_ONLY", "SHORT_ONLY", "BOTH"}:
+            self.trading_direction_var.set(direction)
 
         self._suppress_risk_toggle = True
         self.risk_limits_enabled_var.set(risk_limits_enabled)

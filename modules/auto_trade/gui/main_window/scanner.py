@@ -288,6 +288,14 @@ class ScannerManager:
                     log_warn(f"GannSquareFilter not available: {e}")
 
             # 7. Create Pipeline
+            direction_setting = scanner_config.get("trading_direction", "BOTH")
+            if direction_setting == "LONG_ONLY":
+                allowed_directions = ["LONG"]
+            elif direction_setting == "SHORT_ONLY":
+                allowed_directions = ["SHORT"]
+            else:
+                allowed_directions = ["LONG", "SHORT"]
+
             assert atc_scanner is not None, "atc_scanner must be initialized before building the pipeline"
             self.pipeline = SignalPipeline(
                 symbol_manager=symbol_manager,
@@ -299,6 +307,7 @@ class ScannerManager:
                     "max_symbols_to_scan": 30,
                     "max_ai_candidates": 5,
                     "xgboost_mode": xgboost_mode,
+                    "allowed_directions": allowed_directions,
                 },
                 gann_square_filter=gann_filter,
             )

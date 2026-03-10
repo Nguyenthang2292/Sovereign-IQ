@@ -21,7 +21,7 @@ def benchmark():
     import os
     import sys
 
-    sys.path.append(os.path.abspath("modules/detect_regime_change"))
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     try:
         import rust_extensions
 

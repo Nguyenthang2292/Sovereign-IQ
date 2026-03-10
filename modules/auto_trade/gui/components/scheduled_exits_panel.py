@@ -61,8 +61,13 @@ class ScheduledExitsPanel(ctk.CTkFrame):
         self.status_label = ctk.CTkLabel(top, text="", text_color=Colors.TEXT_MUTED)
         self.status_label.grid(row=0, column=1, sticky="w", padx=(12, 0))
 
-        open_settings_btn = ctk.CTkButton(top, text="OPEN SETTINGS", width=120, command=self._open_settings)
-        font=Fonts.BUTTON_SM,
+        open_settings_btn = ctk.CTkButton(
+            top,
+            text="OPEN SETTINGS",
+            width=120,
+            font=Fonts.BUTTON_SM,
+            command=self._open_settings,
+        )
         open_settings_btn.grid(row=0, column=2, sticky="e")
 
         content = ctk.CTkFrame(self)
@@ -149,9 +154,18 @@ class ScheduledExitsPanel(ctk.CTkFrame):
             log_warn(f"[ScheduledExits] Could not fetch closed orders: {exc}")
             return []
 
+    @staticmethod
+    def _infer_deadline_source(order: Dict[str, Any], trigger: str) -> str:
+        source = str(order.get("auto_close_deadline_source", "")).strip().lower()
+        if source:
+            return source
+        if trigger == "daily":
+            return "daily"
+        return "static"
+
     def _format_countdown(self, deadline: Optional[datetime]) -> str:
         if deadline is None:
-            return "—"
+            return "-"
         now = datetime.now(timezone.utc)
         remaining = int((deadline - now).total_seconds())
         if remaining <= 0:
@@ -188,14 +202,17 @@ class ScheduledExitsPanel(ctk.CTkFrame):
             if order.get("auto_close_deadline_utc") is None and bool(cfg.get("daily_close_enabled", True)):
                 trigger = "daily"
 
+            deadline_source = self._infer_deadline_source(order, trigger)
+
             pending_rows.append(
                 {
                     "order_id": order_id,
                     "symbol": str(order.get("symbol", "")),
                     "side": str(order.get("side", "")),
-                    "pnl": order.get("pnl", "—"),
+                    "pnl": order.get("pnl", "-"),
                     "deadline": deadline,
                     "trigger": trigger,
+                    "deadline_source": deadline_source,
                 }
             )
 
@@ -214,7 +231,7 @@ class ScheduledExitsPanel(ctk.CTkFrame):
 
             title = (
                 f"{row['symbol']} {row['side']} | trigger={row['trigger']} | "
-                f"countdown={self._format_countdown(row['deadline'])}"
+                f"source={row['deadline_source']} | countdown={self._format_countdown(row['deadline'])}"
             )
             label = ctk.CTkLabel(item, text=title, anchor="w")
             label.grid(row=0, column=0, sticky="w", padx=8, pady=(8, 4))
@@ -222,7 +239,10 @@ class ScheduledExitsPanel(ctk.CTkFrame):
 
             meta = ctk.CTkLabel(
                 item,
-                text=f"deadline_utc={row['deadline'].isoformat() if row['deadline'] else '—'} | pnl={row['pnl']}",
+                text=(
+                    f"deadline_utc={row['deadline'].isoformat() if row['deadline'] else '-'} "
+                    f"| Deadline Source: {row['deadline_source']} | pnl={row['pnl']}"
+                ),
                 text_color=Colors.TEXT_MUTED,
                 anchor="w",
                 font=Fonts.BODY,
@@ -262,8 +282,8 @@ class ScheduledExitsPanel(ctk.CTkFrame):
         for order in rows:
             symbol = str(order.get("symbol", ""))
             reason = str(order.get("auto_close_reason", ""))
-            pnl = order.get("pnl", "—")
-            triggered_at = str(order.get("auto_close_triggered_at", "—"))
+            pnl = order.get("pnl", "-")
+            triggered_at = str(order.get("auto_close_triggered_at", "-"))
 
             item = ctk.CTkFrame(self.history_scroll)
             item.pack(fill="x", pady=(0, 6))
@@ -287,7 +307,10 @@ class ScheduledExitsPanel(ctk.CTkFrame):
             if label is None:
                 continue
             countdown = self._format_countdown(row.get("deadline"))
-            text = f"{row['symbol']} {row['side']} | trigger={row['trigger']} | countdown={countdown}"
+            text = (
+                f"{row['symbol']} {row['side']} | trigger={row['trigger']} "
+                f"| source={row['deadline_source']} | countdown={countdown}"
+            )
             label.configure(text=text)
 
     def _override_deadline(self, order_id: str) -> None:

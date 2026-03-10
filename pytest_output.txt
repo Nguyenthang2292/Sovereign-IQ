@@ -1,0 +1,209 @@
+
+============================================================
+Python: 3.12.12 (main, Feb  3 2026, 22:54:57) [MSC v.1944 64 bit (AMD64)]
+Project Root: C:\Users\Admin\Desktop\i-ching\crypto-probability
+Python Executable: C:\Users\Admin\Desktop\i-ching\crypto-probability\.venv\Scripts\python.exe
+============================================================
+
+============================= test session starts =============================
+platform win32 -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Admin\Desktop\i-ching\crypto-probability\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Admin\Desktop\i-ching\crypto-probability
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 35 items
+
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_success Starting Signal Pipeline...
+Step 1: Refreshing Symbols...
+Sampling config: <MagicMock name='mock.sample_percentage' id='1511461033200'>% using '<MagicMock name='mock.sampling_strategy' id='1511468098304'>' strategy
+Sampled 1 symbols using <MagicMock name='mock.sampling_strategy' id='1511468098304'> strategy
+Scanning 1 candidate symbols.
+Step 2: ATC Scan...
+ATC Found 1 candidates.
+Step 4: XGBoost Filter (per-symbol training)...
+XGBoost passed 1 candidates.
+Step 5: Gemini AI Analysis for 1 candidates...
+Gemini analyzed 1 candidates successfully.
+Step 6: Final Signal Selection...
+ALERT [INFO]: Signal Generated - BTC/USDT LONG
+Pipeline SUCCESS in 0.01s: Selected BTC/USDT
+PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_no_symbols Starting Signal Pipeline...
+Step 1: Refreshing Symbols...
+Sampling config: <MagicMock name='mock.sample_percentage' id='1511468109840'>% using '<MagicMock name='mock.sampling_strategy' id='1511467416416'>' strategy
+Sampled 0 symbols using <MagicMock name='mock.sampling_strategy' id='1511467416416'> strategy
+No symbols available to scan.
+PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_exception Starting Signal Pipeline...
+Step 1: Refreshing Symbols...
+Sampling config: <MagicMock name='mock.sample_percentage' id='1511468110704'>% using '<MagicMock name='mock.sampling_strategy' id='1511465920336'>' strategy
+Pipeline Failed: API Error
+ALERT [CRITICAL]: Pipeline Error: API Error
+PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_no_xgboost_signals Starting Signal Pipeline...
+Step 1: Refreshing Symbols...
+Sampling config: <MagicMock name='mock.sample_percentage' id='1511468038432'>% using '<MagicMock name='mock.sampling_strategy' id='1511468029600'>' strategy
+Sampled 1 symbols using <MagicMock name='mock.sampling_strategy' id='1511468029600'> strategy
+Scanning 1 candidate symbols.
+Step 2: ATC Scan...
+ATC Found 1 candidates.
+Step 4: XGBoost Filter (per-symbol training)...
+No signals passed XGBoost filter.
+PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_gemini_unavailable Starting Signal Pipeline...
+Step 1: Refreshing Symbols...
+Sampling config: <MagicMock name='mock.sample_percentage' id='1511468098208'>% using '<MagicMock name='mock.sampling_strategy' id='1511467012448'>' strategy
+Sampled 1 symbols using <MagicMock name='mock.sampling_strategy' id='1511467012448'> strategy
+Scanning 1 candidate symbols.
+Step 2: ATC Scan...
+ATC Found 1 candidates.
+Step 4: XGBoost Filter (per-symbol training)...
+XGBoost passed 1 candidates.
+Step 5: Gemini AI Analysis for 1 candidates...
+Gemini API not configured. Skipping AI analysis.
+Step 6: Final Signal Selection...
+Pipeline COMPLETED in 0.00s: No final signal selected.
+PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_persistence_success Starting Signal Pipeline...
+Step 1: Refreshing Symbols...
+Sampling config: <MagicMock name='mock.sample_percentage' id='1510606739488'>% using '<MagicMock name='mock.sampling_strategy' id='1510606435392'>' strategy
+Sampled 1 symbols using <MagicMock name='mock.sampling_strategy' id='1510606435392'> strategy
+Scanning 1 candidate symbols.
+Step 2: ATC Scan...
+ATC Found 1 candidates.
+Step 4: XGBoost Filter (per-symbol training)...
+XGBoost passed 1 candidates.
+Step 5: Gemini AI Analysis for 1 candidates...
+Gemini analyzed 0 candidates successfully.
+Step 6: Final Signal Selection...
+ALERT [INFO]: Signal Generated - BTC/USDT LONG
+Pipeline SUCCESS in 0.00s: Selected BTC/USDT
+PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_no_persistence_configured Starting Signal Pipeline...
+Step 1: Refreshing Symbols...
+Sampling config: <MagicMock name='mock.sample_percentage' id='1511465916832'>% using '<MagicMock name='mock.sampling_strategy' id='1511465805360'>' strategy
+Sampled 1 symbols using <MagicMock name='mock.sampling_strategy' id='1511465805360'> strategy
+Scanning 1 candidate symbols.
+Step 2: ATC Scan...
+ATC Found 1 candidates.
+Step 4: XGBoost Filter (per-symbol training)...
+XGBoost passed 1 candidates.
+Step 5: Gemini AI Analysis for 1 candidates...
+Gemini analyzed 0 candidates successfully.
+Step 6: Final Signal Selection...
+ALERT [INFO]: Signal Generated - BTC/USDT LONG
+Pipeline SUCCESS in 0.00s: Selected BTC/USDT
+PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_multiple_candidates Starting Signal Pipeline...
+Step 1: Refreshing Symbols...
+Sampling config: <MagicMock name='mock.sample_percentage' id='1511468121696'>% using '<MagicMock name='mock.sampling_strategy' id='1511468110224'>' strategy
+Sampled 3 symbols using <MagicMock name='mock.sampling_strategy' id='1511468110224'> strategy
+Scanning 3 candidate symbols.
+Step 2: ATC Scan...
+ATC Found 3 candidates.
+Step 4: XGBoost Filter (per-symbol training)...
+XGBoost passed 2 candidates.
+Step 5: Gemini AI Analysis for 2 candidates...
+Gemini analyzed 0 candidates successfully.
+Step 6: Final Signal Selection...
+Pipeline COMPLETED in 0.00s: No final signal selected.
+PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_max_symbols_limiting Starting Signal Pipeline...
+Step 1: Refreshing Symbols...
+Sampling config: <MagicMock name='mock.sample_percentage' id='1511468099984'>% using '<MagicMock name='mock.sampling_strategy' id='1511468103728'>' strategy
+Sampled 5 symbols using <MagicMock name='mock.sampling_strategy' id='1511468103728'> strategy
+Limiting scan to top 2 from 5 candidates.
+Scanning 2 candidate symbols.
+Step 2: ATC Scan...
+No ATC signals found.
+PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_config_validation PASSED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_filter_by_direction_both FAILED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_filter_by_direction_long_only FAILED
+tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_filter_by_direction_short_only FAILED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_init_creates_default_settings PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_load_creates_file_if_not_exists No settings file found, using defaults
+Settings saved to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_load_creates_file_if_not_0\test_settings.yaml
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_save_and_load_settings Settings saved to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_save_and_load_settings0\test_settings.yaml
+Settings loaded from C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_save_and_load_settings0\test_settings.yaml
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_get_setting PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_get_setting_with_default PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_set_setting PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_set_nested_setting PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_validate_settings_fixes_invalid_values PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_merge_settings PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_export_yaml Settings exported to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_export_yaml0\exported.yaml
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_export_json Settings exported to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_export_json0\exported.json
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_import_yaml Settings saved to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_import_yaml0\test_settings.yaml
+Settings imported from C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_import_yaml0\import.yaml
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_import_json Settings saved to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_import_json0\test_settings.yaml
+Settings imported from C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_import_json0\import.json
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_import_nonexistent_file Import file not found: /nonexistent/file.yaml
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_reset_to_defaults Settings saved to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_reset_to_defaults0\test_settings.yaml
+Settings reset to defaults
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_backup_creation Settings saved to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_backup_creation0\test_settings.yaml
+Backup created at C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_backup_creation0\test_settings.yaml.backup
+Settings saved to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_backup_creation0\test_settings.yaml
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_get_all_settings PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_normalize_whitelist_string PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_normalize_whitelist_list PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_json_to_yaml_migration Settings saved to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_json_to_yaml_migration0\settings.yaml
+Settings migrated from C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_json_to_yaml_migration0\settings.json to C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_json_to_yaml_migration0\settings.yaml
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_error_handling_in_save Error saving settings: [Errno 2] No such file or directory: '\\invalid\\path\\settings.yaml'
+PASSED
+tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_validation_on_load Settings loaded from C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin\pytest-72\test_validation_on_load0\test_settings.yaml
+PASSED
+
+================================== FAILURES ===================================
+______________ TestSignalPipeline.test_filter_by_direction_both _______________
+tests\auto_trade\core\test_signal_pipeline.py:205: in test_filter_by_direction_both
+    filtered = pipeline._filter_by_direction(signals)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: SignalPipeline._filter_by_direction() missing 1 required positional argument: 'allowed_directions'
+____________ TestSignalPipeline.test_filter_by_direction_long_only ____________
+tests\auto_trade\core\test_signal_pipeline.py:218: in test_filter_by_direction_long_only
+    filtered = pipeline._filter_by_direction(signals)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: SignalPipeline._filter_by_direction() missing 1 required positional argument: 'allowed_directions'
+___________ TestSignalPipeline.test_filter_by_direction_short_only ____________
+tests\auto_trade\core\test_signal_pipeline.py:232: in test_filter_by_direction_short_only
+    filtered = pipeline._filter_by_direction(signals)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: SignalPipeline._filter_by_direction() missing 1 required positional argument: 'allowed_directions'
+============================ slowest 20 durations =============================
+0.34s teardown tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_config_validation
+0.30s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_validate_settings_fixes_invalid_values
+0.30s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_import_yaml
+0.29s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_get_all_settings
+0.29s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_export_json
+0.29s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_import_json
+0.29s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_export_yaml
+0.28s teardown tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_filter_by_direction_long_only
+0.28s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_backup_creation
+0.28s teardown tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_filter_by_direction_both
+0.28s teardown tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_exception
+0.28s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_merge_settings
+0.28s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_set_nested_setting
+0.28s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_import_nonexistent_file
+0.28s teardown tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_persistence_success
+0.27s teardown tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_run_pipeline_multiple_candidates
+0.27s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_json_to_yaml_migration
+0.27s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_reset_to_defaults
+0.27s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_normalize_whitelist_string
+0.27s teardown tests/auto_trade/gui/utils/test_settings_manager.py::TestSettingsManager::test_normalize_whitelist_list
+=========================== short test summary info ===========================
+FAILED tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_filter_by_direction_both
+FAILED tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_filter_by_direction_long_only
+FAILED tests/auto_trade/core/test_signal_pipeline.py::TestSignalPipeline::test_filter_by_direction_short_only
+======================== 3 failed, 32 passed in 24.91s ========================
