@@ -4,8 +4,8 @@
 //! and schema versioning.
 
 use crate::constants::{
-    MAX_MA_LENGTH, MAX_NORMALIZED_VALUE, MIN_NORMALIZED_VALUE, MIN_SIGNAL_VALUE,
-    WEIGHT_SUM_TOLERANCE,
+    MAX_BARS_PER_TIMEFRAME, MAX_BATCH_SIZE, MAX_MA_LENGTH, MAX_NORMALIZED_VALUE, MIN_DATA_LENGTH,
+    MIN_NORMALIZED_VALUE, MIN_SIGNAL_VALUE, WEIGHT_SUM_TOLERANCE,
 };
 use crate::{ATCConfig, BatchRequest, OHLCVData};
 
@@ -82,6 +82,28 @@ pub fn validate_ohlcv_data(data: &OHLCVData, symbol: &str) -> ValidationResult<(
         return Err(ValidationError::Ohlcv {
             field: "timestamp".to_string(),
             message: "OHLCV data cannot be empty".to_string(),
+            symbol: Some(symbol.to_string()),
+        });
+    }
+
+    if len < MIN_DATA_LENGTH {
+        return Err(ValidationError::Ohlcv {
+            field: "timestamp".to_string(),
+            message: format!(
+                "OHLCV data length {} is below minimum required length {}",
+                len, MIN_DATA_LENGTH
+            ),
+            symbol: Some(symbol.to_string()),
+        });
+    }
+
+    if len > MAX_BARS_PER_TIMEFRAME {
+        return Err(ValidationError::Ohlcv {
+            field: "timestamp".to_string(),
+            message: format!(
+                "OHLCV data length {} exceeds maximum allowed length {}",
+                len, MAX_BARS_PER_TIMEFRAME
+            ),
             symbol: Some(symbol.to_string()),
         });
     }
@@ -262,6 +284,21 @@ pub fn validate_config(config: &ATCConfig) -> ValidationResult<()> {
         });
     }
 
+    if config.ma_configs.is_empty() {
+        return Err(ValidationError::Config {
+            field: "ma_configs".to_string(),
+            message: "ma_configs cannot be empty".to_string(),
+        });
+    }
+
+    if config.weights.is_empty() {
+        return Err(ValidationError::Config {
+            field: "weights".to_string(),
+            message: "weights cannot be empty".to_string(),
+        });
+    }
+
+    let mut has_positive_ma_weight = false;
     for (i, ma_config) in config.ma_configs.iter().enumerate() {
         if ma_config.length == 0 {
             return Err(ValidationError::Config {
@@ -289,19 +326,47 @@ pub fn validate_config(config: &ATCConfig) -> ValidationResult<()> {
                 ),
             });
         }
+
+        if ma_config.weight > 0.0 {
+            has_positive_ma_weight = true;
+        }
     }
 
-    if !config.weights.is_empty() {
-        let weight_sum: f64 = config.weights.values().sum();
-        if (weight_sum - 1.0).abs() > WEIGHT_SUM_TOLERANCE {
+    if !has_positive_ma_weight {
+        return Err(ValidationError::Config {
+            field: "ma_configs".to_string(),
+            message: "At least one MA config must have weight > 0.0".to_string(),
+        });
+    }
+
+    for (timeframe, weight) in &config.weights {
+        if timeframe.trim().is_empty() {
+            return Err(ValidationError::Config {
+                field: "weights".to_string(),
+                message: "Timeframe keys in weights cannot be empty".to_string(),
+            });
+        }
+
+        if !weight.is_finite() || *weight < 0.0 {
             return Err(ValidationError::Config {
                 field: "weights".to_string(),
                 message: format!(
-                    "Weights must sum to 1.0 (with tolerance {}), got {}",
-                    WEIGHT_SUM_TOLERANCE, weight_sum
+                    "Weight for timeframe '{}' must be finite and non-negative, got {}",
+                    timeframe, weight
                 ),
             });
         }
+    }
+
+    let weight_sum: f64 = config.weights.values().sum();
+    if (weight_sum - 1.0).abs() > WEIGHT_SUM_TOLERANCE {
+        return Err(ValidationError::Config {
+            field: "weights".to_string(),
+            message: format!(
+                "Weights must sum to 1.0 (with tolerance {}), got {}",
+                WEIGHT_SUM_TOLERANCE, weight_sum
+            ),
+        });
     }
 
     Ok(())
@@ -317,7 +382,21 @@ pub const SCHEMA_VERSION: &str = "1.0.0";
 /// - Version is compatible (major version matches)
 pub fn validate_schema_version(request: &BatchRequest) -> ValidationResult<()> {
     if let Some(ref version) = request.version {
-        let parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
+        let raw_segments: Vec<&str> = version.split('.').collect();
+        let mut parts = Vec::with_capacity(raw_segments.len());
+        for segment in &raw_segments {
+            match segment.parse::<u32>() {
+                Ok(v) => parts.push(v),
+                Err(_) => {
+                    return Err(ValidationError::Schema {
+                        message: format!(
+                            "Invalid version format: '{}' (non-numeric segment '{}')",
+                            version, segment
+                        ),
+                    });
+                }
+            }
+        }
 
         if parts.is_empty() {
             return Err(ValidationError::Schema {
@@ -355,6 +434,17 @@ pub fn validate_batch_request(request: &BatchRequest) -> ValidationResult<()> {
     validate_schema_version(request)?;
 
     validate_config(&request.config)?;
+
+    if request.symbols.len() > MAX_BATCH_SIZE {
+        return Err(ValidationError::Config {
+            field: "symbols".to_string(),
+            message: format!(
+                "Batch size {} exceeds maximum allowed {}",
+                request.symbols.len(),
+                MAX_BATCH_SIZE
+            ),
+        });
+    }
 
     for symbol in &request.symbols {
         if symbol.symbol.is_empty() {
@@ -407,12 +497,28 @@ mod tests {
 
     fn create_test_ohlcv() -> OHLCVData {
         OHLCVData {
-            timestamp: vec![1000, 2000, 3000, 4000, 5000].into_boxed_slice(),
-            open: vec![100.0, 101.0, 102.0, 103.0, 104.0].into_boxed_slice(),
-            high: vec![105.0, 106.0, 107.0, 108.0, 109.0].into_boxed_slice(),
-            low: vec![99.0, 100.0, 101.0, 102.0, 103.0].into_boxed_slice(),
-            close: vec![104.0, 105.0, 106.0, 107.0, 108.0].into_boxed_slice(),
-            volume: vec![1000.0, 1100.0, 1200.0, 1300.0, 1400.0].into_boxed_slice(),
+            timestamp: vec![1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
+                .into_boxed_slice(),
+            open: vec![
+                100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0,
+            ]
+            .into_boxed_slice(),
+            high: vec![
+                105.0, 106.0, 107.0, 108.0, 109.0, 110.0, 111.0, 112.0, 113.0, 114.0,
+            ]
+            .into_boxed_slice(),
+            low: vec![
+                99.0, 100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0,
+            ]
+            .into_boxed_slice(),
+            close: vec![
+                104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0, 111.0, 112.0, 113.0,
+            ]
+            .into_boxed_slice(),
+            volume: vec![
+                1000.0, 1100.0, 1200.0, 1300.0, 1400.0, 1500.0, 1600.0, 1700.0, 1800.0, 1900.0,
+            ]
+            .into_boxed_slice(),
         }
     }
 
@@ -433,6 +539,37 @@ mod tests {
             close: vec![].into_boxed_slice(),
             volume: vec![].into_boxed_slice(),
         };
+        let result = validate_ohlcv_data(&data, "BTCUSDT");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_ohlcv_too_short() {
+        let data = OHLCVData {
+            timestamp: vec![1000, 2000].into_boxed_slice(),
+            open: vec![100.0, 101.0].into_boxed_slice(),
+            high: vec![101.0, 102.0].into_boxed_slice(),
+            low: vec![99.0, 100.0].into_boxed_slice(),
+            close: vec![100.5, 101.5].into_boxed_slice(),
+            volume: vec![1000.0, 1100.0].into_boxed_slice(),
+        };
+        let result = validate_ohlcv_data(&data, "BTCUSDT");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_ohlcv_too_long() {
+        let len = MAX_BARS_PER_TIMEFRAME + 1;
+
+        let data = OHLCVData {
+            timestamp: (0..len).map(|i| i as i64 + 1).collect::<Vec<_>>().into_boxed_slice(),
+            open: vec![100.0; len].into_boxed_slice(),
+            high: vec![101.0; len].into_boxed_slice(),
+            low: vec![99.0; len].into_boxed_slice(),
+            close: vec![100.5; len].into_boxed_slice(),
+            volume: vec![1000.0; len].into_boxed_slice(),
+        };
+
         let result = validate_ohlcv_data(&data, "BTCUSDT");
         assert!(result.is_err());
     }
@@ -550,7 +687,11 @@ mod tests {
             decay: 0.03,
             cutout: 0,
             equity_floor: 0.25,
-            ma_configs: vec![],
+            ma_configs: vec![MAConfig {
+                ma_type: crate::MAType::Ema,
+                length: 20,
+                weight: 1.0,
+            }],
         };
         let result = validate_config(&config);
         assert!(result.is_err());
@@ -560,7 +701,11 @@ mod tests {
     fn test_validate_config_ma_length() {
         let config = ATCConfig {
             robustness: crate::Robustness::Medium,
-            weights: HashMap::new(),
+            weights: {
+                let mut w = HashMap::new();
+                w.insert("1h".to_string(), 1.0);
+                w
+            },
             threshold: 0.5,
             min_signal: 0.1,
             use_signal_strength: true,
@@ -576,6 +721,48 @@ mod tests {
         };
         let result = validate_config(&config);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_config_rejects_empty_weights() {
+        let config = ATCConfig {
+            robustness: crate::Robustness::Medium,
+            weights: HashMap::new(),
+            threshold: 0.5,
+            min_signal: 0.1,
+            use_signal_strength: true,
+            lambda_param: 0.02,
+            decay: 0.03,
+            cutout: 0,
+            equity_floor: 0.25,
+            ma_configs: vec![MAConfig {
+                ma_type: crate::MAType::Ema,
+                length: 20,
+                weight: 1.0,
+            }],
+        };
+        assert!(validate_config(&config).is_err());
+    }
+
+    #[test]
+    fn test_validate_config_rejects_empty_ma_configs() {
+        let config = ATCConfig {
+            robustness: crate::Robustness::Medium,
+            weights: {
+                let mut w = HashMap::new();
+                w.insert("1h".to_string(), 1.0);
+                w
+            },
+            threshold: 0.5,
+            min_signal: 0.1,
+            use_signal_strength: true,
+            lambda_param: 0.02,
+            decay: 0.03,
+            cutout: 0,
+            equity_floor: 0.25,
+            ma_configs: vec![],
+        };
+        assert!(validate_config(&config).is_err());
     }
 
     #[test]
@@ -707,5 +894,48 @@ mod tests {
             }
             _ => panic!("Expected OHLCV validation error with timeframe context"),
         }
+    }
+
+    #[test]
+    fn test_validate_batch_request_exceeds_max_batch_size() {
+        let symbols = (0..(MAX_BATCH_SIZE + 1))
+            .map(|idx| SymbolData {
+                symbol: format!("SYM{}", idx),
+                timeframes: {
+                    let mut tf = HashMap::new();
+                    tf.insert("1h".to_string(), create_test_ohlcv());
+                    tf
+                },
+            })
+            .collect::<Vec<_>>();
+
+        let request = BatchRequest {
+            batch_id: "test".to_string(),
+            version: Some("1.0.0".to_string()),
+            symbols,
+            config: ATCConfig {
+                robustness: crate::Robustness::Medium,
+                weights: {
+                    let mut w = HashMap::new();
+                    w.insert("1h".to_string(), 1.0);
+                    w
+                },
+                threshold: 0.5,
+                min_signal: 0.1,
+                use_signal_strength: true,
+                lambda_param: 0.02,
+                decay: 0.03,
+                cutout: 0,
+                equity_floor: 0.25,
+                ma_configs: vec![MAConfig {
+                    ma_type: crate::MAType::Ema,
+                    length: 20,
+                    weight: 1.0,
+                }],
+            },
+        };
+
+        let result = validate_batch_request(&request);
+        assert!(result.is_err());
     }
 }

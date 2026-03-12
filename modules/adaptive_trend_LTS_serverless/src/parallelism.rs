@@ -18,13 +18,13 @@ pub struct ParallelismConfig {
 }
 
 impl ParallelismConfig {
-    fn default_threads_for_batch_size(batch_size: usize) -> usize {
+    fn default_threads_for_batch_size(batch_size: usize) -> Option<usize> {
         match batch_size {
-            0..=10 => 2,
-            11..=50 => 4,
-            51..=100 => 6,
-            101..=500 => 8,
-            _ => 12,
+            0..=10 => Some(2),
+            11..=50 => Some(4),
+            51..=100 => Some(6),
+            101..=500 => Some(8),
+            _ => None,
         }
     }
 
@@ -36,6 +36,18 @@ impl ParallelismConfig {
             101..=500 => 25,
             _ => 50,
         }
+    }
+
+    fn lambda_memory_thread_cap() -> Option<usize> {
+        std::env::var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE")
+            .ok()
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .map(|memory_mb| match memory_mb {
+                0..=1768 => 2,
+                1769..=3537 => 4,
+                3538..=5306 => 6,
+                _ => 8,
+            })
     }
 
     /// Set the number of threads for parallel processing
@@ -70,7 +82,7 @@ impl ParallelismConfig {
     /// - 11-50 symbols: 4 threads, chunk_size=5
     /// - 51-100 symbols: 6 threads, chunk_size=10
     /// - 101-500 symbols: 8 threads, chunk_size=25
-    /// - 500+ symbols: 12 threads, chunk_size=50
+    /// - 500+ symbols: fallback to Rayon default thread pool, chunk_size=50
     pub fn optimal_for_batch_size(&self, batch_size: usize) -> Self {
         // 1. Check for Environment Variable overrides (for tuning on AWS Lambda without redeploy)
         if let Ok(val) = std::env::var("ATC_FORCE_THREADS") {
@@ -119,14 +131,21 @@ impl ParallelismConfig {
         }
 
         // 2. Default logic based on benchmarks
-        let num_threads = Self::default_threads_for_batch_size(batch_size);
+        let num_threads = match (
+            Self::default_threads_for_batch_size(batch_size),
+            Self::lambda_memory_thread_cap(),
+        ) {
+            (Some(default_threads), Some(cap)) => Some(default_threads.min(cap)),
+            (Some(default_threads), None) => Some(default_threads),
+            (None, _) => None,
+        };
         let chunk_size = Self::default_chunk_size_for_batch_size(batch_size);
 
         Self {
-            num_threads: Some(num_threads),
+            num_threads,
             chunk_size: Some(chunk_size),
             min_len: Some(5),
-            use_custom_pool: true,
+            use_custom_pool: num_threads.is_some(),
         }
     }
 }

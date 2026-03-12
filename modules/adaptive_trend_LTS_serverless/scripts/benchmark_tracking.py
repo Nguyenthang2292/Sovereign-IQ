@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import html
 import json
 import sys
 from datetime import datetime
@@ -140,11 +141,11 @@ def generate_html_report(results, output_file):
         change_str = f"{change:.2f}" if change is not None else "N/A"
 
         html_parts.append(f"""        <tr>
-            <td>{result['name']}</td>
-            <td>{baseline_str}</td>
-            <td>{current_str}</td>
-            <td>{change_str}%</td>
-            <td class="{status_class}">{status_text}</td>
+            <td>{html.escape(str(result.get('name', '')))}</td>
+            <td>{html.escape(baseline_str)}</td>
+            <td>{html.escape(current_str)}</td>
+            <td>{html.escape(change_str)}%</td>
+            <td class=\"{html.escape(status_class)}\">{html.escape(status_text)}</td>
         </tr>
 """)
 

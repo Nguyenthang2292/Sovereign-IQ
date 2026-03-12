@@ -17,8 +17,12 @@ pub struct StressTester {
 impl StressTester {
     /// Create a new stress tester with default configuration
     pub fn new() -> Self {
+        let mut weights = HashMap::new();
+        weights.insert("1h".to_string(), 0.6);
+        weights.insert("4h".to_string(), 0.4);
+
         let config = ATCConfig {
-            weights: HashMap::new(),
+            weights,
             threshold: 0.3,
             min_signal: 0.0,
             use_signal_strength: true,

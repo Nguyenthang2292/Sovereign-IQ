@@ -5,10 +5,23 @@ use crate::parallelism::{
 use crate::{ATCConfig, SignalResult, SymbolData, SymbolError};
 use rayon::prelude::*;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use std::sync::OnceLock;
 
-static CUSTOM_THREAD_POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
+static CUSTOM_THREAD_POOLS: OnceLock<Mutex<HashMap<usize, Arc<rayon::ThreadPool>>>> =
+    OnceLock::new();
+
+fn get_or_create_custom_thread_pool(num_threads: usize) -> Arc<rayon::ThreadPool> {
+    let pools = CUSTOM_THREAD_POOLS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut pools_guard = pools
+        .lock()
+        .expect("custom thread pool map lock should not be poisoned");
+
+    pools_guard
+        .entry(num_threads)
+        .or_insert_with(|| Arc::new(create_custom_thread_pool(num_threads)))
+        .clone()
+}
 
 /// Module for batch processing and error recovery
 ///
@@ -144,7 +157,10 @@ pub fn process_batch(
     config: ATCConfig,
     parallelism_config: Option<ParallelismConfig>,
 ) -> (Vec<SignalResult>, Vec<SymbolError>) {
-    debug_assert!(crate::validation::validate_config(&config).is_ok(), "Config validation failed");
+    debug_assert!(
+        crate::validation::validate_config(&config).is_ok(),
+        "Config validation failed"
+    );
 
     let batch_start = Instant::now();
     let epoch_ms = SystemTime::now()
@@ -169,15 +185,16 @@ pub fn process_batch(
 
     crate::log_info!(
         "[{}] Starting batch processing with {} symbols (estimated memory: {}MB), threads: {}",
-        batch_id, num_symbols, estimated_memory_mb, thread_count
+        batch_id,
+        num_symbols,
+        estimated_memory_mb,
+        thread_count
     );
 
     let results: Vec<SymbolProcessingResult> = if let Some(pconfig) = parallelism_config.as_ref() {
         if pconfig.use_custom_pool {
             if let Some(num_threads) = configured_threads {
-                let pool = CUSTOM_THREAD_POOL.get_or_init(|| {
-                    create_custom_thread_pool(num_threads)
-                });
+                let pool = get_or_create_custom_thread_pool(num_threads);
                 pool.install(|| process_symbols_parallel(symbols, &config, Some(pconfig)))
             } else {
                 process_symbols_parallel(symbols, &config, Some(pconfig))
@@ -192,20 +209,21 @@ pub fn process_batch(
     let mut success_results = Vec::with_capacity(num_symbols);
     let mut error_results = Vec::new();
     let mut total_processing_time_ms: u64 = 0;
+    let results_count = results.len();
 
-    for res in &results {
-        if let Some(result) = &res.result {
-            success_results.push(result.clone());
-        }
-        if let Some(error) = &res.error {
-            error_results.push(error.clone());
-        }
+    for res in results {
         total_processing_time_ms += res.processing_time_ms;
+        if let Some(result) = res.result {
+            success_results.push(result);
+        }
+        if let Some(error) = res.error {
+            error_results.push(error);
+        }
     }
 
     let batch_duration_ms = batch_start.elapsed().as_millis() as u64;
-    let avg_cpu_time_per_symbol_ms = if !results.is_empty() {
-        total_processing_time_ms / results.len() as u64
+    let avg_cpu_time_per_symbol_ms = if results_count > 0 {
+        total_processing_time_ms / results_count as u64
     } else {
         0
     };
@@ -227,8 +245,8 @@ pub fn process_batch(
     parallelism_metrics.log_metrics(&batch_id);
 
     crate::log_info!("[{}] Batch processing completed: {} successful, {} errors, total_time={}ms, avg_wall_clock_per_symbol={}ms, avg_cpu_time_per_symbol={}ms{}",
-              batch_id, 
-              success_results.len(), 
+              batch_id,
+              success_results.len(),
               error_results.len(),
               batch_duration_ms,
               avg_wall_clock_per_symbol_ms,
@@ -238,14 +256,18 @@ pub fn process_batch(
     if memory_usage_mb > MEMORY_WARNING_THRESHOLD_MB {
         crate::log_warn!(
             "[{}] Memory usage {}MB exceeds threshold {}MB",
-            batch_id, memory_usage_mb, MEMORY_WARNING_THRESHOLD_MB
+            batch_id,
+            memory_usage_mb,
+            MEMORY_WARNING_THRESHOLD_MB
         );
     }
 
     for error in &error_results {
         crate::log_error!(
             "[{}] Symbol {} failed: {}",
-            batch_id, error.symbol, error.error
+            batch_id,
+            error.symbol,
+            error.error
         );
     }
 
@@ -279,15 +301,21 @@ fn process_symbol_with_recovery(
     let processing_time_ms = start_time.elapsed().as_millis() as u64;
 
     match result {
-        Ok(signal_result) => SymbolProcessingResult {
+        Ok(Ok(signal_result)) => SymbolProcessingResult {
             result: Some(signal_result),
             error: None,
+            processing_time_ms,
+        },
+        Ok(Err(err)) => SymbolProcessingResult {
+            result: None,
+            error: Some(SymbolError { symbol, error: err }),
             processing_time_ms,
         },
         Err(_) => {
             crate::log_error!(
                 "Panic while processing symbol: {} (time: {}ms)",
-                symbol, processing_time_ms
+                symbol,
+                processing_time_ms
             );
             SymbolProcessingResult {
                 result: None,
@@ -314,24 +342,40 @@ fn process_symbol_with_recovery(
 ///
 /// # Returns
 /// SignalResult containing the final score, signal type, and per-timeframe details
-fn process_single_symbol(symbol_data: SymbolData, config: &ATCConfig) -> SignalResult {
+fn process_single_symbol(
+    symbol_data: SymbolData,
+    config: &ATCConfig,
+) -> Result<SignalResult, String> {
     let num_timeframes = symbol_data.timeframes.len();
+    if num_timeframes == 0 {
+        return Err("Symbol has no timeframe data".to_string());
+    }
+
     let mut tf_scores = HashMap::with_capacity(num_timeframes);
     let mut tf_details = HashMap::with_capacity(num_timeframes);
 
     for (tf, ohlcv) in symbol_data.timeframes {
+        if ohlcv.close.len() < crate::constants::MIN_DATA_LENGTH {
+            return Err(format!(
+                "Insufficient OHLCV length for timeframe '{}': got {}, require at least {}",
+                tf,
+                ohlcv.close.len(),
+                crate::constants::MIN_DATA_LENGTH
+            ));
+        }
+
         let (score, signal) = crate::signal_detection::compute_symbol_score(&ohlcv.close, config);
 
         tf_scores.insert(tf.clone(), score);
         tf_details.insert(tf, signal);
     }
 
-    aggregate_timeframes(
+    Ok(aggregate_timeframes(
         symbol_data.symbol,
         tf_scores,
         tf_details,
         config,
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -360,10 +404,10 @@ mod tests {
         };
 
         let mem_mb = estimate_batch_memory_mb(&[symbol]);
-        
+
         let expected_bytes = (bars * 6 * 8) * 2 + (bars * 3 * 8) * 2;
         let expected_mb = (expected_bytes / (1024 * 1024)) as u64;
-        
+
         assert_eq!(mem_mb, expected_mb);
         assert!(mem_mb > 0, "Expected memory estimate to be greater than 0");
     }
@@ -375,10 +419,22 @@ mod tests {
             "1h".to_string(),
             OHLCVData {
                 timestamp: (0..bars as i64).collect::<Vec<i64>>().into_boxed_slice(),
-                open: (0..bars).map(|i| 100.0 + i as f64).collect::<Vec<f64>>().into_boxed_slice(),
-                high: (0..bars).map(|i| 101.0 + i as f64).collect::<Vec<f64>>().into_boxed_slice(),
-                low: (0..bars).map(|i| 99.0 + i as f64).collect::<Vec<f64>>().into_boxed_slice(),
-                close: (0..bars).map(|i| 100.5 + i as f64).collect::<Vec<f64>>().into_boxed_slice(),
+                open: (0..bars)
+                    .map(|i| 100.0 + i as f64)
+                    .collect::<Vec<f64>>()
+                    .into_boxed_slice(),
+                high: (0..bars)
+                    .map(|i| 101.0 + i as f64)
+                    .collect::<Vec<f64>>()
+                    .into_boxed_slice(),
+                low: (0..bars)
+                    .map(|i| 99.0 + i as f64)
+                    .collect::<Vec<f64>>()
+                    .into_boxed_slice(),
+                close: (0..bars)
+                    .map(|i| 100.5 + i as f64)
+                    .collect::<Vec<f64>>()
+                    .into_boxed_slice(),
                 volume: vec![1000.0; bars].into_boxed_slice(),
             },
         );
@@ -413,9 +469,10 @@ mod tests {
 
     #[test]
     fn test_process_batch_reuses_custom_thread_pool() {
-        let before_pool_ptr = CUSTOM_THREAD_POOL
+        let before_pools = CUSTOM_THREAD_POOLS
             .get()
-            .map(|pool| pool as *const rayon::ThreadPool as usize);
+            .map(|map| map.lock().expect("pool map lock").len())
+            .unwrap_or(0);
 
         let parallelism_first = ParallelismConfig::default().with_threads(2);
         let _ = process_batch(
@@ -424,27 +481,35 @@ mod tests {
             Some(parallelism_first),
         );
 
-        let first_pool_ptr = CUSTOM_THREAD_POOL
-            .get()
-            .map(|pool| pool as *const rayon::ThreadPool as usize)
-            .expect("Custom thread pool should be initialized after first call");
+        let first_pool_ptr =
+            get_or_create_custom_thread_pool(2).as_ref() as *const rayon::ThreadPool as usize;
 
-        let parallelism_second = ParallelismConfig::default().with_threads(4);
+        let parallelism_second = ParallelismConfig::default().with_threads(2);
         let _ = process_batch(
             vec![build_test_symbol("ETHUSDT")],
             build_test_config(),
             Some(parallelism_second),
         );
 
-        let second_pool_ptr = CUSTOM_THREAD_POOL
+        let second_pool_ptr =
+            get_or_create_custom_thread_pool(2).as_ref() as *const rayon::ThreadPool as usize;
+        let after_pools = CUSTOM_THREAD_POOLS
             .get()
-            .map(|pool| pool as *const rayon::ThreadPool as usize)
-            .expect("Custom thread pool should still be available");
-
-        if let Some(existing_ptr) = before_pool_ptr {
-            assert_eq!(first_pool_ptr, existing_ptr);
-        }
+            .map(|map| map.lock().expect("pool map lock").len())
+            .unwrap_or(0);
 
         assert_eq!(first_pool_ptr, second_pool_ptr);
+        assert!(after_pools >= before_pools);
+    }
+
+    #[test]
+    fn test_process_batch_uses_distinct_pool_per_thread_count() {
+        let pool_2 = get_or_create_custom_thread_pool(2);
+        let pool_4 = get_or_create_custom_thread_pool(4);
+
+        let pool_2_ptr = pool_2.as_ref() as *const rayon::ThreadPool as usize;
+        let pool_4_ptr = pool_4.as_ref() as *const rayon::ThreadPool as usize;
+
+        assert_ne!(pool_2_ptr, pool_4_ptr);
     }
 }

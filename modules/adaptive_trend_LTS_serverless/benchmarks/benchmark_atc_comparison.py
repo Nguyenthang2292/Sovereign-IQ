@@ -85,10 +85,10 @@ def generate_ohlcv_data(symbol: str, timeframe: str, num_bars: int = 500) -> pd.
     # Use stable hash for deterministic RNG seed across runs
     seed_bytes = hashlib.sha256(f"{symbol}_{timeframe}".encode()).digest()
     seed = int.from_bytes(seed_bytes[:4], byteorder="big")
-    np.random.seed(seed)
+    rng = np.random.default_rng(seed)
 
     # Generate realistic price movements
-    returns = np.random.normal(0, 0.01, num_bars)
+    returns = rng.normal(0, 0.01, num_bars)
     trend = np.sin(np.linspace(0, 4 * np.pi, num_bars)) * 0.005
 
     base_price = 50000 if "BTC" in symbol else (3000 if "ETH" in symbol else 150)
@@ -125,16 +125,16 @@ def generate_ohlcv_data(symbol: str, timeframe: str, num_bars: int = 500) -> pd.
     volatility = prices * 0.002  # 0.2% volatility
     df["open"] = df["close"].shift(1)
     first_close = cast(float, df.at[0, "close"])
-    df.loc[0, "open"] = first_close * (1 + np.random.normal(0, 0.001))
+    df.loc[0, "open"] = first_close * (1 + rng.normal(0, 0.001))
 
     max_oc = np.maximum(df["open"].to_numpy(), df["close"].to_numpy())
     min_oc = np.minimum(df["open"].to_numpy(), df["close"].to_numpy())
-    upper_wick = np.abs(np.random.normal(0, volatility))
-    lower_wick = np.abs(np.random.normal(0, volatility))
+    upper_wick = np.abs(rng.normal(0, volatility))
+    lower_wick = np.abs(rng.normal(0, volatility))
 
     df["high"] = max_oc + upper_wick
     df["low"] = min_oc - lower_wick
-    df["volume"] = np.random.uniform(100, 1000, num_bars) * base_price / 1000
+    df["volume"] = rng.uniform(100, 1000, num_bars) * base_price / 1000
 
     result = df[["timestamp", "open", "high", "low", "close", "volume"]].copy()
     return result
@@ -563,7 +563,8 @@ def print_summary(python_results: list, rust_results: list):
         print(f"{py['symbol']:<12} {py['timeframe']:<6} {py['signal_type']:<10} {rust['signal_type']:<10} {match:<8}")
 
     print("-" * 80)
-    print(f"Consistency Rate: {matches}/{total} ({matches / total * 100:.1f}%)")
+    match_pct = (matches / total * 100) if total > 0 else 0.0
+    print(f"Consistency Rate: {matches}/{total} ({match_pct:.1f}%)")
     print()
 
     # Signal value difference
@@ -592,7 +593,8 @@ def print_summary(python_results: list, rust_results: list):
     print("4. CONCLUSION")
     print("-" * 80)
     print(f"Rust implementation is {avg_speedup:.1f}x faster on average")
-    print(f"Signal consistency: {matches / total * 100:.1f}% ({matches}/{total})")
+    match_pct = (matches / total * 100) if total > 0 else 0.0
+    print(f"Signal consistency: {match_pct:.1f}% ({matches}/{total})")
     print(f"Maximum signal difference: {max_diff:.6f}")
 
     if avg_speedup >= 5:
@@ -604,7 +606,7 @@ def print_summary(python_results: list, rust_results: list):
 
     if matches == total:
         print("Perfect signal consistency")
-    elif matches / total >= 0.9:
+    elif match_pct >= 90.0:
         print("High signal consistency (>90%)")
     else:
         print("Signal inconsistency detected")
@@ -746,7 +748,8 @@ def print_summary_with_simd(
         )
 
     print("-" * 95)
-    print(f"Consistency Rate: {matches}/{total} ({matches / total * 100:.1f}%)")
+    match_pct = (matches / total * 100) if total > 0 else 0.0
+    print(f"Consistency Rate: {matches}/{total} ({match_pct:.1f}%)")
     print()
 
     # Overall conclusion
@@ -759,7 +762,8 @@ def print_summary_with_simd(
     print(f"SIMD optimization: {simd_vs_scalar:.2f}x faster than scalar Rust")
     print(f"Parallel optimization: {parallel_vs_simd:.2f}x faster than SIMD")
     print(f"Total optimization: {parallel_vs_scalar:.2f}x faster than scalar Rust")
-    print(f"Signal consistency: {matches / total * 100:.1f}% ({matches}/{total})")
+    match_pct = (matches / total * 100) if total > 0 else 0.0
+    print(f"Signal consistency: {match_pct:.1f}% ({matches}/{total})")
     print()
 
     if simd_vs_scalar >= 2:
@@ -782,7 +786,7 @@ def print_summary_with_simd(
 
     if matches == total:
         print("✓ Perfect signal consistency across all implementations")
-    elif matches / total >= 0.9:
+    elif match_pct >= 90.0:
         print("✓ High signal consistency (>90%)")
     else:
         print("⚠ Signal inconsistency detected")

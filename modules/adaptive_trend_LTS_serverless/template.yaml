@@ -12,18 +12,21 @@ Resources:
       Runtime: provided.al2
       Architectures:
         - x86_64
-      MemorySize: 1024
-      Timeout: 60
-      Events:
-        SQSEvent:
-          Type: SQS
-          Properties:
-            Queue: arn:aws:sqs:us-east-1:000000000000:atc-sqs-poller-queue
-            BatchSize: 10
+      MemorySize: 1769
+      Timeout: 120
+      Tracing: Active
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AWSXrayWriteOnlyAccess
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ATCSQSPollerQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ATCDeadLetterQueue.QueueName
       Environment:
         Variables:
           RUST_LOG: info
           AWS_REGION: us-east-1
+          SQS_QUEUE_URL: !Ref ATCSQSPollerQueue
           # Dead Letter Queue URL for failed SQS sends
           DLQ_URL: !Ref ATCDeadLetterQueue
 
@@ -39,7 +42,7 @@ Resources:
   ATCSQSPollerQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: atc-sqs-poller-queue
+      QueueName: atc-results
       VisibilityTimeout: 300
       MessageRetentionPeriod: 1209600  # 14 days
       # Configure Dead Letter Queue
@@ -49,7 +52,7 @@ Resources:
       # CloudWatch Alarms for DLQ monitoring
       Tags:
         - Key: Name
-          Value: atc-sqs-poller-queue
+          Value: atc-results
         - Key: Environment
           Value: production
         - Key: HasDLQ
@@ -170,3 +173,9 @@ Outputs:
     Value: !GetAtt ATCDeadLetterQueue.Arn
     Export:
       Name: !Sub "${AWS::StackName}-DLQ-ARN"
+
+  ResultsQueueUrl:
+    Description: URL of the primary results queue
+    Value: !Ref ATCSQSPollerQueue
+    Export:
+      Name: !Sub "${AWS::StackName}-RESULTS-QUEUE-URL"

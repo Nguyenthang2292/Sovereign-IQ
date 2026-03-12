@@ -1,8 +1,8 @@
 use atc_serverless::{
     calculate_dema, calculate_diflen, calculate_ema, calculate_equity, calculate_hma,
     calculate_kama, calculate_layer1_signal, calculate_lsma, calculate_sma, calculate_wma,
-    compute_symbol_score, process_batch, ATCConfig, MAConfig, OHLCVData, Robustness, SignalType,
-    SignalParams, SymbolData,
+    compute_symbol_score, process_batch, ATCConfig, MAConfig, OHLCVData, Robustness, SignalParams,
+    SignalType, SymbolData,
 };
 use ndarray::Array1;
 use std::collections::HashMap;
@@ -566,15 +566,20 @@ fn test_process_batch_with_error_recovery() {
         }],
     };
 
-    let symbol_count = symbols.len();
-    let (results, _errors) = process_batch(symbols, config, None);
+    let (results, errors) = process_batch(symbols, config, None);
 
-    // Should still get results even if some fail
-    assert!(
-        results.len() <= symbol_count,
-        "Should handle batch processing"
+    assert_eq!(results.len(), 1, "Only valid symbol should succeed");
+    assert_eq!(
+        errors.len(),
+        1,
+        "Invalid symbol should be reported as error"
     );
-    // May have errors but should not panic
+    assert_eq!(results[0].symbol, "VALID");
+    assert_eq!(errors[0].symbol, "INVALID");
+    assert!(
+        errors[0].error.contains("Insufficient OHLCV length"),
+        "Error should mention insufficient data length"
+    );
 }
 
 // ============================================================================

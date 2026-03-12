@@ -3,7 +3,7 @@ use crate::constants::{
     DECAY_SCALE, LAMBDA_SCALE, MIN_LENGTH_MEDIUM, MIN_LENGTH_NARROW, MIN_LENGTH_WIDE, SIGNAL_LONG,
     SIGNAL_NEUTRAL, SIGNAL_SHORT, STARTING_EQUITY,
 };
-use crate::equity::*;
+use crate::equity::{calculate_equity, exp_growth};
 #[cfg(not(feature = "simd"))]
 use crate::ma_calculations::*;
 use crate::ATCConfig;
@@ -164,10 +164,12 @@ fn calculate_ma_variation(
 
 fn calculate_roc(prices: ArrayView1<f64>, n: usize) -> Array1<f64> {
     let mut roc = get_buffer(n);
-    roc[0] = 0.0; // Explicitly set first element to avoid NaN propagation
+    roc[0] = 0.0;
     for i in 1..n {
-        if prices[i - 1] != 0.0 && !prices[i - 1].is_nan() {
+        if prices[i - 1].is_finite() && prices[i - 1] != 0.0 && prices[i].is_finite() {
             roc[i] = (prices[i] - prices[i - 1]) / prices[i - 1];
+        } else {
+            roc[i] = 0.0;
         }
     }
     roc
@@ -377,12 +379,8 @@ pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, SignalT
     let mut total_weight = 0.0;
 
     for ma_config in &config.ma_configs {
-        let (signal_series, equity_weight) = calculate_layer1_signal(
-            prices_arr,
-            &ma_config.ma_type,
-            ma_config.length,
-            &params,
-        );
+        let (signal_series, equity_weight) =
+            calculate_layer1_signal(prices_arr, &ma_config.ma_type, ma_config.length, &params);
 
         let last_signal = if n > 0 { signal_series[n - 1] } else { 0.0 };
 

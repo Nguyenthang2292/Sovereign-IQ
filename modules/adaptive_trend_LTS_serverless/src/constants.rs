@@ -141,11 +141,18 @@ pub const SIGNAL_NEUTRAL: f64 = 0.0;
 
 /// Maximum batch size for processing.
 ///
-/// Limits the number of symbols per batch to prevent memory issues.
+/// Limits the number of symbols per batch to keep serialized SQS payloads
+/// under the 256KB hard limit and to avoid memory spikes.
 ///
-/// **Rationale**: 2000 symbols with 3 timeframes × 200 bars = ~1.2M data points
-/// fits within Lambda memory limits with room for processing overhead.
-pub const MAX_BATCH_SIZE: usize = 2000;
+/// **Rationale**: 1000 symbols gives safe headroom for JSON payload growth
+/// (results + errors + metadata) while retaining high throughput per invocation.
+pub const MAX_BATCH_SIZE: usize = 1000;
+
+/// Maximum bars allowed per timeframe in request payload.
+///
+/// Prevents oversized requests from exhausting Lambda memory when callers send
+/// extremely long OHLCV histories.
+pub const MAX_BARS_PER_TIMEFRAME: usize = 1000;
 
 /// Minimum price value allowed in validation.
 ///

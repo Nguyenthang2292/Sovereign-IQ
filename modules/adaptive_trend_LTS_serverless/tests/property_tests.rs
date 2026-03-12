@@ -1,6 +1,6 @@
 use atc_serverless::{
-    calculate_dema, calculate_ema, calculate_hma, calculate_wma,
-    compute_symbol_score, process_batch, ATCConfig, MAConfig, SymbolData,
+    calculate_dema, calculate_ema, calculate_hma, calculate_wma, compute_symbol_score,
+    process_batch, ATCConfig, MAConfig, SymbolData,
 };
 use ndarray::Array1;
 use proptest::prelude::*;
@@ -12,8 +12,11 @@ fn create_test_prices(length: usize) -> Array1<f64> {
 }
 
 fn create_test_config() -> ATCConfig {
+    let mut weights = HashMap::new();
+    weights.insert("1h".to_string(), 1.0);
+
     ATCConfig {
-        weights: HashMap::new(),
+        weights,
         threshold: 0.3,
         min_signal: 0.0,
         use_signal_strength: true,

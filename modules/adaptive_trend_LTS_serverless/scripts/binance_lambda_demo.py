@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: I001
 """
 Binance Lambda Demo Script
 
@@ -21,20 +22,26 @@ Usage:
 """
 
 import argparse
+import copy
 import json
 import logging
 import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-import boto3
+from typing import Any
 
 # Add project root to path to import common modules
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from modules.adaptive_trend_LTS_serverless.lambda_client import (
+    ATCLambdaClient,
+    DEFAULT_ATC_CONFIG,
+    DEFAULT_FUNCTION_NAME,
+    DEFAULT_REGION,
+    DEFAULT_SQS_QUEUE_NAME,
+)
 from modules.common.core.data_fetcher import DataFetcher, SymbolFetchError
 from modules.common.core.exchange_manager import ExchangeManager
 
@@ -46,33 +53,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Constants
-DEFAULT_FUNCTION_NAME = "atc-serverless"
-DEFAULT_SQS_QUEUE_NAME = "atc-results"
-DEFAULT_REGION = "us-east-1"
-
-# Default ATC configuration
-DEFAULT_ATC_CONFIG = {
-    "weights": {"1h": 0.6, "4h": 0.4},
-    "threshold": 0.3,
-    "min_signal": 0.0,
-    "use_signal_strength": True,
-    "lambda_param": 0.02,
-    "decay": 0.03,
-    "cutout": 0,
-    "equity_floor": 0.25,
-    "robustness": "Medium",
-    "ma_configs": [
-        {"ma_type": "EMA", "length": 12, "weight": 1.0},
-        {"ma_type": "HMA", "length": 12, "weight": 1.0},
-        {"ma_type": "WMA", "length": 12, "weight": 1.0},
-        {"ma_type": "DEMA", "length": 12, "weight": 1.0},
-        {"ma_type": "LSMA", "length": 12, "weight": 1.0},
-        {"ma_type": "KAMA", "length": 12, "weight": 1.0},
-    ],
-}
-
-
 class BinanceDataLoader:
     """Loads Binance market data using the DataFetcher module."""
 
@@ -80,7 +60,7 @@ class BinanceDataLoader:
         self.exchange_manager = ExchangeManager()
         self.data_fetcher = DataFetcher(self.exchange_manager)
 
-    def get_usdt_symbols(self, limit: int = None) -> List[str]:
+    def get_usdt_symbols(self, limit: int | None = None) -> list[str]:
         """Get all USDT trading pairs from Binance."""
         try:
             logger.info("Fetching USDT symbols from Binance...")
@@ -98,8 +78,8 @@ class BinanceDataLoader:
             raise
 
     def get_ohlcv_data(
-        self, symbols: List[str], timeframes: List[str], limit: int = 100
-    ) -> Dict[str, Dict[str, Dict[str, List]]]:
+        self, symbols: list[str], timeframes: list[str], limit: int = 100
+    ) -> dict[str, dict[str, dict[str, list[Any]]]]:
         """Fetch OHLCV data for symbols across multiple timeframes."""
         results = {}
         for symbol in symbols:
@@ -128,144 +108,7 @@ class BinanceDataLoader:
         return results
 
 
-class ATCLambdaClient:
-    """Invokes the ATC Serverless Lambda and polls SQS for results.
-
-    Architecture (from Rust handler):
-        boto3.invoke(Lambda) --> Lambda processes --> sends result to SQS
-        This client then polls SQS to retrieve the result.
-
-    The Lambda returns () / null directly, so we cannot read the result from
-    the invoke response. Results come via SQS.
-    """
-
-    def __init__(
-        self,
-        function_name: str = DEFAULT_FUNCTION_NAME,
-        sqs_queue_name: str = DEFAULT_SQS_QUEUE_NAME,
-        region: str = DEFAULT_REGION,
-        sqs_poll_timeout: int = 60,
-        sqs_poll_interval: float = 2.0,
-    ):
-        self.function_name = function_name
-        self.sqs_queue_name = sqs_queue_name
-        self.region = region
-        self.sqs_poll_timeout = sqs_poll_timeout
-        self.sqs_poll_interval = sqs_poll_interval
-
-        self._lambda = boto3.client("lambda", region_name=region)
-        self._sqs = boto3.client("sqs", region_name=region)
-        self._queue_url: Optional[str] = None
-
-        logger.info(f"ATCLambdaClient: function='{function_name}', sqs='{sqs_queue_name}', region={region}")
-
-    def _get_queue_url(self) -> str:
-        if not self._queue_url:
-            response = self._sqs.get_queue_url(QueueName=self.sqs_queue_name)
-            self._queue_url = response["QueueUrl"]
-        return self._queue_url
-
-    def invoke_and_wait(
-        self,
-        symbols_data: List[Dict[str, Any]],
-        config: Dict[str, Any] = None,
-    ) -> Dict[str, Any]:
-        """Invoke Lambda and poll SQS for the result.
-
-        Args:
-            symbols_data: List of {symbol, timeframes} dicts
-            config: ATC config (uses DEFAULT_ATC_CONFIG if not provided)
-
-        Returns:
-            ScanResult dict: {batch_id, results, errors, success_count, error_count}
-        """
-        if config is None:
-            config = DEFAULT_ATC_CONFIG.copy()
-
-        batch_id = f"demo-{uuid.uuid4().hex[:8]}"
-        payload = {
-            "batch_id": batch_id,
-            "symbols": symbols_data,
-            "config": config,
-        }
-
-        logger.info(f"Invoking Lambda batch '{batch_id}' with {len(symbols_data)} symbols...")
-
-        # Step 1: Invoke Lambda (fire-and-forget, result goes to SQS)
-        response = self._lambda.invoke(
-            FunctionName=self.function_name,
-            InvocationType="RequestResponse",
-            Payload=json.dumps(payload).encode("utf-8"),
-        )
-
-        status = response["StatusCode"]
-        raw_body = response["Payload"].read().decode("utf-8")
-        logger.debug(f"Lambda HTTP status: {status}, raw body: {raw_body!r}")
-
-        if status != 200:
-            raise RuntimeError(f"Lambda invocation failed (HTTP {status}): {raw_body}")
-
-        # Lambda returns null on success (result is sent directly to SQS)
-        # Check for Lambda runtime errors
-        if response.get("FunctionError"):
-            body = json.loads(raw_body) if raw_body and raw_body != "null" else {}
-            raise RuntimeError(
-                f"Lambda function error [{response['FunctionError']}]: {body.get('errorMessage', raw_body)}"
-            )
-
-        logger.info(f"Lambda invoked OK (batch_id={batch_id}). Polling SQS for results...")
-
-        # Step 2: Poll SQS for the result message matching our batch_id
-        return self._poll_sqs_for_batch(batch_id)
-
-    def _poll_sqs_for_batch(self, batch_id: str) -> Dict[str, Any]:
-        """Poll SQS until we find the message for our batch_id."""
-        queue_url = self._get_queue_url()
-        deadline = time.time() + self.sqs_poll_timeout
-        attempts = 0
-
-        while time.time() < deadline:
-            attempts += 1
-            messages = self._sqs.receive_message(
-                QueueUrl=queue_url,
-                MaxNumberOfMessages=10,
-                WaitTimeSeconds=5,  # long-polling: up to 5s
-                VisibilityTimeout=30,
-            ).get("Messages", [])
-
-            for msg in messages:
-                try:
-                    body = json.loads(msg["Body"])
-                    if body.get("batch_id") == batch_id:
-                        # Found our result — delete from queue and return
-                        self._sqs.delete_message(
-                            QueueUrl=queue_url,
-                            ReceiptHandle=msg["ReceiptHandle"],
-                        )
-                        logger.info(f"Got result from SQS (batch_id={batch_id}) after {attempts} poll(s)")
-                        return body
-                    else:
-                        # Not our message — put it back (change visibility to 0)
-                        self._sqs.change_message_visibility(
-                            QueueUrl=queue_url,
-                            ReceiptHandle=msg["ReceiptHandle"],
-                            VisibilityTimeout=0,
-                        )
-                except json.JSONDecodeError:
-                    pass  # Skip malformed messages
-
-            remaining = int(deadline - time.time())
-            logger.info(f"Waiting for SQS result... (attempt {attempts}, {remaining}s remaining)")
-            time.sleep(self.sqs_poll_interval)
-
-        raise TimeoutError(
-            f"No SQS result received for batch_id='{batch_id}' "
-            f"within {self.sqs_poll_timeout}s. "
-            "Check CloudWatch logs for Lambda errors."
-        )
-
-
-def mock_invoke(symbols_data: List[Dict[str, Any]], config: Dict[str, Any]) -> Dict[str, Any]:
+def mock_invoke(symbols_data: list[dict[str, Any]], config: dict[str, Any]) -> dict[str, Any]:
     """Generate a mock result for testing without AWS."""
     import random
 
@@ -292,7 +135,7 @@ def mock_invoke(symbols_data: List[Dict[str, Any]], config: Dict[str, Any]) -> D
     }
 
 
-def display_results(results: List[Dict[str, Any]], show_details: bool = False):
+def display_results(results: list[dict[str, Any]], show_details: bool = False):
     """Display signal results in a formatted table."""
     if not results:
         print("No results to display.")
@@ -333,7 +176,7 @@ def display_results(results: List[Dict[str, Any]], show_details: bool = False):
     neutral_count = sum(1 for r in results if r.get("signal_type") == "NEUTRAL")
     total = len(results)
 
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Total Signals: {total}")
     print(f"  LONG:    {long_count} ({long_count / total * 100:.1f}%)")
     print(f"  SHORT:   {short_count} ({short_count / total * 100:.1f}%)")
@@ -368,7 +211,7 @@ def main():
     args = parser.parse_args()
 
     # Load config
-    config = DEFAULT_ATC_CONFIG.copy()
+    config = copy.deepcopy(DEFAULT_ATC_CONFIG)
     if args.config:
         try:
             with open(args.config) as f:
@@ -417,7 +260,7 @@ def main():
                 region=args.region,
                 sqs_poll_timeout=args.sqs_timeout,
             )
-            response = client.invoke_and_wait(symbols_data, config)
+            response = client.invoke(symbols_data, config)
 
         duration = time.time() - t0
 
@@ -429,7 +272,7 @@ def main():
                 for err in response["errors"]:
                     print(f"  - {err.get('symbol', '?')}: {err.get('error', '?')}")
 
-        print(f"\nPerformance:")
+        print("\nPerformance:")
         print(f"  Total Time:      {duration:.2f}s")
         print(f"  Symbols:         {len(symbols_data)}")
         if duration > 0:

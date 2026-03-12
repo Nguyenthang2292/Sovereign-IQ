@@ -1,16 +1,16 @@
-use lambda_runtime::{Error, LambdaEvent};
-use atc_serverless::{
-    BatchRequest, process_batch, ScanResult, parallelism::ParallelismConfig,
-    validate_batch_request, get_memory_usage_mb,
-};
 use crate::sqs::SqsClient;
-use rayon::current_num_threads;
-use tracing::{info, warn, error};
-use std::time::Instant;
 use async_trait::async_trait;
+use atc_serverless::{
+    get_memory_usage_mb, parallelism::ParallelismConfig, process_batch, validate_batch_request,
+    BatchRequest, ScanResult,
+};
+use lambda_runtime::{Error, LambdaEvent};
+use rayon::current_num_threads;
+use std::time::Instant;
+use tracing::{error, info, warn};
 
 // Memory thresholds for Lambda monitoring
-const MEMORY_WARNING_THRESHOLD_MB: u64 = 512;  // Warn at 512MB
+const MEMORY_WARNING_THRESHOLD_MB: u64 = 512; // Warn at 512MB
 const MEMORY_CRITICAL_THRESHOLD_MB: u64 = 768; // Critical at 768MB (for 1GB Lambda)
 
 #[async_trait]
@@ -37,7 +37,7 @@ fn estimate_batch_memory_mb_rough(symbol_count: usize) -> u64 {
 }
 
 /// Handle incoming Lambda request
-/// 
+///
 /// Processes a batch of symbols and sends results to SQS.
 /// Includes comprehensive logging, error handling, and memory monitoring.
 ///
@@ -89,10 +89,10 @@ pub async fn handle_request(
 
     // Create parallelism config based on batch size (optimal for Lambda)
     let parallelism_config = ParallelismConfig::default().optimal_for_batch_size(symbol_count);
-    let thread_count = parallelism_config.num_threads.unwrap_or_else(|| {
-        current_num_threads()
-    });
-    
+    let thread_count = parallelism_config
+        .num_threads
+        .unwrap_or_else(|| current_num_threads());
+
     info!(
         batch_id = %batch_id,
         parallelism_threads = thread_count,
@@ -102,9 +102,10 @@ pub async fn handle_request(
 
     // Process batch with error recovery (CPU intensive, runs on thread pool via rayon)
     let processing_start = Instant::now();
-    let (results, errors) = process_batch(request.symbols, request.config, Some(parallelism_config));
+    let (results, errors) =
+        process_batch(request.symbols, request.config, Some(parallelism_config));
     let processing_duration_ms = processing_start.elapsed().as_millis() as u64;
-    
+
     let success_count = results.len();
     let error_count = errors.len();
 
@@ -208,7 +209,7 @@ pub async fn handle_request(
             error_rate = error_rate,
             "Batch completed with errors"
         );
-        
+
         for error in &errors {
             warn!(
                 batch_id = %batch_id,
@@ -252,7 +253,7 @@ pub async fn handle_request(
     // Log total duration with final memory state
     let total_duration_ms = start_time.elapsed().as_millis() as u64;
     let final_memory_mb = get_memory_usage_mb();
-    
+
     info!(
         batch_id = %batch_id,
         total_duration_ms = total_duration_ms,
@@ -268,7 +269,8 @@ pub async fn handle_request(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atc_serverless::{ATCConfig, BatchRequest};
+    use atc_serverless::constants::{MAX_BATCH_SIZE, MIN_DATA_LENGTH};
+    use atc_serverless::{ATCConfig, BatchRequest, OHLCVData, SymbolData};
     use lambda_runtime::Context;
     use std::collections::HashMap;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -313,30 +315,10 @@ mod tests {
         let mut weights = HashMap::new();
         weights.insert("1h".to_string(), 1.0);
 
-        let close = (0..64)
-            .map(|i| 100.0 + i as f64 * 0.1)
-            .collect::<Vec<_>>();
-
-        let mut timeframes = HashMap::new();
-        timeframes.insert(
-            "1h".to_string(),
-            atc_serverless::OHLCVData {
-                timestamp: (1..=64).map(|value| value as i64).collect::<Vec<_>>().into_boxed_slice(),
-                open: close.iter().map(|value| value - 0.1).collect::<Vec<_>>().into_boxed_slice(),
-                high: close.iter().map(|value| value + 0.5).collect::<Vec<_>>().into_boxed_slice(),
-                low: close.iter().map(|value| value - 0.5).collect::<Vec<_>>().into_boxed_slice(),
-                close: close.into_boxed_slice(),
-                volume: vec![1000.0; 64].into_boxed_slice(),
-            },
-        );
-
         BatchRequest {
             batch_id: "test-batch".to_string(),
             version: Some("1.0.0".to_string()),
-            symbols: vec![atc_serverless::SymbolData {
-                symbol: "BTCUSDT".to_string(),
-                timeframes,
-            }],
+            symbols: vec![test_symbol("BTCUSDT", 64)],
             config: ATCConfig {
                 weights,
                 threshold: 0.3,
@@ -353,6 +335,44 @@ mod tests {
                     weight: 1.0,
                 }],
             },
+        }
+    }
+
+    fn test_symbol(symbol: &str, bars: usize) -> SymbolData {
+        let close = (0..bars)
+            .map(|index| 100.0 + index as f64 * 0.1)
+            .collect::<Vec<_>>();
+
+        let ohlcv = OHLCVData {
+            timestamp: (1..=bars)
+                .map(|value| value as i64)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            open: close
+                .iter()
+                .map(|value| value - 0.1)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            high: close
+                .iter()
+                .map(|value| value + 0.5)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            low: close
+                .iter()
+                .map(|value| value - 0.5)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            close: close.into_boxed_slice(),
+            volume: vec![1000.0; bars].into_boxed_slice(),
+        };
+
+        let mut timeframes = HashMap::new();
+        timeframes.insert("1h".to_string(), ohlcv);
+
+        SymbolData {
+            symbol: symbol.to_string(),
+            timeframes,
         }
     }
 
@@ -393,8 +413,48 @@ mod tests {
 
         let event = LambdaEvent::new(batch_req, Context::default());
         let mock_sqs_client = MockSqsClient::fail();
-        
+
         // This will reject at validation
+        let result = handle_request(event, &mock_sqs_client).await;
+        assert!(result.is_err());
+        assert!(!mock_sqs_client.was_called());
+    }
+
+    #[tokio::test]
+    async fn test_handler_sqs_send_error_propagates() {
+        let batch_req = valid_batch_request();
+        let event = LambdaEvent::new(batch_req, Context::default());
+        let mock_sqs_client = MockSqsClient::fail();
+
+        let result = handle_request(event, &mock_sqs_client).await;
+        assert!(result.is_err());
+        assert!(mock_sqs_client.was_called());
+    }
+
+    #[tokio::test]
+    async fn test_handler_rejects_batch_exceeding_max_size_before_sqs() {
+        let mut batch_req = valid_batch_request();
+        batch_req.symbols = (0..(MAX_BATCH_SIZE + 1))
+            .map(|index| test_symbol(&format!("SYM{}", index), 64))
+            .collect();
+
+        let event = LambdaEvent::new(batch_req, Context::default());
+        let mock_sqs_client = MockSqsClient::success();
+
+        let result = handle_request(event, &mock_sqs_client).await;
+        assert!(result.is_err());
+        assert!(!mock_sqs_client.was_called());
+    }
+
+    #[tokio::test]
+    async fn test_handler_rejects_symbol_history_below_min_length_before_sqs() {
+        let mut batch_req = valid_batch_request();
+        let short_bars = MIN_DATA_LENGTH.saturating_sub(1).max(1);
+        batch_req.symbols = vec![test_symbol("TOO_SHORT", short_bars)];
+
+        let event = LambdaEvent::new(batch_req, Context::default());
+        let mock_sqs_client = MockSqsClient::success();
+
         let result = handle_request(event, &mock_sqs_client).await;
         assert!(result.is_err());
         assert!(!mock_sqs_client.was_called());

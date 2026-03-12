@@ -1,9 +1,10 @@
 import json
 import random
 import time
+from typing import Any
 
 
-def generate_ohlcv(num_bars=200):
+def generate_ohlcv(num_bars: int = 200) -> dict[str, list[float] | list[int]]:
     """Generate sample OHLCV data"""
     base_price = 100.0
     timestamp = []
@@ -43,7 +44,7 @@ def generate_ohlcv(num_bars=200):
     }
 
 
-def generate_symbol_data():
+def generate_symbol_data() -> dict[str, Any]:
     """Generate data for one symbol"""
     crypto_assets = [
         "BTC",
@@ -159,7 +160,7 @@ def generate_symbol_data():
     return {"symbol": symbol, "timeframes": timeframes}
 
 
-def generate_test_data(num_symbols=120):
+def generate_test_data(num_symbols: int = 120) -> dict[str, Any]:
     """Generate test data for profiling"""
     symbols = []
     for _ in range(num_symbols):

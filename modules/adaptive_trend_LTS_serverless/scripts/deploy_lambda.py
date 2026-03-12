@@ -112,7 +112,7 @@ def check_dependencies():
     return True
 
 
-def setup_iam_role(iam_client):
+def setup_iam_role(iam_client, region: str, account_id: str):
     """Create or retrieve the IAM role for Lambda."""
     logger.info(f"Checking IAM Role: {IAM_ROLE_NAME}...")
 
@@ -142,20 +142,53 @@ def setup_iam_role(iam_client):
             role_arn = role["Role"]["Arn"]
             logger.info(f"Created role: {role_arn}")
 
-            # Attach policies
+            # Attach base policy
             logger.info("Attaching policies...")
             policies = [
                 "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-                "arn:aws:iam::aws:policy/AmazonSQSFullAccess",
             ]
             for policy_arn in policies:
                 iam_client.attach_role_policy(RoleName=IAM_ROLE_NAME, PolicyArn=policy_arn)
+
+            # Restrict SQS access to send-only on the dedicated queue.
+            sqs_send_only_policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": "sqs:SendMessage",
+                        "Resource": f"arn:aws:sqs:{region}:{account_id}:{SQS_QUEUE_NAME}",
+                    }
+                ],
+            }
+            iam_client.put_role_policy(
+                RoleName=IAM_ROLE_NAME,
+                PolicyName="ATCSQSSendOnly",
+                PolicyDocument=json.dumps(sqs_send_only_policy),
+            )
 
             # Wait for propagation
             logger.info("Waiting for role propagation (10s)...")
             time.sleep(10)
         else:
             raise
+
+    # Ensure least-privilege SQS access for this role.
+    sqs_send_only_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "sqs:SendMessage",
+                "Resource": f"arn:aws:sqs:{region}:{account_id}:{SQS_QUEUE_NAME}",
+            }
+        ],
+    }
+    iam_client.put_role_policy(
+        RoleName=IAM_ROLE_NAME,
+        PolicyName="ATCSQSSendOnly",
+        PolicyDocument=json.dumps(sqs_send_only_policy),
+    )
 
     return role_arn
 
@@ -371,6 +404,13 @@ def main():
     session = boto3.Session(profile_name=args.profile, region_name=args.region)
     iam = session.client("iam")
     sqs = session.client("sqs")
+    sts = session.client("sts")
+
+    try:
+        account_id = sts.get_caller_identity()["Account"]
+    except Exception as e:
+        logger.error(f"Failed to resolve AWS account ID: {e}")
+        sys.exit(1)
 
     # Check Environment
     if not check_dependencies():
@@ -382,7 +422,7 @@ def main():
 
     if not args.skip_infra:
         try:
-            role_arn = setup_iam_role(iam)
+            role_arn = setup_iam_role(iam, args.region, account_id)
             queue_url = setup_sqs_queue(sqs)
         except Exception as e:
             logger.error(f"Infrastructure setup failed: {e}")

@@ -10,6 +10,7 @@ This client:
   2. Polls SQS for the results
 """
 
+import copy
 import importlib.util
 import json
 import logging
@@ -166,7 +167,7 @@ class ATCLambdaClient:
             ScanResult dict: {batch_id, results, errors, success_count, error_count}
         """
         if config is None:
-            config = DEFAULT_ATC_CONFIG.copy()
+            config = copy.deepcopy(DEFAULT_ATC_CONFIG)
 
         # Handle mock mode
         if self.mock_mode:
@@ -210,7 +211,21 @@ class ATCLambdaClient:
 
         except Exception as e:
             logger.error(f"Lambda invocation failed: {e}")
-            raise
+            return {
+                "batch_id": batch_id,
+                "results": [],
+                "errors": [{"symbol": "_batch", "error": str(e)}],
+                "success_count": 0,
+                "error_count": len(symbols_data),
+            }
+
+    def invoke_batch(
+        self,
+        symbols_data: list[dict[str, Any]],
+        config: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """Convenience alias for invoking a multi-symbol batch."""
+        return self.invoke(symbols_data=symbols_data, config=config)
 
     def _poll_sqs_for_batch(self, batch_id: str) -> dict[str, Any]:
         """Poll SQS until we find the message for our batch_id."""
@@ -219,6 +234,13 @@ class ATCLambdaClient:
         queue_url = self._get_queue_url()
         deadline = time.time() + self.sqs_poll_timeout
         attempts = 0
+        partial: dict[str, Any] = {
+            "batch_id": batch_id,
+            "results": [],
+            "errors": [],
+            "success_count": 0,
+            "error_count": 0,
+        }
 
         while time.time() < deadline:
             attempts += 1
@@ -238,8 +260,23 @@ class ATCLambdaClient:
                             QueueUrl=queue_url,
                             ReceiptHandle=msg["ReceiptHandle"],
                         )
-                        logger.info(f"Got result from SQS (batch_id={batch_id}) after {attempts} attempt(s)")
-                        return body
+                        # Merge partial data in case producer emits multiple messages.
+                        partial["results"].extend(body.get("results", []))
+                        partial["errors"].extend(body.get("errors", []))
+                        partial["success_count"] = partial.get("success_count", 0) + int(
+                            body.get("success_count", len(body.get("results", [])))
+                        )
+                        partial["error_count"] = partial.get("error_count", 0) + int(
+                            body.get("error_count", len(body.get("errors", [])))
+                        )
+
+                        # If this looks like a complete ScanResult payload, return immediately.
+                        if "success_count" in body and "error_count" in body:
+                            logger.info(f"Got result from SQS (batch_id={batch_id}) after {attempts} attempt(s)")
+                            return partial
+                        logger.debug(
+                            f"Received partial SQS payload for batch_id={batch_id}; continuing to poll for completion"
+                        )
                     else:
                         # Not our message — put it back immediately
                         sqs_client.change_message_visibility(
@@ -248,12 +285,20 @@ class ATCLambdaClient:
                             VisibilityTimeout=0,
                         )
                 except json.JSONDecodeError:
-                    pass  # Skip malformed messages - let SQS retry or DLQ handle them
+                    logger.debug("Skipping malformed SQS message")
+                    continue
 
             remaining = int(deadline - time.time())
             if remaining > 0:
                 logger.debug(f"Waiting for SQS result... ({remaining}s remaining)")
                 time.sleep(self.sqs_poll_interval)
+
+        if partial.get("results") or partial.get("errors"):
+            logger.warning(
+                f"SQS polling timeout for batch_id='{batch_id}' after {self.sqs_poll_timeout}s; "
+                "returning partial results"
+            )
+            return partial
 
         raise TimeoutError(
             f"No SQS result received for batch_id='{batch_id}' "
@@ -265,10 +310,20 @@ class ATCLambdaClient:
         """Return deterministic mock data when mock_mode is enabled."""
         _ = config
         batch_id = f"mock-{uuid.uuid4().hex[:8]}"
+        results = [
+            {
+                "symbol": symbol_data.get("symbol", "UNKNOWN"),
+                "score": 0.0,
+                "signal_type": "NEUTRAL",
+                "details": {tf: "MOCK" for tf in symbol_data.get("timeframes", {}).keys()},
+                "strengths": {tf: 0.0 for tf in symbol_data.get("timeframes", {}).keys()},
+            }
+            for symbol_data in symbols_data
+        ]
         return {
             "batch_id": batch_id,
-            "results": [],
+            "results": results,
             "errors": [],
-            "success_count": len(symbols_data),
+            "success_count": len(results),
             "error_count": 0,
         }

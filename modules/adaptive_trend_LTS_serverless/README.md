@@ -314,6 +314,34 @@ aws lambda update-function-configuration \
   --tracing-config Mode=Active
 ```
 
+## Cold Start Strategy
+
+This module runs on `provided.al2` custom runtime, so **AWS Lambda SnapStart is not available**.
+For latency-sensitive workloads, use **Provisioned Concurrency**.
+
+Recommended guidance:
+
+- Keep on-demand for asynchronous or batch workloads where p95 latency is not strict.
+- Use Provisioned Concurrency for user-facing requests that need stable low-latency starts.
+- Start small (for example `1-3` provisioned instances), measure p95 latency, then scale.
+
+Cost/latency trade-off (rule of thumb):
+
+- On-demand: lowest cost, variable cold-start latency.
+- Provisioned Concurrency: higher baseline cost, significantly lower cold-start risk.
+- Daily extra cost is approximately:
+  `provisioned_instances * configured_memory_gb * provisioned_concurrency_hours`.
+
+Example:
+
+```bash
+# Reserve 2 warm instances for a version/alias
+aws lambda put-provisioned-concurrency-config \
+  --function-name atc-serverless \
+  --qualifier live \
+  --provisioned-concurrent-executions 2
+```
+
 ## Troubleshooting
 
 ### Common Issues

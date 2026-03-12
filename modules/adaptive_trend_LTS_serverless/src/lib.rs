@@ -115,8 +115,8 @@ macro_rules! log_info {
 // Explicit public API re-exports
 pub use aggregation::{get_memory_usage_mb, process_batch};
 pub use constants::{
-    DEFAULT_CUTOUT, DEFAULT_DECAY, DEFAULT_EQUITY_FLOOR, DEFAULT_LAMBDA_PARAM,
-    DEFAULT_MA_LENGTH, DEFAULT_MA_WEIGHT, DEFAULT_ROBUSTNESS,
+    DEFAULT_CUTOUT, DEFAULT_DECAY, DEFAULT_EQUITY_FLOOR, DEFAULT_LAMBDA_PARAM, DEFAULT_MA_LENGTH,
+    DEFAULT_MA_WEIGHT, DEFAULT_ROBUSTNESS,
 };
 pub use equity::calculate_equity;
 pub use ma_calculations::{
@@ -437,10 +437,9 @@ mod tests {
 
     #[test]
     fn test_ma_type_deserialize_valid_uppercase() {
-        let parsed: MAConfig = serde_json::from_str(
-            r#"{"ma_type":"EMA","length":20,"weight":1.0}"#,
-        )
-        .expect("EMA should deserialize successfully");
+        let parsed: MAConfig =
+            serde_json::from_str(r#"{"ma_type":"EMA","length":20,"weight":1.0}"#)
+                .expect("EMA should deserialize successfully");
 
         assert_eq!(parsed.ma_type, MAType::Ema);
     }
@@ -450,7 +449,10 @@ mod tests {
         let parse_result =
             serde_json::from_str::<MAConfig>(r#"{"ma_type":"BAD","length":20,"weight":1.0}"#);
 
-        assert!(parse_result.is_err(), "BAD MA type must fail deserialization");
+        assert!(
+            parse_result.is_err(),
+            "BAD MA type must fail deserialization"
+        );
     }
 
     #[test]

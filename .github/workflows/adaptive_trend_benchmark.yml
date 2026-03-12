@@ -1,0 +1,75 @@
+name: Adaptive Trend Benchmark Regression
+
+on:
+  pull_request:
+    paths:
+      - "modules/adaptive_trend_LTS_serverless/**"
+      - ".github/workflows/adaptive_trend_benchmark.yml"
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - "modules/adaptive_trend_LTS_serverless/**"
+      - ".github/workflows/adaptive_trend_benchmark.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark-regression:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: modules/adaptive_trend_LTS_serverless
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install benchmark dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run scalar benchmark
+        run: python benchmarks/benchmark_atc_comparison.py --no-simd > benchmark_output.txt
+
+      - name: Enforce minimum speedup threshold
+        run: |
+          python - <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          text = Path("benchmark_output.txt").read_text(encoding="utf-8", errors="ignore")
+          match = re.search(r"Rust implementation is ([0-9]+(?:\.[0-9]+)?)x faster on average", text)
+
+          if match is None:
+              print("Unable to parse average speedup from benchmark output.")
+              print("--- Benchmark output tail ---")
+              print("\n".join(text.splitlines()[-80:]))
+              sys.exit(1)
+
+          speedup = float(match.group(1))
+          min_speedup = 70.0
+
+          print(f"Measured average speedup: {speedup:.2f}x")
+          print(f"Required minimum speedup: {min_speedup:.2f}x")
+
+          if speedup < min_speedup:
+              print("Performance regression detected: speedup below threshold.")
+              sys.exit(1)
+          PY
+
+      - name: Upload benchmark output
+        uses: actions/upload-artifact@v4
+        with:
+          name: adaptive-trend-benchmark-output
+          path: modules/adaptive_trend_LTS_serverless/benchmark_output.txt

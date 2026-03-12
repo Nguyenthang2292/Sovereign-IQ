@@ -6,15 +6,15 @@ thread_local! {
 }
 
 /// Get a buffer from the pool, creating a new one if necessary.
+///
+/// Prefers exact-size matches to avoid memory waste from slicing larger buffers.
 pub fn get_buffer(size: usize) -> Array1<f64> {
     BUFFER_POOL.with(|pool| {
         let mut pool = pool.borrow_mut();
+        // Prefer exact-size match to avoid slice_move retaining oversized allocations
         for i in 0..pool.len() {
-            if pool[i].len() >= size {
+            if pool[i].len() == size {
                 let mut buf = pool.swap_remove(i);
-                if buf.len() > size {
-                    buf = buf.slice_move(ndarray::s![..size]);
-                }
                 buf.fill(f64::NAN);
                 return buf;
             }
@@ -38,11 +38,8 @@ pub fn get_buffer_zero(size: usize) -> Array1<f64> {
     BUFFER_POOL.with(|pool| {
         let mut pool = pool.borrow_mut();
         for i in 0..pool.len() {
-            if pool[i].len() >= size {
+            if pool[i].len() == size {
                 let mut buf = pool.swap_remove(i);
-                if buf.len() > size {
-                    buf = buf.slice_move(ndarray::s![..size]);
-                }
                 buf.fill(0.0);
                 return buf;
             }
