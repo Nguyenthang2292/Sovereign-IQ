@@ -6,13 +6,12 @@ Binance Lambda Demo Script
 Invokes the ATC Serverless Lambda with real Binance market data.
 
 Architecture:
-  Lambda (atc-serverless) --[process]--> SQS queue (atc-results) --> this script polls SQS
+  this script --[boto3 Invoke RequestResponse]--> Lambda (atc-serverless) --> direct ScanResult JSON
 
-The Lambda function does NOT return JSON results directly. It processes the batch
-and sends results to an SQS queue. This script:
+This script:
   1. Fetches OHLCV data from Binance
-  2. Invokes Lambda via boto3 (IAM-signed, no Function URL needed)
-  3. Polls SQS for the results
+  2. Invokes Lambda via boto3 (IAM-signed)
+  3. Parses direct ScanResult response payload
 
 Usage:
     python binance_lambda_demo.py --symbols 10
@@ -40,7 +39,6 @@ from modules.adaptive_trend_LTS_serverless.lambda_client import (
     DEFAULT_ATC_CONFIG,
     DEFAULT_FUNCTION_NAME,
     DEFAULT_REGION,
-    DEFAULT_SQS_QUEUE_NAME,
 )
 from modules.common.core.data_fetcher import DataFetcher, SymbolFetchError
 from modules.common.core.exchange_manager import ExchangeManager
@@ -186,7 +184,7 @@ def display_results(results: list[dict[str, Any]], show_details: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description=("Binance Lambda Demo — invokes ATC Serverless Lambda via boto3 and polls SQS for results.")
+        description="Binance Lambda Demo - invokes ATC Serverless via boto3 RequestResponse."
     )
     parser.add_argument("--symbols", type=int, default=10, help="Number of symbols to process (default: 10)")
     parser.add_argument("--all-symbols", action="store_true", help="Process all available USDT symbols")
@@ -200,13 +198,7 @@ def main():
         default=DEFAULT_FUNCTION_NAME,
         help=f"Lambda function name (default: {DEFAULT_FUNCTION_NAME})",
     )
-    parser.add_argument(
-        "--sqs-queue",
-        default=DEFAULT_SQS_QUEUE_NAME,
-        help=f"SQS queue name for results (default: {DEFAULT_SQS_QUEUE_NAME})",
-    )
     parser.add_argument("--region", default=DEFAULT_REGION, help=f"AWS region (default: {DEFAULT_REGION})")
-    parser.add_argument("--sqs-timeout", type=int, default=60, help="Seconds to wait for SQS result (default: 60)")
 
     args = parser.parse_args()
 
@@ -256,9 +248,7 @@ def main():
         else:
             client = ATCLambdaClient(
                 function_name=args.function_name,
-                sqs_queue_name=args.sqs_queue,
                 region=args.region,
-                sqs_poll_timeout=args.sqs_timeout,
             )
             response = client.invoke(symbols_data, config)
 

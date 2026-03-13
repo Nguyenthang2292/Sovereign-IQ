@@ -1,30 +1,57 @@
-use crate::sqs::SqsClient;
-use async_trait::async_trait;
 use atc_serverless::{
     get_memory_usage_mb, parallelism::ParallelismConfig, process_batch, validate_batch_request,
     BatchRequest, ScanResult,
 };
 use lambda_runtime::{Error, LambdaEvent};
 use rayon::current_num_threads;
-use std::time::Instant;
+use serde_json::json;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tracing::{error, info, warn};
 
-// Memory thresholds for Lambda monitoring
-const MEMORY_WARNING_THRESHOLD_MB: u64 = 512; // Warn at 512MB
-const MEMORY_CRITICAL_THRESHOLD_MB: u64 = 768; // Critical at 768MB (for 1GB Lambda)
+// 1769 MB is the AWS Lambda memory point that maps to roughly 1 vCPU.
+const DEFAULT_LAMBDA_MEMORY_MB: u64 = 1769;
+const MEMORY_WARNING_RATIO: f64 = 0.68;
+const MEMORY_CRITICAL_RATIO: f64 = 0.85;
 
-#[async_trait]
-pub trait SqsSender: Send + Sync {
-    async fn send_scan_result(&self, result: &ScanResult) -> Result<(), Error>;
+#[derive(Debug, Clone)]
+struct ProcessingMetrics {
+    peak_memory_mb: u64,
+    memory_delta_mb: u64,
+    symbols_per_second: f64,
+    thread_count: u64,
+    error_rate_percent: f64,
 }
 
-#[async_trait]
-impl SqsSender for SqsClient {
-    async fn send_scan_result(&self, result: &ScanResult) -> Result<(), Error> {
-        SqsClient::send_scan_result(self, result)
-            .await
-            .map_err(|error| Box::new(error) as Error)
+fn current_time_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+fn lambda_function_name() -> String {
+    std::env::var("AWS_LAMBDA_FUNCTION_NAME")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+fn memory_thresholds_mb() -> (u64, u64) {
+    let configured_memory_mb = std::env::var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_LAMBDA_MEMORY_MB);
+
+    let warning_threshold = ((configured_memory_mb as f64) * MEMORY_WARNING_RATIO).round() as u64;
+    let mut critical_threshold =
+        ((configured_memory_mb as f64) * MEMORY_CRITICAL_RATIO).round() as u64;
+
+    if critical_threshold <= warning_threshold {
+        critical_threshold = warning_threshold.saturating_add(1);
     }
+
+    (warning_threshold.max(1), critical_threshold.max(2))
 }
 
 /// Rough estimate of memory usage for batch size validation (before parsing data)
@@ -36,24 +63,79 @@ fn estimate_batch_memory_mb_rough(symbol_count: usize) -> u64 {
     ((symbol_count * 55 + 1023) / 1024) as u64
 }
 
+fn calculate_error_rate_percent(error_count: usize, symbol_count: usize) -> f64 {
+    if symbol_count == 0 {
+        0.0
+    } else {
+        (error_count as f64 / symbol_count as f64) * 100.0
+    }
+}
+
+fn calculate_symbols_per_second(symbol_count: usize, processing_duration_ms: u64) -> f64 {
+    if symbol_count == 0 {
+        0.0
+    } else {
+        let effective_ms = processing_duration_ms.max(1);
+        (symbol_count as f64 / effective_ms as f64) * 1000.0
+    }
+}
+
+fn build_cloudwatch_metrics_log(
+    batch_id: &str,
+    timestamp_ms: u64,
+    function_name: &str,
+    metrics: &ProcessingMetrics,
+) -> String {
+    json!({
+        "_aws": {
+            "Timestamp": timestamp_ms,
+            "CloudWatchMetrics": [{
+                "Namespace": "ATC/Serverless",
+                "Dimensions": [["FunctionName"]],
+                "Metrics": [
+                    { "Name": "MemoryUsageMB", "Unit": "Megabytes" },
+                    { "Name": "MemoryDeltaMB", "Unit": "Megabytes" },
+                    { "Name": "SymbolsPerSecond", "Unit": "Count/Second" },
+                    { "Name": "ThreadCount", "Unit": "Count" },
+                    { "Name": "ErrorRate", "Unit": "Percent" }
+                ]
+            }]
+        },
+        "batch_id": batch_id,
+        "FunctionName": function_name,
+        "MemoryUsageMB": metrics.peak_memory_mb,
+        "MemoryDeltaMB": metrics.memory_delta_mb,
+        "SymbolsPerSecond": metrics.symbols_per_second,
+        "ThreadCount": metrics.thread_count,
+        "ErrorRate": metrics.error_rate_percent,
+    })
+    .to_string()
+}
+
+fn emit_cloudwatch_metrics(batch_id: &str, function_name: &str, metrics: &ProcessingMetrics) {
+    // Emit a raw EMF JSON line so CloudWatch extracts real custom metrics.
+    println!(
+        "{}",
+        build_cloudwatch_metrics_log(batch_id, current_time_millis(), function_name, metrics)
+    );
+}
+
 /// Handle incoming Lambda request
 ///
-/// Processes a batch of symbols and sends results to SQS.
+/// Processes a batch of symbols and returns the scan result directly.
 /// Includes comprehensive logging, error handling, and memory monitoring.
 ///
 /// # Arguments
 /// * `event` - Lambda event containing the batch request
-/// * `sqs_client` - SQS client for sending results
 ///
 /// # Returns
-/// Result indicating success or failure
-pub async fn handle_request(
-    event: LambdaEvent<BatchRequest>,
-    sqs_client: &dyn SqsSender,
-) -> Result<(), Error> {
+/// The completed batch scan result
+pub async fn handle_request(event: LambdaEvent<BatchRequest>) -> Result<ScanResult, Error> {
     let request = event.payload;
     let batch_id = request.batch_id.clone();
     let symbol_count = request.symbols.len();
+    let function_name = lambda_function_name();
+    let (memory_warning_threshold_mb, memory_critical_threshold_mb) = memory_thresholds_mb();
     let start_time = Instant::now();
 
     if let Err(validation_error) = validate_batch_request(&request) {
@@ -91,7 +173,7 @@ pub async fn handle_request(
     let parallelism_config = ParallelismConfig::default().optimal_for_batch_size(symbol_count);
     let thread_count = parallelism_config
         .num_threads
-        .unwrap_or_else(|| current_num_threads());
+        .unwrap_or_else(current_num_threads);
 
     info!(
         batch_id = %batch_id,
@@ -111,23 +193,19 @@ pub async fn handle_request(
 
     // Memory monitoring: peak usage after processing
     let peak_memory_mb = get_memory_usage_mb();
-    let memory_delta_mb = if peak_memory_mb > initial_memory_mb {
-        peak_memory_mb - initial_memory_mb
-    } else {
-        0
-    };
+    let memory_delta_mb = peak_memory_mb.saturating_sub(initial_memory_mb);
 
     // Calculate throughput
-    let symbols_per_second = if processing_duration_ms > 0 {
-        (symbol_count as f64 / processing_duration_ms as f64) * 1000.0
-    } else {
-        0.0
-    };
+    let symbols_per_second = calculate_symbols_per_second(symbol_count, processing_duration_ms);
 
-    let error_rate = if symbol_count > 0 {
-        error_count as f64 / symbol_count as f64
-    } else {
-        0.0
+    let error_rate_percent = calculate_error_rate_percent(error_count, symbol_count);
+
+    let metrics = ProcessingMetrics {
+        peak_memory_mb,
+        memory_delta_mb,
+        symbols_per_second,
+        thread_count: thread_count as u64,
+        error_rate_percent,
     };
 
     // Log processing metrics with memory info
@@ -143,62 +221,23 @@ pub async fn handle_request(
     );
 
     // Memory threshold warnings
-    if peak_memory_mb >= MEMORY_CRITICAL_THRESHOLD_MB {
+    if peak_memory_mb >= memory_critical_threshold_mb {
         error!(
             batch_id = %batch_id,
             peak_memory_mb = peak_memory_mb,
-            threshold_mb = MEMORY_CRITICAL_THRESHOLD_MB,
+            threshold_mb = memory_critical_threshold_mb,
             "CRITICAL: Memory usage exceeds critical threshold"
         );
-    } else if peak_memory_mb >= MEMORY_WARNING_THRESHOLD_MB {
+    } else if peak_memory_mb >= memory_warning_threshold_mb {
         warn!(
             batch_id = %batch_id,
             peak_memory_mb = peak_memory_mb,
-            threshold_mb = MEMORY_WARNING_THRESHOLD_MB,
+            threshold_mb = memory_warning_threshold_mb,
             "WARNING: Memory usage exceeds warning threshold"
         );
     }
 
-    // Log CloudWatch custom metrics (structured logging for CloudWatch Insights)
-    info!(
-        metric_name = "MemoryUsageMB",
-        metric_value = peak_memory_mb,
-        metric_unit = "Megabytes",
-        batch_id = %batch_id,
-        "CloudWatch Metric"
-    );
-
-    info!(
-        metric_name = "MemoryDeltaMB",
-        metric_value = memory_delta_mb,
-        metric_unit = "Megabytes",
-        batch_id = %batch_id,
-        "CloudWatch Metric"
-    );
-
-    info!(
-        metric_name = "SymbolsPerSecond",
-        metric_value = symbols_per_second,
-        metric_unit = "Count/Second",
-        batch_id = %batch_id,
-        "CloudWatch Metric"
-    );
-
-    info!(
-        metric_name = "ThreadCount",
-        metric_value = thread_count,
-        metric_unit = "Count",
-        batch_id = %batch_id,
-        "CloudWatch Metric"
-    );
-
-    info!(
-        metric_name = "ErrorRate",
-        metric_value = error_rate,
-        metric_unit = "Percent",
-        batch_id = %batch_id,
-        "CloudWatch Metric"
-    );
+    emit_cloudwatch_metrics(&batch_id, &function_name, &metrics);
 
     // Log error summary if any symbols failed
     if !errors.is_empty() {
@@ -206,7 +245,7 @@ pub async fn handle_request(
             batch_id = %batch_id,
             error_count = error_count,
             total_symbols = symbol_count,
-            error_rate = error_rate,
+            error_rate_percent = error_rate_percent,
             "Batch completed with errors"
         );
 
@@ -220,7 +259,6 @@ pub async fn handle_request(
         }
     }
 
-    // Prepare result with error tracking
     let scan_result = ScanResult {
         batch_id: batch_id.clone(),
         results,
@@ -228,27 +266,6 @@ pub async fn handle_request(
         success_count,
         error_count,
     };
-
-    // Send to SQS with timing
-    let sqs_start = Instant::now();
-    match sqs_client.send_scan_result(&scan_result).await {
-        Ok(_) => {
-            let sqs_duration_ms = sqs_start.elapsed().as_millis() as u64;
-            info!(
-                batch_id = %batch_id,
-                sqs_duration_ms = sqs_duration_ms,
-                "Results sent to SQS successfully"
-            );
-        }
-        Err(e) => {
-            error!(
-                batch_id = %batch_id,
-                error = %e,
-                "Failed to send results to SQS"
-            );
-            return Err(e);
-        }
-    }
 
     // Log total duration with final memory state
     let total_duration_ms = start_time.elapsed().as_millis() as u64;
@@ -263,7 +280,7 @@ pub async fn handle_request(
         "Batch processing completed successfully"
     );
 
-    Ok(())
+    Ok(scan_result)
 }
 
 #[cfg(test)]
@@ -272,44 +289,8 @@ mod tests {
     use atc_serverless::constants::{MAX_BATCH_SIZE, MIN_DATA_LENGTH};
     use atc_serverless::{ATCConfig, BatchRequest, OHLCVData, SymbolData};
     use lambda_runtime::Context;
+    use serde_json::Value;
     use std::collections::HashMap;
-    use std::sync::atomic::{AtomicBool, Ordering};
-
-    struct MockSqsClient {
-        called: AtomicBool,
-        should_fail: bool,
-    }
-
-    impl MockSqsClient {
-        fn success() -> Self {
-            Self {
-                called: AtomicBool::new(false),
-                should_fail: false,
-            }
-        }
-
-        fn fail() -> Self {
-            Self {
-                called: AtomicBool::new(false),
-                should_fail: true,
-            }
-        }
-
-        fn was_called(&self) -> bool {
-            self.called.load(Ordering::SeqCst)
-        }
-    }
-
-    #[async_trait]
-    impl SqsSender for MockSqsClient {
-        async fn send_scan_result(&self, _result: &ScanResult) -> Result<(), Error> {
-            self.called.store(true, Ordering::SeqCst);
-            if self.should_fail {
-                return Err("mock sqs failure".into());
-            }
-            Ok(())
-        }
-    }
 
     fn valid_batch_request() -> BatchRequest {
         let mut weights = HashMap::new();
@@ -400,63 +381,97 @@ mod tests {
     async fn test_handler_success_path() {
         let batch_req = valid_batch_request();
         let event = LambdaEvent::new(batch_req, Context::default());
-        let mock_sqs_client = MockSqsClient::success();
 
-        let result = handle_request(event, &mock_sqs_client).await;
+        let result = handle_request(event).await;
         assert!(result.is_ok());
-        assert!(mock_sqs_client.was_called());
+
+        let scan_result = result.unwrap();
+        assert_eq!(scan_result.batch_id, "test-batch");
+        assert_eq!(scan_result.success_count, 1);
+        assert_eq!(scan_result.error_count, 0);
+        assert_eq!(scan_result.results.len(), 1);
     }
 
     #[tokio::test]
     async fn test_handler_validation_error() {
         let batch_req = invalid_batch_request();
-
         let event = LambdaEvent::new(batch_req, Context::default());
-        let mock_sqs_client = MockSqsClient::fail();
 
-        // This will reject at validation
-        let result = handle_request(event, &mock_sqs_client).await;
+        let result = handle_request(event).await;
         assert!(result.is_err());
-        assert!(!mock_sqs_client.was_called());
     }
 
     #[tokio::test]
-    async fn test_handler_sqs_send_error_propagates() {
-        let batch_req = valid_batch_request();
-        let event = LambdaEvent::new(batch_req, Context::default());
-        let mock_sqs_client = MockSqsClient::fail();
-
-        let result = handle_request(event, &mock_sqs_client).await;
-        assert!(result.is_err());
-        assert!(mock_sqs_client.was_called());
-    }
-
-    #[tokio::test]
-    async fn test_handler_rejects_batch_exceeding_max_size_before_sqs() {
+    async fn test_handler_rejects_batch_exceeding_max_size_before_processing() {
         let mut batch_req = valid_batch_request();
         batch_req.symbols = (0..(MAX_BATCH_SIZE + 1))
             .map(|index| test_symbol(&format!("SYM{}", index), 64))
             .collect();
 
         let event = LambdaEvent::new(batch_req, Context::default());
-        let mock_sqs_client = MockSqsClient::success();
 
-        let result = handle_request(event, &mock_sqs_client).await;
+        let result = handle_request(event).await;
         assert!(result.is_err());
-        assert!(!mock_sqs_client.was_called());
     }
 
     #[tokio::test]
-    async fn test_handler_rejects_symbol_history_below_min_length_before_sqs() {
+    async fn test_handler_rejects_symbol_history_below_min_length_before_processing() {
         let mut batch_req = valid_batch_request();
         let short_bars = MIN_DATA_LENGTH.saturating_sub(1).max(1);
         batch_req.symbols = vec![test_symbol("TOO_SHORT", short_bars)];
 
         let event = LambdaEvent::new(batch_req, Context::default());
-        let mock_sqs_client = MockSqsClient::success();
 
-        let result = handle_request(event, &mock_sqs_client).await;
+        let result = handle_request(event).await;
         assert!(result.is_err());
-        assert!(!mock_sqs_client.was_called());
+    }
+
+    #[test]
+    fn test_build_cloudwatch_metrics_log_uses_emf_namespace() {
+        let metrics = ProcessingMetrics {
+            peak_memory_mb: 640,
+            memory_delta_mb: 128,
+            symbols_per_second: 2048.0,
+            thread_count: 8,
+            error_rate_percent: 12.5,
+        };
+
+        let payload = build_cloudwatch_metrics_log(
+            "batch-123",
+            1_700_000_000_000,
+            "atc-serverless-test",
+            &metrics,
+        );
+        let json_payload: Value = serde_json::from_str(&payload).expect("valid EMF payload");
+
+        assert_eq!(
+            json_payload["_aws"]["CloudWatchMetrics"][0]["Namespace"],
+            "ATC/Serverless"
+        );
+        assert_eq!(
+            json_payload["_aws"]["CloudWatchMetrics"][0]["Dimensions"][0],
+            Value::Array(vec![Value::String("FunctionName".to_string())])
+        );
+        assert_eq!(json_payload["batch_id"], "batch-123");
+        assert_eq!(json_payload["FunctionName"], "atc-serverless-test");
+        assert_eq!(json_payload["MemoryUsageMB"], 640);
+        assert_eq!(json_payload["SymbolsPerSecond"], 2048.0);
+        assert_eq!(json_payload["ErrorRate"], 12.5);
+    }
+
+    #[test]
+    fn test_calculate_error_rate_percent() {
+        assert_eq!(calculate_error_rate_percent(0, 0), 0.0);
+        assert_eq!(calculate_error_rate_percent(0, 10), 0.0);
+        assert_eq!(calculate_error_rate_percent(1, 4), 25.0);
+        assert_eq!(calculate_error_rate_percent(3, 6), 50.0);
+    }
+
+    #[test]
+    fn test_calculate_symbols_per_second_uses_one_ms_floor() {
+        assert_eq!(calculate_symbols_per_second(0, 0), 0.0);
+        assert_eq!(calculate_symbols_per_second(5, 0), 5000.0);
+        assert_eq!(calculate_symbols_per_second(5, 1), 5000.0);
+        assert_eq!(calculate_symbols_per_second(5, 10), 500.0);
     }
 }

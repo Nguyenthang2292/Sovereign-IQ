@@ -1,9 +1,9 @@
-"""Profile the benchmark_comparison module using cProfile.
+﻿"""Profile the benchmark_comparison module using cProfile.
 
 This script does NOT modify any existing code. It simply wraps the existing
 benchmark entrypoint:
 
-    modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.main
+    modules.adaptive_trend_LTS_mini.benchmarks.benchmark_comparison.main
 
 and saves a cProfile stats file under the `profiles/` directory.
 """
@@ -51,7 +51,7 @@ def main() -> None:
         "-o",
         str(output_file),
         "-m",
-        "modules.adaptive_trend_LTS.benchmarks.benchmark_comparison.main",
+        "modules.adaptive_trend_LTS_mini.benchmarks.benchmark_comparison.main",
         "--symbols",
         str(args.symbols),
         "--bars",

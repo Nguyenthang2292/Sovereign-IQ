@@ -38,16 +38,40 @@ impl ParallelismConfig {
         }
     }
 
+    fn lambda_memory_thread_cap_for_mb(memory_mb: usize) -> usize {
+        // Operational Lambda rule used by this module:
+        // - 1769 MB maps to ~1 vCPU
+        // - 3008 MB maps to ~2 vCPU equivalent for scheduling
+        //
+        // We convert memory to vCPU-equivalent by ceiling division, then multiply by 2
+        // to allow one worker per hyperthread.
+        //
+        // Examples:
+        // - 1769 MB -> ceil(1769 / 1769) * 2 = 2 threads
+        // - 3008 MB -> ceil(3008 / 1769) * 2 = 4 threads
+        let vcpu_equivalent = memory_mb.max(1).div_ceil(1769);
+        vcpu_equivalent * 2
+    }
+
     fn lambda_memory_thread_cap() -> Option<usize> {
         std::env::var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE")
             .ok()
             .and_then(|raw| raw.parse::<usize>().ok())
-            .map(|memory_mb| match memory_mb {
-                0..=1768 => 2,
-                1769..=3537 => 4,
-                3538..=5306 => 6,
-                _ => 8,
-            })
+            .map(Self::lambda_memory_thread_cap_for_mb)
+    }
+
+    fn apply_lambda_thread_cap(
+        default_threads: Option<usize>,
+        lambda_cap_threads: Option<usize>,
+    ) -> Option<usize> {
+        match (default_threads, lambda_cap_threads) {
+            (Some(default_threads), Some(cap_threads)) => Some(default_threads.min(cap_threads)),
+            (Some(default_threads), None) => Some(default_threads),
+            // For large batches where tier defaults return None, still honor Lambda
+            // memory cap to avoid oversubscription on constrained runtimes.
+            (None, Some(cap_threads)) => Some(cap_threads),
+            (None, None) => None,
+        }
     }
 
     /// Set the number of threads for parallel processing
@@ -82,7 +106,8 @@ impl ParallelismConfig {
     /// - 11-50 symbols: 4 threads, chunk_size=5
     /// - 51-100 symbols: 6 threads, chunk_size=10
     /// - 101-500 symbols: 8 threads, chunk_size=25
-    /// - 500+ symbols: fallback to Rayon default thread pool, chunk_size=50
+    /// - 500+ symbols: use Lambda memory-derived cap when available, otherwise
+    ///   fallback to Rayon default thread pool (chunk_size=50)
     pub fn optimal_for_batch_size(&self, batch_size: usize) -> Self {
         // 1. Check for Environment Variable overrides (for tuning on AWS Lambda without redeploy)
         if let Ok(val) = std::env::var("ATC_FORCE_THREADS") {
@@ -131,14 +156,10 @@ impl ParallelismConfig {
         }
 
         // 2. Default logic based on benchmarks
-        let num_threads = match (
+        let num_threads = Self::apply_lambda_thread_cap(
             Self::default_threads_for_batch_size(batch_size),
             Self::lambda_memory_thread_cap(),
-        ) {
-            (Some(default_threads), Some(cap)) => Some(default_threads.min(cap)),
-            (Some(default_threads), None) => Some(default_threads),
-            (None, _) => None,
-        };
+        );
         let chunk_size = Self::default_chunk_size_for_batch_size(batch_size);
 
         Self {
@@ -154,11 +175,12 @@ impl ParallelismConfig {
 ///
 /// This is useful for scenarios where you want to limit parallelism
 /// or use a dedicated thread pool.
-pub fn create_custom_thread_pool(num_threads: usize) -> rayon::ThreadPool {
+pub fn create_custom_thread_pool(
+    num_threads: usize,
+) -> Result<rayon::ThreadPool, rayon::ThreadPoolBuildError> {
     rayon::ThreadPoolBuilder::new()
         .num_threads(num_threads)
         .build()
-        .expect("Failed to create thread pool")
 }
 
 /// Metrics for measuring parallelism performance
@@ -178,8 +200,8 @@ pub struct ParallelismMetrics {
     /// - 1.0 = perfect linear speedup
     /// - < 1.0 = some overhead from parallelism
     ///
-    /// NOTE: Currently not calculated - requires sequential baseline measurement
-    pub parallel_efficiency: f64,
+    /// NOTE: None means "not measured" because sequential baseline is unavailable.
+    pub parallel_efficiency: Option<f64>,
 }
 
 impl ParallelismMetrics {
@@ -208,8 +230,8 @@ impl ParallelismMetrics {
         };
 
         // NOTE: parallel_efficiency calculation requires sequential baseline
-        // which is not available at runtime. Set to NaN to indicate unmeasured.
-        let parallel_efficiency = f64::NAN;
+        // which is not available at runtime.
+        let parallel_efficiency = None;
 
         Self {
             thread_count,
@@ -223,10 +245,9 @@ impl ParallelismMetrics {
 
     /// Log metrics to stderr
     pub fn log_metrics(&self, batch_id: &str) {
-        let efficiency_str = if self.parallel_efficiency.is_nan() {
-            "N/A (needs baseline)".to_string()
-        } else {
-            format!("{:.2}%", self.parallel_efficiency * 100.0)
+        let efficiency_str = match self.parallel_efficiency {
+            Some(value) => format!("{:.2}%", value * 100.0),
+            None => "N/A (needs baseline)".to_string(),
         };
 
         crate::log_info!(
@@ -272,6 +293,24 @@ mod tests {
     }
 
     #[test]
+    fn test_lambda_memory_thread_cap_formula_examples() {
+        assert_eq!(ParallelismConfig::lambda_memory_thread_cap_for_mb(1769), 2);
+        assert_eq!(ParallelismConfig::lambda_memory_thread_cap_for_mb(3008), 4);
+    }
+
+    #[test]
+    fn test_apply_lambda_thread_cap_uses_cap_for_large_batches() {
+        assert_eq!(
+            ParallelismConfig::apply_lambda_thread_cap(None, Some(4)),
+            Some(4)
+        );
+        assert_eq!(
+            ParallelismConfig::apply_lambda_thread_cap(Some(8), Some(4)),
+            Some(4)
+        );
+    }
+
+    #[test]
     fn test_parallelism_metrics_calculation() {
         let metrics = ParallelismMetrics::calculate(4, 100, 50);
         assert_eq!(metrics.thread_count, 4);
@@ -281,8 +320,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parallelism_metrics_efficiency_nan() {
+    fn test_parallelism_metrics_efficiency_none() {
         let metrics = ParallelismMetrics::calculate(4, 100, 400);
-        assert!(metrics.parallel_efficiency.is_nan());
+        assert!(metrics.parallel_efficiency.is_none());
+    }
+
+    #[test]
+    fn test_create_custom_thread_pool_succeeds() {
+        let pool = create_custom_thread_pool(2);
+        assert!(pool.is_ok());
     }
 }

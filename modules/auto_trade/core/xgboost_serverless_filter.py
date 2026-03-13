@@ -8,7 +8,7 @@ drop-in replacement in the ``SignalPipeline``.
 Architecture
 ------------
 The XGBoost Lambda is **synchronous** — it returns predictions directly
-in the invoke response (unlike ATC Serverless which uses SQS).
+in the invoke response (same request/response pattern as ATC Serverless).
 
 Fallback Strategy
 -----------------

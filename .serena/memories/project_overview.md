@@ -1,0 +1,1 @@
+Python 3.12+ crypto/forex trading analysis platform named crypto-probability (v3.0.0). Main areas: modules/ for strategies and models, core/ infrastructure, tests/, web/ FastAPI, cli/, rust_backend/ for maturin Rust extension. Uses ML/DL stacks such as scikit-learn, XGBoost, PyTorch, pandas/polars/dask, ccxt, customtkinter, FastAPI.

@@ -45,8 +45,14 @@ pub enum Robustness {
 #[derive(Debug, Clone, Copy)]
 pub struct SignalParams {
     /// Scaled lambda parameter for equity growth adjustment.
+    ///
+    /// Used by `equity::exp_growth`, which intentionally preserves Pine/legacy
+    /// semantics where the first bar (`i=0`) is treated as `bar_index=1`.
     pub lambda_scaled: f64,
     /// Scaled decay parameter for equity curve damping.
+    ///
+    /// Effective per-bar decay is `decay_scaled` where `decay_scaled = config.decay / DECAY_SCALE`.
+    /// Example: `config.decay = 0.03` => `decay_scaled = 0.0003` (0.03% per bar).
     pub decay_scaled: f64,
     /// Number of initial bars to ignore for equity calculation.
     pub cutout: usize,
@@ -247,8 +253,8 @@ pub fn calculate_layer1_signal(
 
     return_buffer(r_adjusted);
 
-    // Simple average of signals (original implementation that gave 88.9% consistency)
-    // Layer 1 signal = mean of diflen variation signals (NOT weighted!)
+    // Preserve legacy Layer 1 behavior: simple mean across diflen variation signals.
+    // Do not introduce equity/static weighting in this step unless parity is revalidated.
     let mut combined_signal = Array1::<f64>::from_elem(n, 0.0);
     for i in 0..n {
         let mut sum = 0.0;
@@ -350,11 +356,31 @@ fn calculate_layer1_signal_single(
     )
 }
 
-/// Compute the final signal score for a symbol using multiple MA types
+#[inline]
+fn discretize_layer1_vote(last_signal: f64, threshold: f64) -> f64 {
+    if !last_signal.is_finite() || !threshold.is_finite() || threshold < 0.0 {
+        return SIGNAL_NEUTRAL;
+    }
+
+    if last_signal > threshold {
+        SIGNAL_LONG
+    } else if last_signal < -threshold {
+        SIGNAL_SHORT
+    } else {
+        SIGNAL_NEUTRAL
+    }
+}
+
+/// Compute the final signal score for a symbol using multiple MA types.
 ///
-/// Calculates signals for all configured MA types, weights them by both
-/// static configuration weights and dynamic equity weights, then aggregates
-/// to produce a final score and signal classification.
+/// Compatibility contract (must remain stable):
+/// 1. Each MA contributes its Layer 1 signal (`last_signal`) and Layer 2 equity weight.
+/// 2. Layer 1 signal is discretized to `{-1, 0, 1}` using `config.threshold`.
+/// 3. Final score is weighted average of these discrete votes.
+///
+/// This mirrors the original adaptive trend pipeline where thresholding happens
+/// before final aggregation. Do not replace this with weighting raw continuous
+/// Layer 1 values unless model parity is intentionally broken and fully revalidated.
 ///
 /// # Arguments
 /// * `prices` - Closing price array
@@ -365,8 +391,12 @@ fn calculate_layer1_signal_single(
 /// - score: -1.0 (strong SHORT) to +1.0 (strong LONG)
 /// - signal_type: SignalType::Long, SignalType::Short, or SignalType::Neutral
 pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, SignalType) {
-    let prices_arr = ArrayView1::from(prices);
     let n = prices.len();
+    if n == 0 {
+        return (SIGNAL_NEUTRAL, SignalType::Neutral);
+    }
+
+    let prices_arr = ArrayView1::from(prices);
     let params = SignalParams {
         lambda_scaled: config.lambda_param / LAMBDA_SCALE,
         decay_scaled: config.decay / DECAY_SCALE,
@@ -382,23 +412,13 @@ pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, SignalT
         let (signal_series, equity_weight) =
             calculate_layer1_signal(prices_arr, &ma_config.ma_type, ma_config.length, &params);
 
-        let last_signal = if n > 0 { signal_series[n - 1] } else { 0.0 };
-
-        // Note: Layer 1 signal is already continuous weighted average from diflen variations
-        // Discretization happens in average_signal.py BEFORE final averaging with Layer 2 equities
-        // Python: C = np.where(S > threshold, 1.0, np.where(S < -threshold, -1.0, 0.0))
-        let discrete_signal = if last_signal > config.threshold {
-            SIGNAL_LONG
-        } else if last_signal < -config.threshold {
-            SIGNAL_SHORT
-        } else {
-            SIGNAL_NEUTRAL
-        };
-
+        let last_signal = signal_series[n - 1];
+        let discrete_signal = discretize_layer1_vote(last_signal, config.threshold);
         let combined_weight = ma_config.weight * equity_weight;
-
-        weighted_score_sum += discrete_signal * combined_weight;
-        total_weight += combined_weight;
+        if combined_weight.is_finite() && combined_weight > 0.0 {
+            weighted_score_sum += discrete_signal * combined_weight;
+            total_weight += combined_weight;
+        }
     }
 
     let final_score = if total_weight > 0.0 {
@@ -421,6 +441,7 @@ pub fn compute_symbol_score(prices: &[f64], config: &ATCConfig) -> (f64, SignalT
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_diflen_narrow() {
@@ -475,5 +496,40 @@ mod tests {
         assert_eq!(signal.len(), 100);
         assert!(!equity.is_nan());
         assert!(signal[signal.len() - 1] >= 0.0);
+    }
+
+    #[test]
+    fn test_compute_symbol_score_empty_prices_returns_neutral() {
+        let mut weights = HashMap::new();
+        weights.insert("1h".to_string(), 1.0);
+
+        let config = ATCConfig {
+            robustness: Robustness::Medium,
+            weights,
+            threshold: 0.3,
+            min_signal: 0.0,
+            use_signal_strength: true,
+            lambda_param: 0.02,
+            decay: 0.03,
+            cutout: 0,
+            equity_floor: 0.25,
+            ma_configs: vec![crate::MAConfig {
+                ma_type: crate::MAType::Ema,
+                length: 20,
+                weight: 1.0,
+            }],
+        };
+
+        let (score, signal_type) = compute_symbol_score(&[], &config);
+        assert_eq!(score, SIGNAL_NEUTRAL);
+        assert_eq!(signal_type, SignalType::Neutral);
+    }
+
+    #[test]
+    fn test_discretize_layer1_vote_contract() {
+        assert_eq!(discretize_layer1_vote(0.5, 0.3), SIGNAL_LONG);
+        assert_eq!(discretize_layer1_vote(-0.5, 0.3), SIGNAL_SHORT);
+        assert_eq!(discretize_layer1_vote(0.2, 0.3), SIGNAL_NEUTRAL);
+        assert_eq!(discretize_layer1_vote(f64::NAN, 0.3), SIGNAL_NEUTRAL);
     }
 }

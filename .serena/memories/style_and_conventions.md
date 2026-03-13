@@ -1,0 +1,1 @@
+Code style from CLAUDE.md: line length 120, Python target 3.12+, Ruff lint/import organization, E402 intentionally ignored for some Windows top-level imports. Prefer uv for package management. Testing markers include unit, slow, integration, gpu, memory_intensive, performance. Preserve existing project structure and module-specific patterns.

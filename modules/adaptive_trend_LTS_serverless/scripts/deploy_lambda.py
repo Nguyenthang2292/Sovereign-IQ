@@ -5,7 +5,7 @@ AWS Lambda Deployment Script for ATC Serverless
 This script automates the build and deployment process for the ATC Serverless module.
 It handles:
 1. Environment verification (Rust, Cargo Lambda, AWS CLI, MSVC tools)
-2. AWS Infrastructure setup (IAM Role, SQS Queue) - optional
+2. AWS Infrastructure setup (IAM Role) - optional
 3. Building the Lambda function (using cargo-lambda)
 4. Deploying the function to AWS
 
@@ -35,14 +35,18 @@ except ImportError:
     sys.exit(1)
 
 # Constants
-MODULE_DIR = Path(__file__).resolve().parent.parent
+# On Windows, avoid resolving to a physical path with spaces when running via a
+# drive alias (e.g., SUBST). cargo-zigbuild can misparse those paths.
+if os.name == "nt":
+    MODULE_DIR = Path(__file__).parent.parent
+else:
+    MODULE_DIR = Path(__file__).resolve().parent.parent
 LAMBDA_DIR = MODULE_DIR / "lambda"
 # Binary name = package name in lambda/Cargo.toml (uses underscores)
 BINARY_NAME = "atc_lambda"
 # AWS Lambda function name (displayed in AWS console, can use hyphens)
 LAMBDA_FUNCTION_NAME = "atc-serverless"
 IAM_ROLE_NAME = "ATC-Lambda-ExecutionRole"
-SQS_QUEUE_NAME = "atc-results"
 DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME", "AutoTrade")
 
 
@@ -112,7 +116,7 @@ def check_dependencies():
     return True
 
 
-def setup_iam_role(iam_client, region: str, account_id: str):
+def setup_iam_role(iam_client):
     """Create or retrieve the IAM role for Lambda."""
     logger.info(f"Checking IAM Role: {IAM_ROLE_NAME}...")
 
@@ -150,67 +154,13 @@ def setup_iam_role(iam_client, region: str, account_id: str):
             for policy_arn in policies:
                 iam_client.attach_role_policy(RoleName=IAM_ROLE_NAME, PolicyArn=policy_arn)
 
-            # Restrict SQS access to send-only on the dedicated queue.
-            sqs_send_only_policy = {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": "sqs:SendMessage",
-                        "Resource": f"arn:aws:sqs:{region}:{account_id}:{SQS_QUEUE_NAME}",
-                    }
-                ],
-            }
-            iam_client.put_role_policy(
-                RoleName=IAM_ROLE_NAME,
-                PolicyName="ATCSQSSendOnly",
-                PolicyDocument=json.dumps(sqs_send_only_policy),
-            )
-
             # Wait for propagation
             logger.info("Waiting for role propagation (10s)...")
             time.sleep(10)
         else:
             raise
 
-    # Ensure least-privilege SQS access for this role.
-    sqs_send_only_policy = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Action": "sqs:SendMessage",
-                "Resource": f"arn:aws:sqs:{region}:{account_id}:{SQS_QUEUE_NAME}",
-            }
-        ],
-    }
-    iam_client.put_role_policy(
-        RoleName=IAM_ROLE_NAME,
-        PolicyName="ATCSQSSendOnly",
-        PolicyDocument=json.dumps(sqs_send_only_policy),
-    )
-
     return role_arn
-
-
-def setup_sqs_queue(sqs_client):
-    """Create or retrieve the SQS queue."""
-    logger.info(f"Checking SQS Queue: {SQS_QUEUE_NAME}...")
-
-    try:
-        response = sqs_client.get_queue_url(QueueName=SQS_QUEUE_NAME)
-        queue_url = response["QueueUrl"]
-        logger.info(f"Queue exists: {queue_url}")
-    except ClientError as e:
-        if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
-            logger.info("Queue not found. Creating...")
-            response = sqs_client.create_queue(QueueName=SQS_QUEUE_NAME)
-            queue_url = response["QueueUrl"]
-            logger.info(f"Created queue: {queue_url}")
-        else:
-            raise
-
-    return queue_url
 
 
 def _ensure_zig_on_path():
@@ -343,7 +293,7 @@ def build_lambda():
         sys.exit(1)
 
 
-def deploy_lambda(role_arn, queue_url, region):
+def deploy_lambda(role_arn, region):
     """Deploy the Lambda function using cargo-lambda.
 
     Uses the correct cargo-lambda deploy syntax per official docs:
@@ -369,8 +319,6 @@ def deploy_lambda(role_arn, queue_url, region):
         "--env-var",
         "RUST_LOG=info",
         "--env-var",
-        f"SQS_QUEUE_URL={queue_url}",
-        "--env-var",
         "DB_BACKEND=dynamodb",
         "--env-var",
         f"DYNAMODB_TABLE_NAME={DYNAMODB_TABLE_NAME}",
@@ -385,7 +333,6 @@ def deploy_lambda(role_arn, queue_url, region):
         run_command(cmd, cwd=LAMBDA_DIR, capture_output=False)
         logger.info("Deployment successful.")
         logger.info(f"Function ARN: arn:aws:lambda:{region}:...:function:{LAMBDA_FUNCTION_NAME}")
-        logger.info(f"SQS Queue: {queue_url}")
     except subprocess.CalledProcessError:
         logger.error("Deployment failed.")
         sys.exit(1)
@@ -396,21 +343,13 @@ def main():
     parser.add_argument("--region", default="us-east-1", help="AWS Region")
     parser.add_argument("--profile", default=None, help="AWS CLI Profile")
     parser.add_argument("--skip-build", action="store_true", help="Skip build step")
-    parser.add_argument("--skip-infra", action="store_true", help="Skip infrastructure setup (Role/SQS)")
+    parser.add_argument("--skip-infra", action="store_true", help="Skip infrastructure setup (IAM role)")
 
     args = parser.parse_args()
 
     # Setup AWS session
     session = boto3.Session(profile_name=args.profile, region_name=args.region)
     iam = session.client("iam")
-    sqs = session.client("sqs")
-    sts = session.client("sts")
-
-    try:
-        account_id = sts.get_caller_identity()["Account"]
-    except Exception as e:
-        logger.error(f"Failed to resolve AWS account ID: {e}")
-        sys.exit(1)
 
     # Check Environment
     if not check_dependencies():
@@ -418,42 +357,41 @@ def main():
 
     # Setup Infrastructure
     role_arn = None
-    queue_url = None
 
     if not args.skip_infra:
         try:
-            role_arn = setup_iam_role(iam, args.region, account_id)
-            queue_url = setup_sqs_queue(sqs)
+            role_arn = setup_iam_role(iam)
         except Exception as e:
             logger.error(f"Infrastructure setup failed: {e}")
             sys.exit(1)
     else:
-        # Fetch existing infra details
+        # Fetch existing IAM role details
         try:
-            response = sqs.get_queue_url(QueueName=SQS_QUEUE_NAME)
-            queue_url = response["QueueUrl"]
             role = iam.get_role(RoleName=IAM_ROLE_NAME)
             role_arn = role["Role"]["Arn"]
         except Exception:
-            logger.warning("Could not automatically retrieve Infra details. Deployment might require manual inputs.")
+            logger.warning("Could not automatically retrieve IAM role details.")
 
     # Build
     if not args.skip_build:
         build_lambda()
 
     # Deploy
-    if role_arn and queue_url:
-        deploy_lambda(role_arn, queue_url, args.region)
+    if role_arn:
+        deploy_lambda(role_arn, args.region)
     else:
-        logger.error("Cannot deploy without Role ARN and Queue URL.")
+        logger.error("Cannot deploy without Role ARN.")
         sys.exit(1)
 
     logger.info("===========================================")
     logger.info("DEPLOYMENT COMPLETE")
     logger.info("===========================================")
     logger.info("To test your function:")
-    logger.info(f"python scripts/binance_lambda_demo.py --endpoint https://lambda.{args.region}.amazonaws.com/...")
-    logger.info("Note: You might need to setup Function URL or API Gateway for HTTP access.")
+    logger.info(
+        "python scripts/binance_lambda_demo.py "
+        f"--function-name {LAMBDA_FUNCTION_NAME} --region {args.region} --symbols 20"
+    )
+    logger.info("This test path uses AWS SDK Invoke (RequestResponse), no Function URL required.")
 
 
 if __name__ == "__main__":

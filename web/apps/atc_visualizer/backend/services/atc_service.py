@@ -23,8 +23,8 @@ project_root_absolute = project_root.resolve()
 if str(project_root_absolute) not in sys.path:
     sys.path.insert(0, str(project_root_absolute))
 
-from modules.adaptive_trend_LTS.core.analyzer import analyze_symbol
-from modules.adaptive_trend_LTS.utils.config import ATCConfig
+from modules.adaptive_trend_LTS_mini.core.analyzer import analyze_symbol
+from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
 from modules.common.core.data_fetcher import DataFetcher
 from modules.common.core.exchange_manager import ExchangeManager
 
@@ -167,7 +167,7 @@ class ATCService:
             Dictionary with all MA series
         """
         try:
-            from modules.adaptive_trend_LTS.core.compute_moving_averages import set_of_moving_averages
+            from modules.adaptive_trend_LTS_mini.core.compute_moving_averages import set_of_moving_averages
 
             if config is None:
                 config = ATCConfig(timeframe=timeframe)

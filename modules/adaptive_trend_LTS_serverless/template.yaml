@@ -18,63 +18,10 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - AWSXrayWriteOnlyAccess
-        - SQSSendMessagePolicy:
-            QueueName: !GetAtt ATCSQSPollerQueue.QueueName
-        - SQSSendMessagePolicy:
-            QueueName: !GetAtt ATCDeadLetterQueue.QueueName
       Environment:
         Variables:
           RUST_LOG: info
           AWS_REGION: us-east-1
-          SQS_QUEUE_URL: !Ref ATCSQSPollerQueue
-          # Dead Letter Queue URL for failed SQS sends
-          DLQ_URL: !Ref ATCDeadLetterQueue
-
-  # Dead Letter Queue for failed messages
-  ATCDeadLetterQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: atc-sqs-dlq
-      MessageRetentionPeriod: 1209600  # 14 days
-      VisibilityTimeout: 300
-
-  # Main SQS Queue with DLQ configuration
-  ATCSQSPollerQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: atc-results
-      VisibilityTimeout: 300
-      MessageRetentionPeriod: 1209600  # 14 days
-      # Configure Dead Letter Queue
-      RedrivePolicy:
-        deadLetterTargetArn: !GetAtt ATCDeadLetterQueue.Arn
-        maxReceiveCount: 3  # Move to DLQ after 3 failed processing attempts
-      # CloudWatch Alarms for DLQ monitoring
-      Tags:
-        - Key: Name
-          Value: atc-results
-        - Key: Environment
-          Value: production
-        - Key: HasDLQ
-          Value: "true"
-
-  # CloudWatch Alarm for DLQ messages
-  DLQAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: ATC-DLQ-Messages-Detected
-      AlarmDescription: Alert when messages arrive in the Dead Letter Queue
-      MetricName: ApproximateNumberOfMessagesVisible
-      Namespace: AWS/SQS
-      Dimensions:
-        - Name: QueueName
-          Value: !GetAtt ATCDeadLetterQueue.QueueName
-      Statistic: Sum
-      Period: 60  # Check every minute
-      EvaluationPeriods: 1
-      Threshold: 1  # Alert on any message in DLQ
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      TreatMissingData: notBreaching
 
   WarningAlertsTopic:
     Type: AWS::SNS::Topic
@@ -100,13 +47,16 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: ATC-Lambda-MemoryWarning
-      AlarmDescription: Memory usage exceeds 512MB threshold
+      AlarmDescription: Memory usage exceeds 1200MB threshold
       Namespace: ATC/Serverless
       MetricName: MemoryUsageMB
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ATCServerlessFunction
       Statistic: Maximum
       Period: 300
       EvaluationPeriods: 1
-      Threshold: 512
+      Threshold: 1200
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
       AlarmActions:
@@ -116,13 +66,16 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: ATC-Lambda-MemoryCritical
-      AlarmDescription: CRITICAL memory usage exceeds 768MB threshold
+      AlarmDescription: CRITICAL memory usage exceeds 1500MB threshold
       Namespace: ATC/Serverless
       MetricName: MemoryUsageMB
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ATCServerlessFunction
       Statistic: Maximum
       Period: 60
       EvaluationPeriods: 1
-      Threshold: 768
+      Threshold: 1500
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
       AlarmActions:
@@ -135,6 +88,9 @@ Resources:
       AlarmDescription: Processing throughput below 1000 symbols/second
       Namespace: ATC/Serverless
       MetricName: SymbolsPerSecond
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ATCServerlessFunction
       Statistic: Average
       Period: 300
       EvaluationPeriods: 2
@@ -151,31 +107,14 @@ Resources:
       AlarmDescription: Error rate exceeds 10% of processed symbols
       Namespace: ATC/Serverless
       MetricName: ErrorRate
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ATCServerlessFunction
       Statistic: Average
       Period: 300
       EvaluationPeriods: 2
-      Threshold: 0.1
+      Threshold: 10
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
       AlarmActions:
         - !Ref ErrorAlertsTopic
-
-Outputs:
-  # Export DLQ URL for Lambda function environment
-  DeadLetterQueueUrl:
-    Description: URL of the Dead Letter Queue
-    Value: !Ref ATCDeadLetterQueue
-    Export:
-      Name: !Sub "${AWS::StackName}-DLQ-URL"
-  
-  DeadLetterQueueArn:
-    Description: ARN of the Dead Letter Queue
-    Value: !GetAtt ATCDeadLetterQueue.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-DLQ-ARN"
-
-  ResultsQueueUrl:
-    Description: URL of the primary results queue
-    Value: !Ref ATCSQSPollerQueue
-    Export:
-      Name: !Sub "${AWS::StackName}-RESULTS-QUEUE-URL"

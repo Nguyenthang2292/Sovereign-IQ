@@ -398,6 +398,9 @@ fn test_signal_type_classification() {
 #[test]
 fn test_process_batch_single_symbol() {
     let mut timeframes = HashMap::new();
+    // NOTE: OHLCVData stores Box<[T]> fields, which are immutable after construction.
+    // For NaN/mutation edge cases, construct a dedicated OHLCVData instance up front
+    // instead of trying to mutate boxed slices in-place.
     let ohlcv = OHLCVData {
         timestamp: (0..50)
             .map(|i| i as i64)
@@ -799,6 +802,63 @@ fn test_aggregate_mixed_signals() {
         result.signal_type,
         SignalType::Long,
         "Heavily weighted 1h LONG should override slightly weighted 4h SHORT"
+    );
+}
+
+#[test]
+fn test_aggregate_partial_timeframe_is_not_amplified() {
+    let mut config_weights = HashMap::new();
+    config_weights.insert("1h".to_string(), 0.6);
+    config_weights.insert("4h".to_string(), 0.4);
+
+    let config = ATCConfig {
+        weights: config_weights,
+        threshold: 0.3,
+        min_signal: 0.0,
+        use_signal_strength: true,
+        lambda_param: 0.02,
+        decay: 0.03,
+        cutout: 0,
+        equity_floor: 0.25,
+        robustness: atc_serverless::Robustness::Medium,
+        ma_configs: vec![],
+    };
+
+    let mut partial_scores = HashMap::new();
+    partial_scores.insert("1h".to_string(), 0.2);
+
+    let mut partial_details = HashMap::new();
+    partial_details.insert("1h".to_string(), atc_serverless::SignalType::Long);
+
+    let partial_result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+        "BTC".to_string(),
+        partial_scores,
+        partial_details,
+        &config,
+    );
+
+    let mut full_scores = HashMap::new();
+    full_scores.insert("1h".to_string(), 0.2);
+    full_scores.insert("4h".to_string(), 0.0);
+
+    let mut full_details = HashMap::new();
+    full_details.insert("1h".to_string(), atc_serverless::SignalType::Long);
+    full_details.insert("4h".to_string(), atc_serverless::SignalType::Neutral);
+
+    let full_result = atc_serverless::multi_tf_voting::aggregate_timeframes(
+        "BTC".to_string(),
+        full_scores,
+        full_details,
+        &config,
+    );
+
+    assert!(
+        partial_result.score <= full_result.score + 1e-12,
+        "Partial payload score should not be stronger than complete payload score"
+    );
+    assert_eq!(
+        partial_result.signal_type, full_result.signal_type,
+        "Partial and complete payloads should classify consistently for neutral-missing timeframe"
     );
 }
 

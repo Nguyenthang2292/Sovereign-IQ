@@ -1,4 +1,4 @@
-"""
+﻿"""
 Gemini Chart Batch Scanner Entry Point
 
 This script serves as the main entry point for running the Gemini batch chart scanner
@@ -163,8 +163,10 @@ configure_windows_stdio()
 # Check Rust backends availability
 # For XGBoost, we'll check if the module can be imported
 
-from modules.adaptive_trend_LTS.utils.rust_build_checker import check_rust_backend as check_atc_rust
-from modules.adaptive_trend_LTS_mini.utils.rust_build_checker import check_rust_backend as check_atc_mini_rust
+from modules.adaptive_trend_LTS_mini.utils.rust_build_checker import check_rust_backend as check_atc_rust
+
+# adaptive_trend_LTS (Full/GPU) moved to legacy/ — both aliases now point to mini
+check_atc_mini_rust = check_atc_rust
 
 
 def check_xgboost_rust():

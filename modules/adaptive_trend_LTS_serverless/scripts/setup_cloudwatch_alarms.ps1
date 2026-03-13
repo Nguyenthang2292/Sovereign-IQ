@@ -1,6 +1,7 @@
 param(
     [string]$Namespace = "ATC/Serverless",
     [string]$Region = "us-east-1",
+    [string]$FunctionName = "atc-serverless",
     [string]$WarningTopicArn = "",
     [string]$CriticalTopicArn = "",
     [string]$PerformanceTopicArn = "",
@@ -29,6 +30,7 @@ function Set-MetricAlarm {
         "--alarm-description", $AlarmDescription,
         "--metric-name", $MetricName,
         "--namespace", $Namespace,
+        "--dimensions", "Name=FunctionName,Value=$FunctionName",
         "--statistic", $Statistic,
         "--period", "$Period",
         "--evaluation-periods", "$EvaluationPeriods",
@@ -49,23 +51,23 @@ Write-Host "[INFO] Configuring CloudWatch alarms in region $Region (namespace: $
 
 Set-MetricAlarm `
     -AlarmName "ATC-Lambda-MemoryWarning" `
-    -AlarmDescription "Memory usage exceeds 512MB threshold" `
+    -AlarmDescription "Memory usage exceeds 1200MB threshold" `
     -MetricName "MemoryUsageMB" `
     -Statistic "Maximum" `
     -Period 300 `
     -EvaluationPeriods 1 `
-    -Threshold 512 `
+    -Threshold 1200 `
     -ComparisonOperator "GreaterThanThreshold" `
     -AlarmActionArn $WarningTopicArn
 
 Set-MetricAlarm `
     -AlarmName "ATC-Lambda-MemoryCritical" `
-    -AlarmDescription "CRITICAL: Memory usage exceeds 768MB threshold" `
+    -AlarmDescription "CRITICAL: Memory usage exceeds 1500MB threshold" `
     -MetricName "MemoryUsageMB" `
     -Statistic "Maximum" `
     -Period 60 `
     -EvaluationPeriods 1 `
-    -Threshold 768 `
+    -Threshold 1500 `
     -ComparisonOperator "GreaterThanThreshold" `
     -AlarmActionArn $CriticalTopicArn
 
@@ -87,7 +89,7 @@ Set-MetricAlarm `
     -Statistic "Average" `
     -Period 300 `
     -EvaluationPeriods 2 `
-    -Threshold 0.1 `
+    -Threshold 10 `
     -ComparisonOperator "GreaterThanThreshold" `
     -AlarmActionArn $ErrorTopicArn
 

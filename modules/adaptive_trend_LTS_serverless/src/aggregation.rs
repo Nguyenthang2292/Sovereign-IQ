@@ -11,16 +11,48 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 static CUSTOM_THREAD_POOLS: OnceLock<Mutex<HashMap<usize, Arc<rayon::ThreadPool>>>> =
     OnceLock::new();
 
-fn get_or_create_custom_thread_pool(num_threads: usize) -> Arc<rayon::ThreadPool> {
+fn get_or_create_custom_thread_pool(num_threads: usize) -> Option<Arc<rayon::ThreadPool>> {
     let pools = CUSTOM_THREAD_POOLS.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut pools_guard = pools
-        .lock()
-        .expect("custom thread pool map lock should not be poisoned");
+    let mut pools_guard = match pools.lock() {
+        Ok(guard) => guard,
+        Err(_poisoned) => {
+            crate::log_warn!(
+                "Custom thread pool map lock was poisoned. Creating uncached pool for threads={}.",
+                num_threads
+            );
+            return match create_custom_thread_pool(num_threads) {
+                Ok(pool) => Some(Arc::new(pool)),
+                Err(err) => {
+                    crate::log_warn!(
+                        "Failed to create fallback custom thread pool (threads={}): {}. Falling back to Rayon default pool.",
+                        num_threads,
+                        err
+                    );
+                    None
+                }
+            };
+        }
+    };
 
-    pools_guard
-        .entry(num_threads)
-        .or_insert_with(|| Arc::new(create_custom_thread_pool(num_threads)))
-        .clone()
+    if let Some(existing) = pools_guard.get(&num_threads) {
+        return Some(existing.clone());
+    }
+
+    match create_custom_thread_pool(num_threads) {
+        Ok(pool) => {
+            let pool = Arc::new(pool);
+            pools_guard.insert(num_threads, pool.clone());
+            Some(pool)
+        }
+        Err(err) => {
+            crate::log_warn!(
+                "Failed to create custom thread pool (threads={}): {}. Falling back to Rayon default pool.",
+                num_threads,
+                err
+            );
+            None
+        }
+    }
 }
 
 /// Module for batch processing and error recovery
@@ -194,8 +226,11 @@ pub fn process_batch(
     let results: Vec<SymbolProcessingResult> = if let Some(pconfig) = parallelism_config.as_ref() {
         if pconfig.use_custom_pool {
             if let Some(num_threads) = configured_threads {
-                let pool = get_or_create_custom_thread_pool(num_threads);
-                pool.install(|| process_symbols_parallel(symbols, &config, Some(pconfig)))
+                if let Some(pool) = get_or_create_custom_thread_pool(num_threads) {
+                    pool.install(|| process_symbols_parallel(symbols, &config, Some(pconfig)))
+                } else {
+                    process_symbols_parallel(symbols, &config, Some(pconfig))
+                }
             } else {
                 process_symbols_parallel(symbols, &config, Some(pconfig))
             }
@@ -364,6 +399,9 @@ fn process_single_symbol(
             ));
         }
 
+        // PARITY CONTRACT: `compute_symbol_score` owns Layer-1 vote discretization
+        // (`{-1, 0, 1}` via `config.threshold`) before final MA aggregation.
+        // Keep this call path aligned with `signal_detection.rs` compatibility docs.
         let (score, signal) = crate::signal_detection::compute_symbol_score(&ohlcv.close, config);
 
         tf_scores.insert(tf.clone(), score);
@@ -482,7 +520,8 @@ mod tests {
         );
 
         let first_pool_ptr =
-            get_or_create_custom_thread_pool(2).as_ref() as *const rayon::ThreadPool as usize;
+            get_or_create_custom_thread_pool(2).expect("thread pool should be creatable").as_ref()
+                as *const rayon::ThreadPool as usize;
 
         let parallelism_second = ParallelismConfig::default().with_threads(2);
         let _ = process_batch(
@@ -492,7 +531,8 @@ mod tests {
         );
 
         let second_pool_ptr =
-            get_or_create_custom_thread_pool(2).as_ref() as *const rayon::ThreadPool as usize;
+            get_or_create_custom_thread_pool(2).expect("thread pool should be creatable").as_ref()
+                as *const rayon::ThreadPool as usize;
         let after_pools = CUSTOM_THREAD_POOLS
             .get()
             .map(|map| map.lock().expect("pool map lock").len())
@@ -504,8 +544,8 @@ mod tests {
 
     #[test]
     fn test_process_batch_uses_distinct_pool_per_thread_count() {
-        let pool_2 = get_or_create_custom_thread_pool(2);
-        let pool_4 = get_or_create_custom_thread_pool(4);
+        let pool_2 = get_or_create_custom_thread_pool(2).expect("thread pool should be creatable");
+        let pool_4 = get_or_create_custom_thread_pool(4).expect("thread pool should be creatable");
 
         let pool_2_ptr = pool_2.as_ref() as *const rayon::ThreadPool as usize;
         let pool_4_ptr = pool_4.as_ref() as *const rayon::ThreadPool as usize;

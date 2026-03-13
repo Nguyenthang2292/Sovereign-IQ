@@ -116,7 +116,7 @@ macro_rules! log_info {
 pub use aggregation::{get_memory_usage_mb, process_batch};
 pub use constants::{
     DEFAULT_CUTOUT, DEFAULT_DECAY, DEFAULT_EQUITY_FLOOR, DEFAULT_LAMBDA_PARAM, DEFAULT_MA_LENGTH,
-    DEFAULT_MA_WEIGHT, DEFAULT_ROBUSTNESS,
+    DEFAULT_MA_WEIGHT,
 };
 pub use equity::calculate_equity;
 pub use ma_calculations::{
@@ -261,7 +261,10 @@ pub struct ATCConfig {
     #[serde(default = "default_lambda_param")]
     pub lambda_param: f64,
     /// Decay factor for equity weighting (default: 0.03)
-    /// Controls how quickly past performance is forgotten
+    /// Controls how quickly past performance is forgotten.
+    ///
+    /// `decay` is interpreted in percentage points and scaled by `DECAY_SCALE = 100`.
+    /// Example: `0.03` means `0.03%` effective per-bar decay, `1.0` means `1%`.
     #[serde(default = "default_decay")]
     pub decay: f64,
     /// Number of initial bars to cut out (default: 0)
@@ -399,7 +402,7 @@ pub struct SymbolError {
 /// Result of scanning a batch of symbols
 ///
 /// Contains successful results, errors, and summary statistics.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanResult {
     /// Batch identifier (matches the input batch_id)
     pub batch_id: String,

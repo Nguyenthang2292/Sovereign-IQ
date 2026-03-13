@@ -10,7 +10,6 @@ use std::collections::HashMap;
 /// * `symbol` - Symbol identifier
 /// * `tf_scores` - Map of timeframe to signal score
 /// * `tf_details` - Map of timeframe to signal type (LONG/SHORT/NEUTRAL)
-/// * `tf_strengths` - Map of timeframe to signal strength
 /// * `config` - ATC configuration containing weights and threshold
 ///
 /// # Returns
@@ -24,24 +23,13 @@ pub fn aggregate_timeframes(
     let mut total_weighted_score = 0.0;
 
     let total_config_weight: f64 = config.weights.values().sum();
-    let active_weight: f64 = config
-        .weights
-        .iter()
-        .filter(|(tf, _)| tf_scores.contains_key(*tf))
-        .map(|(_, w)| *w)
-        .sum();
-
-    let weight_ratio = if total_config_weight > 0.0 {
-        active_weight / total_config_weight
-    } else {
-        1.0
-    };
-
-    let adaptive_threshold = (config.threshold * weight_ratio).max(config.threshold * 0.1);
 
     for tf in tf_scores.keys() {
-        let tf_weight = if active_weight > 0.0 {
-            config.weights.get(tf).copied().unwrap_or(0.0) / active_weight
+        // Keep configured timeframe weights invariant so missing timeframes do not
+        // amplify remaining signals. Validation rejects missing configured timeframes,
+        // but this guard keeps behavior stable if aggregate_timeframes is used directly.
+        let tf_weight = if total_config_weight > 0.0 {
+            config.weights.get(tf).copied().unwrap_or(0.0) / total_config_weight
         } else {
             0.0
         };
@@ -54,9 +42,9 @@ pub fn aggregate_timeframes(
         total_weighted_score += weighted_score;
     }
 
-    let mut signal_type = if total_weighted_score > adaptive_threshold {
+    let mut signal_type = if total_weighted_score > config.threshold {
         crate::SignalType::Long
-    } else if total_weighted_score < -adaptive_threshold {
+    } else if total_weighted_score < -config.threshold {
         crate::SignalType::Short
     } else {
         crate::SignalType::Neutral

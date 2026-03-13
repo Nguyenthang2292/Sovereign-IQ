@@ -13,8 +13,8 @@ print(f"[DEBUG] Modules exists: {(project_root_absolute / 'modules').exists()}")
 sys.path.insert(0, str(project_root_absolute))
 
 try:
-    from modules.adaptive_trend_LTS.core.analyzer import analyze_symbol
-    from modules.adaptive_trend_LTS.utils.config import ATCConfig
+    from modules.adaptive_trend_LTS_mini.core.analyzer import analyze_symbol
+    from modules.adaptive_trend_LTS_mini.utils.config import ATCConfig
     from modules.common.core.data_fetcher import DataFetcher
     from modules.common.core.exchange_manager import ExchangeManager
 

@@ -29,10 +29,7 @@ class ATCServerlessScanner:
 
         self.lambda_client = ATCLambdaClient(
             function_name=str(self.config.get("serverless_function_name", "atc-serverless")),
-            sqs_queue_name=str(self.config.get("serverless_sqs_queue", "atc-results")),
             region=str(self.config.get("serverless_region", "us-east-1")),
-            sqs_poll_timeout=int(self.config.get("serverless_sqs_poll_timeout", 60)),
-            sqs_poll_interval=float(self.config.get("serverless_sqs_poll_interval", 2.0)),
             mock_mode=bool(self.config.get("serverless_mock_mode", False)),
         )
 

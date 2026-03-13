@@ -1,11 +1,11 @@
-"""Workflow helpers for VotingAnalyzer."""
+﻿"""Workflow helpers for VotingAnalyzer."""
 
 from typing import Any, Callable, List, Optional
 
 import pandas as pd
 from colorama import Fore, Style
 
-from modules.adaptive_trend_LTS.cli import prompt_timeframe
+from modules.adaptive_trend_LTS_mini.cli import prompt_timeframe
 from modules.common.utils import (
     color_text,
     log_progress,

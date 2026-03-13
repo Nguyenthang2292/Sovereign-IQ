@@ -42,8 +42,13 @@ pub const DEFAULT_LAMBDA_PARAM: f64 = 0.02;
 /// Higher values mean faster decay (more weight on recent performance).
 ///
 /// **Formula**: `equity[i] = equity[i-1] * decay_multiplier * (1 + return)`
-/// **Rationale**: 0.03 means ~3% decay per bar, providing balanced
-/// memory of past performance.
+/// **Parameter contract**: configured `decay` is interpreted in percentage points
+/// and scaled by `DECAY_SCALE = 100`.
+///
+/// - `decay = 0.03` -> effective per-bar decay `0.0003` (0.03%)
+/// - `decay = 1.0`  -> effective per-bar decay `0.01` (1%)
+///
+/// **Rationale**: 0.03 provides gentle damping while preserving trend signal continuity.
 pub const DEFAULT_DECAY: f64 = 0.03;
 
 /// Number of initial bars to cut out from calculation.
@@ -63,14 +68,6 @@ pub const DEFAULT_CUTOUT: usize = 0;
 /// This prevents numerical underflow while allowing significant drawdowns.
 pub const DEFAULT_EQUITY_FLOOR: f64 = 0.25;
 
-/// Default robustness level for diflen calculation.
-///
-/// Determines the range of length variations around the base length.
-///
-/// - `Narrow`: ±1, ±2, ±3, ±4 (min length: 5)
-/// - `Medium`: ±1, ±2, ±4, ±6 (min length: 7) - DEFAULT
-/// - `Wide`: ±1, ±3, ±5, ±7 (min length: 8)
-pub const DEFAULT_ROBUSTNESS: &str = "Medium";
 
 /// Default length for MA calculations.
 ///
@@ -199,8 +196,8 @@ pub const LAMBDA_SCALE: f64 = 1000.0;
 ///
 /// Decay is divided by this to convert to internal representation.
 ///
-/// **Rationale**: 100 converts 0.03 to 0.0003 for numerical stability
-/// in recursive equity calculations.
+/// **Rationale**: 100 converts percentage-point inputs to decimal fractions
+/// for recursive equity calculations (for example 1.0 -> 1%).
 pub const DECAY_SCALE: f64 = 100.0;
 
 #[cfg(test)]

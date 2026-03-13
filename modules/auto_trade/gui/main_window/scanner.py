@@ -174,10 +174,7 @@ class ScannerManager:
                 serverless_config = {
                     **atc_config,
                     "serverless_function_name": scanner_config.get("atc_serverless_function_name", "atc-serverless"),
-                    "serverless_sqs_queue": scanner_config.get("atc_serverless_sqs_queue", "atc-results"),
                     "serverless_region": scanner_config.get("atc_serverless_region", "us-east-1"),
-                    "serverless_sqs_poll_timeout": scanner_config.get("atc_serverless_sqs_poll_timeout", 60),
-                    "serverless_sqs_poll_interval": scanner_config.get("atc_serverless_sqs_poll_interval", 2.0),
                     "serverless_ohlcv_limit": scanner_config.get("atc_serverless_ohlcv_limit", 220),
                     "serverless_min_candles_per_tf": scanner_config.get("atc_serverless_min_candles_per_tf", 50),
                     "serverless_mock_mode": scanner_config.get("atc_serverless_mock_mode", False),

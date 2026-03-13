@@ -1,4 +1,4 @@
-"""
+﻿"""
 VotingAnalyzer core class with shared initialization.
 """
 
@@ -49,18 +49,15 @@ class VotingAnalyzer(
         self.ohlcv_cache = ohlcv_cache
 
         # Dynamic import of ATCAnalyzer based on configuration
-        # Priority: Mini (CPU-only) → Full (GPU) → Legacy
+        # Priority: Mini (CPU-only) → Legacy
+        # Note: adaptive_trend_LTS (Full/GPU) has been moved to legacy/; mini is used for all performance modes
         use_performance_mini = getattr(args, "use_atc_performance_mini", False)
         use_performance = getattr(args, "use_atc_performance", True)
 
-        if use_performance_mini:
+        if use_performance_mini or use_performance:
             from modules.adaptive_trend_LTS_mini.cli import ATCAnalyzer  # type: ignore[assignment]
 
-            log_info("Using CPU-Only Mini ATC (LTS Mini) module")
-        elif use_performance:
-            from modules.adaptive_trend_LTS.cli import ATCAnalyzer  # type: ignore[assignment]
-
-            log_info("Using High-Performance ATC (LTS Full) module")
+            log_info("Using Mini ATC (LTS Mini) module")
         else:
             from modules.adaptive_trend.cli import ATCAnalyzer  # type: ignore[assignment]
 

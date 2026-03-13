@@ -1,4 +1,4 @@
-"""
+﻿"""
 Main entry point for Forex Market Batch Scanner.
 
 Run batch forex market scanning with Google Gemini AI.
@@ -29,7 +29,7 @@ from colorama import Fore
 from colorama import init as colorama_init
 
 from config.forex_pairs import FOREX_MAJOR_PAIRS, FOREX_MINOR_PAIRS
-from modules.adaptive_trend_LTS.utils.rust_build_checker import check_rust_backend
+from modules.adaptive_trend_LTS_mini.utils.rust_build_checker import check_rust_backend
 from modules.common.core.exchange_manager import PublicExchangeManager
 from modules.common.ui.logging import log_error, log_info, log_success, log_warn
 from modules.common.utils import (

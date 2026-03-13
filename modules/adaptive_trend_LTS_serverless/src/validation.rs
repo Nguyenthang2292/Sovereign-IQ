@@ -4,8 +4,8 @@
 //! and schema versioning.
 
 use crate::constants::{
-    MAX_BARS_PER_TIMEFRAME, MAX_BATCH_SIZE, MAX_MA_LENGTH, MAX_NORMALIZED_VALUE, MIN_DATA_LENGTH,
-    MIN_NORMALIZED_VALUE, MIN_SIGNAL_VALUE, WEIGHT_SUM_TOLERANCE,
+    MAX_BARS_PER_TIMEFRAME, MAX_BATCH_SIZE, MAX_MA_LENGTH, MAX_NORMALIZED_VALUE, MAX_PRICE,
+    MIN_DATA_LENGTH, MIN_NORMALIZED_VALUE, MIN_PRICE, MIN_SIGNAL_VALUE, WEIGHT_SUM_TOLERANCE,
 };
 use crate::{ATCConfig, BatchRequest, OHLCVData};
 
@@ -27,6 +27,15 @@ pub enum ValidationError {
         field: String,
         /// Human-readable validation failure details
         message: String,
+    },
+    /// Symbol-level structural validation errors
+    Symbol {
+        /// Name of the symbol field that failed validation
+        field: String,
+        /// Human-readable validation failure details
+        message: String,
+        /// Symbol identifier associated with the validation failure
+        symbol: String,
     },
     /// Schema version errors
     Schema {
@@ -55,6 +64,17 @@ impl std::fmt::Display for ValidationError {
             }
             ValidationError::Config { field, message } => {
                 write!(f, "Config validation error: {} - {}", field, message)
+            }
+            ValidationError::Symbol {
+                field,
+                message,
+                symbol,
+            } => {
+                write!(
+                    f,
+                    "Symbol validation error for symbol {}: {} - {}",
+                    symbol, field, message
+                )
             }
             ValidationError::Schema { message } => {
                 write!(f, "Schema validation error: {}", message)
@@ -152,18 +172,21 @@ pub fn validate_ohlcv_data(data: &OHLCVData, symbol: &str) -> ValidationResult<(
         ("close", &data.close),
     ] {
         for (i, &price) in arr.iter().enumerate() {
-            if price.is_nan() {
+            if !price.is_finite() {
                 return Err(ValidationError::Ohlcv {
                     field: name.to_string(),
-                    message: format!("NaN value found at index {}", i),
+                    message: format!("Non-finite price value found at index {}", i),
                     symbol: Some(symbol.to_string()),
                 });
             }
-            // OHLC prices must be strictly positive (not zero)
-            if price <= MIN_NORMALIZED_VALUE {
+            // OHLC prices must be strictly positive and bounded.
+            if price <= MIN_PRICE || price > MAX_PRICE {
                 return Err(ValidationError::Ohlcv {
                     field: name.to_string(),
-                    message: format!("Price must be positive, got {} at index {}", price, i),
+                    message: format!(
+                        "Price must be in ({}..={}], got {} at index {}",
+                        MIN_PRICE, MAX_PRICE, price, i
+                    ),
                     symbol: Some(symbol.to_string()),
                 });
             }
@@ -171,10 +194,10 @@ pub fn validate_ohlcv_data(data: &OHLCVData, symbol: &str) -> ValidationResult<(
     }
 
     for (i, &vol) in data.volume.iter().enumerate() {
-        if vol.is_nan() {
+        if !vol.is_finite() {
             return Err(ValidationError::Ohlcv {
                 field: "volume".to_string(),
-                message: format!("NaN volume found at index {}", i),
+                message: format!("Non-finite volume found at index {}", i),
                 symbol: Some(symbol.to_string()),
             });
         }
@@ -317,11 +340,11 @@ pub fn validate_config(config: &ATCConfig) -> ValidationResult<()> {
             });
         }
 
-        if ma_config.weight < 0.0 {
+        if !ma_config.weight.is_finite() || ma_config.weight < 0.0 {
             return Err(ValidationError::Config {
                 field: "ma_configs".to_string(),
                 message: format!(
-                    "MA weight at index {} cannot be negative, got {}",
+                    "MA weight at index {} must be finite and non-negative, got {}",
                     i, ma_config.weight
                 ),
             });
@@ -448,27 +471,40 @@ pub fn validate_batch_request(request: &BatchRequest) -> ValidationResult<()> {
 
     for symbol in &request.symbols {
         if symbol.symbol.is_empty() {
-            return Err(ValidationError::Ohlcv {
+            return Err(ValidationError::Symbol {
                 field: "symbol".to_string(),
                 message: "Symbol identifier cannot be empty".to_string(),
-                symbol: None,
+                symbol: "<unknown>".to_string(),
             });
         }
 
         if symbol.timeframes.is_empty() {
-            return Err(ValidationError::Ohlcv {
+            return Err(ValidationError::Symbol {
                 field: "timeframes".to_string(),
                 message: "Symbol must have at least one timeframe".to_string(),
-                symbol: Some(symbol.symbol.clone()),
+                symbol: symbol.symbol.clone(),
             });
+        }
+
+        for timeframe in request.config.weights.keys() {
+            if !symbol.timeframes.contains_key(timeframe) {
+                return Err(ValidationError::Symbol {
+                    field: "timeframes".to_string(),
+                    message: format!(
+                        "Missing configured timeframe '{}' for symbol '{}'",
+                        timeframe, symbol.symbol
+                    ),
+                    symbol: symbol.symbol.clone(),
+                });
+            }
         }
 
         for (timeframe, ohlcv) in &symbol.timeframes {
             if timeframe.is_empty() {
-                return Err(ValidationError::Ohlcv {
+                return Err(ValidationError::Symbol {
                     field: "timeframe".to_string(),
                     message: "Timeframe identifier cannot be empty".to_string(),
-                    symbol: Some(symbol.symbol.clone()),
+                    symbol: symbol.symbol.clone(),
                 });
             }
             validate_ohlcv_data(ohlcv, &symbol.symbol).map_err(|err| match err {
@@ -562,7 +598,10 @@ mod tests {
         let len = MAX_BARS_PER_TIMEFRAME + 1;
 
         let data = OHLCVData {
-            timestamp: (0..len).map(|i| i as i64 + 1).collect::<Vec<_>>().into_boxed_slice(),
+            timestamp: (0..len)
+                .map(|i| i as i64 + 1)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
             open: vec![100.0; len].into_boxed_slice(),
             high: vec![101.0; len].into_boxed_slice(),
             low: vec![99.0; len].into_boxed_slice(),
@@ -586,6 +625,22 @@ mod tests {
     fn test_validate_ohlcv_negative_volume() {
         let mut data = create_test_ohlcv();
         data.volume[2] = -100.0;
+        let result = validate_ohlcv_data(&data, "BTCUSDT");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_ohlcv_infinite_price() {
+        let mut data = create_test_ohlcv();
+        data.high[2] = f64::INFINITY;
+        let result = validate_ohlcv_data(&data, "BTCUSDT");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_ohlcv_price_exceeds_max() {
+        let mut data = create_test_ohlcv();
+        data.close[2] = MAX_PRICE + 1.0;
         let result = validate_ohlcv_data(&data, "BTCUSDT");
         assert!(result.is_err());
     }
@@ -724,6 +779,33 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_config_rejects_non_finite_ma_weight() {
+        let mut weights = HashMap::new();
+        weights.insert("1h".to_string(), 1.0);
+
+        let mut config = ATCConfig {
+            robustness: crate::Robustness::Medium,
+            weights,
+            threshold: 0.5,
+            min_signal: 0.1,
+            use_signal_strength: true,
+            lambda_param: 0.02,
+            decay: 0.03,
+            cutout: 0,
+            equity_floor: 0.25,
+            ma_configs: vec![MAConfig {
+                ma_type: crate::MAType::Ema,
+                length: 20,
+                weight: f64::NAN,
+            }],
+        };
+        assert!(validate_config(&config).is_err());
+
+        config.ma_configs[0].weight = f64::INFINITY;
+        assert!(validate_config(&config).is_err());
+    }
+
+    #[test]
     fn test_validate_config_rejects_empty_weights() {
         let config = ATCConfig {
             robustness: crate::Robustness::Medium,
@@ -847,6 +929,59 @@ mod tests {
         };
         let result = validate_batch_request(&request);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_batch_request_rejects_missing_configured_timeframe() {
+        let request = BatchRequest {
+            batch_id: "test".to_string(),
+            version: Some("1.0.0".to_string()),
+            symbols: vec![SymbolData {
+                symbol: "BTCUSDT".to_string(),
+                timeframes: {
+                    let mut tf = HashMap::new();
+                    tf.insert("1h".to_string(), create_test_ohlcv());
+                    tf
+                },
+            }],
+            config: ATCConfig {
+                robustness: crate::Robustness::Medium,
+                weights: {
+                    let mut w = HashMap::new();
+                    w.insert("1h".to_string(), 0.4);
+                    w.insert("4h".to_string(), 0.6);
+                    w
+                },
+                threshold: 0.5,
+                min_signal: 0.1,
+                use_signal_strength: true,
+                lambda_param: 0.02,
+                decay: 0.03,
+                cutout: 0,
+                equity_floor: 0.25,
+                ma_configs: vec![MAConfig {
+                    ma_type: crate::MAType::Ema,
+                    length: 20,
+                    weight: 1.0,
+                }],
+            },
+        };
+
+        match validate_batch_request(&request) {
+            Err(ValidationError::Symbol {
+                field,
+                message,
+                symbol,
+            }) => {
+                assert_eq!(field, "timeframes");
+                assert!(message.contains("4h"));
+                assert_eq!(symbol, "BTCUSDT");
+            }
+            other => panic!(
+                "Expected missing timeframe validation error, got {:?}",
+                other
+            ),
+        }
     }
 
     #[test]
