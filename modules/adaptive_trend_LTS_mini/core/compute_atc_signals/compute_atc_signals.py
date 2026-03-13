@@ -46,6 +46,7 @@ from modules.common.system import (
 )
 
 from .average_signal import calculate_average_signal
+from .execution_shift import apply_execution_shift_series
 from .calculate_layer2_equities import calculate_layer2_equities
 from .validation import validate_atc_inputs
 
@@ -332,8 +333,8 @@ def _run_layer2_and_average(
     long_threshold: float,
     short_threshold: float,
     strategy_mode: bool,
-) -> Tuple[Dict[str, pd.Series], pd.Series]:
-    """Compute Layer 2 equities and Average_Signal."""
+) -> Tuple[Dict[str, pd.Series], pd.Series, Optional[pd.Series]]:
+    """Compute Layer 2 equities and raw/optional execution Average_Signal."""
     layer2_equities = calculate_layer2_equities(
         layer1_signals=layer1_signals,
         ma_configs=ma_configs,
@@ -346,7 +347,7 @@ def _run_layer2_and_average(
         use_rust_backend=use_rust_backend,
         floor_val=equity_floor,
     )
-    average_signal = calculate_average_signal(
+    average_signal_raw = calculate_average_signal(
         layer1_signals=layer1_signals,
         layer2_equities=layer2_equities,
         ma_configs=ma_configs,
@@ -357,21 +358,27 @@ def _run_layer2_and_average(
         strategy_mode=strategy_mode,
         precision=precision,
     )
-    return layer2_equities, average_signal
+    average_signal_exec = (
+        apply_execution_shift_series(average_signal_raw) if strategy_mode else None
+    )
+    return layer2_equities, average_signal_raw, average_signal_exec
 
 
 def _build_atc_result(
     layer1_signals: Dict[str, pd.Series],
     layer2_equities: Dict[str, pd.Series],
     ma_configs: List[Tuple[str, int, float]],
-    average_signal: pd.Series,
+    average_signal_raw: pd.Series,
+    average_signal_exec: Optional[pd.Series] = None,
 ) -> Dict[str, pd.Series]:
     """Build final result dict from layer1, layer2, and average signal."""
     result: Dict[str, pd.Series] = {}
     for ma_type, _, _ in ma_configs:
         result[f"{ma_type}_Signal"] = layer1_signals[ma_type]
         result[f"{ma_type}_S"] = layer2_equities[ma_type]
-    result["Average_Signal"] = average_signal
+    result["Average_Signal"] = average_signal_raw
+    if average_signal_exec is not None:
+        result["Average_Signal_Exec"] = average_signal_exec
     return result
 
 
@@ -404,7 +411,7 @@ def compute_atc_signals(
     min_cores_parallel_l1: Optional[int] = None,
     parallel_l2: Optional[bool] = True,
     precision: str = "float64",
-    use_rust_backend: bool = True,
+    use_rust_backend: bool = False,
     use_cache: bool = True,
     fast_mode: bool = True,
     use_approximate: bool = False,
@@ -478,7 +485,7 @@ def compute_atc_signals(
     )
     log_debug("Completed Layer 1 signals")
 
-    layer2_equities, average_signal = _run_layer2_and_average(
+    layer2_equities, average_signal_raw, average_signal_exec = _run_layer2_and_average(
         layer1_signals,
         ma_configs,
         rate_of_change_series,
@@ -494,7 +501,13 @@ def compute_atc_signals(
         short_threshold,
         strategy_mode,
     )
-    result = _build_atc_result(layer1_signals, layer2_equities, ma_configs, average_signal)
+    result = _build_atc_result(
+        layer1_signals,
+        layer2_equities,
+        ma_configs,
+        average_signal_raw,
+        average_signal_exec,
+    )
 
     cleanup_series(rate_of_change_series)
     log_info(f"Completed ATC signal computation for {len(prices)} bars")

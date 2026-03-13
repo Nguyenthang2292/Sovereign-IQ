@@ -2,6 +2,139 @@
 
 All notable changes and review findings for the `modules/auto_trade` module.
 
+---
+
+## [Serverless Module Update] — `adaptive_trend_LTS_serverless` — 2026-03-12 to 2026-03-14
+
+### Tổng kết
+
+Chu kỳ cải tiến 3 ngày bao gồm: audit lỗi critical, đồng bộ parity với module gốc `adaptive_trend`, và review code cuối cùng đạt **95/100 — Production-ready**. Tất cả 32 issues từ 2 chu kỳ review trước đã được giải quyết; 4 items LOW còn lại không chặn deploy.
+
+---
+
+### Bug Fixes (2026-03-12 → 2026-03-13)
+
+| # | Severity | File | Vấn đề | Trạng thái |
+|---|----------|------|---------|------------|
+| 1 | **High** | `lambda_client.py` | Exception swallowing: `except Exception` bắt toàn bộ lỗi infra (NoCredentialsError, EndpointConnectionError…) và trả về fake success-dict với `error_count > 0`, caller không phân biệt được infra failure hay symbol error. `_parse_lambda_payload` nằm trong broad try/except nên parse error cũng bị nuốt. | ✅ Fixed: transport exceptions re-raised; `_parse_lambda_payload` tách ra ngoài try/except |
+| 2 | **Medium** | `src/ma_calculations.rs` | KAMA NaN guard kiểm tra `prices_arr[i-1]` thay vì `prices_arr[i]`: nếu bar hiện tại là NaN, sliding window update (`volatility_window`) vẫn chạy với NaN operand, nhiễm độc accumulator vĩnh viễn cho tất cả bar tiếp theo. | ✅ Fixed: guard kiểm tra `price.is_nan() \|\| prices_arr[i-1].is_nan()`; thêm `recompute_volatility_window` safe path |
+| 3 | **Medium** | `src/aggregation.rs` | Poisoned mutex recovery gọi `poisoned.into_inner()`: HashMap có thể ở trạng thái mid-rehash sau panic, lookup/insert tiếp theo trên map này có thể sai hoặc panic. | ✅ Fixed: thay bằng uncached pool creation; không dùng lại poisoned map |
+| 4 | **Low** | `src/validation.rs` | Missing configured timeframe trả về `ValidationError::Ohlcv` (nhầm lẫn structural error với data-quality error), error-handling code pattern-matching trên `Ohlcv` sẽ xử lý sai. | ✅ Fixed: trả về `ValidationError::Symbol`; test `test_validate_batch_request_rejects_missing_configured_timeframe` |
+| 5 | **Low** | `lambda/src/handler.rs` | Throughput metric `symbols_per_second = symbol_count * 1000` khi `processing_duration_ms == 0` (sub-ms batch) — sai tới ×1000 so với thực tế, làm hỏng CloudWatch capacity planning dashboard. | ✅ Fixed: dùng `effective_ms = processing_duration_ms.max(1)` qua helper `calculate_symbols_per_second` |
+
+### Architecture Fixes (2026-03-12)
+
+- **F1 — SQS Cross-batch Interference**: Loại bỏ shared SQS result queue; chuyển sang Lambda `RequestResponse` invocation trực tiếp — client nhận kết quả đồng bộ, không còn khả năng đọc nhầm kết quả của batch khác.
+- **F2 — CloudWatch EMF Metrics**: Implement Embedded Metric Format cho 5 custom metrics (`MemoryUsageMB`, `MemoryDeltaMB`, `SymbolsPerSecond`, `ThreadCount`, `ErrorRate`); alarms trong `template.yaml` giờ có backing metric thực. Dual threshold: 68% warning / 85% critical so với configured Lambda memory.
+- **F3 — Fail-closed Timeframe Validation**: Validate rằng tất cả configured timeframes phải có mặt trong mỗi symbol; symbol thiếu timeframe → reject thay vì silently hạ threshold phân loại (partial payload trước đó có thể promote weak signal lên LONG/SHORT nhờ effective threshold thấp hơn).
+
+---
+
+### Parity Sync với `adaptive_trend` (2026-03-14)
+
+Đồng bộ hoàn toàn tín hiệu giữa 3 module: `adaptive_trend` (source of truth), `adaptive_trend_LTS_mini` (Python), `adaptive_trend_LTS_serverless` (Rust).
+
+**Kết quả kiểm chứng cuối cùng:**
+- `report_adaptive_trend_ma_deltas.py --strict`: `total=30 passed=30 failed=0`
+- `run_adaptive_trend_parity_harness.py --strict --verbose`: `total=10 passed=10 failed=0`
+- `pytest modules/adaptive_trend/signal_atc_test.py`: **65 passed**
+- `pytest modules/adaptive_trend_LTS_mini/tests/test_parity_harness_regression.py`: **1 passed**
+- `pytest modules/adaptive_trend_LTS_serverless/tests/test_parity_harness_regression.py`: **1 passed**
+
+**CI:** `.github/workflows/adaptive_trend_parity.yml` thêm mới — CI block merge nếu parity tests fail.
+
+---
+
+### Execution Shift Refactor (Task 3, 2026-03-14)
+
+Đã tách hoàn toàn execution shift khỏi core signal engine để tránh double-shift:
+
+- `adaptive_trend_LTS_mini`
+  - Core batch/incremental luôn trả `Average_Signal` raw causal.
+  - `strategy_mode=True` không còn mutate raw; chỉ bổ sung `Average_Signal_Exec` ở adapter layer.
+  - Thêm helper `execution_shift.py` với policy `shift(1).fillna(0.0)`.
+- `adaptive_trend_LTS_serverless`
+  - Mở rộng API contract với `apply_strategy_shift` (request hint) và
+    `average_signal_raw` / `average_signal_exec` (response optional fields).
+  - Snapshot response giữ raw-only behavior; `average_signal_exec` có thể `None`.
+
+Regression coverage đã được bổ sung để khóa contract raw/exec và ngăn tái đưa shift vào core.
+
+Migration note:
+
+- Call-site cũ từng coi `Average_Signal`/`score` là đã shift cần chuyển sang:
+  1. dùng raw (`Average_Signal` hoặc `average_signal_raw`) cho classification
+  2. tự apply execution shift ở strategy/backtest adapter
+
+---
+
+### Code Changes Chi Tiết (Rust/Python)
+
+#### `src/ma_calculations.rs` — EMA/KAMA/DEMA Parity Overhaul
+
+- **`calculate_ema`** rewrite hoàn toàn để match `pandas_ta` semantics (`presma=True, adjust=False, ignore_na=False`):
+  - Seed: mean của `length` sample đầu tiên (bỏ qua NaN), thay vì SMA cứng nhắc
+  - NaN gap handling: khi price NaN → EMA carry-forward giá trị trước; khi price khôi phục sau `k` bar NaN → dùng gap-adjusted alpha: `(decay * prev + alpha * x) / (decay + alpha)` với `decay = (1-alpha)^(k+1)`
+  - Removed `calculate_ema_value_init` (dead code sau thay đổi này)
+
+- **`calculate_kama`** rewrite — loại bỏ explicit `volatility_window` accumulator:
+  - Start từ `i=0` thay vì `i=length` (giảm warm-up period)
+  - `slow_end` hiệu chỉnh từ `0.0645` → `0.064` để match source
+  - NaN handling: seed từ giá trị đầu, carry-forward khi NaN
+
+- **`calculate_dema`** — cả 2 EMA pass giờ dùng cùng `calculate_ema` presma-initialized (pass 2 không còn dùng `calculate_ema_value_init`)
+
+#### `src/constants.rs` — Shared Memory Estimation Constants
+
+```rust
+pub const OHLCV_FIELDS_PER_BAR: usize = 6;   // open, high, low, close, volume, timestamp
+pub const WORKING_BUFFERS_PER_BAR: usize = 3; // roc, r_adjusted, sig_shifted
+```
+
+Cả `aggregation::estimate_batch_memory_mb` và `handler::estimate_batch_memory_mb_rough` đều dùng 2 constants này — thêm working buffer sau sẽ tự động cập nhật rough estimate, ngăn silent underestimate.
+
+#### `src/parallelism.rs` — Env-var OnceLock Caching
+
+`ATC_FORCE_THREADS`, `ATC_FORCE_CHUNK_SIZE`, `AWS_LAMBDA_FUNCTION_MEMORY_SIZE` giờ được parse và cache trong `OnceLock<...>` — loại bỏ repeated `getenv` syscall trên mỗi warm Lambda invocation.
+
+#### `src/aggregation.rs` — Documentation
+
+Doc comment cho `MEMORY_WARNING_THRESHOLD_MB = 80`: làm rõ đây là independent static guard của core batch library (không phụ thuộc Lambda context), tách biệt với `MEMORY_WARNING_RATIO = 0.68` của handler (relative to Lambda configured memory).
+
+#### `lambda/src/handler.rs` — Memory Estimate Refactor
+
+`estimate_batch_memory_mb_rough` không còn dùng hardcoded `55 KB/symbol`; thay bằng: `(OHLCV_FIELDS_PER_BAR + WORKING_BUFFERS_PER_BAR) * ASSUMED_TOTAL_BARS_PER_SYMBOL * 8` (với `ASSUMED_TOTAL_BARS_PER_SYMBOL = 660` = 220 bars × 3 timeframes).
+
+#### `lambda_client.py` — Mock Compatibility Fix
+
+`_mock_invoke` details dict: `"MOCK"` → `"NEUTRAL"` — đảm bảo protocol compatibility với real payload (LONG/SHORT/NEUTRAL), tránh caller code bị mislead khi so sánh string trong mock mode.
+
+---
+
+### Code Review — Final (2026-03-13)
+
+**Rating: 95/100 — Production-ready**
+
+| Category | Status |
+|----------|--------|
+| No `unsafe` blocks in core logic | ✓ |
+| All numeric inputs bounds-checked | ✓ |
+| Per-symbol panic isolation (`catch_unwind`) | ✓ |
+| Strong enum types (`MAType`, `SignalType`, `Robustness`) | ✓ |
+| Thread pool caching (`OnceLock<Mutex<HashMap<usize, Arc<ThreadPool>>>>`) | ✓ |
+| Buffer pool miss-rate telemetry (`AtomicU64` counters) | ✓ |
+| CloudWatch EMF 5 metrics per invocation | ✓ |
+| Schema + timestamp monotonicity validation | ✓ |
+| `DeprecationWarning` cho SQS params trong `__init__` | ✓ |
+
+**4 Low items còn lại (non-blocking):**
+- L1: `MEMORY_WARNING_THRESHOLD_MB` cần doc comment rõ hơn (đã thêm trong diff hiện tại)
+- L2: `"MOCK"` → `"NEUTRAL"` trong mock invoke (đã fix)
+- L3: Env-var OnceLock caching (đã fix)
+- L4: Cross-validation test cho `estimate_batch_memory_mb_rough` vs `estimate_batch_memory_mb` — pending
+
+---
+
 ## [Implementation Update] - 2026-02-22
 
 ### Current status after Phase 7

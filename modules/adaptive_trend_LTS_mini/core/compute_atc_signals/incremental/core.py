@@ -21,6 +21,7 @@ except ImportError:
 
 
 from . import ma_updaters, signal_calculator
+from ..execution_shift import apply_execution_shift_value
 from .state_manager import StateManager
 
 
@@ -219,14 +220,27 @@ class IncrementalATC:
                     )
 
                     if check_rust_available():
+                        prev_avg = self.state.get("average_signal")
                         signal, updated_state = update_incremental_auto(self.state, new_price, self.config)
 
                         # Update state from Rust response
                         self.state = updated_state
-                        self.state["signal"] = signal
-                        self.state["average_signal"] = signal
-                        log_debug(f"Rust update complete, signal={signal}")
-                        return signal
+                        raw_signal = float(signal)
+                        self.state["average_signal_prev"] = prev_avg
+                        self.state["average_signal"] = raw_signal
+                        self.state["average_signal_exec"] = apply_execution_shift_value(prev_avg)
+                        self.state["signal_raw"] = raw_signal
+
+                        strategy_mode = bool(self.config.get("strategy_mode", False))
+                        output_signal = (
+                            float(self.state["average_signal_exec"]) if strategy_mode else raw_signal
+                        )
+                        self.state["signal"] = output_signal
+                        log_debug(
+                            f"Rust update complete, raw_signal={raw_signal}, "
+                            f"output_signal={output_signal}, strategy_mode={strategy_mode}"
+                        )
+                        return output_signal
 
                     log_warn("Rust backend not available, falling back to Python")
                 except Exception as e:
@@ -240,11 +254,18 @@ class IncrementalATC:
             log_debug(f"After MAs update: {self.state['ma_values']}")
 
             # Calculate signal using Python implementation
-            signal = self._update_python_incremental(prev_price=prev_price, prev_ma_values=prev_ma_values)
-            log_debug(f"Final signal: {signal}")
+            raw_signal = self._update_python_incremental(prev_price=prev_price, prev_ma_values=prev_ma_values)
+            strategy_mode = bool(self.config.get("strategy_mode", False))
+            output_signal = (
+                float(self.state.get("average_signal_exec", 0.0))
+                if strategy_mode
+                else raw_signal
+            )
+            log_debug(f"Final signal (raw={raw_signal}, output={output_signal}, strategy_mode={strategy_mode})")
 
-            self.state["signal"] = signal
-            return signal
+            self.state["signal_raw"] = raw_signal
+            self.state["signal"] = output_signal
+            return output_signal
 
     def batch_update(self, new_prices: Any) -> list[float]:
         """Update ATC signal with multiple new price bars."""
@@ -311,12 +332,10 @@ class IncrementalATC:
         # Calculate Final Signal
         avg_current = signal_calculator.calculate_average_signal(self.state, self.config)
 
-        # Handle strategy mode persistence if needed
+        # Persist raw average signal and derive execution-view signal in adapter layer.
         prev_avg = self.state.get("average_signal")
+        self.state["average_signal_prev"] = prev_avg
         self.state["average_signal"] = avg_current
-
-        strategy_mode = bool(self.config.get("strategy_mode", False))
-        if strategy_mode:
-            return float(prev_avg) if prev_avg is not None else 0.0
+        self.state["average_signal_exec"] = apply_execution_shift_value(prev_avg)
 
         return avg_current

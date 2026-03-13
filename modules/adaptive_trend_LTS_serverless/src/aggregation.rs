@@ -65,6 +65,14 @@ fn get_or_create_custom_thread_pool(num_threads: usize) -> Option<Arc<rayon::Thr
 ///
 /// The main entry point is `process_batch()` which handles the complete pipeline
 /// from input data to final signal results.
+///
+/// Static memory warning threshold for the core batch library.
+///
+/// This is an independent, environment-agnostic guard: if RSS memory exceeds 80 MB
+/// during batch processing, a warning is emitted regardless of the Lambda deployment
+/// context. This is separate from the Lambda handler's ratio-based thresholds
+/// (`MEMORY_WARNING_RATIO = 0.68`, `MEMORY_CRITICAL_RATIO = 0.85` in `handler.rs`),
+/// which are relative to the Lambda function's configured memory size.
 const MEMORY_WARNING_THRESHOLD_MB: u64 = 80;
 
 /// Get current memory usage in MB
@@ -97,8 +105,8 @@ fn estimate_batch_memory_mb(symbols: &[SymbolData]) -> u64 {
     for symbol in symbols {
         for ohlcv in symbol.timeframes.values() {
             let bars = ohlcv.close.len();
-            total_bytes += bars * 6 * 8; // OHLCV + timestamp (6 arrays)
-            total_bytes += bars * 3 * 8; // 3x working buffers (roc, r_adjusted, sig_shifted)
+            total_bytes += bars * crate::constants::OHLCV_FIELDS_PER_BAR * 8;
+            total_bytes += bars * crate::constants::WORKING_BUFFERS_PER_BAR * 8;
         }
     }
     (total_bytes / (1024 * 1024)) as u64
@@ -443,7 +451,8 @@ mod tests {
 
         let mem_mb = estimate_batch_memory_mb(&[symbol]);
 
-        let expected_bytes = (bars * 6 * 8) * 2 + (bars * 3 * 8) * 2;
+        let expected_bytes = (bars * crate::constants::OHLCV_FIELDS_PER_BAR * 8) * 2
+            + (bars * crate::constants::WORKING_BUFFERS_PER_BAR * 8) * 2;
         let expected_mb = (expected_bytes / (1024 * 1024)) as u64;
 
         assert_eq!(mem_mb, expected_mb);

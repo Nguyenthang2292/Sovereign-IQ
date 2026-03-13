@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-import numpy as np
 import pandas as pd
 
 try:
@@ -20,9 +19,8 @@ except ImportError:
         print(f"[WARN] {msg}")
 
 
-from modules.adaptive_trend_LTS_mini.core.compute_equity import _calculate_equities_parallel
-from modules.adaptive_trend_LTS_mini.core.rust_backend import calculate_equity
-from modules.common.system import get_memory_manager, get_series_pool, temp_series
+from modules.adaptive_trend_LTS_mini.core.compute_equity import equity_series
+from modules.common.system import get_memory_manager, temp_series
 
 
 @temp_series
@@ -71,93 +69,21 @@ def calculate_layer2_equities(
     mem_manager = get_memory_manager()
 
     with mem_manager.track_memory("calculate_layer2_equities"):
-        if parallel and len(ma_configs) > 1:
-            # Prepare batch data for vectorized parallel calculation
-            dtype = np.float32 if precision == "float32" else np.float64
-            ma_types = [cfg[0] for cfg in ma_configs if cfg[0] in layer1_signals]
-            initial_weights = np.array([cfg[2] for cfg in ma_configs if cfg[0] in layer1_signals], dtype=dtype)
+        for ma_type, _, initial_weight in ma_configs:
+            if ma_type not in layer1_signals:
+                log_warn(f"Layer 1 signal for {ma_type} not found, skipping")
+                continue
 
-            if not ma_types:
-                return {}
-
-            # Stack signals into matrix (n_signals, n_bars)
-            n_bars = len(rate_of_change_series)
-            n_signals = len(ma_types)
-            signals_matrix = np.empty((n_signals, n_bars), dtype=dtype)
-
-            for i, ma_type in enumerate(ma_types):
-                signals_matrix[i] = np.asarray(layer1_signals[ma_type].values, dtype=dtype)
-
-            # Shift signals by 1 period (sig[1] in Pine Script)
-            # NOTE: This shift is for INTERNAL equity calculation only
-            # The Layer 1 signals passed to calculate_average_signal are NOT shifted
-            # Parallel worker assumes sig_prev_values is already shifted!
-            signals_prev = np.empty_like(signals_matrix)
-            signals_prev[:, 1:] = signals_matrix[:, :-1]
-            signals_prev[:, 0] = np.nan
-
-            # Get growth factor
-            from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
-
-            growth = exp_growth(lambda_val=lambda_val, index=rate_of_change_series.index, cutout=cutout)
-            r_adjusted = (rate_of_change_series * growth).values
-            d = 1.0 - decay_val
-
-            # Calculate all equities in parallel using Numba
-            # Result matrix (n_signals, n_bars)
-            equity_matrix = _calculate_equities_parallel(
-                starting_equities=initial_weights,
-                sig_prev_values=signals_prev,
-                r_values=np.asarray(r_adjusted, dtype=np.float64),
-                decay_multiplier=d,
+            equity = equity_series(
+                starting_equity=initial_weight,
+                sig=layer1_signals[ma_type],
+                rate_of_change_series=rate_of_change_series,
+                lambda_val=lambda_val,
+                decay_val=decay_val,
                 cutout=cutout,
-                floor_val=floor_val,
+                verbose=False,
             )
-
-            # Convert back to dictionary of Series
-            series_pool = get_series_pool()
-            for i, ma_type in enumerate(ma_types):
-                # Acquire from pool to be efficient
-                equity_series_obj = series_pool.acquire(n_bars, dtype=dtype, index=rate_of_change_series.index)
-                equity_series_obj.iloc[:] = equity_matrix[i]
-                layer2_equities[ma_type] = equity_series_obj  # type: ignore[assignment,union-attr]
-        else:
-            # Sequential processing (fallback or single MA)
-            # rate_of_change multiplied by e(lambda_val) (growth factor)
-            from modules.adaptive_trend_LTS_mini.utils.exp_growth import exp_growth
-
-            growth = exp_growth(lambda_val=lambda_val, index=rate_of_change_series.index, cutout=cutout)
-            r_adjusted = (rate_of_change_series * growth).values
-            d = 1.0 - decay_val
-
-            for ma_type, _, initial_weight in ma_configs:
-                if ma_type not in layer1_signals:
-                    log_warn(f"Layer 1 signal for {ma_type} not found, skipping")
-                    continue
-
-                sig = layer1_signals[ma_type]
-
-                # Shift signals by 1 period (sig[1] in Pine Script)
-                sig_shifted = sig.shift(1)  # Leave first as NaN to match Original
-
-                # Calculate equity using Rust backend (handles CPU/CUDA internally)
-                # FIX: use_rust_backend parameter was being ignored, always using Rust
-                equity_values = calculate_equity(
-                    r_values=np.asarray(r_adjusted, dtype=np.float64),
-                    sig_prev=np.asarray(sig_shifted, dtype=np.float64),
-                    starting_equity=initial_weight,
-                    decay_multiplier=d,
-                    cutout=cutout,
-                    use_rust=use_rust_backend,
-                    floor_val=floor_val,
-                )
-
-                # FIX #3: Equity floor validation handled inside calculate_equity (Rust/CPU)
-                # NOTE: The 0.25 floor is an intentional design choice to prevent
-                # total bankruptcy. This logic is embedded in the Rust/CPU kernel.
-
-                equity = pd.Series(equity_values, index=rate_of_change_series.index, dtype=np.float64)
-                layer2_equities[ma_type] = equity  # type: ignore[assignment,union-attr]
+            layer2_equities[ma_type] = equity
 
     log_debug("Completed Layer 2 equity weights")
     return layer2_equities

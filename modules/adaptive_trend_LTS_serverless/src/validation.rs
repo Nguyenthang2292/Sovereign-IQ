@@ -853,6 +853,7 @@ mod tests {
             batch_id: "test".to_string(),
             version: Some("1.0.0".to_string()),
             symbols: vec![],
+            apply_strategy_shift: None,
             config: ATCConfig {
                 robustness: crate::Robustness::Medium,
                 weights: HashMap::new(),
@@ -876,6 +877,7 @@ mod tests {
             batch_id: "test".to_string(),
             version: Some("2.0.0".to_string()),
             symbols: vec![],
+            apply_strategy_shift: None,
             config: ATCConfig {
                 robustness: crate::Robustness::Medium,
                 weights: HashMap::new(),
@@ -906,6 +908,7 @@ mod tests {
                     tf
                 },
             }],
+            apply_strategy_shift: None,
             config: ATCConfig {
                 robustness: crate::Robustness::Medium,
                 weights: {
@@ -944,6 +947,7 @@ mod tests {
                     tf
                 },
             }],
+            apply_strategy_shift: None,
             config: ATCConfig {
                 robustness: crate::Robustness::Medium,
                 weights: {
@@ -1000,6 +1004,7 @@ mod tests {
                     tf
                 },
             }],
+            apply_strategy_shift: None,
             config: ATCConfig {
                 robustness: crate::Robustness::Medium,
                 weights: {
@@ -1048,6 +1053,7 @@ mod tests {
             batch_id: "test".to_string(),
             version: Some("1.0.0".to_string()),
             symbols,
+            apply_strategy_shift: None,
             config: ATCConfig {
                 robustness: crate::Robustness::Medium,
                 weights: {

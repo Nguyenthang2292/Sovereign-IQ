@@ -154,7 +154,13 @@ def cut_signal(
             c = x > 0.49 ? 1 : x < -0.49 ? -1 : 0
             c
 
-    Args:
+        Algorithm note (intentional):
+        - This function supports configurable thresholds and is used by final
+            aggregation to control model sensitivity.
+        - Default threshold remains 0.49 to preserve classic behavior when
+            caller does not pass explicit cut bounds.
+
+        Args:
         x: Continuous signal series.
         threshold: Threshold for discretization (default: 0.49).
             Used if long_threshold and short_threshold are not provided.

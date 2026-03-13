@@ -5,68 +5,63 @@ use std::simd::f64x4;
 #[cfg(feature = "simd")]
 use std::simd::num::SimdFloat;
 
-/// SIMD-optimized EMA calculation (requires `simd` feature and nightly Rust)
+/// SIMD-enabled EMA calculation with source parity semantics.
 ///
-/// Uses 4-way f64 SIMD vectors for faster computation on arrays.
-/// Falls back to scalar implementation when SIMD is not available.
+/// Maintains behavioral parity with pandas_ta EMA:
+/// - presma seed from mean(first length samples), skipping NaNs
+/// - carry-forward on NaN source values
+/// - gap-adjusted alpha on finite values after NaN gaps
+/// - bootstrap from source when previous EMA is NaN
 #[cfg(feature = "simd")]
 pub fn calculate_ema_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut ema = Array1::<f64>::from_elem(n, f64::NAN);
 
-    // Find first valid index
-    let mut start_idx = 0;
-    while start_idx < n && prices_arr[start_idx].is_nan() {
-        start_idx += 1;
-    }
-
-    // Need 'length' items for SMA init
-    if n < start_idx + length {
+    if length == 0 || n < length {
         return ema;
     }
 
-    // SMA Initialization using SIMD
+    // Presma seed: mean(first length samples), ignoring NaNs.
     let mut sum = 0.0;
-    let init_end = start_idx + length;
-
-    // Process 4 elements at a time with SIMD
-    let chunks = length / 4;
-    if chunks > 0 {
-        let mut vec_sum = f64x4::splat(0.0);
-        for i in 0..chunks {
-            let base_idx = start_idx + i * 4;
-            if base_idx + 4 <= init_end {
-                let vec = f64x4::from_array([
-                    prices_arr[base_idx],
-                    prices_arr[base_idx + 1],
-                    prices_arr[base_idx + 2],
-                    prices_arr[base_idx + 3],
-                ]);
-                vec_sum += vec;
-            }
-        }
-        // Sum the vector elements using horizontal add
-        sum = vec_sum.reduce_sum();
-
-        // Process remaining elements
-        for i in (chunks * 4)..length {
-            sum += prices_arr[start_idx + i];
-        }
-    } else {
-        // If length < 4, use scalar
-        for i in 0..length {
-            sum += prices_arr[start_idx + i];
+    let mut count = 0usize;
+    for i in 0..length {
+        let value = prices_arr[i];
+        if value.is_finite() {
+            sum += value;
+            count += 1;
         }
     }
-
-    ema[init_end - 1] = sum / length as f64;
+    ema[length - 1] = if count > 0 {
+        sum / count as f64
+    } else {
+        f64::NAN
+    };
 
     let alpha = 2.0 / (length as f64 + 1.0);
     let one_minus_alpha = 1.0 - alpha;
+    let mut nan_gap = 0usize;
 
-    // Recursive calculation (harder to SIMD-ize due to dependency)
-    for i in init_end..n {
-        ema[i] = alpha * prices_arr[i] + one_minus_alpha * ema[i - 1];
+    // Recursive section is scalar due sequential dependency.
+    for i in length..n {
+        let price = prices_arr[i];
+        let prev = ema[i - 1];
+
+        if price.is_finite() {
+            ema[i] = if prev.is_finite() {
+                if nan_gap == 0 {
+                    alpha * price + one_minus_alpha * prev
+                } else {
+                    let decay = one_minus_alpha.powi((nan_gap + 1) as i32);
+                    (decay * prev + alpha * price) / (decay + alpha)
+                }
+            } else {
+                price
+            };
+            nan_gap = 0;
+        } else {
+            ema[i] = prev;
+            nan_gap += 1;
+        }
     }
 
     ema
@@ -78,7 +73,7 @@ pub fn calculate_sma_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1<
     let n = prices_arr.len();
     let mut sma = Array1::<f64>::from_elem(n, f64::NAN);
 
-    if n < length {
+    if length == 0 || n < length {
         return sma;
     }
 
@@ -120,12 +115,20 @@ pub fn calculate_sma_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1<
 }
 
 /// SIMD-optimized weighted sum calculation
+///
+/// **Complexity note**: This implementation is `O(n * length)` — each output element
+/// independently sums its `length`-wide window with SIMD lanes. The scalar
+/// `calculate_wma` in `ma_calculations.rs` uses a sliding-window trick that is `O(n)`.
+/// For small `length` values (≤ 28, typical in production) the SIMD throughput gain
+/// from parallelising each window's multiply-accumulate outweighs the extra iterations.
+/// For very large lengths (> ~200) the scalar sliding-window becomes faster; prefer
+/// the scalar implementation in that case or implement an `O(n)` SIMD variant.
 #[cfg(feature = "simd")]
 pub fn calculate_wma_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut wma = Array1::<f64>::from_elem(n, f64::NAN);
 
-    if n < length {
+    if length == 0 || n < length {
         return wma;
     }
 
@@ -179,42 +182,16 @@ pub fn calculate_wma_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1<
     wma
 }
 
-/// SIMD-optimized EMA calculation for internal use in DEMA
-#[cfg(feature = "simd")]
-fn calculate_ema_simple_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
-    let n = prices_arr.len();
-    let mut ema = Array1::<f64>::from_elem(n, f64::NAN);
-
-    let mut start_idx = 0;
-    while start_idx < n && prices_arr[start_idx].is_nan() {
-        start_idx += 1;
-    }
-
-    if start_idx >= n {
-        return ema;
-    }
-
-    ema[start_idx] = prices_arr[start_idx];
-
-    let alpha = 2.0 / (length as f64 + 1.0);
-    let one_minus_alpha = 1.0 - alpha;
-
-    for i in (start_idx + 1)..n {
-        ema[i] = alpha * prices_arr[i] + one_minus_alpha * ema[i - 1];
-    }
-    ema
-}
-
 /// SIMD-optimized DEMA (Double Exponential Moving Average)
 ///
 /// DEMA = 2 * EMA1 - EMA2
 /// where:
 ///   EMA1 = EMA(prices, length) with SMA initialization
-///   EMA2 = EMA(EMA1, length) with simple initialization
+///   EMA2 = EMA(EMA1, length) with the same EMA semantics
 #[cfg(feature = "simd")]
 pub fn calculate_dema_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let ema1 = calculate_ema_simd(prices_arr, length);
-    let ema2 = calculate_ema_simple_simd(ema1.view(), length);
+    let ema2 = calculate_ema_simd(ema1.view(), length);
     2.0 * &ema1 - &ema2
 }
 
@@ -228,13 +205,14 @@ pub fn calculate_dema_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1
 #[cfg(feature = "simd")]
 pub fn calculate_hma_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
+    let hma = Array1::<f64>::from_elem(n, f64::NAN);
+
+    if length == 0 || n < length {
+        return hma;
+    }
 
     let half_len = std::cmp::max(length / 2, 1);
     let sqrt_len = std::cmp::max((length as f64).sqrt() as usize, 1);
-
-    if n < length {
-        return Array1::<f64>::from_elem(n, f64::NAN);
-    }
 
     let wma_half = calculate_wma_simd(prices_arr, half_len);
     let wma_full = calculate_wma_simd(prices_arr, length);
@@ -254,7 +232,7 @@ pub fn calculate_lsma_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1
     let n = prices_arr.len();
     let mut lsma = Array1::<f64>::from_elem(n, f64::NAN);
 
-    if n < length.max(MIN_LENGTH_MEDIUM) {
+    if length == 0 || n < length.max(MIN_LENGTH_MEDIUM) {
         return lsma;
     }
 
@@ -329,69 +307,58 @@ pub fn calculate_kama_simd(prices_arr: ArrayView1<f64>, length: usize) -> Array1
     let n = prices_arr.len();
     let mut kama = Array1::<f64>::from_elem(n, f64::NAN);
 
-    if n < length {
+    if length == 0 || n < 1 {
         return kama;
     }
 
     let fast_end = 0.666;
-    let slow_end = 0.0645;
+    let slow_end = 0.064;
 
-    let start_idx = length;
-    kama[start_idx - 1] = prices_arr[start_idx - 1];
+    for i in 0..n {
+        if i == 0 {
+            kama[i] = prices_arr[i];
+            continue;
+        }
+        if i < length {
+            kama[i] = kama[i - 1];
+            continue;
+        }
 
-    for i in start_idx..n {
         let price = prices_arr[i];
-        let prev_kama = kama[i - 1];
-
-        // Efficiency Ratio calculation
         let change = (price - prices_arr[i - length]).abs();
 
-        // Use SIMD for volatility sum
+        // Use SIMD to accelerate the rolling absolute-difference sum.
+        let mut volatility = 0.0;
+        let start_idx = i - length + 1;
         let chunks = length / 4;
-        let mut vec_volatility = f64x4::splat(0.0);
-
-        for j in 0..chunks {
-            let base_idx = i - j * 4;
-            if base_idx >= 3 && base_idx < n {
-                let curr = f64x4::from_array([
-                    prices_arr[base_idx],
-                    prices_arr[base_idx - 1],
-                    prices_arr[base_idx - 2],
-                    prices_arr[base_idx - 3],
-                ]);
-                let prev = f64x4::from_array([
-                    prices_arr[base_idx - 1],
-                    prices_arr[base_idx - 2],
-                    prices_arr[base_idx - 3],
-                    // SAFETY: start_idx = length and length >= MIN_LENGTH_NARROW (5), so for all
-                    // valid positions i >= length, base_idx = i - j*4 >= length - (chunks-1)*4 >= 4.
-                    // The `continue` branch is unreachable for validated inputs but kept for safety.
-                    if base_idx >= 4 {
-                        prices_arr[base_idx - 4]
-                    } else {
-                        continue;
-                    },
-                ]);
-                vec_volatility += (curr - prev).abs();
-            }
+        for chunk in 0..chunks {
+            let base = start_idx + chunk * 4;
+            let curr = f64x4::from_array([
+                prices_arr[base],
+                prices_arr[base + 1],
+                prices_arr[base + 2],
+                prices_arr[base + 3],
+            ]);
+            let prev = f64x4::from_array([
+                prices_arr[base - 1],
+                prices_arr[base],
+                prices_arr[base + 1],
+                prices_arr[base + 2],
+            ]);
+            volatility += (curr - prev).abs().reduce_sum();
+        }
+        for offset in (chunks * 4)..length {
+            let idx = start_idx + offset;
+            volatility += (prices_arr[idx] - prices_arr[idx - 1]).abs();
         }
 
-        let mut volatility = vec_volatility.reduce_sum();
-
-        // Process remaining elements
-        for j in (chunks * 4)..length {
-            if i >= j + 1 {
-                volatility += (prices_arr[i - j] - prices_arr[i - j - 1]).abs();
-            }
-        }
-
-        let er = if volatility != 0.0 {
-            change / volatility
-        } else {
-            0.0
-        };
+        let er = if volatility == 0.0 { 0.0 } else { change / volatility };
         let sc = (er * (fast_end - slow_end) + slow_end).powi(2);
 
+        let mut prev_kama = kama[i - 1];
+        if prev_kama.is_nan() {
+            prev_kama = prices_arr[i];
+        }
         kama[i] = prev_kama + sc * (price - prev_kama);
     }
 

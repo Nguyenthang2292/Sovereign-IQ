@@ -154,7 +154,16 @@ def compute_atc_signals(
     1. Compute Moving Averages with multiple lengths
     2. Compute Layer 1 signals for each MA type
     3. Compute Layer 2 weights from Layer 1 signals
-    4. Combine all to create Average_Signal
+        4. Combine all to create Average_Signal
+
+        Algorithm decisions (intentional):
+        - Final aggregation uses configurable cut thresholds (`long_threshold`,
+            `short_threshold`) when discretizing each MA family signal before
+            weighting.
+        - This favors tunable sensitivity for production strategies, even if some
+            source scripts use fixed cut constants.
+        - Keep this behavior unless the team explicitly introduces a strict
+            source-parity mode.
 
     Args:
         prices: Price series (typically close) for computing rate of change and signals.
@@ -167,8 +176,10 @@ def compute_atc_signals(
         La: Lambda (growth rate) for exponential growth factor.
         De: Decay rate for equity calculations.
         cutout: Number of bars to skip at the beginning.
-        long_threshold: Threshold for LONG signals (default: 0.1).
-        short_threshold: Threshold for SHORT signals (default: -0.1).
+        long_threshold: Threshold for LONG cut state in final aggregation
+            (default: 0.1).
+        short_threshold: Threshold for SHORT cut state in final aggregation
+            (default: -0.1).
 
     Returns:
         Dictionary containing:
@@ -278,7 +289,8 @@ def compute_atc_signals(
         signal = layer1_signals[ma_type]
         equity = layer2_equities[ma_type]
 
-        # Cut signal: vectorized operation
+        # Cut signal (intentional): use configurable thresholds for tunable
+        # responsiveness in production, rather than fixed constants.
         cut_sig = cut_signal(
             signal,
             long_threshold=long_threshold,

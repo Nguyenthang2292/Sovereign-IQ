@@ -37,7 +37,7 @@ def calculate_kama_atc(
 ) -> Optional[pd.Series]:
     """Calculate KAMA (Kaufman Adaptive Moving Average) for ATC.
 
-    Direct port of Pine Script KAMA function to ensure exact matching:
+    Pine-inspired KAMA implementation with explicit warmup behavior:
         kama(source, length) =>
             fast= 0.666
             slow = 0.064
@@ -49,6 +49,13 @@ def calculate_kama_atc(
             smooth = math.pow(ratio * (fast - slow) + slow, 2)
             KAMA := nz(KAMA[1]) + smooth * (source - nz(KAMA[1]))
             KAMA
+
+        Algorithm note (intentional):
+        - Warmup policy is deterministic and kept stable for production consistency.
+        - Bar 0 initializes to price[0].
+        - Bars 1..length-1 carry forward previous KAMA (no NaN gaps after bar 0).
+        - This is an explicit Python design choice to avoid unstable early-series
+            behavior across analysis/backtest/live pipelines.
 
     Args:
         prices: Price series (typically close prices).
@@ -158,10 +165,14 @@ def ma_calculation(
             else
                 na
 
-    Notes:
-    - **DEVIATION FROM PINESCRIPT**: HMA uses TRUE Hull Moving Average (ta.hma) instead of SMA.
-      The original PineScript source uses ta.sma() for "HMA", but this Python implementation
-      uses the correct Hull formula for better trend following and reduced lag.
+        Notes:
+        - **ALGORITHMIC DECISION (INTENTIONAL):** HMA uses TRUE Hull Moving Average
+            (`ta.hma`) instead of SMA.
+        - Rationale: when mode is named "HMA", Python intentionally applies Hull
+            semantics (lower lag and stronger trend response) rather than preserving
+            legacy script naming/behavior.
+        - This is a product-level decision, not an implementation bug. Keep as-is
+            unless the team explicitly switches to strict source-script parity mode.
     - LSMA uses `ta.linreg`, equivalent to `lsma()` in Pine.
     - KAMA calls `calculate_kama_atc` with normalized fast/slow parameters.
 
@@ -208,19 +219,7 @@ def ma_calculation(
         if ma == "EMA":
             result = ta.ema(source, length=length)
         elif ma == "HMA":
-            # DEVIATION FROM PINESCRIPT SOURCE:
-            # The original Pine Script source (source_pine.txt) uses ta.sma() for "HMA".
-            # This Python implementation uses TRUE Hull Moving Average (ta.hma) for correctness.
-            #
-            # PineScript source line: else if ma_type == "HMA" ta.sma(source, length)
-            # Python implementation: ta.hma(source, length)
-            #
-            # Rationale: Using true HMA provides better trend following and reduces lag,
-            # which is the intended purpose of Hull Moving Average. The PineScript version
-            # likely used SMA as a simplification or placeholder.
-            #
-            # Impact: This will produce different signals compared to the original PineScript.
-            # All Python versions (Original, Enhanced, Rust) now use consistent TRUE HMA.
+            # Intentional algorithmic choice: HMA branch computes true Hull MA.
             result = ta.hma(source, length=length)
             if result is None:
                 log_warn(f"HMA calculation failed, falling back to SMA for length={length}")

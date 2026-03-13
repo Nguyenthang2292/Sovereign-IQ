@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added raw/execution signal contract docs at `docs/RAW_EXEC_SIGNAL_CONTRACT.md` and regression tests to lock the no-shift-in-core invariant (`src/multi_tf_voting.rs`, `src/signal_detection.rs`, `lambda/src/handler.rs`).
+- Added API contract fields for migration-safe execution shift handling: request hint `apply_strategy_shift`, response fields `average_signal_raw` and optional `average_signal_exec`.
 - Added `visualizer` sub-module (`modules/adaptive_trend_LTS_serverless/visualizer`) with `ATCChartRenderer` + CLI (`python -m modules.adaptive_trend_LTS_serverless.visualizer`) to render candlestick charts with ATC signal markers and all ATC MA lines (EMA/WMA/DEMA/LSMA/HMA/KAMA); verified by smoke run output `charts/review_visualizer_smoke.png`.
 - Added final codex review: `docs/codex_review_final_2026-02-22.md` — **32/32 issues resolved across 2 review cycles**, 0 Critical/High/Medium remaining, 3 cosmetic-only items. Module approved for v0.2.0 release ✅.
 - Added codex review report: `docs/codex_review_2026-02-22.md` — follow-up review confirming all 21 previous issues resolved ✅, identified 2 High, 4 Medium, 5 Low new findings.
@@ -27,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Refactored execution shift out of signal core: core output is now raw/causal, while execution shift is handled at adapter/consumer layer.
+- Standardized snapshot contract so scanner/classification reads raw (`score` / `average_signal_raw`), while shifted execution view remains optional (`average_signal_exec` can be `None` in snapshot responses).
 - **`MAConfig.ma_type`** changed from `String` to `MAType` enum — **breaking API change** (bump to `0.2.0` on release).
 - **`ATCConfig.robustness`** changed from `String` to `Robustness` enum (`PascalCase` serde) — invalid values now fail during deserialization.
 - **`SignalResult.signal_type`** changed from `String` to `SignalType` enum; `details` now use `HashMap<String, SignalType>`.
@@ -47,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed regression risk of accidental double-shift by enforcing single-shift policy only in execution adapters, not in Rust core scoring path.
 - **C3** (Critical): KAMA SIMD silent data corruption — `else { 0.0 }` sentinel replaced with `continue` to exclude out-of-bounds positions from volatility sum.
 - **C1** (Critical): SMA SIMD O(n×length) regression — rewritten with sliding window O(n) algorithm.
 - **C2** (Critical): `eprintln!` in core library — replaced with structured `tracing` / `log` macros.

@@ -1,65 +1,64 @@
 use ndarray::{s, Array1, ArrayView1};
 
-/// Calculate EMA with value-initialization (first valid value seed).
+/// Calculate EMA using pandas_ta semantics (presma=True, adjust=False, ignore_na=False).
 ///
-/// Used internally for DEMA pass-2 to preserve output availability after pass-1 EMA.
-#[cfg(not(feature = "simd"))]
-fn calculate_ema_value_init(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
-    let n = prices_arr.len();
-    let mut ema = Array1::<f64>::from_elem(n, f64::NAN);
-
-    // Find first valid index
-    let mut start_idx = 0;
-    while start_idx < n && prices_arr[start_idx].is_nan() {
-        start_idx += 1;
-    }
-
-    if start_idx >= n {
-        return ema;
-    }
-
-    let alpha = 2.0 / (length as f64 + 1.0);
-    let one_minus_alpha = 1.0 - alpha;
-
-    // Simple Initialization: Start with first valid value
-    ema[start_idx] = prices_arr[start_idx];
-
-    // Recursive calculation
-    for i in (start_idx + 1)..n {
-        ema[i] = alpha * prices_arr[i] + one_minus_alpha * ema[i - 1];
-    }
-    ema
-}
-
-/// Calculate EMA with Standard Initialization (SMA of first N valid values)
+/// Parity contract with source:
+/// - Seed uses the mean of the first `length` samples (ignoring NaNs).
+/// - Values before `length - 1` are NaN.
+/// - If current source is NaN, EMA carries previous value.
+/// - When finite values resume after `k` NaNs, pandas ewm(ignore_na=False)
+///   uses a gap-adjusted alpha:
+///   y_t = (decay * y_prev + alpha * x_t) / (decay + alpha)
+///   where decay = (1 - alpha)^(k + 1).
+/// - If previous EMA is NaN and current source is finite, EMA boots from source.
 pub fn calculate_ema(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
     let n = prices_arr.len();
     let mut ema = Array1::<f64>::from_elem(n, f64::NAN);
 
-    // Find first valid index
-    let mut start_idx = 0;
-    while start_idx < n && prices_arr[start_idx].is_nan() {
-        start_idx += 1;
-    }
-
-    // Need 'length' items for SMA init
-    if n < start_idx + length {
+    if length == 0 || n < length {
         return ema;
     }
 
-    // SMA Initialization
+    // Presma seed: mean(first length samples), ignoring NaNs.
     let mut sum = 0.0;
+    let mut count = 0usize;
     for i in 0..length {
-        sum += prices_arr[start_idx + i];
+        let value = prices_arr[i];
+        if value.is_finite() {
+            sum += value;
+            count += 1;
+        }
     }
-    ema[start_idx + length - 1] = sum / length as f64;
+    ema[length - 1] = if count > 0 {
+        sum / count as f64
+    } else {
+        f64::NAN
+    };
 
     let alpha = 2.0 / (length as f64 + 1.0);
     let one_minus_alpha = 1.0 - alpha;
+    let mut nan_gap = 0usize;
 
-    // Recursive calculation
-    for i in (start_idx + length)..n {
-        ema[i] = alpha * prices_arr[i] + one_minus_alpha * ema[i - 1];
+    for i in length..n {
+        let price = prices_arr[i];
+        let prev = ema[i - 1];
+
+        if price.is_finite() {
+            ema[i] = if prev.is_finite() {
+                if nan_gap == 0 {
+                    alpha * price + one_minus_alpha * prev
+                } else {
+                    let decay = one_minus_alpha.powi((nan_gap + 1) as i32);
+                    (decay * prev + alpha * price) / (decay + alpha)
+                }
+            } else {
+                price
+            };
+            nan_gap = 0;
+        } else {
+            ema[i] = prev;
+            nan_gap += 1;
+        }
     }
 
     ema
@@ -70,7 +69,7 @@ pub fn calculate_wma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> 
     let n = prices_arr.len();
     let mut wma = Array1::<f64>::from_elem(n, f64::NAN);
 
-    if n < length {
+    if length == 0 || n < length {
         return wma;
     }
 
@@ -138,11 +137,10 @@ pub fn calculate_wma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> 
 /// Calculate DEMA (Double Exponential Moving Average)
 #[cfg(not(feature = "simd"))]
 pub fn calculate_dema(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
-    // Pass 1: Standard EMA (SMA Init)
+    // Source parity: DEMA = 2 * EMA(close) - EMA(EMA(close)),
+    // where both EMA passes use the same presma initialization behavior.
     let ema1 = calculate_ema(prices_arr, length);
-
-    // Pass 2: EMA with value-init seed to preserve availability.
-    let ema2 = calculate_ema_value_init(ema1.view(), length);
+    let ema2 = calculate_ema(ema1.view(), length);
 
     // DEMA = 2 * EMA1 - EMA2
     2.0 * &ema1 - &ema2
@@ -159,7 +157,7 @@ pub fn calculate_lsma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64>
     let n = prices_arr.len();
     let mut lsma = Array1::<f64>::from_elem(n, f64::NAN);
 
-    if n < length {
+    if length == 0 || n < length {
         return lsma;
     }
 
@@ -249,7 +247,7 @@ pub fn calculate_sma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> 
     let n = prices_arr.len();
     let mut sma = Array1::<f64>::from_elem(n, f64::NAN);
 
-    if n < length {
+    if length == 0 || n < length {
         return sma;
     }
 
@@ -275,7 +273,7 @@ pub fn calculate_hma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> 
     let half_len = std::cmp::max(length / 2, 1);
     let sqrt_len = std::cmp::max((length as f64).sqrt() as usize, 1);
 
-    if n < length {
+    if length == 0 || n < length {
         return Array1::<f64>::from_elem(n, f64::NAN);
     }
 
@@ -309,96 +307,40 @@ pub fn calculate_kama(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64>
     let n = prices_arr.len();
     let mut kama = Array1::<f64>::from_elem(n, f64::NAN);
 
-    if n < length {
+    if length == 0 || n < 1 {
         return kama;
     }
 
     // Fast/Slow constants
     let fast_end = 0.666; // 2 / (2 + 1)
-    let slow_end = 0.0645; // 2 / (30 + 1)
+    let slow_end = 0.064;
 
-    // Initialize
-    let start_idx = length;
-    kama[start_idx - 1] = prices_arr[start_idx - 1]; // Simple init
-
-    // Initial volatility window for i = start_idx:
-    // sum_{k=1..length} abs(price[k] - price[k-1])
-    let mut volatility_window = 0.0;
-    if start_idx < n {
-        for k in 1..=length {
-            volatility_window += (prices_arr[k] - prices_arr[k - 1]).abs();
-        }
-    }
-    let mut recompute_volatility_window = false;
-
-    for i in start_idx..n {
-        let price = prices_arr[i];
-
-        // Defense-in-depth: validation normally blocks NaNs before this function is called.
-        // Keep an explicit guard so direct unit tests or internal callers fail safe.
-        if price.is_nan() || prices_arr[i - 1].is_nan() {
-            kama[i] = f64::NAN;
-            recompute_volatility_window = true;
+    for i in 0..n {
+        if i == 0 {
+            kama[i] = prices_arr[i];
             continue;
         }
 
+        if i < length {
+            kama[i] = kama[i - 1];
+            continue;
+        }
+
+        let mut noise = 0.0;
+        for j in (i - length + 1)..=i {
+            noise += (prices_arr[j] - prices_arr[j - 1]).abs();
+        }
+
+        let signal = (prices_arr[i] - prices_arr[i - length]).abs();
+        let ratio = if noise == 0.0 { 0.0 } else { signal / noise };
+        let smooth = (ratio * (fast_end - slow_end) + slow_end).powi(2);
+
         let mut prev_kama = kama[i - 1];
-        if !prev_kama.is_finite() {
-            // If the previous KAMA is invalid due to a prior NaN segment, reseed from
-            // the previous price so the series can recover once the volatility window
-            // becomes valid again.
-            prev_kama = prices_arr[i - 1];
-            if !prev_kama.is_finite() {
-                kama[i] = f64::NAN;
-                recompute_volatility_window = true;
-                continue;
-            }
+        if prev_kama.is_nan() {
+            prev_kama = prices_arr[i];
         }
 
-        if i > start_idx && !recompute_volatility_window {
-            let add_delta = price - prices_arr[i - 1];
-            let remove_delta = prices_arr[i - length] - prices_arr[i - length - 1];
-            if add_delta.is_finite() && remove_delta.is_finite() && volatility_window.is_finite() {
-                volatility_window += add_delta.abs() - remove_delta.abs();
-            } else {
-                recompute_volatility_window = true;
-            }
-        }
-
-        if i == start_idx || recompute_volatility_window {
-            let mut recomputed_volatility = 0.0;
-            let mut valid_window = true;
-            for j in 0..length {
-                let left = prices_arr[i - j];
-                let right = prices_arr[i - j - 1];
-                let delta = left - right;
-                if !delta.is_finite() {
-                    valid_window = false;
-                    break;
-                }
-                recomputed_volatility += delta.abs();
-            }
-
-            if !valid_window {
-                kama[i] = f64::NAN;
-                recompute_volatility_window = true;
-                continue;
-            }
-
-            volatility_window = recomputed_volatility;
-            recompute_volatility_window = false;
-        }
-
-        // Efficiency Ratio
-        let change = (price - prices_arr[i - length]).abs();
-        let er = if volatility_window != 0.0 {
-            change / volatility_window
-        } else {
-            0.0
-        };
-        let sc = (er * (fast_end - slow_end) + slow_end).powi(2);
-
-        kama[i] = prev_kama + sc * (price - prev_kama);
+        kama[i] = prev_kama + smooth * (prices_arr[i] - prev_kama);
     }
 
     kama
@@ -406,13 +348,35 @@ pub fn calculate_kama(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64>
 
 #[cfg(test)]
 mod tests {
-    use super::{calculate_kama, calculate_lsma, calculate_wma};
+    use super::{
+        calculate_dema, calculate_ema, calculate_hma, calculate_kama, calculate_lsma,
+        calculate_sma, calculate_wma,
+    };
     use ndarray::{Array1, ArrayView1};
 
+    #[test]
+    fn test_ma_length_zero_returns_nan_series() {
+        let prices = Array1::from_vec(vec![100.0, 101.0, 102.0, 103.0]);
+
+        let ema = calculate_ema(prices.view(), 0);
+        let wma = calculate_wma(prices.view(), 0);
+        let dema = calculate_dema(prices.view(), 0);
+        let lsma = calculate_lsma(prices.view(), 0);
+        let sma = calculate_sma(prices.view(), 0);
+        let hma = calculate_hma(prices.view(), 0);
+        let kama = calculate_kama(prices.view(), 0);
+
+        for series in [&ema, &wma, &dema, &lsma, &sma, &hma, &kama] {
+            assert!(
+                series.iter().all(|value| value.is_nan()),
+                "Expected all-NaN output for length=0"
+            );
+        }
+    }
     fn naive_wma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
         let n = prices_arr.len();
         let mut wma = Array1::<f64>::from_elem(n, f64::NAN);
-        if n < length {
+        if length == 0 || n < length {
             return wma;
         }
         let denominator = (length * (length + 1)) as f64 / 2.0;
@@ -430,7 +394,7 @@ mod tests {
     fn naive_lsma(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
         let n = prices_arr.len();
         let mut lsma = Array1::<f64>::from_elem(n, f64::NAN);
-        if n < length {
+        if length == 0 || n < length {
             return lsma;
         }
 
@@ -469,33 +433,37 @@ mod tests {
     fn naive_kama(prices_arr: ArrayView1<f64>, length: usize) -> Array1<f64> {
         let n = prices_arr.len();
         let mut kama = Array1::<f64>::from_elem(n, f64::NAN);
-        if n < length {
+        if length == 0 || n < 1 {
             return kama;
         }
 
         let fast_end = 0.666;
-        let slow_end = 0.0645;
+        let slow_end = 0.064;
 
-        let start_idx = length;
-        kama[start_idx - 1] = prices_arr[start_idx - 1];
-
-        for i in start_idx..n {
-            let price = prices_arr[i];
-            let prev_kama = kama[i - 1];
-
-            let change = (price - prices_arr[i - length]).abs();
-            let mut volatility = 0.0;
-            for j in 0..length {
-                volatility += (prices_arr[i - j] - prices_arr[i - j - 1]).abs();
+        for i in 0..n {
+            if i == 0 {
+                kama[i] = prices_arr[i];
+                continue;
+            }
+            if i < length {
+                kama[i] = kama[i - 1];
+                continue;
             }
 
-            let er = if volatility != 0.0 {
-                change / volatility
-            } else {
-                0.0
-            };
-            let sc = (er * (fast_end - slow_end) + slow_end).powi(2);
-            kama[i] = prev_kama + sc * (price - prev_kama);
+            let mut noise = 0.0;
+            for j in (i - length + 1)..=i {
+                noise += (prices_arr[j] - prices_arr[j - 1]).abs();
+            }
+
+            let signal = (prices_arr[i] - prices_arr[i - length]).abs();
+            let ratio = if noise == 0.0 { 0.0 } else { signal / noise };
+            let sc = (ratio * (fast_end - slow_end) + slow_end).powi(2);
+
+            let mut prev_kama = kama[i - 1];
+            if prev_kama.is_nan() {
+                prev_kama = prices_arr[i];
+            }
+            kama[i] = prev_kama + sc * (prices_arr[i] - prev_kama);
         }
 
         kama

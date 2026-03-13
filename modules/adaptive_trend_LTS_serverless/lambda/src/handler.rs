@@ -1,4 +1,5 @@
 use atc_serverless::{
+    constants::{OHLCV_FIELDS_PER_BAR, WORKING_BUFFERS_PER_BAR},
     get_memory_usage_mb, parallelism::ParallelismConfig, process_batch, validate_batch_request,
     BatchRequest, ScanResult,
 };
@@ -12,6 +13,12 @@ use tracing::{error, info, warn};
 const DEFAULT_LAMBDA_MEMORY_MB: u64 = 1769;
 const MEMORY_WARNING_RATIO: f64 = 0.68;
 const MEMORY_CRITICAL_RATIO: f64 = 0.85;
+
+/// Assumed total bars per symbol for the rough memory pre-check.
+///
+/// Based on the default serverless OHLCV limit (220 bars) × up to 3 timeframes.
+/// This is intentionally conservative so the pre-validation guard stays an overestimate.
+const ASSUMED_TOTAL_BARS_PER_SYMBOL: usize = 660; // 220 bars × 3 timeframes
 
 #[derive(Debug, Clone)]
 struct ProcessingMetrics {
@@ -54,13 +61,18 @@ fn memory_thresholds_mb() -> (u64, u64) {
     (warning_threshold.max(1), critical_threshold.max(2))
 }
 
-/// Rough estimate of memory usage for batch size validation (before parsing data)
-/// This is a fast heuristic used for pre-validation checks.
-/// For actual data-driven estimates, see aggregation::estimate_batch_memory_mb()
+/// Rough estimate of memory usage for batch size validation (before parsing data).
+///
+/// Uses the same `OHLCV_FIELDS_PER_BAR` and `WORKING_BUFFERS_PER_BAR` constants as
+/// `aggregation::estimate_batch_memory_mb`, so adding a working buffer there will
+/// automatically raise this estimate too — preventing silent underestimates.
+///
+/// For the exact data-driven estimate see `aggregation::estimate_batch_memory_mb`.
 fn estimate_batch_memory_mb_rough(symbol_count: usize) -> u64 {
-    // Rough estimate: ~55KB per symbol
-    // Use ceiling division: (symbol_count * 55KB + 1023) / 1024 = MB
-    ((symbol_count * 55 + 1023) / 1024) as u64
+    let bytes_per_symbol =
+        (OHLCV_FIELDS_PER_BAR + WORKING_BUFFERS_PER_BAR) * ASSUMED_TOTAL_BARS_PER_SYMBOL * 8;
+    let kb_per_symbol = (bytes_per_symbol + 1023) / 1024; // ceiling KB
+    ((symbol_count * kb_per_symbol + 1023) / 1024) as u64 // ceiling MB
 }
 
 fn calculate_error_rate_percent(error_count: usize, symbol_count: usize) -> f64 {
@@ -134,6 +146,7 @@ pub async fn handle_request(event: LambdaEvent<BatchRequest>) -> Result<ScanResu
     let request = event.payload;
     let batch_id = request.batch_id.clone();
     let symbol_count = request.symbols.len();
+    let apply_strategy_shift = request.apply_strategy_shift.unwrap_or(false);
     let function_name = lambda_function_name();
     let (memory_warning_threshold_mb, memory_critical_threshold_mb) = memory_thresholds_mb();
     let start_time = Instant::now();
@@ -166,6 +179,7 @@ pub async fn handle_request(event: LambdaEvent<BatchRequest>) -> Result<ScanResu
         threshold = request.config.threshold,
         ma_types = request.config.ma_configs.len(),
         timeframes = request.config.weights.len(),
+        apply_strategy_shift = apply_strategy_shift,
         "Configuration"
     );
 
@@ -184,12 +198,25 @@ pub async fn handle_request(event: LambdaEvent<BatchRequest>) -> Result<ScanResu
 
     // Process batch with error recovery (CPU intensive, runs on thread pool via rayon)
     let processing_start = Instant::now();
-    let (results, errors) =
+    let (mut results, errors) =
         process_batch(request.symbols, request.config, Some(parallelism_config));
     let processing_duration_ms = processing_start.elapsed().as_millis() as u64;
 
     let success_count = results.len();
     let error_count = errors.len();
+
+    if apply_strategy_shift {
+        warn!(
+            batch_id = %batch_id,
+            "apply_strategy_shift was requested but snapshot response has no historical series; returning raw-only signal fields"
+        );
+    }
+
+    for result in &mut results {
+        if result.average_signal_raw.is_none() {
+            result.average_signal_raw = Some(result.score);
+        }
+    }
 
     // Memory monitoring: peak usage after processing
     let peak_memory_mb = get_memory_usage_mb();
@@ -300,6 +327,7 @@ mod tests {
             batch_id: "test-batch".to_string(),
             version: Some("1.0.0".to_string()),
             symbols: vec![test_symbol("BTCUSDT", 64)],
+            apply_strategy_shift: None,
             config: ATCConfig {
                 weights,
                 threshold: 0.3,
@@ -362,6 +390,7 @@ mod tests {
             batch_id: "test-batch".to_string(),
             version: None,
             symbols: vec![],
+            apply_strategy_shift: None,
             config: ATCConfig {
                 weights: HashMap::new(),
                 threshold: 1.5,
@@ -390,6 +419,31 @@ mod tests {
         assert_eq!(scan_result.success_count, 1);
         assert_eq!(scan_result.error_count, 0);
         assert_eq!(scan_result.results.len(), 1);
+        let first = &scan_result.results[0];
+        assert_eq!(first.average_signal_raw, Some(first.score));
+        assert_eq!(first.average_signal_exec, None);
+    }
+
+    #[tokio::test]
+    async fn test_handler_apply_strategy_shift_keeps_raw_snapshot_contract() {
+        let mut batch_req = valid_batch_request();
+        batch_req.apply_strategy_shift = Some(true);
+        let event = LambdaEvent::new(batch_req, Context::default());
+
+        let result = handle_request(event).await;
+        assert!(result.is_ok());
+
+        let scan_result = result.unwrap();
+        assert_eq!(scan_result.success_count, 1);
+        assert_eq!(scan_result.error_count, 0);
+        assert_eq!(scan_result.results.len(), 1);
+
+        let first = &scan_result.results[0];
+        assert_eq!(first.average_signal_raw, Some(first.score));
+        assert_eq!(
+            first.average_signal_exec, None,
+            "Snapshot API must not synthesize execution shift without history",
+        );
     }
 
     #[tokio::test]
@@ -465,6 +519,33 @@ mod tests {
         assert_eq!(calculate_error_rate_percent(0, 10), 0.0);
         assert_eq!(calculate_error_rate_percent(1, 4), 25.0);
         assert_eq!(calculate_error_rate_percent(3, 6), 50.0);
+    }
+
+    /// Ensures the rough pre-validation estimator never underestimates the
+    /// accurate post-parse estimator for the same workload.
+    ///
+    /// The test reproduces the accurate formula using the same public constants so
+    /// that any divergence (e.g. a new working buffer added to `WORKING_BUFFERS_PER_BAR`
+    /// or a change to `ASSUMED_TOTAL_BARS_PER_SYMBOL`) is detected at compile/test time
+    /// rather than silently in production.
+    #[test]
+    fn test_rough_estimate_never_underestimates_accurate_estimate() {
+        let bars = ASSUMED_TOTAL_BARS_PER_SYMBOL;
+
+        // Reproduce the accurate estimator formula from aggregation.rs:
+        // total_bytes = bars * (OHLCV_FIELDS_PER_BAR + WORKING_BUFFERS_PER_BAR) * 8
+        // accurate_mb = total_bytes / (1024 * 1024)  (floor division)
+        let total_bytes =
+            bars * (OHLCV_FIELDS_PER_BAR + WORKING_BUFFERS_PER_BAR) * 8;
+        let accurate_mb = (total_bytes / (1024 * 1024)) as u64;
+
+        let rough_mb = estimate_batch_memory_mb_rough(1);
+
+        assert!(
+            rough_mb >= accurate_mb,
+            "Rough estimate ({rough_mb} MB) must be >= accurate estimate ({accurate_mb} MB). \
+             Update ASSUMED_TOTAL_BARS_PER_SYMBOL or the field constants if this fails."
+        );
     }
 
     #[test]

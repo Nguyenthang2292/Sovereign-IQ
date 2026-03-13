@@ -202,6 +202,12 @@ pub struct BatchRequest {
     pub symbols: Vec<SymbolData>,
     /// Configuration for the ATC algorithm
     pub config: ATCConfig,
+    /// Optional execution-view request flag.
+    ///
+    /// This flag is handled at adapter/consumer layers only. Core Rust signal
+    /// computation remains raw/causal and must not apply strategy shift internally.
+    #[serde(default)]
+    pub apply_strategy_shift: Option<bool>,
 }
 
 /// Data for a single symbol across multiple timeframes
@@ -431,6 +437,17 @@ pub struct SignalResult {
     pub details: HashMap<String, SignalType>,
     /// Per-timeframe signal strengths
     pub strengths: HashMap<String, f64>,
+    /// Raw causal signal value used for classification.
+    ///
+    /// For current snapshot API this mirrors `score`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub average_signal_raw: Option<f64>,
+    /// Optional execution-view signal value (`raw.shift(1)` policy at adapter layer).
+    ///
+    /// May be omitted in snapshot-only responses where execution shift cannot be
+    /// derived without full historical series.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub average_signal_exec: Option<f64>,
 }
 
 #[cfg(test)]

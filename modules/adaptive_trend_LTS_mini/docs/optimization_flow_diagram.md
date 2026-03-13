@@ -203,11 +203,11 @@ graph TB
     NoOpt --> Strat
 
     Strat{strategy_mode?}
-    Strat -->|Yes| Shift[shift(1) for non-repainting]
-    Strat -->|No| NoShift[Real-time signals]
+    Strat -->|Yes| ExecView[Add Average_Signal_Exec = shift(Average_Signal, 1)]
+    Strat -->|No| RawOnly[Keep raw Average_Signal only]
 
-    Shift --> Result[Average_Signal + all MA signals]
-    NoShift --> Result
+    ExecView --> Result[Average_Signal(raw) + Average_Signal_Exec + all MA signals]
+    RawOnly --> Result[Average_Signal(raw) + all MA signals]
 
     Result --> Cleanup[cleanup_series + GC]
     Cleanup --> End[Return dict]

@@ -268,6 +268,21 @@ client = ATCServerlessClient()
 result = client.process_batch_async(symbols, config)
 ```
 
+### 8.4 Execution Shift Contract Update (2026-03-14)
+
+Raw/execution semantics are now explicit and separated:
+
+- Core engine returns raw causal signal only.
+- `score` is raw snapshot score.
+- `average_signal_raw` (optional) mirrors raw score contract.
+- `average_signal_exec` is optional and may be omitted for snapshot-only API responses.
+- Request flag `apply_strategy_shift` is adapter-level only and does not change core Rust math.
+
+If your previous integration assumed shifted output by default, migrate to:
+
+1. consume raw fields (`score` / `average_signal_raw`) for scanner classification
+2. apply execution shift in your strategy/backtest adapter (`raw.shift(1)` with fill policy)
+
 ### 9. Rollback Procedure
 
 If you need to rollback to the Python implementation:

@@ -22,6 +22,19 @@ Module Adaptive Trend Classification LTS là phiên bản ổn định của ATC
 - **Memory Optimizations**: Memory-mapped arrays cho backtesting và blosc compression cho cache
 - **NumPy optimization**: Pre-allocated arrays và NumPy operations thay vì Pandas
 
+## Task 3 - Execution Shift Boundary
+
+De tranh double-shift va giu parity on dinh, huong refactor hien tai la:
+
+- core chi tra raw causal signal
+- shift 1 bar (strategy/non-repainting) chi nam o execution adapter
+- `Average_Signal` = raw causal output (khong shift)
+- `Average_Signal_Exec` (optional, `strategy_mode=True`) = `Average_Signal.shift(1).fillna(0.0)`
+
+Ke hoach dong bo mini + serverless:
+
+- [modules/adaptive_trend_LTS_serverless/docs/2026-03-14-task3-execution-shift-refactor-plan.md](../adaptive_trend_LTS_serverless/docs/2026-03-14-task3-execution-shift-refactor-plan.md)
+
 Module cung cấp hệ thống phân tích xu hướng thích ứng sử dụng nhiều loại Moving Averages với adaptive weighting dựa trên equity curves.
 
 ## Tổng quan

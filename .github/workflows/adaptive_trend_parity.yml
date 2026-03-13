@@ -1,0 +1,72 @@
+name: Adaptive Trend Parity Regression
+
+on:
+  pull_request:
+    paths:
+      - "modules/adaptive_trend/**"
+      - "modules/adaptive_trend_LTS_mini/**"
+      - "modules/adaptive_trend_LTS_serverless/**"
+      - "scripts/run_adaptive_trend_parity_harness.py"
+      - "tests/parity_fixtures/**"
+      - ".github/workflows/adaptive_trend_parity.yml"
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - "modules/adaptive_trend/**"
+      - "modules/adaptive_trend_LTS_mini/**"
+      - "modules/adaptive_trend_LTS_serverless/**"
+      - "scripts/run_adaptive_trend_parity_harness.py"
+      - "tests/parity_fixtures/**"
+      - ".github/workflows/adaptive_trend_parity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  parity-mini:
+    name: Parity Mini (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install parity dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas pandas-ta pytest
+
+      - name: Run mini parity regression test
+        run: |
+          python -m pytest -q modules/adaptive_trend_LTS_mini/tests/test_parity_harness_regression.py
+
+  parity-serverless:
+    name: Parity Serverless (Rust + Python)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install parity dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas pandas-ta pytest
+
+      - name: Run serverless parity regression test
+        run: |
+          python -m pytest -q modules/adaptive_trend_LTS_serverless/tests/test_parity_harness_regression.py

@@ -161,9 +161,9 @@ The **Adaptive Trend Classification LTS** module is a stable build with Rust bac
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `strategy_mode` | bool | False | Shift signal 1 bar (for backtesting) |
+| `strategy_mode` | bool | False | Keep raw `Average_Signal` and expose execution-view `Average_Signal_Exec` |
 
-**Note**: Set to `True` for backtesting to avoid look-ahead bias.
+**Note**: Set to `True` for backtesting to consume `Average_Signal_Exec` while preserving raw causal `Average_Signal`.
 
 ---
 
@@ -184,6 +184,7 @@ The **Adaptive Trend Classification LTS** module is a stable build with Rust bac
 ### Final Output
 
 - **`Average_Signal`** ⭐ **MAIN RESULT** - Combined weighted signal
+- **`Average_Signal_Exec`** (optional, when `strategy_mode=True`) - `Average_Signal.shift(1)` execution view
 
 **Signal Range**: -1.0 (Strong Short) → 0.0 (Neutral) → +1.0 (Strong Long)
 

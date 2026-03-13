@@ -1,0 +1,12 @@
+{
+  "nan_gaps": {
+    "KAMA_Signal": 0.9,
+    "Average_Signal": 0.3564758984306659
+  },
+  "noisy": {
+    "KAMA_Signal": 0.45999999999999996
+  },
+  "sideways": {},
+  "trend_down": {},
+  "trend_up": {}
+}

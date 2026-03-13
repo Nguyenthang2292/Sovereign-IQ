@@ -1,7 +1,7 @@
-"""Signal generation from Moving Average crossovers.
+"""Signal generation from Moving Average cross events.
 
-This module provides the generate_signal_from_ma function to generate
-discrete trading signals from price/MA crossovers.
+Generates discrete trading signals from price/MA crossover events and persists
+the latest signal state until an opposite event occurs.
 """
 
 from __future__ import annotations
@@ -9,65 +9,21 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from modules.adaptive_trend_LTS_mini.core.compute_equity.utils import njit
-from modules.common.system import get_series_pool
 from modules.common.utils import log_error, log_warn
 
 from .crossover import crossover
 from .crossunder import crossunder
 
-
-@njit(cache=True)
-def _apply_signal_persistence(up: np.ndarray, down: np.ndarray, out: np.ndarray) -> None:
-    """Apply signal persistence logic (Pine Script 'var' behavior).
-
-    sig = 0
-    if up: sig = 1
-    elif down: sig = -1
-    else: sig = sig[prev]
-
-    DESIGN NOTE - Signal Initialization:
-    The initial signal value is 0 (neutral) at the start of the series.
-    This is CORRECT behavior matching Pine Script's 'var' keyword:
-    - First bar: sig = 0 (neutral)
-    - If up[0] is True: sig becomes 1
-    - If down[0] is True: sig becomes -1
-    - Otherwise: sig stays 0
-
-    Edge case handling:
-    - If first bar has down=True: sig becomes -1 (not 0)
-    - This is handled correctly because we check conditions every bar
-    - No special "initialization bias" - just pure signal persistence
-
-    This matches Pine Script behavior exactly:
-    var int sig = 0  # Initialized once to 0
-    if crossover: sig := 1
-    if crossunder: sig := -1
-    """
-    n = len(up)
-    current_sig = 0
-    for i in range(n):
-        if up[i]:
-            current_sig = 1
-        elif down[i]:
-            current_sig = -1
-        out[i] = current_sig
-
-
 def generate_signal_from_ma(
     price: pd.Series,
     ma: pd.Series,
 ) -> pd.Series:
-    """Generate discrete trading signals from price/MA crossovers.
+    """Generate discrete trading signals from price/MA crossover events.
 
-    Port of Pine Script function:
-        signal(ma) =>
-            var int sig = 0
-            if ta.crossover(close, ma)
-                sig := 1
-            if ta.crossunder(close, ma)
-                sig := -1
-            sig
+    Behavior matches `modules/adaptive_trend`:
+    1. Detect crossover/crossunder events.
+    2. Emit +1/-1 on event bars.
+    3. Persist latest non-zero state forward until opposite event.
 
     Args:
         price: Price series (typically close prices).
@@ -75,9 +31,9 @@ def generate_signal_from_ma(
 
     Returns:
         Series with discrete signal values:
-        - 1: Bullish signal (price crosses above MA)
-        - -1: Bearish signal (price crosses below MA)
-        - 0: No signal (no crossover detected)
+        - 1: Bullish state
+        - -1: Bearish state
+        - 0: Neutral state before first event
 
     Raises:
         ValueError: If price or ma are empty or have incompatible indices.
@@ -111,7 +67,7 @@ def generate_signal_from_ma(
 
         if price_nan_count > 0:
             nan_pct = (price_nan_count / total_bars) * 100
-            if nan_pct > 10:  # Warn if more than 10% NaN
+            if nan_pct > 10:
                 log_warn(
                     f"Price series contains {price_nan_count} NaN values ({nan_pct:.1f}%). "
                     f"This may affect signal generation."
@@ -119,40 +75,25 @@ def generate_signal_from_ma(
 
         if ma_nan_count > 0:
             nan_pct = (ma_nan_count / total_bars) * 100
-            if nan_pct > 10:  # Warn if more than 10% NaN
+            if nan_pct > 10:
                 log_warn(
                     f"MA series contains {ma_nan_count} NaN values ({nan_pct:.1f}%). This may affect signal generation."
                 )
 
-        # Optimization: Use Numba for persistence instead of expensive Pandas chain
-        # to avoid 4x allocation overhead.
-
-        # Calculate boolean arrays (crossover/crossunder)
+        sig = pd.Series(0, index=price.index, dtype="int8")
         up = crossover(price, ma)
         down = crossunder(price, ma)
 
-        # Acquire pooled series for result
-        sig_series = get_series_pool().acquire(len(price), dtype=np.int8, index=price.index)
+        sig.loc[up] = 1
+        sig.loc[down] = -1
 
-        # Get boolean arrays from crossover/crossunder (always return Series)
-        up_vals = up.values
-        down_vals = down.values
+        conflict_mask = up & down
+        if conflict_mask.any():
+            sig.loc[conflict_mask] = 0
 
-        # Run Numba kernel directly into pooled buffer
-        sig_vals = sig_series.values
-
-        # Handle non-writeable arrays (pool might return read-only buffer)
-        if isinstance(sig_vals, np.ndarray) and not sig_vals.flags.writeable:
-            # Copy the array and create new Series (can't use pool)
-            sig_vals = sig_vals.copy()
-            _apply_signal_persistence(up_vals, down_vals, sig_vals)
-            sig_series = pd.Series(sig_vals, index=price.index, dtype=np.int8)
-        else:
-            # Use pooled buffer directly (optimal path)
-            _apply_signal_persistence(up_vals, down_vals, sig_vals)
-            # sig_series already has updated values in-place
-
-        return sig_series
+        # Persist last non-zero signal state, matching source-of-truth behavior.
+        sig = sig.replace(0, np.nan).ffill().fillna(0).astype("int8")
+        return sig
 
     except Exception as e:
         log_error(f"Error generating signal from MA: {e}")

@@ -61,7 +61,10 @@ class StateManager:
             "layer1_signals": {},
             "equity": None,
             "signal": None,
+            "signal_raw": None,
             "average_signal": None,
+            "average_signal_prev": None,
+            "average_signal_exec": None,
             "price_history": deque(maxlen=max_history),
             "initialized": False,
             "bar_index": None,
@@ -139,7 +142,10 @@ class StateManager:
         self.state.setdefault("layer1_signals", {})
         self.state.setdefault("equity", None)
         self.state.setdefault("signal", None)
+        self.state.setdefault("signal_raw", None)
         self.state.setdefault("average_signal", None)
+        self.state.setdefault("average_signal_prev", None)
+        self.state.setdefault("average_signal_exec", None)
         self.state.setdefault("bar_index", None)
 
         # Convert lists back to deques

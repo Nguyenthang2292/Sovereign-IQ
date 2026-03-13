@@ -98,12 +98,15 @@ def _get_equity_floor_from_env() -> float:
 
 DEFAULT_EQUITY_FLOOR: float = _get_equity_floor_from_env()
 
-# Signal thresholds for position determination
-# Signals > LONG_SIGNAL_THRESHOLD are treated as long positions
-# Signals < SHORT_SIGNAL_THRESHOLD are treated as short positions
-# Signals between thresholds are treated as neutral (no position)
-_LONG_SIGNAL_THRESHOLD = 0.5
-_SHORT_SIGNAL_THRESHOLD = -0.5
+# Signal thresholds for position determination (source parity, same as serverless `equity.rs`).
+# Contract: any non-zero signal opens a position.
+#   sig > 0 → long (a = r_i)
+#   sig < 0 → short (a = -r_i)
+#   sig == 0 or NaN → neutral (a = 0)
+# Previous values 0.5 / -0.5 caused fractional average signals (e.g. 0.3) to
+# be treated as neutral, diverging from the Rust reference implementation.
+_LONG_SIGNAL_THRESHOLD = 0.0
+_SHORT_SIGNAL_THRESHOLD = 0.0
 
 # Equity threshold below which we treat starting equity as effectively zero
 # This prevents numerical issues with very small equity values
@@ -177,12 +180,12 @@ def _calculate_equity_core_impl(
         r_i = r_values[i]
         sig_prev = sig_prev_values[i]
 
-        # Handle NaN in signal or return
+        # Handle NaN in signal or return (source parity: any non-zero = position)
         a_val = 0.0
-        if not (np.isnan(sig_prev) or np.isnan(r_i)):
-            if sig_prev > _LONG_SIGNAL_THRESHOLD:
+        if not (np.isnan(sig_prev) or np.isnan(r_i)) and sig_prev != 0.0:
+            if sig_prev > 0.0:
                 a_val = r_i
-            elif sig_prev < _SHORT_SIGNAL_THRESHOLD:
+            else:
                 a_val = -r_i
 
         # Calculate current equity
@@ -251,12 +254,12 @@ def _calculate_equities_parallel_impl(
             rv = r_values[i]
             sp = sig_prev_values[s, i]
 
-            # Handle NaN in signal or return
+            # Handle NaN in signal or return (source parity: any non-zero = position)
             av = 0.0
-            if not (np.isnan(sp) or np.isnan(rv)):
-                if sp > 0.5:
+            if not (np.isnan(sp) or np.isnan(rv)) and sp != 0.0:
+                if sp > 0.0:
                     av = rv
-                elif sp < -0.5:
+                else:
                     av = -rv
 
             # Calculate current equity
@@ -331,12 +334,12 @@ def _calculate_equity_vectorized_jit_impl(
 
             sp = sig_prev_values[s, i]
 
-            # Handle NaN/0
+            # Handle NaN/0 (source parity: any non-zero = position)
             av = 0.0
-            if not (np.isnan(sp) or np.isnan(rv)):
-                if sp > 0.5:
+            if not (np.isnan(sp) or np.isnan(rv)) and sp != 0.0:
+                if sp > 0.0:
                     av = rv
-                elif sp < -0.5:
+                else:
                     av = -rv
 
             cur_p_e = p_e[s]

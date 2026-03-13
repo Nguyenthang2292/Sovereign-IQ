@@ -22,7 +22,7 @@ fn record_checkout(was_miss: bool, requested_size: usize) {
         BUFFER_MISSES.fetch_add(1, Ordering::Relaxed);
     }
 
-    if checkouts < MISS_LOG_SAMPLE_WINDOW || checkouts % MISS_LOG_SAMPLE_WINDOW != 0 {
+    if checkouts < MISS_LOG_SAMPLE_WINDOW || !checkouts.is_multiple_of(MISS_LOG_SAMPLE_WINDOW) {
         return;
     }
 

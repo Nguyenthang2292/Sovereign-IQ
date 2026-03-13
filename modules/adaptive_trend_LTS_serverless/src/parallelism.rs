@@ -2,6 +2,48 @@
 //!
 //! This module provides utilities for tuning parallelism in the ATC batch processing pipeline.
 
+use std::sync::OnceLock;
+
+/// Env-var override: number of Rayon threads.
+///
+/// Parsed once at first call to `optimal_for_batch_size` and cached for the lifetime
+/// of the process. On Lambda warm invocations this eliminates a repeated `getenv` syscall.
+///
+/// `None`  → env var absent or contains `"0"`.
+/// `Some(Err(s))` → env var present but non-numeric (logged as warning).
+/// `Some(Ok(n))` → valid override (n > 0).
+static FORCE_THREADS: OnceLock<Option<Result<usize, String>>> = OnceLock::new();
+
+/// Env-var override: Rayon chunk size.
+///
+/// Same caching strategy as [`FORCE_THREADS`].
+static FORCE_CHUNK_SIZE: OnceLock<Option<Result<usize, String>>> = OnceLock::new();
+
+/// Cached thread cap derived from `AWS_LAMBDA_FUNCTION_MEMORY_SIZE`.
+///
+/// Read once at first call; Lambda does not change its configured memory mid-invocation.
+static LAMBDA_MEMORY_THREAD_CAP: OnceLock<Option<usize>> = OnceLock::new();
+
+fn read_force_threads() -> &'static Option<Result<usize, String>> {
+    FORCE_THREADS.get_or_init(|| {
+        std::env::var("ATC_FORCE_THREADS").ok().map(|raw| {
+            raw.parse::<usize>()
+                .map_err(|_| raw)
+                .and_then(|n| if n > 0 { Ok(n) } else { Err("0".to_string()) })
+        })
+    })
+}
+
+fn read_force_chunk_size() -> &'static Option<Result<usize, String>> {
+    FORCE_CHUNK_SIZE.get_or_init(|| {
+        std::env::var("ATC_FORCE_CHUNK_SIZE").ok().map(|raw| {
+            raw.parse::<usize>()
+                .map_err(|_| raw)
+                .and_then(|n| if n > 0 { Ok(n) } else { Err("0".to_string()) })
+        })
+    })
+}
+
 /// Configuration for parallel processing
 ///
 /// Controls thread pool settings, chunking, and min partition lengths for Rayon.
@@ -54,10 +96,12 @@ impl ParallelismConfig {
     }
 
     fn lambda_memory_thread_cap() -> Option<usize> {
-        std::env::var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE")
-            .ok()
-            .and_then(|raw| raw.parse::<usize>().ok())
-            .map(Self::lambda_memory_thread_cap_for_mb)
+        *LAMBDA_MEMORY_THREAD_CAP.get_or_init(|| {
+            std::env::var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE")
+                .ok()
+                .and_then(|raw| raw.parse::<usize>().ok())
+                .map(Self::lambda_memory_thread_cap_for_mb)
+        })
     }
 
     fn apply_lambda_thread_cap(
@@ -109,50 +153,45 @@ impl ParallelismConfig {
     /// - 500+ symbols: use Lambda memory-derived cap when available, otherwise
     ///   fallback to Rayon default thread pool (chunk_size=50)
     pub fn optimal_for_batch_size(&self, batch_size: usize) -> Self {
-        // 1. Check for Environment Variable overrides (for tuning on AWS Lambda without redeploy)
-        if let Ok(val) = std::env::var("ATC_FORCE_THREADS") {
-            match val.parse::<usize>() {
-                Ok(threads) if threads > 0 => {
-                    let chunk_size = match std::env::var("ATC_FORCE_CHUNK_SIZE") {
-                        Ok(chunk_val) => match chunk_val.parse::<usize>() {
-                            Ok(chunk_size) if chunk_size > 0 => chunk_size,
-                            Ok(_) => {
-                                crate::log_warn!(
-                                    "ATC_FORCE_CHUNK_SIZE must be > 0 (received 0). Using default for batch size {}.",
-                                    batch_size
-                                );
-                                Self::default_chunk_size_for_batch_size(batch_size)
-                            }
-                            Err(_) => {
-                                crate::log_warn!(
-                                    "Invalid ATC_FORCE_CHUNK_SIZE='{}'. Using default for batch size {}.",
-                                    chunk_val, batch_size
-                                );
-                                Self::default_chunk_size_for_batch_size(batch_size)
-                            }
-                        },
-                        Err(_) => Self::default_chunk_size_for_batch_size(batch_size),
-                    };
+        // 1. Check for Environment Variable overrides (for tuning on AWS Lambda without redeploy).
+        //    Values are read from the OS exactly once via OnceLock and cached for the process
+        //    lifetime, eliminating repeated getenv syscalls on warm Lambda invocations.
+        match read_force_threads() {
+            Some(Ok(threads)) => {
+                let chunk_size = match read_force_chunk_size() {
+                    Some(Ok(chunk_size)) => *chunk_size,
+                    Some(Err(raw)) => {
+                        crate::log_warn!(
+                            "Invalid ATC_FORCE_CHUNK_SIZE='{}'. Using default for batch size {}.",
+                            raw,
+                            batch_size
+                        );
+                        Self::default_chunk_size_for_batch_size(batch_size)
+                    }
+                    None => Self::default_chunk_size_for_batch_size(batch_size),
+                };
 
-                    return Self {
-                        num_threads: Some(threads),
-                        chunk_size: Some(chunk_size),
-                        min_len: Some(5),
-                        use_custom_pool: true,
-                    };
-                }
-                Ok(_) => {
+                return Self {
+                    num_threads: Some(*threads),
+                    chunk_size: Some(chunk_size),
+                    min_len: Some(5),
+                    use_custom_pool: true,
+                };
+            }
+            Some(Err(raw)) => {
+                // raw == "0" means parsed as zero; any other Err is a non-numeric value.
+                if raw == "0" {
                     crate::log_warn!(
                         "ATC_FORCE_THREADS must be > 0 (received 0). Falling back to batch-size defaults."
                     );
-                }
-                Err(_) => {
+                } else {
                     crate::log_warn!(
                         "Invalid ATC_FORCE_THREADS='{}'. Falling back to batch-size defaults.",
-                        val
+                        raw
                     );
                 }
             }
+            None => {} // env var not set — use tier defaults
         }
 
         // 2. Default logic based on benchmarks

@@ -13,6 +13,19 @@ ATC là một hệ thống phân loại xu hướng thích ứng sử dụng:
 - **Adaptive weighting**: Sử dụng equity curves để tự động điều chỉnh trọng số của từng MA
 - **Robustness modes**: "Narrow", "Medium", "Wide" để điều chỉnh độ nhạy
 
+## Quyết định thuật toán đã khóa
+
+Các điểm dưới đây là quyết định chủ động để ổn định hành vi production, không phải lỗi triển khai:
+
+- **HMA**: dùng công thức Hull chuẩn (WMA-based canonical Hull) trong Python, thay vì biến thể gần-HMA từ Pine gốc.
+- **Ngưỡng cut signal Layer 2**: cho phép cấu hình `long_threshold`/`short_threshold` (mặc định ±0.1) để phù hợp triển khai thực tế và tuning theo thị trường.
+- **KAMA warmup**: dùng chính sách khởi tạo ổn định cho chuỗi đầu kỳ nhằm tránh nhiễu/dao động quá mức ở giai đoạn chưa đủ dữ liệu.
+- **Execution shift boundary**: nguyên tắc mục tiêu là **core chỉ trả về raw causal signal**; việc shift 1 bar cho backtest/execution phải nằm ở lớp thực thi (adapter/consumer), không nằm trong lõi tính toán.
+
+Kế hoạch refactor chi tiết cho nguyên tắc execution shift boundary:
+
+- [modules/adaptive_trend_LTS_serverless/docs/2026-03-14-task3-execution-shift-refactor-plan.md](../adaptive_trend_LTS_serverless/docs/2026-03-14-task3-execution-shift-refactor-plan.md)
+
 ## Cấu trúc Module
 
 ```text

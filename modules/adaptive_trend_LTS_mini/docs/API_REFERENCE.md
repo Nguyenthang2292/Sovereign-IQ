@@ -116,7 +116,8 @@ def compute_atc_signals(
         cutout: Number of initial bars to skip (default: 0)
         long_threshold: Threshold for long signal (default: 0.1)
         short_threshold: Threshold for short signal (default: -0.1)
-        strategy_mode: If True, shifts signals for non-repainting strategy view (default: False)
+        strategy_mode: If True, enables execution-view adapter output (`Average_Signal_Exec`)
+                      while `Average_Signal` remains raw/causal (default: False)
 
         parallel_l1: Enable parallel processing for Layer 1 (default: auto-detect)
         parallel_l2: Enable parallel processing for Layer 2 (default: True)
@@ -540,7 +541,8 @@ class ATCConfig:
             lambda_param: UNSCALED lambda value (default: 0.02)
             decay: UNSCALED decay value (default: 0.03)
             cutout: Number of initial bars to skip (default: 0)
-            strategy_mode: If True, shifts signals for non-repainting (default: False)
+            strategy_mode: If True, expose `Average_Signal_Exec` in execution-view mode
+                          without mutating raw `Average_Signal` (default: False)
 
         Signal Thresholds:
             long_threshold: Threshold for long signal (default: 0.1)
@@ -608,8 +610,9 @@ class ATCConfig:
    - Scaling is applied automatically via properties or by compute_atc_signals
 
 2. **strategy_mode**:
-   - False (default): Indicator view - signals repaint, accurate for current bar
-   - True: Strategy view - signals shifted by 1 bar, non-repainting for backtesting
+   - False (default): returns raw causal signal in `Average_Signal`
+   - True: still returns raw causal `Average_Signal` and adds
+     `Average_Signal_Exec = Average_Signal.shift(1).fillna(0.0)` for execution/backtest view
 
 3. **robustness modes**:
    - "Narrow": Quick response, more sensitive to noise

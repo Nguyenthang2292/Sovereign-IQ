@@ -171,13 +171,15 @@ class ATCLambdaClient:
         self,
         symbols_data: list[dict[str, Any]],
         config: Optional[dict[str, Any]] = None,
+        apply_strategy_shift: bool = False,
     ) -> dict[str, Any]:
         """Invoke Lambda and parse the direct ScanResult response.
 
         Args:
             symbols_data: List of {symbol, timeframes} dicts.
-                          Each timeframe contains OHLVC lists.
+                          Each timeframe contains OHLCV lists.
             config: ATC config (uses DEFAULT_ATC_CONFIG if not provided)
+            apply_strategy_shift: Optional execution-view request hint for adapter layer.
 
         Returns:
             ScanResult dict: {batch_id, results, errors, success_count, error_count}
@@ -195,6 +197,7 @@ class ATCLambdaClient:
             "batch_id": batch_id,
             "symbols": symbols_data,
             "config": config,
+            "apply_strategy_shift": apply_strategy_shift,
         }
 
         logger.info(f"Invoking Lambda batch '{batch_id}' with {len(symbols_data)} symbols...")
@@ -251,9 +254,14 @@ class ATCLambdaClient:
         self,
         symbols_data: list[dict[str, Any]],
         config: Optional[dict[str, Any]] = None,
+        apply_strategy_shift: bool = False,
     ) -> dict[str, Any]:
         """Convenience alias for invoking a multi-symbol batch."""
-        return self.invoke(symbols_data=symbols_data, config=config)
+        return self.invoke(
+            symbols_data=symbols_data,
+            config=config,
+            apply_strategy_shift=apply_strategy_shift,
+        )
 
     def _mock_invoke(self, symbols_data: list[dict[str, Any]], config: dict[str, Any]) -> dict[str, Any]:
         """Return deterministic mock data when mock_mode is enabled."""
@@ -264,7 +272,7 @@ class ATCLambdaClient:
                 "symbol": symbol_data.get("symbol", "UNKNOWN"),
                 "score": 0.0,
                 "signal_type": "NEUTRAL",
-                "details": {tf: "MOCK" for tf in symbol_data.get("timeframes", {}).keys()},
+                "details": {tf: "NEUTRAL" for tf in symbol_data.get("timeframes", {}).keys()},
                 "strengths": {tf: 0.0 for tf in symbol_data.get("timeframes", {}).keys()},
             }
             for symbol_data in symbols_data

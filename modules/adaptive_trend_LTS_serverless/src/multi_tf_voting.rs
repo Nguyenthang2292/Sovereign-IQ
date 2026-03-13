@@ -60,6 +60,8 @@ pub fn aggregate_timeframes(
         signal_type,
         details: tf_details,
         strengths: tf_scores,
+        average_signal_raw: Some(total_weighted_score),
+        average_signal_exec: None,
     }
 }
 
@@ -126,5 +128,39 @@ mod tests {
 
         assert_eq!(result.signal_type, crate::SignalType::Neutral);
         assert_eq!(result.score, 0.0);
+    }
+
+    #[test]
+    fn test_aggregate_timeframes_sets_raw_contract_fields() {
+        let mut config_weights = HashMap::new();
+        config_weights.insert("1h".to_string(), 1.0);
+
+        let config = ATCConfig {
+            weights: config_weights,
+            threshold: 0.3,
+            min_signal: 0.0,
+            use_signal_strength: false,
+            lambda_param: 0.02,
+            decay: 0.03,
+            cutout: 0,
+            equity_floor: 0.25,
+            robustness: crate::Robustness::Medium,
+            ma_configs: vec![MAConfig {
+                ma_type: MAType::Ema,
+                length: 12,
+                weight: 1.0,
+            }],
+        };
+
+        let mut tf_scores = HashMap::new();
+        tf_scores.insert("1h".to_string(), 0.8);
+
+        let mut tf_details = HashMap::new();
+        tf_details.insert("1h".to_string(), crate::SignalType::Long);
+
+        let result = aggregate_timeframes("BTCUSDT".to_string(), tf_scores, tf_details, &config);
+
+        assert_eq!(result.average_signal_raw, Some(result.score));
+        assert_eq!(result.average_signal_exec, None);
     }
 }

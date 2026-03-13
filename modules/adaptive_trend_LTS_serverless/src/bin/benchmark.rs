@@ -57,6 +57,7 @@ fn main() {
         batch_id: "benchmark-batch".to_string(),
         version: Some(SCHEMA_VERSION.to_string()),
         symbols: input.symbols,
+        apply_strategy_shift: None,
         config: input.config,
     };
 

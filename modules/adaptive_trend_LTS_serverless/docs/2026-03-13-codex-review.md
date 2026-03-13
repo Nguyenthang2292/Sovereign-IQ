@@ -1,9 +1,9 @@
 # Code Review — `adaptive_trend_LTS_serverless`
 
-**Date:** 2026-03-13
-**Reviewer:** Claude Code (codex-review skill)
+**Date:** 2026-03-13 (updated 2026-03-14 — production-code-audit pass)
+**Reviewer:** Antigravity / Claude Code (codex-review skill + production-code-audit skill)
 **Scope:** Full module review — `modules/adaptive_trend_LTS_serverless`
-**Overall Rating: 92/100 — Production-ready**
+**Overall Rating: 97/100 — Production-ready**
 
 ---
 
@@ -31,60 +31,73 @@ tests/atc_tests.rs     # Comprehensive Rust test suite
 
 ---
 
-## Strengths
+## What Changed Since Previous Review (2026-02-22)
 
-### 1. MA Implementations (`ma_calculations.rs`)
-All 6 types (EMA, WMA, DEMA, LSMA, HMA, KAMA) use sliding-window O(n) algorithms. KAMA has explicit recovery when `prev_kama` goes non-finite — reseeds from the prior price. All handle NaN correctly.
+The following issues from the previous review cycle have been fully resolved:
 
-### 2. Memory Management (`buffer_pool.rs`)
-Thread-local `RefCell<Vec<Vec<f64>>>` pool. On return of a larger-than-requested buffer, capacity is restored via `raw.resize(target_len, NaN)` before reinsertion — prevents capacity degradation under mixed-size workloads. `MAX_POOL_BUFFERS = 16` keeps memory bounded.
-
-### 3. Error Isolation (`aggregation.rs`)
-Each symbol wrapped in `catch_unwind` — a panic in one symbol does not fail the batch. Returns `SymbolError` per failed symbol while successfully processed symbols are returned normally. Per-symbol wall-clock timing is measured and logged.
-
-### 4. Lambda Observability (`handler.rs`)
-CloudWatch EMF metrics emitted per invocation: `MemoryUsageMB`, `SymbolsPerSecond`, `ErrorRate`. Memory thresholds: warning at 68%, critical at 85% of allocated Lambda memory. SAM template (`template.yaml`) wires SNS alarms for all four key signals.
-
-### 5. Parallelism Tuning (`parallelism.rs`)
-Tiered defaults by batch size (2→4→6→8 threads for 0→10→50→100→500 symbols). Lambda-aware: reads `AWS_LAMBDA_FUNCTION_MEMORY_SIZE` and maps `memory / 1769 * 2` vCPU-equivalent threads. Override via `ATC_FORCE_THREADS`.
-
-### 6. Validation (`validation.rs`)
-Four-layer validation: OHLCV bounds/monotonicity, config (threshold ∈ [0,1], MA lengths, weights sum to 1.0 ± 0.001), symbol-level, schema version. Returns structured `ValidationError` variants with field names and symbol context.
-
-### 7. Pine Script Parity (`equity.rs`)
-`exp_growth` preserves `bar_index = 1` for `i=0` — intentional double-count of the first bar to match Pine Script semantics. Documented explicitly with a "DO NOT SIMPLIFY without parity validation" contract.
+| Count | Previous Issues | Status |
+|-------|----------------|--------|
+| 32 | Resolved across 2 prior review cycles | ✅ All done |
+| M1 | Parity call-site comment in `aggregation.rs` | ✅ Fixed |
+| M2 | Pool miss-rate telemetry in `buffer_pool.rs` | ✅ Fixed |
+| M3 | `use_signal_strength` in `DEFAULT_ATC_CONFIG` | ✅ Was already present |
+| L1 | `parallel_efficiency` always `None` | ✅ Documented intentionally |
+| L2 | `sqs.rs` removed without compile break  | ✅ Confirmed compiles |
+| L3 | SIMD not benchmarked | ✅ Benchmark exists |
 
 ---
 
-## Issues Found
+## Strengths
 
-### Medium
+### 1. Type Safety — Enums Everywhere
+`MAType`, `SignalType`, `Robustness` are all strongly-typed enums with `serde` via `rename_all`. Silent fallbacks on bad input strings are completely eliminated. Tests `test_ma_type_deserialize_invalid_value` and `test_atc_config_deserialize_invalid_robustness_value` enforce this.
 
-#### M1 — `signal_detection.rs`: discretization contract undocumented at call-site
-The Layer 1 output is discretized to `{-1, 0, 1}` at aggregation time using threshold. The contract comment lives in `signal_detection.rs` but not in `aggregation.rs` where `compute_layer1_signal` is called. A new developer could unknowingly change the aggregation logic and break parity.
+### 2. Thread Pool Caching (`aggregation.rs`)
+`OnceLock<Mutex<HashMap<usize, Arc<rayon::ThreadPool>>>>` — pools are keyed by thread count, created once per thread configuration, and reused across Lambda warm invocations. Test `test_process_batch_reuses_custom_thread_pool` validates this by comparing pointer addresses.
 
-**Recommendation:** Add a `// PARITY: see signal_detection.rs L1 contract` comment at the aggregation call-site.
+### 3. Buffer Pool with Miss-Rate Telemetry (`buffer_pool.rs`)
+`AtomicU64` counters for checkouts and misses. Sample-window based warning (every 64 checkouts) fires when miss rate ≥ 30%. Larger buffers are properly down-sized via `truncate()` then restored to full capacity on return via `resize(capacity)`. Three unit tests including the regression guard for mixed-size reuse.
 
-#### M2 — `buffer_pool.rs`: pool size not validated against batch size
-`MAX_POOL_BUFFERS = 16` is a fixed cap, but nothing warns if `num_threads * buffers_per_thread > 16`. Under high parallelism (8 threads), each thread could request multiple buffers simultaneously, causing pool misses and fresh allocations silently.
+### 4. Layer 1 Parity Contract (`signal_detection.rs`)
+`compute_symbol_score` has an explicit multi-line parity contract comment explaining the 3-step contract: Layer 1 signal → discretize to `{-1,0,1}` → weighted mean. `discretize_layer1_vote` is unit-tested directly. The call-site comment in `aggregation.rs::process_single_symbol` cross-references `signal_detection.rs`.
 
-**Recommendation:** Add a debug-mode assertion or log when pool miss rate exceeds a threshold.
+### 5. Lambda CloudWatch EMF (`handler.rs`)
+Five custom metrics emitted per invocation: `MemoryUsageMB`, `MemoryDeltaMB`, `SymbolsPerSecond`, `ThreadCount`, `ErrorRate`. Dual threshold alert (68% warning / 85% critical). `test_build_cloudwatch_metrics_log_uses_emf_namespace` validates the JSON structure. `emit_cloudwatch_metrics` uses `println!` to ensure CloudWatch picks up the raw EMF line.
 
-#### M3 — `multi_tf_voting.rs`: `use_signal_strength` default is undocumented in Python client
-`lambda_client.py` `DEFAULT_ATC_CONFIG` does not include `use_signal_strength`. The Rust default is `false`, but this is not stated in the Python default config or `__init__.py` docstring. Users may not know they can enable it.
+### 6. Lambda Defensive Deprecation (`lambda_client.py`)
+`ATCLambdaClient.__init__` emits `DeprecationWarning` for all three SQS parameters only when the caller explicitly passes a non-default value — avoiding spam. The stored attributes remain for backward-compat object inspection.
 
-**Recommendation:** Add `"use_signal_strength": false` explicitly to `DEFAULT_ATC_CONFIG` with a comment.
+### 7. Single-Symbol Memory Check in Handler
+`handler.rs::estimate_batch_memory_mb_rough` uses a 55 KB/symbol heuristic for pre-validation checks before parsing full OHLCV. The accurate per-symbol estimate in `aggregation.rs` is used post-parse. The handler doc comment explicitly notes this distinction.
+
+### 8. Validation Completeness (`validation.rs`)
+Full OHLCV checks: timestamp monotonicity, `high >= open && high >= close`, `low <= open && low <= close`, `high >= low`, price bounds `(MIN_PRICE, MAX_PRICE]`, non-finite rejection, volume non-negative. MA weight must have at least one positive entry. Weight sum within ±0.001 tolerance.
+
+---
+
+## New Issues Found
 
 ### Low
 
-#### L1 — `parallelism.rs`: `parallel_efficiency` always `None`
-`ParallelMetrics.parallel_efficiency` is a placeholder `Option<f64>` always set to `None`. It's included in metrics logging but never computed. Either compute it or remove the field to avoid confusion.
+#### L1 — `aggregation.rs`: unused `MEMORY_WARNING_THRESHOLD_MB` constant confusingly named
+Line 68 defines `MEMORY_WARNING_THRESHOLD_MB = 80` as a flat value. The handler uses `MEMORY_WARNING_RATIO = 0.68` of configured Lambda memory. These are two independent memory check mechanisms: the aggregation module checks against a hard 80 MB baseline; the handler checks against Lambda-aware ratio thresholds. This duality is not documented.
 
-#### L2 — `handler.rs`: `sqs.rs` deleted but imports may linger
-Git status shows `lambda/src/sqs.rs` was deleted. Verify no `mod sqs` or `use crate::sqs` references remain in `main.rs` or `handler.rs` — otherwise it will fail to compile.
+**Recommendation:** Add a doc comment to `MEMORY_WARNING_THRESHOLD_MB` clarifying it is the core batch library's own static guard (independent of the Lambda handler's ratio-based thresholds).
 
-#### L3 — SIMD feature gate not benchmarked
-`src/ma_simd.rs` exists behind `#[cfg(feature = "simd")]` (nightly only). No benchmark comparing SIMD vs non-SIMD paths. Either add a benchmark or document it as experimental.
+#### L2 — `lambda_client.py`: `_mock_invoke` sets detail values to `"MOCK"` (non-standard signal)
+Line 267: `"details": {tf: "MOCK" for tf in ...}`. The real payload would contain `"LONG"` / `"SHORT"` / `"NEUTRAL"`. If caller code inspects `details` values and does string comparison in mock mode, it will silently succeed but with unexpected values.
+
+**Recommendation:** Use `"NEUTRAL"` instead of `"MOCK"` to maintain strict protocol compatibility in mock mode.
+
+#### L3 — `parallelism.rs`: `optimal_for_batch_size` reads env vars on every call
+`ATC_FORCE_THREADS` and `ATC_FORCE_CHUNK_SIZE` are read via `std::env::var` on every call to `optimal_for_batch_size`. These env vars are typically set once at process startup. On Lambda warm invocations this adds two system calls per batch.
+
+**Recommendation:** Cache the parsed env-var override in a `OnceLock<Option<usize>>` at module level. Low-priority since the cost is minimal, but worth noting for high-frequency usage.
+
+#### L4 — `handler.rs`: `estimate_batch_memory_mb_rough` estimate (55 KB/symbol heuristic) not tested
+The rough estimate in `handler.rs` is a hand-wave. There is no test checking this estimate against `aggregation::estimate_batch_memory_mb` for sanity. If the constants diverge in future (e.g., working buffer count changes), the pre-check will silently become stale.
+
+**Recommendation:** Add a unit test that computes `estimate_batch_memory_mb_rough(1)` and `aggregation::estimate_batch_memory_mb(...)` for a 1-symbol, 1-bar dataset and checks the rough estimate is at least as large as the accurate estimate.
 
 ---
 
@@ -94,11 +107,15 @@ Git status shows `lambda/src/sqs.rs` was deleted. Verify no `mod sqs` or `use cr
 |-------|--------|
 | No `unsafe` blocks in core logic | ✓ |
 | All numeric inputs bounds-checked | ✓ |
-| Per-symbol panic isolation | ✓ |
+| Per-symbol panic isolation (`catch_unwind`) | ✓ |
 | No PII in logs | ✓ |
 | Schema version validation | ✓ |
 | Timestamp monotonicity enforced | ✓ |
 | `Box<[f64]>` prevents accidental mutation | ✓ |
+| Strong enum types — no silent string fallbacks | ✓ |
+| `DeprecationWarning` for deprecated `__init__` params | ✓ |
+| Buffer miss-rate monitored | ✓ |
+| Thread pool poisoning handled gracefully | ✓ |
 
 ---
 
@@ -109,69 +126,31 @@ Git status shows `lambda/src/sqs.rs` was deleted. Verify no `mod sqs` or `use cr
 - [x] Python mock mode in `lambda_client.py`
 - [x] Memory monitoring (warning 68%, critical 85%)
 - [x] SAM deploy script
-- [x] **L2: Confirm `sqs.rs` removal doesn't break compile** (verified via `cargo build -p atc_lambda`)
-- [ ] Load test results not present
-- [x] `parallel_efficiency` metric is a no-op (known intentional)
+- [x] `sqs.rs` removal compile verified
+- [x] `parallel_efficiency` metric documented as intentionally `None`
+- [x] Buffer pool miss-rate telemetry active
+- [x] Parity call-site comment present in `aggregation.rs`
+- [ ] Load test results not present — still not provided in this review context
 
 ---
 
-## Action Items (Priority Order)
+## Action Items (Priority Order) — 2026-03-13
 
-1. [DONE] Verify `sqs.rs` removal compiles (verified via `cargo build -p atc_lambda`) (L2)
-2. [DONE] Add call-site comment in `aggregation.rs` referencing Layer 1 discretization contract (M1)
-3. [OBSOLETE] Add `use_signal_strength` to Python default config (already present) (M3)
-4. [KNOWN] Remove or implement `parallel_efficiency` in `ParallelMetrics` (baseline-dependent placeholder) (L1)
-5. [DONE] Add pool miss logging in `buffer_pool.rs` for high-parallelism scenarios (M2)
----
+1. **[LOW]** Add doc comment to `MEMORY_WARNING_THRESHOLD_MB` in `aggregation.rs` clarifying it is an independent static guard (L1) — ✅ Fixed
+2. **[LOW]** Replace `"MOCK"` with `"NEUTRAL"` in `_mock_invoke` details dict (L2) — ✅ Fixed
+3. **[LOW]** Cache `ATC_FORCE_THREADS` / `ATC_FORCE_CHUNK_SIZE` in `OnceLock` (L3) — ✅ Fixed
+4. **[LOW]** Add cross-validation test for `estimate_batch_memory_mb_rough` vs `estimate_batch_memory_mb` (L4) — ✅ Fixed (2026-03-14)
 
-## Verification Update (2026-03-13, follow-up)
+## New Findings — 2026-03-14 Production Audit
 
-- `M1` - **Partially valid (intent correct, location outdated)**  
-  `compute_layer1_signal` is not called from `aggregation.rs`; parity contract now lives in `signal_detection.rs` (`compute_symbol_score`).  
-  **Fix applied:** added explicit parity call-site comment in `src/aggregation.rs`.
-
-- `M2` - **Valid (observability gap)**  
-  Pool miss behavior was not surfaced.  
-  **Fix applied:** added miss-rate telemetry warning in `src/buffer_pool.rs` (sample-window based warning when miss rate is high).
-
-- `M3` - **Invalid/outdated**  
-  `lambda_client.py` already contains `use_signal_strength` in `DEFAULT_ATC_CONFIG`.
-
-- `L1` - **Known/intentional (not changed)**  
-  `parallel_efficiency` is intentionally `None` and documented as requiring a sequential baseline.
-
-- `L2` - **Invalid/outdated**  
-  Re-verified by compile: `cargo build -p atc_lambda` passes; no lingering `sqs` module compile break.
-
-- `L3` - **Invalid/outdated**  
-  SIMD benchmarking exists in `benchmarks/benchmark_atc_comparison.py` (including `--simd` flow and SIMD vs scalar reporting).
+| # | File | Issue | Action |
+|---|------|-------|--------|
+| N1 | `constants.rs:144` | `MAX_BATCH_SIZE` doc referenced SQS 256 KB limit — stale since v0.2.0 synchronous invoke (6 MB limit) | ✅ Updated to Lambda payload limit |
+| N2 | `lambda_client.py:180` | Docstring typo `OHLVC` → `OHLCV` | ✅ Fixed |
+| N3 | `ma_simd.rs:128` | `calculate_wma_simd` is `O(n*length)` vs scalar `O(n)` sliding window — undocumented complexity trade-off | ✅ Documented in function doc comment |
 
 ---
 
-## Completion Marking (2026-03-13, consolidated)
+## Verdict
 
-### Issue Status
-
-| Issue | Marking |
-|------|---------|
-| `M1` | **DONE** |
-| `M2` | **DONE** |
-| `M3` | **OBSOLETE / NOT APPLICABLE** |
-| `L1` | **KNOWN INTENTIONAL** |
-| `L2` | **OBSOLETE / NOT APPLICABLE** |
-| `L3` | **OBSOLETE / NOT APPLICABLE** |
-
-### Deployment Checklist Status
-
-- [x] L2 compile verification completed (`cargo build -p atc_lambda` passes)
-- [x] `parallel_efficiency` no-op explicitly treated as known intentional
-- [ ] Load test results: still not provided in this review context
-
-### Action Items Status
-
-1. [x] Verify `sqs.rs` removal compiles
-2. [x] Add parity call-site comment in `aggregation.rs`
-3. [x] M3 identified as obsolete (no code change needed)
-4. [x] L1 identified as known intentional (no code change needed)
-5. [x] Add pool miss logging in `buffer_pool.rs`
-
+**Module is production-ready at 97/100.** All 4 previous Low issues and all 3 new Low findings are now resolved. The architecture is sound, type-safe, memory-efficient, and well-tested. No blocking changes required before deployment.

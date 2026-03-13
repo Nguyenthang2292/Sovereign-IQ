@@ -1,7 +1,6 @@
 use crate::equity::calculate_equity_internal;
 use crate::kama::calculate_kama_internal;
 use crate::ma_calculations::*;
-use crate::signal_persistence::process_signal_persistence_internal;
 use crate::utils::{calculate_roc_with_growth, get_diflen};
 use ndarray::Array1;
 use numpy::{PyArray1, PyReadonlyArray1};
@@ -67,7 +66,6 @@ fn process_single_symbol(
         let lengths = get_diflen(*base_len, robustness);
 
         let mut component_signals = Vec::with_capacity(9);
-        let mut component_equities = Vec::with_capacity(9);
 
         for &len in &lengths {
             // Calculate MA
@@ -81,78 +79,42 @@ fn process_single_symbol(
                 _ => Array1::from_elem(n, f64::NAN), // Should not happen
             };
 
-            // Generate Signal (Cross Over/Under)
-            // Signal logic: price > ma => 1, price < ma => -1, else 0 (or persist?)
-            // Actually usually it's persistent based on cross.
-            // Let's reproduce `generate_signal_from_ma` logic:
-            // up = (close > ma) & (close[1] <= ma[1])
-            // down = (close < ma) & (close[1] >= ma[1])
-            // But strict cross usually check previous.
-
-            // Using vector operations for cross detection
-            // We need persistent signal based on crossovers
-            let mut up = Array1::<bool>::from_elem(n, false);
-            let mut down = Array1::<bool>::from_elem(n, false);
-
-            for i in 1..n {
-                let p_curr = prices_arr[i];
-                let m_curr = ma[i];
-                let p_prev = prices_arr[i - 1];
-                let m_prev = ma[i - 1];
-
-                if !p_curr.is_nan() && !m_curr.is_nan() && !p_prev.is_nan() && !m_prev.is_nan() {
-                    // Crossover: Price crosses MA upwards
-                    if p_curr > m_curr && p_prev <= m_prev {
-                        up[i] = true;
-                    }
-                    // Crossunder: Price crosses MA downwards
-                    if p_curr < m_curr && p_prev >= m_prev {
-                        down[i] = true;
-                    }
+            // Serverless parity: simple comparison on each bar (no crossover persistence).
+            // price > ma => +1, price < ma => -1, otherwise 0.
+            let mut sig_f64 = Array1::<f64>::zeros(n);
+            for i in 0..n {
+                let p = prices_arr[i];
+                let m = ma[i];
+                if p.is_nan() || m.is_nan() {
+                    sig_f64[i] = 0.0;
+                } else if p > m {
+                    sig_f64[i] = 1.0;
+                } else if p < m {
+                    sig_f64[i] = -1.0;
+                } else {
+                    sig_f64[i] = 0.0;
                 }
             }
-
-            // Persistence
-            // Output is i8: 1, -1, 0. We need f64 for calculations later
-            let sig_i8 = process_signal_persistence_internal(up.view(), down.view());
-            let sig_f64 = sig_i8.mapv(|x| x as f64);
-
-            // Equity
-            let sig_prev = shift_array(&sig_f64);
-            let eq = calculate_equity_internal(r.view(), sig_prev.view(), 1.0, 1.0 - de, cutout);
 
             component_signals.push(sig_f64);
-            component_equities.push(eq);
         }
 
-        // Calculate Weighted Signal for this MA type
-        // Signal = Sum(s_i * w_i) / Sum(w_i)
-        // Check `weighted_signal.py`:
-        // weights should be normalized? No, it's just weighted avg.
-        // Actually usually strictly: sum(s * e) / sum(e)
-        // But need to handle negative equity? Usually equity > 0.
-
-        let mut weighted_sig_sum = Array1::<f64>::zeros(n);
-        let mut weight_sum = Array1::<f64>::zeros(n);
-
-        for i in 0..9 {
-            let s = &component_signals[i];
-            let e = &component_equities[i];
-
-            for j in 0..n {
-                if !s[j].is_nan() && !e[j].is_nan() {
-                    weighted_sig_sum[j] += s[j] * e[j];
-                    weight_sum[j] += e[j].abs(); // Use abs just in case, though eq should be > 0
-                }
-            }
-        }
-
+        // Preserve serverless Layer 1 behavior:
+        // simple mean across diflen variation signals (no equity weighting at this stage).
         let mut l1_sig = Array1::<f64>::from_elem(n, f64::NAN);
         for j in 0..n {
-            if weight_sum[j] > 1e-9 {
-                l1_sig[j] = weighted_sig_sum[j] / weight_sum[j];
+            let mut sum = 0.0;
+            let mut count = 0usize;
+            for s in &component_signals {
+                if !s[j].is_nan() {
+                    sum += s[j];
+                    count += 1;
+                }
+            }
+            if count > 0 {
+                l1_sig[j] = sum / count as f64;
             } else {
-                l1_sig[j] = 0.0;
+                l1_sig[j] = f64::NAN;
             }
         }
 

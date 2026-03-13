@@ -138,8 +138,9 @@ pub const SIGNAL_NEUTRAL: f64 = 0.0;
 
 /// Maximum batch size for processing.
 ///
-/// Limits the number of symbols per batch to keep serialized SQS payloads
-/// under the 256KB hard limit and to avoid memory spikes.
+/// Limits the number of symbols per batch to control Lambda memory usage and
+/// keep synchronous `RequestResponse` payloads well within the Lambda 6 MB
+/// response-payload limit (up to ~6 KB per symbol result gives comfortable headroom).
 ///
 /// **Rationale**: 1000 symbols gives safe headroom for JSON payload growth
 /// (results + errors + metadata) while retaining high throughput per invocation.
@@ -199,6 +200,21 @@ pub const LAMBDA_SCALE: f64 = 1000.0;
 /// **Rationale**: 100 converts percentage-point inputs to decimal fractions
 /// for recursive equity calculations (for example 1.0 -> 1%).
 pub const DECAY_SCALE: f64 = 100.0;
+
+/// Number of OHLCV + timestamp fields per bar used in memory estimation.
+///
+/// Counts: open, high, low, close, volume, timestamp = 6 fields.
+/// Shared between the data-driven estimator (`aggregation::estimate_batch_memory_mb`)
+/// and the pre-validation rough estimator (`handler::estimate_batch_memory_mb_rough`).
+pub const OHLCV_FIELDS_PER_BAR: usize = 6;
+
+/// Number of working scratch buffers allocated per bar during signal computation.
+///
+/// Current buffers: roc, r_adjusted, sig_shifted = 3.
+/// **Keep in sync** with `aggregation::estimate_batch_memory_mb`. When a new
+/// working buffer is added there, increment this constant so the rough estimator
+/// in `handler::estimate_batch_memory_mb_rough` stays accurate automatically.
+pub const WORKING_BUFFERS_PER_BAR: usize = 3;
 
 #[cfg(test)]
 mod tests {

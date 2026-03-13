@@ -1,7 +1,10 @@
 """Layer 1 signal calculation for Moving Averages.
 
-This module provides the _layer1_signal_for_ma function to calculate
-Layer 1 signal for a specific Moving Average type.
+Source-of-truth parity note (`modules/adaptive_trend`):
+- Each MA variation signal is generated from crossover/crossunder events with
+  persistent state.
+- Layer 1 aggregation uses weighted average of signals where weights are the
+  per-variation equity curves.
 """
 
 from __future__ import annotations
@@ -12,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from modules.adaptive_trend_LTS_mini.core.compute_equity import _calculate_equity_vectorized, equity_series
+from modules.adaptive_trend_LTS_mini.core.process_layer1.weighted_signal import weighted_signal
 from modules.adaptive_trend_LTS_mini.core.signal_detection import generate_signal_from_ma
 from modules.adaptive_trend_LTS_mini.utils.rate_of_change import rate_of_change
 from modules.common.system import get_array_pool
@@ -28,16 +32,14 @@ def _layer1_signal_for_ma(
 ) -> Tuple[pd.Series, Tuple[pd.Series, ...], Tuple[pd.Series, ...]]:
     """Calculate Layer 1 signal for a specific Moving Average type.
 
-    Port of Pine Script logic block:
-        E   = eq(1, signal(MA),   R), sE   = signal(MA)
-        E1  = eq(1, signal(MA1),  R), sE1  = signal(MA1)
-        ...
-        EMA_Signal = Signal(sE, E, sE1, E1, ..., sE_4, E_4)
+    Layer 1 contract (source parity):
+    1. Generate 9 variation signals from crossover/crossunder events with
+       persistent state.
+    2. Compute 9 equity curves from those signals.
+    3. Aggregate Layer 1 using weighted average `Signal(signals, equities)`.
 
-    For each of 9 MAs:
-    1. Generate signal from price/MA crossover
-    2. Calculate equity curve from signal
-    3. Weight signals by their equity curves to get final Layer 1 signal
+    IMPORTANT:
+    - Step (3) must remain equity-weighted to preserve source behavior.
 
     Performance optimization:
     - Accept rate_of_change_series (rate_of_change) as optional parameter to avoid recalculation
@@ -48,14 +50,13 @@ def _layer1_signal_for_ma(
         ma_tuple: Tuple of 9 MA Series: (MA, MA1, MA2, MA3, MA4, MA_1, MA_2, MA_3, MA_4).
         lambda_val: Lambda (growth rate) for equity calculations.
         decay_val: Decay factor for equity calculations.
-        cutout: Number of bars to skip at beginning.
         rate_of_change_series: Pre-calculated rate of change series. If None, will be calculated internally.
 
     Returns:
         Tuple containing:
-        - signal_series: Weighted Layer 1 signal for this MA type
+        - signal_series: Layer 1 equity-weighted signal for this MA type
         - signals_tuple: Tuple of 9 individual signals (s, s1, s2, s3, s4, s_1, s_2, s_3, s_4)
-        - equity_tuple: Tuple of 9 equity curves (E, E1, E2, E3, E4, E_1, E_2, E_3, E_4)
+        - equity_tuple: Tuple of 9 equity curves for Layer 2 (E, E1, E2, E3, E4, E_1, E_2, E_3, E_4)
 
     Raises:
         ValueError: If ma_tuple doesn't have exactly 9 elements or inputs are invalid.
@@ -186,9 +187,6 @@ def _layer1_signal_for_ma(
 
         # Unpack equities for return tuple (maintaining original variable names)
         E, E1, E2, E3, E4, E_1, E_2, E_3, E_4 = equities
-
-        # Calculate weighted signal
-        from .weighted_signal import weighted_signal
 
         signal_series = weighted_signal(
             signals=signals,

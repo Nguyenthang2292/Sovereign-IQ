@@ -16,6 +16,9 @@ The response payload already contains final results:
 - `errors`
 - `success_count`
 - `error_count`
+- per-result optional fields:
+  - `average_signal_raw` (raw causal score contract)
+  - `average_signal_exec` (optional execution-view field, often omitted for snapshot API)
 
 No SQS polling is required.
 
@@ -59,7 +62,11 @@ symbols_data = [
 ]
 
 client = ATCLambdaClient(function_name="atc-serverless", region="us-east-1")
-result = client.invoke(symbols_data=symbols_data, config=DEFAULT_ATC_CONFIG)
+result = client.invoke(
+    symbols_data=symbols_data,
+    config=DEFAULT_ATC_CONFIG,
+    apply_strategy_shift=False,  # adapter hint; core stays raw
+)
 
 print(result["success_count"], result["error_count"])
 for row in result["results"]:
@@ -115,6 +122,15 @@ Input must satisfy:
 - finite numeric values
 
 Invalid payloads are rejected by server-side validation.
+
+## Execution Shift Migration (2026-03-14)
+
+- Core Rust signal computation is **raw-only**.
+- `apply_strategy_shift` is an adapter-level request hint and does not mutate core score logic.
+- For snapshot responses, `average_signal_raw` mirrors `score`.
+- `average_signal_exec` may be omitted when historical bars are not returned.
+- Legacy consumers that treated `score`/`Average_Signal` as already shifted must migrate
+  execution logic to explicit adapter-side shift handling.
 
 ## Related Files
 

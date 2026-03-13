@@ -26,6 +26,7 @@ def equity_series(
     *,
     lambda_val: float,
     decay_val: float,
+    cutout: int = 0,
     verbose: bool = False,
 ) -> pd.Series:
     """Calculate equity curve from trading signals and returns.
@@ -69,8 +70,6 @@ def equity_series(
         lambda_val: Lambda (growth rate) for exponential growth factor.
         decay_val: Decay factor (0-1), applied each period.
         cutout: Number of bars to skip at beginning (returns NaN for these bars).
-            Values before cutout are set to np.nan for proper handling in
-            statistical calculations and plotting (use dropna() if needed).
         verbose: If True, log warnings about NaNs and floor hits. Default is False.
 
     Returns:
@@ -105,14 +104,8 @@ def equity_series(
     if not isinstance(lambda_val, (int, float)) or np.isnan(lambda_val) or np.isinf(lambda_val):
         raise ValueError(f"lambda_val must be a finite number, got {lambda_val}")
 
-    # NOTE: cutout is always 0 now as slicing happens early in compute_atc_signals
-    # If equity_series is called directly with cutout > 0, warn user
-    cutout = 0
-    if verbose and cutout > 0:
-        log_warn(
-            f"cutout parameter ({cutout}) is ignored in equity_series. "
-            f"Cutout should be applied at compute_atc_signals level."
-        )
+    if cutout < 0:
+        raise ValueError(f"cutout must be >= 0, got {cutout}")
 
     # Check index compatibility
     if not sig.index.equals(rate_of_change_series.index):

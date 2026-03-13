@@ -13,6 +13,17 @@ ATC Serverless:
 - aggregates multi-timeframe results
 - returns LONG/SHORT/NEUTRAL with score and diagnostics
 
+## Task 3 - Execution Shift Boundary
+
+Nguyen tac dong bo voi adaptive_trend va LTS mini:
+
+- core signal engine tra ve raw causal signal
+- strategy/non-repainting shift 1 bar chi nam o execution layer
+
+Ke hoach refactor chi tiet:
+
+- [modules/adaptive_trend_LTS_serverless/docs/2026-03-14-task3-execution-shift-refactor-plan.md](docs/2026-03-14-task3-execution-shift-refactor-plan.md)
+
 ## Current Invocation Model (v0.2.x)
 
 The deployed model is **direct AWS SDK invoke**:
@@ -118,6 +129,7 @@ Request shape:
       }
     }
   ],
+  "apply_strategy_shift": false,
   "config": {
     "weights": { "1h": 0.6, "4h": 0.4 },
     "threshold": 0.3,
@@ -137,6 +149,13 @@ Request shape:
 
 Note: every timeframe key in `config.weights` must exist under each symbol's
 `timeframes` map.
+
+Response notes:
+
+- `results[*].score` is raw causal snapshot score.
+- `results[*].average_signal_raw` (optional) mirrors raw score contract.
+- `results[*].average_signal_exec` is optional and may be omitted for snapshot API.
+- `apply_strategy_shift` is an adapter hint only; core Rust signal math remains raw.
 
 ## Deploy
 
