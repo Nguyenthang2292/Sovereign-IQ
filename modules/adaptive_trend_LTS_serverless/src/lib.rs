@@ -412,6 +412,11 @@ pub struct SymbolError {
 pub struct ScanResult {
     /// Batch identifier (matches the input batch_id)
     pub batch_id: String,
+    /// Schema version of this response (mirrors [`SCHEMA_VERSION`]).
+    ///
+    /// Callers can compare this against the `version` field in [`BatchRequest`] to detect
+    /// incompatible schema evolution without deserializing the full payload.
+    pub schema_version: String,
     /// Successful signal results
     pub results: Vec<SignalResult>,
     /// Errors that occurred during processing

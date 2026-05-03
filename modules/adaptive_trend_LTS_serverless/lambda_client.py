@@ -182,7 +182,26 @@ class ATCLambdaClient:
             apply_strategy_shift: Optional execution-view request hint for adapter layer.
 
         Returns:
-            ScanResult dict: {batch_id, results, errors, success_count, error_count}
+            ScanResult dict: {batch_id, results, errors, success_count, error_count,
+                              schema_version}
+
+        Batch size guidance:
+            AWS Lambda has a 6 MB synchronous payload limit (request + response combined).
+            Each symbol with two timeframes of ~500 bars contributes roughly 25–40 KB to the
+            request payload, so **keep batches at ≤ 200 symbols per invocation**. For larger
+            scan universes split into chunks and invoke concurrently:
+
+            .. code-block:: python
+
+                import math, concurrent.futures
+
+                CHUNK_SIZE = 150
+                chunks = [symbols_data[i:i + CHUNK_SIZE]
+                          for i in range(0, len(symbols_data), CHUNK_SIZE)]
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    scan_results = list(pool.map(
+                        lambda chunk: client.invoke(chunk, config), chunks
+                    ))
         """
         if config is None:
             config = copy.deepcopy(DEFAULT_ATC_CONFIG)
@@ -256,7 +275,10 @@ class ATCLambdaClient:
         config: Optional[dict[str, Any]] = None,
         apply_strategy_shift: bool = False,
     ) -> dict[str, Any]:
-        """Convenience alias for invoking a multi-symbol batch."""
+        """Convenience alias for invoking a multi-symbol batch.
+
+        See :meth:`invoke` for batch size guidance (recommended ≤ 200 symbols per call).
+        """
         return self.invoke(
             symbols_data=symbols_data,
             config=config,

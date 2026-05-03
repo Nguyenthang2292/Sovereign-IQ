@@ -1,7 +1,7 @@
 use atc_serverless::{
     constants::{OHLCV_FIELDS_PER_BAR, WORKING_BUFFERS_PER_BAR},
     get_memory_usage_mb, parallelism::ParallelismConfig, process_batch, validate_batch_request,
-    BatchRequest, ScanResult,
+    BatchRequest, ScanResult, SCHEMA_VERSION,
 };
 use lambda_runtime::{Error, LambdaEvent};
 use rayon::current_num_threads;
@@ -288,6 +288,7 @@ pub async fn handle_request(event: LambdaEvent<BatchRequest>) -> Result<ScanResu
 
     let scan_result = ScanResult {
         batch_id: batch_id.clone(),
+        schema_version: SCHEMA_VERSION.to_string(),
         results,
         errors,
         success_count,

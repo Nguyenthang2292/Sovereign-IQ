@@ -1,3 +1,24 @@
+//! Multi-timeframe signal aggregation and weighted voting.
+//!
+//! ## Dual-Threshold Architecture
+//!
+//! `config.threshold` is applied at **two independent decision points** in the pipeline:
+//!
+//! 1. **Layer 1 discretization** (`signal_detection::discretize_layer1_vote`):
+//!    The continuous combined-MA signal for each timeframe is discretized to `{-1, 0, +1}`
+//!    before Layer 2 equity weighting and before this module is reached.
+//!    Any timeframe signal with `|score| ≤ threshold` is already mapped to `0.0 (NEUTRAL)`.
+//!
+//! 2. **Timeframe aggregation** (`aggregate_timeframes`, this module):
+//!    The weighted combination of per-timeframe scores is again compared against `threshold`
+//!    to classify the final `SignalType` as `Long`, `Short`, or `Neutral`.
+//!
+//! **Tuning implication**: Increasing `threshold` tightens *both* gates simultaneously.
+//! A timeframe must pass the Layer 1 gate before its vote can influence the Layer 2 outcome,
+//! which means the effective sensitivity of the final signal is non-linearly coupled to this
+//! single parameter. Do not assume a 1:1 mapping between `threshold` and the fraction of
+//! LONG/SHORT signals emitted.
+
 use crate::{ATCConfig, SignalResult};
 use std::collections::HashMap;
 

@@ -11,6 +11,17 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 static CUSTOM_THREAD_POOLS: OnceLock<Mutex<HashMap<usize, Arc<rayon::ThreadPool>>>> =
     OnceLock::new();
 
+/// Get or create a Rayon thread pool for the given thread count.
+///
+/// Thread pools are keyed by `num_threads` and stored in a process-global
+/// `OnceLock<Mutex<HashMap<usize, Arc<ThreadPool>>>>`. Once created, a pool is reused
+/// for the lifetime of the process, which is the desired behavior for Lambda warm invocations.
+///
+/// **Bounded-growth invariant**: The map can contain at most one entry per distinct
+/// `num_threads` value ever requested. In practice the Lambda handler derives `num_threads`
+/// from a small set of environment variables (`FORCE_THREADS`, `LAMBDA_MEMORY_THREAD_CAP`),
+/// so the map remains O(1) in size across all warm invocations. If callers were to pass
+/// arbitrary thread counts the map would grow without bound; callers must not do this.
 fn get_or_create_custom_thread_pool(num_threads: usize) -> Option<Arc<rayon::ThreadPool>> {
     let pools = CUSTOM_THREAD_POOLS.get_or_init(|| Mutex::new(HashMap::new()));
     let mut pools_guard = match pools.lock() {
